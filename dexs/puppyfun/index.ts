@@ -1,8 +1,9 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL"
 
-const BNB_ADDRESS = "0x0000000000000000000000000000000000000000"
+const BNB_ADDRESS = ADDRESSES.null
 const apiBaseURL = "https://bd-fun-defilama-ts-backend-main.puppy.fun/lama-api"
 const volumeMethod = "/volume"
 const feesMethod = "/fees"

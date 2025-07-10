@@ -102,6 +102,7 @@ export type AdapterBase = {
   version?: number;
   deadFrom?: string;
   allowNegativeValue?: boolean;
+  doublecounted?: boolean;
   prefetch?: FetchV2;
 }
 

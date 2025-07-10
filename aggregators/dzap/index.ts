@@ -77,13 +77,17 @@ async function sleep(time: number) {
 
 const fetch = (chain: number) => async (options: FetchOptions) => {
   await sleep(2);
-  const data: ApiResponse = await fetchURL(
-    `${CHAIN_VOLUME_API}?chainId=${chain}`,
-    3
-  );
+  const data: ApiResponse = await fetchURL(`${CHAIN_VOLUME_API}?chainId=${chain}`);
+
+  let dailyVolume = data.swap.last24Hours
+
+  // bad data, wash trade
+  if (options.startOfDay === 1750982400 && options.chain === CHAIN.ARBITRUM) {
+    dailyVolume = 0;
+  }
+
   return {
-    dailyVolume: data.swap.last24Hours,
-    totalVolume: data.swap.allTime,
+    dailyVolume: dailyVolume,
   };
 };
 

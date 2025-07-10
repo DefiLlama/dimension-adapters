@@ -41,6 +41,10 @@ const YearnVaultsV1: Array<string> = [
   '0x96Ea6AF74Af09522fCB4c28C269C26F59a31ced6',
 ]
 
+const BlacklistVaults = [
+  String('0xb0154f71912866Bb69fE26fFc44779D99B9CAE85').toLowerCase(),
+];
+
 const ContractAbis = {
   token: 'address:token',
   totalSupply: 'uint256:totalSupply',
@@ -172,21 +176,26 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // sum fees
   for (const vault of vaults) {
-    const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
-    const totalFees = vault.totalAssets * priceShareGrowth / 1e18
+    if (BlacklistVaults.includes(vault.vault.toLowerCase())) {
+      continue;
+    }
 
-    const performanceFees = totalFees * vault.performanceFeeRate
-    const managementFees = totalFees * vault.managementFeeRate
+    const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
+    const tf = vault.totalAssets * priceShareGrowth / 1e18
+
+    const performanceFees = tf * vault.performanceFeeRate
+    const managementFees = tf * vault.managementFeeRate
     const protocolFees = performanceFees + managementFees
 
-    dailyFees.add(vault.token, totalFees)
-    dailySupplySideRevenue.add(vault.token, totalFees - protocolFees)
+    dailyFees.add(vault.token, tf)
+    dailySupplySideRevenue.add(vault.token, tf - protocolFees)
     dailyProtocolRevenue.add(vault.token, protocolFees)
   }
 
   return {
     dailyFees,
     dailySupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   }
 }
@@ -195,35 +204,35 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2020-07-27',
       meta: {
         methodology,
       }
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
       }
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
       }
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,
       }
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: '2024-01-01',
       meta: {
         methodology,

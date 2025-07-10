@@ -7,19 +7,19 @@ import { Balances } from "@defillama/sdk";
 
 const adapterObj = volumeAdapter.adapter;
 
-const fetch = (chain: string, totalFees: number, revenueFee: number) => {
+const fetch = (chain: string, tf: number, rf: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
     const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
     const chainDailyVolume = (await (fetchedResult.dailyVolume as Balances).getUSDValue()).toString();
 
-    const ssrFee = totalFees - revenueFee
-    const protocolFee =  revenueFee
+    const ssrFee = tf - rf
+    const protocolFee =  rf
 
     return {
       timestamp,
-      dailyUserFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-      dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(revenueFee).toString() : undefined,
+      dailyUserFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(tf).toString() : undefined,
+      dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(tf).toString() : undefined,
+      dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(rf).toString() : undefined,
       dailyProtocolRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(protocolFee).toString() : undefined,
       dailySupplySideRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(ssrFee).toString() : undefined,
     };
