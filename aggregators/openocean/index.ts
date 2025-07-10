@@ -1,6 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
+const URL = "https://open-api.openocean.finance/v3";
 const contract_addresses: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.BSC]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
@@ -40,7 +42,20 @@ const contract_addresses: Record<string, string> = {
   [CHAIN.HYPERLIQUID]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64"
 };
 
+const chain_date: Record<string, string> = {
+  [CHAIN.SOLANA]: "2025-05-17",
+  [CHAIN.APTOS]: "2025-05-17",
+  [CHAIN.SUI]: "2025-05-17",
+  [CHAIN.NEAR]: "2025-05-17",
+  [CHAIN.STARKNET]: "2025-05-17",
+};
+
 const fetch = async (options: FetchOptions) => {
+  if (chain_date[options.chain]) {
+    const { data } = await fetchURL(`${URL}/${options.chain}/getDailyVolume?timestamp=${options.startOfDay}`);
+    const { dailyVolume } = data || { dailyVolume: 0 };
+    return { dailyVolume };
+  }
   const dailyVolume = options.createBalances();
   const logs = await options.getLogs({
     target: contract_addresses[options.chain],
@@ -59,14 +74,25 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.entries(contract_addresses).reduce((acc, [chain, _]) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: fetch,
-      },
-    };
-  }, {}),
+  adapter: {
+    ...Object.entries(contract_addresses).reduce((acc, [chain, _]) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: fetch,
+        },
+      };
+    }, {}),
+    ...Object.entries(chain_date).reduce((acc, [chain, _]) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: fetch,
+          start: chain_date[chain],
+        },
+      };
+    }, {})
+  }
 };
 
 export default adapter;
