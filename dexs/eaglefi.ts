@@ -1,5 +1,5 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import { Adapter, FetchOptions } from "../adapters/types";
+import fetchURL from "../utils/fetchURL";
 
 type TEndpoint = {
   [s: string]: string;
@@ -26,6 +26,12 @@ const adapter: Adapter = {
     massa: {
       fetch,
       start: "2025-06-23",
+      meta: {
+        methodology: {
+          Volume: 'Trading volume get from EagleFi API.',
+          Fees: 'Trading fees get from EagleFi API.',
+        },
+      },
     },
   },
 };
