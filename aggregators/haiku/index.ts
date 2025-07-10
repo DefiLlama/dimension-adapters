@@ -37,7 +37,7 @@ const prefetch = async (options: FetchOptions) => {
 			)
 			AND price.timestamp >= from_unixtime(${options.startTimestamp})
 			AND price.timestamp < from_unixtime(${options.endTimestamp})
-		WHERE tx.hash = IN (select tx_hash from ${blockchainName}.logs log WHERE log.contract_address = 0x24ac999ff132b32c5b3956973b6213b0d07eb2c7 and log.topic0 = 0x8b3a3eb535e3217f5718db4d1c134d3447f392bcb89955537208f4677860e213)
+		WHERE tx.hash IN (select tx_hash from ${blockchainName}.logs log WHERE log.contract_address = 0x24ac999ff132b32c5b3956973b6213b0d07eb2c7 and log.topic0 = 0x8b3a3eb535e3217f5718db4d1c134d3447f392bcb89955537208f4677860e213)
 			AND tx.block_time >= from_unixtime(${options.startTimestamp})
 			AND tx.block_time < from_unixtime(${options.endTimestamp})
 			AND (
