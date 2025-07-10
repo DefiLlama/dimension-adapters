@@ -8,7 +8,7 @@ import { request, gql } from "graphql-request";
 // GraphQL endpoints for each chain
 const endpoints = {
   [CHAIN.BASE]: "https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn",
-  [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics/graphql"
+  [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics"
 };
 
 // GraphQL query for Coti - using totalHistories
@@ -173,12 +173,15 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
             const closeVolume = parseFloat(daily.closeTradeVolume || "0");
             const liquidateVolume = parseFloat(daily.liquidateTradeVolume || "0");
 
-            // Sum all volume types
-            return sum + tradeVolume + openVolume + closeVolume + liquidateVolume;
+            // Sum all volume types and convert from wei if needed (divide by 1e18 if values are too high)
+            const totalVolume = tradeVolume + openVolume + closeVolume + liquidateVolume;
+            return sum + totalVolume;
           }, 0);
 
           if (totalVolumeUSD > 0) {
-            dailyVolume.addUSDValue(totalVolumeUSD);
+            // Check if values seem to be in wei (too high) and convert
+            const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
+            dailyVolume.addUSDValue(adjustedVolume);
           }
 
           return { dailyVolume };
@@ -201,11 +204,14 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
             const closeVolume = parseFloat(history.closeTradeVolume || "0");
             const liquidateVolume = parseFloat(history.liquidateTradeVolume || "0");
 
-            return sum + tradeVolume + openVolume + closeVolume + liquidateVolume;
+            const totalVolume = tradeVolume + openVolume + closeVolume + liquidateVolume;
+            return sum + totalVolume;
           }, 0);
 
           if (totalVolumeUSD > 0) {
-            dailyVolume.addUSDValue(totalVolumeUSD);
+            // Check if values seem to be in wei (too high) and convert
+            const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
+            dailyVolume.addUSDValue(adjustedVolume);
           }
 
           return { dailyVolume };
