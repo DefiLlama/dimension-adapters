@@ -36,6 +36,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 
   return {
     dailyFees: dailyFees,
+    dailyRevenue: dailyFees * 0.2,
   };
 };
 
