@@ -44,11 +44,11 @@ const getBaseDailyVolumeQuery = gql`
     dailyHistories(
       where: { 
         day_gte: $startDay, 
-        day_lt: $endDay 
+        day_lte: $endDay 
       }
       orderBy: day
       orderDirection: desc
-      first: 1000
+      first: 1
     ) {
       id
       day
@@ -129,10 +129,14 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
     if (chain === CHAIN.COTI) {
       // Handle Coti using totalHistories query
+      console.log(`Querying Coti between ${startTimestamp} and ${endTimestamp}`);
+      
       data = await request(endpoint, getCotiVolumeQuery, {
         startTime: startTimestamp,
         endTime: endTimestamp,
       });
+
+      console.log(`Coti response:`, data);
 
       if (data?.totalHistories?.length > 0) {
         // Sum up tradeVolume from all records in the time range
@@ -142,21 +146,29 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
           const closeVolume = parseFloat(history.closeTradeVolume || "0");
 
           // Use tradeVolume if available, otherwise sum open and close volumes
-          return sum + (tradeVolume > 0 ? tradeVolume : openVolume + closeVolume);
+          const volume = tradeVolume > 0 ? tradeVolume : openVolume + closeVolume;
+          console.log(`Coti record: tradeVolume=${tradeVolume}, openVolume=${openVolume}, closeVolume=${closeVolume}, using=${volume}`);
+          return sum + volume;
         }, 0);
 
         if (totalVolumeUSD > 0) {
-          dailyVolume.addUSDValue(totalVolumeUSD);
+          // Check if values seem to be in wei and convert if needed
+          const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
+          dailyVolume.addUSDValue(adjustedVolume);
+          console.log(`Coti final volume: ${adjustedVolume} USD from ${data.totalHistories.length} records`);
         }
 
         return { dailyVolume };
+      } else {
+        console.log("No Coti totalHistories data found");
       }
     } else if (chain === CHAIN.BASE) {
       // Handle Base - try multiple query formats based on the actual schema
 
       // Convert timestamps to day numbers for dailyHistories (they use 'day' field)
-      const startDay = Math.floor(startTimestamp / 86400); // Convert to days since epoch
-      const endDay = Math.floor(endTimestamp / 86400);
+      const currentDay = Math.floor(endTimestamp / 86400); // Get the current day only
+      const startDay = currentDay; // Only get today's data
+      const endDay = currentDay;
 
       // First try: dailyHistories (preferred - daily aggregated data)
       try {
