@@ -41,22 +41,4 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp }: FetchOption
 
   return {
     dailyFees: dailyFees.getBalances(),
-    dailyProtocolRevenue: dailyProtocolRevenue.getBalances(),
-    dailySupplySideRevenue: dailySupplySideRevenue.getBalances(),
-  };
-};
-
-const adapter: Adapter = {
-  adapter: {
-    base: {
-      fetch,
-      start: 1714608000,
-      meta: {
-        methodology:
-          "Revenue and fees include all fees paid and interest accrued on loans. Example split: 20% protocol, 80% supply side.",
-      },
-    },
-  },
-};
-
-export default adapter;
+    dailyProtocolRevenue: dailyProtocolRevenue
