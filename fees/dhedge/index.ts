@@ -149,9 +149,8 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
 
 const meta = {
   methodology: {
-    Fees: 'All yields are generated from staking vaults.',
-    Revenue: 'All fees collected by dHedge DAO.',
-    ProtocolRevenue: 'All fees collected by dHedge DAO.',
+    Fees: 'All fees generated from dHedge vaults.',
+    Revenue: 'All revenue collected by the dHedge protocol from fees generated.',
   }
 }
 

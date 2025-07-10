@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
@@ -56,7 +57,7 @@ const config: {
   [chain: string]: { FRAX: string; amos: string[]; graph: string };
 } = {
   [CHAIN.ETHEREUM]: {
-    FRAX: "0x853d955aCEf822Db058eb8505911ED77F175b99e",
+    FRAX: ADDRESSES.ethereum.FRAX,
     graph:
       sdk.graph.modifyEndpoint('5pkNZTvdKuik24p8xtHctfaHcmNghNqb4ANo2BfQVefZ'),
     amos: [
@@ -68,7 +69,7 @@ const config: {
     ],
   },
   [CHAIN.ARBITRUM]: {
-    FRAX: "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+    FRAX: ADDRESSES.arbitrum.FRAX,
     graph:
       sdk.graph.modifyEndpoint('4zJMfZFyGvqbKyyyeVs4qE15BaEuwr5DLLZiSLhJzBNs'),
     amos: [

@@ -17,6 +17,7 @@ export interface AaveLendingPoolConfig {
 
 export interface AaveAdapterExportConfig {
   start?: IStartTimestamp | number | string;
+  meta?: any;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -70,6 +71,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     let totalLiquidity = BigInt(0)
+    let totalVariableDebt = BigInt(0)
     if (pool.version === 1) {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalLiquidity)
     } else if (pool.version === 2) {
@@ -79,6 +81,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
         + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     } else {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     }
 
     const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
@@ -88,7 +91,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
       const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
-      const interestAccrued = totalLiquidity * growthVariableBorrowIndex / LiquidityIndexDecimals
+      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
 
       balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
       balances.dailySupplySideRevenue.add(reservesList[reserveIndex], 0)
@@ -113,19 +116,19 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     eventAbi: AaveAbis.FlashloanEvent,
   })
   if (flashloanEvents.length > 0) {
-    const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
-      target: pool.lendingPoolProxy,
-      abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
-    })
+    // const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
+    //   target: pool.lendingPoolProxy,
+    //   abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
+    // })
     const FLASHLOAN_PREMIUM_TO_PROTOCOL = await options.fromApi.call({
       target: pool.lendingPoolProxy,
       abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
     })
-    const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
+    // const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
     const flashloanFeeProtocolRate = Number(FLASHLOAN_PREMIUM_TO_PROTOCOL) / 1e4
 
     for (const event of flashloanEvents) {
-      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate / flashloanFeeRate
+      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
 
       balances.dailyFees.add(event.asset, flashloanPremiumForProtocol)
       balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol)
@@ -232,6 +235,7 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         }
       }),
       start: config.start,
+      meta: config.meta,
     }
   })
   return exportObject

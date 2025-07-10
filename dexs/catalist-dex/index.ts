@@ -21,30 +21,23 @@ const fetch = async (_t: number, _: any, options: FetchOptions) => {
         volumeUSD
         date
       }
-      factories {
-        totalVolumeUSD
-      }
     }
   `;
   const response = await getGQLClient().request<{
     pancakeDayData: IPoolDayData;
-    factories: Array<{ totalVolumeUSD: string }>;
   }>(getPoolDayDataQuery);
 
-  const totalVolume = response.factories[0].totalVolumeUSD;
   const dailyVolume = response.pancakeDayData?.volumeUSD;
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume ? Number(dailyVolume).toFixed(2) : undefined,
-    timestamp: options.startOfDay,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ACE]: {
-      fetch: fetch,
+      fetch,
       start: "2024-11-22",
     },
   },

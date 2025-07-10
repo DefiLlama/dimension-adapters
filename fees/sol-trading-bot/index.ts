@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // source: https://dune.com/queries/4962800/8212075
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
@@ -50,7 +51,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add('So11111111111111111111111111111111111111112', fees[0].fee * 1e9);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9);
 
   return { dailyFees, dailyRevenue: dailyFees, }
 }

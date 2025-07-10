@@ -241,6 +241,9 @@ export enum CHAIN {
   LENS = "lens",
   SSEED = "sseed",
   AO = 'ao',
+  XRPL_EVM = 'xrplevm',
+  KATANA = 'katana',
+  BOTANIX = 'btnx',
 }
 
 // Don´t use

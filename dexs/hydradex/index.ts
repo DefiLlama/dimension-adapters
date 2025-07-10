@@ -1,5 +1,5 @@
 import { Chain } from  "../../adapters/types";
-import { BreakdownAdapter, BaseAdapter, DISABLED_ADAPTER_KEY } from '../../adapters/types';
+import { BreakdownAdapter, BaseAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getStartTimestamp } from '../../helpers/getStartTimestamp';
 import {
@@ -7,7 +7,6 @@ import {
   getGraphDimensions2,
 } from '../../helpers/getUniSubgraph';
 import request from 'graphql-request';
-import disabledAdapter from '../../helpers/disabledAdapter';
 
 const v3Endpoints = {
   [CHAIN.HYDRA]: 'https://graph.hydradex.org/subgraphs/name/v3-subgraph',
@@ -66,14 +65,13 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v2: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.HYDRA]: {
         fetch: async (timestamp: number) => {
           return {
             timestamp
           }
         },
-                meta: {
+        meta: {
           methodology,
         },
       },

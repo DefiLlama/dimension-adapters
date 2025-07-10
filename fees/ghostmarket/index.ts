@@ -3,7 +3,7 @@ import type { FetchOptions } from "../../adapters/types"
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-const endpoints = {
+const endpoints:Record<string, string> = {
   [CHAIN.NEO]: "https://api-external.ghostmarket.io/defillama/fees?chain=n3&timestamp=",
   [CHAIN.BSC]: "https://api-external.ghostmarket.io/defillama/fees?chain=bsc&timestamp=",
   [CHAIN.AVAX]: "https://api-external.ghostmarket.io/defillama/fees?chain=avalanche&timestamp=",
@@ -44,7 +44,6 @@ const adapter: Adapter = {
   deadFrom: "2024-12-14",
   version: 2,
   adapter: {
-    // [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.NEO]: {
       fetch,
       start: '2021-08-24',

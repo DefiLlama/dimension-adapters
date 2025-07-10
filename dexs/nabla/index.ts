@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchV2, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -15,11 +16,11 @@ const config = {
                 "0x272dF896f4D0c97F65e787f861bb6e882776a155"
             ],
             assets : [
-                "0x912ce59144191c1204e64559fe8253a0e49e6548",
-                "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
-                "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
-                "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
-                "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"
+                ADDRESSES.arbitrum.ARB,
+                ADDRESSES.arbitrum.USDC_CIRCLE,
+                ADDRESSES.arbitrum.USDT,
+                ADDRESSES.arbitrum.WBTC,
+                ADDRESSES.arbitrum.WETH
             ],
         }
     },
@@ -28,7 +29,7 @@ const config = {
         backfill: {
             routers : ["0x791Fee7b66ABeF59630943194aF17B029c6F487B"],
             pools : ["0xa83a20F4dCaB1a63a9118E9E432932c8BEB39b85", "0x123456C6C27bb57013F4b943A0f032a0ab9c12eB"],
-            assets : ["0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf", "0x4200000000000000000000000000000000000006"],
+            assets : [ADDRESSES.ethereum.cbBTC, ADDRESSES.optimism.WETH_1],
         }
     }
 }

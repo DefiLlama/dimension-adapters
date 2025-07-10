@@ -1,8 +1,7 @@
 import { CHAIN } from "../helpers/chains";
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import disabledAdapter from "../helpers/disabledAdapter";
 
 interface IData {
   timestamp: number;
@@ -24,7 +23,6 @@ const fetch = async (timestamp: number, _a: any, _b: any) => {
 const adapter: SimpleAdapter = {
   deadFrom: "2024-12-14",
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.OPTIMISM]: {
       fetch,
       start: '2023-04-22',

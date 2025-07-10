@@ -12,7 +12,7 @@ const eventAbis = {
   randomnessRequest: "event RandomnessRequest(bytes32 keyHash, uint256 seed, bytes32 indexed jobID, address sender, uint256 fee, bytes32 requestID)",
 }
 
-const LINK = '0x514910771af9ca656af840dff83e8264ecf986ca';
+const LINK = ADDRESSES.ethereum.LINK;
 
 type TAddrress = {
   [l: string | CHAIN]: string;

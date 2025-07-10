@@ -6,9 +6,7 @@ type PoolHighLevelStats = {
   start_date: string,
   end_date: string;
   daily_volume_usd: number;
-  total_volume_usd: number;
   daily_fee_usd: number;
-  total_fee_usd: number;
 }
 async function fetch({ endTimestamp, }: FetchOptions) {
   const endDate = new Date(endTimestamp * 1000).toISOString();
