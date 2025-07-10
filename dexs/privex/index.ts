@@ -34,7 +34,6 @@ const getCotiVolumeQuery = gql`
       closeTradeVolume
       deposit
       withdraw
-      fundingReceived
     }
   }
 `;
@@ -168,20 +167,17 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
         if (data?.dailyHistories?.length > 0) {
           const totalVolumeUSD = data.dailyHistories.reduce((sum, daily) => {
+            // Only use tradeVolume to avoid double counting
             const tradeVolume = parseFloat(daily.tradeVolume || "0");
-            const openVolume = parseFloat(daily.openTradeVolume || "0");
-            const closeVolume = parseFloat(daily.closeTradeVolume || "0");
-            const liquidateVolume = parseFloat(daily.liquidateTradeVolume || "0");
-
-            // Sum all volume types and convert from wei if needed (divide by 1e18 if values are too high)
-            const totalVolume = tradeVolume + openVolume + closeVolume + liquidateVolume;
-            return sum + totalVolume;
+            
+            return sum + tradeVolume;
           }, 0);
 
           if (totalVolumeUSD > 0) {
             // Check if values seem to be in wei (too high) and convert
             const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
             dailyVolume.addUSDValue(adjustedVolume);
+            console.log(`Base daily volume: ${adjustedVolume} USD from ${data.dailyHistories.length} records`);
           }
 
           return { dailyVolume };
@@ -199,19 +195,16 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
 
         if (data?.totalHistories?.length > 0) {
           const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
+            // Only use tradeVolume to avoid double counting (consistent with dailyHistories)
             const tradeVolume = parseFloat(history.tradeVolume || "0");
-            const openVolume = parseFloat(history.openTradeVolume || "0");
-            const closeVolume = parseFloat(history.closeTradeVolume || "0");
-            const liquidateVolume = parseFloat(history.liquidateTradeVolume || "0");
-
-            const totalVolume = tradeVolume + openVolume + closeVolume + liquidateVolume;
-            return sum + totalVolume;
+            return sum + tradeVolume;
           }, 0);
 
           if (totalVolumeUSD > 0) {
             // Check if values seem to be in wei (too high) and convert
             const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
             dailyVolume.addUSDValue(adjustedVolume);
+            console.log(`Base total volume: ${adjustedVolume} USD from ${data.totalHistories.length} records`);
           }
 
           return { dailyVolume };
