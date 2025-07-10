@@ -13,7 +13,7 @@ const endpoints = {
 
 // GraphQL query for Coti - using totalHistories  
 const getCotiVolumeQuery = gql`
-  query getCotiVolume($startTime: Int!, $endTime: Int!) {
+  query getCotiVolume {
     totalHistories(
       orderBy: timestamp
       orderDirection: desc
@@ -184,15 +184,19 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
         if (data?.dailyHistories?.length > 0) {
           console.log(`Base: Found ${data.dailyHistories.length} daily records:`, data.dailyHistories.map(d => ({day: d.day, tradeVolume: d.tradeVolume})));
           
-          // Take only the most recent day's data
-          const latestDay = data.dailyHistories[0]; // Already ordered by day desc
-          const tradeVolume = parseFloat(latestDay.tradeVolume || "0");
+          // Find the first record with non-zero volume (skip zeros)
+          const recordWithVolume = data.dailyHistories.find(d => parseFloat(d.tradeVolume || "0") > 0);
           
-          if (tradeVolume > 0) {
-            // Check if values seem to be in wei (too high) and convert
-            const adjustedVolume = tradeVolume > 1e15 ? tradeVolume / 1e18 : tradeVolume;
+          if (recordWithVolume) {
+            const tradeVolume = parseFloat(recordWithVolume.tradeVolume || "0");
+            console.log(`Using record with volume: day=${recordWithVolume.day}, tradeVolume=${tradeVolume}`);
+            
+            // These are definitely in wei format - convert them
+            const adjustedVolume = tradeVolume / 1e18;
             dailyVolume.addUSDValue(adjustedVolume);
-            console.log(`Base daily volume: ${adjustedVolume} USD from day ${latestDay.day}`);
+            console.log(`Base daily volume: ${adjustedVolume} USD from day ${recordWithVolume.day}`);
+          } else {
+            console.log("No Base records with volume > 0 found");
           }
 
           return { dailyVolume };
