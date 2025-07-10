@@ -1,7 +1,6 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import {
   FetchOptions,
-  FetchResultV2,
   FetchV2,
   SimpleAdapter,
 } from "../adapters/types";
@@ -149,8 +148,8 @@ const fetchPolygonRevenue = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees paid by dapps/projects launching quests on KGeN.",
-  Revenue: "Fees paid by dapps/projects launching quests on KGeN.",
+  Fees: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
+  Revenue: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
   ProtocolRevenue: "All fees collected by KGeN.",
 };
 

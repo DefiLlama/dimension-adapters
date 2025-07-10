@@ -62,6 +62,7 @@ const v3Endpoints = {
   // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
   // [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Jhu62RoQqrrWoxUUhWFkiMHDrqsTe7hTGb3NGiHPuf9'),
   // [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/id/QmZ5uwhnwsJXAQGYEF8qKPQ85iVhYAcVZcZAPfrF7ZNb9z",
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3V7ZY6muhxaQL5qvntX1CFXJ32W7BxXZTGTwmpH5J4t3'),
   // [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('3hCPRGf4z88VC5rsBKU5AA9FBBq5nF3jbKJG7VZCbhjm'),
   // [CHAIN.CELO]: sdk.graph.modifyEndpoint('ESdrTJ3twMwWVoQ1hUE2u7PugEHX3QkenudD6aXCkDQ4'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('F85MNzUGYqgSHSHRGgeVMNsdnW1KtZSVgFULumXRZTw2'), // use oku
@@ -321,7 +322,6 @@ const okuChains = [
   CHAIN.OPTIMISM,
   CHAIN.POLYGON,
   CHAIN.ERA,
-  CHAIN.UNICHAIN,
   CHAIN.SEI,
   CHAIN.UNICHAIN,
   CHAIN.SEI,
@@ -346,10 +346,10 @@ const okuChains = [
   CHAIN.SAGA,
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
-  CHAIN.ARBITRUM,
+  // CHAIN.ARBITRUM,
   CHAIN.LENS,
   CHAIN.TELOS,
-  CHAIN.CELO
+  CHAIN.CELO,
 ]
 
 
