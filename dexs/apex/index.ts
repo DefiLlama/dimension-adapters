@@ -53,7 +53,7 @@ const fetch = async (timestamp: number) => {
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
     return {
-        dailyOpenInterest: dailyOpenInterest,
+        openInterestAtEnd: dailyOpenInterest,
         dailyVolume: dailyVolume,
     };
 };

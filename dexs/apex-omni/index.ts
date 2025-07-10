@@ -46,7 +46,7 @@ const fetch = async (timestamp: number) => {
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
 
     return {
-        dailyOpenInterest: dailyOpenInterest,
+        openInterestAtEnd: dailyOpenInterest,
         dailyVolume: dailyVolume,
     };
 };
