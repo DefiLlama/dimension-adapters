@@ -13,11 +13,14 @@ const endpoints = {
 
 // GraphQL query for Coti - using totalHistories  
 const getCotiVolumeQuery = gql`
-  query getCotiVolume {
+  query getCotiVolume($sinceTimestamp: Int!) {
     totalHistories(
+      where: { 
+        timestamp_gte: $sinceTimestamp
+      }
       orderBy: timestamp
       orderDirection: desc
-      first: 10
+      first: 50
     ) {
       id
       timestamp
@@ -124,18 +127,25 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
     let data;
 
     if (chain === CHAIN.COTI) {
-      // Handle Coti using totalHistories query - first let's see what data exists
-      console.log(`Querying Coti for any recent data`);
+      // Handle Coti using totalHistories query from February 1, 2025 onwards
+      const februaryFirst2025 = 1738368000; // February 1, 2025 timestamp
+      console.log(`Querying Coti from February 1, 2025 (${februaryFirst2025}) onwards`);
       
-      data = await request(endpoint, getCotiVolumeQuery, {});
+      data = await request(endpoint, getCotiVolumeQuery, {
+        sinceTimestamp: februaryFirst2025
+      });
 
       console.log(`Coti response:`, data);
 
       if (data?.totalHistories?.length > 0) {
-        console.log(`Found ${data.totalHistories.length} Coti records. Latest timestamps:`, 
-          data.totalHistories.slice(0, 3).map(h => ({timestamp: h.timestamp, tradeVolume: h.tradeVolume})));
+        console.log(`Found ${data.totalHistories.length} Coti records since Feb 1, 2025. Latest timestamps:`, 
+          data.totalHistories.slice(0, 5).map(h => ({
+            timestamp: h.timestamp, 
+            date: new Date(h.timestamp * 1000).toISOString().split('T')[0],
+            tradeVolume: h.tradeVolume
+          })));
         
-        // Filter records within our time range
+        // Filter records within our 24-hour time range
         const relevantRecords = data.totalHistories.filter(history => 
           history.timestamp >= startTimestamp && history.timestamp <= endTimestamp
         );
@@ -149,39 +159,45 @@ const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalan
             const closeVolume = parseFloat(history.closeTradeVolume || "0");
 
             const volume = tradeVolume > 0 ? tradeVolume : openVolume + closeVolume;
-            console.log(`Coti record: tradeVolume=${tradeVolume}, openVolume=${openVolume}, closeVolume=${closeVolume}, using=${volume}`);
             return sum + volume;
           }, 0);
 
           if (totalVolumeUSD > 0) {
             const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
             dailyVolume.addUSDValue(adjustedVolume);
-            console.log(`Coti final volume: ${adjustedVolume} USD from ${relevantRecords.length} records`);
+            console.log(`Coti actual daily volume: ${adjustedVolume} USD from ${relevantRecords.length} records`);
           }
         } else {
-          // If no records in exact time range, use the most recent record with volume
-          console.log("No records in exact time range, checking for recent volume data...");
-          const recordWithVolume = data.totalHistories.find(h => parseFloat(h.tradeVolume || "0") > 0);
-          
-          if (recordWithVolume) {
-            const tradeVolume = parseFloat(recordWithVolume.tradeVolume || "0");
-            console.log(`Using most recent Coti volume record: timestamp=${recordWithVolume.timestamp}, tradeVolume=${tradeVolume}`);
+          // If no exact daily data, find the most recent record and estimate daily volume
+          const recentRecords = data.totalHistories.slice(0, 2); // Get 2 most recent
+          if (recentRecords.length >= 2) {
+            const latest = recentRecords[0];
+            const previous = recentRecords[1];
             
-            // Convert from wei if needed
-            const adjustedVolume = tradeVolume > 1e15 ? tradeVolume / 1e18 : tradeVolume;
+            const latestVolume = parseFloat(latest.tradeVolume || "0");
+            const previousVolume = parseFloat(previous.tradeVolume || "0");
+            const volumeDiff = latestVolume - previousVolume;
             
-            // For demo purposes, let's take a daily portion (divide by ~30 for monthly data)
-            const dailyEstimate = adjustedVolume / 30;
-            dailyVolume.addUSDValue(dailyEstimate);
-            console.log(`Coti estimated daily volume: ${dailyEstimate} USD (estimated from recent total: ${adjustedVolume})`);
+            if (volumeDiff > 0) {
+              const timeDiff = parseInt(latest.timestamp) - parseInt(previous.timestamp);
+              const dailyRate = volumeDiff / (timeDiff / 86400); // Volume per day
+              
+              const adjustedDailyVolume = dailyRate > 1e15 ? dailyRate / 1e18 : dailyRate;
+              dailyVolume.addUSDValue(Math.max(0, adjustedDailyVolume));
+              
+              console.log(`Coti estimated daily volume: ${adjustedDailyVolume} USD (calculated from recent activity)`);
+              console.log(`Latest: ${latestVolume / 1e18}, Previous: ${previousVolume / 1e18}, Diff: ${volumeDiff / 1e18}, Days: ${timeDiff / 86400}`);
+            } else {
+              console.log("No recent Coti volume increase detected");
+            }
           } else {
-            console.log("No Coti records with volume found");
+            console.log("Not enough Coti records to calculate daily volume");
           }
         }
 
         return { dailyVolume };
       } else {
-        console.log("No Coti totalHistories data found at all");
+        console.log("No Coti data found since February 1, 2025");
       }
     } else if (chain === CHAIN.BASE) {
       // Handle Base - try multiple query formats based on the actual schema
