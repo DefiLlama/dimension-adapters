@@ -38,7 +38,6 @@
     "tron-format-address": "^0.1.11"
   },
   "devDependencies": {
-    "@types/jmespath": "^0.15.2",
     "@types/node": "^18.7.23",
     "glob": "^10.3.10",
     "inquirer": "^8.0.0",
