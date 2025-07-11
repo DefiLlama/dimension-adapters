@@ -132,8 +132,9 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ERA]: {
       start: '2023-07-24',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      factory: '0x1bb72e0cbbea93c08f535fc7856e0338d7f7a8ab',
     },
     [CHAIN.ARBITRUM]: {
       start: '2023-08-08',
@@ -144,6 +145,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
+      // factory: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
     },
     [CHAIN.BASE]: {
       start: '2023-08-21',
