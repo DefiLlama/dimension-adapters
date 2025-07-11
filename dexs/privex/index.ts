@@ -1,279 +1,76 @@
-// PriveX Volume Adapter for DefiLlama
-// File: dexs/privex/index.ts
-
-import { FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 
-// GraphQL endpoints for each chain
 const endpoints = {
   [CHAIN.BASE]: "https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn",
   [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics"
 };
 
-// GraphQL query for Coti - using totalHistories  
-const getCotiVolumeQuery = gql`
-  query getCotiVolume($sinceTimestamp: Int!) {
-    totalHistories(
-      where: { 
-        timestamp_gte: $sinceTimestamp
+const fetchCoti = async (_a: any, _b: any, options: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()])
+
+  const query = gql`
+    query volumes {
+      yesterday: totalHistories(block: {number: ${fromBlock}}) {
+        timestamp
+        tradeVolume
       }
-      orderBy: timestamp
-      orderDirection: desc
-      first: 50
-    ) {
-      id
-      timestamp
-      updateTimestamp
-      tradeVolume
-      quotesCount
-      accounts
-      users
-      openTradeVolume
-      closeTradeVolume
-      deposit
-      withdraw
-    }
-  }
-`;
-
-// GraphQL query for Base - using DailyHistory (best for daily volume aggregates)
-const getBaseDailyVolumeQuery = gql`
-  query getBaseDailyVolume($startDay: Int!, $endDay: Int!) {
-    dailyHistories(
-      where: { 
-        day_gte: $startDay, 
-        day_lte: $endDay 
+      today: totalHistories(block: {number: ${toBlock}}) {
+        timestamp
+        tradeVolume
       }
-      orderBy: day
-      orderDirection: desc
-      first: 5
-    ) {
-      id
-      day
-      tradeVolume
-      openTradeVolume
-      closeTradeVolume
-      liquidateTradeVolume
-      quotesCount
-      activeUsers
-      newUsers
-      platformFee
-      accountSource
-      timestamp
     }
+  `;
+
+  const graphRes = await request(endpoints[options.chain], query);
+  const todayVolume = graphRes['today'].reduce((p: any, c: any) => p + Number(c.tradeVolume), 0)
+  const yesterdayVolume = graphRes['yesterday'].reduce((p: any, c: any) => p + Number(c.tradeVolume), 0)
+  const volume24H = todayVolume - yesterdayVolume;
+
+  return {
+    dailyVolume: volume24H / 1e18 // convert to wei
   }
-`;
+}
 
-// Alternative Base query using individual trade records if daily aggregates don't work
-const getBaseTradeHistoryQuery = gql`
-  query getBaseTradeHistory($startTime: Int!, $endTime: Int!) {
-    tradeHistories(
-      where: { 
-        timestamp_gte: $startTime, 
-        timestamp_lt: $endTime 
-      }
-      orderBy: timestamp
-      orderDirection: desc
-      first: 1000
-    ) {
-      id
-      timestamp
-      volume
-      account
-      quoteStatus
-      blockNumber
-    }
-  }
-`;
+const fetchBase = async (_a: any, _b: any, options: FetchOptions) => {
+  const endpoint = endpoints[options.chain];
+  const day = Math.floor(options.endTimestamp / 86400);
 
-// Third option: Base TotalHistory for cumulative data
-const getBaseTotalHistoryQuery = gql`
-  query getBaseTotalHistory($startTime: Int!, $endTime: Int!) {
-    totalHistories(
-      where: { 
-        timestamp_gte: $startTime, 
-        timestamp_lt: $endTime 
-      }
-      orderBy: timestamp
-      orderDirection: desc
-      first: 1000
-    ) {
-      id
-      timestamp
-      tradeVolume
-      openTradeVolume
-      closeTradeVolume
-      liquidateTradeVolume
-      quotesCount
-      users
-      accounts
-      platformFee
-      accountSource
-    }
-  }
-`;
-
-// Fetch function for volume data
-const fetch: FetchV2 = async ({ endTimestamp, startTimestamp, chain, createBalances }) => {
-  const dailyVolume = createBalances();
-  const endpoint = endpoints[chain];
-
-  if (!endpoint) {
-    throw new Error(`No endpoint configured for chain: ${chain}`);
-  }
-
-  try {
-    let data;
-
-    if (chain === CHAIN.COTI) {
-      // Handle Coti - get the most recent volume data available
-      const februaryFirst2025 = 1738368000; // February 1, 2025 timestamp
-      
-      data = await request(endpoint, getCotiVolumeQuery, {
-        sinceTimestamp: februaryFirst2025
-      });
-
-      if (data?.totalHistories?.length > 0) {
-        // Find the most recent record with actual volume
-        const recordWithVolume = data.totalHistories.find(h => parseFloat(h.tradeVolume || "0") > 0);
-        
-        if (recordWithVolume) {
-          const tradeVolume = parseFloat(recordWithVolume.tradeVolume || "0");
-          const recordDate = new Date(recordWithVolume.timestamp * 1000).toISOString().split('T')[0];
-          
-          // Convert from wei
-          const totalVolume = tradeVolume / 1e18;
-          
-          // Estimate current daily volume (assume steady growth since last record)
-          const daysSinceRecord = Math.max(1, Math.floor((endTimestamp - parseInt(recordWithVolume.timestamp)) / 86400));
-          const estimatedDailyVolume = Math.min(totalVolume / 30, 150000); // Cap at reasonable daily amount
-          
-          dailyVolume.addUSDValue(estimatedDailyVolume);
-          console.log(`Coti: Using volume from ${recordDate}, estimated daily: ${estimatedDailyVolume} USD (${daysSinceRecord} days ago)`);
+  const query = gql`
+    query volumes {
+      dailyHistories(
+        where: { 
+          day: ${day}, 
         }
-
-        return { dailyVolume };
-      }
-    } else if (chain === CHAIN.BASE) {
-      // Handle Base - try multiple query formats based on the actual schema
-
-      // Convert timestamps to day numbers for dailyHistories (they use 'day' field)
-      // Try a broader range to catch any daily data
-      const endDay = Math.floor(endTimestamp / 86400);
-      const startDay = endDay - 2; // Look at last few days to find data
-      
-      console.log(`Base: Looking for days ${startDay} to ${endDay} (timestamps: ${startTimestamp} to ${endTimestamp})`);
-
-      // First try: dailyHistories (preferred - daily aggregated data)
-      try {
-        data = await request(endpoint, getBaseDailyVolumeQuery, {
-          startDay: startDay,
-          endDay: endDay,
-        });
-
-        if (data?.dailyHistories?.length > 0) {
-          console.log(`Base: Found ${data.dailyHistories.length} daily records:`, data.dailyHistories.map(d => ({day: d.day, tradeVolume: d.tradeVolume})));
-          
-          // Find the first record with non-zero volume (skip zeros)
-          const recordWithVolume = data.dailyHistories.find(d => parseFloat(d.tradeVolume || "0") > 0);
-          
-          if (recordWithVolume) {
-            const tradeVolume = parseFloat(recordWithVolume.tradeVolume || "0");
-            console.log(`Using record with volume: day=${recordWithVolume.day}, tradeVolume=${tradeVolume}`);
-            
-            // These are definitely in wei format - convert them
-            const adjustedVolume = tradeVolume / 1e18;
-            dailyVolume.addUSDValue(adjustedVolume);
-            console.log(`Base daily volume: ${adjustedVolume} USD from day ${recordWithVolume.day}`);
-          } else {
-            console.log("No Base records with volume > 0 found");
-          }
-
-          return { dailyVolume };
-        }
-      } catch (e) {
-        console.log("Base dailyHistories query failed, trying totalHistories...");
-      }
-
-      // Second try: totalHistories (similar to Coti)
-      try {
-        data = await request(endpoint, getBaseTotalHistoryQuery, {
-          startTime: startTimestamp,
-          endTime: endTimestamp,
-        });
-
-        if (data?.totalHistories?.length > 0) {
-          const totalVolumeUSD = data.totalHistories.reduce((sum, history) => {
-            // Only use tradeVolume to avoid double counting (consistent with dailyHistories)
-            const tradeVolume = parseFloat(history.tradeVolume || "0");
-            return sum + tradeVolume;
-          }, 0);
-
-          if (totalVolumeUSD > 0) {
-            // Check if values seem to be in wei (too high) and convert
-            const adjustedVolume = totalVolumeUSD > 1e15 ? totalVolumeUSD / 1e18 : totalVolumeUSD;
-            dailyVolume.addUSDValue(adjustedVolume);
-            console.log(`Base total volume: ${adjustedVolume} USD from ${data.totalHistories.length} records`);
-          }
-
-          return { dailyVolume };
-        }
-      } catch (e) {
-        console.log("Base totalHistories query failed, trying individual trades...");
-      }
-
-      // Third try: individual tradeHistories
-      try {
-        data = await request(endpoint, getBaseTradeHistoryQuery, {
-          startTime: startTimestamp,
-          endTime: endTimestamp,
-        });
-
-        if (data?.tradeHistories?.length > 0) {
-          const totalVolumeUSD = data.tradeHistories.reduce((sum, trade) => {
-            const volume = parseFloat(trade.volume || "0");
-            return sum + volume;
-          }, 0);
-
-          if (totalVolumeUSD > 0) {
-            dailyVolume.addUSDValue(totalVolumeUSD);
-          }
-
-          return { dailyVolume };
-        }
-      } catch (e) {
-        console.log("All Base queries failed");
+        orderBy: day
+        orderDirection: desc
+        first: 100
+      ) {
+        day
+        tradeVolume
       }
     }
+  `;
 
-    // If no data found, return empty volume
-    console.log(`No volume data found for ${chain} between ${startTimestamp} and ${endTimestamp}`);
-    return { dailyVolume };
+  let data = await request(endpoint, query);
 
-  } catch (error) {
-    console.error(`Error fetching volume for ${chain}:`, error);
-    return { dailyVolume };
-  }
+  const recordWithVolume = data?.dailyHistories?.find(d => parseFloat(d.tradeVolume || "0") > 0);
+  const dailyVolume = parseFloat(recordWithVolume.tradeVolume) / 1e18;
+
+  return { dailyVolume };
 };
 
-// Adapter configuration
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.BASE]: {
-      fetch,
-      start: 1728345600, // October 8, 2024
+      fetch: fetchBase,
+      start: '2024-09-08', // October 8, 2024
     },
     [CHAIN.COTI]: {
-      fetch,
-      start: 1735689600, // January 1, 2025
-    },
-  },
-  meta: {
-    methodology: {
-      Volume: "PriveX trading volume is calculated by summing all trade transactions across Base and Coti networks using subgraph data.",
-      DailyVolume: "Daily volume represents the total USD value of all trades executed on PriveX within a 24-hour period, including open trades, close trades, and liquidations.",
+      fetch: fetchCoti,
+      start: '2025-01-01', // January 1, 2025
     },
   },
 };
