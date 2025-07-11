@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpPost } from "../utils/fetchURL";
-import jmespath from "jmespath";
 
 // Each entry in the history is a tuple: [timestamp, value]
 type HistoryEntry = [number, string];
@@ -32,10 +31,32 @@ const MS_4 = "0xc8f969ef6b51a428859f3a606e6b103dc1fb92e9";
 const MS_5 = "0x2cd4aa47e778fe8fa27cdcd4ce2bc99b6bf90f61";
 const MS_ALL = [MS_1, MS_2, MS_3, MS_4, MS_5];
 
+// Function to extract pnlHistory from day data (index 0)
+function extractDayPnlHistory(response: PortfolioData): HistoryEntry[] {
+    return response[0][1].pnlHistory;
+}
+
+// Function to extract pnlHistory from allTime data (index 3)
+function extractAllTimePnlHistory(response: PortfolioData): HistoryEntry[] {
+    return response[3][1].pnlHistory;
+}
+
+// Function to extract data based on path without jmespath
+function extractDataByPath<T>(response: PortfolioData, path: string): T {
+    switch (path) {
+        case "[0][1].pnlHistory":
+            return extractDayPnlHistory(response) as T;
+        case "[3][1].pnlHistory":
+            return extractAllTimePnlHistory(response) as T;
+        default:
+            throw new Error(`Unsupported path: ${path}`);
+    }
+}
+
 async function fetchHyperliquidInfo<T>(input: any, path: string): Promise<T> {
     const response = await httpPost("https://api.hyperliquid.xyz/info", input);
-    const data = jmespath.search(response, path);
-    return data as T;
+    const data = extractDataByPath<T>(response as PortfolioData, path);
+    return data;
 }
 
 const fetch = async (options: FetchOptions) => {
