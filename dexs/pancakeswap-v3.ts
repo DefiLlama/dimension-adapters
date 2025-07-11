@@ -1,7 +1,7 @@
+import axios from "axios";
 import { BaseAdapter, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { addOneToken } from "../helpers/prices";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 // Import the necessary components from the main pancakeswap adapter
@@ -90,6 +90,40 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
   throw new Error('Invalid data source');
 };
 
+const pancakeSolanaExplorer = 'https://sol-explorer.pancakeswap.com/api/cached/v1/pools/info/list?poolType=concentrated&poolSortField=default&order=desc'
+const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
+
+  let dailyVolume = 0;
+  let dailyFees = 0;
+
+  let page = 1;
+  let allPools: Array<any> = [];
+  do {
+    const response = await axios.get(`${pancakeSolanaExplorer}&pageSize=100&page=${page}`);
+    const pools = response.data.data;
+    if (pools.length == 0) {
+      break;
+    }
+    allPools = allPools.concat(pools);
+
+    page += 1;
+  } while(true)
+
+  for (const pool of allPools) {
+    dailyVolume += Number(pool.day.volume);
+    dailyFees += Number(pool.day.volumeFee);
+  }
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailyFees * 0.68, // 68% swap fees
+    dailyProtocolRevenue: dailyFees * 0.09, // 9% swap fees
+    dailyHoldersRevenue: dailyFees * 0.023, // 23% swap fees
+  }
+}
+
 const createV3Adapter = () => {
   const chains = Object.keys(V3_CONFIG);
   
@@ -105,9 +139,17 @@ const createV3Adapter = () => {
   }, {} as BaseAdapter);
 };
 
+const adapters = createV3Adapter();
+
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: createV3Adapter()
+  adapter: {
+    ...adapters,
+    solana: {
+      fetch: fetchSolanaV3,
+      runAtCurrTime: true,
+    }
+  }
 };
 
 export default adapter;
