@@ -66,7 +66,6 @@ export const fetchBond = async (
       const quoteToken = activeBonds.find(
         (bond) => Number(bond.id) === Number(log.id)
       )?.quoteToken;
-      console.log(quoteToken);
       if (!quoteToken) return;
       balances.add(quoteToken, log.amount);
       revenue.add(quoteToken, log.amount / 10n); // 10% of all bond sales go to treasury
