@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
 import {
@@ -10,6 +10,7 @@ import {
   getChainVolume,
 } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
+import { queryDuneSql } from "../../helpers/dune";
 
 const endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
@@ -98,6 +99,26 @@ const fetchLiquidityHub = async (timestamp: number) => {
   };
 };
 
+const fetchDune = async (_a:any, _b:any, options:FetchOptions) => {
+  const query = `
+    SELECT 
+      SUM(amount_usd) as volume
+    FROM
+      dex.trades
+    WHERE
+      project='quickswap' 
+      AND blockchain = '${options.chain.toLowerCase()}'
+      AND version='3'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time <= from_unixtime(${options.endTimestamp})
+  `
+  const chainData = await queryDuneSql(options, query)
+
+  return {
+    dailyVolume: chainData[0]["volume"],
+  };
+}
+
 const adapter: BreakdownAdapter = {
   version: 1,
   breakdown: {
@@ -109,7 +130,7 @@ const adapter: BreakdownAdapter = {
     },
     v3: {
       [CHAIN.POLYGON]: {
-        fetch: graphsAlgebraV3(CHAIN.POLYGON),
+        fetch: fetchDune,
         start: '2022-09-06',
       },
       // [CHAIN.DOGECHAIN]: {
