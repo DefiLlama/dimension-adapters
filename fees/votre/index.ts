@@ -21,8 +21,6 @@ async function revenue(startTime: number, endTime: number) {
     startTime,
     endTime
   });
-  console.log({ query })
-  console.log({ data: data.providerPositions.length });
   return data.providerPositions;
 }
 
@@ -48,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const { fromTimestamp, toTimestamp } = options;
-  console.log({ fromTimestamp, toTimestamp });
+
   const providerPositions = await revenue(fromTimestamp, toTimestamp);
   providerPositions.forEach((log: any) => {
     dailyFees.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
