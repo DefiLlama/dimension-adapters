@@ -2,7 +2,6 @@ import axios from "axios";
 import { BaseAdapter, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { addOneToken } from "../helpers/prices";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 // Import the necessary components from the main pancakeswap adapter
@@ -92,7 +91,7 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const pancakeSolanaExplorer = 'https://sol-explorer.pancakeswap.com/api/cached/v1/pools/info/list?poolType=concentrated&poolSortField=default&order=desc'
-const fetchSolanaV3 = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
 
   let dailyVolume = 0;
   let dailyFees = 0;
@@ -140,10 +139,12 @@ const createV3Adapter = () => {
   }, {} as BaseAdapter);
 };
 
+const adapters = createV3Adapter();
+
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    ...createV3Adapter(),
+    ...adapters,
     solana: {
       fetch: fetchSolanaV3,
       runAtCurrTime: true,
