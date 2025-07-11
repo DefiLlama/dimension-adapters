@@ -9,7 +9,7 @@ const contract_address = {
 const usdt = 'tether'
 const event_order_settled = 'event OrderSettled(uint128 indexed marketId,uint128 indexed accountId,uint256 fillPrice,int256 pnl,int256 accruedFunding,int128 sizeDelta,int128 newSize,uint256 totalFees,uint256 referralFees,uint256 collectedFees,uint256 settlementReward,bytes32 indexed trackingCode,address settler)'
 
-const fetchFromLogs = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const logs = await options.getLogs({
     target: contract_address[options.chain],
@@ -43,11 +43,13 @@ const fetchFromLogs = async (timestamp: number, _: ChainBlocks, options: FetchOp
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchFromLogs,
+      fetch,
+      runAtCurrTime: true,
       start: '2024-01-13',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFromLogs,
+      fetch,
+      runAtCurrTime: true,
       start: '2024-06-24',
     }
   }

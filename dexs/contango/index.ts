@@ -61,7 +61,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
     `;
   const response: IResponse = await request(endpoint[options.chain], query);
 
-  const dailyOpenInterest = createBalances();
+  const openInterestAtEnd = createBalances();
   const dailyVolume = createBalances();
 
   const tokens = response.today.map((asset) => asset.id);
@@ -88,12 +88,12 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 
   data.map(({ volume, id, openInterest }) => {
     dailyVolume.add(id, +volume);
-    dailyOpenInterest.add(id, +openInterest);
+    openInterestAtEnd.add(id, +openInterest);
   });
 
   return {
-    openInterestAtEnd: dailyOpenInterest,
     dailyVolume,
+    openInterestAtEnd: openInterestAtEnd,
   };
 };
 

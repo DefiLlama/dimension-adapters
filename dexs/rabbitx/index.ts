@@ -12,7 +12,7 @@ interface IVolumeall {
   close: string;
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const toTimestamp = getTimestampAtStartOfNextDayUTC(fromTimestamp) - 1;
 
@@ -41,7 +41,8 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchVolume,
+      fetch,
+      runAtCurrTime: true,
       start: '2023-11-17', // Replace with actual start timestamp
     },
   },

@@ -55,7 +55,7 @@ const fetch: Fetch = async (timestamp:number, _b:any, options: FetchOptions) => 
   ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
   : 0
 
-  // let dailyOpenInterest = 0;
+  // let openInterestAtEnd = 0;
   // let dailyLongOpenInterest = 0;
   // let dailyShortOpenInterest = 0;
 
@@ -63,12 +63,12 @@ const fetch: Fetch = async (timestamp:number, _b:any, options: FetchOptions) => 
   //   id: String(dayTimestamp),
   //   period: 'daily',
   // });
-  // dailyOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) + Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
+  // openInterestAtEnd = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) + Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
   // dailyLongOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0);
   // dailyShortOpenInterest = Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
   // dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
   // dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
-  // dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
+  // openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
 
   return {
     dailyVolume

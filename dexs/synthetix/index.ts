@@ -107,7 +107,7 @@ const fetchOpenInterest = async (options: FetchOptions) => {
   return { openInterestAtEnd: totalOpenInterestUSD };
 }
 
-const fetchVolume: any = async (timestamp: number, _, { getLogs, api }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (timestamp: number, _, { getLogs, api }: FetchOptions): Promise<FetchResultVolume> => {
   let dailyVolume = 0
   const logs_modify: any[] = await getLogs({ targets: contracts, eventAbi: event_modified_positions, })
   logs_modify.forEach((log: any) => {
@@ -129,7 +129,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.OPTIMISM]: {
-      fetch: fetchVolume,
+      fetch,
+      runAtCurrTime: true,
       start: '2023-04-22',
     },
   }

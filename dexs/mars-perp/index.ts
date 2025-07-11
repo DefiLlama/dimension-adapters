@@ -3,6 +3,11 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+function convertToUsd(value: string | number): number {
+  // all values are in uusd
+  return new BigNumber(value).shiftedBy(-6).toNumber();
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { fromTimestamp } = options;
   const perpsInfoApi =
@@ -83,8 +88,3 @@ const adapter = {
   },
 };
 export default adapter;
-
-function convertToUsd(value: string | number): number {
-  // all values are in uusd
-  return new BigNumber(value).shiftedBy(-6).toNumber();
-}
