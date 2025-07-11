@@ -84,20 +84,20 @@ const getFetch =
     const openInterestAtEnd =
       Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) +
       Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-    const dailyLongOpenInterest = Number(
+    const longOpenInterestAtEnd = Number(
       tradingStats.tradingStats[0]?.longOpenInterest || 0,
     );
-    const dailyShortOpenInterest = Number(
+    const shortOpenInterestAtEnd = Number(
       tradingStats.tradingStats[0]?.shortOpenInterest || 0,
     );
 
     return {
       timestamp: dayTimestamp,
-      dailyLongOpenInterest: dailyLongOpenInterest
-        ? String(dailyLongOpenInterest * 10 ** -30)
+      longOpenInterestAtEnd: longOpenInterestAtEnd
+        ? String(longOpenInterestAtEnd * 10 ** -30)
         : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest
-        ? String(dailyShortOpenInterest * 10 ** -30)
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd
+        ? String(shortOpenInterestAtEnd * 10 ** -30)
         : undefined,
       openInterestAtEnd: openInterestAtEnd
         ? String(openInterestAtEnd * 10 ** -30)

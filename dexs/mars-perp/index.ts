@@ -61,8 +61,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     dailyProtocolRevenue: last24HourRevenue,
     dailyRevenue: last24HourRevenue,
     dailyFees: last24HourFees,
-    dailyShortOpenInterest: last24HoursShortOpenInterest,
-    dailyLongOpenInterest: last24HoursLongOpenInterest,
+    shortOpenInterestAtEnd: last24HoursShortOpenInterest,
+    longOpenInterestAtEnd: last24HoursLongOpenInterest,
     openInterestAtEnd: last24HoursTotalOpenInterest,
   };
 };
@@ -79,9 +79,6 @@ const adapter = {
           Volume: "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
           Fees: "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
           ProtocolRevenue: "The daily revenue going to the protocol is 25% of the daily fees.",
-          ShortOpenInterest: "The total value of all short positions on the protocol.",
-          LongOpenInterest: "The total value of all long positions on the protocol.",
-          OpenInterest: "The total value of all positions on the protocol.",
         },
       },
     },

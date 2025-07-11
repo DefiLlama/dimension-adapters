@@ -56,18 +56,18 @@ const fetch: Fetch = async (timestamp:number, _b:any, options: FetchOptions) => 
   : 0
 
   // let openInterestAtEnd = 0;
-  // let dailyLongOpenInterest = 0;
-  // let dailyShortOpenInterest = 0;
+  // let longOpenInterestAtEnd = 0;
+  // let shortOpenInterestAtEnd = 0;
 
   // const tradingStats: IGraphResponseOI = await request(config[chain].endpoint, historicalOI, {
   //   id: String(dayTimestamp),
   //   period: 'daily',
   // });
   // openInterestAtEnd = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) + Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-  // dailyLongOpenInterest = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0);
-  // dailyShortOpenInterest = Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-  // dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
-  // dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
+  // longOpenInterestAtEnd = Number(tradingStats.tradingStats[0]?.longOpenInterest || 0);
+  // shortOpenInterestAtEnd = Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
+  // longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
+  // shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
   // openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
 
   return {

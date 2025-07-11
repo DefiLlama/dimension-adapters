@@ -66,8 +66,8 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     period: 'total',
   })
   let openInterestAtEnd = 0;
-  let dailyLongOpenInterest = 0;
-  let dailyShortOpenInterest = 0;
+  let longOpenInterestAtEnd = 0;
+  let shortOpenInterestAtEnd = 0;
 
   if (query === historicalDataDerivatives) {
     const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
@@ -77,21 +77,21 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
       period: 'daily',
     });
     openInterestAtEnd = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
-    dailyLongOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest);
-    dailyShortOpenInterest = Number(tradingStats.tradingStats[0].shortOpenInterest);
+    longOpenInterestAtEnd = Number(tradingStats.tradingStats[0].longOpenInterest);
+    shortOpenInterestAtEnd = Number(tradingStats.tradingStats[0].shortOpenInterest);
   }
   if (dayTimestamp == HACK_TIMESTAMP && chain == CHAIN.ARBITRUM){
     return {
-      dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
+      longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
       openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
       dailyVolume: '0',
     }
   }
 
   return {
-    dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
-    dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
+    longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
     openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
     dailyVolume:
       dailyData.volumeStats.length == 1

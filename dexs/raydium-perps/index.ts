@@ -14,13 +14,13 @@ interface PerpInfo {
   }
 }
 
-const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResultFees> => {
+const fetch = async (timestamp: number): Promise<FetchResultVolume & FetchResultFees> => {
   const info: PerpInfo = (await fetchURL('https://api-perps-v1.raydium.io/main/info')).data
 
   return {
     dailyVolume: info.volume["24h"],
-    dailyShortOpenInterest: info.openInterest.short,
-    dailyLongOpenInterest: info.openInterest.long,
+    shortOpenInterestAtEnd: info.openInterest.short,
+    longOpenInterestAtEnd: info.openInterest.long,
     openInterestAtEnd: info.openInterest.all,
   };
 };
@@ -28,7 +28,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
 const adapter: SimpleAdapter = {
   adapter: {
     solana: {
-      fetch: graphs,
+      fetch,
       runAtCurrTime: true,
       start: '2024-01-01',
     },

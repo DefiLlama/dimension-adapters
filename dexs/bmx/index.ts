@@ -83,8 +83,8 @@ const getFetch =
       period: "daily",
     });
     let openInterestAtEnd = 0;
-    let dailyLongOpenInterest = 0;
-    let dailyShortOpenInterest = 0;
+    let longOpenInterestAtEnd = 0;
+    let shortOpenInterestAtEnd = 0;
 
     if (query === historicalDataDerivatives) {
       const tradingStats: IGraphResponseOI = await request(
@@ -98,20 +98,20 @@ const getFetch =
       openInterestAtEnd =
         Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) +
         Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-      dailyLongOpenInterest = Number(
+      longOpenInterestAtEnd = Number(
         tradingStats.tradingStats[0]?.longOpenInterest || 0
       );
-      dailyShortOpenInterest = Number(
+      shortOpenInterestAtEnd = Number(
         tradingStats.tradingStats[0]?.shortOpenInterest || 0
       );
     }
 
     return {
-      dailyLongOpenInterest: dailyLongOpenInterest
-        ? String(dailyLongOpenInterest * 10 ** -30)
+      longOpenInterestAtEnd: longOpenInterestAtEnd
+        ? String(longOpenInterestAtEnd * 10 ** -30)
         : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest
-        ? String(dailyShortOpenInterest * 10 ** -30)
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd
+        ? String(shortOpenInterestAtEnd * 10 ** -30)
         : undefined,
       openInterestAtEnd: openInterestAtEnd
         ? String(openInterestAtEnd * 10 ** -30)
