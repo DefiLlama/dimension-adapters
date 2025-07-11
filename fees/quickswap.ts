@@ -3,10 +3,12 @@ import { Chain } from "../adapters/types";
 import { BreakdownAdapter, BaseAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
+import { queryDuneSql } from "../helpers/dune";
 
 const v2Endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint("FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd"),
 };
+
 const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
   feesPercent: {
@@ -20,33 +22,42 @@ const v2Graph = getGraphDimensions2({
   },
 });
 
-const v3Endpoints = {
-  // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.IMX]: "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap-IMX/prod/gn",
-};
+const config_v3: Record<string, { datasource: string, url: string, start: string }> = {
+  [CHAIN.POLYGON]: {
+    datasource: 'dune',
+    url: sdk.graph.modifyEndpoint("FqsRcH1XqSjqVx9GRTvEJe959aCbKrcyGgDWBrUkG24g"),
+    start: '2022-09-06',
+  },
+  // [CHAIN.DOGECHAIN]: {
+  //   datasource: 'algebra',
+  //   url: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
+  // },
+  [CHAIN.POLYGON_ZKEVM]: {
+    datasource: 'algebra',
+    url: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
+    start: '2023-03-27',
+  },
+  [CHAIN.SONEIUM]: {
+    datasource: 'algebra',
+    url: sdk.graph.modifyEndpoint("3GsT6AiuDiSzh2fXbFxUKtBxT8rBEGVdQCgHSsKMPHiu"),
+    start: '2025-01-10',
+  },
+  [CHAIN.IMX]: {
+    datasource: 'v3',
+    url:  "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap-IMX/prod/gn",
+    start: '2023-12-19',
+  }
+}
 
-const algebraEndpoints = {
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint("FqsRcH1XqSjqVx9GRTvEJe959aCbKrcyGgDWBrUkG24g"),
-  // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
-  [CHAIN.SONEIUM]: sdk.graph.modifyEndpoint("3GsT6AiuDiSzh2fXbFxUKtBxT8rBEGVdQCgHSsKMPHiu")
-};
+const v3Endpoints = Object.entries(config_v3)
+  .filter(([_, chain]) => chain.datasource === 'v3')
+  .reduce((acc, [chain, data]) => ({...acc, [chain]: data.url}), {} as Record<string, string>)
 
-const allV3Chains = {
-  ...v3Endpoints,
-  ...algebraEndpoints,
-};
+const algebraEndpoints = Object.entries(config_v3)
+  .filter(([_, chain]) => chain.datasource === 'algebra')
+  .reduce((acc, [chain, data]) => ({...acc, [chain]: data.url}), {} as Record<string, string>)
 
-type TStartTime = {
-  [s: string | Chain]: number;
-};
-
-const startTimeV3: TStartTime = {
-  [CHAIN.POLYGON]: 1662425243,
-  [CHAIN.POLYGON_ZKEVM]: 1679875200,
-  [CHAIN.SONEIUM]: 1681559,
-  [CHAIN.IMX]: 356091,
-};
+console.log(algebraEndpoints)
 
 const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
@@ -82,6 +93,56 @@ const algebraGraphs = getGraphDimensions2({
   },
 });
 
+
+const fetchv2Graph = async (_a:any, _b:any, options: FetchOptions) => {
+  return await v2Graph(options.chain)(options)
+}
+
+const fetchv3GraphEndpoint = async (options: FetchOptions) => {
+  return await v3Graphs(options.chain.toLowerCase())(options)
+}
+
+const fetchv3AlgebraGraphEndpoint = async (options: FetchOptions) => {
+  return await algebraGraphs(options.chain.toLowerCase())(options)
+}
+
+const fetchv3Dune = async (options: FetchOptions) => {
+  const query = `
+    SELECT 
+      SUM(amount_usd) as volume
+    FROM
+      dex.trades
+    WHERE
+      project='quickswap' 
+      AND blockchain = '${options.chain.toLowerCase()}'
+      AND version='3'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time <= from_unixtime(${options.endTimestamp})
+  `
+  const chainData = await queryDuneSql(options, query)
+  const volume = chainData[0]["volume"]
+
+  return {
+    dailyFees: volume * 0.003,
+    dailyUserFees: volume * 0.003,
+    dailyRevenue: volume * 0.003 * 0.15,
+    dailyProtocolRevenue: '0',
+    dailySupplySideRevenue: volume * 0.003 * 0.85,
+    dailyHoldersRevenue: 0,
+  }
+}
+
+const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
+  const chain_config = config_v3[options.chain]
+  if (chain_config.datasource === 'algebra') {
+    return fetchv3AlgebraGraphEndpoint(options)
+  } else if (chain_config.datasource === 'dune') {
+    return fetchv3Dune(options)
+  } else {
+    return fetchv3GraphEndpoint(options)
+  }
+}
+
 const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
   Fees: "A 0.3% of each swap is collected as trading fees",
@@ -92,36 +153,20 @@ const methodology = {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {
-        fetch: async (options: FetchOptions) => {
-          try {
-            const res = (await v2Graph(CHAIN.POLYGON)(options))
-            if (Object.values(res).includes(NaN)) return {}
-            return res
-          } catch (e) {
-            console.error(e)
-            return {}
-          }
-        },
+        fetch: fetchv2Graph,
         start: '2020-10-08',
-        meta: {
-          methodology,
-        },
+        meta: { methodology },
       },
     },
-    v3: Object.keys(allV3Chains).reduce((acc, chain) => {
-      const useAlgebra = Object.keys(algebraEndpoints).includes(chain);
+    v3: Object.keys(config_v3).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: useAlgebra
-          ? algebraGraphs(chain as Chain)
-          : v3Graphs(chain as Chain),
-        start: startTimeV3[chain],
-        meta: {
-          methodology,
-        },
+        fetch: fetchv3Graph,
+        start: config_v3[chain].start,
+        meta: { methodology },
       };
       return acc;
     }, {} as BaseAdapter),
