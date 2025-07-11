@@ -94,7 +94,7 @@ const algebraGraphs = getGraphDimensions2({
 });
 
 
-const fetchv2Graph = async (options: FetchOptions) => {
+const fetchv2Graph = async (_a:any, _b:any, options: FetchOptions) => {
   return await v2Graph(options.chain)(options)
 }
 
@@ -132,7 +132,7 @@ const fetchv3Dune = async (options: FetchOptions) => {
   }
 }
 
-const fetchv3Graph = async (options: FetchOptions) => {
+const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
   const chain_config = config_v3[options.chain]
   if (chain_config.datasource === 'algebra') {
     return fetchv3AlgebraGraphEndpoint(options)
@@ -153,7 +153,7 @@ const methodology = {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
+  version: 1,
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {
