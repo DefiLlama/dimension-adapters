@@ -1,8 +1,5 @@
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import ABIReader from "./bondreaderabi.json";
-import ABIBondDepository from "./bonddepository.json";
 
 const BondManagers = [
   "0x44b497aa4b742dc48Ce0bd26F66da9aecA19Bd75",
@@ -12,18 +9,20 @@ const BondManagers = [
 const BondCreatedEvent =
   "event BondCreated(uint256 indexed id, uint256 amount, uint256 price)";
 
+const abiGetVariablesRaw =
+  '{"inputs":[{"internalType":"uint256[]","name":"bondIds","type":"uint256[]"}],"name":"getBondVariables","outputs":[{"components":[{"internalType":"bool","name":"enabled","type":"bool"},{"internalType":"uint256","name":"capacity","type":"uint256"},{"internalType":"contract IERC20","name":"quoteToken","type":"address"},{"internalType":"uint256","name":"totalDebt","type":"uint256"},{"internalType":"uint256","name":"maxPayout","type":"uint256"},{"internalType":"uint256","name":"sold","type":"uint256"},{"internalType":"uint256","name":"purchased","type":"uint256"},{"internalType":"uint256","name":"startTime","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"uint256","name":"initialPrice","type":"uint256"},{"internalType":"uint256","name":"finalPrice","type":"uint256"}],"internalType":"struct IAppBondDepository.Bond[]","name":"bonds","type":"tuple[]"},{"internalType":"uint256[]","name":"currentPrices","type":"uint256[]"}],"stateMutability":"view","type":"function"}';
+
+const abiGetBondCountRaw =
+  '{"inputs":[],"name":"bondLength","outputs":[{"internalType":"uint256","name":"out","type":"uint256"}],"stateMutability":"view","type":"function"}';
+
 /**
  * Helper function to get the active bonds from the bond depository
  * @param options - The fetch options
  * @returns The active bonds
  */
 const _getActiveBonds = async (options: FetchOptions) => {
-  const abiGetVariables = ABIReader.filter(
-    (a) => a.name === "getBondVariables"
-  )[0];
-  const abiGetBondCount = ABIBondDepository.filter(
-    (a) => a.name === "bondLength"
-  )[0];
+  const abiGetVariables = JSON.parse(abiGetVariablesRaw);
+  const abiGetBondCount = JSON.parse(abiGetBondCountRaw);
 
   const bondCount = await options.api.call({
     target: "0x44b497aa4b742dc48Ce0bd26F66da9aecA19Bd75",
