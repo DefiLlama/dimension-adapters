@@ -105,7 +105,9 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addCGToken("usd-coin", totalPnl);
 
     return {
-        dailyFees: dailyFees,
+        dailyFees,
+        dailyRevenue: '0',
+        dailyProtocolRevenue: '0',
         dailySupplySideRevenue: dailyFees,
     };
 };
@@ -115,10 +117,12 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,
-            start: 1749245760, // Fri Jun 06 2025 21:36:00 GMT+0000
+            start: '2025-06-06',
             meta: {
                 methodology: {
                     Fees: "Yield generated from HLP vault",
+                    Revenue: "No Revenue for hyperwave protocol",
+                    ProtocolRevenue: "No Protocol share in revenue",
                     SupplySideRevenue: "100% of yield paid to hwHLP holders"
                 },
             },
