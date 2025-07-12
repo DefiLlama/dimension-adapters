@@ -10,7 +10,7 @@ import {
   getChainVolume,
 } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
-import { queryDuneSql } from "../../helpers/dune";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
@@ -94,29 +94,16 @@ const fetchLiquidityHub = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume,
-    totalVolume: totalVolume,
-    timestamp: timestamp,
   };
 };
 
-const fetchDune = async (_a:any, _b:any, options:FetchOptions) => {
-  const query = `
-    SELECT 
-      SUM(amount_usd) as volume
-    FROM
-      dex.trades
-    WHERE
-      project='quickswap' 
-      AND blockchain = '${options.chain.toLowerCase()}'
-      AND version='3'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
-  `
-  const chainData = await queryDuneSql(options, query)
-
-  return {
-    dailyVolume: chainData[0]["volume"],
-  };
+const fetchPolygonV3 = async (_a:any, _b:any, options:FetchOptions) => {
+  const adapter = getUniV3LogAdapter({ 
+    factory: "0x411b0fAcC3489691f28ad58c47006AF5E3Ab3A28", 
+    poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)',
+    swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)',
+  });
+  return await adapter(options);
 }
 
 const adapter: BreakdownAdapter = {
@@ -130,7 +117,7 @@ const adapter: BreakdownAdapter = {
     },
     v3: {
       [CHAIN.POLYGON]: {
-        fetch: fetchDune,
+        fetch: fetchPolygonV3,
         start: '2022-09-06',
       },
       // [CHAIN.DOGECHAIN]: {
@@ -145,7 +132,7 @@ const adapter: BreakdownAdapter = {
         fetch: v3GraphsUni(CHAIN.MANTA),
         start: '2023-10-19',
       },
-      [CHAIN.IMMUTABLEX]: {
+      [CHAIN.IMX]: {
         fetch: v3GraphsUni(CHAIN.IMX),
         start: '2023-12-19',
       },

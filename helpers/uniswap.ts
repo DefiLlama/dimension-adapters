@@ -134,13 +134,8 @@ const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
-    if (isAlgebraV3) {
-      poolCreatedEvent = algebraV3PoolCreatedEvent
-      swapEvent = algebraV3SwapEvent
-    }
 
     if (!chain) throw new Error('Wrong version?')
-
 
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
