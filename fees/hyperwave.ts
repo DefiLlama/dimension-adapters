@@ -91,18 +91,29 @@ const fetch = async (options: FetchOptions) => {
         allPnlHistories.push(pnlHistory);
         await new Promise((res) => setTimeout(res, DELAY));
     }
-    // Flatten all histories into a single array
-    const dailyPnlHistory = allPnlHistories.flat();
-
-    // Aggregate total PnL between START_TIMESTAMP and END_TIMESTAMP (inclusive)
-    let totalPnl = 0;
-    for (const [timestamp, pnlStr] of dailyPnlHistory) {
-        const ts = Number(timestamp);
-        if (ts >= START_TIMESTAMP && ts <= END_TIMESTAMP) {
-            totalPnl += Number(pnlStr);
+    
+    // Calculate PnL differences for each MS address separately
+    let totalPnlDiff = 0;
+    
+    for (const pnlHistory of allPnlHistories) {
+        // Sort by timestamp to ensure correct order
+        const sortedHistory = pnlHistory.sort((a, b) => Number(a[0]) - Number(b[0]));
+        
+        // Calculate differences between adjacent PnL values
+        for (let i = 1; i < sortedHistory.length; i++) {
+            const currentTimestamp = Number(sortedHistory[i][0]);
+            const prevPnl = Number(sortedHistory[i-1][1]);
+            const currentPnl = Number(sortedHistory[i][1]);
+            
+            // Only include differences for timestamps within our range
+            if (currentTimestamp >= START_TIMESTAMP && currentTimestamp <= END_TIMESTAMP) {
+                const pnlDiff = currentPnl - prevPnl;
+                totalPnlDiff += pnlDiff;
+            }
         }
     }
-    dailyFees.addCGToken("usd-coin", totalPnl);
+
+    dailyFees.addCGToken("usd-coin", totalPnlDiff);
 
     return {
         dailyFees,
