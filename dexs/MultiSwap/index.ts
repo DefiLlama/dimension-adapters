@@ -46,6 +46,9 @@ const fetch: FetchV2 = async (fetchOptions) => {
     });
 
     cachedPools = { pairObject, fees };
+    const samplePairs = Object.entries(pairObject).slice(0, 5)
+    console.info('Sample pools:')
+    samplePairs.forEach(([pool, tokens]) => console.info(pool, '->', tokens))
   }
 
   const { pairObject, fees } = cachedPools;
