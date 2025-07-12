@@ -154,23 +154,20 @@ const fetchv2Graph = async (_a:any, _b:any, options: FetchOptions) => {
 }
 
 const fetchv3GraphEndpoint = async (options: FetchOptions) => {
-  return await v3Graphs(options.chain.toLowerCase())(options)
+  return (await v3Graphs(options.chain.toLowerCase())(options))
 }
 
 const fetchv3AlgebraGraphEndpoint = async (options: FetchOptions) => {
   return await algebraGraphs(options.chain.toLowerCase())(options)
 }
 
-const fetchv3PolygonLogs = async (options: FetchOptions) => {
+const fetchv3PolygonLogs = async (options: FetchOptions): Promise<{ dailyFees: number }> => {
   const factory = "0x411b0fAcC3489691f28ad58c47006AF5E3Ab3A28"
   const poolCreatedEvent = 'event Pool(address indexed token0, address indexed token1, address pool)'
   const swapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
   const FeeEvent = 'event Fee(uint16 fee)'
 
   const fromBlock = config_v3[options.chain]?.startBlock || 0
-  if (fromBlock == 0) {
-    return Error('No start block found')
-  }
   const toBlock = await options.getToBlock()
 
   const adapter = getUniV3LogAdapter({
@@ -206,8 +203,6 @@ const fetchv3PolygonLogs = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
-    dailyVolume,
   }
 }
 
@@ -244,31 +239,32 @@ const fetchV3Dune = async (options: FetchOptions) => {
  
 }
 
-const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
+const getDailyFees = async (options: FetchOptions) => {
   const chain_config = config_v3[options.chain]
-  let graphData
-
   if (chain_config.datasource === 'algebra') {
-    graphData = await fetchv3AlgebraGraphEndpoint(options)
+    return await fetchv3AlgebraGraphEndpoint(options)
   } else if (chain_config.datasource === 'logs') {
-    graphData = await fetchv3PolygonLogs(options)
+    return await fetchv3PolygonLogs(options)
   } else if (chain_config.datasource === 'dune') {
-    graphData = await fetchV3Dune(options)
+    return await fetchV3Dune(options)
   } else {
-    graphData = await fetchv3GraphEndpoint(options)
+    return await fetchv3GraphEndpoint(options)
   }
+}
 
+const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
+  const { dailyFees } = await getDailyFees(options)
+  const daily_fees = Number(dailyFees)
   // Apply dynamic fee percentages based on timestamp and chain
   const feePercentages = getV3FeePercentages(options.startTimestamp, options.chain)
-  const totalFees = Number(graphData?.dailyFees) || 0
   
   return {
-    dailyFees: totalFees,
-    dailyUserFees: totalFees,
-    dailyRevenue: totalFees * (feePercentages.Revenue / 100),
-    dailyProtocolRevenue: totalFees * (feePercentages.ProtocolRevenue / 100),
-    dailySupplySideRevenue: totalFees * (feePercentages.SupplySideRevenue / 100),
-    dailyHoldersRevenue: totalFees * (feePercentages.HoldersRevenue / 100),
+    dailyFees: daily_fees,
+    dailyUserFees: daily_fees,
+    dailyRevenue: daily_fees * (feePercentages.Revenue / 100),
+    dailyProtocolRevenue: daily_fees * (feePercentages.ProtocolRevenue / 100),
+    dailySupplySideRevenue: daily_fees * (feePercentages.SupplySideRevenue / 100),
+    dailyHoldersRevenue: daily_fees * (feePercentages.HoldersRevenue / 100),
   }
 }
 
