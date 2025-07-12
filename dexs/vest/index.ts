@@ -8,7 +8,7 @@ const tickers_endpoint = 'https://serverprod.vest.exchange/v2/ticker/24hr'
 
 const blacklisted_tickers = ['VC-PERP'] // wash trading
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (): Promise<FetchResultVolume> => {
     // const from_date = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000));
     // const to_date = from_date + 86400;
     // const data = (await fetchURL(`https://serverprod.vest.exchange/v2/exchangeInfo/volume?from_date=${from_date * 1000}&to_date=${to_date * 1000}`));
@@ -26,6 +26,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch,
+            runAtCurrTime: true,
             start: '2025-01-01',
         },
     },
