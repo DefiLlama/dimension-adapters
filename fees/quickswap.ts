@@ -40,10 +40,10 @@ const v2Graph = getGraphDimensions2({
   feesPercent: {
     type: "volume",
     UserFees: 0.3,
-    ProtocolRevenue: 0,
-    SupplySideRevenue: 0.3,
-    HoldersRevenue: 0,
-    Revenue: 0,
+    ProtocolRevenue: 0.01,
+    SupplySideRevenue: 0.25,
+    HoldersRevenue: 0.04,
+    Revenue: 0.05,
     Fees: 0.3,
   },
 });
