@@ -1,15 +1,10 @@
-import {
-  FetchOptions,
-  FetchResultFees,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 
 const FEE_WALLET = "Bkfx4XwD9VuztHyimbKyte2zkv78eBRHyeq4CvG6RFdB";
-const HIST_START = 1752134400;
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   await getSolanaReceived({
     options,
@@ -19,7 +14,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
   return {
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -28,11 +25,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: HIST_START,
+      start: '2025-07-08',
       meta: {
         methodology: {
-          Fees: "Fees are calculated by tracking all SOL and SPL token inflows to the designated fee wallet: Bkfx4XwD9VuztHyimbKyte2zkv78eBRHyeq4CvG6RFdB.",
-          Revenue: "All collected fees are considered protocol revenue.",
+          Fees: "Fees collected from the swaps.",
+          Revenue: "All collected fees are protocol revenue.",
+          ProtocolRevenue: "100% fees goes to the protocol.",
         },
       },
     },
