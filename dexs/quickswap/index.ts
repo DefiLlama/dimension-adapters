@@ -81,7 +81,7 @@ const v3GraphsUni = getGraphDimensions({
   },
 });
 
-const fetchLiquidityHub = async (timestamp: number) => {
+const fetchLiquidityHub = async (_a: any) => {
   let dailyResult = await fetchURL(
     "https://hub.orbs.network/analytics-daily/v1",
   );
