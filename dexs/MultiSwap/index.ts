@@ -24,8 +24,8 @@ const fetch: FetchV2 = async (fetchOptions) => {
     const rawLogs = await getLogs({
       target: FACTORY,
       eventAbi: POOL_CREATED_EVENT,
-      fromBlock: 1, // fetch from near genesis to ensure we get all pools (0 is invalid)
-      // toBlock is filled automatically by helper
+      onlyArgs: false, // we want full log object to parse ourselves
+      fromBlock: 1,
     });
 
     const iface = new ethers.Interface([POOL_CREATED_EVENT]);
@@ -33,7 +33,8 @@ const fetch: FetchV2 = async (fetchOptions) => {
     const fees: Record<string, number> = {};
 
     rawLogs.forEach((log: any) => {
-      const parsed = iface.parseLog(log)!;
+      const parsed = iface.parseLog(log);
+      if (!parsed) return;
       const { token0, token1, fee, pool } = parsed.args as unknown as {
         token0: string;
         token1: string;
@@ -41,7 +42,7 @@ const fetch: FetchV2 = async (fetchOptions) => {
         pool: string;
       };
       pairObject[pool] = [token0, token1];
-      fees[pool] = Number(fee.toString()) / 1e6; // convert e.g. 500 to 0.0005
+      fees[pool] = Number(fee.toString()) / 1e6;
     });
 
     cachedPools = { pairObject, fees };
@@ -54,6 +55,7 @@ const fetch: FetchV2 = async (fetchOptions) => {
     api,
     pairs: pairObject,
     createBalances,
+    minUSDValue: 0,   // try 0 to include all pools
   });
 
   const pairIds = Object.keys(filteredPairs);
