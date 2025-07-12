@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
 // const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
@@ -10,6 +11,7 @@ type DimentionResult = {
   dailyFees?: number;
   dailyUserFees?: number;
   dailyRevenue?: number;
+  openInterestAtEnd?: number;
 };
 
 // Prefetch function that will run once before any fetch calls
@@ -26,7 +28,18 @@ async function getPerpDimensions(options: FetchOptions): Promise<DimentionResult
   const dailyVolume = Number(Number(volumeResponse[0]?.perpetual_volume || 0).toFixed(0))
   const dailyFees = Number(Number(volumeResponse[0]?.total_taker_fee || 0).toFixed(0))
   const dailyRevenue = Number(Number(volumeResponse[0]?.total_revenue || 0).toFixed(0))
-  return { dailyVolume, dailyFees, dailyRevenue };
+  
+  // Fetch open interest data from Drift API
+  const contractsResponse = await fetchURL('https://data.api.drift.trade/contracts');
+  const openInterestAtEnd = contractsResponse.contracts
+    .filter((contract: any) => contract.product_type === 'PERP')
+    .reduce((acc: number, contract: any) => {
+      const openInterest = parseFloat(contract.open_interest);
+      const lastPrice = parseFloat(contract.last_price);
+      return acc + (openInterest * lastPrice);
+    }, 0);
+  
+  return { dailyVolume, dailyFees, dailyRevenue, openInterestAtEnd };
 }
 
 async function getSpotDimensions(options: FetchOptions): Promise<DimentionResult> {

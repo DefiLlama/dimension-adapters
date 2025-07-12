@@ -48,38 +48,28 @@ const getFetch = (query: string) => (chain: string): Fetch => async (timestamp: 
     id: String(dayTimestamp) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
-  let dailyOpenInterest = 0;
-  let dailyLongOpenInterest = 0;
-  let dailyShortOpenInterest = 0;
+  let openInterestAtEnd = 0;
+  let longOpenInterestAtEnd = 0;
+  let shortOpenInterestAtEnd = 0;
 
   if (query === historicalDataDerivatives) {
     const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
       id: String(dayTimestamp),
       period: 'daily',
     });
-    dailyOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
-    dailyLongOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest);
-    dailyShortOpenInterest = Number(tradingStats.tradingStats[0].shortOpenInterest);
+    openInterestAtEnd = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
+    longOpenInterestAtEnd = Number(tradingStats.tradingStats[0].longOpenInterest);
+    shortOpenInterestAtEnd = Number(tradingStats.tradingStats[0].shortOpenInterest);
   }
 
   return {
-    timestamp: dayTimestamp,
-    dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
-    dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
-    dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
+    longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
+    openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
+        : undefined
   }
 }
 

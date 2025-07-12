@@ -1,5 +1,5 @@
 import { Chain } from "../../adapters/types";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -44,73 +44,59 @@ async function sleep (time: number) {
   return new Promise<void>((resolve) => setTimeout(() => resolve(), time))
 }
 let sleepCount = 0
+
 const fetchV2Volume = async (chain: Chain) => {
   // This is very important!!! because our API will throw error when send >=2 requests at the same time.
   await sleep(sleepCount++ * 2 * 1e3)
   const res = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
   ) as  { data: ResponseItem[], success: boolean }
+  // console.log(res)
   if (res.data === null && res.success === false) {
     return fetchV2Volume(chain)
   }
   const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
+  const openInterestAtEnd = (res.data || []).reduce((p, c) => p + +c.openInterest, 0);
 
-  return dailyVolume
+  return { dailyVolume, openInterestAtEnd }
 };
 
 const fetchV1Volume = async () => {
   const data = (await httpGet(v1VolumeAPI)) as V1TickerItem[];
   const dailyVolume = data.reduce((p, c) => p + +c.quoteVolume, 0);
-
   return dailyVolume
 };
+
+const fetch = async (timestamp: number, _a:any, options: FetchOptions) => {
+  let dailyVolume = 0;
+  if (options.chain == CHAIN.BSC) {
+    dailyVolume = await fetchV1Volume();
+  }
+  const data = await fetchV2Volume(options.chain);
+  dailyVolume += data.dailyVolume;
+  return { dailyVolume, openInterestAtEnd: data.openInterestAtEnd }
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
+      fetch,
       runAtCurrTime: true,
-      fetch: async () => {
-        const [v1, v2,] = await Promise.all([
-          fetchV2Volume(CHAIN.BSC),
-          fetchV1Volume(),
-        ]);
-        return {
-          dailyVolume: v1 + v2,
-        };
-      },
       start: '2023-04-21',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: async () => {
-        const [v2] = await Promise.all([
-          fetchV2Volume(CHAIN.ARBITRUM),
-        ]);
-        return {
-          dailyVolume: v2,
-        };
-      },
+      fetch,
+      runAtCurrTime: true,
       start: '2023-04-21',
     },
     [CHAIN.OP_BNB]: {
-      fetch: async () => {
-        const [v2] = await Promise.all([
-          fetchV2Volume('opbnb'),
-        ]);
-        return {
-          dailyVolume: v2,
-        };
-      },
+      fetch,
+      runAtCurrTime: true,
       start: '2023-04-21',
     },
     [CHAIN.BASE]: {
-      fetch: async () => {
-        const [v2,] = await Promise.all([
-          fetchV2Volume(CHAIN.BASE),
-        ]);
-        return {
-          dailyVolume: v2,
-        };
-      },
+      fetch,
+      runAtCurrTime: true,
       start: '2023-04-21',
     },
   },

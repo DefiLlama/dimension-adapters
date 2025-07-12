@@ -11,11 +11,11 @@ export async function fetchGRVTDex(options: FetchOptions) {
   const url = endpoint(options.startTimestamp, options.endTimestamp);
   const resp = await fetchURL(url);
   const dailyVolume = Number(resp.dailyVolume).toFixed(5);
-  const dailyOpenInterest = Number(resp.dailyOpenInterest).toFixed(5);
+  const openInterestAtEnd = Number(resp.dailyOpenInterest).toFixed(5);
 
   return {
     dailyVolume,
-    dailyOpenInterest
+    openInterestAtEnd
   };
 }
 
