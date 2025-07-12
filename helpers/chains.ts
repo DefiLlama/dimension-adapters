@@ -185,6 +185,7 @@ export enum CHAIN {
   CELESTIA = "celestia",
   MORPH = "morph",
   APECHAIN = "apechain",
+  DCHAIN = "dchainmainnet",
   DUCKCHAIN = "duckchain",
   GRAVITY = "gravity",
   RARI = "rari",
