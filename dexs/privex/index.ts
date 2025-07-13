@@ -8,57 +8,122 @@ const endpoints = {
 };
 
 const fetchCoti = async (_a: any, _b: any, options: FetchOptions) => {
-  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()])
-
+  const endpoint = endpoints[options.chain];
+  const startTime = options.startTimestamp;
+  const endTime = options.endTimestamp;
+  
   const query = gql`
-    query volumes {
-      yesterday: totalHistories(block: {number: ${fromBlock}}) {
+    query volumes($startTime: Int!, $endTime: Int!) {
+      totalHistories(
+        where: { 
+          timestamp_gte: $startTime, 
+          timestamp_lte: $endTime 
+        }
+        orderBy: timestamp
+        orderDirection: asc
+        first: 1000
+      ) {
         timestamp
         tradeVolume
-      }
-      today: totalHistories(block: {number: ${toBlock}}) {
-        timestamp
-        tradeVolume
+        openTradeVolume
+        closeTradeVolume
+        platformFee
       }
     }
   `;
 
-  const graphRes = await request(endpoints[options.chain], query);
-  const todayVolume = graphRes['today'].reduce((p: any, c: any) => p + Number(c.tradeVolume), 0)
-  const yesterdayVolume = graphRes['yesterday'].reduce((p: any, c: any) => p + Number(c.tradeVolume), 0)
-  const volume24H = todayVolume - yesterdayVolume;
+  try {
+    const graphRes = await request(endpoint, query, {
+      startTime,
+      endTime
+    });
 
-  return {
-    dailyVolume: volume24H / 1e18 // convert to wei
+    let totalVolume = 0;
+    let totalFees = 0;
+
+    if (graphRes?.totalHistories?.length > 0) {
+      graphRes.totalHistories.forEach((history: any) => {
+        // Sum all volume types
+        const tradeVolume = parseFloat(history.tradeVolume || "0");
+        const openVolume = parseFloat(history.openTradeVolume || "0");
+        const closeVolume = parseFloat(history.closeTradeVolume || "0");
+        
+        totalVolume += tradeVolume + openVolume + closeVolume;
+        
+        // Add platform fees
+        const platformFee = parseFloat(history.platformFee || "0");
+        totalFees += platformFee;
+      });
+    }
+
+    return {
+      dailyVolume: totalVolume / 1e18, // Convert from wei
+      dailyFees: totalFees / 1e18 // Convert from wei
+    };
+  } catch (error) {
+    console.error(`Error fetching COTI data:`, error);
+    return {
+      dailyVolume: 0,
+      dailyFees: 0
+    };
   }
-}
+};
 
 const fetchBase = async (_a: any, _b: any, options: FetchOptions) => {
   const endpoint = endpoints[options.chain];
   const day = Math.floor(options.endTimestamp / 86400);
-
+  
   const query = gql`
-    query volumes {
+    query volumes($day: Int!) {
       dailyHistories(
-        where: { 
-          day: ${day}, 
-        }
+        where: { day: $day }
         orderBy: day
         orderDirection: desc
         first: 100
       ) {
         day
         tradeVolume
+        openTradeVolume
+        closeTradeVolume
+        liquidateTradeVolume
+        platformFee
       }
     }
   `;
 
-  let data = await request(endpoint, query);
+  try {
+    const data = await request(endpoint, query, { day });
+    
+    let totalVolume = 0;
+    let totalFees = 0;
 
-  const recordWithVolume = data?.dailyHistories?.find(d => parseFloat(d.tradeVolume || "0") > 0);
-  const dailyVolume = parseFloat(recordWithVolume.tradeVolume) / 1e18;
+    if (data?.dailyHistories?.length > 0) {
+      data.dailyHistories.forEach((daily: any) => {
+        // Sum all volume types
+        const tradeVolume = parseFloat(daily.tradeVolume || "0");
+        const openVolume = parseFloat(daily.openTradeVolume || "0");
+        const closeVolume = parseFloat(daily.closeTradeVolume || "0");
+        const liquidateVolume = parseFloat(daily.liquidateTradeVolume || "0");
+        
+        totalVolume += tradeVolume + openVolume + closeVolume + liquidateVolume;
+        
+        // Add platform fees
+        const platformFee = parseFloat(daily.platformFee || "0");
+        totalFees += platformFee;
+      });
+    }
 
-  return { dailyVolume };
+    return {
+      dailyVolume: totalVolume / 1e18, // Convert from wei
+      dailyFees: totalFees / 1e18 // Convert from wei
+    };
+  } catch (error) {
+    console.error(`Error fetching Base data:`, error);
+    return {
+      dailyVolume: 0,
+      dailyFees: 0
+    };
+  }
 };
 
 const adapter: SimpleAdapter = {
@@ -66,11 +131,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchBase,
-      start: '2024-09-08', // October 8, 2024
+      start: '2024-09-08',
     },
     [CHAIN.COTI]: {
       fetch: fetchCoti,
-      start: '2025-01-01', // January 1, 2025
+      start: '2025-01-01',
     },
   },
 };
