@@ -1,16 +1,21 @@
-import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { CHAIN } from "../../helpers/chains";
 
 const chainsMap: Record<string, string> = {
-  ETHEREUM: "ethereum",
-  ARBITRUM: "arbitrum",
-  POLYGON: "polygon",
-  BNB: "bsc",
-  AVALANCHE: "avax",
-  OPTIMISM: "optimism",
-  BASE: "base",
-  GNOSIS: "xdai",
-  FANTOM: "fantom",
+  ETHEREUM: CHAIN.ETHEREUM,
+  ARBITRUM: CHAIN.ARBITRUM,
+  POLYGON: CHAIN.POLYGON,
+  BNB: CHAIN.BSC,
+  AVALANCHE: CHAIN.AVAX,
+  OPTIMISM: CHAIN.OPTIMISM,
+  BASE: CHAIN.BASE,
+  GNOSIS: CHAIN.XDAI,
+  FANTOM: CHAIN.FANTOM,
+  LINEA: CHAIN.LINEA,
+  SONIC: CHAIN.SONIC,
+  UNICHAIN: CHAIN.UNICHAIN,
+  ZKSYNC: CHAIN.ZKSYNC,
 };
 
 const prefetch = async (options: FetchOptions) => {
@@ -26,17 +31,22 @@ const prefetch = async (options: FetchOptions) => {
     ORDER BY volume_24h DESC
   `;
   return await queryDuneSql(options, sql_query);
-}
+};
 
-const fetch = async (_a:any, _b:any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (
+  _a: any,
+  _b: any,
+  options: FetchOptions
+): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
-  const chainData = results.find(item => chainsMap[item.blockchain] === options.chain.toLowerCase());
+  const chainData = results.find(
+    (item) => chainsMap[item.blockchain] === options.chain.toLowerCase()
+  );
 
   return {
     dailyVolume: chainData.volume_24h,
   };
-}
-
+};
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -46,7 +56,7 @@ const adapter: SimpleAdapter = {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch,
-          start: '2023-12-05',
+          start: "2023-12-05",
         },
       };
     }, {}),
