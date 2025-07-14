@@ -104,7 +104,7 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
     const v2stats = await adapter(options);
     return {
       ...v2stats,
-      ...calculateFeesBalances(v2stats.dailyVolume),
+      ...calculateFeesBalances(v2stats.dailyFees),
     }
   } else if (chainConfig.dataSource === 'graph') {
     const v3stats = await v3Graph(options.chain)(options);
@@ -112,7 +112,7 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
     // if (options.chain === CHAIN.ETHEREUM) {
     //   v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
     // }
-    return calculateFees(Number(v3stats.dailyVolume));
+    return calculateFees(Number(v3stats.dailyFees));
   } else if (chainConfig.dataSource === 'dune') {
     return await fetchV3Dune(_a, _b, options);
   }
