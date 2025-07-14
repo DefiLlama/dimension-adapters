@@ -268,6 +268,9 @@ const fetchFromOku = async (options: FetchOptions) => {
     return {
       dailyVolume,
       dailyFees,
+      dailySupplySideRevenue: dailyFees,
+      dailyRevenue: 0,
+      dailyprotocolRevenue: 0,
     }
   } catch (e) {
     console.error(e)
