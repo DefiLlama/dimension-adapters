@@ -1,20 +1,21 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { CHAIN } from "../../helpers/chains";
 
 const chainsMap: Record<string, string> = {
-  ETHEREUM: "ethereum",
-  ARBITRUM: "arbitrum",
-  POLYGON: "polygon",
-  BNB: "bsc",
-  AVALANCHE: "avax",
-  OPTIMISM: "optimism",
-  BASE: "base",
-  GNOSIS: "xdai",
-  FANTOM: "fantom",
-  LINEA: "linea",
-  SONIC: "sonic",
-  UNICHAIN: "unichain",
-  ZKSYNC: "zksync-era",
+  ETHEREUM: CHAIN.ETHEREUM,
+  ARBITRUM: CHAIN.ARBITRUM,
+  POLYGON: CHAIN.POLYGON,
+  BNB: CHAIN.BSC,
+  AVALANCHE: CHAIN.AVAX,
+  OPTIMISM: CHAIN.OPTIMISM,
+  BASE: CHAIN.BASE,
+  GNOSIS: CHAIN.XDAI,
+  FANTOM: CHAIN.FANTOM,
+  LINEA: CHAIN.LINEA,
+  SONIC: CHAIN.SONIC,
+  UNICHAIN: CHAIN.UNICHAIN,
+  ZKSYNC: CHAIN.ZKSYNC,
 };
 
 const prefetch = async (options: FetchOptions) => {
