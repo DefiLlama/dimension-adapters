@@ -178,7 +178,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   }
 };
 
-const FEE_CONFIG = {
+export const FEE_CONFIG = {
   V2_V3: {
     type: "volume" as const,
     Fees: 0.25,
