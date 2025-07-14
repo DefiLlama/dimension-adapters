@@ -41,25 +41,25 @@ const v3Graph = getGraphDimensions2({
   },
 });
 
-const calculateFees = (dailyVolume: number) => {
+const calculateFees = (dailyFees: number) => {
   return {
-    dailyFees: dailyVolume * FEE_CONFIG.V2_V3.Fees/100,
-    dailyUserFees: dailyVolume * FEE_CONFIG.V2_V3.UserFees/100,
-    dailyRevenue: dailyVolume * FEE_CONFIG.V2_V3.Revenue/100,
-    dailyProtocolRevenue: dailyVolume * FEE_CONFIG.V2_V3.ProtocolRevenue/100,
-    dailySupplySideRevenue: dailyVolume * FEE_CONFIG.V2_V3.SupplySideRevenue/100,
-    dailyHoldersRevenue: dailyVolume * FEE_CONFIG.V2_V3.HoldersRevenue/100,
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees * FEE_CONFIG.V2_V3.Revenue / FEE_CONFIG.V2_V3.Fees,
+    dailyProtocolRevenue: dailyFees * FEE_CONFIG.V2_V3.ProtocolRevenue / FEE_CONFIG.V2_V3.Fees,
+    dailySupplySideRevenue: dailyFees * FEE_CONFIG.V2_V3.SupplySideRevenue / FEE_CONFIG.V2_V3.Fees,
+    dailyHoldersRevenue: dailyFees * FEE_CONFIG.V2_V3.HoldersRevenue / FEE_CONFIG.V2_V3.Fees,
   };
 };
 
-const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
+const calculateFeesBalances = (dailyFees: sdk.Balances) => {
   return {
-    dailyFees: dailyVolume.clone(FEE_CONFIG.V2_V3.Fees/100),
-    dailyUserFees: dailyVolume.clone(FEE_CONFIG.V2_V3.UserFees/100),
-    dailyRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.Revenue/100),
-    dailyProtocolRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.ProtocolRevenue/100),
-    dailySupplySideRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.SupplySideRevenue/100),
-    dailyHoldersRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.HoldersRevenue/100),
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees.clone(FEE_CONFIG.V2_V3.Revenue/FEE_CONFIG.V2_V3.Fees),
+    dailyProtocolRevenue: dailyFees.clone(FEE_CONFIG.V2_V3.ProtocolRevenue/FEE_CONFIG.V2_V3.Fees),
+    dailySupplySideRevenue: dailyFees.clone(FEE_CONFIG.V2_V3.SupplySideRevenue/FEE_CONFIG.V2_V3.Fees),
+    dailyHoldersRevenue: dailyFees.clone(FEE_CONFIG.V2_V3.HoldersRevenue/FEE_CONFIG.V2_V3.Fees),
   };
 };
 
@@ -146,20 +146,9 @@ const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
     dailyFees += Number(pool.day.volumeFee);
   }
 
-  const dailyUserFees = dailyVolume * FEE_CONFIG.V2_V3.UserFees / 100;
-  const dailyRevenue = dailyVolume * FEE_CONFIG.V2_V3.Fees / 100;
-  const dailyProtocolRevenue = dailyVolume * FEE_CONFIG.V2_V3.ProtocolRevenue / 100;
-  const dailySupplySideRevenue = dailyVolume * FEE_CONFIG.V2_V3.SupplySideRevenue / 100;
-  const dailyHoldersRevenue = dailyVolume * FEE_CONFIG.V2_V3.HoldersRevenue / 100;
-
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyUserFees,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
+    ...calculateFees(dailyFees),
   }
 }
 
