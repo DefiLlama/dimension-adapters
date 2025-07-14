@@ -460,15 +460,28 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 }
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
-const calculateFees = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+const calculateFeesDune = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
   if (!dailyVolume) return {};
   const dailyVolumeNumber = Number(dailyVolume) || 0;
 
   return {
-    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue).toString() || "0",
-    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue).toString() || "0", 
-    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue).toString() || "0",
-    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees).toString() || "0",
+    dailyFees: (dailyVolumeNumber * feeConfig.Fees / 100).toString() || "0",
+    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees / 100).toString() || "0",
+    dailyRevenue: (dailyVolumeNumber * feeConfig.Revenue / 100).toString() || "0",
+    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue / 100).toString() || "0",
+    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue / 100).toString() || "0", 
+    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue / 100).toString() || "0",
+  };
+};
+
+const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+  return {
+    dailyFees: dailyVolume.clone(feeConfig.Fees/100),
+    dailyUserFees: dailyVolume.clone(feeConfig.UserFees/100),
+    dailyRevenue: dailyVolume.clone(feeConfig.Revenue/100),
+    dailyProtocolRevenue: dailyVolume.clone(feeConfig.ProtocolRevenue/100),
+    dailySupplySideRevenue: dailyVolume.clone(feeConfig.SupplySideRevenue/100),
+    dailyHoldersRevenue: dailyVolume.clone(feeConfig.HoldersRevenue/100),
   };
 };
 
@@ -480,13 +493,12 @@ const fetchV2 = async (options: FetchOptions) => {
     const adapter = getUniV2LogAdapter({ 
       factory: logConfig.factory, 
       eventAbi: ABIS.V2.SWAP_EVENT, 
-      pairCreatedAbi: ABIS.V2.POOL_CREATE 
+      pairCreatedAbi: ABIS.V2.POOL_CREATE
     });
     const v2stats = await adapter(options);
-    const usdDailyVolume = await v2stats.dailyVolume.toString();
     return {
       ...v2stats,
-      ...calculateFees(usdDailyVolume, FEE_CONFIG.V2_V3)
+      ...calculateFeesBalances(v2stats.dailyVolume, FEE_CONFIG.V2_V3)
     };
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
     const v2stats = await graphs(options.chain)(options);
@@ -529,7 +541,7 @@ const fetchV3 = async (options: FetchOptions) => {
     return {
       dailyVolume: totalVolume.toString(),
       dailyFees: dailyFees.toString(),
-      ...calculateFees(inflated_volume.toString(), FEE_CONFIG.V2_V3)
+      ...calculateFeesDune(inflated_volume.toString(), FEE_CONFIG.V2_V3)
     };
   }
   throw new Error('Invalid data source');
