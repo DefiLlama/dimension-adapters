@@ -113,6 +113,58 @@ with
                     query_3639473
             )
 
+        UNION all
+
+        select
+            t.block_time,
+            'avax' as chain,
+            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "protocol_fee",
+            if(
+                partner_fee_recipient not in (0x6b3214fD11dc91De14718DeE98Ef59bCbFcfB432),
+                case partner_fee_recipient
+                    when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
+                    else 0.15
+                end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
+            ) as "partner_fee"
+        from
+            "query_4364122(blockchain='avalanche_c')" as r
+            inner join cow_protocol_avalanche_c.trades as t on r.order_uid=t.order_uid
+            and r.tx_hash=t.tx_hash
+            left join dune.cowprotocol.result_cow_protocol_avalanche_c_app_data as d on t.app_data=d.app_hash
+        where
+            t.order_uid not in (
+                select
+                    order_uid
+                from
+                    query_3639473
+            )
+
+        UNION all
+
+        select
+            t.block_time,
+            'polygon' as chain,
+            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "protocol_fee",
+            if(
+                partner_fee_recipient not in (0x6b3214fD11dc91De14718DeE98Ef59bCbFcfB432),
+                case partner_fee_recipient
+                    when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
+                    else 0.15
+                end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
+            ) as "partner_fee"
+        from
+            "query_4364122(blockchain='polygon')" as r
+            inner join cow_protocol_polygon.trades as t on r.order_uid=t.order_uid
+            and r.tx_hash=t.tx_hash
+            left join dune.cowprotocol.result_cow_protocol_polygon_app_data as d on t.app_data=d.app_hash
+        where
+            t.order_uid not in (
+                select
+                    order_uid
+                from
+                    query_3639473
+            )
+
     ),
     mevblocker as (
         select
