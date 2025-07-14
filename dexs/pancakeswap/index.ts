@@ -7,6 +7,7 @@ import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
 import { queryDuneSql } from "../../helpers/dune";
+import { getEnv } from "../../helpers/env";
 
 enum DataSource {
   GRAPH = 'graph',
@@ -295,7 +296,7 @@ interface ISwapEventData {
 
 const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
+const APTOS_PRC = getEnv('APTOS_PRC');
 
 const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
@@ -348,9 +349,22 @@ const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances
     balances.add(token1, e.amount_y_out)
   })
 
+  // fees are same as v2 on bsc
+  const dailyVolume = await balances.getUSDString()
+  const dailyFees = Number(dailyVolume) * FEE_CONFIG.V2_V3.Fees;
+  const dailyRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.Revenue;
+  const dailyProtocolRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.ProtocolRevenue;
+  const dailySupplySideRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.SupplySideRevenue;
+  const dailyHoldersRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.HoldersRevenue;
+
   return {
-    dailyVolume: await balances.getUSDString(),
-    dailyFees: "0",
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
