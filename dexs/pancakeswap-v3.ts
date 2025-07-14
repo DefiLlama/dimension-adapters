@@ -3,9 +3,10 @@ import { BaseAdapter, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
+import * as sdk from '@defillama/sdk';
 
 // Import the necessary components from the main pancakeswap adapter
-import { PROTOCOL_CONFIG, PANCAKESWAP_V3_DUNE_QUERY } from './pancakeswap';
+import { PROTOCOL_CONFIG, FEE_CONFIG, PANCAKESWAP_V3_DUNE_QUERY } from './pancakeswap';
 
 // Get the V3_CONFIG from the main adapter
 const V3_CONFIG = PROTOCOL_CONFIG.v3;
@@ -40,6 +41,28 @@ const v3Graph = getGraphDimensions2({
   },
 });
 
+const calculateFees = (dailyVolume: number) => {
+  return {
+    dailyFees: dailyVolume * FEE_CONFIG.V2_V3.Fees/100,
+    dailyUserFees: dailyVolume * FEE_CONFIG.V2_V3.UserFees/100,
+    dailyRevenue: dailyVolume * FEE_CONFIG.V2_V3.Revenue/100,
+    dailyProtocolRevenue: dailyVolume * FEE_CONFIG.V2_V3.ProtocolRevenue/100,
+    dailySupplySideRevenue: dailyVolume * FEE_CONFIG.V2_V3.SupplySideRevenue/100,
+    dailyHoldersRevenue: dailyVolume * FEE_CONFIG.V2_V3.HoldersRevenue/100,
+  };
+};
+
+const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
+  return {
+    dailyFees: dailyVolume.clone(FEE_CONFIG.V2_V3.Fees/100),
+    dailyUserFees: dailyVolume.clone(FEE_CONFIG.V2_V3.UserFees/100),
+    dailyRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.Revenue/100),
+    dailyProtocolRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.ProtocolRevenue/100),
+    dailySupplySideRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.SupplySideRevenue/100),
+    dailyHoldersRevenue: dailyVolume.clone(FEE_CONFIG.V2_V3.HoldersRevenue/100),
+  };
+};
+
 // Custom Dune SQL query for PancakeSwap V3
 const fetchV3Dune = async (_a:any, _b:any, options: FetchOptions) => {
   const results = await queryDuneSql(options, PANCAKESWAP_V3_DUNE_QUERY);
@@ -47,6 +70,7 @@ const fetchV3Dune = async (_a:any, _b:any, options: FetchOptions) => {
   const totalVolume = results[0]?.total_volume || 0;
 
   const dailyFees = totalVolume * 0.0025;
+  const dailyRevenue = totalVolume * 0.0008;
   const dailyProtocolRevenue = totalVolume * 0.000225; // 0.0225%
   const dailySupplySideRevenue = totalVolume * 0.0017; // 0.17%
   const dailyHoldersRevenue = totalVolume * 0.000575; // 0.0575%
@@ -55,6 +79,7 @@ const fetchV3Dune = async (_a:any, _b:any, options: FetchOptions) => {
   return {
     dailyVolume: totalVolume.toString(),
     dailyFees: dailyFees.toString(),
+    dailyRevenue: dailyRevenue.toString(),
     dailyProtocolRevenue: dailyProtocolRevenue.toString(),
     dailySupplySideRevenue: dailySupplySideRevenue.toString(),
     dailyHoldersRevenue: dailyHoldersRevenue.toString(),
@@ -76,14 +101,18 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
       poolCreatedEvent: ABIS.POOL_CREATE, 
       swapEvent: ABIS.SWAP_EVENT 
     });
-    return await adapter(options);   
+    const v2stats = await adapter(options);
+    return {
+      ...v2stats,
+      ...calculateFeesBalances(v2stats.dailyVolume),
+    }
   } else if (chainConfig.dataSource === 'graph') {
     const v3stats = await v3Graph(options.chain)(options);
     // Ethereum-specific adjustment
     // if (options.chain === CHAIN.ETHEREUM) {
     //   v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
     // }
-    return v3stats;
+    return calculateFees(Number(v3stats.dailyVolume));
   } else if (chainConfig.dataSource === 'dune') {
     return await fetchV3Dune(_a, _b, options);
   }
@@ -117,13 +146,20 @@ const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
     dailyFees += Number(pool.day.volumeFee);
   }
 
+  const dailyUserFees = dailyVolume * FEE_CONFIG.V2_V3.UserFees / 100;
+  const dailyRevenue = dailyVolume * FEE_CONFIG.V2_V3.Fees / 100;
+  const dailyProtocolRevenue = dailyVolume * FEE_CONFIG.V2_V3.ProtocolRevenue / 100;
+  const dailySupplySideRevenue = dailyVolume * FEE_CONFIG.V2_V3.SupplySideRevenue / 100;
+  const dailyHoldersRevenue = dailyVolume * FEE_CONFIG.V2_V3.HoldersRevenue / 100;
+
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees * 0.68, // 68% swap fees
-    dailyProtocolRevenue: dailyFees * 0.09, // 9% swap fees
-    dailyHoldersRevenue: dailyFees * 0.023, // 23% swap fees
+    dailyRevenue,
+    dailyUserFees,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   }
 }
 
