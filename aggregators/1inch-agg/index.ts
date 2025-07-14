@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
 const chainsMap: Record<string, string> = {
@@ -11,6 +11,10 @@ const chainsMap: Record<string, string> = {
   BASE: "base",
   GNOSIS: "xdai",
   FANTOM: "fantom",
+  LINEA: "linea",
+  SONIC: "sonic",
+  UNICHAIN: "unichain",
+  ZKSYNC: "zksync-era",
 };
 
 const prefetch = async (options: FetchOptions) => {
@@ -26,17 +30,22 @@ const prefetch = async (options: FetchOptions) => {
     ORDER BY volume_24h DESC
   `;
   return await queryDuneSql(options, sql_query);
-}
+};
 
-const fetch = async (_a:any, _b:any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (
+  _a: any,
+  _b: any,
+  options: FetchOptions
+): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
-  const chainData = results.find(item => chainsMap[item.blockchain] === options.chain.toLowerCase());
+  const chainData = results.find(
+    (item) => chainsMap[item.blockchain] === options.chain.toLowerCase()
+  );
 
   return {
     dailyVolume: chainData.volume_24h,
   };
-}
-
+};
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -46,7 +55,7 @@ const adapter: SimpleAdapter = {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
           fetch: fetch,
-          start: '2023-12-05',
+          start: "2023-12-05",
         },
       };
     }, {}),
