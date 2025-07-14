@@ -91,6 +91,9 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const pancakeSolanaExplorer = 'https://sol-explorer.pancakeswap.com/api/cached/v1/pools/info/list?poolType=concentrated&poolSortField=default&order=desc'
+const blacklistPools = [
+  'EbkGwrT4zf7Hczrn23zyoPJHThd2NHguJnyWiJe9wf9D',
+];
 const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
 
   let dailyVolume = 0;
@@ -109,7 +112,7 @@ const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
     page += 1;
   } while(true)
 
-  for (const pool of allPools) {
+  for (const pool of allPools.filter(pool => !blacklistPools.includes(pool.id))) {
     dailyVolume += Number(pool.day.volume);
     dailyFees += Number(pool.day.volumeFee);
   }
