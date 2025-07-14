@@ -244,6 +244,7 @@ export enum CHAIN {
   XRPL_EVM = 'xrplevm',
   KATANA = 'katana',
   BOTANIX = 'btnx',
+  SOON = 'soon',
 }
 
 // Don´t use
