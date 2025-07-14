@@ -195,7 +195,7 @@ const FEE_CONFIG = {
     HoldersRevenue: 0.1,
     UserFees: 0.25,
     SupplySideRevenue: 0.125,
-    Revenue: 0.0225
+    Revenue: 0.125, // ProtocolRevenue + HoldersRevenue
   }
 }
 
@@ -564,9 +564,11 @@ const fetchStableSwap = async (options: FetchOptions, {factory}: {factory: strin
     const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.SupplySideRevenue/100)
     const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.HoldersRevenue/100)
     const dailyUserFees = dailyVolume.clone(FEE_CONFIG.STABLESWAP.UserFees/100)
+    const dailyRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.Revenue/100)
     return {
       dailyVolume: dailyVolume,
       dailyFees,
+      dailyRevenue,
       dailyProtocolRevenue,
       dailySupplySideRevenue,
       dailyHoldersRevenue,
