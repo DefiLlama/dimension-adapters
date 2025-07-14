@@ -36,7 +36,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchEchoStrategyStats,
-      start: '2025-05-01',
+      start: '2025-07-09',
       meta: {
         methodology,
       },
