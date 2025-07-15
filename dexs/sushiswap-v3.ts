@@ -131,12 +131,11 @@ const v3: any = Object.keys(endpointsV3).reduce(
 const getUniV3LogAdapterConfig = {
   userFeesRatio: 1,
   revenueRatio: 0,
-  supplySideRevenue: 0,
   protocolRevenueRatio: 0,
   holdersRevenue: 0,
 }
 
-v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328f69400d6ae4f782bd4c34abb', ...getUniV3LogAdapterConfig }), meta, }
+v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', ...getUniV3LogAdapterConfig }), meta, }

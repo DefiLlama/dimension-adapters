@@ -172,12 +172,11 @@ const adapters = createV3Adapter();
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    // ...adapters,
-    base: adapters.base,
-    // solana: {
-    //   fetch: fetchSolanaV3,
-    //   runAtCurrTime: true,
-    // }
+    ...adapters,
+    solana: {
+      fetch: fetchSolanaV3,
+      runAtCurrTime: true,
+    }
   }
 };
 
