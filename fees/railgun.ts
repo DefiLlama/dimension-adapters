@@ -1,6 +1,8 @@
 import { Chain } from "../adapters/types";
-import { FetchV2, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter,FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { addTokensReceived } from "../helpers/token";
+import ADDRESSES from '../helpers/coreAssets.json'
 
 
 type IContract = {
@@ -24,10 +26,10 @@ const eventAbis = {
   "Unshield": "event Unshield(address to, (uint8 tokenType, address tokenAddress, uint256 tokenSubID) token, uint256 amount, uint256 fee)",
 }
 
-const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
-  const dailyFees = createBalances()
-  const logs_shield = await getLogs({ target: contract[chain], topics: [topic0_shield], eventAbi: eventAbis.Shield })
-  const logs_unshield = await getLogs({ target: contract[chain], topics: [topic0_unshield], eventAbi: eventAbis.Unshield })
+const fetchFees = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+  const logs_shield = await options.getLogs({ target: contract[options.chain], topics: [topic0_shield], eventAbi: eventAbis.Shield })
+  const logs_unshield = await options.getLogs({ target: contract[options.chain], topics: [topic0_unshield], eventAbi: eventAbis.Unshield })
 
   logs_shield.forEach((log) => {
     dailyFees.addTokens(log.commitments.map((i: any) => i.token.tokenAddress), log.fees)
@@ -36,9 +38,19 @@ const fetchFees: FetchV2 = async ({ createBalances, getLogs, chain, }) => {
     dailyFees.add(log.token.tokenAddress, log.fee)
   })
 
+  let dailyHoldersRevenue;
+  if (options.chain === 'ethereum') {
+    dailyHoldersRevenue = await addTokensReceived({
+      options,
+      tokens: [ADDRESSES.ethereum.WETH, ADDRESSES.ethereum.DAI],
+      targets: ['0xA02782CE1bF85f56f8cC7C0E66e61299Ac75c86f'],
+    });
+  }
+
   return {
     dailyFees,
-    dailyRevenue: dailyFees
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue
   }
 }
 
@@ -46,7 +58,7 @@ const meta = {
   methodology: {
     Fees: 'All fees paid by users using Railgun privacy services.',
     Revenue: 'All fees collected by Railgun.',
-    HoldersRevenue: 'Fees distributed to token holders',
+    HoldersRevenue: '2% of the treasury is distributed to the claiming mechanism every 2 weeks. This means that every year, ~52% of the treasury goes to stakers',
   }
 }
 const options: any = { fetch: fetchFees, start: '2022-05-01', meta }
