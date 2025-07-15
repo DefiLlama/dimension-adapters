@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -21,7 +22,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 WHERE
                     executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
                     AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                    AND account_arguments[4] <> 'So11111111111111111111111111111111111111112'
+                    AND account_arguments[4] <> '${ADDRESSES.solana.SOL}'
                     AND tx_success = TRUE
                     AND NOT is_inner
 
@@ -36,7 +37,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                     AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
                     AND tx_success = TRUE
                     AND VARBINARY_STARTS_WITH (data, 0xc208a15799a419ab)
-                    AND account_arguments[6] <> 'So11111111111111111111111111111111111111112'
+                    AND account_arguments[6] <> '${ADDRESSES.solana.SOL}'
                     AND NOT is_inner
             ),
             dbc_swap_events AS (

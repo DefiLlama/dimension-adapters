@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL, { httpGet } from "../../utils/fetchURL";
@@ -44,7 +45,7 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
 }
 
 function toAddress(numberString: string): string {
-  return numberString === '0' ? '0x0000000000000000000000000000000000000000' : `0x${new BigNumber(numberString).toString(16)}`;
+  return numberString === '0' ? ADDRESSES.null : `0x${new BigNumber(numberString).toString(16)}`;
 }
 
 const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {

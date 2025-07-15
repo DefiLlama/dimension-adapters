@@ -20,7 +20,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const results = options.preFetchedResults || [];
     const chainData = results.find(item => item.chain === options.chain.toLowerCase());
 
-    const dailyVolume = chainData.volume;
+    if (!chainData) {
+        return {
+            dailyVolume: 0,
+            dailyFees: 0,
+            dailyRevenue: 0,
+            dailyProtocolRevenue: 0,
+            dailySupplySideRevenue: 0
+        }
+    }
+
+    const dailyVolume = chainData.volume || 0;
     const dailyFees = chainData.dailyProtocolFees + chainData.dailySupplySideRevenue;
     const dailyProtocolRevenue = chainData.dailyProtocolFees;
     const dailySupplySideRevenue = chainData.dailySupplySideRevenue;

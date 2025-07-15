@@ -43,6 +43,7 @@ const fetch = async (options: FetchOptions) => {
     }, 0)
   );
   return {
+    dailyFees,
     dailyVolume,
     dailyRevenue: dailyProtocolRevenue,
     dailyUserFees: dailyFees, // User fees are the same as total fees

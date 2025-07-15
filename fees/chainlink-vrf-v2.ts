@@ -12,7 +12,7 @@ const eventAbis = {
   randomWordsFulfilled: "event RandomWordsFulfilled(uint256 indexed requestId, uint256 outputSeed, uint96 payment, bool success)",
 }
 
-const LINK = '0x514910771af9ca656af840dff83e8264ecf986ca';
+const LINK = ADDRESSES.ethereum.LINK;
 
 type TAddrress = {
   [l: string | CHAIN]: string;

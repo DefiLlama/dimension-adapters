@@ -45,7 +45,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue: '0',
+    // dailyHoldersRevenue: '0',  // For the time being, 'Holders Revenue' will not be displayed. It will be updated when the governance token goes live.
     dailySupplySideRevenue
   };
 }

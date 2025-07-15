@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -16,10 +17,10 @@ const eventRouted = `event Routed(
 
 const DEFAULT_ROUTER = "0x6Ec7612828B776cC746fe0Ee5381CC93878844f7";
 const gasTokens = new Set([
-  '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-  '0x0000000000000000000000000000000000000000',
+  ADDRESSES.GAS_TOKEN_2,
+  ADDRESSES.null,
   '0x2222222222222222222222222222222222222222',  // hyperliquid
-  '0x0000000000000000000000000000000000001010',  // polygon
+  ADDRESSES.polygon.WMATIC_1,  // polygon
 ])
 
 const config: any = {

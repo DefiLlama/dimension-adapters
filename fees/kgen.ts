@@ -1,6 +1,6 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import {
   FetchOptions,
-  FetchResultV2,
   FetchV2,
   SimpleAdapter,
 } from "../adapters/types";
@@ -20,7 +20,7 @@ const config: Record<string, string> = {
   [CHAIN.POLYGON]: "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51",
 }
 
-const POLYGON_USDT_ADDRESS = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f"
+const POLYGON_USDT_ADDRESS = ADDRESSES.polygon.USDT
 
 const ItemSoldEvent = "event ItemSoldV1(uint256 tokenId, uint256 quantity, uint256 totalPrice)";
 
@@ -148,8 +148,8 @@ const fetchPolygonRevenue = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees paid by dapps/projects launching quests on KGeN.",
-  Revenue: "Fees paid by dapps/projects launching quests on KGeN.",
+  Fees: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
+  Revenue: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
   ProtocolRevenue: "All fees collected by KGeN.",
 };
 
