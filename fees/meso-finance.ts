@@ -40,9 +40,12 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const dayRevenueData = await fetchURL(config[options.chain].revenue(timestamp, '1D'));
   const dailyRevenue = dayRevenueData.filter((a: IVolumeall) => a.timestamp >= timestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
+  
   return {
     dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue
+    dailyRevenue: dailyRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue
   };
 };
 
