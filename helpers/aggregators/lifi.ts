@@ -188,6 +188,10 @@ export const LifiDiamonds: IContract = {
   [CHAIN.GRAVITY]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     startTime: '2024-07-30'
+  },
+  [CHAIN.KATANA]: {
+    id: '0xC59fe32C9549e3E8B5dCcdAbC45BD287Bd5bA2bc',
+    startTime: '2025-07-01'
   }
 }
 
@@ -367,7 +371,11 @@ export const LifiFeeCollectors: IContract = {
   [CHAIN.XDAI]: {
       id: '0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9',
       startTime: '2023-07-24'
-  }
+  },
+  [CHAIN.KATANA]: {
+      id: '0xB7ea489dB36820f0d57F1A67353AA4f5d0890ce3',
+      startTime: '2025-07-01'
+  },
 }
 
 export const fetchVolumeFromLIFIAPI = async (chain: Chain, startTime: number, endTime: number, integrators?: string[], exclude_integrators?: string[], swapType?: 'cross-chain' | 'same-chain'): Promise<number> => {

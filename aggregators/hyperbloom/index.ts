@@ -1,14 +1,9 @@
 import { ethers } from "ethers";
-import {
-  FetchOptions,
-  FetchResultVolume,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransactions } from "../../helpers/getTxReceipts";
 
-const BridgeFillEvent =
-  "event BridgeFill(bytes32 source, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
+const BridgeFillEvent = "event BridgeFill(bytes32 source, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
 
 const HYPERBLOOM_ADDRESSES = [
   "0x4212a77e4533eca49643d7b731f5fb1b2782fe94", //new
@@ -16,16 +11,10 @@ const HYPERBLOOM_ADDRESSES = [
 ];
 const iface = new ethers.Interface([BridgeFillEvent]);
 
-const fetch: any = async (
-  options: FetchOptions
-): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const logs: any[] = await options.getLogs({
-    noTarget: true,
-    eventAbi: BridgeFillEvent,
-    entireLog: true,
-  });
+  const logs: any[] = await options.getLogs({noTarget: true, eventAbi: BridgeFillEvent, entireLog: true});
 
   const txHashes = [...new Set(logs.map((l) => l.transactionHash))];
   const txs: any[] = await getTransactions(options.chain, txHashes, {
@@ -80,19 +69,18 @@ const fetch: any = async (
     });
   });
 
-  return { dailyVolume } as any;
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch: fetch,
+      fetch,
       start: "2025-05-31",
       meta: {
         methodology: {
-          Volume:
-            "Volume from Hyperbloom",
+          Volume: "Volume from Hyperbloom",
         },
       },
     },

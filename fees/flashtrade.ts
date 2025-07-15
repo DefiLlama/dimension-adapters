@@ -1,4 +1,5 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import ADDRESSES from '../helpers/coreAssets.json'
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -9,9 +10,12 @@ interface Pool {
     totalProtocolFee: string;
 }
 
-const methodology = {
-    Fees: 'Sum of all fees accrued from LP pools.',
-    ProtocolReveneue: '30% of all the fees accrued excluding Community pool.'
+
+interface Pool {
+    poolName: string;
+    date: string;
+    totalRevenue: string;
+    totalProtocolFee: string;
 }
 
 const urlDailyStats = "https://api.prod.flash.trade/protocol-fees/daily";
@@ -42,15 +46,23 @@ const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
         dailyFees: (dailyAccrued * 10**-6).toString(),
         dailyRevenue: (dailyProtocolRevenue * 10**-6).toString(),
         dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(),
+
     };
 };
+
+const methodology = {
+    Fees: 'Sum of all fees accrued from LP pools.',
+    Revenue: 'Sum of protocol revenue and holder revenue.',
+    ProtocolRevenue: '30% of all the fees accrued excluding Community pool.',
+    HolderRevenue: '50% of revenue goes to token stakers.',
+}
 
 const adapter: Adapter = {
     version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
+            fetch,
             runAtCurrTime: true,
-            fetch: fetchFlashStats,
             meta: { methodology },
         },
     },

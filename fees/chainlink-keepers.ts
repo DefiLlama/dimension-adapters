@@ -17,7 +17,7 @@ type TAddrress = {
   [l: string | CHAIN]: string;
 }
 
-const LINK = '0x514910771af9ca656af840dff83e8264ecf986ca';
+const LINK = ADDRESSES.ethereum.LINK;
 
 const address: TAddrress = {
   [CHAIN.ETHEREUM]: '0x02777053d6764996e594c3E88AF1D58D5363a2e6',

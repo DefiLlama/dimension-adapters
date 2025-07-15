@@ -96,6 +96,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.INK]: {
       fetch,
       start: '2025-02-11',
+    },    
+    [CHAIN.ABSTRACT]: {
+      fetch,
+      start: '2025-07-01',
+    },
+    [CHAIN.UNICHAIN]: {
+      fetch,
+      start: '2025-07-01',
     },
   },
 };

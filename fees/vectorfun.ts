@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/adam_tehc/vectorfun
 // https://dune.com/queries/4411229/7390130
 
@@ -58,7 +59,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     `;
 
     const fees = await queryDuneSql(options, query);
-    dailyFees.add("So11111111111111111111111111111111111111112", fees[0].fee);
+    dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
 
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }

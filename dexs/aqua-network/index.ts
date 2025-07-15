@@ -19,7 +19,7 @@ const fetch = async (timestamp: number) => {
         .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
     
     return {
-        dailyVolume: dailyVolume ? `${Number(dailyVolume) / 10e7}` : undefined,
+        dailyVolume: dailyVolume ? `${Number(dailyVolume) / 1e7}` : undefined,
     };
 };
 

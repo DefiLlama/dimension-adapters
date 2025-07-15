@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import type { SimpleAdapter } from "../adapters/types";
 import type { FetchOptions, FetchResultV2, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -8,7 +9,7 @@ const CONRTACTS = [
 ]
 
 // WLD token address used by X3XGame (all bets and payouts are in WLD)
-const WLD_TOKEN: string = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003".toLowerCase();
+const WLD_TOKEN: string = ADDRESSES.wc.WLD.toLowerCase();
 
 const GameCreatedEvent = 'event GameCreated(string preliminaryGameId, uint256 indexed onChainGameId, address indexed player, uint256 betAmount, bytes32 gameSeedHash)'
 

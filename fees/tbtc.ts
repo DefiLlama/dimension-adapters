@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -11,7 +12,7 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances()
     logs.forEach((log) => {
         const amount = log.amount
-        dailyFees.add('0x18084fbA666a33d37592fA2633fD49a74DD93a88', amount)
+        dailyFees.add(ADDRESSES.ethereum.tBTC, amount)
     })
     dailyFees.resizeBy(0.002)
     return {

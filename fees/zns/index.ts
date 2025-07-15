@@ -28,6 +28,7 @@ const addresses: Record<string, string> = {
   [CHAIN.INK]: "0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5",
   [CHAIN.ABSTRACT]: '0xe0971a2b6e34bd060866081ae879630e83c4a0bd',
   [CHAIN.PLUME_LEGACY]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D',
+  [CHAIN.PLUME]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D',
   [CHAIN.BERACHAIN]: '0xFb2Cd41a8aeC89EFBb19575C6c48d872cE97A0A5',
   [CHAIN.UNICHAIN]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D',
   [CHAIN.HEMI]: '0xf180136DdC9e4F8c9b5A9FE59e2b1f07265C5D4D'
@@ -41,6 +42,9 @@ const methodology = {
 const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const address = addresses[options.chain];
   const dailyFees = options.createBalances();
+  if (options.chain === CHAIN.PLUME_LEGACY){
+    return { dailyFees, dailyRevenue: dailyFees };
+  }
 
   const mintedLogs = await options.getLogs({
     target: address,
@@ -94,135 +98,30 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
+const meta = { methodology }
+
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2024-04-30',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: '2024-05-04',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2024-05-31',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2024-06-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.TAIKO]: {
-      fetch,
-      start: '2024-05-30',
-      meta: {
-        methodology,
-      },
-    },
-    // [CHAIN.XLAYER]: {
-    //   fetch,
-    //   start: '2024-04-17',
-    //   meta: {
-    //     methodology,
-    //   },
-    // },
-    [CHAIN.ZORA]: {
-      fetch,
-      start: '2024-06-24',
-      meta: {
-        methodology,
-      },
-    },
-    // [CHAIN.BOBA]: {
-    //   fetch,
-    //   start: '2024-06-29',
-    //   meta: {
-    //     methodology,
-    //   },
-    // },
-    // [CHAIN.ZKLINK]: {
-    //   fetch,
-    //   start: '2024-06-29',
-    //   meta: {
-    //     methodology,
-    //   },
-    // },
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2024-05-30',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-05-30',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.SONEIUM]: {
-      fetch,
-      start: '2024-06-24',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.INK]: {
-      fetch,
-      start: '2024-05-30',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ABSTRACT]: {
-      fetch,
-      start: '2025-01-27',
-      meta: {
-        methodology
-      }
-    },
-    // [CHAIN.PLUME_LEGACY]: {
-    //   fetch,
-    //   start: '2024-06-24',
-    //   meta: {
-    //     methodology
-    //   }
-    // },
-    [CHAIN.BERACHAIN]: {
-      fetch,
-      start: '2024-05-30',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.UNICHAIN]: {
-      fetch,
-      start: '2024-06-24',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.HEMI]: {
-      fetch,
-      start: '2024-06-24',
-      meta: {
-        methodology
-      }
-    }
+    [CHAIN.BSC]: { fetch, meta, start: '2024-04-30', },
+    [CHAIN.SCROLL]: { fetch, meta, start: '2024-05-04', },
+    [CHAIN.BLAST]: { fetch, meta, start: '2024-05-31', },
+    [CHAIN.POLYGON]: { fetch, meta, start: '2024-06-01', },
+    [CHAIN.TAIKO]: { fetch, meta, start: '2024-05-30', },
+    // [CHAIN.XLAYER]: {fetch,start: '2024-04-17',meta },
+    [CHAIN.ZORA]: { fetch, meta, start: '2024-06-24', },
+    // [CHAIN.BOBA]: {fetch,start: '2024-06-29',meta },
+    // [CHAIN.ZKLINK]: {fetch,start: '2024-06-29',meta },
+    [CHAIN.SONIC]: { fetch, meta, start: '2024-05-30', },
+    [CHAIN.BASE]: { fetch, meta, start: '2024-05-30', },
+    [CHAIN.SONEIUM]: { fetch, meta, start: '2024-06-24', },
+    [CHAIN.INK]: { fetch, meta, start: '2024-05-30', },
+    [CHAIN.ABSTRACT]: { fetch, meta, start: '2025-01-27', },
+    [CHAIN.PLUME]: { fetch, meta, start: '2025-01-27', },
+    [CHAIN.PLUME_LEGACY]: {fetch, meta, start: '2025-01-20', },
+    [CHAIN.BERACHAIN]: { fetch, meta, start: '2024-05-30', },
+    [CHAIN.UNICHAIN]: { fetch, meta, start: '2024-06-24', },
+    [CHAIN.HEMI]: { fetch, meta, start: '2024-06-24', }
   },
 };
 
