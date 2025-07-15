@@ -108,8 +108,8 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
     dailyProtocolRevenue.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
   });
-  const revenueLoansData = await loans(fromTimestamp, toTimestamp);
-  revenueLoansData.forEach((log: any) => {
+  const volumeLoansData = await loans(fromTimestamp, toTimestamp);
+  volumeLoansData.forEach((log: any) => {
     dailyVolume.add(log.loansNFT.underlying, log.underlyingAmount);
 
   });
@@ -153,12 +153,19 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyProtocolRevenue, dailyVolume, dailySupplySideRevenue: dailySupplierAccruedFees };
 };
 
+const methodology = {
+  Fees: '',
+  Revenue: '',
+  ProtocolRevenue: ''
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     base: {
       fetch,
-      start: '2025-04-16'
+      start: '2025-04-16',
+      meta: { methodology }
     }
   }
 };
