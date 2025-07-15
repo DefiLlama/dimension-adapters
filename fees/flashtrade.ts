@@ -22,17 +22,18 @@ const calculateProtocolRevenue = (stats: Pool[]) => {
         .reduce((sum, item) => sum + 0.3 * parseFloat(item.totalProtocolFee), 0);
 }
 
-const fetchFlashStats = async (_: number): Promise<FetchResultFees> => {
+const fetchFlashStats = async (timestamp: number): Promise<FetchResultFees> => {
     const dailyStatsResponse = await fetchURL(urlDailyStats);
     const dailyStats: Pool[] = dailyStatsResponse;
     
-    // Find the most recent date in the data
-    const mostRecentDate = dailyStats.reduce((latest, item) => {
-        return item.date > latest ? item.date : latest;
-    }, dailyStats[0]?.date || "");
+    // Convert timestamp to date string format matching the API data
+    const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
     
-    // Filter to only include entries from the most recent date
-    const todayStats = dailyStats.filter(item => item.date === mostRecentDate);
+    // Filter to only include entries from the target date
+    const todayStats = dailyStats.filter(item => {
+        const itemDate = new Date(item.date).toISOString().split('T')[0];
+        return itemDate === targetDate;
+    });
     
     const dailyAccrued = (todayStats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0));
     const dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
