@@ -54,9 +54,9 @@ const fetchCotiFees = async ({
 }: FetchOptions) => {
   try {
     let skip = 0;
-    let total = new BigNumber(0);
+    let totalDecimal = new BigNumber(0);
 
-    // Paginate through all results
+    // Aggregate decimal platformFee values
     while (true) {
       const { totalHistories }: ICotiResponse = await request(
         endpoints[chain],
@@ -66,15 +66,17 @@ const fetchCotiFees = async ({
       if (!totalHistories.length) break;
 
       totalHistories.forEach(({ platformFee }) => {
-        total = total.plus(platformFee || "0");
+        totalDecimal = totalDecimal.plus(platformFee || "0");
       });
       if (totalHistories.length < 1000) break;
       skip += totalHistories.length;
     }
 
+    // Convert decimal sum to raw wei integer string
+    const totalWei = totalDecimal.multipliedBy("1e18").integerValue().toString();
+
     const dailyFees = createBalances();
-    // Pass raw wei amount (integer string)—no division by 1e18
-    dailyFees.addGasToken(total.toString());
+    dailyFees.addGasToken(totalWei);
 
     return { dailyFees, dailyRevenue: dailyFees };
   } catch (error) {
@@ -92,9 +94,8 @@ const fetchBaseFees = async ({
   try {
     const day = Math.floor(endTimestamp / 86400);
     let skip = 0;
-    let total = new BigNumber(0);
+    let totalDecimal = new BigNumber(0);
 
-    // Paginate through all results
     while (true) {
       const { dailyHistories }: IBaseResponse = await request(
         endpoints[chain],
@@ -104,15 +105,16 @@ const fetchBaseFees = async ({
       if (!dailyHistories.length) break;
 
       dailyHistories.forEach(({ platformFee }) => {
-        total = total.plus(platformFee || "0");
+        totalDecimal = totalDecimal.plus(platformFee || "0");
       });
       if (dailyHistories.length < 1000) break;
       skip += dailyHistories.length;
     }
 
+    const totalWei = totalDecimal.multipliedBy("1e18").integerValue().toString();
+
     const dailyFees = createBalances();
-    // Pass raw wei amount (integer string)
-    dailyFees.addGasToken(total.toString());
+    dailyFees.addGasToken(totalWei);
 
     return { dailyFees, dailyRevenue: dailyFees };
   } catch (error) {
