@@ -8,7 +8,7 @@ const endpoints = {
   [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics"
 };
 
-// COTI: totalHistories with timestamp range + pagination
+// GraphQL for COTI: paginated totalHistories by timestamp
 const cotiQuery = gql`
   query fees($from: Int!, $to: Int!, $skip: Int!) {
     totalHistories(
@@ -23,7 +23,7 @@ const cotiQuery = gql`
   }
 `;
 
-// Base: dailyHistories by day + pagination
+// GraphQL for Base: paginated dailyHistories by day
 const baseQuery = gql`
   query fees($day: Int!, $skip: Int!) {
     dailyHistories(
@@ -41,10 +41,13 @@ const baseQuery = gql`
 interface ICotiResponse {
   totalHistories: Array<{ platformFee: string }>;
 }
-
 interface IBaseResponse {
   dailyHistories: Array<{ platformFee: string }>;
 }
+
+// Token addresses (chain:key format):
+const USDC_BASE = "base:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";      // Circle USDC on Base
+const USDC_COTI = "coti:0xf1Feebc4376c68B7003450ae66343Ae59AB37D3C";     // USDC.e on COTI
 
 const fetchCotiFees = async ({
   createBalances,
@@ -52,38 +55,30 @@ const fetchCotiFees = async ({
   endTimestamp,
   chain
 }: FetchOptions) => {
-  try {
-    let skip = 0;
-    let totalDecimal = new BigNumber(0);
+  let skip = 0;
+  let totalRaw = new BigNumber(0);
 
-    // Aggregate decimal platformFee values
-    while (true) {
-      const { totalHistories }: ICotiResponse = await request(
-        endpoints[chain],
-        cotiQuery,
-        { from: startTimestamp, to: endTimestamp, skip }
-      );
-      if (!totalHistories.length) break;
+  while (true) {
+    const { totalHistories }: ICotiResponse = await request(
+      endpoints[chain],
+      cotiQuery,
+      { from: startTimestamp, to: endTimestamp, skip }
+    );
+    if (!totalHistories.length) break;
 
-      totalHistories.forEach(({ platformFee }) => {
-        totalDecimal = totalDecimal.plus(platformFee || "0");
-      });
-      if (totalHistories.length < 1000) break;
-      skip += totalHistories.length;
-    }
-
-    // Convert decimal sum to raw wei integer string
-    const totalWei = totalDecimal.multipliedBy("1e18").integerValue().toString();
-
-    const dailyFees = createBalances();
-    dailyFees.addGasToken(totalWei);
-
-    return { dailyFees, dailyRevenue: dailyFees };
-  } catch (error) {
-    console.error("Error fetching COTI fees:", error);
-    const dailyFees = createBalances();
-    return { dailyFees, dailyRevenue: dailyFees };
+    totalHistories.forEach(({ platformFee }) => {
+      // platformFee is assumed to be raw USDC.e in smallest units (6 decimals)
+      totalRaw = totalRaw.plus(platformFee || "0");
+    });
+    if (totalHistories.length < 1000) break;
+    skip += totalHistories.length;
   }
+
+  const dailyFees = createBalances();
+  // Add raw USDC.e amount (6‐decimal smallest units)
+  dailyFees.add(USDC_COTI, totalRaw.toFixed(0));
+
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const fetchBaseFees = async ({
@@ -91,42 +86,36 @@ const fetchBaseFees = async ({
   endTimestamp,
   chain
 }: FetchOptions) => {
-  try {
-    const day = Math.floor(endTimestamp / 86400);
-    let skip = 0;
-    let totalDecimal = new BigNumber(0);
+  const day = Math.floor(endTimestamp / 86400);
+  let skip = 0;
+  let totalRaw = new BigNumber(0);
 
-    while (true) {
-      const { dailyHistories }: IBaseResponse = await request(
-        endpoints[chain],
-        baseQuery,
-        { day, skip }
-      );
-      if (!dailyHistories.length) break;
+  while (true) {
+    const { dailyHistories }: IBaseResponse = await request(
+      endpoints[chain],
+      baseQuery,
+      { day, skip }
+    );
+    if (!dailyHistories.length) break;
 
-      dailyHistories.forEach(({ platformFee }) => {
-        totalDecimal = totalDecimal.plus(platformFee || "0");
-      });
-      if (dailyHistories.length < 1000) break;
-      skip += dailyHistories.length;
-    }
-
-    const totalWei = totalDecimal.multipliedBy("1e18").integerValue().toString();
-
-    const dailyFees = createBalances();
-    dailyFees.addGasToken(totalWei);
-
-    return { dailyFees, dailyRevenue: dailyFees };
-  } catch (error) {
-    console.error("Error fetching Base fees:", error);
-    const dailyFees = createBalances();
-    return { dailyFees, dailyRevenue: dailyFees };
+    dailyHistories.forEach(({ platformFee }) => {
+      // platformFee is assumed to be raw USDC in smallest units (6 decimals)
+      totalRaw = totalRaw.plus(platformFee || "0");
+    });
+    if (dailyHistories.length < 1000) break;
+    skip += dailyHistories.length;
   }
+
+  const dailyFees = createBalances();
+  // Add raw USDC amount (6‐decimal smallest units)
+  dailyFees.add(USDC_BASE, totalRaw.toFixed(0));
+
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const methodology = {
-  Fees: "Platform fees collected by PriveX from derivatives trading activities",
-  Revenue: "All platform fees collected represent protocol revenue",
+  Fees: "Platform fees collected by PriveX in USDC from derivatives trading",
+  Revenue: "All USDC platform fees represent protocol revenue",
 };
 
 const adapter: SimpleAdapter = {
