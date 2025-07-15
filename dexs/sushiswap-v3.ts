@@ -132,7 +132,7 @@ const getUniV3LogAdapterConfig = {
   userFeesRatio: 1,
   revenueRatio: 0,
   protocolRevenueRatio: 0,
-  holdersRevenue: 0,
+  holdersRevenueRatio: 0,
 }
 
 v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), meta, }
