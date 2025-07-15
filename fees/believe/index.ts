@@ -1,10 +1,10 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
+    quote_mint: string;
     total_volume: number;
     total_trading_fees: number;
     total_protocol_fees: number;
@@ -16,94 +16,42 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         WITH
             dbc_tokens AS (
                 SELECT DISTINCT
-                    account_arguments[4] AS token
-                FROM
-                    solana.instruction_calls
-                WHERE
-                    executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
-                    AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                    AND account_arguments[4] <> '${ADDRESSES.solana.SOL}'
-                    AND tx_success = TRUE
-                    AND NOT is_inner
-
-                UNION
-
-                SELECT DISTINCT
-                    account_arguments[6] AS token
-                FROM
-                    solana.instruction_calls
-                WHERE
-                    executing_account = 'SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf'
-                    AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                    AND tx_success = TRUE
-                    AND VARBINARY_STARTS_WITH (data, 0xc208a15799a419ab)
-                    AND account_arguments[6] <> '${ADDRESSES.solana.SOL}'
-                    AND NOT is_inner
+                    account_config,
+                    account_quote_mint
+                FROM meteora_solana.dynamic_bonding_curve_call_initialize_virtual_pool_with_spl_token
+                WHERE call_tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
             ),
-            dbc_swap_events AS (
+            swap_events AS (
                 SELECT
-                    tx_id
-                FROM
-                    solana.instruction_calls
-                WHERE
-                    executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
-                    AND TIME_RANGE
-                    AND tx_success = TRUE
-                    AND VARBINARY_STARTS_WITH (data, 0xf8c69e91e17587c8)
-                    AND account_arguments[8] IN (SELECT token FROM dbc_tokens)
-            ),
-            swap_event_logs AS (
-                SELECT
-                    TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_SUBSTRING(data, 17+64, 1)) AS INT) AS trade_direction,
-                    TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 17+82, 8))) AS DECIMAL(38,0)) AS actual_input_amount,
-                    TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 17+90, 8))) AS DECIMAL(38,0)) AS output_amount,
-                    TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 17+114, 8))) AS DECIMAL(38,0)) AS trading_fee,
-                    TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 17+122, 8))) AS DECIMAL(38,0)) AS protocol_fee,
-                    TRY_CAST(BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 17+130, 8))) AS DECIMAL(38,0)) AS referral_fee
-                FROM
-                    solana.instruction_calls
-                WHERE
-                    executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
-                    AND TIME_RANGE
-                    AND tx_success = TRUE
-                    AND tx_id IN (SELECT tx_id FROM dbc_swap_events)
-                    AND VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d1b3c15d58aaabb93)
+                    s.config,
+                    t.account_quote_mint,
+                    CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.trading_fee') AS DECIMAL(38,0)) AS trading_fee,
+                    CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+                    CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
+                FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
+                JOIN dbc_tokens t ON s.config = t.account_config
+                WHERE s.evt_executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
+                    AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
+                    AND s.evt_block_time < from_unixtime(${options.endTimestamp})
             )
         SELECT
-            SUM(
-                CASE 
-                    WHEN trade_direction = 1 THEN COALESCE(actual_input_amount, 0)  -- Buy: SOL in
-                    ELSE COALESCE(output_amount, 0)  -- Sell: SOL out
-                END
-            ) / 1e9 AS total_volume,
-            SUM(
-                CASE 
-                    WHEN trade_direction = 1 AND trading_fee <= actual_input_amount THEN COALESCE(trading_fee, 0)
-                    WHEN trade_direction != 1 AND trading_fee <= output_amount THEN COALESCE(trading_fee, 0)
-                    ELSE 0
-                END
-            ) / 1e9 AS total_trading_fees,
-            SUM(
-                CASE 
-                    WHEN trade_direction = 1 AND protocol_fee <= actual_input_amount THEN COALESCE(protocol_fee, 0)
-                    WHEN trade_direction != 1 AND protocol_fee <= output_amount THEN COALESCE(protocol_fee, 0)
-                    ELSE 0
-                END
-            ) / 1e9 AS total_protocol_fees,
-            SUM(
-                CASE 
-                    WHEN trade_direction = 1 AND referral_fee <= actual_input_amount THEN COALESCE(referral_fee, 0)
-                    WHEN trade_direction != 1 AND referral_fee <= output_amount THEN COALESCE(referral_fee, 0)
-                    ELSE 0
-                END
-            ) / 1e9 AS total_referral_fees
-        FROM swap_event_logs
+            account_quote_mint as quote_mint,
+            SUM(COALESCE(trading_fee, 0)) AS total_trading_fees,
+            SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
+            SUM(COALESCE(referral_fee, 0)) AS total_referral_fees
+        FROM swap_events
+        GROUP BY account_quote_mint
     `
     const data: IData[] = await queryDuneSql(options, query)
+
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
-    dailyFees.addCGToken('solana', data[0].total_trading_fees + data[0].total_protocol_fees + data[0].total_referral_fees);
-    dailyProtocolRevenue.addCGToken('solana', data[0].total_protocol_fees);
+
+    data.forEach(row => {
+        const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees);
+        dailyFees.add(row.quote_mint, Number(totalFees));
+        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees));
+    });
 
     return {
         dailyFees,
