@@ -18,6 +18,7 @@ const DEFAULTS: any = {
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
+  APTOS_PRC: 'https://aptos-mainnet.pontem.network',
 }
 
 export const ENV_KEYS = new Set([

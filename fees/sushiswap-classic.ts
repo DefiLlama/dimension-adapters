@@ -1,8 +1,3 @@
 
-import adapter from '../dexs/sushiswap'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
-  adapter: breakdown['classic'],
-}
+import adapter from '../dexs/sushiswap-classic'
+export default adapter;
