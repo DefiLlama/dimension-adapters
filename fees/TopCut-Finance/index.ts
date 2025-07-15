@@ -24,8 +24,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   return {
-    dailyFees,
-    dailyRevenue,
+    dailyFees: dailyFees.resizeBy(0.09),
+    dailyRevenue: dailyRevenue,
   };
 };
 
