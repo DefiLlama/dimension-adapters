@@ -109,15 +109,14 @@ const getFetch =
     return {
       dailyLongOpenInterest: dailyLongOpenInterest
         ? String(dailyLongOpenInterest * 10 ** -30)
-        : undefined,
+        : 0,
       dailyShortOpenInterest: dailyShortOpenInterest
         ? String(dailyShortOpenInterest * 10 ** -30)
-        : undefined,
+        : 0,
       dailyOpenInterest: dailyOpenInterest
         ? String(dailyOpenInterest * 10 ** -30)
-        : undefined,
-      dailyVolume:
-        dailyData.volumeStats.length == 1
+        : 0,
+      dailyVolume: dailyData.volumeStats.length == 1
           ? String(
               Number(
                 Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
@@ -126,7 +125,7 @@ const getFetch =
               ) *
                 10 ** -30
             )
-          : undefined
+          : 0,
     };
   };
 

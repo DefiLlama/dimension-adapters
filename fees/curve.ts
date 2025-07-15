@@ -108,6 +108,8 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
       return closest
     })
     allFees.dailyBribesRevenue = (bribes[bribes.length-1].value - yesterday.value).toString()
+  } else {
+    allFees.dailyBribesRevenue = 0
   }
   return allFees
 };
