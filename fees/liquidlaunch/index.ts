@@ -1,8 +1,4 @@
-import {
-    FetchOptions,
-    FetchResult,
-    SimpleAdapter,
-} from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const TokensPurchasedEvent =
@@ -41,11 +37,11 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         target: LIQUIDLAUNCH_ADDRESS,
         eventAbi: TokensPurchasedEvent,
     });
-    
+
     for (const purchaseLog of purchaseLogs) {
         // Add volume from hypeIn
         dailyVolume.add(HYPE_ADDRESS, purchaseLog.hypeIn);
-        
+
         // Add fees (1% of hypeIn) - all to protocol
         const feeAmount = purchaseLog.hypeIn / 100n;
         dailyFees.add(HYPE_ADDRESS, feeAmount);
@@ -57,11 +53,11 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         target: LIQUIDLAUNCH_ADDRESS,
         eventAbi: TokensSoldEvent,
     });
-    
+
     for (const saleLog of saleLogs) {
         // Add volume from hypeOut
         dailyVolume.add(HYPE_ADDRESS, saleLog.hypeOut);
-        
+
         // Add fees (1% of hypeOut) - all to protocol
         const feeAmount = saleLog.hypeOut / 100n;
         dailyFees.add(HYPE_ADDRESS, feeAmount);
@@ -73,15 +69,15 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         target: LIQUIDLAUNCH_ADDRESS,
         eventAbi: BondFeeCollectedEvent,
     });
-    
+
     for (const bondFeeLog of bondFeeLogs) {
         // Total bond fee
         dailyFees.add(HYPE_ADDRESS, bondFeeLog.feeAmount);
-        
+
         // Assuming 20 HYPE bond fee: 15 to protocol, 5 to deployer
         const protocolShare = (bondFeeLog.feeAmount * 75n) / 100n; // 75% = 15/20
         const deployerShare = (bondFeeLog.feeAmount * 25n) / 100n;  // 25% = 5/20
-        
+
         totalProtocolFees += protocolShare;
         totalDeployerFees += deployerShare;
     }
@@ -91,15 +87,15 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         target: LIQUIDLAUNCH_ADDRESS,
         eventAbi: FeesClaimedEvent,
     });
-    
+
     for (const feesClaimedLog of feesClaimedLogs) {
         // Total LP fees claimed
         dailyFees.add(HYPE_ADDRESS, feesClaimedLog.hypeAmount);
-        
+
         // Split 50/50: deployerShare and feeRecipientShare should be in the event
         const deployerShare = feesClaimedLog.deployerShare;
         const protocolShare = feesClaimedLog.feeRecipientShare;
-        
+
         totalDeployerFees += deployerShare;
         totalProtocolFees += protocolShare;
     }
@@ -109,7 +105,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         target: STAKING_CONTRACT_ADDRESS,
         eventAbi: RewardAddedEvent,
     });
-    
+
     for (const rewardLog of rewardAddedLogs) {
         // Check if rewards were sent from liquidlaunch address
         if (rewardLog.from.toLowerCase() === LIQUIDLAUNCH_ADDRESS.toLowerCase()) {
@@ -137,7 +133,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         dailyRevenue.add(HYPE_ADDRESS, totalRevenueAmount);
     }
 
-    return { 
+    return {
         dailyVolume,
         dailyFees,
         dailyHoldersRevenue,
@@ -151,16 +147,16 @@ const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.HYPERLIQUID]: {
-            fetch: fetch,
+            fetch,
             start: "2025-01-01",
             meta: {
                 methodology: {
                     Volume: "Volume is calculated from hypeIn amounts in TokensPurchased events and hypeOut amounts in TokensSold events.",
-                    Fees: "Total fees include: (1) Pre-bond trading fees: 1% of HYPE from TokensPurchased/TokensSold events, (2) Bond fees: 20 HYPE when tokens bond to DEX, (3) Post-bond LP fees: claimed via FeesClaimed events.",
+                    Fees: "Fees include: (1) Pre-bond trading fees: 1% of HYPE from TokensPurchased/TokensSold events, (2) Bond fees: 20 HYPE when tokens bond to DEX, (3) Post-bond LP fees: claimed via FeesClaimed events.",
+                    Revenue: "Revenue to the protocol ecosystem (ProtocolRevenue + HoldersRevenue), excluding deployer fees.",
+                    ProtocolRevenue: "Should ideally be 0 as all protocol fees go to LIQD stakers.",
                     HoldersRevenue: "Revenue distributed to LIQD stakers via RewardAdded events from the staking contract. This should include all protocol fees (pre-bond 1% fees + 75% of bond fees + 50% of LP fees).",
-                    ProtocolRevenue: "Should ideally be 0 as all protocol fees go to LIQD stakers. Any amount represents timing differences or undistributed fees.",
                     SupplySideRevenue: "Revenue that goes to token deployers: 25% of bond fees (5 HYPE per bond) + 50% of post-bond LP fees from FeesClaimed events.",
-                    Revenue: "Total revenue to the protocol ecosystem (ProtocolRevenue + HoldersRevenue), excluding deployer fees.",
                 },
             },
         },
