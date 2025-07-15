@@ -37,12 +37,17 @@ const SWAPS_QUERY = (from: number, to: number) => `
 `
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-
+    let protocolFeePerc = 0.2;
+    let supplySideRevenuePerc = 0.8;
+    if (options.startTimestamp > 1752105600) { // Protocol Fee changed on 2025-07-10 from 10% of lp fees to 20% of lp fees
+        protocolFeePerc = 0.1;
+        supplySideRevenuePerc = 0.9;
+    }
     const swaps = await postURL(GRAPHQL_ENDPOINT, {
         query: SWAPS_QUERY(options.fromTimestamp * 1000, options.toTimestamp * 1000)
     })
 
-    let totalLpFees = 0;
+    let totalFees = 0;
     let totalProtocolFees = 0;
 
     for (const swap of swaps.data.swaps) {
@@ -66,35 +71,36 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
         const fee = swap.pool.fee / 10_000;
         const lpFee = amountUsd * fee;
-        const protocolFee = lpFee * 0.1;
+        const protocolFee = lpFee * protocolFeePerc;
 
-        totalLpFees += lpFee
+        totalFees += lpFee
         totalProtocolFees += protocolFee
 
     }
     
     return {
-        dailyUserFees: totalLpFees + totalProtocolFees,
-        dailyFees: totalLpFees + totalProtocolFees,
-        dailySupplySideRevenue: totalLpFees,
+        dailyUserFees: totalFees,
+        dailyFees: totalFees,
+        dailySupplySideRevenue: totalFees * supplySideRevenuePerc,
         dailyRevenue: totalProtocolFees
     }
-
 };
 
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.TON]: {
+            fetch,
             start: '2024-11-25',
             meta: {
                 methodology: {
-                    UserFees: 'Users pay fees on each swap. Trading fees are collected in jettons. Fees are split between LPs and the protocol builder (and referrals).',
-                    Revenue: 'The protocol generally receives 10% of the fees paid by users.',
-                    SupplySideRevenue: '90% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
+                    Fees: 'Users pay fees on each swap.',
+                    UserFees: 'Users pay fees on each swap.',
+                    Revenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+                    ProtocolRevenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+                    SupplySideRevenue: '(prev 90%) 80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
                 }
             },
-            fetch
         },
     }
 };
