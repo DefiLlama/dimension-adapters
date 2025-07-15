@@ -3,7 +3,23 @@ import { request, gql } from "graphql-request";
 
 const BASE_MAINNET_SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cm3exke617zqh01074tulgtx0/subgraphs/collar-base-mainnet/0.1.3/gn'
 
-
+// Helper to fetch all paginated results from a subgraph
+async function fetchAllSubgraphResults({ url, query, field, variables = {} }) {
+  let skip = 0;
+  let allResults: any[] = [];
+  let hasMore = true;
+  while (hasMore) {
+    const data = await request(url, query, { ...variables, skip });
+    const results = data[field];
+    allResults = [...allResults, ...results];
+    if (results.length < 1000) {
+      hasMore = false;
+    } else {
+      skip += 1000;
+    }
+  }
+  return allResults;
+}
 
 
 async function revenue(startTime: number, endTime: number) {
@@ -32,6 +48,7 @@ async function loans(startTime: number, endTime: number) {
         loansNFT {
           underlying
         }
+        
       }
     }
   `;
@@ -41,21 +58,99 @@ async function loans(startTime: number, endTime: number) {
   });
   return data.loans;
 }
+async function allEscrowLoans(endTime: number) {
+  // all escrow loans that have accrued interest in this period (are active, are not released)
+  const query = gql`
+    query getLoans($endTime: Int!) {
+      loans(first: $skip, where: { openedAt_lte: $endTime,  usesEscrow: true}) {
+        underlyingAmount
+        loansNFT {
+          underlying
+        }
+        loanEscrow {
+          escrow {
+            feesHeld
+            supplier
+              offer {
+                interestAPR
+                lateFeeAPR
+                totalEscrowed
+                duration
+                gracePeriod
+              }
+            createdAt
+            expiration
+          }
+    }
+      }
+    }
+  `;
+  const data = await fetchAllSubgraphResults({
+    url: BASE_MAINNET_SUBGRAPH_URL,
+    query,
+    field: 'loans',
+    variables: {
+      endTime
+    }
+  });
+  return data;
+}
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
+  const dailySupplierAccruedFees = options.createBalances();
   const { fromTimestamp, toTimestamp } = options;
 
   const providerPositions = await revenue(fromTimestamp, toTimestamp);
   providerPositions.forEach((log: any) => {
     dailyFees.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
+    dailyProtocolRevenue.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
   });
-  const loansData = await loans(fromTimestamp, toTimestamp);
-  loansData.forEach((log: any) => {
+  const revenueLoansData = await loans(fromTimestamp, toTimestamp);
+  revenueLoansData.forEach((log: any) => {
     dailyVolume.add(log.loansNFT.underlying, log.underlyingAmount);
+
   });
-  return { dailyFees, dailyProtocolRevenue: dailyFees, dailyVolume };
+  const allEscrowLoansData = await allEscrowLoans(toTimestamp);
+
+  allEscrowLoansData.forEach((log: any) => {
+    const expiration = Number(log.loanEscrow.escrow.expiration);
+    const gracePeriod = Number(log.loanEscrow.escrow.offer.gracePeriod); // the amount of time that will collect late fees (after this loan is seized)
+    const createdAt = Number(log.loanEscrow.escrow.createdAt);
+    // skip loan if its not accruing interest or late fees (expiration + graceperiod <fromTimestamp) (loan is not generating any fees and most likely seized)
+    if (expiration + gracePeriod < fromTimestamp || createdAt > toTimestamp) {
+      return;
+    }
+
+    const interestBips = BigInt(log.loanEscrow.escrow.offer.interestAPR);
+    const lateFeeBips = BigInt(log.loanEscrow.escrow.offer.lateFeeAPR);
+    const escrowedAmount = BigInt(log.loanEscrow.escrow.offer.totalEscrowed);
+
+
+    // if created At > fromTimestamp, then the interest accrued is from createdAt 
+    // if createdAt < fromTimestamp, then the interest accrued is from fromTimestamp 
+    // if expiration < toTimestamp, then the interest accrued is until expiration
+    // if expiration > toTimestamp, then the interest accrued is until toTimestamp
+    const interestTimeElapsed = Math.min(toTimestamp, expiration) - Math.max(fromTimestamp, createdAt); // interest fees accrued during this period  
+    // if expiration < fromTimestamp, then the late fee accrued is from fromTimestamp
+    // if expiration > fromTimestamp, then the late fee accrued is from expiration 
+    // if expiration + gracePeriod < toTimestamp, then the late fee accrued is until expiration +gracePeriod
+    // if expiration + gracePeriod > toTimestamp, then the late fee accrued is until toTimestamp
+    const lateFeeTimeElapsed = Math.min(toTimestamp, expiration + gracePeriod) - Math.max(fromTimestamp, expiration); // late fees accrued during this period  
+
+
+    const yearInSeconds = BigInt(365 * 24 * 3600);
+
+    const interestAccrued = escrowedAmount * interestBips * (interestTimeElapsed > 0n ? BigInt(interestTimeElapsed) : 0n) / yearInSeconds / 10_000n;
+    const lateFeeAccrued = escrowedAmount * lateFeeBips * (lateFeeTimeElapsed > 0n ? BigInt(lateFeeTimeElapsed) : 0n) / yearInSeconds / 10_000n;
+
+
+    dailySupplierAccruedFees.add(log.loansNFT.underlying, interestAccrued + lateFeeAccrued);
+    dailyFees.add(log.loansNFT.underlying, interestAccrued + lateFeeAccrued);
+  });
+  return { dailyFees, dailyProtocolRevenue, dailyVolume, dailySupplySideRevenue: dailySupplierAccruedFees };
 };
 
 const adapter: SimpleAdapter = {
