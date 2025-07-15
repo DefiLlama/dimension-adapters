@@ -31,11 +31,11 @@ const fetchLeveragedTokenVolume = async (
     eventAbi: MINT_EVENT,
     flatten: false
   });
-  const redeems_logs: any[] = await getLogs({
-    targets: tokens,
-    eventAbi: REDEEM_EVENT,
-    flatten: false
-  });
+  // const redeems_logs: any[] = await getLogs({
+  //   targets: tokens,
+  //   eventAbi: REDEEM_EVENT,
+  //   flatten: false
+  // });
 
   const mint_valume = mints_logs.map((logs, i) => {
     return logs.map((log: any) => {
@@ -43,13 +43,13 @@ const fetchLeveragedTokenVolume = async (
     })
   }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
 
-  const redeem_valume = redeems_logs.map((logs, i) => {
-    return logs.map((log: any) => {
-      return new BigNumber(log.leveragedTokenAmount).times(targetLeverages[i]).div(1e18)
-    })
-  }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
+  // const redeem_valume = redeems_logs.map((logs, i) => {
+  //   return logs.map((log: any) => {
+  //     return new BigNumber(log.leveragedTokenAmount).times(targetLeverages[i]).div(1e18)
+  //   })
+  // }).flat().reduce((acc: any, log: any) => acc.plus(log), new BigNumber(0));
 
-  return mint_valume.plus(redeem_valume).toNumber();
+  return mint_valume.toNumber();
 };
 
 const fetchVolume = async (options: FetchOptions): Promise<FetchResultV2> => {

@@ -91,7 +91,7 @@ const getChainBorrowables = async (chain: CHAIN): Promise<IBorrowable[]> => {
   }
 
   const blacklist = BLACKLIST[chain] || [];
-  return allBorrowables.filter(i => !blacklist.includes(i.lendingPool.id));
+  return allBorrowables.filter(i => !blacklist.map(i => i.toLowerCase()).includes(i.lendingPool.id.toLowerCase()));
 };
 
 const calculate = (
