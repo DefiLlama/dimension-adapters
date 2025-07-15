@@ -8,7 +8,7 @@ const endpoints = {
   [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics"
 };
 
-// Query for COTI - using totalHistories with timestamp range
+// COTI: totalHistories with timestamp range + pagination
 const cotiQuery = gql`
   query fees($from: Int!, $to: Int!, $skip: Int!) {
     totalHistories(
@@ -23,7 +23,7 @@ const cotiQuery = gql`
   }
 `;
 
-// Query for Base - using dailyHistories with day
+// Base: dailyHistories by day + pagination
 const baseQuery = gql`
   query fees($day: Int!, $skip: Int!) {
     dailyHistories(
@@ -39,104 +39,86 @@ const baseQuery = gql`
 `;
 
 interface ICotiResponse {
-  totalHistories: Array<{
-    platformFee: string;
-  }>;
+  totalHistories: Array<{ platformFee: string }>;
 }
 
 interface IBaseResponse {
-  dailyHistories: Array<{
-    platformFee: string;
-  }>;
+  dailyHistories: Array<{ platformFee: string }>;
 }
 
-const fetchCotiFees = async ({ createBalances, startTimestamp, endTimestamp, chain }: FetchOptions) => {
+const fetchCotiFees = async ({
+  createBalances,
+  startTimestamp,
+  endTimestamp,
+  chain
+}: FetchOptions) => {
   try {
     let skip = 0;
     let total = new BigNumber(0);
-    
+
     // Paginate through all results
     while (true) {
-      const response: ICotiResponse = await request(endpoints[chain], cotiQuery, {
-        from: startTimestamp,
-        to: endTimestamp,
-        skip,
+      const { totalHistories }: ICotiResponse = await request(
+        endpoints[chain],
+        cotiQuery,
+        { from: startTimestamp, to: endTimestamp, skip }
+      );
+      if (!totalHistories.length) break;
+
+      totalHistories.forEach(({ platformFee }) => {
+        total = total.plus(platformFee || "0");
       });
-
-      if (!response?.totalHistories?.length) break;
-
-      // Sum all platform fees in this page using BigNumber
-      response.totalHistories.forEach((data) => {
-        const platformFee = data.platformFee || "0";
-        total = total.plus(platformFee);
-      });
-
-      // If we got less than 1000 results, we're done
-      if (response.totalHistories.length < 1000) break;
-      
-      skip += response.totalHistories.length;
+      if (totalHistories.length < 1000) break;
+      skip += totalHistories.length;
     }
 
     const dailyFees = createBalances();
-    // Add as native token (gas token) converted from wei
-    dailyFees.addGasToken(total.dividedBy("1e18").toString());
-    
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-    };
+    // Pass raw wei amount (integer string)—no division by 1e18
+    dailyFees.addGasToken(total.toString());
+
+    return { dailyFees, dailyRevenue: dailyFees };
   } catch (error) {
     console.error("Error fetching COTI fees:", error);
     const dailyFees = createBalances();
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-    };
+    return { dailyFees, dailyRevenue: dailyFees };
   }
 };
 
-const fetchBaseFees = async ({ createBalances, endTimestamp, chain }: FetchOptions) => {
+const fetchBaseFees = async ({
+  createBalances,
+  endTimestamp,
+  chain
+}: FetchOptions) => {
   try {
     const day = Math.floor(endTimestamp / 86400);
     let skip = 0;
     let total = new BigNumber(0);
-    
+
     // Paginate through all results
     while (true) {
-      const response: IBaseResponse = await request(endpoints[chain], baseQuery, {
-        day,
-        skip,
+      const { dailyHistories }: IBaseResponse = await request(
+        endpoints[chain],
+        baseQuery,
+        { day, skip }
+      );
+      if (!dailyHistories.length) break;
+
+      dailyHistories.forEach(({ platformFee }) => {
+        total = total.plus(platformFee || "0");
       });
-
-      if (!response?.dailyHistories?.length) break;
-
-      // Sum all platform fees in this page using BigNumber
-      response.dailyHistories.forEach((data) => {
-        const platformFee = data.platformFee || "0";
-        total = total.plus(platformFee);
-      });
-
-      // If we got less than 1000 results, we're done
-      if (response.dailyHistories.length < 1000) break;
-      
-      skip += response.dailyHistories.length;
+      if (dailyHistories.length < 1000) break;
+      skip += dailyHistories.length;
     }
 
     const dailyFees = createBalances();
-    // Add as native token (gas token) converted from wei
-    dailyFees.addGasToken(total.dividedBy("1e18").toString());
-    
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-    };
+    // Pass raw wei amount (integer string)
+    dailyFees.addGasToken(total.toString());
+
+    return { dailyFees, dailyRevenue: dailyFees };
   } catch (error) {
     console.error("Error fetching Base fees:", error);
     const dailyFees = createBalances();
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-    };
+    return { dailyFees, dailyRevenue: dailyFees };
   }
 };
 
@@ -155,7 +137,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.COTI]: {
       fetch: fetchCotiFees,
-      start: "2025-01-01", 
+      start: "2025-01-01",
       meta: { methodology },
     },
   },
