@@ -112,7 +112,10 @@ const fetchV3 = async (_a: any, _b: any, options: FetchOptions) => {
     // if (options.chain === CHAIN.ETHEREUM) {
     //   v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
     // }
-    return calculateFees(Number(v3stats.dailyFees));
+    return {
+      ...v3stats,
+      ...calculateFees(Number(v3stats.dailyFees)),
+    };
   } else if (chainConfig.dataSource === 'dune') {
     return await fetchV3Dune(_a, _b, options);
   }
