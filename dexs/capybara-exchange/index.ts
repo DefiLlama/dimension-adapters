@@ -20,14 +20,9 @@ interface IData {
   protocols: IProtocol[];
 }
 
-type TEndpoint = {
-  [s: string | Chain]: string;
-};
-
 // Updated using studio
-const endpoints: TEndpoint = {
-  [CHAIN.KLAYTN]:
-    "https://klaytn-graphnode.ecosystem-dev.klaytn.in/cypress/graph/http/subgraphs/name/capy-exchange/capy-klaytn"
+const endpoints: Record<Chain, string> = {
+  [CHAIN.KLAYTN]: "https://subgraph-proxy.wombat.exchange/capy-kaia/data"
 };
 
 const feesRatio = 0.0004;
@@ -65,7 +60,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.KLAYTN]: {
       fetch,
       start: '2024-05-15'
-    }
+    },
   }
 };
 

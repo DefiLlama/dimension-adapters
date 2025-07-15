@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
 
 interface HyperswapPair {
     version: string;
@@ -11,6 +12,7 @@ interface HyperswapResponse {
     pairs: HyperswapPair[];
     pageCount: number;
 }
+
 const encodeToken = (input: string) => {
     const keystreamHexAscii = 
       "cdc49b16573644bbe4cb47c809a6d387" +
@@ -29,9 +31,10 @@ const encodeToken = (input: string) => {
     }
     return btoa(bin);
 }
-const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const clientToken = await httpGet('https://proxy-backup.hyperswapx.workers.dev/get-token')
-    const url = (page: number) =>  `https://proxy-backup.hyperswapx.workers.dev/api/pairs?minApr=50&minTvl=50000&maxPerPage=50&page=${page}`
+
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
+    const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?minTvl=10000&maxPerPage=50&page=${page}`
     let page = 0;
     const data: HyperswapPair[] = []
     while(true) {
@@ -73,15 +76,14 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     return {
         dailyVolume,
         dailyFees,
-        timestamp: options.startOfDay,
     }
 }
 
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
-        hyperliquid: {
-            fetch: fetchData,
+        [CHAIN.HYPERLIQUID]: {
+            fetch,
             runAtCurrTime: true,
         }
     }
