@@ -193,10 +193,10 @@ classic[CHAIN.FANTOM] = {
 
     return result;
   },
-}
+// }
 
-classic[CHAIN.AVAX] = { fetch: getUniV2LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
-classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
-classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
+classic[CHAIN.AVAX] = { fetch: getUniV2LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', userFeesRatio: 1, revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
+classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', userFeesRatio: 1, revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
+classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', userFeesRatio: 1, revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
 
 export default classic
