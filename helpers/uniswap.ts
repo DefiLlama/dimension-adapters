@@ -41,7 +41,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -119,7 +119,6 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       response.dailyRevenue = dailyFees.clone(revenueRatio)
       response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
     }
-    if (v2Config.hasOwnProperty('userFeesRatio')) response.dailyUserFees = dailyFees.clone(userFeesRatio)
     if (v2Config.hasOwnProperty('protocolRevenueRatio')) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
     if (v2Config.hasOwnProperty('holdersRevenueRatio')) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
 
@@ -132,7 +131,7 @@ const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
 
@@ -179,11 +178,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     }
     const response: any = { dailyVolume, dailyFees }
 
-    if (revenueRatio || revenueRatio === 0) {
-      response.dailyRevenue = dailyFees.clone(revenueRatio)
-      response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
-    }
-    if (userFeesRatio || userFeesRatio === 0) response.dailyUserFees = dailyFees.clone(userFeesRatio)
+    if (revenueRatio || revenueRatio === 0) response.dailyRevenue = dailyFees.clone(revenueRatio)
     if (protocolRevenueRatio || protocolRevenueRatio === 0) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
     if (holdersRevenueRatio || holdersRevenueRatio === 0) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
 
@@ -202,7 +197,6 @@ type UniV2Config = {
   customLogic?: any,
   start?: number | string,
   blacklistedAddresses?: string[],
-  userFeesRatio?: number,
   revenueRatio?: number,
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
@@ -214,7 +208,6 @@ type UniV3Config = {
   swapEvent?: string,
   customLogic?: any,
   isAlgebraV3?: boolean,
-  userFeesRatio?: number,
   revenueRatio?: number,
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
