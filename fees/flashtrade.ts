@@ -1,15 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
-
-interface Pool {
-    poolName: string;
-    date: string;
-    totalRevenue: string;
-    totalProtocolFee: string;
-}
-
 
 interface Pool {
     poolName: string;
@@ -61,7 +53,7 @@ const adapter: Adapter = {
     version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
-            fetch,
+            fetch: fetchFlashStats,
             runAtCurrTime: true,
             meta: { methodology },
         },
