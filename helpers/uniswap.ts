@@ -41,7 +41,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio = 1, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any

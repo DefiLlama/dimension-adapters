@@ -159,44 +159,52 @@ const classic = Object.keys(endpointsClassic).reduce(
   {}
 ) as any;
 
-const fantomGraphs =  getChainVolumeWithGasToken2({
-  graphUrls: {
-    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK')
-  },
-  totalVolume: {
-    factory: "factories",
-    field: 'volumeETH',
-  },
-  priceToken: "coingecko:fantom"
-} as any);
+// const fantomGraphs =  getChainVolumeWithGasToken2({
+//   graphUrls: {
+//     [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('3nozHyFKUhxnEvekFg5G57bxPC5V63eiWbwmgA35N5VK')
+//   },
+//   totalVolume: {
+//     factory: "factories",
+//     field: 'volumeETH',
+//   },
+//   priceToken: "coingecko:fantom"
+// } as any);
 
-classic[CHAIN.FANTOM] = {
-  fetch: async (options: FetchOptions) =>   {
-    const values = await fantomGraphs(CHAIN.FANTOM)(options);
-    const vol = Number(values.dailyVolume);
-    if (vol < 0) throw new Error(`Volume cannot be negative. Current value: ${vol}`);
+// classic[CHAIN.FANTOM] = {
+//   fetch: async (options: FetchOptions) =>   {
+//     const values = await fantomGraphs(CHAIN.FANTOM)(options);
+//     const vol = Number(values.dailyVolume);
+//     if (vol < 0) throw new Error(`Volume cannot be negative. Current value: ${vol}`);
     
-    const result = {
-      ...values,
-      dailyFees: vol * 0.003,
-      dailyUserFees: vol * 0.003,
-      dailyProtocolRevenue: vol * 0.0005,
-      dailySupplySideRevenue: vol * 0.0025,
-      dailyHoldersRevenue: 0,
-      dailyRevenue: vol * 0.003,
-    };
+//     const result = {
+//       ...values,
+//       dailyFees: vol * 0.003,
+//       dailyUserFees: vol * 0.003,
+//       dailyProtocolRevenue: vol * 0.0005,
+//       dailySupplySideRevenue: vol * 0.0025,
+//       dailyHoldersRevenue: 0,
+//       dailyRevenue: vol * 0.003,
+//     };
 
-    Object.entries(result).forEach(([key, value]) => {
-      if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
-    });
+//     Object.entries(result).forEach(([key, value]) => {
+//       if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+//     });
 
-    return result;
-  },
+//     return result;
+//   },
+// }
+
+const getUniV2LogAdapterConfig = {
+  userFeesRatio: 1,
+  revenueRatio: 1/6,
+  protocolRevenueRatio: 0,
+  holdersRevenueRatio: 1/6,
 }
 
-classic[CHAIN.AVAX] = { fetch: getUniV2LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', userFeesRatio: 1, revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
-classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', userFeesRatio: 1, revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
-classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', userFeesRatio: 1, revenueRatio: 1/6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 }) }
+classic[CHAIN.FANTOM] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', ...getUniV2LogAdapterConfig }) }
+classic[CHAIN.AVAX] = { fetch: getUniV2LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV2LogAdapterConfig }) }
+classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', ...getUniV2LogAdapterConfig }) }
+classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', ...getUniV2LogAdapterConfig }) }
 
 export default {
   version: 2,

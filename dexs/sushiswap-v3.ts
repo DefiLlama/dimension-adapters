@@ -142,7 +142,7 @@ v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d0
 v3[CHAIN.LINEA] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.THUNDERCORE] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba661d51a773d3a992Fc9DDCB', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), meta, }
+// v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), meta, }
 
