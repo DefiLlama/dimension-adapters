@@ -37,7 +37,7 @@ const meta = {
 };
 
 // Start date should be when the protocol launched - using a reasonable estimate
-const start = 1750107221; // June 16, 2025
+const start = 1752670800; // July 16, 2025
 
 const adapter: SimpleAdapter = {
   version: 2,
