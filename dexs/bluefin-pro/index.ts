@@ -1,8 +1,8 @@
-import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
+const fetch = async () => {
   const exchangeInfo = (await httpGet(`https://api.sui-prod.bluefin.io/v1/exchange/info`))
   let volume = 0;
   for(const market of exchangeInfo.markets){
@@ -16,15 +16,12 @@ const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
 };
 
 
-const adapter: BreakdownAdapter = {
-  version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SUI]: {
-        fetch,
-      },
-    },
-  },
+const adapter: SimpleAdapter = {
+    adapter:{
+        [CHAIN.SUI]:{
+            fetch: fetch
+        }
+    }
 };
 
 export default adapter;
