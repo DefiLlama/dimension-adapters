@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { uniV3Exports } from "../../helpers/uniswap";
 
 interface HyperswapPair {
     version: string;
@@ -79,14 +80,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
 }
 
-const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.HYPERLIQUID]: {
-            fetch,
-            runAtCurrTime: true,
-        }
+export default uniV3Exports({
+    [CHAIN.HYPERLIQUID]: {
+      factory: '0xB1c0fa0B789320044A6F623cFe5eBda9562602E3',
     }
-}
+})
+// const adapter: SimpleAdapter = {
+//     version: 2,
+//     adapter: {
+//         [CHAIN.HYPERLIQUID]: {
+//             fetch,
+//             runAtCurrTime: true,
+//         }
+//     }
+// }
 
-export default adapter
+// export default adapter
