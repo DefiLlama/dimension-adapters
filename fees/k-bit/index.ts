@@ -39,8 +39,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Sum of protocolFee from FeePaid events emitted by the K-BIT fee contract.",
-  Revenue: "All protocolFee is considered protocol revenue.",
+  Fees: "Sum of fee from FeePaid events emitted by the K-BIT fee contract.",
+  Revenue: "All fee is considered revenue.",
   ProtocolRevenue: "All protocolFee is protocol revenue.",
 };
 
