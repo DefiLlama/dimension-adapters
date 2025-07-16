@@ -74,7 +74,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     })
   })
   
-  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {
