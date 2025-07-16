@@ -99,7 +99,7 @@ const fetch: FetchV2 = async (fetchOptions) => {
     });
   });
 
-  return { dailyVolume, dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -108,6 +108,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.DCHAIN]: {
       fetch,
       start: "2024-01-01",
+      meta: {
+        methodology: {
+          Fees: "Fees paid by users while trading on Multiswap.",
+          Revenue: "Fees paid by users while trading on Multiswap.",
+        }
+      }
     },
   },
 };
