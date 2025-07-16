@@ -1,9 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
-
-const USDC_MINT = ADDRESSES.solana.USDC;
 
 interface Pool {
     poolName: string;
@@ -20,24 +18,29 @@ const calculateProtocolRevenue = (stats: Pool[]) => {
         .reduce((sum, item) => sum + 0.3 * parseFloat(item.totalProtocolFee), 0);
 }
 
-const fetch = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailyProtocolRevenue = options.createBalances();
-
-    const dailyStats: Pool[] = await fetchURL(urlDailyStats);
-    const dailyAccrued = dailyStats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0);
-    const protocol_revenue = calculateProtocolRevenue(dailyStats);
-
-    dailyFees.add(USDC_MINT, dailyAccrued);
-    dailyRevenue.add(USDC_MINT, protocol_revenue * 2);
-    dailyProtocolRevenue.add(USDC_MINT, protocol_revenue);
+const fetchFlashStats = async (options: FetchOptions): Promise<FetchResultFees> => {
+    const timestamp = options.startOfDay;
+    
+    const dailyStatsResponse = await fetchURL(urlDailyStats);
+    const dailyStats: Pool[] = dailyStatsResponse;
+    
+    // Convert timestamp to date string format matching the API data
+    const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
+    
+    // Filter to only include entries from the target date
+    const todayStats = dailyStats.filter(item => {
+        const itemDate = new Date(item.date).toISOString().split('T')[0];
+        return itemDate === targetDate;
+    });
+    
+    const dailyAccrued = (todayStats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0));
+    const dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
 
     return {
-        dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue: dailyProtocolRevenue,
+        dailyFees: (dailyAccrued * 10**-6).toString(),
+        dailyRevenue: (dailyProtocolRevenue * 10**-6).toString(),
+        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(),
+
     };
 };
 
@@ -52,7 +55,7 @@ const adapter: Adapter = {
     version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
-            fetch,
+            fetch: fetchFlashStats,
             runAtCurrTime: true,
             meta: { methodology },
         },
