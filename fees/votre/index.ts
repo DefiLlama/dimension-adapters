@@ -40,24 +40,6 @@ async function revenue(startTime: number, endTime: number) {
   return data.providerPositions;
 }
 
-async function loans(startTime: number, endTime: number) {
-  const query = gql`
-    query getLoans($startTime: Int!, $endTime: Int!) {
-      loans(first: 1000, where: { openedAt_gte: $startTime, openedAt_lt: $endTime}) {
-        underlyingAmount
-        loansNFT {
-          underlying
-        }
-        
-      }
-    }
-  `;
-  const data = await request(BASE_MAINNET_SUBGRAPH_URL, query, {
-    startTime,
-    endTime
-  });
-  return data.loans;
-}
 async function allEscrowLoans(endTime: number) {
   // all escrow loans that have accrued interest in this period (are active, are not released)
   const query = gql`
@@ -99,7 +81,6 @@ async function allEscrowLoans(endTime: number) {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailyVolume = options.createBalances();
   const dailySupplierAccruedFees = options.createBalances();
   const { fromTimestamp, toTimestamp } = options;
 
@@ -108,11 +89,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
     dailyProtocolRevenue.add(log.collarProviderNFT.cashAsset, log.protocolFeeAmount);
   });
-  const volumeLoansData = await loans(fromTimestamp, toTimestamp);
-  volumeLoansData.forEach((log: any) => {
-    dailyVolume.add(log.loansNFT.underlying, log.underlyingAmount);
 
-  });
   const allEscrowLoansData = await allEscrowLoans(toTimestamp);
 
   allEscrowLoansData.forEach((log: any) => {
@@ -128,35 +105,31 @@ const fetch = async (options: FetchOptions) => {
     const lateFeeBips = BigInt(log.loanEscrow.escrow.offer.lateFeeAPR);
     const escrowedAmount = BigInt(log.loanEscrow.escrow.offer.totalEscrowed);
 
-
-    // if created At > fromTimestamp, then the interest accrued is from createdAt 
-    // if createdAt < fromTimestamp, then the interest accrued is from fromTimestamp 
-    // if expiration < toTimestamp, then the interest accrued is until expiration
-    // if expiration > toTimestamp, then the interest accrued is until toTimestamp
     const interestTimeElapsed = Math.min(toTimestamp, expiration) - Math.max(fromTimestamp, createdAt); // interest fees accrued during this period  
-    // if expiration < fromTimestamp, then the late fee accrued is from fromTimestamp
-    // if expiration > fromTimestamp, then the late fee accrued is from expiration 
-    // if expiration + gracePeriod < toTimestamp, then the late fee accrued is until expiration +gracePeriod
-    // if expiration + gracePeriod > toTimestamp, then the late fee accrued is until toTimestamp
     const lateFeeTimeElapsed = Math.min(toTimestamp, expiration + gracePeriod) - Math.max(fromTimestamp, expiration); // late fees accrued during this period  
-
 
     const yearInSeconds = BigInt(365 * 24 * 3600);
 
     const interestAccrued = escrowedAmount * interestBips * (interestTimeElapsed > 0n ? BigInt(interestTimeElapsed) : 0n) / yearInSeconds / 10_000n;
     const lateFeeAccrued = escrowedAmount * lateFeeBips * (lateFeeTimeElapsed > 0n ? BigInt(lateFeeTimeElapsed) : 0n) / yearInSeconds / 10_000n;
 
-
     dailySupplierAccruedFees.add(log.loansNFT.underlying, interestAccrued + lateFeeAccrued);
     dailyFees.add(log.loansNFT.underlying, interestAccrued + lateFeeAccrued);
   });
-  return { dailyFees, dailyProtocolRevenue, dailyVolume, dailySupplySideRevenue: dailySupplierAccruedFees };
+
+  return { 
+    dailyFees, 
+    dailyRevenue: dailyProtocolRevenue, 
+    dailyProtocolRevenue, 
+    dailySupplySideRevenue: dailySupplierAccruedFees
+  };
 };
 
 const methodology = {
-  Fees: '',
-  Revenue: '',
-  ProtocolRevenue: ''
+  Fees: 'Interest and late fees accrued to the supplier',
+  Revenue: 'Protocol share of the interest and late fees accrued',
+  ProtocolRevenue: 'Protocol share of the interest and late fees accrued',
+  SupplySideRevenue: 'Interest and late fees accrued to the supplier'
 }
 
 const adapter: SimpleAdapter = {
