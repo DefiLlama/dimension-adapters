@@ -38,7 +38,6 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.BSC]: {
     ...adapterObj[CHAIN.BSC],
     fetch: fetch(CHAIN.BSC, 0.002, 0.0005),
-    customBackfill: fetch(CHAIN.BSC, 0.002, 0.0005),
     meta: {
       methodology
     }
@@ -46,7 +45,6 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.ETHEREUM]: {
     ...adapterObj[CHAIN.ETHEREUM],
     fetch: fetch(CHAIN.ETHEREUM, 0.002, 0.0005),
-    customBackfill: fetch(CHAIN.ETHEREUM, 0.002, 0.0005),
     meta: {
       methodology
     }
@@ -54,7 +52,6 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.POLYGON]: {
     ...adapterObj[CHAIN.POLYGON],
     fetch: fetch(CHAIN.POLYGON, 0.002, 0.0015),
-    customBackfill: fetch(CHAIN.POLYGON, 0.002, 0.0015),
     meta: {
       methodology
     }
@@ -62,7 +59,6 @@ const baseAdapter: BaseAdapter = {
   // [CHAIN.TELOS]: {
   //   ...adapterObj[CHAIN.TELOS],
   //   fetch: fetch(CHAIN.TELOS, 0.002, 0.0015),
-  //   customBackfill: fetch(CHAIN.TELOS, 0.002, 0.0015),
   //   meta: {
   //     methodology
   //   }
@@ -70,7 +66,6 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.ARBITRUM]: {
     ...adapterObj[CHAIN.ARBITRUM],
     fetch: fetch(CHAIN.ARBITRUM, 0.002, 0.0005),
-    customBackfill: fetch(CHAIN.ARBITRUM, 0.002, 0.0005),
     meta: {
       methodology
     }

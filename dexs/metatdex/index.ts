@@ -1,7 +1,6 @@
 import { Chain } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill, { IGraphs } from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
@@ -39,11 +38,6 @@ const graphs = (chain: Chain) => {
   }
 };
 
-const getStartTimestamp = async (chain: Chain) => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).result;
-  return (new Date(historicalVolume[0].date).getTime()) / 1000;
-}
-
 const adapter: SimpleAdapter = {
   deadFrom: "2024-12-30",
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
@@ -51,8 +45,6 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        // start: async () => getStartTimestamp(chain),
-        customBackfill: customBackfill(chain as Chain, graphs as unknown as IGraphs),
       }
     }
   }, {} as SimpleAdapter['adapter'])

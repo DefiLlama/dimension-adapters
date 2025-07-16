@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill, { IGraphs } from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const poolsDataEndpoint = (chain: string) => `https://data.unifi.report/api/total-volume-liquidity/?blockchain=${chain}&page_size=1000`;
@@ -50,11 +49,6 @@ const graphs = (chain: Chain) => {
   }
 };
 
-const getStartTimestamp = async (chain: Chain) => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(poolsDataEndpoint(chains[chain]))).results;
-  return (new Date(historicalVolume[historicalVolume.length - 1].datetime).getTime()) / 1000
-}
-
 const adapter: SimpleAdapter = {
   deadFrom: "2023-06-23",
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
@@ -62,8 +56,6 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => getStartTimestamp(chain),
-        customBackfill: customBackfill(chain as Chain, graphs as unknown as IGraphs),
       }
     }
   }, {})
