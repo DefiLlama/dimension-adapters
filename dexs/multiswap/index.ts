@@ -58,7 +58,7 @@ const fetch: FetchV2 = async (fetchOptions) => {
     api,
     pairs: pairObject,
     createBalances,
-    minUSDValue: 0,   // try 0 to include all pools
+    minUSDValue: 100,   // try 0 to include all pools
   });
 
   const pairIds = Object.keys(filteredPairs);
