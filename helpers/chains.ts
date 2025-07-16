@@ -185,6 +185,7 @@ export enum CHAIN {
   CELESTIA = "celestia",
   MORPH = "morph",
   APECHAIN = "apechain",
+  DCHAIN = "dchainmainnet",
   DUCKCHAIN = "duckchain",
   GRAVITY = "gravity",
   RARI = "rari",
@@ -244,6 +245,7 @@ export enum CHAIN {
   XRPL_EVM = 'xrplevm',
   KATANA = 'katana',
   BOTANIX = 'btnx',
+  SOON = 'soon',
 }
 
 // Don´t use

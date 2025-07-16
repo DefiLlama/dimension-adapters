@@ -1,5 +1,7 @@
 import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { uniV2Exports } from "../../helpers/uniswap";
 
 interface HyperswapPair {
     version: string;
@@ -31,7 +33,7 @@ const encodeToken = (input: string) => {
     return btoa(bin);
 }
 
-const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
     const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?page=${page}&maxPerPage=50`
     let page = 0;
@@ -75,18 +77,22 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     return {
         dailyVolume,
         dailyFees,
-        timestamp: options.startOfDay,
     }
 }
 
-const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: {
-        hyperliquid: {
-            fetch: fetchData,
-            runAtCurrTime: true,
-        }
-    }
-}
+// const adapter: SimpleAdapter = {
+//     version: 2,
+//     adapter: {
+//         [CHAIN.HYPERLIQUID]: {
+//             fetch,
+//             runAtCurrTime: true,
+//         }
+//     }
+// }
 
-export default adapter
+// export default adapter
+export default uniV2Exports({
+    [CHAIN.HYPERLIQUID]: {
+      factory: '0x724412C00059bf7d6ee7d4a1d0D5cd4de3ea1C48',
+    }
+})

@@ -126,7 +126,7 @@ const getFetch =
               ) *
                 10 ** -30
             )
-          : undefined
+          : 0,
     };
   };
 

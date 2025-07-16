@@ -29,9 +29,13 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
     const fees = res.feesRecordDailies
         .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
     if (fees === 0) throw new Error('Not found daily data!.')
+    const dailyFees = fees / (10 ** 20)
     return {
         timestamp: options.startOfDay,
-        dailyFees: fees / (10 ** 20),
+        dailyFees: dailyFees,
+        dailyRevenue: dailyFees * 0.37,
+        dailyProtocolRevenue: dailyFees * 0.1,
+        dailyHoldersRevenue: dailyFees * 0.27,
     }
 }
 
