@@ -43,9 +43,10 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2',
       dataProvider: '0x7b4eb56e7cd4b454ba8ff71e4518426369a138a3',
-      seflLoanAssets: {
-        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': true, // GHO
-      },
+      seflLoanAsset: {
+        address: '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f',
+        symbol: 'GHO',
+      }
     },
 
     // lido market
