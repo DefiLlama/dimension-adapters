@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   return {
-    dailyFees: dailyFees.resizeBy(0.09),
+    dailyFees: dailyFees.resizeBy(9 / 100), // 9% of all ETH flows into all TopCutMarkets
     dailyRevenue: dailyRevenue,
   };
 };
