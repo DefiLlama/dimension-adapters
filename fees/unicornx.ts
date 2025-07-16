@@ -56,6 +56,7 @@ const adapter: SimpleAdapter = {
         const dailyFees = options.createBalances();
         const dailyRevenue = options.createBalances();
         const USD1 = "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d";
+        const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
         const { dailyFees: bnbFees, dailyRevenue: bnbRevenue } =
           await evmReceivedGasAndTokens(
             "0xCb077A7f06D54c582eD82f5C5ef9FeFB9B8Be449",
@@ -67,7 +68,7 @@ const adapter: SimpleAdapter = {
         const { dailyFees: usd1Fees, dailyRevenue: usd1Revenue } =
           await evmReceivedGasAndTokens(
             "0x7e618674021EF084cA2154069798Fe16727849cC",
-            [USD1]
+            [USD1,WBNB]
           )(options);
         dailyFees.addBalances(usd1Fees);
         dailyRevenue.addBalances(usd1Revenue);
