@@ -1,7 +1,6 @@
-import customBackfill from "../../helpers/customBackfill";
-import {CHAIN} from "../../helpers/chains";
-import type {ChainEndpoints, SimpleAdapter, Chain} from "../../adapters/types";
-import { getGraphDimensions2} from "../../helpers/getUniSubgraph";
+import { CHAIN } from "../../helpers/chains";
+import type { ChainEndpoints, SimpleAdapter, Chain } from "../../adapters/types";
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 // Subgraphs endpoints
 const endpoints: ChainEndpoints = {
@@ -46,17 +45,16 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () =>
-            chain === CHAIN.BASE ? 1690173000
-                : chain === CHAIN.OPTIMISM ? 1705993200
-                    : chain === CHAIN.ARBITRUM ? 1707885300
-                        : chain === CHAIN.BLAST ? 1709722800
-                            : chain === CHAIN.MODE ? 1712371653
-                              : chain === CHAIN.XLAYER ? 1712369493
-                                  : chain === CHAIN.LINEA ? 1725062400
-                                        : 0,
-        customBackfill: customBackfill(chain, graphs),
-        meta: {methodology},
+        start:
+          chain === CHAIN.BASE ? 1690173000
+            : chain === CHAIN.OPTIMISM ? 1705993200
+              : chain === CHAIN.ARBITRUM ? 1707885300
+                : chain === CHAIN.BLAST ? 1709722800
+                  : chain === CHAIN.MODE ? 1712371653
+                    : chain === CHAIN.XLAYER ? 1712369493
+                      : chain === CHAIN.LINEA ? 1725062400
+                        : 0,
+        meta: { methodology },
       }
     }
   }, {})

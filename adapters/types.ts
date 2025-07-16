@@ -79,7 +79,6 @@ export type BaseAdapter = {
     start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
     fetch: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    customBackfill?: Fetch | FetchV2;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
