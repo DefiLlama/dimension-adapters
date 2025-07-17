@@ -1,47 +1,61 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { queryDuneSql } from "../../helpers/dune";
 
-const FEE_CONTRACT = "0x2994F8C9Df255e3926f73ae892E7464b4F76cd49";
 const USDT = ADDRESSES.klaytn.USDT;
 
-const eventAbi =
-  "event FeePaid(address indexed referee, address indexed referrer, uint256 fee, uint256 protocolFee, uint256 referrerFee, uint256 refereeFee)";
+const query = `
+      WITH FEE AS (
+        SELECT
+          evt_block_time AS date_,
+          SUM(value) AS fee
+        FROM erc20_kaia.evt_transfer
+        WHERE
+          contract_address = 0x5c13e303a62fc5dedf5b52d66873f2e59fedadc2
+          AND to = 0x2994f8c9df255e3926f73ae892e7464b4f76cd49
+        GROUP BY
+          1
+        ORDER BY
+          1
+      ),
+
+      INFO AS (SELECT
+        DATE(date_) as date_,
+        SUM(fee) AS fee
+      FROM FEE
+      GROUP BY
+        1)
+        
+      SELECT 
+          date_,
+          fee,
+          SUM(fee) OVER (ORDER BY date_ ASC) AS totalFees
+      FROM INFO
+      ORDER BY date_ DESC;
+  `;
 
 const fetch = async (options: FetchOptions) => {
-  const { getLogs, createBalances, getFromBlock, getToBlock } = options;
-  const dailyFees = createBalances();
-  const dailyProtocolRevenue = createBalances();
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
+  const res = await queryDuneSql(options, query);
 
-  const logs = await getLogs({
-    target: FEE_CONTRACT,
-    eventAbi,
-    fromBlock,
-    toBlock,
-    onlyArgs: true,
-  });
-  let totalFee = 0n;
-  let totalProtocolRevenue = 0n;
-  for (const log of logs) {
-    if (log.fee) totalFee += BigInt(log.fee);
-    if (log.protocolFee) totalProtocolRevenue += BigInt(log.protocolFee);
-  }
+  const dailyFeesAmount = res[0]?.fee || 0;
+  const totalFeesAmount = res[0]?.totalFees || 0;
 
-  dailyFees.add(USDT, totalFee);
-  dailyProtocolRevenue.add(USDT, totalProtocolRevenue);
+  const dailyFees = options.createBalances();
+  dailyFees.add(USDT, dailyFeesAmount);
+
+  const totalFees = options.createBalances();
+  totalFees.add(USDT, totalFeesAmount);
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyProtocolRevenue,
+    totalFees,
   };
 };
 
 const methodology = {
-  Fees: "Sum of fee from FeePaid events emitted by the K-BIT fee contract.",
-  Revenue: "All fee is considered revenue.",
-  ProtocolRevenue: "All protocolFee is protocol revenue.",
+  Fees: "Sum of fee transferred to the fee contract.",
 };
 
 const adapter: Adapter = {
