@@ -43,11 +43,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: "2025-03-28",
+      start: "2025-06-01",
     },
     [CHAIN.BASE]: {
       fetch,
-      start: "2025-03-28",
+      start: "2025-06-01",
     },
   },
 };
