@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResultFees } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, request } from "graphql-request";
 import { Contract, JsonRpcProvider } from "ethers";
@@ -10,11 +10,12 @@ const SUBGRAPH_URL =
 const RPC_URL = "https://sonic.drpc.org";
 
 const callAssetAbi = ["function callAsset() view returns (address)"];
-const putAssetAbi = ["function putAsset() view returns (address)"];
-const decimalsAbi = ["function decimals() view returns (uint8)"];
+const putAssetAbi  = ["function putAsset() view returns (address)"];
+const decimalsAbi  = ["function decimals() view returns (uint8)"];
 
 const provider = new JsonRpcProvider(RPC_URL);
 
+// cache market → { token, decimals }
 const marketInfoCache: Record<string, { token: string; decimals: number }> = {};
 async function fetchMarketInfo(market: string, isCall: boolean) {
   const key = `${market}-${isCall}`;
@@ -25,7 +26,7 @@ async function fetchMarketInfo(market: string, isCall: boolean) {
     isCall ? callAssetAbi : putAssetAbi,
     provider
   );
-  const token = await marketContract[isCall ? "callAsset" : "putAsset"]();
+  const token    = await marketContract[isCall ? "callAsset" : "putAsset"]();
   const tokenContract = new Contract(token, decimalsAbi, provider);
   const decimals = await tokenContract.decimals();
 
@@ -45,74 +46,78 @@ const OPTIONS_QUERY = (start: number, end: number) => gql`
   }
 `;
 
-const fetchFn = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchFn = async (
+  timestamp: number
+): Promise<{
+  timestamp: number;
+  dailyFees: string;
+  dailyRevenue: string;
+  dailyVolume: string;
+}> => {
   const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
-  const endOfDay = startOfDay + 86400;
+  const endOfDay   = startOfDay + 86400;
 
   const { optionsPositions } = await request(
     SUBGRAPH_URL,
     OPTIONS_QUERY(startOfDay, endOfDay)
   );
 
-  // aggregate raw BigInts per token
-  const premiums: Record<string, bigint> = {};
-  const revenues: Record<string, bigint> = {};
+  // Raw aggregators per token
+  const rawFees:    Record<string, bigint> = {}; // protocolFees only
+  const rawVolume:  Record<string, bigint> = {}; // premium + protocolFees
   const tokens = new Set<string>();
 
   for (const pos of optionsPositions) {
-    const rawPremium = BigInt(pos.premium);
-    const rawRevenue = BigInt(pos.protocolFees);
+    const pf    = BigInt(pos.protocolFees);
+    const prem  = BigInt(pos.premium);
     const { token } = await fetchMarketInfo(pos.market, pos.isCall);
     const addr = token.toLowerCase();
 
     tokens.add(addr);
-    premiums[addr] = (premiums[addr] || 0n) + rawPremium;
-    revenues[addr] = (revenues[addr] || 0n) + rawRevenue;
+    rawFees[addr]   = (rawFees[addr]   || 0n) + pf;
+    rawVolume[addr] = (rawVolume[addr] || 0n) + (pf + prem);
   }
 
-  // fetch USD prices
+  // Fetch USD prices
   const priceIds = Array.from(tokens).map((a) => `${CHAIN.SONIC}:${a}`);
-  const prices = await getPrices(priceIds, timestamp);
+  const prices   = await getPrices(priceIds, timestamp);
 
-  let totalFeesUSD = 0;
-  let totalRevenueUSD = 0;
+  let totalFeesUSD    = 0;
+  let totalVolumeUSD  = 0;
 
   for (const addr of tokens) {
-    const key = `${CHAIN.SONIC}:${addr}`;
-    const data = prices[key];
-    if (!data?.price || !data?.decimals) continue;
+    const key  = `${CHAIN.SONIC}:${addr}`;
+    const d    = prices[key];
+    if (!d?.price || !d?.decimals) continue;
 
-    const priceScaled = BigInt(Math.round(data.price * 1e6));
-    const factor = 10n ** BigInt(data.decimals);
+    const priceScaled = BigInt(Math.round(d.price * 1e6));
+    const factor      = 10n ** BigInt(d.decimals);
 
-    // total fees = premium + protocolFees
-    const feeRaw = (premiums[addr] || 0n) + (revenues[addr] || 0n);
-    // revenue only = protocolFees
-    const revRaw = revenues[addr] || 0n;
+    const feeScaled   = (rawFees[addr]   * priceScaled) / factor;
+    const volScaled   = (rawVolume[addr] * priceScaled) / factor;
 
-    const feesScaled = (feeRaw * priceScaled) / factor;
-    const revScaled = (revRaw * priceScaled) / factor;
-
-    totalFeesUSD += Number(feesScaled) / 1e6;
-    totalRevenueUSD += Number(revScaled) / 1e6;
+    totalFeesUSD   += Number(feeScaled) / 1e6;
+    totalVolumeUSD += Number(volScaled) / 1e6;
   }
 
-  return {
+  const daily = {
     timestamp,
-    dailyFees: totalFeesUSD.toFixed(2),
-    dailyRevenue: totalRevenueUSD.toFixed(2),
+    dailyFees:    totalFeesUSD.toFixed(2),
+    dailyRevenue: totalFeesUSD.toFixed(2),
+    dailyVolume:  totalVolumeUSD.toFixed(2),
   };
+  return daily;
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SONIC]: {
       fetch: fetchFn,
-      start: 1735228800,
+      start: 1735228800, // subgraph deployment
       meta: {
         methodology: {
-          Fees: "Sum of premium + protocol fees from minted options.",
           Revenue: "Protocol revenue from minted options.",
+          Volume: "Total notional (sum of premium + protocolFees) from minted options. ",
         },
       },
     },
