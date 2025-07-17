@@ -83,6 +83,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 export default uniV3Exports({
     [CHAIN.HYPERLIQUID]: {
       factory: '0xB1c0fa0B789320044A6F623cFe5eBda9562602E3',
+
+      // https://docs.hyperswap.exchange/hyperswap/token-design/or-protocol-earnings
+      userFeesRatio: 1,
+      revenueRatio: 0.4, // 40% swap fees
+      protocolRevenueRatio: 0.08, // 8% swap fees
+      holdersRevenueRatio: 0.32, // 32% swap fees
     }
 })
 // const adapter: SimpleAdapter = {
