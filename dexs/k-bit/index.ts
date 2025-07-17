@@ -15,7 +15,8 @@ const fetch = async (options: FetchOptions) => {
 
   const logs = await options.getLogs({
     target: FEE_CONTRACT,
-    eventAbi
+    eventAbi,
+    entireLog: true,
   });
 
   let total = 0n;
