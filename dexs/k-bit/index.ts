@@ -11,17 +11,13 @@ const eventAbi =
   "event FeePaid(address indexed referee, address indexed referrer, uint256 fee, uint256 protocolFee, uint256 referrerFee, uint256 refereeFee)";
 
 const fetch = async (options: FetchOptions) => {
-  const { getLogs, createBalances, getFromBlock, getToBlock } = options;
-  const dailyVolume = createBalances();
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
-  const logs = await getLogs({
+  const dailyVolume = options.createBalances();
+
+  const logs = await options.getLogs({
     target: FEE_CONTRACT,
-    eventAbi,
-    fromBlock,
-    toBlock,
-    onlyArgs: false, // need blockNumber
+    eventAbi
   });
+
   let total = 0n;
   for (const log of logs) {
     const fee = Number(log.args.fee);
@@ -31,18 +27,10 @@ const fetch = async (options: FetchOptions) => {
     total += BigInt(volume);
   }
   dailyVolume.add(USDT, total);
+
   return {
     dailyVolume,
   };
-};
-
-const methodology = {
-  Volume: `
-    Trading volume is calculated from FeePaid events. (easy to implement than checking all types of trades)
-    Before block 167568912, volume = fee * 1000 (fee is 0.1% of volume). 
-    After, volume = fee * 1428.57142857 (fee is 0.07% of volume). 
-    All volume is in USDT.
-  `,
 };
 
 const adapter: Adapter = {
@@ -50,8 +38,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
-      start: 1727684950, // timestamp of START_BLOCK 165682304
-      meta: { methodology },
+      start: '2024-09-30'
     },
   },
 };
