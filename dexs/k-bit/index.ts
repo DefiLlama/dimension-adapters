@@ -1,68 +1,46 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { queryDuneSql } from "../../helpers/dune";
 
+const FEE_CONTRACT = "0x2994F8C9Df255e3926f73ae892E7464b4F76cd49";
+const FEE_CHANGE_BLOCK = 167568912;
+const MULTIPLIER = [1 / 0.001, 1 / 0.0007]; // fee percentage was 0.1% and 0.07%
 const USDT = ADDRESSES.klaytn.USDT;
 
+const eventAbi =
+  "event FeePaid(address indexed referee, address indexed referrer, uint256 fee, uint256 protocolFee, uint256 referrerFee, uint256 refereeFee)";
+
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const totalVolume = options.createBalances();
-
-  // Provided Dune SQL query (do not edit)
-  const query = `
-    WITH FEE AS (
-      SELECT
-        evt_block_time AS date_,
-        SUM(value) AS fee
-      FROM erc20_kaia.evt_transfer
-      WHERE
-        contract_address = 0x5c13e303a62fc5dedf5b52d66873f2e59fedadc2
-        AND to = 0x2994f8c9df255e3926f73ae892e7464b4f76cd49
-      GROUP BY
-        1
-      ORDER BY
-        1
-    ),
-
-    INFO AS (SELECT
-      DATE(date_) as date_,
-      SUM(fee) AS fee,
-      SUM(
-        CASE
-          WHEN date_ < CAST('2024-10-22 05:00' AS TIMESTAMP)
-          THEN fee / 0.001
-          ELSE fee / 0.0007
-        END
-      ) AS dailyVolume
-    FROM FEE
-    GROUP BY
-      1)
-      
-    SELECT 
-        date_,
-        dailyVolume,
-        SUM(dailyVolume) OVER(ORDER BY date_ ASC) AS totalVolume
-    FROM INFO
-    ORDER BY date_ DESC;
-`;
-
-  const res = await queryDuneSql(options, query);
-  const daily = res[0]?.dailyVolume || 0;
-  const total = res[0]?.totalVolume || 0;
-  dailyVolume.add(USDT, daily);
-  totalVolume.add(USDT, total);
-
+  const { getLogs, createBalances, getFromBlock, getToBlock } = options;
+  const dailyVolume = createBalances();
+  const fromBlock = await getFromBlock();
+  const toBlock = await getToBlock();
+  const logs = await getLogs({
+    target: FEE_CONTRACT,
+    eventAbi,
+    fromBlock,
+    toBlock,
+    onlyArgs: false, // need blockNumber
+  });
+  let total = 0n;
+  for (const log of logs) {
+    const fee = Number(log.args.fee);
+    const blockNumber = log.blockNumber;
+    const multiplier = blockNumber < FEE_CHANGE_BLOCK ? MULTIPLIER[0] : MULTIPLIER[1];
+    const volume = Math.round(fee * multiplier);
+    total += BigInt(volume);
+  }
+  dailyVolume.add(USDT, total);
   return {
     dailyVolume,
-    totalVolume,
   };
 };
 
 const methodology = {
   Volume: `
-    The daily trading volume is calculated based on the fee paid, which is a specific percentage of trading volume, to the fee contract.
-    The total volume is the sum of the daily volume.
+    Trading volume is calculated from FeePaid events. (easy to implement than checking all types of trades)
+    Before block 167568912, volume = fee * 1000 (fee is 0.1% of volume). 
+    After, volume = fee * 1428.57142857 (fee is 0.07% of volume). 
     All volume is in USDT.
   `,
 };
