@@ -11,9 +11,9 @@ export interface AaveLendingPoolConfig {
   dataProvider: string;
 
   // GHO on aave
-  seflLoanAsset?: {
-    address: string;
-    symbol: string;
+  selfLoanAssets?: {
+    // address => symbol
+    [key: string]: string;
   },
 }
 
@@ -86,18 +86,20 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     }
 
+    const token = reservesList[reserveIndex].toLowerCase()
     const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
 
-    if (pool.seflLoanAsset && pool.seflLoanAsset.address.toLowerCase() === reservesList[reserveIndex].toLowerCase()) {
+    if (pool.selfLoanAssets && pool.selfLoanAssets[token]) {
       // self-loan assets, no supply-side revenue
+      const symbol = pool.selfLoanAssets[token]
       const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
       const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
       const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
 
-      balances.dailyFees.add(reservesList[reserveIndex], interestAccrued, `${METRIC.BORROW_INTEREST}${pool.seflLoanAsset.symbol}`)
-      balances.dailySupplySideRevenue.add(reservesList[reserveIndex], 0, `${METRIC.BORROW_INTEREST}${pool.seflLoanAsset.symbol}`)
-      balances.dailyProtocolRevenue.add(reservesList[reserveIndex], interestAccrued, `${METRIC.BORROW_INTEREST}${pool.seflLoanAsset.symbol}`)
+      balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST}${symbol}`)
+      balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST}${symbol}`)
+      balances.dailyProtocolRevenue.add(token, interestAccrued, `${METRIC.BORROW_INTEREST}${symbol}`)
     } else {
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
@@ -106,9 +108,9 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
       const revenueAccrued = Number(interestAccrued) * reserveFactor
 
-      balances.dailyFees.add(reservesList[reserveIndex], interestAccrued, METRIC.BORROW_INTEREST)
-      balances.dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued, METRIC.BORROW_INTEREST)
-      balances.dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, Number(interestAccrued) - revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
     }
   }
 
