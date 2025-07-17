@@ -5,6 +5,11 @@ import { CHAIN } from "../../helpers/chains";
 const event_swap = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint32 referralCode)';
 const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint32 referralCode)';
 
+const ODOS_ROUTER_V3 = "0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"
+
+const event_swap_v3 = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint64 referralCode, uint64 referralFee, address referralFeeRecipient)';
+const event_multiswap_v3 = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint64 referralCode, uint64 referralFee, address referralFeeRecipient)';
+
 type TPool = {
   [c: string]: string[];
 }
@@ -24,15 +29,22 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.SCROLL]: ['0xbFe03C9E20a9Fc0b37de01A172F207004935E0b1',],
   [CHAIN.FRAXTAL]: ['0x56c85a254DD12eE8D9C04049a4ab62769Ce98210'],
   [CHAIN.SONIC]: ['0xaC041Df48dF9791B0654f1Dbbf2CC8450C5f2e9D'],
+  [CHAIN.UNICHAIN]: ['0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3']
 }
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const feeCollectors = FEE_COLLECTORS[chain];
   const dailyVolume = createBalances()
+  
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap, })
   const multiswapLogs = await getLogs({ targets: feeCollectors, eventAbi: event_multiswap, })
   logs.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
   multiswapLogs.forEach(i => dailyVolume.add(i.tokensOut, i.amountsOut))
+
+  const logs_v3 = await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_swap_v3, })
+  const multiswapLogs_v3 = await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_multiswap_v3, })
+  logs_v3.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
+  multiswapLogs_v3.forEach(i => dailyVolume.add(i.tokensOut, i.amountsOut))
 
   return { dailyVolume, };
 }
