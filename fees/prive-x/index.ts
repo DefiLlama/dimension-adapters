@@ -26,7 +26,7 @@ const fetchCoti = async (_a: any, _b: any, options: FetchOptions) => {
   const yesterdayFees = graphRes['yesterday'].reduce((p: any, c: any) => p + Number(c.platformFee), 0)
   const fees24H = todayFees - yesterdayFees;
   const dailyFees = fees24H / 1e18; // convert from wei
-  
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -54,16 +54,18 @@ const fetchBase = async (_a: any, _b: any, options: FetchOptions) => {
   let data = await request(endpoint, query);
   const recordWithFees = data?.dailyHistories?.find(d => parseFloat(d.platformFee || "0") > 0);
   const dailyFees = parseFloat(recordWithFees?.platformFee || "0") / 1e18;
-  
-  return { 
+
+  return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const methodology = {
   Fees: "Platform fees collected by PriveX from derivatives trading activities",
   Revenue: "All platform fees collected represent protocol revenue",
+  ProtocolRevenue: "All platform fees collected represent protocol revenue",
 };
 
 const adapter: SimpleAdapter = {
