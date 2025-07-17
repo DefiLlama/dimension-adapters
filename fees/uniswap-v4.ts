@@ -121,13 +121,11 @@ async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   for (const event of events) {
     const poolId = String(event.id)
-    if (pools[poolId]) {
-      const token = pools[poolId].currency0
-      if (token === '0x0000000000000000000000000000000000000000') {
-        dailyFees.addGasToken(Number(event.amount0) * Number(event.fee) / 1e6)
-      } else {
-        dailyFees.add(token, Number(event.amount0) * Number(event.fee) / 1e6)
-      }
+    const token = (pools[poolId] as IPool).currency0
+    if (token === '0x0000000000000000000000000000000000000000') {
+      dailyFees.addGasToken(Number(event.amount0) * Number(event.fee) / 1e6)
+    } else {
+      dailyFees.add(token, Number(event.amount0) * Number(event.fee) / 1e6)
     }
   }
 
