@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 import { DAY } from "../../utils/date"
@@ -13,25 +13,43 @@ type ResponseSchema = {
 }
 
 
-const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances()
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyRevenue = options.createBalances()
 
   const revenueData: ResponseSchema = await fetchURL('https://spark2-api.blockanalitica.com/sparkstar/sll/?days_ago=365')
 
   const startDay = getDay(options.startOfDay)
   const previousDay = getDay(options.startOfDay - DAY)
 
-  const currentData = revenueData.historic.find(({ date }) => date === startDay)
-  const previousData = revenueData.historic.find(({ date }) => date === previousDay)
+  const currentData = revenueData.historic.find(({date}) => date === startDay)
+  const previousData = revenueData.historic.find(({date}) => date === previousDay)
 
   if (currentData === undefined || previousData === undefined) {
-    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+    return {dailyFees: dailyRevenue, dailyRevenue: dailyRevenue, dailyProtocolRevenue: dailyRevenue}
   }
 
-  dailyFees.addUSDValue(Number(currentData.profit_total) - Number(previousData.profit_total))
+  const buidlRevenue = await getBuidlRevenue(options)
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  dailyRevenue.addUSDValue(Number(currentData.profit_total) - Number(previousData.profit_total))
+  dailyRevenue.subtractToken(buidl, buidlRevenue)
+
+  return {dailyRevenue}
 }
+
+const buidl = '0x6a9DA2D710BB9B700acde7Cb81F10F1fF8C89041'
+const buidlIssueEvent = 'event Issue(address indexed to, uint256 value, uint256 valueLocked)'
+const toAlmControllerTopic = '0x0000000000000000000000001601843c5E9bC251A3272907010AFa41Fa18347E'
+
+const getBuidlRevenue = async (options: FetchOptions) => {
+  const data: [string, bigint, bigint][] = await options.getLogs({
+    target: buidl,
+    eventAbi: buidlIssueEvent,
+    topics: [null as any, toAlmControllerTopic],
+  })
+
+  return data.reduce((result, issueLog) => result + issueLog[1], 0n)
+}
+
 
 const adapter: SimpleAdapter = {
   version: 2,
