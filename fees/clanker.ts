@@ -6,40 +6,68 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const res = await queryDuneSql(options, `
     WITH created_contracts AS (
+        /* ---------- V31 (added) ---------- */
         SELECT 
-            'Clanker' AS projects
-            , tokenAddress 
+            'Clanker' AS projects,
+            tokenAddress 
         FROM 
-            socialdex_base.SocialDexDeployer_evt_TokenCreated
+            clanker_base.Clanker_v31_evt_TokenCreated
         WHERE evt_block_time > TIMESTAMP '2024-11-27'
             AND evt_block_time <= from_unixtime(${options.endTimestamp})
 
         UNION ALL
-        
-        SELECT
-            'Clanker' as projects
-            , tokenAddress 
-        FROM clanker_base.Clanker_V1_evt_TokenCreated
-        WHERE evt_block_time > TIMESTAMP '2024-11-27'
+
+        /* ---------- V4 (added) ---------- */
+        SELECT 
+            'Clanker' AS projects,
+            tokenAddress 
+        FROM 
+            clanker_v4_base.clanker_evt_tokencreated
+        WHERE evt_block_time > TIMESTAMP '2024-11-08'
             AND evt_block_time <= from_unixtime(${options.endTimestamp})
 
         UNION ALL
-        
+
+        /* ---------- V3 (existing) ---------- */
         SELECT
-          'Clanker' as projects
-            , tokenAddress 
+            'Clanker' as projects,
+            tokenAddress 
+        FROM clanker_base.Clanker_v3_evt_TokenCreated
+        WHERE evt_block_time > TIMESTAMP '2024-11-08'
+            AND evt_block_time <= from_unixtime(${options.endTimestamp})
+
+        UNION ALL
+
+        /* ---------- V2 (existing) ---------- */
+        SELECT
+            'Clanker' as projects,
+            tokenAddress 
         FROM clanker_base.Clanker_v2_evt_TokenCreated
         WHERE evt_block_time > TIMESTAMP '2024-11-08'
             AND evt_block_time <= from_unixtime(${options.endTimestamp})
 
         UNION ALL
-        
+
+        /* ---------- V1 (existing) ---------- */
         SELECT
-          'Clanker' as projects
-            , tokenAddress 
-        FROM clanker_base.Clanker_v3_evt_TokenCreated
-        WHERE evt_block_time > TIMESTAMP '2024-11-08'
-            AND evt_block_time <= from_unixtime(${options.endTimestamp})    
+            'Clanker' as projects,
+            tokenAddress 
+        FROM clanker_base.Clanker_V1_evt_TokenCreated
+        WHERE evt_block_time > TIMESTAMP '2024-11-27'
+            AND evt_block_time <= from_unixtime(${options.endTimestamp})
+
+        UNION ALL
+
+        /* ---------- V0 - SocialDex (existing) ---------- */
+        SELECT 
+            'Clanker' AS projects,
+            tokenAddress 
+        FROM 
+            socialdex_base.SocialDexDeployer_evt_TokenCreated
+        WHERE evt_block_time > TIMESTAMP '2024-11-27'
+            AND evt_block_time <= from_unixtime(${options.endTimestamp})
+            AND evt_tx_from IN (0xe0c959eedcfd004952441ea4fb4b8f5af424e74b,
+                               0xc204af95b0307162118f7bc36a91c9717490ab69)
     ),
     dex_trades AS (
         SELECT 
@@ -117,7 +145,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: "2024-11-22",
+      start: "2024-11-08", // Updated to cover V4 start date
       meta: {
             methodology: {
                 Fees: "All trading and launching tokens fees paid by users.",
