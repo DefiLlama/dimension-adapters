@@ -19,7 +19,8 @@ const fetch = async () => {
 const adapter: SimpleAdapter = {
     adapter:{
         [CHAIN.SUI]:{
-            fetch: fetch
+            fetch: fetch,
+            runAtCurrTime: true
         }
     }
 };
