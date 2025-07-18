@@ -8,7 +8,7 @@ const event_multiswap = 'event SwapMulti(address sender, uint256[] amountsIn, ad
 const ODOS_ROUTER_V3 = "0x0D05a7D3448512B78fa8A9e46c4872C88C4a0D05"
 
 const event_swap_v3 = 'event Swap (address sender, uint256 inputAmount, address inputToken, uint256 amountOut, address outputToken, int256 slippage, uint64 referralCode, uint64 referralFee, address referralFeeRecipient)';
-const event_multiswap_v3 = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, uint64 referralCode, uint64 referralFee, address referralFeeRecipient)';
+const event_multiswap_v3 = 'event SwapMulti(address sender, uint256[] amountsIn, address[] tokensIn, uint256[] amountsOut, address[] tokensOut, int256[] slippage, uint64 referralCode, uint64 referralFee, address referralFeeRecipient)';
 
 type TPool = {
   [c: string]: string[];
@@ -58,7 +58,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 
   // add v3 fees
   logs_v3.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
-  multiswapLogs_v3.forEach(i => dailyFees.add(i.tokensOut, i.amountsOut.map((a: any) => Number(a) * .01/100))) // 0.01% fixed fee
+  multiswapLogs_v3.forEach(i => dailyFees.add(i.tokensOut, i.slippage.map((a: any) => Number(a) > 0 ? a : 0)))
 
   return { 
     dailyVolume,
