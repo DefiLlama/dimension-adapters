@@ -1,6 +1,7 @@
 import { request } from "graphql-request";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 
 const methodology = {
@@ -125,7 +126,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const events = await fetchEvents(options);
   for (const event of events) {
     if (event.token) {
-      dailyFees.add(event.token, event.interest);
+      dailyFees.add(event.token, event.interest, METRIC.BORROW_INTEREST);
     }
   }
 

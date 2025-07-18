@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { METRIC } from "../../helpers/metrics"
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -92,9 +93,9 @@ const fetch = async (options: FetchOptions) => {
 
         const protocolRevenueShare = (interestEarnedBeforeFee - interestEarned) * BigInt(protocolFeeShare) / BigInt(1e4)
 
-        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee);
-        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned)
-        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare)
+        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee, METRIC.BORROW_INTEREST);
+        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned, METRIC.BORROW_INTEREST)
+        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare, METRIC.BORROW_INTEREST)
     }
 
     const dailySupplySideRevenue = dailyFees.clone()
