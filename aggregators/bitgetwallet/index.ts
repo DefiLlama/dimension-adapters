@@ -27,7 +27,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 const CHAINS: Array<CHAIN> = [
     CHAIN.APTOS,
     CHAIN.ARBITRUM,
-    CHAIN.AVAX,
+    // CHAIN.AVAX,
     CHAIN.BASE,
     CHAIN.BLAST,
     CHAIN.BSC,
@@ -37,7 +37,7 @@ const CHAINS: Array<CHAIN> = [
     CHAIN.ETHEREUM,
     CHAIN.FANTOM,
     CHAIN.HECO,
-    CHAIN.KLAYTN,
+    // CHAIN.KLAYTN,
     CHAIN.LINEA,
     CHAIN.MANTA,
     CHAIN.POLYGON,

@@ -68,7 +68,15 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
 
-    if (!pairIds.length) return { dailyVolume, dailyFees }
+    if (!pairIds.length) return { 
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
+      dailyRevenue: revenueRatio !== undefined ? 0 : undefined,
+      dailySupplySideRevenue: revenueRatio !== undefined ? 0 : undefined,
+      dailyProtocolRevenue: protocolRevenueRatio !== undefined ? 0 : undefined,
+      dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
+    }
 
     const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
@@ -160,7 +168,15 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     const dailyVolume = createBalances()
     const dailyFees = createBalances()
 
-    if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees }
+    if (!Object.keys(filteredPairs).length) return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
+      dailyRevenue: revenueRatio !== undefined ? 0 : undefined,
+      dailySupplySideRevenue: revenueRatio !== undefined ? 0 : undefined,
+      dailyProtocolRevenue: protocolRevenueRatio !== undefined ? 0 : undefined,
+      dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
+    }
 
     const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {

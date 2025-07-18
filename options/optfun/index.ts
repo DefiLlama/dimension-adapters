@@ -2,19 +2,31 @@ import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 
 const BTC_MARKET = "0xB7C609cFfa0e47DB2467ea03fF3e598bF59361A5"
+const PUMP_MARKET = "0xc97Bd36166f345aB1C5d97c9DF196Ee6fFA2485e"
 const LIMIT_ORDER_FILLED_ABI = "event LimitOrderFilled(uint256 indexed cycleId, uint256 makerOrderId, int256 takerOrderId, uint256 size, uint256 limitPrice, uint8 side, address indexed taker, address indexed maker, int256 cashTaker, int256 cashMaker, uint256 btcPrice)"
 
 export async function fetch(options: FetchOptions): Promise<FetchResult> {
-  const logs = await options.getLogs({
-    target: BTC_MARKET,
-    eventAbi: LIMIT_ORDER_FILLED_ABI,
-  });
+  // Get logs from both markets in parallel
+  const [btcLogs, pumpLogs] = await Promise.all([
+    options.getLogs({
+      target: BTC_MARKET,
+      eventAbi: LIMIT_ORDER_FILLED_ABI,
+    }),
+    options.getLogs({
+      target: PUMP_MARKET,
+      eventAbi: LIMIT_ORDER_FILLED_ABI,
+    })
+  ]);
   
   let dailyNotional = 0;
   let dailyPremium = 0;
   
-  for (const log of logs) {
+  // Process logs from both markets using the same logic
+  const allLogs = [...btcLogs, ...pumpLogs];
+  
+  for (const log of allLogs) {
     const size = Number(log.size);
+    // This is mistakenly named 'btcPrice' for both markets. Its the underlying asset's price (btc price for btc market, pump price for pump market)
     const btcPrice = Number(log.btcPrice);
     const limitPrice = Number(log.limitPrice);
     

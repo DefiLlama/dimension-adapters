@@ -25,13 +25,13 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dateString = new Date(dayTimestamp * 1000).toISOString();
   const markets: string[] = Object.keys((await fetchURL(historicalVolumeEndpoint)).markets);
   const historical: IVolumeall[] = (await Promise.all(markets.map((market: string) => fetchURL(candles(market, fromISO))))).map((e: any) => e.candles).flat()
-  const dailyolume = historical.filter((e: IVolumeall) => e.startedAt === dateString)
+  const dailyVolume = historical.filter((e: IVolumeall) => e.startedAt === dateString)
     .reduce((a: number, b: IVolumeall) => a+Number(b.usdVolume), 0)
-  const dailyOpenInterest = historical.filter((e: IVolumeall) => e.startedAt === dateString)
+  const openInterestAtEnd = historical.filter((e: IVolumeall) => e.startedAt === dateString)
     .reduce((a: number, b: IVolumeall) => a+Number(b.startingOpenInterest) * Number(b.close), 0)
   return {
-    dailyVolume: dailyolume,
-    dailyOpenInterest: dailyOpenInterest,
+    dailyVolume,
+    openInterestAtEnd,
     timestamp: timestamp,
   };
 };

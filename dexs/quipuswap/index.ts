@@ -1,8 +1,6 @@
-import { Chain } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getHistorical = () => {
@@ -47,17 +45,11 @@ const fetch = async (timestamp: number) => {
     totalVolume: totalVolume.toString(),
   }
 }
-const getStartTime = async () => {
-  const response: IGraphResponse = (await getGQLClient().request(getHistorical())).overview;
-  return response.plotVolume[0].time;
-}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: getStartTime,
-      customBackfill: customBackfill(CHAIN.TEZOS as Chain, () => fetch)
     },
   },
 };
