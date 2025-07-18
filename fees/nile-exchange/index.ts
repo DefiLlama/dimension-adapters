@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
@@ -7,6 +8,7 @@ import {
   DEFAULT_TOTAL_VOLUME_FIELD,
   getGraphDimensions2,
 } from "../../helpers/getUniSubgraph"
+
 
 type TStartTime = {
   [key: string]: number;
@@ -29,7 +31,7 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
 };
 
 const v2Endpoints = {
-  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/66247/nile-cl/version/latest/",
+  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('8KNrMAiPqegNtKCP8RdhF8uaPyt8vzKkxuYVzbtHTMQk'),
 };
 
 const v2Graphs = getGraphDimensions2({
