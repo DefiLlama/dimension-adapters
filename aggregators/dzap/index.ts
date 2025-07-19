@@ -42,6 +42,7 @@ const chains: Record<string, number> = {
   [CHAIN.MODE]: 34443,
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.CELO]: 42220,
+  [CHAIN.HEMI]: 43111,
   [CHAIN.AVAX]: 43114,
   [CHAIN.INK]: 57073,
   [CHAIN.LINEA]: 59144,
@@ -77,9 +78,11 @@ async function sleep(time: number) {
 
 const fetch = (chain: number) => async (options: FetchOptions) => {
   await sleep(2);
-  const data: ApiResponse = await fetchURL(`${CHAIN_VOLUME_API}?chainId=${chain}`);
+  const data: ApiResponse = await fetchURL(
+    `${CHAIN_VOLUME_API}?chainId=${chain}`
+  );
 
-  let dailyVolume = data.swap.last24Hours
+  let dailyVolume = data.swap.last24Hours;
 
   // bad data, wash trade
   if (options.startOfDay === 1750982400 && options.chain === CHAIN.ARBITRUM) {
