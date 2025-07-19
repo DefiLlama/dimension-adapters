@@ -26,6 +26,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees: dailyFees.resizeBy(9 / 100), // 9% of all ETH flows into all TopCutMarkets
     dailyRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -33,18 +34,17 @@ const meta = {
   methodology: {
     Fees: "9% of all ETH flows into all TopCutMarkets",
     Revenue: "All ETH flows into the TopCutVault",
+    ProtocolRevenue: "All ETH flows into the TopCutVault",
   },
 };
 
-// Start date should be when the protocol launched - using a reasonable estimate
-const start = 1752670800; // July 16, 2025
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start,
+      start: '2025-06-16',
       meta,
     },
   },
