@@ -6,7 +6,6 @@ const URL = "https://vooi-rebates.fly.dev/defillama/volumes";
 
 const fetchArbitrum = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
     const fetchData = await fetchURL(`${URL}?ts=${options.startOfDay}`)
-    console.log(fetchData)
     let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
     let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
     let gmxItem = fetchData.find(((item) => item.protocol == "gmx" && item.network == "arbitrum"))
