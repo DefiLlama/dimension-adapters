@@ -175,6 +175,7 @@ const abstractStartTime = 1738158858;
 const avaxStartTime = 1742994000;
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   breakdown: {
     swap: {
       [CHAIN.ARBITRUM]: {
