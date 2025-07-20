@@ -44,27 +44,47 @@ const RangoChains: Record<string, string> = {
 };
 
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
-  const prefetchData = options.preFetchedResults
+  const prefetchData = options.preFetchedResults as Record<string, any[]>;
+  const chainCode = RangoChains[options.chain];
+  const statsForChain = prefetchData[chainCode] || [];
 
-  let dailyVolume = 0
 
   const date = new Date(timestamp * 1000).toISOString().split('T')[0];
-  for (const item of prefetchData) {
+  
+  const statEntry = statsForChain.find(item => {
     const itemDate = item.date.split('T')[0];
-    if (date === itemDate && item.bucket === RangoChains[options.chain]) {
-      dailyVolume = Number(item.volume);
-    }
-  }
+    return itemDate === date;
+  });
+
+  const dailyVolume = statEntry ? Number(statEntry.volume) : 0;
 
   return {
-    dailyBridgeVolume: dailyVolume,
+    dailyVolume: dailyVolume,
   }
 }
 
 const prefetch = async (_: FetchOptions) => {
-  const data = await httpGet('https://api.rango.exchange/scanner/summary/daily?days=10000&breakDownBy=SOURCE&apiKey=4a624ab5-16ff-4f96-90b7-ab00ddfc342c');
-  return data.stats;
+  const API_KEY = '4a624ab5-16ff-4f96-90b7-ab00ddfc342c'
+  const DAYS = 10000
+  const BREAKDOWN = 'SOURCE'
+
+  // fire off one request per chain
+  const entries = await Promise.all(
+    Object.values(RangoChains).map(chainCode =>
+      httpGet(
+        `https://api.rango.exchange/scanner/summary/daily` +
+        `?days=${DAYS}` +
+        `&breakDownBy=${BREAKDOWN}` +
+        `&apiKey=${API_KEY}` +
+        `&source=${chainCode}` +
+        `&destination=${chainCode}`
+      ).then(response => [chainCode, response.stats])
+    )
+  );
+
+  return Object.fromEntries(entries);
 }
+
 
 const chainAdapter = { fetch, start: '2021-08-04' }
 
