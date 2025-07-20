@@ -88,7 +88,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
    ────────────────────────────────────────────────────────────────────────── */
 const methodology = {
   Fees:
-    "Daily fees are taken from UniswapDayData.feesUSD; cumulative fees from Factory.totalFeesUSD. Both values originate in the subgraph and are denominated in USD.",
+    "Daily fees are taken from DayData.feesUSD; cumulative fees from Factory.totalFeesUSD. Both values originate in the subgraph and are denominated in USD.",
 };
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FLARE]: {
       fetch: graphs(endpoints),
-      start: "2025-07-05", /* <‑‑‑ EDIT if your subgraph starts earlier/later ‑‑‑> */
+      start: "2025-07-01", /* <‑‑‑ EDIT if your subgraph starts earlier/later ‑‑‑> */
       meta: { methodology },
     },
   },
