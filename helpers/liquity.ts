@@ -14,7 +14,13 @@ export const getLiquityV2LogAdapter: any = ({
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
     const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
     const tokens = await api.multiCall({ abi: 'address:collToken', calls: activePools })
-    let interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: activePools })
+    let interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: activePools, permitFailure: true })
+    let nullInterestRouterFound = interestRouters.some(i => !i)
+    if (nullInterestRouterFound) {
+      api.log('sometimes interestRouter is found in address registry, trying to fetch from there')
+      const addressesRegistries = await api.multiCall({ abi: 'address:addressesRegistry', calls: activePools })
+      interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: addressesRegistries, })
+    }
     const stabilityPools = await api.multiCall({ abi: 'address:stabilityPool', calls: activePools })
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 

@@ -25,6 +25,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: '2025-07-16', // webapp down, X accoutn suspended
   adapter: {
     ...Object.entries(chains).reduce((acc, [key]) => {
       return {

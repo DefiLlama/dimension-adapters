@@ -597,7 +597,9 @@
     "abUSDT": "E77cpQ4VncGmcAXX16LHFFzNBEBb2U7Ar7LBmZNfCgwL",
     "aeUSDT": "Bn113WT6rbdgwrm12UJtnmNqGqZjY4it2WoUQuQopFVn",
     "aaUSDT": "FwEHs3kJEdMa2qZHv7SgzCiFXUQPEycEXksfBkwmS8gj",
-    "BUSDbs": "5RpUwQ8wtdPCZHhu6MERp2RGrpobsbZ6MH5dDHkUjs2"
+    "BUSDbs": "5RpUwQ8wtdPCZHhu6MERp2RGrpobsbZ6MH5dDHkUjs2",
+    "VSOL": "vSoLxydx6akxyMD9XEcPvGYNGq6Nn66oqVb3UkGkei7",
+    "PUMP": "pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn"
   },
   "astar": {
     "WASTR_1": "0xaeaaf0e2c81af264101b9129c00f4440ccf0f720",
@@ -2555,5 +2557,9 @@
     "WVET": "0xd8ccdd85abdbf68dfec95f06c973e87b1b5a9997",
     "VVET": "0x45429a2255e7248e57fce99e7239aed3f84b7a53",
     "VTHO": "0x0000000000000000000000000000456e65726779"
+  },
+  "dchainmainnet": {
+    "WETH": "0x6422B8E830Dda2D3A88c2c9D6Ef28b66569b945b",
+    "DTOKEN": "0x90Dc8e6ba05f481bd6DdA92039D950d1099c6de5"
   }
 }

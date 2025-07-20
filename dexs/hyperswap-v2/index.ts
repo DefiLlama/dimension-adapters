@@ -1,5 +1,7 @@
-import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 interface HyperswapPair {
     version: string;
@@ -31,7 +33,7 @@ const encodeToken = (input: string) => {
     return btoa(bin);
 }
 
-const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
     const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?page=${page}&maxPerPage=50`
     let page = 0;
@@ -75,18 +77,44 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     return {
         dailyVolume,
         dailyFees,
-        timestamp: options.startOfDay,
     }
 }
 
-const adapter: SimpleAdapter = {
+// const adapter: SimpleAdapter = {
+//     version: 2,
+//     adapter: {
+//         [CHAIN.HYPERLIQUID]: {
+//             fetch,
+//             runAtCurrTime: true,
+//         }
+//     }
+// }
+
+// export default adapter
+
+export default {
     version: 2,
     adapter: {
-        hyperliquid: {
-            fetch: fetchData,
-            runAtCurrTime: true,
+        [CHAIN.HYPERLIQUID]: {
+            fetch: getUniV2LogAdapter({
+                factory: '0x724412C00059bf7d6ee7d4a1d0D5cd4de3ea1C48',
+
+                // https://docs.hyperswap.exchange/hyperswap/token-design/or-protocol-earnings
+                userFeesRatio: 1,
+                revenueRatio: 0.4, // 40% swap fees
+                protocolRevenueRatio: 0.08, // 8% swap fees
+                holdersRevenueRatio: 0.32, // 32% swap fees
+            }),
+            meta: {
+                methodology: {
+                    Fees: "Total swap fees paided by users.",
+                    Revenue: "Revenue collected from 40% swap fees.",
+                    ProtocolRevenue: "Revenue for HyperSwap from 8% swap fees.",
+                    SupplySideRevenue: "Amount of 60% swap fees distributed to LPs.",
+                    HoldersRevenue: "Amount of 32% swap fees distributed to Swap stakers and buy-back and burn.",
+                    UserFees: "Total swap fees paided by users."
+                }
+            }
         }
     }
 }
-
-export default adapter

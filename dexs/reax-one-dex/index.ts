@@ -1,6 +1,5 @@
 import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 
@@ -29,7 +28,6 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        customBackfill: customBackfill(chain as Chain, graphs),
         start: '2023-07-18',
       }
     }

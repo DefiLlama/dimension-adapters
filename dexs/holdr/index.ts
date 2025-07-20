@@ -3,7 +3,6 @@ import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
-import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.AURORA]: sdk.graph.modifyEndpoint(
@@ -29,7 +28,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.AURORA]: {
       fetch: v1graphs(CHAIN.AURORA as Chain),
       start: '2023-01-01',
-      customBackfill: customBackfill(CHAIN.AURORA as Chain, v1graphs),
     },
   },
 };

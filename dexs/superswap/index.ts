@@ -1,4 +1,3 @@
-import customBackfill from "../../helpers/customBackfill";
 import {
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -83,7 +82,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: v2Graph(chain as Chain),
           start: '2024-09-23',
-          customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
       };

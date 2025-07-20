@@ -72,7 +72,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       version,
     }
 
-    const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
+    const fetchFunction = volumeAdapter[chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
       if (preFetchedResults !== null) {

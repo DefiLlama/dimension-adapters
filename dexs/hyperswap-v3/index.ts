@@ -1,5 +1,7 @@
-import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 interface HyperswapPair {
     version: string;
@@ -11,6 +13,7 @@ interface HyperswapResponse {
     pairs: HyperswapPair[];
     pageCount: number;
 }
+
 const encodeToken = (input: string) => {
     const keystreamHexAscii = 
       "cdc49b16573644bbe4cb47c809a6d387" +
@@ -29,9 +32,10 @@ const encodeToken = (input: string) => {
     }
     return btoa(bin);
 }
-const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const clientToken = await httpGet('https://proxy-backup.hyperswapx.workers.dev/get-token')
-    const url = (page: number) =>  `https://proxy-backup.hyperswapx.workers.dev/api/pairs?minApr=50&minTvl=50000&maxPerPage=50&page=${page}`
+
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
+    const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?minTvl=10000&maxPerPage=50&page=${page}`
     let page = 0;
     const data: HyperswapPair[] = []
     while(true) {
@@ -73,18 +77,44 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     return {
         dailyVolume,
         dailyFees,
-        timestamp: options.startOfDay,
     }
 }
 
-const adapter: SimpleAdapter = {
+export default {
     version: 2,
     adapter: {
-        hyperliquid: {
-            fetch: fetchData,
-            runAtCurrTime: true,
+        [CHAIN.HYPERLIQUID]: {
+            fetch: getUniV3LogAdapter({
+                factory: '0xB1c0fa0B789320044A6F623cFe5eBda9562602E3',
+
+                // https://docs.hyperswap.exchange/hyperswap/token-design/or-protocol-earnings
+                userFeesRatio: 1,
+                revenueRatio: 0.4, // 40% swap fees
+                protocolRevenueRatio: 0.08, // 8% swap fees
+                holdersRevenueRatio: 0.32, // 32% swap fees
+            }),
+            meta: {
+                methodology: {
+                    Fees: "Total swap fees paided by users.",
+                    Revenue: "Revenue collected from 40% swap fees.",
+                    ProtocolRevenue: "Revenue for HyperSwap from 8% swap fees.",
+                    SupplySideRevenue: "Amount of 60% swap fees distributed to LPs.",
+                    HoldersRevenue: "Amount of 32% swap fees distributed to Swap stakers and buy-back and burn.",
+                    UserFees: "Total swap fees paided by users."
+                }
+            }
         }
     }
 }
 
-export default adapter
+// const adapter: SimpleAdapter = {
+//     version: 2,
+//     adapter: {
+//         [CHAIN.HYPERLIQUID]: {
+//             fetch,
+//             runAtCurrTime: true,
+//         }
+//     }
+// }
+
+// export default adapter
