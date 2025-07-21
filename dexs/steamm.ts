@@ -1,7 +1,4 @@
-import {
-  Adapter,
-  FetchOptions,
-} from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -23,7 +20,7 @@ const suilendPoolHistoricalURL = (
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://api.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
+  `https://api.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
 
 
 async function fetchPoolsStats(startTimestamp: number, endTimestamp: number): Promise<Array<PoolInfo>> {
@@ -50,26 +47,19 @@ async function fetchPoolsStats(startTimestamp: number, endTimestamp: number): Pr
   return poolInfos;
 }
 
-const fetchSteammStats = async ({ startTimestamp, endTimestamp, }: FetchOptions) => {
+const fetch = async ({ startTimestamp, endTimestamp, }: FetchOptions) => {
   const pools = await fetchPoolsStats(startTimestamp, endTimestamp);
-
-  let totalVolume = 0;
-  for (const pool of pools) {
-    totalVolume += pool.volumeUsd
-  }
-
+  const dailyVolume = pools.reduce((acc, pool) => acc + pool.volumeUsd, 0);
   return {
-    dailyVolume: totalVolume,
+    dailyVolume,
   };
 };
-
-
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetchSteammStats,
+      fetch,
       start: '2025-02-16',
     },
   },
