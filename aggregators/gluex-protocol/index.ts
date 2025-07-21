@@ -3,32 +3,9 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // Event ABIs
-const eventOld = `event Routed(
-  bytes indexed uniquePID,
-  address indexed userAddress,
-  address outputReceiver,
-  address inputToken,
-  uint256 inputAmount,
-  address outputToken,
-  uint256 outputAmount,
-  uint256 partnerFee,
-  uint256 routingFee,
-  uint256 finalOutputAmount
-)`;
+const eventOld = `event Routed(bytes indexed uniquePID, address indexed userAddress, address outputReceiver, address inputToken, uint256 inputAmount, address outputToken, uint256 outputAmount, uint256 partnerFee, uint256 routingFee, uint256 finalOutputAmount)`;
 
-const eventNew = `event Routed(
-  bytes32 indexed uniquePID,
-  address indexed userAddress,
-  address outputReceiver,
-  address inputToken,
-  uint256 inputAmount,
-  address outputToken,
-  uint256 finalOutputAmount,
-  uint256 partnerFee,
-  uint256 routingFee,
-  uint256 partnerShare,
-  uint256 protocolShare
-)`;
+const eventNew = `event Routed(bytes32 indexed uniquePID, address indexed userAddress, address outputReceiver, address inputToken, uint256 inputAmount, address outputToken, uint256 finalOutputAmount, uint256 partnerFee, uint256 routingFee, uint256 partnerShare, uint256 protocolShare)`;
 
 // Native token identifiers (used with addGasToken)
 const gasTokens = new Set([
@@ -86,8 +63,6 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
-
-  const logs: any[] = [];
 
   const oldRouter = ROUTERS_OLD[chain];
   const newRouter = ROUTERS_NEW[chain];
