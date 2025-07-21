@@ -48,7 +48,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   const chainCode = RangoChains[options.chain];
   const statsForChain = prefetchData[chainCode] || [];
 
-
   const date = new Date(timestamp * 1000).toISOString().split('T')[0];
   
   const statEntry = statsForChain.find(item => {
@@ -56,10 +55,8 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     return itemDate === date;
   });
 
-  const dailyVolume = statEntry ? Number(statEntry.volume) : 0;
-
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume: Number(statEntry?.volume || 0)
   }
 }
 
