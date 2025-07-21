@@ -212,27 +212,27 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.INK]: {
       fetch: fetchFees,
-      start: '2024-11-11',
+      start: '2025-02-27',
       meta,
     },
     [CHAIN.UNICHAIN]: {
       fetch: fetchFees,
-      start: '2024-11-11',
+      start: '2025-03-10',
       meta,
     },
     [CHAIN.KATANA]: {
       fetch: fetchFees,
-      start: '2024-11-11',
+      start: '2025-06-09',
       meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: '2024-11-11',
+      start: '2025-04-28',
       meta,
     },
     [CHAIN.LISK]: {
       fetch: fetchFees,
-      start: '2024-11-11',
+      start: '2025-06-13',
       meta,
     },
   }
