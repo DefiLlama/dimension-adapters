@@ -57,7 +57,9 @@ const ROUTERS_NEW: Partial<Record<string, string>> = {
   [CHAIN.HYPERLIQUID]:"0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd"
 };
 
-async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
+async function fetch(options: FetchOptions) {
+  const { getLogs, createBalances, chain } = options;
+
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -65,7 +67,6 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const oldRouter = ROUTERS_OLD[chain];
   const newRouter = ROUTERS_NEW[chain];
 
-  // Fetch logs from old contract
   if (oldRouter) {
     const oldLogs = await getLogs({ targets: [oldRouter], eventAbi: eventOld });
     for (const log of oldLogs) {
@@ -87,7 +88,6 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
     }
   }
 
-  // Fetch logs from new contract
   if (newRouter) {
     const newLogs = await getLogs({ targets: [newRouter], eventAbi: eventNew });
     for (const log of newLogs) {
@@ -117,13 +117,21 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   };
 }
 
+const meta = {
+  methodology: {
+    Fees: "Fees paid by users for swaps.",
+    Revenue: "Revenue is calculated as the sum of routingFee for the old contract and the sum of protocolShare for the new contract.",
+    ProtocolRevenue: "Protocol Revenue is calculated as the sum of routing fees and protocol share."
+  }
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {},
 };
 
 Object.keys({ ...ROUTERS_OLD, ...ROUTERS_NEW }).forEach(chain => {
-  adapter.adapter[chain] = { fetch, start: '2025-03-14' };
+  adapter.adapter[chain] = { fetch, start: '2025-03-14', meta };
 });
 
 export default adapter;
