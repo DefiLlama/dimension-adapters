@@ -86,6 +86,7 @@ const fetchPerps = async (timeStamp: number) => {
 const startTime = 1710259200;
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   breakdown: {
     swap: {
       [CHAIN.BLAST]: {
