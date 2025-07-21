@@ -83,6 +83,7 @@ export type BaseAdapter = {
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
+      breakdownMethodology?: Record<string, IJSON<string>>
     }
   }
 };

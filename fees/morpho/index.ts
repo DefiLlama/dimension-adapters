@@ -4,11 +4,28 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 
-const methodology = {
-  Fees: "Total borrow interest paid by borrowers.",
-  SupplySideRevenue: "Total interests are distributed to suppliers/lenders.",
-  ProtocolRevenue: "Total interests are distributed to Morpho.",
-};
+const meta = {
+  methodology: {
+    Fees: "Total borrow interest paid by borrowers.",
+    SupplySideRevenue: "Total interests are distributed to suppliers/lenders.",
+    Revenue: "No revenue for Morpho protocol.",
+    ProtocolRevenue: "No revenue for Morpho protocol.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'BorrowInterest': 'All interest paid by borrowers from all vaults.',
+    },
+    Revenue: {
+      'BorrowInterest': 'No revenue from Morpho protocol.',
+    },
+    SupplySideRevenue: {
+      'BorrowInterest': 'All interests paid are distributedd to vaults suppliers, lenders.',
+    },
+    ProtocolRevenue: {
+      'BorrowInterest': 'No revenue from Morpho protocol.',
+    },
+  }
+}
 
 type MorphoMarket = {
   marketId: string;
@@ -136,6 +153,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
     // Morpho gets no fees
     dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   };
 };
 
@@ -144,37 +162,27 @@ const adapter: SimpleAdapter = {
     ethereum: {
       fetch: fetch,
       start: "2024-01-02",
-      meta: {
-        methodology,
-      },
+      meta,
     },
     base: {
       fetch: fetch,
       start: "2024-05-03",
-      meta: {
-        methodology,
-      },
+      meta,
     },
     polygon: {
       fetch: fetch,
       start: "2025-01-20",
-      meta: {
-        methodology,
-      },
+      meta,
     },
     unichain: {
       fetch: fetch,
       start: "2025-02-18",
-      meta: {
-        methodology,
-      },
+      meta,
     },
     katana: {
       fetch: fetch,
       start: "2025-07-01",
-      meta: {
-        methodology,
-      },
+      meta,
     },
   },
   version: 2,

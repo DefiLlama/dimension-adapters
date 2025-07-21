@@ -135,7 +135,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
 
       balances.dailyFees.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
-      balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol,METRIC.FLASHLOAN_FEES)
+      balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
       
       // we don't count flashloan premium for LP as fees
       // because they have already counted in liquidity index

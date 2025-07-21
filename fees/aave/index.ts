@@ -1,6 +1,7 @@
 import { BreakdownAdapter } from "../../adapters/types";
 import { aaveExport, AaveLendingPoolConfig, } from "../../helpers/aave";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const AaveV1Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
@@ -175,6 +176,32 @@ const meta = {
     Revenue: 'Amount of fees go to Aave treasury.',
     SupplySideRevenue: 'Amount of fees distributed to suppliers.',
     ProtocolRevenue: 'Amount of fees go to Aave treasury.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'BorrowInterest': 'All interest paid by borrowers from all markets (excluding GHO).',
+      'BorrowInterestGHO': 'All interest paid by borrowers from GHO only.',
+      'LiquidationFees': 'Fees from liquidation penalty and bonuses.',
+      'FlashloanFees': 'Flashloan fees paid by flashloan borrowers and executors.',
+    },
+    Revenue: {
+      'BorrowInterest': 'A portion of interest paid by borrowers from all markets (excluding GHO).',
+      'BorrowInterestGHO': 'All 100% interest paid by GHO borrowers.',
+      'LiquidationFees': 'A portion of fees from liquidation penalty and bonuses.',
+      'FlashloanFees': 'A portion of fees paid by flashloan borrowers and executors.',
+    },
+    SupplySideRevenue: {
+      'BorrowInterest': 'Amount of interest distributed to lenders from all markets (excluding GHO).',
+      'BorrowInterestGHO': 'No supply side revenue for lenders on GHO market.',
+      'LiquidationFees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+      'FlashloanFees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+    },
+    ProtocolRevenue: {
+      'BorrowInterest': 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
+      'BorrowInterestGHO': 'All interest paid on GHO market are collected by Aave treasury.',
+      'LiquidationFees': 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
+      'FlashloanFees': 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
+    },
   }
 }
 

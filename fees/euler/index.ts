@@ -109,11 +109,27 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 
-const methodology = {
-    Fees: "Interest that is paid by the borrowers to the vaults.",
-    Revenue: "Fees collected by vaults owners, curators, and Euler.",
-    ProtocolRevenue: "Fees share collected by Euler protocol.",
-    SupplySideRevenue: "Fees distributed to vaults lenders."
+const meta = {
+    methodology: {
+        Fees: "Interest that is paid by the borrowers to the vaults.",
+        Revenue: "Fees collected by vaults owners, curators, and Euler.",
+        ProtocolRevenue: "Fees share collected by Euler protocol.",
+        SupplySideRevenue: "Fees distributed to vaults lenders.",
+    },
+    breakdownMethodology: {
+        Fees: {
+            'BorrowInterest': 'All interest paid by borrowers from all vaults.',
+        },
+        Revenue: {
+            'BorrowInterest': 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
+        },
+        SupplySideRevenue: {
+            'BorrowInterest': 'Amount of interest distributed to lenders from all vaults.',
+        },
+        ProtocolRevenue: {
+            'BorrowInterest': 'Amount of interest are collected by Euler protocol.',
+        },
+    }
 }
 
 const adapters: Adapter = {
@@ -122,52 +138,52 @@ const adapters: Adapter = {
         [CHAIN.ETHEREUM]: {
             fetch,
             start: '2024-08-18',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.SONIC]: {
             fetch,
             start: '2025-01-31',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.BASE]: {
             fetch,
             start: '2024-11-27',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.SWELLCHAIN]: {
             fetch,
             start: '2025-01-20',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.BOB]: {
             fetch,
             start: '2025-01-21',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.BERACHAIN]: {
             fetch,
             start: '2025-02-06',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.BSC]: {
             fetch,
             start: '2025-02-04',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.UNICHAIN]: {
             fetch,
             start: '2025-02-11',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.ARBITRUM]: {
             fetch,
             start: '2025-01-30',
-            meta: { methodology }
+            meta,
         },
         [CHAIN.AVAX]: {
             fetch,
             start: '2025-02-04',
-            meta: { methodology }
+            meta,
         },
     },
 }
