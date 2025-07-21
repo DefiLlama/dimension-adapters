@@ -3,9 +3,9 @@ import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { queryDuneSql } from "../../helpers/dune";
 
-const feeCollectorAddress = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
-const solblazeStakeAccount = "rsrxDvYUXjH1RQj2Ke36LNZEVqGztATxFkqNukERqFT";
-const solblazeAuthority = "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2";
+const FEE_COLLECTOR_ADDRESS = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
+const SOL_BLAZE_STAKE_ACCOUNT = "rsrxDvYUXjH1RQj2Ke36LNZEVqGztATxFkqNukERqFT";
+const SOL_BLAZE_AUTHORITY = "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const stake_rewards = await queryDuneSql(options, `
@@ -20,25 +20,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       WHERE
         d.latest = 1
         AND a.latest = 1
-        AND a.authority = '${solblazeAuthority}'
+        AND a.authority = '${SOL_BLAZE_AUTHORITY}'
       UNION ALL
       SELECT
-        '${solblazeStakeAccount}' AS stake_account_raw,
+        '${SOL_BLAZE_STAKE_ACCOUNT}' AS stake_account_raw,
         NULL AS vote_account_raw,
         NULL AS authority
-    ),  stake_rewards as (
-          SELECT 
-              sum(lamports/1e9) as daily_yield
-          FROM solblaze_accounts sa
-          LEFT JOIN solana.rewards r
-              on r.recipient = sa.stake_account_raw 
-          AND r.reward_type = 'Staking'
-          AND r.block_time >= from_unixtime(${options.startTimestamp})
-          AND r.block_time < from_unixtime(${options.endTimestamp})
-)
-  SELECT
-    *
-  FROM stake_rewards;
+    ),
+    stake_rewards AS (
+      SELECT 
+          sum(lamports/1e9) as daily_yield
+      FROM solblaze_accounts sa
+      LEFT JOIN solana.rewards r
+          on r.recipient = sa.stake_account_raw 
+      AND r.reward_type = 'Staking'
+      AND r.block_time >= from_unixtime(${options.startTimestamp})
+      AND r.block_time < from_unixtime(${options.endTimestamp})
+    )
+    SELECT
+      *
+    FROM stake_rewards;
   `);
 
   const dailyFees = options.createBalances();
@@ -46,7 +47,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyRevenue = await getSolanaReceived({
     options,
-    target: feeCollectorAddress
+    target: FEE_COLLECTOR_ADDRESS
   });
 
   return {
