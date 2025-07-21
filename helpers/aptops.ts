@@ -7,7 +7,7 @@ export const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
 // Number of decimals for the APT token.
 const APT_DECIMALS = 8;
 
-// Number to multiply and APT vaule to get the amount in Octas.
+// Number to multiply and APT value to get the amount in Octas.
 const APT_TO_OCTAS_MUTLIPLIER = Math.pow(10, APT_DECIMALS);
 
 // Takes an amount in Octas as input and returns the same amount in APT.

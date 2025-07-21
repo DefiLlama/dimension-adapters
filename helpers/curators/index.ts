@@ -202,7 +202,7 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
     if (growthRate > 0) {
       const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
-      // euler vault substract fee directly from interest when collecting
+      // euler vault subtract fee directly from interest when collecting
       // it mean that vault fees were remove from vault token shares
 
       // interest earned and distributed to vault deposited after fees
