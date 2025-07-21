@@ -1,7 +1,6 @@
 import { BreakdownAdapter } from "../../adapters/types";
 import { aaveExport, AaveLendingPoolConfig, } from "../../helpers/aave";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const AaveV1Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
