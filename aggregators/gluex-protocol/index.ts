@@ -57,8 +57,6 @@ const ROUTERS_NEW: Partial<Record<string, string>> = {
   [CHAIN.HYPERLIQUID]:"0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd"
 };
 
-const START = '2025-03-14';
-
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
@@ -125,7 +123,7 @@ const adapter: SimpleAdapter = {
 };
 
 Object.keys({ ...ROUTERS_OLD, ...ROUTERS_NEW }).forEach(chain => {
-  adapter.adapter[chain] = { fetch, start: START };
+  adapter.adapter[chain] = { fetch, start: '2025-03-14' };
 });
 
 export default adapter;
