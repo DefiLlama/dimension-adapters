@@ -19,6 +19,7 @@ const DEFAULTS: any = {
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_PRC: 'https://aptos-mainnet.pontem.network',
+  HYDRAGON_RPC: "https://rpc-mainnet.hydrachain.org",
 }
 
 export const ENV_KEYS = new Set([
