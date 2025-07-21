@@ -3,12 +3,12 @@ import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { queryDuneSql } from "../../helpers/dune";
 
-const FEE_COLLECTOR_ADDRESS = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
+const FEE_COLLECTOR_ADDRESS = "Dpo148tVGewDPyh2FkGV18gouWctbdX2fHJopJGe9xv1";
 const SOL_BLAZE_STAKE_ACCOUNT = "rsrxDvYUXjH1RQj2Ke36LNZEVqGztATxFkqNukERqFT";
 const SOL_BLAZE_AUTHORITY = "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const stake_rewards = await queryDuneSql(options, `
+  const query = `
     WITH solblaze_accounts AS (
       SELECT
         d.stake_account_raw,
@@ -26,22 +26,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         '${SOL_BLAZE_STAKE_ACCOUNT}' AS stake_account_raw,
         NULL AS vote_account_raw,
         NULL AS authority
-    ),
-    stake_rewards AS (
-      SELECT 
-          sum(lamports/1e9) as daily_yield
-      FROM solblaze_accounts sa
-      LEFT JOIN solana.rewards r
-          on r.recipient = sa.stake_account_raw 
-      AND r.reward_type = 'Staking'
-      AND r.block_time >= from_unixtime(${options.startTimestamp})
-      AND r.block_time < from_unixtime(${options.endTimestamp})
     )
     SELECT
-      *
-    FROM stake_rewards;
-  `);
+      sum(lamports/1e9) as daily_yield
+    FROM solblaze_accounts sa
+    LEFT JOIN solana.rewards r
+      on r.recipient = sa.stake_account_raw
+    AND r.reward_type = 'Staking'
+    AND r.block_time >= from_unixtime(${options.startTimestamp})
+    AND r.block_time < from_unixtime(${options.endTimestamp})
+  `
 
+  const stake_rewards = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
   dailyFees.addCGToken("solana", stake_rewards[0].daily_yield != null ? stake_rewards[0].daily_yield : 0);
 
