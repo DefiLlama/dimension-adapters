@@ -1,5 +1,5 @@
 import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { accumulativeKeySet, BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
+import { accumulativeKeySet, BaseAdapter, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
@@ -23,7 +23,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   const { prefetch, allowNegativeValue = false } = _module
   if (_module.breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
-  const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
+  const chains = Object.keys(volumeAdapter)
   if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
