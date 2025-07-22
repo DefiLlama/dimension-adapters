@@ -98,7 +98,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     const redemptionEvent = config.redemptionEvent || RedemptionEvent
     const borrowingEvent = config.borrowingEvent || BorrowingEvent
 
-    // Get brrower opertaor contract
+    // Get brrower operator contract
     const borrowerOperator = await api.call({ abi: 'address:borrowerOperationsAddress', target: config.troveManager })
     
     // redemtions fees
