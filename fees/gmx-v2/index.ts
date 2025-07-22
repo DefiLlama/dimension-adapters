@@ -54,13 +54,9 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
               CASE WHEN blockchain = 'avalanche_c' THEN 'Avalanche' ELSE INITCAP(blockchain) END AS chain,
               block_time, block_date, trader, market, collateral_token,
               (collateral_token_price_min + collateral_token_price_max) / 2 AS collateral_token_price,
-              trade_size_usd, referral_total_rebate_amount, referral_trader_discount_amount,
-              referral_adjusted_affiliate_reward_factor, referral_affiliate_reward_amount,
-              pro_trader_discount_amount, funding_fee_amount, borrowing_fee_usd,
-              protocol_fee_amount, fee_receiver_amount, fee_amount_for_pool,
-              position_fee_amount_for_pool, position_fee_amount, total_cost_amount,
-              ((collateral_token_price_max + collateral_token_price_min) / 2) * liquidation_fee_amount AS liquidation_fee_usd,
-              order_key, tx_hash
+              trade_size_usd, borrowing_fee_usd, fee_receiver_amount, fee_amount_for_pool,
+              position_fee_amount, order_key, tx_hash,
+              ((collateral_token_price_max + collateral_token_price_min) / 2) * liquidation_fee_amount AS liquidation_fee_usd
           FROM gmx_v2.position_fees_collected
       ),
 
@@ -84,24 +80,10 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
                   block_time, block_date, account AS address, size_delta_usd AS volume,
                   tx_hash, order_key
               FROM gmx_v2.position_decrease
-              WHERE order_type <> 'Liquidation'
           ) AS trades
           INNER JOIN v2_trade_fees AS fees ON trades.order_key = fees.order_key
-      ),
-
-      gmx_v2_liquidations AS (
-          SELECT 
-              t1.blockchain,
-              CASE WHEN t1.blockchain = 'avalanche_c' THEN 'Avalanche' ELSE INITCAP(t1.blockchain) END AS chain,
-              t1.block_time, t1.block_date, t1.account AS address, t1.size_delta_usd AS size,
-              t2.position_fee_amount * t2.collateral_token_price + t2.borrowing_fee_usd AS fees,
-              t2.liquidation_fee_usd
-          FROM gmx_v2.position_decrease AS t1
-          INNER JOIN v2_trade_fees AS t2 ON t1.order_key = t2.order_key
-          WHERE t1.order_type = 'Liquidation'
-      ),
-
-      created_swap_keys AS (
+      )
+      , created_swap_keys AS (
           SELECT 
               blockchain,
               CASE WHEN blockchain = 'avalanche_c' THEN 'Avalanche' ELSE INITCAP(blockchain) END AS chain,
@@ -205,10 +187,6 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
           SELECT
               block_time, block_date, volume, fees, 0 AS liquidation_fee_usd, chain
           FROM gmx_v2_swaps
-          UNION ALL
-          SELECT 
-              block_time, block_date, size AS volume, fees, liquidation_fee_usd, chain
-          FROM gmx_v2_liquidations
       )
 
       SELECT 
@@ -248,7 +226,7 @@ const adapter: Adapter = {
         },
         [CHAIN.SOLANA]: {
             fetch: fetchSolana,
-            start: '2025-02-12'
+            start: '2023-07-25',
         },
     },
     isExpensiveAdapter: true,
