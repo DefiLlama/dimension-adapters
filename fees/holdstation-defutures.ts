@@ -13,6 +13,9 @@ const historicalVolumeBerachainEndpoint = (from: string, to: string) =>
 const dailyVolumeBerachainEndpoint = (from: string, to: string) =>
   `https://api-trading-bera.holdstation.com/api/trading-history/volume-by-day?fromDate=${from}&toDate=${to}`;
 
+const dailyVolumeWorldchainEndpoint = (from: string, to: string) =>
+  `https://worldfuture.holdstation.com/api/trading-history/volume-by-day?fromDate=${from}&toDate=${to}`;
+
 interface IFees {
   totalFee: string;
   govFee: string;
@@ -27,7 +30,9 @@ interface DailyVolume {
 
 type URLBuilder = (from: string, to: string) => string;
 
-const endpointMap: { [chain: string]: {historical: URLBuilder, daily: URLBuilder} } = {
+const endpointMap: {
+  [chain: string]: { historical?: URLBuilder; daily: URLBuilder };
+} = {
   [CHAIN.ERA]: {
     historical: historicalVolumeEndpoint,
     daily: dailyVolumeEndpoint,
@@ -35,20 +40,41 @@ const endpointMap: { [chain: string]: {historical: URLBuilder, daily: URLBuilder
   [CHAIN.BERACHAIN]: {
     historical: historicalVolumeBerachainEndpoint,
     daily: dailyVolumeBerachainEndpoint,
-  }
+  },
+  [CHAIN.WC]: {
+    daily: dailyVolumeWorldchainEndpoint,
+  },
 };
 
 const fetch =
   (chain: string) =>
   async (timestamp: number): Promise<FetchResult> => {
-
     const { historical, daily } = endpointMap[chain];
 
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const fromTimestamp = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
-    const toTimestamp = new Date((dayTimestamp + 60 * 60 * 24) * 1000).toISOString().split("T")[0];
-    const data: IFees = (await fetchURL(historical(fromTimestamp, toTimestamp))).result;
-    const dailyVolume: DailyVolume[] = (await fetchURL(daily(fromTimestamp, fromTimestamp)));
+    const dayTimestamp = getUniqStartOfTodayTimestamp(
+      new Date(timestamp * 1000)
+    );
+    const fromTimestamp = new Date(dayTimestamp * 1000)
+      .toISOString()
+      .split("T")[0];
+    const toTimestamp = new Date((dayTimestamp + 60 * 60 * 24) * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    let data: IFees;
+    if (historical) {
+      data = (await fetchURL(historical(fromTimestamp, toTimestamp))).result;
+    } else {
+      // For chains without historical data, set default values
+      data = {
+        totalFee: "0",
+        govFee: "0",
+        vaultFee: "0",
+      };
+    }
+    const dailyVolume: DailyVolume[] = await fetchURL(
+      daily(fromTimestamp, fromTimestamp)
+    );
 
     const dailyFees = data.totalFee;
     const dailyRevenue = data.govFee;
@@ -62,17 +88,21 @@ const fetch =
       dailySupplySideRevenue: dailySupplySideRevenue,
       timestamp: dayTimestamp,
     };
-  }
+  };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: '2023-05-09',
+      start: "2023-05-09",
     },
     [CHAIN.BERACHAIN]: {
       fetch: fetch(CHAIN.BERACHAIN),
-      start: '2025-02-07',
+      start: "2025-02-07",
+    },
+    [CHAIN.WC]: {
+      fetch: fetch(CHAIN.WC),
+      start: "2024-06-04",
     },
   },
 };
