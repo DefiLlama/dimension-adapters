@@ -245,7 +245,6 @@ export enum CHAIN {
   AO = 'ao',
   XRPL_EVM = 'xrplevm',
   KATANA = 'katana',
-  BOTANIX = 'btnx',
   SOON = 'soon',
   HYDRAGON = 'hydragon',
 }
