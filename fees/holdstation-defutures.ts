@@ -65,11 +65,10 @@ const fetch =
     if (historical) {
       data = (await fetchURL(historical(fromTimestamp, toTimestamp))).result;
     } else {
-      // For chains without historical data, set default values
       data = {
-        totalFee: "0",
-        govFee: "0",
-        vaultFee: "0",
+        totalFee: "",
+        govFee: "",
+        vaultFee: "",
       };
     }
     const dailyVolume: DailyVolume[] = await fetchURL(
