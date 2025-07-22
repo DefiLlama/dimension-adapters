@@ -1,34 +1,31 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, request } from "graphql-request";
-import { Contract, JsonRpcProvider } from "ethers";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getPrices } from "../utils/prices";
 
 const SUBGRAPH_URL =
   "https://api.goldsky.com/api/public/project_cm58q8wq01kbk01ts09lc52kp/subgraphs/mz-subgraph/main/gn";
-const RPC_URL = "https://sonic.drpc.org";
 
-const callAssetAbi = ["function callAsset() view returns (address)"];
-const putAssetAbi  = ["function putAsset() view returns (address)"];
-const decimalsAbi  = ["function decimals() view returns (uint8)"];
-
-const provider = new JsonRpcProvider(RPC_URL);
+const callAssetAbi = 'function callAsset() view returns (address)';
+const putAssetAbi  = 'function putAsset() view returns (address)';
+const decimalsAbi  = 'function decimals() view returns (uint8)';
 
 // cache market → { token, decimals }
 const marketInfoCache: Record<string, { token: string; decimals: number }> = {};
-async function fetchMarketInfo(market: string, isCall: boolean) {
+async function fetchMarketInfo(options: FetchOptions, market: string, isCall: boolean) {
   const key = `${market}-${isCall}`;
   if (marketInfoCache[key]) return marketInfoCache[key];
 
-  const marketContract = new Contract(
-    market,
-    isCall ? callAssetAbi : putAssetAbi,
-    provider
-  );
-  const token    = await marketContract[isCall ? "callAsset" : "putAsset"]();
-  const tokenContract = new Contract(token, decimalsAbi, provider);
-  const decimals = await tokenContract.decimals();
+
+  const token = await options.api.call({
+    abi: isCall ? callAssetAbi : putAssetAbi,
+    target: market,
+  })
+  const decimals = await options.api.call({
+    abi: decimalsAbi,
+    target: token,
+  })
 
   return (marketInfoCache[key] = { token, decimals });
 }
@@ -46,15 +43,8 @@ const OPTIONS_QUERY = (start: number, end: number) => gql`
   }
 `;
 
-const fetchFn = async (
-  timestamp: number
-): Promise<{
-  timestamp: number;
-  dailyFees: string;
-  dailyRevenue: string;
-  dailyVolume: string;
-}> => {
-  const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+const fetchFn = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
   const endOfDay   = startOfDay + 86400;
 
   const { optionsPositions } = await request(
@@ -70,7 +60,7 @@ const fetchFn = async (
   for (const pos of optionsPositions) {
     const pf    = BigInt(pos.protocolFees);
     const prem  = BigInt(pos.premium);
-    const { token } = await fetchMarketInfo(pos.market, pos.isCall);
+    const { token } = await fetchMarketInfo(options, pos.market, pos.isCall);
     const addr = token.toLowerCase();
 
     tokens.add(addr);
@@ -80,7 +70,7 @@ const fetchFn = async (
 
   // Fetch USD prices
   const priceIds = Array.from(tokens).map((a) => `${CHAIN.SONIC}:${a}`);
-  const prices   = await getPrices(priceIds, timestamp);
+  const prices   = await getPrices(priceIds, options.startOfDay);
 
   let totalFeesUSD    = 0;
   let totalVolumeUSD  = 0;
@@ -100,22 +90,22 @@ const fetchFn = async (
     totalVolumeUSD += Number(volScaled) / 1e6;
   }
 
-  const daily = {
-    timestamp,
-    dailyFees:    totalFeesUSD.toFixed(2),
+  return {
+    dailyVolume: totalVolumeUSD.toFixed(2),
+    dailyFees: totalFeesUSD.toFixed(2),
     dailyRevenue: totalFeesUSD.toFixed(2),
-    dailyVolume:  totalVolumeUSD.toFixed(2),
   };
-  return daily;
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.SONIC]: {
       fetch: fetchFn,
-      start: 1735228800, // subgraph deployment
+      start: '2024-12-26', // subgraph deployment
       meta: {
         methodology: {
+          Fees: "Total fees from minted options.",
           Revenue: "Protocol revenue from minted options.",
           Volume: "Total notional (sum of premium + protocolFees) from minted options. ",
         },
