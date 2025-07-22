@@ -1,6 +1,4 @@
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const adapters = univ2Adapter({
@@ -10,7 +8,7 @@ const adapters = univ2Adapter({
   dayData: "hswapDayData",
 });
 
-adapters.adapter[CHAIN.CUBE].start = 1630000000;
+adapters.adapter[CHAIN.CUBE].start = '2021-08-26';
 adapters.adapter[CHAIN.CUBE].fetch = async (timestamp: number) => {
   return {
     dailyVolume: 0,
@@ -18,6 +16,5 @@ adapters.adapter[CHAIN.CUBE].fetch = async (timestamp: number) => {
   }
 }
 
-adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
-adapters.deadFrom = '1688947200';
+adapters.deadFrom = '2023-07-09';
 export default adapters;

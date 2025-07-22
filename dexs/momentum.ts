@@ -46,16 +46,13 @@ const fetch = async (_t: any, _b: any, { startOfDay, chain, }: FetchOptions): Pr
     throw new Error('No data found for the given time range');
 
   let dailyVolume = 0;
-  let totalVolume = 0;
 
   const beginVolume = Number(values[0].value);
   const latestVolume = Number(values[values.length - 1].value);
   dailyVolume = latestVolume - beginVolume;
-  totalVolume = latestVolume;
 
   return {
     dailyVolume: dailyVolume,
-    totalVolume: totalVolume,
   };
 }
 

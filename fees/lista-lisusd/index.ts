@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import BigNumber from "bignumber.js";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -31,11 +32,11 @@ const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
 const lista = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
 const cake = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82";
 const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
-const eth = "0x2170Ed0880ac9A755fd29B2688956BD959F933F8";
-const wbeth = "0xa2e3356610840701bdf5611a53974510ae27e2e1";
-const bnb = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+const eth = ADDRESSES.bsc.ETH;
+const wbeth = ADDRESSES.bsc.wBETH;
+const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
-const usdt = "0x55d398326f99059ff775485246999027b3197955";
+const usdt = ADDRESSES.bsc.USDT;
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 

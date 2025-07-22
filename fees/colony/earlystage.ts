@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import BigNumber from "bignumber.js";
 
-const usdcToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'
+const usdcToken = ADDRESSES.avax.USDC
 
 export interface EarlyStageFees {
   dailyProtocolRevenue: Balances;

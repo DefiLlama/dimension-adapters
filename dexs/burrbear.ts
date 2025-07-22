@@ -2,7 +2,6 @@
 import { graph } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { getBlock } from "../helpers/getBlock"
 
 const url = 'https://api.goldsky.com/api/public/project_cluukfpdrw61a01xag6yihcuy/subgraphs/berachain/prod/gn'
 
@@ -19,7 +18,7 @@ interface GraphQLResponse {
   today: { pool0: IPool[] }
 }
 
-const fetchVolume = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const [todaysBlock, yesterdaysBlock] = await Promise.all([
       options.getToBlock(),
       options.getFromBlock()
@@ -72,23 +71,17 @@ const fetchVolume = async (options: FetchOptions) => {
   const dailyFees = (feesDiff > 0 ? feesDiff : 0);
 
   return {
-    dailyVolume: dailyVolume,
-    totalVolume: todayTotalVolume,
+    dailyVolume,
     dailyFees,
-    totalFees: todayTotalFees,
     dailyRevenue
   }
 }
-
-
-
-
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BERACHAIN]: {
-      fetch: fetchVolume,
+      fetch,
       start: '2025-01-25'
     }
   }

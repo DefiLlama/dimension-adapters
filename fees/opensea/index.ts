@@ -1,4 +1,4 @@
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetch, config } from "./seaport";
 import disabledAdapter from "../../helpers/disabledAdapter";
@@ -8,11 +8,9 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.ETHEREUM]: disabledAdapter
     },
     v2: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.ETHEREUM]: disabledAdapter
     },
     seaport: Object.keys(config).reduce((acc: any, chain) => {

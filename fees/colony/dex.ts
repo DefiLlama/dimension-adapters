@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { getGraphDimensions, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { FetchOptions } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
@@ -9,7 +10,7 @@ interface DexFees {
   dailySupplySideRevenue: Balances
 }
 
-const usdcToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+const usdcToken = ADDRESSES.avax.USDC;
 
 export async function dexFees(
   options: FetchOptions,

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";

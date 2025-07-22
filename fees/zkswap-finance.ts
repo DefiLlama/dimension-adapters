@@ -38,7 +38,6 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.ERA]: {
     ...adapterObj[CHAIN.ERA],
     fetch: fetch(CHAIN.ERA, 0.002, 0.00067),
-    customBackfill: fetch(CHAIN.ERA, 0.002, 0.00067),
     start: '2024-12-17',
     meta: {
       methodology
@@ -47,7 +46,6 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.SONIC]: {
     ...adapterObj[CHAIN.SONIC],
     fetch: fetch(CHAIN.SONIC, 0.002, 0.00067),
-    customBackfill: fetch(CHAIN.SONIC, 0.002, 0.00067),
     start: '2025-04-09',
     meta: {
       methodology

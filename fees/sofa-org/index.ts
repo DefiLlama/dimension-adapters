@@ -119,8 +119,20 @@ const fetch = async (options: FetchOptions) => {
       }
     }
   }
+  //automator airdrop fee
+  if (chain === CHAIN.ETHEREUM) {
+    const logs = await options.getLogs({
+      target: tokens[CHAIN.ETHEREUM].rch,
+      eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)'
+    });
+    logs.forEach(log => {
+      if (log.from === "0xCc19E60c86C396929E76a6a488848C9596de22bd" && log.to === "0x4140AB4AFc36B93270a9659BD8387660cC6509b5") {
+        dailyFees.add(tokens[CHAIN.ETHEREUM].rch, log.value);
+      }
+    });
+  }
   //console.log("dailyFees:", dailyFees);
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 async function getAutomators(options: FetchOptions, factory: string) {

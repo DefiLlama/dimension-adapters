@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 /*
 METHODOLOGY:
 LetsBONK.fun is a decentralized platform on Solana that provides liquidity and value support for the BONK ecosystem.
@@ -37,7 +38,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 
-const SOL_ADDRESS = 'So11111111111111111111111111111111111111112';
+const SOL_ADDRESS = ADDRESSES.solana.SOL;
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
 const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {

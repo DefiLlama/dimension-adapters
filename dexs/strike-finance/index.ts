@@ -1,29 +1,25 @@
-import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-
+import fetchURL from "../../utils/fetchURL";
 
 export async function fetch(options: FetchOptions) {
-  const {
-    data: { dailyVolume },
-  } = await axios.get(
-    `https://tidelabs.io:2121/defillama/strike-finance/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`,
+  const dailyVolume = options.createBalances();
+  const { totalVolume } = await fetchURL(
+    `https://beta.strikefinance.org/api/analytics/volume?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
-  const dailyVolumeUSD = options.createBalances();
-  dailyVolumeUSD.addCGToken('cardano', Number(dailyVolume));
+  dailyVolume.addCGToken("cardano", Number(totalVolume));
 
   return {
-    dailyVolume
+    dailyVolume,
   };
 }
-
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: '2025-05-16',
+      start: "2025-05-16",
     },
   },
 };

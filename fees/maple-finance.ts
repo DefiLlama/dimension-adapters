@@ -28,10 +28,11 @@ const contract_open_term_loan: string[] = [
   '0xfab269cb4ab4d33a61e1648114f6147742f5eecc'
 ]
 
-const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetchFees = async (options: FetchOptions) => {
   const { getLogs } = options
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const logsTranferERC20: any[] = await queryIndexer(`
         SELECT DISTINCT
           '0x' || encode(data, 'hex') AS value,
@@ -41,8 +42,7 @@ const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
         FROM
           ethereum.event_logs
         WHERE
-          block_number > 12428594
-          AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+          topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
           AND (
             -- Maple Treasury
             topic_2 = '\\x000000000000000000000000a9466eabd096449d650d5aeb0dd3da6f52fd0b19'
@@ -80,16 +80,22 @@ const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
   logs_funds_distribution.map((e: any, index: number) => {
     const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();
     const token = isEthBase ? [ADDRESSES.ethereum.WETH]: ADDRESSES.ethereum.USDC
-    e.forEach((i: any) => dailyFees.add(token, i.netInterest_))
+    e.forEach((i: any) => {
+      dailyFees.add(token, i.netInterest_)
+      dailySupplySideRevenue.add(token, i.netInterest_)
+    })
   })
 
-  logs_claim_funds.map((e: any) => dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_))
+  logs_claim_funds.map((e: any) => {
+    dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_)
+    dailySupplySideRevenue.add(ADDRESSES.ethereum.USDC, e.netInterest_)
+  })
   
   // Filter for specific tokens (USDC, WETH, USDT) during processing
   const allowedTokens = [
-    '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-    '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
-    '0xdac17f958d2ee523a2206206994597c13d831ec7'  // USDT
+    ADDRESSES.ethereum.USDC, // USDC
+    ADDRESSES.ethereum.WETH, // WETH
+    ADDRESSES.ethereum.USDT  // USDT
   ];
   
   logsTranferERC20.forEach((b: any) => {
@@ -104,11 +110,12 @@ const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    timestamp 
+    dailySupplySideRevenue
   }
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees as any,
@@ -119,6 +126,7 @@ const adapters: SimpleAdapter = {
             UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
             Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
             ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
+            SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
           }
         }
     }

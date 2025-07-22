@@ -4,6 +4,9 @@ import { httpGet } from "../../utils/fetchURL";
 
 const methodology = {
   Fees: "Swap fees paid by users.",
+  SupplySideRevenue: 'All swap fees goes to liquidity providers.',
+  Revenue: 'There is no revenue.',
+  ProtocolRevenue: 'Protocol collect no revenue.',
 }
 
 const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) => {
@@ -39,7 +42,9 @@ const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) 
   return {
     dailyVolume,
     dailyFees,
+    dailySupplySideRevenue: dailyFees,
     dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
     timestamp: startOfDay,
   };
 };

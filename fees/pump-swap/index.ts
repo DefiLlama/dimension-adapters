@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -66,10 +67,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             WHERE
                 s.block_time >= TIMESTAMP '2025-03-15'
                 AND p.quoteMint IN (
-                    'So11111111111111111111111111111111111111112',
+                    '${ADDRESSES.solana.SOL}',
                     'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-                    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-                    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+                    '${ADDRESSES.solana.USDC}',
+                    '${ADDRESSES.solana.USDT}',
                     'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
                 )
                 AND TIME_RANGE

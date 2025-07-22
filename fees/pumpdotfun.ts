@@ -1,6 +1,8 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { queryAllium } from '../helpers/allium';
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -57,10 +59,25 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       and block_time <= from_unixtime(${options.endTimestamp})
     `)
   );
-  dailyFees.add('So11111111111111111111111111111111111111112', value[0].total_sol_revenue * 1e9);
+  dailyFees.add(ADDRESSES.solana.SOL, value[0].total_sol_revenue * 1e9);
 
-  return { dailyFees, dailyRevenue: dailyFees }
+  const query = `
+      SELECT SUM(raw_amount) as total_amount
+      FROM solana.assets.transfers
+      WHERE to_address = 'G8CcfRffqZWHSAQJXLDfwbAkGE95SddUqVXnTrL4kqjm'
+      AND mint = '${ADDRESSES.solana.PUMP}'
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `
+  const res = await queryAllium(query);
+  const dailyHoldersRevenue = options.createBalances();
+  dailyHoldersRevenue.add(ADDRESSES.solana.PUMP, res[0].total_amount || 0);
 
+  return { 
+    dailyFees, 
+    dailyRevenue: dailyFees, 
+    dailyProtocolRevenue: dailyFees, 
+    dailyHoldersRevenue
+  }
 }
 
 const adapter: SimpleAdapter = {
@@ -74,6 +91,7 @@ const adapter: SimpleAdapter = {
           Fees: "Trading and launching tokens fees paid by users",
           Revenue: "Trading and launching tokens fees paid by users",
           ProtocolRevenue: "pump.fun takes all fees paid by users",
+          HoldersRevenue: "PUMP token buybacks from the revenue"
         }
       }
     },
