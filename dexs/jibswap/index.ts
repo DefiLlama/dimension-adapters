@@ -1,10 +1,6 @@
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const adapters = univ2Adapter2({
-  [CHAIN.JBC]: "https://graph.jibswap.com/subgraphs/name/jibswap",
-}, {});
-
-adapters.adapter.jbc.start = 1702494791;
-
-export default adapters;
+export default uniV2Exports({
+  [CHAIN.JBC]: { factory: '0x4BBdA880C5A0cDcEc6510f0450c6C8bC5773D499', start: '2023-12-13'},
+})

@@ -1,18 +1,6 @@
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const adapters = univ2Adapter2(
-  {
-    [CHAIN.LINEA]:
-      "https://api.studio.thegraph.com/query/59052/lynex-v1/version/latest",
-  },
-  {
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    dailyVolume: "dailyVolumeUSD",
-    dayData: "dayData",
-  }
-);
-
-adapters.adapter.linea.start = "2024-02-11";
-export default adapters;
+export default uniV2Exports({
+  [CHAIN.LINEA]: { factory: '0xbc7695fd00e3b32d08124b7a4287493aee99f9ee', start: "2024-02-11", fees: 0.0025, stableFees: 0.0001, userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1,},
+})

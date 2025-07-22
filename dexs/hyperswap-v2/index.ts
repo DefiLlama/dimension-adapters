@@ -1,5 +1,7 @@
-import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 interface HyperswapPair {
     version: string;
@@ -12,8 +14,28 @@ interface HyperswapResponse {
     pageCount: number;
 }
 
-const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const url = (page: number) =>  `https://api.hyperswap.exchange/api/pairs?page=${page}&maxPerPage=50`
+const encodeToken = (input: string) => {
+    const keystreamHexAscii = 
+      "cdc49b16573644bbe4cb47c809a6d387" +
+      "873331e665d622b1337a4e19593c5a18" +
+      "cdc49b16573";
+    const encoder = new TextEncoder();
+    const pt = encoder.encode(input);
+    const ks = encoder.encode(keystreamHexAscii);
+    const ct = new Uint8Array(pt.length);
+    for (let i = 0; i < pt.length; i++) {
+      ct[i] = pt[i] ^ ks[i];
+    }
+    let bin = "";
+    for (let b of ct) {
+      bin += String.fromCharCode(b);
+    }
+    return btoa(bin);
+}
+
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const clientToken = await httpGet('https://proxy.hyperswapx.workers.dev/get-token')
+    const url = (page: number) =>  `https://proxy.hyperswapx.workers.dev/api/pairs?page=${page}&maxPerPage=50`
     let page = 0;
     const data: HyperswapPair[] = []
     while(true) {
@@ -30,6 +52,7 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
                 "Sec-Fetch-Dest": "empty",
                 "Sec-Fetch-Mode": "cors",
                 "Sec-Fetch-Site": "same-origin",
+                "x-client-token": `${encodeToken(clientToken)}`,
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
                 "Origin": "https://hyperswap.exchange",
                 "Referer": "https://hyperswap.exchange/"
@@ -54,18 +77,44 @@ const fetchData = async (options: FetchOptions): Promise<FetchResultV2> => {
     return {
         dailyVolume,
         dailyFees,
-        timestamp: options.startOfDay,
     }
 }
 
-const adapter: SimpleAdapter = {
+// const adapter: SimpleAdapter = {
+//     version: 2,
+//     adapter: {
+//         [CHAIN.HYPERLIQUID]: {
+//             fetch,
+//             runAtCurrTime: true,
+//         }
+//     }
+// }
+
+// export default adapter
+
+export default {
     version: 2,
     adapter: {
-        hyperliquid: {
-            fetch: fetchData,
-            runAtCurrTime: true,
+        [CHAIN.HYPERLIQUID]: {
+            fetch: getUniV2LogAdapter({
+                factory: '0x724412C00059bf7d6ee7d4a1d0D5cd4de3ea1C48',
+
+                // https://docs.hyperswap.exchange/hyperswap/token-design/or-protocol-earnings
+                userFeesRatio: 1,
+                revenueRatio: 0.4, // 40% swap fees
+                protocolRevenueRatio: 0.08, // 8% swap fees
+                holdersRevenueRatio: 0.32, // 32% swap fees
+            }),
+            meta: {
+                methodology: {
+                    Fees: "Total swap fees paided by users.",
+                    Revenue: "Revenue collected from 40% swap fees.",
+                    ProtocolRevenue: "Revenue for HyperSwap from 8% swap fees.",
+                    SupplySideRevenue: "Amount of 60% swap fees distributed to LPs.",
+                    HoldersRevenue: "Amount of 32% swap fees distributed to Swap stakers and buy-back and burn.",
+                    UserFees: "Total swap fees paided by users."
+                }
+            }
         }
     }
 }
-
-export default adapter

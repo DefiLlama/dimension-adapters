@@ -1,5 +1,5 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 

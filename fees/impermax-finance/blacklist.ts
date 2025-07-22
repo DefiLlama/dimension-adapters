@@ -49,6 +49,7 @@ const blacklistedLendingPools = {
     "0xBfBF0EBDC3D5E8692F9A27d47f250afe4867A647", //BIFI-MIMATIC
     "0xAC6542586c8A7b7aB522e77997414eafD9a83c11", //CRV-FTM
     "0x228BE1a38437312C649711f1BFf28d99e9E749B6", //SOLIDsex-FTM
+    "0x76481a638edf95019cfbc2f49cc2645dac7d70ed", //ECO
   ],
   base: [],
   scroll: [
@@ -56,6 +57,7 @@ const blacklistedLendingPools = {
       "0xE8f4895DF06a0c69A9BA87509EfdBBFBAFe86c2d", // weth/tkn - stakedlp
       "0x7c80Be56a6f23A3E598822648baaFD7524fe1239", // chi/wUKRE stakedlp
       "0xDD14d0c651C63e1EeA5bd8b250cf99757425D68F", // chi/usdc stakedlp
+      "0xc90073e1cabcf5069e00c5a6cb10023c9e1d5c4f", // wbtc/eth stakedlp
   ],
   real: [],
   avax: [
@@ -84,6 +86,9 @@ const blacklistedLendingPools = {
     "0x7AEDD611c361cfc53d14953A6CbDC2d4Cd48AC94", //AVAX-WMEMO
     "0x8dc6fae7fedd7a60ecbb27c17af830f5811d773e", //MMTH-BTC.b
   ],
+  sonic: [
+    "0xd9de9f15994182518a688933d09787a9a9fb5bc9" // s/shadow stakedlp
+  ]
 };
 
 export const BLACKLIST = Object.fromEntries(

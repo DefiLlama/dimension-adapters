@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const endpoints: any = {
   [BSC]: sdk.graph.modifyEndpoint('69xMkatN58qWXZS7FXqiVQmvkHhNrq3thTfdB6t85Wvk'),

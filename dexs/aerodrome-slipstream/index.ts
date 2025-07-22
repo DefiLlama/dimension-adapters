@@ -3,6 +3,7 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
+import PromisePool from "@supercharge/promise-pool";
 
 const CONFIG = {
   factory: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
@@ -14,7 +15,8 @@ const eventAbis = {
   event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
   event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
   event_gaugeCreated: 'event GaugeCreated(address indexed poolFactory, address indexed votingRewardsFactory, address indexed gaugeFactory, address pool, address bribeVotingReward, address feeVotingReward, address gauge, address creator)',
-  event_claim_rewards: 'event ClaimRewards(address indexed from, address indexed reward, uint256 amount)'
+  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)',
+  event_claim_rewards: 'event ClaimRewards(address indexed from, address indexed reward, uint256 amount)',
 }
 
 const abis = {
@@ -23,7 +25,7 @@ const abis = {
 
 const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
   const { createBalances, getLogs } = fetchOptions
-  const iface = new ethers.Interface([eventAbis.event_claim_rewards]);
+  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
   const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 13843704, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
@@ -34,7 +36,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
     .map((log) => log[4].toLowerCase())
   const bribeSet = new Set(bribes_contract)
 
-  const logs = await getLogs({ noTarget: true, eventAbi: eventAbis.event_claim_rewards, entireLog: true, })
+  const logs = await getLogs({ noTarget: true, eventAbi: eventAbis.event_notify_reward, entireLog: true, })
   logs.forEach((log: any) => {
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
@@ -62,34 +64,56 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
     aeroPoolSet.add(pool)
   })
 
-  const blockStep = 500;
+  const blockStep = 1000;
   let i = 0;
   let startBlock = fromBlock;
+  let ranges: any = []
+  const iface = new ethers.Interface([eventAbis.event_swap]);
+
 
   while (startBlock < toBlock) {
     const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
-    const logs = await fetchOptions.getLogs({
-      noTarget: true,
-      fromBlock: startBlock,
-      toBlock: endBlock,
-      eventAbi: eventAbis.event_swap,
-      entireLog: true,
-    })
-    sdk.log(`Aerodrome slipstream got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
-    logs.forEach((log: any) => {
-      const pool = (log.address || log.source).toLowerCase()
-      if (!aeroPoolSet.has(pool)) return;
-      const { token0, token1, fee } = poolInfoMap[pool]
-      const amount0 = Number(log.args.amount0)
-      const amount1 = Number(log.args.amount1)
-      const fee0 = amount0 * fee
-      const fee1 = amount1 * fee
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
-    })
-
+    ranges.push([startBlock, endBlock])
     startBlock += blockStep
   }
+
+  let errorFound = false
+
+
+  await PromisePool
+    .withConcurrency(5)
+    .for(ranges)
+    .process(async ([startBlock, endBlock]: any) => {
+      if (errorFound) return;
+      try {
+        const logs = await fetchOptions.getLogs({
+          noTarget: true,
+          fromBlock: startBlock,
+          toBlock: endBlock,
+          eventAbi: eventAbis.event_swap,
+          entireLog: true,
+          skipCache: true,
+        })
+        sdk.log(`Aerodrome slipstream got logs (${logs.length}) for ${i++}/ ${Math.ceil((toBlock - fromBlock) / blockStep)}`)
+        logs.forEach((log: any) => {
+          const pool = (log.address || log.source).toLowerCase()
+          if (!aeroPoolSet.has(pool)) return;
+          const { token0, token1, fee } = poolInfoMap[pool]
+          const parsedLog = iface.parseLog(log)
+          const amount0 = Number(parsedLog!.args.amount0)
+          const amount1 = Number(parsedLog!.args.amount1)
+          const fee0 = amount0 * fee
+          const fee1 = amount1 * fee
+          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
+        })
+      } catch (e) {
+        errorFound = e
+        throw e
+      }
+    })
+
+  if (errorFound) throw errorFound
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions)
 

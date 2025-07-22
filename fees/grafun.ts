@@ -39,8 +39,8 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const dailyFees = restOpts.createBalances();
   const dailyRevenue = restOpts.createBalances();
 
-  dailyFees.addGasToken(dayItem.cumulativeFeesBNB);
-  dailyRevenue.addGasToken(dayItem.cumulativeRevenueBNB);
+  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0);
+  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0);
 
   return {
     dailyFees,

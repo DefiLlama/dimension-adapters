@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
@@ -51,11 +52,11 @@ const adapter: Adapter = {
         // const res = await queryDuneSql(options, duneFeequery);
         // console.log(res);
 
-        dailyFees.add('So11111111111111111111111111111111111111112', res[0].total_fees)
-        dailyRevenue.add('So11111111111111111111111111111111111111112', res[0].total_base_fees / 2)
+        dailyFees.add(ADDRESSES.solana.SOL, res[0].total_fees)
+        dailyRevenue.add(ADDRESSES.solana.SOL, res[0].total_base_fees / 2)
         if (options.endTimestamp < SIMD_0096_ACTIVATION_DATE) {
           // priority fees were going 50% to validator and remaining were getting burnt before SIMD-0096;
-          dailyRevenue.add('So11111111111111111111111111111111111111112', res[0].total_priority_fees / 2)
+          dailyRevenue.add(ADDRESSES.solana.SOL, res[0].total_priority_fees / 2)
         }
 
         return {
@@ -65,6 +66,13 @@ const adapter: Adapter = {
         };
       },
       start: '2021-01-17',
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Transaction base fees paid by users',
+          HoldersRevenue: 'Transaction base fees paid by users were burned',
+        }
+      }
     },
   },
   isExpensiveAdapter: true,

@@ -20,7 +20,14 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: '2019-12-01'
+      start: '2019-12-01',
+      meta: {
+        methodology: {
+          Fees: 'Gas fees paid by users.',
+          Revenue: 'Amount of TRX fees were burned.',
+          HoldersRevenue: 'Amount of TRX fees were burned.',
+        }
+      }
     },
   },
   protocolType: ProtocolType.CHAIN

@@ -11,6 +11,8 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.ARBITRUM]: { duneChain: "arbitrum", start: "2023-09-11" },
   [CHAIN.BERACHAIN]: { duneChain: "berachain", start: "2025-01-25" },
   [CHAIN.LINEA]: { duneChain: "linea", start: "2023-12-14" },
+  [CHAIN.SONIC]: { duneChain: "sonic", start: "2025-01-01" },
+  [CHAIN.UNICHAIN]: { duneChain: "unichain", start: "2025-01-01" },
 };
 
 // Prefetch function that will run once before any fetch calls
@@ -60,10 +62,6 @@ const prefetch = async (options: FetchOptions) => {
             chain,
             additional_volume_timerange AS volume_timerange
         FROM Additional_Volume_Berachain
-        WHERE additional_volume_timerange > 0
-          AND NOT EXISTS (
-            SELECT 1 FROM Aggregated_Volume_Time_Range WHERE chain = 'berachain'
-        )
     )
     SELECT
         chain AS blockchain,

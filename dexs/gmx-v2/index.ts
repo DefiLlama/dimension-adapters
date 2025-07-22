@@ -126,7 +126,7 @@ const adapter: BreakdownAdapter = {
 
 adapter.breakdown["gmx-v2-trade"][CHAIN.SOLANA] = {
   fetch: fetchSolana,
-  start: 1630368000,
+  start: '2021-08-31',
   meta: {methodology}
 }
 

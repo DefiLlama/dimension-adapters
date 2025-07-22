@@ -30,7 +30,13 @@ export default {
         });
         return { dailyFees, dailyRevenue, }
       }) as FetchV2,
-      start: 1691539200,
+      start: '2023-08-09',
+      meta: {
+        methodology: {
+          Fees: "Token trading and launching fees paid by users.",
+          Revenue: "All trading fees from users.",
+        },
+      },
     },
   },
   version: 2,

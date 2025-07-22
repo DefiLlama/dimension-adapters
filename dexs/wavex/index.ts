@@ -60,13 +60,9 @@ const getFetch =
       id: dayTimestamp.toString(),
     });
 
-    const totalData = await request(endpoints[chain], query, {
-      id: "total",
-    });
-
-    let dailyOpenInterest = 0;
-    let dailyLongOpenInterest = 0;
-    let dailyShortOpenInterest = 0;
+    let openInterestAtEnd = 0;
+    let longOpenInterestAtEnd = 0;
+    let shortOpenInterestAtEnd = 0;
 
     if (query === historicalDataDerivatives) {
       const tradingStats = await request(endpoints[chain], historicalOI, {
@@ -74,13 +70,13 @@ const getFetch =
       });
 
       if (tradingStats.tradingStat) {
-        dailyLongOpenInterest = Number(
+        longOpenInterestAtEnd = Number(
           tradingStats.tradingStat.longOpenInterest || 0
         );
-        dailyShortOpenInterest = Number(
+        shortOpenInterestAtEnd = Number(
           tradingStats.tradingStat.shortOpenInterest || 0
         );
-        dailyOpenInterest = dailyLongOpenInterest + dailyShortOpenInterest;
+        openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
       }
     }
 
@@ -88,14 +84,14 @@ const getFetch =
 
     return {
       timestamp: dayTimestamp,
-      dailyLongOpenInterest: dailyLongOpenInterest
-        ? String(dailyLongOpenInterest * 10 ** -DECIMALS)
+      longOpenInterestAtEnd: longOpenInterestAtEnd
+        ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
         : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest
-        ? String(dailyShortOpenInterest * 10 ** -DECIMALS)
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd
+        ? String(shortOpenInterestAtEnd * 10 ** -DECIMALS)
         : undefined,
-      dailyOpenInterest: dailyOpenInterest
-        ? String(dailyOpenInterest * 10 ** -DECIMALS)
+      openInterestAtEnd: openInterestAtEnd
+        ? String(openInterestAtEnd * 10 ** -DECIMALS)
         : undefined,
       dailyVolume: dailyData.volumeStat
         ? String(
@@ -107,16 +103,7 @@ const getFetch =
               10 ** -DECIMALS
           )
         : undefined,
-      totalVolume: totalData.volumeStat
-        ? String(
-            Number(
-              Object.values(totalData.volumeStat).reduce((sum, element) =>
-                String(Number(sum) + Number(element))
-              )
-            ) *
-              10 ** -DECIMALS
-          )
-        : undefined,
+
     };
   };
 

@@ -27,15 +27,22 @@ const fetch: any = async (options: FetchOptions) => {
     AND block_time BETWEEN llama_replace_date_range;
     `, options);
     eth_transfer_logs.map((e: any) => dailyFees.addGasToken(e.eth_value ?? 0))
-    return { dailyFees, dailyRevenue: dailyFees }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
 }
 
 const adapter: Adapter = {
     version: 2,
     adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch,
-                    },
+      [CHAIN.ETHEREUM]: {
+        fetch,
+        meta: {
+          methodology: {
+            Fees: 'All buy/sell fees paid by users for using Safe to trade tokens on CowSwap.',
+            Revenue: 'All fees are collected by Safe.',
+            ProtocolRevenue: 'All fees are collected by Safe.',
+          }
+        }
+      },
     }
 }
 

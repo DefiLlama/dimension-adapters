@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import fetchURL from "../../utils/fetchURL"
+import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 
 const polynomialAPI = "https://perps-api-mainnet.polynomial.finance/trade-stats"
@@ -14,13 +14,15 @@ interface ApiResponse {
 }
 
 const fetch = async (timestamp: number) => {
-    
-    const  {totalTrades, last24HrTrades, totalTradeVolume, last24HrTradeVolume, openInterest}: ApiResponse = (await fetchURL(polynomialAPI));
+    const { data: { last24HrTradeVolume } }: { data: ApiResponse } = await axios.get(polynomialAPI, {
+      headers: {
+        'x-api-key': 'defillama-56d0d13c534a573be5d0fdeb426f1a9d' 
+      }
+    });
     const startDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
 
     return {
       dailyVolume: last24HrTradeVolume,
-      totalVolume: totalTradeVolume,
       timestamp: startDayTimestamp,
     };
   };

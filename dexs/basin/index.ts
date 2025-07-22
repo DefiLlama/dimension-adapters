@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 class SubgraphVolumeResponse {
@@ -65,9 +65,8 @@ async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Prom
   return subgraphVolume.wells.reduce((result: FetchResultV2, next: SubgraphWell) => {
     return {
       dailyVolume: result.dailyVolume as number + parseFloat(next.rollingDailyTradeVolumeUSD),
-      totalVolume: result.totalVolume as number + parseFloat(next.cumulativeTradeVolumeUSD)
     };
-  }, { dailyVolume: 0, totalVolume: 0 });
+  }, { dailyVolume: 0 });
 }
 
 function volumeForCategory(chain: CHAIN, type: WellType) {
@@ -86,14 +85,12 @@ function volumeForCategory(chain: CHAIN, type: WellType) {
 
 // Currently there are only spot wells available, but it is expeted for more to exist in the future,
 // therefore using BreakdownAdapter.
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    "spot": Object.keys(chains).reduce((acc, chain) => {
+  adapter: Object.keys(chains).reduce((acc, chain) => {
       acc[chain] = volumeForCategory(chain as CHAIN, WellType.SPOT);
       return acc;
     }, {})
-  }
 };
 
 export default adapter;

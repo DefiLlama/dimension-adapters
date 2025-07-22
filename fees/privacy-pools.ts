@@ -34,6 +34,11 @@ Object.entries(config).forEach(([chain, { pools }]) => {
         dailyFees,
       };
     },
+    meta: {
+      methodology: {
+        Fees: "Fees paid by users using privicy services."
+      }
+    }
   }
 });
 

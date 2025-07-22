@@ -20,6 +20,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: '2025-02-15',
+      meta: {
+        methodology: {
+          Fees: 'Total fees paid by users.',
+        }
+      }
     },
   },
 }

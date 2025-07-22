@@ -5,13 +5,6 @@ import { FetchOptions } from "../adapters/types";
 
 const url = "https://app.sentio.xyz/api/v1/insights/typus/typus_v2/query";
 
-const options = {
-  headers: {
-    "Content-Type": "application/json",
-    "api-key": "RIobs1PpAZ4SmHxY2InErtz0pL5LqHTtY",
-  },
-};
-
 const methodology = {
   Fees: "Typus Safu fees are charged from the revenue of depositor's in-the-money options.",
   ProtocolRevenue: "All Safu fees are included in the protocol revenue.",
@@ -47,7 +40,7 @@ const buildQueryPayload = (start: number, end: number) => ({
         },
         functions: [
           {
-            name: "rollup_delta",
+            name: "delta_over_time",
             arguments: [
               {
                 durationValue: {
@@ -67,28 +60,16 @@ const buildQueryPayload = (start: number, end: number) => ({
     {
       metricsQuery: {
         query: "SafuAccumulatedRewardGeneratedUSD",
-        alias: "{{coin_symbol}}",
+        alias: "User Fee",
         id: "f",
         labelSelector: {},
         aggregate: {
           op: "SUM",
-          grouping: ["coin_symbol"],
+          grouping: [],
         },
-        functions: [
-          {
-            name: "rollup_delta",
-            arguments: [
-              {
-                durationValue: {
-                  value: 1,
-                  unit: "d",
-                },
-              },
-            ],
-          },
-        ],
+        functions: [],
         color: "",
-        disabled: true,
+        disabled: false,
       },
       dataSource: "METRICS",
       sourceName: "",
@@ -103,45 +84,40 @@ const buildQueryPayload = (start: number, end: number) => ({
       functions: [],
       color: "",
     },
-    {
-      expression: "sum(f)",
-      alias: "User Fee",
-      id: "C",
-      disabled: false,
-      functions: [],
-      color: "",
-    },
   ],
   cachePolicy: {
     noCache: true,
   },
 });
 
-const fetch = async (_t: any, _b: any, { startOfDay }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const [feeRes] = await Promise.all([
-    postURL(url, buildQueryPayload(startOfDay, startOfDay + 86400), 3, options),
+    postURL(url, buildQueryPayload(options.startTimestamp, options.endTimestamp), 3, {
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": "RIobs1PpAZ4SmHxY2InErtz0pL5LqHTtY",
+      },
+    }),
   ]);
 
   const user_usd = feeRes?.results?.find((res: any) => res.alias === "User Fee").matrix?.samples?.[0]?.values;
+  const tf = user_usd.at(-1).value;
+  const userFees = tf - user_usd.at(0).value;
 
   const protocol_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Protocol Fee").matrix
     ?.samples?.[0]?.values;
-
-  // Already calculated the rollup delta, so use the first value (which counts from start to end)
-  const userFees = user_usd.at(0).value;
-  const protocolFees = protocol_fee_usd.at(0).value;
+  const protocolFees = protocol_fee_usd.at(-1).value;
 
   return {
     dailyFees: userFees + protocolFees,
-    dailyRevenue: userFees + protocolFees,
-    dailyProtocolRevenue: protocolFees,
-    dailyUserFees: userFees,
+    dailyRevenue: protocolFees,
     dailySupplySideRevenue: userFees,
+    dailyProtocolRevenue: protocolFees,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.SUI]: {
       fetch,

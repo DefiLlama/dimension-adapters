@@ -1,15 +1,8 @@
-import * as sdk from "@defillama/sdk";
 import { FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
-import customBackfill from "../../helpers/customBackfill";
-
-interface IReferralRecord {
-  volume: string; // Assuming volume is a string that represents a number
-  timestamp: number;
-}
 
 type TChainIDs = {
   [key in Chain]?: number;
@@ -104,6 +97,7 @@ const methodology = {
 
 
 const adapteraggderivative: any = {
+  deadFrom: '2025-05-30',
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
@@ -122,7 +116,6 @@ const adapteraggderivative: any = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2023-06-22',
-      customBackfill: customBackfill(CHAIN.ARBITRUM, fetch),
       meta: {
         methodology,
       },

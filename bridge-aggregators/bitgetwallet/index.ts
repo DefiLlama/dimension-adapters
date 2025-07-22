@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
 
 const CHAINS: Array<CHAIN> = [
@@ -25,9 +25,6 @@ const CHAINS: Array<CHAIN> = [
     CHAIN.APTOS
 ];
 
-
-
-
 interface IVolumeBridge {
     volume: string;
     date: string;
@@ -35,7 +32,7 @@ interface IVolumeBridge {
 
 async function queryDataByApi(timestamp:string, path:string){
     const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st";
-    let info = await  httpGet(`${historicalVolumeEndpoint}${path}`);
+    let info = await  fetchURL(`${historicalVolumeEndpoint}${path}`);
     const data  : IVolumeBridge[] = (info)?.data?.list || [];
     return data
 }
@@ -58,12 +55,10 @@ const adapter: any = {
     adapter:  {
         ...CHAINS.map(chain => {
             return {
-
-                    [chain]: {
-                        fetch: fetch,
-                        start: '2024-01-01'
-                    }
-
+                [chain]: {
+                    fetch,
+                    start: '2024-01-01'
+                }
             }
         }).reduce((acc, item) => {
             return {

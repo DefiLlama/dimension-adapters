@@ -20,7 +20,8 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyRevenue = dailyFees.clone(0.05) 
     return {
         dailyFees,
-        dailyRevenue
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     }
 }
 
@@ -67,6 +68,13 @@ const adapter: SimpleAdapter = {
         [CHAIN.ETHEREUM]: {
             fetch: fetchFees,
             start: '2023-06-22',
+            meta: {
+                methodology: {
+                    Fees: 'All interests paid by borrowers.',
+                    Revenue: '5% fees are collected by Wildcat Protocol.',
+                    ProtocolRevenue: '5% fees are collected by Wildcat Protocol.',
+                }
+            }
         }
     }
 }
