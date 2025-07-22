@@ -7,11 +7,13 @@ const volume_subgraphs: Record<string, string> = {
   [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-arbitrum-stats/api",
   [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-avalanche-stats/api",
   [CHAIN.SOLANA]: "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql",
+  [CHAIN.BOTANIX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-botanix-stats/api",
 }
 
 const openinterest_subgraphs: Record<string, string> = {
   [CHAIN.ARBITRUM]: "https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql",
   [CHAIN.AVAX]: "https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql",
+  [CHAIN.BOTANIX]: "https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql",
 }
 
 const fetchOpenInterest = async (options: FetchOptions) => {
@@ -58,7 +60,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   }
 }
 
-const fetchSolana = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
   const targetDate = new Date(dayTimestamp * 1000).toISOString();
   const query = gql`
@@ -75,7 +77,7 @@ const fetchSolana = async (_a:any, _b:any, options: FetchOptions) => {
   const res = await request(volume_subgraphs[options.chain], query)
 
   const dailyVolume = res.volumeRecordDailies
-    .filter((record: {timestamp : string}) => record.timestamp.split('T')[0] === targetDate.split('T')[0])
+    .filter((record: { timestamp: string }) => record.timestamp.split('T')[0] === targetDate.split('T')[0])
     .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
   if (dailyVolume === 0) throw new Error('Not found daily data!.')
 
@@ -84,7 +86,7 @@ const fetchSolana = async (_a:any, _b:any, options: FetchOptions) => {
   }
 }
 
-const methodology = {
+const meta = {
   methodology: {
     dailyVolume: "Sum of daily total volume for all markets on a given day.",
   }
@@ -97,18 +99,24 @@ const adapter: Adapter = {
       fetch,
       runAtCurrTime: true,  // because of the open interest
       start: '2021-08-31',
-      meta: methodology
+      meta
     },
     [CHAIN.AVAX]: {
       fetch,
-      runAtCurrTime: true,  // because of the open interest
+      runAtCurrTime: true,
       start: '2021-12-22',
-      meta: methodology
+      meta
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2021-08-31',
-      meta: methodology
+      meta
+    },
+    [CHAIN.BOTANIX]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2025-05-30',
+      meta
     }
   }
 }
