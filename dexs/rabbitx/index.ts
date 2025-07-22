@@ -4,11 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const historicalVolumeEndpoint = "https://api.prod.rabbitx.io/markets"
-const candles = (market: string, timestampFrom: number, timestampTo: number) => {
-const url = `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`;
-  return url;
-
-}
+const candles = (market: string, timestampFrom: number, timestampTo: number) => `https://api.prod.rabbitx.io/candles?market_id=${market}&timestamp_from=${timestampFrom}&timestamp_to=${timestampTo}&period=1440`
 
 interface IVolumeall {
   volume: string;
@@ -16,13 +12,14 @@ interface IVolumeall {
   close: string;
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const toTimestamp = getTimestampAtStartOfNextDayUTC(fromTimestamp) - 1;
 
   // Get market data
   const response = await fetchURL(historicalVolumeEndpoint);
   const marketsData = response.result;
+  const openInterestAtEnd = marketsData.reduce((acc: number, market: any) => acc + Number(market.open_interest), 0);
 
   // Fetch candles for each USD market
   const historical: IVolumeall[] = (await Promise.all(marketsData.map((market: any) => fetchURL(candles(market.id, fromTimestamp, toTimestamp)))))
@@ -37,14 +34,15 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: timestamp,
+    openInterestAtEnd,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchVolume,
+      fetch,
+      runAtCurrTime: true,
       start: '2023-11-17', // Replace with actual start timestamp
     },
   },

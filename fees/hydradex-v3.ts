@@ -1,8 +1,4 @@
 
-import adapter from '../dexs/hydradex'
-const { breakdown,  ...rest } = adapter
+import adapter from '../dexs/hydradex-v3'
 
-export default {
-  ...rest,
-  adapter: breakdown['v3'],
-}
+export default adapter
