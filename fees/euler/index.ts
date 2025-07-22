@@ -118,16 +118,16 @@ const meta = {
     },
     breakdownMethodology: {
         Fees: {
-            'BorrowInterest': 'All interest paid by borrowers from all vaults.',
+            'Borrow Interest': 'All interest paid by borrowers from all vaults.',
         },
         Revenue: {
-            'BorrowInterest': 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
+            'Borrow Interest': 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
         },
         SupplySideRevenue: {
-            'BorrowInterest': 'Amount of interest distributed to lenders from all vaults.',
+            'Borrow Interest': 'Amount of interest distributed to lenders from all vaults.',
         },
         ProtocolRevenue: {
-            'BorrowInterest': 'Amount of interest are collected by Euler protocol.',
+            'Borrow Interest': 'Amount of interest are collected by Euler protocol.',
         },
     }
 }

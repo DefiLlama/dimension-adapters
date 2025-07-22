@@ -13,16 +13,16 @@ const meta = {
   },
   breakdownMethodology: {
     Fees: {
-      'BorrowInterest': 'All interest paid by borrowers from all vaults.',
+      'Borrow Interest': 'All interest paid by borrowers from all vaults.',
     },
     Revenue: {
-      'BorrowInterest': 'No revenue from Morpho protocol.',
+      'Borrow Interest': 'No revenue from Morpho protocol.',
     },
     SupplySideRevenue: {
-      'BorrowInterest': 'All interests paid are distributedd to vaults suppliers, lenders.',
+      'Borrow Interest': 'All interests paid are distributedd to vaults suppliers, lenders.',
     },
     ProtocolRevenue: {
-      'BorrowInterest': 'No revenue from Morpho protocol.',
+      'Borrow Interest': 'No revenue from Morpho protocol.',
     },
   }
 }
