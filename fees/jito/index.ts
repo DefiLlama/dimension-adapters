@@ -14,20 +14,34 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune"
 
-const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
+const STAKE_POOL_RESERVE_ACCOUNT = "BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL";
+const JITO_STAKE_POOL_AUTHORITY = "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS";
+
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+
+  const feeQuery = getSqlFromFile("helpers/queries/solana-liquid-staking-fees.sql", {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+    stake_account: STAKE_POOL_RESERVE_ACCOUNT,
+    authority: JITO_STAKE_POOL_AUTHORITY
+  });
+  const dailyFees = options.createBalances();
+  const stake_rewards = await queryDuneSql(options, feeQuery);
+
+  dailyFees.addCGToken("solana", stake_rewards[0].daily_yield != null ? stake_rewards[0].daily_yield : 0);
 
   const sql = getSqlFromFile("helpers/queries/jito.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp
   });
 
-  const fees: any[] = (await queryDuneSql(options, sql));
+  const revenue: any[] = (await queryDuneSql(options, sql));
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addCGToken('usd', fees[0].total_usd_amt)
+  dailyProtocolRevenue.addCGToken('usd', revenue[0].total_usd_amt)
 
   return {
-    dailyFees: dailyProtocolRevenue,
+    dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue: "0",
@@ -40,9 +54,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2022-11-21',
-      meta:{
+      meta: {
         methodology: {
-          Fees: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
+          Fees: 'Staking rewards from staked SOL on Jito staked solana',
           Revenue: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
           HoldersRevenue: 'Fee paid to token holders',
         }
