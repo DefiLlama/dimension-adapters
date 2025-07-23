@@ -13,7 +13,6 @@ export const arrowMarketsVolumeEndpoint = "https://api-rfq-testnet.prd.arrowmark
 
 export const v2_adapter: SimpleAdapter = {
   version: 2,
-  deadFrom: '2024-09-15',
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchArrowMarketsVolumeData,
@@ -21,6 +20,7 @@ export const v2_adapter: SimpleAdapter = {
     },
   },
 };
+
 
 export async function fetchArrowMarketsVolumeData(options: FetchOptions) {
   const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, options.endTimestamp);
