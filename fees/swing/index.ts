@@ -6,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
     [CHAIN.SOLANA]: 'solana',
-    [CHAIN.ETHEREUM]: 'ethereum',
+    // [CHAIN.ETHEREUM]: 'ethereum',
     [CHAIN.BSC]: 'bsc',
     [CHAIN.AVAX]: 'avalanche',
     [CHAIN.POLYGON]: 'polygon',
@@ -40,7 +40,7 @@ const chains: Record<string, string> = {
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000)
     );
@@ -49,7 +49,6 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
     const unixEndDayTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
     );
-
 
     const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
         headers: {
@@ -66,14 +65,12 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         return chainVol;
     });
 
-    // calculate the total volume
     const chainFeeVolume = chainFeeVolumes?.reduce((acc: number, curr: any) => {
         return acc + Number(curr?.value || 0);
     }, 0);
 
     return {
-        dailyFees: chainFeeVolume || 0,
-        timestamp: unixTimestamp,
+        dailyFees: chainFeeVolume || 0
     };
 };
 
@@ -88,23 +85,20 @@ const meta = {
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         ...Object.entries(chains).reduce((acc, chain) => {
-            const [key, value] = chain;
-
+            const [key, _] = chain;
             return {
                 ...acc,
                 [key]: {
-                    fetch: fetchVolume,
-                    start: '2023-11-01', // 2023-11-01'
+                    fetch,
+                    start: '2023-11-01',
                     meta
                 },
             };
         }, {}),
-
-    },
-
-    version: 1
+    }
 };
 
 export default adapter;
