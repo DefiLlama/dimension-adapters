@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL"
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const historicalVolumeEndpoint = "https://bisq.markets/bisq/api/markets/volumes?interval=day"
+const historicalVolumeEndpoint = "https://markets.bisq.services/api/volumes?interval=day"
 
 interface IVolumeall {
   volume: string;
@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BITCOIN]: {
       fetch,
-      start: 1525651200,
+      start: '2018-05-07',
     },
   },
 };

@@ -2408,5 +2408,31 @@ export default (
           bsc: ["0x888888888889758F76e7103c6CbF23ABbF58F946"],
       }
   },
+  {
+    id: "5157",
+    name: "Yellow",
+    addresses: {
+      ethereum: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      bsc: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      polygon: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      base: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+      arbitrum: ["0x2A8B51821884CF9A7ea1A24C72E46Ff52dCb4F16"],
+    },
+  },
+    {
+      id: "5195",
+      name: "GraFun",
+      addresses: {
+        bsc: ["0x8341b19a2A602eAE0f22633b6da12E1B016E6451"],
+        ethereum: ["0xb8540a7d74Cc4912443e8c4B2064B640FC763c4f"],
+      },
+    },
+    {
+      id: "5799",
+      name: "Liquidity House",
+      addresses: {
+        etlk: ["0x0c532e1e916219007f244e2d8Ef46f8530Ec75DE"],
+      },
+    },
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);

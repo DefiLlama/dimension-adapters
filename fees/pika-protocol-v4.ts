@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees, FetchResultVolume } from "../adapters/types";
@@ -110,10 +110,10 @@ const fetch = (chain: Chain) => {
     const dailyProtocolRevenue = dailyFees * 0.3;
     return {
       timestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyProtocolRevenue.toString(),
-      dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-      dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+      dailyFees,
+      dailyRevenue: dailyProtocolRevenue,
+      dailySupplySideRevenue: dailySupplySideRevenue,
+      dailyProtocolRevenue: dailyProtocolRevenue,
     };
   }
 }
@@ -122,7 +122,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1687910400,
+      start: '2023-06-28',
     },
   },
 };

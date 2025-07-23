@@ -16,16 +16,25 @@ const fetchFees = async (options: FetchOptions) => {
     dailyFees.add(token, Number(log.data))
   })
   const holderRevenue = dailyFees.clone()
-  holderRevenue.resizeBy(4)
+  dailyFees.resizeBy(4)
+  const protocolRevenue = dailyFees.clone()
+  protocolRevenue.subtract(holderRevenue)
 
-  return { dailyFees, dailyRevenue: holderRevenue, holdersRevenue: holderRevenue }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: protocolRevenue, dailyHoldersRevenue: holderRevenue }
 }
 const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 0,
+      meta: {
+        methodology: {
+          Fees: 'All fees paid by users for exchange tokens.',
+          Revenue: 'All fees paid by users.',
+          ProtocolRevenue: '75% fees are distributed to SideShift.',
+          HoldersRevenue: '25% fees are distributed to XAI token holders.',
+        }
+      }
     }
   }
 }

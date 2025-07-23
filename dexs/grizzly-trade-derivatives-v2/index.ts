@@ -58,7 +58,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(),
-      start: async () => 1706832000,
+      start: '2024-02-02',
       meta: {
         methodology,
       },

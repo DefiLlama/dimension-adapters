@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
@@ -36,7 +35,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
     .find(dayItem => (Number(dayItem.timestamp)) === dayTimestamp)?.volUSD
 
   return {
-    totalVolume: `${totalVolume}`,
+    totalVolume: totalVolume,
     dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
     timestamp: dayTimestamp,
   }
@@ -46,8 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch,
-      start: 1633305600,
-      customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
+      start: '2021-10-04',
     },
   },
 };

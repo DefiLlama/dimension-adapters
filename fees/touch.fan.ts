@@ -22,7 +22,13 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.ERA]: {
             fetch: fetch,
-            start: 1698494400,
+            start: '2023-10-28',
+            meta: {
+          methodology: {
+              Fees: "Fees paid by users while trading on social network.",
+              Revenue: "All fees are revenue.",
+          }
+      }
         },
     },
     version: 2,

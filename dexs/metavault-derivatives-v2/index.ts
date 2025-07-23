@@ -6,7 +6,7 @@ import {
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
@@ -68,14 +68,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology,
       },
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: 1709251200,
+      start: '2024-03-01',
       meta: {
         methodology,
       },

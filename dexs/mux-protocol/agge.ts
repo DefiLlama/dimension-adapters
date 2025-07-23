@@ -1,8 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://stats.mux.network/api/public/dashboard/13f401da-31b4-4d35-8529-bb62ca408de8/dashcard/389/card/306"
@@ -47,8 +45,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }
@@ -76,7 +74,7 @@ const adapteragges: any = {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        start: 1708387200,
+        start: '2024-02-20',
       }
     }
   }, {})

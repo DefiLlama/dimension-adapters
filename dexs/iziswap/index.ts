@@ -1,8 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
@@ -34,7 +33,10 @@ const chains: TChains =  {
   [CHAIN.SCROLL]: 534352,
   [CHAIN.BASE]: 8453,
   [CHAIN.MANTA]: 169,
-  [CHAIN.ZETA]: 7000
+  [CHAIN.ZETA]: 7000,
+  [CHAIN.MODE]: 34443,
+  [CHAIN.IOTEX]: 4689,
+  [CHAIN.HEMI]: 43111,
 };
 
 const fetch = (chain: Chain) => {
@@ -61,8 +63,8 @@ const fetch = (chain: Chain) => {
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }
@@ -79,7 +81,6 @@ for (const chain in chains) {
     adapters[chain] = {
       fetch: fetch(chain),
       start: startTime,
-      customBackfill: customBackfill(chain, fetch)
     };
   };
 };

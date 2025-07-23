@@ -15,7 +15,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   const dailyVolume = response.find(item => item.day.split(" ")[0].trim() === dateString)?.dailyvolumeusd
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp
   }
 }
@@ -23,7 +23,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetchVolume,
-      start: 1688774400
+      start: '2023-07-08'
     }
   }
 }

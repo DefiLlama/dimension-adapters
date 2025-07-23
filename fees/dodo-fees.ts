@@ -1,4 +1,4 @@
-import { Adapter, BreakdownAdapter } from "../adapters/types";
+import { Adapter, } from "../adapters/types";
 import { request, gql } from "graphql-request";
 
 const feesReq = gql`
@@ -12,6 +12,7 @@ query FetchDashboardPairs($where: Dashboardrate24h_filter) {
 `
 
 const adapter: Adapter = {
+  version: 1,
   adapter: ["ethereum", "bsc", "polygon", "arbitrum", "aurora", "boba"].reduce((all, chain)=>({
     ...all,
     [chain]: {
@@ -21,25 +22,17 @@ const adapter: Adapter = {
           "Content-Type": "application/json",
           "user-agent": "insomnia/2022.5.0"
         })
-        const fees = Object.values(pairs.dashboard_pairs_rate_24.pairs).reduce((sum:number, p:any)=>sum+Number(p.fee), 0);
+        const fees = Object.values(pairs.dashboard_pairs_rate_24.pairs)
+          .filter((p:any)=> Number(p.tvl) > 1000)
+          .reduce((sum:number, p:any)=>sum+Number(p.fee), 0);
         return {
-          timestamp: Date.now()/1e3,
           dailyFees: fees,
           dailyRevenue: fees*0.2,
         };
       },
       runAtCurrTime: true,
-      start: 0,
-    }
+          }
   }), {} as any)
 };
 
-const breakdownAdapter: BreakdownAdapter = {
-  version: 2,
-  breakdown: {
-    "dodo": adapter.adapter
-  }
-}
-
-
-export default breakdownAdapter;
+export default adapter

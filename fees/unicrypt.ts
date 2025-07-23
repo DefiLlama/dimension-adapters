@@ -28,7 +28,17 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: 1661990400, }
+    [CHAIN.ETHEREUM]: { 
+      fetch, 
+      start: '2022-09-01',
+      meta: {
+        methodology: {
+          Fees: "Fees paid from users while using all services.",
+          Revenue: "All fees are revenue.",
+          ProtocolRevenue: "All revenue collected by protocol.",
+        },
+      }
+    }
   },
 
 }

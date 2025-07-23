@@ -55,14 +55,14 @@ const adapter: Adapter = {
   adapter: {
     [ARBITRUM]: {
       fetch: graphs,
-      start: 1630468800,
+      start: '2021-09-01',
       meta: {
         methodology
       }
     },
     [AVAX]: {
       fetch: graphs,
-      start: 1641445200,
+      start: '2022-01-06',
       meta: {
         methodology
       }

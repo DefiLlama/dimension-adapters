@@ -21,8 +21,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time))) === dayTimestamp)?.vol
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STELLAR]: {
       fetch,
-      start: 1706572800,
+      start: '2024-01-30',
     },
   },
 };

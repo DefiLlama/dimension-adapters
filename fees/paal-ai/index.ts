@@ -34,7 +34,12 @@ const adapter: Adapter = {
   adapter: {
     ethereum: {
       fetch,
-      start: 1690070400,
+      start: '2023-07-23',
+      meta: {
+        methodology: {
+          Fees: 'Fees paid by users for using PAAL AI services.',
+        }
+      }
     },
   },
 }

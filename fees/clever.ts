@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { ETHEREUM } from "../helpers/chains";
 import { request } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const endpoints = {
   [ETHEREUM]:
@@ -41,7 +41,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: 1681908702,
+      start: '2023-04-19',
     },
   },
 };

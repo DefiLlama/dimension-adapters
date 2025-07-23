@@ -1,36 +1,22 @@
-import { Adapter, FetchOptions, FetchResultFees } from '../../adapters/types';
-import { CHAIN, OPTIMISM } from '../../helpers/chains';
-import { fetchV1 } from './velodrome';
-import { fetchFees } from "./v2"
+import adapter from "../../dexs/velodrome";
+import { CHAIN } from "../../helpers/chains";
 
-
-const getFees = async (options: FetchOptions) => {
-  const  [feeV1] = await Promise.all([fetchV1()(options)]);
-  const dailyFees = Number(feeV1.dailyFees);
-  const dailyRevenue = Number(feeV1.dailyRevenue);
-  const dailyHoldersRevenue = Number(feeV1.dailyHoldersRevenue);
+let _fetch = adapter.adapter[CHAIN.OPTIMISM].fetch;
+const fetch = async (options) => {
+  let res = await (_fetch as any)(options)
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    dailyHoldersRevenue: `${dailyHoldersRevenue}`,
+    dailyFees: res.dailyFees,
+    dailyRevenue: res.dailyFees,
+    dailyHoldersRevenue: res.dailyFees,
   }
 }
 
-const adapter: Adapter = {
+export default {
   version: 2,
   adapter: {
-    [OPTIMISM]: {
-      fetch: getFees,
-      start: 1677110400, // TODO: Add accurate timestamp
-    },
-    [CHAIN.MODE]: {
-      fetch: fetchFees,
-      start: 1715763701
-    },
-    [CHAIN.BOB]: {
-      fetch: fetchFees,
-      start: 1715763701
+    [CHAIN.OPTIMISM]: {
+      start: adapter.adapter[CHAIN.OPTIMISM].start,
+      fetch,
     }
-  },
-};
-export default adapter;
+  }
+}

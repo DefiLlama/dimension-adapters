@@ -26,21 +26,32 @@ interface Response {
   snapshots: Snapshot[];
 }
 
-const archiveBaseUrl = "https://archive.prod.vertexprotocol.com/v1";
-const archiveMatleBaseUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
-const archiveSeiBaseUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
+const archiveArbitrumUrl = "https://archive.prod.vertexprotocol.com/v1";
+const archiveMantleUrl = "https://archive.mantle-prod.vertexprotocol.com/v1";
+const archiveSeiUrl = "https://archive.sei-prod.vertexprotocol.com/v1";
+const archiveBaseUrl = "https://archive.base-prod.vertexprotocol.com/v1";
+const archiveSonicUrl = "https://archive.sonic-prod.vertexprotocol.com/v1";
+const archiveAbstractUrl = "https://archive.abstract-prod.vertexprotocol.com/v1";
+const archiveAvaxUrl = "https://archive.avax-prod.vertexprotocol.com/v1";
 
 type TURL = {
   [s: string]: string;
 };
 
 const url: TURL = {
-  [CHAIN.ARBITRUM]: archiveBaseUrl,
-  [CHAIN.MANTLE]: archiveMatleBaseUrl,
-  [CHAIN.SEI]: archiveSeiBaseUrl, // Added Sei chain URL
+  [CHAIN.ARBITRUM]: archiveArbitrumUrl,
+  [CHAIN.MANTLE]: archiveMantleUrl,
+  [CHAIN.SEI]: archiveSeiUrl,
+  [CHAIN.BASE]: archiveBaseUrl,
+  [CHAIN.SONIC]: archiveSonicUrl,
+  [CHAIN.ABSTRACT]: archiveAbstractUrl,
+  [CHAIN.AVAX]: archiveAvaxUrl,
 };
 
-const query = async (max_time: number, fetchOptions: FetchOptions): Promise<Response> => {
+const query = async (
+  max_time: number,
+  fetchOptions: FetchOptions
+): Promise<Response> => {
   const body: QueryBody = {
     market_snapshots: {
       interval: {
@@ -76,34 +87,15 @@ const get24hrStat = async (
   );
 };
 
-const getCumulativeStat = async (
-  field: string,
+const get24hrFees = async (
   max_time: number,
   fetchOptions: FetchOptions
 ): Promise<number> => {
-  const response = await query(max_time, fetchOptions);
-  const cur_res = response.snapshots[0];
-  return sumAllProductStats(cur_res[field]);
-};
-
-const getCumulativeFees = async (max_time: number, fetchOptions: FetchOptions): Promise<number> => {
-  const fees = await getCumulativeStat("cumulative_taker_fees", max_time, fetchOptions);
-  const sequencer_fees = await getCumulativeStat(
-    "cumulative_sequencer_fees",
+  const fees = await get24hrStat(
+    "cumulative_taker_fees",
     max_time,
     fetchOptions
   );
-  return fees - sequencer_fees;
-};
-
-const getCumulativeRevenue = async (max_time: number, fetchOptions: FetchOptions): Promise<number> => {
-  const fees = await getCumulativeFees(max_time, fetchOptions);
-  const rebates = await getCumulativeStat("cumulative_maker_fees", max_time, fetchOptions);
-  return fees + rebates;
-};
-
-const get24hrFees = async (max_time: number, fetchOptions: FetchOptions): Promise<number> => {
-  const fees = await get24hrStat("cumulative_taker_fees", max_time, fetchOptions);
   const sequencer_fees = await get24hrStat(
     "cumulative_sequencer_fees",
     max_time,
@@ -112,42 +104,71 @@ const get24hrFees = async (max_time: number, fetchOptions: FetchOptions): Promis
   return fees - sequencer_fees;
 };
 
-const get24hrRevenue = async (max_time: number, fetchOptions: FetchOptions): Promise<number> => {
+const get24hrRevenue = async (
+  max_time: number,
+  fetchOptions: FetchOptions
+): Promise<number> => {
   const fees = await get24hrFees(max_time, fetchOptions);
-  const rebates = await get24hrStat("cumulative_maker_fees", max_time, fetchOptions);
+  const rebates = await get24hrStat(
+    "cumulative_maker_fees",
+    max_time,
+    fetchOptions
+  );
   return fees + rebates;
 };
 
-const fetch = async (timestamp: number, _: any, fetchOptions: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (
+  timestamp: number,
+  _: any,
+  fetchOptions: FetchOptions
+): Promise<FetchResultFees> => {
   const dailyFees = await get24hrFees(timestamp, fetchOptions);
   const dailyRevenue = await get24hrRevenue(timestamp, fetchOptions);
-  const totalFees = await getCumulativeFees(timestamp, fetchOptions);
-  const totalRev = await getCumulativeRevenue(timestamp, fetchOptions);
+
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    totalRevenue: `${totalRev}`,
-    totalFees: `${totalFees}`,
-    timestamp,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
 const adapter: Adapter = {
+  allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
-      start: 1682514000,
+      start: "2023-04-26",
     },
     [CHAIN.MANTLE]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
-      start: 1682514000,
+      start: "2023-04-26",
     },
-    [CHAIN.SEI]: { 
-      fetch: fetch,
+    [CHAIN.SEI]: {
+      fetch,
       runAtCurrTime: true,
-      start: 1723547681 
+      start: "2024-08-13",
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      runAtCurrTime: true,
+      start: "2024-09-04",
+    },
+    [CHAIN.SONIC]: {
+      fetch,
+      runAtCurrTime: true,
+      start: "2024-12-18",
+    },
+    [CHAIN.ABSTRACT]: {
+      fetch,
+      runAtCurrTime: true,
+      start: "2025-01-29",
+    },
+    [CHAIN.AVAX]: {
+      fetch,
+      runAtCurrTime: true,
+      start: "2025-03-26",
     },
   },
 };

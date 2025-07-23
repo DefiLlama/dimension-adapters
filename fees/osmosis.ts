@@ -1,45 +1,40 @@
-import { Adapter, FetchV2 } from "../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { Adapter, FetchOptions } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
-
-const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 interface IChartItem {
-  time: string;
-  fees_spent: number;
+  timestamp: string;
+  dailyFees: number;
+  dailyRevenue: number;
 }
 
-const fetch: FetchV2 = async ({ endTimestamp }) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(endTimestamp);
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+  const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue`;
   const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
-  const totalFee = historicalFees
-    .filter(
-      (feeItem) => new Date(feeItem.time).getTime() / 1000 <= dayTimestamp,
-    )
-    .reduce((acc, { fees_spent }) => acc + fees_spent, 0);
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
+  const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
 
-  const dailyFee = historicalFees.find(
-    (dayItem) => new Date(dayItem.time).getTime() / 1000 === dayTimestamp,
-  )?.fees_spent;
+  const dayData = historicalFees.find(feeItem => 
+    feeItem.timestamp.split(' ')[0] === dateStr
+  );
+  if (!dayData) {
+    throw new Error(`No data found for ${dateStr}`);
+  }
 
   return {
-    timestamp: dayTimestamp,
-    totalFees: `${totalFee}`,
-    dailyFees: dailyFee ? `${dailyFee}` : undefined,
-    totalRevenue: "0",
-    dailyRevenue: "0",
+    dailyFees: dayData.dailyFees,
+    dailyRevenue: dayData.dailyRevenue,
   };
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.COSMOS]: {
       fetch,
-      runAtCurrTime: true,
-      start: 1665964800,
+      start: '2022-04-15',
     },
   },
 };

@@ -1,6 +1,6 @@
 import { FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN, } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 type TAddress = {
@@ -50,7 +50,15 @@ const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
   }
 }
 
-const options: any = { fetch, start: 1691193600 }
+const meta = {
+  methodology: {
+    Fees: "Total reward and withdraw fees paid by users.",
+    Revenue: "50% of collected fees earned by QiDAO, 50% fees to asset suppliers.",
+    HoldersRevenue: "100% revenue distributed to token holders.",
+  }
+};
+
+const options: any = { fetch, start: '2023-08-05', meta }
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: options,

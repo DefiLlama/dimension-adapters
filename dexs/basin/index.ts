@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { BreakdownAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 class SubgraphVolumeResponse {
@@ -19,7 +19,12 @@ const chains = {
   [CHAIN.ETHEREUM]: {
     startBlock: 17977905,
     startTime: 1692793703,
-    subgraph: "https://graph.node.bean.money/subgraphs/name/basin"
+    subgraph: "https://graph.bean.money/basin_eth"
+  },
+  [CHAIN.ARBITRUM]: {
+    startBlock: 261000000,
+    startTime: 1728223509,
+    subgraph: "https://graph.bean.money/basin"
   }
 };
 
@@ -60,35 +65,32 @@ async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Prom
   return subgraphVolume.wells.reduce((result: FetchResultV2, next: SubgraphWell) => {
     return {
       dailyVolume: result.dailyVolume as number + parseFloat(next.rollingDailyTradeVolumeUSD),
-      totalVolume: result.totalVolume as number + parseFloat(next.cumulativeTradeVolumeUSD)
     };
-  }, { dailyVolume: 0, totalVolume: 0 });
+  }, { dailyVolume: 0 });
 }
 
 function volumeForCategory(chain: CHAIN, type: WellType) {
 
   return {
-    [chain]: {
-      fetch: async (fetchParams: FetchOptions): Promise<FetchResultV2> => {
-        const block = await fetchParams.getEndBlock();
-        return await getVolumeStats(chain, type, block);
-      },
-      start: async () => chains[chain].startTime,
-      runAtCurrTime: false, // Backfill is allowed
-      meta: {
-        methodology
-      },
+    fetch: async (fetchParams: FetchOptions): Promise<FetchResultV2> => {
+      const block = await fetchParams.getEndBlock();
+      return await getVolumeStats(chain, type, block);
+    },
+    start: async () => chains[chain].startTime,
+    meta: {
+      methodology
     }
   }
 }
 
 // Currently there are only spot wells available, but it is expeted for more to exist in the future,
 // therefore using BreakdownAdapter.
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    "spot": volumeForCategory(CHAIN.ETHEREUM, WellType.SPOT)
-  }
+  adapter: Object.keys(chains).reduce((acc, chain) => {
+      acc[chain] = volumeForCategory(chain as CHAIN, WellType.SPOT);
+      return acc;
+    }, {})
 };
 
 export default adapter;

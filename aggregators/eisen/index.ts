@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -8,24 +9,50 @@ type TPool = {
   [c: string]: string[];
 };
 
-type TBlock = {
-  [c: string]: number;
-};
-
 const FEE_COLLECTORS: TPool = {
-  [CHAIN.MODE]: ["0x37Cb37b752DBDcd08A872e7dfec256A216C7144C"],
+  [CHAIN.BERACHAIN]: ["0xE53744A85a12FCC38005d180c18f04F8EF0FB719"],
   [CHAIN.SCROLL]: ["0xA06568773A247657E7b89BBA465014CF85702093"],
+  [CHAIN.ZIRCUIT]: ["0x6bD912872B9e704a70f10226ab01A2Db87D0dd1C"],
+  [CHAIN.LINEA]: ["0x206168f099013b9eAb979d3520cA00aAD453De55"],
   [CHAIN.MANTLE]: ["0x31d6F212142D3B222EF11c9eBB6AF3569b8442EE"],
   [CHAIN.BLAST]: ["0xd57Ed7F46D64Ec7b6f04E4A8409D88C55Ef8AA3b"],
+  [CHAIN.BASE]: ["0x14C3B68e5855B60263b10eC0fCE54DE3e28AD880"],
+  [CHAIN.CORE]: ["0x6bD912872B9e704a70f10226ab01A2Db87D0dd1C"],
   [CHAIN.BITLAYER]: ["0x5722c0B501e7B9880F9bB13A14217851e45C454f"],
+  [CHAIN.CRONOS]: ["0x0C15c845C4A970b284c0dd61Bcf01c4DC1117d0F"],
+  [CHAIN.TAIKO]: ["0xFA0e9251503DaE51670d10288e6962d63191731d"],
+  [CHAIN.MODE]: ["0x37Cb37b752DBDcd08A872e7dfec256A216C7144C"],
+  [CHAIN.SONEIUM]: ["0x7E36665858D17FD1CbFd4Fd464d2a3Da49aa3B9d"],
+  [CHAIN.HEMI]: ["0x3E257bD80C5e73f9A5D30D3D1a734251c4809Ad4"],
+  [CHAIN.ROOTSTOCK]: ["0x7D1820c87BD5e4C231310D45E5f24eb571813738"],
+  [CHAIN.BSC]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
+  [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
+  [CHAIN.HYPERLIQUID]: ["0x1FA40f83c12E48e9396d12Dd08B4b4ee51C8c803"],
+  [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
+  [CHAIN.PLUME]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
 };
 
 const START_BLOCKS = {
-  [CHAIN.MODE]: 1704067200,
   [CHAIN.SCROLL]: 1704067200,
+  [CHAIN.ZIRCUIT]: 1704067200,
+  [CHAIN.LINEA]: 1704067200,
   [CHAIN.MANTLE]: 1704067200,
   [CHAIN.BLAST]: 1704067200,
+  [CHAIN.BASE]: 1704067200,
   [CHAIN.BITLAYER]: 1704067200,
+  [CHAIN.CORE]: 1704067200,
+  [CHAIN.CRONOS]: 1704067200,
+  [CHAIN.TAIKO]: 1704067200,
+  [CHAIN.MODE]: 1704067200,
+  [CHAIN.BERACHAIN]: 1704067200,
+  [CHAIN.SONEIUM]: 1704067200,
+  [CHAIN.HEMI]: 1704067200,
+  [CHAIN.ROOTSTOCK]: 1704067200,
+  [CHAIN.BSC]: 1704067200,
+  [CHAIN.ARBITRUM]: 1704067200,
+  [CHAIN.HYPERLIQUID]: 1704067200,
+  [CHAIN.ABSTRACT]: 1704067200,
+  [CHAIN.PLUME]: 1704067200,
 };
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
@@ -33,7 +60,16 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyVolume = createBalances();
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap });
 
-  logs.forEach((i) => dailyVolume.add(i.toAssetId, i.toAmount));
+  logs.forEach((i) => {
+    if (
+      i.toAssetId.toLowerCase() ==
+      ADDRESSES.GAS_TOKEN_2.toLowerCase()
+    ) {
+      dailyVolume.addGasToken(i.toAmount);
+    } else {
+      dailyVolume.add(i.toAssetId, i.toAmount);
+    }
+  });
 
   return { dailyVolume };
 }

@@ -1,16 +1,19 @@
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getDexVolumeExports } from "../../helpers/dexVolumeLogs";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const FACTORY_ADDRESS = '0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A'
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.FANTOM]: {
-      fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: FACTORY_ADDRESS }),
-      start: 1688172646, // when PairFactory was created https://ftmscan.com/address/0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A
-    },
-  },
+const blacklist_tokens = ['0xB8a32897016C1B2ee0797090162eAFe58f032795']
+const customLogic = async ({ dailyVolume, }: any) => {
+  for (const token of blacklist_tokens) {
+    dailyVolume.removeTokenBalance(token)
+  }
+  return {
+    dailyVolume,
+  };
 }
 
-export default adapter
+export default uniV2Exports({
+  [CHAIN.FANTOM]: {
+    factory: '0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A',
+    customLogic
+  },
+}, { runAsV1: true })

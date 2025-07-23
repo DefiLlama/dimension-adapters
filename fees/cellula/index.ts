@@ -10,6 +10,9 @@ const LIFE_ABI = "event FeedEvent(uint256 tokenId, uint256 startTime, uint256 wo
 const methodology = {
   Fees: "The cost of renting a Cell.",
   Revenue: "The sum of life charging fees and life mint fees.",
+  Protocolrevenue: "Share of 25% of life charging fees and life mint fees.",
+  HoldersRevenue: "Share of 5% of life charging fees and life mint fees.",
+  SupplySideRevenue: "Share of 70% of life charging fees and life mint fees.",
 };
 const adapter: Adapter = {
   adapter: {
@@ -20,7 +23,7 @@ const adapter: Adapter = {
         const dailyFees = createBalances() // ✅
 
         // Revenue
-        const dailyRevenue = createBalances() // ✅ 
+        const dailyRevenue = createBalances() // ✅
         const dailyProtocolRevenue = createBalances() // 70% + Food
         const dailyHoldersRevenue = createBalances() //  5%
         const dailySupplySideRevenue = createBalances() // 25%
@@ -50,16 +53,19 @@ const adapter: Adapter = {
           "604800": "11900000000000000",
         }
         buyFoodLogs.map(e => {
+          if (!workTimePrice[e.workTime]) {
+            return
+          }
           dailyFees.addGasToken(workTimePrice[e.workTime])
           dailyRevenue.addGasToken(workTimePrice[e.workTime])
           dailyProtocolRevenue.addGasToken(workTimePrice[e.workTime])
         })
         return {
-          dailyFees, 
+          dailyFees,
           dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue
         }
       }) as FetchV2,
-      start: 1713052800,
+      start: '2024-04-14',
       meta: {
         methodology
       },

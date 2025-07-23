@@ -50,7 +50,11 @@ const adapter: SimpleAdapter = {
         cardano: {
             fetch: fetchData,
             start: DANOGO_START_TIMESTAMP,
-            runAtCurrTime: false,
+            meta: {
+                methodology: {
+                    Fees: 'Trading and listing fees paid by users.',
+                }
+            }
         }
     },
     version: 2

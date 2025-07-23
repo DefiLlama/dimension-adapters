@@ -1,6 +1,6 @@
-import { Adapter, Fetch, FetchResultFees } from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
-import { queryDune } from '../../helpers/dune';
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { FetchOptions, } from '../../adapters/types';
+import { addTokensReceived } from '../../helpers/token';
 
 const totalFee = 9.5;
 const strategistFee = 0.5;
@@ -9,47 +9,6 @@ const revenueFee = totalFee - strategistFee - callFee;
 const holderShare = 36;
 const protocolShare = 64;
 
-function getDay(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return date.toISOString().split('T')[0];
-}
-
-interface IRevenue {
-  day: string;
-  arbitrum: number;
-  base: number;
-  polygon: number;
-  avalanche: number;
-  fantom: number;
-  optimism: number;
-  BNB: number;
-  ethereum: number;
-  linea: number;
-}
-
-const fetch = (chain: Exclude<keyof IRevenue, 'day'>): Fetch => {
-  return async (timestamp, _, {startOfDay}): Promise<FetchResultFees> => {
-    const endTimestamp = startOfDay + 86400;
-    const allRevenue: IRevenue[] = (await queryDune('3594948', {endTimestamp}));
-    const day = getDay(timestamp);
-    const entry = allRevenue.find(r => r.day === day);
-
-    if (!entry) {
-      throw new Error(`No fees found for ${day}`);
-    }
-
-    const dailyRevenue = entry[chain] || 0;
-    const dailyFees = dailyRevenue * (totalFee / revenueFee);
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: `${dailyRevenue * (protocolShare/100)}`,
-      dailyHoldersRevenue: `${dailyRevenue * (holderShare/100)}`,
-      timestamp,
-    };
-  };
-};
-
 const methodology = {
   Fees: `${totalFee}% of each harvest is charged as a performance fee`,
   Revenue: `All fees except for ${strategistFee}% to strategist and variable harvest() call fee are revenue`,
@@ -57,82 +16,57 @@ const methodology = {
   ProtocolRevenue: `${protocolShare}% of revenue is distributed to the treasury`,
 };
 
-const adapter: Adapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch('arbitrum'),
-      start: 1693958400, // 2023-09-06
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-   [CHAIN.BASE]: {
-      fetch: fetch('base'),
-      start: 1692921600, // 2023-08-25
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch('polygon'),
-      start: 1693958400, // 2023-09-06
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch('avalanche'),
-      start: 1693958400, // 2023-09-06
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.FANTOM]: {
-      fetch: fetch('fantom'),
-      start: 1692921600, // 2023-08-25
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch('optimism'),
-      start: 1692921600, // 2023-08-25
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch('BNB'),
-      start: 1692921600, // 2023-08-25
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch('ethereum'),
-      start: 1698105600, // 2023-10-24
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.LINEA]: {
-      fetch: fetch('linea'),
-      start: 1710028800, // 2024-03-10
-      runAtCurrTime: false,
-      meta: {
-        methodology
-      }
-    },
-  },
-  isExpensiveAdapter: true,
-};
-export default adapter;
+const defaultTargets = ['0x02ae4716b9d5d48db1445814b0ede39f5c28264b']
+const adapter: any = {}
+const config: any = {
+  arbitrum: { start: '2023-09-06', tokens: [ADDRESSES.arbitrum.USDC_CIRCLE], fromAddressFilter: '0x5f98f630009E0E090965fb42DDe95F5A2d495445' },
+  base: { start: '2023-08-25', tokens: [ADDRESSES.base.USDbC], fromAddressFilter: '0x02ae4716b9d5d48db1445814b0ede39f5c28264b'},
+  polygon: { start: '2023-09-06', tokens: [ADDRESSES.polygon.USDC], logFilter: polygonLogFilter},
+  avax: { start: '2023-09-06', tokens: [ADDRESSES.avax.USDC], },
+  optimism: { start: '2023-08-25', tokens: [ADDRESSES.optimism.USDC], },
+  bsc: { start: '2023-08-25', tokens: [ADDRESSES.bsc.USDT], },
+  ethereum: { start: '2023-08-25', tokens: [ADDRESSES.ethereum.USDC], targets: ['0x65f2145693bE3E75B8cfB2E318A3a74D057e6c7B'],  logFilter: ethereumLogFilter, },
+  linea: { start: '2024-03-10', tokens: [ADDRESSES.linea.USDC], },
+}
+
+Object.keys(config).forEach(chain => {
+  const { start, targets = defaultTargets, fromAddressFilter, tokens, logFilter, } = config[chain]
+  adapter[chain] = {
+    start,
+    meta: { methodology },
+    fetch: async (options: FetchOptions) => {
+      const dailyRevenue = await addTokensReceived({ options, targets, fromAddressFilter, tokens, logFilter, })
+      const dailyFees = dailyRevenue.clone(totalFee / revenueFee);
+      const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100);
+      const dailyHoldersRevenue = dailyRevenue.clone(holderShare / 100);
+      return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, }
+    }
+  }
+})
+
+export default {
+  version: 2,
+  adapter,
+}
+
+const blacklistedPolygonFromAddress = [
+  '0x8f5bbb2bb8c2ee94639e55d5f41de9b4839c1280',
+  '0xc0d173e3486f7c3d57e8a38a003500fd27e7d055',
+  '0x4fed5491693007f0cd49f4614ffc38ab6a04b619',
+  '0x161d61e30284a33ab1ed227bedcac6014877b3de',
+]
+const blacklistedPolygonFromAddressSet = new Set(blacklistedPolygonFromAddress.map((address: string) => address.toLowerCase()))
+
+function polygonLogFilter(log: any) {
+  return !blacklistedPolygonFromAddressSet.has(log.from.toLowerCase())
+}
+
+const blacklistedEthereumFromAddress = [
+  ADDRESSES.null,
+  '0x504A330327A089d8364C4ab3811Ee26976d388ce',
+]
+const blacklistedEthereumFromAddressSet = new Set(blacklistedEthereumFromAddress.map((address: string) => address.toLowerCase()))
+
+function ethereumLogFilter(log: any) {
+  return !blacklistedEthereumFromAddressSet.has(log.from.toLowerCase())
+}

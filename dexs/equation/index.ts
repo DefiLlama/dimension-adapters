@@ -1,69 +1,66 @@
-
 import { CHAIN } from "../../helpers/chains";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import request, { gql } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-    [CHAIN.ARBITRUM]: "https://graph-arbitrum.equation.trade/subgraphs/name/equation-stats-arbitrum",
-}
+  [CHAIN.ARBITRUM]:
+    "https://graph-arbitrum.equation.trade/subgraphs/name/equation-stats-arbitrum",
+};
 
 const methodology = {
-    DailyVolume: "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
-}
-
-const queryVolume = gql`
-  query query_volume($id: String!) {
-    protocolStatistics(where: {id: $id}) {
-        volumeUSD
-      }
-  }
-`
+  DailyVolume:
+    "Volume from the sum of the open/close/liquidation of positions and liquidity positions.",
+};
 
 const queryTotalVolume = gql`
-  query query_total {
-    protocolState(id: "protocol_state") {
-        totalVolumeUSD
+  query query_total($block: Int) {
+    protocolState(id: "protocol_state", block: { number: $block }) {
+      totalVolumeUSD
     }
   }
-`
-
-interface IDailyResponse {
-    protocolStatistics: [{
-        volumeUSD: string,
-    }]
-}
+`;
 
 interface ITotalResponse {
-    protocolState: {
-        totalVolumeUSD: string,
-    }
+  protocolState: {
+    totalVolumeUSD: number;
+  };
 }
 
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
+    const [startBlock, endBlock] = await Promise.all([
+      options.getStartBlock(),
+      options.getEndBlock(),
+    ]);
+    const [prevData, totalData]: ITotalResponse[] = await Promise.all([
+      request(endpoints[options.chain], queryTotalVolume, {
+        block: startBlock,
+      }),
+      request(endpoints[options.chain], queryTotalVolume, {
+        block: endBlock,
+      }),
+    ]);
 
-const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-    const dailyData: IDailyResponse = await request(endpoints[chain], queryVolume, {
-        id: 'Daily:' + dayTimestamp,
-    })
-    const totalData: ITotalResponse = await request(endpoints[chain], queryTotalVolume)
+    const dailyVolume =
+      totalData.protocolState.totalVolumeUSD -
+      prevData.protocolState.totalVolumeUSD;
+
     return {
-        timestamp: dayTimestamp,
-        dailyVolume: dailyData.protocolStatistics[0].volumeUSD,
-        totalVolume: totalData.protocolState.totalVolumeUSD,
-    }
-}
+      dailyVolume,
+    };
+  };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.ARBITRUM]: {
-            fetch: getFetch()(CHAIN.ARBITRUM),
-            start: 1697760000,
-            meta:{
-                methodology: methodology,
-            },
-        },
+  version: 2,
+  deadFrom: "2025-04-06",
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2023-10-20',
+      meta: {
+        methodology: methodology,
+      },
     },
-}
+  },
+};
 
 export default adapter;

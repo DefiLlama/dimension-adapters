@@ -1,33 +1,22 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-const {
-  getChainVolume,
-} = require("../../helpers/getUniSubgraphVolume");
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.EVMOS]: "https://subgraph.satsuma-prod.com/09c9cf3574cc/orbital-apes/v3-subgraph/api",
-};
+async function fetch(options: FetchOptions) {
+  if (options.startOfDay > 1742644800) return {}
+  return getUniV3LogAdapter({
+    factory: "0xf544365e7065966f190155F629cE0182fC68Eaa2",
+  })
+}
 
-const v1Graph = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "volumeUSD"
-  },
-});
-
-
-const adapter: SimpleAdapter = {
+const adapter: Adapter = {
   version: 2,
+  deadFrom: "2025-03-22",
   adapter: {
     [CHAIN.EVMOS]: {
-      fetch: v1Graph(CHAIN.EVMOS),
-      start: 1680480000,
-    }
+      fetch,
+      start: '2023-04-03',
+    },
   },
 };
 

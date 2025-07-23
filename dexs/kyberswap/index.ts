@@ -11,7 +11,7 @@ import {
   univ2Adapter,
   getUniqStartOfTodayTimestamp,
 } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const normalizeChain = {
     "avax": "avalanche"
@@ -208,27 +208,27 @@ const customeElasicVolumeFunctions: {[s: Chain]: any} = {
   [CHAIN.OPTIMISM]: optimismElastic,
   [CHAIN.ETHEREUM]: ethereumElasicVolume
 }
-function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof classicGraphs, volumeField:string, dailyDataField:string, isElastic: boolean){
+function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof classicGraphs, _volumeField:string, _dailyDataField:string, isElastic: boolean){
     return Object.keys(endpoints).reduce((acc, chain) => {
         acc[chain] = {
         fetch: async (options: FetchOptions) =>  {
-            const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await graphs(chain as any)(options))
+            const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await (graphs as any)(chain as any)(options))
             const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
             const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
             const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
-              dailyVolume: `${dailyVolume}`,
-              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  `${totalVolume}`,
+              dailyVolume: dailyVolume,
+              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  totalVolume,
             };
           },
-          start: 0,
-        }
+                  }
         return acc
       }, {} as BaseAdapter)
 }
 
 const adapter: BreakdownAdapter = {
   version: 2,
+  deadFrom: '2025-01-01',
   breakdown: {
     classic: buildFromEndpoints(classicEndpoints, classicGraphs, DEFAULT_DAILY_VOLUME_FIELD, "dmmDayDatas", false),
     elastic: buildFromEndpoints(elasticEndpoints, elasticGraphs, "volumeUSD", "kyberSwapDayDatas", true)

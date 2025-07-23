@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions, FetchResultV2 } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
@@ -88,18 +88,18 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
   if(options.toTimestamp < Date.now()/1e3-36*3600){
     return graph(endpoints)(chain)(options)
   }
-  const response = (await fetchURL(`https://prices.curve.fi/v1/chains/${chain}`));
+  const response = (await fetchURL(`https://prices.curve.finance/v1/chains/${chain}`));
   const fees = (response.data as any[])
   .filter(e => e.trading_fee_24h < 1_000_000).reduce((all, pool)=>{
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
   const allFees:any = {
-    dailyFees: `${fees}`,
+    dailyFees: fees,
     dailyRevenue: `${fees/2}`,
     dailyHoldersRevenue: `${fees/2}`,
   };
   if(chain === ETHEREUM){
-    const bribes:any[] = (await fetchURL(`https://raw.githubusercontent.com/pierremarsotlyon1/chainhub-backend/main/data/stats.json`)).claimsLast7Days.claims
+    const bribes:any[] = (await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)).claimsLast7Days.claims
     const yesterday = bribes.reduce((closest, item)=>{
       const timeDiff = (val:any) => Math.abs(val.timestamp - (Date.now()/1e3-24*3600))
       if(timeDiff(item) < timeDiff(closest)){
@@ -108,6 +108,8 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
       return closest
     })
     allFees.dailyBribesRevenue = (bribes[bribes.length-1].value - yesterday.value).toString()
+  } else {
+    allFees.dailyBribesRevenue = 0
   }
   return allFees
 };

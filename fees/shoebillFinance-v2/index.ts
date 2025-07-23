@@ -27,13 +27,31 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch,
-      start: 1703980800,
+      start: '2023-12-31',
       runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "Total interest paid by borrowers",
+          Revenue: "Protocol's share of interest treasury",
+          ProtocolRevenue: "Protocol's share of interest into treasury",
+          HoldersRevenue: "Share of interest into protocol governance token holders.",
+          SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+        }
+      }
     },
     [CHAIN.WEMIX]: {
       fetch,
-      start: 1703980800,
+      start: '2023-12-31',
       runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "Total interest paid by borrowers",
+          Revenue: "Protocol's share of interest treasury",
+          ProtocolRevenue: "Protocol's share of interest into treasury",
+          HoldersRevenue: "Share of interest into protocol governance token holders.",
+          SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+        }
+      }
     }
   },
 };

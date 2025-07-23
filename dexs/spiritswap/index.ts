@@ -1,37 +1,6 @@
-import { SimpleAdapter } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const {
-  getChainVolumeWithGasToken,
-} = require("../../helpers/getUniSubgraphVolume");
-
-const endpoints = {
-  fantom: sdk.graph.modifyEndpoint('E6viiLSqVvjLy9re7aBPkaXAB2itNDho2LR3CP2q1uqP'),
-};
-
-const graphs = getChainVolumeWithGasToken({
-  graphUrls: {
-    fantom: endpoints.fantom,
-  },
-  totalVolume: {
-    factory: "spiritswapFactories",
-    field: 'totalVolumeFTM',
-  },
-  dailyVolume: {
-    factory: "spiritswapDayData",
-    field: 'dailyVolumeFTM',
-  },
-  priceToken: "coingecko:fantom"
-});
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    fantom: {
-      fetch: graphs("fantom"),
-      start: 1620864000,
-    },
-  },
-};
-
-export default adapter;
+export default uniV2Exports({
+  [CHAIN.FANTOM]: { factory: '0xEF45d134b73241eDa7703fa787148D9C9F4950b0', start: '2021-05-13', fees: 0.003, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
+})

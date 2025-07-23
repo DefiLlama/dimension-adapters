@@ -29,8 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch,
-      start: 0,
-      runAtCurrTime: true
+            runAtCurrTime: true
     },
   },
 };

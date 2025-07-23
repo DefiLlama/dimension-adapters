@@ -81,18 +81,27 @@ async function getFundsFees(
   return { dailyFees, dailyRevenues, totalFees, totalRevenues };
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Total yields are generated from investment assets.',
+    Revenue: '15% yields are collected by Spiko protocol.',
+  }
+}
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      start: 1714514400,
+      start: '2024-05-01',
       fetch: (options: FetchOptions) =>
         getFundsFees(funds[CHAIN.ETHEREUM], options),
+      meta,
     },
     [CHAIN.POLYGON]: {
-      start: 1713564000,
+      start: '2024-04-20',
       fetch: (options: FetchOptions) =>
         getFundsFees(funds[CHAIN.POLYGON], options),
+      meta,
     },
   },
 };

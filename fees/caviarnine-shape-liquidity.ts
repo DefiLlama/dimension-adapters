@@ -23,9 +23,9 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyRevenue = response.protocol_fees.interval_1d.usd;
   const supplySideRevenue = response.lp_revenue.interval_1d.usd;
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    dailySupplySideRevenue: `${supplySideRevenue}`,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: supplySideRevenue,
     timestamp
   }
 }
@@ -34,7 +34,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,
-      start: 1699142400,
+      start: '2023-11-05',
       // runAtCurrTime: true
     }
   }

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
@@ -43,7 +44,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1694304000,
+      start: '2023-09-10',
       meta: {
         methodology: {
           Fees: 'GEODNET receives fees for station access to their RTK network.',

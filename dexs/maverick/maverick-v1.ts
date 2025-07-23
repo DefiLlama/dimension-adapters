@@ -1,5 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
+import { filterPools2 } from "../../helpers/uniswap";
 
 export const maverickV1Factories: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
@@ -35,47 +36,35 @@ const getData = async (options: any, dataType: "volume" | "fee") => {
   const factoryFromBlock = maverickV1Factories[options.chain].startBlock;
 
   let pools: string[];
-  const logs = await options.getLogs({
-    target: factory,
-    fromBlock: factoryFromBlock,
-    eventAbi: mavV2PoolCreated,
-  });
+  const logs = await options.getLogs({ target: factory, fromBlock: factoryFromBlock, eventAbi: mavV2PoolCreated, });
 
-  pools = logs.map((log: any) => log.poolAddress);
-  const tokenAs = await options.api.multiCall({
-    abi: "address:tokenA",
-    calls: pools!,
-  });
-  const tokenBs = await options.api.multiCall({
-    abi: "address:tokenB",
-    calls: pools!,
-  });
+  pools = logs.map((log: any) => log.poolAddress.toLowerCase());
+  const tokenAs = await options.api.multiCall({ abi: "address:tokenA", calls: pools!, });
+  const tokenBs = await options.api.multiCall({ abi: "address:tokenB", calls: pools!, });
+  let fees = await options.api.multiCall({ abi: "function fee() view returns (uint256)", calls: pools!, });
+  const poolInfos = {  } as any
+  pools.forEach((pool, idx) => {
+    poolInfos[pool] = {
+      tokenA: tokenAs[idx],
+      tokenB: tokenBs[idx],
+      fee: fees[idx] / 1e18,
+    }
+  })
 
-  const swapLogs = await options.getLogs({
-    targets: pools,
-    eventAbi: mavV2SwapEvent,
-    flatten: false,
-  });
+  const filteredPoolsRes = await filterPools2({ fetchOptions: options, pairs: pools, token0s: tokenAs, token1s: tokenBs })
+  pools = filteredPoolsRes.pairs
 
-  let fees = [] as any;
-  if (dataType == "fee") {
-    fees = await options.api.multiCall({
-      abi: "function fee() view returns (uint256)",
-      calls: pools!,
-    });
-  }
-
+  const swapLogs = await options.getLogs({ targets: pools, eventAbi: mavV2SwapEvent, flatten: false, });
+  
   swapLogs.forEach((log: any[], index: number) => {
-    const tokenA = tokenAs[index];
-    const tokenB = tokenBs[index];
+    const { tokenA, tokenB, fee } = poolInfos[pools[index]]
     if (!log.length) return;
     log.forEach((i: any) => {
       let amount = Number(i.amountIn);
       let tokenAIn = Boolean(i.tokenAIn);
 
       if (dataType == "fee") {
-        let fee = fees[index];
-        options.api.add(tokenAIn ? tokenA : tokenB, (amount * fee) / 1e18);
+        options.api.add(tokenAIn ? tokenA : tokenB, amount * fee);
       } else {
         options.api.add(tokenAIn ? tokenA : tokenB, amount);
       }
@@ -85,13 +74,11 @@ const getData = async (options: any, dataType: "volume" | "fee") => {
   let amount = await options.api.getBalancesV2();
   if (dataType == "fee") {
     return {
-      timestamp: options.startOfDay,
       dailyFees: amount,
       dailyUserFees: amount,
     };
   } else {
     return {
-      timestamp: options.startOfDay,
       dailyVolume: amount,
     };
   }

@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, } from "graphql-request";
 import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 const endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7cG6NVPRm4CQmfVsh4d1bYGqaWNazRyVTn3xuvdDRNPi'),
@@ -33,7 +33,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp: timestamp,
-        dailyFees: dailyFees,
+        dailyFees,
         dailyUserFees: dailyFees,
         dailySupplySideRevenue: dailyFees,
       };
@@ -46,7 +46,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-      start: 1667260800,
+      start: '2022-11-01',
       meta: {
         methodology: {
           Fees: "Interest paid by borrowers",

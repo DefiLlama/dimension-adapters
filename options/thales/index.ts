@@ -1,24 +1,169 @@
-import * as sdk from "@defillama/sdk";
-import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { addTokensReceived } from '../../helpers/token';
+import { OVERTIME_CHAIN_CONFIG, OVERTIME_CONTRACT_ADDRESSES } from './config';
+import { OVERTIME_EVENT_ABI } from './abis';
+import { 
+  parseTicketCreatedEvent, 
+  parseBoughtFromAmmEvent, 
+  parseSpeedMarketCreatedEvent, 
+  parseChainedMarketCreatedEvent 
+} from './parsers';
 import { CHAIN } from "../../helpers/chains";
-import getChainData, { MIN_TIMESTAMP } from "./getChainData";
 
-const endpoints: ChainEndpoints = {
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('GADfDRePpbqyjK2Y3JkQTBPBVQj98imhgKo7oRWW7RqQ'),
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('G7wi71W3PdtYYidKy5pEmJvJ1Xpop25ogynstRjPdyPG'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('FZH9ySiLCdqKrwefaospe6seSqV1ZoW4FvPQUGP7MFob'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('FrSU8JkxyoGiLyj1b5X8jATrNBYPts7h64rd5HZSCqAb'),
-};
-
-const adapter: SimpleAdapter = {
-  adapter: Object.keys(endpoints).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: async (timestamp: number) => await getChainData(endpoints[chain], timestamp, chain),
-        start: MIN_TIMESTAMP
-      }
+function getChainContractsToQuery(
+  chain: string, 
+  dailyNotionalVolume: ReturnType<FetchOptions['createBalances']>,
+  dailyPremiumVolume: ReturnType<FetchOptions['createBalances']>
+) {
+  switch(chain) {
+    case CHAIN.OPTIMISM: {
+      const { sportsAMMV2, thalesAMM, rangedAMM, speedMarket, chainedSpeedMarket } 
+        = OVERTIME_CONTRACT_ADDRESSES[CHAIN.OPTIMISM];
+      return [
+        {
+          address: sportsAMMV2,
+          eventAbi: OVERTIME_EVENT_ABI.ticketCreated,
+          parser: (log: any) => parseTicketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: thalesAMM,
+          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
+          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: rangedAMM,
+          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
+          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: speedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
+          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: chainedSpeedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
+          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        }
+      ];
     }
-  }, {})
+    case CHAIN.ARBITRUM: {
+      const { sportsAMMV2, thalesAMM, rangedAMM, speedMarket, chainedSpeedMarket } 
+        = OVERTIME_CONTRACT_ADDRESSES[CHAIN.ARBITRUM];
+      return [
+        {
+          address: sportsAMMV2,
+          eventAbi: OVERTIME_EVENT_ABI.ticketCreated,
+          parser: (log: any) => parseTicketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: thalesAMM,
+          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
+          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: rangedAMM,
+          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
+          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: speedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
+          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: chainedSpeedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
+          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        }
+      ];
+    }
+    case CHAIN.BASE: {
+      const { sportsAMMV2, speedMarket, chainedSpeedMarket } = OVERTIME_CONTRACT_ADDRESSES[CHAIN.BASE];
+      return [
+        {
+          address: sportsAMMV2,
+          eventAbi: OVERTIME_EVENT_ABI.ticketCreated,
+          parser: (log: any) => parseTicketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: speedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
+          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: chainedSpeedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
+          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        }
+      ];
+    }
+    case CHAIN.POLYGON: {
+      const { speedMarket, chainedSpeedMarket } = OVERTIME_CONTRACT_ADDRESSES[CHAIN.POLYGON];
+      return [
+        {
+          address: speedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
+          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        },
+        {
+          address: chainedSpeedMarket,
+          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
+          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
+        }
+      ];
+    }
+    default:
+      throw new Error("No contracts found for this chain");
+  }
+}
+
+export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyNotionalVolume = options.createBalances();
+  const dailyPremiumVolume = options.createBalances();
+  const contractConfigs = getChainContractsToQuery(options.chain, dailyNotionalVolume, dailyPremiumVolume);
+  
+  await Promise.all(
+    contractConfigs.map(async (cfg) => {
+      const logs = await options.getLogs({
+        target: cfg.address,
+        eventAbi: cfg.eventAbi,
+        onlyArgs: true,
+      });
+      logs.forEach(log => cfg.parser(log));
+    })
+  );
+  
+  const dailyFees = await addTokensReceived({ ...OVERTIME_CHAIN_CONFIG[options.chain], options });
+  
+  return {
+    dailyNotionalVolume,
+    dailyPremiumVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+  };
+}
+
+const adapter: Adapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2024-08-01',
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch,
+      start: '2024-08-01',
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: '2024-08-01',
+    },
+    [CHAIN.POLYGON]: {
+      fetch,
+      start: '2025-04-01',
+    },
+  },
 };
+
 export default adapter;

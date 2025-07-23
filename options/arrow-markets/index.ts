@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -16,20 +16,18 @@ export const v2_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchArrowMarketsVolumeData,
-      start: 1707350400
+      start: '2024-02-08'
     },
   },
 };
 
-export async function fetchArrowMarketsVolumeData(
-  /** Timestamp representing the end of the 24 hour period */
-  {endTimestamp} 
-) {
-  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, endTimestamp);
 
-  const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume).toFixed(2);
-  const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume).toFixed(2);
-  const totalNotionalVolume = Number(ArrowMarketsVolumeData.total_notional_volume).toFixed(2);
+export async function fetchArrowMarketsVolumeData(options: FetchOptions) {
+  const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, options.endTimestamp);
+
+  const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume ? ArrowMarketsVolumeData.daily_premium_volume : 0).toFixed(2);
+  const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume ? ArrowMarketsVolumeData.daily_notional_volume : 0).toFixed(2);
+  const totalNotionalVolume = Number(ArrowMarketsVolumeData.total_notional_volume ? ArrowMarketsVolumeData.total_notional_volume : 0).toFixed(2);
 
   return {
     dailyNotionalVolume,
@@ -39,10 +37,8 @@ export async function fetchArrowMarketsVolumeData(
 }
 
 async function getArrowMarketsVolumeData(endpoint: string, timestamp: number): Promise<ArrowMarketsVolumeResponse> {
-  const url = new URL(endpoint);
-  url.searchParams.append('timestamp', timestamp.toString());
-  
-  return fetchURL(endpoint)
+  const url = `${endpoint}?timestamp=${timestamp}`;
+  return fetchURL(url)
 }
 
 export default v2_adapter;

@@ -1,16 +1,7 @@
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getDexVolumeExports } from "../../helpers/dexVolumeLogs";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const FACTORY_ADDRESS = '0xc6366efd0af1d09171fe0ebf32c7943bb310832a';
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.FANTOM]: {
-      fetch: getDexVolumeExports({ chain: CHAIN.FANTOM, factory: FACTORY_ADDRESS }),
-      start: 1670544000,
-    },
-  }
-};
-
-export default adapter;
+export default uniV2Exports({
+  [CHAIN.FANTOM]: { factory: '0xc6366efd0af1d09171fe0ebf32c7943bb310832a', },
+  [CHAIN.SONIC]: { factory: '0xDDD9845Ba0D8f38d3045f804f67A1a8B9A528FcC', },
+})

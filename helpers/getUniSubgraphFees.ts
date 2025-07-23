@@ -6,7 +6,7 @@ import {
   FetchResultVolume,
   FetchResultGeneric,
 } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
@@ -115,7 +115,6 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
           [chain]: {
             ...volAdapter[chain],
             fetch: fetchFees,
-            customBackfill: fetchFees,
           }
         }
         return baseAdapter
@@ -178,7 +177,6 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
         [chain]: {
           ...adapterObj[chain],
           fetch: fetchFees,
-          customBackfill: fetchFees,
           meta: params.meta
         }
       }

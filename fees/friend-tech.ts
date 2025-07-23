@@ -19,9 +19,16 @@ const adapter: Adapter = {
           dailyFees.add("0x0bd4887f7d41b35cd75dff9ffee2856106f86670", e.protocolFee * BigInt(2))
           dailyRevenue.add("0x0bd4887f7d41b35cd75dff9ffee2856106f86670", e.protocolFee)
         })
-        return { dailyFees, dailyRevenue, }
+        return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
       }) as FetchV2,
-      start: 1691539200,
+      start: '2023-08-09',
+      meta: {
+        methodology: {
+          Fees: "Trading fees paid by users.",
+          Revenue: "Portion of fees collected by Friend Tech.",
+          ProtocolRevenue: "Portion of fees collected by Friend Tech.",
+        }
+      }
     },
   },
   version: 2,

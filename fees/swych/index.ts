@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -28,10 +29,10 @@ type TIsStable = {
     [key: string]: boolean;
 }
 const isStable:TIsStable = {
-    "0x55d398326f99059ff775485246999027b3197955": true,
-    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": false,
-    "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c": false,
-    "0x2170ed0880ac9a755fd29b2688956bd959f933f8": false,
+    [ADDRESSES.bsc.USDT]: true,
+    [ADDRESSES.bsc.WBNB]: false,
+    [ADDRESSES.bsc.BTCB]: false,
+    [ADDRESSES.bsc.ETH]: false,
     "0x570a5d26f7765ecb712c0924e4de545b89fd43df": false,
 }
 const OracleABI = {
@@ -117,7 +118,7 @@ const fetchFees = async (options: FetchOptions) => {
         const feeValue =  Number(fee.amount)/10 ** (30 - token_decimal)
         dailyFees.add(fee.token, feeValue);
     });
-    return { dailyFees: dailyFees }
+    return { dailyFees }
 };
 
 const adapter: Adapter = {
@@ -125,7 +126,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchFees,
-            start: 1701720000,
+            start: '2023-12-04',
             meta: {
                 methodology: {
                     Fees: 'Swych collects fees from different transactions done on the Perpetual Exchange.',

@@ -2,7 +2,6 @@ import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 type RadixPlazaResponse = {
@@ -41,14 +40,11 @@ const adapter: SimpleAdapter = {
         const dailyUserFees = dailyFees;
 
         return {
-          totalVolume: graphData.factories[0].totalTradeVolumeUSD,
           dailyVolume: graphData.dailies[0].tradeVolumeUSD,
 
-          totalFees: graphData.factories[0].totalFeesEarnedUSD,
-          dailyUserFees,
           dailyFees,
-          dailySupplySideRevenue,
-          timestamp
+          dailyUserFees,
+          dailySupplySideRevenue
         }
       },
       meta: {
@@ -57,7 +53,7 @@ const adapter: SimpleAdapter = {
           SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
         }
       },
-      start: 1633237008
+      start: '2021-10-03'
     },
     [CHAIN.RADIXDLT]: {
       fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
@@ -76,7 +72,6 @@ const adapter: SimpleAdapter = {
           dailyRevenue,
           dailyProtocolRevenue,
           dailySupplySideRevenue,
-          timestamp
         }
       },
       meta: {
@@ -86,7 +81,7 @@ const adapter: SimpleAdapter = {
           SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
         }
       },
-      start: 1700784000
+      start: '2023-11-24'
     }
   },
 };

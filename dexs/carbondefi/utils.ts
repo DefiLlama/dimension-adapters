@@ -1,115 +1,60 @@
-import { Balances } from "@defillama/sdk";
 import { CarbonAnalyticsResponse } from "./types";
 import { FetchOptions } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
-const filterDataByDate = (
-  swapData: CarbonAnalyticsResponse,
-  startTimestampS: number,
-  endTimestampS: number
-) => {
-  const startTimestampMs = startTimestampS * 1000;
-  const endTimestampMs = endTimestampS * 1000;
+export const fetchDataFromApi = async (
+  endpoint: string,
+  startTimestampS?: number,
+  endTimestampS?: number
+): Promise<CarbonAnalyticsResponse> => {
+  const url = new URL(endpoint);
 
-  return swapData.filter((swap) => {
-    const swapTsMs = Date.parse(swap.timestamp);
-    return swapTsMs >= startTimestampMs && swapTsMs <= endTimestampMs;
-  });
+  if (startTimestampS) {
+    url.searchParams.append("start", startTimestampS.toString());
+  }
+  if (endTimestampS) {
+    url.searchParams.append("end", endTimestampS.toString());
+  }
+  
+  url.searchParams.append("limit", "10000");
+
+  return fetchURL(url.href);
 };
 
-export const getDimensionsSum = (
-  swapData: CarbonAnalyticsResponse,
-  startTimestamp: number,
-  endTimestamp: number
-) => {
-  const dailyData = filterDataByDate(swapData, startTimestamp, endTimestamp);
-
-  const { dailyVolume, dailyFees } = dailyData.reduce(
-    (prev, curr) => {
-      return {
-        dailyVolume: prev.dailyVolume + curr.targetamount_usd,
-        dailyFees: prev.dailyFees + curr.tradingfeeamount_usd,
-      };
-    },
-    {
-      dailyVolume: 0,
-      dailyFees: 0,
-    }
-  );
-  const { totalVolume, totalFees } = swapData.reduce(
-    (prev, curr) => {
-      return {
-        totalVolume: prev.totalVolume + curr.targetamount_usd,
-        totalFees: prev.totalFees + curr.tradingfeeamount_usd,
-      };
-    },
-    {
-      totalVolume: 0,
-      totalFees: 0,
-    }
-  );
-  return {
-    dailyVolume,
-    totalVolume,
-    dailyFees,
-    totalFees,
-  };
-};
-
-const isNativeToken = (address: string) => address.toLowerCase() === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase();
-
-export const getDimensionsSumByToken = (
-  swapData: CarbonAnalyticsResponse,
+export const getDimensionsSum = async (
+  endpoint: string,
   startTimestamp: number,
   endTimestamp: number,
-  emptyData: {
-    dailyVolume: Balances;
-    dailyFees: Balances;
-    totalVolume: Balances;
-    totalFees: Balances;
-  },
+  chainStartTimestamp: number
 ) => {
-  const dailyData = filterDataByDate(swapData, startTimestamp, endTimestamp);
-  const { dailyVolume, dailyFees, totalFees, totalVolume } = emptyData;
-
-  swapData.forEach((swap) => {
-    if (isNativeToken(swap.targetaddress)) {
-      totalVolume.addGasToken(swap.targetamount_real * 1e18);
-    } else {
-      totalVolume.add(swap.targetaddress, swap.targetamount_real);
-    }
-    if (isNativeToken(swap.feeaddress)) {
-      totalFees.addGasToken(swap.tradingfeeamount_real * 1e18);
-    } else {
-      totalFees.add(swap.feeaddress, swap.tradingfeeamount_real);
-    }
-  });
-
-  dailyData.forEach((swap) => {
-    if (isNativeToken(swap.targetaddress)) {
-      dailyVolume.addGasToken(swap.targetamount_real * 1e18);
-    } else {
-      dailyVolume.add(swap.targetaddress, swap.targetamount_real);
-    }
-    if (isNativeToken(swap.feeaddress)) {
-      dailyFees.addGasToken(swap.tradingfeeamount_real * 1e18);
-    } else {
-      dailyFees.add(swap.feeaddress, swap.tradingfeeamount_real);
+  const allData: CarbonAnalyticsResponse = await fetchDataFromApi(
+    endpoint,
+    chainStartTimestamp,
+    endTimestamp
+  );
+ 
+  let dailyVolume = 0;
+  let dailyFees = 0;
+  
+  allData.forEach(item => {
+    const timestamp = Number(item.timestamp);
+    if (timestamp >= startTimestamp && timestamp < endTimestamp) {
+      dailyVolume += item.volumeUsd;
+      dailyFees += item.feesUsd;
     }
   });
-
+  
   return {
     dailyVolume,
     dailyFees,
-    totalVolume,
-    totalFees,
+    dailyRevenue: dailyFees,
   };
 };
 
 export const getEmptyData = (options: FetchOptions) => {
   return {
-    dailyVolume: options.createBalances(),
-    dailyFees: options.createBalances(),
-    totalVolume: options.createBalances(),
-    totalFees: options.createBalances(),
+    dailyVolume: 0,
+    dailyFees: 0,
+    dailyRevenue: 0,
   };
 };

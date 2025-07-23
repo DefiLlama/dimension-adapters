@@ -1,44 +1,34 @@
 import { request } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const API_URL = 'https://statistic-api.ashperp.trade/graphql';
 
-interface IVolume {
-  volume: string;
-  timestamp: number;
-}
 
 const VolumeQuery = `
-query GetAllPairStatisticsToday {
-  pairs {
-    getAllPairStatistics {
-      volume
-      timestamp
+query getVolume {
+  overview {
+    getPrevious24h {
+      volume_24h
     }
   }
 }
 `
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) + 86400;
-  const results: IVolume[] = (await request(API_URL, VolumeQuery)).pairs.getAllPairStatistics;
-  let dailyVolume = results.filter((volumeInfo)=>{
-    return volumeInfo.timestamp === dayTimestamp;
-  })
+const fetch = async () => {
+  const dailyVolume: number = (await request(API_URL, VolumeQuery)).overview.getPrevious24h.volume_24h;
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume[0].volume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume,
   };
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ELROND]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
-      start: 1707782400
+      start: '2024-02-13'
     },
   },
 };

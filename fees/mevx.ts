@@ -1,27 +1,37 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { getSolanaReceived } from "../helpers/token";
 
 const fetch: any = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const value = (await queryDune("3967214", {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  }));
-  dailyFees.add('So11111111111111111111111111111111111111112', value[0].fee_token_amount);
-  
-  return { dailyFees, dailyRevenue: dailyFees }
-}
+  const dailyFees = await getSolanaReceived({
+    blacklists: ['3kxSQybWEeQZsMuNWMRJH4TxrhwoDwfv41TNMLRzFP5A', 'BS3CyJ9rRC4Tp8G7f86r6hGvuu3XdrVGNVpbNM9U5WRZ'],
+    blacklist_signers: ['3kxSQybWEeQZsMuNWMRJH4TxrhwoDwfv41TNMLRzFP5A', 'BS3CyJ9rRC4Tp8G7f86r6hGvuu3XdrVGNVpbNM9U5WRZ'],
+    options,
+    targets: [
+      "3kxSQybWEeQZsMuNWMRJH4TxrhwoDwfv41TNMLRzFP5A",
+      "BS3CyJ9rRC4Tp8G7f86r6hGvuu3XdrVGNVpbNM9U5WRZ",
+      "4Lpvp1q69SHentfYcMBUrkgvppeEx6ovHCSYjg4UYXiq"
+    ],
+  });
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: 0,
+      start: '2024-07-27',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using Mevx bot.",
+          Revenue: "Trading fees are collected by Mevx protocol.",
+          ProtocolRevenue: "Trading fees are collected by Mevx protocol.",
+        }
+      }
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

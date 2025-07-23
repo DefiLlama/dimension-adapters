@@ -1,19 +1,6 @@
+import { CHAIN } from '../../helpers/chains'
+import { uniV3Exports } from '../../helpers/uniswap'
 
-// https://api.studio.thegraph.com/query/55584/v3_scroll/version/latest
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { CHAIN } from "../../helpers/chains";
-
-const endpoints = {
-  [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/55584/v3_scroll/version/latest",
-};
-
-const adapter = univ2Adapter(endpoints, {
-  factoriesName: "factories",
-  dayData: "uniswapDayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "totalVolumeUSD",
-  dailyVolumeTimestampField: "date",
-});
-
-adapter.adapter.scroll.start = 1700697600
-export default adapter
+export default uniV3Exports({
+  [CHAIN.SCROLL]: { factory: '0x96a7F53f7636c93735bf85dE416A4Ace94B56Bd9',},
+})

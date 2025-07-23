@@ -50,7 +50,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1690934400,
+      start: '2023-08-02',
+      meta: {
+        methodology: {
+          Fees: "Fees paid by users while using the bot.",
+          Revenue: "All fees are revenue.",
+        }
+      }
     },
   },
 };

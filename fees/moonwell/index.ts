@@ -4,9 +4,12 @@ import * as sdk from "@defillama/sdk";
 
 const comptrollerABI = {
     underlying: "address:underlying",
+    exchangeRateCurrent: "uint256:exchangeRateCurrent",
     getAllMarkets: "address[]:getAllMarkets",
+    liquidationIncentiveMantissa: "uint256:liquidationIncentiveMantissa",
     accrueInterest: "event AccrueInterest(uint256 cashPrior,uint256 interestAccumulated,uint256 borrowIndex,uint256 totalBorrows)",
     reservesAdded: "event ReservesAdded(address benefactor,uint256 addAmount,uint256 newTotalReserves)",
+    liquidateBorrow: "event LiquidateBorrow (address liquidator, address borrower, uint256 repayAmount, address mTokenCollateral, uint256 seizeTokens)",
     reserveFactor: "uint256:reserveFactorMantissa",
 };
 
@@ -26,8 +29,15 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
 }) {
     if (!dailyFees) dailyFees = createBalances()
     if (!dailyRevenue) dailyRevenue = createBalances()
-    const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+    let markets
+    try {
+        markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+    } catch (error) {
+        return { dailyFees, dailyRevenue }
+    }
+    const liquidationIncentiveMantissa = await api.call({ target: market, abi: comptrollerABI.liquidationIncentiveMantissa, })
     const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
+    const exchangeRatesCurrent = await api.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateCurrent, permitFailure: true, });
     underlyings.forEach((underlying, index) => {
         if (!underlying) underlyings[index] = ADDRESSES.null
     })
@@ -56,6 +66,18 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
         }));
     }).flat()
 
+    const liquidateBorrowLogs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.liquidateBorrow,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            seizeTokens: Number(i.seizeTokens),
+            marketIndex: markets.indexOf(i.mTokenCollateral),
+        }));
+    }).flat()
+
     logs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
@@ -66,10 +88,26 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     reservesAddedLogs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
-        dailyRevenue!.add(underlying, log.addAmount / 1e18);
+        dailyRevenue!.add(underlying, log.addAmount);
+    })
+
+    liquidateBorrowLogs.forEach((log: any) => {
+        const marketIndex = log.marketIndex;
+        const underlying = underlyings[marketIndex]
+        dailyFees!.add(underlying, (log.seizeTokens * ((liquidationIncentiveMantissa / 1e18) - 1) * (exchangeRatesCurrent[marketIndex] / 1e18)));
     })
 
     return { dailyFees, dailyRevenue }
+}
+
+const meta = {
+    methodology: {
+        Fees: "Total interest paid by borrowers",
+        Revenue: "Protocol's share of interest treasury",
+        ProtocolRevenue: "Protocol's share of interest into treasury",
+        HoldersRevenue: "No revenue for WELL holders.",
+        SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+    }
 }
 
 function moonwellExport(config: IJSON<string>) {
@@ -78,18 +116,17 @@ function moonwellExport(config: IJSON<string>) {
         exportObject[chain] = {
             fetch: (async (options: FetchOptions) => {
                 const { dailyFees, dailyRevenue } = await getFees(market, options, {})
-                const dailyHoldersRevenue = dailyRevenue
                 const dailySupplySideRevenue = options.createBalances()
                 dailySupplySideRevenue.addBalances(dailyFees)
                 Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
                     dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
                 })
-                return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+                return { dailyFees, dailyRevenue, dailyHoldersRevenue: 0, dailySupplySideRevenue }
             }),
-            start: 0,
-        }
+                    }
     })
-    return { adapter: exportObject, version: 2 } as SimpleAdapter
+    // dailySupplySideRevenue could be negative if protocol revenue exceeds total fees, though unlikely in normal conditions(like bad liquidations)
+    return { adapter: exportObject, version: 2, allowNegativeValue: true, } as SimpleAdapter
 }
 
 export default moonwellExport({ base: baseUnitroller, moonbeam: moonbeamUnitroller, moonriver: moonriverUnitroller, optimism: optimismUnitroller });

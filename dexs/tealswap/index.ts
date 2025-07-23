@@ -32,8 +32,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time * 1000)) === dayTimestamp)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.OAS]: {
       fetch,
-      start: 1671030000,
+      start: '2022-12-14',
     },
   },
 };

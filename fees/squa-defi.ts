@@ -12,7 +12,13 @@ const adapter: Adapter = {
         fetch: getFeesExport(keyManagerQureFiAddr, [event_trade], {
           token: ADDRESSES.base.USDC,
         }),
-        start: 1703255087,
+        start: '2023-12-22',
+        meta: {
+          methodology: {
+            Fees: "Fees paid by users while trading on social network.",
+            Revenue: "Fees paid by users while trading on social network.",
+          }
+        }
     },
   },
   version: 2,

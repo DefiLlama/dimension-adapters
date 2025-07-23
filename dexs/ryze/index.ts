@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import request, { gql } from "graphql-request";
 import { getBlock } from "../../helpers/getBlock";
@@ -56,8 +56,8 @@ const v2Graphs = (chain: Chain) => {
     const dailyVolume = graphRes.daySnapshots.length == 0 ? 0 : Number(graphRes.daySnapshots[0].volume);
 
     return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: `${dailyVolume}`,
+      totalVolume: totalVolume,
+      dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   };
@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: v2Graphs(chain),
-        start: 1689974616,
+        start: '2023-07-21',
       }
     }
   }, {})

@@ -24,7 +24,7 @@ const fetch = async (_timestamp: number , _: ChainBlocks, { startOfDay,api, crea
   }
 }
 
-const fetchObject = { fetch, start:1680048000 }
+const fetchObject = { fetch, start: '2023-03-29' }
 
 const adapter: SimpleAdapter = {
   adapter: {

@@ -1,13 +1,14 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
+import type { FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.studio.thegraph.com/query/71696/bmx-base-stats/version/latest",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.1/gn",
   [CHAIN.MODE]:
-    "https://api.studio.thegraph.com/query/42444/bmx-mode-stats/version/latest",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
 };
 
 const methodology = {
@@ -20,8 +21,8 @@ const methodology = {
     "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
 };
 
-const graphs = (chain: string) => async (timestamp: number) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
   const graphQuery = gql`{
@@ -47,32 +48,31 @@ const graphs = (chain: string) => async (timestamp: number) => {
   const finalUserFee = userFee / 1e30;
 
   return {
-    timestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
     dailyRevenue: (finalDailyFee * 0.4).toString(),
-    dailyHoldersRevenue: (finalDailyFee * 0.1).toString(),
+    dailyHoldersRevenue: (finalDailyFee * 0.4).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
   };
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: graphs(CHAIN.BASE),
-      start: 1694304000,
+      fetch: graphs,
+      start: '2023-09-10',
       meta: {
         methodology,
       },
     },
     [CHAIN.MODE]: {
-      fetch: graphs(CHAIN.MODE),
-      start: 1720627435,
+      fetch: graphs,
+      start: '2024-07-10',
       meta: {
         methodology,
       },
-    }
+    },
   },
 };
 

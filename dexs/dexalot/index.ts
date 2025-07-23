@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -6,7 +6,7 @@ const historicalVolumeEndpoint = "https://api.dexalot.com/api/stats/chaindailyvo
 
 interface IVolumeall {
   volumeusd: string;
-  date: number;
+  date: string;
 }
 
 const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE]
@@ -24,25 +24,19 @@ const chainToEnv = (chain: CHAIN) => {
   }
 }
 
-const fetchFromChain = (chain: CHAIN) => {
-  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
+const fetch = async (_a: any, _t: any, options: FetchOptions): Promise<FetchResult> => {
+  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(options.chain as CHAIN)}`
+  const dayTimestamp = new Date(options.startOfDay * 1000)
+  const dateStr = dayTimestamp.toISOString().split('T')[0]
+  const historicalVolume: IVolumeall[] = await httpGet(endpoint)
 
-  return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const dayTimestamp = new Date(options.startOfDay * 1000)
-    const historicalVolume: IVolumeall[] = await httpGet(endpoint)
+  const dailyVolume = historicalVolume
+    .find(dayItem => dayItem.date.split('T')[0] === dateStr)?.volumeusd
 
-    const totalVolume = historicalVolume
-      .filter(volItem => new Date(volItem.date) <= dayTimestamp)
-      .reduce((acc, { volumeusd }) => acc + Number(volumeusd), 0)
-    const dailyVolume = historicalVolume
-      .find(dayItem => new Date(dayItem.date) === dayTimestamp)?.volumeusd
-
-    return {
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    };
-  }
-};
+  return {
+    dailyVolume: dailyVolume,
+  };
+}
 
 const getStartTimestamp = (chain: CHAIN) => {
   const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
@@ -53,12 +47,12 @@ const getStartTimestamp = (chain: CHAIN) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: supportedChains.reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
-        fetch: fetchFromChain(chain),
+        fetch,
         start: getStartTimestamp(chain),
       }
     }

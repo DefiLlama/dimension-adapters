@@ -32,7 +32,12 @@ const adapter: Adapter = {
   adapter: {
     ethereum: {
       fetch,
-      start: 1703203200,
+      start: '2023-12-22',
+      meta: {
+          methodology: {
+              Fees: "Fees paid by users while using services.",
+          }
+        }
     },
   },
 }

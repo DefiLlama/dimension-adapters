@@ -17,8 +17,8 @@ const fetch = async (timestamp: number) => {
   const totalFees = stats.reduce((prev: number, curr: IStats) => prev +  Number(curr.allfee), 0);
   return {
     timestamp,
-    totalFees: totalFees.toString(),
-    dailyFees: fees.toString(),
+    totalFees,
+    dailyFees: fees,
     totalRevenue: "0",
     dailyRevenue: "0",
   };
@@ -31,8 +31,7 @@ const adapter: Adapter = {
     ["anyswap"]: {
         fetch: fetch,
         runAtCurrTime: true,
-        start: 0,
-    },
+            },
   },
 }
 

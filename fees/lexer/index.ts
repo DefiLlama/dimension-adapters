@@ -60,8 +60,8 @@ const fetch: FetchV2 = async({ startOfDay }: FetchOptions) => {
     dailyFees /= 1e30
     totalFees /= 1e30
     return {
-        dailyFees: dailyFees.toString(),
-        totalFees: totalFees.toString(),
+        dailyFees,
+        totalFees,
     }
 }
 
@@ -69,10 +69,12 @@ const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
-            start: 1704758400,
+            start: '2024-01-09',
             fetch,
             meta:{
-                methodology: "api calls from grpahql"
+                methodology: {
+                    Fees: "Trading fees queried from api calls from grpahql",
+                }
             }
         }
     }

@@ -58,20 +58,17 @@ const adapter: BreakdownAdapter = {
       solana: {
         fetch: fetchSpotVolume,
         runAtCurrTime: true,
-        customBackfill: undefined,
-        start: 0,
-      },
+              },
     },
     perp: {
       solana: {
         fetch: fetchPerpVolume,
         runAtCurrTime: true,
-        customBackfill: undefined,
-        start: 0,
-      },
+              },
     },
   },
   protocolType: ProtocolType.PROTOCOL,
+  deadFrom: '2025-02-05',
 };
 
 export default adapter;

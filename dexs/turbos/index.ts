@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch: fetch(CHAIN.SUI),
       runAtCurrTime: true,
-      start: 1697241600,
+      start: '2023-10-14',
     }
   },
 };

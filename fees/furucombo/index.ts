@@ -20,44 +20,60 @@ function fetch(chainId: number) {
   };
 }
 
+const meta = {
+  methodology: {
+    Fees: 'Fees paid by users for using Furucombo services.',
+    Revenue: 'All fees are revenue.',
+  }
+}
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
-      start: 1661840884,
+      start: '2022-08-30',
+      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
-      start: 1661844760,
+      start: '2022-08-30',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(42161),
-      start: 1666339052,
+      start: '2022-10-21',
+      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(10),
-      start: 1666337829,
+      start: '2022-10-21',
+      meta,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(43114),
-      start: 1666340134,
+      start: '2022-10-21',
+      meta,
     },
     [CHAIN.METIS]: {
       fetch: fetch(1088),
-      start: 1687247436,
+      start: '2023-06-20',
+      meta,
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(250),
-      start: 1677838630,
+      start: '2023-03-03',
+      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetch(8453),
-      start: 1700320327,
+      start: '2023-11-18',
+      meta,
     },
     [CHAIN.XDAI]: {
       fetch: fetch(100),
-      start: 1700321230,
+      start: '2023-11-18',
+      meta,
     },
   },
 };

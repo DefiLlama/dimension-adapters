@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { getChainVolume } from "./getLyraSubgraphVolume";
 
@@ -14,13 +14,14 @@ const subgraph = getChainVolume({
 });
 
 const adapters: SimpleAdapter = {
+  deadFrom: '2025-05-25',
   version: 2,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: subgraph(chain as Chain),
-        start: 1656154800,
+        start: '2022-06-25',
       },
     };
   }, {}),

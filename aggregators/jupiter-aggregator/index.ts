@@ -1,46 +1,37 @@
-import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
+// 1800 1022 777
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
+  // https://dune.com/queries/4187430
+  const data = await queryDuneSql(options, `
+    SELECT 
+      sum(COALESCE(input_usd,output_usd)) as volume_24
+    FROM jupiter_solana.aggregator_swaps
+    WHERE block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
+  `);
 
-const historicalVolumeEndpoint = "https://cache.jup.ag/stats/day"
-
-interface IVolumeall {
-  groupTimestamp: string;
-  amount: string;
-}
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.volumeInUSD;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.groupTimestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { amount }) => acc + Number(amount), 0)
-
-  const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.groupTimestamp).getTime() / 1000) === dayTimestamp)?.amount
-
+  const chainData = data[0];
+  if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`);
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: chainData.volume_24
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint))?.volumeInUSD;
-  return (new Date(historicalVolume[historicalVolume.length - 1].groupTimestamp).getTime() / 1000);
-}
-const adapter: SimpleAdapter = {
+const adapter: any = {
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
-    }
+      fetch,
+      start: '2023-04-16',
+      meta: {
+        methodology: {
+          dailyVolume:
+            "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
+        },
+      },
+    },
   },
 };
 

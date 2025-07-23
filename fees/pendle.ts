@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import {
   ChainBlocks,
   FetchOptions,
@@ -5,7 +6,7 @@ import {
   SimpleAdapter,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
 import BigNumber from "bignumber.js";
 import { getConfig } from "../helpers/cache";
@@ -25,9 +26,11 @@ type IConfig = {
   };
 };
 
-const STETH_ETHEREUM = "ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
-const EETH_ETHEREUM = "ethereum:0x35fa164735182de50811e8e2e824cfb9b6118ac2";
-const WETH_ETHEREUM = "ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH;
+const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
+const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
+
+const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
 
 const BRIDGED_ASSETS = [
   {
@@ -63,6 +66,15 @@ const chainConfig: IConfig = {
   },
   [CHAIN.MANTLE]: {
     treasury: "0x5c30d3578a4d07a340650a76b9ae5df20d5bdf55"
+  },
+  [CHAIN.BASE]: {
+    treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6"
+  },
+  [CHAIN.SONIC]: {
+    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+  },
+  [CHAIN.BERACHAIN]: {
+    treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
   }
 };
 
@@ -103,23 +115,22 @@ const fetch = (chain: Chain) => {
     }
 
     const dailySupplySideFees = createBalances();
-    await Promise.all(
-      markets.map(async (market) => {
-        const allSwapEvent = await getLogs({
-          target: market,
-          eventAbi: ABI.marketSwapEvent,
-        });
+    const allSwapEvents = await getLogs({
+      targets: markets,
+      eventAbi: ABI.marketSwapEvent,
+      flatten: false,
+    });
 
-        for (const swapEvent of allSwapEvent) {
-          const netSyFee = swapEvent.netSyFee;
-          const netSyToReserve = swapEvent.netSyToReserve;
-          dailySupplySideFees.add(
-            marketToSy.get(market)!,
-            netSyFee - netSyToReserve
-          ); // excluding revenue fee
-        }
+    markets.forEach((market, i) => {
+      const token = marketToSy.get(market);
+      const logs = allSwapEvents[i]
+      logs.forEach((log: any) => {
+        const netSyFee = log.netSyFee;
+        const netSyToReserve = log.netSyToReserve;
+        dailySupplySideFees.add(token!, netSyFee - netSyToReserve); // excluding revenue fee
       })
-    );
+    })
+
 
     const dailyRevenue = await addTokensReceived({
       options,
@@ -172,8 +183,8 @@ const fetch = (chain: Chain) => {
         assetAmountRevenue,
         isBridged
           ? {
-              skipChain: true,
-            }
+            skipChain: true,
+          }
           : undefined
       );
 
@@ -183,19 +194,28 @@ const fetch = (chain: Chain) => {
           assetAmountSupplySide,
           isBridged
             ? {
-                skipChain: true,
-              }
+              skipChain: true,
+            }
             : undefined
         );
       }
     }
 
+    // these revenue should be counted in fees too
+    dailyRevenue.addBalances(
+      await addTokensReceived({
+        options,
+        target: AIRDROP_DISTRIBUTOR,
+      })
+    )
+
     const dailyFees = dailyRevenue.clone();
     dailyFees.addBalances(dailySupplySideFees);
 
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: 0,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dailySupplySideFees,
       timestamp,
@@ -203,28 +223,58 @@ const fetch = (chain: Chain) => {
   };
 };
 
+const meta = {
+  methodology: {
+    Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
+    Revenue: 'Share of yields and trading fees collected by protocol',
+    ProtocolRevenue: 'Share of yields and trading fees collected by protocol',
+    HoldersRevenue: 'Share of yields and trading fees distributed to vePENDLE',
+    SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers',
+  }
+}
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1686268800,
+      start: '2023-06-09',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1686268800,
+      start: '2023-06-09',
+      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1686268800,
+      start: '2023-06-09',
+      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1691733600,
+      start: '2023-08-11',
+      meta,
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
-      start: 1711506087,
+      start: '2024-03-27',
+      meta,
     },
+    [CHAIN.BASE]: {
+      fetch: fetch(CHAIN.BASE),
+      start: '2024-11-12',
+      meta,
+    },
+    [CHAIN.SONIC]: {
+      fetch: fetch(CHAIN.SONIC),
+      start: '2025-02-14',
+      meta,
+    },
+    [CHAIN.BERACHAIN]: {
+      fetch: fetch(CHAIN.BERACHAIN),
+      start: '2025-02-07',
+      meta,
+    }
   },
 };
 
@@ -233,10 +283,23 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   sys: string[];
   marketToSy: Map<string, string>;
 }> {
-  const { results } = await getConfig(
-    "pendle/v2/revenue-" + api.chain,
-    `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=0&limit=100&select=all`
-  );
+  // Should only cache api by week
+  const weekId = Math.floor(Date.now() / 1000 / 60 / 60 / 24 / 7);
+
+  let results: any[] = [];
+  let skip = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { results: newResults } = await getConfig(
+      `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
+      `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
+    );
+    results = results.concat(newResults);
+    skip += 100;
+    hasMore = newResults.length === 100;
+  }
+
   const markets = results.map((d: any) => d.lp.address);
   const sySet: Set<string> = new Set(results.map((d: any) => d.sy.address));
   const sys = Array.from(sySet);

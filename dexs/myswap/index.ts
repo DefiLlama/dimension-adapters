@@ -33,8 +33,8 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { volume }) => acc + Number(volume), 0);
 
   return {
-    // totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    // totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STARKNET]: {
       fetch,
-      start: 1668729600
+      start: '2022-11-18'
     },
   },
 };

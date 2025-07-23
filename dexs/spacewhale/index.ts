@@ -1,36 +1,34 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
+import { request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import * as sdk from "@defillama/sdk";
 
-interface IGraph {
-	volumeEth: string;
-	volumeUsdc: string;
-	id: string;
-}
-
-const URL = 'https://api.studio.thegraph.com/query/84618/spacewhale1/0.0.5';
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-	const chain = CHAIN.ARBITRUM;
-	const balances = new sdk.Balances({ chain, timestamp })
-	const query = gql`
+const URL = sdk.graph.modifyEndpoint('C9xUT6c9uRH4f4yT6aMvhZizk89GpgcUBjraJFdmHrYQ');
+const fetch = async (_:any, _1:any, { startOfDay, createBalances}: FetchOptions): Promise<FetchResult> => {
+	const dailyVolume = createBalances();
+	const dailyFees = createBalances();
+	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000));
+	const query = `
     {
 			dayData(id: ${dayTimestamp * 1000}) {
 				volumeEth
 				volumeUsdc
+				totalFeesEth
+				totalFeesUsdc
 			}
 		}`;
-	const response: IGraph = (await request(URL, query)).dayData;
-	const element = response;
-	balances._add(ADDRESSES.arbitrum.USDC_CIRCLE, element.volumeUsdc);
-	balances._add(ADDRESSES.arbitrum.WETH, element.volumeEth);
+	const dayData: any = (await request(URL, query)).dayData;
+	if (dayData) {
+		dailyVolume.add(ADDRESSES.arbitrum.USDC_CIRCLE, dayData.volumeUsdc);
+		dailyFees.add(ADDRESSES.arbitrum.USDC_CIRCLE, dayData.totalFeesUsdc);
+		dailyVolume.add(ADDRESSES.arbitrum.WETH, dayData.volumeEth);
+		dailyFees.add(ADDRESSES.arbitrum.WETH, dayData.totalFeesEth);
+	}
 
 	return {
-		dailyVolume: await balances.getUSDString(),
-		timestamp: dayTimestamp,
+		dailyVolume, dailyFees,
 	};
 }
 
@@ -38,7 +36,7 @@ const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.ARBITRUM]: {
 			fetch: fetch,
-			start: async () => 1712109600,
+			start: '2024-04-03',
 		},
 	},
 };

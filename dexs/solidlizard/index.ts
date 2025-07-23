@@ -1,12 +1,4 @@
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.ARBITRUM]: "https://api.thegraph.com/subgraphs/name/solidlizardfinance/sliz",
-};
-
-const adapter = univ2Adapter(endpoints, {});
-
-adapter.adapter.arbitrum.start = 1675036800;
-
-export default adapter
+export default uniV2Exports({ [CHAIN.ARBITRUM]: { factory: '0x734d84631f00dC0d3FCD18b04b6cf42BFd407074'} });

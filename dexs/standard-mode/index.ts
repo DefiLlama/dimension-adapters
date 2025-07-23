@@ -40,7 +40,7 @@ const fetchVolune: FetchV2 = async (options: FetchOptions) => {
 }
 
 
-const options: any = { fetch: fetchVolune, start: 1708992000 }
+const options: any = { fetch: fetchVolune, start: '2024-02-27' }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: options,

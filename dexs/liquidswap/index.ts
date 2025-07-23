@@ -22,8 +22,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.timestamp) * 1000)) === dayTimestamp)?.value
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: 1668902400
+      start: '2022-11-20'
     },
   },
 };

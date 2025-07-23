@@ -4,17 +4,13 @@ import { CHAIN } from "../helpers/chains";
 
 const url_sui="https://dapi.api.sui-prod.bluefin.io/marketData/fees"
 
-
-
-const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
-    const result= await fetchURL(url_sui);
-    const dailyFees=result.last24HoursFees;
-    const totalFees=result.totalFees;
+const fetch = async (_: number): Promise<FetchResultFees> => {
+  const result= await fetchURL(url_sui);
+  const dailyFees=result.last24HoursFees;
 
   return {
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
-    totalFees: totalFees ? `${totalFees}` : undefined,
-    timestamp: timestamp,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
@@ -22,8 +18,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.SUI]: {
-        fetch: fetch_sui,
-        start: 1700265600,
+        fetch,
+        start: '2023-11-18',
         runAtCurrTime: true,
       },
   },

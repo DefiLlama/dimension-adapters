@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 type TMarketPlaceAddress = {
@@ -28,40 +28,55 @@ const fetch = (chain: Chain) => {
   }
 }
 
+const meta = {
+  methodology: {
+    Fees: "Fees paid by users for using RPC services.",
+    Revenue: "All fees are revenue.",
+  }
+}
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(CHAIN.ETHEREUM),
-        start: 1675382400,
+        start: '2023-02-03',
+        meta
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     },
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     },
     [CHAIN.XDAI]: {
       fetch: fetch(CHAIN.XDAI),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1675382400,
+      start: '2023-02-03',
+      meta
     }
   }
 }

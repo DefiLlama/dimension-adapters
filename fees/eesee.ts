@@ -18,8 +18,7 @@ const adapter: Adapter = {
         })
         return { dailyFees, }
       }) as FetchV2,
-      start: 0,
-      meta: {
+            meta: {
         methodology: {}
       }
     },

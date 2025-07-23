@@ -1,16 +1,13 @@
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
 // 0.2% to LP providers
 // 0.05% to treasury
 // 0.05% to buy back and burn BabyDoge!
 
-const adapters = univ2DimensionAdapter({
+const adapters = univ2DimensionAdapter2({
   graphUrls: {
     [CHAIN.BSC]: "https://graph-bsc-mainnet.babydoge.com/subgraphs/name/babydoge/exchange"
-  },
-  dailyVolume: {
-    factory: "factoryDayData"
   },
   totalVolume: {
     factory: "babyDogeFactories"
@@ -33,6 +30,7 @@ const adapters = univ2DimensionAdapter({
     SupplySideRevenue: "A 0.2% user fees is distributed among LPs",
   }
 });
+
 
 adapters.adapter.bsc.start = 1661780137;
 export default adapters;

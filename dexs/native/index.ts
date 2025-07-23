@@ -1,79 +1,60 @@
-import type { BaseAdapter, SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
 
-const chains = [
-  CHAIN.ETHEREUM,
-  CHAIN.BSC,
-  CHAIN.POLYGON,
-  CHAIN.ARBITRUM,
-  CHAIN.AVAX,
-  CHAIN.MANTLE,
-  CHAIN.BASE,
-  CHAIN.ZETA
-];
-
-const NATIVE_ANALYTICS_ENDPOINT =
-  "https://newapi.native.org/native-offchain-monitor-mono/analytics/overview";
-
-interface ResEntry {
-  date: number;
-  volumeUSD: number;
-  transactionCounts: number;
-  tvlUSD: number;
-}
-
-
-const getStartTime = async (chain: string) => {
-  const response = await httpGet(
-    `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain === CHAIN.AVAX ? "avalanche" : chain}`
-  );
-
-  const smallestDate = response.reduce(
-    (minDate: number, current: ResEntry) => {
-      return current.date < minDate ? current.date : minDate;
-    },
-    Number.POSITIVE_INFINITY
-  );
-
-  return smallestDate;
+const routers = {
+  [CHAIN.BSC]: {
+    address: "0xC6a5cD6C5f56D8BaAa58be5c516Bb889059651a3",
+    startBlock: 46101475
+  },
+  [CHAIN.ETHEREUM]: {
+    address: "0x5c0abf0f651613696a5c57efafc6ab59a460b32d",
+    startBlock: 21627898
+  },
+  [CHAIN.ARBITRUM]: {
+    address: "0x5C0aBf0F651613696A5c57efafC6ab59A460B32d",
+    startBlock: 297460493
+  },
+  [CHAIN.BASE]: {
+    address: "0x5C0aBf0F651613696A5c57efafC6ab59A460B32d",
+    startBlock: 25970577
+  }
 };
 
+const RFQ_TRADE_EVENT = 'event RFQTrade(address recipient, address sellerToken, address buyerToken, uint256 sellerTokenAmount, uint256 buyerTokenAmount, bytes16 quoteId, address signer)';
+
+const fetch: FetchV2 = async (options: FetchOptions) => {
+  const address = routers[options.chain].address;
+  const { getLogs, createBalances } = options;
+  const dailyVolume = createBalances();
+
+  const logs = await getLogs({
+    noTarget: true,
+    eventAbi: RFQ_TRADE_EVENT,
+    skipIndexer: true
+  });
+
+  logs.forEach((log: any) => {
+    dailyVolume.add(log.buyerToken, log.buyerTokenAmount);
+  });
+
+  return {
+    dailyVolume,
+  };
+}
+
 const adapter: SimpleAdapter = {
-  adapter: chains.reduce((acc, chain) => {
+  version: 2,
+  adapter: Object.keys(routers).reduce((acc, chain) => {
+    const { startBlock } = routers[chain];
+
     return {
       ...acc,
       [chain]: {
-        fetch: async (timestamp) => {
-          const cleanTimestamp = getUniqStartOfTodayTimestamp(
-            new Date(timestamp * 1000)
-          );
-
-          const response = await httpGet(
-            `${NATIVE_ANALYTICS_ENDPOINT}?chain=${chain === CHAIN.AVAX ? "avalanche" : chain}`
-          );
-
-          const totalVol = response.reduce(
-            (sum: number, entry: ResEntry) => sum + entry.volumeUSD,
-            0
-          );
-
-          const dateEntry = response.find(
-            (entry: ResEntry) => entry.date === cleanTimestamp
-          );
-          const dailyVol = dateEntry ? dateEntry.volumeUSD : undefined;
-
-          return {
-            timestamp: cleanTimestamp,
-            dailyVolume: dailyVol,
-            totalVolume: totalVol,
-          };
-        },
-        start: async () => getStartTime(chain),
+        fetch,
+        start: startBlock,
       },
     };
-  }, {} as BaseAdapter),
+  }, {}),
 };
 
 export default adapter;

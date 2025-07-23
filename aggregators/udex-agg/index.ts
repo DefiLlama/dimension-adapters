@@ -1,19 +1,20 @@
-import { Chain } from "@defillama/sdk/build/general";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { Chain } from "../../adapters/types";
 import { FetchResult, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 
 let abi = ["event Swap(address indexed payer,address indexed payee,address fromToken,address toToken,uint fromAmount,uint receivedAmount)"];
-let knownTokens=new Set(["0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c","0x55d398326f99059fF775485246999027B3197955","0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"])
+let knownTokens=new Set([ADDRESSES.bsc.WBNB,ADDRESSES.bsc.USDT,ADDRESSES.bsc.USDC])
 type IContract = {
     [c: string | Chain]: string;
 }
 
 const contract: IContract = {
-    [CHAIN.BSC]: '0x15Fa1b705D85Cf35b625d0Afa3Ab4360b92D019a',
-    [CHAIN.POLYGON]:'0xc6C4013D6f7D4313634798D6E516ef72D1912915',
-    [CHAIN.ETHEREUM]:'0x94aa97b013b9b1cc7915199e8621ddf664646339',
-    [CHAIN.BASE]:'0x94aa97b013b9b1cc7915199e8621ddf664646339'
+    [CHAIN.BSC]: '0xfCD555b55AA785d46E8c6e9bBB109b10602c431c',
+    [CHAIN.POLYGON]:'0x464599BDaC77E8e5843D5BbC531EC8aD75d3F7b1',
+    [CHAIN.ETHEREUM]:'0x9556E8ce70ceA3c43e4A6c17ad2FAb258067b058',
+    [CHAIN.BASE]:'0x334F493613c1dD33a364684802fB9C728dfcE1A5',
+    [CHAIN.OP_BNB]:'0x8A3e34e45b76885001aa024d6F35FBAcfDBd9DB0'
 
 }
 
@@ -36,8 +37,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch,
-                start: 1701388800,
-                runAtCurrTime:false
+                start: '2024-09-17',
             },
         }
     }, {}),

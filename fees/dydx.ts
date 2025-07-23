@@ -15,18 +15,19 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyFees = historical.filter((e: IStats) => e.fees !== '0')
     .reduce((a: number, b: IStats) => a+Number(b.fees), 0)
   return {
-    dailyFees: dailyFees ? `${dailyFees}` : undefined,
-    dailyRevenue: dailyFees ? `${dailyFees}` : undefined,
+    dailyFees,
+    dailyRevenue: dailyFees,
     timestamp: timestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2024-12-14',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1700265600,
+      start: '2023-11-18',
       // runAtCurrTime: true,
     },
   },

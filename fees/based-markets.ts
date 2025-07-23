@@ -2,8 +2,7 @@ import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const endpoint = sdk.graph.modifyEndpoint('9rrUvLtMMDLkSQeFdFza8pxea64hEaV3D8hxZYie1jpZ')
 
@@ -45,28 +44,20 @@ const toString = (x: BigNumber) => {
   return x.toString()
 }
 
-const fetchVolume = async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
+const fetch = async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
   const response: IGraphResponse = await request(endpoint, query, {
     from: String(fromTimestamp),
     to: String(toTimestamp)
   })
-
 
   let dailyFees = new BigNumber(0);
   response.dailyHistories.forEach(data => {
     dailyFees = dailyFees.plus(new BigNumber(data.platformFee))
   });
 
-  let totalFees = new BigNumber(0);
-  response.totalHistories.forEach(data => {
-    totalFees = totalFees.plus(new BigNumber(data.platformFee))
-  });
-
   dailyFees = dailyFees.dividedBy(new BigNumber(1e18))
-  totalFees = totalFees.dividedBy(new BigNumber(1e18))
 
   const _dailyFees = toString(dailyFees)
-  const _totalFees = toString(totalFees)
 
   const dailyUserFees = _dailyFees;
   const dailyRevenue = _dailyFees;
@@ -74,36 +65,24 @@ const fetchVolume = async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
   const dailyHoldersRevenue = _dailyFees;
   const dailySupplySideRevenue = '0';
 
-  const totalUserFees = _totalFees;
-  const totalRevenue = _totalFees;
-  const totalProtocolRevenue = '0';
-  const totalSupplySideRevenue = '0';
-
   return {
     dailyFees: _dailyFees,
-    totalFees: _totalFees,
-
     dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    totalUserFees,
-    totalRevenue,
-    totalProtocolRevenue,
-    totalSupplySideRevenue,
   }
-
 }
 
-
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-02-01',
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchVolume,
-      start: 1691332847
+      fetch,
+      start: '2023-08-06'
     }
-  }
+  },
 }
 export default adapter;

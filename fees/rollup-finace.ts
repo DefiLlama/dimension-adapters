@@ -2,7 +2,7 @@ import { Adapter } from "../adapters/types";
 import { ARBITRUM, AVAX, CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
@@ -54,8 +54,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        dailyFees: dailyFees ? dailyFees.toString() : undefined,
-        dailyUserFees: dailyUserFees ?  dailyUserFees.toString() : undefined,
+        dailyFees,
+        dailyUserFees: dailyUserFees,
       };
     };
   };
@@ -65,10 +65,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ERA]: {
-      fetch: graphs(endpoints)(CHAIN.ERA),
-      start: 1682035200,
+      // sunset 24 Sept 2024
+      fetch: async () => ({
+        dailyFees: 0,
+        dailyUserFees: 0
+      }),
+      start: '2023-04-21',
     },
-  }
+  },
+  deadFrom: '2024-09-31',
 }
 
 export default adapter;

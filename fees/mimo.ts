@@ -1,18 +1,13 @@
 import { CHAIN } from "../helpers/chains";
-import { univ2DimensionAdapter } from "../helpers/getUniSubgraph";
+import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
-const adapter = univ2DimensionAdapter({
+const adapter = univ2DimensionAdapter2({
   graphUrls: {
     [CHAIN.IOTEX]: "https://graph.mimo.exchange/subgraphs/name/mimo/mainnet"
   },
   totalVolume: {
     factory: "uniswapFactories",
     field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "dailyVolumeUSD",
-    dateField: "date"
   },
   feesPercent: {
     type: "volume",
@@ -33,6 +28,8 @@ const adapter = univ2DimensionAdapter({
     HoldersRevenue: "Holders have no revenue."
   }
 });
+
+
 
 
 export default adapter;

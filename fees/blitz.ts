@@ -61,30 +61,6 @@ const get24hrStat = async (
   );
 };
 
-const getCumulativeStat = async (
-  field: string,
-  max_time: number
-): Promise<number> => {
-  const response = await query(max_time);
-  const cur_res = response.snapshots[0];
-  return sumAllProductStats(cur_res[field]);
-};
-
-const getCumulativeFees = async (max_time: number): Promise<number> => {
-  const fees = await getCumulativeStat("cumulative_taker_fees", max_time);
-  const sequencer_fees = await getCumulativeStat(
-    "cumulative_sequencer_fees",
-    max_time
-  );
-  return fees - sequencer_fees;
-};
-
-const getCumulativeRevenue = async (max_time: number): Promise<number> => {
-  const fees = await getCumulativeFees(max_time);
-  const rebates = await getCumulativeStat("cumulative_maker_fees", max_time);
-  return fees + rebates;
-};
-
 const get24hrFees = async (max_time: number): Promise<number> => {
   const fees = await get24hrStat("cumulative_taker_fees", max_time);
   const sequencer_fees = await get24hrStat(
@@ -103,26 +79,24 @@ const get24hrRevenue = async (max_time: number): Promise<number> => {
 const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const dailyFees = await get24hrFees(timestamp);
   const dailyRevenue = await get24hrRevenue(timestamp);
-  const totalFees = await getCumulativeFees(timestamp);
-  const totalRev = await getCumulativeRevenue(timestamp);
+
   return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    totalRevenue: `${totalRev}`,
-    totalFees: `${totalFees}`,
-    timestamp,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
 const adapter: Adapter = {
   version: 1,
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   adapter: {
     [CHAIN.BLAST]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
-      start: 1710259200,
+      start: '2024-03-12',
     },
   },
+  allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
 };
 
 export default adapter;

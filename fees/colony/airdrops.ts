@@ -5,7 +5,6 @@ import fetchURL from "../../utils/fetchURL";
 
 export interface Airdrops {
   dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
 }
 
 interface IGraphAirdropsResponse {
@@ -33,18 +32,14 @@ export async function airdrops(
   options: FetchOptions,
   stakingV3SubgraphEndpoint: string,
 ): Promise<Airdrops> {
-  const { createBalances, startTimestamp } = options;
+  const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyHoldersRevenue = createBalances()
-  let totalHoldersRevenue = createBalances()
-
-  const day = Math.floor(startTimestamp / 86400)
-  const date = day * 86400
 
   try {
     const res: IGraphAirdropsResponse = await request(stakingV3SubgraphEndpoint, queryAirdrops, {
-      timestampFrom: date,
-      timestampTo: date + 86400
+      timestampFrom: startTimestamp,
+      timestampTo: endTimestamp
     });
 
     if (res.rewards.length > 0) {
@@ -56,19 +51,7 @@ export async function airdrops(
     console.error(e);
   }
 
-  try {
-    const dataServiceResponse = await fetchURL('https://data-service.colonylab.io/airdrops')
-
-    for (const airdrop of [...dataServiceResponse.airdrops[3] ?? [], ...dataServiceResponse.airdrops[4] ?? []]) {
-      totalHoldersRevenue.add(airdrop.address, airdrop.airdroppedAmount)
-    }
-  }
-  catch (e) {
-    console.error(e);
-  }
-
   return {
     dailyHoldersRevenue,
-    totalHoldersRevenue
   }
 }

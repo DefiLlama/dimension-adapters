@@ -12,11 +12,23 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFeesExport(FriendV1Address, [event_trade]),
-      start: 1692835200,
+      start: '2023-08-24',
+      meta: {
+        methodology: {
+          Fees: "Fees paid by users while trading on social network.",
+          Revenue: "Fees paid by users while trading on social network.",
+        }
+      }
     },
     [CHAIN.OP_BNB]: {
       fetch: getFeesExport(FriendV2Address, [event_trade_V2]),
-      start: 1698710400,
+      start: '2023-10-31',
+      meta: {
+        methodology: {
+          Fees: "Fees paid by users while trading on social network.",
+          Revenue: "Fees paid by users while trading on social network.",
+        }
+      }
     },
   },
   version: 2,

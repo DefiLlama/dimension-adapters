@@ -1,62 +1,89 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Chain, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain, } from "@defillama/sdk/build/general";
-import { queryDune } from "../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-type TAddress = {
-  [l: string | Chain]: string;
+const prefetch = async (options: FetchOptions) => {
+  const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
+  // https://dune.com/queries/4736286
+  const sql = getSqlFromFile("helpers/queries/cow-protocol.sql", {
+    start: startOfDay
+  });
+  return await queryDuneSql(options, sql);
 }
-const address: TAddress = {
-  [CHAIN.ETHEREUM]: '0x9008d19f58aabd9ed0d60971565aa8510560ab41',
-  [CHAIN.XDAI]: '0x9008d19f58aabd9ed0d60971565aa8510560ab41'
-}
 
+const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
+  const preFetchedResults = options.preFetchedResults || [];
+  // console.log(preFetchedResults);
+  const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain;
+  const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
 
-const fetch = (_: Chain) => {
-  return async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    try {
-      const value = (await queryDune("3968762"));
-      const dateStr = new Date(options.endTimestamp * 1000).toISOString().split("T")[0];
-      const dayItem = value.find((item: any) => item.time.split(' ')[0] === dateStr);
-      dailyFees.addGasToken((dayItem?.total_revenue) * 1e18 || 0)
-      return {
-        dailyFees: dailyFees,
-        dailyRevenue: dailyFees,
-      }
-    } catch (e) {
-      return {
-        dailyFees: dailyFees,
-        dailyRevenue: dailyFees,
-      }
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+
+  if (data) {
+    let df = (data.protocol_fee || 0) + (data.partner_fee || 0) + (data.mev_blocker_fee || 0);
+    let protocolRevenue = (data.protocol_fee || 0) + (data.mev_blocker_fee || 0);
+    if(options.chain === CHAIN.XDAI && df > 5) {
+      throw new Error(`PaF ${df}, PrF ${protocolRevenue}, P ${data.partner_fee}, Pr ${data.protocol_fee}, M ${data.mev_blocker_fee} very high for gnosis`);
+      // df = 0;
+      // protocolRevenue = 0;
     }
+    dailyFees.addCGToken('ethereum', df);
+    dailyProtocolRevenue.addCGToken('ethereum', protocolRevenue);
+  } else { 
+    throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+  }
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
   }
 }
 
+
 const methodology = {
-  UserFees: "Trading fees",
-  Fees: "Trading fees",
-  Revenue: "Trading fees - transation fees",
+  UserFees: "All trading fees including protocol fees, partner fees, and MEV blocker fees",
+  Fees: "All trading fees including protocol fees, partner fees, and MEV blocker fees",
+  Revenue: "Trading fees excluding partner fee share (protocol fees + MEV blocker fees)",
+  ProtocolRevenue: "Trading fees excluding partner fee share (protocol fees + MEV blocker fees)",
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM) as any,
-      start: 1675382400,
+      fetch,
+      start: '2023-02-03',
       meta: {
         methodology
       }
     },
-    // [CHAIN.XDAI]: {
-    //   fetch: fetch(CHAIN.XDAI) as any,
-    //   start: 1675382400,
-    //   meta: {
-    //     methodology
-    //   }
-    // }
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2024-05-20',
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: '2024-12-02',
+      meta: {
+        methodology
+      }
+    },
+    [CHAIN.XDAI]: {
+      fetch,
+      start: '2023-02-03',
+      meta: {
+        methodology
+      }
+    }
   },
+  prefetch,
   isExpensiveAdapter: true,
 }
 

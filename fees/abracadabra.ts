@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 
 const endpoints = {
@@ -58,8 +58,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeeUsd = dailyFee;
       const dailyRevenue = dailyFeeUsd * .5;
       return {
-        dailyFees: dailyFeeUsd.toString(),
-        dailyRevenue: dailyRevenue.toString(),
+        dailyFees: dailyFeeUsd,
+        dailyRevenue,
       };
     };
   };
@@ -71,23 +71,23 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: graphs(endpoints)(CHAIN.ETHEREUM),
-        start: 1630468800,
+        start: '2021-09-01',
     },
     [CHAIN.FANTOM]: {
         fetch: graphs(endpoints)(CHAIN.FANTOM),
-        start: 1630468800,
+        start: '2021-09-01',
     },
     [CHAIN.AVAX]: {
         fetch: graphs(endpoints)(CHAIN.AVAX),
-        start: 1630468800,
+        start: '2021-09-01',
     },
     [CHAIN.BSC]: {
         fetch: graphs(endpoints)(CHAIN.BSC),
-        start: 1630468800,
+        start: '2021-09-01',
     },
     [CHAIN.ARBITRUM]: {
         fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-        start: 1630468800,
+        start: '2021-09-01',
     },
   }
 }

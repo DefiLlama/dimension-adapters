@@ -1,6 +1,5 @@
-import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, FetchResultOptions, IJSON } from "../../adapters/types";
+import { Fetch, FetchResultOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
@@ -59,8 +58,8 @@ const endpoints = {
 };
 
 const fetch: Fetch = async (timestamp) => {
-    const notionalBal = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp})
-    const premiumBal = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp})
+    const notionalBal = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp })
+    const premiumBal = new sdk.Balances({ chain: CHAIN.ETHEREUM, timestamp })
     const timestampFrom = timestamp - 60 * 60 * 24
     const response = await request(endpoints[CHAIN.ETHEREUM], query, {
         timestampFrom,
@@ -71,18 +70,16 @@ const fetch: Fetch = async (timestamp) => {
         notionalBal.add(curr.oToken.underlyingAsset.id, curr.oTokenAmount)
         premiumBal.add(curr.paymentToken.id, curr.paymentTokenAmount)
     })
-    fetchResult.dailyNotionalVolume =  await notionalBal.getUSDString()
+    fetchResult.dailyNotionalVolume = await notionalBal.getUSDString()
     fetchResult.dailyPremiumVolume = await premiumBal.getUSDString()
     return fetchResult
 }
 
-const adapter: BreakdownAdapter = {
-    breakdown: {
-        "gamma": {
-            [CHAIN.ETHEREUM]: {
-                fetch,
-                start: 1609200000
-            }
+const adapter: SimpleAdapter = {
+    adapter: {
+        [CHAIN.ETHEREUM]: {
+            fetch,
+            start: '2020-12-29'
         }
     }
 };

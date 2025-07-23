@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { POLYGON, AVAX } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
@@ -69,7 +69,7 @@ const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),
-      start: 1672511400,
+      start: '2022-12-31',
       meta: {
         methodology
       }

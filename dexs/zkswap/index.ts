@@ -1,44 +1,27 @@
-import { time } from "console";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { CHAIN } from "../../helpers/chains"
+import { getUniV2LogAdapter } from "../../helpers/uniswap"
 
-const endpoints = {
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/60365/zksync-zkswap/v0.0.5"
-}
-
-const blacklistTokens = {
-  [CHAIN.ERA]: [
-    '0x47260090ce5e83454d5f05a0abbb2c953835f777'
-  ]
-}
-
-const graph = getGraphDimensions({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "uniswapFactories",
-    field: "totalVolumeUSD",
-  },
-  dailyVolume: {
-    factory: "uniswapDayData",
-    field: "dailyVolumeUSD",
-  },
-  blacklistTokens
-});
-
-const adapters: SimpleAdapter = {
+export default {
   version: 2,
   adapter: {
     [CHAIN.ERA]: {
-      fetch: async (options: FetchOptions) => {
-        const data = await graph(CHAIN.ERA)(options);
-        data.totalVolume = undefined;
-        return {
-          ...data
-        };
-      },
-      start: 1700524800,
+      fetch: getUniV2LogAdapter({
+        factory: '0xeeE1Af1CE68D280e9cAfD861B7d4af776798F18d',
+
+        // https://docs.zkswap.finance/highlights/fee#classic-pools-uniswap-v2-style
+        userFeesRatio: 1,
+        revenueRatio: 1, // 100% swap fees
+        protocolRevenueRatio: 1, // 100% swap fees
+      }),
+      meta: {
+        methodology: {
+          Fees: "Total swap fees paided by users.",
+          Revenue: "Revenue collected from 100% swap fees.",
+          ProtocolRevenue: "Revenue for HyperSwap from 100% swap fees.",
+          SupplySideRevenue: "No fees distributed to LPs.",
+          UserFees: "Total swap fees paided by users."
+        }
+      }
     }
   }
 }
-export default adapters;

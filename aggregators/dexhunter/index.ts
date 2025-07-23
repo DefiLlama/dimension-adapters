@@ -1,11 +1,8 @@
-import fetchURL, { postURL } from "../../utils/fetchURL"
+import { postURL } from "../../utils/fetchURL"
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const URL = 'https://dexhunter-staging-xoi27nkjlq-uc.a.run.app';
-const endpoint = '/openapi/stats';
-const startTimestamp = 1684108800; // 15.10.2023
+const URL = 'https://api-us.dexhunterv3.app/stats/fear_and_greed';
 
 interface IAPIResponse {
   is_dexhunter: boolean;
@@ -13,7 +10,7 @@ interface IAPIResponse {
 }
 
 const fetchData = async (period: '24h' | 'all'): Promise<string> => {
-  const response = await postURL(`${URL}${endpoint}`, { period });
+  const response = await postURL(`${URL}`, { period });
   const data: IAPIResponse[] = response;
 
   const dexhunterData = data.find(d => d.is_dexhunter);
@@ -21,18 +18,14 @@ const fetchData = async (period: '24h' | 'all'): Promise<string> => {
     throw new Error('No dexhunter data found');
   }
 
-  return dexhunterData.usd_volume.toString()
+  return (dexhunterData.usd_volume / 1000000).toString()
 }
 
 const fetch = async (): Promise<FetchResult> => {
   const dailyVolume = await fetchData('24h');
-  const totalVolume = await fetchData('all');
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date());
 
   return {
-    dailyVolume,
-    totalVolume,
-    timestamp: dayTimestamp,
+    dailyVolume: dailyVolume,
   };
 }
 
@@ -40,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: startTimestamp,
+      start: '2023-05-15',
     },
   },
 };
