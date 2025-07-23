@@ -247,6 +247,7 @@ export enum CHAIN {
   KATANA = 'katana',
   SOON = 'soon',
   HYDRAGON = 'hydragon',
+  TAC = "tac",
 }
 
 // Don´t use
