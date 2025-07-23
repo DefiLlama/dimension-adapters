@@ -1,26 +1,19 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
-import { ARBITRUM, ETHEREUM, OPTIMISM, POLYGON, AVAX, FANTOM, XDAI } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { Chain } from  "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const endpoints = {
-  [ETHEREUM]:
-    sdk.graph.modifyEndpoint('7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au'),
-  [OPTIMISM]:
-    sdk.graph.modifyEndpoint('7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ'),
-  [ARBITRUM]:
-    sdk.graph.modifyEndpoint('6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w'),
-  [POLYGON]:
-    sdk.graph.modifyEndpoint('EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU'),
-  [AVAX]:
-    sdk.graph.modifyEndpoint('4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx'),
-  [FANTOM]:
-    sdk.graph.modifyEndpoint('7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H'),
-  [XDAI]:
-    sdk.graph.modifyEndpoint('i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L'),
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('7FpNAjYhdo41FSdEro5P55uviKw69yhfPgxiWzPkr9au'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('7cXBpS75ThtbYwtCD8B277vUfWptmz6vbhk9BKgYrEvQ'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('6okUrfq2HYokFytJd2JDhXW2kdyViy5gXWWpZkTnSL8w'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('EXzFgeWbfgcLgUFEa9rHcQtTy2EcdvJnosTVkPvKe7EU'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4m6FwSHYnkQRUBSKdhh5heGd1ojTAXwEiacUyFix2Ygx'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('7ZnKrxY26bDHZPSqJ3MNkDNjaRXLoc1ZiATDLbVjWa7H'),
+  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('i82AxuGMFX7bqGNpXGrUvXqFMWZjLeRTNpJFvc3aW8L'),
 };
 
 const graph = (graphUrls: ChainEndpoints) => {
@@ -84,35 +77,76 @@ const graph = (graphUrls: ChainEndpoints) => {
   }
 };
 
-const fetch = (chain: string) => async (options: FetchOptions) => {
-  if(options.toTimestamp < Date.now()/1e3-36*3600){
-    return graph(endpoints)(chain)(options)
+const fetchBribesRevenue = async (options: FetchOptions) => {
+  if(options.chain === CHAIN.ETHEREUM){
+    const bribes:any[] = (await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)).claimsLast365Days.claims
+
+    const startOfDay = bribes.reduce((closest, item) => {
+      const timeDiff = (val: any) => Math.abs(val.timestamp - (options.startTimestamp - 24 * 3600))
+      if (timeDiff(item) < timeDiff(closest)) {
+        return item
+      }
+      return closest
+    })
+
+    const endOfDay = bribes.reduce((closest, item) => {
+      const timeDiff = (val: any) => Math.abs(val.timestamp - (options.endTimestamp - 24 * 3600))
+      if (timeDiff(item) < timeDiff(closest)) {
+        return item
+      }
+      return closest
+    })
+
+    return (endOfDay.value - startOfDay.value).toString()
+  } else {
+    return 0
   }
-  const response = (await fetchURL(`https://prices.curve.finance/v1/chains/${chain}`));
+}
+
+const fetch = async (options: FetchOptions) => {
+  if(options.toTimestamp < Date.now()/1e3-24*3600){
+    if(options.chain === CHAIN.XDAI){ // XDAI subgraph is not working
+      return {
+        dailyFees: '0',
+        dailyRevenue: '0',
+        dailyHoldersRevenue: '0',
+        dailySupplySideRevenue: '0',
+        dailyUserFees: '0',
+        dailyProtocolRevenue: '0',
+        dailyBribesRevenue: '0'
+      }
+    }
+    const fees = await graph(endpoints)(options.chain)(options)
+    fees['dailyBribesRevenue'] = await fetchBribesRevenue(options)
+    return fees
+  }
+  const response = (await fetchURL(`https://prices.curve.finance/v1/chains/${options.chain}`));
   const fees = (response.data as any[])
   .filter(e => e.trading_fee_24h < 1_000_000).reduce((all, pool)=>{
     return all + pool.liquidity_fee_24h+pool.trading_fee_24h
   }, 0)
   const allFees:any = {
     dailyFees: fees,
+    dailyUserFees: `${fees}`,
     dailyRevenue: `${fees/2}`,
+    dailyProtocolRevenue: '0',
     dailyHoldersRevenue: `${fees/2}`,
+    dailySupplySideRevenue: `${fees/2}`,
   };
-  if(chain === ETHEREUM){
-    const bribes:any[] = (await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)).claimsLast7Days.claims
-    const yesterday = bribes.reduce((closest, item)=>{
-      const timeDiff = (val:any) => Math.abs(val.timestamp - (Date.now()/1e3-24*3600))
-      if(timeDiff(item) < timeDiff(closest)){
-        return item
-      }
-      return closest
-    })
-    allFees.dailyBribesRevenue = (bribes[bribes.length-1].value - yesterday.value).toString()
-  } else {
-    allFees.dailyBribesRevenue = 0
-  }
+  allFees['dailyBribesRevenue'] = await fetchBribesRevenue(options)
+
   return allFees
 };
+
+const starts: Record<string, string> = {
+  [CHAIN.ETHEREUM]: '2020-01-01',
+  [CHAIN.OPTIMISM]: '2021-05-09',
+  [CHAIN.ARBITRUM]: '2021-09-20',
+  [CHAIN.POLYGON]: '2021-05-03',
+  //[CHAIN.AVAX]: '2021-10-06,
+  [CHAIN.FANTOM]: '2021-05-09',
+  [CHAIN.XDAI]: '2021-05-09'
+}
 
 const methodology = {
   UserFees: "Users pay a trading fee from 0.04% to 0.4% on each swap (as of July 2022, the fee on all pools was 0.04%)",
@@ -123,27 +157,13 @@ const methodology = {
   SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
 }
 
-const starts = {
-  [ETHEREUM]: 1577854800,
-  [OPTIMISM]: 1620532800,
-  [ARBITRUM]: 1632110400,
-  [POLYGON]: 1620014400,
-  //[AVAX]: 1633492800,
-  [FANTOM]: 1620532800,
-  [XDAI]: 1620532800
-} as {
-  [chain:string]:number
-}
-
 const adapter: Adapter = {
   version: 2,
   adapter: Object.keys(starts).reduce((all, chain)=>{
     all[chain] = {
-      fetch: fetch(chain),
+      fetch,
       start: starts[chain],
-      meta: {
-        methodology
-      },
+      meta: { methodology },
     }
     return all
   }, {} as any)
