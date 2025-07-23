@@ -278,7 +278,6 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {},
   // prefetch: prefetchWithDune,
-  isExpensiveAdapter: true,
 };
 
 const meta = {
