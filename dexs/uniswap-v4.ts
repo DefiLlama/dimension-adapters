@@ -123,12 +123,12 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0xf66c7b99e2040f0d9b326b3b7c152e9663543d63',
     start: '2025-01-24',
   },
-  [CHAIN.WC]: {
-    poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33',
-    source: 'LOGS',
-    positionManager: '0xc585e0f504613b5fbf874f21af14c65260fb41fa',
-    start: '2025-01-24',
-  },
+  // [CHAIN.WC]: {
+  // poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33',
+  //  source: 'LOGS',
+  //  positionManager: '0xc585e0f504613b5fbf874f21af14c65260fb41fa',
+  //  start: '2025-01-24',
+  // },
   [CHAIN.INK]: {
     poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32',
     source: 'LOGS',
