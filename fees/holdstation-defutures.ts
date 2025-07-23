@@ -3,11 +3,6 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = (from: string, to: string) =>
-  `https://api-trading.holdstation.com/api/fees/summary?fromDate=${from}&toDate=${to}`;
-const dailyVolumeEndpoint = (from: string, to: string) =>
-  `https://api-trading.holdstation.com/api/trading-history/volume-by-day?fromDate=${from}&toDate=${to}`;
-
 const historicalVolumeBerachainEndpoint = (from: string, to: string) =>
   `https://api-trading-bera.holdstation.com/api/fees/summary/internal?fromDate=${from}&toDate=${to}`;
 const dailyVolumeBerachainEndpoint = (from: string, to: string) =>
@@ -33,10 +28,6 @@ type URLBuilder = (from: string, to: string) => string;
 const endpointMap: {
   [chain: string]: { historical?: URLBuilder; daily: URLBuilder };
 } = {
-  [CHAIN.ERA]: {
-    historical: historicalVolumeEndpoint,
-    daily: dailyVolumeEndpoint,
-  },
   [CHAIN.BERACHAIN]: {
     historical: historicalVolumeBerachainEndpoint,
     daily: dailyVolumeBerachainEndpoint,
@@ -90,11 +81,8 @@ const fetch =
   };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    [CHAIN.ERA]: {
-      fetch: fetch(CHAIN.ERA),
-      start: "2023-05-09",
-    },
     [CHAIN.BERACHAIN]: {
       fetch: fetch(CHAIN.BERACHAIN),
       start: "2025-02-07",
