@@ -9,7 +9,7 @@ interface ArrowMarketsVolumeResponse {
 }
 
 // endTime is in ms
-export const arrowMarketsVolumeEndpoint = "https://api-rfq-testnet.prd.arrowmarkets.delivery/admin/volume"
+export const arrowMarketsVolumeEndpoint = "https://api-rfq-testnet.prd.arrowmarkets.info/admin/volume"
 
 export const v2_adapter: SimpleAdapter = {
   version: 2,
