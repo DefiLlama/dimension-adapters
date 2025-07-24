@@ -6,9 +6,9 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
     [CHAIN.SOLANA]: 'solana',
-    // [CHAIN.ETHEREUM]: 'ethereum',
+    // [CHAIN.ETHEREUM]: 'ethereum', // Very high spikes in the fees API
     [CHAIN.BSC]: 'bsc',
-    [CHAIN.AVAX]: 'avalanche',
+    // [CHAIN.AVAX]: 'avalanche', // Very high spikes in the fees API
     [CHAIN.POLYGON]: 'polygon',
     [CHAIN.ARBITRUM]: 'arbitrum',
     [CHAIN.ARCHWAY]: 'archway-1',
