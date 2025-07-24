@@ -17,8 +17,8 @@ type DimentionResult = {
 // Prefetch function that will run once before any fetch calls
 const prefetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile('helpers/queries/drift-protocol.sql', {
-    start: options.startOfDay,
-    end: options.startOfDay + 24 * 60 * 60
+    start: options.startTimestamp,
+    end: options.endTimestamp
   });
   return queryDuneSql(options, sql);
 };
