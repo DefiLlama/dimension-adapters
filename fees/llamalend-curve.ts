@@ -3,14 +3,16 @@ import { CHAIN } from "../helpers/chains";
 
 const methodology = {
   Fees: "Total borrow interest paid by borrowers.",
+  Revenue: "Total interests are distributed to Curve DAO.",
   SupplySideRevenue: "Total interests are distributed to suppliers/lenders.",
-  ProtocolRevenue: "Total interests are distributed to Morpho.",
+  ProtocolRevenue: "Total interests are distributed to Curve DAO.",
 };
 
 interface OneWayLendingFactory {
   address: string;
   start: string;
   fromBlock: number;
+  blacklists?: Array<string>;
 }
 
 const OneWayLendingFactories: {[key: string]: OneWayLendingFactory} = {
@@ -18,6 +20,9 @@ const OneWayLendingFactories: {[key: string]: OneWayLendingFactory} = {
     address: '0xeA6876DDE9e3467564acBeE1Ed5bac88783205E0',
     start: '2024-03-14',
     fromBlock: 19422660,
+    blacklists: [
+      '0x01144442fba7adccb5c9dc9cf33dd009d50a9e1d',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     address: '0xcaEC110C784c9DF37240a8Ce096D352A75922DeA',
@@ -119,11 +124,17 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
   for (let i = 0; i < llamaVaults.length; i++) {
     const llamaVault = llamaVaults[i];
+
+    // ignore blacklist vaults
+    if (OneWayLendingFactories[options.chain].blacklists?.includes(llamaVault.vault.toLowerCase())) {
+      continue;
+    }
+
     const events = swapEvents[i];
 
-    const pricePerShareBefore = vaultPricePerShareBefore[i];
-    const pricePerShareAfter = vaultPricePerShareAfter[i];
-    const totalAssets = vaultTotalAssets[i];
+    const pricePerShareBefore = vaultPricePerShareBefore[i] ? vaultPricePerShareBefore[i] : 1e18;
+    const pricePerShareAfter = vaultPricePerShareAfter[i] ? vaultPricePerShareAfter[i]  : 1e18;
+    const totalAssets = vaultTotalAssets[i] ? vaultTotalAssets[i]  : 0;
 
     if (pricePerShareBefore && pricePerShareAfter && totalAssets) {
       const interestPaid = (Number(pricePerShareAfter) - Number(pricePerShareBefore)) * Number(totalAssets) / 1e18
