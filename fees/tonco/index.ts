@@ -82,7 +82,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyUserFees: totalFees,
         dailyFees: totalFees,
         dailySupplySideRevenue: totalFees * supplySideRevenuePerc,
-        dailyRevenue: totalProtocolFees
+        dailyRevenue: totalProtocolFees,
+        dailyProtocolRevenue: totalProtocolFees
     }
 };
 
