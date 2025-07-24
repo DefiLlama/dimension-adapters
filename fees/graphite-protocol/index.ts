@@ -43,7 +43,6 @@ const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
 const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
@@ -64,37 +63,35 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
     const dailyRevenueSol = currentEntry.solRevenue - (prevEntry?.solRevenue || 0);
     const totalFeesLamports = dailyRevenueSol * 1e9;
-
-    // Determine Letsbonk's share based on timestamp
-    let letsbonkHoldersRevenuePercentage: number;
-    let letsbonkProtocolRevenuePercentage: number;
-    let letsbonkTotalPercentage: number;
+    
+    let graphiteHoldersRevenuePercentage: number;
+    let graphiteProtocolRevenuePercentage: number;
+    let graphiteTotalPercentage: number;
     
     if (timestamp >= PERCENTAGE_CHANGE_TIMESTAMP) {
-        // After percentage change: Letsbonk gets Buy/Burn 50% + SBR 4% + BonkRewards 4% + Marketing 2% = 60%
-        letsbonkHoldersRevenuePercentage = 0.58;
-        letsbonkProtocolRevenuePercentage = 0.02;
-        letsbonkTotalPercentage = 0.60;
+        // After percentage change: Graphite gets GP Reserve 7.67% + BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2% = 40%
+        graphiteHoldersRevenuePercentage = 0.0767;
+        graphiteProtocolRevenuePercentage = 0.3233;
+        graphiteTotalPercentage = 0.40;
     } else {
-        // Before percentage change: Letsbonk gets Buy/Burn 35% + SBR 4% + BonkRewards 4% + Marketing 2% = 45%
-        letsbonkHoldersRevenuePercentage = 0.43;
-        letsbonkProtocolRevenuePercentage = 0.02;
-        letsbonkTotalPercentage = 0.45;
+        // Before percentage change: Graphite gets GP Reserve 7.67% + BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4% = 57.68%
+        graphiteHoldersRevenuePercentage = 0.0767;
+        graphiteProtocolRevenuePercentage = 0.5;
+        graphiteTotalPercentage = 0.5768;
     }
 
-    const totalRevenue = totalFeesLamports * letsbonkTotalPercentage;
-    const holdersRevenue = totalFeesLamports * letsbonkHoldersRevenuePercentage;
-    const protocolRevenue = totalFeesLamports * letsbonkProtocolRevenuePercentage;
+    const totalFees = totalFeesLamports * graphiteTotalPercentage;
+    const totalHoldersRevenue = totalFeesLamports * graphiteHoldersRevenuePercentage;
+    const protocolRevenue = totalFeesLamports * graphiteProtocolRevenuePercentage;
 
-    dailyFees.add(SOL_ADDRESS, totalFeesLamports);
-    dailyRevenue.add(SOL_ADDRESS, totalRevenue);
-    dailyHoldersRevenue.add(SOL_ADDRESS, holdersRevenue);
+    dailyFees.add(SOL_ADDRESS, totalFees);
+    dailyHoldersRevenue.add(SOL_ADDRESS, totalHoldersRevenue);
     dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue);
 
     return { 
         dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue,
+        dailyRevenue: dailyFees,
         dailyProtocolRevenue,
         dailyHoldersRevenue
     };
@@ -108,13 +105,13 @@ const adapter: SimpleAdapter = {
             start: '2025-04-27',
             meta: {
                 methodology: {
-                    Fees: "Fees are collected from users and distributed to holders and protocol.",
-                    Revenue: "Total Letsbonk Protocol Revenue and Holders Revenue",
-                    ProtocolRevenue: "2% of total fees for marketing.",
-                    HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
+                    Fees: "Graphite Protocol's portion of joint venture fees with Letsbonk. Before 10th jun 2025: 57.68% of total fees. After 10th jun 2025: 40% of total fees.",
+                    Revenue: "Total Graphite Protocol Revenue and Holders Revenue",
+                    ProtocolRevenue: "Before 10th jun 2025: 50% of total fees (BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4%). After 10th jun 2025: 32.33% of total fees (BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2%).",
+                    HoldersRevenue: "GP Reserve: 7.67% of total fees across both periods. Before 10th jun 2025: 43% of total fees."
                 },
                 hallmarks: [
-                    [1749513600, 'BuyBack and burn increased from 35% to 50% of total revenue, Letsbonk share increased from 45% to 60%'], // https://x.com/bonk_fun/status/1932242245970747708
+                    [1749513600, 'Graphite Protocol share reduced from 57.68% to 40% of total fees, BONKsol staking reduced from 30% to 15%'], // https://x.com/bonk_fun/status/1932242245970747708
                 ],
             }
         }
