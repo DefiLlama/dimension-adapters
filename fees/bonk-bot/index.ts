@@ -1,19 +1,39 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
+import { queryDuneSql } from "../../helpers/dune";
 
-const fethcFeesSolana = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, target: 'ZG98FUCjb8mJ824Gbs6RsgVmr1FhXb2oNiJHa2dwmPd' })
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {  
+  const query = `
+    WITH botTrades AS (
+        SELECT
+            block_time,
+            amount_usd,
+            fee_usd
+        FROM
+            bonkbot_solana.bot_trades
+        WHERE
+            blockchain = 'solana'
+            AND is_last_trade_in_transaction = true
+            AND TIME_RANGE
+    )
+    SELECT
+        SUM(fee_usd) AS dailyFees
+    FROM
+        botTrades
+  `;
+  const data = await queryDuneSql(options, query);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(data[0].dailyFees);
+
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  isExpensiveAdapter: true,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fethcFeesSolana,
+      fetch,
       start: '2023-08-23',
       meta: {
         methodology: {
@@ -23,7 +43,8 @@ const adapter: SimpleAdapter = {
         }
       }
     },
-  }
+  },
+  isExpensiveAdapter: true,
 }
 
 export default adapter;
