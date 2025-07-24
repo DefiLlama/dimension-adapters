@@ -113,8 +113,8 @@ const meta = {
   methodology: {
     Fees: 'Total boosted PENDLE rewards from liquidity farming on Pendle Finance',
     Revenue: 'Protocol revenue from boosted PENDLE rewards',
-    ProtocolRevenue: '5% vlPNP holders + 5% operational expenses + bribes',
-    HoldersRevenue: '12% mPENDLE Staking pool + 20% PRT mechanism',
+    ProtocolRevenue: '5% operational expenses + bribes share of protocol',
+    HoldersRevenue: '5% vlPNP holders + 12% mPENDLE Staking pool + 20% PRT mechanism',
     SupplySideRevenue: '78% to liquidity providers',
     BribesRevenue: 'Bribes from voting incentives'
   }
