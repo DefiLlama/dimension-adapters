@@ -21,15 +21,14 @@ const getUniV2LogAdapter: any = (): FetchV2 => {
     pairs.forEach((pair: string, i: number) => {
       pairObject[pair] = [token0s[i], token1s[i]]
     })
-    const dailyVolume = createBalances()
-    const dailyFees = createBalances()
+
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${Factory} Chain: ${chain}`)
 
     if (!pairIds.length) return { 
-      dailyVolume,
-      dailyFees,
+      dailyVolume: 0,
+      dailyFees: 0,
       dailyUserFees: 0,
       dailyRevenue: 0,
       dailySupplySideRevenue: 0,
@@ -37,7 +36,12 @@ const getUniV2LogAdapter: any = (): FetchV2 => {
       dailyHoldersRevenue: 0,
     }
 
-    const gauges = await await fetchOptions.api.multiCall({
+    const lpSupplies = await fetchOptions.api.multiCall({
+      abi: 'uint256:totalSupply',
+      calls: pairIds,
+      permitFailure: false,
+    });
+    const gauges = await fetchOptions.api.multiCall({
       abi: 'function gauges(address) view returns (address)',
       calls: pairIds.map(pairid => {
         return {
@@ -47,23 +51,38 @@ const getUniV2LogAdapter: any = (): FetchV2 => {
       }),
       permitFailure: true,
     });
+    const gaugeSupplies = await fetchOptions.api.multiCall({
+      abi: 'uint256:totalSupply',
+      calls: gauges,
+      permitFailure: true,
+    });
 
+    // get swap logs
     const allLogs = await getLogs({ targets: pairIds, eventAbi: SwapEvent, flatten: false })
+
+    const dailyVolume = createBalances()
+    const dailyFees = createBalances()
+    const dailyRevenue = createBalances()
+    const dailySupplySideRevenue = createBalances()
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
       const pair = pairIds[index]
-      const gauge = gauges[index]
+      const gaugeSupply = Number(gaugeSupplies[index] ? gaugeSupplies[index] : 0)
+      const lpSupply = Number(lpSupplies[index] ? lpSupplies[index] : 0)
+      const revenueRatio = lpSupply > 0 ? gaugeSupply / lpSupply : 0;
       const [token0, token1] = pairObject[pair]
       logs.forEach((log: any) => {
-        if (gauge) {
-          console.log({gauge, pair})
-        }
-
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
 
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * SwapFee, amount1: Number(log.amount1In) * SwapFee })
         addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * SwapFee, amount1: Number(log.amount1Out) * SwapFee })
+
+        addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0In) * SwapFee * revenueRatio, amount1: Number(log.amount1In) * SwapFee * revenueRatio })
+        addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0Out) * SwapFee * revenueRatio, amount1: Number(log.amount1Out) * SwapFee * revenueRatio })   
+
+        addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0In) * SwapFee * (1- revenueRatio), amount1: Number(log.amount1In) * SwapFee * (1- revenueRatio) })
+        addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0Out) * SwapFee * (1- revenueRatio), amount1: Number(log.amount1Out) * SwapFee * (1- revenueRatio) })   
       })
     })
 
@@ -71,10 +90,10 @@ const getUniV2LogAdapter: any = (): FetchV2 => {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailyRevenue: 0,
-      dailySupplySideRevenue: 0,
+      dailyRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailySupplySideRevenue,
       dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: 0,
+      dailyHoldersRevenue: dailyRevenue,
     }
   }
   return fetch
@@ -84,9 +103,10 @@ const meta = {
   methodology: {
     Fees: "All swap fees paid by users.",
     UserFees: "All swap fees paid by users.",
-    SupplySideRevenue: "LPs receive 100% fee of each swap.",
-    Revenue: "No revenue",
+    SupplySideRevenue: "Unstake LPs receive 100% fee of each swap.",
+    Revenue: "Fees collected and distributed to staked LPs.",
     ProtocolRevenue: "No protocol revenue",
+    HoldersRevenue: "Fees collected and distributed to veBlack holders.",
   }
 };
 
