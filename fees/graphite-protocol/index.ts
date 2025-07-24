@@ -1,4 +1,3 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 /*
 METHODOLOGY:
 Graphite Protocol is part of a joint venture with LetsBONK.fun on Solana.
@@ -10,33 +9,34 @@ Holders Revenue (43% of total Letsbonk share, 7.6% of total Graphite share):
 - Buy/Burn (35% of total): BONK tokens are purchased and burned - Letsbonk: 35%
 - SBR (4% of total): Ecosystem growth initiatives - Letsbonk: 4%
 - BonkRewards (4% of total): User rewards and incentives - Letsbonk: 4%
-- GP Reserve (7.6% of total): Protocol treasury - Graphite: 7.6%
+- GP Reserve (7.67% of total): Protocol treasury - Graphite: 7.67%
 
 Protocol Revenue (56.8% of total, split between Letsbonk and Graphite):
 - BONKsol Staking (30% of total): Protocol-owned BONKsol purchases retaining SOL in ecosystem - Graphite: 30%
-- Hiring/Growth (7.6% of total): Team expansion - Graphite: 7.6%
-- Development/Integration (7.6% of total): Technical development - Graphite: 7.6%
-- Marketing (4% of total): Platform promotion - Graphite: 4%
+- Hiring/Growth (7.67% of total): Team expansion - Graphite: 7.67%
+- Development/Integration (7.67% of total): Technical development - Graphite: 7.67%
+- Marketing (4% of total): Platform promotion - Graphite: 4%, Bonk: 2%
 
 After 1749513600:
-Holders Revenue (58% of total Letsbonk share, 7.6% of total Graphite share):
+Holders Revenue (58% of total Letsbonk share, 7.67% of total Graphite share):
 - Buy/Burn (50% of total): BONK tokens are purchased and burned - Letsbonk: 50%
 - SBR (4% of total): Ecosystem growth initiatives - Letsbonk: 4%
 - BonkRewards (4% of total): User rewards and incentives - Letsbonk: 4%
-- GP Reserve (7.6% of total): Protocol treasury - Graphite: 7.6%
+- GP Reserve (7.67% of total): Protocol treasury - Graphite: 7.67%
 
 Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 - BONKsol Staking (15% of total): Protocol-owned BONKsol purchases retaining SOL in ecosystem - Graphite: 15%
-- Hiring/Growth (7.6% of total): Team expansion - Graphite: 7.6%
-- Development/Integration (7.6% of total): Technical development - Graphite: 7.6%
-- Marketing (4% of total): Platform promotion - Graphite: 4%
+- Hiring/Growth (7.67% of total): Team expansion - Graphite: 7.67%
+- Development/Integration (7.67% of total): Technical development - Graphite: 7.67%
+- Marketing (4% of total): Platform promotion - Graphite: 2%, Bonk: 2%
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import fetchURL from "../../utils/fetchURL";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { CHAIN } from '../../helpers/chains'
+import { getTimestampAtStartOfDayUTC } from '../../utils/date'
+import fetchURL from '../../utils/fetchURL'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 
 const SOL_ADDRESS = ADDRESSES.solana.SOL;
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
@@ -64,28 +64,29 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     const dailyRevenueSol = currentEntry.solRevenue - (prevEntry?.solRevenue || 0);
     const totalFeesLamports = dailyRevenueSol * 1e9;
     
-    // Determine which percentage structure to use based on timestamp
-    let holdersRevenuePercentage: number;
-    let protocolRevenuePercentage: number;
+    let graphiteHoldersRevenuePercentage: number;
+    let graphiteProtocolRevenuePercentage: number;
+    let graphiteTotalPercentage: number;
     
     if (timestamp >= PERCENTAGE_CHANGE_TIMESTAMP) {
-        // After percentage change: Buy/Burn 50% + SBR 4% + BonkRewards 4% = 58%
-        holdersRevenuePercentage = 0.58;
-        // BONKsol Staking 15% + GP Reserve 7.6% + Hiring/Growth 7.6% + Development/Integration 7.6% + Marketing 4% = 42%
-        protocolRevenuePercentage = 0.42;
+        // After percentage change: Graphite gets GP Reserve 7.67% + BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2% = 40%
+        graphiteHoldersRevenuePercentage = 0.0767;
+        graphiteProtocolRevenuePercentage = 0.3233;
+        graphiteTotalPercentage = 0.40;
     } else {
-        // Before percentage change: Buy/Burn 35% + SBR 4% + BonkRewards 4% = 43%
-        holdersRevenuePercentage = 0.43;
-        // BONKsol Staking 30% + GP Reserve 7.6% + Hiring/Growth 7.6% + Development/Integration 7.6% + Marketing 4% = 56.8%
-        protocolRevenuePercentage = 0.568;
+        // Before percentage change: Graphite gets GP Reserve 7.67% + BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4% = 57.68%
+        graphiteHoldersRevenuePercentage = 0.0767;
+        graphiteProtocolRevenuePercentage = 0.5;
+        graphiteTotalPercentage = 0.5768;
     }
-    
-    const holdersRevenueLamports = totalFeesLamports * holdersRevenuePercentage;
-    const protocolRevenueLamports = totalFeesLamports * protocolRevenuePercentage;
 
-    dailyFees.add(SOL_ADDRESS, totalFeesLamports);
-    dailyHoldersRevenue.add(SOL_ADDRESS, holdersRevenueLamports);
-    dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenueLamports);
+    const totalFees = totalFeesLamports * graphiteTotalPercentage;
+    const totalHoldersRevenue = totalFeesLamports * graphiteHoldersRevenuePercentage;
+    const protocolRevenue = totalFeesLamports * graphiteProtocolRevenuePercentage;
+
+    dailyFees.add(SOL_ADDRESS, totalFees);
+    dailyHoldersRevenue.add(SOL_ADDRESS, totalHoldersRevenue);
+    dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue);
 
     return { 
         dailyFees,
@@ -104,12 +105,13 @@ const adapter: SimpleAdapter = {
             start: '2025-04-27',
             meta: {
                 methodology: {
-                    Fees: "Fees are collected from users and distributed to holders and protocol.",
-                    ProtocolRevenue: "Before 10th jun 2025: 56.8% of fees are distributed to the protocol. After 10th jun 2025: 42% of fees are distributed to the protocol.",
-                    HoldersRevenue: "Before 10th jun 2025: 43% of fees are distributed to holders. After 10th jun 2025: 58% of fees are distributed to holders."
+                    Fees: "Graphite Protocol's portion of joint venture fees with Letsbonk. Before 10th jun 2025: 57.68% of total fees. After 10th jun 2025: 40% of total fees.",
+                    Revenue: "Total Graphite Protocol Revenue and Holders Revenue",
+                    ProtocolRevenue: "Before 10th jun 2025: 50% of total fees (BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4%). After 10th jun 2025: 32.33% of total fees (BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2%).",
+                    HoldersRevenue: "GP Reserve: 7.67% of total fees across both periods. Before 10th jun 2025: 43% of total fees."
                 },
                 hallmarks: [
-                    [1749513600, 'BuyBack and burn increased from 35% to 50% of revenue'], // https://x.com/bonk_fun/status/1932242245970747708
+                    [1749513600, 'Graphite Protocol share reduced from 57.68% to 40% of total fees, BONKsol staking reduced from 30% to 15%'], // https://x.com/bonk_fun/status/1932242245970747708
                 ],
             }
         }
