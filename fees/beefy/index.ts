@@ -10,7 +10,7 @@ const holderShare = 36;
 const protocolShare = 64;
 
 const methodology = {
-  Fees: `${totalFee}% of each harvest is charged as a performance fee`,
+  Fees: `Staking yields from Beefy Finance vaults`,
   Revenue: `All fees except for ${strategistFee}% to strategist and variable harvest() call fee are revenue`,
   HoldersRevenue: `${holderShare}% of revenue is distributed to holders who stake`,
   ProtocolRevenue: `${protocolShare}% of revenue is distributed to the treasury`,
@@ -36,7 +36,7 @@ Object.keys(config).forEach(chain => {
     meta: { methodology },
     fetch: async (options: FetchOptions) => {
       const dailyRevenue = await addTokensReceived({ options, targets, fromAddressFilter, tokens, logFilter, })
-      const dailyFees = dailyRevenue.clone(totalFee / revenueFee);
+      const dailyFees = dailyRevenue.clone(100/totalFee);
       const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100);
       const dailyHoldersRevenue = dailyRevenue.clone(holderShare / 100);
       return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, }
