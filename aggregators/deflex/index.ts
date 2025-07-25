@@ -16,6 +16,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+    deadFrom: '2024-01-01',
     adapter: {
         [CHAIN.ALGORAND]: {
             fetch,

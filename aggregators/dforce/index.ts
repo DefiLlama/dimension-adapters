@@ -30,6 +30,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-07-24', // rebranded to usx finance
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
