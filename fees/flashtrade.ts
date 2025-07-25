@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
-import ADDRESSES from "../helpers/coreAssets.json";
 
 interface Pool {
     poolName: string;
@@ -10,13 +9,13 @@ interface Pool {
     totalProtocolFee: string;
 }
 
-interface Fees {
-    pool: string;
-    accured: string;
-    paid: string;
-    protocolFee: string;
-    feesPaidToLP: string;
-}
+// interface Fees {
+//     pool: string;
+//     accured: string;
+//     paid: string;
+//     protocolFee: string;
+//     feesPaidToLP: string;
+// }
 
 const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily";
 // const urlFeeesStats = "https://api.prod.flash.trade/market-stat/revenue-24hr";
@@ -39,9 +38,7 @@ const pools = [
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
     const timestamp = options.startOfDay;
-    console.log(timestamp);
     const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
-    console.log(targetDate);
 
     let dailyFees = 0;
     for (const pool of pools) {
