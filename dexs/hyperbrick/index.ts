@@ -1,6 +1,5 @@
 import fetchURL from '../../utils/fetchURL';
-import type { SimpleAdapter } from '../../adapters/types';
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
+import type { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 
 interface IData {
@@ -9,23 +8,23 @@ interface IData {
   timestamp: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const endpointsV2 = `https://api.hyperbrick.xyz/lb/dex/analytics?startTime=${dayTimestamp}&aggregateBy=daily`;
+const fetch = async (options:FetchOptions) => {
+  const startOfDay = options.startOfDay;
+  const endpointsV2 = `https://api.hyperbrick.xyz/lb/dex/analytics?startTime=${startOfDay}&aggregateBy=daily`;
 
   const historical: IData[] = await fetchURL(endpointsV2);
 
-  const dailyFees = historical.find((dayItem) => dayItem.timestamp === dayTimestamp)?.feesUSD || 0;
-  const dailyVolume = historical.find((dayItem) => dayItem.timestamp === dayTimestamp)?.volumeUSD || 0;
+  const dailyFees = historical.find((dayItem) => dayItem.timestamp === startOfDay)?.feesUSD || 0;
+  const dailyVolume = historical.find((dayItem) => dayItem.timestamp === startOfDay)?.volumeUSD || 0;
 
   return {
-    dailyFees: dailyFees,
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    dailyVolume,
+    dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
