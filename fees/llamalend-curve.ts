@@ -46,6 +46,7 @@ const OneWayLendingFactories: {[key: string]: OneWayLendingFactory} = {
   },
 };
 
+
 const EventNewVault = 'event NewVault(uint256 indexed id, address indexed collateral_token, address indexed borrowed_token, address vault, address controller, address amm, address price_oracle, address monetary_policy)'
 const EventTokenExchange = 'event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought)'
 
