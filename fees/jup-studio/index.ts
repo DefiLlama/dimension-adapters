@@ -72,7 +72,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         FROM swap_events
         GROUP BY account_quote_mint
     `
-    console.log(query)
     const data: IData[] = await queryDuneSql(options, query)
 
     const dailyFees = options.createBalances();
