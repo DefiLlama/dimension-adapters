@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
-const FeeAdresses = {
+const FeeAdresses: Record<string, string[]> = {
   [CHAIN.ARBITRUM]: [
     "0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643"
   ],
@@ -36,28 +36,8 @@ const FeeAdresses = {
   ],
 }
 
-
-const CHAINS = [
-  CHAIN.ARBITRUM,
-  CHAIN.AVAX,
-  CHAIN.BASE,
-  CHAIN.ETHEREUM,
-  CHAIN.OPTIMISM,
-  CHAIN.POLYGON,
-  CHAIN.SOLANA,
-  CHAIN.HYPERLIQUID,
-  CHAIN.BSC,
-  CHAIN.BLAST
-];
-
-function getVaultsForChain(chain: CHAIN): string[] {
-  return [
-    ...((FeeAdresses as Record<CHAIN, string[]>)[chain] || []),
-  ];
-}
-
 const fetch = async (options: FetchOptions) => {
-  const vaults = getVaultsForChain(options.chain as CHAIN);
+  const vaults = FeeAdresses[options.chain];
   if (!vaults.length) return { dailyFees: 0, dailyRevenue: 0, dailyProtocolRevenue: 0 };
 
   let dailyFees;
@@ -75,121 +55,67 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
+const methodology = {
+  Fees: 'User pays 0.05% - 0.25% fee on each trade',
+  Revenue: 'Fees are distributed to Definitive',
+  ProtocolRevenue: 'Fees are distributed to Definitive',
+}
+
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
     [CHAIN.AVAX]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
     [CHAIN.BASE]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
     [CHAIN.OPTIMISM]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
     [CHAIN.POLYGON]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
-    },
+    // [CHAIN.HYPERLIQUID]: {
+    //   fetch,
+    //   start: '2022-01-01',
+    //   meta: { methodology }
+    // },
     [CHAIN.BSC]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitiv e',
-        }
-      }
+      meta: { methodology }
     },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
-    },
+    // [CHAIN.BLAST]: {
+    //   fetch,
+    //   start: '2022-01-01',
+    //   meta: { methodology }
+    // },
     [CHAIN.SOLANA]: {
       fetch,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.05% - 0.25% fee on each trade',
-          Revenue: 'Fees are distributed to Definitive',
-          ProtocolRevenue: 'Fees are distributed to Definitive',
-        }
-      }
+      meta: { methodology }
     },
   },
 };
 
 export default adapter;
-
