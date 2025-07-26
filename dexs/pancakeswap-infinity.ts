@@ -5,6 +5,7 @@ import { addOneToken } from "../helpers/prices"
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
 const config: any = {
   [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06' },
+  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
   version: 2,

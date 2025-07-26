@@ -1,11 +1,12 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-arbitrum-stats/api",
   [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-avalanche-stats/api",
+  [CHAIN.BOTANIX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-botanix-stats/api",
 }
 
 const historicalDataSwap = gql`

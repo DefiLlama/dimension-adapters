@@ -35,24 +35,35 @@ const config: Record<
 
 const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const dayFeesData = await fetchURL(config[options.chain].fees(timestamp, '1D'));
-  const dailyFees = dayFeesData.filter((a: IVolumeall) => a.timestamp >= timestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyFees = dayFeesData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp <= options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
   const dayRevenueData = await fetchURL(config[options.chain].revenue(timestamp, '1D'));
-  const dailyRevenue = dayRevenueData.filter((a: IVolumeall) => a.timestamp >= timestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyRevenue = dayRevenueData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp <= options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
   const dailySupplySideRevenue = dailyFees - dailyRevenue;
   
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
+
+const meta = {
+  methodology: {
+    Fees: 'Interest paid by borrowers',
+    Revenue: 'Protocol fees + interest share of protocol fees',
+    ProtocolRevenue: 'Protocol fees going to meso treasury',
+    SupplySideRevenue: 'Interest earned by lenders',
+  }
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
+      meta,
       start: '2024-09-28',
     },
   },

@@ -88,6 +88,7 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
 const adapter: Adapter = {
   version: 1,
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   adapter: {
     [CHAIN.BLAST]: {
       fetch,

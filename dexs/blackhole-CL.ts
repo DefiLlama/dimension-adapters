@@ -59,7 +59,7 @@ const fetch = async (options: FetchOptions) => {
     })
   })
   
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue }
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: 0, dailySupplySideRevenue, dailyHoldersRevenue: dailyRevenue }
 }
 
 const meta = {
@@ -68,6 +68,8 @@ const meta = {
     UserFees: "All swap fees paid by users.",
     SupplySideRevenue: "No fees distributed to LPs.",
     Revenue: "All swap fees are revenue.",
+    ProtocolRevenue: "Protocol makes no revenue.",
+    HoldersRevenue: "All revenue are distributed to veBlack holders.",
   }
 };
 
