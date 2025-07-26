@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const STAKE_POOL_RESERVE_ACCOUNT = "rsrxDvYUXjH1RQj2Ke36LNZEVqGztATxFkqNukERqFT";
-const STAKE_POOL_WITHDRAW_AUTHORITY = "6WecYymEARvjG5ZyqkrVQ6YkhPfujNzWpSPwNKXHCbV2";
-const LST_FEE_TOKEN_ACCOUNT = "Dpo148tVGewDPyh2FkGV18gouWctbdX2fHJopJGe9xv1";
-const LST_MINT = ADDRESSES.solana.bSOL;
+const STAKE_POOL_RESERVE_ACCOUNT = "9xcCvbbAAT9XSFsMAsCeR8CEbxutj15m5BfNr4DEMQKn";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "75NPzpxoh8sXGuSENFMREidq6FMzEx4g2AfcBEB6qjCV";
+const LST_FEE_TOKEN_ACCOUNT = "3ZC6mkJr9hnFSrVHzXXcPopw3SArgKGm8agcah1vhy2Z";
+const LST_MINT = ADDRESSES.solana.BNSOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
@@ -17,6 +17,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
     lst_mint: LST_MINT
   });
+
   const results = await queryDuneSql(options, query);
 
   const dailyFees = options.createBalances();
@@ -26,22 +27,22 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("blazestake-staked-sol", row.amount || 0);
+      dailyRevenue.addCGToken("binance-staked-sol", row.amount || 0);
     }
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue
   };
 };
 
 const meta = {
   methodology: {
-    Fees: 'Staking rewards from staked SOL on blazestake',
-    Revenue: 'Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee',
-    ProtocolRevenue: 'All fees going to treasury/DAO (50% of total fees) + All fees going to the team(50% of total fees)',
+    Fees: 'Staking rewards from staked SOL on binance staked solana',
+    Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
+    ProtocolRevenue: 'Revenue going to treasury/team',
   }
 }
 
@@ -50,7 +51,7 @@ export default {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: "2022-12-07",
+      start: "2024-09-12",
       meta
     }
   },

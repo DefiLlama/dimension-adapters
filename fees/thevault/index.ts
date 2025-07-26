@@ -1,36 +1,37 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const FEE_COLLECTOR_ADDRESS = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
+const STAKE_POOL_RESERVE_ACCOUNT = "CCavXvmMgfW4Ky2PX3E9Nij8TMxLmSsMZuHUtxXUL1aN";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "GdNXJobf8fbTR5JSE7adxa6niaygjx4EEbnnRaDCHMMW";
+const LST_FEE_TOKEN_ACCOUNT = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
+const LST_MINT = ADDRESSES.solana.VSOL;
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-  const managementRevenue = await queryDuneSql(options, `
-    SELECT 
-      SUM(amount) / POW(10, 9) as daily_management_fees
-    FROM spl_token_solana.spl_token_call_mintTo
-    WHERE account_mint = '${ADDRESSES.solana.VSOL}'
-      AND account_account = '${FEE_COLLECTOR_ADDRESS}'
-      AND call_block_time >= from_unixtime(${options.startTimestamp})
-      AND call_block_time < from_unixtime(${options.endTimestamp});
-  `);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+
+  const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+    stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
+    stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
+    lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
+    lst_mint: LST_MINT
+  });
+
+  const results = await queryDuneSql(options, query);
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("the-vault-staked-sol", managementRevenue[0].daily_management_fees * 20);
-
-  const revenue = await queryDuneSql(options, `
-    SELECT
-      SUM(amount)/ POW(10,9) as vsol_sum
-    FROM tokens_solana.transfers
-    WHERE to_token_account = '${FEE_COLLECTOR_ADDRESS}'
-      AND token_mint_address = '${ADDRESSES.solana.VSOL}'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp});
-  `);
-
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addCGToken("the-vault-staked-sol", revenue[0].vsol_sum != null ? revenue[0].vsol_sum: 0);
+
+  results.forEach((row: any) => {
+    if (row.metric_type === 'dailyFees') {
+      dailyFees.addCGToken("solana", row.amount || 0);
+    } else if (row.metric_type === 'dailyRevenue') {
+      dailyRevenue.addCGToken("the-vault-staked-sol", row.amount || 0);
+    }
+  });
 
   return {
     dailyFees,
