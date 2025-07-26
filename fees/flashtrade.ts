@@ -9,74 +9,64 @@ interface Pool {
     totalProtocolFee: string;
 }
 
-// interface Fees {
-//     pool: string;
-//     accured: string;
-//     paid: string;
-//     protocolFee: string;
-//     feesPaidToLP: string;
-// }
 
-const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily";
-// const urlFeeesStats = "https://api.prod.flash.trade/market-stat/revenue-24hr";
-
-const calculateProtocolRevenue = (stats: Pool[]) => {
-    return stats
-        .filter(item => item.poolName !== "Community.1")
-        .reduce((sum, item) => sum + 0.3 * Number(item.totalRevenue) / 1e6, 0);
+interface Fees {
+    pool: string;
+    accured: string;
+    paid: string;
+    protocolFee: string;
+    feesPaidToLP: string;
 }
 
-const pools = [
-    "Crypto.1",
-    "Virtual.1",
-    "Governance.1",
-    "Community.1",
-    "Community.2",
-    "Community.3",
-    "Trump.1",
-]
+const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily"; // FAF revenue and protocol revenue divided based on revc share %
+const urlFeeesStats = "https://api.prod.flash.trade/market-stat/revenue-24hr"; // accured fees
+
+const calculateProtocolRevenue = (stats: Pool[]) => {
+    const protocolRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0);
+    return protocolRevenue;
+};
+
+const calculateteHolderRevenue = (stats: Pool[]) => {
+    const holderRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalRevenue), 0);
+    return holderRevenue;
+};
+
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
     const timestamp = options.startOfDay;
-    const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
-
-    let dailyFees = 0;
-    for (const pool of pools) {
-        const url = `https://api.prod.flash.trade/pnl-info/cumulative-pnl-per-day?poolName=${pool}&startDate=2023-01-01%2000:00:00&endDate=${targetDate}%2023:59:59`;
-        const res = await fetchURL(url);
-        dailyFees += (res[targetDate]?.totalFees / 1e6) || 0;
-    }
-
+    
     const dailyRevStatsResponse = await fetchURL(urlRevStats);
+    const dailtyFeesStatsResponse = await fetchURL(urlFeeesStats);
     const dailyStats: Pool[] = dailyRevStatsResponse;
+    const dailyFeesStats: Fees[] = dailtyFeesStatsResponse;
+
+    const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
 
     const todayStats = dailyStats.filter(item => {
         const itemDate = new Date(item.date).toISOString().split('T')[0];
         return itemDate === targetDate;
     });
 
-    // Token stakers revenue is 0 before 2025-06-15
-    const dailyRevenue = calculateProtocolRevenue(todayStats);
-    const dailyProtocolRevenue = timestamp >= 1749945600 ? dailyRevenue * 0.5 : dailyRevenue;
-    const dailyHoldersRevenue = timestamp >= 1749945600 ? dailyRevenue * 0.5 : 0;
-    const dailySupplySideRevenue = dailyFees - dailyRevenue;
+    
+    const dailyFees = dailyFeesStats.reduce((sum, item) => sum + parseFloat(item.accured), 0); // accured LP fees
+
+    const dailyProtocolRevenue = calculateProtocolRevenue(todayStats); // protocol revenue
+
+    // Token stakers revenue is 0 before 2025-06-19
+    const dailyHolderRevenue = timestamp >= 1750291200 ? calculateteHolderRevenue(todayStats): 0; // 50% holder revenue share
 
     return {
-        dailyFees,
-        dailyUserFees: dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue,
-        dailySupplySideRevenue,
+        dailyFees: (dailyFees).toString(), // should be accured -> given out to LPs
+        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(), 
+        dailyHoldersRevenue: (dailyHolderRevenue * 10**-6).toString(), 
     };
 };
 
 const methodology = {
-    Fees: 'Sum of all fees from the LP pools.',
+    Fees: 'Sum of all fees paid to LPs from the LP pools.',
     Revenue: 'Sum of protocol revenue and holder revenue.',
     ProtocolRevenue: '30% of all the fees accrued excluding Community pool before 2025-06-15, 15% after 2025-06-15.',
     HolderRevenue: '50% of revenue goes to token stakers after 2025-06-15.',
-    SupplySideRevenue: 'Fees paid to LP pools.',
 }
 
 const adapter: Adapter = {
