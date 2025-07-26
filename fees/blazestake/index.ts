@@ -24,7 +24,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("blazestake-staked-sol", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyRevenue.addCGToken("blazestake-staked-sol", row.amount || 0);
     }
