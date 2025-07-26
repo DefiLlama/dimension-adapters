@@ -1,7 +1,7 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const FEE_COLLECTOR_ADDRESS = "Dpo148tVGewDPyh2FkGV18gouWctbdX2fHJopJGe9xv1";
 const SOL_BLAZE_STAKE_ACCOUNT = "rsrxDvYUXjH1RQj2Ke36LNZEVqGztATxFkqNukERqFT";
@@ -18,10 +18,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   dailyFees.addCGToken("solana", stake_rewards[0].daily_yield != null ? stake_rewards[0].daily_yield : 0);
 
-  const dailyRevenue = await getSolanaReceived({
-    options,
-    target: FEE_COLLECTOR_ADDRESS
-  });
+  const revenue = await queryDuneSql(options, `
+    SELECT
+      SUM(amount_display) as bsol_sum
+    FROM tokens_solana.transfers
+    WHERE action = 'transfer'
+      AND to_token_account = '${FEE_COLLECTOR_ADDRESS}'
+      AND token_mint_address = '${ADDRESSES.solana.BSOL}'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp});
+  `);
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addCGToken("blazestake-staked-sol", revenue[0].bsol_sum != null ? revenue[0].bsol_sum: 0);
 
   return {
     dailyFees,
