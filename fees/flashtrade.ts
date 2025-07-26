@@ -18,14 +18,18 @@ interface Fees {
     feesPaidToLP: string;
 }
 
-const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily";
-const urlFeeesStats = "https://api.prod.flash.trade/market-stat/revenue-24hr";
+const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily"; // FAF revenue and protocol revenue divided based on revc share %
+const urlFeeesStats = "https://api.prod.flash.trade/market-stat/revenue-24hr"; // accured fees
 
 const calculateProtocolRevenue = (stats: Pool[]) => {
-    return stats
-        .filter(item => item.poolName !== "Community.1")
-        .reduce((sum, item) => sum + 0.3 * parseFloat(item.totalRevenue), 0);
-}
+    const protocolRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0);
+    return protocolRevenue;
+};
+
+const calculateteHolderRevenue = (stats: Pool[]) => {
+    const holderRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalRevenue), 0);
+    return holderRevenue;
+};
 
 const fetchFlashStats = async (options: FetchOptions): Promise<FetchResultFees> => {
     const timestamp = options.startOfDay;
@@ -49,11 +53,12 @@ const fetchFlashStats = async (options: FetchOptions): Promise<FetchResultFees> 
 
     const dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
 
-    return {
-        dailyFees: (dailyFees).toString(),
-        dailyRevenue: (dailyProtocolRevenue * 10**-6).toString(),
-        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(),
+    const dailyHolderRevenue = calculateteHolderRevenue(todayStats);
 
+    return {
+        dailyFees: (dailyFees).toString(), // should be accured -> given out to LPs
+        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(), 
+        dailyHoldersRevenue: (dailyHolderRevenue * 10**-6).toString(), 
     };
 };
 
