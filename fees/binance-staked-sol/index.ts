@@ -1,28 +1,34 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
-const STAKE_POOL_FEE_ACCOUNT = "3XGKBh7VuKLXU3NQHsiTX1NPnBSW76ujfzxTdJ4oQ2V9";
 const STAKE_POOL_RESERVE_ACCOUNT = "9xcCvbbAAT9XSFsMAsCeR8CEbxutj15m5BfNr4DEMQKn";
-const BINANCE_STAKE_POOL_AUTHORITY = "75NPzpxoh8sXGuSENFMREidq6FMzEx4g2AfcBEB6qjCV";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "75NPzpxoh8sXGuSENFMREidq6FMzEx4g2AfcBEB6qjCV";
+const LST_FEE_TOKEN_ACCOUNT = "3ZC6mkJr9hnFSrVHzXXcPopw3SArgKGm8agcah1vhy2Z";
+const LST_MINT = ADDRESSES.solana.BNSOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
-  const query = getSqlFromFile("helpers/queries/solana-liquid-staking-fees.sql", {
+  const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
-    stake_account: STAKE_POOL_RESERVE_ACCOUNT,
-    authority: BINANCE_STAKE_POOL_AUTHORITY
+    stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
+    stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
+    lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
+    lst_mint: LST_MINT
   });
-  const stake_rewards = await queryDuneSql(options, query);
 
-  dailyFees.addCGToken("solana", stake_rewards[0].daily_yield != null ? stake_rewards[0].daily_yield : 0);
+  const results = await queryDuneSql(options, query);
 
-  const dailyRevenue = await getSolanaReceived({
-    options,
-    target: STAKE_POOL_FEE_ACCOUNT
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  results.forEach((row: any) => {
+    if (row.metric_type === 'dailyFees') {
+      dailyFees.addCGToken("binance-staked-sol", row.amount || 0);
+    } else if (row.metric_type === 'dailyRevenue') {
+      dailyRevenue.addCGToken("binance-staked-sol", row.amount || 0);
+    }
   });
 
   return {

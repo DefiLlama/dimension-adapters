@@ -10,10 +10,10 @@ WITH
         WHERE
             d.latest=1
             AND a.latest=1
-            AND a.authority='{{authority}}'
+            AND a.authority='{{stake_pool_withdraw_authority}}'
         UNION ALL
         SELECT
-            '{{stake_account}}' AS stake_account_raw,
+            '{{stake_pool_reserve_account}}' AS stake_account_raw,
             NULL AS vote_account_raw,
             NULL AS authority
     ),
@@ -35,8 +35,8 @@ WITH
         FROM
             tokens_solana.transfers
         WHERE
-            to_token_account='{{LST_FEE_TOKEN_ACCOUNT}}'
-            AND token_mint_address='{{LST_MINT}}'
+            to_token_account='{{lst_fee_token_account}}'
+            AND token_mint_address='{{lst_mint}}'
             AND block_time>=from_unixtime({{start}})
             AND block_time<=from_unixtime({{end}})
     )
