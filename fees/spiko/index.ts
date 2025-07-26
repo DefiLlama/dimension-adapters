@@ -78,7 +78,7 @@ async function getFundsFees(
     totalRevenues.add(fund, revenues);
   });
 
-  return { dailyFees, dailyRevenues, totalFees, totalRevenues };
+  return { dailyFees, dailyRevenue: dailyRevenues, totalFees, totalRevenue: totalRevenues };
 }
 
 const meta = {
