@@ -48,7 +48,6 @@ const fetchFlashStats = async (options: FetchOptions): Promise<FetchResultFees> 
         return itemDate === targetDate;
     });
     
-    // const dailyAccrued = (todayStats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0));
     const dailyFees = dailyFeesStats.reduce((sum, item) => sum + parseFloat(item.accured), 0);
 
     const dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
@@ -65,7 +64,7 @@ const fetchFlashStats = async (options: FetchOptions): Promise<FetchResultFees> 
 const methodology = {
     Fees: 'Sum of all fees paid to LPs from the LP pools.',
     Revenue: 'Sum of protocol revenue and holder revenue.',
-    ProtocolRevenue: '30% of all the fees accrued excluding Community pool.',
+    ProtocolRevenue: '30% of all the fees accrued excluding Community.1 pool.',
     HolderRevenue: '50% of revenue goes to token stakers.',
 }
 
