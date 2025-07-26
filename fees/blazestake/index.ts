@@ -22,8 +22,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT
       SUM(amount_display) as bsol_sum
     FROM tokens_solana.transfers
-    WHERE action = 'transfer'
-      AND to_token_account = '${FEE_COLLECTOR_ADDRESS}'
+    WHERE to_token_account = '${FEE_COLLECTOR_ADDRESS}'
       AND token_mint_address = '${ADDRESSES.solana.BSOL}'
       AND block_time >= from_unixtime(${options.startTimestamp})
       AND block_time < from_unixtime(${options.endTimestamp});
