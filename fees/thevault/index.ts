@@ -19,19 +19,18 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   dailyFees.addCGToken("the-vault-staked-sol", managementRevenue[0].daily_management_fees * 20);
 
-  const otherRevenue = await queryDuneSql(options, `
+  const revenue = await queryDuneSql(options, `
     SELECT
-      SUM(amount) / POW(10, 9) as other_revenue
-    FROM spl_token_solana.spl_token_call_transferChecked
-    WHERE account_mint = '${ADDRESSES.solana.VSOL}'
-      AND account_destination = '${FEE_COLLECTOR_ADDRESS}'
-      AND call_block_time >= from_unixtime(${options.startTimestamp})
-      AND call_block_time < from_unixtime(${options.endTimestamp});
+      SUM(amount)/ POW(10,9) as vsol_sum
+    FROM tokens_solana.transfers
+    WHERE to_token_account = '${FEE_COLLECTOR_ADDRESS}'
+      AND token_mint_address = '${ADDRESSES.solana.VSOL}'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp});
   `);
 
-  const totalRevenue = managementRevenue[0].daily_management_fees + otherRevenue[0].other_revenue;
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addCGToken("the-vault-staked-sol", totalRevenue);
+  dailyRevenue.addCGToken("the-vault-staked-sol", revenue[0].vsol_sum != null ? revenue[0].vsol_sum: 0);
 
   return {
     dailyFees,
