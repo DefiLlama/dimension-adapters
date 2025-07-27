@@ -74,6 +74,8 @@ export function printVolumes(volumes: any[], module?: SimpleAdapter) {
 }
 
 export function printVolumes2(volumes: any[]) {
+    if (volumes?.length < 2) return printVolumes(volumes);
+
     const exclude2Print = ['startTimestamp', 'chain', 'timestamp', 'block']
     const printTable = {}
     let keys = volumes.map((element) => Object.keys(element)).flat()

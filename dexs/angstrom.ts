@@ -101,24 +101,15 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {},
   doublecounted: true,
-};
-
-const meta = {
   methodology: {
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
-  }
-}
-
-for (const [chain, config] of Object.entries(Configs)) {
-  adapter.adapter[chain] = {
-    fetch,
-    meta,
-    start: config.start,
-  }
-}
+  },
+  chains: Object.keys(Configs),
+  start: '2025-07-23',
+  fetch,
+};
 
 export default adapter;

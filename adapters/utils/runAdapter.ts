@@ -26,7 +26,11 @@ function genUID(length: number = 10): string {
 const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
-  const { chains, fetch } = module
+  const { chains, fetch, start, runAtCurrTime } = module
+  const rootConfig: any = { fetch }
+
+  if (start) rootConfig.start = start
+  if (runAtCurrTime) rootConfig.runAtCurrTime = runAtCurrTime
 
   if (!module._randomUID) module._randomUID = genUID(10)
 
@@ -40,12 +44,12 @@ export async function setModuleDefaults(module: SimpleAdapter) {
     for (const cConfig of chains) {
 
       if (typeof cConfig === 'string') {
-        setChainConfig(cConfig, { fetch })
+        setChainConfig(cConfig, rootConfig)
       } else if (Array.isArray(cConfig)) {
         const [chain, chainConfig] = cConfig
         if (typeof chain !== 'string' || typeof chainConfig !== 'object')
           throw new Error(`Invalid chain config: ${cConfig}`)
-        setChainConfig(chain, { ...chainConfig, fetch })
+        setChainConfig(chain, { ...rootConfig, ...chainConfig })
       } else {
         throw new Error(`Invalid chain config: ${cConfig}`)
       }
