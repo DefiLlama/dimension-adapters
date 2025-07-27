@@ -56,6 +56,8 @@ export async function setModuleDefaults(module: SimpleAdapter) {
     }
   }
 
+  module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
+
   // check if chain already has a given field before setting it, so we dont end up overwriting it with defaults
   function setChainConfig(chain: string, config: BaseAdapterChainConfig) {
     if (!adapterObject[chain]) adapterObject[chain] = {}
