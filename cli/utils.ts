@@ -1,5 +1,5 @@
 import { getLatestBlock } from "@defillama/sdk/build/util";
-import { BaseAdapter, whitelistedDimensionKeys, } from "../adapters/types";
+import { SimpleAdapter, whitelistedDimensionKeys, } from "../adapters/types";
 import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 
 export const ERROR_STRING = '------ ERROR ------'
@@ -22,7 +22,7 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
+export function printVolumes(volumes: any[], module?: SimpleAdapter) {
     const exclude2Print = ['startTimestamp', 'chain']
     let keys = volumes.map((element) => Object.keys(element)).flat()
     keys.forEach((key) => {
@@ -30,7 +30,7 @@ export function printVolumes(volumes: any[], baseAdapter?: BaseAdapter) {
             throw new Error(`"${key}" is not a supported metric.Supported metrics can be found in adapters/types.ts`)
     })
     volumes.forEach((element) => {
-        const methodology = baseAdapter?.[element.chain].meta?.methodology
+        // const methodology =  module?.methodology ?? module?.[element.chain].meta?.methodology
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
