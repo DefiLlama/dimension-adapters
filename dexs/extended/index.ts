@@ -3,7 +3,7 @@ import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
 
-const historicalVolumeEndpoint = (dateTime: string) => `https://api.prod.x10.exchange/api/v1/exchange/stats/trading?fromDate=${dateTime}&toDate=${dateTime}`
+const historicalVolumeEndpoint = (dateTime: string) => `https://api.extended.exchange/api/v1/exchange/stats/trading?fromDate=${dateTime}&toDate=${dateTime}`
 
 interface IVolumeall {
   tradingVolume: string;
