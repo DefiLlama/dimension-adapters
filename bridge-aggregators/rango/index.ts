@@ -37,6 +37,10 @@ const RangoChains: Record<string, string> = {
   [CHAIN.HARMONY]: 'HARMONY',
   [CHAIN.MOONBEAM]: 'MOONBEAM',
   [CHAIN.TERRA]: 'TERRA',
+  [CHAIN.SONIC]: 'SONIC',
+  [CHAIN.TON]: 'TON',
+  [CHAIN.BERACHAIN]: 'BERACHAIN',
+  [CHAIN.AURORA]: 'AURORA',
 };
 
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {

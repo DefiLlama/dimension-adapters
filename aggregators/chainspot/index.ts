@@ -1,5 +1,4 @@
 import { httpGet } from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
@@ -70,17 +69,14 @@ const chainToId: Record<string, number> = {
 };
 
 const fetch = async (_at: number, _t: any, options: FetchOptions) => {
-    const unixTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(options.startOfDay * 1000)
-    );
-    const url = `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${unixTimestamp * 1e3}`;
+    const startOfDay = options.startOfDay;
+    const url = `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${startOfDay * 1e3}`;
     const volume = (
         await httpGet(url)
     )?.volume;
 
     return {
-        dailyVolume: volume  || 0,
-        timestamp: unixTimestamp,
+        dailyVolume: volume || 0,
     };
 };
 
