@@ -53,7 +53,7 @@
 // }
 
 import * as sdk from "@defillama/sdk";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 
@@ -297,7 +297,7 @@ const meta = {
 }
 
 for (const [chain, config] of Object.entries(Configs)) {
-  adapter.adapter[chain] = {
+  (adapter.adapter as BaseAdapter)[chain] = {
     fetch,
     meta,
     start: config.start,

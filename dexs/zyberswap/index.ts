@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { uniV2Exports, uniV3Exports } from "../../helpers/uniswap";
@@ -51,7 +51,7 @@ const v2Adapter = uniV2Exports({
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    v2: v2Adapter.adapter,
+    v2: v2Adapter.adapter as BaseAdapter,
     v3: {
       [CHAIN.ARBITRUM]: {
         fetch: graphsV3(CHAIN.ARBITRUM),
