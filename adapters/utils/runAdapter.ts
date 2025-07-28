@@ -65,7 +65,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
     for (const key of Object.keys(config)) {
       if (!chainConfigObject.hasOwnProperty(key))
-        chainConfigObject[key] = config[key]
+        (chainConfigObject as any)[key] = (config as any)[key]
     }
   }
 
