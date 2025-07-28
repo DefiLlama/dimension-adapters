@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { gql, GraphQLClient } from "graphql-request";
 
 const EZ_REZ = "0x77b1183e730275f6a8024ce53d54bcc12b368f60";
@@ -9,7 +10,7 @@ const RENZO_OWNED_VAULTS = [
 const EZETH_HISTORICAL_DATA_SUBGRAPH_URL =
   "https://api.goldsky.com/api/public/project_clsxzkxi8dh7o01zx5kyxdga4/subgraphs/historical-data/stable/gn"
 
-const ETH_TOKEN_ID = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const ETH_TOKEN_ID = ADDRESSES.GAS_TOKEN_2;
 
 const client = new GraphQLClient(EZETH_HISTORICAL_DATA_SUBGRAPH_URL);
 

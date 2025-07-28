@@ -20,6 +20,8 @@ const adapter: any = {
     xdai: { fetch, start: '2023-05-31', },
     arbitrum: { fetch, start: '2024-04-26', },
     base: { fetch, start: '2024-12-10', },
+    polygon: { fetch, start: '2023-12-10', },
+    avax: { fetch, start: '2025-03-10', },
   },
 };
 

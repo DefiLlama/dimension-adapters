@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -30,7 +31,7 @@ const methodology = {
   SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
 }
 
-const rETH = '0xae78736cd615f374d3085123a210448e74fc6393';
+const rETH = ADDRESSES.ethereum.RETH;
 
 // MEV and priority fees send to smoothing pool by block builders
 const smoothingPool = '0xd4E96eF8eee8678dBFf4d535E033Ed1a4F7605b7';

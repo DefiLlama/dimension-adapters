@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
@@ -96,11 +97,11 @@ const suiFetch = async (options: FetchOptions) => {
           for (const change of tx.balanceChanges) {
             if (
               change.owner?.AddressOwner === SUI_ADDRESS &&
-              change.coinType === "0x2::sui::SUI" &&
+              change.coinType === ADDRESSES.sui.SUI &&
               Number(change.amount) > 0
             ) {
               total += Number(change.amount);
-              dailyFees.add("0x2::sui::SUI", Number(change.amount));
+              dailyFees.add(ADDRESSES.sui.SUI, Number(change.amount));
             }
           }
         }

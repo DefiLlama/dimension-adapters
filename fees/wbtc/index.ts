@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -16,7 +17,7 @@ export default {
           const amount = Number(event.amount)
           const btcTx = await getBitcoinTx(event.btcTxid)
           const btcSend = btcTx.outputs.filter(v => v.addresses[0] === event.btcDepositAddress).reduce((sum, v) => sum + v.value, 0)
-          dailyFees.add('0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', Math.abs(amount - btcSend));
+          dailyFees.add(ADDRESSES.ethereum.WBTC, Math.abs(amount - btcSend));
         }))
         return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 

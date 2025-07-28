@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -31,7 +32,7 @@ const methodology = {
 
 const DaoCollateral = '0xde6e1F680C4816446C8D515989E2358636A38b04'
 const Treasury = '0xdd82875f0840AAD58a455A70B88eEd9F59ceC7c7'
-const USD0 = '0x73a15fed60bf67631dc6cd7bc5b6e8da8190acf5'
+const USD0 = ADDRESSES.ethereum.USD0
 const USUAL = '0xc4441c2be5d8fa8126822b9929ca0b81ea0de38e'
 const USD0PP = '0x35d8949372d46b7a3d5a56006ae77b215fc69bc0'
 

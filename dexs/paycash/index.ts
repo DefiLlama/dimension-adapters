@@ -1,7 +1,5 @@
-import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
@@ -40,7 +38,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.EOS]: {
       fetch,
       start: '2021-04-14',
-      customBackfill: customBackfill(CHAIN.EOS as Chain, (_chian: string) => fetch)
     },
   },
 };

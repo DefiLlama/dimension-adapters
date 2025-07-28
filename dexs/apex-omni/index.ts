@@ -35,7 +35,7 @@ const fetch = async (timestamp: number) => {
         .map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, price: e.c } });
     const openInterestHistorical: IOpenInterest[] = (await Promise.all(symbol.map((coins: string) => limits(() => httpGet(allTiker(coins), { timeout: 10000 })))))
         .map((e: any) => e.data).flat().map((e: any) => { return { id: e.symbol, openInterest: e.openInterest, lastPrice: e.lastPrice } });
-    const dailyOpenInterest = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
+    const openInterestAtEnd = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
     const historicalUSD = historical.map((e: IVolumeall) => {
         return {
             ...e,
@@ -46,8 +46,8 @@ const fetch = async (timestamp: number) => {
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
 
     return {
-        dailyOpenInterest: dailyOpenInterest,
         dailyVolume: dailyVolume,
+        openInterestAtEnd,
     };
 };
 

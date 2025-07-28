@@ -11,6 +11,7 @@ const CARBON_METADATA: {
     [1715990400, "CarbonDeFi Coti Launch"],
     [1716825673, "CarbonDeFi Sei Launch"],
     [1721813184, "CarbonDeFi Celo Launch"],
+    [1750939200, "CarbonDeFi TAC Launch"],
   ],
   methodology: {
     Volume:
@@ -35,6 +36,10 @@ const chainInfo: { [key: string]: any } = {
   [CHAIN.COTI]: {
     endpoint: "https://api.carbondefi.xyz/v1/coti/analytics/volume",
     startTimestamp: 1715990400,
+  },
+  [CHAIN.TAC]: {
+    endpoint: "https://api.carbondefi.xyz/v1/tac/analytics/volume",
+    startTimestamp: 1750939200,
   },
 };
 
@@ -71,6 +76,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.COTI]: {
       fetch: getData,
       start: chainInfo[CHAIN.COTI].startTimestamp,
+      meta: CARBON_METADATA,
+    },
+    [CHAIN.TAC]: {
+      fetch: getData,
+      start: chainInfo[CHAIN.TAC].startTimestamp,
       meta: CARBON_METADATA,
     },
   },

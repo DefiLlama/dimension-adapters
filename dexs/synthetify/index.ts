@@ -1,8 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
@@ -30,17 +28,10 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
-  return (new Date(historicalVolume[0].timestamp).getTime())
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.SOLANA as Chain, (_chian: string) => fetch)
     },
   },
 };

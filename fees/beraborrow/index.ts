@@ -263,7 +263,7 @@ const fetchFees = async (options: FetchOptions) => {
     liquidataionLogs.forEach((logs: any, index: any) => {
       const collateral = collaterals[index]
       logs
-        // // filter for transfers from denManagers and to ProtocolFeeRecipient
+        // filter for transfers from denManagers and to ProtocolFeeRecipient
         .filter((log: any) => denManagersSet.has(log.from.toLowerCase()) && String(log.to).toLowerCase() === Contracts.ProtocolFeeRecipient)
         .forEach((log: any) => {
           dailyFees.add(collateral, log.value);

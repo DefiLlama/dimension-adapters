@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -60,7 +61,7 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
   const dailyHoldersRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
   const DIAMOND = "0x2BE5D7058AdBa14Bc38E4A83E94A81f7491b0163";
-  const APE = "0x48b62137edfa95a428d35c09e44256a739f6b557"; // wAPE
+  const APE = ADDRESSES.apechain.WAPE; // wAPE
 
   const [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee]: any = await Promise.all(
     [
