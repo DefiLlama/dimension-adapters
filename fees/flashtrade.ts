@@ -52,11 +52,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     // Token stakers revenue is 0 before 2025-06-19
     const dailyHolderRevenue = timestamp >= 1750291200 ? calculateteHolderRevenue(todayStats): 0; // 50% holder revenue share
+    const dailyRevenue = ((dailyProtocolRevenue * 10**-6) + (dailyHolderRevenue * 10**-6))
 
     return {
         dailyFees: (dailyFees).toString(), // should be accured -> given out to LPs
-        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(), 
-        dailyHoldersRevenue: (dailyHolderRevenue * 10**-6).toString(), 
+        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(), // protocol revenue
+        dailyHoldersRevenue: (dailyHolderRevenue * 10**-6).toString(), // token stakers revenue
+        dailyRevenue: dailyRevenue.toString(), // protocol revenue + token stakers revenue
+        dailySupplySideRevenue: (dailyFees - dailyRevenue).toString() // accured fees - total revenue
     };
 };
 
