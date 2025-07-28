@@ -42,8 +42,8 @@ const adapter: SimpleAdapter = {
           start: '2025-04-30',
           meta: {
             methodology: {
-                Fees: "Fees paid by users using privicy services.",
-                Revenue: "Fees paid by users using privicy services.",
+                Fees: "Fees paid by users using privacy services.",
+                Revenue: "Fees paid by users using privacy services.",
             }
         }
       }

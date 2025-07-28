@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ZeroAddress } from "ethers";
@@ -35,7 +36,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   })
   for (const event of feeEvents) {
     let token = event.feesToken
-    if (String(token).toLowerCase() === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'.toLowerCase()) {
+    if (String(token).toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
       token = ZeroAddress
     }
 

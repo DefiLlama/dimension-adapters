@@ -1,9 +1,7 @@
 
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoint = "https://data-api.claimswap.org/dashboard/charts/tradingvolume";
@@ -47,7 +45,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
-      customBackfill: customBackfill(CHAIN.KLAYTN as Chain, (_chian: string) => fetch),
       start: START_TIME,
     },
   }

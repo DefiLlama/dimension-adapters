@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { sliceIntoChunks } from "@defillama/sdk/build/util";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -122,11 +123,11 @@ const fetchFees = async (options: FetchOptions) => {
   //     .filter((type) => !type.includes("::unihouse::FeeTag"));
 
   const tokenTypeList = [
-    "0x2::sui::SUI",
-    "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+    ADDRESSES.sui.SUI,
+    ADDRESSES.sui.USDC_CIRCLE,
     "0xfe3afec26c59e874f3c1d60b8203cb3852d2bb2aa415df9548b8d688e6683f93::alpha::ALPHA",
     "0x76cb819b01abed502bee8a702b4c2d547532c12f25001c9dea795a5e631c26f1::fud::FUD",
-    "0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP",
+    ADDRESSES.sui.DEEP,
   ];
 
   const tokenCGName = ["sui", "usd-coin", "alpha-fi", "fud-the-pug", "deep"];

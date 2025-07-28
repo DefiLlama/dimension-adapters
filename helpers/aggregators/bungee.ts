@@ -1,3 +1,4 @@
+import ADDRESSES from '../coreAssets.json'
 import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -127,7 +128,7 @@ function decodeAutoEvent(data: string, auditedSwap: boolean): AutoEvent {
 }
 
 function formatToken(token: string): string {
-  return String(token).toLowerCase() === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'.toLowerCase() ? ethers.ZeroAddress : token
+  return String(token).toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase() ? ethers.ZeroAddress : token
 }
 
 export function fetchBungeeChains(): Array<string> {

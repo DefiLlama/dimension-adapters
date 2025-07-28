@@ -1,11 +1,12 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL, { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 import { parseUnits } from "ethers";
 
-const WETH_CONTRACT = '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1';
-const USDC_CONTRACT = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+const WETH_CONTRACT = ADDRESSES.arbitrum.WETH;
+const USDC_CONTRACT = ADDRESSES.arbitrum.USDC_CIRCLE;
 
 interface IIthacaStatsResponse {
   "response": {

@@ -51,6 +51,10 @@ const MorphoBlues = {
     chainId: 130,
     blue: "0x8f5ae9cddb9f68de460c77730b018ae7e04a140a",
   },
+  [CHAIN.KATANA]: {
+    chainId: 747474,
+    blue: "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc",
+  },
 };
 
 const MorphoBlueAbis = {
@@ -160,6 +164,13 @@ const adapter: SimpleAdapter = {
     unichain: {
       fetch: fetch,
       start: "2025-02-18",
+      meta: {
+        methodology,
+      },
+    },
+    katana: {
+      fetch: fetch,
+      start: "2025-07-01",
       meta: {
         methodology,
       },
