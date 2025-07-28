@@ -25,13 +25,10 @@ const FeeAdresses: Record<string, string[]> = {
   [CHAIN.SOLANA]: [
     "Ggp9SGTqAKiJWRXeyEb2gEVdmD6n7fgHD7t4s8DrAqwf",
   ],
-  [CHAIN.HYPERLIQUID]: [
-    "0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643",
-  ],
+  // [CHAIN.HYPERLIQUID]: [
+  //   "0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643",
+  // ],
   [CHAIN.BSC]: [
-    "0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643",
-  ],
-  [CHAIN.BLAST]: [
     "0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643",
   ],
 }
@@ -95,6 +92,7 @@ const adapter: SimpleAdapter = {
       start: '2022-01-01',
       meta: { methodology }
     },
+    // TODO: Add Hyperliquid support
     // [CHAIN.HYPERLIQUID]: {
     //   fetch,
     //   start: '2022-01-01',
@@ -105,11 +103,6 @@ const adapter: SimpleAdapter = {
       start: '2022-01-01',
       meta: { methodology }
     },
-    // [CHAIN.BLAST]: {
-    //   fetch,
-    //   start: '2022-01-01',
-    //   meta: { methodology }
-    // },
     [CHAIN.SOLANA]: {
       fetch,
       start: '2022-01-01',
