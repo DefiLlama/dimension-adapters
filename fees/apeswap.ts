@@ -8,7 +8,7 @@ const adapterObj = volumeAdapter.adapter;
 
 const fetch = (chain: string, totalFees: number, revenueFee: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
-    const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
+    const fetchedResult = await (adapterObj![chain].fetch as Fetch)(timestamp, chainBlocks, options);
     const chainDailyVolume = fetchedResult.dailyVolume as number || '0';
     const ssrFee = totalFees - revenueFee
     const protocolFee = chain === CHAIN.TELOS ? 0.000375 : revenueFee / 2
@@ -36,43 +36,29 @@ const methodology = {
 
 const baseAdapter: BaseAdapter = {
   [CHAIN.BSC]: {
-    ...adapterObj[CHAIN.BSC],
+    ...adapterObj![CHAIN.BSC],
     fetch: fetch(CHAIN.BSC, 0.002, 0.0005),
-    meta: {
-      methodology
-    }
   },
   [CHAIN.ETHEREUM]: {
-    ...adapterObj[CHAIN.ETHEREUM],
+    ...adapterObj![CHAIN.ETHEREUM],
     fetch: fetch(CHAIN.ETHEREUM, 0.002, 0.0005),
-    meta: {
-      methodology
-    }
   },
   [CHAIN.POLYGON]: {
-    ...adapterObj[CHAIN.POLYGON],
+    ...adapterObj![CHAIN.POLYGON],
     fetch: fetch(CHAIN.POLYGON, 0.002, 0.0015),
-    meta: {
-      methodology
-    }
   },
   // [CHAIN.TELOS]: {
   //   ...adapterObj[CHAIN.TELOS],
   //   fetch: fetch(CHAIN.TELOS, 0.002, 0.0015),
-  //   meta: {
-  //     methodology
-  //   }
   // }
   [CHAIN.ARBITRUM]: {
-    ...adapterObj[CHAIN.ARBITRUM],
+    ...adapterObj![CHAIN.ARBITRUM],
     fetch: fetch(CHAIN.ARBITRUM, 0.002, 0.0005),
-    meta: {
-      methodology
-    }
   }
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter,
   version: 1,
 };

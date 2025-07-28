@@ -74,16 +74,18 @@ export type FetchV2 = (
 
 export type IStartTimestamp = () => Promise<number>
 
-export type BaseAdapter = {
-  [chain: string]: {
+export type BaseAdapterChainConfig = {
     start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
-    fetch: Fetch | FetchV2;
+    fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
     meta?: {
       methodology?: string | IJSON<string>
       hallmarks?: [number, string][]
     }
   }
+
+export type BaseAdapter = {
+  [chain: string]: BaseAdapterChainConfig
 };
 
 export enum ProtocolType {
@@ -100,11 +102,18 @@ export type AdapterBase = {
   deadFrom?: string;
   allowNegativeValue?: boolean;
   doublecounted?: boolean;
+  methodology?: string | IJSON<string>;
+  hallmarks?: [number|string, string][];
+  fetch?: Fetch | FetchV2;
+  chains?: (string|[string, BaseAdapterChainConfig])[]
   prefetch?: FetchV2;
+  runAtCurrTime?: boolean;
+  start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results
 }
 
 export type SimpleAdapter = AdapterBase & {
-  adapter: BaseAdapter
+  adapter?: BaseAdapter
 }
 
 export type BreakdownAdapter = AdapterBase & {
