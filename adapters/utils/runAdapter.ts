@@ -1,8 +1,9 @@
 import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
+import { accumulativeKeySet, BaseAdapter, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
+import { getDateString } from '../../helpers/utils';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -16,10 +17,16 @@ function getUnixTimeNow() {
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
   adapterVersion = 1,
   isTest = false,
+  _module = {},
+  withMetadata = false,
 }: any = {}) {
-
+  const { prefetch, allowNegativeValue = false } = _module
+  if (_module.breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
-  const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
+  const chains = Object.keys(volumeAdapter)
+  if (chains.some(c => !c) || chains.includes('undefined')) {
+    throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
+  }
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
@@ -28,11 +35,31 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
   await Promise.all(chains.map(setChainValidStart))
 
+  // Run prefetch if provided
+  let preFetchedResults: any = null;
+  if (typeof prefetch === 'function') {
+    const firstChain = chains.find(chain => validStart[chain]?.canRun);
+    if (firstChain) {
+      const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
+      preFetchedResults = await prefetch(options);
+    }
+  }
+
+  let breakdownData: any = {}
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
     return validStart[chain]?.canRun
   }).map(getChainResult))
+
+
+  Object.entries(breakdownData).forEach(([chain, data]: any) => {
+    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownData[chain]
+  })
+
+  if (Object.keys(breakdownData).length === 0) breakdownData = undefined
+
+  if (withMetadata) return { response, breakdownData, }
   return response
 
   async function getChainResult(chain: string) {
@@ -45,9 +72,13 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       version,
     }
 
-    const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
+    const fetchFunction = volumeAdapter[chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      if (preFetchedResults !== null) {
+        options.preFetchedResults = preFetchedResults;
+      }
+
       let result: any
       if (adapterVersion === 1) {
         result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
@@ -60,6 +91,9 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       const ignoreKeys = ['timestamp', 'block']
       // if (id)
       //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
+
+      const improbableValue = 2e11 // 200 billion
+
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;
         if (value === undefined || value === null) { // dont store undefined or null values
@@ -67,9 +101,21 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
           continue;
         }
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
-        if (value instanceof Balances) result[key] = await value.getUSDString()
+        if (value instanceof Balances) {
+          result[key] = await value.getUSDString()
+          breakdownData[chain] = breakdownData[chain] || {}
+          breakdownData[chain][key] = await value.getUSDJSONs()
+        }
         result[key] = +Number(result[key]).toFixed(0)
-        if (isNaN(result[key] as number)) throw new Error(`[${chain}]Value: ${value} ${key} is NaN`)
+        let errorPartialString = `| ${chain}-${key}: ${value}`
+
+        if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
+        if (result[key] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
+        if (result[key] > improbableValue) {
+          let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
+          if (showError)
+            throw new Error(`value is too damn high ${errorPartialString}`)
+        }
       }
 
       const endTime = getUnixTimeNow()
@@ -109,15 +155,15 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, }: FetchGetLogsOptions) => {
+    const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
-      return getEventLogs({ fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, })
+      return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
     // we intentionally add a delay to avoid fetching the same block before it is cached
-    await randomDelay()
+    // await randomDelay()
 
     let fromBlock, toBlock
     // we fetch current block and previous blocks only for evm chains/ chains we have RPC for
@@ -151,6 +197,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
       endTimestamp,
       getStartBlock,
       getEndBlock,
+      dateString: getDateString(startOfDay),
     }
   }
 

@@ -1,4 +1,3 @@
-import customBackfill from "../../helpers/customBackfill";
 import {
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -6,8 +5,7 @@ import {
   DEFAULT_DAILY_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type { BaseAdapter, BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
-import type { Chain } from "@defillama/sdk/build/general";
+import type { BaseAdapter, BreakdownAdapter, ChainEndpoints, Chain } from "../../adapters/types";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v2Endpoints: ChainEndpoints = {
@@ -84,7 +82,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: v2Graph(chain as Chain),
           start: '2024-02-01',
-          customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
       };

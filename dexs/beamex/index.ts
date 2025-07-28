@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpointsBeamex: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
+  [CHAIN.MOONBEAM]:
     'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 const historicalDataSwap = gql`
@@ -49,33 +49,13 @@ const getFetch =
             period: "daily",
           }
         );
-        const totalData: IGraphResponse = await request(
-          endpointsBeamex[chain],
-          query,
-          {
-            id: "total",
-            period: "total",
-          }
-        );
 
         return {
-          timestamp: dayTimestamp,
           dailyVolume:
             dailyData.volumeStats.length == 1
               ? String(
                 Number(
                   Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                    String(Number(sum) + Number(element))
-                  )
-                ) *
-                10 ** -30
-              )
-              : undefined,
-          totalVolume:
-            totalData.volumeStats.length == 1
-              ? String(
-                Number(
-                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
                     String(Number(sum) + Number(element))
                   )
                 ) *
@@ -99,8 +79,8 @@ const methodologyBeamex = {
 const adapter: BreakdownAdapter = {
   breakdown: {
     "beamex-swap": {
-      [CHAIN.MOONBEAN]: {
-        fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAN),
+      [CHAIN.MOONBEAM]: {
+        fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAM),
         start: '2023-06-22',
         meta: {
           methodology: {
@@ -110,8 +90,8 @@ const adapter: BreakdownAdapter = {
       },
     },
     "beamex-perps": {
-      [CHAIN.MOONBEAN]: {
-        fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAN),
+      [CHAIN.MOONBEAM]: {
+        fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAM),
         start: '2023-06-22',
         meta: {
           methodology: {

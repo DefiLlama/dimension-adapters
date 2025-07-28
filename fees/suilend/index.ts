@@ -5,20 +5,15 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const suilendFeesURL = 'https://api.suilend.fi/stats/daily-fees';
+const suilendFeesURL = 'https://api.suilend.fi/stats/fees';
 
 interface DailyStats {
-  date: string;
-  start: number;
-  end: number;
   borrowFees: number;
   borrowInterestPaid: number;
   protocolFees: number;
   liquidatorBonuses: number;
   liquidationProtocolFees: number;
   stakingRevenue: number;
-  previous: string;
-  next: string;
 }
 
 const methodology = {
@@ -26,8 +21,8 @@ const methodology = {
   ProtocolReveneue: 'The portion of the total fees going to the Suilend treasury'
 }
 
-const fetchSuilendStats = async ({ endTimestamp }: FetchOptions) => {
-  const url = `${suilendFeesURL}?ts=${endTimestamp}`
+const fetchSuilendStats = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+  const url = `${suilendFeesURL}?endTimestamp=${endTimestamp}&startTimestamp=${startTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
@@ -44,7 +39,7 @@ const fetchSuilendStats = async ({ endTimestamp }: FetchOptions) => {
   return {
     dailyFees: userFees,
     dailyUserFees: userFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
 };

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { addGasTokensReceived, addTokensReceived, getSolanaReceived } from "../../helpers/token";
@@ -17,7 +17,7 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
   [CHAIN.MANTLE]: { deployedAt: 1726531200 },
   [CHAIN.MERLIN]: { deployedAt: 1726531200 },
-  [CHAIN.CORE]: { deployedAt: 1726531200 },
+  // [CHAIN.CORE]: { deployedAt: 1726531200 },
   [CHAIN.SCROLL]: { deployedAt: 1726531200 },
   [CHAIN.SOLANA]: { deployedAt: 1726531200 },
   [CHAIN.AVAX]: { deployedAt: 1726531200 },
@@ -55,6 +55,7 @@ const fetch: FetchV2 = async (options) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -265,10 +266,19 @@ async function solanas(options: FetchOptions, contracts: any, configKey: string)
   return await getSolanaReceived({ options, targets: solanaFeesConfig });
 }
 
+const meta = {
+  methodology: {
+    Fees: 'All yields are generated from staking assets.',
+    Revenue: 'Fees collected by Solv Protocol.',
+    ProtocolRevenue: 'Fees collected by Solv Protocol.',
+  }
+}
+
 const adapter: SimpleAdapter = { adapter: {}, version: 2 };
 
 Object.keys(chains).forEach((chain: Chain) => {
   adapter.adapter[chain] = {
+    meta,
     fetch,
     start: chains[chain].deployedAt,
   };

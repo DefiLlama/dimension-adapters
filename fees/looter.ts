@@ -25,7 +25,15 @@ const fetchFees = async (options: FetchOptions) => {
     await getETHReceived({ options, target: contract[options.chain], balances: dailyFees })
   }
 
-  return { dailyFees, dailyRevenue: dailyFees, }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+}
+
+const meta = {
+  methodology: {
+    Fees: "All trading fees paid by users while using Looter bot.",
+    Revenue: "Trading fees are collected by Looter protocol.",
+    ProtocolRevenue: "Trading fees are collected by Looter protocol.",
+  }
 }
 
 const adapter: SimpleAdapter = {
@@ -34,10 +42,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2023-06-01',
+      meta,
     },
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2023-06-01',
+      meta,
     },
     // [CHAIN.AVAX]: {
     //   fetch: fetchFees,
@@ -50,6 +60,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2023-06-01',
+      meta,
     },
   },
   isExpensiveAdapter: true,

@@ -46,10 +46,8 @@ const toUnixTime = (timestamp: string): number =>
 
 const calculateFees = (log: ILogs) => {
   const dev = Number(log.dev_amount);
-  const lp = Number(log.lp_amount);
   const stake = Number(log.stake_amount);
   return {
-    totalFees: (dev + lp + stake) / USDC_DECIMALS,
     revenue: (dev + stake) / USDC_DECIMALS
   };
 };
@@ -98,7 +96,7 @@ const getEventLogs = async (pool: Pool, fromTimestamp: number, toTimestamp: numb
   }));
 };
 
-const fetchFees: FetchV2 = async (options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const resources = await getResources(ACCOUNT);
   const filterEvents = resources.filter((e: EventResource) => 
     e.type?.includes('fee_distributor::FeeDistributorEvents')
@@ -123,8 +121,8 @@ const fetchFees: FetchV2 = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   logs.flat().forEach((log: ILogs) => {
-    const { totalFees, revenue } = calculateFees(log);
-    dailyFees.addCGToken('usd-coin', totalFees);
+    const { revenue } = calculateFees(log);
+    dailyFees.addCGToken('usd-coin', revenue);
     dailyRevenue.addCGToken('usd-coin', revenue);
   });
 
@@ -135,7 +133,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetchFees,
+      fetch,
       start: '2024-02-27',
     }
   }

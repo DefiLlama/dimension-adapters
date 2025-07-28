@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -24,6 +25,11 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.SONEIUM]: ["0x7E36665858D17FD1CbFd4Fd464d2a3Da49aa3B9d"],
   [CHAIN.HEMI]: ["0x3E257bD80C5e73f9A5D30D3D1a734251c4809Ad4"],
   [CHAIN.ROOTSTOCK]: ["0x7D1820c87BD5e4C231310D45E5f24eb571813738"],
+  [CHAIN.BSC]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
+  [CHAIN.ARBITRUM]: ["0xf1afD3bbEeFE61042b2B29F42d65F71ac5bC881e"],
+  [CHAIN.HYPERLIQUID]: ["0x1FA40f83c12E48e9396d12Dd08B4b4ee51C8c803"],
+  [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
+  [CHAIN.PLUME]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
 };
 
 const START_BLOCKS = {
@@ -42,6 +48,11 @@ const START_BLOCKS = {
   [CHAIN.SONEIUM]: 1704067200,
   [CHAIN.HEMI]: 1704067200,
   [CHAIN.ROOTSTOCK]: 1704067200,
+  [CHAIN.BSC]: 1704067200,
+  [CHAIN.ARBITRUM]: 1704067200,
+  [CHAIN.HYPERLIQUID]: 1704067200,
+  [CHAIN.ABSTRACT]: 1704067200,
+  [CHAIN.PLUME]: 1704067200,
 };
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
@@ -49,7 +60,16 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const dailyVolume = createBalances();
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap });
 
-  logs.forEach((i) => dailyVolume.add(i.toAssetId, i.toAmount));
+  logs.forEach((i) => {
+    if (
+      i.toAssetId.toLowerCase() ==
+      ADDRESSES.GAS_TOKEN_2.toLowerCase()
+    ) {
+      dailyVolume.addGasToken(i.toAmount);
+    } else {
+      dailyVolume.add(i.toAssetId, i.toAmount);
+    }
+  });
 
   return { dailyVolume };
 }

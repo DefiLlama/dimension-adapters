@@ -1,8 +1,7 @@
 require('dotenv').config()
 import { execSync } from 'child_process';
 import * as path from 'path';
-import { Adapter, AdapterType, ChainBlocks, } from '../adapters/types';
-import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
+import { Adapter, AdapterType, BreakdownAdapter, Chain, ChainBlocks, } from '../adapters/types';
 import runAdapter from '../adapters/utils/runAdapter';
 import { canGetBlock, getBlock } from '../helpers/getBlock';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
@@ -67,7 +66,8 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   console.info(`---------------------------------------------------\n`)
 
   // Get closest block to clean day. Only for EVM compatible ones.
-  const allChains = getChainsFromDexAdapter(module).filter(canGetBlock)
+  if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
+  const allChains = (Object.keys((module as any).adapter)).filter(canGetBlock) as Chain[]
 
   const chainBlocks: ChainBlocks = {};
   await Promise.all(allChains.map(async (chain) => {
@@ -81,8 +81,9 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   if ("adapter" in module) {
     const adapter = module.adapter
     // Get adapter
-    const volumes = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
+    const volumes: any = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
       adapterVersion,
+      _module: module,
     })
     printVolumes(volumes, adapter)
     console.info("\n")
@@ -91,13 +92,14 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
       runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
         adapterVersion,
+        _module: module,
         isTest: true,
       }).then(res => ({ version, res }))
     ))
     allVolumes.forEach(({ version, res }) => {
       console.info("Version ->", version.toUpperCase())
       console.info("---------")
-      printVolumes(res, breakdownAdapter[version])
+      printVolumes(res as any, breakdownAdapter[version])
     })
   } else throw new Error("No compatible adapter found")
   process.exit(0)

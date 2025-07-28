@@ -1,4 +1,4 @@
+import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
 import { CHAIN } from "../helpers/chains";
-import { fetchChainTransactionFeesExport, } from "../helpers/getChainFees";
 
-export default fetchChainTransactionFeesExport({ chain: CHAIN.UNICHAIN});
+export default blockscoutFeeAdapter2(CHAIN.UNICHAIN)

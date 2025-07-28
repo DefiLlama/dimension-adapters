@@ -1,3 +1,3 @@
 export default {
-        fetch: async () => ({ timestamp: 0 })
+        fetch: async () => ({  })
   }

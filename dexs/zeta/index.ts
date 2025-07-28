@@ -13,14 +13,12 @@ async function fetch() {
 }
 
 const adapter = {
-  version:2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        runAtCurrTime: true,
-        start: '2023-08-31',
-      },
+  version: 2,
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2023-08-31',
     },
   },
 };

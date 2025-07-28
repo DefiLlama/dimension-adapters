@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains"
 import { uniV2Exports } from "../../helpers/uniswap";
 
@@ -17,7 +18,7 @@ const config = {
   },
   [CHAIN.BOB]: {
     stakingRewards: "0x8Eb6838B4e998DA08aab851F3d42076f21530389",
-    rewardToken: "0x4200000000000000000000000000000000000006",
+    rewardToken: ADDRESSES.optimism.WETH_1,
   }
 }
 
@@ -111,4 +112,5 @@ export default uniV2Exports({
   [CHAIN.INK]: {factory: leaf_pool_factory, customLogic},
   [CHAIN.SONEIUM]: {factory: leaf_pool_factory, customLogic},
   [CHAIN.UNICHAIN]: {factory: leaf_pool_factory, customLogic},
+  [CHAIN.SWELLCHAIN]: {factory: '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0', swapEvent, voter: '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123', customLogic,}
 })

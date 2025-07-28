@@ -8,7 +8,7 @@ const defaltFeeCollectors = ['0x0000a26b00c1f0df003000390027140000faa719']
 
 const event_order_fulfilled = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)"
 
-export const config = {
+export const config: any = {
   ethereum: {
     fees_collectors: [...defaltFeeCollectors, '0x31314e41E743A638FD485d537F4a2B5F57D662bb', '0x1208e7F7AED9d39Ed25ef582B8933e4a1D0DA6af']
   },
@@ -26,7 +26,7 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const { seaports = defaultSeaports, fees_collectors = defaltFeeCollectors } = config[chain]
-  const feeCollectorSet = new Set(fees_collectors.map(i => i.toLowerCase()));
+  const feeCollectorSet = new Set(fees_collectors.map((i: any) => i.toLowerCase()));
 
   const logs = await getLogs({ targets: seaports, eventAbi: event_order_fulfilled, })
 

@@ -1,11 +1,10 @@
 import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
+  [CHAIN.MOONBEAM]:
     "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v2",
 };
 
@@ -28,7 +27,7 @@ const graphs = getGraphDimensions2({
 
 const v1graphs = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.MOONBEAN]:
+    [CHAIN.MOONBEAM]:
       "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-stableamm",
   },
   totalVolume: {
@@ -68,15 +67,8 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     classic: {
-      [CHAIN.MOONBEAN]: {
-        fetch: graphs(CHAIN.MOONBEAN),
-        start: getStartTimestamp({
-          endpoints,
-          chain: CHAIN.MOONBEAN,
-          dailyDataField: "uniswapDayDatas",
-          dateField: "date",
-          volumeField: "dailyVolumeUSD",
-        }),
+      [CHAIN.MOONBEAM]: {
+        fetch: getUniV2LogAdapter({ factory: '0x985BcA32293A7A496300a48081947321177a86FD', revenueRatio: 0.13/0.30, protocolRevenueRatio: 0.13/0.30, }),
         meta: {
           methodology: {
             ...methodology,
@@ -85,10 +77,9 @@ const adapter: BreakdownAdapter = {
       },
     },
     "stable-amm": {
-      [CHAIN.MOONBEAN]: {
-        fetch: v1graphs(CHAIN.MOONBEAN),
+      [CHAIN.MOONBEAM]: {
+        fetch: v1graphs(CHAIN.MOONBEAM),
         start: '2022-07-04',
-        customBackfill: customBackfill(CHAIN.MOONBEAN, v1graphs),
         meta: {
           methodology: {
             ...methodologyStable,

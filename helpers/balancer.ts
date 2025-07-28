@@ -34,7 +34,7 @@ export async function getFees(vault: string, { createBalances, api, getLogs, }: 
   return { dailyFees, dailyVolume }
 }
 
-export function getFeesExport(vault: string, { revenueRatio = 0 }: { revenueRatio?: number } = {}) {
+export function getFeesExport(vault: string, { revenueRatio = 0, protocolRevenueRatio, holderRevenueRatio, }: { revenueRatio?: number, protocolRevenueRatio?: number, holderRevenueRatio?: number } = {}) {
   return (async (options) => {
     const { dailyFees, dailyVolume } = await getFees(vault, options)
     const { createBalances } = options
@@ -49,6 +49,12 @@ export function getFeesExport(vault: string, { revenueRatio = 0 }: { revenueRati
       dailySupplySideRevenue.resizeBy(1 - revenueRatio)
       response.dailyRevenue = dailyRevenue
       response.dailySupplySideRevenue = dailySupplySideRevenue
+    }
+    if (protocolRevenueRatio) {
+      response.dailyProtocolRevenue = response.dailyFees.clone(protocolRevenueRatio)
+    }
+    if (holderRevenueRatio) {
+      response.dailyHoldersRevenue = response.dailyFees.clone(holderRevenueRatio)
     }
     return response
   }) as FetchV2

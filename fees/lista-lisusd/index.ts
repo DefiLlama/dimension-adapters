@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import BigNumber from "bignumber.js";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -31,11 +32,11 @@ const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
 const lista = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
 const cake = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82";
 const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
-const eth = "0x2170Ed0880ac9A755fd29B2688956BD959F933F8";
-const wbeth = "0xa2e3356610840701bdf5611a53974510ae27e2e1";
-const bnb = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+const eth = ADDRESSES.bsc.ETH;
+const wbeth = ADDRESSES.bsc.wBETH;
+const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
-const usdt = "0x55d398326f99059ff775485246999027b3197955";
+const usdt = ADDRESSES.bsc.USDT;
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
@@ -175,15 +176,11 @@ const fetch = async (options: FetchOptions) => {
 
   // validaator rewards - stake ListaDAOCredit
   const validatorRewards = await options.getLogs({
-    target: "0xC096e7781c95a2fc6fEb1efE776B570270B3965d",
-    topics: [
-      transferHash,
-      zeroAddress,
-      "0x0000000000000000000000007766a5ee8294343bf6c8dcf3aa4b6d856606703a",
-    ],
-    // target: "0xc096e7781c95a2fc6feb1efe776b570270b3965d",
-    // eventAbi:
-    //   "event Transfer(address indexed from, address indexed to, uint256 value)",
+    target: "0x0D92Ac7a4590874a493eB62b37D3Ea3390966B13",
+    // topics: [
+    //   "0x8119d5d4b103c44e50f575099834c726e011a0ffd633ba386e8e0a0d61c659c3" // SafeReceived event topic
+    // ],
+    eventAbi: "event SafeReceived(address indexed sender, uint256 value)",
   });
 
   // LP staking rewards
@@ -261,8 +258,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, amount);
   });
   [...validatorRewards].forEach((log) => {
-    const amount = Number(log.data);
-    dailyFees.add(bnb, amount);
+    dailyFees.add(bnb, Number(log.value));
   });
   [...lpStakingListaRewards].forEach((log) => {
     const amount = Number(log.data);

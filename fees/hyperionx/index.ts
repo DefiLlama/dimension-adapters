@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const headers = { 'sex-dev': 'ServerDev'}
 type IEndPoints = {
@@ -44,8 +44,8 @@ const graphs = (chain: Chain) => {
     const totalFee = Number(response.today[0].totalFee) / 10 ** 6;
 
       return {
-        totalFees: totalFee.toString(),
-        dailyFees: dailyFees.toString(),
+        totalFees: totalFee,
+        dailyFees,
       };
   };
 };

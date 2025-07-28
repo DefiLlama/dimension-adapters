@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 
 const endpoints = {
@@ -58,8 +58,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeeUsd = dailyFee;
       const dailyRevenue = dailyFeeUsd * .5;
       return {
-        dailyFees: dailyFeeUsd.toString(),
-        dailyRevenue: dailyRevenue.toString(),
+        dailyFees: dailyFeeUsd,
+        dailyRevenue,
       };
     };
   };

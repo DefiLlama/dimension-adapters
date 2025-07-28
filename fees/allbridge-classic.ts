@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import type { Adapter, BaseAdapter, FetchResultFees, IJSON } from '../adapters/types';
-import type { Chain } from '@defillama/sdk/build/general';
+import type { Adapter, BaseAdapter, Chain, FetchResultFees, IJSON } from '../adapters/types';
 import fetchURL from '../utils/fetchURL';
 
 interface ChainData {
@@ -27,9 +26,9 @@ const getFeesFunction = (chain: Chain) => {
     const dailySupplySideRevenue = dailyFees * 0.8;
     return {
       timestamp,
-      dailyFees: dailyFees !== undefined ? String(dailyFees) : undefined,
-      dailyProtocolRevenue: dailyRevenue !== undefined ? String(dailyRevenue) : undefined,
-      dailySupplySideRevenue: dailySupplySideRevenue !== undefined ? String(dailySupplySideRevenue) : undefined,
+      dailyFees,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailySupplySideRevenue,
     } as FetchResultFees;
   }
 }

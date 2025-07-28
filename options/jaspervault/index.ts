@@ -2,14 +2,14 @@ import { Adapter, FetchOptions, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient, gql } from 'graphql-request';
 import { Balances, } from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import ADDRESSES from '../../helpers/coreAssets.json'
 
 const iBTC_arbitrum = '0x050C24dBf1eEc17babE5fc585F06116A259CC77A'
 const WSOL_arbitrum = '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07'
 const UNI_arbitrum = '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0'
-const cbBTC_base = '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf'
+const cbBTC_base = ADDRESSES.ethereum.cbBTC
 const USDT_btr = '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2'
 type TokenContracts = {
   [key in Chain]: string[][];
@@ -48,7 +48,7 @@ subgraphEndpoints[CHAIN.BITLAYER] = "https://subgraphs.jaspervault.io/subgraphs/
 
 function getDecimals(token_address: string) {
   token_address = token_address.toLowerCase()
-  if (token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+  if (token_address == ADDRESSES.GAS_TOKEN_2)
     return 18
 
   if (tokenDecimals[token_address])
@@ -80,7 +80,6 @@ function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain
         let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.underlyingAmount).dividedBy(new BigNumber(10).pow(decimals_underlyingAsset)))
         notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
         balances.add(orderDetails.strikeAsset, notionalValue);
-        //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} underlyingAmount:${orderDetails.underlyingAmount},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
       else if (order.putOrder) {
         balances.add(orderDetails.underlyingAsset, orderDetails.underlyingAmount)
@@ -97,7 +96,6 @@ function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain
         let notionalValue = new BigNumber(orderDetails.strikeAmount).dividedBy(new BigNumber(10).pow(decimals_strikeAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
         notionalValue = notionalValue.decimalPlaces(Number(decimals_strikeAsset)).multipliedBy(new BigNumber(10).pow(decimals_strikeAsset));
         balances.add(orderDetails.strikeAsset, notionalValue);
-        //console.log(`notionalValue:${notionalValue} strikeAsset: ${orderDetails.strikeAsset}, strikeAmount : ${orderDetails.strikeAmount} quantity:${orderDetails.quantity},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
       else if (order.putOrder) {
         let decimals_lockAsset: number = getDecimals(orderDetails.lockAsset);
@@ -108,7 +106,6 @@ function calculateNotionalVolume(balances: Balances, orders: any[], chain: Chain
         let notionalValue = new BigNumber(orderDetails.lockAmount).dividedBy(new BigNumber(10).pow(decimals_lockAsset)).multipliedBy(new BigNumber(orderDetails.quantity).dividedBy(new BigNumber(10).pow(18)))
         notionalValue = notionalValue.decimalPlaces(Number(decimals_lockAsset)).multipliedBy(new BigNumber(10).pow(decimals_lockAsset));
         balances.add(orderDetails.lockAsset, notionalValue);
-        //console.log(`notionalValue:${notionalValue} lockAsset: ${orderDetails.lockAsset}, lockAmount : ${orderDetails.lockAmount} quantity:${orderDetails.quantity},orderId: ${order.orderId} ,transactionHash: ${order.transactionHash} `)
       }
 
     }

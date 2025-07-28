@@ -2,52 +2,35 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const BitoroX_BASE_URL = "https://min-api.bitoro.network/btr/stats/global";
-const BitoroPro_BASE_URL = "https://min-api.inj.bitoro.network/stats/global";
-const startTimestamp_bitoro_x = 1711324800; // 2024-03-25 00:00:00
-const startTimestamp_bitoro_pro = 1718323200; // 2024-06-14 00:00:00
-
-const getBitoroXUrl = (startTime: number, endTime: number): string => {
-    return `${BitoroX_BASE_URL}?start=${startTime}&end=${endTime}`;
+const config = {
+    [CHAIN.ARBITRUM]: 'https://min-api.bitoro.network/btr/stats/global',
+    [CHAIN.INJECTIVE]: 'https://min-api.inj.bitoro.network/stats/global'
 }
 
-const getBitoroProUrl = (startTime: number, endTime: number): string => {
-    return `${BitoroPro_BASE_URL}?start=${startTime}&end=${endTime}`;
+const getUrl = (chain: string, startTime: number, endTime: number): string => {
+    return `${config[chain]}?start=${startTime}&end=${endTime}`;
 }
 
-const fetchBitoroX = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
+const fetch = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
     const { endTimestamp, startTimestamp } = options;
-    const dailyVolume = await fetchURL(getBitoroXUrl(startTimestamp, endTimestamp));
-    const totalVolume = await fetchURL(getBitoroXUrl(startTimestamp_bitoro_x, endTimestamp));
+    const dailyVolume = await fetchURL(getUrl(options.chain, startTimestamp, endTimestamp));
 
     return {
-        timestamp: startTimestamp,
         dailyVolume: dailyVolume.volume || 0,
-        totalVolume: totalVolume.volume || 0,
-    };
-};
-
-const fetchBitoroPro = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
-    const { fromTimestamp, toTimestamp } = options;
-    const dailyVolume = await fetchURL(getBitoroProUrl(fromTimestamp, toTimestamp));
-    const totalVolume = await fetchURL(getBitoroProUrl(startTimestamp_bitoro_pro, toTimestamp));
-
-    return {
-        timestamp: fromTimestamp,
-        dailyVolume: dailyVolume.volume || 0,
-        totalVolume: totalVolume.volume || 0,
     };
 };
 
 const adapter: SimpleAdapter = {
+    // webapp, X account were down,
+    deadFrom: '2025-07-18',
     adapter: {
         [CHAIN.ARBITRUM]: {
-            fetch: fetchBitoroX,
-            start: startTimestamp_bitoro_x
+            fetch,
+            start: '2024-03-24'
         },
         [CHAIN.INJECTIVE]: {
-            fetch: fetchBitoroPro,
-            start: startTimestamp_bitoro_pro
+            fetch,
+            start: '2024-06-13'
         }
     }
 }

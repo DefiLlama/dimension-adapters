@@ -16,17 +16,18 @@ const fetch = async (timestamp: number) => {
     .reduce((acc, { volume24h }) => acc + Number(volume24h), 0)
 
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-06-01',
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch,
       runAtCurrTime: true,
-          },
+    },
   }
 };
 

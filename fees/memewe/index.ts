@@ -5,6 +5,7 @@ import { httpGet } from "../../utils/fetchURL";
 const api = "https://backend.memewe.club/trade/stats/fee";
 
 const adapter: Adapter = {
+  deadFrom: "2025-03-01",
   version: 1,
   adapter: {
     [CHAIN.BASE]: {
@@ -17,10 +18,18 @@ const adapter: Adapter = {
         return {
           dailyFees,
           dailyRevenue: dailyFees,
+          dailyProtocolRevenue: dailyFees,
           timestamp: options.startOfDay,
         };
       }) as any,
       start: "2024-11-28",
+      meta: {
+        methodology: {
+          Fees: "Tokens trading and launching fees paid by users.",
+          Revenue: "All fees are revenue.",
+          ProtocolRevenue: "All revenue collected by protocol.",
+        }
+      }
     },
   },
 };

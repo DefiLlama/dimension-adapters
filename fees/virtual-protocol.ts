@@ -1,49 +1,52 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 
 
-type IRequest = {
-  [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
-
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startOfDay;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4514149", {
-      start: start,
-      end: start + (24 * 60 * 60),
-    })
-  return requests[key]
+const prefetch = async (options: FetchOptions) => {
+    const sql_query = getSqlFromFile('helpers/queries/virtual-protocol.sql', {startTimestamp: options.startTimestamp, endTimestamp: options.endTimestamp})
+    return await queryDuneSql(options, sql_query);
 }
 
-const fetchFees = async (_t: any, _b: any ,options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const res = await fetchURLWithRetry("4514149", options);
-  const fees = res.find((e: any) => e.chain === options.chain);
-  dailyFees.addUSDValue(fees.fees_usd);
-  return {
-    timestamp: options.startOfDay,
-    dailyFees: dailyFees,
-    dailyRevenue: dailyFees,
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+
+    const results = options.preFetchedResults || [];
+    const chainData = results.find((item: any) => item.chain === options.chain);
+    dailyFees.addUSDValue(chainData.fees_usd);
+
+    return {
+        timestamp: options.startOfDay,
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    }
+}
+
+const meta = {
+  methodology: {
+    Fees: 'All fees paid by users from launching adn trading tokens.',
+    Revenue: 'Fees are collected by Virtual Protocol.',
+    ProtocolRevenue: 'Fees are collected by Virtual Protocol.',
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: "2024-10-16",
+    version: 1,
+    adapter: {
+        [CHAIN.BASE]: {
+            fetch: fetchFees,
+            start: "2024-10-16",
+            meta,
+        },
+        [CHAIN.SOLANA]: {
+            fetch: fetchFees,
+            start: "2024-10-16",
+            meta,
+        },
     },
-    [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: "2024-10-16",
-    },
-  },
-  isExpensiveAdapter: true,
+    prefetch,
+    isExpensiveAdapter: true,
 }
 
 export default adapter;

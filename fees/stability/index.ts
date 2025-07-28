@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 
@@ -62,12 +62,19 @@ async function getFeeEvents(vaults: string[], options: FetchOptions): Promise<Ba
     return dailyFees;
 }
 
-export default {
+const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.SONIC]: {
             fetch: fetch,
             start: '2024-12-24',
+            meta: {
+                methodology: {
+                    Fees: "Yield and management fees collected from managed assets and vaults.",
+                },
+            },
         },
     },
-};
+}
+
+export default adapter;
