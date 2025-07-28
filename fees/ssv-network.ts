@@ -46,8 +46,8 @@ const querySubgraph = async (dateString: string): Promise<GraphQLResponse> => {
         dailyTotalFeesIncrease
         dailyOperatorEarningsIncrease
         dailyNetworkEarningsIncrease
-        activeOperators
-        lastUpdated
+        blockNumber
+        timestamp
       }
     }
   `;
