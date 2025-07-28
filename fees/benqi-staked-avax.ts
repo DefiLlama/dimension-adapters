@@ -35,8 +35,8 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: 'Total yields from staked BNB.',
-  Revenue: '5 % of the total yields are charged by Lista DAO.',
+  Fees: 'Total yields from staked Avax.',
+  Revenue: '10 % of the total yields are charged by Benqi.',
   ProtocolRevenue: 'All revenue goes to the protocol'
 }
 const adapters: SimpleAdapter = {
