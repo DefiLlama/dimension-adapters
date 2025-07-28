@@ -1,6 +1,6 @@
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const chains = [
     CHAIN.ETHEREUM,
@@ -69,7 +69,7 @@ const chainToId: Record<string, number> = {
 };
 
 const fetch = async (_at: number, _t: any, options: FetchOptions) => {
-    const startOfDay = options.startOfDay;
+    const startOfDay = options.startOfDay
     const url = `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${startOfDay * 1e3}`;
     const volume = (
         await httpGet(url)
@@ -80,18 +80,8 @@ const fetch = async (_at: number, _t: any, options: FetchOptions) => {
     };
 };
 
-const adapter: any = {
-    adapter: {
-        ...chains.reduce((acc, chain) => {
-            return {
-                ...acc,
-                [chain]: {
-                    fetch: fetch,
-                    start: '2024-01-01',
-                },
-            };
-        }, {}),
-    },
+const adapter: SimpleAdapter = {
+    fetch, chains,
 };
 
 export default adapter;
