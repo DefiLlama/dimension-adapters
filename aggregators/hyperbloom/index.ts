@@ -9,6 +9,12 @@ const HYPERBLOOM_ADDRESSES = [
   "0x4212a77e4533eca49643d7b731f5fb1b2782fe94", //new
   "0x74cddb25b3f230200b28d79ce85c43991648954a", //old
 ];
+
+const INTEGRATORS_ADDRESSES = [
+  "0x0a0758d937d1059c356D4714e57F5df0239bce1A", // LI.FI diamond
+  "0x3e851976DCA1bc02A2F35Ce926dCAFD1dEB3359b",  // LI.FI 
+];
+
 const iface = new ethers.Interface([BridgeFillEvent]);
 
 const fetch = async (options: FetchOptions) => {
@@ -21,10 +27,15 @@ const fetch = async (options: FetchOptions) => {
     cacheKey: "hyperbloom-bridgefill",
   });
 
+  const VALID_ADDRESSES = [
+    ...HYPERBLOOM_ADDRESSES,
+    ...INTEGRATORS_ADDRESSES,
+  ].map(a => a.toLowerCase());
+
   const validTxHashSet = new Set(
     txs
       .filter(
-        (tx) => tx && HYPERBLOOM_ADDRESSES.includes(tx.to?.toLowerCase() ?? "")
+        (tx) => tx && VALID_ADDRESSES.includes(tx.to?.toLowerCase() ?? "")
       )
       .map((tx) => tx!.hash.toLowerCase())
   );
