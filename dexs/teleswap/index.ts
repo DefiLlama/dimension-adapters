@@ -1,2 +1,2 @@
-import adapter from "../../fees/teleswap";
+import adapter from "../../aggregators/teleswap";
 export default adapter;
