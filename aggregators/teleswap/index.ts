@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 interface ChainConfig {
   burnRouter: string;
   exchangeRouter: string;
+  transferRouter: string;
   teleBTC: string;
   startDate: string;
 }
@@ -11,6 +12,11 @@ interface ChainConfig {
 interface UnwrapEvent {
   inputToken: string;
   amounts: [number, number, number];
+  fees: [number, number, number, number];
+}
+
+interface WrapEvent {
+  amounts: [number, number];
   fees: [number, number, number, number];
 }
 
@@ -25,24 +31,28 @@ const CHAIN_CONFIGS: Partial<Record<CHAIN, ChainConfig>> = {
   [CHAIN.POLYGON]: {
     burnRouter: "0x0009876C47F6b2f0BCB41eb9729736757486c75f",
     exchangeRouter: "0xD1E9Ff33EC28f9Dd8D99E685a2B0F29dCaa095a3",
+    transferRouter: "0x04367D74332137908BEF9acc0Ab00a299A823707",
     teleBTC: "0x3BF668Fe1ec79a84cA8481CEAD5dbb30d61cC685",
     startDate: "2023-04-02",
   },
   [CHAIN.BSC]: {
     burnRouter: "0x2787D48e0B74125597DD479978a5DE09Bb9a3C15",
     exchangeRouter: "0xcA5416364720c7324A547d39b1db496A2DCd4F0D",
+    transferRouter: "0xA38aD0d52B89C20c2229E916358D2CeB45BeC5FF",
     teleBTC: "0xC58C1117DA964aEbe91fEF88f6f5703e79bdA574",
     startDate: "2023-04-02",
   },
   [CHAIN.BOB]: {
     burnRouter: "0x754DC006F4a748f80CcaF27C0efBfF412e54160D",
     exchangeRouter: "0xd724e5709dF7DC4B4dDd14B644118774146b9492",
+    transferRouter: "0x25BEf4b1Ca5985661657B3B71f29c0994C36Bbba",
     teleBTC: "0x0670bEeDC28E9bF0748cB254ABd946c87f033D9d",
     startDate: "2023-04-02",
   },
   [CHAIN.BSQUARED]: {
     burnRouter: "0x84da07E1B81e3125A66124F37bEA4897e0bB4b90",
     exchangeRouter: "0xE0166434A2ad67536B5FdAFCc9a6C1B41CC5e085",
+    transferRouter: "0x9042B082A31343dFf352412136fA52157ff7fdC8",
     teleBTC: "0x05698eaD40cD0941e6E5B04cDbd56CB470Db762A",
     startDate: "2023-04-02",
   },
@@ -53,6 +63,8 @@ const EVENT_SIGNATURES = {
     "event NewUnwrap(bytes userScript,uint8 scriptType,address lockerTargetAddress,address indexed userTargetAddress,uint256 requestIdOfLocker,uint256 indexed deadline,uint256 thirdPartyId,address inputToken,uint256[3] amounts,uint256[4] fees)",
   NEW_WRAP_AND_SWAP:
     "event NewWrapAndSwap(address lockerTargetAddress,address indexed user,address[2] inputAndOutputToken,uint256[2] inputAndOutputAmount,uint256 indexed speed,address indexed teleporter,bytes32 bitcoinTxId,uint256 appId,uint256 thirdPartyId,uint256[5] fees,uint256 destinationChainId)",
+  NEW_WRAP:
+    "event NewWrap(bytes32 bitcoinTxId,bytes indexed lockerLockingScript,address lockerTargetAddress,address indexed user,address teleporter,uint256[2] amounts,uint256[4] fees,uint256 thirdPartyId,uint256 destinationChainId)",
 } as const;
 
 const FEE_INDICES = {
@@ -106,7 +118,7 @@ async function processWrapAndSwapEvents(
   for (const wrapAndSwapLog of wrapAndSwapLogs) {
     const event = wrapAndSwapLog as WrapAndSwapEvent;
 
-    // Add volume from output token amount (index 1)
+    // Add volume from input token (teleBTC) amount (index 1)
     dailyVolume.add(
       event.inputAndOutputToken[0],
       event.inputAndOutputAmount[0]
@@ -116,6 +128,30 @@ async function processWrapAndSwapEvents(
     const fees =
       event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
     dailyFees.add(config.teleBTC as string, fees);
+  }
+}
+
+async function processWrapEvents(
+  options: FetchOptions,
+  config: ChainConfig,
+  dailyVolume: ReturnType<FetchOptions["createBalances"]>,
+  dailyFees: ReturnType<FetchOptions["createBalances"]>
+): Promise<void> {
+  const wrapLogs = await options.getLogs({
+    target: config.transferRouter,
+    eventAbi: EVENT_SIGNATURES.NEW_WRAP,
+  });
+
+  for (const wrapLog of wrapLogs) {
+    const event = wrapLog as WrapEvent;
+
+    // Add volume from input token (teleBTC) amount
+    dailyVolume.add(config.teleBTC, event.amounts[0]);
+
+    // Add fees (BTC fees at indices 1 and 2)
+    const btcFees =
+      event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
+    dailyFees.add(config.teleBTC as string, btcFees);
   }
 }
 
@@ -131,6 +167,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   await Promise.all([
     processUnwrapEvents(options, config, dailyVolume, dailyFees),
     processWrapAndSwapEvents(options, config, dailyVolume, dailyFees),
+    processWrapEvents(options, config, dailyVolume, dailyFees),
   ]);
 
   return {
