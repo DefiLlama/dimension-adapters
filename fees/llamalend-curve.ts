@@ -1,4 +1,4 @@
-import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const methodology = {
@@ -170,7 +170,7 @@ const adapter: SimpleAdapter = {
 };
 
 for (const [chain, factory] of Object.entries(OneWayLendingFactories)) {
-  adapter.adapter[chain] = {
+  (adapter.adapter as BaseAdapter)[chain] = {
     fetch: fetch,
     start: factory.start,
     meta: {
