@@ -9,14 +9,35 @@ const WETH = ADDRESSES.ethereum.WETH;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
-  const fees = await options.getLogs({
+
+  const totalSupplyBefore = await options.fromApi.call({
+    target: lsETH,
+    abi: 'uint256:totalSupply',
+  })
+  const totalSupplyAfter = await options.toApi.call({
+    target: lsETH,
+    abi: 'uint256:totalSupply',
+  })
+
+  const totalUnderlyingSupplyBefore = await options.fromApi.call({
+    target: lsETH,
+    abi: 'uint256:totalUnderlyingSupply',
+  })
+  const totalUnderlyingSupplyAfter = await options.toApi.call({
+    target: lsETH,
+    abi: 'uint256:totalUnderlyingSupply',
+  })
+
+  const dailyEthYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18);
+
+  dailyFees.addCGToken("ethereum", dailyEthYield);
+  const dailyRevenue = options.createBalances();
+  const protocolFees = await options.getLogs({
     target: lsETH,
     eventAbi: event,
   });
-
-  dailyFees.add(WETH, fees);
-  const dailyRevenue = dailyFees.clone(0.15)
-  return { dailyFees, dailyRevenue };
+  dailyRevenue.add(WETH, protocolFees);
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const adapter: Adapter = {
@@ -28,6 +49,7 @@ const adapter: Adapter = {
         methodology: {
           Fees: "Total ETH staking rewards from all validators.",
           Revenue: "Liquid Collective charges 15% ETH staking rewards.",
+          ProtocolRevenue: "All the revenue goes to protocol",
         },
       },
     },
