@@ -4,6 +4,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
 import { getDateString } from '../../helpers/utils';
+import * as sdk from '@defillama/sdk'
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -91,6 +92,7 @@ export default async function runAdapter(options: AdapterRunOptions) {
   const runKey = getRunKey(options)
 
   if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
+  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
   return adapterRunResponseCache[runKey]
 }
 
