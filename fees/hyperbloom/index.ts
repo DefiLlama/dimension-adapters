@@ -11,7 +11,16 @@ const HYPERBLOOM_ADDRESSES = [
   "0x74cddb25b3f230200b28d79ce85c43991648954a", //old
 ];
 
-const HYPERBLOOM_FEE_WALLET = "0x052cdffeacfc503af98a9d87d5406e902c649537";
+const INTEGRATORS_ADDRESSES = [
+  "0x0a0758d937d1059c356D4714e57F5df0239bce1A", // LI.FI diamond
+  "0x3e851976DCA1bc02A2F35Ce926dCAFD1dEB3359b",  // LI.FI 
+];
+
+const HYPERBLOOM_FEE_WALLETS = [
+  "0x052cdffeacfc503af98a9d87d5406e902c649537",
+  "0xeca3dda84df5c0013621c180fa86a9a6188719ae",
+  "0xd1b1cdb10098ccd59057bd3a3ff26c3c21277fec",
+].map(a => a.toLowerCase());
 
 const transferTopic = ethers.id("Transfer(address,address,uint256)");
 
@@ -25,10 +34,15 @@ const fetch = async (options: FetchOptions) => {
     cacheKey: "hyperbloom-bridgefill",
   });
 
+  const VALID_ADDRESSES = [
+    ...HYPERBLOOM_ADDRESSES,
+    ...INTEGRATORS_ADDRESSES,
+  ].map(a => a.toLowerCase());
+
   const validTxHashSet = new Set(
     txs
       .filter(
-        (tx) => tx && HYPERBLOOM_ADDRESSES.includes(tx.to?.toLowerCase() ?? "")
+        (tx) => tx && VALID_ADDRESSES.includes(tx.to?.toLowerCase() ?? "")
       )
       .map((tx) => tx!.hash.toLowerCase())
   );
@@ -45,7 +59,7 @@ const fetch = async (options: FetchOptions) => {
       if (l.topics[0] !== transferTopic) return;
       if (l.topics.length < 3) return;
       const to = "0x" + l.topics[2].slice(26).toLowerCase();
-      if (to !== HYPERBLOOM_FEE_WALLET.toLowerCase()) return;
+      if (!HYPERBLOOM_FEE_WALLETS.includes(to)) return;
 
       const amount = BigInt(l.data);
       const tokenAddr = l.address;
