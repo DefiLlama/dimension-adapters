@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: event,
   });
   dailyRevenue.add(WETH, protocolFees);
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue };
 };
 
 const adapter: Adapter = {
@@ -48,8 +48,7 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "Total ETH staking rewards from all validators.",
-          Revenue: "Liquid Collective charges 15% ETH staking rewards.",
-          ProtocolRevenue: "All the revenue goes to protocol",
+          Revenue: "Liquid Collective charges 10% ETH staking rewards.",
         },
       },
     },
