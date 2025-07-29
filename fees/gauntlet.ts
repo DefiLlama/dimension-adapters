@@ -207,18 +207,32 @@ async function calculateGrossReturns(): Promise<Record<string, number>> {
 
 
 const fetch = async (timestamp: number) => {
-  const vaultFees = await calculateVaultFees();
-  const grossReturns = await calculateGrossReturns();
+  try {
+    const managerFees = await calculateManagerFees();
+    const totalValueGenerated = await calculateGrossReturns();
 
-  return {
-    dailyFees: vaultFees,
-    dailyRevenue: grossReturns
-  };
-};
+    // Ensure we return valid numbers, not NaN
+    const fees = Object.fromEntries(
+      Object.entries(totalValueGenerated).map(([key, value]) => [key, isNaN(value) ? 0 : value])
+    );
+    
+    const revenue = Object.fromEntries(
+      Object.entries(managerFees).map(([key, value]) => [key, isNaN(value) ? 0 : value])
+    );
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
+    return {
+      dailyFees: fees,      // Total value generated for depositors
+      dailyRevenue: revenue // Gauntlet performance fees
+    };
+  } catch (error) {
+    console.error("Error in Gauntlet adapter:", error);
+    // Return empty results if there is an error (e.g., missing API key)
+    return {
+      dailyFees: {},
+      dailyRevenue: {}
+    };
+  }
+};  adapter: {
     solana: {
       fetch,
       start: 1704067200, // 2024-01-01
