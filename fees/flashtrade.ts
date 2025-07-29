@@ -9,22 +9,17 @@ interface Pool {
     totalProtocolFee: string;
 }
 
-// interface Fees {
-//     pool: string;
-//     accured: string;
-//     paid: string;
-//     protocolFee: string;
-//     feesPaidToLP: string;
-// }
-
 const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily";
-// const urlFeeesStats = "https://api.prod.flash.trade/market-stat/revenue-24hr";
 
 const calculateProtocolRevenue = (stats: Pool[]) => {
-    return stats
-        .filter(item => item.poolName !== "Community.1")
-        .reduce((sum, item) => sum + 0.3 * Number(item.totalRevenue) / 1e6, 0);
-}
+    const protocolRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee) / 1e6, 0);
+    return protocolRevenue;
+};
+
+const calculateteHolderRevenue = (stats: Pool[]) => {
+    const holderRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalRevenue) / 1e6, 0);
+    return holderRevenue;
+};
 
 const pools = [
     "Crypto.1",
@@ -56,9 +51,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     });
 
     // Token stakers revenue is 0 before 2025-06-15
-    const dailyRevenue = calculateProtocolRevenue(todayStats);
-    const dailyProtocolRevenue = timestamp >= 1749945600 ? dailyRevenue * 0.5 : dailyRevenue;
-    const dailyHoldersRevenue = timestamp >= 1749945600 ? dailyRevenue * 0.5 : 0;
+    const dailyHoldersRevenue = timestamp >= 1750291200 ? calculateteHolderRevenue(todayStats): 0; // 50% holder revenue share
+    const dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
+    const dailyRevenue = ((dailyProtocolRevenue) + (dailyHoldersRevenue))
     const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
     return {
@@ -72,7 +67,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 };
 
 const methodology = {
-    Fees: 'Sum of all fees from the LP pools.',
+    Fees: 'All fees paid by users.',
     Revenue: 'Sum of protocol revenue and holder revenue.',
     ProtocolRevenue: '30% of all the fees accrued excluding Community pool before 2025-06-15, 15% after 2025-06-15.',
     HolderRevenue: '50% of revenue goes to token stakers after 2025-06-15.',
