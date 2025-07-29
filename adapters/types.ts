@@ -80,7 +80,6 @@ export type BaseAdapterChainConfig = {
     runAtCurrTime?: boolean;
     meta?: {
       methodology?: string | IJSON<string>
-      hallmarks?: [number, string][]
     }
   }
 
@@ -103,7 +102,6 @@ export type AdapterBase = {
   allowNegativeValue?: boolean;
   doublecounted?: boolean;
   methodology?: string | IJSON<string>;
-  hallmarks?: [number|string, string][];
   fetch?: Fetch | FetchV2;
   chains?: (string|[string, BaseAdapterChainConfig])[]
   prefetch?: FetchV2;
