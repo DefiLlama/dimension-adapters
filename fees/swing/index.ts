@@ -6,7 +6,7 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
     [CHAIN.SOLANA]: 'solana',
-    // [CHAIN.ETHEREUM]: 'ethereum',
+    [CHAIN.ETHEREUM]: 'ethereum',
     [CHAIN.BSC]: 'bsc',
     [CHAIN.AVAX]: 'avalanche',
     [CHAIN.POLYGON]: 'polygon',
@@ -57,20 +57,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
     });
 
-    const chainFeeVolumes = dailyRes?.historicalFeeByChain?.map((history: any) => {
-        const chainVol = history?.volume.find((vol: any) => {
+    const chainFees = dailyRes?.historicalFeeByChain?.map((history: any) => {
+        const fees = history?.volume.find((vol: any) => {
             return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
         })
-
-        return chainVol;
+        return fees;
     });
 
-    const chainFeeVolume = chainFeeVolumes?.reduce((acc: number, curr: any) => {
+    let dailyFees = chainFees?.reduce((acc: number, curr: any) => {
         return acc + Number(curr?.value || 0);
     }, 0);
-
+    if (dailyFees >= 25000) { // Very high spikes in the fees API, so kept yearly fee as a safe guard to prevent spikes
+        dailyFees = 0;
+    }
     return {
-        dailyFees: chainFeeVolume || 0
+        dailyFees: dailyFees || 0
     };
 };
 

@@ -53,7 +53,7 @@
 // }
 
 import * as sdk from "@defillama/sdk";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 
@@ -124,10 +124,10 @@ const Configs: Record<string, IUniswapConfig> = {
     start: '2025-01-24',
   },
   [CHAIN.WC]: {
-  poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33',
-   source: 'LOGS',
-   positionManager: '0xc585e0f504613b5fbf874f21af14c65260fb41fa',
-   start: '2025-01-24',
+    poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33',
+    source: 'LOGS',
+    positionManager: '0xc585e0f504613b5fbf874f21af14c65260fb41fa',
+    start: '2025-01-24',
   },
   [CHAIN.INK]: {
     poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32',
@@ -213,9 +213,14 @@ async function fetch(options: FetchOptions) {
   }
 
   if (config.source === 'LOGS') {
-    const events = await options.getLogs({
+    const events = await sdk.getEventLogs({
+      chain: options.chain,
       target: config.poolManager,
       eventAbi: SwapEvent,
+      fromBlock: Number(options.fromApi.block),
+      toBlock: Number(options.toApi.block),
+      maxBlockRange: 10000,
+      onlyArgs: true,
     });
 
     const pools: {[key: string]: IPool | null} = {}
@@ -292,7 +297,7 @@ const meta = {
 }
 
 for (const [chain, config] of Object.entries(Configs)) {
-  adapter.adapter[chain] = {
+  (adapter.adapter as BaseAdapter)[chain] = {
     fetch,
     meta,
     start: config.start,

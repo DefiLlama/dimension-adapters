@@ -1,28 +1,35 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
-import { queryDuneSql } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const feeCollectorAddress = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
+const STAKE_POOL_RESERVE_ACCOUNT = "CCavXvmMgfW4Ky2PX3E9Nij8TMxLmSsMZuHUtxXUL1aN";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "GdNXJobf8fbTR5JSE7adxa6niaygjx4EEbnnRaDCHMMW";
+const LST_FEE_TOKEN_ACCOUNT = "Bk2qhUpf3hHZWwpYSudZkbrkA9DVKrNNhQfnH7zF67Ji";
+const LST_MINT = ADDRESSES.solana.VSOL;
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-  const fees = await queryDuneSql(options, `
-    SELECT 
-      SUM(amount) / POW(10, 9) as daily_management_fees
-    FROM spl_token_solana.spl_token_call_mintTo
-    WHERE account_mint = '${ADDRESSES.solana.VSOL}'
-      AND account_account = '${feeCollectorAddress}'
-      AND call_block_time >= from_unixtime(${options.startTimestamp})
-      AND call_block_time < from_unixtime(${options.endTimestamp});
-  `);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+
+  const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+    stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
+    stake_pool_withdraw_authority: STAKE_POOL_WITHDRAW_AUTHORITY,
+    lst_fee_token_account: LST_FEE_TOKEN_ACCOUNT,
+    lst_mint: LST_MINT
+  });
+
+  const results = await queryDuneSql(options, query);
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("the-vault-staked-sol", fees[0].daily_management_fees * 20);
+  const dailyRevenue = options.createBalances();
 
-  const dailyRevenue = await getSolanaReceived({
-    options,
-    target: feeCollectorAddress
+  results.forEach((row: any) => {
+    if (row.metric_type === 'dailyFees') {
+      dailyFees.addCGToken("solana", row.amount || 0);
+    } else if (row.metric_type === 'dailyRevenue') {
+      dailyRevenue.addCGToken("the-vault-staked-sol", row.amount || 0);
+    }
   });
 
   return {

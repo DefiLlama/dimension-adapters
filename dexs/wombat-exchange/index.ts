@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addOneToken } from "../../helpers/prices";
 
 const config: any = {
@@ -117,7 +117,7 @@ const adapter: SimpleAdapter = {
 };
 
 Object.keys(config).forEach((chain) => {
-  adapter.adapter[chain] = { fetch }
+  (adapter.adapter as BaseAdapter)[chain] = { fetch }
 })
 
 export default adapter;
