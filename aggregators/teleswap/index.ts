@@ -63,8 +63,8 @@ const FEE_INDICES = {
 const META = {
   methodology: {
     Volume:
-      "Volume is calculated from amounts filed of NewUnwrap and NewWrapAndSwap events emitted by the CCBurnRouter and CCExchangeRouter contract.",
-    Fees: "Fees is the sum of locker fee and protocol fee",
+      "Total value of Bitcoin bridged to and from EVM chains, based on amounts in NewUnwrap, NewWrap, and NewWrapAndSwap events emitted by the CCBurnRouter, CCExchangeRouter, and CCTransferRouter contracts",
+    Fees: "Total of the protocol fee and Locker fee collected during bridging.",
   },
 } as const;
 
