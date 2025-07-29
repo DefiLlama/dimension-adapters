@@ -208,7 +208,7 @@ async function calculateGrossReturns(): Promise<Record<string, number>> {
 
 const fetch = async (timestamp: number) => {
   try {
-    const managerFees = await calculateManagerFees();
+    const managerFees = await calculateVaultFees();
     const totalValueGenerated = await calculateGrossReturns();
 
     // Ensure we return valid numbers, not NaN
@@ -217,7 +217,7 @@ const fetch = async (timestamp: number) => {
     );
     
     const revenue = Object.fromEntries(
-      Object.entries(managerFees).map(([key, value]) => [key, isNaN(value) ? 0 : value])
+      Object.entries(managerFees).map(([key, value]) => [key, isNaN(Number(value)) ? 0 : Number(value)])
     );
 
     return {
@@ -232,18 +232,18 @@ const fetch = async (timestamp: number) => {
       dailyRevenue: {}
     };
   }
-const adapter: SimpleAdapter = {
+
+};const adapter: SimpleAdapter = {
   adapter: {
     solana: {
       fetch,
       start: 1704067200, // 2024-01-01
       meta: {
         methodology: {
-          Fees: "Realized fees from Gauntlet vault operations that have been claimed by the manager",
-          Revenue: "Revenue retained by the Gauntlet protocol from vault operations"
+          Fees: "Total value generated for depositors (gross returns from vault operations)",
+          Revenue: "Performance fees claimed by the Gauntlet manager from vault operations"
         }
       }
-    }
     }
   }
 };
