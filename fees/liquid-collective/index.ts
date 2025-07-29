@@ -2,6 +2,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { ETHEREUM } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { addTokensReceived } from "../../helpers/token";
 
 const lsETH = "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549";
 const event = "event PulledELFees(uint256 amount)";
@@ -31,13 +32,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyEthYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18);
 
   dailyFees.addCGToken("ethereum", dailyEthYield);
-  const dailyRevenue = options.createBalances();
-  const protocolFees = await options.getLogs({
-    target: lsETH,
-    eventAbi: event,
-  });
-  dailyRevenue.add(WETH, protocolFees);
-  dailyFees.add(dailyRevenue) //protocol takes cut even before it reaches lseth pool
+  const dailyRevenue = await addTokensReceived({
+      options,
+      token: lsETH,
+      targets: ['0x53b5c4231FBa19de04866A84FEd928aEca0102Fe'],
+    });
   return { dailyFees, dailyRevenue };
 };
 
