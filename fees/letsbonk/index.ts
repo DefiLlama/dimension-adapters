@@ -69,7 +69,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     let letsbonkHoldersRevenuePercentage: number;
     let letsbonkProtocolRevenuePercentage: number;
     let letsbonkTotalPercentage: number;
-    
+
     if (timestamp >= PERCENTAGE_CHANGE_TIMESTAMP) {
         // After percentage change: Letsbonk gets Buy/Burn 50% + SBR 4% + BonkRewards 4% + Marketing 2% = 60%
         letsbonkHoldersRevenuePercentage = 0.58;
@@ -91,7 +91,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     dailyHoldersRevenue.add(SOL_ADDRESS, holdersRevenue);
     dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue);
 
-    return { 
+    return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
@@ -101,22 +101,17 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: "Fees are collected from users and distributed to holders and protocol.",
+        Revenue: "Total Letsbonk Protocol Revenue and Holders Revenue",
+        ProtocolRevenue: "2% of total fees for marketing.",
+        HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
+    },
     version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-27',
-            meta: {
-                methodology: {
-                    Fees: "Fees are collected from users and distributed to holders and protocol.",
-                    Revenue: "Total Letsbonk Protocol Revenue and Holders Revenue",
-                    ProtocolRevenue: "2% of total fees for marketing.",
-                    HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
-                },
-                hallmarks: [
-                    [1749513600, 'BuyBack and burn increased from 35% to 50% of total revenue, Letsbonk share increased from 45% to 60%'], // https://x.com/bonk_fun/status/1932242245970747708
-                ],
-            }
         }
     }
 };

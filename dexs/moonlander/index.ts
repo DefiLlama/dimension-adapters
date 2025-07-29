@@ -31,7 +31,7 @@ async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
 }
 
 const startTimestamps: { [chain: string]: string } = {
-  [CHAIN.CRONOS]: '2025-04-29',
+  // [CHAIN.CRONOS]: '2025-04-29',
   [CHAIN.CRONOS_ZKEVM]: '2024-12-17',
 };
 const adapter: any = {}
