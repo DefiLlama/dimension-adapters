@@ -76,68 +76,52 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 dex.trades t
             WHERE 
                 t.blockchain = 'base' 
-                AND TIME_RANGE
+                AND t.block_time >= from_unixtime(${options.startTimestamp})
+                AND t.block_time < from_unixtime(${options.endTimestamp})
                 AND amount_usd > 1
         ),
         daily_fees AS (
             SELECT 
-                projects,
-                SUM(fees) AS daily_fees 
-            FROM (
-                SELECT 
-                    DATE_TRUNC('day', block_time) AS d_day,
-                    a.tokenAddress,
-                    a.projects,
-                    SUM(amount_usd * 0.01) AS fees 
-                FROM 
-                    dex_trades t 
-                INNER JOIN 
-                    created_contracts a 
-                ON 
-                    a.tokenAddress = t.token_bought_address
-                GROUP BY 
-                    1, 2, 3
+                SUM(amount_usd * 0.01) AS df 
+            FROM 
+                dex_trades t 
+            INNER JOIN 
+                created_contracts a 
+            ON 
+                a.tokenAddress = t.token_bought_address
+            WHERE 
+                t.blockchain = 'base' 
+                AND TIME_RANGE
+                AND amount_usd > 1
 
-                UNION ALL
+            UNION ALL
 
-                SELECT 
-                    DATE_TRUNC('day', block_time) AS d_day,
-                    a.tokenAddress,
-                    a.projects,
-                    SUM(amount_usd * 0.01) AS fees 
-                FROM 
-                    dex_trades t 
-                INNER JOIN 
-                    created_contracts a 
-                ON 
-                    a.tokenAddress = t.token_sold_address
-                WHERE 
-                    t.blockchain = 'base' 
-                    AND TIME_RANGE
-                    AND amount_usd > 1
-                GROUP BY 
-                    1, 2, 3
-            ) AS combined_fees
-            GROUP BY 
-                1, 2
+            SELECT 
+                SUM(amount_usd * 0.01) AS df 
+            FROM 
+                dex_trades t 
+            INNER JOIN 
+                created_contracts a 
+            ON 
+                a.tokenAddress = t.token_sold_address
+            WHERE 
+                t.blockchain = 'base' 
+                AND TIME_RANGE
+                AND amount_usd > 1
         )
         SELECT 
-            d_day,
-            daily_fees 
+            SUM(df) AS daily_fees_usd 
         FROM 
             daily_fees
-        WHERE 
-            d_day <> DATE_TRUNC('day', NOW())
-        ORDER BY 
-            d_day DESC
     `);
 
-    dailyFees.addUSDValue(res[0].daily_fees);
+    dailyFees.addUSDValue(res[0].daily_fees_usd);
+    const dailyProtocolRevenue = dailyFees.clone(0.2) // 20% of fees to protocol
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyRevenue: dailyProtocolRevenue,
+        dailyProtocolRevenue: dailyProtocolRevenue,
     };
 };
 
@@ -150,8 +134,8 @@ const adapter: SimpleAdapter = {
             meta: {
                 methodology: {
                     Fees: "All trading and launching tokens fees paid by users.",
-                    Revenue: "All fees are collected by Clanker protocol.",
-                    ProtocolRevenue: "Trading fees are collected by Clanker protocol.",
+                    Revenue: "Clanker protocol collects 20% of LP fees.",
+                    ProtocolRevenue: "Clanker protocol collects 20% of LP fees.",
                 }
             }
         },
