@@ -37,6 +37,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: event,
   });
   dailyRevenue.add(WETH, protocolFees);
+  dailyFees.add(dailyRevenue) //protocol takes cut even before it reaches lseth pool
   return { dailyFees, dailyRevenue };
 };
 
