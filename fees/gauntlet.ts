@@ -232,7 +232,8 @@ const fetch = async (timestamp: number) => {
       dailyRevenue: {}
     };
   }
-};  adapter: {
+const adapter: SimpleAdapter = {
+  adapter: {
     solana: {
       fetch,
       start: 1704067200, // 2024-01-01
@@ -242,6 +243,7 @@ const fetch = async (timestamp: number) => {
           Revenue: "Revenue retained by the Gauntlet protocol from vault operations"
         }
       }
+    }
     }
   }
 };
