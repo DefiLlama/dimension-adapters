@@ -37,6 +37,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       token: lsETH,
       targets: ['0x53b5c4231FBa19de04866A84FEd928aEca0102Fe'],
     });
+  dailyFees.add(dailyRevenue) // minting new tokens for revenue dilutes the exchange rate, so it gets missed while yield calculation as exchange rate is calculated post fees
   return { dailyFees, dailyRevenue };
 };
 
