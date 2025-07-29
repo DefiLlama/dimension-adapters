@@ -1,14 +1,12 @@
-import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
 
   // Query to track volume by decoding TokenBuyExactIn and TokenSellExactIn events
   // Program address: waveQX2yP3H1pVU8djGvEHmYg8uamQ84AuyGtpsrXTF
-  const value = (await queryDuneSql(options, 
+  const value = (await queryDuneSql(options,
     `WITH wavebreak_trades AS (
       SELECT 
         tx_id,
@@ -76,37 +74,14 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     `)
   );
 
-  console.log(value);
-  // Process aggregated results and calculate fees
-  let totalVolumeSOL = 0;
-  let totalTradeCount = 0;
+  let dailyVolume = options.createBalances();
 
   for (const mintData of value) {
-    const { total_amount, amount_in_mint, token_decimals, trade_count } = mintData;
-    
-    // Convert amount using proper decimals
-    const normalizedAmount = Number(total_amount) / Math.pow(10, token_decimals);
-    
-    // For SOL trades, add to volume directly
-    // For other tokens, treat as equivalent volume for fee calculation
-    if (amount_in_mint === '11111111111111111111111111111112') { // SOL mint
-      totalVolumeSOL += normalizedAmount;
-    } else {
-      // For non-SOL tokens, treat as equivalent volume for fee calculation
-      totalVolumeSOL += normalizedAmount;
-    }
-    
-    totalTradeCount += trade_count;
+    dailyVolume.add(mintData.amount_in_mint, mintData.total_amount)
   }
 
-  // Calculate fees as 1% of trading volume
-  const totalFees = totalVolumeSOL * 0.01;
-  dailyFees.add(ADDRESSES.solana.SOL, totalFees * 1e9);
-
-  return { 
-    dailyFees, 
-    dailyRevenue: dailyFees, 
-    dailyProtocolRevenue: dailyFees
+  return {
+    dailyVolume
   }
 }
 
@@ -114,15 +89,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-07-29', // Wavebreak launch date
-      meta: {
-        methodology: {
-          Fees: "Protocol fees calculated as 1% of trading volume aggregated by mint address using proper token decimals",
-          Revenue: "Protocol fees from aggregated trade amounts with proper decimal handling (1% of volume)",
-          ProtocolRevenue: "All fees go to Orca protocol"
-        }
-      }
+      fetch,
+      start: '2025-05-27',
     },
   },
   isExpensiveAdapter: true
