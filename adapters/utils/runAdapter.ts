@@ -27,9 +27,10 @@ function genUID(length: number = 10): string {
 const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
-  const { chains, fetch, start, runAtCurrTime } = module
-  const rootConfig: any = { fetch }
+  const { chains = [], fetch, start, runAtCurrTime } = module
+  const rootConfig: any = {}
 
+  if (fetch) rootConfig.fetch = fetch
   if (start) rootConfig.start = start
   if (runAtCurrTime) rootConfig.runAtCurrTime = runAtCurrTime
 
@@ -39,25 +40,26 @@ export async function setModuleDefaults(module: SimpleAdapter) {
   module.adapter = adapterObject
 
   if (!module.version) module.version = 1 // default to version 1
+  module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
 
-  if (Array.isArray(chains)) {
-    if (typeof fetch !== 'function') throw new Error('If chains field is passed, fetch function must be provided')
-    for (const cConfig of chains) {
+  if (!Array.isArray(chains)) 
+    throw new Error(`Chains should be an array, got ${typeof chains} instead`)
 
-      if (typeof cConfig === 'string') {
-        setChainConfig(cConfig, rootConfig)
-      } else if (Array.isArray(cConfig)) {
-        const [chain, chainConfig] = cConfig
-        if (typeof chain !== 'string' || typeof chainConfig !== 'object')
-          throw new Error(`Invalid chain config: ${cConfig}`)
-        setChainConfig(chain, { ...rootConfig, ...chainConfig })
-      } else {
+  Object.keys(adapterObject).filter(chain => !chains.includes(chain)).forEach(chain => chains.push(chain))
+
+  for (const cConfig of chains) {
+
+    if (typeof cConfig === 'string') {
+      setChainConfig(cConfig, rootConfig)
+    } else if (Array.isArray(cConfig)) {
+      const [chain, chainConfig] = cConfig
+      if (typeof chain !== 'string' || typeof chainConfig !== 'object')
         throw new Error(`Invalid chain config: ${cConfig}`)
-      }
+      setChainConfig(chain, { ...rootConfig, ...chainConfig })
+    } else {
+      throw new Error(`Invalid chain config: ${cConfig}`)
     }
   }
-
-  module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
 
   // check if chain already has a given field before setting it, so we dont end up overwriting it with defaults
   function setChainConfig(chain: string, config: BaseAdapterChainConfig) {
