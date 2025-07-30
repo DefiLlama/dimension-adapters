@@ -70,17 +70,18 @@ const meta = {
 }
 
 const adapter: Adapter = {
-  timetravel: false,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.POLYGON]),
+      runAtCurrTime: true,
       start: '2023-10-04',
       meta,
     },
     [CHAIN.STELLAR]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.STELLAR]),
+      runAtCurrTime: true,
       start: '2023-10-04',
       meta,
     },

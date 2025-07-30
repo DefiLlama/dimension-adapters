@@ -27,9 +27,4 @@ const adapters = {
   [CHAIN.APECHAIN]: { fetch: apechainAdapter, start: '2023-09-19' },
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: adapters,
-}
-
-export default adapter;
+export default adapters;
