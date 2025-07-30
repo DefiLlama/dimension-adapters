@@ -133,6 +133,7 @@ const fetch = async (
 
 const adapter: Adapter = {
   allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -62,7 +63,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   logs.forEach((i) => {
     if (
       i.toAssetId.toLowerCase() ==
-      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase()
+      ADDRESSES.GAS_TOKEN_2.toLowerCase()
     ) {
       dailyVolume.addGasToken(i.toAmount);
     } else {

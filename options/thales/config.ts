@@ -53,7 +53,7 @@ export const OVERTIME_CHAIN_CONFIG = {
       ADDRESSES.base.DAI,
       ADDRESSES.base.USDT,
       ADDRESSES.base.WETH,
-      '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', // cbBTC
+      ADDRESSES.ethereum.cbBTC, // cbBTC
       '0x7750c092e284e2c7366f50c8306f43c7eb2e82a2' // OVERTIME TOKEN
     ],
     fromAddresses: [

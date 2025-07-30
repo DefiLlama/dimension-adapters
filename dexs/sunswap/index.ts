@@ -1,8 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://abc.endjgfsv.link/swap/scan/volumeall"
@@ -41,7 +39,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.TRON]: {
       fetch,
       start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.TRON as Chain, (_chian: string) => fetch)
     },
   },
 };

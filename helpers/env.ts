@@ -18,6 +18,10 @@ const DEFAULTS: any = {
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
+  APTOS_PRC: 'https://aptos-mainnet.pontem.network',
+  HYDRAGON_RPC: "https://rpc-mainnet.hydrachain.org",
+  TAC_RPC: "https://rpc.tac.build",
+  TAC_RPC_MULTICALL: "0xcA11bde05977b3631167028862bE2a173976CA11",
 }
 
 export const ENV_KEYS = new Set([

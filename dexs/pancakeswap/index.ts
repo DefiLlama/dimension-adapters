@@ -7,6 +7,7 @@ import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
 import { queryDuneSql } from "../../helpers/dune";
+import { getEnv } from "../../helpers/env";
 
 enum DataSource {
   GRAPH = 'graph',
@@ -132,8 +133,9 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ERA]: {
       start: '2023-07-24',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      factory: '0x1bb72e0cbbea93c08f535fc7856e0338d7f7a8ab',
     },
     [CHAIN.ARBITRUM]: {
       start: '2023-08-08',
@@ -144,6 +146,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
+      // factory: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
     },
     [CHAIN.BASE]: {
       start: '2023-08-21',
@@ -176,7 +179,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   }
 };
 
-const FEE_CONFIG = {
+export const FEE_CONFIG = {
   V2_V3: {
     type: "volume" as const,
     Fees: 0.25,
@@ -193,7 +196,7 @@ const FEE_CONFIG = {
     HoldersRevenue: 0.1,
     UserFees: 0.25,
     SupplySideRevenue: 0.125,
-    Revenue: 0.0225
+    Revenue: 0.125, // ProtocolRevenue + HoldersRevenue
   }
 }
 
@@ -293,7 +296,7 @@ interface ISwapEventData {
 
 const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
+const APTOS_PRC = getEnv('APTOS_PRC');
 
 const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
@@ -346,9 +349,22 @@ const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances
     balances.add(token1, e.amount_y_out)
   })
 
+  // fees are same as v2 on bsc
+  const dailyVolume = await balances.getUSDString()
+  const dailyFees = Number(dailyVolume) * FEE_CONFIG.V2_V3.Fees;
+  const dailyRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.Revenue;
+  const dailyProtocolRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.ProtocolRevenue;
+  const dailySupplySideRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.SupplySideRevenue;
+  const dailyHoldersRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.HoldersRevenue;
+
   return {
-    dailyVolume: await balances.getUSDString(),
-    dailyFees: "0",
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
@@ -458,15 +474,28 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 }
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
-const calculateFees = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+const calculateFeesDune = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
   if (!dailyVolume) return {};
   const dailyVolumeNumber = Number(dailyVolume) || 0;
 
   return {
-    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue).toString() || "0",
-    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue).toString() || "0", 
-    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue).toString() || "0",
-    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees).toString() || "0",
+    dailyFees: (dailyVolumeNumber * feeConfig.Fees / 100).toString() || "0",
+    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees / 100).toString() || "0",
+    dailyRevenue: (dailyVolumeNumber * feeConfig.Revenue / 100).toString() || "0",
+    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue / 100).toString() || "0",
+    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue / 100).toString() || "0", 
+    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue / 100).toString() || "0",
+  };
+};
+
+const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+  return {
+    dailyFees: dailyVolume.clone(feeConfig.Fees/100),
+    dailyUserFees: dailyVolume.clone(feeConfig.UserFees/100),
+    dailyRevenue: dailyVolume.clone(feeConfig.Revenue/100),
+    dailyProtocolRevenue: dailyVolume.clone(feeConfig.ProtocolRevenue/100),
+    dailySupplySideRevenue: dailyVolume.clone(feeConfig.SupplySideRevenue/100),
+    dailyHoldersRevenue: dailyVolume.clone(feeConfig.HoldersRevenue/100),
   };
 };
 
@@ -478,13 +507,12 @@ const fetchV2 = async (options: FetchOptions) => {
     const adapter = getUniV2LogAdapter({ 
       factory: logConfig.factory, 
       eventAbi: ABIS.V2.SWAP_EVENT, 
-      pairCreatedAbi: ABIS.V2.POOL_CREATE 
+      pairCreatedAbi: ABIS.V2.POOL_CREATE
     });
     const v2stats = await adapter(options);
-    const usdDailyVolume = await v2stats.dailyVolume.toString();
     return {
       ...v2stats,
-      ...calculateFees(usdDailyVolume, FEE_CONFIG.V2_V3)
+      ...calculateFeesBalances(v2stats.dailyVolume, FEE_CONFIG.V2_V3)
     };
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
     const v2stats = await graphs(options.chain)(options);
@@ -527,7 +555,7 @@ const fetchV3 = async (options: FetchOptions) => {
     return {
       dailyVolume: totalVolume.toString(),
       dailyFees: dailyFees.toString(),
-      ...calculateFees(inflated_volume.toString(), FEE_CONFIG.V2_V3)
+      ...calculateFeesDune(inflated_volume.toString(), FEE_CONFIG.V2_V3)
     };
   }
   throw new Error('Invalid data source');
@@ -562,9 +590,11 @@ const fetchStableSwap = async (options: FetchOptions, {factory}: {factory: strin
     const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.SupplySideRevenue/100)
     const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.HoldersRevenue/100)
     const dailyUserFees = dailyVolume.clone(FEE_CONFIG.STABLESWAP.UserFees/100)
+    const dailyRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.Revenue/100)
     return {
       dailyVolume: dailyVolume,
       dailyFees,
+      dailyRevenue,
       dailyProtocolRevenue,
       dailySupplySideRevenue,
       dailyHoldersRevenue,

@@ -1,132 +1,245 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../../adapters/types";
+import { Chain, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { FetchResult } from "../../adapters/types";
 
-type TEndpoint = {
-  [key in Chain]: string
+interface ExchangeConfig {
+  subgraph?: string;
+
+  // if there is no subgraph, should include the pool list
+  pools: Array<string>;
+
+  // include cove pools addresses if any
+  coves: Array<string>;
 }
 
-const endpoints: TEndpoint = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
-  // [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
-};
+type ClipperConfig = {
+  [key in Chain]: ExchangeConfig
+}
 
-const fetchPolygon = async (
-  timestamp: number,
-  _1: any,
-  options: FetchOptions
-): Promise<FetchResult> => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  // 10000
-  const logs = await options.getLogs({
-    target: "0x2370cB1278c948b606f789D2E5Ce0B41E90a756f", // 0.5%
-    eventAbi:
-      "event CoveSwapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes32 auxiliaryData)",
-  });
 
-  const logs_2 = await options.getLogs({
-    target: "0x6bfce69d1df30fd2b2c8e478edec9daa643ae3b8",
-    eventAbi:
-      "event Swapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes auxiliaryData)",
-  });
-
-  logs.forEach((log) => {
-    dailyVolume.add(log.outAsset, log.outAmount)
-    dailyFees.add(log.outAsset, Number(log.outAmount) * (5/10000))
-  });
-
-  logs_2.forEach((log) => {
-    dailyVolume.add(log.outAsset, log.outAmount)
-  });
-
-  return {
-    timestamp,
-    dailyVolume,
-    dailyFees,
-  };
-};
+const configs: ClipperConfig = {
+  // https://github.com/sushi-labs/clipper-rfq-subgraph/blob/main/scripts/deploy-codegen/networks/mainnet.ts
+  [CHAIN.ETHEREUM]: {
+    subgraph: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
+    pools: [],
+    coves: [
+      '0x44d097113DBEad613fde74b387081FB3b547C54f',
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    subgraph: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
+    pools: [],
+    coves: [
+      '0xB873921b1ADd94ea47Bf983B060CE812e97873df',
+      '0x9e233dd6a90678baacd89c05ce5c48f43fcc106e',
+    ],
+  },
+  [CHAIN.OPTIMISM]: {
+    subgraph: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
+    pools: [],
+    coves: [
+      '0x93baB043d534FbFDD13B405241be9267D393b827',
+    ],
+  },
+  [CHAIN.POLYGON]: {
+    subgraph: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
+    pools: [],
+    coves: [
+      '0x2370cB1278c948b606f789D2E5Ce0B41E90a756f',
+    ],
+  },
+  [CHAIN.MOONBEAM]: {
+    subgraph: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
+    pools: [],
+    coves: [],
+  },
+  [CHAIN.BASE]: {
+    pools: [
+      '0xb32D856cAd3D2EF07C94867A800035E37241247C',
+    ],
+    coves: [],
+  },
+  [CHAIN.MANTLE]: {
+    pools: [
+      '0x769728b5298445BA2828c0f3F5384227fbF590C5',
+    ],
+    coves: [],
+  },
+  [CHAIN.POLYGON_ZKEVM]: {
+    pools: [
+      '0xae00af61be6861ee956c8e56bf22144d024acb57',
+      '0xe38c90a0233f18749fb74e595c4de871e5498c13',
+    ],
+    coves: [
+      '0x097Bf4a933747679698A97A9145Ce2c7f3c46042',
+    ],
+  },
+}
 
 interface IPool {
   id: string
   volumeUSD: string
-}
-interface IDailyPoolStatus {
-  volumeUSD: string
+  feeUSD: string
+  revenueUSD: string
 }
 interface IResponse {
   today: IPool[]
   yesterday: IPool[]
 }
-const feesQuery = gql`
+
+const subgraphQuery = gql`
   query fees($fromBlock: Int!, $toBlock: Int!) {
-    today:pools(block: {number: $toBlock}) {
-      id
-      volumeUSD
+    today: pools(block: {number: $toBlock}) {
+      id,
+      volumeUSD,
+      revenueUSD,
+      feeUSD,
     }
-    yesterday:pools(block: {number: $fromBlock}) {
-      id
-      volumeUSD
+    yesterday: pools(block: {number: $fromBlock}) {
+      id,
+      volumeUSD,
+      revenueUSD,
+      feeUSD,
     }
   }
 `
 
-const fetchFees = (chain: Chain) => {
-  return async (_t: number, _b: any, options: FetchOptions) => {
-    const endpoint = endpoints[chain];
-    const toBlock = await options.getToBlock()
-    const fromBlock = await options.getFromBlock()
+const fetchSubgraph = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const endpoint = configs[options.chain].subgraph as string;
+  const toBlock = await options.getToBlock();
+  const fromBlock = await options.getFromBlock();
 
-    const response: IResponse = (await request(endpoint, feesQuery, {
-      fromBlock: fromBlock,
-      toBlock: toBlock
-    }));
+  const response: IResponse = (await request(endpoint, subgraphQuery, {
+    fromBlock: fromBlock,
+    toBlock: toBlock
+  }));
 
-    const dailyVolume = response.today.reduce((acc, pool) => { 
-      const id = response.yesterday.find((p) => p.id === pool.id)
-      if (!id) return acc
-      return acc + Number(pool.volumeUSD) - Number(id.volumeUSD);
-    }, 0);
-    const totalVolume = response.today.reduce((acc, pool) => {  
-      return acc + Number(pool.volumeUSD);
-    }, 0);
-    return {
-      dailyVolume,
-      totalVolume,
-    }
+  const dailyVolume = response.today.reduce((acc, pool) => { 
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.volumeUSD) - Number(id.volumeUSD);
+  }, 0);
+  const totalVolume = response.today.reduce((acc, pool) => {  
+    return acc + Number(pool.volumeUSD);
+  }, 0);
+
+  const dailyFees = response.today.reduce((acc, pool) => {
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.feeUSD) - Number(id.feeUSD);
+  }, 0);
+  const totalFees = response.today.reduce((acc, pool) => {  
+    return acc + Number(pool.feeUSD);
+  }, 0);
+
+  const dailyRevenue = response.today.reduce((acc, pool) => {
+    const id = response.yesterday.find((p) => p.id === pool.id)
+    if (!id) return acc
+    return acc + Number(pool.revenueUSD) - Number(id.revenueUSD);
+  },0);
+  const totalRevenue = response.today.reduce((acc, pool) => {  
+    return acc + Number(pool.revenueUSD);
+  }, 0);
+
+  return {
+    dailyVolume,
+    totalVolume,
+    dailyFees,
+    totalFees,
+    dailyRevenue,
+    totalRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    totalProtocolRevenue: totalRevenue,
   }
 }
 
-const adapters: SimpleAdapter = {
-  version: 1,
+const fetchVolume = async (options: FetchOptions): Promise<sdk.Balances> => {
+  const dailyVolume = options.createBalances();
+
+  for (const pool of configs[options.chain].pools) {
+    const events = await options.getLogs({
+    target: pool,
+      eventAbi:
+        "event Swapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes auxiliaryData)",
+    });
+    for (const event of events) {
+      dailyVolume.add(event.outAsset, event.outAmount)
+    }
+  }
+
+  for (const pool of configs[options.chain].coves) {
+    const events = await options.getLogs({
+    target: pool,
+      eventAbi:
+        "event CoveSwapped(address indexed inAsset,address indexed outAsset,address indexed recipient,uint256 inAmount,uint256 outAmount,bytes32 auxiliaryData)",
+    });
+    for (const event of events) {
+      dailyVolume.add(event.outAsset, event.outAmount)
+    }
+  }
+
+  return dailyVolume;
+};
+
+export const fetchClipperDexs = async (options: FetchOptions): Promise<FetchResultV2> => {
+  let results: FetchResultV2 = {}
+
+  if (configs[options.chain].subgraph) {
+    results = await fetchSubgraph(options)
+  }
+
+  let dailyVolume = results.dailyVolume ? Number(results.dailyVolume) : 0
+  const dailyFees = results.dailyFees ? Number(results.dailyFees) : 0
+
+  const additionalVolumes = await fetchVolume(options)
+  additionalVolumes.timestamp = options.fromTimestamp
+  dailyVolume += await additionalVolumes.getUSDValue()
+
+  return {
+    ...results,
+    dailyVolume,
+    dailyFees,
+  };
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees(CHAIN.ETHEREUM),
+      fetch: fetchClipperDexs,
       start: '2022-08-05',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchFees(CHAIN.OPTIMISM),
+      fetch: fetchClipperDexs,
       start: '2022-06-29',
     },
-    [CHAIN.POLYGON]: {
-      fetch: fetchPolygon,
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchClipperDexs,
+      start: '2023-08-02',
+    },
+     [CHAIN.POLYGON]: {
+      fetch: fetchClipperDexs,
       start: '2022-04-20',
     },
-    // [CHAIN.MOONBEAM]: {
-    //   fetch: fetchFees(CHAIN.MOONBEAM),
-    //   start: '2022-08-05',
-    // },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees(CHAIN.ARBITRUM),
-      start: '2023-08-02',
-    }
+    [CHAIN.MOONBEAM]: {
+      fetch: fetchClipperDexs,
+      start: '2022-08-05',
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchClipperDexs,
+      start: '2024-03-16',
+    },
+    [CHAIN.MANTLE]: {
+      fetch: fetchClipperDexs,
+      start: '2023-09-07',
+    },
+    [CHAIN.POLYGON_ZKEVM]: {
+      fetch: fetchClipperDexs,
+      start: '2024-08-22',
+    },
   }
 }
 
-export default adapters;
+export default adapter;

@@ -21,6 +21,8 @@ const fetch = async (_:any, _b:any ,options: any): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
+    // webapp, X account were down,
+    deadFrom: '2025-07-18',
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,

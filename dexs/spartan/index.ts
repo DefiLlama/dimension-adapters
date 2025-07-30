@@ -3,7 +3,6 @@ import { Chain } from "../../adapters/types";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
@@ -47,7 +46,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetch,
       start: '2021-10-04',
-      customBackfill: customBackfill(CHAIN.BSC as Chain, () => fetch)
     },
   },
 };

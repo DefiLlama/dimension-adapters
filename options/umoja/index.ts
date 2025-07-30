@@ -19,14 +19,11 @@ const get_data = async (timestamp: number) => {
 };
 
 const adapter: Adapters.SimpleAdapter = {
+  methodology: C.methodology,
   adapter: {
     [Chains.ARBITRUM]: {
       fetch: get_data,
       start: "2024-02-05",
-      meta: {
-        methodology: C.methodology,
-        hallmarks: C.hallmarks,
-      },
     },
   },
 };

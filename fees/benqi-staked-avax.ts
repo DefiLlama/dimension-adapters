@@ -1,13 +1,14 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const topic0 = 'event AccrueRewards(uint256 userRewardAmount,uint256 protocolRewardAmount)';
-const address = '0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be'
+const address = ADDRESSES.avax.SAVAX
 
 const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
   const dailyFees = createBalances()
   const logs = await getLogs({ target: address, eventAbi: topic0 })
-  logs.map((log) => dailyFees.add('0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be', log.protocolRewardAmount))
+  logs.map((log) => dailyFees.add(ADDRESSES.avax.SAVAX, log.protocolRewardAmount))
   dailyFees.resizeBy(1 / 0.9)
   const dailyRevenue = dailyFees.clone(0.1)
   const dailySupplySideRevenue = dailyFees.clone(0.9)
