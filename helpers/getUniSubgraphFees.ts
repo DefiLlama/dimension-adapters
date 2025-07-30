@@ -78,11 +78,8 @@ const getUniswapV3Fees = (graphUrls: ChainEndpoints) => {
       });
 
       return {
-        timestamp,
-        totalFees: graphRes[DEFAULT_TOTAL_FEES_FACTORY][0][DEFAULT_TOTAL_FEES_FIELD],
         dailyFees: graphRes[DEFAULT_DAILY_FEES_FACTORY][DEFAULT_DAILY_FEES_FIELD],
-        totalRevenue: "0", // uniswap has no rev yet
-        dailyRevenue: "0", // uniswap has no rev yet
+        dailyRevenue: "0",
       };
     };
   };
@@ -100,13 +97,9 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
         const fetchFees = async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
           const fetchedResult: FetchResultVolume = await (volAdapter[chain].fetch as Fetch)(timestamp, chainBlocks, options)
           const chainDailyVolume = fetchedResult.dailyVolume ? fetchedResult.dailyVolume as number : "0";
-          const chainTotalVolume = fetchedResult.totalVolume ? fetchedResult.totalVolume as number : "0";
 
           return {
-            timestamp,
-            totalFees: new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString(),
             dailyFees: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-            totalRevenue: new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString(),
             dailyRevenue: chainDailyVolume ? new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString() : undefined
           };
         }
@@ -141,7 +134,6 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
         const fetchFees = async (options: FetchOptions) => {
           const fetchedResult: FetchResultV2 = await (adapterObj[chain].fetch as FetchV2)(options)
           const chainDailyVolume = fetchedResult.dailyVolume as number;
-          const chainTotalVolume = fetchedResult.totalVolume as number;
           const response: FetchResultV2 = { }
           if (chainDailyVolume !== undefined) {
             if (totalFees)
@@ -156,20 +148,6 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
               response["dailySupplySideRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.supplySideRevenue).toString()
             if (protocolFees !== undefined)
               response["dailyProtocolRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString()
-          }
-          if (chainTotalVolume !== undefined) {
-            if (totalFees)
-              response["totalFees"] = new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString()
-            if (params.userFees !== undefined)
-              response["totalUserFees"] = new BigNumber(chainTotalVolume).multipliedBy(params.userFees).toString()
-            if (params.revenue !== undefined)
-              response["totalRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.revenue).toString()
-            if (params.holdersRevenue !== undefined)
-              response["totalHoldersRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.holdersRevenue).toString()
-            if (params.supplySideRevenue !== undefined)
-              response["totalSupplySideRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.supplySideRevenue).toString()
-            if (protocolFees !== undefined)
-              response["totalProtocolRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString()
           }
           return response
         }
@@ -248,15 +226,10 @@ query get_volume($block: Int, $id: Int) {
         id,
       });
 
-      const chainTotalVolume = graphRes[totalVolume.factory][0][totalVolume.field];
       const chainDailyVolume = hasDailyVolume ? (graphRes?.[dailyVolume.factory]?.[dailyVolume.field] ?? "0") : undefined;
 
       return {
-        timestamp,
-        block,
-        totalFees: new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString(),
         dailyFees: (hasDailyVolume && chainDailyVolume) ? new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString() : undefined,
-        totalRevenue: new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString(),
         dailyRevenue: (hasDailyVolume && chainDailyVolume) ? new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString() : undefined
       };
     };
