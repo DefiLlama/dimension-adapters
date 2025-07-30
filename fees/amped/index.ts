@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const chainConfig: Record<string, { url: string, start: string }> = {
   [CHAIN.LIGHTLINK_PHOENIX]: {
@@ -48,10 +47,10 @@ interface IGraphResponse {
   }>;
 }
 
+const HoldersStartDate = 1753401600 // After TGE "2025-07-25" stakers are receiving revenue
+
 const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
+  const dayTimestamp = options.startOfDay;
   const chain = chainConfig[options.chain];
 
   const dailyData: IGraphResponse = await request(chain.url, historicalDataQuery, {
@@ -67,8 +66,16 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
     ) * 10 ** -30
     : undefined;
 
-  const dailySupplySideRevenue = dailyFees ? dailyFees * 0.7 : undefined; // 70% to LPs
-  const dailyHoldersRevenue = dailyFees ? dailyFees * 0.3 : undefined; // 30% to AMPED stakers
+  let dailySupplySideRevenue = 0;
+  let dailyHoldersRevenue = 0;
+  if(dayTimestamp >= HoldersStartDate){
+    dailySupplySideRevenue = dailyFees ? dailyFees * 0.7 : 0; // 70% to LPs
+    dailyHoldersRevenue = dailyFees ? dailyFees * 0.3 : 0; // 30% to AMPED stakers
+  }
+  else{
+    dailySupplySideRevenue = dailyFees || 0; // 100% to LPs before TGE
+    dailyHoldersRevenue = 0; // 0% to AMPED stakers before TGE
+  }
 
   return {
     dailyFees,
@@ -84,7 +91,7 @@ const methodology = {
   Fees: "Fees collected from trading, liquidation, and margin activities.",
   Revenue: "Revenue is distributed with 70% going to liquidity providers and 30% to AMPED stakers.",
   SupplySideRevenue: "70% of revenue is distributed to liquidity providers.",
-  HoldersRevenue: "30% of revenue is distributed to AMPED stakers.",
+  HoldersRevenue: "30% of revenue is distributed to AMPED stakers After TGE(25th July 2025).",
   ProtocolRevenue: "Protocol doesn't earn anything.",
 }
 
