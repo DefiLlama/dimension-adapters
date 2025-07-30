@@ -2,17 +2,6 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-// const endpoints = {
-//     [CHAIN.ERA]: "https://api.studio.thegraph.com/query/12332/koi-finance-v3/version/latest",
-//   };
-
-// const adapter = univ2Adapter2(endpoints, {
-//   factoriesName: "factories",
-//   dayData: "koiFinanceDayData",
-//   dailyVolume: "volumeUSD",
-//   totalVolume: "totalVolumeUSD",
-// });
-
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {

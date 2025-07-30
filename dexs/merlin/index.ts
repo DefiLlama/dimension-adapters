@@ -1,9 +1,17 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter({
+const fetch = univ2Adapter({
+  endpoints: {
     [CHAIN.ERA]: "https://api.studio.thegraph.com/query/45654/merlin-subgraph/v0.1.0"
-}, {});
+  },
+});
 
-adapters.adapter.era.start = 1680274800;
-export default adapters;
+const adapter: SimpleAdapter = {
+  chains: [CHAIN.ERA],
+  fetch,
+  start: 1680274800,
+}
+
+export default adapter;
