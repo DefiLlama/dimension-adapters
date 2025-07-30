@@ -8,6 +8,7 @@ import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
 import { queryDuneSql } from "../../helpers/dune";
 import { getEnv } from "../../helpers/env";
+import { getBscV2Data } from "./bscv2";
 
 enum DataSource {
   GRAPH = 'graph',
@@ -62,11 +63,11 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v2: {
     [CHAIN.BSC]: {
       start: '2021-04-23',
-      dataSource: DataSource.GRAPH,
-      endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
-      requestHeaders: {
-        "origin": "https://pancakeswap.finance",
-      }
+      dataSource: DataSource.CUSTOM,
+      // endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
+      // requestHeaders: {
+      //   "origin": "https://pancakeswap.finance",
+      // }
     },
     [CHAIN.ETHEREUM]: {
       start: '2022-09-27',
@@ -519,6 +520,8 @@ const fetchV2 = async (options: FetchOptions) => {
     return v2stats;
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     return fetchVolume(options);
+  } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.BSC) {
+    return await getBscV2Data(options);
   }
   throw new Error('Invalid data source');
 }
