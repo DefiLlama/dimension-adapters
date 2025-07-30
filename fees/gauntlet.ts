@@ -1,19 +1,10 @@
-import { SimpleAdapter } from "../adapters/types";
-
-/**
- * Gauntlet Solana Vault Fee Tracking Adapter
- * 
- * SETUP INSTRUCTIONS:
- * 1. Create a .env file in the root directory
- * 2. Add your Helius API key: HELIUS_API_KEY=your_actual_key_here
- * 3. Get your API key from: https://www.helius.dev/
- * 
- * The .env file is already in .gitignore, so your API key won't be committed.
- */
+import { SimpleAdapter, ChainBlocks, FetchOptions } from "../adapters/types";
 
 // Constants
+// Note: HELIUS_API_KEY environment variable must be set for this adapter to work
+// DeFiLlama infrastructure should provide this API key
 const MANAGER_ADDRESS = 'G6L1NE8tLYYzvMHYHbkHZqPFvfEsiRAsHSvyNQ2hut3o';
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY || 'YOUR_HELIUS_API_KEY'; // Use environment variable
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 
 // Correct vault addresses from the Python code (not PDAs)
 const VAULT_CONFIGS = [
@@ -28,21 +19,6 @@ const VAULT_CONFIGS = [
   { name: "DRIFT Plus", address: "8ziYC1onrdfq2KhRQamz392Ykx8So48uWzd3f8tXJpVz" },
   { name: "JTO Plus", address: "5M13RDhVWSGiuUPU3ewnxLWdMjcYx5zCzBLgvMjVuZ2K" },
   { name: "Carrot hJLP", address: "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ" }
-];
-
-// Vault addresses (used for context, but actual fee logic now relies on transfers TO manager)
-const VAULT_ADDRESSES = [
-  'Fu8AWYqw7bPZJAxumXJHs62BQZTMcsUkgGdwoh4v3js2', // hJLP 1x (USDC)
-  '3fFkCDe3DU3qVK8FD5fBYumK1bjGKA7uTvVPP53j3ydA', // hJLP 2x (USDC)
-  'DMbboHpxpJjTic3CMVRCiJFYKaEEz6izMgE9vB6GBSxv', // Gauntlet Basis Alpha (USDC)
-  '7Lka2kKagwTvTWNas2UtPaFiwpgs7r9BJtUEzQBB4DxT', // hJLP 1x (JLP)
-  '4UF8DgbH8hGmtfFhV369bkwMyRJbJDGN3UtYCZoeKqN3', // SOL Plus
-  '3u3biLVaLsbeQaXKq3Dt7c4di5Un2rqza4QXnFRmVZ7t', // cbBTC Plus
-  'EC2w198qubUWA2Xf73hz2d7vFKNaQc1XN7SYYqXbfLKQ', // dSOL Plus
-  '4Kayz1HkWJiEcYQgyQkXDC8Y6CeCoV5MYFXg3KwaL9ii', // jitoSOL Plus
-  '68oTjvenFJfrr2iYPtBTRiFyXA8N2pXdHDP82YvuhLaC', // DRIFT Plus
-  'GYxrPXFhCQamBxUc4wMYHnB235Aei7GZsjFCfZgfYJ6b', // Carrot hJLP
-  'FbbcWcg5FfiPdBhkxuBAAL' // JTO Plus
 ];
 
 interface Transaction {
@@ -85,20 +61,24 @@ interface Transaction {
   }>;
 }
 
-async function fetchAllTransactions(address: string, startTime: number): Promise<Transaction[]> {
+async function fetchAllTransactions(address: string, _startTime: number): Promise<Transaction[]> {
+  if (!HELIUS_API_KEY) {
+    throw new Error('HELIUS_API_KEY environment variable is required');
+  }
+
   const allTransactions: Transaction[] = [];
   let before: string | undefined;
 
   while (true) {
     try {
-      const url = `https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_API_KEY}`;
+      const url = `https://api.helius.xyz/v0/addresses/${address}/transactions`;
       const params = new URLSearchParams({
-        'until': startTime.toString(),
-        'limit': '1000'
+        'api-key': HELIUS_API_KEY,
+        'limit': '100'
       });
       if (before) params.append('before', before);
 
-      const response = await globalThis.fetch(`${url}&${params.toString()}`);
+      const response = await globalThis.fetch(`${url}?${params.toString()}`);
       if (!response.ok) {
         console.error(`Error fetching batch: ${response.status} ${response.statusText}`);
         break;
@@ -121,32 +101,37 @@ async function fetchAllTransactions(address: string, startTime: number): Promise
   return allTransactions;
 }
 
-async function calculateVaultFees(): Promise<Record<string, number>> {
+async function calculateManagerFees(): Promise<Record<string, number>> {
   const feesByToken: Record<string, number> = {};
   let totalTransfers = 0;
 
-  // Fetch manager transactions with pagination
-  const allTransactions = await fetchAllTransactions(MANAGER_ADDRESS, 1704067200); // 2024-01-01
+  try {
+    // Fetch manager transactions with pagination
+    const allTransactions = await fetchAllTransactions(MANAGER_ADDRESS, 1704067200); // 2024-01-01
 
-  for (const tx of allTransactions) {
-    // Check for token transfers TO the manager (these are the fees)
-    if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
-      for (const transfer of tx.tokenTransfers) {
-        // Check if this is a transfer TO the manager
-        if (transfer.toUserAccount === MANAGER_ADDRESS) {
-          const mint = transfer.mint;
-          const amount = transfer.tokenAmount;
-          
-          // This is a fee transfer to the manager
-          if (!feesByToken[mint]) feesByToken[mint] = 0;
-          feesByToken[mint] += amount;
-          totalTransfers++;
+    for (const tx of allTransactions) {
+      // Check for token transfers TO the manager (these are the fees)
+      if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+        for (const transfer of tx.tokenTransfers) {
+          // Check if this is a transfer TO the manager
+          if (transfer.toUserAccount === MANAGER_ADDRESS) {
+            const mint = transfer.mint;
+            const amount = transfer.tokenAmount;
+            
+            // This is a fee transfer to the manager
+            if (!feesByToken[mint]) feesByToken[mint] = 0;
+            feesByToken[mint] += amount;
+            totalTransfers++;
+          }
         }
       }
     }
-  }
 
-  console.log(`Found ${totalTransfers} fee transfers to manager`);
+    console.log(`Found ${totalTransfers} fee transfers to manager`);
+  } catch (error) {
+    console.error('Error calculating manager fees:', error);
+  }
+  
   return feesByToken;
 }
 
@@ -204,36 +189,44 @@ async function calculateGrossReturns(): Promise<Record<string, number>> {
   return returnsByToken;
 }
 
-
-
-const fetch = async (timestamp: number) => {
+const fetch = async (_timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) => {
   try {
-    const managerFees = await calculateVaultFees();
+    const managerFees = await calculateManagerFees();
     const totalValueGenerated = await calculateGrossReturns();
 
-    // Ensure we return valid numbers, not NaN
-    const fees = Object.fromEntries(
-      Object.entries(totalValueGenerated).map(([key, value]) => [key, isNaN(value) ? 0 : value])
-    );
-    
-    const revenue = Object.fromEntries(
-      Object.entries(managerFees).map(([key, value]) => [key, isNaN(Number(value)) ? 0 : Number(value)])
-    );
+    // Create balances objects for proper type compatibility
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
+
+    // Add the values to the balances
+    Object.entries(totalValueGenerated).forEach(([key, value]) => {
+      if (!isNaN(Number(value)) && Number(value) > 0) {
+        dailyFees.add(key, Number(value));
+      }
+    });
+
+    Object.entries(managerFees).forEach(([key, value]) => {
+      if (!isNaN(Number(value)) && Number(value) > 0) {
+        dailyRevenue.add(key, Number(value));
+      }
+    });
 
     return {
-      dailyFees: fees,      // Total value generated for depositors
-      dailyRevenue: revenue // Gauntlet performance fees
+      dailyFees,      // Total value generated for depositors
+      dailyRevenue    // Gauntlet's performance fees
     };
   } catch (error) {
-    console.error("Error in Gauntlet adapter:", error);
-    // Return empty results if there is an error (e.g., missing API key)
+    console.error('Error in Gauntlet adapter:', error);
+    // Return empty results if there's an error (e.g., missing API key)
     return {
-      dailyFees: {},
-      dailyRevenue: {}
+      dailyFees: createBalances(),
+      dailyRevenue: createBalances()
     };
   }
+};
 
-};const adapter: SimpleAdapter = {
+const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     solana: {
       fetch,
