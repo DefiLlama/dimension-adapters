@@ -6,7 +6,7 @@ const dailyEndpoint =
   "https://api.moonlander.trade/v1/trading-volumes/sum-by-date";
 
 const chains: { [key: string]: string } = {
-  // [CHAIN.CRONOS]: "CRONOS",
+  [CHAIN.CRONOS]: "CRONOS",
   [CHAIN.CRONOS_ZKEVM]: "CRONOS_ZKEVM",
 };
 
