@@ -9,7 +9,7 @@ const v3ChainMapping: any = {
   [CHAIN.OPTIMISM]: "OPTIMISM",
   [CHAIN.AVAX]: "AVALANCHE",
   [CHAIN.BASE]: "BASE",
-  [CHAIN.HYPERLIQUID]: "HYPERLIQUID",
+  [CHAIN.HYPERLIQUID]: "HYPEREVM",
 };
 
 const adapter: SimpleAdapter = {
