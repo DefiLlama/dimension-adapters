@@ -71,7 +71,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CORE]: {
       fetch: fetch(CHAIN.CORE),
-      start: 1734914400,
+      start: '2024-12-23',
     },
   },
 };

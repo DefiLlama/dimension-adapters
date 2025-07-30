@@ -11,7 +11,7 @@ import {
   univ2Adapter,
   getUniqStartOfTodayTimestamp,
 } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const normalizeChain = {
     "avax": "avalanche"
@@ -36,16 +36,16 @@ const kyberswapElasticV2 = univ2Adapter({
   totalVolume: "totalVolumeUSD",
 });
 kyberswapElasticV2.version = 2;
-kyberswapElasticV2.adapter.ethereum.start = 1654905600;
-kyberswapElasticV2.adapter.bsc.start = 1654732800;
-kyberswapElasticV2.adapter.polygon.start = 1654732800;
-kyberswapElasticV2.adapter.avax.start = 1654905600;
-kyberswapElasticV2.adapter.arbitrum.start = 1655942400;
-kyberswapElasticV2.adapter.optimism.start = 1656460800;
-kyberswapElasticV2.adapter.fantom.start = 1654732800;
-kyberswapElasticV2.adapter.bittorrent.start = 1658188800;
-kyberswapElasticV2.adapter.oasis.start = 1660780800;
-kyberswapElasticV2.adapter.cronos.start = 1660780800;
+(kyberswapElasticV2.adapter as BaseAdapter).ethereum.start = 1654905600;
+(kyberswapElasticV2.adapter as BaseAdapter).bsc.start = 1654732800;
+(kyberswapElasticV2.adapter as BaseAdapter).polygon.start = 1654732800;
+(kyberswapElasticV2.adapter as BaseAdapter).avax.start = 1654905600;
+(kyberswapElasticV2.adapter as BaseAdapter).arbitrum.start = 1655942400;
+(kyberswapElasticV2.adapter as BaseAdapter).optimism.start = 1656460800;
+(kyberswapElasticV2.adapter as BaseAdapter).fantom.start = 1654732800;
+(kyberswapElasticV2.adapter as BaseAdapter).bittorrent.start = 1658188800;
+(kyberswapElasticV2.adapter as BaseAdapter).oasis.start = 1660780800;
+(kyberswapElasticV2.adapter as BaseAdapter).cronos.start = 1660780800;
 
 // velas, oasis & bittorrent missing
 const elasticChains = ["ethereum", "polygon", "bsc", "avax", "fantom", "arbitrum", "optimism"]
@@ -213,7 +213,7 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
         acc[chain] = {
         fetch: async (options: FetchOptions) =>  {
             const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await (graphs as any)(chain as any)(options))
-            const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
+            const elasticV2 = ((kyberswapElasticV2.adapter as BaseAdapter)[chain as Chain]?.fetch != undefined && isElastic) ? (await (kyberswapElasticV2.adapter as any)[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
             const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
             const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {

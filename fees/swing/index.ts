@@ -40,7 +40,7 @@ const chains: Record<string, string> = {
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000)
     );
@@ -50,7 +50,6 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
     );
 
-
     const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
         headers: {
             'Content-Type': 'application/json',
@@ -58,22 +57,21 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
     });
 
-    const chainFeeVolumes = dailyRes?.historicalFeeByChain?.map((history: any) => {
-        const chainVol = history?.volume.find((vol: any) => {
+    const chainFees = dailyRes?.historicalFeeByChain?.map((history: any) => {
+        const fees = history?.volume.find((vol: any) => {
             return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
         })
-
-        return chainVol;
+        return fees;
     });
 
-    // calculate the total volume
-    const chainFeeVolume = chainFeeVolumes?.reduce((acc: number, curr: any) => {
+    let dailyFees = chainFees?.reduce((acc: number, curr: any) => {
         return acc + Number(curr?.value || 0);
     }, 0);
-
+    if (dailyFees >= 25000) { // Very high spikes in the fees API, so kept yearly fee as a safe guard to prevent spikes
+        dailyFees = 0;
+    }
     return {
-        dailyFees: chainFeeVolume || 0,
-        timestamp: unixTimestamp,
+        dailyFees: dailyFees || 0
     };
 };
 
@@ -88,23 +86,20 @@ const meta = {
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         ...Object.entries(chains).reduce((acc, chain) => {
-            const [key, value] = chain;
-
+            const [key, _] = chain;
             return {
                 ...acc,
                 [key]: {
-                    fetch: fetchVolume,
-                    start: '2023-11-01', // 2023-11-01'
+                    fetch,
+                    start: '2023-11-01',
                     meta
                 },
             };
         }, {}),
-
-    },
-
-    version: 1
+    }
 };
 
 export default adapter;

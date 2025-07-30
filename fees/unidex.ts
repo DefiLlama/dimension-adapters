@@ -1,7 +1,7 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import request, { gql } from "graphql-request";
 
 type TChainIDs = { [key in Chain]?: number };

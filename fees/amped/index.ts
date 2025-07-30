@@ -1,16 +1,15 @@
 import request, { gql } from "graphql-request";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.LIGHTLINK_PHOENIX]:
-    "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
-  [CHAIN.SONIC]:
-    "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.1/gn",
+const endpoints: Record<string, string> = {
+  [CHAIN.LIGHTLINK_PHOENIX]: "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
+  [CHAIN.SONIC]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.6/gn",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest"
+  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
+  [CHAIN.SSEED]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
 };
 
 const historicalDataQuery = gql`
@@ -31,18 +30,14 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch = (endpoint: string) => async (timestamp: number) => {
+const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(
     new Date(timestamp * 1000)
   );
 
-  const dailyData: IGraphResponse = await request(endpoint, historicalDataQuery, {
+  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDataQuery, {
     id: String(dayTimestamp) + ":daily" ,
     period: "daily",
-  });
-  const totalData: IGraphResponse = await request(endpoint, historicalDataQuery, {
-    id: "total",
-    period: "total",
   });
 
   const dailyFees = dailyData.feeStats?.length == 1
@@ -53,66 +48,47 @@ const getFetch = (endpoint: string) => async (timestamp: number) => {
     ) * 10 ** -30
     : undefined;
 
-  const totalFees = totalData.feeStats?.length == 1
-    ? Number(
-      Object.values(totalData.feeStats[0]).reduce((sum, element) =>
-        String(Number(sum) + Number(element))
-      )
-    ) * 10 ** -30
-    : undefined;
-
   return {
-    timestamp: dayTimestamp,
     dailyFees,
-    totalFees,
   };
 };
+
+const methodology = {
+  Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+}
 
 const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.LIGHTLINK_PHOENIX]: {
-      fetch: getFetch(endpoints[CHAIN.LIGHTLINK_PHOENIX]),
-      start: 1717199544,
-      meta: {
-        methodology: {
-          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-        },
-      },
+      fetch,
+      start: '2024-06-01',
+      meta: { methodology },
     },
     [CHAIN.SONIC]: {
-      fetch: getFetch(endpoints[CHAIN.SONIC]),
-      start: 1735685544,
-      meta: {
-        methodology: {
-          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-        }
-      },
+      fetch,
+      start: '2024-12-31',
+      meta: { methodology },
     },
     // [CHAIN.BSC]: {
-    //   fetch: getFetch(endpoints[CHAIN.BSC]),
-    //   start: 1727740344,
-    //   meta: {
-    //     methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-    //   },
+    //   fetch,
+    //   start: '2024-10-01',
+    //   meta: { methodology },
     // },
     [CHAIN.BERACHAIN]: {
-      fetch: getFetch(endpoints[CHAIN.BERACHAIN]),
-      start: 1738882079,
-      meta: {
-        methodology: {
-          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-        }
-      },
+      fetch,
+      start: '2025-02-06',
+      meta: { methodology },
     },
     [CHAIN.BASE]: {
-      fetch: getFetch(endpoints[CHAIN.BASE]),
-      start: 1740056400,
-      meta: {
-        methodology: {
-          Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-        }
-      },
+      fetch,
+      start: '2025-02-20',
+      meta: { methodology },
+    },
+    [CHAIN.SSEED]: {
+      fetch,
+      start: '2025-04-22',
+      meta: { methodology },
     },
   }
 };

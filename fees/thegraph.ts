@@ -50,10 +50,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const totalFees = options.createBalances();
-  const totalRevenue = options.createBalances();
-  const totalSupplySideRevenue = options.createBalances();
-
   const [todaysBlock, yesterdaysBlock] = await Promise.all([
     getBlock(options.endTimestamp, options.chain, {}),
     getBlock(options.startTimestamp, options.chain, {}),
@@ -105,24 +101,12 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addCGToken("the-graph", totalSupplySideDiff / 1e18);
   }
 
-  totalFees.addCGToken("the-graph", today.totalQueryFees / 1e18);
-  totalRevenue.addCGToken("the-graph", today.totalTaxedQueryFees / 1e18);
-  const totalSupplySide = +today.totalIndexerQueryFeeRebates +
-    +today.totalDelegatorQueryFeeRebates +
-    +today.totalCuratorQueryFees;
-  totalSupplySideRevenue.addCGToken("the-graph", totalSupplySide / 1e18);
-
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyHoldersRevenue: dailyRevenue,
     dailySupplySideRevenue,
-    totalFees,
-    totalUserFees: totalFees,
-    totalRevenue,
-    totalHoldersRevenue: totalRevenue,
-    totalSupplySideRevenue
   };
 };
 
@@ -136,6 +120,7 @@ const adapter: Adapter = {
         methodology: {
           Fees: "Total query fees paid by users for accessing subgraph data",
           Revenue: "Combined revenue from protocol tax (burned fees)",
+          HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
           SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
         },
       },
@@ -147,6 +132,7 @@ const adapter: Adapter = {
         methodology: {
           Fees: "Total query fees paid by users for accessing subgraph data",
           Revenue: "Combined revenue from protocol tax (burned fees)",
+          HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
           SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
         },
       },

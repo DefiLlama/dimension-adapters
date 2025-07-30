@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getSolanaReceived } from '../helpers/token';
 
+// https://dune.com/adam_tehc/axiom
 const fetch: any = async (options: FetchOptions) => {
   const targets = [
     '7LCZckF6XXGQ1hDY6HFXBKWAtiUgL9QY5vj1C4Bn1Qjj',
@@ -33,7 +34,7 @@ const fetch: any = async (options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -46,6 +47,7 @@ const adapter: SimpleAdapter = {
           Fees: 'User pays 0.75%-1% fee on each trade',
           Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
           UserFees: 'User pays 0.75%-1% fee on each trade',
+          HoldersRevenue: 'Fees distributed to token holders',
           ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
         }
       }

@@ -87,46 +87,6 @@ const get24hrStat = async (
   );
 };
 
-const getCumulativeStat = async (
-  field: string,
-  max_time: number,
-  fetchOptions: FetchOptions
-): Promise<number> => {
-  const response = await query(max_time, fetchOptions);
-  const cur_res = response.snapshots[0];
-  return sumAllProductStats(cur_res[field]);
-};
-
-const getCumulativeFees = async (
-  max_time: number,
-  fetchOptions: FetchOptions
-): Promise<number> => {
-  const fees = await getCumulativeStat(
-    "cumulative_taker_fees",
-    max_time,
-    fetchOptions
-  );
-  const sequencer_fees = await getCumulativeStat(
-    "cumulative_sequencer_fees",
-    max_time,
-    fetchOptions
-  );
-  return fees - sequencer_fees;
-};
-
-const getCumulativeRevenue = async (
-  max_time: number,
-  fetchOptions: FetchOptions
-): Promise<number> => {
-  const fees = await getCumulativeFees(max_time, fetchOptions);
-  const rebates = await getCumulativeStat(
-    "cumulative_maker_fees",
-    max_time,
-    fetchOptions
-  );
-  return fees + rebates;
-};
-
 const get24hrFees = async (
   max_time: number,
   fetchOptions: FetchOptions
@@ -164,52 +124,49 @@ const fetch = async (
 ): Promise<FetchResultFees> => {
   const dailyFees = await get24hrFees(timestamp, fetchOptions);
   const dailyRevenue = await get24hrRevenue(timestamp, fetchOptions);
-  const totalFees = await getCumulativeFees(timestamp, fetchOptions);
-  const totalRev = await getCumulativeRevenue(timestamp, fetchOptions);
+
   return {
     dailyFees,
     dailyRevenue,
-    totalRevenue: totalRev,
-    totalFees,
-    timestamp,
   };
 };
 
 const adapter: Adapter = {
   allowNegativeValue: true, // when maker rebates exceed taker fees minus sequencer fees
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2023-04-26",
     },
     [CHAIN.MANTLE]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2023-04-26",
     },
     [CHAIN.SEI]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2024-08-13",
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2024-09-04",
     },
     [CHAIN.SONIC]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2024-12-18",
     },
     [CHAIN.ABSTRACT]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2025-01-29",
     },
     [CHAIN.AVAX]: {
-      fetch: fetch,
+      fetch,
       runAtCurrTime: true,
       start: "2025-03-26",
     },

@@ -39,6 +39,14 @@ const adapter: Adapter = {
     [CHAIN.AVAX]: {
       fetch: fetch,
       start: '2021-11-14',
+      meta: {
+        methodology: {
+          Fees: "Yield and rewards are distributed.",
+          Revenue: "Fees distributed to holders and protocol.",
+          HoldersRevenue: "All revenue distributed to holders.",
+          ProtocolRevenue: "All revenue collected by protocol.",
+        },
+      }
     },
   }
 }

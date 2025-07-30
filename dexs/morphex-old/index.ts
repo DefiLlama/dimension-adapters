@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]:
@@ -89,14 +88,12 @@ const adapter: BreakdownAdapter = {
   deadFrom: "2024-02-21",
   breakdown: {
     swap: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
         start: startTimestamps[CHAIN.FANTOM],
       },
     },
     derivatives: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.FANTOM]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.FANTOM),
         start: startTimestamps[CHAIN.FANTOM],

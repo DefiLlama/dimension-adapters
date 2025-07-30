@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
@@ -30,19 +31,19 @@ const VAULTS = {
     {
       vault: "0xCa7c607C590ad16007CCBbba9D26f4df656a36C2",
       holder: "0x82ed3fc9d93112124b04b6c7b35394a5aba8af39",
-      underlying: "ethereum:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      underlying: "ethereum:" + ADDRESSES.GAS_TOKEN_2,
     },
     {
       vault: "0x4C73F025a1947ec770327B9956Fc61f535F72C22",
       holder: "0x82ed3fc9d93112124b04b6c7b35394a5aba8af39",
-      underlying: "ethereum:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      underlying: "ethereum:" + ADDRESSES.ethereum.USDC,
     },
   ],
   [CHAIN.BASE]: [
     {
       vault: "0x913Ece180df83A2B81A4976F83cA88543a0C51b8",
       holder: "0xdb9bd9eb1cdd9ae62a2e9569075a5154296cd632",
-      underlying: "base:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      underlying: "base:" + ADDRESSES.GAS_TOKEN_2,
     },
   ],
 };
@@ -90,32 +91,34 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
-          Holders: "Tracks MET distributed to esMET lockers.",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1683840000,
+      start: '2023-05-11',
       meta: {
         methodology: {
           Fees: "Tracks synth asset inflows to treasury.",
           Revenue: "Includes synth inflows and interest (converted to USD).",
+          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
         },
       },
     },

@@ -2,7 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const BORROW_CONTRACT_ADDRESS = [
   "0x2f6E14273514bc53deC831028CB91cB1D7b78237", // USDC
@@ -76,6 +76,14 @@ const adapter: Adapter = {
         };
       },
       start: '2023-10-31', // 01 Nov 2023
+      meta: {
+        methodology: {
+          Fees: "Interest and redemption fees paid by borrowers",
+          Revenue: "Interest and redemption fees paid by borrowers",
+          ProtocolRevenue: "Interest and redemption fees paid by borrowers",
+          HoldersRevenue: "Interest and redemption fees paid by borrowers"
+        }
+      }
     },
   },
 };

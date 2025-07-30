@@ -39,17 +39,18 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
 };
 
 export default {
+  deadFrom: '2025-03-05',
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 1732993200,
+      start: '2024-11-30',
       meta: {
         methodology: "Sum of all executed intents with Solana as input or output",
       },
     },
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1732993200,
+      start: '2024-11-30',
       meta: {
         methodology: "Sum of all executed intents with Ethereum as input or output",
       },

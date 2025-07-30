@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { SimpleAdapter } from "../../adapters/types";

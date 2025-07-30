@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 interface IGraph {
   makerAssetAddr: string;
@@ -33,7 +33,7 @@ const config: any = {
 const endpoints: TEndpoint = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5JhweAV1Y3k3GbbEssfetBaoyDNWz1Y72zscRrYsAgVT'),
 };
-const rfqV2Endpoint = "https://satsuma-subgraph.token.im/subgraph/rfqv2/api"
+const rfqV2Endpoint = "https://subgraph.satsuma-prod.com/61c3dea518e9/imtoken-labs--349710/rfq-v2-subgraph/version/v0.0.1-test-version/api"
 
 const fetchVolume = (chain: Chain) => {
   return async (

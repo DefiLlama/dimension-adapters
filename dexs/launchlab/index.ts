@@ -9,59 +9,28 @@ interface IData {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
-        WITH
-        launchlab_trades AS (
+        WITH launchlab_trades AS (
             SELECT
-                call_block_time,
-                call_tx_id,
-                amount_in as amount
+                evt_block_time,
+                amount_in,
+                amount_out,
+                json_value(trade_direction,'lax $.TradeDirection') AS trade_direction
             FROM
-                raydium_solana.raydium_launchpad_call_buy_exact_in
+                raydium_solana.raydium_launchpad_evt_tradeevent
             WHERE
-                account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
-                AND call_block_time >= from_unixtime(${options.startTimestamp})
-                AND call_block_time <= from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT
-                call_block_time,
-                call_tx_id,
-                maximum_amount_in as amount
-            FROM
-                raydium_solana.raydium_launchpad_call_buy_exact_out
-            WHERE
-                account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
-                AND call_block_time >= from_unixtime(${options.startTimestamp})
-                AND call_block_time <= from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT
-                call_block_time,
-                call_tx_id,
-                minimum_amount_out as amount
-            FROM
-                raydium_solana.raydium_launchpad_call_sell_exact_in
-            WHERE
-                account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
-                AND call_block_time >= from_unixtime(${options.startTimestamp})
-                AND call_block_time <= from_unixtime(${options.endTimestamp})
-            UNION ALL
-            SELECT
-                call_block_time,
-                call_tx_id,
-                amount_out as amount
-            FROM
-                raydium_solana.raydium_launchpad_call_sell_exact_out
-            WHERE
-                account_program = 'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj'
-                AND call_block_time >= from_unixtime(${options.startTimestamp})
-                AND call_block_time <= from_unixtime(${options.endTimestamp})
+                evt_block_time >= from_unixtime(${options.startTimestamp})
+                AND evt_block_time <= from_unixtime(${options.endTimestamp})
         )
         SELECT
-            SUM(amount / 1e9) AS daily_volume_sol
+            SUM(CASE 
+                WHEN trade_direction = 'Buy' THEN amount_in
+                WHEN trade_direction = 'Sell' THEN amount_out
+            END) AS daily_volume_sol
         FROM
             launchlab_trades
     `)
     const dailyVolume = options.createBalances()
-    dailyVolume.addCGToken('solana', data[0].daily_volume_sol)
+    dailyVolume.addCGToken('solana', data[0].daily_volume_sol / 1e9)
 
     return { 
         dailyVolume
@@ -69,13 +38,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-15'
         }
     },
-    version: 1,
     isExpensiveAdapter: true
 }
 

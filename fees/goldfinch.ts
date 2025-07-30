@@ -76,7 +76,14 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: '2021-08-19'
+      start: '2021-08-19',
+      meta: {
+        methodology: {
+          Fees: "Interest, payment, and reserve fees paid by users.",
+          Revenue: "Reserve fees are revenue.",
+          SupplySideRevenue: "Interest and payment fees are distributed to suppliers.",
+        }
+      }
     }
   },
   version: 2,

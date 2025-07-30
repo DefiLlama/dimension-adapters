@@ -1,4 +1,5 @@
 const { CHAIN } = require("../../helpers/chains");
+import { BaseAdapter } from "../../adapters/types";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 /*
@@ -13,5 +14,5 @@ const adpters = univ2Adapter2({
   dayData: "katanaDayData",
 });
 
-adpters.adapter[CHAIN.RONIN].start = 1635724800;
+(adpters.adapter as BaseAdapter)[CHAIN.RONIN].start = '2021-11-01';
 export default adpters;

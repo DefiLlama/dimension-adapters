@@ -10,6 +10,7 @@ export enum CHAIN {
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
   BIFROST = "bifrost",
+  BOTANIX = "btnx",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
@@ -185,6 +186,7 @@ export enum CHAIN {
   CELESTIA = "celestia",
   MORPH = "morph",
   APECHAIN = "apechain",
+  DCHAIN = "dchainmainnet",
   DUCKCHAIN = "duckchain",
   GRAVITY = "gravity",
   RARI = "rari",
@@ -239,6 +241,13 @@ export enum CHAIN {
   INITIA = "initia",
   COTI = "coti",
   LENS = "lens",
+  SSEED = "sseed",
+  AO = 'ao',
+  XRPL_EVM = 'xrplevm',
+  KATANA = 'katana',
+  SOON = 'soon',
+  HYDRAGON = 'hydragon',
+  TAC = "tac",
 }
 
 // Don´t use

@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -13,7 +13,7 @@ type IUrl = {
 const url: IUrl = {
   [CHAIN.SUI]: {
     histogramUrl:
-      "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=99999",
+      "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=40",
   },
 };
 

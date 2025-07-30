@@ -21,6 +21,7 @@ export const v2_adapter: SimpleAdapter = {
   },
 };
 
+
 export async function fetchArrowMarketsVolumeData(options: FetchOptions) {
   const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, options.endTimestamp);
 

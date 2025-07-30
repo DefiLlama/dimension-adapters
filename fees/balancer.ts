@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { CHAIN }from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
@@ -51,15 +51,10 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = (new BigNumber(graphRes["today"]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"])))
 
       return {
-        totalFees: graphRes["today"]["totalSwapFee"],
         dailyFees: dailyFee,
-        totalUserFees: graphRes["today"]["totalSwapFee"],
         dailyUserFees: dailyFee,
-        totalRevenue: "0",
         dailyRevenue: "0",
-        totalProtocolRevenue: "0",
         dailyProtocolRevenue: "0",
-        totalSupplySideRevenue: graphRes["today"]["totalSwapFee"],
         dailySupplySideRevenue: dailyFee,
       } as any
     };

@@ -68,6 +68,11 @@ const adapter: SimpleAdapter = {
         [CHAIN.SONIC]: {
             fetch: fetch,
             start: '2024-12-24',
+            meta: {
+                methodology: {
+                    Fees: "Yield and management fees collected from managed assets and vaults.",
+                },
+            },
         },
     },
 }

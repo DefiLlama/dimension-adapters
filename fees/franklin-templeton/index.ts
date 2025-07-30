@@ -1,7 +1,7 @@
 // https://www.franklintempleton.com/investments/options/money-market-funds/products/29386/SINGLCLASS/franklin-on-chain-u-s-government-money-fund/FOBXX#distributions
 
 import { ChainApi } from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import axios from "axios";
 import {
   Adapter,

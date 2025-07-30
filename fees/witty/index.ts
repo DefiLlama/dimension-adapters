@@ -73,12 +73,12 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ABSTRACT]: {
             fetch,
-            start: 1738196217,
+            start: '2025-01-30',
             meta: {
                 methodology: {
-                  dailyVolume: 'Volume is calculated as the sum of tolls collected from Coin events and payouts from Solve events',
-                  dailyFees: 'Fees are calculated as the difference in available balance of the fee collector address before and after the block',
-                  dailyRevenue: 'Revenue is the same as fees'
+                  Volume: 'Volume is calculated as the sum of tolls collected from Coin events and payouts from Solve events',
+                  Fees: 'Fees are calculated as the difference in available balance of the fee collector address before and after the block',
+                  Revenue: 'Revenue is the same as fees'
                 },
             }
         },

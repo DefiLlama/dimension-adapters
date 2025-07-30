@@ -36,8 +36,15 @@ const adapter: Adapter = {
           dailyRevenue.addGasToken(e.protocolFee);
         });
 
-        return { dailyFees, dailyRevenue };
+        return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
       }) as FetchV2,
+      meta: {
+        methodology: {
+          Fees: "Tokens trading and launching fees paid by users.",
+          Revenue: "All fees are revenue.",
+          ProtocolRevenue: "All revenue collected by protocol.",
+        }
+      }
     },
   },
   version: 2,

@@ -1,6 +1,6 @@
 // https://docs.openeden.com/treasury-bills-vault/fees
 
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";

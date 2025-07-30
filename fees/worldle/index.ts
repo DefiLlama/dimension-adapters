@@ -45,11 +45,11 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.WC]: {
             fetch,
-            start: 1746206283,
+            start: '2025-05-02',
             meta: {
                 methodology: {
-                  dailyFees: 'Fees are calculated as sum of all Transfer events to the royale resolver',
-                  dailyRevenue: 'Revenue is the same as fees'
+                  Fees: 'Fees are calculated as sum of all Transfer events to the royale resolver',
+                  Revenue: 'Revenue is the same as fees'
                 },
             }
         },

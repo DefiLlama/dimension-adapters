@@ -16,7 +16,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.FLARE]: {
       runAtCurrTime: true,
       fetch: fetchVolume,
-      start: 1741023000,
+      start: '2025-03-03',
     },
   },
 };

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import {
   Adapter,
   BaseAdapter,
@@ -114,7 +114,6 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
           [chain]: {
             ...volAdapter[chain],
             fetch: fetchFees,
-            customBackfill: fetchFees,
           }
         }
         return baseAdapter
@@ -136,22 +135,23 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
     let finalBaseAdapter: BaseAdapter = {}
     const adapterObj = volumeAdapter.adapter
 
-    Object.keys(adapterObj).map(chain => {
-      const fetchFees = async (options: FetchOptions) => {
-        return await (adapterObj[chain].fetch as FetchV2)(options)
-      }
-
-      const baseAdapter: BaseAdapter = {
-        [chain]: {
-          ...adapterObj[chain],
-          fetch: fetchFees,
-          customBackfill: fetchFees,
-          meta: params.meta
+    if (adapterObj) {
+      Object.keys(adapterObj).map(chain => {
+        const fetchFees = async (options: FetchOptions) => {
+          return await (adapterObj[chain].fetch as FetchV2)(options)
         }
-      }
-      finalBaseAdapter = { ...baseAdapter, ...finalBaseAdapter }
-      return baseAdapter
-    });
+
+        const baseAdapter: BaseAdapter = {
+          [chain]: {
+            ...adapterObj[chain],
+            fetch: fetchFees,
+            meta: params.meta
+          }
+        }
+        finalBaseAdapter = { ...baseAdapter, ...finalBaseAdapter }
+        return baseAdapter
+      });
+    }
 
     return finalBaseAdapter;
   } else {

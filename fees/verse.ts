@@ -2,18 +2,17 @@ import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
 import volumeAdapter from "../dexs/verse";
 
+const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
-const adapterObj = volumeAdapter.adapter;
-
-const fetch = (chain: string, totalFees: number, revenueFee: number, ssrFee: number) => {
+const fetch = (chain: string, tf: number, rf: number, ssr: number) => {
   return async (options: FetchOptions) => {
     const { dailyVolume } = await (adapterObj[chain].fetch as any)(options);
 
     return {
-      dailyUserFees: dailyVolume.clone(totalFees),
-      dailyFees: dailyVolume.clone(totalFees),
-      dailyRevenue: dailyVolume.clone(revenueFee),
-      dailySupplySideRevenue: dailyVolume.clone(ssrFee),
+      dailyUserFees: dailyVolume.clone(tf),
+      dailyFees: dailyVolume.clone(tf),
+      dailyRevenue: dailyVolume.clone(rf),
+      dailySupplySideRevenue: dailyVolume.clone(ssr),
     };
   }
 }

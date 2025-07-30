@@ -35,7 +35,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTi
     timestamp,
     dailyFees: dailyProtocolFees,
     dailyRevenue: dailyProtocolRevenue,
-    dailyHoldersRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: 0,
     dailySupplySideRevenue: dailySupplySideRevenue
   }
 }
@@ -166,6 +166,15 @@ const adapter: Adapter = {
       fetch: fetch,
       start: '2023-11-19',
       // runAtCurrTime: true,
+      meta: {
+        methodology: {
+          Fees: "Total interest paid by borrowers",
+          Revenue: "Protocol's share of interest treasury",
+          ProtocolRevenue: "Protocol's share of interest into treasury",
+          HoldersRevenue: "No revenue distributed to JST holders",
+          SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+        }
+      }
     },
   },
 };

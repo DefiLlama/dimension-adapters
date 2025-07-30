@@ -2,14 +2,14 @@ import { Adapter, FetchOptions, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient, gql } from 'graphql-request';
 import { Balances, } from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import ADDRESSES from '../../helpers/coreAssets.json'
 
 const iBTC_arbitrum = '0x050C24dBf1eEc17babE5fc585F06116A259CC77A'
 const WSOL_arbitrum = '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07'
 const UNI_arbitrum = '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0'
-const cbBTC_base = '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf'
+const cbBTC_base = ADDRESSES.ethereum.cbBTC
 const USDT_btr = '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2'
 type TokenContracts = {
   [key in Chain]: string[][];
@@ -48,7 +48,7 @@ subgraphEndpoints[CHAIN.BITLAYER] = "https://subgraphs.jaspervault.io/subgraphs/
 
 function getDecimals(token_address: string) {
   token_address = token_address.toLowerCase()
-  if (token_address == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+  if (token_address == ADDRESSES.GAS_TOKEN_2)
     return 18
 
   if (tokenDecimals[token_address])

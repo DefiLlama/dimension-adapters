@@ -36,7 +36,10 @@ const adapter: Adapter = {
             fetch,
             start: '2024-11-18',
             meta: {
-                methodology: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
+                methodology: {
+                    Fees: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
+                    Revenue: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
+                },
             },
         },
     },

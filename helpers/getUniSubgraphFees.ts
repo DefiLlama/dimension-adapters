@@ -6,7 +6,7 @@ import {
   FetchResultVolume,
   FetchResultGeneric,
 } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
@@ -115,7 +115,6 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
           [chain]: {
             ...volAdapter[chain],
             fetch: fetchFees,
-            customBackfill: fetchFees,
           }
         }
         return baseAdapter
@@ -137,54 +136,55 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
     let finalBaseAdapter: BaseAdapter = {}
     const adapterObj = volumeAdapter.adapter
 
-    Object.keys(adapterObj).map(chain => {
-      const fetchFees = async (options: FetchOptions) => {
-        const fetchedResult: FetchResultV2 = await (adapterObj[chain].fetch as FetchV2)(options)
-        const chainDailyVolume = fetchedResult.dailyVolume as number;
-        const chainTotalVolume = fetchedResult.totalVolume as number;
-        const response: FetchResultV2 = { }
-        if (chainDailyVolume !== undefined) {
-          if (totalFees)
-            response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString()
-          if (params.userFees !== undefined)
-            response["dailyUserFees"] = new BigNumber(chainDailyVolume).multipliedBy(params.userFees).toString()
-          if (params.revenue !== undefined)
-            response["dailyRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.revenue).toString()
-          if (params.holdersRevenue !== undefined)
-            response["dailyHoldersRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.holdersRevenue).toString()
-          if (params.supplySideRevenue !== undefined)
-            response["dailySupplySideRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.supplySideRevenue).toString()
-          if (protocolFees !== undefined)
-            response["dailyProtocolRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString()
+    if (adapterObj) {
+      Object.keys(adapterObj).map(chain => {
+        const fetchFees = async (options: FetchOptions) => {
+          const fetchedResult: FetchResultV2 = await (adapterObj[chain].fetch as FetchV2)(options)
+          const chainDailyVolume = fetchedResult.dailyVolume as number;
+          const chainTotalVolume = fetchedResult.totalVolume as number;
+          const response: FetchResultV2 = { }
+          if (chainDailyVolume !== undefined) {
+            if (totalFees)
+              response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(totalFees).toString()
+            if (params.userFees !== undefined)
+              response["dailyUserFees"] = new BigNumber(chainDailyVolume).multipliedBy(params.userFees).toString()
+            if (params.revenue !== undefined)
+              response["dailyRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.revenue).toString()
+            if (params.holdersRevenue !== undefined)
+              response["dailyHoldersRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.holdersRevenue).toString()
+            if (params.supplySideRevenue !== undefined)
+              response["dailySupplySideRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(params.supplySideRevenue).toString()
+            if (protocolFees !== undefined)
+              response["dailyProtocolRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(protocolFees).toString()
+          }
+          if (chainTotalVolume !== undefined) {
+            if (totalFees)
+              response["totalFees"] = new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString()
+            if (params.userFees !== undefined)
+              response["totalUserFees"] = new BigNumber(chainTotalVolume).multipliedBy(params.userFees).toString()
+            if (params.revenue !== undefined)
+              response["totalRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.revenue).toString()
+            if (params.holdersRevenue !== undefined)
+              response["totalHoldersRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.holdersRevenue).toString()
+            if (params.supplySideRevenue !== undefined)
+              response["totalSupplySideRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.supplySideRevenue).toString()
+            if (protocolFees !== undefined)
+              response["totalProtocolRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString()
+          }
+          return response
         }
-        if (chainTotalVolume !== undefined) {
-          if (totalFees)
-            response["totalFees"] = new BigNumber(chainTotalVolume).multipliedBy(totalFees).toString()
-          if (params.userFees !== undefined)
-            response["totalUserFees"] = new BigNumber(chainTotalVolume).multipliedBy(params.userFees).toString()
-          if (params.revenue !== undefined)
-            response["totalRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.revenue).toString()
-          if (params.holdersRevenue !== undefined)
-            response["totalHoldersRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.holdersRevenue).toString()
-          if (params.supplySideRevenue !== undefined)
-            response["totalSupplySideRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(params.supplySideRevenue).toString()
-          if (protocolFees !== undefined)
-            response["totalProtocolRevenue"] = new BigNumber(chainTotalVolume).multipliedBy(protocolFees).toString()
-        }
-        return response
-      }
 
-      const baseAdapter: BaseAdapter = {
-        [chain]: {
-          ...adapterObj[chain],
-          fetch: fetchFees,
-          customBackfill: fetchFees,
-          meta: params.meta
+        const baseAdapter: BaseAdapter = {
+          [chain]: {
+            ...adapterObj[chain],
+            fetch: fetchFees,
+            meta: params.meta
+          }
         }
-      }
-      finalBaseAdapter = { ...baseAdapter, ...finalBaseAdapter }
-      return baseAdapter
-    });
+        finalBaseAdapter = { ...baseAdapter, ...finalBaseAdapter }
+        return baseAdapter
+      });
+    }
 
     return finalBaseAdapter;
   } else {
