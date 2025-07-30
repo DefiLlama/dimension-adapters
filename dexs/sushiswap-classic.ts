@@ -1,8 +1,6 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { getChainVolumeWithGasToken2 }  from "../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 

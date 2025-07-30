@@ -27,6 +27,7 @@ const v3Graphs = getGraphDimensions2({
 });
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-03-04',
   version: 2,
   adapter: {
     [CHAIN.EON]: {
