@@ -48,13 +48,24 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
     ) * 10 ** -30
     : undefined;
 
+  // Calculate revenue distribution
+  const dailySupplySideRevenue = dailyFees ? dailyFees * 0.7 : undefined; // 70% to LPs
+  const dailyProtocolRevenue = dailyFees ? dailyFees * 0.3 : undefined; // 30% to AMPED stakers
+  const dailyRevenue = dailyFees; // Total protocol revenue
+
   return {
     dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
+  Fees: "Fees collected from trading, liquidation, and margin activities.",
+  Revenue: "Protocol fees are distributed with 70% going to liquidity providers and 30% to AMPED stakers.",
+  SupplySideRevenue: "70% of all protocol fees distributed to liquidity providers.",
+  ProtocolRevenue: "30% of all protocol fees distributed to AMPED stakers.",
 }
 
 const adapter: Adapter = {
