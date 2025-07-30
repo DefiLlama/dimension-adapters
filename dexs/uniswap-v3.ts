@@ -105,7 +105,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     acc[chain] = {
-      fetch: async (_t:any, _tb: any , options: FetchOptions) => v3Graphs(chain as Chain)(options),
+      fetch: async (_t:any, _tb: any , options: FetchOptions) => v3Graphs(options),
       start: startTimeV3[chain],
       meta,
     }

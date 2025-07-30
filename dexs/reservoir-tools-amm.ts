@@ -30,25 +30,25 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.INK]: {
       fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
+        return v2Graph(options)
       },
       start: '2025-01-07',
     },
     [CHAIN.ZERO]: {
       fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
+        return v2Graph(options)
       },
       start: '2025-01-07',
     },
     [CHAIN.SHAPE]: {
       fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
+        return v2Graph(options)
       },
       start: '2025-01-07',
     },
     [CHAIN.ABSTRACT]: {
       fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
+        return v2Graph(options)
       },
       start: '2025-01-07',
     },

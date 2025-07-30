@@ -101,7 +101,7 @@ const v3: any = Object.keys(endpointsV3).reduce(
     ...acc,
     [chain]: {
       fetch: async (options: FetchOptions) => {
-        const res = (await v3Graphs(chain as Chain)(options))
+        const res = (await v3Graphs(options))
         const result = {
           totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,

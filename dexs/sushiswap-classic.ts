@@ -115,7 +115,7 @@ const classic = Object.keys(endpointsClassic).reduce(
       fetch: async (options: FetchOptions) => {
         try {
           const call = chain === CHAIN.BOBA ? graphsClassicBoba : [CHAIN.ETHEREUM, CHAIN.KATANA].includes(chain as CHAIN) ? graphsClassicETH : graphsClassic;
-          const values = (await call(chain as Chain)(options));
+          const values = (await call(options));
           const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,

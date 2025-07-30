@@ -31,7 +31,7 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.MOONBEAM]: {
-      fetch: graphs(CHAIN.MOONBEAM),
+      fetch: graphs,
     },
   },
 };
