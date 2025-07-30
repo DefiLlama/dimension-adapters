@@ -189,14 +189,14 @@ async function calculateGrossReturns(): Promise<Record<string, number>> {
   return returnsByToken;
 }
 
-const fetch = async (_timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   try {
     const managerFees = await calculateManagerFees();
     const totalValueGenerated = await calculateGrossReturns();
 
     // Create balances objects for proper type compatibility
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
 
     // Add the values to the balances
     Object.entries(totalValueGenerated).forEach(([key, value]) => {
@@ -219,8 +219,8 @@ const fetch = async (_timestamp: number, _: ChainBlocks, { createBalances }: Fet
     console.error('Error in Gauntlet adapter:', error);
     // Return empty results if there's an error (e.g., missing API key)
     return {
-      dailyFees: createBalances(),
-      dailyRevenue: createBalances()
+      dailyFees: options.createBalances(),
+      dailyRevenue: options.createBalances()
     };
   }
 };
