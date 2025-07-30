@@ -1,28 +1,6 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
-import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-
-const curatorConfig: CuratorConfig = {
-  vaults: {
-    ethereum: {
-      morphoVaultOwners: [
-        '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
-      ],
-    },
-    base: {
-      morphoVaultOwners: [
-        '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
-        '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
-      ],
-    },
-    polygon: {
-      morphoVaultOwners: [
-        '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
-      ],
-    },
-  }
-}
 
 // Solana constants
 const MANAGER_ADDRESS = 'G6L1NE8tLYYzvMHYHbkHZqPFvfEsiRAsHSvyNQ2hut3o';
@@ -93,7 +71,8 @@ async function calculateGrossReturns(): Promise<number> {
 }
 
 // Solana fetch function
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
+  const { createBalances } = options;
   // Get manager fees from Dune SQL (using the working query)
   const vaultAddressesList = VAULT_ADDRESSES.map(addr => `'${addr}'`).join(', ');
   
@@ -118,8 +97,8 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
     // Calculate gross returns from Drift API
     const grossReturns = await calculateGrossReturns();
     
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
     
     // Add gross returns as fees (total value generated)
     dailyFees.addUSDValue(grossReturns);
@@ -142,8 +121,8 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
     
     // Fallback to just gross returns if Dune fails
     const grossReturns = await calculateGrossReturns();
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
     
     dailyFees.addUSDValue(grossReturns);
     
@@ -155,12 +134,9 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
-    // Original chains (Ethereum, Base, Polygon) - Morpho vaults
-    ...getCuratorExport(curatorConfig),
-    
-    // New Solana chain - Drift vaults
+    // Solana chain - Drift vaults
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01',
