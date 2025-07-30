@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { getGraphDimensions, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { FetchOptions } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
