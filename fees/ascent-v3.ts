@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.EON]: {
-      fetch: v3Graphs(CHAIN.EON),
+      fetch: v3Graphs,
       start: '2023-11-08',
     },
   },

@@ -29,7 +29,7 @@ export default {
   version: 2,
   adapter: {
     [CHAIN.HYDRAGON]: {
-      fetch: graphs(CHAIN.HYDRAGON),
+      fetch: graphs,
       meta: { methodology },
       start: '2025-05-20', // Start date for the adapter
     }

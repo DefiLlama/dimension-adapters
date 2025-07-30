@@ -78,7 +78,7 @@ const adapter: BreakdownAdapter = {
     },
     "stable-amm": {
       [CHAIN.MOONBEAM]: {
-        fetch: v1graphs(CHAIN.MOONBEAM),
+        fetch: v1graphs,
         start: '2022-07-04',
         meta: {
           methodology: {

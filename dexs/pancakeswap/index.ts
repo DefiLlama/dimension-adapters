@@ -516,7 +516,7 @@ const fetchV2 = async (options: FetchOptions) => {
       ...calculateFeesBalances(v2stats.dailyVolume, FEE_CONFIG.V2_V3)
     };
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v2stats = await graphs(options.chain)(options);
+    const v2stats = await graphs(options);
     return v2stats;
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     return fetchVolume(options);
@@ -538,7 +538,7 @@ const fetchV3 = async (options: FetchOptions) => {
     });
     return await adapter(options);   
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v3stats = await v3Graph(options.chain)(options);
+    const v3stats = await v3Graph(options);
     // Ethereum-specific adjustment
     if (options.chain === CHAIN.ETHEREUM) {
       v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
@@ -637,7 +637,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options.chain)(options),
+        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options),
         start: config.start,
         meta: { methodology: stableSwapMethodology }
       };

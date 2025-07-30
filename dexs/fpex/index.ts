@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.FLARE]: {
-      fetch: fetch(CHAIN.FLARE),
+      fetch,
       start: '2025-07-01',
       meta: { methodology }
     }

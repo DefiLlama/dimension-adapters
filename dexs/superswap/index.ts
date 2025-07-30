@@ -77,10 +77,10 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v2: Object.keys(v2Endpoints).reduce((acc, chain) => {
-      return {
+      return {  
         ...acc,
         [chain]: {
-          fetch: v2Graph(chain as Chain),
+          fetch: v2Graph,
           start: '2024-09-23',
           meta: { methodology: v2Methodology },
         },
@@ -88,7 +88,7 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: v3Graphs,
         start: '2024-09-05',
         meta: { methodology: v3Methodology },
       };

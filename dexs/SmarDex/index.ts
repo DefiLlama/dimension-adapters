@@ -20,9 +20,9 @@ const graphs = getGraphDimensions2({
 const adapter: SimpleAdapter = { adapter: {}, version: 2 };
 
 Object.keys(CHAIN_CONFIG.GRAPH_URLS).forEach((chain: string) => {
-  const subgraphFetching = graphs(chain);
+  const subgraphFetching = graphs;
 
-  adapter.adapter[chain] = {
+  adapter.adapter![chain] = {
     fetch: async (options: FetchOptions) => {
       try {
         const smardexDimensions = await subgraphFetching(options);

@@ -6,7 +6,7 @@ const v2Endpoints = {
   [CHAIN.MANTLE]: "https://graphv3.fusionx.finance/subgraphs/name/fusionx/exchange"
 }
 
-const v2Graphs = getGraphDimensions2({
+const fetch = getGraphDimensions2({
   graphUrls: v2Endpoints,
   totalVolume: {
     factory: "fusionxFactories",
@@ -27,7 +27,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.MANTLE]: {
-      fetch: v2Graphs(CHAIN.MANTLE),
+      fetch,
       start: '2023-07-13',
     },
   },
