@@ -23,7 +23,6 @@ const beefyFeeBatch = '0x65f2145693bE3E75B8cfB2E318A3a74D057e6c7B'; // on ethere
 type ChainConfig = {
   chainId: CHAIN;
   start: string;
-
   contract: string;
   stables: string[];
   excludeFrom?: string[];
@@ -293,6 +292,8 @@ const configs: ChainConfig[] = [
   {
     /**
      * ethereum
+     * usually only swaps weth->usdc once per week
+     * only swaps the protocol share of the weth, not the holder share
      * exclude:
      *   from gnosis via gnosis
      *   from fraxtal via stargate
@@ -335,12 +336,19 @@ const adapter = Object.fromEntries(configs.map(config => {
       meta: {methodology},
       fetch: async (options: FetchOptions) => {
         const logFilter = excludeFrom && excludeFrom.length > 0 ? makeErc20BlacklistFromFilter(excludeFrom) : undefined;
-        const dailyRevenue = await addTokensReceived({
+        let dailyRevenue = await addTokensReceived({
           options,
           target: contract,
           tokens: stables,
           logFilter
         });
+
+        // Ethereum feeBatch only swaps the protocol share of the weth to usdc, not the holder share
+        if (chainId === CHAIN.ETHEREUM) {
+          // Scale it up from the protocol share to the total revenue
+          dailyRevenue = dailyRevenue.clone(100 / protocolShare);
+        }
+
         // scale revenue up to include strategist and call fees
         const dailyFees = dailyRevenue.clone(totalFee / revenueFee);
         const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100);
