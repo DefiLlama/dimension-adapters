@@ -99,7 +99,9 @@ export async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2
     for (const log of swapLogs) {
       const pair = allPairs[formatAddress(log.address)];
       const event = log.args;
-      if (pair && (whitelistedTokens.includes(pair.token0) || whitelistedTokens.includes(pair.token1))) {
+
+      // require both token0 and token1 are whitelisted
+      if (pair && whitelistedTokens.includes(pair.token0) && whitelistedTokens.includes(pair.token1)) {
         addOneToken({ chain: options.chain, balances: dailyVolume, token0: pair.token0, token1: pair.token1, amount0: event.amount0In, amount1: event.amount1In })
         addOneToken({ chain: options.chain, balances: dailyVolume, token0: pair.token0, token1: pair.token1, amount0: event.amount0Out, amount1: event.amount1Out })
       }
