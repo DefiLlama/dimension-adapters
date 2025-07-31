@@ -13,7 +13,7 @@ import { getBscV2Data } from "./bscv2";
 enum DataSource {
   GRAPH = 'graph',
   LOGS = 'logs',
-  PANCAKE_EXPLORER = 'pacnake_explorer',
+  PANCAKE_EXPLORER = 'pancake_explorer',
   CUSTOM = 'custom',
   DUNE = 'dune'
 }
