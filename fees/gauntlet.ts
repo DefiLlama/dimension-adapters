@@ -20,6 +20,16 @@ const VAULT_ADDRESSES = [
   "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ"  // Carrot hJLP
 ];
 
+// Morpho vault addresses
+const MORPHO_VAULTS = {
+  ethereum: ['0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec'],
+  base: [
+    '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
+    '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428'
+  ],
+  polygon: ['0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec']
+};
+
 async function calculateGrossReturns(): Promise<number> {
   let totalGrossReturns = 0;
 
@@ -71,7 +81,7 @@ async function calculateGrossReturns(): Promise<number> {
 }
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const { createBalances } = options;
   // Get manager fees from Dune SQL (using the working query)
   const vaultAddressesList = VAULT_ADDRESSES.map(addr => `'${addr}'`).join(', ');
@@ -133,10 +143,69 @@ const fetchSolana = async (options: FetchOptions) => {
   }
 };
 
+// Morpho vault fetch functions
+const fetchMorphoVaults = async (chain: string, _a: any, _b: any, options: FetchOptions) => {
+  const { createBalances } = options;
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  
+  const vaults = MORPHO_VAULTS[chain as keyof typeof MORPHO_VAULTS] || [];
+  
+  // TODO: Implement actual Morpho vault tracking
+  // For now, return placeholder values
+  console.log(`Morpho vaults for ${chain}: ${vaults.join(', ')}`);
+  
+  return { dailyFees, dailyRevenue };
+};
+
+const fetchEthereum = async (_a: any, _b: any, options: FetchOptions) => {
+  return fetchMorphoVaults('ethereum', _a, _b, options);
+};
+
+const fetchBase = async (_a: any, _b: any, options: FetchOptions) => {
+  return fetchMorphoVaults('base', _a, _b, options);
+};
+
+const fetchPolygon = async (_a: any, _b: any, options: FetchOptions) => {
+  return fetchMorphoVaults('polygon', _a, _b, options);
+};
+
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
-    // Solana chain - Drift vaults
+    // Original chains (Ethereum, Base, Polygon) - Morpho vaults
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchEthereum,
+      start: '2024-01-01',
+      meta: {
+        methodology: {
+          Fees: "Morpho vault yields (to be implemented)",
+          Revenue: "Morpho vault curator fees (to be implemented)"
+        }
+      }
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchBase,
+      start: '2024-01-01',
+      meta: {
+        methodology: {
+          Fees: "Morpho vault yields (to be implemented)",
+          Revenue: "Morpho vault curator fees (to be implemented)"
+        }
+      }
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetchPolygon,
+      start: '2024-01-01',
+      meta: {
+        methodology: {
+          Fees: "Morpho vault yields (to be implemented)",
+          Revenue: "Morpho vault curator fees (to be implemented)"
+        }
+      }
+    },
+    
+    // New Solana chain - Drift vaults (fully implemented)
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01',
