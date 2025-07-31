@@ -19,3 +19,5 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.AVAX],
   start: '2022-01-21'
 }
+
+export default adapter
