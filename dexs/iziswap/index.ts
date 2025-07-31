@@ -25,6 +25,7 @@ const chainConfig: Record<Chain, { id: number, start: string }> = {
 
 interface IVolumeall {
   volDay: number;
+  feesDay: number;
   chainId: number;
   timestamp: number;
 }
@@ -55,8 +56,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     )
     .reduce((sum, { volDay }) => sum + Number(volDay), 0);
 
+  const dailyFees = historical
+    .filter(({ chainId: id, timestamp }) =>
+      id === chainId && timestamp > startTimestamp && timestamp < endTimestamp
+    )
+    .reduce((sum, { feesDay }) => sum + Number(feesDay), 0);
+
   return {
     dailyVolume,
+    dailyFees,
   };
 };
 
