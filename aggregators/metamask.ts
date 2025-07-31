@@ -4,15 +4,6 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { sleep } from "../utils/utils";
 
-const meta = {
-  methodology: {
-    Volume: 'Total token swap volumes by users using Metamask wallet.',
-    Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
-    Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
-    ProtocolRevenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
-  }
-}
-
 type IConfig = {
   [s: string | Chain]: {
     routerAddress: string;
@@ -88,7 +79,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const address = data.slice(64, 128);
         const amount = Number('0x' + data.slice(128, 192));
         const tokenAddress = '0x' + address.slice(24, address.length);
-  
         dailyVolume.add(tokenAddress, amount);
       }
     }
@@ -104,45 +94,46 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 }
 
+const methodology = {
+  Volume: 'Total token swap volumes by users using Metamask wallet.',
+  Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
+  Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
+  ProtocolRevenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
+}
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-01-01',
-      meta,
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch,
+      fetch,
       start: '2023-01-01',
-      meta,
     },
     [CHAIN.BSC]: {
-      fetch: fetch,
+      fetch,
       start: '2023-01-01',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-01-01',
-      meta,
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-01-01',
-      meta,
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
+      fetch,
       start: '2023-11-18',
-      meta,
     },
-    [CHAIN.LINEA]: {
-      fetch: fetch,
-      start: '2023-10-03',
-      meta,
-    },
+    // [CHAIN.LINEA]: {
+    //   fetch,
+    //   start: '2023-10-03',
+    // },
   },
+  methodology,
 }
 
 export default adapter;
