@@ -122,6 +122,7 @@ async function fetch({
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   fetch,
   chains: Object.keys(chains),
   start: '2025-04-29',
