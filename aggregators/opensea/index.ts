@@ -4,20 +4,20 @@ import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 
 const chainConfig = {
-	[CHAIN.ETHEREUM]: {start: 1720000000, dune_chain: 'ethereum'},
-	// [CHAIN.ABSTRACT]: {start: 1720000000, dune_chain: 'abstract'},
-	[CHAIN.APECHAIN]: {start: 1720000000, dune_chain: 'apechain'},
-	[CHAIN.ARBITRUM]: {start: 1720000000, dune_chain: 'arbitrum'},
-	[CHAIN.AVAX]: {start: 1720000000, dune_chain: 'avalanche_c'},
-	[CHAIN.BLAST]: {start: 1720000000, dune_chain: 'blast'},
-	[CHAIN.BASE]: {start: 1720000000, dune_chain: 'base'},
-	[CHAIN.BERACHAIN]: {start: 1720000000, dune_chain: 'berachain'},
-	// [CHAIN.FLOW]: {start: 1720000000, dune_chain: 'flow'},
-	[CHAIN.OPTIMISM]: {start: 1720000000, dune_chain: 'optimism'},
-	[CHAIN.POLYGON]: {start: 1720000000, dune_chain: 'polygon'},
-	// [CHAIN.SEI]: {start: 1720000000, dune_chain: 'sei'},
-	[CHAIN.UNICHAIN]: {start: 1720000000, dune_chain: 'unichain'},
-	// [CHAIN.ZORA]: {start: 1720000000, dune_chain: 'zora'},
+	[CHAIN.ETHEREUM]: {dune_chain: 'ethereum'},
+	// [CHAIN.ABSTRACT]: {dune_chain: 'abstract'},
+	[CHAIN.APECHAIN]: {dune_chain: 'apechain'},
+	[CHAIN.ARBITRUM]: {dune_chain: 'arbitrum'},
+	[CHAIN.AVAX]: {dune_chain: 'avalanche_c'},
+	[CHAIN.BLAST]: {dune_chain: 'blast'},
+	[CHAIN.BASE]: {dune_chain: 'base'},
+	[CHAIN.BERACHAIN]: {dune_chain: 'berachain'},
+	// [CHAIN.FLOW]: {dune_chain: 'flow'},
+	[CHAIN.OPTIMISM]: {dune_chain: 'optimism'},
+	[CHAIN.POLYGON]: {dune_chain: 'polygon'},
+	// [CHAIN.SEI]: {dune_chain: 'sei'},
+	[CHAIN.UNICHAIN]: {dune_chain: 'unichain'},
+	// [CHAIN.ZORA]: {dune_chain: 'zora'},
 }
 
 const prefetch = async (options: FetchOptions) => {
