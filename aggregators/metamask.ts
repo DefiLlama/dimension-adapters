@@ -73,14 +73,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const toBlock = blockNumber + limit > Number(options.toApi.block) ? Number(options.toApi.block) : blockNumber + limit;
     const transactions = await retry(options.chain, blockNumber, toBlock, configs[options.chain].routerAddress);
 
-    if (transactions) {
-      for (const transaction of transactions) {
-        const data = transaction.input.replace('0x5f575529', '');
-        const address = data.slice(64, 128);
-        const amount = Number('0x' + data.slice(128, 192));
-        const tokenAddress = '0x' + address.slice(24, address.length);
-        dailyVolume.add(tokenAddress, amount);
-      }
+    for (const transaction of transactions.filter(tx => tx.status === 1)) {
+      const data = transaction.input.replace('0x5f575529', '');
+      const address = data.slice(64, 128);
+      const amount = Number('0x' + data.slice(128, 192));
+      const tokenAddress = '0x' + address.slice(24, address.length);
+      dailyVolume.add(tokenAddress, amount);
     }
   }
 
@@ -128,10 +126,10 @@ const adapter: Adapter = {
       fetch,
       start: '2023-11-18',
     },
-    // [CHAIN.LINEA]: {
-    //   fetch,
-    //   start: '2023-10-03',
-    // },
+    [CHAIN.LINEA]: {
+      fetch,
+      start: '2023-10-03',
+    },
   },
   methodology,
 }
