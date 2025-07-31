@@ -1,9 +1,12 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid';
 import { getSolanaReceived } from '../helpers/token';
 
+const HL_BUILDER_ADDRESS = '0x1cc34f6af34653c515b47a83e1de70ba9b0cda1f';
+
 // https://dune.com/adam_tehc/axiom
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     '7LCZckF6XXGQ1hDY6HFXBKWAtiUgL9QY5vj1C4Bn1Qjj',
     '4V65jvcDG9DSQioUVqVPiUcUY9v6sb6HKtMnsxSKEz5S',
@@ -27,7 +30,6 @@ const fetch: any = async (options: FetchOptions) => {
     '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg'
   ];
 
-
   const dailyFees = await getSolanaReceived({
     blacklists: targets,
     options,
@@ -37,11 +39,16 @@ const fetch: any = async (options: FetchOptions) => {
   return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees };
 };
 
+const fetchHL = async (_a: any, _b: any, options: FetchOptions) => {
+  const { dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, };
+};
+
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fetch,
+      fetch,
       meta: {
         methodology: {
           Fees: 'User pays 0.75%-1% fee on each trade',
@@ -52,6 +59,17 @@ const adapter: SimpleAdapter = {
         }
       }
     },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetchHL,
+      start: '2025-01-21',
+      meta: {
+        methodology: {
+          Fees: 'builder code revenue from Hyperliquid Perps Trades.',
+          Revenue: 'builder code revenue from Hyperliquid Perps Trades.',
+          ProtocolRevenue: 'builder code revenue from Hyperliquid Perps Trades.',
+        }
+      }
+    }
   },
   isExpensiveAdapter: true,
 };
