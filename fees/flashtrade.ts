@@ -112,13 +112,10 @@ const methodology = {
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2023-12-29',
-            meta: { methodology },
-        },
-    },
+    chains: [CHAIN.SOLANA],
+    fetch,
+    start: '2023-12-29',
+    methodology
 };
 
 export default adapter;
