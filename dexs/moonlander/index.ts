@@ -1,5 +1,5 @@
 import { httpGet } from "../../utils/fetchURL";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const chains: { [key: string]: string } = {
@@ -10,11 +10,6 @@ const chains: { [key: string]: string } = {
 const MoonlanderAddress: { [key: string]: string } = {
   [CHAIN.CRONOS]: "0xE6F6351fb66f3a35313fEEFF9116698665FBEeC9",
   [CHAIN.CRONOS_ZKEVM]: "0x02ae2e56bfDF1ee4667405eE7e959CD3fE717A05",
-};
-
-const startTimestamps: { [chain: string]: string } = {
-  [CHAIN.CRONOS]: "2025-04-29",
-  [CHAIN.CRONOS_ZKEVM]: "2024-12-17",
 };
 
 const pairsAbi =
@@ -28,15 +23,13 @@ const dailyEndpoint =
 const feesEndPoint = "https://api.moonlander.trade/v1/defillama/fee";
 
 const getDailyUri = ({ chain, startTime, endTime }: any) => {
-  return `${dailyEndpoint}?chains=${
-    chains[chain]
-  }&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
+  return `${dailyEndpoint}?chains=${chains[chain]
+    }&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
 };
 
 const getFeesUri = ({ chain, startTime, endTime }: any) => {
-  return `${feesEndPoint}?block_chain=${
-    chains[chain]
-  }&startDate=${startTime.toISOString()}&endDate=${endTime.toISOString()}`;
+  return `${feesEndPoint}?block_chain=${chains[chain]
+    }&startDate=${startTime.toISOString()}&endDate=${endTime.toISOString()}`;
 };
 
 const getOpenInterest = async ({
@@ -128,13 +121,10 @@ async function fetch({
   };
 }
 
-const adapter: any = {};
-
-Object.keys(chains).forEach(
-  (chain) => (adapter[chain] = { fetch, start: startTimestamps[chain] })
-);
-
-export default {
-  adapter,
-  version: 2,
+const adapter: SimpleAdapter = {
+  fetch,
+  chains: Object.keys(chains),
+  start: '2025-04-29',
 };
+
+export default adapter;
