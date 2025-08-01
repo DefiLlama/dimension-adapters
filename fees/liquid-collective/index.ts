@@ -2,6 +2,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { ETHEREUM } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { addTokensReceived } from "../../helpers/token";
 
 const lsETH = "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549";
 const event = "event PulledELFees(uint256 amount)";
@@ -9,13 +10,34 @@ const WETH = ADDRESSES.ethereum.WETH;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
-  const fees = await options.getLogs({
-    target: lsETH,
-    eventAbi: event,
-  });
 
-  dailyFees.add(WETH, fees);
-  const dailyRevenue = dailyFees.clone(0.15)
+  const totalSupplyBefore = await options.fromApi.call({
+    target: lsETH,
+    abi: 'uint256:totalSupply',
+  })
+  const totalSupplyAfter = await options.toApi.call({
+    target: lsETH,
+    abi: 'uint256:totalSupply',
+  })
+
+  const totalUnderlyingSupplyBefore = await options.fromApi.call({
+    target: lsETH,
+    abi: 'uint256:totalUnderlyingSupply',
+  })
+  const totalUnderlyingSupplyAfter = await options.toApi.call({
+    target: lsETH,
+    abi: 'uint256:totalUnderlyingSupply',
+  })
+
+  const dailyEthYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18);
+
+  dailyFees.addCGToken("ethereum", dailyEthYield);
+  const dailyRevenue = await addTokensReceived({
+      options,
+      token: lsETH,
+      targets: ['0x53b5c4231FBa19de04866A84FEd928aEca0102Fe'],
+    });
+  dailyFees.add(dailyRevenue) // minting new tokens for revenue dilutes the exchange rate, so it gets missed while yield calculation as exchange rate is calculated post fees
   return { dailyFees, dailyRevenue };
 };
 
@@ -27,7 +49,7 @@ const adapter: Adapter = {
       meta: {
         methodology: {
           Fees: "Total ETH staking rewards from all validators.",
-          Revenue: "Liquid Collective charges 15% ETH staking rewards.",
+          Revenue: "Liquid Collective charges 10% ETH staking rewards.",
         },
       },
     },
