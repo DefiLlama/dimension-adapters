@@ -41,8 +41,9 @@ const fetch = async (options: FetchOptions) => {
     abi: 'uint256:getTotalPooledBnb',
   });
 
-  const dailyBnbYield = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
-  dailyFees.addCGToken("binancecoin", dailyBnbYield);
+  const dailySlisbnbHoldersYield = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
+ 
+  dailyFees.addCGToken("binancecoin", dailySlisbnbHoldersYield/0.95);
 
   return {
     dailyFees,
