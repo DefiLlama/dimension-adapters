@@ -1,9 +1,10 @@
 import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { accumulativeKeySet, BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import * as _env from '../../helpers/env'
 import { getDateString } from '../../helpers/utils';
+import * as sdk from '@defillama/sdk'
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -14,16 +15,112 @@ function getUnixTimeNow() {
   return Math.floor(Date.now() / 1000)
 }
 
-export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
-  adapterVersion = 1,
+function genUID(length: number = 10): string {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length))
+  }
+  return result
+}
+
+const adapterRunResponseCache = {} as any
+
+export async function setModuleDefaults(module: SimpleAdapter) {
+  const { chains = [], fetch, start, runAtCurrTime } = module
+  const rootConfig: any = {}
+
+  if (fetch) rootConfig.fetch = fetch
+  if (start) rootConfig.start = start
+  if (runAtCurrTime) rootConfig.runAtCurrTime = runAtCurrTime
+
+  if (!module._randomUID) module._randomUID = genUID(10)
+
+  let adapterObject: BaseAdapter = module.adapter || {}
+  module.adapter = adapterObject
+
+  if (!module.version) module.version = 1 // default to version 1
+  module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
+
+  if (!Array.isArray(chains)) 
+    throw new Error(`Chains should be an array, got ${typeof chains} instead`)
+
+  Object.keys(adapterObject).filter(chain => !chains.includes(chain)).forEach(chain => chains.push(chain))
+
+  for (const cConfig of chains) {
+
+    if (typeof cConfig === 'string') {
+      setChainConfig(cConfig, rootConfig)
+    } else if (Array.isArray(cConfig)) {
+      const [chain, chainConfig] = cConfig
+      if (typeof chain !== 'string' || typeof chainConfig !== 'object')
+        throw new Error(`Invalid chain config: ${cConfig}`)
+      setChainConfig(chain, { ...rootConfig, ...chainConfig })
+    } else {
+      throw new Error(`Invalid chain config: ${cConfig}`)
+    }
+  }
+
+  // check if chain already has a given field before setting it, so we dont end up overwriting it with defaults
+  function setChainConfig(chain: string, config: BaseAdapterChainConfig) {
+    if (!adapterObject[chain]) adapterObject[chain] = {}
+    const chainConfigObject = adapterObject[chain] as BaseAdapterChainConfig
+
+    for (const key of Object.keys(config)) {
+      if (!chainConfigObject.hasOwnProperty(key))
+        (chainConfigObject as any)[key] = (config as any)[key]
+    }
+  }
+
+}
+
+type AdapterRunOptions = {
+  module: SimpleAdapter,
+  endTimestamp: number,
+  name?: string,
+  isTest?: boolean, // we print run response to console in test mode
+  withMetadata?: boolean, // if true, returns metadata with the response
+  cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+}
+
+export default async function runAdapter(options: AdapterRunOptions) {
+  const { module, cacheResults = false } = options
+  if (!module) throw new Error('Module is not set')
+
+  setModuleDefaults(module)
+
+  if (!cacheResults) return _runAdapter(options)
+
+  const runKey = getRunKey(options)
+
+  if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
+  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
+  return adapterRunResponseCache[runKey]
+}
+
+function getRunKey(options: AdapterRunOptions) {
+  let randomUID = options.module._randomUID ?? genUID(10)
+  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
+}
+
+
+async function _runAdapter({
+  module, endTimestamp, name,
   isTest = false,
-  _module = {},
   withMetadata = false,
-}: any = {}) {
-  const { prefetch, allowNegativeValue = false } = _module
-  if (_module.breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
+}: AdapterRunOptions) {
+  const cleanCurrentDayTimestamp = endTimestamp
+  const adapterVersion = module.version
+
+  const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
+  const { prefetch, allowNegativeValue = false, } = module
+  let adapterObject = module.adapter
+  if (!adapterObject)
+    throw new Error('Adapter object is not set')
+
+  if ((module as any).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
-  const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
+  const chains = Object.keys(adapterObject)
   if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
@@ -67,12 +164,12 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const metadata = {
       application: "dimensions",
       type: 'protocol-chain',
-      name: id,
+      name,
       chain,
-      version,
+      version: adapterVersion,
     }
 
-    const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
+    const fetchFunction = adapterObject![chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
       if (preFetchedResults !== null) {
@@ -89,9 +186,6 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
         throw new Error(`Adapter version ${adapterVersion} not supported`)
       }
       const ignoreKeys = ['timestamp', 'block']
-      // if (id)
-      //   console.log("Result before cleaning", id, version, cleanCurrentDayTimestamp, chain, result, JSON.stringify(chainBlocks ?? {}))
-
       const improbableValue = 2e11 // 200 billion
 
       for (const [key, value] of Object.entries(result)) {
@@ -152,8 +246,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     }
     const toTimestamp = timestamp - 1
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
-    const fromChainBlocks = {}
-    const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
+    const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
       fromBlock = fromBlock ?? await getFromBlock()
@@ -209,7 +302,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
-    let _start = volumeAdapter[chain]?.start ?? 0
+    let _start = adapterObject![chain]?.start ?? 0
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
     // if (_start === undefined) return;
 
@@ -232,7 +325,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
 
     // if _start is an async function that returns timestamp
     const start = await (_start as any)().catch(() => {
-      console.error(`Failed to get start time for ${id} ${version} ${chain}`)
+      console.error(`Failed to get start time for ${name} ${adapterVersion} ${chain}`)
       return defaultStart
     })
     validStart[chain] = {

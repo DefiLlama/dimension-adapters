@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { ZeroAddress } from "ethers";
@@ -10,8 +11,8 @@ const methodology = {
   ProtocolRevenue: '25% staking rewards are charged by Binance.',
 }
 
-const WBETH = '0xa2e3356610840701bdf5611a53974510ae27e2e1'
-const ETH_ON_BSC = '0x2170ed0880ac9a755fd29b2688956bd959f933f8'
+const WBETH = ADDRESSES.bsc.wBETH
+const ETH_ON_BSC = ADDRESSES.bsc.ETH
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()

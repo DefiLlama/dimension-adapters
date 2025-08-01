@@ -59,7 +59,8 @@ const chains: Record<string, string> = {
   [CHAIN.VELAS]: 'velas',
   [CHAIN.SYSCOIN]: 'syscoin',
   [CHAIN.BOBA_BNB]: 'boba-bsc',
-  [CHAIN.FLARE]: 'flare'
+  [CHAIN.FLARE]: 'flare',
+  [CHAIN.HEMI]: 'hemi'
 };
 
 interface ApiResponse {

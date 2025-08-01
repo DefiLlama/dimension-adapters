@@ -27,7 +27,31 @@ const fetchFees = async (options: FetchOptions) => {
     };
 };
 
-const chains = [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.BASE, CHAIN.ARBITRUM]
+const chains = [
+    CHAIN.ETHEREUM,
+    CHAIN.BSC,
+    CHAIN.BASE,
+    CHAIN.ARBITRUM,
+    CHAIN.SONIC,
+    CHAIN.OPTIMISM,
+    CHAIN.AVAX,
+    CHAIN.POLYGON,
+    CHAIN.UNICHAIN,
+    CHAIN.ERA,
+    CHAIN.SCROLL,
+    CHAIN.XDAI,
+    CHAIN.ARBITRUM_NOVA,
+    CHAIN.BERACHAIN,
+    CHAIN.MANTLE,
+    CHAIN.LINEA,
+    CHAIN.POLYGON_ZKEVM,
+    CHAIN.MANTA,
+    CHAIN.ABSTRACT,
+    CHAIN.BLAST,
+    
+    // CHAIN.TAIKO,
+    // CHAIN.CRONOS,
+]
 
 const adapter: SimpleAdapter = {
     version: 2,

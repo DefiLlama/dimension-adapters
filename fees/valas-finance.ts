@@ -1,8 +1,9 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getPoolFees, AaveLendingPoolConfig } from "../helpers/aave";
 
-const DISABLED_ASSETS = ['0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', '0x14016E85a25aeb13065688cAFB43044C2ef86784']
+const DISABLED_ASSETS = [ADDRESSES.bsc.BUSD, ADDRESSES.bsc.BTUSD]
 
 const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances()

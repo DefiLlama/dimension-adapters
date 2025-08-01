@@ -1,7 +1,6 @@
 import * as sdk from "@defillama/sdk";
-import { FetchOptions, FetchResult, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";  
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { gql, request } from "graphql-request";
 
@@ -12,20 +11,7 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };
 
-const graphsV2 = getGraphDimensions2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "syncSwapFactories",
-  },
-  feesPercent: {
-    type: "volume" as "volume",
-    Fees: 0.3,
-    UserFees: 0.3,
-    SupplySideRevenue: 0.3,
-  },
-});
-
-async function getGraphData(_t: number,_a:any,options: FetchOptions): Promise<FetchResult> {
+async function getGraphData(options: FetchOptions): Promise<FetchResultV2> {
   const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400);
   const query = gql`
     {
@@ -34,21 +20,32 @@ async function getGraphData(_t: number,_a:any,options: FetchOptions): Promise<Fe
       }
     }
   `
-  const graphRes = await request(endpoints[options.chain], query);
+  const graphRes = await request(endpoints[options.chain], query, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+      'origin': 'https://syncswap.xyz',
+    }
+  });
+
   return {
-    timestamp: options.startOfDay,
     dailyVolume: Number(graphRes.dayData.dailyVolumeUSD),
+    dailyFees: Number(graphRes.dayData.dailyVolumeUSD) * (0.3 / 100),
+    dailyUserFees: Number(graphRes.dayData.dailyVolumeUSD) * (0.3 / 100),
+    dailySupplySideRevenue: Number(graphRes.dayData.dailyVolumeUSD) * (0.3 / 100),
   }
 }
+
 const meta = {
   methodology: {
-    ProtocolRevenue: "The revenue of the agreement comes from users purchasing security services, and the total cost equals the revenue.",
-    Fees: "All fees comes from users for security service provided by GoPlus Network."
+    Volume: "Count token swap volume from SyncSwap subgraphs.",
+    Fees: "All fees comes from users by swap token on SyncSwap.",
+    UserFees: "Users pay fees for every swap on SyncSwap.",
+    SupplySideRevenue: "All swap fees paid to LPs.",
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.ERA]: {
       fetch: getGraphData,  
@@ -61,7 +58,7 @@ const adapter: SimpleAdapter = {
       meta: meta
     },
     // [CHAIN.SOPHON]: {
-    //   fetch: getGraphData,
+    //   fetch: getGraphDataV2,
     //   start: '2024-03-06',
     //   meta: meta
     // },

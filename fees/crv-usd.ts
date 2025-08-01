@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Chain } from "../adapters/types";
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -21,10 +22,10 @@ const fetchFees = (chain: Chain) => {
     const dailyFees = createBalances()
     await Promise.all(controller[chain].map(async controller=>{
       const logs = await getLogs({ target: controller, eventAbi: 'event CollectFees (uint256 amount, uint256 new_supply)' })
-      logs.forEach((i: any) => dailyFees.add('0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E', i.amount))
+      logs.forEach((i: any) => dailyFees.add(ADDRESSES.ethereum.CRVUSD, i.amount))
       const feesStart = await fromApi.call({target: controller, abi: "uint:admin_fees"})
       const feesEnd = await toApi.call({target: controller, abi: "uint:admin_fees"})
-      dailyFees.add("0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E", feesEnd-feesStart)
+      dailyFees.add(ADDRESSES.ethereum.CRVUSD, feesEnd-feesStart)
     }))
 
     return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }

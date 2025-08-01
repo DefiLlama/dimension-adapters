@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
 import volumeAdapter from "../dexs/verse";
 
-const adapterObj = volumeAdapter.adapter;
+const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
 const fetch = (chain: string, tf: number, rf: number, ssr: number) => {
   return async (options: FetchOptions) => {

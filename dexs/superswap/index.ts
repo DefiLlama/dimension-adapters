@@ -1,4 +1,3 @@
-import customBackfill from "../../helpers/customBackfill";
 import {
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -78,19 +77,18 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v2: Object.keys(v2Endpoints).reduce((acc, chain) => {
-      return {
+      return {  
         ...acc,
         [chain]: {
-          fetch: v2Graph(chain as Chain),
+          fetch: v2Graph,
           start: '2024-09-23',
-          customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
       };
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: v3Graphs,
         start: '2024-09-05',
         meta: { methodology: v3Methodology },
       };

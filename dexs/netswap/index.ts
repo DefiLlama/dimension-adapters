@@ -1,11 +1,19 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter({
-  [CHAIN.METIS]: "https://andromeda.thegraph.metis.io/subgraphs/name/netswap/exchange"
-}, {
+const fetch = univ2Adapter({
+  endpoints: {
+    [CHAIN.METIS]: "https://andromeda.thegraph.metis.io/subgraphs/name/netswap/exchange"
+  },
   factoriesName: "netswapFactories",
   dayData: "netswapDayData"
 });
-adapters.adapter.metis.start = 1638760703;
-export default adapters;
+
+const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.METIS],
+  start: 1638760703,
+}
+
+export default adapter;

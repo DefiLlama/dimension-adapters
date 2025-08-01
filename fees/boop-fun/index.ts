@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // Fee Source : https://docs.boop.fun/token-deployment-101
 
 import { SimpleAdapter } from "../../adapters/types";
@@ -18,7 +19,7 @@ const BUYBACK_FEE_ADDRESS = '43YvSqTTRhHV2EL9BSSRCPwcrNNYF3dtra46Gbni73jf';
 const PROTOCOL_FEE_ADDRESS = '8QwU16Xe4BPyUD9MktHtgVjQQ5fAwywb9Zd5Hg1YTauF';
 const BOOP_ADDRESS = 'boopkpWqe68MSxLqBGogs8ZbUDN4GXaLhFwNP7mpP1i';
 const BOOP_CG_ID = 'boop-4';
-const NATIVE_SOL_MINT_ADDRESS = 'So11111111111111111111111111111111111111112';
+const NATIVE_SOL_MINT_ADDRESS = ADDRESSES.solana.SOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const query = `

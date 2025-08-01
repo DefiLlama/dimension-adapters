@@ -5,6 +5,7 @@ import coreAssets from "../helpers/coreAssets.json";
 
 const usdt = coreAssets.ethereum.USDT
 const usdc = coreAssets.ethereum.USDC
+const usde = coreAssets.ethereum.USDe
 const stablecoins = [usdt, usdc]
 
 const MINT_AND_REDEEM_CONTRACT = {
@@ -93,10 +94,23 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
       ethers.zeroPadValue("0xd0ec8cc7414f27ce85f8dece6b4a58225f273311", 32),
     ],
   })).flat()
-
   extra_fees_to_distribute.map((log: any) => {
     dailyFees.add(usdt, Number(log.value));
     dailySupplyRevenue.add(usdt, Number(log.value));
+  });
+
+  const aave_liquid_fees_to_distribute = (await options.getLogs({
+    target: usde,
+    flatten: false,
+    eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
+    topics: [
+      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 
+      ethers.zeroPadValue("0xf19c433c6b288e487b767595886321f89a3cbf17", 32),
+    ],
+  })).flat()
+  aave_liquid_fees_to_distribute.map((log: any) => {
+    dailyFees.add(usde, Number(log.value));
+    dailySupplyRevenue.add(usde, Number(log.value));
   });
 
   const dailyRevenue = dailyFees.clone();

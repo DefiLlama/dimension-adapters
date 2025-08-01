@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.XDC]: {
-      fetch: graphs(CHAIN.XDC),
+      fetch: graphs,
       start: '2022-03-23',
     },
   },

@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { uniV3Exports } from "../helpers/uniswap";
 
@@ -21,7 +21,7 @@ const adapters: SimpleAdapter = uniV3Exports({
 })
 
 
-Object.keys(adapters.adapter).forEach((chain: any) => {
-  adapters.adapter[chain].meta = { methodology }
+Object.keys(adapters.adapter as BaseAdapter).forEach((chain: any) => {
+  (adapters.adapter as BaseAdapter)[chain].meta = { methodology }
 })
 export default adapters;

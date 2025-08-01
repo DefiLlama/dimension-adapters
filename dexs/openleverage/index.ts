@@ -1,7 +1,6 @@
 import { Chain } from "../../adapters/types";
 import { FetchResult, SimpleAdapter, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill, { IGraphs } from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
@@ -52,7 +51,6 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: graphs(chain as Chain),
         start: async () => getStartTimestamp(chain),
-        customBackfill: customBackfill(chain as Chain, graphs as unknown as IGraphs),
       }
     }
   }, {})
