@@ -20,11 +20,8 @@ const susdc: Record<string, string> = {
 }
 const savingsTokenDecimals = 18
 
-const meta = {
-  methodology: {
-    Revenue:
-      'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',
-  },
+const methodology = {
+  Revenue: 'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',
 }
 
 const getDay = (ts: number) => new Date(ts * 1000).toISOString().split('T')[0]
@@ -75,31 +72,27 @@ async function calculateDomainRevenue(options: FetchOptions, dailyRevenue: Balan
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchMainnetData,
       start: '2024-07-20',
-      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchForeignDomainData,
       start: '2024-11-19',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchForeignDomainData,
       start: '2025-03-04',
-      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchForeignDomainData,
       start: '2024-07-20',
-      meta,
     },
     [CHAIN.UNICHAIN]: {
       fetch: fetchForeignDomainData,
       start: '2025-06-14',
-      meta,
     },
   },
 }
