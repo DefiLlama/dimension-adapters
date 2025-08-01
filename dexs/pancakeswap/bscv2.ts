@@ -13,25 +13,25 @@ async function getWhitelistedTokens(): Promise<Array<string>> {
     .map((token: any) => formatAddress(token.address))
 }
 
-export const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, tokens: Array<string>) => {
+export const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelistedTokens: Array<string>) => {
   return `
-    select
-        token_bought_address as token
-        , sum(
+    SELECT
+        token_bought_address AS token
+        , SUM(
           CASE 
-              WHEN token_sold_address IN (${tokens.toString()})
-              AND token_bought_address IN (${tokens.toString()})
+              WHEN token_sold_address IN (${whitelistedTokens.toString()})
+              AND token_bought_address IN (${whitelistedTokens.toString()})
               THEN token_bought_amount_raw 
               ELSE 0 
           END
-        ) as amount
-    from dex.trades
-    where blockchain = 'bnb'
-      and project = 'pancakeswap'
-      and version = '2'
-      and block_time >= FROM_UNIXTIME(${fromTime})
-      and block_time <= FROM_UNIXTIME(${toTime})
-    group by
+        ) AS amount
+    FROM dex.trades
+    WHERE blockchain = 'bnb'
+      AND project = 'pancakeswap'
+      AND version = '2'
+      AND block_time >= FROM_UNIXTIME(${fromTime})
+      AND block_time <= FROM_UNIXTIME(${toTime})
+    GROUP BY
         token_bought_address
   `;
 }
