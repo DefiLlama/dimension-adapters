@@ -6,7 +6,7 @@ import { FetchOptions } from "../adapters/types";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 const endpointsV3 = {
-  [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
+  // [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('96EYD64NqmnFxMELu2QLWB95gqCmA9N96ssYsZfFiYHg'),
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('94BrP5miCYj9qezUqULAYpuLtKb5AyAo4jnU6wsAj8JJ'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiJDXMFCBv88GP17g2TtPh8BcA8jZozn5WRW7hCN7cUT'), // index error
@@ -135,6 +135,7 @@ const getUniV3LogAdapterConfig = {
   holdersRevenueRatio: 0,
 }
 
+v3[CHAIN.ARBITRUM_NOVA] = { fetch: getUniV3LogAdapter({ factory: '0xaa26771d497814e81d305c511efbb3ced90bf5bd', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), meta, }
 v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), meta, }
