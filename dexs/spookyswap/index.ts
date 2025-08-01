@@ -12,6 +12,7 @@ const methodology = {
 }
 
 const getUniV2LogAdapterConfig = {
+  fees: 0.002, // 0.2%
   userFeesRatio: 1,
   revenueRatio: 0.15, // 15% of swap fees, 0.03% from 0.2% swap fees
   protocolRevenueRatio: 0, // no protocol fees
