@@ -14,7 +14,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.LINEA],
-  start: '2025-08-07'
+  start: '2023-08-07',
 }
 
 export default adapter;
