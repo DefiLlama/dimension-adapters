@@ -7,12 +7,13 @@ interface IData {
   burned_tokens: string;
 }
 
-const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchEVM = async (options: FetchOptions) => {
   // Determine token address based on chain
+
   const tokenAddress = options.chain === CHAIN.BASE 
     ? '0x52c2b317eb0bb61e650683d2f287f56c413e4cf6'  // Base token
     : '0xba25b2281214300e4e649fead9a6d6acd25f1c0a'; // Ethereum token
-
+    console.log(options.chain, CHAIN.BASE, tokenAddress);
   const data: IData[] = await queryDuneSql(options, `
     SELECT 
       CAST(SUM(value) AS VARCHAR) AS burned_tokens
@@ -44,7 +45,7 @@ const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const data: IData[] = await queryDuneSql(options, `
     SELECT 
       CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS burned_tokens
@@ -99,7 +100,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: '2025-08-01',
+      start: '2025-07-31',
       meta: {
         methodology: {
           Fees: "All funds spent by users to subscribe. Includes direct token burns, and USDC used to buy and burn.",
@@ -109,7 +110,7 @@ const adapter: SimpleAdapter = {
       }
     }
   },
-  version: 1,
+  version: 2,
   isExpensiveAdapter: true
 };
 
