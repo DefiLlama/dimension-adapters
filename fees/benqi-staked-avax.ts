@@ -27,8 +27,8 @@ const fetchFees = async (options: FetchOptions) => {
     abi: 'uint256:totalPooledAvax',
   });
 
-  const dailyAvaxYield = (totalPooledAvaxAfter / sAvaxSupplyAfter - totalPooledAvaxBefore / sAvaxSupplyBefore) * (sAvaxSupplyAfter / 1e18);
-  dailyFees.addCGToken("avalanche-2", dailyAvaxYield);
+  const dailysAvaxHoldersYield = (totalPooledAvaxAfter / sAvaxSupplyAfter - totalPooledAvaxBefore / sAvaxSupplyBefore) * (sAvaxSupplyAfter / 1e18);
+  dailyFees.addCGToken("avalanche-2", dailysAvaxHoldersYield/0.9);
 
   const dailyRevenue = dailyFees.clone(0.1)
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
