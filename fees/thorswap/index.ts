@@ -14,10 +14,11 @@ const chainMapping = {
   DOGE: CHAIN.DOGECHAIN,
   GAIA: CHAIN.COSMOS,
   BASE: CHAIN.BASE,
-  THOR: CHAIN.THORCHAIN
+  THOR: CHAIN.THORCHAIN,
+  XRP: CHAIN.RIPPLE,
 }
 
-const THORCHAIN_SUPPORTED_CHAINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH', 'BASE', 'THOR']
+const THORCHAIN_SUPPORTED_CHAINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH', 'BASE', 'THOR', 'XRP']
 
 interface Pool {
   assetLiquidityFees: string
