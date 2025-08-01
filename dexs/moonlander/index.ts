@@ -2,14 +2,17 @@ import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const chains: { [key: string]: string } = {
-  [CHAIN.CRONOS]: "CRONOS",
-  [CHAIN.CRONOS_ZKEVM]: "CRONOS_ZKEVM",
-};
-
-const MoonlanderAddress: { [key: string]: string } = {
-  [CHAIN.CRONOS]: "0xE6F6351fb66f3a35313fEEFF9116698665FBEeC9",
-  [CHAIN.CRONOS_ZKEVM]: "0x02ae2e56bfDF1ee4667405eE7e959CD3fE717A05",
+const CONFIG = {
+  [CHAIN.CRONOS]: {
+    chainName: "CRONOS",
+    start: "2025-04-29",
+    address: "0xE6F6351fb66f3a35313fEEFF9116698665FBEeC9",
+  },
+  [CHAIN.CRONOS_ZKEVM]: {
+    chainName: "CRONOS_ZKEVM",
+    start: "2024-12-17",
+    address: "0x02ae2e56bfDF1ee4667405eE7e959CD3fE717A05",
+  },
 };
 
 const pairsAbi =
@@ -23,13 +26,15 @@ const dailyEndpoint =
 const feesEndPoint = "https://api.moonlander.trade/v1/defillama/fee";
 
 const getDailyUri = ({ chain, startTime, endTime }: any) => {
-  return `${dailyEndpoint}?chains=${chains[chain]
-    }&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
+  return `${dailyEndpoint}?chains=${
+    CONFIG[chain].chainName
+  }&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
 };
 
 const getFeesUri = ({ chain, startTime, endTime }: any) => {
-  return `${feesEndPoint}?block_chain=${chains[chain]
-    }&startDate=${startTime.toISOString()}&endDate=${endTime.toISOString()}`;
+  return `${feesEndPoint}?block_chain=${
+    CONFIG[chain].chainName
+  }&startDate=${startTime.toISOString()}&endDate=${endTime.toISOString()}`;
 };
 
 const getOpenInterest = async ({
@@ -37,13 +42,13 @@ const getOpenInterest = async ({
   api,
 }: Pick<FetchOptions, "chain" | "api">) => {
   const pairs = await api.call({
-    target: MoonlanderAddress[chain],
+    target: CONFIG[chain].address,
     abi: pairsAbi,
   });
   const pairBases = pairs.map((pair: any) => pair.base);
 
   const pairsMarketInfo = await api.call({
-    target: MoonlanderAddress[chain],
+    target: CONFIG[chain].address,
     abi: marketInfoAbi,
     params: [pairBases],
   });
@@ -51,7 +56,7 @@ const getOpenInterest = async ({
   const pairPrices = await api.multiCall({
     abi: priceAbi,
     calls: pairs.map((pair: any) => ({
-      target: MoonlanderAddress[chain],
+      target: CONFIG[chain].address,
       params: pair.base,
     })),
     permitFailure: true,
@@ -123,9 +128,15 @@ async function fetch({
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch,
-  chains: Object.keys(chains),
-  start: '2025-04-29',
+  adapter: Object.fromEntries(
+    Object.entries(CONFIG).map(([chain, config]) => [
+      chain,
+      {
+        fetch: (options: FetchOptions) => fetch({ ...options, chain }),
+        start: config.start,
+      },
+    ])
+  ),
 };
 
 export default adapter;
