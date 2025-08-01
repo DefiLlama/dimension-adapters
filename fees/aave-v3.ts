@@ -3,6 +3,7 @@ import { aaveExport, getPoolFees } from '../helpers/aave'
 import { AaveMarkets } from './aave'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
+import { addTokensReceived } from '../helpers/token'
 
 const methodology = {
   Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
@@ -79,7 +80,6 @@ const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances()
   let dailyProtocolRevenue = options.createBalances()
   let dailySupplySideRevenue = options.createBalances()
-  let dailyHoldersRevenue = options.createBalances()
 
   const pools = AaveMarkets[CHAIN.ETHEREUM]
 
@@ -92,17 +92,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-  const buybackLogs = await options.getLogs({
-    target: ADDRESSES.ethereum.AAVE,
-    eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
-    topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', null as any, '0xD3F72B3e91c8124DFC1B4273e93594Bb00C9be6f'],
-    entireLog: true,
-    parseLog: true
-  })
-
-  for (const buybackLog of buybackLogs) {
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.AAVE, buybackLog.args.value)
-  }
+  const dailyHoldersRevenue = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa' })
 
   return {
     dailyFees,
