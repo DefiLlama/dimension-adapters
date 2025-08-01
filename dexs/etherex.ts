@@ -21,7 +21,7 @@ export const envioEndpoints: any = {
   [CHAIN.LINEA]: "https://indexer.hyperindex.xyz/cf4b043/v1/graphql",
 };
 
-const secondsInADay = 24 * 60 * 60;
+const secondsInADay = 24 * 60 * 61;
 const subgraphQueryLimit = 1000;
 
 interface IGraphRes {
