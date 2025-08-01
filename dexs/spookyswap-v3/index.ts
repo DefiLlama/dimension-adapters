@@ -13,9 +13,9 @@ const methodology = {
 
 const getUniV3LogAdapterConfig = {
   userFeesRatio: 1,
-  revenueRatio: 0.15,
+  revenueRatio: 0,
   protocolRevenueRatio: 0,
-  holdersRevenueRatio: 0.15,
+  holdersRevenueRatio: 0,
 }
 
 const adapter: SimpleAdapter = {
