@@ -30,6 +30,7 @@ const fetchCoti = async (_a: any, _b: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
