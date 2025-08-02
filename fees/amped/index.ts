@@ -64,7 +64,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
         String(Number(sum) + Number(element))
       )
     ) * 10 ** -30
-    : undefined;
+    : 0;
 
   let dailySupplySideRevenue = 0;
   let dailyHoldersRevenue = 0;
