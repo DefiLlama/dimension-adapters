@@ -41,7 +41,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const fetchHL = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue: 0 };
 };
 
 const adapter: SimpleAdapter = {

@@ -8,7 +8,7 @@ const chainConfig: Record<string, { url: string, start: string }> = {
     start: "2024-06-01",
   },
   [CHAIN.SONIC]: {
-    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.6/gn",
+    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.7/gn",
     start: "2024-12-31",
   },
   // [CHAIN.BSC]: {
