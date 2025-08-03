@@ -1,6 +1,4 @@
-import { ChainBlocks } from "../adapters/types";
-import { providers } from "@defillama/sdk/build/general"
-import type { Chain } from "@defillama/sdk/build/general"
+import { Chain, ChainBlocks } from "../adapters/types";
 import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
 import { httpGet } from "../utils/fetchURL";
@@ -16,7 +14,7 @@ const blacklistedChains: string[] = [
   "elrond",
   "defichain",
   "stacks",
-  "KARURA",
+  "karura",
   "eos",
   "icon",
   "stellar",
@@ -51,7 +49,7 @@ const blacklistedChains: string[] = [
   "heco",
   "dymension",
   CHAIN.DOGECHAIN,
-  CHAIN.SEI,
+  // CHAIN.SEI,
   CHAIN.ICP,
 ];
 
@@ -109,7 +107,7 @@ async function getBlocks(chain: Chain, timestamps: number[]) {
   return Promise.all(timestamps.map(t => getBlock(t, chain, {})))
 }
 
-const canGetBlock = (chain: string) => Object.keys(providers).includes(chain)
+const canGetBlock = (chain: string) => Object.keys(sdk.api2.config.providers).includes(chain)
 
 export {
   getBlock,

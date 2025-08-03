@@ -123,7 +123,8 @@ const abis = {
 
 const blackList = {
   [CHAIN.BSC]: [
-    "0x9e24415d1e549ebc626a13a482bb117a2b43e9cf"
+    "0x9e24415d1e549ebc626a13a482bb117a2b43e9cf",
+    "0xf2a92bc1cf798ff4de14502a9c6fda58865e8d5d",
   ]
 }
 

@@ -26,7 +26,13 @@ const adapter: Adapter = {
         dailyFees.addGasToken((dayItem?.amount || 0) * 1e6);
         return { dailyFees, dailyRevenue: dailyFees, timestamp: options.startOfDay };
       }) as any,
-      start: '2024-08-11'
+      start: '2024-08-11',
+      meta: {
+        methodology: {
+          Fees: 'Total trading fees paid by users',
+          Revenue: 'Total trading fees paid by users collected by SunPump',
+        }
+      }
     },
   },
 

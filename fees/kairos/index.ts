@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -6,7 +7,7 @@ import { getETHReceived } from "../../helpers/token";
 // 0x64a0ddF7469d52828a026b98A76F194637DaAd2C(ExpressLanAuction Contract)
 
 // https://docs.kairos-timeboost.xyz/submission-api
-const WETH_ADDRESS = '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1';
+const WETH_ADDRESS = ADDRESSES.arbitrum.WETH;
 const KAIROS_PAYMENT_ADDRESS = '0x60E6a31591392f926e627ED871e670C3e81f1AB8';
 const KAIROS_AUCTION_BIDDER_ADDRESS = '0x2b38a73dd32a2eafe849825a4b515ae5187eda42';
 
@@ -40,13 +41,17 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
 // version 1 as it's using allium query
 const adapter: SimpleAdapter = {
+  allowNegativeValue: true, // Kairos pre-pays gas/auction costs for Arbitrum Timeboost slots.
   version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees as any,
       start: '2025-04-16',
       meta: {
-        "methodology": "kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue"
+        "methodology": {
+          Fees: "Kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue.",
+          Revenue: "Revenue of fees after remove costs.",
+        }
       }
     },
   },

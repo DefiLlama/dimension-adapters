@@ -27,6 +27,7 @@ const config: any = {
   [CHAIN.BSC]: 'bsc',
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.TON]: 'ton',
+  [CHAIN.HEMI]: 'hemi',
 }
 
 async function fetch({ chain }: FetchOptions) {
@@ -46,7 +47,7 @@ const adapter: SimpleAdapter = {
 };
 
 Object.keys(config).forEach((chain) => {
-  adapter.adapter[chain] = { fetch, runAtCurrTime: true, start: 1684003134 }
+  adapter.adapter[chain] = { fetch, runAtCurrTime: true, start: '2023-05-13' }
 })
 
 export default adapter;

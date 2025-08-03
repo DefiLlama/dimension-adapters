@@ -5,7 +5,7 @@ import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { SimpleAdapter } from "../../adapters/types";
 
 const endpoint: any = {
-  [CHAIN.HARMONY]: sdk.graph.modifyEndpoint("GVkp9F6TzzC5hY4g18Ukzb6gGcYDfQrpMpcj867jsenJ"),
+  [CHAIN.HARMONY]: 'https://graph.swap.country/subgraphs/name/harmony-uniswap-v3',
 };
 
 const v3Graphs = getGraphDimensions2({
@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.HARMONY]: {
-      fetch: v3Graphs(CHAIN.HARMONY),
+      fetch: v3Graphs,
     },
   },
 };

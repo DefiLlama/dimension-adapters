@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
@@ -102,7 +102,7 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v2: {
       [CHAIN.ARBITRUM]: {
-        fetch: v2Graph(CHAIN.ARBITRUM),
+        fetch: v2Graph,
         start: '2023-01-23',
         meta: {
           methodology,
@@ -111,7 +111,7 @@ const adapter: BreakdownAdapter = {
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: v3Graphs,
         start: '2023-02-20',
         meta: {
           methodology: methodologyV3,
@@ -121,7 +121,7 @@ const adapter: BreakdownAdapter = {
     }, {} as BaseAdapter),
     stable: {
       [CHAIN.ARBITRUM]: {
-        fetch: stableGraph(CHAIN.ARBITRUM),
+        fetch: stableGraph,
         start: '2023-02-11',
         meta: {
           methodology: methodologyStable,

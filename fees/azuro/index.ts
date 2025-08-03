@@ -1,7 +1,7 @@
 import { Adapter, ChainEndpoints, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Bet, BetResult } from "./types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
@@ -86,6 +86,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+    allowNegativeValue: true, // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
     adapter: {
         [CHAIN.POLYGON]: {
             fetch: graphs(endpoints)(CHAIN.POLYGON),

@@ -27,6 +27,12 @@ const adapterFees: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch,
       start: '2023-08-10',
+      meta: {
+        methodology: {
+          Fees: 'Fees paid by users for using BasePaint services.',
+          Revenue: 'Fees portion collected by BasePaint.',
+        }
+      }
     }
   }
 }

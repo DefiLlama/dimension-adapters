@@ -1,15 +1,6 @@
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const endpoints = {
-  [CHAIN.FLARE]:
-    "https://api.goldsky.com/api/public/project_cly4708cqpcj601tt7gzf1jdj/subgraphs/sparkdex-v2/latest/gn",
-};
-
-export default univ2Adapter2(endpoints, {
-  factoriesName: "factories",
-  totalVolume: "volumeUSD",
-  dayData: "factoryDaySnapshot",
-  dailyVolume: "volumeUSD",
-  dailyVolumeTimestampField: "timestamp",
-});
+export default uniV2Exports({
+  [CHAIN.FLARE]: { factory: '0x16b619B04c961E8f4F06C10B42FDAbb328980A89',},
+})

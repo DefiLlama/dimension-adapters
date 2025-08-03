@@ -3,16 +3,16 @@ import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 
 const endpoints = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('HETFHppem3dz1Yjjv53D7K98dm5t5TErgYAMPBFPHVpi'),
+  [CHAIN.ARBITRUM]: "https://gql.substancex.io/subgraphs/name/substanceexchangedevelop/coreprod",
   [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta"
 };
 
 const blockNumberGraph = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('64DCU8nq48qdDABnobpDafsg7RF75Rx5soKrHiGA8mqp'),
+  [CHAIN.ARBITRUM]: "https://gql.substancex.io/subgraphs/name/substanceexchangedevelop/blocks",
   [CHAIN.ZETA]: "https://gql-zeta.substancex.io/subgraphs/name/substanceexchangedevelop/zeta-blocks"
 }
 
@@ -51,10 +51,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
         `;
 
       const blockNumberGraphQLClient = new GraphQLClient(blockNumberGraph[chain], {
-        headers: chain === CHAIN.ZETA ? headers : null,
+        headers: chain === CHAIN.ZETA ? headers : headers,
       });
       const graphQLClient = new GraphQLClient(graphUrls[chain], {
-        headers: chain === CHAIN.ZETA ? headers : null,
+        headers: chain === CHAIN.ZETA ? headers : headers,
       });
 
 
@@ -84,21 +84,18 @@ const graphs = (graphUrls: ChainEndpoints) => {
           }
         `;
 
-
       let tradeVolume = (
-        await graphQLClient.request(tradeVolumeQuery)
+        await graphQLClient.request(tradeVolumeQuery, { headers })
       ).protocolMetrics[0].totalVolume
 
       let last24hTradeVolume = (
-        await graphQLClient.request(lastTradeVolumeQuery)
+        await graphQLClient.request(lastTradeVolumeQuery, { headers })
       ).protocolMetrics[0].totalVolume
 
-      const totalVolume = Number(tradeVolume) / 10 ** 6
       const dailyVolume = (Number(tradeVolume) - Number(last24hTradeVolume)) / 10 ** 6
 
       return {
         timestamp,
-        totalVolume: totalVolume.toString(),
         dailyVolume: dailyVolume.toString(),
       };
     }

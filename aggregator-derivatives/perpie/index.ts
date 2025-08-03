@@ -1,13 +1,13 @@
 import {
-  BreakdownAdapter,
   Fetch,
   FetchOptions,
   FetchResult,
-  FetchV2
+  FetchV2,
+  SimpleAdapter
 } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
-const arbitrumStartTimestamp = 1696982400; // 2023-10-11 00:00:00
+const arbitrumStartTimestamp = '2023-10-11'; // 2023-10-11 00:00:00
 
 type StatRow = {
   volume_24hr: number;
@@ -90,9 +90,7 @@ const fetchVolumeAndFees: (chain: string) => FetchV2 =
 
     return {
       dailyVolume: data.volume_24hr || 0,
-      totalVolume: data.total_volume || 0,
       dailyRevenue: data.fees_24hr || 0,
-      totalRevenue: data.total_fees || 0,
     };
   };
 
@@ -102,10 +100,10 @@ const fetchAll: (chain: string) => Fetch =
     const volumeAndFees = await fetchVolumeAndFees(chain)(options);
     return { ...volumeAndFees } as FetchResult;
   };
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
+  deadFrom: '2024-11-24',
   isExpensiveAdapter: true,
-  breakdown: {
-    derivatives: {
+  adapter: {
       ...Object.values(chainsMap).reduce((acc, chain) => {
         return {
           ...acc,
@@ -115,7 +113,6 @@ const adapter: BreakdownAdapter = {
           },
         };
       }, {}),
-    },
   },
 };
 

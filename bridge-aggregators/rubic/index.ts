@@ -1,8 +1,6 @@
-import axios from "axios";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-
 
 
 const chains: Record<string, string> = {
@@ -85,61 +83,38 @@ const chains: Record<string, string> = {
     [CHAIN.WAVES]: 'waves',
     [CHAIN.WAX]: 'wax',
     [CHAIN.XDC]: 'xdc',
-    [CHAIN.NEO]: 'neo'
-  };
-  
-  interface ApiResponse {
-    daily_volume_in_usd: string;
-    daily_transaction_count: string;
-    total_volume_in_usd: string;
-    total_transaction_count: string;
-  }
+    [CHAIN.NEO]: 'neo',
+    [CHAIN.HEMI]: 'hemi'
+};
 
-  async function sleep(time: number) {
-    return new Promise((resolve) => setTimeout(resolve, time * 1000))
-  }
-  
-  async function fetchAndRetry(url: string): Promise<ApiResponse> {
-    do {
-      const response = await axios.get(url, {
-        validateStatus: (status: number) => status === 200 || status === 429
-      })
-      if (response.status === 200) {
-        return response.data as ApiResponse
-      } else {
-        await sleep(5)
+interface ApiResponse {
+  daily_volume_in_usd: string;
+  daily_transaction_count: string;
+  total_volume_in_usd: string;
+  total_transaction_count: string;
+}
+
+const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
+  const response: ApiResponse = (
+    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chains[options.chain]}`, 3)
+  );
+
+  return {
+    dailyBridgeVolume: response?.daily_volume_in_usd || '0'
+  };
+};
+
+const adapter: SimpleAdapter = {
+  adapter: Object.fromEntries(
+    Object.keys(chains).map(chain => [
+      chain,
+      {
+        fetch,
+        start: '2023-01-01'
       }
-    } while(true)
-  }
-  
-  const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
-    const response: ApiResponse = (
-      await fetchAndRetry(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chain}`)
-    );
-  
-    return {
-      dailyVolume: response?.daily_volume_in_usd || '0',
-      totalVolume: response?.total_volume_in_usd || '0',
-      timestamp: options.startTimestamp,
-    };
-  };
-  
-  const adapter: SimpleAdapter = {
-    adapter: {
-      ...Object.entries(chains).reduce((acc, chain) => {
-        const [key, value] = chain;
-  
-        return {
-          ...acc,
-          [key]: {
-            fetch: fetch(value),
-            start: '2023-01-01', // 01.01.2023
-          },
-        };
-      }, {}),
-    },
-    version: 2
-  };
-  
-  export default adapter;
-  
+    ])
+  ),
+  version: 2
+};
+
+export default adapter;

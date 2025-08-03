@@ -20,10 +20,16 @@ const adapter: Adapter = {
         
         const fees = Number(feeQuery[0][0])
         dailyFees.addCGToken('movement',fees)
-        return { dailyFees, dailyHoldersRevenue: dailyFees };
+        return { dailyFees, dailyRevenue: dailyFees };
 
       }) as any,
       start: '2024-12-06',
+      meta: {
+        methodology: {
+          Fees: 'Total transaction fees paid by users',
+          Revenue: 'Total transaction fees paid by users'
+        }
+      }
     },
   },
   isExpensiveAdapter: true,

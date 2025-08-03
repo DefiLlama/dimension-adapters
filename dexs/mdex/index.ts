@@ -1,9 +1,8 @@
 import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const historicalVolumeEndpoint = "https://info.mdex.one/pair/volume/statistics/max"
 
@@ -41,19 +40,12 @@ const fetch = (chain: Chain) => {
   };
 }
 
-const getStartTimestamp = async (chain: Chain) => {
-  const queryByChainId = `?chain_id=${mapChainId[chain]}`;
-  const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;
-  return (new Date(historicalVolume[0].created_time).getTime()) / 1000
-}
 const adapter: SimpleAdapter = {
   adapter: Object.keys(mapChainId).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: fetch(chain as Chain),
-        // start: async () => getStartTimestamp(chain),
-        customBackfill: customBackfill(chain as Chain, fetch),
       }
     }
   }, {})

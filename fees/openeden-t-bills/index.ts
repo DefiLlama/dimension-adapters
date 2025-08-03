@@ -1,6 +1,6 @@
 // https://docs.openeden.com/treasury-bills-vault/fees
 
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -70,6 +70,12 @@ const fetch = async (
   return { dailyFees };
 };
 
+const meta = {
+    methodology: {
+        Fees: 'All yields collected from invested assets.',
+    }
+}
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
@@ -77,21 +83,25 @@ const adapter: Adapter = {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ETHEREUM], options),
       start: '2023-10-18',
+      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ARBITRUM], options),
       start: '2024-02-13',
+      meta,
     },
     [CHAIN.RIPPLE]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.RIPPLE], options),
       runAtCurrTime: true,
+      meta,
     },
     [CHAIN.SOLANA]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.SOLANA], options),
       runAtCurrTime: true,
+      meta,
     },
   },
 };

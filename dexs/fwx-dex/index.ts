@@ -1,14 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter(
-  {
+const fetch = univ2Adapter({
+    endpoints: {
     [CHAIN.AVAX]:
       "https://subgraphs.fwx.finance/avac/subgraphs/name/fwx-exchange-avac",
     [CHAIN.BASE]:
       "https://subgraphs.fwx.finance/base/subgraphs/name/fwx-exchange-base-prod",
   },
-  {
     factoriesName: "pancakeDayDatas",
     totalVolumeFilterParams: [
       {
@@ -18,10 +18,15 @@ const adapters = univ2Adapter(
     ],
     dayData: "pancakeDayData",
     hasDailyVolume: true,
-  }
+  },
 );
 
-adapters.adapter.avax.start = 1717632000;
-adapters.adapter.base.start = 1725408000;
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.AVAX]: { fetch, start: 1717632000 },
+    [CHAIN.BASE]: { fetch, start: 1725408000 },
+  },
+}
 
-export default adapters;
+export default adapter;
