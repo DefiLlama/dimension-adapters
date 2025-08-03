@@ -1,70 +1,137 @@
-import { request, } from "graphql-request";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { request, gql } from "graphql-request";
+import { Adapter, FetchV2, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+//import { getTokenPrice } from "../../helpers/prices"; // Fetch Zeebu price in USD
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import BigNumber from "bignumber.js";
+//import { ETHEREUM } from "../../helpers/chains";
+//import { Chain } from '@defillama/sdk/build/general';
 
-// from official Zeebu dune: https://dune.com/zeebuofficial/staking-pools/40f70bfb-2014-4e3e-8480-d0e28625b403
+// Define target contracts and chains
 const CONTRACTS = {
-  [CHAIN.BASE]: [
-    "0x24a4f5afc6a87005f00770e7e66d4a3d134f9923",
-  ],
+  [CHAIN.BASE]: ["0x330EDca5D02c454725db9c1384963f82b9fC8e47"],
   [CHAIN.BSC]: [
-    '0x8ae3d193a7dfeb4c8e36211d21e729feccfa738a',
+    "0x109722F4c9C9CB5059c116C6c83fe38CB710CBfB",
+    "0xEEaf4Dc07ef08B7470B0e829Ed0a8d111737715B",
+    "0x09d647A0BAFec8421DEC196A5cEe207fc7a6b85A",
+    "0x9a47F91A6541812F88A026bdA2d372E22Ba4d7f7",
   ],
-  [CHAIN.ETHEREUM]: [
-    '0xE843115fF0Dc2b20f5b07b6E7Ba5fED064468AC6'
-  ],
+  [CHAIN.ETHEREUM]: ["0xE843115fF0Dc2b20f5b07b6E7Ba5fED064468AC6"],
 };
 
-const ZEBU_TOKEN = {
-  [CHAIN.BASE]: '0x2c8c89c442436cc6c0a77943e09c8daf49da3161',
-  [CHAIN.BSC]: '0x4D3dc895a9EDb234DfA3e303A196c009dC918f84',
-  [CHAIN.ETHEREUM]: '0xe77f6aCD24185e149e329C1C0F479201b9Ec2f4B',
+const endpoints = {
+  [CHAIN.BSC]: 'https://api.studio.thegraph.com/query/89152/fees_reward/version/latest',
+  [CHAIN.BASE]: 'https://api.studio.thegraph.com/query/89152/fees_reward_base/version/latest',
 }
 
-const EVENT = 'event RewardDistributionClaimed(address indexed user, uint256 indexed rewardDistributionId, address indexed token, uint256 amount)'
+const graphsDaily = (graphUrls: Record<string, string>) => {
+  return (chain: CHAIN) => {
+    return async (timestamp: number) => {
+      const dayID = (Math.floor(timestamp.startOfDay / 86400) ).toString(); // Ensure this aligns with your subgraph's dayID logic
+      console.log("dayID",dayID, chain);
+      const graphQuery = gql`
+        query ($dayID: String!) {
+          dayVolumeFeesAggregates(
+            orderBy: dayID
+            orderDirection: desc
+            where: { dayID: $dayID }
+          ) {
+            contract
+            dailyFees
+            dailyVolume
+            dayID
+          }
+        }
+      `;
 
-async function fetch(options: FetchOptions) {
-  const dailyFees = options.createBalances()
+      const totalFeesQuery = gql`
+        query {
+          overallVolumeFeesAggregates{
+            totalFees
+            totalVolume
+            chain
+            contract
+          }
+        }
+      `;
 
-  const logs = await options.getLogs({
-    targets: CONTRACTS[options.chain],
-    eventAbi: EVENT,
-    flatten: true,
-  })
+      try {
+        // Fetch total fees
+        const totalFeesResponse = await request(graphUrls[chain], totalFeesQuery, { });
+        console.log("totalFeesResponse",totalFeesResponse);
+        const totalFees = totalFeesResponse.overallVolumeFeesAggregates.reduce(
+          (sum, item) => sum + parseFloat(((item.totalFees * 1)/1e18) || 0),
+          0
+        );
+        console.log("totalFees",totalFees);
 
-  logs.forEach(log => dailyFees.add(log.token, log.amount))
+        // Fetch daily fees
+        const graphRes = await request(graphUrls[chain], graphQuery, { dayID: dayID });
+        console.log("graphRes",graphRes);
+        const aggregates = graphRes.dayVolumeFeesAggregates;
+        console.log("aggregates",aggregates);
 
-  // exclude ZEBU token
-  dailyFees.removeTokenBalance(ZEBU_TOKEN[options.chain])
+        // Aggregate daily fees and daily volume
+        const dailyFees = aggregates.reduce((sum, agg) => sum + parseFloat(((agg.dailyFees * 1)/1e18) || 0), 0);
+        console.log("dailyFees",dailyFees);
+        const dailyUserFees = dailyFees;
+        const totalUserFees = totalFees;
 
-  return { dailyFees };
+        const dailyRevenue = dailyFees;
+        const totalRevenue = totalFees;
+
+        const dailyHoldersRevenue = dailyFees * 0.6 / 100;
+        const totalHoldersRevenue = totalFees * 0.6 / 100;
+
+        const dailySupplySideRevenue = dailyFees * 0.6 / 100;
+        const totalSupplySideRevenue = totalFees * 0.6 / 100;
+
+        return {dailyFees, totalFees, dailyUserFees, totalUserFees, dailyRevenue, totalRevenue, dailyHoldersRevenue, totalHoldersRevenue };
+      } catch (error) {
+        console.error(`Error fetching data for chain ${chain}:`, error.message);
+        return {
+          dailyFees: 0,
+          totalFees: 0,
+          dailyUserFees : 0, 
+          totalUserFees : 0, 
+          dailyRevenue : 0, 
+          totalRevenue : 0, 
+          dailyHoldersRevenue : 0, 
+          totalHoldersRevenue : 0
+        };
+      }
+    };
+  };
 };
-
-const meta = {
-  methodology: {
-    Fees: "Track rewards distributed to stakers excluding ZEBU token.",
-    // Revenue: "Track rewards distributed to stakers excluding ZEBU token.",
-  }
-}
 
 export default {
-  version: 2,
   adapter: {
     // Define for each chain
     [CHAIN.BASE]: {
-      fetch,
-      start: '2024-09-17',
-      meta,
+      fetch : graphsDaily(endpoints)(CHAIN.BASE),
+      start: 1728518400,
+      meta: {
+        methodology: {
+          Fees: "2% collectively paid by merchant and customer",
+          UserFees : "Daily fees",
+          Revenue: "Invoice fees",
+          HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
+        }
+      }
     },
     [CHAIN.BSC]: {
-      fetch,
-      start: '2024-09-26',
-      meta,
+      fetch : graphsDaily(endpoints)(CHAIN.BSC),
+      start: 1688083200,
+      meta: {
+        methodology: {
+          Fees: "2% collectively paid by merchant and customer",
+          Revenue: "Invoice fees",
+          HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
+        }
+      }
     },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2024-10-29',
-      meta,
-    },
+
   },
+  version: 2,
 } as Adapter;
