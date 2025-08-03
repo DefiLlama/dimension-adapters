@@ -36,12 +36,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const fetchHL = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, };
+  return { dailyFees, dailyUserFees: 0, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue: 0 };
 };
 
 const adapter: SimpleAdapter = {
@@ -65,8 +65,10 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           Fees: 'builder code revenue from Hyperliquid Perps Trades.',
+          UserFees: 'no fees from users',
           Revenue: 'builder code revenue from Hyperliquid Perps Trades.',
           ProtocolRevenue: 'builder code revenue from Hyperliquid Perps Trades.',
+          HoldersRevenue: 'No fees distributed to token holders',
         }
       }
     }
