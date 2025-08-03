@@ -1,3 +1,3 @@
-import adapter from "../aggregators/teleswap";
+import adapter from "../dexs/teleswap";
 
 export default adapter;
