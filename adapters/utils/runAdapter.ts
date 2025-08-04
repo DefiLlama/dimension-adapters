@@ -1,10 +1,10 @@
-import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types'
+import * as sdk from '@defillama/sdk';
+import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
+import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
-import * as _env from '../../helpers/env'
 import { getDateString } from '../../helpers/utils';
-import * as sdk from '@defillama/sdk'
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -159,6 +159,22 @@ async function _runAdapter({
   if (withMetadata) return { response, breakdownData, }
   return response
 
+  async function processBalancesInBreakdownByChain(breakdownByChain: any) {
+    for (const [_recordType, chainData] of Object.entries(breakdownByChain)) {
+      if (typeof chainData === 'object' && chainData !== null) {
+        for (const [_chain, data] of Object.entries(chainData)) {
+          if (typeof data === 'object' && data !== null) {
+            for (const [key, value] of Object.entries(data)) {
+              if (value instanceof Balances) {
+                data[key] = await value.getUSDString()
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   async function getChainResult(chain: string) {
     const startTime = getUnixTimeNow()
     const metadata = {
@@ -185,8 +201,41 @@ async function _runAdapter({
       } else {
         throw new Error(`Adapter version ${adapterVersion} not supported`)
       }
-      const ignoreKeys = ['timestamp', 'block']
+      const ignoreKeys = ['timestamp', 'block', 'breakdown', 'breakdownByChain']
       const improbableValue = 2e11 // 200 billion
+
+      if (result.breakdownByChain && !result.breakdownByChain[chain]) {
+        const chainData = result.breakdownByChain
+        result.breakdownByChain = { [chain]: chainData }
+      }
+
+      if (result.breakdownByChain) {
+        await processBalancesInBreakdownByChain(result.breakdownByChain)
+        
+        if (!result.breakdown) {
+          result.breakdown = {}
+        }
+        
+        const breakdownByChainCopy = JSON.parse(JSON.stringify(result.breakdownByChain))
+        
+        for (const chainData of Object.values(breakdownByChainCopy)) {
+          for (const [recordType, data] of Object.entries(chainData as any)) {
+            const rec = result.breakdown[recordType] ??= {};
+
+            for (const [key, value] of Object.entries(data as any)) {
+              rec[key] ??= 0;
+
+              const numericValue = value instanceof Balances
+                ? parseFloat(await value.getUSDString())
+                : parseFloat(String(value));
+
+              if (!Number.isNaN(numericValue)) {
+                rec[key] += numericValue;
+              }
+            }
+          }
+        }
+      }
 
       for (const [key, value] of Object.entries(result)) {
         if (ignoreKeys.includes(key)) continue;

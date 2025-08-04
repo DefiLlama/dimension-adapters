@@ -1,8 +1,8 @@
+import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 import { getLatestBlock } from "@defillama/sdk/build/util";
 import { SimpleAdapter, whitelistedDimensionKeys, } from "../adapters/types";
-import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 
-import * as sdk from "@defillama/sdk" 
+import * as sdk from "@defillama/sdk";
 
 export const ERROR_STRING = '------ ERROR ------'
 
@@ -88,10 +88,23 @@ export function printVolumes2(volumes: any[]) {
         Object.entries(element).forEach(([attribute, value]) => {
             if (attribute === 'timestamp' && !value) return;
             if (!exclude2Print.includes(attribute)) {
-                const valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any) * 1e3).toISOString()})` : humanizeNumber(Number(value))
-                item[getLabel(attribute)] = valueFormatted
+                let valueFormatted;
+                
+                if (attribute === 'breakdownByChain' && typeof value === 'object' && value !== null) {
+                    valueFormatted = JSON.stringify(value, null, 2)
+                    item['Breakdown by chain'] = valueFormatted;
+                } else if (attribute === 'breakdown') {
+                    return;
+                } else {
+                    valueFormatted = typeof value === 'object' ? JSON.stringify(value, null, 2) : attribute === "timestamp" ? value + ` (${new Date((value as any) * 1e3).toISOString()})` : humanizeNumber(Number(value));
+                    item[getLabel(attribute)] = valueFormatted;
+                }
             }
         })
+
+        if (!item['Breakdown']) {
+            item['Breakdown'] = '';
+        }
         if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
             item['Start Time'] = formatTimestampAsDate(String(element.startTimestamp))
         printTable[element.chain] = item
@@ -101,7 +114,11 @@ export function printVolumes2(volumes: any[]) {
     if (volumes.length > 1) {
         const aggregated: any = {}
         const aggData: any = {}
-        const ignoredKeySet = new Set(exclude2Print)
+        const ignoredKeySet = new Set([...exclude2Print, 'breakdown', 'breakdownByChain'])
+        
+        const mergedBreakdownByChain: any = {}
+        const mergedBreakdown: any = {}
+        
         volumes.forEach((element) => {
             for (const [key, value] of Object.entries(element)) {
                 if (!ignoredKeySet.has(key)) {
@@ -109,10 +126,48 @@ export function printVolumes2(volumes: any[]) {
                     aggData[key] += value
                 }
             }
+            
+            if (element.breakdownByChain) {
+                Object.entries(element.breakdownByChain).forEach(([chain, chainData]: [string, any]) => {
+                    Object.entries(chainData).forEach(([recordType, data]: [string, any]) => {
+                        if (!mergedBreakdownByChain[recordType]) mergedBreakdownByChain[recordType] = {}
+                        if (!mergedBreakdownByChain[recordType][chain]) mergedBreakdownByChain[recordType][chain] = {}
+                        
+                        Object.entries(data).forEach(([key, value]: [string, any]) => {
+                            if (!mergedBreakdownByChain[recordType][chain][key]) mergedBreakdownByChain[recordType][chain][key] = 0
+                            mergedBreakdownByChain[recordType][chain][key] += Number(value)
+                        })
+                    })
+                })
+            }
+            
+            if (element.breakdownByChain) {
+                Object.entries(element.breakdownByChain).forEach(([chain, chainData]: [string, any]) => {
+                    Object.entries(chainData).forEach(([recordType, data]: [string, any]) => {
+                        if (!mergedBreakdown[recordType]) mergedBreakdown[recordType] = {}
+                        
+                        Object.entries(data).forEach(([key, value]: [string, any]) => {
+                            if (!mergedBreakdown[recordType][key]) mergedBreakdown[recordType][key] = 0
+                            mergedBreakdown[recordType][key] += Number(value)
+                        })
+                    })
+                })
+            }
         })
+        
         Object.entries(aggData).forEach(([key, value]) => {
             aggregated[getLabel(key)] = typeof value === 'object' ? JSON.stringify(value, null, 2) : humanizeNumber(Number(value))
         })
+        
+        if (Object.keys(mergedBreakdown).length > 0) {
+            aggregated['Breakdown'] = JSON.stringify(mergedBreakdown, null, 2)
+        } else {
+            const globalBreakdown = volumes.find(v => v.breakdown)?.breakdown
+            if (globalBreakdown) {
+                aggregated['Breakdown'] = JSON.stringify(globalBreakdown, null, 2)
+            }
+        }
+        
         printTable['Aggregate'] = aggregated
     }
 

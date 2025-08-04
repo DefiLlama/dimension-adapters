@@ -16,6 +16,9 @@ export type FetchResultBase = {
 
 export type FetchResultV2 = {
   [key: string]: FetchResponseValue | undefined;
+} & {
+  breakdown?: BreakdownStructure;
+  breakdownByChain?: BreakdownStructure;
 };
 
 export type FetchResultGeneric = FetchResultBase & {
@@ -123,6 +126,20 @@ export type BreakdownAdapter = AdapterBase & {
 export type Adapter = SimpleAdapter | BreakdownAdapter;
 export type FetchResponseValue = string | number | Balances;
 
+export type BreakdownData = {
+  [key: string]: BreakdownValue;
+};
+
+export type BreakdownByChainData = {
+  [chain: string]: BreakdownData;
+};
+
+export type BreakdownStructure = {
+  [recordType: string]: BreakdownByChainData | BreakdownData;
+};
+
+export type BreakdownValue = string | number | Balances;
+
 /**
  * Include here new adaptors types
  */
@@ -136,6 +153,8 @@ export type FetchResultVolume = FetchResultBase & {
   openInterestAtEnd?: FetchResponseValue
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
+  breakdown?: BreakdownStructure
+  breakdownByChain?: BreakdownStructure
 };
 
 // FEES
@@ -154,17 +173,23 @@ export type FetchResultFees = FetchResultBase & {
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
   totalHoldersRevenue?: FetchResponseValue;
+  breakdown?: BreakdownStructure
+  breakdownByChain?: BreakdownStructure
 };
 
 // INCENTIVES
 export type FetchResultIncentives = FetchResultBase & {
   tokenIncentives?: FetchResponseValue
+  breakdown?: BreakdownStructure
+  breakdownByChain?: BreakdownStructure
 };
 
 // AGGREGATORS
 export type FetchResultAggregators = FetchResultBase & {
   dailyVolume?: FetchResponseValue
   totalVolume?: FetchResponseValue
+  breakdown?: BreakdownStructure
+  breakdownByChain?: BreakdownStructure
 };
 
 // OPTIONS
@@ -176,6 +201,8 @@ export type FetchResultOptions = FetchResultBase & {
   shortOpenInterestAtEnd?: FetchResponseValue
   longOpenInterestAtEnd?: FetchResponseValue
   openInterestAtEnd?: FetchResponseValue
+  breakdown?: BreakdownStructure
+  breakdownByChain?: BreakdownStructure
 };
 
 
@@ -201,6 +228,7 @@ export const whitelistedDimensionKeys = new Set([
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+  'breakdown', 'breakdownByChain',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
