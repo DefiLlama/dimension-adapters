@@ -14,7 +14,7 @@ export type FetchResultBase = {
   block?: number;
 };
 
-export type FetchResultV2 = {
+export type FetchResultV2 = FetchResult | {
   [key: string]: FetchResponseValue | undefined;
 } & {
   breakdown?: BreakdownStructure;
