@@ -142,7 +142,7 @@ async function _runAdapter({
     }
   }
 
-  let tokenBreakdownData: any = {}
+  let breakdownByToken: any = {}
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
@@ -150,13 +150,13 @@ async function _runAdapter({
   }).map(getChainResult))
 
 
-  Object.entries(tokenBreakdownData).forEach(([chain, data]: any) => {
-    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete tokenBreakdownData[chain]
+  Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
+    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownByToken[chain]
   })
 
-  if (Object.keys(tokenBreakdownData).length === 0) tokenBreakdownData = undefined
+  if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
 
-  if (withMetadata) return { response, tokenBreakdownData, }
+  if (withMetadata) return { response, breakdownByToken, }
   return response
 
   async function getChainResult(chain: string) {
@@ -197,8 +197,8 @@ async function _runAdapter({
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) {
           result[key] = await value.getUSDString()
-          tokenBreakdownData[chain] = tokenBreakdownData[chain] || {}
-          tokenBreakdownData[chain][key] = await value.getUSDJSONs()
+          breakdownByToken[chain] = breakdownByToken[chain] || {}
+          breakdownByToken[chain][key] = await value.getUSDJSONs()
         }
         result[key] = +Number(result[key]).toFixed(0)
         let errorPartialString = `| ${chain}-${key}: ${value}`
