@@ -18,16 +18,24 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise
   return {
     dailyVolume: req.algebraDayData?.volumeUSD,
     dailyFees: req.algebraDayData?.feesUSD,
+    dailyRevenue: req.algebraDayData?.feesUSD,
+    dailyProtocolRevenue: req.algebraDayData?.feesUSD * 0.15,
+    dailyHoldersRevenue: req.algebraDayData?.feesUSD * 0.835,
   }
 }
 
+const methodology = {
+  Fees: 'All trading fees paid by users.',
+  Revenue: '15% for treasury, 1.5% for algebra, 83.5% to veSTELLA voters',
+  ProtocolRevenue: '15% for treasury',
+  HoldersRevenue: '83.5% to veSTELLA voters',
+}
+
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.MOONBEAM]: {
-      fetch,
-      start: 1738927506,
-    },
-  }
+  fetch,
+  chains: [CHAIN.MOONBEAM],
+  start: '2025-02-07',
+  methodology,
 }
 
 export default adapter;
