@@ -1,7 +1,7 @@
 import { CHAIN } from '../helpers/chains'
-import { aaveExport, getPoolFees } from '../helpers/aave'
+import { getPoolFees } from '../helpers/aave'
 import { AaveMarkets } from './aave'
-import { FetchOptions, SimpleAdapter } from '../adapters/types'
+import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
 
@@ -14,6 +14,10 @@ const methodology = {
 }
 
 const chainConfig = {
+  [CHAIN.ETHEREUM]: {
+    pools: AaveMarkets[CHAIN.ETHEREUM],
+    start: '2023-01-01',
+  },
   [CHAIN.OPTIMISM]: {
     pools: AaveMarkets[CHAIN.OPTIMISM],
     start: '2022-08-05',
@@ -81,7 +85,7 @@ const fetch = async (options: FetchOptions) => {
   let dailyProtocolRevenue = options.createBalances()
   let dailySupplySideRevenue = options.createBalances()
 
-  const pools = AaveMarkets[CHAIN.ETHEREUM]
+  const pools = AaveMarkets[options.chain]
 
   for (const pool of pools) {
     await getPoolFees(pool, options, {
@@ -91,8 +95,11 @@ const fetch = async (options: FetchOptions) => {
     })
   }
 
-  // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-  const dailyHoldersRevenue = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa' })
+  let dailyHoldersRevenue = options.createBalances()
+  if (options.chain === CHAIN.ETHEREUM) {
+    // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
+    dailyHoldersRevenue = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa' })
+  }
 
   return {
     dailyFees,
@@ -106,12 +113,12 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
-  adapter: {
-    ...aaveExport(chainConfig),
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-01-01',
-    }
+  adapter: {}
+}
+for (const [chain, config] of Object.entries(chainConfig)) {
+  (adapter.adapter as BaseAdapter)[chain] = {
+    fetch,
+    start: config.start,
   }
 }
 

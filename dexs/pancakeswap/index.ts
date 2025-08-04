@@ -71,8 +71,9 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ETHEREUM]: {
       start: '2022-09-27',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      factory: '0x1097053fd2ea711dad45caccc45eff7548fcb362',
     },
     [CHAIN.POLYGON_ZKEVM]: {
       start: '2023-06-28',
@@ -88,18 +89,21 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ARBITRUM]: {
       start: '2023-08-08',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.LINEA]: {
       start: '2023-08-24',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.BASE]: {
       start: '2023-08-31',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.OP_BNB]: {
       start: '2023-09-19',
