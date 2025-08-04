@@ -1,4 +1,4 @@
-// import { Chain } from "@defillama/sdk/build/general";
+// import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";

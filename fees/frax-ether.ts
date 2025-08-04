@@ -34,7 +34,7 @@ const fetch = (): any => {
     return {
       dailyFees,
       dailySupplySideRevenue: dailySupplySideRevenue,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: '0',
       dailyUserFees: '0',

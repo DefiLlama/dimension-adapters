@@ -3,7 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
 const fetch: any = async (options: FetchOptions) => {
-  return { dailyFees: await getSolanaReceived({ options, target: '97VmzkjX9w8gMFS2RnHTSjtMEDbifGXBq9pgosFdFnM' }) }
+  const dailyFees =await getSolanaReceived({ options, target: '97VmzkjX9w8gMFS2RnHTSjtMEDbifGXBq9pgosFdFnM' })
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 
 }
 
@@ -12,7 +13,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-          },
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using TradeWiz bot.",
+          Revenue: "Trading fees are collected by TradeWiz protocol.",
+          ProtocolRevenue: "Trading fees are collected by TradeWiz protocol.",
+        }
+      }
+    },
   },
   isExpensiveAdapter: true
 };

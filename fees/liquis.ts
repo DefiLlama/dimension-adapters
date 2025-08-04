@@ -19,7 +19,7 @@ const fetch = () => {
     return {
       timestamp,
       dailyFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailySupplySideRevenue: dailySupplySideRevenue,
       dailyHoldersRevenue: dailyHoldersRevenue,
     } as FetchResultFees
@@ -31,6 +31,14 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(),
       start: '2023-08-30',
+      meta: {
+        methodology: {
+          Fees: "Liquidity management fees paid by users",
+          Revenue: "25% liquidity management fees paid by users",
+          HoldersRevenue: "30% share of revenue to token holders",
+          SupplySideRevenue: "75% fees share to liquidity providers",
+        }
+      }
     },
   },
 

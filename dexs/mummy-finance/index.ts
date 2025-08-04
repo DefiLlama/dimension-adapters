@@ -3,7 +3,6 @@ import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('8LdLE9Aan39FQCcHX3x1HdnNzoZzPvxskhj1utLb2SA9'),

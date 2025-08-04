@@ -33,8 +33,8 @@ _:any, _1:any, options: FetchOptions
 
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees,
-    totalFees: totalFees,
+    dailyFees,
+    totalFees,
     dailyRevenue: dailyFees,
   };
 };
@@ -42,7 +42,7 @@ _:any, _1:any, options: FetchOptions
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ZKSYNC]: {
-      start: 1733356800,
+      start: '2024-12-05',
       fetch: fetchFees,
     },
   },

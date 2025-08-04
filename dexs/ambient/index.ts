@@ -8,7 +8,9 @@ const config = {
   blast: { endpoint: 'https://ambindexer.net/blast-gcgo/', chainId: '0x13e31', poolIdx: '420' },
   ethereum: { endpoint: 'https://ambindexer.net/gcgo/', chainId: '0x1', poolIdx: '420' },
   canto: { endpoint: 'https://ambient-graphcache.fly.dev/gcgo/', chainId: '0x1e14', poolIdx: '420' },
+  plume_mainnet: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18232', poolIdx: '420' },
   plume: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18231', poolIdx: '420' },
+  swellchain: { endpoint: 'https://ambindexer.net/swell-gcgo/', chainId: '0x783', poolIdx: '420' },
 }
 
 const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances, chain }) => {
@@ -45,9 +47,11 @@ export default {
   adapter: {
     [CHAIN.ETHEREUM]: adapter,
     [CHAIN.SCROLL]: adapter,
-    [CHAIN.CANTO]: adapter,
+    // [CHAIN.CANTO]: adapter,
     [CHAIN.BLAST]: adapter,
     [CHAIN.PLUME]: adapter,
+    [CHAIN.PLUME_LEGACY]: adapter,
+    [CHAIN.SWELLCHAIN]: adapter,
   },
   version: 2,
 };

@@ -1,4 +1,3 @@
-import getLogs from "@defillama/sdk/build/util/logs";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { id, zeroPadValue } from "ethers";
@@ -39,15 +38,13 @@ const fetch: any = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const logs = await getLogs({
+  const logs = await options.getLogs({
     topics: [
       id("Transfer(address,address,uint256)"),
-      null,
+      null as any,
       zeroPadValue(proxyTrade.toLowerCase(), 32),
     ],
-    chain: options.chain,
-    fromTimestamp: options.fromTimestamp,
-    toTimestamp: options.toTimestamp,
+    noTarget: true,
   });
 
   const reducedLogs: Record<string, any> = groupLogsByTransactionHash(logs);
@@ -79,14 +76,14 @@ export default {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch,
-      start: 1737456148,
+      start: '2025-01-21',
       meta: {
         methodology,
       },
     },
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1736511443,
+      start: '2025-01-10',
       meta: {
         methodology,
       },

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
@@ -54,26 +55,26 @@ const targets: any = {
 
 const tokens: any = {
   [CHAIN.ETHEREUM]: [
-    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    ADDRESSES.ethereum.USDC,
   ],
   [CHAIN.OPTIMISM]: [
-    '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-    '0xEB466342C4d449BC9f53A865D5Cb90586f405215'
+    ADDRESSES.optimism.USDC_CIRCLE,
+    ADDRESSES.kava.axlUSDC
   ],
   [CHAIN.ARBITRUM]: [
-    '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    '0xEB466342C4d449BC9f53A865D5Cb90586f405215'
+    ADDRESSES.arbitrum.USDC_CIRCLE,
+    ADDRESSES.kava.axlUSDC
   ],
   [CHAIN.BASE]: [
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "0xEB466342C4d449BC9f53A865D5Cb90586f405215"
+    ADDRESSES.base.USDC,
+    ADDRESSES.kava.axlUSDC
   ],
   [CHAIN.POLYGON]: [
-    "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    ADDRESSES.polygon.USDC_CIRCLE,
     "0x750e4C4984a9e0f12978eA6742Bc1c5D248f40ed"
   ],
   [CHAIN.AVAX]: [
-    "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+    ADDRESSES.avax.USDC,
     "0x750e4C4984a9e0f12978eA6742Bc1c5D248f40ed"
   ],
   [CHAIN.BSC]: [
@@ -83,22 +84,22 @@ const tokens: any = {
 
 const tokens_type_percent: any = {
   [CHAIN.ETHEREUM]: [
-    "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    ADDRESSES.ethereum.USDT,
   ],
   [CHAIN.OPTIMISM]: [
-    '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58'
+    ADDRESSES.optimism.USDT
   ],
   [CHAIN.ARBITRUM]: [
-    '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'
+    ADDRESSES.arbitrum.USDT
   ],
   [CHAIN.POLYGON]: [
-    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+    ADDRESSES.polygon.USDT
   ],
   [CHAIN.AVAX]: [
-    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+    ADDRESSES.polygon.USDT
   ],
   [CHAIN.BSC]: [
-    '0x55d398326f99059fF775485246999027B3197955'
+    ADDRESSES.bsc.USDT
   ]
 }
 const targets_type_percent: any = {
@@ -185,6 +186,13 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: fetchFees,
         start: '2023-05-18',
+        meta: {
+          methodology: {
+            Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
+            Revenue: 'Fees collected by Trust Wallet.',
+            ProtocolRevenue: 'Fees collected by Trust Wallet.',
+          }
+        }
       },
     };
   }, {}),

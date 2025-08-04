@@ -57,8 +57,8 @@ const fetch = (chain: string) => {
 
     // 60% to holders, 40% to protocol
     return {
-      dailyFees: `${dailyFees}`,
-      dailyRevenue: `${dailyFees}`,
+      dailyFees,
+      dailyRevenue: dailyFees,
       dailyProtocolRevenue: `${dailyFees * 0.4}`,
       dailyHoldersRevenue: `${dailyFees * 0.6}`,
       timestamp,
@@ -71,7 +71,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CORE]: {
       fetch: fetch(CHAIN.CORE),
-      start: 1734914400,
+      start: '2024-12-23',
     },
   },
 };

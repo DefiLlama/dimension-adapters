@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
@@ -98,7 +98,7 @@ const fetch: any = async (options: FetchOptions) => {
   const dailySupplySideRevenue = dailyFees * 0.8;
   return {
     dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
   };
 };

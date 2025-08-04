@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchResultAggregators, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -38,6 +38,7 @@ const fetch = (chainId: number) => {
   };
 };
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-03-02',
   adapter: Object.keys(ChainId).reduce((acc, chain) => {
     return {
       ...acc,

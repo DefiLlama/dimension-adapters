@@ -7,7 +7,7 @@ const URL = "https://app.bitflow.finance/api/pool-volume";
 
 const fetch = async (): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp();
-  const { data }: any = await fetchURL(`${URL}`);
+  const { data }: any = await fetchURL(URL);
   let dailyVolume = 0
   for (const [_, pool] of Object.entries(data)) {
     dailyVolume += Number((pool as any).totalOutAmountUsd)

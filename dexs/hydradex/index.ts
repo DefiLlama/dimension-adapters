@@ -1,5 +1,5 @@
-import { Chain } from '@defillama/sdk/build/general';
-import { BreakdownAdapter, BaseAdapter, DISABLED_ADAPTER_KEY } from '../../adapters/types';
+import { Chain } from  "../../adapters/types";
+import { BreakdownAdapter, BaseAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getStartTimestamp } from '../../helpers/getStartTimestamp';
 import {
@@ -7,7 +7,6 @@ import {
   getGraphDimensions2,
 } from '../../helpers/getUniSubgraph';
 import request from 'graphql-request';
-import disabledAdapter from '../../helpers/disabledAdapter';
 
 const v3Endpoints = {
   [CHAIN.HYDRA]: 'https://graph.hydradex.org/subgraphs/name/v3-subgraph',
@@ -31,7 +30,7 @@ const getV3CustomBlock = async (timestamp: number) => {
     ).blocks;
     return Number(blocks[0].number);
   } catch (e) {
-    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e).message}`)
+    throw new Error(`Error getting block: ${CHAIN.HYDRA} ${timestamp} ${wrapGraphError(e as any).message}`)
   }
 };
 
@@ -66,26 +65,20 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v2: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
       [CHAIN.HYDRA]: {
         fetch: async (timestamp: number) => {
           return {
             timestamp
           }
         },
-                meta: {
+        meta: {
           methodology,
         },
       },
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
-        start: getStartTimestamp({
-          endpoints: v3Endpoints,
-          chain: chain,
-          volumeField: VOLUME_USD,
-        }),
+        fetch: v3Graphs,
         meta: {
           methodology: {
             ...methodology,

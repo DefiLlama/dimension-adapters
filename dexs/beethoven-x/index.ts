@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import request, { gql } from "graphql-request";
 
@@ -47,7 +47,7 @@ const v2Graphs = (chain: Chain) => {
     }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
 
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
       timestamp,
     };
   };

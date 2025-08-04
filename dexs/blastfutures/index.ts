@@ -22,7 +22,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     const dailyVolume = marketsData.reduce((acc, {volume}) => acc + Number(volume), 0);
 
     return {
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        dailyVolume: dailyVolume,
         timestamp: timestamp,
     };
 };

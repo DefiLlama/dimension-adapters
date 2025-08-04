@@ -33,7 +33,10 @@ const adapter: any = {
         fetch: fetchFeesAndRevenues,
         start: '2023-05-22',
         meta: {
-          methodology: 'sums the fees of listing request & trending request.',
+          methodology: {
+            Fees: 'Sums the fees of listing request & trending request.',
+            Revenue: 'Sums the fees of listing request & trending request.',
+          },
         }
     }
   }), {})

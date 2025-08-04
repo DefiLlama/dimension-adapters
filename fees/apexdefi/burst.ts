@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";

@@ -1,6 +1,6 @@
 import { FetchOptions, } from "../../../adapters/types";
 import { CHAIN } from "../../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../../adapters/types";
 
 interface ILog {
   data: string;
@@ -58,7 +58,7 @@ const fetch = (chain: Chain) => {
       .reduce((a: number, b: number) => a + b, 0);
 
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
     }
   }
 }

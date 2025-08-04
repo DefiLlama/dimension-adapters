@@ -25,13 +25,13 @@ const fetch: any = async (timestamp: number, _:any, options: FetchOptions) => {
   });
 
   const { fees, revenue }: DailyFeesAndRevenue = await fetchURL(ZIVOE_API_URL + "?" + params.toString());
-  console.log(fees, revenue);
 
   fees.forEach((record) => {
     dailyFees.add(record.tokenAddress, BigInt(record.value));
   });
-
+  
   revenue.forEach((record) => {
+    dailyFees.add(record.tokenAddress, BigInt(record.value));
     dailyRevenue.add(record.tokenAddress, BigInt(record.value));
   });
 

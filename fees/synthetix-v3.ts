@@ -1,6 +1,6 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 const methodology = {
   UserFees: "Users pay fees to trade on derivatives markets.",
@@ -42,8 +42,8 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   });
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyHoldersRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue,
     timestamp

@@ -71,6 +71,7 @@ const getFetch =
   };
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-01-28',
   breakdown: {
     swap: {
       [CHAIN.BASE]: {

@@ -1,3 +1,4 @@
+import axios from "axios";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { GraphQLClient } from "graphql-request";
 
@@ -6,7 +7,7 @@ export const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
 // Number of decimals for the APT token.
 const APT_DECIMALS = 8;
 
-// Number to multiply and APT vaule to get the amount in Octas.
+// Number to multiply and APT value to get the amount in Octas.
 const APT_TO_OCTAS_MUTLIPLIER = Math.pow(10, APT_DECIMALS);
 
 // Takes an amount in Octas as input and returns the same amount in APT.
@@ -94,9 +95,22 @@ async function view<T extends any[]>(functionStr: string, type_arguments: string
     return (await httpPost(path, { "function": functionStr, "type_arguments": type_arguments, arguments: args })) as T
 }
 
+// return UI value - total supply of given token
+async function getCoinSupply(coin: string): Promise<{
+    decimals: number;
+    supply: number;
+}> {
+    const { data: { decimals, supply } } = await httpGet(`${APTOS_PRC}/v1/accounts/${coin}/resource/0x1::coin::CoinInfo<${coin}::usdy::USDY>`)
+    return {
+        decimals: Number(decimals),
+        supply: Number(supply.vec[0].integer.vec[0].value),
+    }
+}
+
 export {
     getResources,
     getVersionFromTimestamp,
     octasToApt,
-    view
+    view,
+    getCoinSupply,
 }

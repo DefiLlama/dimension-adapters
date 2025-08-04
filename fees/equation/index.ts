@@ -24,7 +24,8 @@ const queryTotalFee = gql`
 const getFetch =
   () =>
   (chain: string): FetchV2 =>
-  async ({ getStartBlock, getEndBlock }) => {
+  async ({ startTimestamp, getStartBlock, getEndBlock }) => {
+    if (startTimestamp > 1743940800) return {}
     const [startBlock, endBlock] = await Promise.all([
       getStartBlock(),
       getEndBlock(),
@@ -54,6 +55,7 @@ const getFetch =
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: "2025-04-06",
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFetch()(CHAIN.ARBITRUM),

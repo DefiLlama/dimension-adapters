@@ -24,6 +24,13 @@ const adapter: SimpleAdapter = {
             dailyHoldersRevenue: dailyRevenue
         }
       },
+      meta: {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Amount of 50% TON transaction fees that were burned',
+          HoldersRevenue: 'Amount of 50% TON transaction fees that were burned',
+        }
+      }
     },
   },
   version: 1,

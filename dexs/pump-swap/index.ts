@@ -1,46 +1,69 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
+import { FetchOptions } from "../../adapters/types";
 
-const queryId = "4900425";
+// const queryId = "4900425"; // removed direct query so changes in query don't affect the data, and better visibility
 
 interface IData {
-    daily_volume_sol: number;
-    daily_protocol_fees_sol: number;
-    daily_lp_fees_sol: number;
+    clean_volume: number;
+    total_volume: number;
 }
 
-const fetch = async ({ startTimestamp, endTimestamp, createBalances }) => {
-  // https://x.com/pumpdotfun/status/1902762316774486276 source for platform and lp fees brakedown
-  const data: IData[] = await queryDune(queryId, {
-      start: startTimestamp,
-      end: endTimestamp,
-    })
-
-    const dailyVolume = createBalances()
-    const dailySupplySideRevenue = createBalances()
-    const dailyProtocolRevenue = createBalances()
-
-    dailyVolume.addGasToken(data[0].daily_volume_sol)
-    dailyProtocolRevenue.addGasToken(data[0].daily_protocol_fees_sol)
-    dailySupplySideRevenue.addGasToken(data[0].daily_lp_fees_sol)
-
-    const dailyFees = createBalances()
-    dailyFees.addBalances(dailyProtocolRevenue)
-    dailyFees.addBalances(dailySupplySideRevenue)
-    const dailyUserFees = dailyFees.clone(1)
-
-    // console.log(dailyVolume, dailyFees, dailyUserFees, dailyProtocolRevenue, dailySupplySideRevenue)
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const data: IData[] = await queryAllium(
+        `WITH volume_data AS (
+            SELECT 
+              pool,
+              SUM(usd_amount) as volume_usd
+            FROM solana.dex.trades
+            WHERE project = 'pumpswap'
+              AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+              AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+            GROUP BY pool
+          ),
+          pool_info AS (
+            SELECT DISTINCT
+              liquidity_pool_address,
+              token0_address,
+              token0_vault,
+              token1_address,
+              token1_vault
+            FROM solana.dex.pools
+            WHERE project = 'pumpswap'
+              AND liquidity_pool_address IN (SELECT pool FROM volume_data)
+          ),
+          pool_tvl AS (
+            SELECT 
+              pi.liquidity_pool_address,
+              COALESCE(b0.usd_balance_current, 0) + COALESCE(b1.usd_balance_current, 0) as total_tvl_usd
+            FROM pool_info pi
+            LEFT JOIN solana.assets.balances_latest b0 
+              ON pi.token0_vault = b0.address 
+              AND pi.token0_address = b0.mint
+            LEFT JOIN solana.assets.balances_latest b1 
+              ON pi.token1_vault = b1.address 
+              AND pi.token1_address = b1.mint
+          )
+          SELECT 
+            SUM(vd.volume_usd) as total_volume,
+            SUM(CASE 
+              WHEN pt.total_tvl_usd >= 5000 THEN vd.volume_usd 
+              ELSE 0 
+            END) as clean_volume
+          FROM volume_data vd
+          LEFT JOIN pool_tvl pt ON vd.pool = pt.liquidity_pool_address
+          WHERE pt.liquidity_pool_address IS NOT NULL
+    `)
+    console.log(data)
+    const dailyVolume = options.createBalances()
+    dailyVolume.addCGToken('tether', data[0].clean_volume);
 
     return { 
-      dailyVolume, 
-      dailyFees,
-      dailyUserFees,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue
+        dailyVolume,
     }
 };
-  
+
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
@@ -48,13 +71,12 @@ const adapter: SimpleAdapter = {
             start: '2025-03-15',
             meta: {
                 methodology: {
-                    Fees: "Each trade has a 0.25% fee - 0.20% goes to LPs and 0.05% goes to the protocol",
-                    Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
+                    Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with a TVL less than $5,000.",
                 }
             }
         }
     },
-    version: 2,
+    version: 1,
     isExpensiveAdapter: true
 }
 

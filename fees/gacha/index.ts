@@ -11,92 +11,56 @@ const abi = {
   getConfig: "function getConfig() view returns (tuple(uint256 currentSupply, uint256 currentPoolId, address owner, address uniswapRouter, address paymentToken, address entropy, address feeWallet, uint16 feeBPS, uint16 referralBPS, uint256 referralClaimThreshold))",
 };
 
-const fetch: FetchV2 = async ({
-  getLogs,
-  createBalances,
-  chain,
-  getFromBlock,
-  getToBlock,
-  fromApi,
-}: FetchOptions): Promise<FetchResultV2> => {
+const fetch: FetchV2 = async ({ api, getLogs, createBalances, fromApi, toApi, }: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = createBalances();
-  const dailyFees = createBalances();
 
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
+
+  // ── Contract Config ──
+  // contract configuration to get paymentToken and feeBPS
+  const { paymentToken, feeBPS } = await api.call({ target: gachaContract, abi: abi.getConfig, });
+  const BPS = 10000;
+  const feesRatio = Number(feeBPS) / BPS;
+
 
   // ── Tickets Purchased ──
   const ticketLogs = await getLogs({
     target: gachaContract,
     eventAbi: abi.TicketsPurchased,
-    fromBlock,
-    toBlock,
   });
 
-  // group by poolId and sum ticket amounts
-  const poolPurchaseAmounts: Record<string, bigint> = {};
-  for (const log of ticketLogs) {
-    const poolId = log.poolId.toString();
-    const amount = BigInt(log.amount);
-    poolPurchaseAmounts[poolId] = (poolPurchaseAmounts[poolId] || 0n) + amount;
-  }
-
-  // unique poolIds
-  const poolIds = Object.keys(poolPurchaseAmounts);
-
-  // ticketPrice for each pool using multiCall
-  let ticketPrices: string[] = [];
-  if (poolIds.length > 0) {
-    const poolResults = await fromApi.multiCall({
-      target: gachaContract,
-      abi: abi.getPool,
-      calls: poolIds.map((id) => ({ params: [id] })),
-    });
-    ticketPrices = poolResults.map((res) => res.ticketPrice);
-  }
+  const poolIDSet = new Set<string>();
+  ticketLogs.forEach((log) => poolIDSet.add(log.poolId.toString().toLowerCase()));
+  const poolIds = Array.from(poolIDSet);
+  const poolResults = await api.multiCall({ target: gachaContract, abi: abi.getPool, calls: poolIds, });
+  const poolPriceMap: any = {}
+  poolResults.forEach((pool, i) => {
+    poolPriceMap[poolIds[i]] = Number(pool.ticketPrice)
+  })
 
   // purchase volume = sum(amount * ticketPrice) per pool
-  let purchaseVolume = 0n;
-  for (let i = 0; i < poolIds.length; i++) {
-    const amount = poolPurchaseAmounts[poolIds[i]];
-    const ticketPrice = BigInt(ticketPrices[i] || "0");
-    purchaseVolume += amount * ticketPrice;
+  for (const log of ticketLogs) {
+    const poolId = log.poolId.toString().toLowerCase();
+    const price = poolPriceMap[poolId]
+    const amount = Number(log.amount)
+    dailyVolume.add(paymentToken, amount * price)
   }
 
-  // ── Contract Config ──
-  // contract configuration to get paymentToken and feeBPS
-  const configResult = await fromApi.call({
-    target: gachaContract,
-    abi: abi.getConfig,
-  });
-  const paymentToken: string = configResult.paymentToken;
-  const feeBPS = BigInt(configResult.feeBPS); // 1500n
-  const BPS = 10000n;
-
-  // add purchase volume to dailyVolume (denominated in paymentToken)
-  dailyVolume.add(paymentToken, purchaseVolume);
 
   // calculate fees from ticket purchases: fees = purchaseVolume * feeBPS / BPS
-  const purchaseFees = (purchaseVolume * feeBPS) / BPS;
-  dailyFees.add(paymentToken, purchaseFees);
+  const dailyFees = dailyVolume.clone(feesRatio);
 
 
   // ── Claim Settled ──
-  const claimLogs = await getLogs({
-    target: gachaContract,
-    eventAbi: abi.ClaimSettled,
-    fromBlock,
-    toBlock,
-  });
+  const claimLogs = await getLogs({ target: gachaContract, eventAbi: abi.ClaimSettled, });
 
   for (const log of claimLogs) {
     const token = log.token;
-    const amount = BigInt(log.amount);
+    const amount = Number(log.amount);
     dailyVolume.add(token, amount);
   }
 
   // daily revenue equals to daily fees
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -107,11 +71,12 @@ const adapter: SimpleAdapter = {
       start: "2025-02-10",
       meta: {
         methodology: {
-          dailyVolume:
+          Volumes:
             "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",
-          dailyFees:
+          Fees:
             "Fees are computed as a percentage (feeBPS from the contract config) of the Gacha ticket purchase volume.",
-          dailyRevenue: "Revenue is equal to the fees collected.",
+          Revenue: "Revenue is equal to the fees collected.",
+          ProtocolRevenue: "Revenue is equal to the fees collected.",
         },
       },
     },

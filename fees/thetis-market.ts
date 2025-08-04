@@ -9,21 +9,16 @@ const fetch = async (timestamp: number) => {
   const startTime = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const endTime = startTime + 86400;
 
-  const [{ total, cumulative } = { total: 0, cumulative: 0 }] = [] = await fetchURL(
+  const [{ total } = { total: 0 }] = [] = await fetchURL(
     `${endpoint}fee-daily?startTime=${startTime}&endTime=${endTime}`
   );
 
   const dailyFees = total / 1e18
-  const totalFees = cumulative / 1e18
 
   return {
-    totalFees,
-    totalSupplySideRevenue: totalFees * 0.8,
-    totalRevenue: totalFees * 0.2,
-    dailyFees: dailyFees,
+    dailyFees,
     dailySupplySideRevenue: dailyFees * 0.8,
     dailyRevenue: dailyFees * 0.2,
-    timestamp: startTime,
   };
 };
 

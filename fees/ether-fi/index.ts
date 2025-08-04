@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // https://etherfi.gitbook.io/etherfi/liquid/technical-documentation#fees
 import { api } from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
@@ -9,10 +10,10 @@ const LIQUID_VAULT_ETH = "0xf0bb20865277aBd641a307eCe5Ee04E79073416C";
 const LIQUID_VAULT_ACCOUNTANT_ETH = "0x0d05D94a5F1E76C18fbeB7A13d17C8a314088198";
 const LIQUID_VAULT_USD = "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C";
 const LIQUID_VAULT_ACCOUNTANT_USD = "0xc315D6e14DDCDC7407784e2Caf815d131Bc1D3E7";
-const EETH = "0x35fA164735182de50811E8e2E824cFb9B6118ac2";
-const EIGEN = "0xec53bf9167f50cdeb3ae105f56099aaab9061f83";
+const EETH = ADDRESSES.ethereum.EETH;
+const EIGEN = ADDRESSES.ethereum.EIGEN;
 const LIQUIDITY_POOL = "0x308861A430be4cce5502d0A12724771Fc6DaF216";
-const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+const STETH = ADDRESSES.ethereum.STETH;
 const SSV = "0x9D65fF81a3c488d585bBfb0Bfe3c7707c7917f54";
 const YEAR = 365;
 
@@ -38,8 +39,8 @@ const getStethFees = async (options, totalSteth) => {
 
 const getTotalSteth = async (options) => {
   //steth or steth derivative holding
-  const WSTETH = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
-  const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"
+  const WSTETH = ADDRESSES.ethereum.WSTETH
+  const STETH = ADDRESSES.ethereum.STETH
   const KARAK_WSTETH = "0xa3726beDFD1a8AA696b9B4581277240028c4314b"
   const SYMBIOTIC_WSTETH = "0xC329400492c6ff2438472D4651Ad17389fCb843a"
   const DEVAMP = "0x9FFDF407cDe9a93c47611799DA23924Af3EF764F"
@@ -175,7 +176,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(EETH, totalStakeFees * BigInt(10));
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyRev,
   };
 };

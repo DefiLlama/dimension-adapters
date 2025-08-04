@@ -1,45 +1,72 @@
+import ADDRESSES from '../helpers/coreAssets.json'
+// source: https://dune.com/queries/3819841/6424423
+// https://dune.com/queries/4601837
+
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetch: any = async (options: FetchOptions) => {
-  const fees = await queryDuneSql(options, `
-WITH
-allFeePayments AS (
-    SELECT
-      tx_id,
-      'SOL' AS feeTokenType,
-      balance_change / 1e9 AS fee_token_amount,
-      'So11111111111111111111111111111111111111112' AS fee_token_mint_address 
-    FROM
-      solana.account_activity
-    WHERE
-      tx_success
-      AND address = 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3' 
-      OR address = '9RYJ3qr5eU5xAooqVcbmdeusjcViL5Nkiq7Gske3tiKq'
-      AND balance_change > 0 
-      AND TIME_RANGE
-)
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  // Determine which address/trader_id to use based on date 2024-11-16
+  const dailyFees = options.createBalances();
+  const cutoffTimestamp = 1731715200;
+  const isNewAddress = options.startOfDay >= cutoffTimestamp;
+  
+  const address = isNewAddress ? '9RYJ3qr5eU5xAooqVcbmdeusjcViL5Nkiq7Gske3tiKq' : 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3';
+  const traderId = isNewAddress ? '9RYJ3qr5eU5xAooqVcbmdeusjcViL5Nkiq7Gske3tiKq' : 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3';
+
+  const query = `
+    WITH
+    all_fee_payments AS (
+      SELECT
+        tx_id,
+        balance_change AS fee_token_amount
+      FROM
+        solana.account_activity
+      WHERE
+        TIME_RANGE
+        AND address = '${address}'
+        AND balance_change > 0
+        AND tx_success
+    ),
+    bot_trades AS (
+      SELECT
+        fp.fee_token_amount
+      FROM
+        dex_solana.trades t
+        JOIN all_fee_payments fp ON t.tx_id = fp.tx_id
+      WHERE
+        TIME_RANGE
+        AND trader_id != '${traderId}'
+    )
     SELECT
       SUM(fee_token_amount) AS fee
     FROM
-      dex_solana.trades AS trades
-      JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-    WHERE
-      trades.trader_id != 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3'
-      AND TIME_RANGE
-`)
-  const dailyFees = options.createBalances()
-  dailyFees.add('So11111111111111111111111111111111111111112', fees[0].fee*1e9);
-  return { dailyFees, dailyRevenue: dailyFees, }
+      bot_trades
+  `;
+
+  const fees = await queryDuneSql(options, query);
+
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+
+  return { 
+    dailyFees, 
+    dailyRevenue: dailyFees,
+  }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: '2024-05-14'
+      start: '2024-04-03',
+      meta: {
+        methodology: {
+          Fees: "All trading fees paid by users while using BullX bot.",
+          Revenue: "Trading fees are collected by BullX protocol."
+        }
+      }
     },
   },
   isExpensiveAdapter: true

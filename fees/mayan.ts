@@ -52,7 +52,7 @@ type IRequest = {
 const requests: IRequest = {}
 
 const fetchCacheURL = (url: string) => {
-  const key = `${url}`;
+  const key = url;
   if (!requests[key]) {
     requests[key] = fetchURL(url);
   }
@@ -70,14 +70,17 @@ const fetch = (chain: string) => {
 
     return {
       timestamp: dayTimestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyFees.toString()
+      dailyFees,
+      dailyRevenue: dailyFees
     };
   };
 };
 
 const meta: any = {
-  Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.'
+  methodology: {
+    Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
+    Revenue: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
+  }
 }
 
 const adapter: SimpleAdapter = {

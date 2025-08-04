@@ -1,12 +1,11 @@
 import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const assets = ["BTC", "ETH", "SOL", "SEI"];
 
 const fetchForAsset = async (asset: string) => {
   const api = `https://orderbookv5.filament.finance/k8s/api/v1/orderbook/tradeVolumeStats/${asset}`;
-  const timestamp = getUniqStartOfTodayTimestamp();
   const res = await httpGet(api);
 
   if (!res || typeof res !== "object" || !("allTimeVolume" in res) || !("volumeIn24Hours" in res)) {
@@ -20,28 +19,27 @@ const fetchForAsset = async (asset: string) => {
   }
 
   return {
-    timestamp,
     dailyVolume: volumeIn24Hours,
     totalVolume: allTimeVolume,
   };
 };
 
-const fetch = async (timestamp:  number) => {
+const fetch = async () => {
   const results = await Promise.all(
     assets.map(async (asset) => {
         return { asset, ...(await fetchForAsset(asset)) };
     })
   );
   return {
-    timestamp: timestamp,
     dailyVolume: results.reduce((acc, item) => acc + item.dailyVolume, 0),
     totalVolume: results.reduce((acc, item) => acc + item.totalVolume, 0),
   }
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-04-19',
   adapter: {
-    sei: {
+    [CHAIN.SEI]: {
       fetch,
       runAtCurrTime: true,
     },

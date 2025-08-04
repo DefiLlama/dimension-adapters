@@ -1,11 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter } from "../adapters/types";
 import { CHAIN }from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import type { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../adapters/types"
+import { Chain } from  "../adapters/types";
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -52,17 +51,12 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = (new BigNumber(graphRes["today"]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"])))
 
       return {
-        totalFees: graphRes["today"]["totalSwapFee"],
-        dailyFees: dailyFee.toString(),
-        totalUserFees: graphRes["today"]["totalSwapFee"],
-        dailyUserFees: dailyFee.toString(),
-        totalRevenue: "0",
+        dailyFees: dailyFee,
+        dailyUserFees: dailyFee,
         dailyRevenue: "0",
-        totalProtocolRevenue: "0",
         dailyProtocolRevenue: "0",
-        totalSupplySideRevenue: graphRes["today"]["totalSwapFee"],
-        dailySupplySideRevenue: dailyFee.toString(),
-      };
+        dailySupplySideRevenue: dailyFee,
+      } as any
     };
   };
 };
@@ -135,12 +129,12 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
 
         return {
-          dailyUserFees: dailySwapFee.toString(),
-          dailyFees: dailyFees.toString(),
-          dailyRevenue: dailyProtocolFee.toString(),
-          dailyProtocolRevenue: dailyProtocolFee.toString(),
-          dailySupplySideRevenue: dailySwapFee.toString(),
-        };
+          dailyUserFees: dailySwapFee,
+          dailyFees,
+          dailyRevenue: dailyProtocolFee,
+          dailyProtocolRevenue: dailyProtocolFee,
+          dailySupplySideRevenue: dailySwapFee,
+        } as any
       } catch (e) {
         return {
           dailyUserFees: "0",
@@ -163,7 +157,7 @@ const methodology = {
   SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
 }
 
-const adapter: Adapter = {
+const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {

@@ -1,32 +1,28 @@
-import { BreakdownAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
 
-
-const fetchSUI = async (timestamp: number) => {
-    const exchangeInfo = await httpGet("https://swap.api.sui-prod.bluefin.io/api/v1/info");
-    const pools = await httpGet("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
-    let dailyVolume = 0;
+const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
+    const pools = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
+    const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
+    let spotDailyVolume = 0;
     for (const pool of pools) {
-        dailyVolume += Number(pool.day.volume);
+        spotDailyVolume += Number(pool.day.volume);
     }
+    const dailyVolume = spotDailyVolume + Number(rfqStats.volumeUsd);
 
- return {
-     totalVolume: exchangeInfo ? exchangeInfo.totalVolume : undefined,
-     dailyVolume: dailyVolume,
-     timestamp: timestamp,
- }
+    return {
+        dailyVolume: dailyVolume,
+    }
 };
 
-const adapter: BreakdownAdapter = {
-    breakdown: {
-        dexes: {
-            [CHAIN.SUI]: {
-                fetch: fetchSUI,
-                start: '2024-11-19',
-                runAtCurrTime: true
-            },
+const adapter: SimpleAdapter = {
+    adapter: {
+        [CHAIN.SUI]: {
+            fetch,
+            start: '2024-11-19',
+            runAtCurrTime: true
         },
     },
 };
