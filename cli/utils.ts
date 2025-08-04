@@ -142,7 +142,7 @@ export function printVolumes2(volumes: any[]) {
             }
             
             if (element.breakdownByChain) {
-                Object.entries(element.breakdownByChain).forEach(([chain, chainData]: [string, any]) => {
+                Object.entries(element.breakdownByChain).forEach(([_chain, chainData]: [string, any]) => {
                     Object.entries(chainData).forEach(([recordType, data]: [string, any]) => {
                         if (!mergedBreakdown[recordType]) mergedBreakdown[recordType] = {}
                         
