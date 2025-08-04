@@ -21,20 +21,20 @@ async function getPreviousExchangeRate(options: FetchOptions, token: string) {
     return await options.fromApi.call({
         target: token,
         abi: 'uint256:lastPricePerShare',
-    })/1e18;
+    }) / 1e18;
 }
 async function getCurrentExchangeRate(options: FetchOptions, token: string) {
     return await options.toApi.call({
         target: token,
         abi: 'uint256:lastPricePerShare',
-    })/1e18;
+    }) / 1e18;
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
-    const yoUsdSupply = await getTotalSupply(options, YO_USD)/1e6;
-    const yoEthSupply = await getTotalSupply(options, YO_ETH)/1e18;
-    const yoBtcSupply = await getTotalSupply(options, YO_BTC)/1e8;
+    const yoUsdSupply = await getTotalSupply(options, YO_USD) / 1e6;
+    const yoEthSupply = await getTotalSupply(options, YO_ETH) / 1e18;
+    const yoBtcSupply = await getTotalSupply(options, YO_BTC) / 1e8;
 
     const yoUsdPreviousExchangeRate = await getPreviousExchangeRate(options, YO_USD);
     const yoEthPreviousExchangeRate = await getPreviousExchangeRate(options, YO_ETH);
