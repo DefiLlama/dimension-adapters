@@ -9,25 +9,27 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
   const dailyVolume = options.createBalances();
 
   const combinedQuery = `
-    WITH trades_with_builder_fees AS (
+    WITH builder_fees AS (
       SELECT 
-        t.transaction_hash,
-        t.usd_amount as volume,
-        COALESCE(bf.builder_fee, t.builder_fee) as fees
-      FROM hyperliquid.dex.trades t
-      LEFT JOIN hyperliquid.raw.builder_transactions bt 
-        ON t.transaction_hash = bt.transaction_hash
-      LEFT JOIN hyperliquid.raw.builder_fills bf
-        ON t.transaction_hash = bf.transaction_hash 
-        AND bf.builder_address = '${builder_address}'
-      WHERE t.timestamp >= TO_TIMESTAMP_NTZ('${startTimestamp}')
-        AND t.timestamp <= TO_TIMESTAMP_NTZ('${endTimestamp}')
-        AND (t.builder = '${builder_address}' OR bt.builder_address = '${builder_address}')
+        SUM(builder_fee) as total_builder_fees
+      FROM hyperliquid.raw.builder_fills
+      WHERE timestamp >= TO_TIMESTAMP_NTZ('${startTimestamp}')
+        AND timestamp <= TO_TIMESTAMP_NTZ('${endTimestamp}')
+        AND builder_address = '${builder_address}'
+    ),
+    dex_volume AS (
+      SELECT 
+        SUM(usd_amount) as total_volume
+      FROM hyperliquid.dex.trades
+      WHERE timestamp >= TO_TIMESTAMP_NTZ('${startTimestamp}')
+        AND timestamp <= TO_TIMESTAMP_NTZ('${endTimestamp}')
+        AND builder = '${builder_address}'
     )
     SELECT 
-      SUM(fees) as total_fees,
-      SUM(volume) as total_volume
-    FROM trades_with_builder_fees
+      COALESCE(bf.total_builder_fees, 0) as total_fees,
+      COALESCE(dv.total_volume, 0) as total_volume
+    FROM builder_fees bf
+    CROSS JOIN dex_volume dv
   `;
 
   const data = await queryAllium(combinedQuery);
