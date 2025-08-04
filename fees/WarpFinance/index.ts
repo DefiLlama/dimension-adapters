@@ -18,9 +18,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'All fees paid by users for swap and bridge tokens via LI.FI.',
-  Revenue: 'Fees are distributed to Warp Finance and creators',
-  ProtocolRevenue: 'Fees are distributed to Warp Finance.',
+  Fees: 'There is no fees in creating tokens. Creators pay Network fees only.',
+  Revenue: 'Revenue is generated via V3 Uniswap buy/sell 50% creators & 50% to Warp Finance.',
+  ProtocolRevenue: 'V3 Trading Fees are distributed to Warp Finance.',
 }
 
 const adapter: SimpleAdapter = {
