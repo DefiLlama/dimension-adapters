@@ -24,7 +24,7 @@ export async function getLatestBlockRetry(chain: string) {
     }
 }
 
-export function printVolumes(volumes: any[], module?: SimpleAdapter) {
+export function printVolumes(volumes: any[], _?: SimpleAdapter) {
     const exclude2Print = ['startTimestamp', 'chain']
     let keys = volumes.map((element) => Object.keys(element)).flat()
     keys.forEach((key) => {
@@ -77,14 +77,14 @@ export function printVolumes2(volumes: any[]) {
     if (volumes?.length < 2) return printVolumes(volumes);
 
     const exclude2Print = ['startTimestamp', 'chain', 'timestamp', 'block']
-    const printTable = {}
+    const printTable: any = {}
     let keys = volumes.map((element) => Object.keys(element)).flat()
     keys.forEach((key) => {
         if (!whitelistedDimensionKeys.has(key))
             throw new Error(`"${key}" is not a supported metric.Supported metrics can be found in adapters/types.ts`)
     })
     volumes.forEach((element) => {
-        const item = {}
+        const item: any = {}
         Object.entries(element).forEach(([attribute, value]) => {
             if (attribute === 'timestamp' && !value) return;
             if (!exclude2Print.includes(attribute)) {

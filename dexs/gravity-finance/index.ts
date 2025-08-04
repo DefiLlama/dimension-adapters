@@ -2,11 +2,19 @@ import * as sdk from "@defillama/sdk";
 
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter({
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('82hBGNdZXvp3JbJbHvRptFanP4q5RszxYWndRact8qzD'),
-}, {
+const fetch = univ2Adapter({
+  endpoints: {
+    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('82hBGNdZXvp3JbJbHvRptFanP4q5RszxYWndRact8qzD'),
+  },
 });
 
-adapters.adapter.polygon.start = 1629419058;
-export default adapters;
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.POLYGON]: { fetch, start: 1629419058 },
+  },
+}
+
+export default adapter;

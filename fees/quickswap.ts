@@ -150,15 +150,15 @@ const algebraGraphs = getGraphDimensions2({
 
 
 const fetchv2Graph = async (_a:any, _b:any, options: FetchOptions) => {
-  return await v2Graph(options.chain)(options)
+  return await v2Graph(options)
 }
 
 const fetchv3GraphEndpoint = async (options: FetchOptions) => {
-  return (await v3Graphs(options.chain.toLowerCase())(options))
+  return (await v3Graphs(options))
 }
 
 const fetchv3AlgebraGraphEndpoint = async (options: FetchOptions) => {
-  return await algebraGraphs(options.chain.toLowerCase())(options)
+  return await algebraGraphs(options)
 }
 
 const fetchv3PolygonLogs = async (options: FetchOptions): Promise<{ dailyFees: number }> => {

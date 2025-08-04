@@ -36,7 +36,7 @@ const AaveV2Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
-const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
     // core market
     {

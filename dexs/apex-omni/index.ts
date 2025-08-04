@@ -44,7 +44,9 @@ const fetch = async (timestamp: number) => {
     });
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-
+    if (dailyVolume > 1500000000) {
+        throw new Error("Unusual spike in volume, it's avg volume is 1.5B");
+    }
     return {
         dailyVolume: dailyVolume,
         openInterestAtEnd,

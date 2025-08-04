@@ -105,31 +105,31 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     acc[chain] = {
-      fetch: async (_t:any, _tb: any , options: FetchOptions) => v3Graphs(chain as Chain)(options),
+      fetch: async (_t:any, _tb: any , options: FetchOptions) => v3Graphs(options),
       start: startTimeV3[chain],
       meta,
     }
     return acc
   }, {} as BaseAdapter)
-}
+};
 
-adapter.adapter[CHAIN.AVAX] = {
+(adapter.adapter as BaseAdapter)[CHAIN.AVAX] = {
   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 })
     const response = await adapter(options)
     return response;
   },
   meta,
-}
+};
 
-adapter.adapter[CHAIN.WC] = {
+(adapter.adapter as BaseAdapter)[CHAIN.WC] = {
   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 })
     const response = await adapter(options)
     return response;
   },
   meta,
-}
+};
 
 const okuChains = [
   CHAIN.ETHEREUM,
@@ -169,7 +169,7 @@ const okuChains = [
 
 
 okuChains.forEach(chain => {
-  adapter.adapter[chain] = {
+  (adapter.adapter as BaseAdapter)[chain] = {
     fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
     meta,
   }

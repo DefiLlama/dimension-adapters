@@ -57,25 +57,20 @@ const fetch = async ({ createBalances }: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
+    UserFees: 'No Marinade fees in native staking',
+    Fees: 'Staking rewards',
+    Revenue: ' = ProtocolRevenue',
+    ProtocolRevenue: ' = UserFees',
+    SupplySideRevenue: 'Stakers revenue = Fees'
+  },
   version: 2,
+  runAtCurrTime: true,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2023-07-12', // 2023-07-12T00:00:00Z
-      runAtCurrTime: true,
-      meta: {
-        methodology: {
-          // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
-          UserFees: 'No Marinade fees in native staking',
-          Fees: 'Staking rewards',
-          Revenue: ' = ProtocolRevenue',
-          ProtocolRevenue: ' = UserFees',
-          SupplySideRevenue: 'Stakers revenue = Fees'
-        },
-        hallmarks:[
-          [1667865600, 'FTX collapse'],
-        ],
-      },
     },
   },
 }
