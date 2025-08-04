@@ -1,23 +1,33 @@
-import * as sdk from "@defillama/sdk";
-// https://api.thegraph.com/subgraphs/name/stellaswap/pulsar
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { SimpleAdapter } from "../../adapters/types";
+import { request } from "graphql-request";
+import * as sdk from "@defillama/sdk";
 
-const fetch = univ2Adapter({
-  endpoints: {
-    [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('85R1ZetugVABa7BiqKFqE2MewRuJ8b2SaLHffyTHDAht')
-  },
-  factoriesName: "factories",
-  dayData: "algebraDayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "totalVolumeUSD",
-});
+const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise<any> => {
+  const dayID = Math.floor(options.startOfDay / 86400);
+  const query = `
+    {
+        algebraDayData(id:${dayID}) {
+            id
+            volumeUSD
+            feesUSD
+        }
+    }`;
+  const url = sdk.graph.modifyEndpoint('LgiKJnsTspbsPBLqDPqULPtnAdSZP6LfPCSo3GWuJ5a');
+  const req = await request(url, query);
+  return {
+    dailyVolume: req.algebraDayData?.volumeUSD,
+    dailyFees: req.algebraDayData?.feesUSD,
+  }
+}
 
 const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.MOONBEAM],
-  start: 1672876800,
+  adapter: {
+    [CHAIN.MOONBEAM]: {
+      fetch,
+      start: 1738927506,
+    },
+  }
 }
 
 export default adapter;
