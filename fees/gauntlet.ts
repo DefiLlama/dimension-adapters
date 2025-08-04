@@ -3,6 +3,7 @@ import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
+// Curator config for EVM chains
 const curatorConfig: CuratorConfig = {
   vaults: {
     ethereum: {
@@ -22,7 +23,7 @@ const curatorConfig: CuratorConfig = {
       ],
     },
   }
-}
+};
 
 // Solana constants
 const MANAGER_ADDRESS = 'G6L1NE8tLYYzvMHYHbkHZqPFvfEsiRAsHSvyNQ2hut3o';
@@ -42,7 +43,7 @@ const VAULT_ADDRESSES = [
   "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ"  // Carrot hJLP
 ];
 
-async function calculateGrossReturns(): Promise<number> {
+async function calculateGrossReturns(options: FetchOptions): Promise<number> {
   let totalGrossReturns = 0;
 
   for (const vaultAddress of VAULT_ADDRESSES) {
@@ -55,32 +56,77 @@ async function calculateGrossReturns(): Promise<number> {
       if (response.ok) {
         const data = await response.json();
         
-        if (data && data.length > 0) {
-          // Get latest snapshot
-          const latest = data[data.length - 1];
+        if (data && Array.isArray(data) && data.length > 0) {
+          // Get snapshots for the specified time period (daily calculation)
+          const startTime = options.startTimestamp * 1000; // Convert to milliseconds
+          const endTime = options.endTimestamp * 1000;
           
-          // Calculate gross returns based on current value vs net deposits
-          // Values are in raw units (e.g., lamports for SOL, smallest USDC unit)
-          const currentValueRaw = latest.totalAccountQuoteValue || 0;
-          const totalDepositsRaw = latest.totalDeposits || 0;
-          const totalWithdrawsRaw = latest.totalWithdraws || 0;
-          const managerFeesRaw = latest.managerTotalFee || 0;
+          // Sort snapshots by timestamp to ensure correct ordering
+          const sortedData = data.sort((a, b) => {
+            const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+            const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+            return timeA - timeB;
+          });
           
-          // Convert to USDC (6 decimals)
-          const currentValue = currentValueRaw / 1000000; // USDC has 6 decimals
-          const totalDeposits = totalDepositsRaw / 1000000;
-          const totalWithdraws = totalWithdrawsRaw / 1000000;
-          const managerFees = managerFeesRaw / 1000000;
+          // Find the closest snapshots to start and end times
+          let startSnapshot = null;
+          let endSnapshot = null;
           
-          const netDeposits = totalDeposits - totalWithdraws;
+          for (const snapshot of sortedData) {
+            const snapshotTime = new Date(snapshot.timestamp || snapshot.createdAt || 0).getTime();
+            
+            // Find snapshot closest to or before start time
+            if (snapshotTime <= startTime) {
+              startSnapshot = snapshot;
+            }
+            
+            // Find snapshot closest to or at end time
+            if (snapshotTime <= endTime) {
+              endSnapshot = snapshot;
+            }
+          }
           
-          // Gross PNL = Current Value - Net Deposits
-          const grossPNL = Math.max(0, currentValue - netDeposits);
+          // If we don't have a start snapshot, use the first available
+          if (!startSnapshot && sortedData.length > 0) {
+            startSnapshot = sortedData[0];
+          }
           
-          // Total value generated = Gross PNL + Manager Fees
-          const totalValueGenerated = grossPNL + managerFees;
+          // If we don't have an end snapshot, use the last available
+          if (!endSnapshot && sortedData.length > 0) {
+            endSnapshot = sortedData[sortedData.length - 1];
+          }
           
-          totalGrossReturns += totalValueGenerated;
+          if (startSnapshot && endSnapshot && startSnapshot !== endSnapshot) {
+            // Values are in raw units (e.g., lamports for SOL, smallest USDC unit)
+            const startValueRaw = startSnapshot.totalAccountQuoteValue || 0;
+            const endValueRaw = endSnapshot.totalAccountQuoteValue || 0;
+            const startDepositsRaw = startSnapshot.totalDeposits || 0;
+            const endDepositsRaw = endSnapshot.totalDeposits || 0;
+            const startWithdrawsRaw = startSnapshot.totalWithdraws || 0;
+            const endWithdrawsRaw = endSnapshot.totalWithdraws || 0;
+            const startManagerFeesRaw = startSnapshot.managerTotalFee || 0;
+            const endManagerFeesRaw = endSnapshot.managerTotalFee || 0;
+            
+            // Convert to USDC (6 decimals)
+            const startValue = startValueRaw / 1000000;
+            const endValue = endValueRaw / 1000000;
+            const startNetDeposits = (startDepositsRaw - startWithdrawsRaw) / 1000000;
+            const endNetDeposits = (endDepositsRaw - endWithdrawsRaw) / 1000000;
+            const startManagerFees = startManagerFeesRaw / 1000000;
+            const endManagerFees = endManagerFeesRaw / 1000000;
+            
+            // Calculate daily returns for the specified period INCLUDING LOSSES
+            const startNetValue = startValue - startNetDeposits;
+            const endNetValue = endValue - endNetDeposits;
+            const periodReturns = endNetValue - startNetValue;
+            const periodManagerFees = endManagerFees - startManagerFees;
+            
+            // Total value generated during this period = Period returns + Period manager fees
+            // This can be negative if there are losses, which is correct
+            const periodValueGenerated = periodReturns + periodManagerFees;
+            
+            totalGrossReturns += periodValueGenerated;
+          }
         }
       }
     } catch (error) {
@@ -88,12 +134,13 @@ async function calculateGrossReturns(): Promise<number> {
     }
   }
 
-  console.log(`Total gross returns for depositors: ${totalGrossReturns.toLocaleString()} USDC`);
+  console.log(`Daily gross returns for depositors (including losses): ${totalGrossReturns.toLocaleString()} USDC`);
   return totalGrossReturns;
 }
 
 // Solana fetch function
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
+  const { createBalances } = options;
   // Get manager fees from Dune SQL (using the working query)
   const vaultAddressesList = VAULT_ADDRESSES.map(addr => `'${addr}'`).join(', ');
   
@@ -116,10 +163,10 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
     console.log('Manager fees from Dune:', managerFeesData);
     
     // Calculate gross returns from Drift API
-    const grossReturns = await calculateGrossReturns();
+    const grossReturns = await calculateGrossReturns(options);
     
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
     
     // Add gross returns as fees (total value generated)
     dailyFees.addUSDValue(grossReturns);
@@ -134,40 +181,40 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
     }
     
     return { 
-      dailyFees,      // Total value generated for depositors
-      dailyRevenue    // Gauntlet's performance fees
+      dailyFees,      // Daily value generated for depositors during specified period (including losses)
+      dailyRevenue    // Gauntlet's daily performance fees during specified period
     };
   } catch (error) {
     console.error('Error in Gauntlet adapter:', error);
     
     // Fallback to just gross returns if Dune fails
-    const grossReturns = await calculateGrossReturns();
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
+    const grossReturns = await calculateGrossReturns(options);
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
     
     dailyFees.addUSDValue(grossReturns);
     
     return { 
-      dailyFees,      // Total value generated for depositors
-      dailyRevenue    // Gauntlet's performance fees (0 if Dune fails)
+      dailyFees,      // Daily value generated for depositors during specified period (including losses)
+      dailyRevenue    // Gauntlet's daily performance fees (0 if Dune fails)
     };
   }
 };
 
+// Get curator export for EVM chains and combine with Solana
+const curatorExport = getCuratorExport(curatorConfig);
+
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
-    // Original chains (Ethereum, Base, Polygon) - Morpho vaults
-    ...getCuratorExport(curatorConfig),
-    
-    // New Solana chain - Drift vaults
+    ...curatorExport,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01',
       meta: {
         methodology: {
-          Fees: "Total value generated for depositors (gross returns from vault operations)",
-          Revenue: "Performance fees claimed by the Gauntlet manager from vault operations"
+          Fees: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
+          Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period"
         }
       }
     }
