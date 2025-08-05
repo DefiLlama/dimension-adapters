@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { METRIC } from "../../helpers/metrics"
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -92,9 +93,9 @@ const fetch = async (options: FetchOptions) => {
 
         const protocolRevenueShare = (interestEarnedBeforeFee - interestEarned) * BigInt(protocolFeeShare) / BigInt(1e4)
 
-        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee);
-        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned)
-        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare)
+        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee, METRIC.BORROW_INTEREST);
+        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned, METRIC.BORROW_INTEREST)
+        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare, METRIC.BORROW_INTEREST)
     }
 
     const dailySupplySideRevenue = dailyFees.clone()
@@ -108,65 +109,73 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 
-const methodology = {
-    Fees: "Interest that is paid by the borrowers to the vaults.",
-    Revenue: "Fees collected by vaults owners, curators, and Euler.",
-    ProtocolRevenue: "Fees share collected by Euler protocol.",
-    SupplySideRevenue: "Fees distributed to vaults lenders."
+const meta = {
+    methodology: {
+        Fees: "Interest that is paid by the borrowers to the vaults.",
+        Revenue: "Fees collected by vaults owners, curators, and Euler.",
+        ProtocolRevenue: "Fees share collected by Euler protocol.",
+        SupplySideRevenue: "Fees distributed to vaults lenders.",
+    },
+    breakdownMethodology: {
+        Fees: {
+            'Borrow Interest': 'All interest paid by borrowers from all vaults.',
+        },
+        Revenue: {
+            'Borrow Interest': 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
+        },
+        SupplySideRevenue: {
+            'Borrow Interest': 'Amount of interest distributed to lenders from all vaults.',
+        },
+        ProtocolRevenue: {
+            'Borrow Interest': 'Amount of interest are collected by Euler protocol.',
+        },
+    }
 }
 
 const adapters: Adapter = {
     version: 2,
+    methodology: meta.methodology,
+    breakdownMethodology: meta.breakdownMethodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
             start: '2024-08-18',
-            meta: { methodology }
         },
         [CHAIN.SONIC]: {
             fetch,
             start: '2025-01-31',
-            meta: { methodology }
         },
         [CHAIN.BASE]: {
             fetch,
             start: '2024-11-27',
-            meta: { methodology }
         },
         [CHAIN.SWELLCHAIN]: {
             fetch,
             start: '2025-01-20',
-            meta: { methodology }
         },
         [CHAIN.BOB]: {
             fetch,
             start: '2025-01-21',
-            meta: { methodology }
         },
         [CHAIN.BERACHAIN]: {
             fetch,
             start: '2025-02-06',
-            meta: { methodology }
         },
         [CHAIN.BSC]: {
             fetch,
             start: '2025-02-04',
-            meta: { methodology }
         },
         [CHAIN.UNICHAIN]: {
             fetch,
             start: '2025-02-11',
-            meta: { methodology }
         },
         [CHAIN.ARBITRUM]: {
             fetch,
             start: '2025-01-30',
-            meta: { methodology }
         },
         [CHAIN.AVAX]: {
             fetch,
             start: '2025-02-04',
-            meta: { methodology }
         },
     },
 }
