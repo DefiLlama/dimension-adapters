@@ -158,7 +158,7 @@ async function _runAdapter({
 
   if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
 
-  if (withMetadata) return { response, breakdownData, aggregatedBreakdowns }
+  if (withMetadata) return { response, breakdownData, aggregatedBreakdowns, breakdownByToken }
   return response
 
   async function getChainResult(chain: string) {
@@ -201,6 +201,8 @@ async function _runAdapter({
           result[key] = await value.getUSDString()
           breakdownData[chain] = breakdownData[chain] || {}
           breakdownData[chain][key] = await value.getUSDJSONs()
+          breakdownByToken[chain] = breakdownByToken[chain] || {}
+          breakdownByToken[chain][key] = await value.getUSDJSONs()
           
           if (value._breakdownBalances) {
             for (const [label, bal] of Object.entries(value._breakdownBalances)) {
