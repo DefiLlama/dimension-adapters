@@ -1,10 +1,10 @@
-import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types'
+import * as sdk from '@defillama/sdk';
+import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
+import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
-import * as _env from '../../helpers/env'
 import { getDateString } from '../../helpers/utils';
-import * as sdk from '@defillama/sdk'
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -143,12 +143,14 @@ async function _runAdapter({
   }
 
   let breakdownByToken: any = {}
+  let breakdownData: any = {}
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
     return validStart[chain]?.canRun
   }).map(getChainResult))
 
+  const aggregatedBreakdowns = aggregateBreakdowns(breakdownData);
 
   Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
     if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownByToken[chain]
@@ -156,7 +158,7 @@ async function _runAdapter({
 
   if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
 
-  if (withMetadata) return { response, breakdownByToken, }
+  if (withMetadata) return { response, breakdownData, aggregatedBreakdowns }
   return response
 
   async function getChainResult(chain: string) {
@@ -197,10 +199,26 @@ async function _runAdapter({
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) {
           result[key] = await value.getUSDString()
-          breakdownByToken[chain] = breakdownByToken[chain] || {}
-          breakdownByToken[chain][key] = await value.getUSDJSONs()
+          breakdownData[chain] = breakdownData[chain] || {}
+          breakdownData[chain][key] = await value.getUSDJSONs()
+          
+          if (value._breakdownBalances) {
+            for (const [label, bal] of Object.entries(value._breakdownBalances)) {
+              const usdString = await (bal as Balances).getUSDString()
+              const breakdownValue = Math.round(+usdString)
+
+              if (!breakdownData[chain]) {
+                breakdownData[chain] = {}
+              }
+              if (!breakdownData[chain][`${key}_breakdown`]) {
+                breakdownData[chain][`${key}_breakdown`] = {}
+              }
+              breakdownData[chain][`${key}_breakdown`][label] = breakdownValue
+            }
+          }
+        } else {
+          result[key] = +Number(result[key]).toFixed(0)
         }
-        result[key] = +Number(result[key]).toFixed(0)
         let errorPartialString = `| ${chain}-${key}: ${value}`
 
         if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
@@ -332,5 +350,79 @@ async function _runAdapter({
       canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
       startTimestamp: start
     }
+  }
+
+  function aggregateBreakdowns(breakdownData: any) {
+    const breakdownByChain: any = {};
+    const recordTypes = new Set<string>();
+    const allChains = new Set<string>();
+
+    // Collect all chains and record types
+    Object.entries(breakdownData).forEach(([chain, chainData]: [string, any]) => {
+      allChains.add(chain);
+      Object.entries(chainData).forEach(([recordType]: [string, any]) => {
+        if (recordType.endsWith('_breakdown')) {
+          const baseRecordType = recordType.replace('_breakdown', '');
+          recordTypes.add(baseRecordType);
+        }
+      });
+    });
+
+    // Build breakdownByChain with all chains (fill missing with 0)
+    recordTypes.forEach(recordType => {
+      breakdownByChain[recordType] = {};
+      allChains.forEach(chain => {
+        breakdownByChain[recordType][chain] = {};
+        
+        // Get breakdown data for this chain and record type
+        const chainBreakdownData = breakdownData[chain]?.[`${recordType}_breakdown`] || {};
+        
+        // Collect all labels from all chains for this record type
+        const allLabels = new Set<string>();
+        Object.values(breakdownData).forEach((chainData: any) => {
+          const breakdownData = chainData[`${recordType}_breakdown`] || {};
+          Object.keys(breakdownData).forEach(label => allLabels.add(label));
+        });
+        
+        // Fill all labels with 0 if not present
+        allLabels.forEach(label => {
+          breakdownByChain[recordType][chain][label] = Number(chainBreakdownData[label] || 0);
+        });
+      });
+    });
+
+    // Build breakdown (aggregated across all chains)
+    const breakdown: any = {};
+    recordTypes.forEach(recordType => {
+      breakdown[recordType] = {};
+      
+      // Collect all labels for this record type
+      const allLabels = new Set<string>();
+      Object.values(breakdownByChain[recordType] || {}).forEach((chainData: any) => {
+        Object.keys(chainData).forEach(label => allLabels.add(label));
+      });
+      
+      // Aggregate across all chains for each label
+      allLabels.forEach(label => {
+        breakdown[recordType][label] = 0;
+        Object.values(breakdownByChain[recordType] || {}).forEach((chainData: any) => {
+          breakdown[recordType][label] += Number(chainData[label] || 0);
+        });
+      });
+    });
+
+    // Clean breakdownData by removing *_breakdown keys
+    Object.keys(breakdownData).forEach(chain => {
+      Object.keys(breakdownData[chain]).forEach(key => {
+        if (key.endsWith('_breakdown')) {
+          delete breakdownData[chain][key];
+        }
+      });
+    });
+
+    return {
+      breakdown,
+      breakdownByChain
+    };
   }
 }
