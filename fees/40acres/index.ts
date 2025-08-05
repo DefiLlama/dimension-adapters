@@ -14,8 +14,8 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   const logs = await options.getLogs({
-    eventAbi:
-      'event RewardsReceived(uint256 epoch,uint256 amount,address borrower,uint256 tokenId)', target: ADDRESS[options.chain]
+    target: ADDRESS[options.chain],
+    eventAbi: 'event RewardsReceived(uint256 epoch, uint256 amount, address borrower, uint256 tokenId)', 
   });
 
   logs.forEach(log => {
@@ -36,32 +36,28 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
-const meta = {
-  methodology: {
-    Fees: 'Includes 0.8% fee charged to open a line of credit, 5% of voting rewards that are directed to the protocol treasury and 1% fee on rewards and 20 % of voting rewards that are directed to lenders',
-    Revenue: 'Amount of fees that go to 40acres treasury.',
-    SupplySideRevenue: 'Amount of fees that go to lenders.',
-    ProtocolRevenue: 'Amount of fees that go to 40acres treasury.',
-  }
+const methodology = {
+  Fees: 'Includes 0.8% fee charged to open a line of credit, 5% of voting rewards that are directed to the protocol treasury and 1% fee on rewards and 20 % of voting rewards that are directed to lenders',
+  Revenue: 'Amount of fees that go to 40acres treasury.',
+  SupplySideRevenue: 'Amount of fees that go to lenders.',
+  ProtocolRevenue: 'Amount of fees that go to 40acres treasury.',
 }; 
 
 export default {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
       start: "2025-02-13",
-      meta
     },
     [CHAIN.OPTIMISM]: {
       fetch,
       start: "2025-03-06",
-      meta
     },
     [CHAIN.AVAX]: {
       fetch,
       start: "2025-07-02",
-      meta
     }
   }
 };
