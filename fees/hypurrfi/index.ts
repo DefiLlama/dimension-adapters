@@ -39,6 +39,8 @@ const meta = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: meta.methodology,
+  breakdownMethodology: meta.breakdownMethodology,
   adapter: {
     ...aaveExport({
       [CHAIN.HYPERLIQUID]: {
@@ -49,11 +51,10 @@ const adapter: SimpleAdapter = {
             lendingPoolProxy: '0xcecce0eb9dd2ef7996e01e25dd70e461f918a14b',
             dataProvider: '0x895c799a5bbdcb63b80bee5bd94e7b9138d977d6',
             selfLoanAssets: {
-              0xca79db4b49f608ef54a5cb813fbed3a6387bc645: 'USDXL',
+              '0xca79db4b49f608ef54a5cb813fbed3a6387bc645': 'USDXL',
             }
           },
         ],
-        meta,
       },
     })
   }

@@ -42,6 +42,7 @@ const chains: Record<string, number> = {
   [CHAIN.MODE]: 34443,
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.CELO]: 42220,
+  [CHAIN.HEMI]: 43111,
   [CHAIN.AVAX]: 43114,
   [CHAIN.INK]: 57073,
   [CHAIN.LINEA]: 59144,

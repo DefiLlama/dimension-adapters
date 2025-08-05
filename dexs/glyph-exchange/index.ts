@@ -1,4 +1,4 @@
-import { Chain } from "../../adapters/types";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
@@ -24,14 +24,24 @@ const graphsClassic = getGraphDimensions2({
     factory: "glyphFactories",
     field: VOLUME_FIELD,
   },
+  totalFees: {
+    factory: "glyphFactories",
+    field: VOLUME_FIELD,
+  },
   feesPercent
 });
+
+const fetch = async (options: FetchOptions) => {
+  const res = await graphsClassic(options);
+  res['dailyFees'] = res['dailyUserFees']
+  return res;
+}
 
 const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: graphsClassic(chain as Chain),
+      fetch,
       start: '2024-03-19',
       meta: {
         methodology: {

@@ -15,12 +15,20 @@ const prefetch = async (options: FetchOptions) => {
       const blockchainName =
         chain.toLowerCase() === "bsc" ? "bnb" : chain.toLowerCase();
       return `
-		SELECT 
+		SELECT
 			'${chain.toLowerCase()}' as chain,
-			GREATEST(
-				SUM(CASE WHEN tx."from" = tokenstf."from" THEN tokenstf.amount * price.price ELSE 0 END),
-				SUM(CASE WHEN tx."from" = tokenstf."to" THEN tokenstf.amount * price.price ELSE 0 END)
-			) AS tx_volume
+			SUM(
+				GREATEST(
+					CASE
+						WHEN tx."from" = tokenstf."from" THEN tokenstf.amount * price.price
+						ELSE 0
+					END,
+					CASE
+						WHEN tx."from" = tokenstf."to" THEN tokenstf.amount * price.price
+						ELSE 0
+					END
+				)
+			) AS volume
 		FROM ${blockchainName}.transactions tx
 		LEFT JOIN tokens.transfers tokenstf
 			ON tx.hash = tokenstf.tx_hash
@@ -43,23 +51,11 @@ const prefetch = async (options: FetchOptions) => {
 			AND (
 				tx."from" = tokenstf."from" OR tx."from" = tokenstf."to"
 			)
-		GROUP BY tx.hash
 	`;
     })
     .join(" UNION ALL ");
 
-  const sql_query = `
-		WITH tx_volumes AS (
-			${unionQueries}
-		)
-		SELECT 
-			chain,
-			SUM(tx_volume) AS volume
-		FROM tx_volumes
-		GROUP BY chain
-	`;
-
-  return queryDuneSql(options, sql_query);
+  return queryDuneSql(options, unionQueries);
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {

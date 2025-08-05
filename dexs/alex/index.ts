@@ -2,7 +2,6 @@ import fetchURL from "../../utils/fetchURL"
 import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://alexgo-io.metabaseapp.com/api/public/dashboard/66cca0ba-7735-46c5-adfb-d80535506f4a/dashcard/464/card/496?parameters=%5B%5D"
@@ -32,24 +31,10 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const callhistoricalVolume = (await fetchURL(historicalVolumeEndpoint)).data.rows;
-  const historicalVolume: IVolumeall[] = callhistoricalVolume.map((e: string[] | number[]) => {
-    const [time, volume] = e;
-    return {
-      time,
-      volume
-    };
-  });
-  return (new Date(historicalVolume[0].time).getTime()) / 1000
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.STACKS]: {
       fetch,
-      start: getStartTimestamp,
-      customBackfill: customBackfill(CHAIN.STACKS as Chain, (_chian: string) => fetch)
     },
   },
 };

@@ -158,34 +158,32 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  methodology: meta.methodology,
+  breakdownMethodology: meta.breakdownMethodology,
+  fetch: fetch,
   adapter: {
     ethereum: {
       fetch: fetch,
       start: "2024-01-02",
-      meta,
     },
     base: {
       fetch: fetch,
       start: "2024-05-03",
-      meta,
     },
     polygon: {
       fetch: fetch,
       start: "2025-01-20",
-      meta,
     },
     unichain: {
       fetch: fetch,
       start: "2025-02-18",
-      meta,
     },
     katana: {
       fetch: fetch,
       start: "2025-07-01",
-      meta,
     },
   },
-  version: 2,
 };
 
 export default adapter;

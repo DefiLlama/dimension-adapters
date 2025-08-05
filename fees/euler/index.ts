@@ -134,56 +134,48 @@ const meta = {
 
 const adapters: Adapter = {
     version: 2,
+    methodology: meta.methodology,
+    breakdownMethodology: meta.breakdownMethodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
             start: '2024-08-18',
-            meta,
         },
         [CHAIN.SONIC]: {
             fetch,
             start: '2025-01-31',
-            meta,
         },
         [CHAIN.BASE]: {
             fetch,
             start: '2024-11-27',
-            meta,
         },
         [CHAIN.SWELLCHAIN]: {
             fetch,
             start: '2025-01-20',
-            meta,
         },
         [CHAIN.BOB]: {
             fetch,
             start: '2025-01-21',
-            meta,
         },
         [CHAIN.BERACHAIN]: {
             fetch,
             start: '2025-02-06',
-            meta,
         },
         [CHAIN.BSC]: {
             fetch,
             start: '2025-02-04',
-            meta,
         },
         [CHAIN.UNICHAIN]: {
             fetch,
             start: '2025-02-11',
-            meta,
         },
         [CHAIN.ARBITRUM]: {
             fetch,
             start: '2025-01-30',
-            meta,
         },
         [CHAIN.AVAX]: {
             fetch,
             start: '2025-02-04',
-            meta,
         },
     },
 }

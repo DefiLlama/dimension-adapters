@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { graphDimensionFetch } from "../../helpers/getUniSubgraph";
 import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
@@ -61,12 +61,8 @@ const graphsAlgebraV3 = getChainVolume({
   },
 });
 
-const v3GraphsUni = getGraphDimensions({
+const v3GraphsUni = graphDimensionFetch({
   graphUrls: endpointsUniV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
   dailyVolume: {
     factory: "uniswapDayData",
     field: "volumeUSD",
@@ -129,11 +125,11 @@ const adapter: BreakdownAdapter = {
         start: '2023-03-27',
       },
       [CHAIN.MANTA]: {
-        fetch: v3GraphsUni(CHAIN.MANTA),
+        fetch: v3GraphsUni,
         start: '2023-10-19',
       },
       [CHAIN.IMX]: {
-        fetch: v3GraphsUni(CHAIN.IMX),
+        fetch: v3GraphsUni,
         start: '2023-12-19',
       },
       [CHAIN.SONEIUM]: {

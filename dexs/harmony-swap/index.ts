@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.HARMONY]: {
-      fetch: v3Graphs(CHAIN.HARMONY),
+      fetch: v3Graphs,
     },
   },
 };

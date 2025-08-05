@@ -1,12 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
-import { queryAllium } from "../helpers/allium";
+import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
 
-
-const HL_FEE_TOKEN_CG_MAPPING: Record<string, string> = {
-  'USDC': 'usd-coin'
-}
 
 // Solana fee wallet addresses
 const solana_fee_wallet_addresses = [
@@ -26,8 +22,10 @@ const eth_fee_wallet_addresses = [
   '0x7afa9d836d2fccf172b66622625e56404e465dbd'
 ];
 
+const HL_BUILDER_ADDRESS = '0xb84168cf3be63c6b8dad05ff5d755e97432ff80b';
+
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ 
     options, 
     targets: solana_fee_wallet_addresses, 
@@ -37,7 +35,7 @@ const fetchSolana = async (options: FetchOptions) => {
 };
 
 // ETH fetch function for each chain
-const fetchETH = async (options: FetchOptions) => {
+const fetchETH = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({
     options,
     targets: eth_fee_wallet_addresses
@@ -45,62 +43,21 @@ const fetchETH = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchHL = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
-  const query = `
-    SELECT 
-      PARSE_JSON(t._extra_fields):buyer:fee_token::string as buyer_fee_token,
-      PARSE_JSON(t._extra_fields):seller:fee_token::string as seller_fee_token,
-      SUM(COALESCE(TRY_TO_DECIMAL(PARSE_JSON(t._extra_fields):buyer:builder_fee::string, 38, 18), 0)) as buyer_builder_fee,
-      SUM(COALESCE(TRY_TO_DECIMAL(PARSE_JSON(t._extra_fields):seller:builder_fee::string, 38, 18), 0)) as seller_builder_fee
-    FROM hyperliquid.dex.trades t
-    WHERE timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
-    AND transaction_hash IN (SELECT 
-        hash
-      FROM hyperliquid.raw.transactions
-      WHERE action:builder:b = '0xb84168cf3be63c6b8dad05ff5d755e97432ff80b'
-        AND action:builder:f IS NOT NULL
-        AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-        AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
-    )
-    GROUP BY buyer_fee_token, seller_fee_token;
-  `;
-  const data = await queryAllium(query);
-
-  data.forEach((item: any) => {
-    if (item.buyer_fee_token) {
-      const token = HL_FEE_TOKEN_CG_MAPPING[item.buyer_fee_token];
-      if (token) {
-        const amount = parseFloat(item.buyer_builder_fee);
-        if (amount > 0) {
-          dailyFees.addCGToken(token, amount);
-        }
-      }
-    }
-    if (item.seller_fee_token) {
-      const token = HL_FEE_TOKEN_CG_MAPPING[item.seller_fee_token];
-      if (token) {
-        const amount = parseFloat(item.seller_builder_fee);
-        if (amount > 0) {
-          dailyFees.addCGToken(token, amount);
-        }
-      }
-    }
-  });
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+const fetchHL = async (_a: any, _b: any, options: FetchOptions) => {
+  const { dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, };
 };
 
 const meta = {
   methodology: {
     Fees: 'All fees paid by users for swapping, bridging in Phantom wallet And Builder Code Fees.',
     Revenue: 'Fees collected by Phantom and Builder Code Fees from Hyperliquid Perps.',
+    ProtocolRevenue: 'Fees collected by Phantom and Builder Code Fees from Hyperliquid Perps.',
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
@@ -121,7 +78,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYPERLIQUID]: {
       fetch: fetchHL,
       start: '2025-07-01',
-      meta
+    meta
     }
   },
   isExpensiveAdapter: true

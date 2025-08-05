@@ -83,7 +83,8 @@ const chains: Record<string, string> = {
     [CHAIN.WAVES]: 'waves',
     [CHAIN.WAX]: 'wax',
     [CHAIN.XDC]: 'xdc',
-    [CHAIN.NEO]: 'neo'
+    [CHAIN.NEO]: 'neo',
+    [CHAIN.HEMI]: 'hemi'
 };
 
 interface ApiResponse {
