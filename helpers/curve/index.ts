@@ -72,22 +72,24 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
 
   // swap logs - main
   for (const [version, pools] of Object.entries(allPools)) {
-    const swapLogs = await options.getLogs({
-      targets: pools,
-      eventAbi: CurveContractAbis[version].TokenExchange,
-      flatten: true,
-      onlyArgs: false,
-    });
-
-    for (const log of swapLogs) {
-      uniquePoolAddresses[formatAddress(log.address)] = true
-      tokenExchangeEvents.push({
-        pool: formatAddress(log.address),
-        sold_id: Number(log.args.sold_id),
-        tokens_sold: Number(log.args.tokens_sold),
-        bought_id: Number(log.args.bought_id),
-        tokens_bought: Number(log.args.tokens_bought),
-      })
+    if (pools.length > 0) {
+      const swapLogs = await options.getLogs({
+        targets: pools,
+        eventAbi: CurveContractAbis[version].TokenExchange,
+        flatten: true,
+        onlyArgs: false,
+      });
+  
+      for (const log of swapLogs) {
+        uniquePoolAddresses[formatAddress(log.address)] = true
+        tokenExchangeEvents.push({
+          pool: formatAddress(log.address),
+          sold_id: Number(log.args.sold_id),
+          tokens_sold: Number(log.args.tokens_sold),
+          bought_id: Number(log.args.bought_id),
+          tokens_bought: Number(log.args.tokens_bought),
+        })
+      }
     }
   }
 

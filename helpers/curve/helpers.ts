@@ -11,19 +11,14 @@ export enum ContractVersion {
   factory_stable_ng = 'factory_stable_ng',
 }
 
-export interface ICurveFactory {
-  address: string;
-  fromBlock: number;
-}
-
 export interface ICurveDexConfig {
   start: string;
-  stable_factory?: Array<ICurveFactory>;
-  factory_crypto?: Array<ICurveFactory>;
-  factory_crvusd?: Array<ICurveFactory>;
-  factory_twocrypto?: Array<ICurveFactory>;
-  factory_tricrypto?: Array<ICurveFactory>;
-  factory_stable_ng?: Array<ICurveFactory>;
+  stable_factory?: Array<string>;
+  factory_crypto?: Array<string>;
+  factory_crvusd?: Array<string>;
+  factory_twocrypto?: Array<string>;
+  factory_tricrypto?: Array<string>;
+  factory_stable_ng?: Array<string>;
   customPools: {
     // version => pools
     [key: string]: Array<string>;
@@ -117,27 +112,27 @@ export async function getAllPools(options: FetchOptions, config: ICurveDexConfig
 
   if (config.stable_factory) {
     customPools.stable_factory = customPools.stable_factory ? customPools.stable_factory : []
-    customPools.stable_factory = customPools.stable_factory.concat(await getVersionPools(options, ContractVersion.stable_factory, config.stable_factory.map(item => item.address)));
+    customPools.stable_factory = customPools.stable_factory.concat(await getVersionPools(options, ContractVersion.stable_factory, config.stable_factory));
   }
   if (config.factory_crypto) {
     customPools.factory_crypto = customPools.factory_crypto ? customPools.factory_crypto : []
-    customPools.factory_crypto = customPools.factory_crypto.concat(await getVersionPools(options, ContractVersion.factory_crypto, config.factory_crypto.map(item => item.address)));
+    customPools.factory_crypto = customPools.factory_crypto.concat(await getVersionPools(options, ContractVersion.factory_crypto, config.factory_crypto));
   }
   if (config.factory_crvusd) {
     customPools.factory_crvusd = customPools.factory_crvusd ? customPools.factory_crvusd : []
-    customPools.factory_crvusd = customPools.factory_crvusd.concat(await getVersionPools(options, ContractVersion.factory_crvusd, config.factory_crvusd.map(item => item.address)));
+    customPools.factory_crvusd = customPools.factory_crvusd.concat(await getVersionPools(options, ContractVersion.factory_crvusd, config.factory_crvusd));
   }
   if (config.factory_twocrypto) {
     customPools.factory_twocrypto = customPools.factory_twocrypto ? customPools.factory_twocrypto : []
-    customPools.factory_twocrypto = customPools.factory_twocrypto.concat(await getVersionPools(options, ContractVersion.factory_twocrypto, config.factory_twocrypto.map(item => item.address)));
+    customPools.factory_twocrypto = customPools.factory_twocrypto.concat(await getVersionPools(options, ContractVersion.factory_twocrypto, config.factory_twocrypto));
   }
   if (config.factory_tricrypto) {
     customPools.factory_tricrypto = customPools.factory_tricrypto ? customPools.factory_tricrypto : []
-    customPools.factory_tricrypto = customPools.factory_tricrypto.concat(await getVersionPools(options, ContractVersion.factory_tricrypto, config.factory_tricrypto.map(item => item.address)));
+    customPools.factory_tricrypto = customPools.factory_tricrypto.concat(await getVersionPools(options, ContractVersion.factory_tricrypto, config.factory_tricrypto));
   }
   if (config.factory_stable_ng) {
     customPools.factory_stable_ng = customPools.factory_stable_ng ? customPools.factory_stable_ng : []
-    customPools.factory_stable_ng = customPools.factory_stable_ng.concat(await getVersionPools(options, ContractVersion.factory_stable_ng, config.factory_stable_ng.map(item => item.address)));
+    customPools.factory_stable_ng = customPools.factory_stable_ng.concat(await getVersionPools(options, ContractVersion.factory_stable_ng, config.factory_stable_ng));
   }
 
   return customPools;

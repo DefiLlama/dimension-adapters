@@ -5,40 +5,22 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
     start: '2020-09-06',
     stable_factory: [
-      {
-        address: '0xb9fc157394af804a3578134a6585c0dc9cc990d4',
-        fromBlock: 12903979,
-      },
+      '0xb9fc157394af804a3578134a6585c0dc9cc990d4',
     ],
     factory_crypto: [
-      {
-        address: '0xf18056bbd320e96a48e3fbf8bc061322531aac99',
-        fromBlock: 14005321,
-      },
+      '0xf18056bbd320e96a48e3fbf8bc061322531aac99',
     ],
     factory_crvusd: [
-      {
-        address: '0x4f8846ae9380b90d2e71d5e3d042dff3e7ebb40d',
-        fromBlock: 17257971,
-      },
+      '0x4f8846ae9380b90d2e71d5e3d042dff3e7ebb40d',
     ],
     factory_twocrypto: [
-      {
-        address: '0x98ee851a00abee0d95d08cf4ca2bdce32aeaaf7f',
-        fromBlock: 18867338,
-      },
+      '0x98ee851a00abee0d95d08cf4ca2bdce32aeaaf7f',
     ],
     factory_tricrypto: [
-      {
-        address: '0x0c0e5f2ff0ff18a3be9b835635039256dc4b4963',
-        fromBlock: 17371439,
-      },
+      '0x0c0e5f2ff0ff18a3be9b835635039256dc4b4963',
     ],
     factory_stable_ng: [
-      {
-        address: '0x6a8cbed756804b16e05e741edabd5cb544ae21bf',
-        fromBlock: 18427841,
-      },
+      '0x6a8cbed756804b16e05e741edabd5cb544ae21bf',
     ],
     customPools: {
       [ContractVersion.main]: [
@@ -485,28 +467,16 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ARBITRUM]: {
     start: '2021-09-12',
     stable_factory: [
-      {
-        address: '0xb17b674D9c5CB2e441F8e196a2f048A81355d031',
-        fromBlock: 1413161,
-      }
+      '0xb17b674D9c5CB2e441F8e196a2f048A81355d031'
     ],
     factory_twocrypto: [
-      {
-        address: '0x98ee851a00abee0d95d08cf4ca2bdce32aeaaf7f',
-        fromBlock: 163780767,
-      }
+      '0x98ee851a00abee0d95d08cf4ca2bdce32aeaaf7f',
     ],
     factory_tricrypto: [
-      {
-        address: '0xbc0797015fcfc47d9c1856639cae50d0e69fbee8',
-        fromBlock: 99388873,
-      }
+      '0xbc0797015fcfc47d9c1856639cae50d0e69fbee8',
     ],
     factory_stable_ng: [
-      {
-        address: '0x9af14d26075f142eb3f292d5065eb3faa646167b',
-        fromBlock: 142266044,
-      }
+      '0x9af14d26075f142eb3f292d5065eb3faa646167b',
     ],
     customPools: {
       [ContractVersion.main]: [
