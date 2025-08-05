@@ -43,7 +43,7 @@ const meta = {
     SupplySideRevenue: 'Amount of fees that go to lenders.',
     ProtocolRevenue: 'Amount of fees that go to 40acres treasury.',
   }
-};
+}; 
 
 export default {
   version: 2,
