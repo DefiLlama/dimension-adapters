@@ -16,6 +16,7 @@ const eVaultFactories = {
     [CHAIN.UNICHAIN]: "0xbAd8b5BDFB2bcbcd78Cc9f1573D3Aad6E865e752",
     [CHAIN.ARBITRUM]: "0x78Df1CF5bf06a7f27f2ACc580B934238C1b80D50",
     [CHAIN.AVAX]: "0xaf4B4c18B17F6a2B32F6c398a3910bdCD7f26181",
+    [CHAIN.TAC]: "0x2b21621b8Ef1406699a99071ce04ec14cCd50677",
 };
 
 
@@ -176,6 +177,10 @@ const adapters: Adapter = {
         [CHAIN.AVAX]: {
             fetch,
             start: '2025-02-04',
+        },
+        [CHAIN.TAC]: {
+            fetch,
+            start: '2025-06-21',
         },
     },
 }
