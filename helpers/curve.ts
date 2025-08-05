@@ -175,7 +175,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: amount0 * feeRate * adminFeeRate, amount1: amount1 * feeRate * adminFeeRate })
   }
 
-  return { dailyVolume }
+  return { dailyVolume, dailyFees, dailyRevenue }
 }
 
 export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
