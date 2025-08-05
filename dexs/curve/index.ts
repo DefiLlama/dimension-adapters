@@ -484,6 +484,30 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   },
   [CHAIN.ARBITRUM]: {
     start: '2021-09-12',
+    stable_factory: [
+      {
+        address: '0xb17b674D9c5CB2e441F8e196a2f048A81355d031',
+        fromBlock: 1413161,
+      }
+    ],
+    factory_twocrypto: [
+      {
+        address: '0x98ee851a00abee0d95d08cf4ca2bdce32aeaaf7f',
+        fromBlock: 163780767,
+      }
+    ],
+    factory_tricrypto: [
+      {
+        address: '0xbc0797015fcfc47d9c1856639cae50d0e69fbee8',
+        fromBlock: 99388873,
+      }
+    ],
+    factory_stable_ng: [
+      {
+        address: '0x9af14d26075f142eb3f292d5065eb3faa646167b',
+        fromBlock: 142266044,
+      }
+    ],
     customPools: {
       [ContractVersion.main]: [
         '0x7f90122BF0700F9E7e1F688fe926940E8839F353',
@@ -491,6 +515,10 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
         '0x6eB2dc694eB516B16Dc9FBc678C60052BbdD7d80',
         '0x30dF229cefa463e991e29D42DB0bae2e122B2AC7',
         '0xC9B8a3FDECB9D5b218d02555a8Baf332E5B740d5',
+      ],
+      [ContractVersion.crypto]: [
+        '0x960ea3e3C7FB317332d990873d354E18d7645590',
+        '0xA827a652Ead76c6B0b3D19dba05452E06e25c27e',
       ],
     }
   },
