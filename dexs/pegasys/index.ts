@@ -1,17 +1,10 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { SimpleAdapter } from "../../adapters/types";
-
-const fetch = univ2Adapter({
-  endpoints: {
-    [CHAIN.SYSCOIN]: "https://graph.pegasys.finance/subgraphs/name/pollum-io/pegasys"
-  },
-    factoriesName: "pegasysFactories",
-    dayData: "pegasysDayData",
-});
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const adapter: SimpleAdapter = {
-  fetch,
+  version: 2,
+  fetch: getUniV2LogAdapter({ factory: '0x7Bbbb6abaD521dE677aBe089C85b29e3b2021496' }),
   chains: [CHAIN.SYSCOIN],
 }
 
