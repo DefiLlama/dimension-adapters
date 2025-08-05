@@ -1,40 +1,26 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { httpGet } from "../../utils/fetchURL";
+import request, { gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
-// import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-interface HyperswapPair {
-    version: string;
-    h24: string;
-    fee: string;
-}
-
-interface HyperswapResponse {
-    pairs: HyperswapPair[];
-    pageCount: number;
-}
+const GRAPH_URL = 'https://api.goldsky.com/api/public/project_cm97l77ib0cz601wlgi9wb0ec/subgraphs/v3-subgraph/6.0.0/gn'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const url = (page: number) =>  `https://api-partner.hyperswap.exchange/api/pairs?minTvl=50000&maxPerPage=50&page=${page}`
-    const headers = { 'x-internal-access': 1 }
-    let page = 0;
-    const data: HyperswapPair[] = []
-    while(true) {
-        const res = (await httpGet(url(page), { headers })) as { data: HyperswapResponse };
-        page++
-        if (res.data.pageCount < page) break
+    const query = gql`
+        query q{
+            tokenDayDatas(where: {date: ${options.startOfDay}}, first: 1000, orderBy: volumeUSD, orderDirection: desc) {
+                volumeUSD
+                feesUSD
+            }
+        }
+    `
 
-        data.push(...res.data.pairs)   
-    }
-
+    const data = await request(GRAPH_URL, query)
     const dailyVolume = options.createBalances()
     const dailyFees = options.createBalances()
 
-    data.filter((e) => e.version === "v3").forEach((pair) => {
-        if (pair.h24) {
-            dailyVolume.addUSDValue(Number(pair.h24))
-            dailyFees.addUSDValue(Number(pair.h24) * (Number(pair.fee)/10000)/100)
-        }
+    data.tokenDayDatas.forEach((e: any) => {
+        dailyVolume.addUSDValue(Number(e.volumeUSD))
+        dailyFees.addUSDValue(Number(e.feesUSD))
     })
 
     const dailyRevenue = dailyFees.clone(0.4)
@@ -45,21 +31,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     return {
         dailyVolume,
         dailyFees,
+        dailyUserFees: dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
         dailySupplySideRevenue,
         dailyHoldersRevenue,
-        dailyUserFees: dailyFees,
     }
 }
 
 const methodology = {
-    Fees: "Total swap fees paided by users.",
-    Revenue: "Revenue collected from 40% swap fees.",
-    ProtocolRevenue: "Revenue for HyperSwap from 8% swap fees.",
-    SupplySideRevenue: "Amount of 60% swap fees distributed to LPs.",
-    HoldersRevenue: "Amount of 32% swap fees distributed to Swap stakers and buy-back and burn.",
-    UserFees: "Total swap fees paided by users."
+    Fees: "Total swap fees paid by users.",
+    Revenue: "8% protocol revenue share and 32% holders revenue share.",
+    ProtocolRevenue: "8% of fees collected by the protocol.",
+    SupplySideRevenue: "60% of fees distributed to LPs.",
+    HoldersRevenue: "32% of fees used for buy-back and burn.",
+    UserFees: "Total swap fees paid by users."
 }
 
 const adapter: SimpleAdapter = {
@@ -67,7 +53,6 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,
-            runAtCurrTime: true,
             start: '2025-02-18',
             meta: { methodology }
         }
@@ -75,21 +60,3 @@ const adapter: SimpleAdapter = {
 }
 
 export default adapter
-
-// export default {
-//     version: 2,
-//     adapter: {
-//         [CHAIN.HYPERLIQUID]: {
-//             fetch: getUniV3LogAdapter({
-//                 factory: '0xB1c0fa0B789320044A6F623cFe5eBda9562602E3',
-
-//                 // https://docs.hyperswap.exchange/hyperswap/token-design/or-protocol-earnings
-//                 userFeesRatio: 1,
-//                 revenueRatio: 0.4, // 40% swap fees
-//                 protocolRevenueRatio: 0.08, // 8% swap fees
-//                 holdersRevenueRatio: 0.32, // 32% swap fees
-//             }),
-//             meta: { methodology }
-//         }
-//     }
-// }

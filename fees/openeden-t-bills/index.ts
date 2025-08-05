@@ -72,7 +72,7 @@ const fetch = async (
 
 const meta = {
     methodology: {
-        Fees: 'All yeilds collected from invested assets.',
+        Fees: 'All yields collected from invested assets.',
     }
 }
 

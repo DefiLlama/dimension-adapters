@@ -1,13 +1,20 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapter = univ2Adapter({
+const fetch = univ2Adapter({
+  endpoints: {
     [CHAIN.HECO]: "https://api2.makiswap.com/subgraphs/name/maki-mainnet/exchange"
-}, {
+  },
   factoriesName: "pancakeFactories",
   dayData: "pancakeDayData"
 });
 
-adapter.adapter[CHAIN.HECO].start = 1630000000;
-adapter.adapter[CHAIN.HECO].fetch = async (timestamp: number) => { return { timestamp}};
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.HECO]: { fetch: async () => ({ dailyVolume: 0 }), start: 1630000000 },
+  },
+}
+
 export default adapter;

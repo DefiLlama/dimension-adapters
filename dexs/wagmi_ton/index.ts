@@ -21,6 +21,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: any = {
     version: 2,
+    deadFrom: '2025-08-01', // web down, X account removed
     adapter: {
         [CHAIN.TON]: {
             fetch,

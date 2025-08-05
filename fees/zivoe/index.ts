@@ -29,8 +29,9 @@ const fetch: any = async (timestamp: number, _:any, options: FetchOptions) => {
   fees.forEach((record) => {
     dailyFees.add(record.tokenAddress, BigInt(record.value));
   });
-
+  
   revenue.forEach((record) => {
+    dailyFees.add(record.tokenAddress, BigInt(record.value));
     dailyRevenue.add(record.tokenAddress, BigInt(record.value));
   });
 

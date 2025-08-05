@@ -21,6 +21,7 @@ const DEFAULTS: any = {
   APTOS_PRC: 'https://aptos-mainnet.pontem.network',
   HYDRAGON_RPC: "https://rpc-mainnet.hydrachain.org",
   TAC_RPC: "https://rpc.tac.build",
+  FRAXTAL_RPC: "https://rpc.frax.com",
   TAC_RPC_MULTICALL: "0xcA11bde05977b3631167028862bE2a173976CA11",
 }
 

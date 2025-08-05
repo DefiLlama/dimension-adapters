@@ -1,16 +1,21 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter2({
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
-}, {
+const fetch = univ2Adapter2({
+  endpoints: {
+    [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt')
+  },
   factoriesName: "factories",
-  dayData: "fusionDayData",
-  dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
-});
+})
 
-adapters.version = 2;
-adapters.adapter.bsc.start = 1681516800;
-export default adapters;
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2023-04-13'
+}
+
+export default adapter;

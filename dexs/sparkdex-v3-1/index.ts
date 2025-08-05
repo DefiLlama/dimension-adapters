@@ -32,7 +32,7 @@ const v3 = Object.keys(endpointsV3).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: v3Graphs(chain as Chain),
+      fetch: v3Graphs,
       start: startTimeV3[chain],
       meta: {
         methodology: {

@@ -73,7 +73,6 @@ const volume = Object.keys(endpoints).reduce(
 );
 
 const adapter: SimpleAdapter = {
-  timetravel: false,
   adapter: volume
 };
 export default adapter;

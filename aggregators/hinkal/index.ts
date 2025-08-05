@@ -10,7 +10,7 @@ const fetchEthereum = async (options: FetchOptions) => {
   const dataTotal = responseVolume;
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
@@ -22,7 +22,7 @@ const fetchBase = async (options: FetchOptions) => {
   const dataTotal = responseVolume;
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
@@ -35,7 +35,7 @@ const fetchArbitrum = async (options: FetchOptions) => {
   const dataTotal = responseVolume;
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
@@ -48,7 +48,7 @@ const fetchPolygon = async (options: FetchOptions) => {
   const dataTotal = responseVolume;
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
@@ -61,7 +61,7 @@ const fetchBNB = async (options: FetchOptions) => {
   const dataTotal = responseVolume;
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
@@ -74,7 +74,7 @@ const fetchAVALANCHE = async (options: FetchOptions) => {
   const dataTotal = responseVolume;
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
@@ -88,7 +88,7 @@ const fetchOPTIMISM = async (options: FetchOptions) => {
   const dailyVolume = dataTotal.internal_volume + dataTotal.external_volume;
 
   return {
-    dailyVolume,
+    dailyVolume: dailyVolume || 0,
   };
 };
 
