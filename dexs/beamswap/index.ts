@@ -1,7 +1,5 @@
 import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
@@ -80,9 +78,8 @@ const adapter: BreakdownAdapter = {
     },
     "stable-amm": {
       [CHAIN.MOONBEAM]: {
-        fetch: v1graphs(CHAIN.MOONBEAM),
+        fetch: v1graphs,
         start: '2022-07-04',
-        customBackfill: customBackfill(CHAIN.MOONBEAM, v1graphs),
         meta: {
           methodology: {
             ...methodologyStable,

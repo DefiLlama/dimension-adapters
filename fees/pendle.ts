@@ -201,9 +201,7 @@ const fetch = (chain: Chain) => {
       }
     }
 
-    const dailyFees = dailyRevenue.clone();
-    dailyFees.addBalances(dailySupplySideFees);
-
+    // these revenue should be counted in fees too
     dailyRevenue.addBalances(
       await addTokensReceived({
         options,
@@ -211,9 +209,13 @@ const fetch = (chain: Chain) => {
       })
     )
 
+    const dailyFees = dailyRevenue.clone();
+    dailyFees.addBalances(dailySupplySideFees);
+
     return {
       dailyFees,
       dailyRevenue,
+      dailyProtocolRevenue: 0,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dailySupplySideFees,
       timestamp,
@@ -225,6 +227,7 @@ const meta = {
   methodology: {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
     Revenue: 'Share of yields and trading fees collected by protocol',
+    ProtocolRevenue: 'Share of yields and trading fees collected by protocol',
     HoldersRevenue: 'Share of yields and trading fees distributed to vePENDLE',
     SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers',
   }

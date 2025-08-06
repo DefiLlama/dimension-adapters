@@ -37,11 +37,11 @@ const SWAPS_QUERY = (from: number, to: number) => `
 `
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    let protocolFeePerc = 0.2;
-    let supplySideRevenuePerc = 0.8;
+    let protocolFeePerc = 0.1;
+    let supplySideRevenuePerc = 0.9;
     if (options.startTimestamp > 1752105600) { // Protocol Fee changed on 2025-07-10 from 10% of lp fees to 20% of lp fees
-        protocolFeePerc = 0.1;
-        supplySideRevenuePerc = 0.9;
+        protocolFeePerc = 0.2;
+        supplySideRevenuePerc = 0.8;
     }
     const swaps = await postURL(GRAPHQL_ENDPOINT, {
         query: SWAPS_QUERY(options.fromTimestamp * 1000, options.toTimestamp * 1000)
@@ -82,7 +82,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyUserFees: totalFees,
         dailyFees: totalFees,
         dailySupplySideRevenue: totalFees * supplySideRevenuePerc,
-        dailyRevenue: totalProtocolFees
+        dailyRevenue: totalProtocolFees,
+        dailyProtocolRevenue: totalProtocolFees
     }
 };
 

@@ -58,18 +58,13 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.WC]: {
-      fetch,
-      start: "2025-04-16",
-      meta: {
-        methodology: {
-          dailyVolume:
-            "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
-        },
-      },
-    },
+  fetch,
+  start: "2025-04-16",
+  methodology: {
+    dailyVolume:
+      "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
   },
+  chains: [CHAIN.WC],
 };
 
 export default adapter;

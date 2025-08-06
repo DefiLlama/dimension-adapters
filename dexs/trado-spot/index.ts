@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { Chain } from "../../adapters/types";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -56,12 +55,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
 const adapters: TAdapter = {};
 for (const chain in chains) {
-  let startTime = 1727107200;
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch,
-      start: startTime,
-      customBackfill: customBackfill(chain, () => fetch)
+      start: 1727107200,
     };
   };
 };

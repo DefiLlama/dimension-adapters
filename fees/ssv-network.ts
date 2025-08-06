@@ -27,8 +27,6 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
         dailyTotalFeesIncrease
         dailyOperatorEarningsIncrease
         dailyNetworkEarningsIncrease
-        activeOperators
-        lastUpdated
       }
     }
   `;

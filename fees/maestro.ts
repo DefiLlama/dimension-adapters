@@ -1,12 +1,13 @@
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter, FetchOptions, } from "../adapters/types";
-import { addTokensReceived, getSolanaReceived, getTokenDiff } from "../helpers/token";
+import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
 const meta = {
   methodology: {
     Fees: "All trading fees paid by users while using Maestro bot.",
     Revenue: "Trading fees are collected by Maestro protocol.",
+    ProtocolRevenue: "Trading fees are collected by Maestro protocol.",
   }
 }
 
@@ -42,7 +43,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
 const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: ['MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36', 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'] })
-  return { dailyFees, dailyRevenue: dailyFees, }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 

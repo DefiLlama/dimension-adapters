@@ -1,8 +1,7 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, } from "graphql-request";
-import type { FetchOptions } from "../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const endpoints: any = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5NFnHtgpdzB3JhVyiKQgnV9dZsewqJtX5HZfAT9Kg66r'),
@@ -41,17 +40,13 @@ const fetch = async (timestamp: number, _: any, { chain }: FetchOptions) => {
   }
 };
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
   doublecounted: true,
-  adapter: {},
-};
-
-const meta = {
-  methodology: {
+  fetch, 
+  chains: Object.keys(endpoints),
+   methodology: {
     Fees: 'Swap and hook fees paid by users.',
   }
-}
-
-Object.keys(endpoints).forEach((chain) => { adapter.adapter[chain] = { fetch, meta } });
+};
 
 export default adapter;

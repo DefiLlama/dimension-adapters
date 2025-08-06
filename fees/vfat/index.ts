@@ -62,6 +62,31 @@ const chainSettings: any = {
     chainName: 'avax',
     fromBlockSickle: 52924795
   },
+  ink: {
+    factory: '0xc6013E57a0811C7111A8fB07ACd2E248D9489C99',
+    chainName: 'ink',
+    fromBlockSickle: 7174745
+  },
+  unichain: {
+    factory: '0x233D9067677dCf1a161954D45B4C965B9d567168',
+    chainName: 'unichain',
+    fromBlockSickle: 10858337
+  },
+  katana: {
+    factory: '0x233D9067677dCf1a161954D45B4C965B9d567168',
+    chainName: 'katana',
+    fromBlockSickle: 5297524
+  },
+  polygon: {
+    factory: '0xAc371D6E651b6450ea8c4cE346Ddd44B62d851B5',
+    chainName: 'polygon',
+    fromBlockSickle: 70860185
+  },
+  lisk: {
+    factory: '0x233D9067677dCf1a161954D45B4C965B9d567168',
+    chainName: 'lisk',
+    fromBlockSickle: 17528958
+  },
 };
 
 const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: FetchOptions) => {
@@ -183,6 +208,31 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: {
       fetch: fetchFees,
       start: '2024-11-11',
+      meta,
+    },
+    [CHAIN.INK]: {
+      fetch: fetchFees,
+      start: '2025-02-27',
+      meta,
+    },
+    [CHAIN.UNICHAIN]: {
+      fetch: fetchFees,
+      start: '2025-03-10',
+      meta,
+    },
+    [CHAIN.KATANA]: {
+      fetch: fetchFees,
+      start: '2025-06-09',
+      meta,
+    },
+    [CHAIN.POLYGON]: {
+      fetch: fetchFees,
+      start: '2025-04-28',
+      meta,
+    },
+    [CHAIN.LISK]: {
+      fetch: fetchFees,
+      start: '2025-06-13',
       meta,
     },
   }

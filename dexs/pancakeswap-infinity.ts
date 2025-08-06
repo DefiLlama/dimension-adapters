@@ -1,10 +1,11 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { addOneToken } from "../helpers/prices"
 
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
 const config: any = {
   [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06' },
+  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
   version: 2,
@@ -56,6 +57,6 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 
 Object.keys(config).forEach(chain => {
   const { start } = config[chain];
-  adapter.adapter[chain] = { fetch, start, }
+  (adapter.adapter as BaseAdapter)[chain] = { fetch, start, }
 })
 export default adapter

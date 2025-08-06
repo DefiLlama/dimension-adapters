@@ -1,7 +1,11 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-export default univ2Adapter({
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('CwTzDabgebYMipjh9gqP4Kyrbi3HGQSabBuR4ngorXUt')
-}, {});
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch: getUniV2LogAdapter({ factory: '0x7D2Ce25C28334E40f37b2A068ec8d5a59F11Ea54' }),
+  chains: [CHAIN.BSC],
+}
+
+export default adapter;
