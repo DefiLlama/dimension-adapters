@@ -202,25 +202,25 @@ interface Ifactory {
 }
 
 const factories: {[key: string]: Ifactory} = {
-  // [CHAIN.BSC]: {
-  //   start: '2023-04-01',
-  //   address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
-  //   blacklistTokens: [
-  //     '0xc71b5f631354be6853efe9c3ab6b9590f8302e81',
-  //     '0xe6df05ce8c8301223373cf5b969afcb1498c5528',
-  //     '0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9',
-  //     '0xb4357054c3da8d46ed642383f03139ac7f090343',
-  //     '0x6bdcce4a559076e37755a78ce0c06214e59e4444',
-  //     '0x87d00066cf131ff54b72b134a217d5401e5392b6',
-  //     '0x30c60b20c25b2810ca524810467a0c342294fc61',
-  //     '0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16',
-  //     '0x595e21b20e78674f8a64c1566a20b2b316bc3511',
-  //     '0x783c3f003f172c6ac5ac700218a357d2d66ee2a2',
-  //     '0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721',
-  //     '0x95034f653D5D161890836Ad2B6b8cc49D14e029a',
-  //     '0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41',
-  //   ]
-  // },
+  [CHAIN.BSC]: {
+    start: '2023-04-01',
+    address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
+    blacklistTokens: [
+      '0xc71b5f631354be6853efe9c3ab6b9590f8302e81',
+      '0xe6df05ce8c8301223373cf5b969afcb1498c5528',
+      '0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9',
+      '0xb4357054c3da8d46ed642383f03139ac7f090343',
+      '0x6bdcce4a559076e37755a78ce0c06214e59e4444',
+      '0x87d00066cf131ff54b72b134a217d5401e5392b6',
+      '0x30c60b20c25b2810ca524810467a0c342294fc61',
+      '0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16',
+      '0x595e21b20e78674f8a64c1566a20b2b316bc3511',
+      '0x783c3f003f172c6ac5ac700218a357d2d66ee2a2',
+      '0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721',
+      '0x95034f653D5D161890836Ad2B6b8cc49D14e029a',
+      '0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41',
+    ]
+  },
   [CHAIN.ETHEREUM]: {
     start: '2023-04-01',
     address: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
@@ -279,7 +279,7 @@ function getHolderRevenueRatio(fee: number): number {
   return 0;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const factory = String(factories[options.chain].address).toLowerCase()
   
   if (!options.chain) throw new Error('Wrong version?')
@@ -289,22 +289,15 @@ const fetch = async (options: FetchOptions) => {
   let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
   if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
   logs = logs.map((log: any) => iface.parseLog(log)?.args)
+
   const pairObject: IJSON<string[]> = {}
   const fees: any = {}
-
   logs.forEach((log: any) => {
-    pairObject[log.pool] = [log.token0, log.token1]
-    fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
-  })
-
-  for (const [pairAddress, tokens] of Object.entries(pairObject)) {
-    if(isBlacklistToken(options.chain, tokens[0]) || isBlacklistToken(options.chain, tokens[1])) {
-      console.log(pairAddress, tokens)
-      delete pairObject[pairAddress];
+    if (!isBlacklistToken(options.chain, log.token0) && !isBlacklistToken(options.chain, log.token1)) {
+      pairObject[log.pool] = [log.token0, log.token1]
+      fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
     }
-  }
-
-  console.log(options.chain, Object.keys(pairObject).length)
+  })
   
   // remove pools with blacklist tokens
   let filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
@@ -330,12 +323,15 @@ const fetch = async (options: FetchOptions) => {
       const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
       const supplySideRevenueRatio = 1 - revenueRatio;
 
-      addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-      addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
-      addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * revenueRatio, amount1: log.amount1.toString() * revenueRatio })
-      addOneToken({ chain: options.chain, balances: dailyProtocolRevenue, token0, token1, amount0: log.amount0.toString() * protocolRevenueRatio, amount1: log.amount1.toString() * protocolRevenueRatio })
-      addOneToken({ chain: options.chain, balances: dailyHoldersRevenue, token0, token1, amount0: log.amount0.toString() * holdersRevenueRatio, amount1: log.amount1.toString() * holdersRevenueRatio })
-      addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * supplySideRevenueRatio, amount1: log.amount1.toString() * supplySideRevenueRatio })
+      const amount0 = Number(log.amount0)
+      const amount1 = Number(log.amount1)
+
+      addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+      addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: amount0 * fee, amount1: amount1 * fee })
+      addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: amount0 * fee * revenueRatio, amount1: amount1 * fee * revenueRatio })
+      addOneToken({ chain: options.chain, balances: dailyProtocolRevenue, token0, token1, amount0: amount0 * fee * protocolRevenueRatio, amount1: amount1 * fee * protocolRevenueRatio })
+      addOneToken({ chain: options.chain, balances: dailyHoldersRevenue, token0, token1, amount0: amount0 * fee * holdersRevenueRatio, amount1: amount1 * fee * holdersRevenueRatio })
+      addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: amount0 * fee * supplySideRevenueRatio, amount1: amount1 * fee * supplySideRevenueRatio })
     })
   })
   
@@ -352,7 +348,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   methodology,
   adapter: {},
 };
