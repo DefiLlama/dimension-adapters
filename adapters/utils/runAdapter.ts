@@ -42,7 +42,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
   if (!module.version) module.version = 1 // default to version 1
   module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
 
-  if (!Array.isArray(chains)) 
+  if (!Array.isArray(chains))
     throw new Error(`Chains should be an array, got ${typeof chains} instead`)
 
   Object.keys(adapterObject).filter(chain => !chains.includes(chain)).forEach(chain => chains.push(chain))
@@ -142,23 +142,35 @@ async function _runAdapter({
     }
   }
 
+  const aggregated = {} as any
   let breakdownByToken: any = {}
+  let breakdownByLabelByChain: any = {}
   let breakdownByLabel: any = {}
+
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
     return validStart[chain]?.canRun
   }).map(getChainResult))
 
-  const aggregatedBreakdowns = aggregateBreakdowns(breakdownByLabel);
-
   Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
     if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownByToken[chain]
   })
 
   if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
+  if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
+  if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
-  if (withMetadata) return { response, breakdownByLabel, aggregatedBreakdowns, breakdownByToken }
+
+  const adaptorRecordV2JSON: any = {
+    aggregated,
+    breakdownByLabel,
+    breakdownByLabelByChain,
+    timestamp: response.find(i => i?.timestamp)?.timestamp
+  }
+
+
+  if (withMetadata) return { response, adaptorRecordV2JSON, breakdownByToken }
   return response
 
   async function getChainResult(chain: string) {
@@ -198,15 +210,31 @@ async function _runAdapter({
         }
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
-          const usdData = await value.getUSDJSONs()
-          result[recordType] = usdData.usdTvl
-          breakdownByLabel[chain] = breakdownByLabel[chain] || {}
-          breakdownByLabel[chain][recordType] = usdData.labelBreakdown || {}
+          const { labelBreakdown, usdTvl, usdTokenBalances, rawTokenBalances } = await value.getUSDJSONs()
+          result[recordType] = usdTvl
           breakdownByToken[chain] = breakdownByToken[chain] || {}
-          breakdownByToken[chain][recordType] = usdData
+          breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
+
+          if (labelBreakdown) {
+            if (!breakdownByLabel[recordType]) breakdownByLabel[recordType] = {}
+            if (!breakdownByLabelByChain[recordType]) breakdownByLabelByChain[recordType] = {}
+
+            const aggData = breakdownByLabel[recordType]
+            const breakData = breakdownByLabelByChain[recordType]
+
+            for (const [label, labelValue] of Object.entries(labelBreakdown)) {
+              aggData[label] = (aggData[label] || 0) + labelValue
+              if (!breakData[label]) breakData[label] = {}
+              breakData[label][chain] = labelValue
+            }
+          }
         }
-        
+
         result[recordType] = +Number(result[recordType]).toFixed(0)
+        if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
+        aggregated[recordType].value += result[recordType]
+        aggregated[recordType].chains[chain] = result[recordType]
+
         let errorPartialString = `| ${chain}-${recordType}: ${value}`
 
         if (isNaN(result[recordType] as number)) throw new Error(`value is NaN ${errorPartialString}`)
@@ -340,50 +368,4 @@ async function _runAdapter({
     }
   }
 
-  function aggregateBreakdowns(breakdownByLabel: any) {
-    const breakdownByChain: any = {};
-    const breakdown: any = {};
-    const allChains = new Set<string>();
-    const allRecordTypes = new Set<string>();
-
-    // Collect all chains and record types
-    Object.entries(breakdownByLabel).forEach(([chain, chainData]: [string, any]) => {
-      allChains.add(chain);
-      Object.entries(chainData).forEach(([recordType, breakdownData]: [string, any]) => {
-        allRecordTypes.add(recordType);
-        if (breakdownData && typeof breakdownData === 'object') {
-          if (!breakdownByChain[recordType]) breakdownByChain[recordType] = {};
-          if (!breakdownByChain[recordType][chain]) breakdownByChain[recordType][chain] = {};
-          
-          Object.entries(breakdownData).forEach(([label, value]: [string, any]) => {
-            breakdownByChain[recordType][chain][label] = Number(value || 0);
-          });
-        }
-      });
-    });
-
-    // Build aggregated breakdown across all chains
-    allRecordTypes.forEach(recordType => {
-      breakdown[recordType] = {};
-      
-      // Collect all labels for this record type
-      const allLabels = new Set<string>();
-      Object.values(breakdownByChain[recordType] || {}).forEach((chainData: any) => {
-        Object.keys(chainData).forEach(label => allLabels.add(label));
-      });
-      
-      // Aggregate across all chains for each label
-      allLabels.forEach(label => {
-        breakdown[recordType][label] = 0;
-        Object.values(breakdownByChain[recordType] || {}).forEach((chainData: any) => {
-          breakdown[recordType][label] += Number(chainData[label] || 0);
-        });
-      });
-    });
-
-    return {
-      breakdown,
-      breakdownByChain
-    };
-  }
 }
