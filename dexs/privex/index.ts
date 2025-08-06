@@ -1,62 +1,63 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { formatEther } from "ethers";
 import { request, gql } from "graphql-request";
+import { FetchOptions, SimpleAdapter, FetchResultVolume} from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+
+interface IGraphResponse {
+  dailyHistories: Array<{
+    tiemstamp: string;
+    platformFee: string;
+    accountSource: string;
+    tradeVolume: string;
+  }>;
+}
 
 const endpoints = {
-  [CHAIN.BASE]: "https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/base_analytics/latest/gn",
+  [CHAIN.BASE]: "https://api.goldsky.com/api/public/project_cmae5a5bs72to01xmbkb04v80/subgraphs/privex-analytics/1.0.0/gn",
   [CHAIN.COTI]: "https://subgraph.prvx.aegas.it/subgraphs/name/coti-analytics"
 };
 
-const fetchCoti = async (_a: any, _b: any, options: FetchOptions) => {
-  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()])
-
-  const query = gql`
-    query volumes {
-      yesterday: totalHistories(block: {number: ${fromBlock}}) {
-        timestamp
-        tradeVolume
-      }
-      today: totalHistories(block: {number: ${toBlock}}) {
-        timestamp
-        tradeVolume
-      }
+const queryBase = gql`
+  query stats($from: String!, $to: String!) {
+    dailyHistories(
+      where: { timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x921dd892d67aed3d492f9ad77b30b60160b53fe1" }
+    ) {
+      timestamp
+      platformFee
+      accountSource
+      tradeVolume
     }
-  `;
-
-  const graphRes = await request(endpoints[options.chain], query);
-  const todayVolume = graphRes['today'].reduce((p: any, c: any) => p + Number(c.tradeVolume), 0)
-  const yesterdayVolume = graphRes['yesterday'].reduce((p: any, c: any) => p + Number(c.tradeVolume), 0)
-  const volume24H = todayVolume - yesterdayVolume;
-
-  return {
-    dailyVolume: volume24H / 1e18 // convert to wei
   }
+`;
+
+const queryCoti = gql`
+  query stats($from: String!, $to: String!) {
+    dailyHistories(
+      where: { timestamp_gte: $from, timestamp_lte: $to, accountSource: "0xbf318724218ced9a3ff7cfc642c71a0ca1952b0f" }
+    ) {
+      timestamp
+      platformFee
+      accountSource
+      tradeVolume
+    }
+  }
+`;
+
+const queries = {
+  [CHAIN.BASE]: queryBase,
+  [CHAIN.COTI]: queryCoti,
 }
 
-const fetchBase = async (_a: any, _b: any, options: FetchOptions) => {
-  const endpoint = endpoints[options.chain];
-  const day = Math.floor(options.endTimestamp / 86400);
+const fetchVolume = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+  const from = options.fromTimestamp;
+  const to = options.toTimestamp;
+  const response: IGraphResponse = await request(endpoints[options.chain], queries[options.chain], {
+    from: String(from),
+    to: String(to),
+  });
 
-  const query = gql`
-    query volumes {
-      dailyHistories(
-        where: { 
-          day: ${day}, 
-        }
-        orderBy: day
-        orderDirection: desc
-        first: 100
-      ) {
-        day
-        tradeVolume
-      }
-    }
-  `;
-
-  let data = await request(endpoint, query);
-
-  const recordWithVolume = data?.dailyHistories?.find(d => parseFloat(d.tradeVolume || "0") > 0);
-  const dailyVolume = parseFloat(recordWithVolume.tradeVolume) / 1e18;
+  const dailyVolumeBigInt = response.dailyHistories.reduce((sum, data) => sum + BigInt(data.tradeVolume), BigInt(0));
+  const dailyVolume = formatEther(dailyVolumeBigInt * 2n);
 
   return { dailyVolume };
 };
@@ -65,11 +66,11 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchBase,
+      fetch: fetchVolume,
       start: '2024-09-08', // October 8, 2024
     },
     [CHAIN.COTI]: {
-      fetch: fetchCoti,
+      fetch: fetchVolume,
       start: '2025-01-01', // January 1, 2025
     },
   },
