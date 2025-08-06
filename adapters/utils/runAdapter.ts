@@ -198,26 +198,12 @@ async function _runAdapter({
         }
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
         if (value instanceof Balances) {
-          result[key] = await value.getUSDString()
+          const usdData = await value.getUSDJSONs()
+          result[key] = usdData.usdTvl
           breakdownByLabel[chain] = breakdownByLabel[chain] || {}
-          breakdownByLabel[chain][key] = await value.getUSDJSONs()
+          breakdownByLabel[chain][key] = usdData.labelBreakdown || {}
           breakdownByToken[chain] = breakdownByToken[chain] || {}
-          breakdownByToken[chain][key] = await value.getUSDJSONs()
-          
-          if (value.hasBreakdownBalances()) {
-            for (const [label, bal] of Object.entries(value._breakdownBalances)) {
-              const usdString = await (bal as Balances).getUSDString()
-              const breakdownValue = Math.round(+usdString)
-
-              if (!breakdownByLabel[chain]) {
-                breakdownByLabel[chain] = {}
-              }
-              if (!breakdownByLabel[chain][`${key}_breakdown`]) {
-                breakdownByLabel[chain][`${key}_breakdown`] = {}
-              }
-              breakdownByLabel[chain][`${key}_breakdown`][label] = breakdownValue
-            }
-          }
+          breakdownByToken[chain][key] = usdData
         }
         
         result[key] = +Number(result[key]).toFixed(0)
@@ -356,46 +342,28 @@ async function _runAdapter({
 
   function aggregateBreakdowns(breakdownByLabel: any) {
     const breakdownByChain: any = {};
-    const recordTypes = new Set<string>();
+    const breakdown: any = {};
     const allChains = new Set<string>();
+    const allRecordTypes = new Set<string>();
 
     // Collect all chains and record types
     Object.entries(breakdownByLabel).forEach(([chain, chainData]: [string, any]) => {
       allChains.add(chain);
-      Object.entries(chainData).forEach(([recordType]: [string, any]) => {
-        if (recordType.endsWith('_breakdown')) {
-          const baseRecordType = recordType.replace('_breakdown', '');
-          recordTypes.add(baseRecordType);
+      Object.entries(chainData).forEach(([recordType, breakdownData]: [string, any]) => {
+        allRecordTypes.add(recordType);
+        if (breakdownData && typeof breakdownData === 'object') {
+          if (!breakdownByChain[recordType]) breakdownByChain[recordType] = {};
+          if (!breakdownByChain[recordType][chain]) breakdownByChain[recordType][chain] = {};
+          
+          Object.entries(breakdownData).forEach(([label, value]: [string, any]) => {
+            breakdownByChain[recordType][chain][label] = Number(value || 0);
+          });
         }
       });
     });
 
-    // Build breakdownByChain with all chains (fill missing with 0)
-    recordTypes.forEach(recordType => {
-      breakdownByChain[recordType] = {};
-      allChains.forEach(chain => {
-        breakdownByChain[recordType][chain] = {};
-        
-        // Get breakdown data for this chain and record type
-        const chainBreakdownData = breakdownByLabel[chain]?.[`${recordType}_breakdown`] || {};
-        
-        // Collect all labels from all chains for this record type
-        const allLabels = new Set<string>();
-        Object.values(breakdownByLabel).forEach((chainData: any) => {
-          const breakdownData = chainData[`${recordType}_breakdown`] || {};
-          Object.keys(breakdownData).forEach(label => allLabels.add(label));
-        });
-        
-        // Fill all labels with 0 if not present
-        allLabels.forEach(label => {
-          breakdownByChain[recordType][chain][label] = Number(chainBreakdownData[label] || 0);
-        });
-      });
-    });
-
-    // Build breakdown (aggregated across all chains)
-    const breakdown: any = {};
-    recordTypes.forEach(recordType => {
+    // Build aggregated breakdown across all chains
+    allRecordTypes.forEach(recordType => {
       breakdown[recordType] = {};
       
       // Collect all labels for this record type
@@ -410,15 +378,6 @@ async function _runAdapter({
         Object.values(breakdownByChain[recordType] || {}).forEach((chainData: any) => {
           breakdown[recordType][label] += Number(chainData[label] || 0);
         });
-      });
-    });
-
-    // Clean breakdownByLabel by removing *_breakdown keys
-    Object.keys(breakdownByLabel).forEach(chain => {
-      Object.keys(breakdownByLabel[chain]).forEach(key => {
-        if (key.endsWith('_breakdown')) {
-          delete breakdownByLabel[chain][key];
-        }
       });
     });
 
