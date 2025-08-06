@@ -1,9 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid';
 import { getSolanaReceived } from '../helpers/token';
-
-const HL_BUILDER_ADDRESS = '0x1cc34f6af34653c515b47a83e1de70ba9b0cda1f';
 
 // https://dune.com/adam_tehc/axiom
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
@@ -39,39 +36,18 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchHL = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
-  return { dailyFees, dailyUserFees: 0, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue: 0 };
-};
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.75%-1% fee on each trade',
-          Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-          UserFees: 'User pays 0.75%-1% fee on each trade',
-          HoldersRevenue: 'Fees distributed to token holders',
-          ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-        }
-      }
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetchHL,
-      start: '2025-01-21',
-      meta: {
-        methodology: {
-          Fees: 'builder code revenue from Hyperliquid Perps Trades.',
-          UserFees: 'no fees from users',
-          Revenue: 'builder code revenue from Hyperliquid Perps Trades.',
-          ProtocolRevenue: 'builder code revenue from Hyperliquid Perps Trades.',
-          HoldersRevenue: 'No fees distributed to token holders',
-        }
-      }
-    }
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-01-21',
+  methodology: {
+    Fees: 'User pays 0.75%-1% fee on each trade',
+    Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
+    UserFees: 'User pays 0.75%-1% fee on each trade',
+    HoldersRevenue: 'No token holder revenue',
+    ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
   },
   isExpensiveAdapter: true,
 };
