@@ -190,29 +190,29 @@ async function _runAdapter({
       const ignoreKeys = ['timestamp', 'block']
       const improbableValue = 2e11 // 200 billion
 
-      for (const [key, value] of Object.entries(result)) {
-        if (ignoreKeys.includes(key)) continue;
+      for (const [recordType, value] of Object.entries(result)) {
+        if (ignoreKeys.includes(recordType)) continue;
         if (value === undefined || value === null) { // dont store undefined or null values
-          delete result[key]
+          delete result[recordType]
           continue;
         }
-        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
+        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
           const usdData = await value.getUSDJSONs()
-          result[key] = usdData.usdTvl
+          result[recordType] = usdData.usdTvl
           breakdownByLabel[chain] = breakdownByLabel[chain] || {}
-          breakdownByLabel[chain][key] = usdData.labelBreakdown || {}
+          breakdownByLabel[chain][recordType] = usdData.labelBreakdown || {}
           breakdownByToken[chain] = breakdownByToken[chain] || {}
-          breakdownByToken[chain][key] = usdData
+          breakdownByToken[chain][recordType] = usdData
         }
         
-        result[key] = +Number(result[key]).toFixed(0)
-        let errorPartialString = `| ${chain}-${key}: ${value}`
+        result[recordType] = +Number(result[recordType]).toFixed(0)
+        let errorPartialString = `| ${chain}-${recordType}: ${value}`
 
-        if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
-        if (result[key] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
-        if (result[key] > improbableValue) {
-          let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
+        if (isNaN(result[recordType] as number)) throw new Error(`value is NaN ${errorPartialString}`)
+        if (result[recordType] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
+        if (result[recordType] > improbableValue) {
+          let showError = accumulativeKeySet.has(recordType) ? result[recordType] > improbableValue * 10 : true
           if (showError)
             throw new Error(`value is too damn high ${errorPartialString}`)
         }
