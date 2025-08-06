@@ -110,7 +110,6 @@ async function calculateGrossReturns(options: FetchOptions): Promise<number> {
 
 // Solana fetch function
 const fetchSolana = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
   // Get manager fees from Dune SQL (using the working query)
@@ -138,12 +137,19 @@ const fetchSolana = async (options: FetchOptions) => {
     });
   }
 
+  // add revenue to fees
+  const dailyFees = dailyRevenue.clone()
+  const dailySupplySideRevenue = options.createBalances()
+
   const grossReturns = await calculateGrossReturns(options);
   dailyFees.addUSDValue(grossReturns);
+  dailySupplySideRevenue.addUSDValue(grossReturns);
 
   return {
     dailyFees,
-    dailyRevenue
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -152,7 +158,9 @@ const curatorExport = getCuratorExport(curatorConfig);
 
 const methodology = {
   Fees: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
-  Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period"
+  Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
+  ProtocolRevenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
+  SupplySideRevenue: "Amount of yields distributed to supply-side depositors.",
 }
 
 const adapter: SimpleAdapter = {
