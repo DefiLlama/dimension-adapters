@@ -87,11 +87,7 @@ const toString = (x: BigNumber) => {
   return x.toString();
 };
 
-const fetchFreestyleVolume = async (
-  timestamp: number,
-  _t: any,
-  options: FetchOptions
-): Promise<FetchResultVolume> => {
+const fetch = async ( _a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
   const startTime = options.startOfDay;
   const endTime = startTime + ONE_DAY_IN_SECONDS;
   const response: IGraphResponseFreestyle = await request(
@@ -104,25 +100,17 @@ const fetchFreestyleVolume = async (
   );
 
   let dailyVolume = new BigNumber(0);
-  let totalVolume = new BigNumber(0);
 
   response.dailyHistories.forEach((data) => {
     dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume));
   });
-  response.totalHistories.forEach((data) => {
-    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume));
-  });
 
   dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18));
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18));
 
   const _dailyVolume = toString(dailyVolume);
-  const _totalVolume = toString(totalVolume);
 
   return {
-    timestamp: timestamp,
-    dailyVolume: _dailyVolume ?? "0",
-    totalVolume: _totalVolume ?? "0",
+    dailyVolume: _dailyVolume || "0",
   };
 };
 
@@ -130,11 +118,11 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchFreestyleVolume,
+      fetch,
       start: "2024-05-01",
     },
     [CHAIN.MODE]: {
-      fetch: fetchFreestyleVolume,
+      fetch,
       start: "2024-05-01",
     },
   },

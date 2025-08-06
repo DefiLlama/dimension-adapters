@@ -1,8 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
-import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
-
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
 const CHAINS: Array<CHAIN> = [
     // CHAIN.ETHEREUM,
@@ -25,45 +23,39 @@ const CHAINS: Array<CHAIN> = [
     CHAIN.APTOS
 ];
 
-
-
-
 interface IVolumeBridge {
     volume: string;
     date: string;
 }
 
-async function queryDataByApi(timestamp:string, path:string){
+async function queryDataByApi(path: string) {
     const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st";
-    let info = await  httpGet(`${historicalVolumeEndpoint}${path}`);
-    const data  : IVolumeBridge[] = (info)?.data?.list || [];
+    let info = await fetchURL(`${historicalVolumeEndpoint}${path}`);
+    const data: IVolumeBridge[] = (info)?.data?.list || [];
     return data
 }
 
-const fetch = async (_t: number, _b: any, options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.startOfDay * 1000))
-    const path = `/getOrderDayList?bridge=1&chain=${options.chain}&timestamp=${dayTimestamp}`
-    const data = await queryDataByApi(dayTimestamp.toString(), path)
-    const dateString = new Date(dayTimestamp * 1000).toISOString().split("T")[0];
-    let dailyVolume = data.find(dayItem => dayItem.date === dateString)?.volume
-    dailyVolume = dailyVolume || undefined;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const startOfDay = options.startOfDay;
+    const path = `/getOrderDayList?bridge=1&chain=${options.chain}&timestamp=${startOfDay}`
+    const data = await queryDataByApi(path)
+    const dateString = new Date(startOfDay * 1000).toISOString().split("T")[0];
+    const dailyVolume = data.find(dayItem => dayItem.date === dateString)?.volume
+
     return {
-        dailyBridgeVolume: dailyVolume,
-        timestamp: options.endTimestamp,
+        dailyBridgeVolume: dailyVolume || 0,
     };
 };
 
-const adapter: any = {
-    version: 1, // api supports other timestamps but if you try using current timestamps, it breaks, so sticking to v1 even though it should be able to support v2
-    adapter:  {
+const adapter: SimpleAdapter = {
+    version: 1,
+    adapter: {
         ...CHAINS.map(chain => {
             return {
-
-                    [chain]: {
-                        fetch: fetch,
-                        start: '2024-01-01'
-                    }
-
+                [chain]: {
+                    fetch,
+                    start: '2024-01-01'
+                }
             }
         }).reduce((acc, item) => {
             return {

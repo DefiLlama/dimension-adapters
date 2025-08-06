@@ -1,18 +1,19 @@
-import { BaseAdapter, BreakdownAdapter, DISABLED_ADAPTER_KEY, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
-import { filterPools, getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
 import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
-import { queryDune, queryDuneSql } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
+import { getEnv } from "../../helpers/env";
+import { getBscV2Data } from "./bscv2";
 
 enum DataSource {
   GRAPH = 'graph',
   LOGS = 'logs',
-  PANCAKE_EXPLORER = 'pacnake_explorer',
+  PANCAKE_EXPLORER = 'pancake_explorer',
   CUSTOM = 'custom',
   DUNE = 'dune'
 }
@@ -61,47 +62,51 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   v2: {
     [CHAIN.BSC]: {
-      start: 1619136000,
-      dataSource: DataSource.GRAPH,
-      endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
-      requestHeaders: {
-        "origin": "https://pancakeswap.finance",
-      }
+      start: '2021-04-23',
+      dataSource: DataSource.CUSTOM,
+      // endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
+      // requestHeaders: {
+      //   "origin": "https://pancakeswap.finance",
+      // }
     },
     [CHAIN.ETHEREUM]: {
-      start: 1664236800,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      start: '2022-09-27',
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      factory: '0x1097053fd2ea711dad45caccc45eff7548fcb362',
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      start: 1687910400,
+      start: '2023-06-28',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('37WmH5kBu6QQytRpMwLJMGPRbXvHgpuZsWqswW4Finc2'),
       factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
     },
     [CHAIN.ERA]: {
-      start: 1690156800,
+      start: '2023-07-24',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('6dU6WwEz22YacyzbTbSa3CECCmaD8G7oQ8aw6MYd5VKU')
       factory: '0xd03D8D566183F0086d8D09A84E1e30b58Dd5619d'
     },
     [CHAIN.ARBITRUM]: {
-      start: 1691452800,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      start: '2023-08-08',
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.LINEA]: {
-      start: 1692835200,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
+      start: '2023-08-24',
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.BASE]: {
-      start: 1693440000,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
+      start: '2023-08-31',
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.OP_BNB]: {
-      start: 1695081600,
+      start: '2023-09-19',
       dataSource: DataSource.LOGS,
       // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v2`,
       factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
@@ -113,7 +118,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   v3: {
     [CHAIN.BSC]: {
-      start: 1680307200,
+      start: '2023-04-01',
       // dataSource: DataSource.PANCAKE_EXPLORER,
       // endpoint: sdk.graph.modifyEndpoint('A1fvJWQLBeUAggX2WQTMm3FKjXTekNXo77ZySun4YN2m')
       // explorerChainSlug: 'bsc',
@@ -121,38 +126,40 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       dataSource: DataSource.DUNE,
     },
     [CHAIN.ETHEREUM]: {
-      start: 1680307200,
+      start: '2023-04-01',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('CJYGNhb7RvnhfBDjqpRnD3oxgyhibzc7fkAMa38YV3oS')
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      start: 1686182400,
+      start: '2023-06-08',
       dataSource: DataSource.LOGS,
       // endpoint: sdk.graph.modifyEndpoint('7HroSeAFxfJtYqpbgcfAnNSgkzzcZXZi6c75qLPheKzQ'),
       factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
     },
     [CHAIN.ERA]: {
-      start: 1690156800,
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      start: '2023-07-24',
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      factory: '0x1bb72e0cbbea93c08f535fc7856e0338d7f7a8ab',
     },
     [CHAIN.ARBITRUM]: {
-      start: 1691452800,
+      start: '2023-08-08',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('251MHFNN1rwjErXD2efWMpNS73SANZN8Ua192zw6iXve')
     },
     [CHAIN.LINEA]: {
-      start: 1692835200,
+      start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
+      // factory: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
     },
     [CHAIN.BASE]: {
-      start: 1692576000,
+      start: '2023-08-21',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('5YYKGBcRkJs6tmDfB3RpHdbK2R5KBACHQebXVgbUcYQp')
     },
     [CHAIN.OP_BNB]: {
-      start: 1693440000,
+      start: '2023-08-31',
       dataSource: DataSource.LOGS,
       // endpoint: `${getEnv('PANCAKESWAP_OPBNB_SUBGRAPH')}/subgraphs/name/pancakeswap/exchange-v3`,
       factory: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
@@ -160,24 +167,24 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   },
   stableswap: {
     [CHAIN.ETHEREUM]: {
-      start: 1705363200,
+      start: '2024-01-16',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('CoKbk4ey7JFGodyx1psQ21ojW4UhSoWBVcCTxTwEuJUj')
     },
     [CHAIN.BSC]: {
-      start: 1663718400,
+      start: '2022-09-21',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('C5EuiZwWkCge7edveeMcvDmdr7jjc1zG4vgn8uucLdfz')
     },
     [CHAIN.ARBITRUM]: {
-      start: 1705363200,
+      start: '2024-01-16',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('y7G5NUSq5ngsLH2jBGQajjxuLgW1bcqWiBqKmBk3MWM')
     }
   }
 };
 
-const FEE_CONFIG = {
+export const FEE_CONFIG = {
   V2_V3: {
     type: "volume" as const,
     Fees: 0.25,
@@ -194,7 +201,7 @@ const FEE_CONFIG = {
     HoldersRevenue: 0.1,
     UserFees: 0.25,
     SupplySideRevenue: 0.125,
-    Revenue: 0.0225
+    Revenue: 0.125, // ProtocolRevenue + HoldersRevenue
   }
 }
 
@@ -294,7 +301,7 @@ interface ISwapEventData {
 
 const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
+const APTOS_PRC = getEnv('APTOS_PRC');
 
 const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
@@ -347,9 +354,22 @@ const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances
     balances.add(token1, e.amount_y_out)
   })
 
+  // fees are same as v2 on bsc
+  const dailyVolume = await balances.getUSDString()
+  const dailyFees = Number(dailyVolume) * FEE_CONFIG.V2_V3.Fees;
+  const dailyRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.Revenue;
+  const dailyProtocolRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.ProtocolRevenue;
+  const dailySupplySideRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.SupplySideRevenue;
+  const dailyHoldersRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.HoldersRevenue;
+
   return {
-    dailyVolume: await balances.getUSDString(),
-    dailyFees: "0",
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
@@ -382,7 +402,14 @@ export const PANCAKESWAP_V3_DUNE_QUERY = `
                   0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9,  -- MERL
                   0xb4357054c3da8d46ed642383f03139ac7f090343,
                   0x6bdcce4a559076e37755a78ce0c06214e59e4444,
-                  0x87d00066cf131ff54b72b134a217d5401e5392b6
+                  0x87d00066cf131ff54b72b134a217d5401e5392b6,
+                  0x30c60b20c25b2810ca524810467a0c342294fc61,
+                  0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16,
+                  0x595e21b20e78674f8a64c1566a20b2b316bc3511,
+                  0x783c3f003f172c6ac5ac700218a357d2d66ee2a2,
+                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721,
+                  0x95034f653D5D161890836Ad2B6b8cc49D14e029a,
+                  0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41
               )
               AND token_bought_address NOT IN (
                   0xc71b5f631354be6853efe9c3ab6b9590f8302e81,  -- ZK
@@ -390,7 +417,14 @@ export const PANCAKESWAP_V3_DUNE_QUERY = `
                   0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9,  -- MERL
                   0xb4357054c3da8d46ed642383f03139ac7f090343,
                   0x6bdcce4a559076e37755a78ce0c06214e59e4444,
-                  0x87d00066cf131ff54b72b134a217d5401e5392b6
+                  0x87d00066cf131ff54b72b134a217d5401e5392b6,
+                  0x30c60b20c25b2810ca524810467a0c342294fc61,
+                  0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16,
+                  0x595e21b20e78674f8a64c1566a20b2b316bc3511,
+                  0x783c3f003f172c6ac5ac700218a357d2d66ee2a2,
+                  0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721,
+                  0x95034f653D5D161890836Ad2B6b8cc49D14e029a,
+                  0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41
               )
               THEN amount_usd 
               ELSE 0 
@@ -445,15 +479,28 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 }
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
-const calculateFees = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+const calculateFeesDune = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
   if (!dailyVolume) return {};
   const dailyVolumeNumber = Number(dailyVolume) || 0;
 
   return {
-    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue).toString() || "0",
-    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue).toString() || "0", 
-    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue).toString() || "0",
-    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees).toString() || "0",
+    dailyFees: (dailyVolumeNumber * feeConfig.Fees / 100).toString() || "0",
+    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees / 100).toString() || "0",
+    dailyRevenue: (dailyVolumeNumber * feeConfig.Revenue / 100).toString() || "0",
+    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue / 100).toString() || "0",
+    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue / 100).toString() || "0", 
+    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue / 100).toString() || "0",
+  };
+};
+
+const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+  return {
+    dailyFees: dailyVolume.clone(feeConfig.Fees/100),
+    dailyUserFees: dailyVolume.clone(feeConfig.UserFees/100),
+    dailyRevenue: dailyVolume.clone(feeConfig.Revenue/100),
+    dailyProtocolRevenue: dailyVolume.clone(feeConfig.ProtocolRevenue/100),
+    dailySupplySideRevenue: dailyVolume.clone(feeConfig.SupplySideRevenue/100),
+    dailyHoldersRevenue: dailyVolume.clone(feeConfig.HoldersRevenue/100),
   };
 };
 
@@ -465,19 +512,20 @@ const fetchV2 = async (options: FetchOptions) => {
     const adapter = getUniV2LogAdapter({ 
       factory: logConfig.factory, 
       eventAbi: ABIS.V2.SWAP_EVENT, 
-      pairCreatedAbi: ABIS.V2.POOL_CREATE 
+      pairCreatedAbi: ABIS.V2.POOL_CREATE
     });
     const v2stats = await adapter(options);
-    const usdDailyVolume = await v2stats.dailyVolume.toString();
     return {
       ...v2stats,
-      ...calculateFees(usdDailyVolume, FEE_CONFIG.V2_V3)
+      ...calculateFeesBalances(v2stats.dailyVolume, FEE_CONFIG.V2_V3)
     };
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v2stats = await graphs(options.chain)(options);
+    const v2stats = await graphs(options);
     return v2stats;
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     return fetchVolume(options);
+  } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.BSC) {
+    return await getBscV2Data(options);
   }
   throw new Error('Invalid data source');
 }
@@ -494,7 +542,7 @@ const fetchV3 = async (options: FetchOptions) => {
     });
     return await adapter(options);   
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v3stats = await v3Graph(options.chain)(options);
+    const v3stats = await v3Graph(options);
     // Ethereum-specific adjustment
     if (options.chain === CHAIN.ETHEREUM) {
       v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
@@ -514,7 +562,7 @@ const fetchV3 = async (options: FetchOptions) => {
     return {
       dailyVolume: totalVolume.toString(),
       dailyFees: dailyFees.toString(),
-      ...calculateFees(inflated_volume.toString(), FEE_CONFIG.V2_V3)
+      ...calculateFeesDune(inflated_volume.toString(), FEE_CONFIG.V2_V3)
     };
   }
   throw new Error('Invalid data source');
@@ -549,9 +597,11 @@ const fetchStableSwap = async (options: FetchOptions, {factory}: {factory: strin
     const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.SupplySideRevenue/100)
     const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.HoldersRevenue/100)
     const dailyUserFees = dailyVolume.clone(FEE_CONFIG.STABLESWAP.UserFees/100)
+    const dailyRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.Revenue/100)
     return {
       dailyVolume: dailyVolume,
       dailyFees,
+      dailyRevenue,
       dailyProtocolRevenue,
       dailySupplySideRevenue,
       dailyHoldersRevenue,
@@ -591,7 +641,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options.chain)(options),
+        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options),
         start: config.start,
         meta: { methodology: stableSwapMethodology }
       };
@@ -604,10 +654,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
-    v1: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      ...createAdapter('v1')
-    },
+    v1: createAdapter('v1'),
     v2: createAdapter('v2'),
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')

@@ -1,3 +1,4 @@
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -30,6 +31,7 @@ const FEE_COLLECTORS: TPool = {
   [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
   [CHAIN.PLUME]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
   [CHAIN.FLOW]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
+  [CHAIN.KATANA]: ["0x11145aA7EeF8A3c61fFEf3F74981755e3148D358"],
 };
 
 const START_BLOCKS = {
@@ -54,6 +56,7 @@ const START_BLOCKS = {
   [CHAIN.ABSTRACT]: 1704067200,
   [CHAIN.PLUME]: 1704067200,
   [CHAIN.FLOW]: 1704067200,
+  [CHAIN.KATANA]: 1704067200,
 };
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
@@ -62,10 +65,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const logs = await getLogs({ targets: feeCollectors, eventAbi: event_swap });
 
   logs.forEach((i) => {
-    if (
-      i.toAssetId.toLowerCase() ==
-      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase()
-    ) {
+    if (i.toAssetId.toLowerCase() == ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
       dailyVolume.addGasToken(i.toAmount);
     } else {
       dailyVolume.add(i.toAssetId, i.toAmount);

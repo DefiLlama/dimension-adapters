@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
     // For other chains, use the standard approach
     acc[chain] = {
       fetch: async (options: any) => fetchChainData(chain, options),
-      start: 1740330000, // Current date as specified
+      start: '2025-02-23', // Current date as specified
       meta: {
         methodology: {
           Fees: "User pays 2.5% of the total amount of tokens they are burning. Fees are calculated by tracking the fee amount from BurnSuccess events.",

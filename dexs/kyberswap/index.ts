@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
 import request from "graphql-request";
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
 import {
   getChainVolume,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -17,35 +16,42 @@ const normalizeChain = {
     "avax": "avalanche"
 } as {[c:string]:string}
 
-const kyberswapElasticV2 = univ2Adapter({
-  [CHAIN.ETHEREUM]: "https://ethereum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-ethereum-legacy",
-  [CHAIN.BSC]: "https://bsc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bsc-legacy",
-  [CHAIN.POLYGON]: "https://bsc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bsc-legacy",
-  [CHAIN.AVAX]: "https://avalanche-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-avalanche-legacy",
-  [CHAIN.ARBITRUM]: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-legacy",
-  [CHAIN.OPTIMISM]: "https://optimism-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-optimism-legacy",
-  [CHAIN.FANTOM]: "https://fantom-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-fantom-legacy",
-  [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc-legacy",
-  [CHAIN.CRONOS]: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos-legacy",
-  [CHAIN.VELAS]: "https://velas-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-velas-legacy",
-  [CHAIN.OASIS]: "https://oasis-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-oasis-legacy",
-}, {
+const kyberswapElasticV2fetch = univ2Adapter({
+  endpoints: {
+    [CHAIN.ETHEREUM]: "https://ethereum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-ethereum-legacy",
+    [CHAIN.BSC]: "https://bsc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bsc-legacy",
+    [CHAIN.POLYGON]: "https://bsc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bsc-legacy",
+    [CHAIN.AVAX]: "https://avalanche-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-avalanche-legacy",
+    [CHAIN.ARBITRUM]: "https://arbitrum-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-arbitrum-legacy",
+    [CHAIN.OPTIMISM]: "https://optimism-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-optimism-legacy",
+    [CHAIN.FANTOM]: "https://fantom-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-fantom-legacy",
+    [CHAIN.BITTORRENT]: "https://bttc-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-bttc-legacy",
+    [CHAIN.CRONOS]: "https://cronos-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-cronos-legacy",
+    [CHAIN.VELAS]: "https://velas-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-velas-legacy",
+    [CHAIN.OASIS]: "https://oasis-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-elastic-oasis-legacy",
+  },
   factoriesName: "factories",
   dayData: "kyberSwapDayData",
   dailyVolume: "volumeUSD",
   totalVolume: "totalVolumeUSD",
 });
-kyberswapElasticV2.version = 2;
-kyberswapElasticV2.adapter.ethereum.start = 1654905600;
-kyberswapElasticV2.adapter.bsc.start = 1654732800;
-kyberswapElasticV2.adapter.polygon.start = 1654732800;
-kyberswapElasticV2.adapter.avax.start = 1654905600;
-kyberswapElasticV2.adapter.arbitrum.start = 1655942400;
-kyberswapElasticV2.adapter.optimism.start = 1656460800;
-kyberswapElasticV2.adapter.fantom.start = 1654732800;
-kyberswapElasticV2.adapter.bittorrent.start = 1658188800;
-kyberswapElasticV2.adapter.oasis.start = 1660780800;
-kyberswapElasticV2.adapter.cronos.start = 1660780800;
+
+const kyberswapElasticV2: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.ETHEREUM]: {fetch: kyberswapElasticV2fetch, start: 1654905600},
+    [CHAIN.BSC]: {fetch: kyberswapElasticV2fetch, start: 1654732800},
+    [CHAIN.POLYGON]: {fetch: kyberswapElasticV2fetch, start: 1654732800},
+    [CHAIN.AVAX]: {fetch: kyberswapElasticV2fetch, start: 1654905600},
+    [CHAIN.ARBITRUM]: {fetch: kyberswapElasticV2fetch, start: 1655942400},
+    [CHAIN.OPTIMISM]: {fetch: kyberswapElasticV2fetch, start: 1656460800},
+    [CHAIN.FANTOM]: {fetch: kyberswapElasticV2fetch, start: 1654732800},
+    [CHAIN.BITTORRENT]: {fetch: kyberswapElasticV2fetch, start: 1658188800},
+    [CHAIN.CRONOS]: {fetch: kyberswapElasticV2fetch, start: 1660780800},
+    [CHAIN.VELAS]: {fetch: kyberswapElasticV2fetch, start: 1660780800},
+    [CHAIN.OASIS]: {fetch: kyberswapElasticV2fetch, start: 1660780800},
+  }
+}
 
 // velas, oasis & bittorrent missing
 const elasticChains = ["ethereum", "polygon", "bsc", "avax", "fantom", "arbitrum", "optimism"]
@@ -135,8 +141,6 @@ const optimismElastic = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume.toString(),
-    totalVolume: "0",
-    timestamp
   }
 }
 
@@ -176,8 +180,6 @@ const ethereumElasicVolume = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume.toString(),
-    totalVolume: "0",
-    timestamp
   }
 }
 
@@ -213,15 +215,13 @@ function buildFromEndpoints(endpoints: typeof classicEndpoints, graphs: typeof c
         acc[chain] = {
         fetch: async (options: FetchOptions) =>  {
             const a = (customeElasicVolumeFunctions[chain] !== undefined) && isElastic  ? await customeElasicVolumeFunctions[chain](options.endTimestamp) : (await (graphs as any)(chain as any)(options))
-            const elasticV2 = (kyberswapElasticV2.adapter[chain as Chain]?.fetch != undefined && isElastic) ? (await kyberswapElasticV2.adapter[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
+            const elasticV2 = ((kyberswapElasticV2 as BaseAdapter)[chain as Chain]?.fetch != undefined && isElastic) ? (await (kyberswapElasticV2 as any)[chain as Chain]?.fetch(options as any, {}, options)) : {} as FetchResultVolume;
             const dailyVolume = Number(a?.dailyVolume || 0) + Number(elasticV2?.dailyVolume || 0)
-            const totalVolume = Number(a?.totalVolume || 0) + Number(elasticV2?.totalVolume || 0)
             return {
-              dailyVolume: dailyVolume,
-              totalVolume: chain === CHAIN.ARBITRUM ? undefined :  totalVolume,
+              dailyVolume: dailyVolume.toString(),
             };
           },
-                  }
+        }
         return acc
       }, {} as BaseAdapter)
 }

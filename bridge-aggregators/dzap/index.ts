@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const CHAIN_VOLUME_API = "https://api.dzap.io/v1/volume/chain";
@@ -42,6 +42,7 @@ const chains: Record<string, number> = {
   [CHAIN.MODE]: 34443,
   [CHAIN.ARBITRUM]: 42161,
   [CHAIN.CELO]: 42220,
+  [CHAIN.HEMI]: 43111,
   [CHAIN.AVAX]: 43114,
   [CHAIN.INK]: 57073,
   [CHAIN.LINEA]: 59144,
@@ -75,14 +76,15 @@ async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time * 1000));
 }
 
-const fetch = (chain: number) => async (options: FetchOptions) => {
-  await sleep(2);
-  const data: ApiResponse = await httpGet(
-    `${CHAIN_VOLUME_API}?chainId=${chain}`
+const fetch = async (options: FetchOptions) => {
+  await sleep(Math.floor(Math.random() * 5) + 1);
+
+  const data: ApiResponse = await fetchURL(
+    `${CHAIN_VOLUME_API}?chainId=${chains[options.chain]}`
   );
+
   return {
-    dailyVolume: data.bridge.last24Hours,
-    totalVolume: data.bridge.allTime,
+    dailyBridgeVolume: data.bridge.last24Hours,
   };
 };
 
@@ -95,14 +97,8 @@ const adapter: SimpleAdapter = {
         ...acc,
         [key]: {
           runAtCurrTime: true,
-          fetch: fetch(value),
+          fetch,
           start: "2023-01-01",
-          meta: {
-            methodology: {
-              Volume:
-                "Volume data is retrieved from DZap's chain volume API endpoint.",
-            },
-          },
         },
       };
     }, {}),

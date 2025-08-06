@@ -90,7 +90,7 @@ const adapter = {
       defiLlamaChain,
       {
         fetch,
-        start: 1609459200, // 2021-01-01
+        start: '2021-01-01', // 2021-01-01
       },
     ])
   ),

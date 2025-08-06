@@ -2,14 +2,13 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types";
-import { Adapter, DISABLED_ADAPTER_KEY } from "../adapters/types";
-import { ARBITRUM } from "../helpers/chains";
+import { Adapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import disabledAdapter from "../helpers/disabledAdapter";
 
-const endpoints = {
-    // [BSC]: sdk.graph.modifyEndpoint('FiegiatdkorjPCvK72UyHvmJHvWtS3oQS6zwnR94Xe7c'),
-    [ARBITRUM]: sdk.graph.modifyEndpoint('G3wquxtaw68uX5GAZ7XBPWK8Fa7Buf66Y27uT8erqQZ4'),
+const endpoints:Record<string, string> = {
+    // [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiegiatdkorjPCvK72UyHvmJHvWtS3oQS6zwnR94Xe7c'),
+    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('G3wquxtaw68uX5GAZ7XBPWK8Fa7Buf66Y27uT8erqQZ4'),
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -53,9 +52,8 @@ const adapter: Adapter = {
     version: 1,
     deadFrom: "2024-12-14",
     adapter: {
-        [DISABLED_ADAPTER_KEY]: disabledAdapter,
-        // [BSC]: {
-        //     fetch: graphs(endpoints)(BSC),
+        // [CHAIN.BSC]: {
+        //     fetch: graphs(endpoints)(CHAIN.BSC),
         //     start: '2022-12-10',
         //     meta: {
         //         methodology: {
@@ -65,7 +63,7 @@ const adapter: Adapter = {
         //         }
         //     }
         // },
-        [ARBITRUM]: {
+        [CHAIN.ARBITRUM]: {
             fetch: async (timestamp: number) => {return {timestamp}},
             start: '2023-03-07',
             meta: {

@@ -1,23 +1,6 @@
 import { FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getEmptyData, getDimensionsSum } from "./utils";
-
-const CARBON_METADATA: {
-  methodology: IJSON<string>;
-  hallmarks: [number, string][];
-} = {
-  hallmarks: [
-    [1681986059, "CarbonDeFi Ethereum Launch"],
-    [1715990400, "CarbonDeFi Coti Launch"],
-    [1716825673, "CarbonDeFi Sei Launch"],
-    [1721813184, "CarbonDeFi Celo Launch"],
-  ],
-  methodology: {
-    Volume:
-      "Volume data is sourced from the CarbonDeFi Analytics API, which aggregates volumeUsd metrics from all swaps on the protocol.",
-    Fees: "Fee data is sourced from the CarbonDeFi Analytics API, which aggregates feesUsd metrics from all trading fees collected by the protocol.",
-  },
-};
+import { getDimensionsSum } from "./utils";
 
 const chainInfo: { [key: string]: any } = {
   [CHAIN.ETHEREUM]: {
@@ -36,6 +19,10 @@ const chainInfo: { [key: string]: any } = {
     endpoint: "https://api.carbondefi.xyz/v1/coti/analytics/volume",
     startTimestamp: 1715990400,
   },
+  [CHAIN.TAC]: {
+    endpoint: "https://api.carbondefi.xyz/v1/tac/analytics/volume",
+    startTimestamp: 1750939200,
+  },
 };
 
 const getData = async (_a: any, _b: any, options: FetchOptions) => {
@@ -51,27 +38,28 @@ const getData = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Volume:
+      "Volume data is sourced from the CarbonDeFi Analytics API, which aggregates volumeUsd metrics from all swaps on the protocol.",
+    Fees: "Fee data is sourced from the CarbonDeFi Analytics API, which aggregates feesUsd metrics from all trading fees collected by the protocol.",
+  },
   version: 1,
+  fetch: getData,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: getData,
       start: chainInfo[CHAIN.ETHEREUM].startTimestamp,
-      meta: CARBON_METADATA,
     },
     [CHAIN.SEI]: {
-      fetch: getData,
       start: chainInfo[CHAIN.SEI].startTimestamp,
-      meta: CARBON_METADATA,
     },
     [CHAIN.CELO]: {
-      fetch: getData,
       start: chainInfo[CHAIN.CELO].startTimestamp,
-      meta: CARBON_METADATA,
     },
     [CHAIN.COTI]: {
-      fetch: getData,
       start: chainInfo[CHAIN.COTI].startTimestamp,
-      meta: CARBON_METADATA,
+    },
+    [CHAIN.TAC]: {
+      start: chainInfo[CHAIN.TAC].startTimestamp,
     },
   },
 };

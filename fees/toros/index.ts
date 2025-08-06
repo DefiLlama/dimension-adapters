@@ -152,8 +152,8 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
 
 const meta = {
   methodology: {
-    Fees: 'Deposit, withdraw and management fees.',
-    Revenue: 'All fees collected by Toros.',
+    Fees: 'All fees generated from Toros vaults.',
+    Revenue: 'All revenue collected by the Toros protocol.',
   }
 }
 

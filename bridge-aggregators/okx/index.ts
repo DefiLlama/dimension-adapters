@@ -103,7 +103,7 @@ const adapter: any = {
         return {
             ...acc,
             [chain]: {
-                fetch: fetch,
+                fetch,
                 start: '2022-05-17',
             },
         };

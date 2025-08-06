@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ethers, ZeroAddress } from "ethers";
+import { ZeroAddress } from "ethers";
 
 const ROUTER_CONTRACT = '0xbEF0110560921824AF49dE900f2f0bF9ceb87E8C';
 const TRADE_TOPIC = '0xaba723c41393affffc6e975a8a24df016aaf3f97d475b9a48664648daf86fb2b';
@@ -84,13 +84,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2024-05-29',
-      meta: {
-        hallmarks: [
-          [1747047600, 'Vault launch'],
-          [1743418800, 'Protocol public launch'],
-        ],
-      },
+      start: '2023-10-29',
     },
   },
 };

@@ -3,12 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
-import customBackfill from "../../helpers/customBackfill";
-
-interface IReferralRecord {
-  volume: string; // Assuming volume is a string that represents a number
-  timestamp: number;
-}
 
 type TChainIDs = {
   [key in Chain]?: number;
@@ -104,56 +98,35 @@ const methodology = {
 
 const adapteraggderivative: any = {
   deadFrom: '2025-05-30',
+  methodology,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2023-06-22',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
       start: '2023-06-22',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2023-06-22',
-      customBackfill: customBackfill(CHAIN.ARBITRUM, fetch),
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: '2023-06-22',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
       start: '2023-06-22',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
       start: '2023-06-27',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.EVMOS]: {
       fetch: fetch(CHAIN.EVMOS),
       start: '2023-11-16',
-      meta: {
-        methodology,
-      },
     },
   }
 };

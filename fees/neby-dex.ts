@@ -5,8 +5,6 @@ import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 const methodology = {
   UserFees: "LPs collect 100% of the fee generated in a pool",
   Fees: "Fees generated on each swap at a rate set by the pool.",
-  TotalUserFees: "Cumulative all-time Fees",
-  TotalFees: "Cumulative all-time Fees",
 };
 
 const v3Graphs = getGraphDimensions2({
@@ -31,7 +29,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.SAPPHIRE]: {
-      fetch: v3Graphs(CHAIN.SAPPHIRE),
+      fetch: v3Graphs,
       meta: {
         methodology,
       },

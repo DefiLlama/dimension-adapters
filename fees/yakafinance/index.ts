@@ -8,7 +8,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.SEI]: {
             fetch: getFees as any,
-            start: 1719432193,
+            start: '2024-06-26',
         },
     },
 };

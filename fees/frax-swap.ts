@@ -1,15 +1,11 @@
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "../adapters/types";
+import { FetchOptions, Adapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
-import { Adapter } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
 
-type TChains = {
-  [chain: string | Chain]: string;
-}
-const chains: TChains = {
+const chains: Record<string, string> = {
   [CHAIN.ARBITRUM]: 'Arbitrum',
   [CHAIN.AURORA]: 'Aurora',
   [CHAIN.AVAX]: 'Avalanche',
@@ -29,29 +25,19 @@ interface IHistory {
   intervalTimestamp: number;
 }
 
-const graphs = () => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-      const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
-      const historicalVolume = historical
-        .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
+const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+  const chain = chains[options.chain];
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
+  const historicalVolume = historical
+    .filter(e => e.chain.toLowerCase() === chain.toLowerCase());
+  const dailyFees = historicalVolume
+    .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.feeUsdAmount
 
-      const totalFees = historicalVolume
-        .filter(volItem => (new Date(volItem.intervalTimestamp).getTime() / 1000) <= dayTimestamp)
-        .reduce((acc, { feeUsdAmount }) => acc + Number(feeUsdAmount), 0)
-      const dailyFees = historicalVolume
-        .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.feeUsdAmount
-      return {
-        timestamp,
-        dailyUserFees: dailyFees,
-        totalFees,
-        totalUserFees: totalFees,
-        dailyFees,
-        totalRevenue: "0",
-        dailyRevenue: "0",
-      };
-    };
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: "0",
   };
 };
 
@@ -64,67 +50,67 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: graphs()(CHAIN.ARBITRUM),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.AURORA]: {
-      fetch: graphs()(CHAIN.AURORA),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.AVAX]: {
-      fetch: graphs()(CHAIN.AVAX),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.BOBA]: {
-      fetch: graphs()(CHAIN.BOBA),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.BSC]: {
-      fetch: graphs()(CHAIN.BSC),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.ETHEREUM]: {
-      fetch: graphs()(CHAIN.ETHEREUM),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.FANTOM]: {
-      fetch: graphs()(CHAIN.FANTOM),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.HARMONY]: {
-      fetch: graphs()(CHAIN.HARMONY),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.MOONBEAM]: {
-      fetch: graphs()(CHAIN.MOONBEAM),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.MOONRIVER]: {
-      fetch: graphs()(CHAIN.MOONRIVER),
+      fetch,
       meta: {
         methodology
       }
     },
     [CHAIN.POLYGON]: {
-      fetch: graphs()(CHAIN.POLYGON),
+      fetch,
       meta: {
         methodology
       }

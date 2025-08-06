@@ -1,12 +1,19 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter({
-  [CHAIN.BSC]: "https://graphql.pandora.digital/subgraphs/name/pandora3"
-}, {
+const fetch = univ2Adapter({
+  endpoints: {
+    [CHAIN.BSC]: "https://graphql.pandora.digital/subgraphs/name/pandora3"
+  },
   factoriesName: "pandoraFactories",
   dayData: "pandoraDayData",
 });
 
-adapters.adapter.bsc.start = 1652757593;
-export default adapters;
+const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.BSC],
+  start: 1652757593,
+}
+
+export default adapter;

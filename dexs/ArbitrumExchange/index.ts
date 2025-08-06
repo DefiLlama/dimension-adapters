@@ -24,7 +24,7 @@ const adapter: BreakdownAdapter = {
     v3: {
       [CHAIN.ARBITRUM]: {
         fetch: getUniV3LogAdapter({ factory: '0x855f2c70cf5cb1d56c15ed309a4dfefb88ed909e' }),
-        start: 1683590400,
+        start: '2023-05-09',
         meta: {
           methodology: {
             ...methodology,

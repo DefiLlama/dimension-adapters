@@ -8,8 +8,7 @@ import BigNumber from "bignumber.js";
 import {httpGet} from "../utils/fetchURL";
 
 const endpoints = {
-    [ETHEREUM]:
-        sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
+    [ETHEREUM]: sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
 };
 
 // Constants for on-chain data
@@ -26,7 +25,7 @@ const abi = {
 const methodology = {
     UserFees: "No user fees",
     Fees: "Includes all treasury revenue, all revenue to CVX lockers and stakers and all revenue to liquid derivatives (cvxCRV, cvxFXS)",
-    HoldersRevenue: "All revenue going to CVX lockers and stakers, including bribes",
+    HoldersRevenue: "All revenue going to CVX lockers and stakers",
     Revenue: "Sum of protocol revenue and holders' revenue",
     ProtocolRevenue: "Share of revenue going to Convex treasury (includes caller incentives on Frax pools, POL yield and Votemarket bribes)",
     SupplySideRevenue: "All CRV, CVX and FXS rewards redistributed to liquidity providers staking on Convex.",
@@ -101,24 +100,26 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         const stakerAddress = await options.api.call({
             target: registry,
             abi: abi.getAddress,
-            params: ["STAKER"]
+            params: ["STAKER"],
+            permitFailure: true,
         });
-
-        // Fetch RewardPaid events
-        const rewardPaidLogs = await options.getLogs({
-            target: stakerAddress,
-            eventAbi: abi.rewardPaid
-        });
-
-        // Sum the rewards where user is CONVEX_PERMA_STAKER and rewardToken is reUSD
-        rewardPaidLogs.forEach(log => {
-            if (
-                log.user.toLowerCase() === CONVEX_PERMA_STAKER &&
-                log.rewardToken.toLowerCase() === reUSD.toLowerCase()
-            ) {
-                reUSDRevenue = reUSDRevenue.plus(new BigNumber(log.reward).div(1e18));
-            }
-        });
+        if (stakerAddress) {
+            // Fetch RewardPaid events
+            const rewardPaidLogs = await options.getLogs({
+                target: stakerAddress,
+                eventAbi: abi.rewardPaid
+            });
+    
+            // Sum the rewards where user is CONVEX_PERMA_STAKER and rewardToken is reUSD
+            rewardPaidLogs.forEach(log => {
+                if (
+                    log.user.toLowerCase() === CONVEX_PERMA_STAKER &&
+                    log.rewardToken.toLowerCase() === reUSD.toLowerCase()
+                ) {
+                    reUSDRevenue = reUSDRevenue.plus(new BigNumber(log.reward).div(1e18));
+                }
+            });
+        }
     }
 
     // All revenue redirected to LPs
@@ -128,7 +129,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
     // Revenue to CVX Holders, including bribes (minus Votium fee)
     const dailyHoldersRevenue = snapshot.crvRevenueToCvxStakersAmount
-        .plus(snapshot.fxsRevenueToCvxStakersAmount).plus(dailyBribeRevenue)
+        .plus(snapshot.fxsRevenueToCvxStakersAmount)
 
     // cvxCRV & cvxFXS liquid lockers revenue
     const liquidRevenue = snapshot.crvRevenueToCvxCrvStakersAmount
@@ -144,16 +145,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         .plus(reUSDRevenue);
 
     // Platform fee on CRV rewards + Rewards to liquid lockers + Rewards to CVX holders
-    const dailyFees = dailyTreasuryRevenue.plus(liquidRevenue).plus(dailyHoldersRevenue);
-    // No fees levied on users
-    const dailyUserFees = 0;
+    const dailyFees = dailyTreasuryRevenue
+        .plus(dailySupplySideRev)
+        .plus(liquidRevenue)
+        .plus(dailyHoldersRevenue);
+    
     // Platform fee on CRV/FXS rewards + Gov token holder revenue
     const dailyRevenue = dailyTreasuryRevenue.plus(dailyHoldersRevenue);
 
     return {
         timestamp,
         dailyFees,
-        dailyUserFees: dailyUserFees,
+        dailyUserFees: 0, // No fees levied on users
         dailyHoldersRevenue: dailyHoldersRevenue,
         dailyProtocolRevenue: dailyTreasuryRevenue,
         dailySupplySideRevenue: dailySupplySideRev,

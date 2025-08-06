@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { HaikuAddreses } from "../../helpers/aggregators/haiku";
 
@@ -15,7 +16,7 @@ const meta = {
   },
 };
 
-const nativeToken = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const nativeToken = ADDRESSES.GAS_TOKEN_2;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();

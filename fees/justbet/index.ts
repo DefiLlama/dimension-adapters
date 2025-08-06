@@ -55,7 +55,7 @@ export default {
           totalHoldersRevenue: totalFees.clone(20/100),
         };
       }),
-      start: 1732060800,
+      start: '2024-11-20',
       meta: {
         methodology: {
           Fees: "All fees collected from user bets.",

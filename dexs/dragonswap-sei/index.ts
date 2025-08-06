@@ -10,16 +10,11 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
             id
             dailyVolumeUSD
         }
-        uniswapFactories {
-            totalVolumeUSD
-        }
     }`;
     const url = "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-prod/1.0.0/gn";
     const req = await request(url, query);
     return {
         dailyVolume: req.uniswapDayData.dailyVolumeUSD,
-        totalVolume: req.uniswapFactories[0].totalVolumeUSD,
-        timestamp: timestamp,
     }
 }
 

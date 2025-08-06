@@ -1,3 +1,4 @@
+import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -27,6 +28,7 @@ const ROUTER_ADDRESS: ROUTER = {
   [CHAIN.ABSTRACT]: ["0x82808C2F5777b816d55FCf54928567a50D18E31d"],
   [CHAIN.PLUME]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
   [CHAIN.FLOW]: ["0x90BA9922Ae475D0DD91a6BF20dcD0FB872Bc18B0"],
+  [CHAIN.KATANA]: ["0x11145aA7EeF8A3c61fFEf3F74981755e3148D358"],
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -37,10 +39,7 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
     eventAbi: event_swap,
   });
   logs.forEach((i) => {
-    if (
-      i.toAssetId.toLowerCase() ===
-      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase()
-    ) {
+    if (i.toAssetId.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
       dailyFees.addGasToken(i.fee);
     } else {
       dailyFees.add(i.toAssetId, i.fee);
@@ -81,6 +80,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ABSTRACT]: { fetch, start: "2025-05-22", meta },
     [CHAIN.PLUME]: { fetch, start: "2025-06-10", meta },
     [CHAIN.FLOW]: { fetch, start: "2025-08-03", meta },
+    [CHAIN.KATANA]: { fetch, start: "2025-07-20", meta },
   },
 };
 
