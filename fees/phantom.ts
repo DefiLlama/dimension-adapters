@@ -1,8 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
-import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
-
 
 // Solana fee wallet addresses
 const solana_fee_wallet_addresses = [
@@ -22,8 +20,6 @@ const eth_fee_wallet_addresses = [
   '0x7afa9d836d2fccf172b66622625e56404e465dbd'
 ];
 
-const HL_BUILDER_ADDRESS = '0xb84168cf3be63c6b8dad05ff5d755e97432ff80b';
-
 // Solana fetch function
 const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ 
@@ -35,7 +31,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 // ETH fetch function for each chain
-const fetchETH = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({
     options,
     targets: eth_fee_wallet_addresses
@@ -43,43 +39,20 @@ const fetchETH = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchHL = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, };
-};
-
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Phantom wallet And Builder Code Fees.',
-    Revenue: 'Fees collected by Phantom and Builder Code Fees from Hyperliquid Perps.',
-    ProtocolRevenue: 'Fees collected by Phantom and Builder Code Fees from Hyperliquid Perps.',
-  }
+const methodology = {
+  Fees: 'All fees paid by users for swapping, bridging in Phantom wallet.',
+  Revenue: 'Fees collected by Phantom.',
+  ProtocolRevenue: 'Fees collected by Phantom.',
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
   adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      meta,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetchHL,
-      start: '2025-07-01',
-    meta
-    }
+    [CHAIN.SOLANA]: { fetch: fetchSolana },
+    [CHAIN.ETHEREUM]: { fetch },
+    [CHAIN.BASE]: { fetch },
+    [CHAIN.POLYGON]: { fetch },
   },
   isExpensiveAdapter: true
 };
