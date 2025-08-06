@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getETHReceived, getSolanaReceived } from "../helpers/token";
+import { getETHReceived, getSolanaReceived, addTokensReceived } from "../helpers/token";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
 const FeeAdresses: Record<string, string[]> = {
@@ -39,15 +39,29 @@ const fetch = async (options: FetchOptions) => {
 
   let dailyFees;
   if (options.chain === CHAIN.SOLANA) {
+    // Keep Solana implementation unchanged
     dailyFees = await getSolanaReceived({
       options,
       targets: vaults,
     });
   } else {
-    dailyFees = await getETHReceived({
+    // Use addOneFeeToken for EVM chains
+    // Get all token transfers to fee addresses
+    const allTokenFees = await addTokensReceived({
       options,
       targets: vaults,
     });
+    
+    // Also get native token transfers
+    const nativeFees = await getETHReceived({
+      options,
+      targets: vaults,
+    });
+    
+    // Combine both fee types
+    dailyFees = options.createBalances();
+    dailyFees.addBalances(allTokenFees);
+    dailyFees.addBalances(nativeFees);
   }
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
