@@ -13,6 +13,34 @@ const methodology = {
   HoldersRevenue: 'Aave Token Buybacks from Aave Treasury after 14th April 2025.',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Borrow Interest': 'All interest paid by borrowers from all markets (excluding GHO).',
+    'Borrow Interest GHO': 'All interest paid by borrowers from GHO only.',
+    'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
+    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+  },
+  Revenue: {
+    'Borrow Interest': 'A portion of interest paid by borrowers from all markets (excluding GHO).',
+    'Borrow Interest GHO': 'All 100% interest paid by GHO borrowers.',
+    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
+    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+  },
+  SupplySideRevenue: {
+    'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO).',
+    'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market.',
+    'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+  },
+  ProtocolRevenue: {
+    'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
+    'Borrow Interest GHO': 'All interest paid on GHO market are collected by Aave treasury.',
+    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
+    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
+  },
+  HoldersRevenue: 'Aave Token Buybacks from Aave Treasury after 14th April 2025.',
+}
+
 const chainConfig = {
   [CHAIN.ETHEREUM]: {
     pools: AaveMarkets[CHAIN.ETHEREUM],
@@ -113,6 +141,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {}
 }
 for (const [chain, config] of Object.entries(chainConfig)) {
