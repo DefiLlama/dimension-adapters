@@ -21,16 +21,14 @@ const adapter: Adapter = {
         };
       },
       start: '2019-12-01',
-      meta: {
-        methodology: {
-          Fees: 'Gas fees paid by users.',
-          Revenue: 'Amount of TRX fees were burned.',
-          HoldersRevenue: 'Amount of TRX fees were burned.',
-        }
-      }
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Gas fees paid by users.',
+    Revenue: 'Amount of TRX fees were burned.',
+    HoldersRevenue: 'Amount of TRX fees were burned.',
+  }
 }
 
 export default adapter;

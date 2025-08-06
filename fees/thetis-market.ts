@@ -27,15 +27,13 @@ const adapter: Adapter = {
     [CHAIN.APTOS]: {
       fetch: fetch,
       start: "2024-11-26",
-      meta: {
-        methodology: {
-          Fees: "All fees for adding/removing liquidity, margin, liquidation, and swaps are collected",
-          SupplySideRevenue:
-            "SupplySideRevenue is 80% of the total fees, which are distributed to LP stakers",
-          Revenue: "Revenue is 20% of the total fees",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "All fees for adding/removing liquidity, margin, liquidation, and swaps are collected",
+    SupplySideRevenue:
+      "SupplySideRevenue is 80% of the total fees, which are distributed to LP stakers",
+    Revenue: "Revenue is 20% of the total fees",
   },
 };
 
