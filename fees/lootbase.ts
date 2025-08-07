@@ -2,7 +2,6 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
 
-// TODO: Replace with actual lootbase builder address
 const LOOTBASE_BUILDER_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
