@@ -11,7 +11,8 @@ interface IAPIResponse {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResult> => {
-    const { dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${endpoint}${timestamp * 1000}`));
+    const { dailyVolume }: IAPIResponse = (await fetchURL(`${URL}${endpoint}${timestamp * 1000}`))
+    if (+dailyVolume > 42e6) throw new Error(`Daily volume is too high: ${dailyVolume}`);
 
     return {
         dailyVolume,
