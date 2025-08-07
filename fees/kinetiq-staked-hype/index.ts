@@ -11,7 +11,7 @@ const methodology = {
 const KHYPE = '0xfD739d4e423301CE9385c1fb8850539D657C296D';
 const KHYPE_STAKING_ACCOUNTANT = '0x9209648Ec9D448EF57116B73A2f081835643dc7A';
 const KHYPE_TREASURY = '0x64bD77698Ab7C3Fd0a1F54497b228ED7a02098E3';
-const exchangeRateAbi = { "inputs": [{ "internalType": "uint256", "name": "kHYPEAmount", "type": "uint256" }], "name": "kHYPEToHYPE", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" };
+const exchangeRateAbi = 'function kHYPEToHYPE(uint256 kHYPEAmount) external view returns (uint256)'
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
