@@ -59,20 +59,26 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const data = await request(v2_SUBGRAPHS[chain].graph, V2_QUERY, { id: dateId.toString() });
 
   const volume = parseFloat(data.protocolDayData?.dailyVolumeUSD || 0);
-  const fees = parseFloat(data.protocolDayData?.feesUSD || 0);    
+  const fees = volume * 0.003; // 0.3% fee
 
   return {
     dailyVolume: volume,
     dailyFees: fees,
+    dailyUserFees: fees,
+    dailyRevenue: '0',
+    dailyProtocolRevenue: '0',
+    dailyHoldersRevenue: '0',
+    dailySupplySideRevenue: fees,
   };
 }
 
 const methodology = {
   Fees: "swap fees paid by users.",
   UserFees: "swap fees paid by users.",
-  Revenue: "",
-  ProtocolRevenue: "",
-  HoldersRevenue: "",
+  Revenue: "protocol revenue is zero",
+  ProtocolRevenue: "protocol revenue is zero",
+  HoldersRevenue: "holders revenue is zero",
+  SupplySideRevenue: "100% revenue goes to the liquidity providers",
 }
 
 const adapter: SimpleAdapter = {
