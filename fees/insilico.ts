@@ -2,7 +2,6 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
 
-// TODO: Replace with actual insilico builder address
 const INSILICO_BUILDER_ADDRESS = '0x2868fc0d9786a740b491577a43502259efa78a39'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
