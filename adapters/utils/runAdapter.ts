@@ -222,7 +222,8 @@ async function _runAdapter({
             const aggData = breakdownByLabel[recordType]
             const breakData = breakdownByLabelByChain[recordType]
 
-            for (const [label, labelValue] of Object.entries(labelBreakdown)) {
+            for (let [label, labelValue] of Object.entries(labelBreakdown)) {
+              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
               aggData[label] = (aggData[label] || 0) + labelValue
               if (!breakData[label]) breakData[label] = {}
               breakData[label][chain] = labelValue
