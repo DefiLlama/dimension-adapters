@@ -1,12 +1,7 @@
-import * as sdk from "@defillama/sdk";
+
 import { request, gql } from "graphql-request";
-import { Adapter, FetchV2, ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-//import { getTokenPrice } from "../../helpers/prices"; // Fetch Zeebu price in USD
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import BigNumber from "bignumber.js";
-//import { ETHEREUM } from "../../helpers/chains";
-//import { Chain } from '@defillama/sdk/build/general';
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 // Define target contracts and chains
 const CONTRACTS = {
@@ -108,33 +103,80 @@ const graphsDaily = (graphUrls: Record<string, string>) => {
   };
 };
 
-export default {
-  adapter: {
-    // Define for each chain
-    [CHAIN.BASE]: {
-      fetch : graphsDaily(endpoints)(CHAIN.BASE),
-      start: 1728518400,
-      meta: {
-        methodology: {
-          Fees: "1% collectively paid by merchant and customer",
-          UserFees : "Daily fees",
-          Revenue: "Invoice fees",
-          HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
-        }
+interface GraphResponse {
+  dayVolumeFeesAggregates: {
+    contract: string;
+    dailyFees: string;
+    dailyVolume: string;
+    dayID: string;
+  }[];
+}
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dayID = (Math.floor(options.startOfDay / 86400) ).toString();
+  const graphQuery = gql`
+    query ($dayID: String!) {
+      dayVolumeFeesAggregates(
+        orderBy: dayID
+        orderDirection: desc
+        where: { dayID: $dayID }
+      ) {
+        contract
+        dailyFees
+        dailyVolume
+        dayID
       }
-    },
-    [CHAIN.BSC]: {
-      fetch : graphsDaily(endpoints)(CHAIN.BSC),
-      start: 1688083200,
-      meta: {
-        methodology: {
-          Fees: "1% collectively paid by merchant and customer",
-          Revenue: "Invoice fees",
-          HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
-        }
-      }
-    },
+    }
+  `;
 
+  const totalFeesQuery = gql`
+        query {
+          overallVolumeFeesAggregates{
+            totalFees
+            totalVolume
+            chain
+            contract
+          }
+        }
+      `;
+
+  const url = endpoints[options.chain];
+  const graphRes: GraphResponse = await request(url, graphQuery, { dayID: dayID });
+  const aggregates = graphRes.dayVolumeFeesAggregates;
+  const dailyFees = aggregates.reduce((sum, agg) => {
+    const fee = agg.dailyFees ? (Number(agg.dailyFees) * 2) / 1e18 : 0;
+    return sum + fee;
+  }, 0);
+  const dailyHoldersRevenue = dailyFees * 0.6 / 100;
+  const dailyProtocolRevenue = dailyFees - dailyHoldersRevenue;
+
+  const totalFeesResponse = await request(url, totalFeesQuery, { });
+  const totalFees = totalFeesResponse.overallVolumeFeesAggregates.reduce(
+    (sum, item) => sum + parseFloat(((item.totalFees * 2)/1e18) || 0),
+    0
+  );
+
+  const totalUserFees = totalFees;
+  const totalRevenue = totalFees;
+  const totalHoldersRevenue = totalFees * 0.6 / 100;
+  const totalSupplySideRevenue = totalFees * 0.6 / 100;
+
+
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue, dailyProtocolRevenue, totalUserFees, totalRevenue, totalHoldersRevenue, totalSupplySideRevenue};
+
+};
+
+const methodology = {
+  Fees: "2% collectively paid by merchant and customer",
+  Revenue: "Invoice fees",
+  HoldersRevenue: "Staking rewards earned by veZBU holders, 0.6% of collected fees "
+}
+
+const adapter: SimpleAdapter = {
+  methodology,
+  adapter: {
+    [CHAIN.BASE]: { fetch, start: 1728518400 },
+    [CHAIN.BSC]: { fetch, start: 1688083200 },
   },
-  version: 2,
-} as Adapter;
+}
+
+export default adapter;
