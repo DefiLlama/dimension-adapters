@@ -7,7 +7,9 @@ const URL = 'https://volume-tracking.icecreamswap.dev';
 interface IAPIResponse {
     dailyVolume: string;
 }
+
 const commonStartTime = '2025-08-01'
+
 const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.ETHEREUM]: { id: 1, start: commonStartTime },
     [CHAIN.HEMI]: { id: 43111, start: commonStartTime },
@@ -33,9 +35,9 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.BSC]: { id: 56, start: commonStartTime },
     [CHAIN.POLYGON]: { id: 137, start: commonStartTime },
     [CHAIN.CRONOS]: { id: 25, start: commonStartTime },
-    [CHAIN.BLAST]: {id: 81457, start: commonStartTime },
+    [CHAIN.BLAST]: { id: 81457, start: commonStartTime },
     [CHAIN.POLYGON_ZKEVM]: { id: 1101, start: commonStartTime },
-    [CHAIN.BITTORRENT]: {id: 199, start: commonStartTime},
+    [CHAIN.BITTORRENT]: { id: 199, start: commonStartTime },
     [CHAIN.BERACHAIN]: { id: 80094, start: commonStartTime },
     [CHAIN.UNICHAIN]: { id: 130, start: commonStartTime },
     [CHAIN.HYPERLIQUID]: { id: 999, start: commonStartTime },
@@ -96,23 +98,18 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.MODE]: { id: 34443, start: commonStartTime },
 };
 
-const startTimestamp = '2025-08-01';
-
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
     const chainId = chainConfig[options.chain].id;
 
     const endpoint = `/api/v1/statistics/${chainId}/${options.dateString}`;
-    const response = await fetchURL(`${URL}${endpoint}`);
-
-    const { dailyVolume }: IAPIResponse = response;
+    const response: IAPIResponse = await fetchURL(`${URL}${endpoint}`);
 
     return {
-        dailyVolume
+        dailyVolume: response.dailyVolume
     };
 };
 
-const adapter = {
-    version: 1,
+const adapter: SimpleAdapter = {
     fetch,
     adapter: chainConfig
 };
