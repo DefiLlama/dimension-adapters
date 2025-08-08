@@ -1,11 +1,11 @@
-import { CHAIN } from '../helpers/chains'
-import { FetchOptions, SimpleAdapter } from '../adapters/types'
-import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
+import { CHAIN } from '../../helpers/chains'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { fetchBuilderCodeRevenue } from '../../helpers/hyperliquid'
 
-const MASS_DOT_MONEY_BUILDER_ADDRESS = '0xf944069b489f1ebff4c3c6a6014d58cbef7c7009'
+const HYPERDASH_BUILDER_ADDRESS = '0xe966a12bf7b93838096e4519a684519ab22df618'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: MASS_DOT_MONEY_BUILDER_ADDRESS });
+  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: HYPERDASH_BUILDER_ADDRESS });
 
   return {
     dailyVolume,
@@ -24,11 +24,10 @@ const methodology = {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: '2025-06-23',
+  start: '2025-01-05',
   methodology,
   doublecounted: true,
   isExpensiveAdapter: true,
 }
 
 export default adapter;
-
