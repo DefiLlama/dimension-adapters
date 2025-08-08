@@ -2,7 +2,7 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
 
-const LOOTBASE_BUILDER_ADDRESS = '0x0000000000000000000000000000000000000000'
+const LOOTBASE_BUILDER_ADDRESS = '0x3e0ef9ad4096c30acefbf7a996f4c19edd071286'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: LOOTBASE_BUILDER_ADDRESS });
