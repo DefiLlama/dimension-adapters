@@ -115,7 +115,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: '2025-03-15',
+            start: '2025-02-20',
             meta: {
                 methodology: {
                     Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
