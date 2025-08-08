@@ -53,7 +53,6 @@ const methodology = {
 export default {
   version: 2,
   fetch,
-  runAtCurrTime: true,
   methodology,
   chains: [CHAIN.SEI],
 }
