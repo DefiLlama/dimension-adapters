@@ -28,9 +28,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data = await queryAllium(spotTradeFeesQuery);
   const dailyVolume = options.createBalances();
 
-  for(const row of data) {
-    dailyVolume.addUSDValue(Number(row.volume_usd));
-  }
+  dailyVolume.addUSDValue(Number(data[0]?.volume_usd ?? 0));
 
   return {
     dailyVolume
