@@ -1,8 +1,6 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { getChainVolumeWithGasToken2 }  from "../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 
@@ -115,7 +113,7 @@ const classic = Object.keys(endpointsClassic).reduce(
       fetch: async (options: FetchOptions) => {
         try {
           const call = chain === CHAIN.BOBA ? graphsClassicBoba : [CHAIN.ETHEREUM, CHAIN.KATANA].includes(chain as CHAIN) ? graphsClassicETH : graphsClassic;
-          const values = (await call(chain as Chain)(options));
+          const values = (await call(options));
           const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,

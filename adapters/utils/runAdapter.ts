@@ -1,9 +1,10 @@
-import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types'
+import * as sdk from '@defillama/sdk';
+import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
+import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
-import * as _env from '../../helpers/env'
 import { getDateString } from '../../helpers/utils';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -26,9 +27,10 @@ function genUID(length: number = 10): string {
 const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
-  const { chains, fetch, start, runAtCurrTime } = module
-  const rootConfig: any = { fetch }
+  const { chains = [], fetch, start, runAtCurrTime } = module
+  const rootConfig: any = {}
 
+  if (fetch) rootConfig.fetch = fetch
   if (start) rootConfig.start = start
   if (runAtCurrTime) rootConfig.runAtCurrTime = runAtCurrTime
 
@@ -38,25 +40,26 @@ export async function setModuleDefaults(module: SimpleAdapter) {
   module.adapter = adapterObject
 
   if (!module.version) module.version = 1 // default to version 1
+  module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
 
-  if (Array.isArray(chains)) {
-    if (typeof fetch !== 'function') throw new Error('If chains field is passed, fetch function must be provided')
-    for (const cConfig of chains) {
+  if (!Array.isArray(chains))
+    throw new Error(`Chains should be an array, got ${typeof chains} instead`)
 
-      if (typeof cConfig === 'string') {
-        setChainConfig(cConfig, rootConfig)
-      } else if (Array.isArray(cConfig)) {
-        const [chain, chainConfig] = cConfig
-        if (typeof chain !== 'string' || typeof chainConfig !== 'object')
-          throw new Error(`Invalid chain config: ${cConfig}`)
-        setChainConfig(chain, { ...rootConfig, ...chainConfig })
-      } else {
+  Object.keys(adapterObject).filter(chain => !chains.includes(chain)).forEach(chain => chains.push(chain))
+
+  for (const cConfig of chains) {
+
+    if (typeof cConfig === 'string') {
+      setChainConfig(cConfig, rootConfig)
+    } else if (Array.isArray(cConfig)) {
+      const [chain, chainConfig] = cConfig
+      if (typeof chain !== 'string' || typeof chainConfig !== 'object')
         throw new Error(`Invalid chain config: ${cConfig}`)
-      }
+      setChainConfig(chain, { ...rootConfig, ...chainConfig })
+    } else {
+      throw new Error(`Invalid chain config: ${cConfig}`)
     }
   }
-
-  module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
 
   // check if chain already has a given field before setting it, so we dont end up overwriting it with defaults
   function setChainConfig(chain: string, config: BaseAdapterChainConfig) {
@@ -65,7 +68,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
     for (const key of Object.keys(config)) {
       if (!chainConfigObject.hasOwnProperty(key))
-        chainConfigObject[key] = config[key]
+        (chainConfigObject as any)[key] = (config as any)[key]
     }
   }
 
@@ -91,6 +94,7 @@ export default async function runAdapter(options: AdapterRunOptions) {
   const runKey = getRunKey(options)
 
   if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
+  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
   return adapterRunResponseCache[runKey]
 }
 
@@ -138,21 +142,35 @@ async function _runAdapter({
     }
   }
 
-  let breakdownData: any = {}
+  const aggregated = {} as any
+  let breakdownByToken: any = {}
+  let breakdownByLabelByChain: any = {}
+  let breakdownByLabel: any = {}
+
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
     return validStart[chain]?.canRun
   }).map(getChainResult))
 
-
-  Object.entries(breakdownData).forEach(([chain, data]: any) => {
-    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownData[chain]
+  Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
+    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownByToken[chain]
   })
 
-  if (Object.keys(breakdownData).length === 0) breakdownData = undefined
+  if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
+  if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
+  if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
-  if (withMetadata) return { response, breakdownData, }
+
+  const adaptorRecordV2JSON: any = {
+    aggregated,
+    breakdownByLabel,
+    breakdownByLabelByChain,
+    timestamp: response.find(i => i?.timestamp)?.timestamp
+  }
+
+
+  if (withMetadata) return { response, adaptorRecordV2JSON, breakdownByToken }
   return response
 
   async function getChainResult(chain: string) {
@@ -184,25 +202,46 @@ async function _runAdapter({
       const ignoreKeys = ['timestamp', 'block']
       const improbableValue = 2e11 // 200 billion
 
-      for (const [key, value] of Object.entries(result)) {
-        if (ignoreKeys.includes(key)) continue;
+      for (const [recordType, value] of Object.entries(result)) {
+        if (ignoreKeys.includes(recordType)) continue;
         if (value === undefined || value === null) { // dont store undefined or null values
-          delete result[key]
+          delete result[recordType]
           continue;
         }
-        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
+        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
-          result[key] = await value.getUSDString()
-          breakdownData[chain] = breakdownData[chain] || {}
-          breakdownData[chain][key] = await value.getUSDJSONs()
-        }
-        result[key] = +Number(result[key]).toFixed(0)
-        let errorPartialString = `| ${chain}-${key}: ${value}`
+          const { labelBreakdown, usdTvl, usdTokenBalances, rawTokenBalances } = await value.getUSDJSONs()
+          result[recordType] = usdTvl
+          breakdownByToken[chain] = breakdownByToken[chain] || {}
+          breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
 
-        if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
-        if (result[key] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
-        if (result[key] > improbableValue) {
-          let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
+          if (labelBreakdown) {
+            if (!breakdownByLabel[recordType]) breakdownByLabel[recordType] = {}
+            if (!breakdownByLabelByChain[recordType]) breakdownByLabelByChain[recordType] = {}
+
+            const aggData = breakdownByLabel[recordType]
+            const breakData = breakdownByLabelByChain[recordType]
+
+            for (let [label, labelValue] of Object.entries(labelBreakdown)) {
+              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
+              aggData[label] = (aggData[label] || 0) + labelValue
+              if (!breakData[label]) breakData[label] = {}
+              breakData[label][chain] = labelValue
+            }
+          }
+        }
+
+        result[recordType] = +Number(result[recordType]).toFixed(0)
+        if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
+        aggregated[recordType].value += result[recordType]
+        aggregated[recordType].chains[chain] = result[recordType]
+
+        let errorPartialString = `| ${chain}-${recordType}: ${value}`
+
+        if (isNaN(result[recordType] as number)) throw new Error(`value is NaN ${errorPartialString}`)
+        if (result[recordType] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
+        if (result[recordType] > improbableValue) {
+          let showError = accumulativeKeySet.has(recordType) ? result[recordType] > improbableValue * 10 : true
           if (showError)
             throw new Error(`value is too damn high ${errorPartialString}`)
         }
@@ -329,4 +368,5 @@ async function _runAdapter({
       startTimestamp: start
     }
   }
+
 }

@@ -128,7 +128,8 @@ const adapter: SimpleAdapter = {
   adapter: {},
   start: '2025-03-14',
   fetch,
-  chains: Object.keys({ ...ROUTERS_OLD, ...ROUTERS_NEW })
+  chains: Object.keys({ ...ROUTERS_OLD, ...ROUTERS_NEW }),
+  methodology,
 };
 
 export default adapter;

@@ -2,8 +2,40 @@ import { CHAIN } from "../../helpers/chains";
 import type { SimpleAdapter } from "../../adapters/types";
 import { aaveExport } from "../../helpers/aave";
 
+const methodology = {
+  Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
+  Revenue: 'Amount of fees go to Spark treasury.',
+  SupplySideRevenue: 'Amount of fees distributed to suppliers.',
+  ProtocolRevenue: 'Amount of fees go to Spark treasury.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    'Borrow Interest': 'All interest paid by borrowers from all markets.',
+    'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
+    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+  },
+  Revenue: {
+    'Borrow Interest': 'A portion of interest paid by borrowers from all markets.',
+    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
+    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+  },
+  SupplySideRevenue: {
+    'Borrow Interest': 'Amount of interest distributed to lenders from all markets.',
+    'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+  },
+  ProtocolRevenue: {
+    'Borrow Interest': 'Amount of interest distributed to lenders from all markets are collected by Spark treasury.',
+    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by Spark treasury.',
+    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by Spark treasury.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
+  breakdownMethodology,
   adapter: {
     ...aaveExport({
       [CHAIN.ETHEREUM]: {

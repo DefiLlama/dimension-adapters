@@ -1,22 +1,14 @@
 import { CHAIN } from "../../helpers/chains";
 import { Adapter } from "../../adapters/types";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { graphDimensionFetch } from "../../helpers/getUniSubgraph";
 
-const fetch = getGraphDimensions({
+const fetch = graphDimensionFetch({
   graphUrls: {
     [CHAIN.MORPH]: "https://subgraph.morfi.io/subgraphs/name/morfi/core",
-  },
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
   },
   dailyVolume: {
     factory: "algebraDayData",
     field: "volumeUSD",
-  },
-  totalFees: {
-    factory: "factories",
-    field: "totalFeesUSD",
   },
   dailyFees: {
     factory: "algebraDayData",
@@ -27,7 +19,7 @@ const fetch = getGraphDimensions({
 const adapters: Adapter = {
   adapter: {
     [CHAIN.MORPH]: {
-      fetch: fetch(CHAIN.MORPH),
+      fetch,
       start: '2024-10-29',
     },
   },

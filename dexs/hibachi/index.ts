@@ -33,13 +33,14 @@ const fetch: Fetch = async (timestamp: number, chainBlocks, options) => {
 
   const output = {
     dailyVolume: chain_volume.toString(),
-    timestamp: new Date(response.timestamp).getTime() / 1000,
+    timestamp: new Date(Math.floor(Number(response.timestamp))).getTime() / 1000,
   };
 
   return output;
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,

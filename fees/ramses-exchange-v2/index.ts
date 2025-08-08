@@ -59,7 +59,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
-        const v2Result = await v2Graphs(ARBITRUM)(options)
+        const v2Result = await v2Graphs(options)
         const bribesResult = await getBribes(options);
         v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 

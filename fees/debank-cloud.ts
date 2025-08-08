@@ -1,4 +1,4 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, BaseAdapter } from "../adapters/types";
 import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
 
 const meta = {
@@ -15,7 +15,7 @@ const adapter: Adapter = {
 }
 
 for (const [chain, item] of Object.entries(generateCBCommerceExports('0x3c6923D09ec77648ca923fFB4e50251120756faa'))) {
-    adapter.adapter[chain] = {
+    (adapter.adapter as BaseAdapter)[chain] = {
         fetch: (item as any).fetch,
         meta,
     }
