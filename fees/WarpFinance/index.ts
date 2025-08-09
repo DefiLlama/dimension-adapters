@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const FeeCollectedEvent = "event FeesCollected(address indexed _token, address indexed _integrator, uint256 _integratorFee, uint256 _lifiFee)"
 
-const WARPFeeCollector = '0x312a6be6bD9850D6a2F793b8425c39eFC01C3585';
+const WARPFeeCollector = '0x86A74536f7C5548EFE9e935863eA7bE333380288';
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
