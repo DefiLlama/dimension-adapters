@@ -13,9 +13,12 @@ mevblocker_eth as (
     select
         date_trunc('day', block_time) as date
         , blockchain as chain
-        , sum(protocol_fee_revenue_eth) as protocol_fee
-        , sum(partner_fee_cow_revenue_eth) as partner_fee
-        
+        , sum(protocol_fee_revenue_eth) as protocol_fee_revenue
+        , sum(limit_revenue_eth) as limit_revenue
+        , sum(market_revenue_eth) as market_revenue
+        , sum(ui_fee_revenue_eth) as ui_fee_revenue
+        , sum(partner_fee_partner_revenue_eth) as partner_fee_partner_revenue  
+        , sum(partner_fee_cow_revenue_eth) as partner_fee_cow_revenue        
     from dune.cowprotocol.result_fees_revenue_per_order as rev
     where 
         date_trunc('day', block_time) = from_unixtime({{start}})
@@ -25,8 +28,12 @@ mevblocker_eth as (
 select
     f.date,
     f.chain,
-    f.protocol_fee,
-    f.partner_fee,
+    f.protocol_fee_revenue,
+    f.limit_revenue,
+    f.market_revenue,
+    f.ui_fee_revenue,
+    f.partner_fee_partner_revenue,
+    f.partner_fee_cow_revenue,
     case 
         when f.chain = 'ethereum' then coalesce(m.mev_blocker_fee, 0)
         else 0
