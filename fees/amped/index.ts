@@ -23,10 +23,10 @@ const chainConfig: Record<string, { url: string, start: string }> = {
     url: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
     start: "2025-02-20",
   },
-  [CHAIN.SSEED]: {
-    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
-    start: "2025-04-22",
-  },
+  // [CHAIN.SSEED]: {
+  //   url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
+  //   start: "2025-04-22",
+  // },
 };
 
 const historicalDataQuery = gql`

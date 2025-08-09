@@ -7,7 +7,8 @@ import { getStartTimestamp } from "../helpers/getStartTimestamp";
 
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
-  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83')
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
 };
 
 const blacklisted = {
@@ -65,28 +66,26 @@ const v2Graph = getGraphDimensions2({
   blacklistTokens: blacklisted
 });
 
-const meta = {
-  methodology: {
-    Fees: "User pays 0.3% fees on each swap.",
-    UserFees: "User pays 0.3% fees on each swap.",
-    Revenue: "Protocol have no revenue.",
-    ProtocolRevenue: "Protocol have no revenue.",
-    SupplySideRevenue: "All user fees are distributed among LPs.",
-    HoldersRevenue: "Holders have no revenue."
-  }
+const methodology = {
+  Fees: "User pays 0.3% fees on each swap.",
+  UserFees: "User pays 0.3% fees on each swap.",
+  Revenue: "Protocol have no revenue.",
+  ProtocolRevenue: "Protocol have no revenue.",
+  SupplySideRevenue: "All user fees are distributed among LPs.",
+  HoldersRevenue: "Holders have no revenue."
 }
 
 const chainv2mapping: any = {
   [CHAIN.ARBITRUM]: "ARBITRUM",
   [CHAIN.ETHEREUM]: "ETHEREUM",
-  // [CHAIN.OPTIMISM]: "OPTIMISM",
   [CHAIN.POLYGON]: "POLYGON",
-  [CHAIN.BASE]: "BASE",
   [CHAIN.BSC]: "BNB",
-  [CHAIN.UNICHAIN]: "UNI"
+  [CHAIN.UNICHAIN]: "UNI",
+  // [CHAIN.BASE]: "BASE",
+  // [CHAIN.OPTIMISM]: "OPTIMISM",
 }
 
-async function fetchV2Volume(options: FetchOptions) {
+async function fetchV2Volume(_t:any, _tb: any , options: FetchOptions) {
   const { api } = options
   const endpoint = `https://interface.gateway.uniswap.org/v2/uniswap.explore.v1.ExploreStatsService/ExploreStats?connect=v1&encoding=json&message=%7B%22chainId%22%3A%22${api.chainId}%22%7D`
   const res = await httpGet(endpoint, {
@@ -111,6 +110,7 @@ async function fetchV2Volume(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: async (_t:any, _tb: any , options: FetchOptions) => {
@@ -129,12 +129,26 @@ const adapter: SimpleAdapter = {
         endpoints: v2Endpoints,
         chain: CHAIN.ETHEREUM,
       }),
-      meta,
+    },
+    [CHAIN.BASE]: {
+      fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+        const response = await v2Graph(options);
+        response.totalFees = Number(response.dailyVolume) * 0.003;
+        response.totalUserFees = Number(response.dailyVolume) * 0.003;
+        response.totalSupplySideRevenue = Number(response.dailyVolume) * 0.003;
+        return {
+          ...response,
+          dailyUserFees: response.dailyFees,
+        }
+      },
+      start: getStartTimestamp({
+        endpoints: v2Endpoints,
+        chain: CHAIN.BASE,
+      }),
     },
     ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
       acc[chain] = {
-        fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchV2Volume(options),
-        meta,
+        fetch: fetchV2Volume,
       }
       return acc
     }, {})
