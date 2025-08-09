@@ -32,6 +32,26 @@ const ODOS_V2_ROUTERS: TPool = {
   [CHAIN.UNICHAIN]: ['0x6409722F3a1C4486A3b1FE566cBDd5e9D946A1f3'],
 }
 
+function addReferralFees(entry: any) {
+  const isReferral = Number(entry.referralCode) == 1 && entry.referralFeeRecipient == ODOS_ROUTER_V3
+
+  if (entry.outputToken) {
+    // single-output case
+    const amount = Number(entry.amountOut)
+    const fee = isReferral ? Number(entry.referralFee) * amount / 1e18 : 0
+    dailyFees.add(entry.outputToken, fee)
+  }
+
+  if (entry.tokensOut && entry.amountsOut) {
+    // multi-output case
+    entry.tokensOut.forEach((token: string, idx: number) => {
+      const amount = Number(entry.amountsOut[idx])
+      const fee = isReferral ? Number(entry.referralFee) * amount / 1e18 : 0
+      dailyFees.add(token, fee)
+    })
+  }
+}
+
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   const routers = ODOS_V2_ROUTERS[chain];
 
@@ -56,10 +76,37 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   logs_v3.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
   multiswapLogs_v3.forEach(i => dailyVolume.add(i.tokensOut, i.amountsOut))
 
-  // add v3 fees
-  logs_v3.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
-  multiswapLogs_v3.forEach(i => dailyFees.add(i.tokensOut, i.slippage.map((a: any) => Number(a) > 0 ? a : 0)))
+  // add V3 Odos fees
+  function addV3Fees(entry: any) {
 
+    // FE fees will use referral code 1 and keep the funds in the router as revenue
+    const isFrontendFee = Number(entry.referralCode) == 1 && entry.referralFeeRecipient == ODOS_ROUTER_V3
+
+    // Single-output case
+    if (entry.outputToken) {
+      const slippageFee = Number(entry.slippage) > 0 ? Number(entry.slippage) : 0
+
+      const frontendFee = isFrontendFee ? Number(entry.referralFee) * Number(entry.amountOut) / 1e18 : 0
+
+      dailyFees.add(entry.outputToken, slippageFee + frontendFee)
+    }
+
+    // Multi-output case
+    if (entry.tokensOut && entry.amountsOut) {
+      entry.tokensOut.forEach((token: string, idx: number) => {
+        const tokenSlippage = Number(entry.slippage[idx])
+
+        const slippageFee = tokenSlippage > 0 ? tokenSlippage : 0
+
+        const frontendFee = isFrontendFee ? Number(entry.referralFee) *  Number(entry.amountsOut[idx]) / 1e18 : 0
+
+        dailyFees.add(token, slippageFee + frontendFee)
+      })
+    }
+  }
+  logs_v3.forEach(addV3Fees)
+  multiswapLogs_v3.forEach(addV3Fees)
+  
   return {
     dailyVolume,
     dailyFees,
