@@ -86,15 +86,13 @@ const adapter: SimpleAdapter = {
         };
       },
       start: "2025-02-06",
-      meta: {
-        methodology: {
-          Volume: "Total users swap volume.",
-          Fees: "Swap fees paid by users.",
-          Revenue: "Protocol and community shared from fees.",
-          SupplySideRevenue: "Fees shared to liquidity providers.",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume: "Total users swap volume.",
+    Fees: "Swap fees paid by users.",
+    Revenue: "Protocol and community shared from fees.",
+    SupplySideRevenue: "Fees shared to liquidity providers.",
   },
 };
 

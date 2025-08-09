@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
@@ -9,7 +9,7 @@ const methodology = {
   ProtocolRevenue: "The 50% of swap fee added to the block reward for miners and stakers.",
 }
 
-const fetch = async (_: number , __: ChainBlocks, ___: FetchOptions) => {
+const fetch = async () => {
   const response = await httpGet('https://marketapi.verus.services/getdefichaininfo');
 
   let dailyVolume = 0;
@@ -32,14 +32,11 @@ const fetch = async (_: number , __: ChainBlocks, ___: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
+  runAtCurrTime: true,
+  methodology,
   adapter: {
-    [CHAIN.VERUS]: {
-      fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.VERUS]: {},
   },
 };
 

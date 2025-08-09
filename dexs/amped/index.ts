@@ -83,6 +83,7 @@ const methodology = {
 };
 
 const adapter: BreakdownAdapter = {
+  methodology,
   breakdown: {
     swap: Object.keys(endpoints).reduce((acc, chain) => {
       return {
@@ -90,9 +91,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
-          meta: {
-            methodology,
-          },
         },
       };
     }, {}),
@@ -102,9 +100,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
-          meta: {
-            methodology,
-          },
         },
       };
     }, {}),
