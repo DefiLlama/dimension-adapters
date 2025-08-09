@@ -27,15 +27,13 @@ const getFetchForChain = (chainShortName: string) => {
 
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Volume: "This represents the total value of assets bridged over the period.",
+  },
   adapter: CHAINS.reduce((acc, chainKey) => {
     acc[chainMapping[chainKey]] = {
       fetch: getFetchForChain(chainKey) as any,
       start: '2025-05-28',
-      meta: {
-        methodology: {
-          Volume: "This represents the total value of assets bridged over the period.",
-        }
-      }
     };
     return acc;
   }, {}),

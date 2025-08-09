@@ -63,13 +63,11 @@ const methodology = {
 
 export default {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch,
       start: "2024-10-01",
-      meta: {
-        methodology,
-      },
     },
   },
 } as SimpleAdapter;

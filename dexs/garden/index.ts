@@ -40,8 +40,7 @@ const chainMapper: Record<string, { name: string, start: string }> = {
 const baseUrl = "https://api.garden.finance/orders";
 
 const feeUrl = (chain: string, timestamp: number, interval?: string) =>
-    `${baseUrl}/volume?chain=${chain}&end=${timestamp}${
-        interval ? `&interval=${interval}` : ""
+    `${baseUrl}/volume?chain=${chain}&end=${timestamp}${interval ? `&interval=${interval}` : ""
     }`;
 
 type ApiFeeResponse = {
@@ -63,17 +62,15 @@ const fetch = (chain: string) => async ({ endTimestamp }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    methodology: {
+        Volume: "Cumulative USD value of trades executed on the Garden protocol",
+    },
     adapter: Object.keys(chainMapper).reduce((acc, chain) => {
         return {
             ...acc,
             [chain]: {
                 fetch: fetch(chain),
                 start: chainMapper[chain].start,
-                meta: {
-                    methodology: {
-                        Volume: "Cumulative USD value of trades executed on the Garden protocol",
-                    },
-                },
             },
         };
     }, {}),

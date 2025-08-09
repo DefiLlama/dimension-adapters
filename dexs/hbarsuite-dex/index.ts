@@ -46,28 +46,28 @@ const methodology = {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
-    // generating a random number, so to grab a random smart-node from the network..
-    let randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+  // generating a random number, so to grab a random smart-node from the network..
+  let randomNode = nodes[Math.floor(Math.random() * nodes.length)];
 
-    let volumesForPools: Array<IHbarSuiteVolumes> = (await asyncRetry(async() => await axios.get(
-        `${randomNode}/dex/analytics/volumes`
-    ))).data;
+  let volumesForPools: Array<IHbarSuiteVolumes> = (await asyncRetry(async () => await axios.get(
+    `${randomNode}/dex/analytics/volumes`
+  ))).data;
 
-    let dailyVolumes = volumesForPools.reduce((acc, pool) => {
-      acc = new BigNumber(acc).plus(pool.daily);
-      return acc;
-    }, "0");
+  let dailyVolumes = volumesForPools.reduce((acc, pool) => {
+    acc = new BigNumber(acc).plus(pool.daily);
+    return acc;
+  }, "0");
 
-    let allTimeVolumes = volumesForPools.reduce((acc, pool) => {
-      acc = new BigNumber(acc).plus(pool.total);
-      return acc;
-    }, "0");
+  let allTimeVolumes = volumesForPools.reduce((acc, pool) => {
+    acc = new BigNumber(acc).plus(pool.total);
+    return acc;
+  }, "0");
 
-    return {
-      totalVolume: allTimeVolumes.toString(),
-      dailyVolume: dailyVolumes.toString(),
-      timestamp: dayTimestamp
-    };
+  return {
+    totalVolume: allTimeVolumes.toString(),
+    dailyVolume: dailyVolumes.toString(),
+    timestamp: dayTimestamp
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -75,12 +75,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.HEDERA]: {
       fetch,
       start: '2023-01-01',
-      meta: {
-        methodology
-      },
       runAtCurrTime: true
     },
   },
+  methodology,
 };
 
 export default adapter;

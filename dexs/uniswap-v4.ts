@@ -283,9 +283,6 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {},
   // prefetch: prefetchWithDune,
-};
-
-const meta = {
   methodology: {
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
@@ -293,13 +290,12 @@ const meta = {
     ProtocolRevenue: 'Protocol make no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
-  }
-}
+  },
+  fetch,
+};
 
 for (const [chain, config] of Object.entries(Configs)) {
   (adapter.adapter as BaseAdapter)[chain] = {
-    fetch,
-    meta,
     start: config.start,
   }
 }

@@ -24,23 +24,18 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch,
-            start: '2024-06-12',
-            meta: {
-                methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
-            }
-        },
-        [CHAIN.ERA]: {
-            fetch,
-            start: '2024-06-12',
-            meta: {
-                methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
-            }
-        },
-    }
+  methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
+  version: 2,
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch,
+      start: '2024-06-12',
+    },
+    [CHAIN.ERA]: {
+      fetch,
+      start: '2024-06-12',
+    },
+  }
 };
 
 export default adapter;

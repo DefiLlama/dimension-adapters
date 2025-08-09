@@ -76,21 +76,19 @@ function volumeForCategory(chain: CHAIN, type: WellType) {
       const block = await fetchParams.getEndBlock();
       return await getVolumeStats(chain, type, block);
     },
-    start: async () => chains[chain].startTime,
-    meta: {
-      methodology
-    }
+    start: chains[chain].startTime,
   }
 }
 
 // Currently there are only spot wells available, but it is expeted for more to exist in the future,
 // therefore using BreakdownAdapter.
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: Object.keys(chains).reduce((acc, chain) => {
-      acc[chain] = volumeForCategory(chain as CHAIN, WellType.SPOT);
-      return acc;
-    }, {})
+    acc[chain] = volumeForCategory(chain as CHAIN, WellType.SPOT);
+    return acc;
+  }, {})
 };
 
 export default adapter;

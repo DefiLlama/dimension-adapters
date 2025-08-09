@@ -101,6 +101,7 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
 }
 
 const adapter: BreakdownAdapter = {
+  methodology,
   breakdown: {
     "gmx-v2-swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
@@ -108,7 +109,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
-          meta: {methodology}
         }
       }
     }, {}),
@@ -118,7 +118,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
-          meta: {methodology}
         }
       }
     }, {})
@@ -128,7 +127,6 @@ const adapter: BreakdownAdapter = {
 adapter.breakdown["gmx-v2-trade"][CHAIN.SOLANA] = {
   fetch: fetchSolana,
   start: '2021-08-31',
-  meta: {methodology}
 }
 
 export default adapter;
