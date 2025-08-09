@@ -41,13 +41,14 @@ interface IGetChainVolumeParams {
   totalVolume: {
     factory: string,
     field: string,
-    filterParams?: IGetChainVolumeFilterParams[], 
+    filterParams?: IGetChainVolumeFilterParams[],
   },
   dailyVolume?: {
     factory: string,
     field: string,
     dateField?: string,
   },
+  totalFeesField?: string,
   customDailyVolume?: string,
   hasDailyVolume?: boolean
   hasTotalVolume?: boolean
@@ -117,7 +118,7 @@ function getChainVolume({
           switch (item.name) {
             case "id":
               graphQueryTodayTotalVolumeVariables["id"] = id;
-              graphQueryYesterdayTotalVolumeVariables["id"] = id-1
+              graphQueryYesterdayTotalVolumeVariables["id"] = id - 1
             default:
           }
         });
@@ -131,7 +132,7 @@ function getChainVolume({
       if (hasDailyVolume && !dailyVolumeValue) {
         graphResDaily = await request(graphUrls[chain], alternativeDaily(getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))));
         const factory = dailyVolume.factory.toLowerCase().charAt(dailyVolume.factory.length - 1) === 's' ? dailyVolume.factory : `${dailyVolume.factory}s`
-        dailyVolumeValue = graphResDaily ? graphResDaily[`${factory }`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
+        dailyVolumeValue = graphResDaily ? graphResDaily[`${factory}`].reduce((p: any, c: any) => p + Number(c[`${dailyVolume.field}`]), 0) : undefined;
       }
       if (!hasDailyVolume) {
         const fromBlock = await getFromBlock()
@@ -160,6 +161,7 @@ function getChainVolume2({
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
+  totalFeesField,
   hasTotalVolume = true,
   getCustomBlock = undefined,
 }: IGetChainVolumeParams) {
@@ -168,6 +170,7 @@ function getChainVolume2({
     block: { number: $block }
     ) {
       ${totalVolume.field}
+      ${totalFeesField ? totalFeesField : ''}
     }
     `;
 
@@ -178,19 +181,24 @@ function getChainVolume2({
       const { endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
 
       const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock())) ?? undefined;
-      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) :getStartBlock())) ?? undefined;
+      const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) : getStartBlock())) ?? undefined;
 
-      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }): undefined;
+      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }) : undefined;
       const total = graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+      const totalFees = totalFeesField && graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
 
       const graphResPrevTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }) : undefined;
       const prevTotal = graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
+      const prevTotalFees = totalFeesField && graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
 
       let dailyVolumeValue = total - prevTotal
 
-      return {
+      const response: any = {
         dailyVolume: dailyVolumeValue,
-      };
+      }
+      if (totalFeesField)
+        response.dailyFees = totalFees - prevTotalFees
+      return response
     };
   };
 }
@@ -211,8 +219,8 @@ function getChainVolumeWithGasToken({
   hasTotalVolume = true,
   getCustomBlock = undefined,
   priceToken,
-}: IGetChainVolumeParams & {priceToken:string}) {
-  const basic = getChainVolume({graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock})
+}: IGetChainVolumeParams & { priceToken: string }) {
+  const basic = getChainVolume({ graphUrls, totalVolume, dailyVolume, customDailyVolume, hasDailyVolume, hasTotalVolume, getCustomBlock })
   return (chain: Chain) => {
     return async (_a: any, _b: any, options: FetchOptions) => {
       const {
@@ -236,29 +244,36 @@ function getChainVolumeWithGasToken2({
     factory: DEFAULT_TOTAL_VOLUME_FACTORY,
     field: 'totalVolumeETH',
   },
+  totalFeesField,
   getCustomBlock = undefined,
   priceToken,
-}: IGetChainVolumeParams & {priceToken:string}) {
-  const basic = getChainVolume2({graphUrls, totalVolume, getCustomBlock})
+}: IGetChainVolumeParams & { priceToken: string }) {
+  const basic = getChainVolume2({ graphUrls, totalVolume, totalFeesField, getCustomBlock })
   return (chain: Chain) => {
     return async (options: FetchOptions): Promise<FetchResultV2> => {
       const {
         dailyVolume,
+        dailyFees,
       } = await basic(chain)(options);
 
-      const timestamp = options.endTimestamp
-      const balances = new Balances({ chain, timestamp })
+      const balances = options.createBalances()
       balances.add(priceToken, Number(dailyVolume).toFixed(0), { skipChain: true })
+      let dailyFeesObj = options.createBalances()
+      if (totalFeesField)
+        dailyFeesObj.add(priceToken, Number(dailyFees).toFixed(0), { skipChain: true })
 
-      return {
-        dailyVolume: await balances.getUSDString(),
+      const response: any = {
+        dailyVolume: balances,
       }
+      if (totalFeesField)
+        response.dailyFees = dailyFeesObj
+      return response
     };
   };
 }
 
 function univ2Adapter({
-  endpoints = {} as {[chain: string]: string},
+  endpoints = {} as { [chain: string]: string },
   factoriesName = DEFAULT_TOTAL_VOLUME_FACTORY,
   dayData = DEFAULT_DAILY_VOLUME_FACTORY,
   totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
@@ -266,9 +281,9 @@ function univ2Adapter({
   dailyVolume = DEFAULT_DAILY_VOLUME_FIELD,
   dailyVolumeTimestampField = DEFAULT_DATE_FIELD,
   hasTotalVolume = true,
-  hasDailyVolume = undefined as boolean|undefined,
-  gasToken = null as string|null
-}){
+  hasDailyVolume = undefined as boolean | undefined,
+  gasToken = null as string | null
+}) {
   const graphs = (gasToken === null ? getChainVolume : getChainVolumeWithGasToken as typeof getChainVolume)({
     graphUrls: endpoints,
     hasTotalVolume,
@@ -285,23 +300,25 @@ function univ2Adapter({
     hasDailyVolume,
     priceToken: gasToken
   } as any);
-  return async (_a:any, _b:any, options: FetchOptions) => {
+  return async (_a: any, _b: any, options: FetchOptions) => {
     return graphs(options.chain)(_a, _b, options)
   }
 }
 
 function univ2Adapter2({
-  endpoints = {} as {[chain: string]: string},
+  endpoints = {} as { [chain: string]: string },
   factoriesName = DEFAULT_TOTAL_VOLUME_FACTORY,
   totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
-  gasToken = null as string|null,
-}){
+  totalFeesField = null as string | null,
+  gasToken = null as string | null,
+}) {
   const graphs = (gasToken === null ? getChainVolume2 : getChainVolumeWithGasToken2 as typeof getChainVolume2)({
     graphUrls: endpoints,
     totalVolume: {
       factory: factoriesName,
       field: totalVolume
     },
+    totalFeesField,
     priceToken: gasToken
   } as any);
   return async (options: FetchOptions) => {
