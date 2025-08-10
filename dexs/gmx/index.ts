@@ -61,10 +61,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
       : String(dayTimestamp) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
+
   let openInterestAtEnd = 0;
   let longOpenInterestAtEnd = 0;
   let shortOpenInterestAtEnd = 0;
@@ -76,9 +73,9 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
       : String(dayTimestamp) + ':daily',
       period: 'daily',
     });
-    openInterestAtEnd = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
-    longOpenInterestAtEnd = Number(tradingStats.tradingStats[0].longOpenInterest);
-    shortOpenInterestAtEnd = Number(tradingStats.tradingStats[0].shortOpenInterest);
+    openInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest) : 0;
+    longOpenInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].longOpenInterest) : 0;
+    shortOpenInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].shortOpenInterest) : 0;
   }
   if (dayTimestamp == HACK_TIMESTAMP && chain == CHAIN.ARBITRUM){
     return {
@@ -96,7 +93,7 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined
+        : 0
   }
 }
 

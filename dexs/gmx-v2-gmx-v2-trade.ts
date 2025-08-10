@@ -86,38 +86,21 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   }
 }
 
-const meta = {
-  methodology: {
-    dailyVolume: "Sum of daily total volume for all markets on a given day.",
-  }
-}
-
 const adapter: Adapter = {
   version: 1,
+  methodology: {
+    dailyVolume: "Sum of daily total volume for all markets on a given day.",
+  },
+  fetch,
+  runAtCurrTime: true,  // because of the open interest
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      runAtCurrTime: true,  // because of the open interest
-      start: '2021-08-31',
-      meta
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2021-12-22',
-      meta
-    },
+    [CHAIN.ARBITRUM]: { start: '2021-08-31', },
+    [CHAIN.AVAX]: { start: '2021-12-22', },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2021-08-31',
-      meta
     },
-    [CHAIN.BOTANIX]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2025-05-30',
-      meta
-    }
+    [CHAIN.BOTANIX]: { start: '2025-05-30', }
   }
 }
 

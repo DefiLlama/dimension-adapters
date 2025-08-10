@@ -51,7 +51,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const ethPrice = (await getPrices([ethAddress], dayTime))[ethAddress]
     .price;
 
-  // Set date string parmas which are used by queries
+  // Set date string params which are used by queries
   const todaysDateParts = formatTimestampAsDate(dayTime.toString()).split(
     "/"
   );

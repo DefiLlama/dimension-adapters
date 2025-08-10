@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const dailyEndpoint = "https://api.moonlander.trade/v1/trading-volumes/sum-by-date";
 
 const chains: { [key: string]: string } = {
-  [CHAIN.CRONOS]: "CRONOS",
+  // [CHAIN.CRONOS]: "CRONOS",
   [CHAIN.CRONOS_ZKEVM]: "CRONOS_ZKEVM",
 };
 
@@ -31,7 +31,7 @@ async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
 }
 
 const startTimestamps: { [chain: string]: string } = {
-  [CHAIN.CRONOS]: '2025-04-29',
+  // [CHAIN.CRONOS]: '2025-04-29',
   [CHAIN.CRONOS_ZKEVM]: '2024-12-17',
 };
 const adapter: any = {}

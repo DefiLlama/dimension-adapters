@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
+import { BaseAdapter } from "../adapters/types";
 
 const adapter = univ2DimensionAdapter2({
   graphUrls: {
@@ -46,20 +47,20 @@ const adapter = univ2DimensionAdapter2({
   }
 });
 
-adapter.adapter.arbitrum.start = 1648950817;
-adapter.adapter.avax.start = 1616118817;
-adapter.adapter.bsc.start = 1629251617;
-adapter.adapter.fantom.start = 1621562017;
-adapter.adapter.polygon.start = 1618019617;
-adapter.adapter.xdai.start = 1629251617;
-// adapter.adapter.elastos.start = 1634954017;
-// adapter.adapter.okexchain.start = 1649555617;
-// adapter.adapter.kcc.start = 1634954017;
-adapter.adapter.ethereum.start = 1619747617;
-adapter.adapter.optimism.start = 1651542817;
-// adapter.adapter.fuse.start = 1639187617;
-// adapter.adapter.iotex.start = 1639792417;
-// adapter.adapter.telos.start = 1648684800;
+(adapter.adapter as BaseAdapter).arbitrum.start = 1648950817;
+(adapter.adapter as BaseAdapter).avax.start = 1616118817;
+(adapter.adapter as BaseAdapter).bsc.start = 1629251617;
+(adapter.adapter as BaseAdapter).fantom.start = 1621562017;
+(adapter.adapter as BaseAdapter).polygon.start = 1618019617;
+(adapter.adapter as BaseAdapter).xdai.start = 1629251617;
+// (adapter.adapter as BaseAdapter).elastos.start = 1634954017;
+// (adapter.adapter as BaseAdapter).okexchain.start = 1649555617;
+// (adapter.adapter as BaseAdapter).kcc.start = 1634954017;
+(adapter.adapter as BaseAdapter).ethereum.start = 1619747617;
+(adapter.adapter as BaseAdapter).optimism.start = 1651542817;
+// (adapter.adapter as BaseAdapter).fuse.start = 1639187617;
+// (adapter.adapter as BaseAdapter).iotex.start = 1639792417;
+// (adapter.adapter as BaseAdapter).telos.start = 1648684800;
 
 
 export default adapter;

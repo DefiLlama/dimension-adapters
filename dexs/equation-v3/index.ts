@@ -37,14 +37,12 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    methodology,
     deadFrom: "2025-04-06",
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
             start: '2024-05-13',
-            meta: {
-                methodology: methodology,
-            },
         },
     },
 }

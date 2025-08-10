@@ -22,7 +22,7 @@ const ODOS_V2_ROUTERS: TPool = {
   [CHAIN.AVAX]: ['0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC',],
   [CHAIN.BSC]: ['0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E',],
   [CHAIN.FANTOM]: ['0xd0c22a5435f4e8e5770c1fafb5374015fc12f7cd',],
-  [CHAIN.ERA]: [ '0x4bBa932E9792A2b917D47830C93a9BC79320E4f7', ],
+  [CHAIN.ERA]: ['0x4bBa932E9792A2b917D47830C93a9BC79320E4f7',],
   [CHAIN.MODE]: ['0x7E15EB462cdc67Cf92Af1f7102465a8F8c784874',],
   [CHAIN.LINEA]: ['0x2d8879046f1559E53eb052E949e9544bCB72f414',],
   [CHAIN.MANTLE]: ['0xD9F4e85489aDCD0bAF0Cd63b4231c6af58c26745',],
@@ -37,7 +37,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
-  
+
   const logs = await getLogs({ targets: routers, eventAbi: event_swap, })
   const multiswapLogs = await getLogs({ targets: routers, eventAbi: event_multiswap, })
 
@@ -47,7 +47,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 
   // add fees
   logs.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
-  multiswapLogs.forEach(i => dailyFees.add(i.tokensOut, i.amountsOut.map((a: any) => Number(a) * .01/100))) // 0.01% fixed fee
+  multiswapLogs.forEach(i => dailyFees.add(i.tokensOut, i.amountsOut.map((a: any) => Number(a) * .01 / 100))) // 0.01% fixed fee
 
   const logs_v3 = await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_swap_v3, })
   const multiswapLogs_v3 = await getLogs({ targets: [ODOS_ROUTER_V3], eventAbi: event_multiswap_v3, })
@@ -56,11 +56,38 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   logs_v3.forEach(i => dailyVolume.add(i.outputToken, i.amountOut))
   multiswapLogs_v3.forEach(i => dailyVolume.add(i.tokensOut, i.amountsOut))
 
-  // add v3 fees
-  logs_v3.forEach(i => dailyFees.add(i.outputToken, Number(i.slippage) > 0 ? i.slippage : 0))
-  multiswapLogs_v3.forEach(i => dailyFees.add(i.tokensOut, i.slippage.map((a: any) => Number(a) > 0 ? a : 0)))
+  // add V3 Odos fees
+  function addV3Fees(entry: any) {
 
-  return { 
+    // FE fees will use referral code 1 and keep the funds in the router as revenue
+    const isFrontendFee = Number(entry.referralCode) == 1 && entry.referralFeeRecipient == ODOS_ROUTER_V3
+
+    // Single-output case
+    if (entry.outputToken) {
+      const slippageFee = Number(entry.slippage) > 0 ? Number(entry.slippage) : 0
+
+      const frontendFee = isFrontendFee ? Number(entry.referralFee) * Number(entry.amountOut) / 1e18 : 0
+
+      dailyFees.add(entry.outputToken, slippageFee + frontendFee)
+    }
+
+    // Multi-output case
+    if (entry.tokensOut && entry.amountsOut) {
+      entry.tokensOut.forEach((token: string, idx: number) => {
+        const tokenSlippage = Number(entry.slippage[idx])
+
+        const slippageFee = tokenSlippage > 0 ? tokenSlippage : 0
+
+        const frontendFee = isFrontendFee ? Number(entry.referralFee) *  Number(entry.amountsOut[idx]) / 1e18 : 0
+
+        dailyFees.add(token, slippageFee + frontendFee)
+      })
+    }
+  }
+  logs_v3.forEach(addV3Fees)
+  multiswapLogs_v3.forEach(addV3Fees)
+  
+  return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
@@ -71,7 +98,9 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
   };
 }
 
-const meta = {
+const start = '2023-07-14'
+const adapter: SimpleAdapter = {
+  version: 2,
   methodology: {
     Fees: "All fees paid by users for using Odos services.",
     UserFees: "All fees paid by users for using Odos services.",
@@ -80,11 +109,10 @@ const meta = {
     SupplySideRevenue: "No revenue distributed to supply side.",
     ProtocolRevenue: "Revenue is equal to the fees collected.",
   },
-}
-
-const start = '2023-07-14'
-const adapter: SimpleAdapter = { adapter: {}, version: 2, };
-Object.keys(ODOS_V2_ROUTERS).forEach((chain) => adapter.adapter[chain] = { fetch, start, meta, });
+  fetch,
+  start,
+  chains: Object.keys(ODOS_V2_ROUTERS),
+};
 
 export default adapter;
 

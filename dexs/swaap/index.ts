@@ -148,11 +148,9 @@ const adapter: BreakdownAdapter = {
         v1: {
             [CHAIN.POLYGON]: {
                 fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
-                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(_t, _tt, options)
+                    const { dailyVolume }  = await v1graphs(options.chain)(_t, _tt, options)
                     return  {
-                        timestamp: options.startOfDay,
                         dailyVolume,
-                        totalVolume
                     }
                 },
                 start: '2022-06-14'

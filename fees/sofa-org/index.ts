@@ -28,34 +28,6 @@ const feeRates = {
   settlementFeeRate: 5n, // 0.05%
 }
 
-const tokens = {
-  [CHAIN.ETHEREUM]: {
-    usdt: ADDRESSES.ethereum.USDT,
-    rch: "0x57B96D4aF698605563A4653D882635da59Bf11AF",
-    scrvusd: "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367",
-    ausdt: "0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a",
-    zrch: "0x57B96D4aF698605563A4653D882635da59Bf11AF", //rch, because no zRCH price
-    steth: ADDRESSES.ethereum.STETH,
-    crvusd: ADDRESSES.ethereum.CRVUSD,
-    crv: ADDRESSES.ethereum.CRV,
-  },
-  [CHAIN.ARBITRUM]: {
-    usdt: ADDRESSES.arbitrum.USDT,
-    usdc: ADDRESSES.arbitrum.USDC_CIRCLE,
-    ausdt: "0x6ab707Aca953eDAeFBc4fD23bA73294241490620",
-  },
-  [CHAIN.BSC]: {
-    usdt: ADDRESSES.bsc.USDT,
-  },
-  [CHAIN.POLYGON]: {
-    usdt: ADDRESSES.polygon.USDT,
-  },
-  [CHAIN.SEI]: {
-    susda: "0x6aB5d5E96aC59f66baB57450275cc16961219796",
-    usdc: ADDRESSES.sei.USDC,
-  },
-}
-
 const startTimestamp = {
   [CHAIN.ETHEREUM]: 1717679579,
   [CHAIN.ARBITRUM]: 1717665701,
@@ -65,7 +37,7 @@ const startTimestamp = {
 }
 
 const vaultMakerAddr = "0xc59023d3fdd79fcee662d1f06eba0b1bfd49b8f3";
-const contractsJsonFile = "https://raw.githubusercontent.com/sofa-org/sofa-gitbook/main/static/contracts_for_defillama_fees.json";
+const contractsJsonFile = "https://raw.githubusercontent.com/sofa-org/sofa-gitbook/main/static/contracts_tokens_for_defillama_fees.json";
 const methodology = {
   methodology: {
     Fees: "Fees are collected, transferred to the mainnet, swapped to RCH, and then burned.",
@@ -78,6 +50,7 @@ const fetch = async (options: FetchOptions) => {
     allContracts = await getConfig('sofa-org/fees', contractsJsonFile);
     //console.log("allContracts:", allContracts);
   }
+  const tokens = allContracts.tokens;
   const dailyFees = options.createBalances();
   const chain = options.chain;
   for (const product in allContracts[chain]) {
@@ -99,7 +72,7 @@ const fetch = async (options: FetchOptions) => {
       } else if (product === 'dual') {
         //burn
         const data = await getLog(options, contracts, dualABIs.dualBurn);
-        const [collateral, quote] = getTokens(tokenSymbol, chain);
+        const [collateral, quote] = getTokens(tokenSymbol, chain, tokens);
         const {fee, quoteFee} = burnDualLog(data, product);
         dailyFees.add(collateral, fee);
         dailyFees.add(quote, quoteFee);
@@ -162,7 +135,7 @@ async function getLog(options: FetchOptions, targets: [], eventAbi: string) {
   return data;
 }
 
-function getTokens(raw: string, chain: string) {
+function getTokens(raw: string, chain: string, tokens: any) {
   const tokenSymbols = raw.split('_');
   return tokenSymbols.map((token: string) => tokens[chain][token]);
 }

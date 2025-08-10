@@ -25,7 +25,7 @@ const abi = {
 const methodology = {
     UserFees: "No user fees",
     Fees: "Includes all treasury revenue, all revenue to CVX lockers and stakers and all revenue to liquid derivatives (cvxCRV, cvxFXS)",
-    HoldersRevenue: "All revenue going to CVX lockers and stakers, including bribes",
+    HoldersRevenue: "All revenue going to CVX lockers and stakers",
     Revenue: "Sum of protocol revenue and holders' revenue",
     ProtocolRevenue: "Share of revenue going to Convex treasury (includes caller incentives on Frax pools, POL yield and Votemarket bribes)",
     SupplySideRevenue: "All CRV, CVX and FXS rewards redistributed to liquidity providers staking on Convex.",
