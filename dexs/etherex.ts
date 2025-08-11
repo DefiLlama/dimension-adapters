@@ -6,15 +6,15 @@ type TStartTime = {
   [key: string]: number;
 };
 
-const SHADOW_TOKEN_CONTRACT = "0x3333b97138d4b086720b5ae8a7844b1345a33333";
-const XSHADOW_TOKEN_CONTRACT = "0x5050bc082FF4A74Fb6B0B04385dEfdDB114b2424";
+const REX_TOKEN_CONTRACT = "0xEfD81eeC32B9A8222D1842ec3d99c7532C31e348";
+const XREX_TOKEN_CONTRACT = "0xc93B315971A4f260875103F5DA84cB1E30f366Cc";
 
 const startTimeV2: TStartTime = {
   [CHAIN.LINEA]: 1753657200,
 };
 
 export const subgraphEndpoints: any = {
-  [CHAIN.LINEA]: "https://linea.kingdomsubgraph.com/subgraphs/name/etherex-pruned",
+  [CHAIN.LINEA]: "https://linea.kingdomsubgraph.com/subgraphs/name/etherex",
 };
 
 export const envioEndpoints: any = {
@@ -149,7 +149,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
 
   const voteBribes = await getBribes(options);
   const tokenIds = new Set(voteBribes.map((e) => e.token.id));
-  tokenIds.add(SHADOW_TOKEN_CONTRACT.toLowerCase());
+  tokenIds.add(REX_TOKEN_CONTRACT.toLowerCase());
 
   const tokens = await getTokens(options, Array.from(tokenIds));
   const {
@@ -170,7 +170,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   }, 0);
 
   const InstantExitLogs = await options.getLogs({
-    target: XSHADOW_TOKEN_CONTRACT,
+    target: XREX_TOKEN_CONTRACT,
     eventAbi: "event InstantExit(address indexed user, uint256 amount)",
     topic: "0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a",
   });
@@ -181,7 +181,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   }
 
   // Calculate xSHADOW rebase revenue in USD
-  const shadowToken = tokens.find((t) => t.id === SHADOW_TOKEN_CONTRACT);
+  const shadowToken = tokens.find((t) => t.id === REX_TOKEN_CONTRACT);
   const shadowPriceUSD = Number(shadowToken?.priceUSD ?? 0);
   const dailyXshadowInstantExitFeeUSD = shadowPenaltyAmount * shadowPriceUSD; // Voters will get the shadow token as rebase
 
