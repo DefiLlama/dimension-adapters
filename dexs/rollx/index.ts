@@ -1,44 +1,32 @@
-import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const v2VolumeAPI = "https://adm.rolldex.io/api/trade/query/dailyTradeVol";
 
+const chainConfig = {
+  [CHAIN.BITLAYER]: {
+    start: '2024-06-22',
+  },
+  [CHAIN.BASE]: {
+    start: '2024-06-22',
+  },
+}
 
-const fetchVolume = async (timestamp: number,chain: Chain) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const res = (
-    await httpGet(v2VolumeAPI, { params: { chain:chain, timestamp: timestamp } })
-  ) as  {data , success: boolean }
-  if (res.data.dailyVolume == "" && res.success === false) {
-    return fetchVolume(timestamp,chain)
+    await httpGet(v2VolumeAPI, { params: { chain: options.chain, timestamp: options.startOfDay } })
+  ) as { data: { dailyVolume: number }, success: boolean }
+
+  return {
+    dailyVolume: res.data.dailyVolume
   }
-  const dailyVolume = res.data.dailyVolume
-  return { dailyVolume }
 };
 
 
-const fetch = async (timestamp: number, _a:any, options: FetchOptions) => {
-  let dailyVolume = 0;
-  const data = await fetchVolume(timestamp, options.chain);
-  dailyVolume += data.dailyVolume;
-  return { dailyVolume}
-}
-
-
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BITLAYER]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2024-06-22',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2024-06-22',
-    },
-  },
+  fetch,
+  adapter: chainConfig
 };
 
 export default adapter;
