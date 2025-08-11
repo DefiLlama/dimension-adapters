@@ -42,11 +42,11 @@ function makeErc20BlacklistFromFilter(blacklistedFromAddresses: string[],): (log
  * we can comment out real, scroll, fantom, zkevm, kava, canto etc. after backfill
  */
 const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
-  [CHAIN.REAL]: {
-    start: '2024-07-17',
-    contract: beefyRevenueBridgeAddress,
-    stables: [ADDRESSES.real.USDC],
-  },
+  // [CHAIN.REAL]: {
+  //   start: '2024-07-17',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [ADDRESSES.real.USDC],
+  // },
   [CHAIN.ROOTSTOCK]: {
     start: '2024-09-30',
     contract: beefyRevenueBridgeAddress,
@@ -73,23 +73,23 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
       '0x1B6382DBDEa11d97f24495C9A90b7c88469134a4', // axlUSDC
     ],
   },
-  [CHAIN.POLYGON_ZKEVM]: {
-    start: '2023-08-23',
-    contract: beefyRevenueBridgeAddress,
-    stables: [ADDRESSES.polygon_zkevm.USDC],
-  },
-  [CHAIN.KAVA]: {
-    start: '2023-08-23',
-    contract: beefyRevenueBridgeAddress,
-    stables: [
-      '0xEB466342C4d449BC9f53A865D5Cb90586f405215', // axlUSDC
-    ],
-  },
-  [CHAIN.CANTO]: {
-    start: '2023-08-23',
-    contract: beefyRevenueBridgeAddress,
-    stables: [ADDRESSES.canto.USDC],
-  },
+  // [CHAIN.POLYGON_ZKEVM]: {
+  //   start: '2023-08-23',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [ADDRESSES.polygon_zkevm.USDC],
+  // },
+  // [CHAIN.KAVA]: {
+  //   start: '2023-08-23',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [
+  //     '0xEB466342C4d449BC9f53A865D5Cb90586f405215', // axlUSDC
+  //   ],
+  // },
+  // [CHAIN.CANTO]: {
+  //   start: '2023-08-23',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [ADDRESSES.canto.USDC],
+  // },
   [CHAIN.SEI]: {
     start: '2024-08-01',
     contract: beefyRevenueBridgeAddress,
