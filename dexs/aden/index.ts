@@ -34,7 +34,7 @@ const fetch = async (): Promise<FetchResultVolume> => {
   const dailyVolume = totalVolume / 2;
 
   return {
-    dailyVolume: dailyVolume.toString(),
+    dailyVolume,
   };
 };
 
