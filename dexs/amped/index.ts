@@ -5,11 +5,11 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.LIGHTLINK_PHOENIX]: "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
-  [CHAIN.SONIC]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.6/gn",
+  [CHAIN.SONIC]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.7/gn",
   // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
   [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
   [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
-  [CHAIN.SSEED]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
+  // [CHAIN.SSEED]: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.2/gn",
 };
 
 const historicalDataSwap = gql`
@@ -83,6 +83,7 @@ const methodology = {
 };
 
 const adapter: BreakdownAdapter = {
+  methodology,
   breakdown: {
     swap: Object.keys(endpoints).reduce((acc, chain) => {
       return {
@@ -90,9 +91,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
-          meta: {
-            methodology,
-          },
         },
       };
     }, {}),
@@ -102,9 +100,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
-          meta: {
-            methodology,
-          },
         },
       };
     }, {}),

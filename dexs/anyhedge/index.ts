@@ -21,7 +21,7 @@ export const anyhedgeVolumeEndpoint = (day: string) => {
   return "https://gitlab.com/0353F40E/anyhedge-stats/-/raw/master/stats_daily/" + day + ".csv";
 }
 
-const fetchAnyhedgeVolumeData: Fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetchAnyhedgeVolumeData: any = async (timestamp: number, _: any, options: FetchOptions) => {
   const dayString = new Date(timestamp * 1000).toISOString().slice(0,10);
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
   
@@ -70,10 +70,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BITCOIN_CASH]: {
       fetch: fetchAnyhedgeVolumeData,
       start: '2022-06-09',
-      meta: {
-          methodology
-      }
     },
   },
+  methodology,
 };
 export default adapter;

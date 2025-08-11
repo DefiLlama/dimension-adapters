@@ -196,7 +196,7 @@ export default {
         [CHAIN.SOLANA]: {
             fetch,
             runAtCurrTime: true,
-            start: '2022-09-14',
+            start: '2022-03-10',
             meta: { methodology }
         },
         [CHAIN.ECLIPSE]: {

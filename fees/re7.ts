@@ -56,6 +56,11 @@ const curatorConfig: CuratorConfig = {
         '0x7B41b9891887820A75A51a1025dB1A54f4798521',
       ],
     },
+    tac:{
+      eulerVaultOwners: [
+        '0xE5EAE3770750dC9E9eA5FB1B1d81A0f9C6c3369c',
+      ],
+    },
   }
 }
 
