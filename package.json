@@ -35,8 +35,7 @@
     "p-limit": "^3.1.0",
     "pg": "^8.11.3",
     "sequelize": "^6.36.0",
-    "tron-format-address": "^0.1.11",
-    "yarn": "^1.22.22"
+    "tron-format-address": "^0.1.11"
   },
   "devDependencies": {
     "@types/node": "^18.7.23",
