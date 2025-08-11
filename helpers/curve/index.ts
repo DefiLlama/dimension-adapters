@@ -8,8 +8,8 @@ export * from "./helpers";
 
 export async function getCurveDexData(options: FetchOptions, config: ICurveDexConfig) {
   const dailyVolume = options.createBalances()
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
+  const swapFees = options.createBalances()
+  const adminFees = options.createBalances()
 
   const tokenExchangeEvents: Array<ITokenExchangeEvent> = []
   const tokenExchangeUnderlyingEvents: Array<ITokenExchangeEvent> = []
@@ -71,13 +71,11 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     const amount0 = Number(event.tokens_sold)
     const amount1 = Number(event.tokens_bought)
 
-    if (!token0 || !token1) {
-      continue
-    }
-
+    if (!token0 && !token1) continue
+  
     addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-    addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: amount0 * feeRate, amount1: amount1 * feeRate })
-    addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: amount0 * feeRate * adminFeeRate, amount1: amount1 * feeRate * adminFeeRate })
+    addOneToken({ chain: options.chain, balances: swapFees, token0, token1, amount0: amount0 * feeRate, amount1: amount1 * feeRate })
+    addOneToken({ chain: options.chain, balances: adminFees, token0, token1, amount0: amount0 * feeRate * adminFeeRate, amount1: amount1 * feeRate * adminFeeRate })
   }
 
   for (const event of tokenExchangeUnderlyingEvents) {
@@ -87,10 +85,6 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     const adminFeeRate = pools[event.pool].adminFeeRate
     const amount0 = Number(event.tokens_sold)
     const amount1 = Number(event.tokens_bought)
-
-    if (!token0 || !token1) {
-      continue
-    }
 
     // why we only add token with index of 0 here?
     //
@@ -102,20 +96,30 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     //  when users swap USDC for FEI, contracts takes USDC and add liquidity to DAI/USDC/USDT and get an amount of LP token
     //  contracts put this LP amount into TokenExchangeUnderlying event, so we can not get correct trae amount from USDC amount, we only can get trade amount from FEI amount
     if (event.sold_id === 0) {
-      dailyVolume.add(token0, amount0);
-      dailyFees.add(token0, amount0 * feeRate);
-      dailyRevenue.add(token0, amount0 * feeRate * adminFeeRate);
+      if (token0) {
+        dailyVolume.add(token0, amount0);
+        swapFees.add(token0, amount0 * feeRate);
+        adminFees.add(token0, amount0 * feeRate * adminFeeRate);
+      }
     } else if (event.bought_id === 0) {
-      dailyVolume.add(token1, amount1);
-      dailyFees.add(token1, amount1 * feeRate);
-      dailyRevenue.add(token1, amount1 * feeRate * adminFeeRate);
+      if (token1) {
+        dailyVolume.add(token1, amount1);
+        swapFees.add(token1, amount1 * feeRate);
+        adminFees.add(token1, amount1 * feeRate * adminFeeRate);
+      }
     }
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue }
+  return { dailyVolume, swapFees, adminFees }
 }
 
-export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
+interface FeeSplitConfigs {
+  userFeesRatio: number; // how many percentage from swap fees, 0.5 -> 50%
+  revenueRatio: number; // how many percentage of swap fees, 0.5 -> 50%
+  holdersRevenueRatio: number; // how many percentage of swap fees, 0.5 -> 50%
+}
+
+export function getCurveExport(configs: {[key: string]: ICurveDexConfig}, feeSplitConfig: FeeSplitConfigs | undefined = undefined) {
   const adapter: SimpleAdapter = {
     version: 2,
     adapter: Object.keys(configs).reduce((acc, chain) => {
@@ -123,7 +127,20 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
         ...acc,
         [chain]: {
           fetch: async function(options: FetchOptions) {
-            return await getCurveDexData(options, configs[chain])
+            const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
+            if (feeSplitConfig) {
+              return {
+                dailyVolume,
+                dailyFees: swapFees,
+                dailyUserFees: swapFees.clone(feeSplitConfig.userFeesRatio),
+                dailyRevenue: swapFees.clone(feeSplitConfig.revenueRatio),
+                dailyProtocolRevenue: adminFees,
+                dailySupplySideRevenue: swapFees.clone(1 - feeSplitConfig.revenueRatio),
+                dailyHoldersRevenue: swapFees.clone(feeSplitConfig.holdersRevenueRatio),
+              }
+            } else {
+              return { dailyVolume, dailyFees: swapFees, dailyRevenue: adminFees, dailyProtocolRevenue: adminFees };
+            }
           },
           start: configs[chain].start,
         }

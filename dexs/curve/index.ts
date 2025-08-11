@@ -376,4 +376,13 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
 
 const adapter = getCurveExport(CurveDexConfigs)
 
+adapter.methodology = {
+  Fees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
+  UserFees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
+  Revenue: "A 50% of the trading fee is collected by veCRV holders",
+  ProtocolRevenue: "Admin fees collected from every swap to Curve treasury",
+  HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
+  SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
+}
+
 export default adapter;

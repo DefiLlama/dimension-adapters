@@ -179,6 +179,11 @@ export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<
     calls: coinsCalls,
     permitFailure: true,
   })
+  const underlyingCoinsOldResults = await options.api.multiCall({
+    abi: 'function underlying_coins(int128) view returns (address)',
+    calls: coinsCalls,
+    permitFailure: true,
+  })
   const feeResults = await options.api.multiCall({
     abi: 'function fee() view returns (uint256)',
     calls: poolAddresses,
@@ -197,8 +202,13 @@ export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<
       tokens = coinsOldResults.slice(i * MAX_TOKENS_COUNT, i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
     }
 
-    // unwrap metapool underlying tokens
+    // get underlying coins
     let underlyingTokens: Array<string> = underlyingCoinsResults.slice(i * MAX_TOKENS_COUNT , i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
+    if (underlyingTokens.length === 0) {
+      underlyingTokens = underlyingCoinsOldResults.slice(i * MAX_TOKENS_COUNT , i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
+    }
+
+    // unwrap metapool underlying tokens
     if (underlyingTokens.length === 0 && config.metaBasePools) {
       for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex++) {
         const lpTokenAddress = formatAddress(tokens[tokenIndex])
