@@ -24,7 +24,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: '2024-10-27',
+  start: '2025-07-08',
   methodology,
   doublecounted: true,
   isExpensiveAdapter: true,

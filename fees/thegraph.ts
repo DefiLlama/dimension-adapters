@@ -112,31 +112,16 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology: {
+    Fees: "Total query fees paid by users for accessing subgraph data",
+    Revenue: "Combined revenue from protocol tax (burned fees)",
+    HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
+    SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
+  },
+  fetch,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2022-11-30',
-      meta: {
-        methodology: {
-          Fees: "Total query fees paid by users for accessing subgraph data",
-          Revenue: "Combined revenue from protocol tax (burned fees)",
-          HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
-          SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
-        },
-      },
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2020-12-17',
-      meta: {
-        methodology: {
-          Fees: "Total query fees paid by users for accessing subgraph data",
-          Revenue: "Combined revenue from protocol tax (burned fees)",
-          HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
-          SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
-        },
-      },
-    },
+    [CHAIN.ARBITRUM]: { start: '2022-11-30', },
+    [CHAIN.ETHEREUM]: { start: '2020-12-17', },
   },
 };
 

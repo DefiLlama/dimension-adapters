@@ -8,53 +8,49 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   // https://dune.com/queries/4313339
   const value = (await queryDuneSql(options,
-    `WITH new_tokens_solana as (
-      SELECT 
-        tx_id,
-        from_owner
-      FROM tokens_solana.transfers
-      WHERE outer_executing_account = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'
-      and block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
-      GROUP BY 1,2
+    `WITH excluded_transactions AS (
+      SELECT DISTINCT tx_id
+      FROM solana.account_activity
+      WHERE tx_success = TRUE
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time <= from_unixtime(${options.endTimestamp})
+        AND address IN (
+          '49AdQfhKyVgWKb1HPi6maQxm5tqJasePR9K6Mn67hEYA',
+          'EkuimaBYybHvviYjtMXcnC7eg6WQmzLriDPtvh98fjRg',
+          'CL9jPThhYnxvPSWNLhR4J7in13WvtMXXBGCe8LEhipmj',
+          '94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb',
+          '7xQYoUjUJF1Kg6WVczoTAkaNhn5syQYcbvjmFrhjWpx',
+          'BWXT6RUhit9FfJQM3pBmqeFLPYmuxgmyhMGC5sGr8RbA',
+          'Bvtgim23rfocUzxVX9j9QFxTbBnH8JZxnaGLCEkXvjKS',
+          'FGptqdxjahafaCzpZ1T6EDtCzYMv7Dyn5MgBLyB3VUFW',
+          'X5QPJcpph4mBAJDzc4hRziFftSbcygV59kRb2Fu6Je1',
+          '7GFUN3bWzJMKMRZ34JLsvcqdssDbXnp589SiE33KVwcC'
+        )
+        AND balance_change < 0
     ),
 
-    fees as (
+    daily_revenue AS (
       SELECT 
-        a.tx_id,
-        a.block_time,
-        a.address as tx_signer,
-        'Sell' as action_type,
-        balance_change/1e9 as total_sol
-        FROM solana.account_activity a
-        LEFT JOIN new_tokens_solana n 
-            ON n.tx_id = a.tx_id 
-        WHERE DATE(a.block_time) >= DATE('2024-01-14')
-          AND a.block_time >= from_unixtime(${options.startTimestamp})
-          AND a.block_time <= from_unixtime(${options.endTimestamp})
-          AND (a.address = 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'
-            or a.address = 'FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz'
-            or a.address = 'G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP'
-            or a.address = '7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX'
-            or a.address = '9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz'
-            or a.address = '7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ'
-            or a.address = 'AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY'
-            or a.address = '62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV')
-          and n.from_owner not in (
-            '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg',
-            '12xs3VnsaoEduxobnbaxQtCh6PQMDoFUrP4YB1F8pFPX',
-            '49AdQfhKyVgWKb1HPi6maQxm5tqJasePR9K6Mn67hEYA',
-            'EkuimaBYybHvviYjtMXcnC7eg6WQmzLriDPtvh98fjRg',
-            'CL9jPThhYnxvPSWNLhR4J7in13WvtMXXBGCe8LEhipmj'
-          )
-          and balance_change > 0
-          and a.token_mint_address is null
-      )
-      SELECT
-        SUM(total_sol) as total_sol_revenue
-      FROM fees
-      where block_time >= from_unixtime(${options.startTimestamp})
-        and block_time <= from_unixtime(${options.endTimestamp})
+        SUM(sa.balance_change) / 1e9 AS daily_revenue_sol 
+      FROM solana.account_activity sa
+      LEFT JOIN excluded_transactions et ON sa.tx_id = et.tx_id
+      WHERE sa.tx_success = TRUE
+        AND sa.block_time >= from_unixtime(${options.startTimestamp})
+        AND sa.block_time <= from_unixtime(${options.endTimestamp})
+        AND (sa.address = 'CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM'
+            or sa.address = '62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV'
+            or sa.address = 'FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz'
+            or sa.address = '7hTckgnGnLQR6sdH7YkqFTAA7VwTfYFaZ6EhEsU3saCX'
+            or sa.address = 'AVmoTthdrX6tKt4nDjco2D775W2YK3sDhxPcMmzUAmTY'
+            or sa.address = '9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz'
+            or sa.address = 'G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP'
+            or sa.address = '7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ')
+        AND sa.balance_change > 0
+        AND et.tx_id IS NULL 
+    )
+    SELECT
+      SUM(daily_revenue_sol) as total_sol_revenue
+    FROM daily_revenue
     `
   ));
   dailyFees.add(ADDRESSES.solana.SOL, value[0].total_sol_revenue * 1e9);

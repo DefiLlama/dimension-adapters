@@ -11,18 +11,14 @@ const INDEXER_URL = "https://indexer.cauldron.quest";
 
 const methodology = {
   Volume: "Scrape the blockchain and filter for spent transaction outputs that match the cauldron contract's redeem script. Check if the transaction has an output with a locking script that matches the redeem script in the input. A match on locking script means the funds are still locked in the DEX contract. Aggregate the difference of funds in contract utxos as trade volume.",
-  Fees: "N/A",
-  Revenue: "N/A",
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.BITCOIN_CASH]: {
       fetch: fetchCauldronVolume,
       start: '2023-07-01',
-      meta: {
-          methodology
-      }
     },
   },
 };

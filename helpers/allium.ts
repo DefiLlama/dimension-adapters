@@ -42,7 +42,10 @@ async function _queryAllium(sqlQuery: string) {
     query: sqlQuery,
     table: sqlQuery.split(/from/i)[1].split(/\s/)[1],
   }
-
+  const API_KEY = HEADERS["X-API-KEY"]
+  if (!API_KEY) {
+    throw new Error("Allium API Key is required[Ignore this error for github bot]")
+  }
 
   const _response = retry(
     async (bail) => {
