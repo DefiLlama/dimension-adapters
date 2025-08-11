@@ -135,7 +135,7 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
 
-  const [yesterdayNavs, todayNavs] = await Promise.all([options.fromApi.multiCall({
+  const [yesterdayNavs, todayNavs, poolBaseInfos, yesterdayShareTotalValues, todayShareTotalValues] = await Promise.all([options.fromApi.multiCall({
     abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
     calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
       target: pool.navOracle,
@@ -148,9 +148,8 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
       target: pool.navOracle,
       params: [pool.poolId, toTimestamp],
     })),
-  })]);
-
-  const poolBaseInfos = await options.api.multiCall({
+  }),
+  options.api.multiCall({
     abi: `function slotBaseInfo(uint256 slot_) view returns (tuple(address issuer, address currency, uint64 valueDate, uint64 maturity, uint64 createTime, bool transferable, bool isValid))`,
     calls: pools.map(
       (index: {
@@ -161,9 +160,8 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
         params: [index.openFundShareSlot],
       })
     ),
-  });
-
-  const [yesterdayShareTotalValues, todayShareTotalValues] = await Promise.all([options.fromApi.multiCall({
+  }),
+  options.fromApi.multiCall({
     abi: "function slotTotalValue(uint256) view returns (uint256)",
     calls: pools.map(
       (index: {
@@ -174,7 +172,8 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
         params: [index.openFundShareSlot],
       })
     ),
-  }), options.toApi.multiCall({
+  }),
+  options.toApi.multiCall({
     abi: "function slotTotalValue(uint256) view returns (uint256)",
     calls: pools.map(
       (index: {
@@ -203,7 +202,7 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
     }
 
     let fee = (todayNav * todayShares - yesterdayNav * yesterdayShares) / (1 - ratio);
-    if (fee < 0) {
+    if (fee <= 0) {
       return dailyFees;
     } else {
       fee = fee / 1e18;
