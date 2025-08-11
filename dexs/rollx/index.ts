@@ -3,12 +3,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const v2VolumeAPI =
-  "https://adm.rolldex.io/api/trade/query/dailyTradeVol";
+const v2VolumeAPI = "https://adm.rolldex.io/api/trade/query/dailyTradeVol";
 
-async function sleep (time: number) {
-  return new Promise<void>((resolve) => setTimeout(() => resolve(), time))
-}
 
 const fetchVolume = async (timestamp: number,chain: Chain) => {
   const res = (
