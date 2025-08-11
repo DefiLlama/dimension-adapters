@@ -8,7 +8,7 @@ const chainConfig: Record<string, { url: string, start: string }> = {
     start: "2024-06-01",
   },
   [CHAIN.SONIC]: {
-    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.6/gn",
+    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.7/gn",
     start: "2024-12-31",
   },
   // [CHAIN.BSC]: {
@@ -23,10 +23,10 @@ const chainConfig: Record<string, { url: string, start: string }> = {
     url: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
     start: "2025-02-20",
   },
-  [CHAIN.SSEED]: {
-    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
-    start: "2025-04-22",
-  },
+  // [CHAIN.SSEED]: {
+  //   url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
+  //   start: "2025-04-22",
+  // },
 };
 
 const historicalDataQuery = gql`
@@ -64,7 +64,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
         String(Number(sum) + Number(element))
       )
     ) * 10 ** -30
-    : undefined;
+    : 0;
 
   let dailySupplySideRevenue = 0;
   let dailyHoldersRevenue = 0;

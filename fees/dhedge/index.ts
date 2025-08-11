@@ -149,8 +149,8 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
 
 const meta = {
   methodology: {
-    Fees: 'All fees generated from dHedge vaults.',
-    Revenue: 'All revenue collected by the dHedge protocol from fees generated.',
+    Fees: 'All fees generated from dHEDGE vaults.',
+    Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
   }
 }
 

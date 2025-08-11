@@ -79,7 +79,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {fetch, start: '2024-11-01'},
     [CHAIN.BASE]: { fetch, start: '2024-11-01' },
-    [CHAIN.SOLANA]: { fetch: fetchSolana, start: '2025-07-30' }
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: '2025-07-27' }
   },
   methodology,
   isExpensiveAdapter: true
