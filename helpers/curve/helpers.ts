@@ -1,4 +1,9 @@
+import { CallsParams } from "@defillama/sdk/build/types";
 import { FetchOptions } from "../../adapters/types";
+import { formatAddress } from "../../utils/utils";
+
+const FEE_DENOMINATOR = 1e10
+const MAX_TOKENS_COUNT = 10
 
 export enum ContractVersion {
   main = 'main',
@@ -23,17 +28,24 @@ export interface ICurveDexConfig {
     // version => pools
     [key: string]: Array<string>;
   };
+  metaBasePools?: {
+    [key: string]: {
+      tokens: Array<string>;
+    }
+  }
 }
 
 export interface IDexPool {
   pool: string;
   tokens: Array<string>;
+  underlyingTokens: Array<string>;
   feeRate: number;
   adminFeeRate: number;
 }
 
 export interface ITokenExchangeEvent {
   pool: string;
+  tx: string;
   sold_id: number;
   tokens_sold: number;
   bought_id: number;
@@ -43,6 +55,7 @@ export interface ITokenExchangeEvent {
 export const CurveContractAbis: { [key: string]: any } = {
   [ContractVersion.main]: {
     TokenExchange: 'event TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)',
+    TokenExchangeUnderlying: 'event TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)',
   },
   [ContractVersion.crypto]: {
     TokenExchange: 'event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought)',
@@ -136,4 +149,75 @@ export async function getAllPools(options: FetchOptions, config: ICurveDexConfig
   }
 
   return customPools;
+}
+
+export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<string>, config: ICurveDexConfig): Promise<{[key: string]: IDexPool}> {
+  const pools: {[key: string]: IDexPool} = {}
+
+  const coinsCalls: Array<CallsParams> = []
+  for (const poolAddress of poolAddresses) {
+    for (let i = 0; i < MAX_TOKENS_COUNT; i++) {
+      coinsCalls.push({
+        target: poolAddress,
+        params: [i],
+      })
+    }
+  }
+
+  const coinsResults = await options.api.multiCall({
+    abi: 'function coins(uint256) view returns (address)',
+    calls: coinsCalls,
+    permitFailure: true,
+  })
+  const coinsOldResults = await options.api.multiCall({
+    abi: 'function coins(int128) view returns (address)',
+    calls: coinsCalls,
+    permitFailure: true,
+  })
+  const underlyingCoinsResults = await options.api.multiCall({
+    abi: 'function underlying_coins(uint256) view returns (address)',
+    calls: coinsCalls,
+    permitFailure: true,
+  })
+  const feeResults = await options.api.multiCall({
+    abi: 'function fee() view returns (uint256)',
+    calls: poolAddresses,
+    permitFailure: true,
+  })
+  const adminFeeResults = await options.api.multiCall({
+    abi: 'function admin_fee() view returns (uint256)',
+    calls: poolAddresses,
+    permitFailure: true,
+  })
+
+  for (let i = 0; i < poolAddresses.length; i++) {
+    // coins
+    let tokens = coinsResults.slice(i * MAX_TOKENS_COUNT , i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
+    if (tokens.length === 0) {
+      tokens = coinsOldResults.slice(i * MAX_TOKENS_COUNT, i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
+    }
+
+    // unwrap metapool underlying tokens
+    let underlyingTokens: Array<string> = underlyingCoinsResults.slice(i * MAX_TOKENS_COUNT , i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
+    if (underlyingTokens.length === 0 && config.metaBasePools) {
+      for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex++) {
+        const lpTokenAddress = formatAddress(tokens[tokenIndex])
+        if (config.metaBasePools[lpTokenAddress]) {
+          underlyingTokens = underlyingTokens.concat(config.metaBasePools[lpTokenAddress].tokens)
+        } else {
+          underlyingTokens.push(lpTokenAddress)
+        }
+      }
+    }
+
+    pools[poolAddresses[i]] = {
+      pool: poolAddresses[i],
+      tokens: tokens,
+      underlyingTokens: underlyingTokens,
+      feeRate: feeResults[i] ? Number(feeResults[i]) / FEE_DENOMINATOR : 0,
+      adminFeeRate: adminFeeResults[i] ? Number(adminFeeResults[i]) / FEE_DENOMINATOR : 0,
+    }
+  }
+
+  return pools;
 }
