@@ -127,7 +127,7 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
   }
 
   const pools = await getGraphData(
-    poolConfig,
+    poolConfig.map((pool: { poolId: string }) => pool.poolId),
     options.chain
   );
   const shareConcretes = await concrete(pools, options);
@@ -135,21 +135,20 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
 
-  const yesterdayNavs = await options.fromApi.multiCall({
+  const [yesterdayNavs, todayNavs] = await Promise.all([options.fromApi.multiCall({
     abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
     calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
       target: pool.navOracle,
       params: [pool.poolId, fromTimestamp],
     })),
-  });
-
-  const todayNavs = await options.toApi.multiCall({
+  }),
+  options.toApi.multiCall({
     abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
     calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
       target: pool.navOracle,
       params: [pool.poolId, toTimestamp],
     })),
-  });
+  })]);
 
   const poolBaseInfos = await options.api.multiCall({
     abi: `function slotBaseInfo(uint256 slot_) view returns (tuple(address issuer, address currency, uint64 valueDate, uint64 maturity, uint64 createTime, bool transferable, bool isValid))`,
@@ -164,7 +163,7 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
     ),
   });
 
-  const shareTotalValues = await options.api.multiCall({
+  const [yesterdayShareTotalValues, todayShareTotalValues] = await Promise.all([options.fromApi.multiCall({
     abi: "function slotTotalValue(uint256) view returns (uint256)",
     calls: pools.map(
       (index: {
@@ -175,24 +174,43 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
         params: [index.openFundShareSlot],
       })
     ),
-  });
+  }), options.toApi.multiCall({
+    abi: "function slotTotalValue(uint256) view returns (uint256)",
+    calls: pools.map(
+      (index: {
+        contractAddress: string | number;
+        openFundShareSlot: any;
+      }) => ({
+        target: shareConcretes[index.contractAddress],
+        params: [index.openFundShareSlot],
+      })
+    ),
+  })]);
 
   const dailyFees = options.createBalances();
   for (let i = 0; i < pools.length; i++) {
-    const poolNavIncrease = todayNavs[i].nav_ - yesterdayNavs[i].nav_;
+    const pool = poolConfig[i];
+    const ratio = pool.ratio;
+
+    const yesterdayNav = yesterdayNavs[i].nav_;
+    const todayShares = todayShareTotalValues[i];
+
+    const todayNav = todayNavs[i].nav_;
+    const yesterdayShares = yesterdayShareTotalValues[i];
+
+    if (todayShares == 0 || yesterdayShares == 0) {
+      continue;
+    }
+
+    let fee = (todayNav * todayShares - yesterdayNav * yesterdayShares) / (1 - ratio);
+    if (fee < 0) {
+      return dailyFees;
+    } else {
+      fee = fee / 1e18;
+    }
+
     const poolBaseInfo = poolBaseInfos[i];
-    const shareTotalValue = shareTotalValues[i];
-
-    if (poolNavIncrease <= 0) {
-      continue;
-    }
-    if (shareTotalValue == 0) {
-      continue;
-    }
-
-    // PoolFee = (ShareTotalValue / 10^(ShareDecimals)) * (PoolNavIncrease / 10^(PoolTokenDecimals)) * 10^(PoolTokenDecimals)
-    const poolFee = shareTotalValue * poolNavIncrease / 1e18
-    dailyFees.add(poolBaseInfo.currency, poolFee)
+    dailyFees.add(poolBaseInfo.currency, fee);
   }
 
   return dailyFees;
