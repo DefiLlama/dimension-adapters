@@ -8,13 +8,14 @@ import { CurveContractAbis, getAllPools, ICurveDexConfig, IDexPool, ITokenExchan
 export * from "./helpers";
 
 const FEE_DENOMINATOR = 1e10
+const MAX_TOKENS_COUNT = 10
 
 async function getPoolTokens(options: FetchOptions, poolAddresses: Array<string>): Promise<{[key: string]: IDexPool}> {
   const pools: {[key: string]: IDexPool} = {}
 
   const coinsCalls: Array<CallsParams> = []
   for (const poolAddress of poolAddresses) {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < MAX_TOKENS_COUNT; i++) {
       coinsCalls.push({
         target: poolAddress,
         params: [i],
@@ -44,9 +45,9 @@ async function getPoolTokens(options: FetchOptions, poolAddresses: Array<string>
   })
 
   for (let i = 0; i < poolAddresses.length; i++) {
-    let tokens = coinsResults.slice(i * 5 , i * 5 + 5).filter(item => item !== null)
+    let tokens = coinsResults.slice(i * MAX_TOKENS_COUNT , i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
     if (tokens.length === 0) {
-      tokens = coinsOldResults.slice(i * 5 , i * 5 + 5).filter(item => item !== null)
+      tokens = coinsOldResults.slice(i * MAX_TOKENS_COUNT, i * MAX_TOKENS_COUNT + MAX_TOKENS_COUNT).filter(item => item !== null)
     }
 
     pools[poolAddresses[i]] = {

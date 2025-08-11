@@ -50,8 +50,8 @@ export const CurveContractAbis: { [key: string]: any } = {
   [ContractVersion.stable_factory]: {
     pool_count: 'uint256:pool_count',
     pool_list: 'function pool_list(uint256) view returns (address)',
-    MetaPoolDeployed: 'event MetaPoolDeployed (address coin, address base_pool, uint256 A, uint256 fee, address deployer)',
     TokenExchange: 'event TokenExchange(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)',
+    TokenExchangeUnderlying: 'event TokenExchangeUnderlying(address indexed buyer, int128 sold_id, uint256 tokens_sold, int128 bought_id, uint256 tokens_bought)',
   },
   [ContractVersion.factory_crypto]: {
     pool_count: 'uint256:pool_count',

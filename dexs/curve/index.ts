@@ -492,6 +492,156 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       ],
     }
   },
+  [CHAIN.OPTIMISM]: {
+    start: '2022-01-17',
+    stable_factory: [
+      '0x2db0E83599a91b508Ac268a6197b8B14F5e72840',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0xc6C09471Ee39C7E30a067952FcC89c8922f9Ab53',
+    ],
+    factory_stable_ng: [
+      '0x5eee3091f747e60a045a2e715a4c71e600e31f6e',
+    ],
+    customPools: {
+      [ContractVersion.main]: [
+        '0x1337BedC9D22ecbe766dF105c9623922A27963EC',
+        '0x29A3d66B30Bc4AD674A4FDAF27578B64f6afbFe7',
+        '0x66B5792ED50a2a7405Ea75C4B6B1913eF4E46661',
+        '0xB90B9B1F91a01Ea22A182CD84C1E22222e39B415',
+      ],
+    }
+  },
+  [CHAIN.AVAX]: {
+    start: '2021-06-12',
+    stable_factory: [
+      '0xb17b674D9c5CB2e441F8e196a2f048A81355d031',
+    ],
+    customPools: {
+      [ContractVersion.main]: [
+        '0x7f90122BF0700F9E7e1F688fe926940E8839F353',
+        '0x16a7DA911A4DD1d83F3fF066fE28F3C792C50d90',
+        '0xD2AcAe14ae2ee0f6557aC6C6D0e407a92C36214b',
+      ],
+      [ContractVersion.crypto]: [
+        '0xB755B949C126C04e0348DD881a5cF55d424742B2',
+        '0x204f0620E7E7f07B780535711884835977679bba',
+      ],
+    },
+  },
+  [CHAIN.POLYGON]: {
+    start: '2021-10-05',
+    stable_factory: [
+      '0x722272D36ef0Da72FF51c5A65Db7b870E2e8D4ee',
+    ],
+    factory_crypto: [
+      '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0xC1b393EfEF38140662b91441C6710Aa704973228',
+    ],
+    factory_stable_ng: [
+      '0x1764ee18e8B3ccA4787249Ceb249356192594585',
+    ],
+    customPools: {
+      [ContractVersion.main]: [
+        '0xC2d95EEF97Ec6C17551d45e77B590dc1F9117C67',
+        '0x445FE580eF8d70FF569aB36e80c647af338db351',
+      ],
+      [ContractVersion.crypto]: [
+        '0x92215849c439E1f8612b6646060B4E3E5ef822cC',
+        '0x751B1e21756bDbc307CBcC5085c042a0e9AaEf36',
+        '0xB446BF7b8D6D4276d0c75eC0e3ee8dD7Fe15783A',
+        '0x9b3d675FDbe6a0935E8B7d1941bc6f78253549B7',
+      ]
+    },
+  },
+  [CHAIN.BASE]: {
+    start: '2023-04-17',
+    stable_factory: [
+      '0x3093f9b57a428f3eb6285a589cb35bea6e78c336',
+    ],
+    factory_crypto: [
+      '0x5EF72230578b3e399E6C6F4F6360edF95e83BBfd',
+    ],
+    factory_twocrypto: [
+      '0xc9Fe0C63Af9A39402e8a5514f9c43Af0322b665F',
+    ],
+    factory_tricrypto: [
+      '0xA5961898870943c68037F6848d2D866Ed2016bcB',
+    ],
+    factory_stable_ng: [
+      '0xd2002373543Ce3527023C75e7518C274A51ce712',
+    ],
+    customPools: {},
+  },
+  [CHAIN.XDAI]: {
+    start: '2021-07-01',
+    stable_factory: [
+      '0xD19Baeadc667Cf2015e395f2B08668Ef120f41F5',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_stable_ng: [
+      '0xbC0797015fcFc47d9C1856639CaE50D0e69FbEE8',
+    ],
+    customPools: {
+      [ContractVersion.main]: [
+        '0x7f90122BF0700F9E7e1F688fe926940E8839F353',
+        '0x85bA9Dfb4a3E4541420Fc75Be02E2B42042D7e46',
+      ],
+      [ContractVersion.crypto]: [
+        '0x5633E00994896D0F472926050eCb32E38bef3e65',
+        '0x056C6C5e684CeC248635eD86033378Cc444459B0',
+      ],
+    },
+  },
+  [CHAIN.FRAXTAL]: {
+    start: '2024-02-14',
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0xc9Fe0C63Af9A39402e8a5514f9c43Af0322b665F',
+    ],
+    factory_stable_ng: [
+      '0xd2002373543Ce3527023C75e7518C274A51ce712',
+    ],
+    customPools: {},
+  },
+  [CHAIN.SONIC]: {
+    start: '2025-01-01',
+    factory_twocrypto: [
+      '0x1A83348F9cCFD3Fe1A8C0adBa580Ac4e267Fe495',
+    ],
+    factory_tricrypto: [
+      '0x635742dCC8313DCf8c904206037d962c042EAfBd',
+    ],
+    factory_stable_ng: [
+      '0x7C2085419BE6a04f4ad88ea91bC9F5C6E6C463D8',
+    ],
+    customPools: {},
+  },
+  [CHAIN.HYPERLIQUID]: {
+    start: '2025-02-20',
+    factory_twocrypto: [
+      '0xc9Fe0C63Af9A39402e8a5514f9c43Af0322b665F',
+    ],
+    factory_tricrypto: [
+      '0x5702BDB1Ec244704E3cBBaAE11a0275aE5b07499',
+    ],
+    factory_stable_ng: [
+      '0x604388Bb1159AFd21eB5191cE22b4DeCdEE2Ae22',
+    ],
+    customPools: {},
+  },
 }
 
 const adapter = getCurveExport(CurveDexConfigs)
