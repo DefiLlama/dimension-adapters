@@ -48,6 +48,7 @@ const adapter: SimpleAdapter = {
       start: '2025-07-23', // ADEN launch date
     },
   },
+  doublecounted: true,
 };
 
 export default adapter;
