@@ -55,9 +55,9 @@ const adapter: SimpleAdapter = {
       start: '2025-03-11',
     },
     [CHAIN.STARKNET]: {
-      fetchStarknet,
+      fetch: fetchStarknet,
       runAtCurrTime: true,
-      start: '2025-08-04',
+      start: '2025-08-10',
     },
   },
 };
