@@ -54,13 +54,13 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
       '0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf', // USDT
     ],
   },
-  [CHAIN.FRAXTAL]: {
-    start: '2024-03-27',
-    contract: beefyRevenueBridgeAddress,
-    stables: [
-      '0xFc00000000000000000000000000000000000001', // frxUSD
-    ]
-  },
+  // [CHAIN.FRAXTAL]: {
+  //   start: '2024-03-27',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [
+  //     '0xFc00000000000000000000000000000000000001', // frxUSD
+  //   ]
+  // },
   [CHAIN.SCROLL]: {
     start: '2024-10-16',
     contract: beefyRevenueBridgeAddress,
@@ -90,11 +90,11 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
   //   contract: beefyRevenueBridgeAddress,
   //   stables: [ADDRESSES.canto.USDC],
   // },
-  [CHAIN.SEI]: {
-    start: '2024-08-01',
-    contract: beefyRevenueBridgeAddress,
-    stables: [ADDRESSES.sei.USDC],
-  },
+  // [CHAIN.SEI]: {
+  //   start: '2024-08-01',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [ADDRESSES.sei.USDC],
+  // },
   [CHAIN.OPTIMISM]: {
     start: '2023-08-25',
     contract: beefyRevenueBridgeAddress,
