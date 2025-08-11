@@ -47,13 +47,13 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
   //   contract: beefyRevenueBridgeAddress,
   //   stables: [ADDRESSES.real.USDC],
   // },
-  [CHAIN.ROOTSTOCK]: {
-    start: '2024-09-30',
-    contract: beefyRevenueBridgeAddress,
-    stables: [
-      '0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf', // USDT
-    ],
-  },
+  // [CHAIN.ROOTSTOCK]: {
+  //   start: '2024-09-30',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [
+  //     '0xAf368c91793CB22739386DFCbBb2F1A9e4bCBeBf', // USDT
+  //   ],
+  // },
   // [CHAIN.FRAXTAL]: {
   //   start: '2024-03-27',
   //   contract: beefyRevenueBridgeAddress,
