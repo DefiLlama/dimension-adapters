@@ -68,7 +68,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
-            start: '2025-03-15',
+            start: '2025-02-20',
             meta: {
                 methodology: {
                     Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with a TVL less than $5,000.",

@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: '2025-07-01',
+  start: '2025-07-08',
   methodology,
   isExpensiveAdapter: true
 };

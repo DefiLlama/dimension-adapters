@@ -30,7 +30,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.MOONBEAM],
-  fetch: fetch,
+  fetch,
+  methodology: {
+    UserFees: "User pays a 0.04% fee on each swap.",
+    Fees: "A 0.04% of each swap is collected as trading fees",
+    Revenue: "Protocol receives 0.02% of the swap fee",
+    ProtocolRevenue: "Protocol receives 0.02% of the swap fee",
+    SupplySideRevenue: "0.02% of the swap fee is distributed to LPs",
+    HoldersRevenue: "Stakers received $GLINT in staking rewards.",
+  },
 }
 
 export default adapter;
