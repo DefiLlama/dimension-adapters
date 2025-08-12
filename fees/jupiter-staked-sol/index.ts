@@ -39,22 +39,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: 'Staking rewards from staked SOL on jupiter staked solana',
-    Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-    ProtocolRevenue: 'Revenue going to treasury/team',
-  }
+const methodology = {
+  Fees: 'Staking rewards from staked SOL on jupiter staked solana',
+  Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
+  ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
 export default {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2024-06-09",
-      meta
-    }
-  },
+  methodology,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2024-06-09",
   isExpensiveAdapter: true
 };

@@ -37,22 +37,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: 'Staking rewards from staked SOL on blazestake',
-    Revenue: 'Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee',
-    ProtocolRevenue: 'All fees going to treasury/DAO (50% of total fees) + All fees going to the team(50% of total fees)',
-  }
+const methodology = {
+  Fees: 'Staking rewards from staked SOL on blazestake',
+  Revenue: 'Includes 0.1% instant withdrawal fee and 0.1% delayed withdrawal fee',
+  ProtocolRevenue: 'All fees going to treasury/DAO (50% of total fees) + All fees going to the team(50% of total fees)'
 }
 
 export default {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2022-12-07",
-      meta
-    }
-  },
+  methodology,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2022-12-07",
   isExpensiveAdapter: true
 };
