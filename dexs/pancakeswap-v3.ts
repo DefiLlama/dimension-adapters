@@ -230,6 +230,7 @@ const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
