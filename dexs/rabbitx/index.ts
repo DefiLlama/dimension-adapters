@@ -39,6 +39,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
+  // We're winding down the exchange. Please visit https://rabbitx.com for more details
+  deadFrom: '2025-08-10',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
