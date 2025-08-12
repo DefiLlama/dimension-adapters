@@ -34,7 +34,14 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({
     options,
-    targets: eth_fee_wallet_addresses
+    targets: eth_fee_wallet_addresses,
+
+    // Phantom uses Matcha to sell their tokens for ETH
+    // we must exclude ETH transferred from Matcha Router contracts
+    notFromSenders: [
+      '0x8331f9ACcE69b02C281F40a00706f758665ccE77',
+      '0x07d889ebae9E9203a0443EdBa3cB5ca499c4ceF1',
+    ],
   });
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
