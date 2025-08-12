@@ -1,17 +1,19 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const prefetch = async (options: FetchOptions) => {
-  const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
+  const now = new Date();
+  if (now.getUTCHours() === 0 && now.getUTCMinutes() < 59) {
+    throw new Error("cow-swap adapter is disabled b/w 00:00 and 00:59 AM UTC");
+  }
   const sql = getSqlFromFile("helpers/queries/cow-protocol.sql", {
-    start: startOfDay
+    start: options.startOfDay
   });
   return await queryDuneSql(options, sql);
 }
 
-const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const preFetchedResults = options.preFetchedResults || [];
   const dune_chain = options.chain === CHAIN.XDAI ? 'gnosis' : options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain;
   const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
@@ -46,7 +48,7 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
     dailyFees.addCGToken('ethereum', totalFees);
     dailyProtocolRevenue.addCGToken('ethereum', protocolRevenue);
   } else { 
-    console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+    throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
   }
 
   return {
