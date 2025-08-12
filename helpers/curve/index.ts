@@ -71,7 +71,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     const amount0 = Number(event.tokens_sold)
     const amount1 = Number(event.tokens_bought)
 
-    if (!token0 && !token1) continue
+    if (!token0 || !token1) continue
   
     addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 })
     addOneToken({ chain: options.chain, balances: swapFees, token0, token1, amount0: amount0 * feeRate, amount1: amount1 * feeRate })
