@@ -374,7 +374,8 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   },
 }
 
-const adapter = getCurveExport(CurveDexConfigs)
+// https://resources.curve.finance/pools/overview/#pool-fees
+const adapter = getCurveExport(CurveDexConfigs, { userFeesRatio: 1, revenueRatio: 0.5, holdersRevenueRatio: 0.5 })
 
 adapter.methodology = {
   Fees: "Trading fees paid by users (typically range from 0.01%-0.04%)",

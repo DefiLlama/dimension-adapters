@@ -128,15 +128,17 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}, feeSpl
         [chain]: {
           fetch: async function(options: FetchOptions) {
             const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
+            const swapFeesExcludeAdminFees = swapFees.clone()
+            swapFeesExcludeAdminFees.subtract(adminFees)
             if (feeSplitConfig) {
               return {
                 dailyVolume,
                 dailyFees: swapFees,
                 dailyUserFees: swapFees.clone(feeSplitConfig.userFeesRatio),
-                dailyRevenue: swapFees.clone(feeSplitConfig.revenueRatio),
+                dailyRevenue: swapFeesExcludeAdminFees.clone(feeSplitConfig.revenueRatio),
                 dailyProtocolRevenue: adminFees,
-                dailySupplySideRevenue: swapFees.clone(1 - feeSplitConfig.revenueRatio),
-                dailyHoldersRevenue: swapFees.clone(feeSplitConfig.holdersRevenueRatio),
+                dailySupplySideRevenue: swapFeesExcludeAdminFees.clone(1 - feeSplitConfig.revenueRatio),
+                dailyHoldersRevenue: swapFeesExcludeAdminFees.clone(feeSplitConfig.holdersRevenueRatio),
               }
             } else {
               return { dailyVolume, dailyFees: swapFees, dailyRevenue: adminFees, dailyProtocolRevenue: adminFees };
