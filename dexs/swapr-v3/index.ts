@@ -3,7 +3,7 @@ import { CHAIN } from '../../helpers/chains'
 import { request } from 'graphql-request'
 import * as sdk from '@defillama/sdk'
 
-const protocolFee = 0.1 // @todo: update this to the actual protocol fee
+const protocolFee = 0.1
 
 const fetch = async (
   _timestamp: number,
@@ -26,14 +26,24 @@ const fetch = async (
   return {
     dailyVolume: req.algebraDayData?.volumeUSD,
     dailyFees: req.algebraDayData?.feesUSD,
+    dailyUserFees: req.algebraDayData?.feesUSD,
     dailyRevenue: req.algebraDayData?.feesUSD,
     dailyProtocolRevenue: req.algebraDayData?.feesUSD * protocolFee,
-    dailyHoldersRevenue: req.algebraDayData?.feesUSD * (1 - protocolFee),
+    dailySupplySideRevenue: req.algebraDayData?.feesUSD * (1 - protocolFee),
   }
+}
+
+const methodology = {
+  Fees: 'Swap fees paid by users.',
+  UserFees: 'Swap fees paid by users.',
+  Revenue: '10% swap fees collected by Swapr protocol.',
+  ProtocolRevenue: '10% swap fees collected by Swapr protocol.',
+  SupplySideRevenue: '90% swap fees distributed to LPs.',
 }
 
 const adapter: SimpleAdapter = {
   fetch,
+  methodology,
   chains: [CHAIN.XDAI],
   start: '2023-09-22',
 }
