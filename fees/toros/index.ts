@@ -66,6 +66,10 @@ const CONFIG = {
     endpoint: sdk.graph.modifyEndpoint("AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF"),
     torosManagerAddress: "0x5619ad05b0253a7e647bd2e4c01c7f40ceab0879",
   },
+  [CHAIN.ETHEREUM]: {
+    endpoint: sdk.graph.modifyEndpoint("HSPZATdnDvYRNPBJm7eSrzkTeRZqhqYvy7c3Ngm9GCTL"),
+    torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
+  },
 };
 
 const fetchHistoricalFees = async (chainId: CHAIN, query: string, dataField: string, startTimestamp: number, endTimestamp: number) => {
@@ -163,6 +167,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: { fetch, start: '2021-07-29', meta, },
     [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', meta, },
     [CHAIN.BASE]: { fetch, start: '2023-12-20', meta, },
+    [CHAIN.ETHEREUM]: { fetch, start: '2025-08-10', meta, },
   },
   version: 2
 }
