@@ -32,6 +32,41 @@ const EllipsisConfigs: {[key: string]: ICurveDexConfig} = {
         '0xEdbb3f63C0901bA500E4525Da0c2cbD27Ac8fFdc',
       ],
     },
+    metaBasePools: {
+      '0xaf4de8e872131ae328ce21d909c74705d3aaf452': {
+        tokens: [
+          '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+          '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+          '0x55d398326f99059fF775485246999027B3197955',
+        ],
+      },
+      '0x5b5bd8913d766d005859ce002533d4838b0ebbb5': {
+        tokens: [
+          '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+          '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+          '0x55d398326f99059fF775485246999027B3197955',
+        ],
+      },
+      '0xdc7f3e34c43f8700b0eb58890add03aa84f7b0e1': {
+        tokens: [
+          '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+          '0xfCe146bF3146100cfe5dB4129cf6C82b0eF4Ad8c',
+        ],
+      },
+      '0x2a435ecb3fcc0e316492dc1cdd62d0f189be5640': {
+        tokens: [
+          '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+          '0xfCe146bF3146100cfe5dB4129cf6C82b0eF4Ad8c',
+        ],
+      },
+      '0xa6fdea1655910c504e974f7f1b520b74be21857b': {
+        tokens: [
+          '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+          '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+          '0x55d398326f99059fF775485246999027B3197955',
+        ],
+      },
+    }
   }
 }
 
