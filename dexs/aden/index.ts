@@ -26,12 +26,11 @@ const fetch = async (): Promise<FetchResultVolume> => {
   }
 
   // Calculate total 24h volume using 24h_amount (USD value)
-  // Divide by 2 to avoid double counting when both maker and taker use ADEN
-  const totalVolume = response.data.rows.reduce((total, row) => {
+  // This is already the pure ADEN volume without double counting
+  // Market makers use Orderly's interface and their volume is recorded on Orderly
+  const dailyVolume = response.data.rows.reduce((total, row) => {
     return total + parseFloat(row["24h_amount"] || "0");
   }, 0);
-  
-  const dailyVolume = totalVolume / 2;
 
   return {
     dailyVolume: dailyVolume.toString(),
