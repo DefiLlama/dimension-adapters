@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 interface ChainConfig {
@@ -70,14 +70,6 @@ const EVENT_SIGNATURES = {
 const FEE_INDICES = {
   LOCKER_FEE: 1,
   PROTOCOL_FEE: 2,
-} as const;
-
-const META = {
-  methodology: {
-    Volume:
-      "Total value of Bitcoin bridged to and from EVM chains, based on amounts in NewUnwrap, NewWrap, and NewWrapAndSwap events emitted by the CCBurnRouter, CCExchangeRouter, and CCTransferRouter contracts",
-    Fees: "Total of the protocol fee and Locker fee collected during bridging.",
-  },
 } as const;
 
 async function processUnwrapEvents(
@@ -173,22 +165,29 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   return {
     dailyVolume,
     dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
+}
+
+const methodology = {
+  Volume: "Total value of Bitcoin bridged to and from EVM chains, based on amounts in NewUnwrap, NewWrap, and NewWrapAndSwap events emitted by the CCBurnRouter, CCExchangeRouter, and CCTransferRouter contracts",
+  Fees: "Total of the protocol fee and Locker fee collected during bridging.",
+  Revenue: "Total of the protocol fee and Locker fee collected during bridging.",
+  ProtocolRevenue: "Total of the protocol fee and Locker fee collected during bridging.",
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.fromEntries(
-    Object.keys(CHAIN_CONFIGS).map((chain) => [
-      chain,
-      {
-        fetch,
-        start: CHAIN_CONFIGS[chain as keyof typeof CHAIN_CONFIGS]?.startDate,
-        runAtCurrTime: true,
-        meta: META,
-      },
-    ])
-  ),
+  methodology,
+  adapter: {}
+};
+
+for (const [chain, config] of Object.entries(CHAIN_CONFIGS)) {
+  (adapter.adapter as BaseAdapter)[chain] = {
+    fetch,
+    start: config.startDate,
+  }
 };
 
 export default adapter;
