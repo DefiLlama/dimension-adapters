@@ -17,10 +17,6 @@ export const subgraphEndpoints: any = {
   [CHAIN.LINEA]: "https://linea.kingdomsubgraph.com/subgraphs/name/etherex",
 };
 
-export const envioEndpoints: any = {
-  [CHAIN.LINEA]: "https://indexer.hyperindex.xyz/cf4b043/v1/graphql",
-};
-
 const secondsInADay = 24 * 60 * 60;
 const subgraphQueryLimit = 1000;
 
@@ -35,7 +31,7 @@ interface IGraphRes {
   legacyProtocolRevenueUSD: number;
   clUserFeesRevenueUSD: number;
   legacyUserFeesRevenueUSD: number;
-  dailyXshadowInstantExitFeeUSD: number;
+  dailyXrexInstantExitFeeUSD: number;
 }
 
 interface IVoteBribe {
@@ -107,12 +103,23 @@ async function getBribes(options: FetchOptions) {
 }
 
 async function getTokens(options: FetchOptions, tokens: string[]) {
-  const startBlock = await options.getStartBlock();
   const tokenIds = tokens.map((e) => `"${e}"`).join(",");
+  
+  // Use tokenDayDatas for historical prices instead of block-based queries
   const query = gql`
-    query tokens($first: Int!, $skip: Int!) {
-      tokens(block: { number: ${startBlock} }, first: $first, skip: $skip, where: { priceUSD_gt: 0, id_in: [${tokenIds}]}) {
+    query tokenDayDatas($first: Int!, $skip: Int!, $startOfDay: Int!) {
+      tokenDayDatas(
+        first: $first
+        skip: $skip
+        where: { 
+          startOfDay: $startOfDay
+          token_in: [${tokenIds}]
+        }
+      ) {
         id
+        token {
+          id
+        }
         priceUSD
       }
     }
@@ -122,27 +129,34 @@ async function getTokens(options: FetchOptions, tokens: string[]) {
     request<any>(subgraphEndpoints[options.chain], query, {
       first,
       skip,
-    }).then((data) => data.tokens);
+      startOfDay: options.startOfDay,
+    }).then((data) => 
+      // Transform tokenDayDatas to match expected token format
+      data.tokenDayDatas.map((td: any) => ({
+        id: td.token.id,
+        priceUSD: td.priceUSD,
+      }))
+    );
 
   return paginate<IToken>(getData, subgraphQueryLimit);
 }
 
 export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
-  const statsQuery = `
-    {
-      ClProtocolDayData(where:{startOfDay: {_eq: ${options.startOfDay}}}) {
+  const statsQuery = gql`
+    query getProtocolDayData($startOfDay: Int!) {
+      ClProtocolDayData: clProtocolDayDatas(where: { startOfDay: $startOfDay }) {
         startOfDay
-        volumeUsd
-        feesUsd
-        voterFeesUsd
-        treasuryFeesUsd
+        volumeUsd: volumeUSD
+        feesUsd: feesUSD
+        voterFeesUsd: voterFeesUSD
+        treasuryFeesUsd: treasuryFeesUSD
       }
-      LegacyProtocolDayData(where:{startOfDay: {_eq: ${options.startOfDay}}}) {
+      LegacyProtocolDayData: legacyProtocolDayDatas(where: { startOfDay: $startOfDay }) {
         startOfDay
-        volumeUsd
-        feesUsd
-        voterFeesUsd
-        treasuryFeesUsd
+        volumeUsd: volumeUSD
+        feesUsd: feesUSD
+        voterFeesUsd: voterFeesUSD
+        treasuryFeesUsd: treasuryFeesUSD
       }
     }
   `;
@@ -155,7 +169,9 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const {
     ClProtocolDayData: clProtocolDayData,
     LegacyProtocolDayData: legacyProtocolDayData,
-  } = await request(envioEndpoints[options.chain], statsQuery);
+  } = await request(subgraphEndpoints[options.chain], statsQuery, {
+    startOfDay: options.startOfDay,
+  });
 
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
@@ -174,16 +190,17 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     eventAbi: "event InstantExit(address indexed user, uint256 amount)",
     topic: "0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a",
   });
-  let shadowPenaltyAmount = 0;
+  let rexPenaltyAmount = 0;
 
   for (const log of InstantExitLogs) {
-    shadowPenaltyAmount += Number(log.amount) / 1e18;
+    rexPenaltyAmount += Number(log.amount) / 1e18;
   }
 
-  // Calculate xSHADOW rebase revenue in USD
-  const shadowToken = tokens.find((t) => t.id === REX_TOKEN_CONTRACT);
-  const shadowPriceUSD = Number(shadowToken?.priceUSD ?? 0);
-  const dailyXshadowInstantExitFeeUSD = shadowPenaltyAmount * shadowPriceUSD; // Voters will get the shadow token as rebase
+  // Calculate xREX rebase revenue in USD
+  const rexToken = tokens.find((t) => t.id === REX_TOKEN_CONTRACT);
+  const rexPriceUSD = Number(rexToken?.priceUSD ?? 0);
+  const dailyXrexInstantExitFeeUSD = rexPenaltyAmount * rexPriceUSD; // Voters will get the rex token as rebase
+
 
   return {
     clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
@@ -200,18 +217,18 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     legacyProtocolRevenueUSD: Number(
       legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
     ),
-    dailyXshadowInstantExitFeeUSD,
+    dailyXrexInstantExitFeeUSD,
   };
 }
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const stats = await fetchStats(options);
-  const dailyFees = stats.clFeesUSD + stats.dailyXshadowInstantExitFeeUSD;
+  const dailyFees = stats.clFeesUSD + stats.dailyXrexInstantExitFeeUSD;
   const dailyVolume = stats.clVolumeUSD;
   const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
   const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
   const dailyBribesRevenue = stats.clBribeRevenueUSD;
-  const dailyTokenTaxes = stats.dailyXshadowInstantExitFeeUSD;
+  const dailyTokenTaxes = stats.dailyXrexInstantExitFeeUSD;
 
   const clSupplySideRevenue =
     stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
@@ -237,7 +254,7 @@ const methodology = {
   HoldersRevenue: "User fees are distributed among holders.",
   BribesRevenue: "Bribes are distributed among holders.",
   SupplySideRevenue: "Fees distributed to LPs (from gauged pools).",
-  TokenTax: "xSHADOW stakers instant exit penalty",
+  TokenTax: "xREX stakers instant exit penalty",
 };
 
 const adapter: SimpleAdapter = {
