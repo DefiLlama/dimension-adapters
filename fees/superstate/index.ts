@@ -53,8 +53,8 @@ async function getFundsFees(timestamp: number, _: any, options: FetchOptions): P
 
   return {
     timestamp,
-    dailyFees: (ustbTotalFees + usccTotalFees) / 365,
-    totalFees: ustbTotalFees + usccTotalFees,
+    dailyFees: (ustbTotalFees) / 365,
+    totalFees: ustbTotalFees,
   };
 }
 
