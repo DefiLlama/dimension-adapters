@@ -2,22 +2,13 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 
-type TStartTime = {
-  [key: string]: number;
-};
-
 const REX_TOKEN_CONTRACT = "0xEfD81eeC32B9A8222D1842ec3d99c7532C31e348";
 const XREX_TOKEN_CONTRACT = "0xc93B315971A4f260875103F5DA84cB1E30f366Cc";
-
-const startTimeV2: TStartTime = {
-  [CHAIN.LINEA]: 1753657200,
-};
 
 export const subgraphEndpoints: any = {
   [CHAIN.LINEA]: "https://linea.kingdomsubgraph.com/subgraphs/name/etherex",
 };
 
-const secondsInADay = 24 * 60 * 60;
 const subgraphQueryLimit = 1000;
 
 interface IGraphRes {
@@ -94,7 +85,7 @@ async function getBribes(options: FetchOptions) {
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
       from: options.startOfDay,
-      to: options.startOfDay + secondsInADay,
+      to: options.startOfDay + 24 * 60 * 60,
       first,
       skip,
     }).then((data) => data.voteBribes);
@@ -249,6 +240,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 };
 
 const methodology = {
+  Fees: "Fees are collected from users on each swap.",
+  Revenue: "Revenue going to the protocol + Token holder Revenue.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
@@ -258,15 +251,10 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.LINEA]: {
-      fetch,
-      start: startTimeV2[CHAIN.LINEA],
-      meta: {
-        methodology: methodology,
-      },
-    },
-  },
+  fetch,
+  chains: [CHAIN.LINEA],
+  start: '2025-07-26',
+  methodology,
 };
 
 export default adapter;
