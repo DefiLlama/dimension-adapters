@@ -8,7 +8,7 @@ import { getStartTimestamp } from "../helpers/getStartTimestamp";
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
   [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
+  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
 };
 
 const blacklisted = {
@@ -81,7 +81,7 @@ const chainv2mapping: any = {
   [CHAIN.POLYGON]: "POLYGON",
   [CHAIN.BSC]: "BNB",
   [CHAIN.UNICHAIN]: "UNI",
-  // [CHAIN.BASE]: "BASE",
+  [CHAIN.BASE]: "BASE",
   // [CHAIN.OPTIMISM]: "OPTIMISM",
 }
 
