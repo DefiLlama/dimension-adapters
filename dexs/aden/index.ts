@@ -1,39 +1,45 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-interface FuturesMarketRow {
-  symbol: string;
-  "24h_amount": string;
-  "24h_volume": number;
+interface DailyStats {
+  date: string;
+  dateString: string;
+  createdAt: string;
+  updatedAt: string;
+  builderFee: string;
+  takerVolume: string;
+  makerVolume: string;
+  activeUser: number;
 }
 
-interface FuturesMarketResponse {
-  success: boolean;
-  data: {
-    rows: FuturesMarketRow[];
-  };
-}
-
-const fetch = async (): Promise<FetchResultVolume> => {
-  // Using ADEN's CMC API endpoint with broker_id parameter
-  const response: FuturesMarketResponse = await httpGet(
-    "https://api.orderly.org/v1/public/futures_market?broker_id=aden"
+const fetch = async (_t: number, _: any, { startOfDay }: FetchOptions) => {
+  // Using new Orderly API endpoint that provides separate taker/maker volumes
+  const dailyStats: DailyStats[] = await httpGet(
+    "https://api.orderly.org/md/volume/builder/daily_stats?broker_id=aden"
   );
 
-  if (!response.success || !response.data?.rows) {
-    throw new Error("Invalid response from ADEN API");
+  // Find the stats for the requested date
+  const targetDate = new Date(startOfDay * 1000).toISOString().split("T")[0];
+  const dayStats = dailyStats.find((day) => 
+    day.date.startsWith(targetDate)
+  );
+
+  if (!dayStats) {
+    return {
+      dailyVolume: "0",
+      timestamp: startOfDay,
+    };
   }
 
-  // Calculate total 24h volume using 24h_amount (USD value)
-  // This is already the pure ADEN volume without double counting
-  // Market makers use Orderly's interface and their volume is recorded on Orderly
-  const dailyVolume = response.data.rows.reduce((total, row) => {
-    return total + parseFloat(row["24h_amount"] || "0");
-  }, 0);
+  // Use only taker volume to avoid double counting
+  // When ADEN user is taker, the volume is counted
+  // This is the standard approach for derivatives exchanges
+  const dailyVolume = parseFloat(dayStats.takerVolume || "0");
 
   return {
     dailyVolume: dailyVolume.toString(),
+    timestamp: startOfDay,
   };
 };
 
@@ -43,7 +49,6 @@ const adapter: SimpleAdapter = {
     // Using Arbitrum as the main chain since the API aggregates all chains data
     [CHAIN.ARBITRUM]: {
       fetch,
-      runAtCurrTime: true,
       start: '2025-07-23', // ADEN launch date
     },
   },
