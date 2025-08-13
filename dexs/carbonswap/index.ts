@@ -1,19 +1,11 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-
-const endpoints = {
-  [CHAIN.ENERGYWEB]: "https://ewc-subgraph-production.carbonswap.exchange/subgraphs/name/carbonswap/uniswapv2",
-};
-
-const fetch = univ2Adapter({
-  endpoints,
-});
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: Object.keys(endpoints),
+  version: 2,
+  fetch: getUniV2LogAdapter({ factory: '0x17854c8d5a41d5A89B275386E24B2F38FD0AfbDd' }),
+  chains: [CHAIN.ENERGYWEB],
   start: 1618446893,
 }
 

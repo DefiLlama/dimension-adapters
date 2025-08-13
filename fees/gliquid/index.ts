@@ -4,7 +4,7 @@ import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const endpoint = "https://api.goldsky.com/api/public/project_cmb20ryy424yb01wy7zwd7xd1/subgraphs/analytics/v1.0.0/gn"
+const endpoint = "https://api.goldsky.com/api/public/project_cmb20ryy424yb01wy7zwd7xd1/subgraphs/analytics/1.2.3/gn"
 
 
 const fetch = async ({ startOfDay }: FetchOptions) => {
@@ -20,8 +20,8 @@ const fetch = async ({ startOfDay }: FetchOptions) => {
   });
 
   const dailyFees = feesRes.algebraDayDatas[0].feesUSD;
-  const dailyProtocolRevenue = dailyFees * 0.05;
-  const dailySupplySideRevenue = dailyFees * 0.95;
+  const dailyProtocolRevenue = dailyFees * 0.13;
+  const dailySupplySideRevenue = dailyFees * 0.87;
 
   return {
     dailyFees,

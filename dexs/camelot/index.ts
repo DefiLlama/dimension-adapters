@@ -15,7 +15,7 @@ const chainConfig: Record<string, string> = {
 
 const fetch = univ2Adapter2({
   endpoints: chainConfig,
-  factoriesName: 'factories',
+  factoriesName: 'uniswapFactories',
   totalVolume: 'totalVolumeUSD',
 })
 
