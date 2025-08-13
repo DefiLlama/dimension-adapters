@@ -46,8 +46,8 @@ const fetch = async (_t: number, _: any, { startOfDay }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   adapter: {
     // ADEN operates on Solana, Arbitrum, and BNB Chain through Orderly Network
-    // Using Arbitrum as the main chain since the API aggregates all chains data
-    [CHAIN.ARBITRUM]: {
+    // Using BNB Chain as the main chain since the API aggregates all chains data
+    [CHAIN.BSC]: {
       fetch,
       start: '2025-07-23', // ADEN launch date
     },
