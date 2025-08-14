@@ -5,6 +5,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types';
+import { validateAdapterResult } from './utils';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -201,6 +202,9 @@ async function _runAdapter({
       }
       const ignoreKeys = ['timestamp', 'block']
       const improbableValue = 2e11 // 200 billion
+
+      // validate and inject missing record if any
+      await validateAdapterResult(chain, result)
 
       for (const [recordType, value] of Object.entries(result)) {
         if (ignoreKeys.includes(recordType)) continue;
