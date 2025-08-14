@@ -49,11 +49,6 @@ export async function validateAdapterResult(chain: string, result: any) {
       if (result[recordProtocolRevenue] && !result[recordRevenue]) {
         result[recordRevenue] = createBalanceFrom(chain, result.timestamp, result[recordProtocolRevenue])
       }
-
-      // if we have revenue but missing protocolRevenue, add protocolRevenue = revenue
-      if (result[recordRevenue] && !result[recordProtocolRevenue]) {
-        result[recordProtocolRevenue] = createBalanceFrom(chain, result.timestamp, result[recordRevenue])
-      }
     }
   }
 }
