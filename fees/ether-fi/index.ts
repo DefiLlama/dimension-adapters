@@ -248,7 +248,6 @@ const fetch = async (options: FetchOptions) => {
     }else{
       accountStateAbi = accountStateV2Abi
     }
-    console.log(accountStateAbi)
     const vaultState = await options.fromApi.call({
       abi: accountStateAbi,
       target: vault.accountant,
