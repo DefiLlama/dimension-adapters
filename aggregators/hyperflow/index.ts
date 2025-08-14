@@ -4,6 +4,7 @@ import {
     SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
 const SwapExecutedEvent =
     "event Swapped(address sender, address srcToken, address dstToken, address dstReceiver, uint256 spentAmount, uint256 returnAmount)";
@@ -19,7 +20,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         eventAbi: SwapExecutedEvent,
     });
     for (const swapLog of swapLogs) {
-        dailyVolume.add(swapLog.srcToken, swapLog.spentAmount);
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0: swapLog.srcToken, amount0: swapLog.spentAmount, token1: swapLog.dstToken, amount1: swapLog.returnAmount })
     }
 
     return { dailyVolume };
