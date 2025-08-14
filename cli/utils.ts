@@ -147,7 +147,7 @@ export function camelCaseToSpaces(s: string) {
 // move timestamp attr to the end of given object
 const timestampKey = 'timestamp'
 export function timestampLast(item: any): any {
-    const newItem = {}
+    const newItem: any = {}
 
     // iterate over all keys in the original object
     for (const key in item) {
