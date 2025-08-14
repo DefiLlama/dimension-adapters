@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const data = await fetchURL(
-    `https://tidelabs.io:2121/defillama/bodega-market/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
+    `https://tidelabs.io/api/defillama/bodega-market/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
   const { dailyFees, dailyRevenue } = data;
 
