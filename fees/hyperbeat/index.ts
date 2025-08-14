@@ -1,9 +1,5 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-// https://etherfi.gitbook.io/etherfi/liquid/technical-documentation#fees
-import { api } from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ethers } from "ethers";
 const sdk = require('@defillama/sdk')
 import { METRIC } from "../../helpers/metrics";
 
