@@ -5,13 +5,10 @@ import fetchURL from "../../utils/fetchURL";
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  console.log(options.startTimestamp, options.endTimestamp);
 
   const { daily } = await fetchURL(
     `https://beta.strikefinance.org/api/analytics/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
-
-  console.log(daily);
 
   dailyFees.addCGToken("cardano", Number(daily.totalFeesByAsset.ADA));
   dailyRevenue.addCGToken("cardano", Number(daily.totalRevenueByAsset.ADA));
