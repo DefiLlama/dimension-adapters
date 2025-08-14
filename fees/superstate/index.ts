@@ -35,7 +35,9 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addUSDValue(totalSupply * (priceToday - priceYesterday));
 
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addUSDValue((totalSupply * priceToday * 0.15) / (365 * 100));
+  const oneYear = 365 * 24 * 60 * 60;
+  const timeFrame = options.toTimestamp - options.fromTimestamp;
+  dailyRevenue.addUSDValue((totalSupply * priceToday * 0.0015 * timeFrame) / oneYear);
   dailyFees.add(dailyRevenue);
 
   return {
