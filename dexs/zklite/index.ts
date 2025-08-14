@@ -46,6 +46,7 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-01-01",
   adapter: {
     [CHAIN.ZKSYNC]: {
       fetch,

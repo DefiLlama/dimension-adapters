@@ -53,6 +53,7 @@ export enum CHAIN {
   GODWOKEN_V1 = "godwoken_v1",
   FUSE = "fuse",
   SX = "sx",
+  SXR = "sxr",
   ELROND = "elrond",
   DEFICHAIN = "defichain",
   CUBE = "cube",
