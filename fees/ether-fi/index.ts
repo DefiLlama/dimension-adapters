@@ -1,9 +1,9 @@
 // https://etherfi.gitbook.io/etherfi/liquid/technical-documentation#fees
-import ADDRESSES from '../../helpers/coreAssets.json';
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ethers } from "ethers";
-const sdk = require('@defillama/sdk')
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 const EETH = ADDRESSES.ethereum.EETH;
 const EIGEN = ADDRESSES.ethereum.EIGEN;
@@ -241,11 +241,11 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(EIGEN, eigenRevenue);
 
   // liquid earnings
-  for(const vault of Object.values(LIQUID_VAULTS)) {
+  for (const vault of Object.values(LIQUID_VAULTS)) {
     let accountStateAbi = ''
-    if(vault.version == 'v1'){
+    if (vault.version == 'v1') {
       accountStateAbi = accountStateV1Abi
-    }else{
+    } else {
       accountStateAbi = accountStateV2Abi
     }
     const vaultState = await options.fromApi.call({
@@ -278,19 +278,14 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      meta: {
-        methodology: {
-          Fees: "Staking/restaking rewards and Liquid Vault fees.",
-          Revenue: "Staking/restaking rewards and Liquid Vault platform management fees.",
-          ProtocolRevenue: "Staking/restaking rewards and Liquid Vault platform management fees.",
-        },
-      },
-      start: '2024-03-13',
-    },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  methodology: {
+    Fees: "Staking/restaking rewards and Liquid Vault fees.",
+    Revenue: "Staking/restaking rewards and Liquid Vault platform management fees.",
+    ProtocolRevenue: "Staking/restaking rewards and Liquid Vault platform management fees.",
   },
+  start: '2024-03-13'
 };
 
 export default adapter;
