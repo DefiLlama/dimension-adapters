@@ -11,7 +11,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `
   const res = await queryAllium(query);
   const dailyFees = options.createBalances();
-  dailyFees.add(ADDRESSES.sei.SEI, Number(res[0].fees_in_wei) || 0);
+  dailyFees.add(ADDRESSES.sei.WSEI, Number(res[0].fees_in_wei) || 0);
 
   return { dailyFees, dailyRevenue: dailyFees };
 }
