@@ -37,15 +37,12 @@ const parseGrixMetricsData = (result: any): GrixMetricsData | null => {
 
 const grix_adapter: SimpleAdapter = {
   version: 2,
+  methodology:          "The total value of the underlying assets for all options traded. It is calculated as the spot price (at the trade instance) multiplied by the contract size.",
+  fetch: fetchGrix,
+  runAtCurrTime: true, // currently we don't take the timestamp into account, should be changed soon
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetchGrix,
       start: "2024-11-01",
-      runAtCurrTime: true, // currently we don't take the timestamp into account, should be changed soon
-      meta: {
-        methodology:
-          "The total value of the underlying assets for all options traded. It is calculated as the spot price (at the trade instance) multiplied by the contract size.",
-      },
     },
   },
 };

@@ -2,7 +2,8 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 
-const endpoint = "https://api.goldsky.com/api/public/project_cmb20ryy424yb01wy7zwd7xd1/subgraphs/analytics/v1.0.0/gn";
+const endpoint =
+  "https://api.goldsky.com/api/public/project_cmb20ryy424yb01wy7zwd7xd1/subgraphs/analytics/1.2.3/gn";
 
 // GraphQL query to fetch total volume
 const totalVolumeQuery = gql`
@@ -47,9 +48,11 @@ const fetchDailyData = async (date: number) => {
 
   let totalRevenue = 0;
 
-  pools.forEach(pool => {
+  pools.forEach((pool) => {
     const poolFees = parseFloat(pool.feesUSD) || 0;
-    const communityFee = pool.communityFee ? parseFloat(pool.communityFee) / 10000 : 0;
+    const communityFee = pool.communityFee
+      ? parseFloat(pool.communityFee) / 10000
+      : 0;
 
     const poolRevenue = poolFees * communityFee;
 
@@ -69,7 +72,9 @@ const adapter: SimpleAdapter = {
       fetch: async (timestamp: number) => {
         const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
         const totalVolume = await fetchTotalVolume();
-        const { volumeUSD, feesUSD, revenueUSD } = await fetchDailyData(dayTimestamp);
+        const { volumeUSD, feesUSD, revenueUSD } = await fetchDailyData(
+          dayTimestamp
+        );
 
         return {
           totalVolume: parseFloat(totalVolume),
@@ -80,16 +85,14 @@ const adapter: SimpleAdapter = {
           timestamp: dayTimestamp,
         };
       },
-      start: '2025-02-06',
-      meta: {
-        methodology: {
-          Volume: "Total users swap volume.",
-          Fees: "Swap fees paid by users.",
-          Revenue: "Protocol and community shared from fees.",
-          SupplySideRevenue: "Fees shared to liquidity providers."
-        }
-      }
+      start: "2025-02-06",
     },
+  },
+  methodology: {
+    Volume: "Total users swap volume.",
+    Fees: "Swap fees paid by users.",
+    Revenue: "Protocol and community shared from fees.",
+    SupplySideRevenue: "Fees shared to liquidity providers.",
   },
 };
 

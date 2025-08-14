@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.SAPPHIRE]: {
-      fetch: v3Graphs(CHAIN.SAPPHIRE),
+      fetch: v3Graphs,
       meta: {
         methodology,
       },

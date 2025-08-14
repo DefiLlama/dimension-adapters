@@ -52,6 +52,9 @@ const PROVIDER_CONFIG = {
   [CHAIN.BASE]: {
     endpoint: sdk.graph.modifyEndpoint("AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF"),
   },
+  [CHAIN.ETHEREUM]: {
+    endpoint: sdk.graph.modifyEndpoint("HSPZATdnDvYRNPBJm7eSrzkTeRZqhqYvy7c3Ngm9GCTL"),
+  },
 };
 
 const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: string, startTimestamp: number, endTimestamp: number) => {
@@ -149,8 +152,8 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
 
 const meta = {
   methodology: {
-    Fees: 'All fees generated from dHedge vaults.',
-    Revenue: 'All revenue collected by the dHedge protocol from fees generated.',
+    Fees: 'All fees generated from dHEDGE vaults.',
+    Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
   }
 }
 
@@ -160,6 +163,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: { fetch, start: '2021-07-29', meta },
     [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', meta },
     [CHAIN.BASE]: { fetch, start: '2023-12-20', meta },
+    [CHAIN.ETHEREUM]: { fetch, start: '2025-08-10', meta, },
   },
   version: 2
 }

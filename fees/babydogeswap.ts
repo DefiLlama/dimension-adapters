@@ -25,7 +25,7 @@ const adapters = univ2DimensionAdapter2({
 }, {
   methodology: {
     Fees: "Fees collected from user trading fees",
-    UserFees: "Users pays 0.3% of each swap. Different user fee discounts depening on Baby Doge wallet balance (up to 70% off). Calculation made with base 0.3%",
+    UserFees: "Users pays 0.3% of each swap. Different user fee discounts depending on Baby Doge wallet balance (up to 70% off). Calculation made with base 0.3%",
     Revenue: "Up to 0.1% of user fees are distributed to treasury",
     ProtocolRevenue: "Up to 0.1% of user fees are distributed to treasury",
     SupplySideRevenue: "A 0.2% user fees is distributed among LPs",
