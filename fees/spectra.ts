@@ -1,11 +1,4 @@
-import ADDRESSES from "../helpers/coreAssets.json";
-import {
-  ChainBlocks,
-  FetchOptions,
-  FetchResultFees,
-  FetchV2,
-  SimpleAdapter,
-} from "../adapters/types";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 import { gql, GraphQLClient } from "graphql-request";
