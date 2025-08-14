@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const data = await fetchURL(`https://tidelabs.io:2121/defillama/jpg-store/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`);
+  const data = await fetchURL(`https://tidelabs.io/api/defillama/jpg-store/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`);
 
   const dailyFeesUSD = options.createBalances();
   const dailyRevenueUSD = options.createBalances();
