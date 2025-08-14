@@ -4,7 +4,7 @@ import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
 const fetch = univ2Adapter({
   endpoints: {
-    [CHAIN.SX]: "https://graph.sx.technology/subgraphs/name/sharkswap/exchange",
+    [CHAIN.SX]: "https://rollup-graph.sx.technology/subgraphs/name/sharkswap/exchange",
   },
   factoriesName: "factories",
   dayData: "dayData",
