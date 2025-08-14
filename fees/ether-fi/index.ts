@@ -1,21 +1,50 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 // https://etherfi.gitbook.io/etherfi/liquid/technical-documentation#fees
-import { api } from "@defillama/sdk";
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ethers } from "ethers";
 const sdk = require('@defillama/sdk')
 
-const LIQUID_VAULT_ETH = "0xf0bb20865277aBd641a307eCe5Ee04E79073416C";
-const LIQUID_VAULT_ACCOUNTANT_ETH = "0x0d05D94a5F1E76C18fbeB7A13d17C8a314088198";
-const LIQUID_VAULT_USD = "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C";
-const LIQUID_VAULT_ACCOUNTANT_USD = "0xc315D6e14DDCDC7407784e2Caf815d131Bc1D3E7";
 const EETH = ADDRESSES.ethereum.EETH;
 const EIGEN = ADDRESSES.ethereum.EIGEN;
 const LIQUIDITY_POOL = "0x308861A430be4cce5502d0A12724771Fc6DaF216";
 const STETH = ADDRESSES.ethereum.STETH;
 const SSV = "0x9D65fF81a3c488d585bBfb0Bfe3c7707c7917f54";
+const OBOL = "0x0B010000b7624eb9B3DfBC279673C76E9D29D5F7";
 const YEAR = 365;
+
+const LIQUID_VAULTS = {
+  ETHVault: {
+    name: "ETH Vault",
+    target: "0xf0bb20865277aBd641a307eCe5Ee04E79073416C",
+    accountant: "0x0d05D94a5F1E76C18fbeB7A13d17C8a314088198",
+    fee: 0.015,
+  },
+  USDVault: {
+    name: "USD Vault",
+    target: "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C",
+    accountant: "0xc315D6e14DDCDC7407784e2Caf815d131Bc1D3E7",
+    fee: 0.02,
+  },
+  UsualStableVault: {
+    name: "Usual Stable Vault",
+    target: "0xeDa663610638E6557c27e2f4e973D3393e844E70",
+    accountant: "0x1D4F0F05e50312d3E7B65659Ef7d06aa74651e0C",
+    fee: 0.02,
+  },
+  UltraUSDVault: {
+    name: "BTC Vault",
+    target: '0xbc0f3B23930fff9f4894914bD745ABAbA9588265',
+    accountant: '0x95fE19b324bE69250138FE8EE50356e9f6d17Cfe',
+    fee: 0.02,
+  },
+  BTCVault: {
+    name: "BTC Vault",
+    target: '0x5f46d540b6eD704C3c8789105F30E075AA900726',
+    accountant: '0xEa23aC6D7D11f6b181d6B98174D334478ADAe6b0',
+    fee: 0,
+  },
+}
 
 const getTotalSupply = async (options, target) => {
   return await options.api.call({
@@ -118,6 +147,46 @@ const getSsvRevenue = async (options: FetchOptions) => {
   return BigInt(ssv_revenue);
 }
 
+const getObolRevenue = async (options: FetchOptions) => {
+  const logs = await options.getLogs({
+    target: OBOL,
+    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+  })
+  const obol_revenue = logs.reduce((acc, log) => acc + Number(log.value), 0);
+  return BigInt(obol_revenue);
+}
+
+const getWithdrawalFees = async (options: FetchOptions) => {
+  const logs = await options.getLogs({
+    target: EETH,
+    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", ethers.zeroPadValue("0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c", 32), ethers.zeroPadValue("0x2f5301a3D59388c509C65f8698f521377D41Fd0F", 32)],
+  })
+  const withdrawal_fees = logs.reduce((acc, log) => acc + Number(log.value), 0);
+  return BigInt(withdrawal_fees);
+}
+
+const getMiscStakingRevenue = async (options: FetchOptions) => {
+  const logs = await options.getLogs({
+    target: "0x35fA164735182de50811E8e2E824cFb9B6118ac2", //eETH as WETH
+    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+  });
+  const logs2 = await options.getLogs({
+    target: EIGEN,
+    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+  });
+
+  const wethRevenue = logs.reduce((acc, log) => acc + Number(log.value), 0);
+  const eigenRevenue = logs2.reduce((acc, log) => acc + Number(log.value), 0);
+  return {
+    wethRevenue: BigInt(wethRevenue),
+    eigenRevenue: BigInt(eigenRevenue),
+  };
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRev = options.createBalances();
@@ -126,12 +195,24 @@ const fetch = async (options: FetchOptions) => {
 
   // liquid earnings
   // eth vault
-  const totalSupply_eth = await getTotalSupply(options, LIQUID_VAULT_ETH);
-  const [asset_eth, rate_eth] = await getPayoutDetails(options, LIQUID_VAULT_ACCOUNTANT_ETH);
+  const totalSupply_eth = await getTotalSupply(options, LIQUID_VAULTS.ETHVault.target);
+  const [asset_eth, rate_eth] = await getPayoutDetails(options, LIQUID_VAULTS.ETHVault.accountant);
 
   // usd vault
-  const totalSupply_usd = await getTotalSupply(options, LIQUID_VAULT_USD);
-  const [asset_usd, rate_usd] = await getPayoutDetails(options, LIQUID_VAULT_ACCOUNTANT_USD);
+  const totalSupply_usd = await getTotalSupply(options, LIQUID_VAULTS.USDVault.target);
+  const [asset_usd, rate_usd] = await getPayoutDetails(options, LIQUID_VAULTS.USDVault.accountant);
+
+  // ultra usd vault
+  const totalSupply_ultraUsd = await getTotalSupply(options, LIQUID_VAULTS.UltraUSDVault.target);
+  const [asset_ultraUsd, rate_ultraUsd] = await getPayoutDetails(options, LIQUID_VAULTS.UltraUSDVault.accountant);
+
+  // // usual usd vault
+  // const totalSupply_usualUsd = await getTotalSupply(options, LIQUID_VAULTS.UsualStableVault.target);
+  // const [asset_usualUsd, rate_usualUsd] = await getPayoutDetails(options, LIQUID_VAULTS.UsualStableVault.accountant);
+
+  // // btc vault
+  // const totalSupply_btc = await getTotalSupply(options, LIQUID_VAULTS.BTCVault.target);
+  // const [asset_btc, rate_btc] = await getPayoutDetails(options, LIQUID_VAULTS.BTCVault.accountant);
 
   // get total staking fees earned
   let totalStakeFees = BigInt(0);
@@ -161,11 +242,34 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(SSV, ssvRevenue);
   dailyRev.add(SSV, ssvRevenue);
 
+  // add obol revenue for running obol validators
+  const obolRevenue = await getObolRevenue(options);
+  dailyFees.add(OBOL, obolRevenue);
+  dailyRev.add(OBOL, obolRevenue);
+
+  // add withdrawal fees
+  const withdrawalFees = await getWithdrawalFees(options);
+  dailyFees.add(EETH, withdrawalFees);
+  dailyRev.add(EETH, withdrawalFees);
+
+  const { wethRevenue, eigenRevenue } = await getMiscStakingRevenue(options);
+  dailyRev.add(EETH, wethRevenue);
+  dailyFees.add(EETH, wethRevenue);
+  dailyRev.add(EIGEN, eigenRevenue);
+  dailyFees.add(EIGEN, eigenRevenue);
+
   //liquid
-  dailyFees.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
-  dailyFees.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 * 0.02 / YEAR);
-  dailyRev.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * 0.01 / YEAR);
-  dailyRev.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 * 0.02 / YEAR);
+  dailyFees.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * LIQUID_VAULTS.ETHVault.fee / YEAR);
+  dailyFees.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 * LIQUID_VAULTS.USDVault.fee / YEAR);
+  dailyFees.add(asset_ultraUsd, (totalSupply_ultraUsd * rate_ultraUsd) / 1e6 * LIQUID_VAULTS.UltraUSDVault.fee / YEAR);
+  // dailyFees.add(asset_usualUsd, (totalSupply_usualUsd * rate_usualUsd) / 1e6 * LIQUID_VAULTS.UsualStableVault.fee / YEAR);
+  // dailyFees.add(asset_btc, (totalSupply_btc * rate_btc) / 1e8 * 0.015 / YEAR);
+
+  dailyRev.add(asset_eth, (totalSupply_eth * rate_eth) / 1e18 * LIQUID_VAULTS.ETHVault.fee / YEAR);
+  dailyRev.add(asset_usd, (totalSupply_usd * rate_usd) / 1e6 * LIQUID_VAULTS.USDVault.fee / YEAR);
+  dailyRev.add(asset_ultraUsd, (totalSupply_ultraUsd * rate_ultraUsd) / 1e6 * LIQUID_VAULTS.UltraUSDVault.fee / YEAR);
+  // dailyRev.add(asset_usualUsd, (totalSupply_usualUsd * rate_usualUsd) / 1e6 * LIQUID_VAULTS.UsualStableVault.fee / YEAR);
+  // dailyRev.add(asset_btc, (totalSupply_btc * rate_btc) / 1e8 * 0.015 / YEAR);
 
   //steth holding staking rewards
   dailyFees.add(STETH, BigInt(stethFees) + BigInt(stethRevenue));
@@ -178,6 +282,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyRev,
+    dailyProtocolRevenue: dailyRev,
   };
 };
 
@@ -188,8 +293,9 @@ const adapter: Adapter = {
       fetch,
       meta: {
         methodology: {
-          Fees: "Staking/Restaking rewards earned by all staked ETH + Fees on Liquid Vaults",
-          Revenue: "Staking/Restaking rewards + Fees on Liquid Vaults",
+          Fees: "Staking/restaking rewards and Liquid Vault fees (1% ETH, 2% USD vaults).",
+          Revenue: "Staking/restaking rewards and Liquid Vault fees.",
+          ProtocolRevenue: "Staking/restaking rewards and Liquid Vault fees.",
         },
       },
       start: '2024-03-13',
