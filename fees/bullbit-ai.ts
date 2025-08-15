@@ -1,48 +1,32 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addGasTokensReceived, addTokensReceived } from "../helpers/token";
+import { getETHReceived } from "../helpers/token";
 
 const feeReceiverMultisig = [
-  "0x87D30c1a5a79b060d7F6FBEa7791c381a2aFc7Ad"
-]
-
-const fromAddresses = [
-  "0x20be1319c5604d272fb828a9dccd38487e973cb8"
+  "0x87D30c1a5a79b060d7F6FBEa7791c381a2aFc7Ad",
 ]
 
 const fetch: any = async (options: FetchOptions) => {
-  const dailyRevenue = await addTokensReceived({
-    options,
+  const dailyFees = options.createBalances();
+
+  await getETHReceived({
     targets: feeReceiverMultisig,
-    fromAdddesses: fromAddresses,
-    skipIndexer: true
+    balances: dailyFees,
+    options
   });
 
-  await addGasTokensReceived({
-    multisigs: feeReceiverMultisig,
-    balances: dailyRevenue,
-    options,
-    fromAddresses
-  });
-
-  const dailyFees = dailyRevenue.clone();
-
-  return { dailyFees, dailyRevenue };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BSC]: { 
-      fetch,
-      meta: {
-        methodology: {
-          Fees: 'All fees paid by users for launching, trading tokens.',
-          Revenue: 'Fees collected by bullbit.ai protocol.',
-        }
-      },
-    },
+  fetch,
+  methodology: {
+    Fees: 'All fees paid by users for launching, trading tokens.',
+    Revenue: 'All fees collected by bullbit.ai protocol.',
+    ProtocolRevenue: 'All fees collected by bullbit.ai protocol.',
   },
+  chains: [CHAIN.BSC],
 };
 
 export default adapter;
