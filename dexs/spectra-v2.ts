@@ -201,21 +201,31 @@ const fetchDailyHoldersRevenue = async ({
   return dailyHoldersRevenue;
 };
 
+// https://docs.spectra.finance/tokenomics/fees
 const fetch: FetchV2 = async (options) => {
   const { dailyFees, dailyVolume } = await fetchDailyFeesAndVolume(options);
-  const dailyHoldersRevenue = await fetchDailyHoldersRevenue(options);
+
+  const dailyRevenue = dailyFees.clone(0.8);
+  const dailySupplySideRevenue = dailyFees.clone(0.2);
+  const dailyBribesRevenue = await fetchDailyHoldersRevenue(options);
+  
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyHoldersRevenue,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: dailyRevenue,
+    dailyBribesRevenue,
   };
 };
 
 const methodology = {
   Fees: "All fees paid by yield traders.",
-  Revenue: "Trading fees and voting incentives distributed to veSPECTRA",
-  HoldersRevenue: "Trading fees and voting incentives distributed to veSPECTRA",
+  Revenue: "80% Trading fees collected as revenue.",
+  ProtocolRevenue: "No protocol revenue.",
+  SupplySideRevenue: "20% trading fees distributed to LPs.",
+  HoldersRevenue: "60% Trading fees and voting incentives distributed to veSPECTRA.",
 }
 
 const adapter: SimpleAdapter = {
