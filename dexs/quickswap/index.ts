@@ -16,6 +16,7 @@ const endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
     "FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd",
   ),
+  [CHAIN.BASE]: "https://gateway.thegraph.com/api/eae8430c94c2403f46fee0fdfa5f1fd4/subgraphs/id/HtaMv1w1dCbk6RzsEsMjdcgeWZWeNqwATNbCZtKhFY49",
 };
 
 const graphs = getChainVolume({
@@ -109,6 +110,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.POLYGON]: {
         fetch: graphs(CHAIN.POLYGON),
         start: '2020-10-08',
+      },
+      [CHAIN.BASE]: {
+        fetch: graphs(CHAIN.BASE),
+        start: '2025-08-12',
       },
     },
     v3: {
