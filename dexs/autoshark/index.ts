@@ -3,7 +3,7 @@ import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { SimpleAdapter } from "../../adapters/types";
 
 const config = {
-  fees: 0.0025,
+  fees: 0.003,
   userFeesRatio: 1,
   revenueRatio: 0,
 }
