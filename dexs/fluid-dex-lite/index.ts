@@ -18,7 +18,7 @@ const BITS_DEX_LITE_DEX_VARIABLES_FEE = 0n;
 const BITS_DEX_LITE_DEX_VARIABLES_TOKEN_0_DECIMALS = 126n;
 const BITS_DEX_LITE_DEX_VARIABLES_TOKEN_1_DECIMALS = 131n;
 
-const BITS_DEX_LITE_SWAP_DATA_DEX_ID = 0n;
+// const BITS_DEX_LITE_SWAP_DATA_DEX_ID = 0n;
 const BITS_DEX_LITE_SWAP_DATA_SWAP_0_TO_1 = 64n;
 const BITS_DEX_LITE_SWAP_DATA_AMOUNT_IN = 65n;
 const BITS_DEX_LITE_SWAP_DATA_AMOUNT_OUT = 125n;
@@ -180,7 +180,9 @@ const fetch = async (options: FetchOptions) => {
 
   // Process DEX Lite events 
   const processDexLiteEvents = (events: any[]) => {
-    events.forEach(({ swap0to1, amountInAdjusted, amountOutAdjusted, token0, token1, fee, token0Decimals, token1Decimals }) => {
+    events.forEach((item: any) => {
+      const { swap0to1, amountInAdjusted, token0, token1, fee, token0Decimals, token1Decimals } = item
+
       // Skip if amounts are zero or invalid
       if (!amountInAdjusted || amountInAdjusted === 0n) return;
       
