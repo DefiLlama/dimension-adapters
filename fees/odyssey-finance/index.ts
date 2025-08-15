@@ -40,53 +40,30 @@ const TOKENS = {
   ],
 };
 
-const fetch = (chain: string) => async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
-    tokens: TOKENS[chain],
-    targets: [TREASURY[chain]],
+    tokens: TOKENS[options.chain],
+    targets: [TREASURY[options.chain]],
   });
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: "2025-01-01",
-      meta: {
-        methodology: {
-          Fees: "Includes all protocol fees from Odyssey.",
-          Revenue: "All protocol revenue equals fees.",
-        },
-      },
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: "2025-01-01",
-      meta: {
-        methodology: {
-          Fees: "Includes all protocol fees from Odyssey.",
-          Revenue: "All protocol revenue equals fees.",
-        },
-      },
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: "2025-01-01",
-      meta: {
-        methodology: {
-          Fees: "Includes all protocol fees from Odyssey.",
-          Revenue: "All protocol revenue equals fees.",
-        },
-      },
-    },
+  methodology: {
+    Fees: "Includes all protocol fees from Odyssey.",
+    Revenue: "All protocol revenue equals fees.",
+    ProtocolRevenue: "All protocol revenue equals fees.",
   },
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.OPTIMISM],
+  start: "2025-02-01",
 };
 
 export default adapter;
