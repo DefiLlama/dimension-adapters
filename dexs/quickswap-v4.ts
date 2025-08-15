@@ -16,6 +16,13 @@ const config = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    Fees: 'Swap fees paid by users',
+    UserFees: 'Swap fees paid by users',
+    Revenue: 'No revenue',
+    ProtocolRevenue: 'No protocol revenue',
+    SupplySideRevenue: '100% swap fees to LPs',
+  },
   adapter: {
     [CHAIN.BASE]: {
       fetch: getUniV3LogAdapter({ factory: '0xC5396866754799B9720125B104AE01d935Ab9C7b', ...config }),
