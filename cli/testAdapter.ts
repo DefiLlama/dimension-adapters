@@ -4,7 +4,7 @@ import * as path from 'path';
 import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types';
 import runAdapter from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import { checkArguments, printVolumes2 } from './utils';
+import { checkArguments, printVolumes2, timestampLast } from './utils';
 
 function checkIfFileExistsInMasterBranch(_filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
@@ -67,7 +67,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   // Get adapter
   const volumes: any = await runAdapter({ module, endTimestamp })
-  printVolumes2(volumes)
+  printVolumes2(volumes.map((volume: any) => timestampLast(volume)))
   console.info("\n")
   process.exit(0)
 })()
