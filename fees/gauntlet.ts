@@ -157,8 +157,11 @@ const fetchSolana = async (options: FetchOptions) => {
 
   const grossReturns = await calculateGrossReturns(options);
 
-  dailyFees.addUSDValue(grossReturns);
-  dailySupplySideRevenue.addUSDValue(grossReturns);
+  // Cap fees at 0 - fees cannot be negative by definition
+  const cappedGrossReturns = Math.max(0, grossReturns);
+
+  dailyFees.addUSDValue(cappedGrossReturns);
+  dailySupplySideRevenue.addUSDValue(cappedGrossReturns);
 
   return {
     dailyFees,
