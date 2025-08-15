@@ -140,7 +140,7 @@ const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
 
@@ -163,6 +163,10 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     if (isAlgebraV3) {
       let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool) })
       _fees.forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
+    }
+    if (isAlgebraV2) {
+      let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool) })
+      _states.forEach((state: any, i: number) => fees[logs[i].pool] = Number(state.fee) / 1e6)
     }
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()
@@ -230,6 +234,7 @@ type UniV3Config = {
   swapEvent?: string,
   customLogic?: any,
   isAlgebraV3?: boolean,
+  isAlgebraV2?: boolean,
   userFeesRatio?: number,
   revenueRatio?: number,
   protocolRevenueRatio?: number,

@@ -1,22 +1,24 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { SimpleAdapter } from "../../adapters/types";
 
-const endpoints = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('5Jo2jtiEVnVhSxHqzp24RUAjJrfeFPaZExxVwubTVBQ3')
-};
-
-const fetch = univ2Adapter({
-  endpoints,
-  factoriesName: "planetFinanceFactories",
-  dayData: "planetFinanceDayData"
-});
+const config = {
+  fees: 0.0025,
+  userFeesRatio: 1,
+  revenueRatio: 0,
+}
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: Object.keys(endpoints),
+  version: 2,
+  methodology: {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  adapter: {
+    [CHAIN.BSC]: { fetch: getUniV2LogAdapter({ factory: '0xa053582601214FEb3778031a002135cbBB7DBa18', ...config }) },
+  },
 }
 
 export default adapter;
