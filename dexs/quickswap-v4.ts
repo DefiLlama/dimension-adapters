@@ -21,6 +21,14 @@ const adapter: SimpleAdapter = {
       fetch: getUniV3LogAdapter({ factory: '0xC5396866754799B9720125B104AE01d935Ab9C7b', ...config }),
       start: '2025-08-12',
     },
+    [CHAIN.SONEIUM]: {
+      fetch: getUniV3LogAdapter({ factory: '0x8Ff309F68F6Caf77a78E9C20d2Af7Ed4bE2D7093', ...config }),
+      start: '2025-08-12',
+    },
+    // [CHAIN.XLAYER]: {
+    //   fetch: getUniV3LogAdapter({ factory: '0x0284d1a8336E08AE0D3e30e7B0689Fa5B68E6310', ...config }),
+    //   start: '2025-08-12',
+    // },
   }
 }
 
