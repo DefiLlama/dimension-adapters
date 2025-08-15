@@ -73,52 +73,27 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   }
 }
 
-const meta = {
-  methodology: {
-    Fees: 'All trading fees paid by users for using Banana Bot.',
-    Revenue: 'Fees collected by Banana Bot protocol.',
-    ProtocolRevenue: 'Fees collected by Banana Bot protocol.',
-  }
+const methodology = {
+  Fees: 'All trading fees paid by users for using Banana Bot.',
+  Revenue: 'Fees collected by Banana Bot protocol.',
+  ProtocolRevenue: 'Fees collected by Banana Bot protocol.',
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-06-01',
-      meta,
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-06-01', },
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,
       start: '2023-06-01',
-      meta,
     },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2023-06-01',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2023-06-01',
-      meta,
-    },
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2024-12-16',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2024-03-15',
-      meta,
-    },
-    [CHAIN.UNICHAIN]: {
-      fetch,
-      start: '2025-02-10',
-      meta,
-    },
+    [CHAIN.BLAST]: { start: '2023-06-01', },
+    [CHAIN.BASE]: { start: '2023-06-01', },
+    [CHAIN.SONIC]: { start: '2024-12-16', },
+    [CHAIN.BSC]: { start: '2024-03-15', },
+    [CHAIN.UNICHAIN]: { start: '2025-02-10', },
   },
   isExpensiveAdapter: true,
 };

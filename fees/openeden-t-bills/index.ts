@@ -58,9 +58,9 @@ const fetch = async (
       getLogs({ target: config, eventAbi }),
       api.call({ target: config, abi: "uint256:totalAssets" }),
     ]);
-  
+
     dailyFees.add(ADDRESSES[api.chain].USDC, totalUSDC * DAILY_MANAGEMENT_FEES);
-  
+
     logs.forEach((log) => {
       const feeAmount = log[4];
       dailyFees.add(ADDRESSES[api.chain].USDC, feeAmount);
@@ -70,38 +70,31 @@ const fetch = async (
   return { dailyFees };
 };
 
-const meta = {
-    methodology: {
-        Fees: 'All yields collected from invested assets.',
-    }
-}
-
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'All yields collected from invested assets.',
+  },
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ETHEREUM], options),
       start: '2023-10-18',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.ARBITRUM], options),
       start: '2024-02-13',
-      meta,
     },
     [CHAIN.RIPPLE]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.RIPPLE], options),
       runAtCurrTime: true,
-      meta,
     },
     [CHAIN.SOLANA]: {
       fetch: (options: FetchOptions) =>
         fetch(CHAIN_CONFIGS[CHAIN.SOLANA], options),
       runAtCurrTime: true,
-      meta,
     },
   },
 };

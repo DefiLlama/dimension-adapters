@@ -151,37 +151,19 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    Fees: "Total fees collected from all Rank Factory and Strategy contracts, including platform fees, creator fees, performance fees, RAN token costs, and general service payments.",
+    UserFees:
+      "Same as total fees - represents all fees paid by users across the platform including strategy creation, investments, performance fees, and service payments.",
+    Revenue:
+      "Platform revenue only - fees earned by the protocol from strategy creation, investment processing, and performance-based earnings.",
+    ProtocolRevenue:
+      "Same as Revenue - represents the platform's share of fees from Rank Factory strategy creation fees, investment platform fees, and performance-based platform fees.",
+  },
+  fetch,
   adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: "2025-04-07",
-      meta: {
-        methodology: {
-          Fees: "Total fees collected from all Rank Factory and Strategy contracts, including platform fees, creator fees, performance fees, RAN token costs, and general service payments.",
-          UserFees:
-            "Same as total fees - represents all fees paid by users across the platform including strategy creation, investments, performance fees, and service payments.",
-          Revenue:
-            "Platform revenue only - fees earned by the protocol from strategy creation, investment processing, and performance-based earnings.",
-          ProtocolRevenue:
-            "Same as Revenue - represents the platform's share of fees from Rank Factory strategy creation fees, investment platform fees, and performance-based platform fees.",
-        },
-      },
-    },
-    [CHAIN.MODE]: {
-      fetch,
-      start: "2025-04-07",
-      meta: {
-        methodology: {
-          Fees: "Total fees collected from all Rank Factory and Strategy contracts, including platform fees, creator fees, performance fees, RAN token costs, and general service payments.",
-          UserFees:
-            "Same as total fees - represents all fees paid by users across the platform including strategy creation, investments, performance fees, and service payments.",
-          Revenue:
-            "Platform revenue only - fees earned by the protocol from strategy creation, investment processing, and performance-based earnings.",
-          ProtocolRevenue:
-            "Same as Revenue - represents the platform's share of fees from Rank Factory strategy creation fees, investment platform fees, and performance-based platform fees.",
-        },
-      },
-    },
+    [CHAIN.BSC]: { start: "2025-04-07", },
+    [CHAIN.MODE]: { start: "2025-04-07", },
   },
 };
 

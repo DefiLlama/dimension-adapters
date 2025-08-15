@@ -63,18 +63,13 @@ const adapter: Adapter = {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
       start: '2024-03-01',
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
       start: '2024-03-01',
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
     },
   },
+  methodology: "All treasuryFee, poolFee and keeperFee are collected",
 };
 
 export default adapter;

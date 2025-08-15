@@ -63,11 +63,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch,
       start: '2023-08-30',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

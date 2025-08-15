@@ -52,7 +52,7 @@ async function retry(chain: string, fromBlock: number, toBlock: number, address:
         transactionType: 'to',
         addresses: [address],
       })) as Array<any>;
-    } catch(e: any) {
+    } catch (e: any) {
       if (i === 4) {
         throw e;
       }
@@ -101,35 +101,15 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-01-01',
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2023-01-01',
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2023-01-01',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-01-01',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2023-01-01',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2023-11-18',
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2023-10-03',
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-01-01', },
+    [CHAIN.POLYGON]: { start: '2023-01-01', },
+    [CHAIN.BSC]: { start: '2023-01-01', },
+    [CHAIN.ARBITRUM]: { start: '2023-01-01', },
+    [CHAIN.OPTIMISM]: { start: '2023-01-01', },
+    [CHAIN.BASE]: { start: '2023-11-18', },
+    [CHAIN.LINEA]: { start: '2023-10-03', },
   },
   methodology,
 }

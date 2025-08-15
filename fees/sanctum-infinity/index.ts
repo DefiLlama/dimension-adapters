@@ -54,11 +54,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: "2024-01-01", // First unstake transaction
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
   isExpensiveAdapter: true,
 };
 

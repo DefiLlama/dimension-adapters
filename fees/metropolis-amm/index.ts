@@ -102,11 +102,9 @@ const adapter: SimpleAdapter = {
         [CHAIN.SONIC]: {
             fetch: fetchFee,
             start: "2024-12-16",
-            meta: {
-                methodology,
-            },
         },
     },
+    methodology,
 };
 
 export default adapter;

@@ -67,14 +67,12 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-04-18',
-      meta: {
-        methodology: {
-          Fees: "Yield, redeemtion fees.",
-          Revenue: "All fees are revenue.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Yield, redeemtion fees.",
+    Revenue: "All fees are revenue.",
+  }
 };
 
 export default adapter;

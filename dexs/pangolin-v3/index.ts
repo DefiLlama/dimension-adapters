@@ -39,23 +39,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   }
 }
 
-const meta = {
-  methodology: {
-    Fees: 'Fees paid by users for swaps',
-    UserFees: 'Fees paid by users for swaps',
-    Revenue: '10% Fees to Pangolin Protocol treasury, 10% to PNG stakers',
-    ProtocolRevenue: '10% Fees to Pangolin Protocol treasury',
-    SupplySideRevenue: '80% Fees to liquidity providers',
-    HoldersRevenue: '10% Fees to PNG stakers'
-  }
+const methodology = {
+  Fees: 'Fees paid by users for swaps',
+  UserFees: 'Fees paid by users for swaps',
+  Revenue: '10% Fees to Pangolin Protocol treasury, 10% to PNG stakers',
+  ProtocolRevenue: '10% Fees to Pangolin Protocol treasury',
+  SupplySideRevenue: '80% Fees to liquidity providers',
+  HoldersRevenue: '10% Fees to PNG stakers'
 }
 
 const adapter = {
+  methodology,
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
       start: '2025-04-04',
-      meta
     }
   }
 }

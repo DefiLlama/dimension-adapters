@@ -79,27 +79,24 @@ const fetchEvm = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
-const meta = {
-    methodology: {
+const methodology = {
         Fees: 'All fees paid by users for token profile listing.',
         Revenue: 'All fees collected by DexTools.',
         ProtocolRevenue: 'All fees collected by DexTools.',
-    }
 }
 
 const adapter: Adapter = {
+    methodology,
     version: 2,
     isExpensiveAdapter: true,
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
         [chain]: {
             fetch: fetchEvm,
-            meta,
         }
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            meta,
         }
     })
     // missing tron and ton

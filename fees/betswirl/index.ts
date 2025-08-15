@@ -156,17 +156,12 @@ function graphs() {
         dailyProtocolRevenue,
         dailyHoldersRevenue,
         dailySupplySideRevenue,
-        totalFees,
-        totalUserFees: totalFees,
-        totalRevenue,
-        totalProtocolRevenue,
-        totalSupplySideRevenue,
       };
     };
   };
 }
 
-const meta = {
+const info = {
   methodology: {
     UserFees: "The player is charged of the fee when a bet is won. Or the PvP game prize pool.",
     Fees: "All fees (called «house edge» from 2.4% to 4% of the payout) comes from the player's bet. The fee has several allocations: Bank, Partner, Affiliate, Dividends, Treasury, and Team. The house edge on PvP games is from 3.5% to 7% allocated to Dividends, Host, Affiliate, Treasury and Team.",
@@ -178,32 +173,28 @@ const meta = {
 };
 
 const adapter: Adapter = {
+  methodology: info.methodology,
   version: 2,
   adapter: {
     [BSC]: {
       start: '2022-07-27',
       fetch: graphs()(BSC),
-      meta,
     },
     [POLYGON]: {
       start: '2022-07-27',
       fetch: graphs()(POLYGON),
-      meta,
     },
     [AVAX]: {
       start: '2022-07-27',
       fetch: graphs()(AVAX),
-      meta,
     },
     [ARBITRUM]: {
       start: '2022-07-27',
       fetch: graphs()(ARBITRUM),
-      meta,
     },
     base: {
       start: '2024-11-04',
       fetch: graphs()('base'),
-      meta,
     },
   },
 }

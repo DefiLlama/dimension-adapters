@@ -86,21 +86,14 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2021-04-01',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users.",
-        },
-      }
     },
     [CHAIN.AVAX]: {
       fetch,
       start: '2021-04-01',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users.",
-        },
-      }
     },
+  },
+  methodology: {
+    Fees: "Trading fees paid by users.",
   },
 };
 

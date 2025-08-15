@@ -110,24 +110,23 @@ const fetchFeesSolana = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
-const meta = {
-    methodology: {
-        Fees: 'All trading fees paid by users.',
-        Revenue: 'All trading fees paid by users.',
-        ProtocolRevenue: 'All trading fees paid by users.',
-    }
+const methodology = {
+  Fees: 'All trading fees paid by users.',
+  Revenue: 'All trading fees paid by users.',
+  ProtocolRevenue: 'All trading fees paid by users.',
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: fetchFees, start: '2024-03-01', meta },
-    [CHAIN.BSC]: { fetch: fetchFees, start: '2024-03-01', meta },
-    [CHAIN.BASE]: { fetch: fetchFees, start: '2024-03-01', meta },
-    [CHAIN.SONIC]: { fetch: fetchFees, start: '2024-12-15', meta },
-    [CHAIN.AVAX]: { fetch: fetchFees, start: '2025-02-26', meta },
-    [CHAIN.BERACHAIN]: { fetch: fetchFees, start: '2025-02-06', meta },
-    [CHAIN.SOLANA]: { fetch: fetchFeesSolana, start: '2024-11-23', meta },
+    [CHAIN.ETHEREUM]: { fetch: fetchFees, start: '2024-03-01', },
+    [CHAIN.BSC]: { fetch: fetchFees, start: '2024-03-01', },
+    [CHAIN.BASE]: { fetch: fetchFees, start: '2024-03-01', },
+    [CHAIN.SONIC]: { fetch: fetchFees, start: '2024-12-15', },
+    [CHAIN.AVAX]: { fetch: fetchFees, start: '2025-02-26', },
+    [CHAIN.BERACHAIN]: { fetch: fetchFees, start: '2025-02-06', },
+    [CHAIN.SOLANA]: { fetch: fetchFeesSolana, start: '2024-11-23', },
   },
   isExpensiveAdapter: true,
 };

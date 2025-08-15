@@ -1,7 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'All yields earning from funding and basis spread from the delta hedging derivatives positions.',
   }
@@ -24,22 +24,12 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  fetch, 
+  methodology: info.methodology,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: "2024-03-18",
-      meta,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: "2024-03-18",
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: "2024-03-18",
-      meta,
-    },
+    [CHAIN.ETHEREUM]: { start: "2024-03-18", },
+    [CHAIN.ARBITRUM]: { start: "2024-03-18", },
+    [CHAIN.BSC]: { start: "2024-03-18", },
   },
   version: 2,
 };

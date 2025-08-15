@@ -21,22 +21,20 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: "9% of all ETH flows into active TopCutMarkets, i.e. 1.8 times the protocol revenue.",
-    Revenue: "All ETH flows into the TopCutVault. Equals 5% of all ETH flow into TopCutMarkets.",
-    ProtocolRevenue: "All ETH flows into the TopCutVault",
-  },
+const methodology = {
+  Fees: "9% of all ETH flows into active TopCutMarkets, i.e. 1.8 times the protocol revenue.",
+  Revenue: "All ETH flows into the TopCutVault. Equals 5% of all ETH flow into TopCutMarkets.",
+  ProtocolRevenue: "All ETH flows into the TopCutVault",
 };
 
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2025-06-16',
-      meta,
     },
   },
 };

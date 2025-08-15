@@ -71,20 +71,18 @@ const adapter: Adapter = {
     [CHAIN.NEAR]: {
       start: '2024-09-30',
       fetch,
-      meta: {
-        methodology: {
-          Volume:
-            "All deposits and withdrawals into currently ongoing auctions",
-          Fees: "Fees from deposits (0.5%), withdrawals (2%), referrals (shares 50% of deposit fee) and launch fee (2%)",
-          Revenue:
-            "All fees from deposits and launch fees are for the protocol",
-          SupplySideRevenue:
-            "There is a 2% withdrawal fee, which gets redistributed to all depositors of the same auction",
-        },
-      },
     },
   },
   version: 2,
+  methodology: {
+    Volume:
+      "All deposits and withdrawals into currently ongoing auctions",
+    Fees: "Fees from deposits (0.5%), withdrawals (2%), referrals (shares 50% of deposit fee) and launch fee (2%)",
+    Revenue:
+      "All fees from deposits and launch fees are for the protocol",
+    SupplySideRevenue:
+      "There is a 2% withdrawal fee, which gets redistributed to all depositors of the same auction",
+  },
 };
 
 export default adapter;

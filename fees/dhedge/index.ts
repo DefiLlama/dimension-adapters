@@ -88,44 +88,44 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 };
 
 const calculateManagerFees = (data: any): number =>
-    data.reduce((acc: number, item: any) => {
-      const managerFee = Number(item.managerFee);
-      const tokenPrice = Number(item.tokenPriceAtFeeMint);
-      const managerFeeFormatted = managerFee / 1e18;
-      const tokenPriceFormatted = tokenPrice / 1e18;
-      const result = managerFeeFormatted * tokenPriceFormatted;
-      return acc + result;
-    }, 0);
+  data.reduce((acc: number, item: any) => {
+    const managerFee = Number(item.managerFee);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
+    const managerFeeFormatted = managerFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = managerFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
 
 const calculateEntryFees = (data: any): number =>
-    data.reduce((acc: number, item: any) => {
-        const entryFee = Number(item.entryFeeAmount);
-        const tokenPrice = Number(item.tokenPrice);
-        const entryFeeFormatted = entryFee / 1e18;
-        const tokenPriceFormatted = tokenPrice / 1e18;
-        const result = entryFeeFormatted * tokenPriceFormatted;
-        return acc + result;
-    }, 0);
+  data.reduce((acc: number, item: any) => {
+    const entryFee = Number(item.entryFeeAmount);
+    const tokenPrice = Number(item.tokenPrice);
+    const entryFeeFormatted = entryFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = entryFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
 
 const calculateExitFees = (data: any): number =>
-    data.reduce((acc: number, item: any) => {
-        const exitFee = Number(item.exitFeeAmount);
-        const tokenPrice = Number(item.tokenPrice);
-        const exitFeeFormatted = exitFee / 1e18;
-        const tokenPriceFormatted = tokenPrice / 1e18;
-        const result = exitFeeFormatted * tokenPriceFormatted;
-        return acc + result;
-    }, 0);
+  data.reduce((acc: number, item: any) => {
+    const exitFee = Number(item.exitFeeAmount);
+    const tokenPrice = Number(item.tokenPrice);
+    const exitFeeFormatted = exitFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = exitFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
 
 const calculateDaoFees = (data: any): number =>
-    data.reduce((acc: number, item: any) => {
-      const daoFee = Number(item.daoFee);
-      const tokenPrice = Number(item.tokenPriceAtFeeMint);
-      const daoFeeFormatted = daoFee / 1e18;
-      const tokenPriceFormatted = tokenPrice / 1e18;
-      const result = daoFeeFormatted * tokenPriceFormatted;
-      return acc + result;
-    }, 0);
+  data.reduce((acc: number, item: any) => {
+    const daoFee = Number(item.daoFee);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
+    const daoFeeFormatted = daoFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = daoFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
 
 const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const config = PROVIDER_CONFIG[chain];
@@ -150,7 +150,7 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   };
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'All fees generated from dHEDGE vaults.',
     Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
@@ -158,12 +158,14 @@ const meta = {
 }
 
 const adapter: SimpleAdapter = {
+  methodology: info.methodology,
+  fetch,
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch, start: '2021-12-02', meta },
-    [CHAIN.POLYGON]: { fetch, start: '2021-07-29', meta },
-    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-27', meta },
-    [CHAIN.BASE]: { fetch, start: '2023-12-20', meta },
-    [CHAIN.ETHEREUM]: { fetch, start: '2025-08-10', meta, },
+    [CHAIN.OPTIMISM]: { start: '2021-12-02', },
+    [CHAIN.POLYGON]: { start: '2021-07-29', },
+    [CHAIN.ARBITRUM]: { start: '2023-03-27', },
+    [CHAIN.BASE]: { start: '2023-12-20', },
+    [CHAIN.ETHEREUM]: { start: '2025-08-10', },
   },
   version: 2
 }

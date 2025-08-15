@@ -62,17 +62,15 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2025-05-21',
       runAtCurrTime: true,
-      meta: {
-        methodology: {
-          // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
-          UserFees: 'Users paid fees to Marinade in Select program.',
-          Fees: 'Staking rewards from Solana validators.',
-          Revenue: 'Staking rewards collected by Marinade.',
-          ProtocolRevenue: 'Staking rewards collected by Marinade.',
-          SupplySideRevenue: 'Staking rewards ditributed to stakers.'
-        }
-      },
     },
   },
+  methodology: {
+    // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
+    UserFees: 'Users paid fees to Marinade in Select program.',
+    Fees: 'Staking rewards from Solana validators.',
+    Revenue: 'Staking rewards collected by Marinade.',
+    ProtocolRevenue: 'Staking rewards collected by Marinade.',
+    SupplySideRevenue: 'Staking rewards ditributed to stakers.'
+  }
 }
 export default adapter

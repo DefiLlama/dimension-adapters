@@ -50,11 +50,9 @@ const adapter: Adapter = {
         [CHAIN.SUI]: {
             fetch: fetchNAVIStats,
             start: '2024-03-01',
-            meta: {
-                methodology,
-            },
         },
     },
+    methodology,
 };
 
 export default adapter;

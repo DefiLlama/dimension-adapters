@@ -223,57 +223,48 @@ const fetch = (chain: Chain) => {
   };
 };
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
     Revenue: 'Share of yields and trading fees collected by protocol',
     ProtocolRevenue: 'Share of yields and trading fees collected by protocol',
     HoldersRevenue: 'Share of yields and trading fees distributed to vePENDLE',
     SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers',
-  }
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-06-09',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2023-06-09',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: '2023-06-09',
-      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2023-08-11',
-      meta,
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
       start: '2024-03-27',
-      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: '2024-11-12',
-      meta,
     },
     [CHAIN.SONIC]: {
       fetch: fetch(CHAIN.SONIC),
       start: '2025-02-14',
-      meta,
     },
     [CHAIN.BERACHAIN]: {
       fetch: fetch(CHAIN.BERACHAIN),
       start: '2025-02-07',
-      meta,
     }
   },
 };

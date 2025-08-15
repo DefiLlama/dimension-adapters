@@ -1,4 +1,4 @@
-import { SimpleAdapter,  FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -32,11 +32,11 @@ const fetchApi = async (type: FetchType, startTime: number, endTime: number) => 
 
 const fetchFees = async (_t: any, _tts: any, { fromTimestamp, toTimestamp, api }: FetchOptions) => {
   const chainId = api.chainId
-  const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, fromTimestamp, toTimestamp )
-  const fees = dailyAlls.find((daily: Data)=> daily.chainId === chainId)
+  const dailyAlls: Data[] = await fetchApi(FetchType.DAILY, fromTimestamp, toTimestamp)
+  const fees = dailyAlls.find((daily: Data) => daily.chainId === chainId)
 
-  const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, fromTimestamp, toTimestamp )
-  const tFees = totalAlls.find((daily: Data)=> daily.chainId === chainId)
+  const totalAlls: Data[] = await fetchApi(FetchType.TOTAL, fromTimestamp, toTimestamp)
+  const tFees = totalAlls.find((daily: Data) => daily.chainId === chainId)
 
   return {
     timestamp: toTimestamp,
@@ -53,35 +53,21 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 1,
+  fetch: fetchFees,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFees,
       start: startTimestamps[CHAIN.ARBITRUM],
-      meta: {
-        methodology
-      }
     },
     [CHAIN.LINEA]: {
-      fetch: fetchFees,
       start: startTimestamps[CHAIN.LINEA],
-      meta: {
-        methodology
-      }
     },
     [CHAIN.OP_BNB]: {
-      fetch: fetchFees,
       start: startTimestamps[CHAIN.OP_BNB],
-      meta: {
-        methodology
-      }
     },
     [CHAIN.BSC]: {
-      fetch: fetchFees,
       start: startTimestamps[CHAIN.BSC],
-      meta: {
-        methodology
-      }
     },
   }
 }

@@ -169,7 +169,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
     Revenue: 'Amount of fees go to Aave treasury.',
@@ -206,8 +206,8 @@ const meta = {
 
 const adapter: BreakdownAdapter = {
   version: 2,
-  methodology: meta.methodology,
-  breakdownMethodology: meta.breakdownMethodology,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   breakdown: {
     v1: aaveExport({
       [CHAIN.ETHEREUM]: {
