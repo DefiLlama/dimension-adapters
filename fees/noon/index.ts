@@ -8,7 +8,11 @@ const SUSN = {
     era: "0xB6a09d426861c63722Aa0b333a9cE5d5a9B04c4f",
     tac: "0x5Ced7F73B76A555CCB372cc0F0137bEc5665F81E"
 };
+
 const SUSN_RATE_PROVIDER = "0x3A89f87EA1D5B9fd0FEde73b5098678190D2EEaa";
+
+// https://docs.noon.capital/noon-the-details/fees-and-other-charges
+const REVENUE_RATIO = 0;
 
 async function getPrices(timestamp: number): Promise<number> {
     const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp);
@@ -31,22 +35,23 @@ const fetch = async (options: FetchOptions) => {
         target: SUSN[options.chain],
     });
 
-    totalSupply /= 1e18;
-    const dailyFees = options.createBalances();
-
-    dailyFees.addUSDValue((totalSupply * (priceToday - priceYesterday))/0.8);
-    const dailyRevenue = options.createBalances();
-    dailyRevenue.add(dailyFees.clone(0.2));
+    const dailyFees = totalSupply * (priceToday - priceYesterday) / (1 - REVENUE_RATIO) / 1e18
+    const dailyRevenue = dailyFees * REVENUE_RATIO
+    const dailySupplySideRevenue = dailyFees - dailyRevenue
 
     return {
         dailyFees,
         dailyRevenue,
+        dailySupplySideRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     };
 };
 
 const methodology = {
     Fees: "Total Yields from Noon strategies",
-    Revenue: "10% of the yields go to Noon Insurance fund and 10% to Noon operating fund ",
+    SupplySideRevenue: "All yields distributed to supply-side depositors",
+    Revenue: "No revenue for now",
+    ProtocolRevenue: "No revenue for Noon protocol now",
 };
 
 const adapter: SimpleAdapter = {
