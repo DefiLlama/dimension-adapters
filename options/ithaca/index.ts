@@ -46,11 +46,8 @@ export async function fetchIthacaVolumeData(
   return {
     timestamp,
     dailyFees: ithacaStats.daily_fees,
-    totalFees: ithacaStats.total_fees,
     dailyPremiumVolume: ithacaStats.daily_premium,
-    totalPremiumVolume: ithacaStats.total_premium,
     dailyNotionalVolume,
-    totalNotionalVolume,
   };
 }
 

@@ -44,9 +44,6 @@ const trident = Object.keys(endpointsTrident).reduce(
           });
 
           const result = {
-            totalVolume: afterRes.factory.volumeUSD,
-            totalFees: afterRes.factory.feesUSD,
-            totalUserFees: afterRes.factory.feesUSD,
             dailyVolume: afterRes.factory.volumeUSD - beforeRes.factory.volumeUSD,
             dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
             dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
