@@ -40,6 +40,7 @@ const GQL_QUERIES = {
             address
             amount
             distributor {
+              type
               governancePool {
                 chainId
               }
@@ -130,6 +131,7 @@ type VotingReward = {
   address: Address;
   amount: BigNumber;
   distributor: {
+    type: "FEE" | "REWARD";
     governancePool: {
       chainId: string;
     };
@@ -179,8 +181,9 @@ const fetchDailyHoldersRevenue = async ({
   startTimestamp,
   endTimestamp,
 }: FetchOptions) => {
-  const dailyHoldersRevenue = createBalances();
-  dailyHoldersRevenue.chain = CHAIN.BASE; // revenue is generated on all chains, but redistributed to holders exclusively on Base
+  const dailyVotingFeesRevenue = createBalances();
+  dailyVotingFeesRevenue.chain = CHAIN.BASE; // revenue is generated on all chains, but redistributed to holders exclusively on Base
+  const dailyVotingIncentivesRevenue = dailyVotingFeesRevenue.clone();
 
   const graphQLClient = new GraphQLClient(GOVERNANCE_SUBGRAPH_URL);
   const dailyData = (
@@ -189,16 +192,23 @@ const fetchDailyHoldersRevenue = async ({
     )
   ).votingRewards as VotingReward[];
 
-  // Count all rewards (voting incentives + fees) as holders revenue
+  // Count both reward types (voting incentives + fees) separately
   dailyData.forEach((reward) => {
     if (
       reward.distributor.governancePool.chainId === chains[chain].id.toString() // Only count rewards for pools on the current chain
     ) {
-      dailyHoldersRevenue.add(reward.address, reward.amount.toString());
+      if (reward.distributor.type === "FEE") {
+        dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
+      } else {
+        dailyVotingIncentivesRevenue.add(
+          reward.address,
+          reward.amount.toString()
+        );
+      }
     }
   });
 
-  return dailyHoldersRevenue;
+  return [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue];
 };
 
 // https://docs.spectra.finance/tokenomics/fees
@@ -207,16 +217,17 @@ const fetch: FetchV2 = async (options) => {
 
   const dailyRevenue = dailyFees.clone(0.8);
   const dailySupplySideRevenue = dailyFees.clone(0.2);
-  const dailyBribesRevenue = await fetchDailyHoldersRevenue(options);
-  
+  const [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue] =
+    await fetchDailyHoldersRevenue(options);
+
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyRevenue,
-    dailyBribesRevenue,
+    dailyHoldersRevenue: dailyVotingFeesRevenue,
+    dailyBribesRevenue: dailyVotingIncentivesRevenue,
   };
 };
 
@@ -225,8 +236,9 @@ const methodology = {
   Revenue: "80% Trading fees collected as revenue.",
   ProtocolRevenue: "No protocol revenue.",
   SupplySideRevenue: "20% trading fees distributed to LPs.",
-  HoldersRevenue: "60% Trading fees and voting incentives distributed to veSPECTRA.",
-}
+  BribesRevenue: "Voting incentives distributed to veSPECTRA.",
+  HoldersRevenue: "60% Trading fees distributed to veSPECTRA.",
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
