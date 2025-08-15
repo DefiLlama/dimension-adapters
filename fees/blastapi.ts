@@ -18,65 +18,56 @@ const marketplace_address: TMarketPlaceAddress = {
 }
 
 const fetch = (chain: Chain) => {
-  return async ({ createBalances, getLogs,  }: FetchOptions) => {
+  return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
     (await getLogs({
       target: marketplace_address[chain],
       eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
-    })).forEach((e: any) =>       dailyFees.add(e.erc20, e.amount))
+    })).forEach((e: any) => dailyFees.add(e.erc20, e.amount))
     return { dailyFees, dailyRevenue: dailyFees };
   }
 }
 
-const meta = {
-  methodology: {
-    Fees: "Fees paid by users for using RPC services.",
-    Revenue: "All fees are revenue.",
-  }
+const methodology = {
+  Fees: "Fees paid by users for using RPC services.",
+  Revenue: "All fees are revenue.",
 }
 
 const adapter: Adapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM),
-        start: '2023-02-03',
-        meta
+      fetch: fetch(CHAIN.ETHEREUM),
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: '2023-02-03',
-      meta
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
       start: '2023-02-03',
-      meta
     },
     [CHAIN.MOONBEAM]: {
       fetch: fetch(CHAIN.MOONBEAM),
       start: '2023-02-03',
-      meta
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
       start: '2023-02-03',
-      meta
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
       start: '2023-02-03',
-      meta
     },
     [CHAIN.XDAI]: {
       fetch: fetch(CHAIN.XDAI),
       start: '2023-02-03',
-      meta
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2023-02-03',
-      meta
     }
   }
 }

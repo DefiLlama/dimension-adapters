@@ -110,7 +110,7 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 
-const meta = {
+const info = {
     methodology: {
         Fees: "Interest that is paid by the borrowers to the vaults.",
         Revenue: "Fees collected by vaults owners, curators, and Euler.",
@@ -135,8 +135,8 @@ const meta = {
 
 const adapters: Adapter = {
     version: 2,
-    methodology: meta.methodology,
-    breakdownMethodology: meta.breakdownMethodology,
+    methodology: info.methodology,
+    breakdownMethodology: info.breakdownMethodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,

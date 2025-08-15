@@ -170,7 +170,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'All fees paid by users for swap and bridge tokens via deBridge.',
     Revenue: 'Fees are distributed to deBridge protocol.',
@@ -180,12 +180,12 @@ const meta = {
 }
 
 const adapter: Adapter = {
+  methodology: info.methodology,
   version: 1,
   adapter: Object.keys(config).reduce((acc, chain) => {
     acc[chain] = {
       fetch,
       start: config[chain].start,
-      meta,
     }
     return acc;
   }, {}),
