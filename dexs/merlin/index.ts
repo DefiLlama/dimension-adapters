@@ -9,6 +9,7 @@ const fetch = univ2Adapter({
 });
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2023-04-25',
   chains: [CHAIN.ERA],
   fetch,
   start: 1680274800,

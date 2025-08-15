@@ -16,6 +16,7 @@ const fetch = univ2Adapter({
 
 const adapter: SimpleAdapter = {
   fetch,
+  deadFrom: '2025-01-01',
   chains: [CHAIN.BSC],
   start: 1671580800,
 }
