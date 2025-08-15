@@ -11,8 +11,8 @@ const SUSN = {
 
 const SUSN_RATE_PROVIDER = "0x3A89f87EA1D5B9fd0FEde73b5098678190D2EEaa";
 
-// https://docs.noon.capital/noon-the-details/fees-and-other-charges
-const REVENUE_RATIO = 0;
+// https://docs.noon.capital/noon-the-details/return-distribution
+const REVENUE_RATIO = 0.2;
 
 async function getPrices(timestamp: number): Promise<number> {
     const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp);
