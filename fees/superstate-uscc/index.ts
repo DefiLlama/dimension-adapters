@@ -11,15 +11,14 @@ const USCC = {
 const USCC_CHAINLINK_ORACLE = "0xAfFd8F5578E8590665de561bdE9E7BAdb99300d9";
 
 async function getPrices(timestamp: number): Promise<number> {
-    const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp);
+    const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp })
+    await api.getBlock()
 
-    const price = await sdk.api.abi.call({
-        chain: CHAIN.ETHEREUM,
+    const price = await api.call({
         abi: "uint256:latestAnswer",
         target: USCC_CHAINLINK_ORACLE,
-        block: blockNumber
     });
-    return price.output / 1e6;
+    return price / 1e6;
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -40,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
 
     const dailyRevenue = options.createBalances();
     const oneYear = 365 * 24 * 60 * 60;
-    const timeFrame = options.toTimestamp- options.fromTimestamp;
+    const timeFrame = options.toTimestamp - options.fromTimestamp;
     dailyRevenue.addUSDValue((totalSupply * priceToday * 0.0075 * timeFrame) / oneYear);
     dailyFees.add(dailyRevenue);
 
