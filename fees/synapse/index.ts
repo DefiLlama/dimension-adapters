@@ -108,15 +108,13 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
+  methodology,
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
         start: '2021-08-21',
-        meta: {
-          methodology
-        }
       }
     }
   }, {})

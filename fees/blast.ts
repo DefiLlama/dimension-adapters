@@ -8,17 +8,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on Blast, calculated by subtracting the L1 Batch Costs from the total gas fees',
+        },
 	version: 1,
 	adapter: {
 		[CHAIN.BLAST]: {
 			fetch,
 			start: '2024-02-24',
-			meta: {
-        methodology: {
-          Fees: 'Transaction fees paid by users',
-          Revenue: 'Total revenue on Blast, calculated by subtracting the L1 Batch Costs from the total gas fees',
-        }
-      }
 		},
 	},
 	protocolType: ProtocolType.CHAIN,

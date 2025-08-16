@@ -46,10 +46,8 @@ const adapter: Adapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2023-10-12',
-            meta: {
-                methodology
-            }
         }
-    }
+    },
+    methodology
 }
 export default adapter;

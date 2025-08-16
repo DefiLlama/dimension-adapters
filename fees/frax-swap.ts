@@ -48,74 +48,10 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AURORA]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BOBA]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.FANTOM]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.HARMONY]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.MOONBEAM]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.MOONRIVER]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      meta: {
-        methodology
-      }
-    },
-  }
+  methodology,
+  chains: [CHAIN.ARBITRUM, CHAIN.AURORA, CHAIN.AVAX, CHAIN.BOBA, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.FANTOM, CHAIN.HARMONY, CHAIN.MOONBEAM, CHAIN.MOONRIVER, CHAIN.POLYGON],
+  fetch,
+  adapter: {}
 }
 
 export default adapter;

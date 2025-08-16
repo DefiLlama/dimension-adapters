@@ -21,25 +21,19 @@ const fetchFeesAndRevenues = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   dailyFees.addCGToken(token, res.fees_total)
   dailyRevenue.addCGToken(token, res.revenue_total)
-  
-  return { dailyFees, dailyRevenue,  }
+
+  return { dailyFees, dailyRevenue, }
 }
 
 const adapter: any = {
   version: 2,
-  adapter: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.SOLANA, CHAIN.TRON, CHAIN.TON].reduce((all, chain) => ({
-    ...all,
-    [chain]: {
-        fetch: fetchFeesAndRevenues,
-        start: '2023-05-22',
-        meta: {
-          methodology: {
-            Fees: 'Sums the fees of listing request & trending request.',
-            Revenue: 'Sums the fees of listing request & trending request.',
-          },
-        }
-    }
-  }), {})
+  methodology: {
+    Fees: 'Sums the fees of listing request & trending request.',
+    Revenue: 'Sums the fees of listing request & trending request.',
+  },
+  fetch: fetchFeesAndRevenues,
+  start: '2023-05-22',
+  chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.SOLANA, CHAIN.TRON, CHAIN.TON],
 }
 
 export default adapter;
