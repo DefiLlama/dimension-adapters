@@ -36,7 +36,7 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'Trading fees paid by users while using Sushi Aggregator Routers.',
     Revenue: 'Trading fees collected by Sushi.',
@@ -45,52 +45,17 @@ const meta = {
 }
 
 export default {
+  fetch, methodology: info.methodology,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.MOONBEAM]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.MANTLE]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
-    [CHAIN.KATANA]: {
-      fetch,
-      meta,
-      start: '2025-07-04',
-    },
+    [CHAIN.ETHEREUM]: { start: '2025-07-04', },
+    [CHAIN.ARBITRUM]: { start: '2025-07-04', },
+    [CHAIN.OPTIMISM]: { start: '2025-07-04', },
+    [CHAIN.BASE]: { start: '2025-07-04', },
+    [CHAIN.POLYGON]: { start: '2025-07-04', },
+    [CHAIN.MOONBEAM]: { start: '2025-07-04', },
+    [CHAIN.POLYGON_ZKEVM]: { start: '2025-07-04', },
+    [CHAIN.MANTLE]: { start: '2025-07-04', },
+    [CHAIN.KATANA]: { start: '2025-07-04', },
   }
 }
