@@ -16,20 +16,18 @@ const fetch = async (_: number): Promise<FetchResultFees> => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees:
+      "All fees paid/earned while using lending/borrowing and liquidation.",
+    Revenue: "Fees collected by protocol native markets.",
+    ProtocolRevenue: "Fees/liquidation collected by protocol.",
+  },
   version: 1,
   adapter: {
     [CHAIN.SUI]: {
       fetch,
       start: "2025-06-17",
       runAtCurrTime: true,
-      meta: {
-        methodology: {
-          Fees:
-            "All fees paid/earned while using lending/borrowing and liquidation.",
-          Revenue: "Fees collected by protocol native markets.",
-          ProtocolRevenue: "Fees/liquidation collected by protocol.",
-        },
-      },
     },
   },
 };

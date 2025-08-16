@@ -36,13 +36,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       runAtCurrTime: true,
-      meta: {
-        methodology: {
-          Fees: "Fees come from different sources under the Step Finance Organization, Solana Allstars, Solana Floor, Step revenue in its dashboard and APIs.",
-          Revenue: "All fees are revenue.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Fees come from different sources under the Step Finance Organization, Solana Allstars, Solana Floor, Step revenue in its dashboard and APIs.",
+    Revenue: "All fees are revenue.",
+  }
 }
 export default adapter

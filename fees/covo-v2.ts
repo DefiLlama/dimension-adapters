@@ -88,11 +88,9 @@ const adapter: Adapter = {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),
       start: '2023-03-29',
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology
 }
 
 export default adapter;

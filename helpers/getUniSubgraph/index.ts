@@ -340,10 +340,12 @@ function getGraphDimensions2({
 };
 
 
-function univ2DimensionAdapter2(params: IGetChainVolumeParams, meta: BaseAdapter[string]['meta']) {
+function univ2DimensionAdapter2(params: IGetChainVolumeParams, info?: any) {
+  const methodology = info?.methodology
   const graphs = getGraphDimensions2(params);
 
   const adapter: SimpleAdapter = {
+    methodology,
     adapter: Object.keys(params.graphUrls).reduce((acc, chain) => {
       return {
         ...acc,
@@ -356,7 +358,6 @@ function univ2DimensionAdapter2(params: IGetChainVolumeParams, meta: BaseAdapter
             dailyDataField: params.dailyVolume?.factory + "s",
             dateField: params.dailyVolume?.dateField,
           }),
-          meta,
         },
       };
     }, {} as BaseAdapter),

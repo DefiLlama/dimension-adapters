@@ -40,17 +40,15 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Trading fees paid by users while using Nova bot.",
+    Revenue: "All fees are collected by Nova protocol.",
+  },
   version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2025-05-21',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users while using Nova bot.",
-          Revenue: "All fees are collected by Nova protocol.",
-        }
-      }
     },
   },
   isExpensiveAdapter: true

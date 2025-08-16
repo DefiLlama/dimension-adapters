@@ -33,28 +33,14 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-01-31',
-      meta: { methodology }
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2024-02-21',
-      meta: { methodology }
-    },
-    [CHAIN.OP_BNB]: {
-      fetch,
-      start: '2024-09-27',
-      meta: { methodology }
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2025-03-16',
-      meta: { methodology }
-    },
+    [CHAIN.ARBITRUM]: { start: '2024-01-31', },
+    [CHAIN.LINEA]: { start: '2024-02-21', },
+    [CHAIN.OP_BNB]: { start: '2024-09-27', },
+    [CHAIN.BSC]: { start: '2025-03-16', },
   }
 }
 

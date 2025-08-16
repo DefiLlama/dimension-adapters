@@ -50,13 +50,12 @@ const methodology = {
 };
 
 // Define the adapter
-const adapter: Adapter = { version: 1, adapter: {} };
+const adapter: Adapter = { version: 1, adapter: {}, methodology, };
 for (let chain in FEES) {
-  adapter.adapter[chain] = {
+  adapter.adapter![chain] = {
     fetch: (timestamp: number) =>
       feesFromSubgraph(timestamp, chain.toLocaleLowerCase()),
     start: CHAIN_STARTS[chain],
-    meta: { methodology },
   };
 }
 

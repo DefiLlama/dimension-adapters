@@ -7,14 +7,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ERA]: {
       start: 1679529600,
-      fetch: getUniV3LogAdapter({factory: '0x488A92576DA475f7429BC9dec9247045156144D3', userFeesRatio: 1}),
-      meta: {
-        methodology: {
-          Fees: 'Total swap fees paid by users.',
-          UserFees: 'Total swap fees paid by users.',
-        }
-      }
+      fetch: getUniV3LogAdapter({ factory: '0x488A92576DA475f7429BC9dec9247045156144D3', userFeesRatio: 1 }),
     }
+  },
+  methodology: {
+    Fees: 'Total swap fees paid by users.',
+    UserFees: 'Total swap fees paid by users.',
   }
 }
 

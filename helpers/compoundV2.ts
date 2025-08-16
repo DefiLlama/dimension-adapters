@@ -75,16 +75,16 @@ export function compoundV2Export(config: IJSON<string>) {
         })
         return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
       }),
-      meta: {
-        methodology: {
-          Fees: "Total interest paid by borrowers",
-          Revenue: "Protocol's share of interest treasury",
-          ProtocolRevenue: "Protocol's share of interest into treasury",
-          HoldersRevenue: "Share of interest into protocol governance token holders.",
-          SupplySideRevenue: "Interest paid to lenders in liquidity pools"
-        }
-      }
     }
   })
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return {
+    adapter: exportObject, version: 2,
+    methodology: {
+      Fees: "Total interest paid by borrowers",
+      Revenue: "Protocol's share of interest treasury",
+      ProtocolRevenue: "Protocol's share of interest into treasury",
+      HoldersRevenue: "Share of interest into protocol governance token holders.",
+      SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+    },
+  } as SimpleAdapter
 }

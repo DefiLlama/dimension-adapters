@@ -39,17 +39,15 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Trading fees paid by users while using Padre bot.",
+    Revenue: "All fees are collected by Padre protocol.",
+  },
   version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-07-28',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users while using Padre bot.",
-          Revenue: "All fees are collected by Padre protocol.",
-        }
-      }
     },
   },
   isExpensiveAdapter: true

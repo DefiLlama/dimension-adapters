@@ -81,18 +81,16 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: "All fees collected from trading, including opening fees, liquidation fees, oracle fees, dev fees, rollover fees",
+        ProtocolRevenue: "Protocol revenue consists of 50% of opening fees, 100% of oracle fees and dev fees",
+        SupplySideRevenue: "Supply side (MMV) revenue consists of 50% of opening fees, 100% of liquidation fees, rollover fees"
+    },
     version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: fetchFees as any,
             start: '2025-04-16',
-            meta: {
-                methodology: {
-                    Fees: "All fees collected from trading, including opening fees, liquidation fees, oracle fees, dev fees, rollover fees",
-                    ProtocolRevenue: "Protocol revenue consists of 50% of opening fees, 100% of oracle fees and dev fees",
-                    SupplySideRevenue: "Supply side (MMV) revenue consists of 50% of opening fees, 100% of liquidation fees, rollover fees"
-                }
-            }
         },
     },
 }

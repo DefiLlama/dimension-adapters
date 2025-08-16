@@ -38,12 +38,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ZETA]: {
         fetch: v3Graphs,
         start: '2024-10-17',
-        meta: {
-          methodology,
-        },
       }
     }
   },
+  methodology,
 };
 
 export default adapter;

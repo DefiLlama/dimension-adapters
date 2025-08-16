@@ -35,11 +35,9 @@ const adapter: Adapter = {
     [CHAIN.SUI]: {
       fetch,
       start: '2024-10-29',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

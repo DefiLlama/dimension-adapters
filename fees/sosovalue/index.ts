@@ -46,11 +46,11 @@ const fetch = async (options: FetchOptions) => {
         });
     });
 
-    return { 
-        dailyFees, 
-        dailyRevenue: dailyFees, 
-        dailyProtocolRevenue: dailyFees, 
-        dailyHoldersRevenue: 0 
+    return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+        dailyHoldersRevenue: 0
     };
 };
 
@@ -60,14 +60,12 @@ export default {
         [CHAIN.BASE]: {
             fetch,
             start: '2024-12-17',
-            meta: {
-                methodology: {
-                    Fees: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets.',
-                    Revenue: 'All services fees paid by users.',
-                    ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
-                    HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
-                }
-            }
         }
+    },
+    methodology: {
+        Fees: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets.',
+        Revenue: 'All services fees paid by users.',
+        ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
+        HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
     }
 };

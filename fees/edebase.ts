@@ -6,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-    [CHAIN.BASE ]: "https://api.studio.thegraph.com/query/51000/base_stats/version/latest",
+    [CHAIN.BASE]: "https://api.studio.thegraph.com/query/51000/base_stats/version/latest",
 };
 
 const graphs = (graphUrls: ChainEndpoints) => {
@@ -52,15 +52,13 @@ const adapter: Adapter = {
         [CHAIN.BASE]: {
             fetch: graphs(endpoints)(CHAIN.BASE),
             start: '2023-08-09',
-            meta: {
-                methodology: {
-                    Fees: "All mint, burn, margin and liquidation and swap fees are collected",
-                    UserFees: "Users pay swap fees and margin and liquidation fees",
-                    Revenue: "Revenue is calculated as 30% of the total fee.",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "All mint, burn, margin and liquidation and swap fees are collected",
+        UserFees: "Users pay swap fees and margin and liquidation fees",
+        Revenue: "Revenue is calculated as 30% of the total fee.",
+    }
 };
 
 export default adapter;

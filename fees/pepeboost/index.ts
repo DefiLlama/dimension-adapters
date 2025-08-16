@@ -39,17 +39,15 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Trading fees paid by users while using PepeBoost bot.",
+    Revenue: "All fees are collected by PepeBoost protocol.",
+  },
   version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2024-01-06',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users while using PepeBoost bot.",
-          Revenue: "All fees are collected by PepeBoost protocol.",
-        }
-      }
     },
   },
   isExpensiveAdapter: true

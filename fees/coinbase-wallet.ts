@@ -25,18 +25,16 @@ const fetchFees = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: 'All fees paid by users for trading, swapping, bridging in Coinbase Wallet',
+    Revenue: 'Fees collected by Coinbase paid by users for trading, swapping, bridging in Coinbase Wallet',
+  },
   version: 2,
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: fetchFees,
-        meta: {
-          methodology: {
-            Fees: 'All fees paid by users for trading, swapping, bridging in Coinbase Wallet',
-            Revenue: 'Fees collected by Coinbase paid by users for trading, swapping, bridging in Coinbase Wallet',
-          }
-        }
       },
     };
   }, {}),

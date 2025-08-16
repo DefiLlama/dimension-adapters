@@ -54,11 +54,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
-      meta: {
-        methodology,
-      },
     },
-  }
+  },
+  methodology,
 };
 
 export default adapter;

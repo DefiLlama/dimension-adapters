@@ -92,20 +92,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints),
       start: '2024-02-27',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints),
       start: '2024-06-26',
-      meta: {
-        methodology
-      }
     }
   }
 }

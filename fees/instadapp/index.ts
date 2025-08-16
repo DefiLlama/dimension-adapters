@@ -66,13 +66,11 @@ const fetch: FetchV2 = async ({ createBalances, getLogs, chain }) => {
 const adapter: SimpleAdapter = { adapter: {}, version: 2, };
 
 Object.keys(instaFlashAggregators).forEach((chain: Chain) => {
-  adapter.adapter[chain] = {
+  adapter.adapter![chain] = {
     fetch,
     start: instaFlashAggregators[chain].deployedAt,
-    meta: {
-      methodology: "Counts the 0.05% fee taken on flashswaps.",
-    },
   };
 });
 
+adapter.methodology = "Counts the 0.05% fee taken on flashswaps."
 export default adapter;

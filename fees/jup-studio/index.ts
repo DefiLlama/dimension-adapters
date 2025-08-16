@@ -78,7 +78,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
 
     const accepted_quote_mints = [
-        'So11111111111111111111111111111111111111112', 
+        'So11111111111111111111111111111111111111112',
         'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
     ]
@@ -103,16 +103,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-07-02',
-            meta: {
-                methodology: {
-                    Fees: "Trading fees paid by users.",
-                    Revenue: "Fees collected by Jup Studio.",
-                    ProtocolRevenue: "Fees collected by Jup Studio."
-                }
-            }
         }
     },
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: "Trading fees paid by users.",
+        Revenue: "Fees collected by Jup Studio.",
+        ProtocolRevenue: "Fees collected by Jup Studio."
+    }
 }
 
 export default adapter

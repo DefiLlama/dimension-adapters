@@ -15,17 +15,15 @@ const fetch: any = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: "Fees paid by users using payment services.",
+        Revenue: "Fees paid by users using payment services.",
+    },
     version: 2,
     adapter: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC, CHAIN.SCROLL].reduce((all, chain) => ({
         ...all,
         [chain]: {
             fetch: fetch,
-            meta: {
-                methodology: {
-                    Fees: "Fees paid by users using payment services.",
-                    Revenue: "Fees paid by users using payment services.",
-                }
-            }
         },
     }), {})
 };

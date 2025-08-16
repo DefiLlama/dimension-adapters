@@ -30,13 +30,11 @@ const v3Graphs = getGraphDimensions2({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.TARA]: {
       fetch: v3Graphs,
       start: "2023-11-25",
-      meta: {
-        methodology,
-      },
     },
   },
 };

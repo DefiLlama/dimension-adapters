@@ -36,15 +36,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: "2023-01-01", 
-      meta: {
-        methodology: {
-          Fees: "Incentive streams streams distribution.",
-          Revenue: "Incentive streams streams distribution.",
-        }
-      }
     }
   },
   version: 2,
+  methodology: {
+    Fees: "Incentive streams streams distribution.",
+    Revenue: "Incentive streams streams distribution.",
+  }
 }
 
 export default adapter;

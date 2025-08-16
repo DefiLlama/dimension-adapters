@@ -43,12 +43,10 @@ export default {
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetch,
-            meta: {
-                methodology: {
-                    Fees: "Token trading and launching fees paid by users.",
-                    Revenue: "All fees are revenue.",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "Token trading and launching fees paid by users.",
+        Revenue: "All fees are revenue.",
+    }
 }

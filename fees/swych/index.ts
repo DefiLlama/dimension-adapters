@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
-import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
 
@@ -28,7 +28,7 @@ interface FeeWithdrawal {
 type TIsStable = {
     [key: string]: boolean;
 }
-const isStable:TIsStable = {
+const isStable: TIsStable = {
     [ADDRESSES.bsc.USDT]: true,
     [ADDRESSES.bsc.WBNB]: false,
     [ADDRESSES.bsc.BTCB]: false,
@@ -89,19 +89,19 @@ const fetchTotalProtocolRevenue = async (options: FetchOptions) => {
     const logs_liquidate_position = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_liquidate_position });
     const logs_swap = await options.getLogs({ target: contractAddresses.Pool, eventAbi: event_swap });
     logs_swap.forEach((log) => {
-        const fee =  Number(log.fee) / 1e30;
+        const fee = Number(log.fee) / 1e30;
         dailyFees.addCGToken('tether', fee);
     })
     logs_incress_position.forEach((log) => {
-        const fee =  (Number(log.feeValue)/ 1e30)
+        const fee = (Number(log.feeValue) / 1e30)
         dailyFees.addCGToken('tether', fee);
     })
     logs_decrease_position.forEach((log) => {
-        const fee =  (Number(log.feeValue)/ 1e30)
+        const fee = (Number(log.feeValue) / 1e30)
         dailyFees.addCGToken('tether', fee);
     })
     logs_liquidate_position.forEach((log) => {
-        const fee =  (Number(log.feeValue)/ 1e30)
+        const fee = (Number(log.feeValue) / 1e30)
         dailyFees.addCGToken('tether', fee);
     });
     return dailyFees;
@@ -111,27 +111,25 @@ const fetchFees = async (options: FetchOptions) => {
     const dailyFees = await fetchTotalProtocolRevenue(options);
     const totalWithdrawalFeeData = await fetchWithdrawalFees(options.startOfDay);
     const tokenWithdrawalFees = [...new Set(totalWithdrawalFeeData.map((fee) => fee.token))];
-    const decimals: string[] = await options.api.multiCall({  abi: 'erc20:decimals', calls: tokenWithdrawalFees})
+    const decimals: string[] = await options.api.multiCall({ abi: 'erc20:decimals', calls: tokenWithdrawalFees })
     totalWithdrawalFeeData.forEach((fee) => {
         const index = tokenWithdrawalFees.indexOf(fee.token);
         const token_decimal = Number(decimals[index]);
-        const feeValue =  Number(fee.amount)/10 ** (30 - token_decimal)
+        const feeValue = Number(fee.amount) / 10 ** (30 - token_decimal)
         dailyFees.add(fee.token, feeValue);
     });
     return { dailyFees }
 };
 
 const adapter: Adapter = {
+    methodology: {
+        Fees: 'Swych collects fees from different transactions done on the Perpetual Exchange.',
+    },
     version: 2,
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchFees,
             start: '2023-12-04',
-            meta: {
-                methodology: {
-                    Fees: 'Swych collects fees from different transactions done on the Perpetual Exchange.',
-                },
-            },
         },
     },
 }

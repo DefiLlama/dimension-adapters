@@ -116,12 +116,10 @@ const adapter: SimpleAdapter = {
 		acc[chain] = {
 			fetch,
 			start: start,
-			meta: {
-				methodology
-			}
 		};
 		return acc;
 	}, {}),
+	methodology,
 };
 
 export default adapter;

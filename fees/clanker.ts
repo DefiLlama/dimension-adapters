@@ -131,15 +131,13 @@ const adapter: SimpleAdapter = {
         [CHAIN.BASE]: {
             fetch,
             start: "2024-11-08", // Updated to cover V4 start date
-            meta: {
-                methodology: {
-                    Fees: "All trading and launching tokens fees paid by users.",
-                    Revenue: "Clanker protocol collects 20% of LP fees.",
-                    ProtocolRevenue: "Clanker protocol collects 20% of LP fees.",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "All trading and launching tokens fees paid by users.",
+        Revenue: "Clanker protocol collects 20% of LP fees.",
+        ProtocolRevenue: "Clanker protocol collects 20% of LP fees.",
+    }
 };
 
 export default adapter;

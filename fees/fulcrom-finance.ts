@@ -59,27 +59,19 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
+  methodology,
   adapter: {
     [CHAIN.CRONOS]: {
       fetch,
       start: '2023-02-27',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.ERA]: {
       fetch,
       start: '2023-10-05',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.CRONOS_ZKEVM]: {
       fetch,
       start: '2024-08-15',
-      meta: {
-        methodology,
-      },
     },
   },
 };

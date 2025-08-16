@@ -133,91 +133,24 @@ const methodology = {
 
 
 const adapter: Adapter = {
+  runAtCurrTime: true,
+  fetch,
+  methodology,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.FANTOM]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.REAL]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.SONIC]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.BLAST]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.ZKSYNC]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
-    [CHAIN.UNICHAIN]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-10-23',
-      meta: { methodology },
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-10-23', },
+    [CHAIN.POLYGON]: { start: '2023-10-23', },
+    [CHAIN.ARBITRUM]: { start: '2023-10-23', },
+    [CHAIN.FANTOM]: { start: '2023-10-23', },
+    [CHAIN.BASE]: { start: '2023-10-23', },
+    [CHAIN.SCROLL]: { start: '2023-10-23', },
+    [CHAIN.OPTIMISM]: { start: '2023-10-23', },
+    [CHAIN.REAL]: { start: '2023-10-23', },
+    [CHAIN.AVAX]: { start: '2023-10-23', },
+    [CHAIN.SONIC]: { start: '2023-10-23', },
+    [CHAIN.BLAST]: { start: '2023-10-23', },
+    [CHAIN.LINEA]: { start: '2023-10-23', },
+    [CHAIN.ZKSYNC]: { start: '2023-10-23', },
+    [CHAIN.UNICHAIN]: { start: '2023-10-23', },
   },
 };
 

@@ -17,23 +17,23 @@ export async function fetch(options: FetchOptions): Promise<FetchResult> {
       eventAbi: LIMIT_ORDER_FILLED_ABI,
     })
   ]);
-  
+
   let dailyNotional = 0;
   let dailyPremium = 0;
-  
+
   // Process logs from both markets using the same logic
   const allLogs = [...btcLogs, ...pumpLogs];
-  
+
   for (const log of allLogs) {
     const size = Number(log.size);
     // This is mistakenly named 'btcPrice' for both markets. Its the underlying asset's price (btc price for btc market, pump price for pump market)
     const btcPrice = Number(log.btcPrice);
     const limitPrice = Number(log.limitPrice);
-    
+
     dailyNotional += size * btcPrice / 100;
     dailyPremium += limitPrice * size;
   }
-  
+
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
 
@@ -47,17 +47,15 @@ export async function fetch(options: FetchOptions): Promise<FetchResult> {
 }
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    NotionalVolume: "Notional volume: size * btcPrice / 100 in USDC.",
+    PremiumVolume: "Premium volume: amounts paid by option buyers on CALL_BUY/PUT_BUY sides using min(cashTaker, cashMaker) values.",
+  },
   version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
       start: '2025-06-17',
-      meta: {
-        methodology: {
-          NotionalVolume: "Notional volume: size * btcPrice / 100 in USDC.",
-          PremiumVolume: "Premium volume: amounts paid by option buyers on CALL_BUY/PUT_BUY sides using min(cashTaker, cashMaker) values.",
-        }
-      }
     },
   },
 }

@@ -100,7 +100,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
 
     // Get brrower operator contract
     const borrowerOperator = await api.call({ abi: 'address:borrowerOperationsAddress', target: config.troveManager })
-    
+
     // redemptions fees
     const redemptionLogs = await getLogs({
       target: config.troveManager,
@@ -166,7 +166,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       } else {
         dailyRevenue = dailyProtocolRevenue.clone()
       }
-    } 
+    }
     if (dailyRevenue) {
       result.dailyRevenue = dailyRevenue
     }
@@ -176,23 +176,23 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     return result
   }
   return fetch
-} 
+}
 
 export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV1LogAdapter(chainConfig),
-      meta: {
-        methodology: {
-          Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-          Revenue: 'Total fees distributed to protocol and token holders',
-          HoldersRevenue: 'Total fees distributed to holders',
-          SupplySideRevenue: 'Total gas compensation to borrowers',
-          ProtocolRevenue: 'Total fees distributed to protocol',
-        }
-      }
     }
   })
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return {
+    adapter: exportObject, version: 2,
+    methodology: {
+      Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+      Revenue: 'Total fees distributed to protocol and token holders',
+      HoldersRevenue: 'Total fees distributed to holders',
+      SupplySideRevenue: 'Total gas compensation to borrowers',
+      ProtocolRevenue: 'Total fees distributed to protocol',
+    },
+  } as SimpleAdapter
 }

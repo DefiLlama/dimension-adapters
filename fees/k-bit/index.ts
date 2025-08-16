@@ -48,9 +48,9 @@ const adapter: Adapter = {
     [CHAIN.KLAYTN]: {
       fetch,
       start: '2024-09-30',
-      meta: { methodology },
     },
   },
+  methodology,
 };
 
 export default adapter;

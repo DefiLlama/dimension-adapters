@@ -22,7 +22,7 @@ const MINT_EVENT_ABI = {
   'V2': "event Mint(string indexed order_id, address indexed benefactor, address indexed beneficiary, address minter, address collateral_asset, uint256 collateral_amount, uint256 usde_amount)"
 }
 
-const fetch = async (_t:number, _c:any, options: FetchOptions) => {
+const fetch = async (_t: number, _c: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyMintFees = options.createBalances();
   const dailySupplyRevenue = options.createBalances();
@@ -90,7 +90,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     flatten: false,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 
+      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
       ethers.zeroPadValue("0xd0ec8cc7414f27ce85f8dece6b4a58225f273311", 32),
     ],
   })).flat()
@@ -104,7 +104,7 @@ const fetch = async (_t:number, _c:any, options: FetchOptions) => {
     flatten: false,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', 
+      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
       ethers.zeroPadValue("0xf19c433c6b288e487b767595886321f89a3cbf17", 32),
     ],
   })).flat()
@@ -129,14 +129,12 @@ const adapters = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2023-11-24',
-      meta: {
-        methodology: {
-          Fees: "Staking rewards + yield distribution + mint fees + extra fees",
-          Revenue: "Mint Fees and staking rewards portion to Reserve Fund",
-          UserFees: "Mint Fees",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Staking rewards + yield distribution + mint fees + extra fees",
+    Revenue: "Mint Fees and staking rewards portion to Reserve Fund",
+    UserFees: "Mint Fees",
+  }
 };
 export default adapters;

@@ -49,11 +49,9 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2023-06-13',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

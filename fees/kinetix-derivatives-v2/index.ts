@@ -51,11 +51,9 @@ const adapter: Adapter = {
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),
       start: '2024-02-02',
-      meta: {
-        methodology: "All treasury, pool and keeper fees are collected",
-      },
     },
   },
+  methodology: "All treasury, pool and keeper fees are collected",
 };
 
 export default adapter;

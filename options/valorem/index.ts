@@ -118,11 +118,9 @@ const adapter: Adapter = {
     [ARBITRUM]: {
       fetch: graphOptions(endpoints)(ARBITRUM),
       start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

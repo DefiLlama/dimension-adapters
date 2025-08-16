@@ -77,7 +77,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
 
     const accepted_quote_mints = [
-        'So11111111111111111111111111111111111111112', 
+        'So11111111111111111111111111111111111111112',
         'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
     ]
@@ -105,16 +105,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-23',
-            meta: {
-                methodology: {
-                    Fees: "Trading fees paid by users.",
-                    Revenue: "Protocol fees collected by Meteora DBC protocol.",
-                    ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol."
-                }
-            }
         }
     },
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: "Trading fees paid by users.",
+        Revenue: "Protocol fees collected by Meteora DBC protocol.",
+        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol."
+    }
 }
 
 export default adapter

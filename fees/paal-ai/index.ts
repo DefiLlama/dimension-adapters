@@ -30,16 +30,14 @@ const fetch = async (options: FetchOptions) => {
 
 /** Adapter */
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'Fees paid by users for using PAAL AI services.',
+  },
   version: 2,
   adapter: {
     ethereum: {
       fetch,
       start: '2023-07-23',
-      meta: {
-        methodology: {
-          Fees: 'Fees paid by users for using PAAL AI services.',
-        }
-      }
     },
   },
 }

@@ -22,13 +22,11 @@ const adapter: Adapter = {
     [CHAIN.APTOS]: {
       fetch: fetch,
       start: "2024-08-09",
-      meta: {
-        methodology: {
-          dailyVolume:
-            "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
-        },
-      },
     },
+  },
+  methodology: {
+    dailyVolume:
+      "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
   },
 };
 

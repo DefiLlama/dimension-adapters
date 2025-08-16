@@ -106,11 +106,11 @@ const adapter: Adapter = {
 			{
 				fetch,
 				start: (config as any).start,
-				meta: { methodology },
 			},
 		])
 	),
 	version: 2,
+	methodology,
 }
 
 export default adapter

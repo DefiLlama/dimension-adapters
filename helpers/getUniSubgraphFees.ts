@@ -7,6 +7,7 @@ import {
   FetchResultGeneric,
 } from "../adapters/types";
 import { Chain } from "../adapters/types";
+import { setModuleDefaults } from "../adapters/utils/runAdapter";
 
 import BigNumber from "bignumber.js";
 import { request, gql } from "graphql-request";
@@ -125,6 +126,7 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
 
 
 const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...params }: IGetChainFeeParams) => {
+  setModuleDefaults(volumeAdapter)
   if ('adapter' in volumeAdapter) {
     let finalBaseAdapter: BaseAdapter = {}
     const adapterObj = volumeAdapter.adapter

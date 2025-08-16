@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const dailyLsEthHoldersYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18);
 
-  dailyFees.addCGToken("ethereum", dailyLsEthHoldersYield/0.9);
+  dailyFees.addCGToken("ethereum", dailyLsEthHoldersYield / 0.9);
   const dailyRevenue = dailyFees.clone(0.1);
   return { dailyFees, dailyRevenue };
 };
@@ -37,15 +37,13 @@ const adapter: Adapter = {
     [ETHEREUM]: {
       fetch,
       start: '2022-11-19',
-      meta: {
-        methodology: {
-          Fees: "Total ETH staking rewards from all validators.",
-          Revenue: "Liquid Collective charges 10% ETH staking rewards.",
-        },
-      },
     },
   },
   version: 2,
+  methodology: {
+    Fees: "Total ETH staking rewards from all validators.",
+    Revenue: "Liquid Collective charges 10% ETH staking rewards.",
+  },
 };
 
 export default adapter;

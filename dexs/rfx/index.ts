@@ -83,17 +83,16 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ZKSYNC]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.ZKSYNC),
         start: startTimestamps[CHAIN.ZKSYNC],
-        meta: { methodology },
       },
     },
     "rfx-trade": {
       [CHAIN.ZKSYNC]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.ZKSYNC),
         start: startTimestamps[CHAIN.ZKSYNC],
-        meta: { methodology },
       },
     },
   },
+  methodology,
 };
 
 export default adapter;

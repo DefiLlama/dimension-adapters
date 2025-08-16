@@ -7,15 +7,13 @@ import {
 } from "../options/hegic";
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'All premiums fees paid by users while trading on Hegic.',
+  },
   adapter: {
     [ARBITRUM]: {
       fetch: getHegicFees,
       start: getEarliestAvailableTimestamp,
-      meta: {
-        methodology: {
-          Fees: 'All premiums fees paid by users while trading on Hegic.',
-        },
-      },
     },
   },
 };

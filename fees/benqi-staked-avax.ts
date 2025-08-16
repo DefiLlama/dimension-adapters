@@ -41,13 +41,11 @@ const methodology = {
 }
 const adapters: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchFees,
       start: '2022-02-13',
-      meta: {
-        methodology,
-      },
     }
   }
 }

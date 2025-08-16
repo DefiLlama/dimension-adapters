@@ -134,11 +134,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     base: {
       fetch,
       start: '2025-04-16',
-      meta: { methodology }
     }
   }
 };

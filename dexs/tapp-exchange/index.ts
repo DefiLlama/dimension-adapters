@@ -53,16 +53,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.APTOS]: {
             fetch,
             start: "2025-06-12",
-            meta: {
-                methodology: {
-                    Fees: "Total fees from swaps, based on the fee tier of each pool.",
-                    Revenue: "Calculated as 33% of the total fees.",
-                    ProtocolRevenue: "33% of the total fees going to the protocol.",
-                    SupplySideRevenue: "67% of the total fees going to the liquidity providers."
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "Total fees from swaps, based on the fee tier of each pool.",
+        Revenue: "Calculated as 33% of the total fees.",
+        ProtocolRevenue: "33% of the total fees going to the protocol.",
+        SupplySideRevenue: "67% of the total fees going to the liquidity providers."
+    }
 };
 
 export default adapter;

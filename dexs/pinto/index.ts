@@ -63,9 +63,7 @@ export default {
         
       },
       start: '2024-11-19',
-      meta: {
-        methodology
-      }
     }
-  }
+  },
+  methodology
 };
