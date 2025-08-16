@@ -173,10 +173,8 @@ for (const [chain, factory] of Object.entries(OneWayLendingFactories)) {
   (adapter.adapter as BaseAdapter)[chain] = {
     fetch: fetch,
     start: factory.start,
-    meta: {
-      methodology,
-    },
-  }
+  },
+  methodology,
 }
 
 export default adapter;

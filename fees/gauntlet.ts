@@ -167,7 +167,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology,
   adapter: {
-    ...curatorExport,
+    ...curatorExport.adapter,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01'

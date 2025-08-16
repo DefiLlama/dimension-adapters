@@ -34,17 +34,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.CHAINFLIP]: {
       fetch,
       start: "2023-11-23", // Protocol start date
-      meta: {
-        methodology: {
-          Revenue:
-            "Fees collected from burning $FLIP. This is a fixed percentage of swap value.",
-          UserFees:
-            "Ingress, Egress, and Broker fees paid by the user per swap",
-          SupplySideRevenue:
-            "Fees collected by the LP. This is a fixed percentage of swap value.",
-        },
-      },
     },
+  },
+  methodology: {
+    Revenue:
+      "Fees collected from burning $FLIP. This is a fixed percentage of swap value.",
+    UserFees:
+      "Ingress, Egress, and Broker fees paid by the user per swap",
+    SupplySideRevenue:
+      "Fees collected by the LP. This is a fixed percentage of swap value.",
   },
 };
 

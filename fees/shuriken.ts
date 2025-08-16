@@ -76,25 +76,17 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
       start: '2023-10-13',
-      meta: {
-          methodology: {
-              Fees: "Trading fees paid by users.",
-              Revenue: "All fees are revenue.",
-          }
-      }
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-14',
-      meta: {
-          methodology: {
-              Fees: "Trading fees paid by users while using Shuriken bot.",
-              Revenue: "All fees are collected by Shuriken protocol.",
-          }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Trading fees paid by users while using Shuriken bot.",
+    Revenue: "All fees are collected by Shuriken protocol.",
+  }
 };
 
 export default adapter;

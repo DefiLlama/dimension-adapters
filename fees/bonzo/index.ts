@@ -41,17 +41,15 @@ const adapter = {
     adapter: {
         hedera: {
             fetch,
-            start: () => 1722534378,
+            start: 1722534378,
             runAtCurrTime: true,
-            meta: {
-                methodology: {
-                    Fees: 'Interest and Flash Loan fees plus liquidation bonuses in USD',
-                    UserFees: 'Interest and Flash Loan fees plus liquidation bonuses in USD',
-                    ProtocolRevenue: 'Portion of interest rate fees and flash loan fees to Protocol Treasury in USD',
-                    SupplySideRevenue: 'Portion of interest rate fees to liquidity providers in USD'
-                }
-            }
         }
+    },
+    methodology: {
+        Fees: 'Interest and Flash Loan fees plus liquidation bonuses in USD',
+        UserFees: 'Interest and Flash Loan fees plus liquidation bonuses in USD',
+        ProtocolRevenue: 'Portion of interest rate fees and flash loan fees to Protocol Treasury in USD',
+        SupplySideRevenue: 'Portion of interest rate fees to liquidity providers in USD'
     }
 };
 

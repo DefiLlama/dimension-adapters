@@ -125,43 +125,11 @@ const methodology = {
 }
 
 const adapters: Adapter = {
+    methodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetch,
-            meta: {
-                methodology
-            }
         },
-        // [CHAIN.BSC]: {
-        //     fetch: fetch,
-        //     meta: {
-        //         methodology
-        //     }
-        // },
-        // [CHAIN.ARBITRUM]: {
-        //     fetch: fetch,
-        //     meta: {
-        //         methodology
-        //     }
-        // },
-        // [CHAIN.OPTIMISM]: {
-        //     fetch: fetch,
-        //     meta: {
-        //         methodology
-        //     }
-        // },
-        // [CHAIN.BASE]: {
-        //     fetch: fetch,
-        //     meta: {
-        //         methodology
-        //     }
-        // },
-        // [CHAIN.SCROLL]: {
-        //     fetch: fetch,
-        //     meta: {
-        //         methodology
-        //     }
-        // },
     },
     
     version: 2

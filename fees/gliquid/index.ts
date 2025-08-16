@@ -40,16 +40,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYPERLIQUID]: {
       fetch: fetch,
       start: "2025-05-29",
-      meta: {
-        methodology: {
-          Fees: "Swap fees paid by users.",
-          UserFees: "Swap fees paid by users",
-          Revenue: "Total revenue from fees",
-          ProtocolRevenue: "5% of fee goes to the protocol",
-          SupplySideRevenue: "95% of fee goes to the supply side",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Swap fees paid by users.",
+    UserFees: "Swap fees paid by users",
+    Revenue: "Total revenue from fees",
+    ProtocolRevenue: "5% of fee goes to the protocol",
+    SupplySideRevenue: "95% of fee goes to the supply side",
   },
 };
 

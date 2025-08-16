@@ -68,25 +68,6 @@ const classicEndpoints: TEndpoint = [...elasticChains, "aurora"].reduce((acc, ch
   [CHAIN.SCROLL]: "https://scroll-graph.kyberengineering.io/subgraphs/name/kybernetwork/kyberswap-exchange-scroll"
 } as any);
 
-const methodology = {
-  elastic: {
-    UserFees: "Users pay trading fees based pool fee setting: 0.008%, 0.01%, 0.04%, 0.3% and 1%",
-    Fees: "Each pool can have different fees set from the following tires: 0.008%, 0.01%, 0.04%, 0.3% and 1%",
-    Revenue: "Currently 100% of the dao rewards (10% of the collected fees) goes to all voters (KNC stakers)",
-    ProtocolRevenue: "Treasury have no revenue",
-    HoldersRevenue: "Holders who stake and participate in the KyberDAO get their share of the fees designated for rewards, currently set at 10% of trading fees",
-    SupplySideRevenue: "Liquidity providers earn 90% fees of trading routed through their pool and selected price range"
-  },
-  classic: {
-    UserFees: "Users pay a dynamic fee based on market conditions",
-    Fees: "Kyberswap Classic collects a dynamic fee that increases with market volatility and decreases with stable market conditions",
-    Revenue: "Currently 100% of the dao rewards (10% of the collected fees) goes to all voters (KNC stakers)",
-    ProtocolRevenue: "Treasury have no revenue",
-    HoldersRevenue: "Holders who stake and participate in the KyberDAO get their share of the fees designated for rewards, currently set at 10% of trading fees",
-    SupplySideRevenue: "Liquidity providers earn 90% fees of trading routed through their pool and selected price range"
-  }
-}
-
 interface IData {
   feesUSD: string;
   volumeUSD: string;
@@ -100,7 +81,6 @@ interface IPoolDay {
 
 const graphsElasticV2 = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
     const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 
       const graphQuery = gql
@@ -221,9 +201,6 @@ const buildFromEndpoints = (type: "elastic" | "classic") => function (endpoints:
         volumeField,
         dailyDataField
       }),
-      meta: {
-        methodology: methodology[type]
-      }
     }
     return acc
   }, {} as BaseAdapter)
