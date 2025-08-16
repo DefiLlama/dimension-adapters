@@ -16,18 +16,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.NEON]: {
       fetch:getFeesExport('0x7122e35ceC2eED4A989D9b0A71998534A203972C'),
       start: '2023-07-17', // 17TH JULY 5PM GMT
-      meta: {
-        methodology
-      }
     },
     [CHAIN.BASE]: {
       fetch: getFeesExport('0x7122e35ceC2eED4A989D9b0A71998534A203972C'),
       start: '2023-08-01', // 1ST AUG 12:33 AM GMT
-      meta: {
-        methodology
-      }
     }
-  }
+  },
+  methodology
 }
 
 export default adapter;

@@ -250,26 +250,18 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      meta: {
-        methodology,
-      },
       start: '2024-4-16',
     },
     [CHAIN.SONIC]: {
       fetch: fetch,
-      meta: {
-        methodology,
-      },
       start: '2025-02-07',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      meta: {
-        methodology,
-      },
       start: '2024-09-06',
     },
   }

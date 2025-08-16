@@ -150,11 +150,9 @@ const adapter: SimpleAdapter = {
         [CHAIN.BERACHAIN]: {
             fetch: fetch,
             start: "2025-02-05", // Berachain launch
-            meta: {
-                methodology,
-            },
         },
     },
+    methodology,
     isExpensiveAdapter: true,
 };
 

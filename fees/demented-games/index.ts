@@ -28,12 +28,10 @@ const adapter: Adapter = {
       fetch,
       runAtCurrTime: true,
       start: '2024-07-08',
-      meta: {
-        methodology: {
-          Fees: 'Sum of all fees from each game on the Demented Games platform.',
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: 'Sum of all fees from each game on the Demented Games platform.',
   },
 };
 

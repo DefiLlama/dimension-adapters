@@ -56,50 +56,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 };
 
 const adapter: Adapter = {
+  methodology,
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-01-26',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2024-06-27',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.MANTA]: {
-      fetch,
-      start: '2024-07-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2024-07-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2024-07-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: '2024-10-20',
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.ARBITRUM]: { start: '2024-01-26', },
+    [CHAIN.ERA]: { start: '2024-06-27', },
+    [CHAIN.MANTA]: { start: '2024-07-01', },
+    [CHAIN.BLAST]: { start: '2024-07-01', },
+    [CHAIN.OPTIMISM]: { start: '2024-07-01', },
+    [CHAIN.SCROLL]: { start: '2024-10-20', },
   }
 }
 

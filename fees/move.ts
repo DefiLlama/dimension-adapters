@@ -17,24 +17,22 @@ const adapter: Adapter = {
           WHERE SUCCESS AND 
           block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${startTimestamp}) AND TO_TIMESTAMP_NTZ(${endTimestamp})
         `, 260)
-        
+
         const fees = Number(feeQuery[0][0])
-        dailyFees.addCGToken('movement',fees)
+        dailyFees.addCGToken('movement', fees)
         return { dailyFees, dailyRevenue: dailyFees };
 
       }) as any,
       start: '2024-12-06',
-      meta: {
-        methodology: {
-          Fees: 'Total transaction fees paid by users',
-          Revenue: 'Total transaction fees paid by users'
-        }
-      }
     },
   },
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
-  version: 2
+  version: 2,
+  methodology: {
+    Fees: 'Total transaction fees paid by users',
+    Revenue: 'Total transaction fees paid by users'
+  }
 }
 
 export default adapter;

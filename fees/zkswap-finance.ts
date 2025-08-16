@@ -39,21 +39,16 @@ const baseAdapter: BaseAdapter = {
     ...(adapterObj as BaseAdapter)[CHAIN.ERA],
     fetch: fetch(CHAIN.ERA, 0.002, 0.00067),
     start: '2024-12-17',
-    meta: {
-      methodology
-    }
   },
   [CHAIN.SONIC]: {
     ...(adapterObj as BaseAdapter)[CHAIN.SONIC],
     fetch: fetch(CHAIN.SONIC, 0.002, 0.00067),
     start: '2025-04-09',
-    meta: {
-      methodology
-    }
   }
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter
 };
 

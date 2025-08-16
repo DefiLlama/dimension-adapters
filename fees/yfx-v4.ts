@@ -63,20 +63,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
       start: '2024-04-24',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),
       start: '2024-07-15',
-      meta: {
-        methodology
-      }
     },
   }
 }

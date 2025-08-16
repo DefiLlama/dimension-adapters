@@ -147,11 +147,9 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2024-05-24',
-      meta: {
-        methodology,
-      }
     },
   },
+  methodology,
 };
 
 export default adapter;

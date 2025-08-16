@@ -8,7 +8,7 @@ const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
 const CARDANO_COIN_ID = "coingecko:cardano";
 const ADA_DECIMAL = 6;
 
-const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => { 
+const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensions> => {
     const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${timestamp}`);
 
     return response.data;
@@ -50,14 +50,12 @@ const adapter: SimpleAdapter = {
         cardano: {
             fetch: fetchData,
             start: DANOGO_START_TIMESTAMP,
-            meta: {
-                methodology: {
-                    Fees: 'Trading and listing fees paid by users.',
-                }
-            }
         }
     },
-    version: 2
+    version: 2,
+    methodology: {
+        Fees: 'Trading and listing fees paid by users.',
+    }
 };
 
 export default adapter;

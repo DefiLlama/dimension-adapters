@@ -223,7 +223,13 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
   }
 }
 
-export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
+export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
+  const methodology = curatorConfig.methodology ? curatorConfig.methodology :  {
+          Fees: 'Total yields from deposited assets in all curated vaults.',
+          Revenue: 'Yields are collected by curators.',
+          ProtocolRevenue: 'Yields are collected by curators.',
+          SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
+        }
   const exportObject: BaseAdapter = {}
 
   Object.entries(curatorConfig.vaults).map(([chain, vaults]) => {
@@ -252,18 +258,13 @@ export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
         }
       }),
       start: vaults.start,
-      meta: curatorConfig.methodology ? {
-        methodology: curatorConfig.methodology,
-      } : {
-        methodology: {
-          Fees: 'Total yields from deposited assets in all curated vaults.',
-          Revenue: 'Yields are collected by curators.',
-          ProtocolRevenue: 'Yields are collected by curators.',
-          SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
-        }
-      },
     }
   })
 
-  return exportObject
+  return {
+    version: 2,
+    methodology,
+    adapter: exportObject,
+  }
 }
+

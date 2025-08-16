@@ -1,16 +1,14 @@
 import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
 import { FetchOptions, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 
-const ControllerAbi =  ["function getAsset(uint256 _id) view returns ((uint256 id, uint256 pairGroupId, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) stablePool, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) underlyingPool, (uint256 riskRatio, int24 rangeSize, int24 rebalanceThreshold) riskParams, (address uniswapPool, int24 tickLower, int24 tickUpper, uint64 numRebalance, uint256 totalAmount, uint256 borrowedAmount, uint256 lastRebalanceTotalSquartAmount, uint256 lastFee0Growth, uint256 lastFee1Growth, uint256 borrowPremium0Growth, uint256 borrowPremium1Growth, uint256 fee0Growth, uint256 fee1Growth, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionUnderlying, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionStable, int256 rebalanceFeeGrowthUnderlying, int256 rebalanceFeeGrowthStable) sqrtAssetStatus, bool isMarginZero, bool isIsolatedMode, uint256 lastUpdateTimestamp))"]
+const ControllerAbi = ["function getAsset(uint256 _id) view returns ((uint256 id, uint256 pairGroupId, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) stablePool, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) underlyingPool, (uint256 riskRatio, int24 rangeSize, int24 rebalanceThreshold) riskParams, (address uniswapPool, int24 tickLower, int24 tickUpper, uint64 numRebalance, uint256 totalAmount, uint256 borrowedAmount, uint256 lastRebalanceTotalSquartAmount, uint256 lastFee0Growth, uint256 lastFee1Growth, uint256 borrowPremium0Growth, uint256 borrowPremium1Growth, uint256 fee0Growth, uint256 fee1Growth, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionUnderlying, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionStable, int256 rebalanceFeeGrowthUnderlying, int256 rebalanceFeeGrowthStable) sqrtAssetStatus, bool isMarginZero, bool isIsolatedMode, uint256 lastUpdateTimestamp))"]
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
@@ -89,7 +87,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
       ethPrice,
       true
     );
-  } else if (graphUrl === v5endpoints[CHAIN.ARBITRUM]) { 
+  } else if (graphUrl === v5endpoints[CHAIN.ARBITRUM]) {
     dailyFees = await v5DailyFees(todaysDateString, graphUrl, options);
     dailyRevenue = undefined;
     dailySupplySideRevenue = undefined;
@@ -269,14 +267,14 @@ const v5DailyFees = async (
 
   const controllerAddress = "0x06a61e55d4d4659b1a23c0f20aedfc013c489829";
   const calls: any = []
-  for (let i = 1; i <= latestPairNumber; i++) 
+  for (let i = 1; i <= latestPairNumber; i++)
     calls.push(i)
 
-  const queryRes = await options.api.multiCall({  abi: ControllerAbi[0], calls, target: controllerAddress,  })
+  const queryRes = await options.api.multiCall({ abi: ControllerAbi[0], calls, target: controllerAddress, })
 
-  
+
   let usersPaymentFees: BigNumber = BigNumber(0);
-  
+
   // Retrieve daily fees for each pair
   for (let i = 1; i <= latestPairNumber; i++) {
     const pairId = i;
@@ -346,7 +344,7 @@ const v5DailyFees = async (
       usersPaymentFees = usersPaymentFees.plus(borrowPremium);
     }
   }
-  
+
   return usersPaymentFees;
 }
 const v3DailyRevenue = async (
@@ -399,12 +397,12 @@ const v3DailyRevenue = async (
       // USDC
       dailyFee0 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
       ).div(USDC_DECIMAL);
       // ETH
       dailyFee1 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
       )
         .times(ethPrice)
         .div(ETH_DECIMAL);
@@ -412,14 +410,14 @@ const v3DailyRevenue = async (
       // ETH
       dailyFee0 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
       )
         .times(ethPrice)
         .div(ETH_DECIMAL);
       // USDC
       dailyFee1 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
       );
     }
     dailyRevenue = dailyFee0.plus(dailyFee1);
@@ -432,10 +430,10 @@ const adapter: BreakdownAdapter = {
   version: 1,
   breakdown: {
     v3: {
-      [CHAIN.ARBITRUM]: disabledAdapter,
+      [CHAIN.ARBITRUM]: { fetch: async () => ({}), },
     },
     v320: {
-      [CHAIN.ARBITRUM]: disabledAdapter,
+      [CHAIN.ARBITRUM]: { fetch: async () => ({}), },
     },
     v5: {
       [CHAIN.ARBITRUM]: {

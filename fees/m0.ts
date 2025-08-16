@@ -120,11 +120,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2024-05-31',
-      meta: {
-        methodology,
-      }
     },
   },
+  methodology,
   version: 2,
 };
 

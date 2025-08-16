@@ -1,4 +1,3 @@
-import { SimpleAdapter } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
 // we config vault addresses, we don't use vault owner addresses like other curators
@@ -24,9 +23,4 @@ const curatorConfig: CuratorConfig = {
   }
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: getCuratorExport(curatorConfig),
-}
-
-export default adapter
+export default getCuratorExport(curatorConfig)

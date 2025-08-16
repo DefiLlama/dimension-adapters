@@ -77,11 +77,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SEI]: {
       fetch,
       start: "2023-01-21",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

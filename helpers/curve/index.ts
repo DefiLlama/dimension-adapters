@@ -88,7 +88,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
 
     // why we only add token with index of 0 here?
     //
-    // meta pools have coins in order of token, basepool LP token
+    // meta-pools have coins in order of token, basepool LP token
     // for example of FEI - DAI/USDC/USDT pool, FEI has index of 0 and DAI/USDC/USDT LP token has index of 1
     //
     // on TokenExchangeUnderlying events, contracts put amount of LP token are being traded instead of underlying token amount, so, we cannot get correct amount of underlying token

@@ -174,15 +174,13 @@ const adapters: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch: fetchFees,
       start: "2024-06-02",
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users.",
-          Revenue: "All trading fees from users.",
-        },
-      },
     },
   },
   allowNegativeValue: true, // House reimbursed fees
   version: 2,
+  methodology: {
+    Fees: "Trading fees paid by users.",
+    Revenue: "All trading fees from users.",
+  },
 };
 export default adapters;

@@ -33,16 +33,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2021-09-18',
-      meta: {
-        methodology: {
-          Fees: 'All fees paid by users for launching, trading assets.',
-          UserFees: 'All fees paid by users for launching, trading assets.',
-          Revenue: 'Fees collected by Metaplex protocol.',
-          ProtocolRevenue: '50% of revenue goes to protocol after june 2023',
-          HoldersRevenue: '50% of revenue goes to buyback MPLX after june 2023', // https://x.com/metaplex/status/1930306067407483219
-        }
-      },
     }
+  },
+  methodology: {
+    Fees: 'All fees paid by users for launching, trading assets.',
+    UserFees: 'All fees paid by users for launching, trading assets.',
+    Revenue: 'Fees collected by Metaplex protocol.',
+    ProtocolRevenue: '50% of revenue goes to protocol after june 2023',
+    HoldersRevenue: '50% of revenue goes to buyback MPLX after june 2023', // https://x.com/metaplex/status/1930306067407483219
   }
 }
 

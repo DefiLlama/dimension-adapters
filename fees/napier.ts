@@ -144,13 +144,11 @@ const adapter: SimpleAdapter = {
         {
           fetch: fetch(chain as Chain),
           start: config.start,
-          meta: {
-            methodology,
-          },
         },
       ])
     ),
   },
+  methodology,
 };
 
 export default adapter;

@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js'
-import { Adapter, FetchOptions } from  "../adapters/types"
+import { Adapter, FetchOptions } from "../adapters/types"
 import { gql, GraphQLClient } from 'graphql-request'
 import { CHAIN } from '../helpers/chains'
 import { getBlock } from '../helpers/getBlock'
@@ -48,15 +48,14 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch,
       start: '2023-10-09',
-      meta: {
-        methodology: {
-          Fees: 'All mint, burn, margin, liquidation and swap fees are collect',
-          UserFees: 'All mint, burn, margin, liquidation and swap fees are collect',
-          Revenue: 'Revenue is 50% of the total fees, which goes to Treasury and is reserved for development',
-          ProtocolRevenue: '40% of the total fees goes to Treasury'
-        },
-      },
     },
+  },
+
+  methodology: {
+    Fees: 'All mint, burn, margin, liquidation and swap fees are collect',
+    UserFees: 'All mint, burn, margin, liquidation and swap fees are collect',
+    Revenue: 'Revenue is 50% of the total fees, which goes to Treasury and is reserved for development',
+    ProtocolRevenue: '40% of the total fees goes to Treasury'
   },
 }
 

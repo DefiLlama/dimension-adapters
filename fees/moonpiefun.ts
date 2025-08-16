@@ -31,11 +31,9 @@ const adapter: Adapter = {
         };
       },
       start: '2025-05-12',
-      meta: {
-        methodology: methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

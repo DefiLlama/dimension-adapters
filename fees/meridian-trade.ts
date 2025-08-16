@@ -60,11 +60,9 @@ const adapter: Adapter = {
         [CHAIN.BASE]: {
             fetch: graphs(endpoints)(CHAIN.BASE),
             start: '2023-08-12',
-            meta: {
-                methodology
-            }
         },
-    }
+    },
+    methodology
 }
 
 export default adapter;

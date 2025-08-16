@@ -28,14 +28,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.TOMOCHAIN]: {
       fetch,
       start: "2024-11-12",
-      meta: {
-        methodology: {
-          Volume:
-            "USD Volume of RabbitSwap V3 using datasource from The Graph.",
-          Fees: "USD Fees of RabbitSwap V3 using datasource from The Graph.",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume:
+      "USD Volume of RabbitSwap V3 using datasource from The Graph.",
+    Fees: "USD Fees of RabbitSwap V3 using datasource from The Graph.",
   },
 };
 

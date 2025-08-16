@@ -268,23 +268,6 @@ const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
   }
 }
 
-const methodologyV2 = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  Fees: "0.3% of each swap is collected as trading fees",
-  Revenue: "Protocol takes 13.33% of collected fees (0.04% community + 0.01% foundation).",
-  ProtocolRevenue: "Foundation receives 3.33% of collected fees (0.01% of swap volume).",
-  SupplySideRevenue: "83.33% of collected fees go to liquidity providers (0.25% of swap volume).",
-  HoldersRevenue: "Community receives 13.33% of collected fees for buybacks (0.04% of swap volume).",
-};
-
-const methodologyV3 = {
-  UserFees: "User pays dynamic fees on each swap based on pool settings (typically 0.01% to 1%).",
-  Fees: "Dynamic fees are collected on each swap based on pool configuration",
-  Revenue: "Protocol takes 15% of collected fees (current). Historical: 10% before March 2025, 10% on uni forks like IMX.",
-  ProtocolRevenue: "Foundation receives 3.23% of collected fees (current). Historical: 1.7% before March 2025, 3% on uni forks.",
-  SupplySideRevenue: "85% of collected fees go to liquidity providers (90% on uni forks like IMX).",
-  HoldersRevenue: "Community receives 10% of collected fees for buybacks (current). Historical: 6.8% before March 2025, 7% on uni forks.",
-};
 
 const adapter: BreakdownAdapter = {
   version: 1,
@@ -293,14 +276,12 @@ const adapter: BreakdownAdapter = {
       [CHAIN.POLYGON]: {
         fetch: fetchv2Graph,
         start: '2020-10-08',
-        meta: { methodology: methodologyV2 },
       },
     },
     v3: Object.keys(config_v3).reduce((acc, chain) => {
       acc[chain] = {
         fetch: fetchv3Graph,
         start: config_v3[chain].start,
-        meta: { methodology: methodologyV3 },
       };
       return acc;
     }, {} as BaseAdapter),

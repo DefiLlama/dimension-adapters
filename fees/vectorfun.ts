@@ -7,9 +7,9 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-    const dailyFees = options.createBalances()
+  const dailyFees = options.createBalances()
 
-    const query = `
+  const query = `
         WITH
         allFeePayments AS (
             SELECT
@@ -58,28 +58,26 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
           )
     `;
 
-    const fees = await queryDuneSql(options, query);
-    dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  const fees = await queryDuneSql(options, query);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
 
-    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch: fetch,
-            start: '2024-07-28',
-            meta: {
-                methodology: {
-                    Fees: "All trading and launching tokens fees paid by users.",
-                    Revenue: "All fees are collected by Vector.Fun protocol.",
-                    ProtocolRevenue: "Trading fees are collected by Vector.Fun protocol.",
-                }
-            }
-        },
+  version: 1,
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch: fetch,
+      start: '2024-07-28',
     },
-    isExpensiveAdapter: true
+  },
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading and launching tokens fees paid by users.",
+    Revenue: "All fees are collected by Vector.Fun protocol.",
+    ProtocolRevenue: "Trading fees are collected by Vector.Fun protocol.",
+  }
 };
 
 export default adapter;

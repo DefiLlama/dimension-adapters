@@ -13,17 +13,15 @@ const adapter: Adapter = {
 		[CHAIN.MANTLE]: {
 			fetch,
 			start: '2023-07-02',
-			meta: {
-        methodology: {
-          Fees: 'Transaction fees paid by users',
-          Revenue: 'Total revenue on Mantle, calculated by subtracting the L1 Batch Costs from the total gas fees',
-        }
-      }
 		},
 	},
 	protocolType: ProtocolType.CHAIN,
 	isExpensiveAdapter: true,
 	allowNegativeValue: true, // L1 Costs
+	methodology: {
+		Fees: 'Transaction fees paid by users',
+		Revenue: 'Total revenue on Mantle, calculated by subtracting the L1 Batch Costs from the total gas fees',
+	}
 }
 
 export default adapter;

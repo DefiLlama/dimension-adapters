@@ -6,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 
 const JUP_FEE_RECEIVER = '5YET3YapxD6to6rqPqTWB3R9pSbURy6yduuUtoZkzoPX';
 
-const fetchFeesSolana = async (_as:any, _b:any, options: FetchOptions) => {
+const fetchFeesSolana = async (_as: any, _b: any, options: FetchOptions) => {
   const query = `
     SELECT
       SUM(balance_change/1e9) AS total_fees
@@ -30,15 +30,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFeesSolana,
       start: '2024-09-13',
-      meta: {
-        methodology: {
-          Fees: 'Token trading and launching fees.',
-          Revenue: 'All fees collected by protocol.',
-        }
-      }
     }
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Token trading and launching fees.',
+    Revenue: 'All fees collected by protocol.',
+  },
 };
 
 export default adapter;

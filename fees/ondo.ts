@@ -149,7 +149,7 @@ const fetch: any = async (options: FetchOptions) => {
   dailyFees += supply.OUSG * (newPrices.OUSG - oldPrices.OUSG)
   dailyFees += supply.USDY * (newPrices.USDY - oldPrices.USDY)
 
-  return { 
+  return {
     dailyFees,
     dailySupplySideRevenue: dailyFees,
     dailyRevenue: dailyFees,
@@ -158,63 +158,37 @@ const fetch: any = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
+  runAtCurrTime: true,
   adapter: {
-    [CHAIN.ETHEREUM]: { 
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-04-26',
-      meta: {
-        methodology,
-      }
     },
-    [CHAIN.SOLANA]: { 
+    [CHAIN.SOLANA]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.POLYGON]: { 
+    [CHAIN.POLYGON]: {
       fetch,
       start: '2023-06-03',
-      meta: {
-        methodology,
-      }
     },
-    [CHAIN.MANTLE]: { 
+    [CHAIN.MANTLE]: {
       fetch,
       start: '2023-10-25',
-      meta: {
-        methodology,
-      }
     },
-    [CHAIN.APTOS]: { 
+    [CHAIN.APTOS]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.ARBITRUM]: { 
+    [CHAIN.ARBITRUM]: {
       fetch: fetch,
       start: '2024-08-08',
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.SUI]: { 
+    [CHAIN.SUI]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.NOBLE]: { 
+    [CHAIN.NOBLE]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
   },
 }

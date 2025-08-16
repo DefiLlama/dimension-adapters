@@ -43,15 +43,13 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: "2024-06-04",
-      meta: {
-        methodology: {
-          Fees: "All betting fees (4% of total protocol volume) paid by users.",
-          Revenue: "All betting fees (4% of total protocol volume) paid by users.",
-          HoldersRevenue: "All revenue distributed to BODEGA holders (75%) before Jun 12, 2025 and 100% after Jun 12, 2025.",
-          ProtocolRevenue: "No revenue for Bodega protocol after Jun 12, 2025 and 25% before Jun 12, 2025.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "All betting fees (4% of total protocol volume) paid by users.",
+    Revenue: "All betting fees (4% of total protocol volume) paid by users.",
+    HoldersRevenue: "All revenue distributed to BODEGA holders (75%) before Jun 12, 2025 and 100% after Jun 12, 2025.",
+    ProtocolRevenue: "No revenue for Bodega protocol after Jun 12, 2025 and 25% before Jun 12, 2025.",
   },
 };
 

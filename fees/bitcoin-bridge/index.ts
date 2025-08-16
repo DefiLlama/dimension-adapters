@@ -36,16 +36,14 @@ const adapters: SimpleAdapter = {
     acc[chainMapping[chainKey]] = {
       fetch: getFetchForChain(chainKey) as any,
       start: '2025-05-28',
-      meta: {
-        methodology: {
-          Fees: "The total fee incurred during bridging, including all transaction fees on both the source and destination chains.",
-          Revenue: "The protocol takes 0% cut of assets during bridging",
-          HoldersRevenue: "Token holders fees share",
-        }
-      }
     };
     return acc;
   }, {}),
+  methodology: {
+    Fees: "The total fee incurred during bridging, including all transaction fees on both the source and destination chains.",
+    Revenue: "The protocol takes 0% cut of assets during bridging",
+    HoldersRevenue: "Token holders fees share",
+  }
 };
 
 export default adapters

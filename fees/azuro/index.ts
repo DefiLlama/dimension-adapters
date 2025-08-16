@@ -86,32 +86,28 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+    methodology,
     allowNegativeValue: true, // https://gem.azuro.org/knowledge-hub/how-azuro-works/protocol-actors/liquidity-providers
     adapter: {
         [CHAIN.POLYGON]: {
             fetch: graphs(endpoints)(CHAIN.POLYGON),
             start: getStartTimestamp[CHAIN.POLYGON],
-            meta: { methodology },
         },
         [CHAIN.XDAI]: {
             fetch: graphs(endpoints)(CHAIN.XDAI),
             start: getStartTimestamp[CHAIN.XDAI],
-            meta: { methodology },
         },
         [CHAIN.ARBITRUM]: {
             fetch: graphs(endpoints)(CHAIN.ARBITRUM),
             start: getStartTimestamp[CHAIN.ARBITRUM],
-            meta: { methodology },
         },
         [CHAIN.LINEA]: {
             fetch: graphs(endpoints)(CHAIN.LINEA),
             start: getStartTimestamp[CHAIN.LINEA],
-            meta: { methodology },
         },
         [CHAIN.CHILIZ]: {
             fetch: graphs(endpoints)(CHAIN.CHILIZ),
             start: getStartTimestamp[CHAIN.CHILIZ],
-            meta: { methodology },
         },
     },
     version: 2

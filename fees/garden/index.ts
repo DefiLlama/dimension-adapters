@@ -41,8 +41,7 @@ const chainMapper: Record<string, { name: string, start: string }> = {
 const baseUrl = "https://api.garden.finance/orders";
 
 const feeUrl = (chain: string, timestamp: number, interval?: string) =>
-    `${baseUrl}/fees?chain=${chain}&end=${timestamp}${
-        interval ? `&interval=${interval}` : ""
+    `${baseUrl}/fees?chain=${chain}&end=${timestamp}${interval ? `&interval=${interval}` : ""
     }`;
 
 type ApiFeeResponse = {
@@ -76,15 +75,13 @@ const adapter: SimpleAdapter = {
             [chain]: {
                 fetch: fetch(chain as CHAIN),
                 start: chainMapper[chain].start,
-                meta: {
-                    methodology: {
-                        Fees: "Users pay a fee for each swap",
-                        Revenue: "Users pay a fee for each swap",
-                    },
-                },
             },
         };
     }, {}),
+    methodology: {
+        Fees: "Users pay a fee for each swap",
+        Revenue: "Users pay a fee for each swap",
+    },
 };
 
 export default adapter;

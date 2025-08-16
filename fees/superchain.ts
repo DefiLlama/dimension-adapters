@@ -107,26 +107,23 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
       start: '2023-06-01',
-      meta: { methodology },
     },
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2022-04-01',
-      meta: { methodology },
     },
     [CHAIN.UNICHAIN]: {
       fetch,
       start: '2025-02-01',
-      meta: { methodology },
     },
     [CHAIN.SONEIUM]: {
       fetch,
       start: '2024-12-01',
-      meta: { methodology },
     },
   }
 }

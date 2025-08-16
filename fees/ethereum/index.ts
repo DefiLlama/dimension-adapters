@@ -49,16 +49,14 @@ const adapter: Adapter = {
     [ETHEREUM]: {
       fetch,
       start: '2015-07-30',
-      meta: {
-        methodology: {
-          Fees: 'Total ETH gas fees paid by users',
-          Revenue: 'Amount of ETH base fees that were burned',
-          HoldersRevenue: 'Amount of ETH base fees that were burned',
-        }
-      }
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Total ETH gas fees paid by users',
+    Revenue: 'Amount of ETH base fees that were burned',
+    HoldersRevenue: 'Amount of ETH base fees that were burned',
+  }
 }
 
 export default adapter;

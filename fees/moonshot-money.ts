@@ -53,7 +53,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  
+
   fees.forEach((row: any) => {
     dailyFees.add(row.token_mint_address, row.total_fees);
   });
@@ -67,16 +67,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2024-05-14',
-      meta: {
-        methodology: {
-          Fees: 'All buy/sell fees paid by users for using Moonshot App.',
-          Revenue: 'All fees are collected by Moonshot App.',
-          ProtocolRevenue: 'All fees are collected by Moonshot App.',
-        }
-      }
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'All buy/sell fees paid by users for using Moonshot App.',
+    Revenue: 'All fees are collected by Moonshot App.',
+    ProtocolRevenue: 'All fees are collected by Moonshot App.',
+  }
 };
 
 export default adapter;

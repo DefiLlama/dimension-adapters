@@ -47,16 +47,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-06-18',
-            meta: {
-                methodology: {
-                    Fees: "Trading fees paid by users.",
-                    Revenue: "Fees collected by SendShot protocol.",
-                    ProtocolRevenue: "Fees collected by SendShot protocol."
-                }
-            }
         }
     },
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: "Trading fees paid by users.",
+        Revenue: "Fees collected by SendShot protocol.",
+        ProtocolRevenue: "Fees collected by SendShot protocol."
+    }
 }
 
 export default adapter

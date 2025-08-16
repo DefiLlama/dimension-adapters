@@ -30,11 +30,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SAPPHIRE]: {
       fetch: v3Graphs,
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

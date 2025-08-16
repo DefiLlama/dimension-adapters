@@ -40,13 +40,11 @@ const fetchBucketStats = async (_: any, _1: any, { startTimestamp, }: FetchOptio
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchBucketStats,
       start: "2024-02-29",
-      meta: {
-        methodology,
-      },
     },
   },
 }

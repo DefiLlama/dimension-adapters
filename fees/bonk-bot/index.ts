@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {  
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
     WITH botTrades AS (
         SELECT
@@ -35,16 +35,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2023-08-23',
-      meta: {
-        methodology: {
-          Fees: "All trading fees paid by users while using bot.",
-          Revenue: "Trading fees are collected by Bonk Bot protocol.",
-          ProtocolRevenue: "Trading fees are collected by Bonk Bot protocol.",
-        }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading fees paid by users while using bot.",
+    Revenue: "Trading fees are collected by Bonk Bot protocol.",
+    ProtocolRevenue: "Trading fees are collected by Bonk Bot protocol.",
+  }
 }
 
 export default adapter;
