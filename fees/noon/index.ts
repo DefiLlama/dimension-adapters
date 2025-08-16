@@ -57,9 +57,24 @@ const methodology = {
 const adapter: SimpleAdapter = {
     version: 2,
     methodology,
-    fetch,
-    chains: [CHAIN.ETHEREUM, CHAIN.SOPHON, CHAIN.ERA, CHAIN.TAC],
-    start: "2025-03-22",
+    adapter: {
+        [CHAIN.ETHEREUM]: {
+            fetch,
+            start: '2025-04-16',
+        },
+        [CHAIN.SOPHON]: {
+            fetch,
+            start: '2025-04-16',
+        },
+        [CHAIN.ERA]: {
+            fetch,
+            start: '2025-04-16',
+        },
+        [CHAIN.TAC]: {
+            fetch,
+            start: '2025-07-12',
+        },
+    },
 };
 
 export default adapter;
