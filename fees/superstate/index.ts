@@ -10,15 +10,14 @@ const USTB_CHAINLINK_ORACLE = "0xE4fA682f94610cCd170680cc3B045d77D9E528a8";
 const PRICING_ABI = "function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
 
 async function getPrices(timestamp: number): Promise<number> {
-  const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp);
+  const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp })
+  await api.getBlock()
 
-  const price = await sdk.api.abi.call({
-    chain: CHAIN.ETHEREUM,
+  const price = await api.call({
     abi: PRICING_ABI,
     target: USTB_CHAINLINK_ORACLE,
-    block: blockNumber
   });
-  return price.output[1] / 1e6;
+  return price[1] / 1e6;
 }
 
 const fetch = async (options: FetchOptions) => {
