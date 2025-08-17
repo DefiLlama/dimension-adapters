@@ -191,7 +191,7 @@ const graphsClassic = (chain: Chain) => {
 
 
 
-const buildFromEndpoints = (type: "elastic" | "classic") => function (endpoints: TEndpoint, graphql: IGraph, volumeField: string, dailyDataField: string) {
+const buildFromEndpoints = (_: "elastic" | "classic") => function (endpoints: TEndpoint, graphql: IGraph, volumeField: string, dailyDataField: string) {
   return Object.keys(endpoints).reduce((acc: any, chain: any) => {
     acc[chain] = {
       fetch: graphql(chain),

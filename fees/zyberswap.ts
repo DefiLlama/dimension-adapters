@@ -87,7 +87,7 @@ const adapter: BreakdownAdapter = {
       [CHAIN.ARBITRUM]: {
         fetch: stableGraph,
         start: '2023-02-11',
-s      },
+      },
     },
   },
 };
