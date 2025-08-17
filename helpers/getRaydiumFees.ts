@@ -123,7 +123,8 @@ const getDexChainBreakdownFees = ({ volumeAdapter, totalFees = 0, protocolFees =
 }
 
 
-const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...params }: IGetChainFeeParams) => {
+const getDexChainFees = (configs: IGetChainFeeParams) => {
+  const { volumeAdapter } = configs
   if ('adapter' in volumeAdapter) {
     let finalBaseAdapter: BaseAdapter = {}
     const adapterObj = volumeAdapter.adapter
