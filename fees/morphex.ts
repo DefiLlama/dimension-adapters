@@ -63,20 +63,15 @@ const graphs = (chain: string) => async (timestamp: number) => {
 
 const adapter: Adapter = {
   deadFrom: "2025-01-27",
+  methodology,
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: graphs(CHAIN.FANTOM),
       start: '2023-07-22',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.BSC]: {
       fetch: graphs(CHAIN.BSC),
       start: '2023-06-15',
-      meta: {
-        methodology,
-      },
     },
   },
 };

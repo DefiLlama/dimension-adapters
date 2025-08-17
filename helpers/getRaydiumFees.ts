@@ -54,7 +54,6 @@ interface IGetChainFeeParams {
   userFees?: number,
   supplySideRevenue?: number,
   holdersRevenue?: number,
-  meta?: BaseAdapter[string]['meta']
 }
 
 
@@ -139,7 +138,6 @@ const getDexChainFees = ({ volumeAdapter, totalFees = 0, protocolFees = 0, ...pa
           [chain]: {
             ...adapterObj[chain],
             fetch: fetchFees,
-            meta: params.meta
           }
         }
         finalBaseAdapter = { ...baseAdapter, ...finalBaseAdapter }

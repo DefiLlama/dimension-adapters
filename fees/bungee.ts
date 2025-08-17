@@ -18,18 +18,10 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: fetchBungeeChains().reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        start: '2023-08-10',
-        meta: {
-          methodology
-        }
-      }
-    }
-  }, {})
+  methodology,
+  fetch,
+  start: '2023-08-10',
+  chains: fetchBungeeChains()
 };
 
 export default adapter;

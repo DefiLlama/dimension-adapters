@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
-import { CHAIN }from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from  "../adapters/types";
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
@@ -34,7 +34,7 @@ const v2Endpoints = {
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+    return async ({ getFromBlock, getToBlock }: FetchOptions) => {
       const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
       const graphQuery = gql
@@ -83,11 +83,11 @@ interface IBalancerSnapshot {
 
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
+    return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
       const todayTimestamp = getTimestampAtStartOfDayUTC(toTimestamp);
       const yesterdayTimestamp = getTimestampAtStartOfDayUTC(fromTimestamp);
       const graphQuery = gql
-      `query fees {
+        `query fees {
         today: balancerSnapshots(where: {timestamp:${todayTimestamp}, totalProtocolFee_gt:0}, orderBy: totalProtocolFee, orderDirection: desc) {
           id
           totalSwapFee
@@ -158,86 +158,51 @@ const methodology = {
 }
 
 const adapter: BreakdownAdapter = {
+  methodology,
   version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(CHAIN.ETHEREUM),
         start: '2020-02-27',
-        meta: {
-          methodology: {
-            UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
-            Fees: "All trading fees collected (includes swap and yield fee)",
-            Revenue: "Balancer V1 protocol fees are set to 0%",
-            ProtocolRevenue: "Balancer V1 protocol fees are set to 0%",
-            SupplySideRevenue: "Trading fees are distributed among LPs",
-          }
-        }
       },
     },
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ETHEREUM),
         start: '2021-04-23',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON),
         start: '2021-06-24',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ARBITRUM),
         start: '2021-08-31',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.AVAX]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.AVAX),
         start: '2023-02-25',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.XDAI]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.XDAI),
         start: '2023-01-10',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.BASE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
         start: '2023-07-26',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
         start: '2023-06-13',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.MODE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
         start: '2024-05-22',
-        meta: {
-          methodology
-        }
       },
       [CHAIN.FRAXTAL]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
         start: '2024-05-20',
-        meta: {
-          methodology
-        }
       },
     }
   }

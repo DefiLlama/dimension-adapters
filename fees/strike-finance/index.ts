@@ -28,17 +28,15 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: "2025-05-16",
-      meta: {
-        methodology: {
-          Fees: "All trading fees associated with opening a perpetual position.",
-          Revenue: "All open fees plus liquidation and trading revenue.",
-          ProtocolRevenue:
-            "All open fees plus liquidation and trading revenue.",
-        },
-      },
     },
   },
   allowNegativeValue: true, // bad liquidation
+  methodology: {
+    Fees: "All trading fees associated with opening a perpetual position.",
+    Revenue: "All open fees plus liquidation and trading revenue.",
+    ProtocolRevenue:
+      "All open fees plus liquidation and trading revenue.",
+  },
 };
 
 export default adapter;

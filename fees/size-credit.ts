@@ -78,23 +78,15 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: (options: any) => fetch(options, CHAIN.BASE),
       start: '2024-07-16',
-      meta: {
-        methodology: {
-          Fees: methodology,
-          ProtocolRevenue: methodology
-        }
-      }
     },
     [CHAIN.ETHEREUM]: {
       fetch: (options: any) => fetch(options, CHAIN.ETHEREUM),
       start: '2025-01-08',
-      meta: {
-        methodology: {
-          Fees: methodology,
-          ProtocolRevenue: methodology
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: methodology,
+    ProtocolRevenue: methodology
   }
 }
 export default adapter;

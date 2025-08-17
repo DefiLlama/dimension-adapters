@@ -74,11 +74,9 @@ const adapter: Adapter = {
     [CHAIN.SUI]: {
       fetch: fetchSteammStats,
       start: "2025-02-16",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

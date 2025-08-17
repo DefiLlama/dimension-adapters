@@ -8,7 +8,7 @@ import { queryDuneSql } from "../helpers/dune"
 // https://solscan.io/account/AEBoqzQU3fDYzhVmaRedcNeVcQQSMEqCAuQ2A7pYNEd7
 
 
-const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     // Swap fee receivers
     '8tA49tvPiTCkeVfuTms1F2nwVg6FWpQsQ8eNZ4g9vVQF',
@@ -63,7 +63,7 @@ const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   for (const row of res) {
-    dailyFees.add(row.mint, row.total_amount );
+    dailyFees.add(row.mint, row.total_amount);
   }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
@@ -75,16 +75,14 @@ const adapters: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2022-09-14',
-      meta: {
-        methodology: {
-          Fees: "Tokens trading and launching fees paid by users.",
-          Revenue: "All fees are revenue.",
-          ProtocolRevenue: "All revenue collected by protocol.",
-        }
-      }
     }
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Tokens trading and launching fees paid by users.",
+    Revenue: "All fees are revenue.",
+    ProtocolRevenue: "All revenue collected by protocol.",
+  }
 }
 
 export default adapters

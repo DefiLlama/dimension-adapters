@@ -60,13 +60,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2023-09-07',
-      meta: {
-        methodology,
-      }
     },
   },
 };

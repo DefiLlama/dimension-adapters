@@ -93,6 +93,7 @@ async function getAddresses(chain, api) {
 }
 
 export default {
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: (async ({ getLogs, createBalances, api}) => {
@@ -129,9 +130,6 @@ export default {
         })
         return { dailyFees, dailyProtocolRevenue, dailyUserFees, dailyVolume, }
       }) as FetchV2,
-      meta: {
-        methodology
-      },
       start: '2024-08-15',
     },
     [CHAIN.BASE]: {
@@ -171,9 +169,6 @@ export default {
             return { dailyFees, dailyProtocolRevenue, dailyUserFees, dailyVolume }
         }) as FetchV2,
         start: '2024-09-12',
-        meta: {
-            methodology
-        }
       },
   },
   version: 2,

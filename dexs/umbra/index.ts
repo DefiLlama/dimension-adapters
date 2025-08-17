@@ -58,13 +58,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.ECLIPSE]: {
       fetch: fetch,
       start: '2025-02-22',
-      meta: {
-        methodology: {
-          Volume:
-            "USD Volume of Umbra V3 using datasource from protocol's indexed data.",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume:
+      "USD Volume of Umbra V3 using datasource from protocol's indexed data.",
   },
 };
 
