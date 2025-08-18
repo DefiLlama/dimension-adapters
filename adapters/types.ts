@@ -144,8 +144,6 @@ export type FetchResultFees = FetchResultBase & {
   totalFees?: FetchResponseValue;
   dailyFees?: FetchResponseValue;
   dailyUserFees?: FetchResponseValue;
-  dailyOtherFees?: FetchResponseValue;
-  totalOtherFees?: FetchResponseValue;
   totalRevenue?: FetchResponseValue;
   dailyRevenue?: FetchResponseValue;
   dailyProtocolRevenue?: FetchResponseValue;
@@ -157,6 +155,12 @@ export type FetchResultFees = FetchResultBase & {
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
   totalHoldersRevenue?: FetchResponseValue;
+  dailyOtherIncome?: FetchResponseValue;
+  totalOtherIncome?: FetchResponseValue;
+  dailyOperatingIncome?: FetchResponseValue;
+  totalOperatingIncome?: FetchResponseValue;
+  dailyNetIncome?: FetchResponseValue;
+  totalNetIncome?: FetchResponseValue;
 };
 
 // INCENTIVES
