@@ -67,10 +67,6 @@ const TOKENS_QUERY = gql`
   }
 `
 
-function isNativeUnderlying(address?: string | null): boolean {
-  if (!address) return true
-  return address.toLowerCase() === ZERO_ADDRESS
-}
 
 async function fetchTorexes(chain: string): Promise<Torex[]> {
   const endpoint = TOREX_GRAPHQL_ENDPOINTS[chain]
@@ -132,16 +128,7 @@ async function fetchDailyVolume(options: FetchOptions) {
   const torexes = await fetchTorexes(chain)
   const dailyVolumeBalances = new Balances({ chain, timestamp: endTimestamp })
   if (!torexes.length) return { dailyVolume: dailyVolumeBalances }
-
   const endpoint = SUPERFLUID_PROTOCOL_SUBGRAPH[chain]
-
-  function scaleAmountToDecimals(raw: bigint, fromDec: number, toDec: number): bigint {
-    const diff = fromDec - toDec
-    if (diff > 0) return raw / (10n ** BigInt(diff))
-    if (diff < 0) return raw * (10n ** BigInt(-diff))
-    return raw
-  }
-
   const superTokenIds = Array.from(new Set(torexes.map(t => t.inToken.id.toLowerCase())))
   const { tokens } = await request<{ tokens: any[] }>(endpoint, TOKENS_QUERY, { ids: superTokenIds })
   const tokenMap = new Map(tokens.map(t => [t.id.toLowerCase(), t]))
@@ -160,24 +147,19 @@ async function fetchDailyVolume(options: FetchOptions) {
     const token = tokenMap.get(torex.inToken.id.toLowerCase())
     if (!token) continue
     
-    const isNative = !!token.isNativeAssetSuperToken
-    const underlyingAddr = (token.underlyingAddress || ZERO_ADDRESS).toLowerCase()
-    const underlyingToken = token.underlyingToken || {}
-    const underlyingDecimals = Number(underlyingToken.decimals)
-    const actualUnderlyingId = (underlyingToken.id || underlyingAddr || ZERO_ADDRESS).toLowerCase()
-    
-
-    if (isNative) {
+    if (token.isNativeAssetSuperToken) {
+      // Native SuperToken (ETHx) - use zero address for native token pricing
       dailyVolumeBalances.add(ZERO_ADDRESS, amount.toString())
-    } else if (isNativeUnderlying(underlyingAddr)) {
-      const tokens = amount / (10n ** BigInt(18))
-      if (tokens > 0n) {
-        dailyVolumeBalances.add(torex.inToken.id.toLowerCase(), tokens.toString())
-      }
+    } else if (!token.underlyingToken || !token.underlyingToken.id) {
+      // Pure SuperToken (no underlying) - use SuperToken address itself
+        dailyVolumeBalances.add(torex.inToken.id.toLowerCase(), amount.toString())
     } else {
-      const scaled = scaleAmountToDecimals(amount, 18, underlyingDecimals)
+      // Wrapped SuperToken - use underlying token address
+      const underlyingDecimals = Number(token.underlyingToken.decimals)
+      // SuperTokens have 18 decimals, but underlying tokens may have different decimals for tokens like USDC , so scaling down here if necessary
+      const scaled = amount / (10n ** BigInt(18 - underlyingDecimals))
       if (scaled > 0n) {
-        dailyVolumeBalances.add(actualUnderlyingId, scaled.toString())
+        dailyVolumeBalances.add(token.underlyingToken.id.toLowerCase(), scaled.toString())
       }
     }
   }
