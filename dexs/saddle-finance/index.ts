@@ -22,11 +22,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(CHAIN.ARBITRUM),
-      start: 1659750817,
+      start: '2022-08-06',
     },
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
-      start: 1628128417,
+      start: '2021-08-05',
     },
   },
 };

@@ -1,22 +1,25 @@
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter({
+const endpoints = {
   [CHAIN.CUBE]: "https://info.capricorn.finance/subgraphs/name/cube/dex-subgraph"
-}, {
+};
+
+const fetch = univ2Adapter({
+  endpoints,
   factoriesName: "hswapFactories",
   dayData: "hswapDayData",
 });
 
-adapters.adapter[CHAIN.CUBE].start = 1630000000;
-adapters.adapter[CHAIN.CUBE].fetch = async (timestamp: number) => {
-  return {
+const adapter: SimpleAdapter = {
+  version: 1,
+  deadFrom: '2023-07-09',
+  fetch: async() => ({
     dailyVolume: 0,
-    timestamp,
-  }
+  }),
+  chains: Object.keys(endpoints),
+  start: 1632326400,
 }
 
-adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
-export default adapters;
+export default adapter;

@@ -1,12 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
-import {
-  getGraphDimensions,
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  getGraphDimensions2,
-} from "../../helpers/getUniSubgraph"
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 type TStartTime = {
   [key: string]: number;
@@ -28,31 +23,34 @@ const getBribes = async ({ fromTimestamp, toTimestamp, createBalances, getFromBl
   };
 };
 
-const v2Endpoints = {
-  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/66247/nile-cl/version/latest/",
-};
+// const v2Endpoints = {
+//   [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/66247/nile-cl/version/latest/",
+// };
 
-const v2Graphs = getGraphDimensions2({
-  graphUrls: v2Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "fees",
-    HoldersRevenue: 72,
-    ProtocolRevenue: 8,
-    SupplySideRevenue: 20,
-    UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80 // Revenue is 100% of collected fees
-  }
-});
+// const v2Graphs = getGraphDimensions2({
+//   graphUrls: v2Endpoints,
+//   totalVolume: {
+//     factory: "factories",
+//     field: DEFAULT_TOTAL_VOLUME_FIELD,
+//   },
+//   feesPercent: {
+//     type: "fees",
+//     HoldersRevenue: 92,
+//     ProtocolRevenue: 8,
+//     SupplySideRevenue: 0,
+//     UserFees: 100, // User fees are 100% of collected fees
+//     Revenue: 100 // Revenue is 100% of collected fees
+//   }
+// });
+
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const methodology = {
+  Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
-  HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
-  SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
+  Revenue: "100% fees are revenue",
+  ProtocolRevenue: "Revenue going to the protocol. 8% of collected fees. (is probably right because the distribution is dynamic.)",
+  HoldersRevenue: "User fees are distributed among holders. 92% of collected fees. (is probably right because the distribution is dynamic.)",
+  SupplySideRevenue: "0% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
 }
 
 const adapter: Adapter = {
@@ -60,21 +58,18 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: async (options: FetchOptions) => {
-        const v2Result = await v2Graphs(CHAIN.LINEA)(options)
-        const bribesResult = await getBribes(options);
-        v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
+        const adapter = getUniV3LogAdapter({ factory: "0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42", revenueRatio: 1, userFeesRatio: 1, protocolRevenueRatio: 0.08, holdersRevenueRatio: 0.92 })
+        const response = await adapter(options)
 
-        return v2Result;
+        const bribesResult = await getBribes(options);
+        response.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
+
+        return response;
       },
       start: startTimeV2[CHAIN.LINEA],
-      meta: {
-        methodology: {
-          ...methodology,
-          UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-        },
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

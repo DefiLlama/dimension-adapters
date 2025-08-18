@@ -25,7 +25,7 @@ const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
   const res = await new GraphQLClient(historicalVolumeEndpoint).request(query);
   const dailyVolume = res.poolDayData.aggregates.sum.volumeInUSD;
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -34,7 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ORAI]: {
       fetch,
-      start: 1722587676,
+      start: '2024-08-02',
     },
   },
 };

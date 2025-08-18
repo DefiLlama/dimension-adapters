@@ -8,7 +8,7 @@ const methodology = {
   UserFees: "Users pay trade fees on each swap.",
   ProtocolRevenue: "Protocol receives some % of trade fees.",
   SupplySideRevenue: "User fees minus Protocol fees.",
-  HoldersRevenue: "Holders benefit from buyback using Protocol fees."
+  HoldersRevenue: "ELITE Holders benefit from Protocol Revenue."
 }
 
 
@@ -16,10 +16,10 @@ const adapters: SimpleAdapter = uniV3Exports({
   [CHAIN.FANTOM]: { factory: poolFactoryAddress, },
   [CHAIN.ARBITRUM]: { factory: poolFactoryAddress, },
   [CHAIN.BASE]: { factory: poolFactoryAddress, },
+  //[CHAIN.XDAI]: { factory: poolFactoryAddress, },
+  //[CHAIN.BSC]: { factory: poolFactoryAddress, },
+  [CHAIN.SONIC]: { factory: poolFactoryAddress, },
 })
 
-
-Object.keys(adapters.adapter).forEach((chain: any) => {
-  adapters.adapter[chain].meta = { methodology }
-})
+adapters.methodology = methodology
 export default adapters;

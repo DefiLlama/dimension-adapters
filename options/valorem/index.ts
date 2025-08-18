@@ -1,6 +1,6 @@
 import { Adapter } from "../../adapters/types";
 import { ARBITRUM } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints, FetchResultOptions } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
@@ -118,11 +118,9 @@ const adapter: Adapter = {
     [ARBITRUM]: {
       fetch: graphOptions(endpoints)(ARBITRUM),
       start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

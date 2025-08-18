@@ -1,50 +1,6 @@
-import * as sdk from "@defillama/sdk";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import { fetchV2Volume } from "./v2"
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('2bam2XEb91cFqABFPSKj3RiSjpop9HvDt1MnYq5cDX5E'),
-};
-
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
-
-
-
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions) => {
-    const [v1] = await Promise.all([graphs(chain)(options)])
-    const dailyVolume = Number(v1.dailyVolume);
-    return {
-      dailyVolume: `${dailyVolume}`,
-    }
-  }
-}
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: 1677110400
-    },
-    [CHAIN.MODE]: {
-      fetch: fetchV2Volume,
-      start: 1715763701
-    },
-    [CHAIN.BOB]: {
-      fetch: fetchV2Volume,
-      start: 1715763701
-    }
-  },
-};
-
-export default adapter;
+export default uniV2Exports({
+  [CHAIN.OPTIMISM]: { factory: "0x25CbdDb98b35ab1FF77413456B31EC81A6B6B746", fees: 0.0005, stableFees: 0.0002, start: '2023-02-23' },
+})

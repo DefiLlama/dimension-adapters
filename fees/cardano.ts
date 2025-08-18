@@ -29,12 +29,14 @@ const adapterQuery = async (form: string, till: string, network: string): Promis
     variables: value
   });
 
-  const headers =  {"X-API-KEY": getEnv('BIT_QUERY_API_KEY'), "Content-Type": "application/json"};
+  const headers =  {"Authorization": `Bearer ${getEnv('BIT_QUERY_API_KEY')}`, "Content-Type": "application/json"};
   const result: ITxAda[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.cardano.transactions;
 
   return result;
 }
+
 const startTime = 1577836800;
+
 const fetch = async (timestamp: number , _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResult> => {
   const dailyFees = createBalances()
   const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
@@ -43,13 +45,11 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances }: Fet
   const form = new Date(startTimestamp * 1000).toISOString().split('T')[0];
   const till = new Date((tillTimestamp - 1) * 1000).toISOString();
   const result: ITxAda[] = await adapterQuery(form, till, "cardano");
-  const totalFees = result.filter((a: ITxAda) => new Date(a.date.date).getTime() <= new Date(till).getTime()).reduce((a: number, b: ITxAda)=> a + b.feeValue, 0);
   const _dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
   dailyFees.addCGToken('cardano', _dailyFees)
+
   return {
-    timestamp,
     dailyFees,
-    // totalFees,
   };
 };
 
@@ -57,10 +57,11 @@ const adapter: Adapter = {
   version: 1,
   adapter: {
     [CHAIN.CARDANO]: {
-        fetch: fetch,
-        start: 1577836800,
+        fetch,
+        start: '2020-01-01',
     },
   },
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN
 }
 

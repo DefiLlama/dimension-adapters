@@ -1,16 +1,21 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { graphDimensionFetch } from "../../helpers/getUniSubgraph";
 
 const v2Endpoints = {
   [CHAIN.MANTLE]: "https://graphv3.fusionx.finance/subgraphs/name/fusionx/exchange"
 }
 
-const v2Graphs = getGraphDimensions2({
+const v2graph = graphDimensionFetch({
   graphUrls: v2Endpoints,
-  totalVolume: {
-    factory: "fusionxFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
+  dailyVolume: {
+    factory: "fusionxDayData",
+    field: "dailyVolumeUSD",
+    dateField: "date"
+  },
+  dailyFees: {
+    factory: 'fusionxDayData',
+    field: 'dailyVolumeUSD',
   },
   feesPercent: {
     type: "volume",
@@ -21,14 +26,21 @@ const v2Graphs = getGraphDimensions2({
     SupplySideRevenue: 0.17, // 66% of fees are going to LPs
     Revenue: 0.08 // Revenue is 33% of collected fees
   }
-});
+}
+)
+
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+  const res = await v2graph(_a, _b, options);
+  res['dailyFees'] = res['dailyUserFees']
+  return res;
+}
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.MANTLE]: {
-      fetch: v2Graphs(CHAIN.MANTLE),
-      start: 1689206400,
+      fetch,
+      start: '2023-07-13',
     },
   },
 };

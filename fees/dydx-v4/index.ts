@@ -13,6 +13,7 @@ const fetchFees  = async (timestamp: number, _t: ChainBlocks ,options: FetchOpti
   const item: IFees[] = Object.values(res)
   const dailyFees = item.find((i) => i.day.split('T')[0] === dateStr)?.sum_tradingfeecollection
   const dailyFeesNum = dailyFees ? parseFloat(dailyFees) : undefined
+
   return {
     dailyFees: dailyFeesNum,
     dailyRevenue: dailyFeesNum,
@@ -25,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     "dydx": {
       fetch: fetchFees,
-      start: 1699747200,
+      start: '2023-11-12',
     }
   }
 }

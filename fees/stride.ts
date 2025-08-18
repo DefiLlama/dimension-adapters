@@ -28,7 +28,7 @@ const fetch = (chain: string) => {
   };
 };
 
-const meta = {
+const info = {
   methodology: {
     Fees: "Fees are staking rewards earned by tokens staked with Stride. They are measured across Stride's LSD tokens' yields and converted to USD terms.",
     Revenue:
@@ -37,91 +37,23 @@ const meta = {
 };
 
 const adapter: Adapter = {
+  runAtCurrTime: true,
+  methodology: info.methodology,
   adapter: {
-    [CHAIN.COSMOS]: {
-      fetch: fetch("cosmos"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    celestia: {
-      fetch: fetch("celestia"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    osmosis: {
-      fetch: fetch("osmosis"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    dydx: {
-      fetch: fetch("dydx"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    dymension: {
-      fetch: fetch("dymension"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    juno: {
-      fetch: fetch("juno"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    stargaze: {
-      fetch: fetch("stargaze"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    terra: {
-      fetch: fetch("terra"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    evmos: {
-      fetch: fetch("evmos"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    injective: {
-      fetch: fetch("injective"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    umee: {
-      fetch: fetch("umee"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    comdex: {
-      fetch: fetch("comdex"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    haqq: {
-      fetch: fetch("haqq"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    band: {
-      fetch: fetch("band"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
+    [CHAIN.COSMOS]: { fetch: fetch("cosmos"), },
+    celestia: { fetch: fetch("celestia"), },
+    osmosis: { fetch: fetch("osmosis"), },
+    dydx: { fetch: fetch("dydx"), },
+    dymension: { fetch: fetch("dymension"), },
+    juno: { fetch: fetch("juno"), },
+    stargaze: { fetch: fetch("stargaze"), },
+    terra: { fetch: fetch("terra"), },
+    evmos: { fetch: fetch("evmos"), },
+    injective: { fetch: fetch("injective"), },
+    umee: { fetch: fetch("umee"), },
+    comdex: { fetch: fetch("comdex"), },
+    islm: { fetch: fetch("haqq"), },
+    band: { fetch: fetch("band"), },
   },
 };
 

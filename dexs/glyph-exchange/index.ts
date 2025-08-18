@@ -1,5 +1,4 @@
-import { BreakdownAdapter } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
@@ -25,34 +24,38 @@ const graphsClassic = getGraphDimensions2({
     factory: "glyphFactories",
     field: VOLUME_FIELD,
   },
+  totalFees: {
+    factory: "glyphFactories",
+    field: VOLUME_FIELD,
+  },
   feesPercent
 });
+
+const fetch = async (options: FetchOptions) => {
+  const res = await graphsClassic(options);
+  res['dailyFees'] = res['dailyUserFees']
+  return res;
+}
 
 const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: graphsClassic(chain as Chain),
-      start: 1710806400,
-      meta: {
-        methodology: {
-          Fees: "GlyphExchange charges a flat 0.3% fee",
-          UserFees: "Users pay a 0.3% fee on each trade",
-          Revenue: "A 0.12% of each trade goes to treasury",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue: "Liquidity providers get 6/10 of all trades in their pools"
-        }
-      }
+      fetch,
+      start: '2024-03-19',
     },
   }),
   {}
 ) as any;
 
-const adapter: BreakdownAdapter = {
+export default {
   version: 2,
-  breakdown: {
-    classic: classic,
+  adapter: classic,
+  methodology: {
+    Fees: "GlyphExchange charges a flat 0.3% fee",
+    UserFees: "Users pay a 0.3% fee on each trade",
+    Revenue: "A 0.12% of each trade goes to treasury",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get 6/10 of all trades in their pools"
   }
 }
-
-export default adapter

@@ -38,13 +38,11 @@ const adapter: Adapter = {
     [FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
         runAtCurrTime: true,
-        start: 0,
-    },
+            },
     [OPTIMISM]: {
       fetch: graphs()(CHAIN.OPTIMISM),
       runAtCurrTime: true,
-      start: 0,
-  },
+        },
   },
 }
 

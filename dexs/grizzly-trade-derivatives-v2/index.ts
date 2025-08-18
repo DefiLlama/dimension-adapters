@@ -55,13 +55,11 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+        methodology,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(),
-      start: async () => 1706832000,
-      meta: {
-        methodology,
-      },
+      start: '2024-02-02',
     },
   },
 };

@@ -7,7 +7,7 @@ import type {
   ChainEndpoints,
   FetchOptions,
 } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const priceUrl = "https://api.aladdin.club/api/coingecko/price";
@@ -55,7 +55,7 @@ const adapter: Adapter = {
   adapter: {
     [ETHEREUM]: {
       fetch: graph(endpoints)(ETHEREUM),
-      start: 1667911902,
+      start: '2022-11-08',
     },
   },
 };

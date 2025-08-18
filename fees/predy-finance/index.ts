@@ -1,14 +1,14 @@
 import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
 import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
-import { DISABLED_ADAPTER_KEY, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
+import { FetchOptions, type BreakdownAdapter, type ChainEndpoints } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { getPrices } from "../../utils/prices";
-import { getAsset } from "./queries";
-import disabledAdapter from "../../helpers/disabledAdapter";
+
+
+const ControllerAbi = ["function getAsset(uint256 _id) view returns ((uint256 id, uint256 pairGroupId, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) stablePool, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) underlyingPool, (uint256 riskRatio, int24 rangeSize, int24 rebalanceThreshold) riskParams, (address uniswapPool, int24 tickLower, int24 tickUpper, uint64 numRebalance, uint256 totalAmount, uint256 borrowedAmount, uint256 lastRebalanceTotalSquartAmount, uint256 lastFee0Growth, uint256 lastFee1Growth, uint256 borrowPremium0Growth, uint256 borrowPremium1Growth, uint256 fee0Growth, uint256 fee1Growth, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionUnderlying, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionStable, int256 rebalanceFeeGrowthUnderlying, int256 rebalanceFeeGrowthStable) sqrtAssetStatus, bool isMarginZero, bool isIsolatedMode, uint256 lastUpdateTimestamp))"]
 
 const v3endpoints = {
   [CHAIN.ARBITRUM]:
@@ -20,7 +20,7 @@ const v320endpoints = {
     sdk.graph.modifyEndpoint('5icuXT29ipuwqJBF1qux8eA1zskVazyYNq9NzQvoB6eS'),
 };
 
-const v5endpoints = {
+const v5endpoints: Record<string, string> = {
   [CHAIN.ARBITRUM]:
     sdk.graph.modifyEndpoint('GxfTCbMfhaBSJaXHj88Ja1iVG9CXwGWhVQsQ8YA7oLdo'),
 };
@@ -40,69 +40,65 @@ let decimalByAddress: { [key: string]: number } = {
   "0x589d35656641d6aB57A545F08cf473eCD9B6D5F7": GYEN_DECIMAL,
 };
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const dayTime = getTimestampAtStartOfDayUTC(timestamp);
-      const graphUrl = graphUrls[chain];
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
+  const dayTime = getTimestampAtStartOfDayUTC(timestamp);
+  const graphUrl = v5endpoints[options.chain];
 
-      // ETH oracle price
-      const ethAddress = "ethereum:" + ADDRESSES.null;
-      const ethPrice = (await getPrices([ethAddress], dayTime))[ethAddress]
-        .price;
+  // ETH oracle price
+  const ethAddress = "ethereum:" + ADDRESSES.null;
+  const ethPrice = (await getPrices([ethAddress], dayTime))[ethAddress]
+    .price;
 
-      // Set date string parmas which are used by queries
-      const todaysDateParts = formatTimestampAsDate(dayTime.toString()).split(
-        "/"
-      );
-      const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
-      const previousDateUTC = dayTime - 60 * 60 * 24;
-      const previousDateParts = formatTimestampAsDate(
-        previousDateUTC.toString()
-      ).split("/");
-      const previousDateString = `${previousDateParts[2]}-${previousDateParts[1]}-${previousDateParts[0]}`;
+  // Set date string params which are used by queries
+  const todaysDateParts = formatTimestampAsDate(dayTime.toString()).split(
+    "/"
+  );
+  const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
+  const previousDateUTC = dayTime - 60 * 60 * 24;
+  const previousDateParts = formatTimestampAsDate(
+    previousDateUTC.toString()
+  ).split("/");
+  const previousDateString = `${previousDateParts[2]}-${previousDateParts[1]}-${previousDateParts[0]}`;
 
-      /* Set daily fees and daily revenue */
-      let dailyFees: BigNumber | undefined = undefined;
-      let dailyRevenue: BigNumber | undefined = undefined;
-      let dailySupplySideRevenue: BigNumber | undefined = undefined;
+  /* Set daily fees and daily revenue */
+  let dailyFees: BigNumber | undefined = undefined;
+  let dailyRevenue: BigNumber | undefined = undefined;
+  let dailySupplySideRevenue: BigNumber | undefined = undefined;
 
-      if (graphUrl === v3endpoints[CHAIN.ARBITRUM]) {
-        dailyFees = await v3DailyFees(todaysDateString, graphUrl, ethPrice);
-        dailyRevenue = await v3DailyRevenue(
-          todaysDateString,
-          previousDateString,
-          graphUrl,
-          ethPrice
-        );
-        dailySupplySideRevenue = dailyFees && dailyRevenue ? dailyFees.minus(dailyRevenue) : undefined;
-      } else if (graphUrl === v320endpoints[CHAIN.ARBITRUM]) {
-        [dailyFees, dailySupplySideRevenue] = await v320DailyFeesAndSupplySideRevenue(
-          todaysDateString,
-          graphUrl,
-          ethPrice,
-        );
-        dailyRevenue = await v3DailyRevenue(
-          todaysDateString,
-          previousDateString,
-          graphUrl,
-          ethPrice,
-          true
-        );
-      } else if (graphUrl === v5endpoints[CHAIN.ARBITRUM]) { 
-        dailyFees = await v5DailyFees(todaysDateString, graphUrl);
-        dailyRevenue = undefined;
-        dailySupplySideRevenue = undefined;
-      }
+  if (graphUrl === v3endpoints[CHAIN.ARBITRUM]) {
+    dailyFees = await v3DailyFees(todaysDateString, graphUrl, ethPrice);
+    dailyRevenue = await v3DailyRevenue(
+      todaysDateString,
+      previousDateString,
+      graphUrl,
+      ethPrice
+    );
+    dailySupplySideRevenue = dailyFees && dailyRevenue ? dailyFees.minus(dailyRevenue) : undefined;
+  } else if (graphUrl === v320endpoints[CHAIN.ARBITRUM]) {
+    [dailyFees, dailySupplySideRevenue] = await v320DailyFeesAndSupplySideRevenue(
+      todaysDateString,
+      graphUrl,
+      ethPrice,
+    );
+    dailyRevenue = await v3DailyRevenue(
+      todaysDateString,
+      previousDateString,
+      graphUrl,
+      ethPrice,
+      true
+    );
+  } else if (graphUrl === v5endpoints[CHAIN.ARBITRUM]) {
+    dailyFees = await v5DailyFees(todaysDateString, graphUrl, options);
+    dailyRevenue = undefined;
+    dailySupplySideRevenue = undefined;
+  }
 
-      return {
-        timestamp,
-        dailyFees: dailyFees?.toString(),
-        dailyRevenue: dailyRevenue?.toString(),
-        dailySupplySideRevenue: dailySupplySideRevenue?.toString(),
-      };
-    };
-  };
+  return {
+    timestamp,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+  } as any
 };
 
 const v3DailyFees = async (
@@ -248,7 +244,8 @@ const v320DailyFeesAndSupplySideRevenue = async (
 
 const v5DailyFees = async (
   todaysDateString: string,
-  graphUrl: string
+  graphUrl: string,
+  options: FetchOptions,
 ): Promise<BigNumber | undefined> => {
 
   // Get latest pair number
@@ -269,13 +266,19 @@ const v5DailyFees = async (
   const latestPairNumber = result.pairEntities[0].id;
 
   const controllerAddress = "0x06a61e55d4d4659b1a23c0f20aedfc013c489829";
-  
+  const calls: any = []
+  for (let i = 1; i <= latestPairNumber; i++)
+    calls.push(i)
+
+  const queryRes = await options.api.multiCall({ abi: ControllerAbi[0], calls, target: controllerAddress, })
+
+
   let usersPaymentFees: BigNumber = BigNumber(0);
-  
+
   // Retrieve daily fees for each pair
   for (let i = 1; i <= latestPairNumber; i++) {
     const pairId = i;
-    const pairStatus = await getAsset(controllerAddress, pairId);
+    const pairStatus = queryRes[i - 1]
 
     // Each pair has two tokens, stableToken and underlyingToken.
     // Several tokens have different decimals, we need to set decimals for each token.
@@ -341,7 +344,7 @@ const v5DailyFees = async (
       usersPaymentFees = usersPaymentFees.plus(borrowPremium);
     }
   }
-  
+
   return usersPaymentFees;
 }
 const v3DailyRevenue = async (
@@ -394,12 +397,12 @@ const v3DailyRevenue = async (
       // USDC
       dailyFee0 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
       ).div(USDC_DECIMAL);
       // ETH
       dailyFee1 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
       )
         .times(ethPrice)
         .div(ETH_DECIMAL);
@@ -407,14 +410,14 @@ const v3DailyRevenue = async (
       // ETH
       dailyFee0 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee0
       )
         .times(ethPrice)
         .div(ETH_DECIMAL);
       // USDC
       dailyFee1 = new BigNumber(
         todayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1 -
-          previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
+        previousDayResults.accumulatedProtocolFeeDaily.accumulatedProtocolFee1
       );
     }
     dailyRevenue = dailyFee0.plus(dailyFee1);
@@ -427,17 +430,15 @@ const adapter: BreakdownAdapter = {
   version: 1,
   breakdown: {
     v3: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      [CHAIN.ARBITRUM]: disabledAdapter,
+      [CHAIN.ARBITRUM]: { fetch: async () => ({}), },
     },
     v320: {
-      [DISABLED_ADAPTER_KEY]: disabledAdapter,
-      [CHAIN.ARBITRUM]: disabledAdapter,
+      [CHAIN.ARBITRUM]: { fetch: async () => ({}), },
     },
     v5: {
       [CHAIN.ARBITRUM]: {
-        fetch: graphs(v5endpoints)(CHAIN.ARBITRUM),
-        start: 1688490168,
+        fetch,
+        start: '2023-07-04',
       },
     },
   },

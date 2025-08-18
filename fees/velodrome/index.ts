@@ -1,14 +1,22 @@
-import { Adapter, } from '../../adapters/types';
-import { OPTIMISM } from '../../helpers/chains';
-import { fetchV1 } from './velodrome';
+import adapter from "../../dexs/velodrome";
+import { CHAIN } from "../../helpers/chains";
 
-const adapter: Adapter = {
+let _fetch = adapter.adapter[CHAIN.OPTIMISM].fetch;
+const fetch = async (options) => {
+  let res = await (_fetch as any)(options)
+  return {
+    dailyFees: res.dailyFees,
+    dailyRevenue: res.dailyFees,
+    dailyHoldersRevenue: res.dailyFees,
+  }
+}
+
+export default {
   version: 2,
   adapter: {
-    [OPTIMISM]: {
-      fetch: fetchV1(),
-      start: 1677110400, // TODO: Add accurate timestamp
-    },
-  },
-};
-export default adapter;
+    [CHAIN.OPTIMISM]: {
+      start: adapter.adapter[CHAIN.OPTIMISM].start,
+      fetch,
+    }
+  }
+}

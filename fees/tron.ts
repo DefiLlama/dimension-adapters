@@ -15,15 +15,20 @@ const adapter: Adapter = {
 
         return {
           timestamp,
-          dailyFees: dailyFees,
+          dailyFees,
           dailyRevenue: dailyFees,
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: 1575158400
+      start: '2019-12-01',
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Gas fees paid by users.',
+    Revenue: 'Amount of TRX fees were burned.',
+    HoldersRevenue: 'Amount of TRX fees were burned.',
+  }
 }
 
 export default adapter;

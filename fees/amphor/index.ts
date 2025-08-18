@@ -53,13 +53,11 @@ const adapter: Adapter = {
     adapter: {
         [ETHEREUM]: {
             fetch: data,
-            start: 1696611600,
-            meta: {
-                methodology
-            }
+            start: '2023-10-06',
         }
     },
-    version: 2
+    version: 2,
+    methodology
 }
 
 export default adapter;

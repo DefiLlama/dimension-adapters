@@ -20,7 +20,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,
-      start: 1672531200
+      start: '2023-01-01'
     }
   }
 }

@@ -1,78 +1,44 @@
-import { FetchResult, ChainBlocks, BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
-import fetchURL from "../../utils/fetchURL"
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-
-interface BancorV2Response {
-  data: Array<{
-    timestamp: number
-    bnt: string
-    usd: string
-    eur: string
-    eth: string
-  }>
-}
-
-interface BancorV3Response {
-  bnt: string;
-  usd: string;
-  eur: string;
-  eth: string;
-}
-const v3Url = "https://api-v3.bancor.network/stats";
-
-const endpoints = {
-  ethereum: (date: number) =>
-    `https://api-v2.bancor.network/history/volume?interval=day&start_date=${date}`,
-};
-
-const fetchV3 = async (timestamp: number): Promise<FetchResult> => {
-  const res: BancorV3Response = (await fetchURL(v3Url)).data.totalVolume24h;
-  return {
-    timestamp,
-    dailyVolume: res.usd
-  }
-}
-
-const graphs = (chain: string) =>
-  async (timestamp: number, _chainBlocks: ChainBlocks): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    switch (chain) {
-      case "ethereum":
-        return fetchURL(endpoints.ethereum(dayTimestamp))
-          .then(({ data }: BancorV2Response) => {
-            const volume = data.find(item => (item.timestamp / 1000) === dayTimestamp)
-            if (!volume) throw new Error(`Unexpected error: No volume found for ${dayTimestamp}`)
-            return {
-              timestamp: dayTimestamp,
-              dailyVolume: volume?.usd || "0"
-            }
-          })
-      default:
-        throw new Error(`No adapter found for ${chain}`)
-    }
-  }
-
-
+import { filterPools2 } from "../../helpers/uniswap";
 
 const adapter: BreakdownAdapter = {
+  version: 2,
   breakdown: {
     "v2.1": {
       [CHAIN.ETHEREUM]: {
-        fetch: graphs("ethereum"),
-        runAtCurrTime: false,
-        customBackfill: undefined,
-        start: 1570665600,
+        fetch: fetchV2,
+        start: '2019-10-10',
       }
     },
     "v3": {
       [CHAIN.ETHEREUM]: {
         fetch: fetchV3,
-        runAtCurrTime: true,
-        start: 0,
       }
     }
   }
 }
 export default adapter;
+
+async function fetchV2(fetchOptions: FetchOptions) {
+  const { api, getLogs, createBalances, } = fetchOptions
+  const converterRegistry = '0xC0205e203F423Bcd8B2a4d6f8C8A154b0Aa60F19'
+  const smartTokens = await api.call({ abi: 'address[]:getLiquidityPools', target: converterRegistry })
+  const pools = await api.call({ abi: "function getConvertersBySmartTokens(address[] _smartTokens) view returns (address[])", target: converterRegistry, params: [smartTokens] });
+  const token1s = await api.multiCall({ abi: 'function connectorTokens(uint256) view returns (address)', calls: pools.map((i: any) => ({ target: i, params: [1] })) })
+  const token0s = await api.multiCall({ abi: 'function connectorTokens(uint256) view returns (address)', calls: pools.map((i: any) => ({ target: i, params: [0] })) })
+  const { pairs } = await filterPools2({ fetchOptions, pairs: pools, token0s, token1s, minUSDValue: 1e4, maxPairSize: 31 })
+  const logs = await getLogs({ targets: pairs, eventAbi: 'event Conversion (address indexed sourceToken, address indexed targetToken, address indexed trader, uint256 sourceAmount, uint256 targetAmount, int256 conversionFee)' })
+  const dailyVolume = createBalances()
+  logs.forEach((log: any) => dailyVolume.add(log.targetToken, log.targetAmount))
+
+  return { dailyVolume }
+}
+async function fetchV3(fetchOptions: FetchOptions) {
+  const { getLogs, createBalances, } = fetchOptions
+  const contract  = '0xeEF417e1D5CC832e619ae18D2F140De2999dD4fB'
+  const dailyVolume = createBalances()
+  const logs = await getLogs({ targets: [contract], eventAbi: 'event TokensTraded(bytes32 indexed contextId, address indexed sourceToken, address indexed targetToken, uint256 sourceAmount, uint256 targetAmount, uint256 bntAmount, uint256 targetFeeAmount, uint256 bntFeeAmount, address trader)' })
+  logs.forEach((log: any) => dailyVolume.add(log.targetToken, log.targetAmount))
+  return { dailyVolume }
+}

@@ -9,7 +9,7 @@ const fetch = async (timestamp: any): Promise<FetchResultVolume> => {
     );
     const dailyVolume = response.volume.volume;
     return {
-        dailyVolume: `${dailyVolume}`,
+        dailyVolume: dailyVolume,
         timestamp: startOfDay,
     };
 };
@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.CARDANO]: {
             fetch,
-            start: 1718251200,
+            start: '2024-06-13',
         },
     },
 };

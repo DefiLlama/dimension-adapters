@@ -73,7 +73,7 @@ const fetchFees = async (): Promise<FetchResultV2> => {
 
     return {
         dailyUserFees: dailyFees,
-        dailyFees: dailyFees,
+        dailyFees,
         dailySupplySideRevenue: dailyFees * FEES_PERCENT_TO_LP,
         dailyRevenue: dailyFees * (1 - FEES_PERCENT_TO_LP)
     }
@@ -83,15 +83,13 @@ export default {
     version: 2,
     adapter: {
         [CHAIN.TON]: {
-            start: 1700000000,
-            meta: {
-                methodology: {
-                    UserFees: "User pays fee on each swap (depends on pool, 0.1% - 1%).",
-                    Revenue: "Protocol receives 20% of fees, it is distributed among SCALE stakers.",
-                    SupplySideRevenue: "80% of user fees are distributed among LPs.",
-                },
-            },
+            start: '2023-11-14',
             fetch: fetchFees,
         },
+    },
+    methodology: {
+        UserFees: "User pays fee on each swap (depends on pool, 0.1% - 1%).",
+        Revenue: "Protocol receives 20% of fees, it is distributed among DUST stakers.",
+        SupplySideRevenue: "80% of user fees are distributed among LPs.",
     },
 }

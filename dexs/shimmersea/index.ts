@@ -9,7 +9,7 @@ const adapter: SimpleAdapter = {
       fetch: getUniV2LogAdapter({
         factory: "0x4fb5d3a06f5de2e88ce490e2e11d22b840d5ac47",
       }),
-      start: 1696377600,
+      start: '2023-10-04',
     },
   },
 };

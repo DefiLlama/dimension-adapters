@@ -12,7 +12,7 @@ const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   await addTokensReceived({ options, target: '0x6ceD48EfBb581A141667D7487222E42a3FA17cf7', fromAdddesses: fromAdddesses, balances: dailyFees, tokens: [ADDRESSES.polygon.USDC] })
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
   }
 }
@@ -22,8 +22,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1682899200,
+      start: '2023-05-01',
     }
-  }
+  },
+  methodology: {
+    Fees: "Total yields from RWA backing assets.",
+    Revenue: "Total yields from RWA backing assets.",
+    HoldersRevenue: "No holders revenue",
+  },
 }
 export default adapter;

@@ -14,9 +14,16 @@ interface IVaultsResponse {
   vaults: IVault[];
 }
 
-const ethereum_endpointId: string =
-  "3GhHcRwF6yH7WXGcJJvac9B5MHPuoXhS9uxc49TPqLf6";
-const avax_endpointId: string = "AmJzFkqot9NjxPCRLK8yXopYt3rtS736ZEX2zEFg7Tz2";
+const config = {
+  [CHAIN.ETHEREUM]: {
+    endpointId: "3GhHcRwF6yH7WXGcJJvac9B5MHPuoXhS9uxc49TPqLf6",
+    start: '2021-04-01',
+  },
+  [CHAIN.AVAX]: {
+    endpointId: "AmJzFkqot9NjxPCRLK8yXopYt3rtS736ZEX2zEFg7Tz2",
+    start: '2021-04-01',
+  }
+}
 
 const query = gql`
   query getVaults($block: Int!) {
@@ -30,20 +37,17 @@ const query = gql`
 `;
 
 const fetch = async (
-  endpointId: string,
-  { getStartBlock, getEndBlock, createBalances }: FetchOptions
+  { getStartBlock, getEndBlock, createBalances, chain }: FetchOptions
 ): Promise<FetchResultV2> => {
   const dailyFees = createBalances();
-  const totalFees = createBalances();
   const dailyVolume = createBalances();
-  const totalVolume = createBalances();
 
   const [prevDayBlock, toDayBlock] = await Promise.all([
     getStartBlock(),
     getEndBlock(),
   ]);
 
-  const endpoint = sdk.graph.modifyEndpoint(endpointId);
+  const endpoint = sdk.graph.modifyEndpoint(config[chain].endpointId);
 
   const [{ vaults: fromVaults }, { vaults: toVaults }] = await Promise.all([
     request<IVaultsResponse>(endpoint, query, { block: prevDayBlock - 50 }),
@@ -61,13 +65,11 @@ const fetch = async (
     const currVolume = toVault.totalNominalVolume;
 
     if (token) {
-      totalFees.add(token, currFee);
       const dailyFee = currFee - prevFee;
       if (dailyFee >= 0) {
         dailyFees.add(token, dailyFee);
       }
 
-      totalVolume.add(token, currVolume);
       const dailyVolumee = currVolume - prevVolume;
       if (dailyVolumee >= 0) {
         dailyVolume.add(token, dailyVolumee);
@@ -75,20 +77,23 @@ const fetch = async (
     }
   });
 
-  return { dailyFees, dailyVolume, totalFees, totalVolume };
+  return { dailyFees, dailyVolume };
 };
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: (options: FetchOptions) => fetch(ethereum_endpointId, options),
-      start: 1617228000,
+      fetch,
+      start: '2021-04-01',
     },
     [CHAIN.AVAX]: {
-      fetch: (options: FetchOptions) => fetch(avax_endpointId, options),
-      start: 1617228000,
+      fetch,
+      start: '2021-04-01',
     },
+  },
+  methodology: {
+    Fees: "Trading fees paid by users.",
   },
 };
 

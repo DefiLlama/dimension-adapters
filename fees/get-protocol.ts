@@ -67,9 +67,9 @@ const graphs = () => {
 
     return {
       timestamp,
-      dailyFees: dailyFees,
+      dailyFees,
       dailyUserFees: dailyUserFees,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailyHoldersRevenue: dailyHoldersRevenue,
       dailyProtocolRevenue: dailyProtocolRevenue,
     };
@@ -80,12 +80,13 @@ const adapter: Adapter = {
   adapter: {
     [POLYGON]: {
       fetch: graphs(),
-      start: 1630468800,
-      meta: {
-        methodology:
-          "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",
-      },
+      start: '2021-09-01',
     },
+  },
+  methodology: {
+    Fees: "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",
+    Revenue: "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",
+    HoldersRevenue: "Revenue distributed to token holders.",
   },
 };
 

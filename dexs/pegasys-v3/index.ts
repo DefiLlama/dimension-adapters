@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ROLLUX]: {
       fetch: graphs(CHAIN.ROLLUX),
-      start: 1688083200
+      start: '2023-06-30'
     },
   },
 };

@@ -23,8 +23,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem =>  dayItem.dateTime.split(' ')[0] === dateString)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.WEMIX]: {
       fetch,
-      start: 1676937600,
+      start: '2023-02-21',
     },
   },
 };

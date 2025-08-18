@@ -1,9 +1,8 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 
 const URL = "https://api.llama.fi/";
-const startTimestamp = 1675209600; // 04.01.2023
+
 const chains = [
   "ethereum",
   "bsc",
@@ -38,33 +37,28 @@ const chains = [
   "base",
 ];
 
-const fetch =
-  (chain: string) =>
-    async (timestamp: number): Promise<FetchResult> => {
-      const dayTimestamp = timestamp;
+const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+  const chain = options.chain
+  if (chain === 'heco') { return {} } // skip HECO for now
 
-      const dailyVolume = await fetchURL(
-        `${URL}getSwapDailyVolume/?timestamp=${dayTimestamp}&chain=${chain}`
-      );
-      const totalVolume = await fetchURL(
-        `${URL}getSwapTotalVolume/?timestamp=${dayTimestamp}&chain=${chain}`
-      );
+  const dailyVolume = await fetchURL(
+    `${URL}getSwapDailyVolume/?timestamp=${timestamp}&chain=${chain}`
+  );
 
-      return {
-        dailyVolume: dailyVolume.volume,
-        totalVolume: totalVolume.volume,
-        timestamp: dayTimestamp,
-      };
-    };
+  return {
+    dailyVolume: dailyVolume.volume,
+  };
+}
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {},
 };
 
 chains.map((chain) => {
   adapter.adapter[chain] = {
-    fetch: fetch(chain),
-    start: startTimestamp,
+    fetch,
+    start: '2023-01-04',
   };
 });
 

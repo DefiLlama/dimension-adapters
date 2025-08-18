@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: 1699488000,
+      start: '2023-11-09',
       runAtCurrTime: true,
     },
   },

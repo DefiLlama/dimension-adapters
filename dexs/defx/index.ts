@@ -17,9 +17,7 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   
   const returnObj = {
-    totalVolume: response?.data.totalVol?.toString(),
     dailyVolume: response?.data.dayVol?.toString(),
-    timestamp: dayTimestamp,
   };
   
   return returnObj;
@@ -29,7 +27,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: 1727780831,
+      start: '2024-10-01',
       runAtCurrTime: true
     },
   }

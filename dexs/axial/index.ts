@@ -1,35 +1,30 @@
-import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-
-const URL = "https://axial-api.snowapi.net/pools"
-
-interface IAPIResponse {
-  last_vol: string;
-};
-
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse[] = (await fetchURL(URL));
-  const dailyVolume = response
-    .reduce((acc, { last_vol }) => acc + Number(last_vol), 0);
-
-  return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
-  };
-};
+import { getSaddleVolume } from "../../helpers/saddle";
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1672704000,
+      start: '2023-01-03',
     },
   }
 };
 
 export default adapter;
+const abi = {
+  "poolLength": "uint256:poolLength",
+  "poolInfo": "function poolInfo(uint256) view returns (address lpToken, uint256 accAxialPerShare, uint256 lastRewardTimestamp, uint256 allocPoint, address rewarder)",
+  "owner": "address:owner"
+}
+
+async function fetch(options: FetchOptions) {
+  const { api } = options
+  const AXIAL_MASTERCHEF_V3 = "0x958C0d0baA8F220846d3966742D4Fb5edc5493D3";
+  const pools = (await api.fetchList({  lengthAbi: abi.poolLength, itemAbi: abi.poolInfo, target: AXIAL_MASTERCHEF_V3})).map((i: any) => i.lpToken)
+  const vaults = (await api.multiCall({  abi: abi.owner, calls: pools, permitFailure: true,})).filter(i => i)
+  return getSaddleVolume(options, vaults)
+
+}
+

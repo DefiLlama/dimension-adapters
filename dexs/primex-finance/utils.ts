@@ -20,7 +20,7 @@ const config: { [chain: string]: ChainConfig } = {
       "0xc611c8c3689B67096180289643Bd086ae5833ADC",
       "0xc10771D8f5B6Ba702E3a44EC76969f07578F08b7",
     ],
-    start: 1697587200,
+    start: '2023-10-18',
   },
   [CHAIN.ARBITRUM]: {
     swapManager: [
@@ -32,7 +32,7 @@ const config: { [chain: string]: ChainConfig } = {
       "0xF2225a8f90311DaF9e989db1AfFd47617bb69E96",
       "0xE81ed447d923153f51207fdc41973B204F085f21",
     ],
-    start: 1700611200,
+    start: '2023-11-22',
   },
   [CHAIN.ETHEREUM]: {
     swapManager: [
@@ -44,10 +44,15 @@ const config: { [chain: string]: ChainConfig } = {
       "0x1da9c104C517C7b4465c8Eef458Da0a6c61835Fe",
       "0x2ff2D294312D3224d609fCc0b2EeE82b5f665753",
     ],
-    start: 1702771200,
+    start: '2023-12-17',
+  },
+  [CHAIN.BASE]: {
+    swapManager: ["0xFFdf60c0f83be68C906fb5B8c481A719845bb0a0"],
+    positionManager: ["0x01ED183275956dBd0064B789B778cA0921e695E9"],
+    batchManager: ["0x09641d48cF6644c9059004bA8605a76C6334700A",],
+    start: "2024-12-06",
   },
 };
-
 const topics = {
   swap: "0x5fcf6637f014854f918b233372226c5492e6a5157e517674a8588675550c40c6",
   openPosition:

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
@@ -62,19 +62,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
+      start: '2024-03-01',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: 1709251200,
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
+      start: '2024-03-01',
     },
   },
+  methodology: "All treasuryFee, poolFee and keeperFee are collected",
 };
 
 export default adapter;

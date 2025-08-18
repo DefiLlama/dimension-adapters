@@ -1,28 +1,45 @@
-import { Fetch, Adapter } from "../../adapters/types";
+import { Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
+import {CHAIN} from "../../helpers/chains";
 
-import fetchURL from "../../utils/fetchURL"
-const { BSC } = require("../../helpers/chains");
+const POOL_CREATE = 'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)';
+const SWAP_EVENT = 'event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)';
 
-const endpoints = {
-  [BSC]: "https://api.baryon.network/program/info",
-};
+const factory: {[chain: string]: string} = {
+  [CHAIN.BSC]: '0x03879e2a3944fd601e7638dfcbc9253fb793b599',
+  [CHAIN.ANCIENT8]: '0xAE12C5930881c53715B369ceC7606B70d8EB229f',
+  [CHAIN.BITKUB]: '0xf7eEe3A8363731C611A24CdDfCBcaDE9C153Cfe8',
+}
 
-const graphs: Fetch = async (_timestamp: number) => {
-  let res = await fetchURL(endpoints[BSC]);
+const graphs: Fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
+      const adapter = getUniV2LogAdapter({ 
+        factory: factory[options.chain as string], 
+        eventAbi: SWAP_EVENT, 
+        pairCreatedAbi: POOL_CREATE 
+      });
+      const v2stats = await adapter(options);
 
   return {
-    timestamp: Math.trunc(Date.now() / 1000),
-    dailyVolume: res?.volume24h,
-    totalVolume: res?.totalvolume,
+    timestamp: options.startOfDay,
+    dailyVolume: v2stats?.dailyVolume,
   };
 };
 
-export default {
+const adapter: SimpleAdapter = {
   adapter: {
-    [BSC]: {
+    [CHAIN.BSC]: {
       fetch: graphs,
-      runAtCurrTime: true,
-      start: 0
+      start: '2023-08-12',
+    },
+    [CHAIN.ANCIENT8]: {
+      fetch: graphs,
+      start: '2023-08-12',  
+    },
+    [CHAIN.BITKUB]: {
+      fetch: graphs,
+      start: '2023-08-12',  
     },
   },
-} as Adapter;
+};
+
+export default adapter;

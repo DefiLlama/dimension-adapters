@@ -1,35 +1,13 @@
-import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import customBackfill from "../../helpers/customBackfill";
+import { getFeesExport } from "../../helpers/balancer";
 
-const endpoints: ChainEndpoints = {
-  [CHAIN.GODWOKEN_V1]:
-    "https://graph-prod-http-hadouken-prod.hadouken.finance/subgraphs/name/balancer-godwoken-mainnet",
-};
-
-const graphParams = {
-  totalVolume: {
-    factory: "balancers",
-    field: "totalSwapVolume",
-  },
-};
-
-const v1graphs = getChainVolume2({
-  graphUrls: endpoints,
-  ...graphParams,
-});
-
-const adapter: SimpleAdapter = {
-  version: 2,
+const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.GODWOKEN_V1]: {
-      fetch: v1graphs(CHAIN.GODWOKEN_V1 as Chain),
-      start: 1669248000,
-      customBackfill: customBackfill(CHAIN.GODWOKEN_V1 as Chain, v1graphs),
+      fetch: getFeesExport('0x4f8bdf24826ebcf649658147756115ee867b7d63',),
     },
   },
+  version: 2,
 };
-
-export default adapter;
+export default adapters;

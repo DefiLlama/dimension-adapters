@@ -1,4 +1,5 @@
 import { Balances, ChainApi, util } from '@defillama/sdk';
+export type Chain = string
 
 const { blocks: { getChainBlocks } } = util
 
@@ -9,7 +10,7 @@ export type ChainEndpoints = {
 }
 
 export type FetchResultBase = {
-  timestamp: number;
+  timestamp?: number;
   block?: number;
 };
 
@@ -38,6 +39,8 @@ export type FetchOptions = {
   endTimestamp: number,
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
+  dateString: string,
+  preFetchedResults?: any,
 }
 
 export type FetchGetLogsOptions = {
@@ -52,7 +55,11 @@ export type FetchGetLogsOptions = {
   cacheInCloud?: boolean,
   entireLog?: boolean,
   skipCacheRead?: boolean,
+  skipCache?: boolean,
+  skipIndexer?: boolean,
   topics?: string[],
+  noTarget?: boolean,
+  parseLog?: boolean,
 }
 
 export type Fetch = (
@@ -67,20 +74,18 @@ export type FetchV2 = (
 
 export type IStartTimestamp = () => Promise<number>
 
-export type BaseAdapter = {
-  [chain: string]: {
-    start?: IStartTimestamp | number
-    fetch: Fetch | FetchV2;
+export type BaseAdapterChainConfig = {
+    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+    fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    customBackfill?: Fetch | FetchV2;
     meta?: {
       methodology?: string | IJSON<string>
-      hallmarks?: [number, string][]
     }
   }
-};
 
-export const DISABLED_ADAPTER_KEY = 'DISABLED_ADAPTER'
+export type BaseAdapter = {
+  [chain: string]: BaseAdapterChainConfig
+};
 
 export enum ProtocolType {
   CHAIN = 'chain',
@@ -93,10 +98,21 @@ export type AdapterBase = {
   isExpensiveAdapter?: boolean,
   protocolType?: ProtocolType;
   version?: number;
+  deadFrom?: string;
+  allowNegativeValue?: boolean;
+  doublecounted?: boolean;
+  methodology?: string | IJSON<string>;
+  breakdownMethodology?: Record<string, string | IJSON<string>>;
+  fetch?: Fetch | FetchV2;
+  chains?: (string|[string, BaseAdapterChainConfig])[]
+  prefetch?: FetchV2;
+  runAtCurrTime?: boolean;
+  start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results
 }
 
 export type SimpleAdapter = AdapterBase & {
-  adapter: BaseAdapter
+  adapter?: BaseAdapter
 }
 
 export type BreakdownAdapter = AdapterBase & {
@@ -116,9 +132,9 @@ export type FetchResponseValue = string | number | Balances;
 export type FetchResultVolume = FetchResultBase & {
   dailyVolume?: FetchResponseValue
   totalVolume?: FetchResponseValue
-  dailyShortOpenInterest?: FetchResponseValue
-  dailyLongOpenInterest?: FetchResponseValue
-  dailyOpenInterest?: FetchResponseValue
+  shortOpenInterestAtEnd?: FetchResponseValue
+  longOpenInterestAtEnd?: FetchResponseValue
+  openInterestAtEnd?: FetchResponseValue
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
 };
@@ -138,6 +154,7 @@ export type FetchResultFees = FetchResultBase & {
   totalUserFees?: FetchResponseValue;
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
+  totalHoldersRevenue?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -157,9 +174,9 @@ export type FetchResultOptions = FetchResultBase & {
   totalNotionalVolume?: FetchResponseValue
   dailyPremiumVolume?: FetchResponseValue
   dailyNotionalVolume?: FetchResponseValue
-  dailyShortOpenInterest?: FetchResponseValue
-  dailyLongOpenInterest?: FetchResponseValue
-  dailyOpenInterest?: FetchResponseValue
+  shortOpenInterestAtEnd?: FetchResponseValue
+  longOpenInterestAtEnd?: FetchResponseValue
+  openInterestAtEnd?: FetchResponseValue
 };
 
 
@@ -171,7 +188,7 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
-  ROYALTIES = 'royalties',
+  // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
 }
@@ -179,12 +196,16 @@ export enum AdapterType {
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
 
 export const whitelistedDimensionKeys = new Set([
-  'startTimestamp', 'chain', 'timestamp','block',
+  'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'dailyShortOpenInterest', 'dailyLongOpenInterest', 'dailyOpenInterest', 'dailyBridgeVolume', 'totalBridgeVolume',
+  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+])
+export const accumulativeKeySet = new Set([
+  'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
+  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue',
 ])
 
 // End of specific adaptors type

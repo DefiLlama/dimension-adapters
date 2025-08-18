@@ -1,13 +1,16 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('HvbSoSSDp99Pe9U7gjDhmXUzTbAKTcj77SnV3XKLVChn'),
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('9vZWBdQwCE7oi29YzBrQND5BLnS2iqPhosdG8jr6Rp9R'),
-  // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6dJhWGdrAgYXzky2EFFYw8GZsmZbrwdPMTq69CEqJEFD'), not current daily volume
-}, {});
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.BSC]: { fetch: getUniV2LogAdapter({ factory: '0x7897c32cbda1935e97c0b59f244747562d4d97c1' }) },
+    [CHAIN.ETHEREUM]: { fetch: getUniV2LogAdapter({ factory: '0x8d0fCA60fDf50CFE65e3E667A37Ff3010D6d1e8d' }) },
+    [CHAIN.AVAX]: { fetch: getUniV2LogAdapter({ factory: '0xDeC9231b2492ccE6BA01376E2cbd2bd821150e8C' }) },
+    // [CHAIN.HECO]: { fetch: getUniV2LogAdapter({ factory: '0xe0367ec2bd4ba22b1593e4fefcb91d29de6c512a' }) },
+    // [CHAIN.OKEXCHAIN]: { fetch: getUniV2LogAdapter({ factory: '0xff65bc42c10dcc73ac0924b674fd3e30427c7823' }) },
+  },
+}
 
-adapters.adapter.bsc.start = 1627172051;
-adapters.adapter.ethereum.start = 1629764051;
-export default adapters;
+export default adapter;

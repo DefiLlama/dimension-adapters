@@ -1,28 +1,17 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill, { IGraphs } from "../../helpers/customBackfill";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { getFeesExport } from "../../helpers/balancer";
 
-const endpoints = {
-  [CHAIN.VELAS]: "https://testeborabora.cyou/subgraphs/name/wavelength22"
-}
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "balancers",
-    field: "totalSwapVolume",
-  },
-});
-
-const adapter: SimpleAdapter = {
-  version: 2,
+const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.VELAS]: {
-      fetch: graphs(CHAIN.VELAS),
-      start: 1666263553,
-      customBackfill: customBackfill(CHAIN.VELAS, graphs as unknown as IGraphs)
+      fetch: getFeesExport('0xa4a48dfcae6490afe9c779bf0f324b48683e488c', {
+        revenueRatio: 0.4,
+        holderRevenueRatio: 0.3,
+        protocolRevenueRatio: 0.1,
+      }), start: '2022-10-20',
     },
   },
+  version: 2,
 };
-
-export default adapter;
+export default adapters;

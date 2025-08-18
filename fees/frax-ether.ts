@@ -34,7 +34,7 @@ const fetch = (): any => {
     return {
       dailyFees,
       dailySupplySideRevenue: dailySupplySideRevenue,
-      dailyRevenue: dailyRevenue,
+      dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
       dailyHoldersRevenue: '0',
       dailyUserFees: '0',
@@ -47,7 +47,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
         fetch: fetch(),
-        start: 1665014400,
+        start: '2022-10-06',
     },
   }
 }

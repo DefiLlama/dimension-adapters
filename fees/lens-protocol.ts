@@ -14,7 +14,7 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
   })
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyBribesRevenue
   }
 }
@@ -23,10 +23,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch,
-      start: 1708819200,
+      start: '2024-02-25',
     },
   },
-  version: 2
+  version: 2,
+  methodology: {
+    Fees: 'Fees paid by users for creating profiles.',
+    Revenue: 'Fees paid by users for creating profiles.',
+  }
 }
 
 export default adapter;

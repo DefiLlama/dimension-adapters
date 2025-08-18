@@ -1,9 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import {BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter} from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const endpoints: { [key: string]: string } = {
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiegiatdkorjPCvK72UyHvmJHvWtS3oQS6zwnR94Xe7c'),
@@ -42,22 +41,12 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     id: String(dayTimestamp),
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
         : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
   }
 }
 
@@ -81,13 +70,12 @@ const startTimestamps: { [chain: string]: number } = {
 
 
 const adapter: BreakdownAdapter = {
-
+  deadFrom: '2024-02-21',
   breakdown: {
 
     "swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
-        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
           fetch: async (timestamp: number) => {return {timestamp}},
           start: startTimestamps[chain]
@@ -97,7 +85,6 @@ const adapter: BreakdownAdapter = {
     "derivatives": Object.keys(endpoints).reduce((acc, chain) => {
       return {
         ...acc,
-        [DISABLED_ADAPTER_KEY]: disabledAdapter,
         [chain]: {
           fetch:  async (timestamp: number) => {return {timestamp}},
           start: startTimestamps[chain]

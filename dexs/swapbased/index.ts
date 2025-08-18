@@ -4,19 +4,12 @@ import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const methodology = {
-  UserFees: "User pays 0.30% fees on each swap.",
-  SupplySideRevenue: "LPs receive 0.25% of each swap.",
-  ProtocolRevenue: "Treasury receives 0.05% of each swap.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees comes from the user.",
-};
 
 /* PERPS */
 
 const endpointsPerps: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.thegraph.com/subgraphs/name/chimpydev/swapbased-perps-core",
+    "https://api.studio.thegraph.com/query/67101/swapbased-perps-core/version/latest",
 };
 
 const historicalDataSwap = gql`
@@ -71,14 +64,6 @@ const getFetch =
         period: "daily",
       },
     );
-    const totalData: IGraphResponse = await request(
-      endpointsPerps[chain],
-      query,
-      {
-        id: "total",
-        period: "total",
-      },
-    );
 
     const tradingStats: IGraphResponseOI = await request(
       endpointsPerps[chain],
@@ -89,26 +74,26 @@ const getFetch =
       },
     );
 
-    const dailyOpenInterest =
+    const openInterestAtEnd =
       Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) +
       Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-    const dailyLongOpenInterest = Number(
+    const longOpenInterestAtEnd = Number(
       tradingStats.tradingStats[0]?.longOpenInterest || 0,
     );
-    const dailyShortOpenInterest = Number(
+    const shortOpenInterestAtEnd = Number(
       tradingStats.tradingStats[0]?.shortOpenInterest || 0,
     );
 
     return {
       timestamp: dayTimestamp,
-      dailyLongOpenInterest: dailyLongOpenInterest
-        ? String(dailyLongOpenInterest * 10 ** -30)
+      longOpenInterestAtEnd: longOpenInterestAtEnd
+        ? String(longOpenInterestAtEnd * 10 ** -30)
         : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest
-        ? String(dailyShortOpenInterest * 10 ** -30)
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd
+        ? String(shortOpenInterestAtEnd * 10 ** -30)
         : undefined,
-      dailyOpenInterest: dailyOpenInterest
-        ? String(dailyOpenInterest * 10 ** -30)
+      openInterestAtEnd: openInterestAtEnd
+        ? String(openInterestAtEnd * 10 ** -30)
         : undefined,
       dailyVolume:
         dailyData.volumeStats.length == 1
@@ -120,18 +105,7 @@ const getFetch =
               ) *
                 10 ** -30,
             )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element)),
-                ),
-              ) *
-                10 ** -30,
-            )
-          : undefined,
+          : undefined
     };
   };
 
@@ -144,8 +118,7 @@ const adapter: BreakdownAdapter = {
           getUniV2LogAdapter({
             factory: "0x04C9f118d21e8B767D2e50C946f0cC9F6C367300",
           })(options),
-        start: 1690495200,
-        meta: { methodology },
+        start: "2023-07-28",
       },
     },
     v3: {
@@ -156,13 +129,13 @@ const adapter: BreakdownAdapter = {
             swapEvent:
               "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)",
           })(options),
-        start: 1690443269,
+        start: "2023-07-27",
       },
     },
     perps: {
       [CHAIN.BASE]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-        start: 1688913853,
+        start: "2023-07-09",
       },
     },
   },

@@ -1,5 +1,5 @@
 import request, { gql } from 'graphql-request';
-import {FetchOptions, FetchResultV2, FetchV2, SimpleAdapter} from '../../adapters/types';
+import { FetchOptions, FetchResultV2, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import {
   getUniqStartOfTodayTimestamp,
@@ -23,17 +23,17 @@ const getVolume = gql`
 `;
 
 
-const getFetch = (chain: string): FetchV2 => async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { startTimestamp} = options;
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const { startTimestamp } = options;
   const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(startTimestamp * 1000)
+    new Date(startTimestamp * 1000)
   );
   const dayIndex = Math.floor(options.startOfDay / 86400);
 
-  const { market: response } = await request(ENDPOINTS[chain],
+  const { market: response } = await request(ENDPOINTS[options.chain],
     getVolume, {
-      id: String(dayIndex),
-    });
+    id: String(dayIndex),
+  });
 
   return {
     timestamp: getUniqStartOfTodayTimestamp(new Date(dayTimestamp)),
@@ -41,7 +41,6 @@ const getFetch = (chain: string): FetchV2 => async (options: FetchOptions): Prom
       response.marketDayDatas.length === 1
         ? response.marketDayDatas[0].tradeVolumeUSD
         : '0',
-    totalVolume: response.tradeVolumeUSD,
   };
 };
 
@@ -49,8 +48,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.KLAYTN]: {
-      fetch: getFetch(CHAIN.KLAYTN),
-      start: 1727568000,
+      fetch,
+      start: '2024-09-29',
     },
   },
 };

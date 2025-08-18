@@ -1,8 +1,7 @@
-import request, { gql } from "graphql-request";
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter } from "../../adapters/types";
+import { gql } from "graphql-request";
+import { BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { httpGet } from "../../utils/fetchURL";
 
 const endpoints: { [key: string]: string } = {
@@ -72,7 +71,8 @@ const adapter: BreakdownAdapter = {
         }
       }
     }, {})
-  }
+  },
+  deadFrom: "2024-09-31",
 }
 
 export default adapter;

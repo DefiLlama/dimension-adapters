@@ -46,12 +46,9 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch: graphs,
-      start: 79157663,
-      meta: {
-        methodology
-      }
     }
-  }
+  },
+  methodology
 }
 
 export default adapter;

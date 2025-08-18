@@ -1,23 +1,14 @@
-import { Chain } from "@defillama/sdk/build/types";
-import { BaseAdapter, BreakdownAdapter, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const endpoints = {
-  [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v2",
+  [CHAIN.KLAYTN]: "https://gateway.graph.dgswap.io/dgswap-exchange-v2-kaia",
 };
 
 const v3Endpoint = {
-  [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v3",
+  [CHAIN.KLAYTN]: "https://gateway.graph.dgswap.io/dgswap-exchange-v3-kaia",
 };
-
-const startTimes = {
-  [CHAIN.KLAYTN]: 1707297572,
-} as IJSON<number>;
-
-const v3StartTimes = {
-  [CHAIN.KLAYTN]: 1707297572,
-} as IJSON<number>;
 
 const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
@@ -28,54 +19,38 @@ const methodology = {
   Fees: "All fees comes from the user."
 }
 
-const graphs = getGraphDimensions2({
-  graphUrls: endpoints,
-  graphRequestHeaders: {
-    [CHAIN.KLAYTN]: {
-      "origin": "https://dgswap.io",
-    },
+const ABIS = {
+  V2: {
+    POOL_CREATE: 'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)',
+    SWAP_EVENT: 'event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)'
   },
-  totalVolume: {
-    factory: "pancakeFactories"
-  },
-  feesPercent: {
-    type: "volume",
-    Fees: 0.3,
-    ProtocolRevenue: 0.06,
-    HoldersRevenue: 0,
-    UserFees: 0.3,
-    SupplySideRevenue: 0.24,
-    Revenue: 0.06
+  V3: {
+    POOL_CREATE: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+    SWAP_EVENT: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
   }
-});
-
-const v3Graph = getGraphDimensions2({
-  graphUrls: v3Endpoint,
-  totalVolume: {
-    factory: "factories",
-  },
-  totalFees: {
-    factory: "factories",
-  },
-});
+}
 
 const adapter: BreakdownAdapter = {
+  methodology,
   version: 2,
   breakdown: {
     v2: Object.keys(endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: graphs(chain as Chain),
-        start: startTimes[chain],
-        meta: {
-          methodology
-        }
+        fetch: getUniV2LogAdapter({ 
+          factory: '0x224302153096E3ba16c4423d9Ba102D365a94B2B',
+          poolCreatedEvent: ABIS.V2.POOL_CREATE,
+          swapEvent: ABIS.V2.SWAP_EVENT
+        }),
       }
       return acc
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graph(chain),
-        start: v3StartTimes[chain],
+        fetch: getUniV3LogAdapter({
+          factory: '0x7431A23897ecA6913D5c81666345D39F27d946A4',
+          poolCreatedEvent: ABIS.V3.POOL_CREATE,
+          swapEvent: ABIS.V3.SWAP_EVENT
+        }),
       }
       return acc
     }, {} as BaseAdapter),

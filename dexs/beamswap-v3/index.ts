@@ -1,31 +1,7 @@
-import { BreakdownAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import {
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  getGraphDimensions2,
-} from "../../helpers/getUniSubgraph";
 
-const endpointV3 = {
-  [CHAIN.MOONBEAM]:
-    "https://graph.beamswap.io/subgraphs/name/beamswap/beamswap-amm-v3",
-};
 
-const v3Graphs = getGraphDimensions2({
-  graphUrls: endpointV3,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 16,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 84, // 84% of fees are going to LPs
-    Revenue: 0,
-  },
-});
+import { CHAIN } from '../../helpers/chains'
+import { uniV3Exports } from '../../helpers/uniswap'
 
 const methodologyv3 = {
   UserFees: "User pays 0.01%, 0.05%, 0.3%, or 1% on each swap.",
@@ -34,22 +10,10 @@ const methodologyv3 = {
   HoldersRevenue: "Holders have no revenue.",
 };
 
-const adapter: BreakdownAdapter = {
-  version: 2,
-  breakdown: {
-    v3: {
-      [CHAIN.MOONBEAN]: {
-        fetch: v3Graphs(CHAIN.MOONBEAN),
-        start: 1684397388,
-        customBackfill: customBackfill(CHAIN.MOONBEAN, v3Graphs),
-        meta: {
-          methodology: {
-            ...methodologyv3,
-          },
-        },
-      },
-    },
-  },
-};
+const adapter = uniV3Exports({
+  [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', revenueRatio: 0.16, holdersRevenueRatio: 0, protocolRevenueRatio: 0.16, },
+})
+
+adapter.methodology = methodologyv3
 
 export default adapter;

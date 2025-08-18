@@ -1,68 +1,55 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const query = (amo: string, timestamp: number) => gql`
+const query = (amo: string) => gql`
 {
-    amos(
-        where: {
-            id: "${amo.toLowerCase()}"
-        }) {
-        id
-        name
-        positions {
-            depositAddress
-            name
-            fraxAccountingPerDay(
-                first: 3,
-                orderBy: timestamp,
-                orderDirection: desc
-                where: {
-                    timestamp_lt: ${timestamp}
-                }) {
-                balance
-                depositedAmount
-                profitTaken
-                timestamp
-                }
-            }
-        }
+  amos(
+    where: {
+        id: "${amo.toLowerCase()}"
+    }) {
+    id
+    name
+    positions {
+        depositAddress
+        
+      }
     }
+  }
 `;
 
 const getGQLClient = (endpoint: string) => new GraphQLClient(endpoint);
-
-const findRevenue = (timedData: any) =>
-  Number(timedData.balance) -
-  Number(timedData.depositedAmount) +
-  Number(timedData.profitTaken);
-
 const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
   const { amos, graph, FRAX } = config[options.chain];
   const client = getGQLClient(graph);
-  const dailyRevenue = options.createBalances();
-  const totalRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
-  await Promise.all(
-    amos.map(async (amo: string) => {
-      const data = (await client.request(query(amo, timestamp))).amos[0];
-      data.positions.map(({ fraxAccountingPerDay: days }: any) => {
-        if (days.length < 2) return 
-        const latest = findRevenue(days[0]);
-        const previous = findRevenue(days[1]);
-        dailyRevenue.add(FRAX, latest - previous);
-        totalRevenue.add(FRAX, latest);
-      });
-    }),
-  );
+  for (const amo of amos) {
+    const positions = (await client.request(query(amo))).amos[0].positions;
+    const pairs = positions.map((item: any) => item.depositAddress);
+    const events = await options.getLogs({
+      targets: pairs,
+      eventAbi: 'event AddInterest(uint256 interestEarned, uint256 rate, uint256 feesAmount, uint256 feesShare)',
+      flatten: true,
+    })
+    for (const event of events) {
+      dailyFees.add(FRAX, event.interestEarned)
+      dailyProtocolRevenue.add(FRAX, event.feesAmount)
+    }
+  }
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyProtocolRevenue)
 
   return {
     timestamp,
-    dailyRevenue,
-    totalRevenue,
-    dailyFees: dailyRevenue,
-    totalFees: totalRevenue,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
   };
 };
 
@@ -70,7 +57,7 @@ const config: {
   [chain: string]: { FRAX: string; amos: string[]; graph: string };
 } = {
   [CHAIN.ETHEREUM]: {
-    FRAX: "0x853d955aCEf822Db058eb8505911ED77F175b99e",
+    FRAX: ADDRESSES.ethereum.FRAX,
     graph:
       sdk.graph.modifyEndpoint('5pkNZTvdKuik24p8xtHctfaHcmNghNqb4ANo2BfQVefZ'),
     amos: [
@@ -82,7 +69,7 @@ const config: {
     ],
   },
   [CHAIN.ARBITRUM]: {
-    FRAX: "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+    FRAX: ADDRESSES.arbitrum.FRAX,
     graph:
       sdk.graph.modifyEndpoint('4zJMfZFyGvqbKyyyeVs4qE15BaEuwr5DLLZiSLhJzBNs'),
     amos: [
@@ -97,11 +84,16 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        start: 0,
       },
     };
   }, {}),
   version: 1,
+  methodology: {
+    Fees: 'Total interest paid to users by borrowing FRAX.',
+    Revenue: 'Total interest paid to users by borrowing FRAX.',
+    ProtocolRevenue: 'Amount of interest collected by Frax Finance.',
+    SupplySideRevenue: 'Amount of interest paid to lenders.',
+  }
 };
 
 export default adapter;

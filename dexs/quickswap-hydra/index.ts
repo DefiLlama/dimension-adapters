@@ -63,19 +63,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-02',
     },
     [CHAIN.MANTA]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-02',
     },
   },
+  methodology,
 };
 
 export default adapter;

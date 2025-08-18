@@ -1,4 +1,4 @@
-import { Adapter,  } from "../adapters/types";
+import { Adapter, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getFeesExport } from '../helpers/friend-tech';
 
@@ -9,10 +9,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFeesExport(FriendtechSharesAddress, [event_trade]),
-      start: 1696204800,
+      start: '2023-10-02',
     },
   },
   version: 2,
+  methodology: {
+    Fees: "Fees paid by users while trading on social network.",
+    Revenue: "Fees paid by users while trading on social network.",
+  }
 }
 
 export default adapter;

@@ -41,11 +41,11 @@ const fetchScallopStats: FetchV2 = async ({ startTimestamp, endTimestamp }): Pro
     stats.borrowingInterestFee;
 
   return {
-    dailyFees: dailyFees.toString(),
-    dailyUserFees: dailyFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
-    dailySupplySideRevenue: stats.liquidityProviderInterest.toString(),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: stats.liquidityProviderInterest,
   };
 };
 
@@ -54,15 +54,11 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchScallopStats,
-      start: 1703980799,
-      meta: {
-        methodology,
-      },
+      start: '2023-12-31',
     },
   },
+  methodology,
 };
 
 export default adapter;

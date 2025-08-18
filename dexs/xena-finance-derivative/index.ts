@@ -54,6 +54,7 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-01-01',
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),

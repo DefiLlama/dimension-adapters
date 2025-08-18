@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -44,8 +44,8 @@ const fetch = (chain: Chain) => {
     const totalFees = afterRes.protocol.totalTradeFee / 10 ** 18;
 
     return {
-      dailyFees: dailyFees.toString(),
-      totalFees: totalFees.toString(),
+      dailyFees,
+      totalFees,
     };
   };
 };
@@ -54,7 +54,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: fetch(CHAIN.CELO),
-      start: 1690848000,
+      start: '2023-08-01',
     },
   },
   version: 2

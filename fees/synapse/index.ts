@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 import request from "graphql-request";
@@ -89,12 +89,12 @@ const graphs = (chain: Chain) => {
 
     return {
       timestamp,
-      dailyFees: dailyFees?.toString(),
-      dailyRevenue: dailyFees?.toString(),
-      dailyUserFees: dailyFees?.toString(),
-      totalFees: totalFees.toString(),
-      totalUserFees: totalFees.toString(),
-      totalRevenue: totalFees.toString(),
+      dailyFees,
+      dailyRevenue: dailyFees,
+      dailyUserFees: dailyFees,
+      totalFees,
+      totalUserFees: totalFees,
+      totalRevenue: totalFees,
 
     };
   };
@@ -108,15 +108,13 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
+  methodology,
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: 1629504000,
-        meta: {
-          methodology
-        }
+        start: '2021-08-21',
       }
     }
   }, {})

@@ -46,12 +46,12 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-01-01",
   adapter: {
     [CHAIN.ZKSYNC]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1712718123,
+      start: '2024-04-10',
     },
   }
 };

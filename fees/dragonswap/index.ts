@@ -1,85 +1,49 @@
-import { Chain } from "@defillama/sdk/build/types";
-import { BaseAdapter, BreakdownAdapter, IJSON } from "../../adapters/types";
+import { BreakdownAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
-
-const endpoints = {
-  [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v2",
-};
-
-const v3Endpoint = {
-  [CHAIN.KLAYTN]: "https://graph.dgswap.io/subgraphs/name/dragonswap/exchange-v3",
-};
-
-const startTimes = {
-  [CHAIN.KLAYTN]: 1707297572,
-} as IJSON<number>;
-
-const v3StartTimes = {
-  [CHAIN.KLAYTN]: 1707297572,
-} as IJSON<number>;
+import { httpGet } from "../../utils/fetchURL";
 
 const methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
   ProtocolRevenue: "Treasury receives 0.06% of each swap.",
   SupplySideRevenue: "LPs receive 0.24% of the fees.",
-  HoldersRevenue: "",
+  HoldersRevenue: "There is no revenue for DragonSwap token holders.",
   Revenue: "All revenue generated comes from user fees.",
   Fees: "All fees comes from the user."
 }
 
-const graphs = getGraphDimensions2({
-  graphUrls: endpoints,
-  graphRequestHeaders: {
-    [CHAIN.KLAYTN]: {
-      "origin": "https://dgswap.io",
-    },
-  },
-  totalVolume: {
-    factory: "pancakeFactories"
-  },
-  feesPercent: {
-    type: "volume",
-    Fees: 0.3,
-    ProtocolRevenue: 0.06,
-    HoldersRevenue: 0,
-    UserFees: 0.3,
-    SupplySideRevenue: 0.24,
-    Revenue: 0.06
-  }
-});
-
-const v3Graph = getGraphDimensions2({
-  graphUrls: v3Endpoint,
-  totalVolume: {
-    factory: "factories",
-  },
-  totalFees: {
-    factory: "factories",
-  },
-});
 
 const adapter: BreakdownAdapter = {
+  methodology,
   version: 2,
   breakdown: {
-    v2: Object.keys(endpoints).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: graphs(chain as Chain),
-        start: startTimes[chain],
-        meta: {
-          methodology
-        }
+    v2: {
+      [CHAIN.KLAYTN]: {
+        runAtCurrTime: true,
+        fetch: fetch('v2'),
       }
-      return acc
-    }, {} as BaseAdapter),
-    v3: Object.keys(v3Endpoint).reduce((acc, chain) => {
-      acc[chain] = {
-        fetch: v3Graph(chain),
-        start: v3StartTimes[chain],
+    },
+    v3: {
+      [CHAIN.KLAYTN]: {
+        runAtCurrTime: true,
+        fetch: fetch('v3'),
       }
-      return acc
-    }, {} as BaseAdapter),
+    },
   },
 };
 
 export default adapter;
+
+function fetch(version: string) {
+  return async () => {
+    const { pools } = await httpGet(`https://dgswap.io/api/pools/?types=${version}&sortBy=apy24H&sortDirection=desc&limit=99`)
+    let dailyFees = pools.reduce((acc: any, pool: any) => acc + Number(pool.feeUSD?.['24H'] ?? 0), 0)
+    let dailyRevenue = pools.reduce((acc: any, pool: any) => acc + Number(pool.protocolFeeUSD?.['24H'] ?? 0), 0)
+    if (version === 'v2') {
+      dailyFees = pools.reduce((acc: any, pool: any) => acc + Number(pool.volumeUSD?.['24H'] ?? 0) * 0.003, 0)
+      dailyRevenue = dailyFees * 0.2
+    }
+    const dailySupplySideRevenue = dailyFees - dailyRevenue
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue }
+
+  }
+}

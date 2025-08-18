@@ -6,7 +6,7 @@ import {
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
@@ -62,23 +62,18 @@ const fetch = (endpoint) => {
 const methodology = {
   dailyVolume:
     "Total cumulativeVolumeUsd for specified chain for the given day",
-};
+}
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
-      meta: {
-        methodology,
-      },
+      start: '2024-03-01',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: 1709251200,
-      meta: {
-        methodology,
-      },
+      start: '2024-03-01',
     },
   },
 };

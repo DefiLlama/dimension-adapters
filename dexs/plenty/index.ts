@@ -15,7 +15,7 @@ const fetch = async (timestamp: number) => {
 
   return {
     timestamp: dayTimestamp,
-    dailyVolume: dailyVolumeItem ? `${dailyVolumeItem}` : undefined,
+    dailyVolume: dailyVolumeItem,
   }
 }
 
@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.TEZOS]: {
       fetch: fetch,
-      start: 1672531200,
+      start: '2023-01-01',
     },
   },
 };

@@ -15,17 +15,11 @@ const fetch = async (timestamp: number) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historicalVolume: IVolumeAll[] = (await fetchURL(AQUA_VOLUME_ENDPOINT));
 
-    const totalVolume = historicalVolume
-        .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
-        .reduce((acc, { volume }) => acc + Number(volume), 0)
-
     const dailyVolume = historicalVolume
         .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
     
     return {
-        totalVolume: `${totalVolume / 10e7}`,
-        dailyVolume: dailyVolume ? `${Number(dailyVolume) / 10e7}` : undefined,
-        timestamp: dayTimestamp,
+        dailyVolume: dailyVolume ? `${Number(dailyVolume) / 1e7}` : undefined,
     };
 };
 
@@ -33,7 +27,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STELLAR]: {
             fetch,
-            start: 1719792000,
+            start: '2024-07-01',
         },
     },
 };

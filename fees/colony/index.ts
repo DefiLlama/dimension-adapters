@@ -62,87 +62,43 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   );
 
   let dailyFees = createBalances();
-  let totalFees = createBalances();
   let dailyRevenue = createBalances();
-  let totalRevenue = createBalances();
   let dailyHoldersRevenue = createBalances();
-  let totalHoldersRevenue = createBalances();
   let dailyProtocolRevenue = createBalances();
-  let totalProtocolRevenue = createBalances();
   let dailySupplySideRevenue = createBalances();
-  let totalSupplySideRevenue = createBalances();
 
   // --- Holders Revenue
   dailyHoldersRevenue.addBalances(stakingResult.dailyHoldersRevenue)
-  totalHoldersRevenue.addBalances(stakingResult.totalHoldersRevenue)
-
   dailyHoldersRevenue.addBalances(earlystageResult.dailyHoldersRevenue)
-  totalHoldersRevenue.addBalances(earlystageResult.totalHoldersRevenue)
-
   dailyHoldersRevenue.addBalances(caiResult.dailyHoldersRevenue)
-  // totalHoldersRevenue.addBalances(caiResult.totalHoldersRevenue)
-
   dailyHoldersRevenue.addBalances(validatorProgramResult.dailyHoldersRevenue)
-  totalHoldersRevenue.addBalances(validatorProgramResult.totalHoldersRevenue)
-
   dailyHoldersRevenue.addBalances(airdropsResult.dailyHoldersRevenue)
-  totalHoldersRevenue.addBalances(airdropsResult.totalHoldersRevenue)
 
   // --- Protocol Revenue
   dailyProtocolRevenue.addBalances(earlystageResult.dailyProtocolRevenue)
-  totalProtocolRevenue.addBalances(earlystageResult.totalProtocolRevenue)
-
   dailyProtocolRevenue.addBalances(caiResult.dailyProtocolRevenue)
-  // totalProtocolRevenue.addBalances(caiResult.totalProtocolRevenue)
-
   dailyProtocolRevenue.addBalances(validatorProgramResult.dailyProtocolRevenue)
-  totalProtocolRevenue.addBalances(validatorProgramResult.totalProtocolRevenue)
-
   dailyProtocolRevenue.addBalances(dexResult.dailyProtocolRevenue)
-  totalProtocolRevenue.addBalances(dexResult.totalProtocolRevenue)
 
   // --- Supply Side Revenue
   dailySupplySideRevenue.addBalances(dexResult.dailySupplySideRevenue)
-  totalSupplySideRevenue.addBalances(dexResult.totalSupplySideRevenue)
-
   dailySupplySideRevenue.addBalances(masterChefResults.dailySupplySideRevenue)
-  totalSupplySideRevenue.addBalances(masterChefResults.totalSupplySideRevenue)
 
   // --- Revenue
   dailyRevenue.addBalances(dailyProtocolRevenue)
-  totalRevenue.addBalances(totalProtocolRevenue)
-
   dailyRevenue.addBalances(dailyHoldersRevenue)
-  totalRevenue.addBalances(totalHoldersRevenue)
 
   // --- Fees
   dailyFees.addBalances(dailyRevenue)
-  totalFees.addBalances(totalRevenue)
-
   dailyFees.addBalances(dailySupplySideRevenue)
-  totalFees.addBalances(totalSupplySideRevenue)
 
   return {
-    // timestamp: dexResult.timestamp,
-    // block: dexResult.block,
-
     dailyVolume: dexResult.dailyVolume,
-    // totalVolume: dexResult.totalVolume,
-
     dailyFees,
-    // totalFees,
-
     dailyRevenue,
-    // totalRevenue,
-
     dailyHoldersRevenue,
-    // totalHoldersRevenue,
-
     dailyProtocolRevenue,
-    // totalProtocolRevenue,
-
     dailySupplySideRevenue,
-    // totalSupplySideRevenue
   }
 }
 
@@ -151,12 +107,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
-      start: 1704067200,
-      meta: {
-          methodology
-      }
+      start: '2024-01-01',
     },
-  }
+  },
+  methodology,
 }
 
 export default adapter;

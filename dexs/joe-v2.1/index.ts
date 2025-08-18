@@ -69,9 +69,9 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.AVAX]: { fetch, start: 1682467200, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1682121600, },
-    [CHAIN.BSC]: { fetch, start: 1681084800, },
+    [CHAIN.AVAX]: { fetch, start: '2023-04-26', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-04-22', },
+    [CHAIN.BSC]: { fetch, start: '2023-04-10', },
   }
 };
 

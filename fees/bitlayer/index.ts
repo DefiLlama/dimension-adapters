@@ -43,10 +43,10 @@ const adapter: Adapter = {
         const dailyFees = await getFeeUSD(options, url);
         return {
           timestamp: options.startOfDay,
-          dailyFees: dailyFees,
+          dailyFees,
         };
       },
-      start: 1713089236,
+      start: '2024-04-14',
     },
   },
   protocolType: ProtocolType.CHAIN,

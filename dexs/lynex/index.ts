@@ -1,12 +1,20 @@
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter2({
-  [CHAIN.LINEA]: "https://api.studio.thegraph.com/query/59052/lynex-cl/v1.0.1"
-}, {
+const fetch = univ2Adapter2({
+  endpoints: {
+    [CHAIN.LINEA]: "https://api.goldsky.com/api/public/project_cltyhthusbmxp01s95k9l8a1u/subgraphs/lynex-cl/v1.0.2/gn"
+  },
   factoriesName: "factories",
   totalVolume: "totalVolumeUSD",
-});
+})
 
-adapters.adapter.linea.start = 1691394680;
-export default adapters;
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.LINEA],
+  start: '2023-08-07',
+}
+
+export default adapter;

@@ -16,7 +16,7 @@ const fetchFees = async (_t: number, _b: ChainBlocks, options: FetchOptions)  =>
   })
   return {
     timestamp: options.startOfDay,
-    dailyFees: dailyFees,
+    dailyFees,
   }
 }
 
@@ -24,8 +24,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CELESTIA]: {
       fetch: fetchFees,
-      start: 0,
-    },
+          },
   },
   protocolType: ProtocolType.CHAIN,
 }

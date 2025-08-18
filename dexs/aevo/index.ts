@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchAevoVolumeData,
-      start: 1681430400,
+      start: '2023-04-14',
     },
   },
 };

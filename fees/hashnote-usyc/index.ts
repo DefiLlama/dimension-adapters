@@ -43,11 +43,13 @@ const fetch = async (
 };
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: "All yields are generated from USYC backing assets.",
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1686693600,
-      runAtCurrTime: false,
+      start: '2023-06-14',
     },
   },
 };

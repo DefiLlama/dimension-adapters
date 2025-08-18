@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD } from "../helpers/getUniSubgraphVolume";
@@ -27,11 +27,12 @@ const v3Graphs = getGraphDimensions2({
 });
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-03-04',
   version: 2,
   adapter: {
     [CHAIN.EON]: {
-      fetch: v3Graphs(CHAIN.EON),
-      start: 1699401600,
+      fetch: v3Graphs,
+      start: '2023-11-08',
     },
   },
 };

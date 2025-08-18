@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import getTxReceipts from "../../helpers/getTxReceipts";
 const sdk = require('@defillama/sdk')
 
@@ -63,8 +63,8 @@ const fetch = (chain: Chain) => {
     const dailyRevenue = dailyFees - dailyGasUsd;
 
     return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
+      dailyFees,
+      dailyRevenue,
     }
 
   }
@@ -76,11 +76,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BAHAMUT]: {
       fetch: fetch(CHAIN.BAHAMUT),
-      start: 1716364800,
-      meta: {
-        methodology: 'All Fees generated from activity on Erinaceus VRF Coordinator contract.'
-      },
+      start: '2024-05-22',
     }
+  },
+  methodology: {
+    Fees: "All Fees generated from activity on Erinaceus VRF Coordinator contract.",
+    Revenue: "All Fees generated from activity on Erinaceus VRF Coordinator contract subtract transaction fees.",
   }
 }
 export default adapter;

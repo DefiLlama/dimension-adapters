@@ -3,12 +3,12 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK')
+  [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK')
 }
 
 
@@ -42,9 +42,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
-    [CHAIN.MOONBEAN]: {
-        fetch: graphs(endpoints)(CHAIN.MOONBEAN),
-        start: 1656115200,
+    [CHAIN.MOONBEAM]: {
+        fetch: graphs(endpoints)(CHAIN.MOONBEAM),
+        start: '2022-06-25',
     },
   }
 }

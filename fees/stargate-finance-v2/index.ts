@@ -1,4 +1,5 @@
-import { Chain } from "@defillama/sdk/build/general";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -60,6 +61,15 @@ const contracts: IAddress = {
     "0x3Fc69CC4A842838bCDC9499178740226062b14E4",
   ],
   [CHAIN.AURORA]: ["0x81F6138153d473E8c5EcebD3DC8Cd4903506B075"],
+  [CHAIN.UNICHAIN]: ["0xe9aBA835f813ca05E50A6C0ce65D0D74390F7dE7"],
+  [CHAIN.ABSTRACT]: ["0x221F0E1280Ec657503ca55c708105F1e1529527D"],
+  [CHAIN.XDAI]: [
+    "0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3",
+    "0xe9aBA835f813ca05E50A6C0ce65D0D74390F7dE7",
+  ],
+  [CHAIN.LIGHTLINK_PHOENIX]: ["0x8731d54E9D02c286767d56ac03e8037C07e01e98"],
+  [CHAIN.HEMI]: [ADDRESSES.fuse.WETH_3],
+  [CHAIN.SONIC]: ["0x45d417612e177672958dC0537C45a8f8d754Ac2E"],
 };
 
 async function getPoolFees(
@@ -97,10 +107,16 @@ function adapterByChain(contracts: string[], timestamp: number) {
 const timestamp = 1716892946;
 const adapter: Adapter = {
   adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
-    acc[chain] = adapterByChain(contracts[chain], timestamp);
+    acc[chain] = {
+      ...adapterByChain(contracts[chain], timestamp),
+    };
     return acc;
   }, {}),
   version: 2,
+  allowNegativeValue: true, // due to bridge gas fees
+  methodology: {
+    Fees: "All fees paid by users while using Stargate bridge.",
+  }
 };
 
 export default adapter;

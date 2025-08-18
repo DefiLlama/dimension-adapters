@@ -27,19 +27,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetchVolume,
-      start: 1704067200,
+      start: '2024-01-01',
     },
     [CHAIN.XDC]: {
       fetch: fetchVolume,
-      start: 1704067200,
+      start: '2024-01-01',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchVolume,
-      start: 1704067200,
+      start: '2024-01-01',
     },
     [CHAIN.BOBA]: {
       fetch: fetchVolume,
-      start: 1704067200,
+      start: '2024-01-01',
     },
   }
 }

@@ -37,14 +37,13 @@ const adapter: Adapter = {
     adapter: {
         [ETHEREUM]: {
             fetch,
-            runAtCurrTime: true,
-            start: 1685386800,
-            meta: {
-                methodology: {
-                    Fees: "0x0 collects a 0.9% fee on deposits"
-                }
-            }
+            start: '2023-05-29',
         }
+    },
+    methodology: {
+        Fees: "0x0 collects a 0.9% fee on deposits",
+        Revenue: "0x0 collects a 0.9% fee on deposits and distributed to token holders",
+        HoldersRevenue: "0x0 token holders collect a 0.9% fee on deposits",
     }
 }
 export default adapter;

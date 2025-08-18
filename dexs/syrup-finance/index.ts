@@ -1,12 +1,15 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { DISABLED_ADAPTER_KEY, Fetch, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('FxC8dAGA6jXCN4EUoPqDeoUWM9XE1VrttiEVT7LEGyxw'),
+}
+
+const startTimestamps: { [chain: string]: string } = {
+  [CHAIN.BSC]: '2022-12-30',
 }
 
 const historicalDataSwap = gql`
@@ -27,40 +30,30 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
+const fetch = async (timestamp: number, _a:any, options: FetchOptions) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
+  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDataSwap, {
     id: String(dayTimestamp),
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
+  const totalData: IGraphResponse = await request(endpoints[options.chain], historicalDataSwap, {
     id: 'total',
     period: 'total',
   })
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
+        : undefined
   }
 }
 
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.BSC]: 1672358400,
-}
-
 const adapter: SimpleAdapter = {
+  deadFrom: '2023-09-12',
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.BSC]: {
-      fetch: getFetch(historicalDataSwap)(CHAIN.BSC),
+      fetch,
       start: startTimestamps[CHAIN.BSC],
     },
   },

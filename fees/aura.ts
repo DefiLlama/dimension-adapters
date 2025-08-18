@@ -85,9 +85,16 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
-      start: 1669852800,
+      start: '2022-12-01',
     },
   },
+  methodology: {
+    Fees: "Staking rewards from all staking pools from users.",
+    Revenue: "Staking rewards collected by Aura.",
+    HoldersRevenue: "Staking rewards earned by AURA holders.",
+    ProtocolRevenue: "Staking rewards earned by Aura.",
+    SupplySideRevenue: "Staking rewards distributed to depositors."
+  }
 
 }
 

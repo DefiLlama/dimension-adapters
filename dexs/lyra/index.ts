@@ -20,7 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LYRA]: {
       fetch: fetchLyraVolumeData,
-      start: 1702630075,
+      start: '2023-12-15',
     },
   },
 };

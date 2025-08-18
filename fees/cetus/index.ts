@@ -2,7 +2,7 @@ import { Adapter, FetchResultV2, FetchV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
 
-const cetusApiURL = 'https://api-sui.cetus.zone/v2/sui/daily-fees';
+const cetusApiURL = 'https://api-sui.cetus.zone/v3/sui/daily-fees';
 
 interface CetusStats {
   data:{
@@ -25,8 +25,8 @@ const fetchCetusStats: FetchV2 = async ({
   const dailyFees = data.fee;
   const dailyRevenue = data.protocolFee;
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
+    dailyFees,
+    dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   };
 };
@@ -35,15 +35,11 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchCetusStats,
-      start: 1704067200,
-      meta: {
-        methodology,
-      },
+      start: '2024-01-01',
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -19,7 +19,21 @@ interface SwapEventArgs {
   fee: bigint;
 }
 
-const dexReservesResolver = "0xE8a07a32489BD9d5a00f01A55749Cf5cB854Fd13";
+const dexReservesResolver = (chain: string) => {
+  switch (chain) {
+    case CHAIN.ETHEREUM: 
+      return "0xE8a07a32489BD9d5a00f01A55749Cf5cB854Fd13";
+    case CHAIN.ARBITRUM: 
+      return "0xb8f526718FF58758E256D9aD86bC194a9ff5986D";
+    case CHAIN.POLYGON: 
+      return "0xA508fd16Bf3391Fb555cce478C616BDe4a613052";
+    case CHAIN.BASE: 
+      return "0x160ffC75904515f38C9b7Ed488e1F5A43CE71eBA";
+    default: 
+      throw new Error("DexReservesResolver not defined");
+  }
+}
+
 
 const abi = {
   getAllPools: "function getAllPools() view returns (tuple(address pool, address token0, address token1, uint256 fee)[])",
@@ -29,7 +43,7 @@ const abi = {
 const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances()
-  const rawPools: PoolInfo[] = await api.call({ target: dexReservesResolver, abi: abi.getAllPools });
+  const rawPools: PoolInfo[] = await api.call({ target: dexReservesResolver(api.chain), abi: abi.getAllPools });
   const pools = rawPools.map(({ pool, token0, token1, fee }) => ({ pool, token0, token1, fee: BigInt(fee) }));
 
   const logsByPool: SwapEventArgs[][]= await Promise.all(
@@ -76,8 +90,13 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: 1729969200 },
+    [CHAIN.ETHEREUM]: { fetch, start: '2024-10-26' },
+    [CHAIN.ARBITRUM]: { fetch, start: '2024-12-23' },
+    [CHAIN.POLYGON]: { fetch, start: '2025-04-03' },
+    [CHAIN.BASE]: { fetch, start: '2025-05-22' },
   },
 };
 
 export default adapter;
+
+// test: yarn test dexs fluid-dex

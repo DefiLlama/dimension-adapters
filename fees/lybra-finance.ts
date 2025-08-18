@@ -18,9 +18,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1682294400,
+      start: '2023-04-24',
     },
-  }
+  },
+  methodology: {
+    Fees: "Interest paid by borrowers",
+    Revenue: "Interest paid by borrowers",
+    HoldersRevenue: "Governance token holders's share of fees paid by borrowers",
+  },
 };
 
 export default adapter;

@@ -37,7 +37,7 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                         dailyFees,
                     };
                 },
-                start: 1690761600
+                start: '2023-07-31'
             },
         },
         protocolType: ProtocolType.CHAIN

@@ -3,7 +3,7 @@ import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainBlocks, ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 interface IData {
   id: string;
@@ -48,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(endpoints)(CHAIN.ETHEREUM),
-      start: 1691798400
+      start: '2023-08-12'
     }
   }
 }

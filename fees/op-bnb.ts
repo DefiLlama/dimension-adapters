@@ -48,12 +48,17 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OP_BNB]: {
       fetch: fetch as any,
-      start: 1691971200,
+      start: '2023-08-14',
       runAtCurrTime: true,
     },
   },
   isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  allowNegativeValue: true, // sequencer fees
+  methodology: {
+    Fees: 'Transaction fees paid by users',
+    Revenue: 'Total revenue on opBNB, calculated by subtracting the L1 Batch Costs from the total gas fees',
+  }
 }
 
 export default adapter;

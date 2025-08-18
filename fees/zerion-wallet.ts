@@ -19,7 +19,7 @@ const multisigs: TMulitsig = {
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await addGasTokensReceived({ multisigs: multisigs[options.chain], options })
-  await addTokensReceived({ targets: multisigs[options.chain], options, balances: dailyFees,})
+  await addTokensReceived({ targets: multisigs[options.chain], options, balances: dailyFees, })
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
 }
 
@@ -28,17 +28,11 @@ const methodology = {
   Revenue: "Take 0.5% from trading volume",
 }
 
-const chainAdapter = { fetch, start: 1672531200, meta: { methodology } }
 const adapter: Adapter = {
+  fetch, start: '2023-01-01',
+  methodology,
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: chainAdapter,
-    [CHAIN.OPTIMISM]: chainAdapter,
-    [CHAIN.ARBITRUM]: chainAdapter,
-    [CHAIN.BASE]: chainAdapter,
-    [CHAIN.POLYGON]: chainAdapter,
-    [CHAIN.BSC]: chainAdapter,
-  }
+  chains: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.BSC,],
 }
 
 export default adapter;

@@ -19,8 +19,8 @@ const fetch = async (timestamp: number) => {
   )?.[1];
   return {
     timestamp: dayTimestamp,
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
   };
 };
 
@@ -29,7 +29,7 @@ const adapter: Adapter = {
     [CHAIN.STARKNET]: {
       fetch: fetch,
       // runAtCurrTime: true,
-      start: async () => 1700956800,
+      start: '2023-11-26',
     },
   },
 };

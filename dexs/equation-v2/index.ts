@@ -1,6 +1,6 @@
 
 import { CHAIN } from "../../helpers/chains";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -20,48 +20,30 @@ const queryVolume = gql`
   }
 `
 
-const queryTotalVolume = gql`
-  query query_total {
-    protocolState(id: "protocol_state") {
-        totalVolumeUSD
-    }
-  }
-`
-
 interface IDailyResponse {
     protocolStatistics: [{
         volumeUSD: string,
     }]
 }
 
-interface ITotalResponse {
-    protocolState: {
-        totalVolumeUSD: string,
-    }
-}
-
-
-const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
+const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
+    if (timestamp > 1743940800) return {}
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-    const dailyData: IDailyResponse = await request(endpoints[chain], queryVolume, {
+    const dailyData: IDailyResponse = await request(endpoints[options.chain], queryVolume, {
         id: 'Daily:' + dayTimestamp,
     })
-    const totalData: ITotalResponse = await request(endpoints[chain], queryTotalVolume)
     return {
-        timestamp: dayTimestamp,
         dailyVolume: dailyData.protocolStatistics[0].volumeUSD,
-        totalVolume: totalData.protocolState.totalVolumeUSD,
     }
 }
 
 const adapter: SimpleAdapter = {
+    deadFrom: "2025-04-06",
+    methodology,
     adapter: {
         [CHAIN.ARBITRUM]: {
-            fetch: getFetch()(CHAIN.ARBITRUM),
-            start: 1706227200,
-            meta:{
-                methodology: methodology,
-            },
+            fetch,
+            start: '2024-01-26',
         },
     },
 }

@@ -36,7 +36,7 @@ const adapter: any = {
     adapter: {
         [CHAIN.TON]: {
             fetch,
-            start: 1726034340,
+            start: '2024-09-11',
         },
     },
 };

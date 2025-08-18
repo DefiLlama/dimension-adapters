@@ -13,7 +13,7 @@ const adapter: SimpleAdapter = {
                 ]);
                 return { timestamp, dailyVolume, totalVolume, }
             },
-            start: 1688628356
+            start: '2023-07-06'
         },
         sei: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
 
                 return { timestamp, dailyVolume, totalVolume, }
             },
-            start: 1691305909
+            start: '2023-08-06'
         },
         injective: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
 
                 return { timestamp, dailyVolume, totalVolume, }
             },
-            start: 1695738685
+            start: '2023-09-26'
         },
         neutron: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
@@ -52,7 +52,7 @@ const adapter: SimpleAdapter = {
 
                 return { timestamp, dailyVolume, totalVolume, }
             },
-            start: 1715168042
+            start: '2024-05-08'
         }
     }
 }

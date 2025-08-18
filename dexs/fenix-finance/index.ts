@@ -1,42 +1,18 @@
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {
-  DEFAULT_DAILY_VOLUME_FACTORY,
-  DEFAULT_DAILY_VOLUME_FIELD,
-  DEFAULT_TOTAL_VOLUME_FACTORY,
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  getChainVolume,
-} from "../../helpers/getUniSubgraphVolume";
-
-const endpoints = {
-  [CHAIN.BLAST]:
-    "https://api.goldsky.com/api/public/project_clxadvm41bujy01ui2qalezdn/subgraphs/fenix-v2-subgraph/0.0.1/gn",
-};
-
-
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DEFAULT_DAILY_VOLUME_FACTORY,
-    field: DEFAULT_DAILY_VOLUME_FIELD,
-    dateField: "date",
-  },
-  hasDailyVolume: true,
-});
+import { SimpleAdapter } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.BLAST]: {
-      fetch: graphs(CHAIN.BLAST),
-      start: 1596021,
-    },
+  version: 2,
+  methodology: {
+    Fees: 'Users pay 0.1% per swap for volitile pools and 0.03% per swap for stable pools.',
+    UserFees: 'Users pay 0.1% per swap.',
+    Revenue: 'Protocol collects 10% swap fees.',
+    ProtocolRevenue: 'Protocol collects 10% swap fees.',
+    SupplySideRevenue: '90% swap fees distributes to LPs.',
   },
-};
+  fetch: getUniV2LogAdapter({ factory: '0xa19c51d91891d3df7c13ed22a2f89d328a82950f', fees: 0.001, stableFees: 0.0003, userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 }),
+  chains: [CHAIN.BLAST],
+}
 
 export default adapter;
-

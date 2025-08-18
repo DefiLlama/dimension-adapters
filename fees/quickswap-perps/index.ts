@@ -58,12 +58,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch(endpoints[CHAIN.POLYGON_ZKEVM]),
-      start: 1709251200,
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
+      start: '2024-03-01',
     },
   },
+  methodology: "All treasuryFee, poolFee and keeperFee are collected",
 };
 
 export default adapter;

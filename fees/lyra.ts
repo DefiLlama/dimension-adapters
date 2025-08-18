@@ -1,7 +1,7 @@
 import { Adapter } from "../adapters/types";
 import { ARBITRUM, OPTIMISM } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints } from "../adapters/types";
 
@@ -93,11 +93,11 @@ const adapter: Adapter = {
   adapter: {
     [OPTIMISM]: {
       fetch: graph(endpoints)(OPTIMISM),
-      start: 1656154800,
+      start: '2022-06-25',
     },
     [ARBITRUM]: {
       fetch: graph(endpoints)(ARBITRUM),
-      start: 1674691200,
+      start: '2023-01-26',
     },
   },
 };

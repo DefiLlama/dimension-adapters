@@ -1,19 +1,8 @@
-import BigNumber from "bignumber.js";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { postURL } from "../../utils/fetchURL";
 
 interface IWeb3WorldPoolsStats {
   pools: Array<{
-    meta: {
-      currencies: string[];
-      currencyAddresses: string[];
-      poolAddress: string;
-      lpAddress: string;
-      pairType: string;
-      fee: string;
-      feeBeneficiary: string | null;
-      beneficiaryAddress: string | null;
-    };
     tvl: string;
     tvlChange: string;
     volumesLocked: string[];
@@ -40,19 +29,14 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       whiteListUri: "https://static.web3.world/assets/manifest.json",
     }
   );
-  let dailyVolumeBN = new BigNumber(0);
-  let dailyFeesBN = new BigNumber(0);
-  let totalFeesBN = new BigNumber(0);
+  let dailyVolume = 0
+  let dailyFees = 0
   response.pools.forEach((pool) => {
-    dailyVolumeBN = dailyVolumeBN.plus(pool.volume24h);
-    dailyFeesBN = dailyFeesBN.plus(pool.fee24h);
-    totalFeesBN = totalFeesBN.plus(pool.feeAllTime);
+    dailyVolume += +pool.volume24h;
+    dailyFees = +pool.fee24h;
   });
   return {
-    dailyVolume: dailyVolumeBN.toString(10),
-    dailyFees: dailyFeesBN.toString(10),
-    dailyUserFees: dailyFeesBN.toString(10),
-    totalFees: totalFeesBN.toString(10),
+    dailyVolume, dailyFees, dailyUserFees: dailyFees,
   };
 };
 const adapter: SimpleAdapter = {
@@ -60,7 +44,7 @@ const adapter: SimpleAdapter = {
     venom: {
       fetch,
       runAtCurrTime: true,
-      start: 1713139200, // 2024-04-15T00:00:00.000Z
+      start: '2024-04-15', // 2024-04-15T00:00:00.000Z
     },
   },
   version: 1,

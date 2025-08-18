@@ -1,8 +1,6 @@
 import * as sdk from "@defillama/sdk";
-import ADDRESSES from '../../helpers/coreAssets.json'
-
 import request from "graphql-request"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getBlock } from "../../helpers/getBlock"
 
@@ -19,7 +17,9 @@ interface IResponse {
   };
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchVolume = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultVolume> => {
+  const dailyVolume = options.createBalances();
+
   const fromTimestamp = timestamp - 60 * 60 * 24
   const toTimestamp = timestamp
   const toBlock = await getBlock(toTimestamp, CHAIN.ARBITRUM, {})
@@ -39,21 +39,22 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
   }
   `
   const result: IResponse = await request(sdk.graph.modifyEndpoint('BocqFij8hqUaDGmR1FpSuAYJmtqafZrFmBtHknP7kVd'), query)
-  const ethAddress = "ethereum:" + ADDRESSES.null;
 
   const dailyVolumeInEth = Number(result.today.totalVolumeInEth) - Number(result.yesterday.totalVolumeInEth)
-  const totalVolumeInEth = Number(result.today.totalVolumeInEth)
+
+  dailyVolume.addGasToken(dailyVolumeInEth)
+
   return {
-    dailyVolume: await sdk.Balances.getUSDString({ [ethAddress]: dailyVolumeInEth }, timestamp),
-    totalVolume: await sdk.Balances.getUSDString({ [ethAddress]: totalVolumeInEth }, timestamp),
-    timestamp,
+    dailyVolume,
   }
 }
+
 const adapters: SimpleAdapter = {
+  deadFrom: '2025-02-11',
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume,
-      start: 1700092800
+      start: '2023-11-16'
       ,
     }
   }

@@ -53,7 +53,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FLOW]: {
       fetch,
-      start: 1430971,
     },
   },
 };

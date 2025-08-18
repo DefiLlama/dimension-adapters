@@ -24,27 +24,19 @@ const chainToEnv = (chain: CHAIN) => {
   }
 }
 
-const fetchFromChain = (chain: CHAIN) => {
-  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
+const fetch = async (_a: any, _t: any, options: FetchOptions): Promise<FetchResult> => {
+  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(options.chain as CHAIN)}`
+  const dayTimestamp = new Date(options.startOfDay * 1000)
+  const dateStr = dayTimestamp.toISOString().split('T')[0]
+  const historicalVolume: IVolumeall[] = await httpGet(endpoint)
 
-  return async (_a:any, _t: any, options: FetchOptions): Promise<FetchResult> => {
-    const dayTimestamp = new Date(options.startOfDay * 1000)
-    const dateStr = dayTimestamp.toISOString().split('T')[0]
-    const historicalVolume: IVolumeall[] = await httpGet(endpoint)
+  const dailyVolume = historicalVolume
+    .find(dayItem => dayItem.date.split('T')[0] === dateStr)?.volumeusd
 
-    const totalVolume = historicalVolume
-      .filter(volItem => new Date(volItem.date) <= dayTimestamp)
-      .reduce((acc, { volumeusd }) => acc + Number(volumeusd), 0)
-    const dailyVolume = historicalVolume
-      .find(dayItem => dayItem.date.split('T')[0] === dateStr)?.volumeusd
-
-    return {
-      timestamp: options.startOfDay,
-      totalVolume: `${totalVolume}`,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    };
-  }
-};
+  return {
+    dailyVolume: dailyVolume,
+  };
+}
 
 const getStartTimestamp = (chain: CHAIN) => {
   const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
@@ -60,7 +52,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: fetchFromChain(chain),
+        fetch,
         start: getStartTimestamp(chain),
       }
     }

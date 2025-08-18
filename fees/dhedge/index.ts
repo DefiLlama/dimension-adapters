@@ -1,14 +1,30 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
-const query = `
+import * as sdk from "@defillama/sdk";
+
+const queryManagerFeeMinteds = `
       query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
-          where: { daoFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
-        ) { daoFee, tokenPriceAtFeeMint }
+        ) { managerFee, daoFee, tokenPriceAtFeeMint }
+      }`
+const queryEntryFeeMinteds = `
+      query entryFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        entryFeeMinteds(
+          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: time, orderDirection: desc
+        ) { entryFeeAmount, tokenPrice }
       }`
 
+const queryExitFeeMenteds = `
+      query exitFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
+        exitFeeMinteds(
+          where: { time_gte: $startTimestamp, time_lte: $endTimestamp },
+          first: $first, skip: $skip, orderBy: time, orderDirection: desc
+        ) { exitFeeAmount, tokenPrice }
+      }`
 
 // if graph goes down, can be pulled via event logs, example:
 // https://optimistic.etherscan.io/tx/0x265e1eeb9a2c68ef8f58fe5e1d7e3f1151dd5e6686d4147445bf1bd8895deb38#eventlog check topic: 0x755a8059d66d8d243bc9f6913f429a811f154599d0538bb0b6a2ac23f23d2ccd
@@ -25,17 +41,19 @@ const query = `
 } */
 const PROVIDER_CONFIG = {
   [CHAIN.OPTIMISM]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-optimism/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("A5noWtBtNTZBeueunF94spSnfyL1GP7hsuRv3r6nVvyD"),
   },
   [CHAIN.POLYGON]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-polygon/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("AutWgquMFvUVEKVuqE55GWxAHDvRF7ZYfRMU1Bcqo5DW"),
   },
   [CHAIN.ARBITRUM]: {
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-arbitrum/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("C4LBuTkbXYoy2vSPRA5crGdWR4CAo3W64Rf1Won3fZio"),
   },
   [CHAIN.BASE]: {
-    startTimestamp: 1712227101,
-    endpoint: "https://api.studio.thegraph.com/query/48129/dhedge-v2-base-mainnet/version/latest",
+    endpoint: sdk.graph.modifyEndpoint("AN6TxZwi5JwpPgPKbU16E5jpK5YE6Efuq2iavqVaYQeF"),
+  },
+  [CHAIN.ETHEREUM]: {
+    endpoint: sdk.graph.modifyEndpoint("HSPZATdnDvYRNPBJm7eSrzkTeRZqhqYvy7c3Ngm9GCTL"),
   },
 };
 
@@ -69,13 +87,43 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
   return allData;
 };
 
-const calculateFees = (data: any): number =>
+const calculateManagerFees = (data: any): number =>
+  data.reduce((acc: number, item: any) => {
+    const managerFee = Number(item.managerFee);
+    const tokenPrice = Number(item.tokenPriceAtFeeMint);
+    const managerFeeFormatted = managerFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = managerFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
+
+const calculateEntryFees = (data: any): number =>
+  data.reduce((acc: number, item: any) => {
+    const entryFee = Number(item.entryFeeAmount);
+    const tokenPrice = Number(item.tokenPrice);
+    const entryFeeFormatted = entryFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = entryFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
+
+const calculateExitFees = (data: any): number =>
+  data.reduce((acc: number, item: any) => {
+    const exitFee = Number(item.exitFeeAmount);
+    const tokenPrice = Number(item.tokenPrice);
+    const exitFeeFormatted = exitFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = exitFeeFormatted * tokenPriceFormatted;
+    return acc + result;
+  }, 0);
+
+const calculateDaoFees = (data: any): number =>
   data.reduce((acc: number, item: any) => {
     const daoFee = Number(item.daoFee);
     const tokenPrice = Number(item.tokenPriceAtFeeMint);
-    const daoFeeInEth = daoFee / 1e18;
-    const tokenPriceInEth = tokenPrice / 1e18;
-    const result = daoFeeInEth * tokenPriceInEth;
+    const daoFeeFormatted = daoFee / 1e18;
+    const tokenPriceFormatted = tokenPrice / 1e18;
+    const result = daoFeeFormatted * tokenPriceFormatted;
     return acc + result;
   }, 0);
 
@@ -83,21 +131,41 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const config = PROVIDER_CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const dailyFees = await fetchHistoricalFees(chain as CHAIN, query, 'managerFeeMinteds', startTimestamp, endTimestamp)
+  const dailyManagerFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryManagerFeeMinteds, 'managerFeeMinteds', startTimestamp, endTimestamp);
+  const dailyEntryFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryEntryFeeMinteds, 'entryFeeMinteds', startTimestamp, endTimestamp);
+  const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMenteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
+
+  const dailyManagerFees = calculateManagerFees(dailyManagerFeesEvents);
+  const dailyEntryFees = calculateEntryFees(dailyEntryFeesEvents);
+  const dailyExitFees = calculateExitFees(dailyExitFeesEvents);
+  const dailyFees = dailyManagerFees + dailyEntryFees + dailyExitFees;
+
+  const dailyDaoFees = calculateDaoFees(dailyManagerFeesEvents);
 
   return {
-    dailyFees: calculateFees(dailyFees),
-    dailyRevenue: calculateFees(dailyFees),
+    dailyFees,
+    dailyRevenue: dailyDaoFees,
+    dailyProtocolRevenue: dailyDaoFees,
     timestamp: endTimestamp,
   };
 }
 
+const info = {
+  methodology: {
+    Fees: 'All fees generated from dHEDGE vaults.',
+    Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
+  }
+}
+
 const adapter: SimpleAdapter = {
+  methodology: info.methodology,
+  fetch,
   adapter: {
-    [CHAIN.OPTIMISM]: { fetch, start: 1638446653, },
-    [CHAIN.POLYGON]: { fetch, start: 1627560253, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1679918653, },
-    [CHAIN.BASE]: { fetch, start: 1703073853, },
+    [CHAIN.OPTIMISM]: { start: '2021-12-02', },
+    [CHAIN.POLYGON]: { start: '2021-07-29', },
+    [CHAIN.ARBITRUM]: { start: '2023-03-27', },
+    [CHAIN.BASE]: { start: '2023-12-20', },
+    [CHAIN.ETHEREUM]: { start: '2025-08-10', },
   },
   version: 2
 }

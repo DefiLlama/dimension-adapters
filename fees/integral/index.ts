@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/types";
+import { Chain } from "../../adapters/types";
 import { chains, endpoints } from "../../dexs/integral";
 import { request, gql } from "graphql-request";
 import { BaseAdapter, ChainEndpoints, SimpleAdapter } from "../../adapters/types";

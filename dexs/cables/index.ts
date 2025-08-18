@@ -15,7 +15,6 @@ const fetch = async (options: FetchOptions) => {
   logs.forEach(log => {
     dailyVolume.add(log.destAsset, log.destAmount)
   })
-  console.log(options.chain, dailyVolume, logs.length)
   return { dailyVolume }
 };
 
@@ -24,11 +23,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: 1727647200,
+      start: '2024-09-30',
     },
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: 1727647200,
+      start: '2024-09-30',
     },
   },
 };

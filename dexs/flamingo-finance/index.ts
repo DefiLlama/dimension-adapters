@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     neo: {
       fetch,
-      start: 1639130007,
+      start: '2021-12-10',
     },
   },
 };

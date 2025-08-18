@@ -1,5 +1,4 @@
-import { BreakdownAdapter } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
@@ -35,27 +34,21 @@ const classic = Object.keys(endpointsClassic).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
-      fetch: graphsClassic(chain as Chain),
-      start: 1710806400,
-      meta: {
-        methodology: {
-          Fees: "GlyphExchange-v4 charges a dynamic fee",
-          UserFees: "GlyphExchange-v4 charges a dynamic fee",
-          Revenue: "15% fees goes to treasury",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue: "85% fees goes to liquidity providers",
-        },
-      },
+      fetch: graphsClassic,
+      start: '2024-03-19',
     },
   }),
   {},
 ) as any;
 
-const adapter: BreakdownAdapter = {
+export default {
   version: 2,
-  breakdown: {
-    classic: classic,
+  adapter: classic,
+  methodology: {
+    Fees: "GlyphExchange-v4 charges a dynamic fee",
+    UserFees: "GlyphExchange-v4 charges a dynamic fee",
+    Revenue: "15% fees goes to treasury",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "85% fees goes to liquidity providers",
   },
 };
-
-export default adapter;

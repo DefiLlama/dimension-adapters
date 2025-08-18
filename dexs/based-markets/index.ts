@@ -20,10 +20,11 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: 1704009000,
+      fetch,
+      start: '2023-12-31',
     },
   },
+  deadFrom: '2025-02-01',
 };
 
 export default adapter;

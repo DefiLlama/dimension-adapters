@@ -30,7 +30,7 @@ const adapters: SimpleAdapter = {
   adapter: Object.keys(config).reduce(
     (all, chain) => ({
       ...all,
-      [chain]: { fetch, start: 1634010700 },
+      [chain]: { fetch, start: '2021-10-12' },
     }),
     {}
   ),

@@ -25,8 +25,8 @@ async function fetch(timestamp: number) {
     const totalFees = res.total[0].total_fee_generated;
     return {
         timestamp: getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)),
-        dailyFees: dailyFees ? `${dailyFees}` : undefined,
-        totalFees: `${totalFees}`,
+        dailyFees,
+        totalFees,
     };
 }
 
@@ -35,8 +35,7 @@ const adapter: Adapter = {
         [CHAIN.PERSISTENCE]: {
             fetch,
             runAtCurrTime: true,
-            start: 0,
-        },
+                    },
     },
     version: 1
 };

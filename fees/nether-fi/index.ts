@@ -1,6 +1,6 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const subgraphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
@@ -16,11 +16,11 @@ const methodology = {
   ProtocolRevenue: "Treasury has no revenue",
 };
 
-const getFetch = (): Fetch => async (timestamp: number) => {
+const fetch = async (timestamp: number) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
-  const graphQuery = gql`{
+  const graphQuery = `{
     feeStat(id: "${searchTimestamp}") {
       mint
       burn
@@ -28,9 +28,7 @@ const getFetch = (): Fetch => async (timestamp: number) => {
       swap
     }
   }`;
-
-  const graphRes = await request(subgraphEndpoint, graphQuery);
-
+  const graphRes = await sdk.graph.request(subgraphEndpoint, graphQuery);
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
     parseInt(graphRes.feeStat.burn) +
@@ -41,28 +39,25 @@ const getFetch = (): Fetch => async (timestamp: number) => {
   const finalUserFee = userFee / 1e30;
 
   return {
-    timestamp,
     dailyFees: finalDailyFee.toString(),
     dailyUserFees: finalUserFee.toString(),
     dailyRevenue: (finalDailyFee * 0.3).toString(),
     dailyProtocolRevenue: "0",
-    totalProtocolRevenue: "0",
     dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
   };
-};
+}
 
 const adapter: Adapter = {
   version: 1,
+  deadFrom: '2025-01-28',
   adapter: {
     [CHAIN.BASE]: {
-      fetch: getFetch(),
+      fetch,
       start: startTimestamp,
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

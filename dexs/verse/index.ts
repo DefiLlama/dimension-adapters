@@ -1,35 +1,7 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { ChainEndpoints, SimpleAdapter, BaseAdapter } from "../../adapters/types";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains"
+import { uniV2Exports } from "../../helpers/uniswap"
 
-const endpoints: ChainEndpoints = {
-    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('CvSasxLYUvFbYyi7VXGhXL6PNgkZPoVDo2bo66ftEA2V'),
-    [CHAIN.SMARTBCH]: "https://analytics-dex.api.bitcoin.com/subgraphs/name/verse/exchange",
-};
-
-const fetch = getChainVolume2({
-    graphUrls: endpoints,
-    totalVolume: {
-        factory: "factories",
-        field: "volumeUSD",
-    },
-});
-
-const volumeAdapter: BaseAdapter = {
-    [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM),
-        start: 1655164800,
-    },
-    [CHAIN.SMARTBCH]: {
-        fetch: fetch(CHAIN.SMARTBCH),
-        start: 1646697600,
-    },
-}
-
-const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: volumeAdapter,
-}
-
-export default adapter;
+export default uniV2Exports({
+    [CHAIN.ETHEREUM]: { factory: '0xee3E9E46E34a27dC755a63e2849C9913Ee1A06E2', },
+    [CHAIN.SMARTBCH]: { factory: '0x16bc2B187D7C7255b647830C05a6283f2B9A3AF8', },
+})

@@ -5,46 +5,7 @@ const wenLedger: any = {
   [CHAIN.POLYGON]: "0x5574d1e44eFcc5530409fbE1568f335DaF83951c"
 }
 const abis: any = {
-  getStats: {
-    "inputs": [],
-    "name": "getStats",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "totalVolume",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalLiquidityBootstrapped",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalTokensCreated",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalTokensGraduated",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalTrades",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct WenLedger.Stats",
-        "name": "",
-        "type": "tuple"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  }
+  getStats: "function getStats() view returns ((uint256 totalVolume, uint256 totalLiquidityBootstrapped, uint256 totalTokensCreated, uint256 totalTokensGraduated, uint256 totalTrades))"
 };
 
 const fetchFees = async (options: FetchOptions) => {
@@ -84,8 +45,13 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1716854400
+      start: '2024-05-28',
     },
+  },
+  methodology: {
+    Fees: "Tokens trading and launching fees paid by users.",
+    Revenue: "All fees are revenue.",
+    ProtocolRevenue: "All revenue collected by protocol.",
   }
 };
 

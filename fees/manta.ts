@@ -13,10 +13,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MANTA]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
-      start: 1694217600,
+      start: '2023-09-09',
     },
   },
   protocolType: ProtocolType.CHAIN,
+  allowNegativeValue: true, // sequencer fees
 };
 
 export default adapter;

@@ -18,10 +18,10 @@ const adapter: SimpleAdapter = {
         dailyRevenue.resizeBy(0.8);
         return {
           dailyFees: fees,
-          dailyRevenue: dailyRevenue,
+          dailyRevenue,
         }
       },
-      start: 1714608000,
+      start: '2024-05-02',
     },
   }
 }

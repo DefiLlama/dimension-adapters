@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { BaseAdapter, BreakdownAdapter, ChainEndpoints, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -47,14 +47,14 @@ const v2Graphs = (chain: Chain) => {
 
       const dailyVolume = totalVolume - previousVolume;
 
+      if (dailyVolume < 0) throw new Error(`Daily volume cannot be negative. Current value: ${dailyVolume}`);
+
       return {
         dailyVolume,
-        totalVolume,
       };
     } catch {
       return {
         dailyVolume: 0,
-        totalVolume: 0,
       };
     }
   };
@@ -73,7 +73,7 @@ const adapter: BreakdownAdapter = {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1graphs(CHAIN.ETHEREUM),
-        start: 1582761600,
+        start: '2020-02-27',
       },
     },
     v2: Object.keys(endpoints).reduce((acc, chain) => {

@@ -17,10 +17,8 @@ const adapters: SimpleAdapter = uniV3Exports({
   [CHAIN.FANTOM]: { factory: poolFactoryAddress, },
   [CHAIN.ARBITRUM]: { factory: poolFactoryAddress, },
   [CHAIN.BASE]: { factory: poolFactoryAddress, },
+  [CHAIN.SONIC]: { factory: poolFactoryAddress, },
 })
 
-
-Object.keys(adapters.adapter).forEach((chain: any) => {
-  adapters.adapter[chain].meta = { methodology }
-})
+adapters.methodology = methodology;
 export default adapters;

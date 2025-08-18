@@ -8,7 +8,6 @@ const endpoint = "https://api-be.firebird.finance/v1/hyper/fees/info";
 interface FeeInfoResponse {
   data: {
     dailyFees: number;
-    totalFees: number;
   };
 }
 
@@ -17,13 +16,10 @@ const fetch = (chainId: number) => {
     const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp);
     const response: FeeInfoResponse = await httpGet(      `${endpoint}?chain_id=${chainId}&day=${dayTimestamp}`    );
     const dailyFees = response.data.dailyFees.toString();
-    const totalFees = response.data.totalFees.toString();
+
     return {
-      timestamp: dayTimestamp,
       dailyFees,
-      totalFees,
       dailyRevenue: dailyFees,
-      totalRevenue: totalFees,
     } as FetchResultFees;
   };
 };
@@ -34,37 +30,33 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  methodology,
+  deadFrom: '2024-02-29',
   version: 1,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(43114),
-      start: 1659935138,
-      meta: { methodology },
+      start: '2022-08-08',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(137),
-      start: 1654574276,
-      meta: { methodology },
+      start: '2022-06-07',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
-      start: 1661412914,
-      meta: { methodology },
+      start: '2022-08-25',
     },
     [CHAIN.BSC]: {
       fetch: fetch(56),
-      start: 1657270551,
-      meta: { methodology },
+      start: '2022-07-08',
     },
     [CHAIN.CRONOS]: {
       fetch: fetch(25),
-      start: 1656399464,
-      meta: { methodology },
+      start: '2022-06-28',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
-      start: 1673321423,
-      meta: { methodology },
+      start: '2023-01-10',
     },
   },
 };

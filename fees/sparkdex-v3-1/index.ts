@@ -62,12 +62,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FLARE]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-02',
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 import { addTokensReceived } from '../helpers/token';
 
 
@@ -36,20 +36,15 @@ const graphs = (chain: Chain) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
-      start: 1653523200,
-      meta: {
-        methodology
-      }
+      start: '2022-05-26',
     },
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
-      start: 1636606800,
-      meta: {
-        methodology
-      }
+      start: '2021-11-11',
     },
   }
 }

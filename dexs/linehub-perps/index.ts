@@ -54,13 +54,11 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-02',
     },
   },
 };

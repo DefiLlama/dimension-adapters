@@ -17,18 +17,15 @@ interface PoolStatistics {
 }
 
 const fetchFees = (poolType: 'basic' | 'precision') => {
-    return async (timestamp: number): Promise<FetchResultFees> => {
+    return async (_a: number): Promise<FetchResultFees> => {
         const response: Array<PoolStatistics> = await fetchURL('http://api.ociswap.com/statistics/pool-types');
 
         const index = response.findIndex(pool => pool.pool_type === poolType);
 
         const dailyFees = Number(response[index].fees.usd["24h"]);
-        const totalFees = Number(response[index].fees.usd.total);
 
         return {
-            dailyFees: `${dailyFees}`,
-            totalFees: `${totalFees}`,
-            timestamp
+            dailyFees,
         };
     };
 };
@@ -39,14 +36,14 @@ const adapters: BreakdownAdapter = {
         basic: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchFees('basic'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         },
         precision: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchFees('precision'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         }

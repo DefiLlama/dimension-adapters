@@ -1,77 +1,64 @@
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter, univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { addTokensReceived } from '../../helpers/token';
 
-// Define the old and new adapters
-const adapterOld = univ2Adapter2({
-  [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Arbitrum_V2',
-  [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Metrics_Optimism_V2'
-}, {
-  factoriesName: "rubicons",
-  totalVolume: "total_volume_usd",
-});
-
-adapterOld.adapter.arbitrum.start = 0;
-adapterOld.adapter.optimism.start = 0;
-
-const adapterNew = univ2Adapter2({
-  [CHAIN.OPTIMISM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Optimism_V2',
-  [CHAIN.ARBITRUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Arbitrum_V2',
-  [CHAIN.BASE]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Base_V2',
-  [CHAIN.ETHEREUM]: 'https://graph-v2.rubicon.finance/subgraphs/name/Gladius_Metrics_Mainnet_V2',
-}, {
-  factoriesName: "rubicons",
-  totalVolume: "total_volume_usd",
-});
-
-adapterNew.adapter.arbitrum.start = 183178326;
-adapterNew.adapter.optimism.start = 116354792;
-adapterNew.adapter.base.start = 10029602;
-adapterNew.adapter.ethereum.start = 19361393;
-
-// Define the function to fetch and combine data from both adapters
-async function combinedFetch(chain, timestamp, chainBlocks, options) {
-  let oldData = null;
-  let newData = null;
-
-  if (adapterOld.adapter[chain] && adapterOld.adapter[chain].fetch) {
-    oldData = await adapterOld.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
-  }
-
-  if (adapterNew.adapter[chain] && adapterNew.adapter[chain].fetch) {
-    newData = await adapterNew.adapter[chain].fetch(timestamp, chainBlocks, options).catch(() => null);
-  }
-
-  if (!oldData) return newData;
-  if (!newData) return oldData;
-
-  return {
-    totalVolume: (oldData.totalVolume || 0) + (newData.totalVolume || 0),
-    dailyVolume: (oldData.dailyVolume || 0) + (newData.dailyVolume || 0),
-    // Add any other fields that need to be combined here
-  };
+const reactors = {
+  [CHAIN.ARBITRUM]: ["0x6d81571b4c75ccf08bd16032d0ae54dbaff548b0"],
+  [CHAIN.BASE]: ["0x3c53c04d633bec3fb0de3492607c239bf92d07f9"],
+  [CHAIN.ETHEREUM]: ["0x3C53c04d633bec3fB0De3492607C239BF92d07f9", "0xF08DB8D79312ce610aEED9463EdE1A6BB8aE4235"],
+  [CHAIN.OPTIMISM]: ["0xcb23e6c82c900e68d6f761bd5a193a5151a1d6d2", "0x98169248bdf25e0e297ea478ab46ac24058fac78", "0x95b7F3662Ba73b3fF35874Af0E09b050dB03118B"]
 }
 
-// Create the combined adapter
-const combinedAdapter = {
+const fillabi = "event Fill (bytes32 indexed orderHash, address indexed filler, address indexed swapper, uint256 nonce)"
+
+const fetch = async (options: FetchOptions) => {
+
+  const fills = await options.getLogs({
+    targets: reactors[options.chain],
+    eventAbi: fillabi,
+  })
+
+  const fillers = new Set<string>();
+  const swappers = new Set<string>();
+
+  fills.forEach((fill) => {
+    fillers.add(fill.filler);
+    swappers.add(fill.swapper);
+  });
+
+  if (fillers.size > 0 && swappers.size > 0) {
+    let dailyVolume = await addTokensReceived({
+      options,
+      targets: Array.from(swappers),
+      fromAdddesses: Array.from(fillers),
+    });
+    
+    return { dailyVolume }
+  }
+
+  return { dailyVolume: 0}
+}
+
+const adapter: Adapter = {
+  version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: (timestamp, chainBlocks, options) => combinedFetch(CHAIN.ARBITRUM, timestamp, chainBlocks, options),
-      start: adapterOld.adapter.arbitrum.start,
-    },
     [CHAIN.OPTIMISM]: {
-      fetch: (timestamp, chainBlocks, options) => combinedFetch(CHAIN.OPTIMISM, timestamp, chainBlocks, options),
-      start: adapterOld.adapter.optimism.start,
+      fetch: fetch as any,
+      start: '2023-09-24'
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch as any,
+      start: '2024-02-21'
     },
     [CHAIN.BASE]: {
-      fetch: (timestamp, chainBlocks, options) => adapterNew.adapter.base.fetch(timestamp, chainBlocks, options),
-      start: adapterNew.adapter.base.start,
+      fetch: fetch as any,
+      start: '2024-03-19'
     },
     [CHAIN.ETHEREUM]: {
-      fetch: (timestamp, chainBlocks, options) => adapterNew.adapter.ethereum.fetch(timestamp, chainBlocks, options),
-      start: adapterNew.adapter.ethereum.start,
-    },
+      fetch: fetch as any,
+      start: '2023-04-24'
+    }
   },
-  version: 2,
-};
+}
 
-export default combinedAdapter;
+export default adapter;

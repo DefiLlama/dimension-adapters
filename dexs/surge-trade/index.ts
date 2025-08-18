@@ -16,7 +16,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.RADIXDLT]: {
       fetch: fetchVolume,
       runAtCurrTime: true,
-      start: 1680048000,
+      start: '2023-03-29',
     }
   }
 }

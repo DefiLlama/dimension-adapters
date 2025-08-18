@@ -89,12 +89,12 @@ const getFetch = () => async (timestamp: number) => {
 
   return {
     timestamp: dayTimestamp,
-    dailyFees: dailyFees.toFixed(2),
-    dailyUserFees: dailyFees.toFixed(2),
-    dailySupplySideRevenue: dailySupplySideRevenue.toFixed(2),
-    dailyHoldersRevenue: dailyHoldersRevenue.toFixed(2),
-    dailyProtocolRevenue: dailyProtocolRevenue.toFixed(2),
-    dailyRevenue: dailyRevenue.toFixed(2)
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyRevenue
   };
 }
 
@@ -108,13 +108,11 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(),
-      start: 1693997105,
-      meta: {
-        methodology
-      }
+      start: '2023-09-06',
     },
   },
 }

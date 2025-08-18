@@ -5,7 +5,7 @@ const api_revenue = "https://api.ref.finance/get-total-revenue"
 const adapter: SimpleAdapter = {
     adapter: {
         "near": {
-          start: 1725897600,
+          start: '2024-09-09',
           fetch: async () => {
             const fee_result = await httpGet(api_fee);
             const revenue_result = await httpGet(api_revenue);

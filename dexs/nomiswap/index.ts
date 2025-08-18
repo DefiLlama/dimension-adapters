@@ -27,14 +27,14 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: async (options: FetchOptions) => {
-        const data = await graphsClassic(CHAIN.BSC)(options);
+        const data = await graphsClassic(options);
         const removeSpike = Number(data.totalVolume) - 7035654137.527446631277942307129497;
         data.totalVolume = removeSpike > 0 ? removeSpike : data.totalVolume;
         return {
           ...data
         }
       },
-      start: 1634710338,
+      start: '2021-10-20',
     }
   }
 }

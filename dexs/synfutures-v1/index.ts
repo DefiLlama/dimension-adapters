@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 // SynFutures v1 volume
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../../adapters/types";
 const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
@@ -58,19 +58,19 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1628128417,
+      start: '2021-08-05',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1659750817,
+      start: '2022-08-06',
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      start: 1628128417,
+      start: '2021-08-05',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      start: 1628128417,
+      start: '2021-08-05',
     },
   },
 };

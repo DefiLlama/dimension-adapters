@@ -7,7 +7,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.IOTAEVM]: {
       fetch: fetchVolume,
-      start: 1721692800,
+      start: '2024-07-23',
     },
   },
 };

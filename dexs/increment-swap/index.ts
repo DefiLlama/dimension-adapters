@@ -30,8 +30,8 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
     .find(dayItem => dayItem.time === todayDateString)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FLOW]: {
       fetch,
-      start: 1650844800,
+      start: '2022-04-25',
     },
   },
 };

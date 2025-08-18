@@ -5,25 +5,19 @@ import * as sdk from '@defillama/sdk'
 const address = 'EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ'
 
 export default {
+    methodology: {
+        UserFees: 'Stakers pay no fees for using Hipo.',
+        ProtocolRevenue: 'Hipo receives a small fee before distributing rewards to stakers.',
+        SupplySideRevenue: 'Stakers receive the rest of the rewards, after deducting validators share and protocol fee.',
+        HoldersRevenue: 'Currently there is no governance token.',
+        Revenue: 'All generated revenue is from protocol fee.',
+        Fees: 'The total reward is calculated after deducting validators share, so it is the stakers revenue plus protocol revenue.',
+    },
     version: 2,
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
-            start: 1698685200,
-            meta: {
-                hallmarks: [
-                    [1698685200, 'Hipo Launch'],
-                    [1710821940, 'Hipo v2'],
-                ],
-                methodology: {
-                    UserFees: 'Stakers pay no fees for using Hipo.',
-                    ProtocolRevenue: 'Hipo receives a small fee before distributing rewards to stakers.',
-                    SupplySideRevenue: 'Stakers receive the rest of the rewards, after deducting validators share and protocol fee.',
-                    HoldersRevenue: 'Currently there is no governance token.',
-                    Revenue: 'All generated revenue is from protocol fee.',
-                    Fees: 'The total reward is calculated after deducting validators share, so it is the stakers revenue plus protocol revenue.',
-                },
-            },
+            start: '2023-10-30',
             fetch: async () => {
                 const getTreasuryState = await postURL('https://toncenter.com/api/v3/runGetMethod', {
                     address,

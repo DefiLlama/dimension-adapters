@@ -1,7 +1,7 @@
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { gql, GraphQLClient } from "graphql-request";
-import disabledAdapter from "../../helpers/disabledAdapter";
 import { getEnv } from "../../helpers/env";
 
 const endpoint = "https://api.vybenetwork.com/v1/graphql";
@@ -51,9 +51,9 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2023-09-12',
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    solana: {
+    [CHAIN.SOLANA]: {
       fetch,
       start: getStartTimestamp,
     },

@@ -30,12 +30,10 @@ const adapter: Adapter = {
           timestamp: options.startOfDay,
         };
       },
-      start: 1747025482,
-      meta: {
-        methodology: methodology,
-      },
+      start: '2025-05-12',
     },
   },
+  methodology,
 };
 
 export default adapter;
