@@ -18,9 +18,6 @@ interface PrcessBalances {
 
 async function processV2Services(options: FetchOptions, balances: PrcessBalances, services: Array<IGearboxService>) {
   if (services.length > 0) {
-    const dieselToTokens: {[key: string]: string} = {}
-    const dieselToPrices: {[key: string]: number} = {}
-
     const underlyingTokens = await options.api.multiCall({
       abi: 'address:underlyingToken',
       calls: services.map(service => service.pool),
@@ -76,9 +73,6 @@ async function processV2Services(options: FetchOptions, balances: PrcessBalances
         balances.dailySupplySideRevenue.add(token, supplySideInterest, METRIC.BORROW_INTEREST)
         balances.dailyRevenue.add(token, protocolInterestFee, METRIC.BORROW_INTEREST)
         balances.dailyProtocolRevenue.add(token, protocolInterestFee, METRIC.BORROW_INTEREST)
-
-        dieselToTokens[formatAddress(dieselTokens[i])] = formatAddress(underlyingTokens[i])
-        dieselToPrices[formatAddress(dieselTokens[i])] = Number(dieselPrices[i]) / ONE_ETHER_IN_WEI
       }
     }
 
@@ -178,12 +172,12 @@ async function processV3Services(options: FetchOptions, balances: PrcessBalances
     const events = repayEvents[i];
     for (const event of events) {
       // we add profit & loss to revenue
-      balances.dailyFees.add(token, Number(event.profit), METRIC.BORROW_INTEREST)
-      balances.dailyFees.add(token, Number(event.loss), METRIC.BORROW_INTEREST)
-      balances.dailyRevenue.add(token, Number(event.profit), METRIC.BORROW_INTEREST)
-      balances.dailyRevenue.add(token, Number(event.loss), METRIC.BORROW_INTEREST)
-      balances.dailyProtocolRevenue.add(token, Number(event.profit), METRIC.BORROW_INTEREST)
-      balances.dailyProtocolRevenue.add(token, Number(event.loss), METRIC.BORROW_INTEREST)
+      balances.dailyFees.add(token, Number(event.profit), 'Performance Profit')
+      balances.dailyFees.add(token, Number(event.loss), 'Performance Loss')
+      balances.dailyRevenue.add(token, Number(event.profit), 'Performance Profit')
+      balances.dailyRevenue.add(token, Number(event.loss), 'Performance Loss')
+      balances.dailyProtocolRevenue.add(token, Number(event.profit), 'Performance Profit')
+      balances.dailyProtocolRevenue.add(token, Number(event.loss), 'Performance Loss')
     }
   }
 }
