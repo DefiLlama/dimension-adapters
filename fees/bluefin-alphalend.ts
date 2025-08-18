@@ -6,8 +6,8 @@ const fetch = async (_: number): Promise<FetchResultFees> => {
   const data = await fetchURL(
     "https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily"
   );
-  const dailyFees = Number(data.fees);
-  const dailyRevenue = Number(data.fees);
+  const dailyFees = Number(data.fees || 0);
+  const dailyRevenue = Number(data.revenue || 0);
 
   return {
     dailyFees,
