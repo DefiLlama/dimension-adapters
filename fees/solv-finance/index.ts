@@ -5,6 +5,7 @@ import { addGasTokensReceived, addTokensReceived, getSolanaReceived } from "../.
 import { request } from "graphql-request";
 import { Balances } from "@defillama/sdk";
 import { getConfig } from "../../helpers/cache";
+import BigNumber from "bignumber.js";
 const feesConfig =
   "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/main/solv-fees.json";
 const graphUrl =
@@ -43,14 +44,13 @@ const fetch: FetchV2 = async (options) => {
     return {}
 
 
-  const dailyFees = await feeRevenues(options, contracts);
+  const { dailyFees, dailyProtocolRevenue } = await feeRevenues(options, contracts);
   const dailyRevenue = await revenues(options, contracts);
   const pureRevenueBalances = await pureRevenues(options, contracts);
 
-  dailyRevenue.addBalances(dailyFees.clone(yields));
-
   dailyFees.addBalances(pureRevenueBalances);
   dailyRevenue.addBalances(pureRevenueBalances);
+  dailyRevenue.addBalances(dailyProtocolRevenue);
 
   return {
     dailyFees,
@@ -86,22 +86,25 @@ async function revenues(options: FetchOptions, contracts: any): Promise<Balances
   return dailyRevenues;
 }
 
-async function feeRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+async function feeRevenues(options: FetchOptions, contracts: any): Promise<{ dailyFees: Balances, dailyProtocolRevenue: Balances }> {
   const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   const protocolFees = await received(options, contracts, "protocolFees");
   dailyFees.addBalances(protocolFees);
-
-  const poolFees = await pool(options, contracts, "poolFees");
+  const { dailyFees: poolFees, depositFees } = await pool(options, contracts, "poolFees");
   dailyFees.addBalances(poolFees);
+  dailyProtocolRevenue.addBalances(depositFees);
 
   const nativeTokenFees = await nativeToken(options, contracts, "nativeTokenFees");
   dailyFees.addBalances(nativeTokenFees);
+  dailyProtocolRevenue.addBalances(nativeTokenFees.clone(yields));
 
   const solanaFees = await solanas(options, contracts, "solanaFees");
   dailyFees.addBalances(solanaFees);
+  dailyProtocolRevenue.addBalances(solanaFees.clone(yields));
 
-  return dailyFees;
+  return { dailyFees, dailyProtocolRevenue };
 }
 
 async function received(
@@ -120,10 +123,10 @@ async function received(
   });
 }
 
-async function pool(options: FetchOptions, contracts: any, configKey: string): Promise<Balances> {
+async function pool(options: FetchOptions, contracts: any, configKey: string): Promise<{ dailyFees: Balances, depositFees: Balances }> {
   const poolConfig = contracts[options.chain]?.[configKey];
   if (!poolConfig) {
-    return options.createBalances();
+    return { dailyFees: options.createBalances(), depositFees: options.createBalances() };
   }
 
   const pools = await getGraphData(
@@ -135,7 +138,7 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
 
-  const [yesterdayNavs, todayNavs, poolBaseInfos, yesterdayShareTotalValues, todayShareTotalValues] = await Promise.all([options.fromApi.multiCall({
+  const [yesterdayNavs, todayNavs, poolBaseInfos, yesterdayShareTotalValues, todayShareTotalValues, currencyDecimals] = await Promise.all([options.fromApi.multiCall({
     abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
     calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
       target: pool.navOracle,
@@ -184,35 +187,53 @@ async function pool(options: FetchOptions, contracts: any, configKey: string): P
         params: [index.openFundShareSlot],
       })
     ),
+  }),
+  options.api.multiCall({
+    abi: "function decimals() view returns (uint8)",
+    calls: pools.map((pool: { currency: string }) => ({
+      target: pool.currency,
+    })),
   })]);
 
   const dailyFees = options.createBalances();
+  const depositFees = options.createBalances();
   for (let i = 0; i < pools.length; i++) {
     const pool = poolConfig[i];
-    const ratio = pool.ratio;
+    const revenue_ratio = pool.revenue_ratio;
 
-    const yesterdayNav = yesterdayNavs[i].nav_;
-    const todayShares = todayShareTotalValues[i];
+    const yesterdayNav = BigNumber(yesterdayNavs[i].nav_);
+    const todayShares = BigNumber(todayShareTotalValues[i]);
 
-    const todayNav = todayNavs[i].nav_;
-    const yesterdayShares = yesterdayShareTotalValues[i];
+    const todayNav = BigNumber(todayNavs[i].nav_);
+    const yesterdayShares = BigNumber(yesterdayShareTotalValues[i]);
 
-    if (todayShares == 0 || yesterdayShares == 0) {
+    if (todayShares.isZero() || yesterdayShares.isZero()) {
       continue;
     }
 
-    let fee = (todayNav * todayShares - yesterdayNav * yesterdayShares) / (1 - ratio);
-    if (fee <= 0) {
-      return dailyFees;
+    const poolBaseInfo = poolBaseInfos[i];
+
+    const currencyDecimal = currencyDecimals[i];
+
+    let depositFee = (BigNumber(todayShares).minus(BigNumber(yesterdayShares))).div(BigNumber(todayNav).minus(BigNumber(1).pow(currencyDecimal)));
+
+    let fee = (todayNav.times(todayShares).minus(yesterdayNav.times(yesterdayShares))).div(BigNumber(1).minus(revenue_ratio));
+    let poolFee = BigNumber(0);
+
+    if (fee.lte(0) || depositFee.lte(0)) {
+      fee = BigNumber(0);
+      depositFee = BigNumber(0);
     } else {
-      fee = fee / 1e18;
+      fee = fee.div(BigNumber(10).pow(18));
+      depositFee = depositFee.div(BigNumber(10).pow(18));
+      poolFee = fee.times(revenue_ratio);
     }
 
-    const poolBaseInfo = poolBaseInfos[i];
-    dailyFees.add(poolBaseInfo.currency, fee);
+    dailyFees.add(poolBaseInfo.currency, fee.toNumber());
+    depositFees.add(poolBaseInfo.currency, depositFee.plus(poolFee).toNumber());
   }
 
-  return dailyFees;
+  return { dailyFees, depositFees };
 }
 
 async function getGraphData(poolId: string[], chain: Chain) {
