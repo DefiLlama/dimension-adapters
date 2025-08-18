@@ -15,6 +15,9 @@ const config = {
 const adapters: SimpleAdapter = {
   adapter: {},
   version: 2,
+  methodology: {
+    Fees: "Fees paid by users using privicy services."
+  },
 };
 
 Object.entries(config).forEach(([chain, { pools }]) => {
@@ -34,11 +37,6 @@ Object.entries(config).forEach(([chain, { pools }]) => {
         dailyFees,
       };
     },
-    meta: {
-      methodology: {
-        Fees: "Fees paid by users using privicy services."
-      }
-    }
   }
 });
 

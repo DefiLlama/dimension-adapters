@@ -66,12 +66,10 @@ const adapter: Adapter = {
         }
       }) as FetchV2,
       start: '2024-04-14',
-      meta: {
-        methodology
-      },
     },
   },
   version: 2,
+  methodology
 }
 
 export default adapter;

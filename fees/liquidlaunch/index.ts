@@ -149,7 +149,8 @@ const adapter: SimpleAdapter = {
         [CHAIN.HYPERLIQUID]: {
             fetch,
             start: "2025-01-01",
-            meta: {
+        },
+    },
                 methodology: {
                     Volume: "Volume is calculated from hypeIn amounts in TokensPurchased events and hypeOut amounts in TokensSold events.",
                     Fees: "Fees include: (1) Pre-bond trading fees: 1% of HYPE from TokensPurchased/TokensSold events, (2) Bond fees: 20 HYPE when tokens bond to DEX, (3) Post-bond LP fees: claimed via FeesClaimed events.",
@@ -158,9 +159,6 @@ const adapter: SimpleAdapter = {
                     HoldersRevenue: "Revenue distributed to LIQD stakers via RewardAdded events from the staking contract. This should include all protocol fees (pre-bond 1% fees + 75% of bond fees + 50% of LP fees).",
                     SupplySideRevenue: "Revenue that goes to token deployers: 25% of bond fees (5 HYPE per bond) + 50% of post-bond LP fees from FeesClaimed events.",
                 },
-            },
-        },
-    },
 };
 
 export default adapter; 

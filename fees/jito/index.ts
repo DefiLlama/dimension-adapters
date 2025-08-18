@@ -14,7 +14,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune"
 
-const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
   const sql = getSqlFromFile("helpers/queries/jito.sql", {
     start: options.startTimestamp,
@@ -40,16 +40,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2022-11-21',
-      meta:{
-        methodology: {
-          Fees: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
-          Revenue: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
-          HoldersRevenue: 'Fee paid to token holders',
-        }
-      }
     }
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
+    Revenue: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees)',
+    HoldersRevenue: 'Fee paid to token holders',
+  }
 }
 
 export default adapter

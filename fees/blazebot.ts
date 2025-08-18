@@ -36,17 +36,15 @@ const graphs = (chain: Chain) => {
 }
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: "All trading fees paid by users while using trading bot.",
+    Revenue: 'All trading fees paid by users while using trading bot.',
+  },
   deadFrom: "2024-03-12",
   adapter: {
     [CHAIN.BASE]: {
-      fetch: async (timestamp: number) => {return{timestamp}},
+      fetch: async (timestamp: number) => { return { timestamp } },
       start: '2023-09-08',
-      meta: {
-        methodology: {
-          Fees: "All trading fees paid by users while using trading bot.",
-          Revenue: 'All trading fees paid by users while using trading bot.',
-        }
-      }
     },
   }
 }

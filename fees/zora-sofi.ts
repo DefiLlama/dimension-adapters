@@ -97,11 +97,9 @@ const adapter: Adapter = {
         return await getZoraCoinsData(options, 'fees');
       },
       start: '2025-02-19',
-      meta: {
-        methodology
-      }
     },
   },
+  methodology,
   isExpensiveAdapter: true
 }
 

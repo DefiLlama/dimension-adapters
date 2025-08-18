@@ -20,14 +20,12 @@ const adapter: Adapter = {
         [CHAIN.BLAST]: {
             fetch: getFees,
             start: '2024-04-30',
-            meta: {
-                methodology: {
-                Fees: "All card trading fees paid by users while using Fantasy.",
-                Revenue: "Trading fees are collected by Fantasy protocol.",
-                ProtocolRevenue: "Trading fees are collected by Fantasy protocol.",
-            }
-            }
         },
     },
+    methodology: {
+        Fees: "All card trading fees paid by users while using Fantasy.",
+        Revenue: "Trading fees are collected by Fantasy protocol.",
+        ProtocolRevenue: "Trading fees are collected by Fantasy protocol.",
+    }
 };
 export default adapter;

@@ -139,102 +139,34 @@ const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: F
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users using vfat.io services.',
-    Revenue: 'All fees collected by vfat.io.',
-    ProtocolRevenue: 'All fees collected by vfat.io.',
-  }
+const methodology = {
+  Fees: 'All fees paid by users using vfat.io services.',
+  Revenue: 'All fees collected by vfat.io.',
+  ProtocolRevenue: 'All fees collected by vfat.io.',
 }
 
 const adapter: SimpleAdapter = {
+  fetch: fetchFees,
+  methodology,
   version: 1,
   adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.LINEA]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.MODE]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.FANTOM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-      meta,
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetchFees,
-      start: '2024-12-24',
-      meta,
-    },
-    [CHAIN.FRAXTAL]: {
-      fetch: fetchFees,
-      start: '2024-12-03',
-      meta,
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetchFees,
-      start: '2024-11-11',
-      meta,
-    },
-    [CHAIN.INK]: {
-      fetch: fetchFees,
-      start: '2025-02-27',
-      meta,
-    },
-    [CHAIN.UNICHAIN]: {
-      fetch: fetchFees,
-      start: '2025-03-10',
-      meta,
-    },
-    [CHAIN.KATANA]: {
-      fetch: fetchFees,
-      start: '2025-06-09',
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchFees,
-      start: '2025-04-28',
-      meta,
-    },
-    [CHAIN.LISK]: {
-      fetch: fetchFees,
-      start: '2025-06-13',
-      meta,
-    },
+    [CHAIN.OPTIMISM]: { start: '2024-03-21', },
+    [CHAIN.BASE]: { start: '2024-03-21', },
+    [CHAIN.ARBITRUM]: { start: '2024-03-21', },
+    [CHAIN.LINEA]: { start: '2024-03-21', },
+    [CHAIN.ETHEREUM]: { start: '2024-03-21', },
+    [CHAIN.MODE]: { start: '2024-03-21', },
+    [CHAIN.FANTOM]: { start: '2024-03-21', },
+    [CHAIN.MANTLE]: { start: '2024-03-21', },
+    [CHAIN.BSC]: { start: '2024-03-21', },
+    [CHAIN.SONIC]: { start: '2024-12-24', },
+    [CHAIN.FRAXTAL]: { start: '2024-12-03', },
+    [CHAIN.AVAX]: { start: '2024-11-11', },
+    [CHAIN.INK]: { start: '2025-02-27', },
+    [CHAIN.UNICHAIN]: { start: '2025-03-10', },
+    [CHAIN.KATANA]: { start: '2025-06-09', },
+    [CHAIN.POLYGON]: { start: '2025-04-28', },
+    [CHAIN.LISK]: { start: '2025-06-13', },
   }
 }
 

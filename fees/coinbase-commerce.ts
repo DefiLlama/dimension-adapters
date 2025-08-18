@@ -23,31 +23,27 @@ const fetchFees = (chain: Chain) => {
     }
 }
 
-const meta = {
-    methodology: {
-        Fees: 'All fees paid by users using Coinbase Commerce service.',
-        Revenue: 'All fees paid by users using Coinbase Commerce service.',
-        ProtocolRevenue: 'All fees paid by users using Coinbase Commerce service.',
-    }
+const methodology = {
+    Fees: 'All fees paid by users using Coinbase Commerce service.',
+    Revenue: 'All fees paid by users using Coinbase Commerce service.',
+    ProtocolRevenue: 'All fees paid by users using Coinbase Commerce service.',
 }
 
 const start = 1700053261
 const adapters: SimpleAdapter = {
+    methodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetchFees(CHAIN.ETHEREUM),
             start,
-            meta,
         },
         [CHAIN.BASE]: {
             fetch: fetchFees(CHAIN.BASE),
             start,
-            meta,
         },
         [CHAIN.POLYGON]: {
             fetch: fetchFees(CHAIN.POLYGON),
             start,
-            meta,
         }
     },
     version: 2

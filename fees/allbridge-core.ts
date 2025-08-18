@@ -103,57 +103,25 @@ const fetch: any = async (options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: "A 0.3% fee is charged for token swaps",
-    SupplySideRevenue: "A 0.24% of each swap is distributed to liquidity providers",
-    Revenue: "A 0.06% of each swap goes to governance",
-  }
+const methodology = {
+  Fees: "A 0.3% fee is charged for token swaps",
+  SupplySideRevenue: "A 0.24% of each swap is distributed to liquidity providers",
+  Revenue: "A 0.06% of each swap goes to governance",
 };
 
 const adapters: SimpleAdapter = {
   version: 2,
+  methodology,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-05-14',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2023-05-14',
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2023-05-14',
-      meta,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-06-27',
-      meta,
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: '2023-10-23',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-02-01',
-      meta,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2023-12-18',
-      meta,
-    },
-    [CHAIN.TRON]: {
-      fetch,
-      start: '2023-05-26',
-      meta,
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-05-14', },
+    [CHAIN.BSC]: { start: '2023-05-14', },
+    [CHAIN.POLYGON]: { start: '2023-05-14', },
+    [CHAIN.ARBITRUM]: { start: '2023-06-27', },
+    [CHAIN.AVAX]: { start: '2023-10-23', },
+    [CHAIN.BASE]: { start: '2024-02-01', },
+    [CHAIN.OPTIMISM]: { start: '2023-12-18', },
+    [CHAIN.TRON]: { start: '2023-05-26', },
   },
 };
 

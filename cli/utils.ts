@@ -32,7 +32,7 @@ export function printVolumes(volumes: any[], _?: SimpleAdapter) {
             throw new Error(`"${key}" is not a supported metric.Supported metrics can be found in adapters/types.ts`)
     })
     volumes.forEach((element) => {
-        // const methodology =  module?.methodology ?? module?.[element.chain].meta?.methodology
+        // const methodology =  module?.methodology
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
