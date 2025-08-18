@@ -1,105 +1,19 @@
-import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { formatAddress } from "../../utils/utils";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { Balances, api2 } from "@defillama/sdk";
+import { BaseAdapterChainConfig, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { Balances } from "@defillama/sdk";
+import { GearboxAbis, GearboxConfigs, IGearboxService } from "./configs";
 
 const ONE_ETHER_IN_WEI = 1e18
 const ONE_RAY_IN_WEI = 1e27
 const PERCENTAGE_FACTOR = 1e4
-
-const GEARBOX_LIQUIDATION_FEE_TREASURY = '0x7b065fcb0760df0cea8cfd144e08554f3cea73d1'
-
-const Abis = {
-  LiquidateCreditAccount: 'event LiquidateCreditAccount(address indexed borrower,address indexed liquidator,address indexed to,uint256 remainingFunds)',
-  LiquidateExpiredCreditAccount: 'event LiquidateExpiredCreditAccount(address indexed borrower,address indexed liquidator,address indexed to,uint256 remainingFunds)',
-}
-
-interface IGearboxService {
-  version: 2 | 3;
-  pool: string;
-  creditManager?: string;
-}
-
-interface IGearboxChainConfig {
-  services: Array<IGearboxService>
-}
+const INTEREST_FEE = 0.0025 // 0.25%
 
 interface PrcessBalances {
   dailyFees: Balances;
   dailyRevenue: Balances;
   dailyProtocolRevenue: Balances;
   dailySupplySideRevenue: Balances;
-}
-
-const configs: {[key: string]: IGearboxChainConfig} = {
-  [CHAIN.ETHEREUM]: {
-    services: [
-      {
-        version: 2,
-        pool: '0x24946bcbbd028d5abb62ad9b635eb1b1a67af668', // DAI
-        creditManager: '0x672461Bfc20DD783444a830Ad4c38b345aB6E2f7',
-      },
-      {
-        version: 2,
-        pool: '0x86130bdd69143d8a4e5fc50bf4323d48049e98e4', // USDC
-        creditManager: '0x95357303f995e184A7998dA6C6eA35cC728A1900',
-      },
-      {
-        version: 2,
-        pool: '0xb03670c20f87f2169a7c4ebe35746007e9575901', // WETH
-        creditManager: '0x5887ad4Cb2352E7F01527035fAa3AE0Ef2cE2b9B',
-      },
-      {
-        version: 2,
-        pool: '0xb2a015c71c17bcac6af36645dead8c572ba08a08', // WBTC
-        creditManager: '0xc62BF8a7889AdF1c5Dc4665486c7683ae6E74e0F',
-      },
-      {
-        version: 2,
-        pool: '0xB8cf3Ed326bB0E51454361Fb37E9E8df6DC5C286', // wstETH
-        creditManager: '0xe0bCE4460795281d39c91da9B0275BcA968293de',
-      },
-      {
-        version: 2,
-        pool: '0x79012c8d491dcf3a30db20d1f449b14caf01da6c', // FRAX
-        creditManager: '0xA3E1e0d58FE8dD8C9dd48204699a1178f1B274D8',
-      },
-
-      {
-        version: 3,
-        pool: '0xda00000035fef4082F78dEF6A8903bee419FbF8E', // USDC
-      },
-      {
-        version: 3,
-        pool: '0xda00010eDA646913F273E10E7A5d1F659242757d', // WBTC
-      },
-      {
-        version: 3,
-        pool: '0xda0002859B2d05F66a753d8241fCDE8623f26F4f',
-      },
-      {
-        version: 3,
-        pool: '0x1DC0F3359a254f876B37906cFC1000A35Ce2d717',
-      },
-      {
-        version: 3,
-        pool: '0x4d56c9cBa373AD39dF69Eb18F076b7348000AE09',
-      },
-      {
-        version: 3,
-        pool: '0xe7146F53dBcae9D6Fa3555FE502648deb0B2F823',
-      },
-      {
-        version: 3,
-        pool: '0x05A811275fE9b4DE503B3311F51edF6A856D936e',
-      },
-      {
-        version: 3,
-        pool: '0x8EF73f036fEEC873D0B2fd20892215Df5B8Bdd72',
-      },
-    ],
-  }
 }
 
 async function processV2Services(options: FetchOptions, balances: PrcessBalances, services: Array<IGearboxService>) {
@@ -168,41 +82,25 @@ async function processV2Services(options: FetchOptions, balances: PrcessBalances
       }
     }
 
-    // // on liquidation or repay, count new minted diesel tokens for GEARBOX_LIQUIDATION_FEE_TREASURY as revenue
-    // const transferLogs = await getEventLogs({
-    //   chain: options.chain,
-    //   targets: dieselTokens,
-    //   eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
-    //   topics: [
-    //     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-    //     '0x0000000000000000000000000000000000000000000000000000000000000000',
-    //     evmAddressToEventTopic(GEARBOX_LIQUIDATION_FEE_TREASURY),
-    //   ],
-    //   fromBlock: Number(options.fromApi.block),
-    //   toBlock: Number(options.toApi.block),
-    //   onlyArgs: false,
-    //   flatten: true,
-    // });
-    // for (const event of transferLogs) {
-    //   const dieselToken = formatAddress(event.address)
-    //   const tokenAmount = dieselToPrices[dieselToken] * Number(event.args.value)
-
-    //   if (LiquidateCreditAccountEvents.find(liqEvent => liqEvent.transactionHash === event.transactionHash) || LiquidateExpiredCreditAccountEvents.find(liqEvent => liqEvent.transactionHash === event.transactionHash)) {
-    //     console.log('liq', event.transactionHash)
-        
-    //     // we detect liquidation by LiquidateCreditAccount LiquidateExpiredCreditAccount emitted in the same transaction
-    //     balances.dailyFees.add(dieselToTokens[dieselToken], tokenAmount, METRIC.LIQUIDATION_FEES)
-    //     balances.dailyRevenue.add(dieselToTokens[dieselToken], tokenAmount, METRIC.LIQUIDATION_FEES)
-    //     balances.dailyProtocolRevenue.add(dieselToTokens[dieselToken], tokenAmount, METRIC.LIQUIDATION_FEES)
-    //   } else {
-    //     console.log(event.transactionHash)
-    //     // otherwise, normal repay transactions
-    //     // balances.dailyRevenue.add(dieselToTokens[dieselToken], tokenAmount, METRIC.BORROW_INTEREST)
-    //     // balances.dailyProtocolRevenue.add(dieselToTokens[dieselToken], tokenAmount, METRIC.BORROW_INTEREST)
-
-    //     // don't need add interest to fees and supplySideRevenue, because we have already do it above
-    //   }
-    // }
+    // when credit managers repay loans, there are profit or loss
+    // protocol collects profits as revenue and will pay for loss
+    const repayEvents = await options.getLogs({
+      eventAbi: GearboxAbis.PoolRepay,
+      targets: services.map(service => service.pool),
+      flatten: false,
+    });
+    for (let i = 0; i < services.length; i++) {
+      const token = underlyingTokens[i];
+      const events = repayEvents[i];
+      for (const event of events) {
+        balances.dailyFees.add(token, Number(event.profit), 'Performance Profit')
+        balances.dailyFees.add(token, Number(event.loss), 'Performance Loss')
+        balances.dailyRevenue.add(token, Number(event.profit), 'Performance Profit')
+        balances.dailyRevenue.add(token, Number(event.loss), 'Performance Loss')
+        balances.dailyProtocolRevenue.add(token, Number(event.profit), 'Performance Profit')
+        balances.dailyProtocolRevenue.add(token, Number(event.loss), 'Performance Loss')
+      }
+    }
   }
 }
 
@@ -251,12 +149,41 @@ async function processV3Services(options: FetchOptions, balances: PrcessBalances
       const totalTokenBalance = Number(totalAssets[i])
       const growthCumulativeIndex = Number(cumulativeIndexAfter[i]) - Number(cumulativeIndexBefore[i])
       const growthInterest = growthCumulativeIndex * totalTokenBalance / (10**Number(decimals[i]))
-
-      console.log({pool: services[i].pool, token, totalTokenBalance, cumulativeIndexAfter: cumulativeIndexAfter[i], cumulativeIndexBefore: cumulativeIndexBefore[i]}, growthInterest)
+      const growthInterestFee = growthInterest * INTEREST_FEE
 
       // we count growthInterest as fees
       balances.dailyFees.add(token, growthInterest, METRIC.BORROW_INTEREST)
-      balances.dailySupplySideRevenue.add(token, growthInterest, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, growthInterest - growthInterestFee, METRIC.BORROW_INTEREST)
+
+      // revenue source 1: from borrow interest share
+      balances.dailyRevenue.add(token, growthInterestFee, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, growthInterestFee, METRIC.BORROW_INTEREST)
+    }
+  }
+
+  
+  //
+  // revenue source 2: from profit & loss
+  // when credit managers repay loans, there are profit or loss
+  // protocol collects profits as revenue and will pay for loss
+  //
+  const repayEvents = await options.getLogs({
+    eventAbi: GearboxAbis.PoolRepay,
+    targets: services.map(service => service.pool),
+    flatten: false,
+  });
+
+  for (let i = 0; i < services.length; i++) {
+    const token = assets[i];
+    const events = repayEvents[i];
+    for (const event of events) {
+      // we add profit & loss to revenue
+      balances.dailyFees.add(token, Number(event.profit), METRIC.BORROW_INTEREST)
+      balances.dailyFees.add(token, Number(event.loss), METRIC.BORROW_INTEREST)
+      balances.dailyRevenue.add(token, Number(event.profit), METRIC.BORROW_INTEREST)
+      balances.dailyRevenue.add(token, Number(event.loss), METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, Number(event.profit), METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, Number(event.loss), METRIC.BORROW_INTEREST)
     }
   }
 }
@@ -267,7 +194,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const config = configs[options.chain]
+  const config = GearboxConfigs[options.chain]
   
   await processV2Services(options, { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }, config.services.filter(service => service.version === 2))
   await processV3Services(options, { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }, config.services.filter(service => service.version === 3))
@@ -275,16 +202,51 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
 }
 
+const methodology = {
+  Fees: 'Include borrow interest, performance profit & loss and liquidation fee paid by borrowers.',
+  Revenue: 'Amount of fees go to Gearbox treasury.',
+  SupplySideRevenue: 'Amount of fees distributed to passive lenders.',
+  ProtocolRevenue: 'Amount of fees go to Gearbox treasury.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all credit accounts (exclude performance profit and loss).',
+    'Performance Profit': 'All profit from performance paid by credit accounts.',
+    'Performance Loss': 'All loss from credit accounts paid by Gearbox treasury.',
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Amount of interest were paid by credit accounts to passive lenders.',
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: 'Amount of interest collected by Gearbox treasury.',
+    'Performance Profit': 'Gearbox treasury collects performance profit paid by credit accounts.',
+    'Performance Loss': 'Gearbox treasury paid for loss from credit accounts.',
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Amount of interest collected by Gearbox treasury.',
+    'Performance Profit': 'Gearbox treasury collects performance profit paid by credit accounts.',
+    'Performance Loss': 'Gearbox treasury paid for loss from credit accounts.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-    }
-  },
+  methodology,
+  breakdownMethodology,
+  fetch,
+  chains: Object.keys(GearboxConfigs),
+  adapter: {},
+
   // when credit accounts repay loans, if repaid amount exceeds loans, remaining amount will be taken as profit for treasury
   // if repaid amount is not enough to cover loans, tresury transfer funds to cover the loss
   allowNegativeValue: true,
+}
+
+for (const [chain, config] of Object.entries(GearboxConfigs)) {
+  (adapter.adapter as BaseAdapterChainConfig)[chain] = {
+    start: config.start,
+  }
 }
 
 export default adapter;
