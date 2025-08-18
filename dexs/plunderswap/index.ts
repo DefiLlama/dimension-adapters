@@ -34,13 +34,11 @@ const adapter: SimpleAdapter = {
     zilliqa: {
       fetch: fetch,
       start: '2024-12-10',
-      meta: {
-        methodology: {
-          Volume: "Volume of trades on Plunderswap at the start of the day (00:00:00 UTC) for the previous day"
-        }
-      }
     },
   },
+  methodology: {
+    Volume: "Volume of trades on Plunderswap at the start of the day (00:00:00 UTC) for the previous day"
+  }
 };
 
 export default adapter;

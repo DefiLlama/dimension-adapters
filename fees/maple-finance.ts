@@ -79,7 +79,7 @@ const fetchFees = async (options: FetchOptions) => {
 
   logs_funds_distribution.map((e: any, index: number) => {
     const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();
-    const token = isEthBase ? [ADDRESSES.ethereum.WETH]: ADDRESSES.ethereum.USDC
+    const token = isEthBase ? [ADDRESSES.ethereum.WETH] : ADDRESSES.ethereum.USDC
     e.forEach((i: any) => {
       dailyFees.add(token, i.netInterest_)
       dailySupplySideRevenue.add(token, i.netInterest_)
@@ -90,14 +90,14 @@ const fetchFees = async (options: FetchOptions) => {
     dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_)
     dailySupplySideRevenue.add(ADDRESSES.ethereum.USDC, e.netInterest_)
   })
-  
+
   // Filter for specific tokens (USDC, WETH, USDT) during processing
   const allowedTokens = [
     ADDRESSES.ethereum.USDC, // USDC
     ADDRESSES.ethereum.WETH, // WETH
     ADDRESSES.ethereum.USDT  // USDT
   ];
-  
+
   logsTranferERC20.forEach((b: any) => {
     if (allowedTokens.includes(b.contract_address.toLowerCase())) {
       dailyFees.add(b.contract_address, b.value)
@@ -105,7 +105,7 @@ const fetchFees = async (options: FetchOptions) => {
     }
   });
 
-  return { 
+  return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
@@ -120,16 +120,14 @@ const adapters: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees as any,
       start: '2023-01-01',
-      meta: {
-          methodology: {
-            Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
-            UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
-            Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
-            ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
-            SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
-          }
-        }
     }
+  },
+  methodology: {
+    Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
+    UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
+    Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
+    ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
+    SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
   }
 }
 export default adapters;

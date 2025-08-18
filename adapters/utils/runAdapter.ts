@@ -124,6 +124,15 @@ async function _runAdapter({
   if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
+
+  const badChainNames = chains.filter(chain => !/^[a-z0-9_]+$/.test(chain));
+  if (badChainNames.length) {
+    throw new Error(`
+    Invalid chain names: ${badChainNames.join(', ')}
+    Chain names should only contain lowercase letters, numbers and underscores
+    `)
+  }
+  
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,

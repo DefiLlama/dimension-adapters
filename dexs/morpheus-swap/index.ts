@@ -1,21 +1,9 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const fetch = univ2Adapter({
-  endpoints: {
-    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('C5XUzYLrDHiiKL7zGjLLyiQueJkQfeUyMZCcgwnVWcNr')
+export default uniV2Exports({
+  [CHAIN.FANTOM]: { 
+    factory: '0x9C454510848906FDDc846607E4baa27Ca999FBB6', 
+    fees: 0.003, // 0.3% fee on swaps
   },
-  factoriesName: "pancakeFactories",
-  dayData: "pancakeDayData",
-  gasToken: "coingecko:fantom"
-});
-
-const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.FANTOM],
-  start: 1636106400,
-}
-
-export default adapter;
+})

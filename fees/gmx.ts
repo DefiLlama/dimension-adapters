@@ -19,10 +19,10 @@ const methodology = {
 }
 
 const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
-    const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
+  const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
 
-    const graphQuery = gql
+  const graphQuery = gql
     `{
       feeStat(id: "${searchTimestamp}") {
         mint
@@ -32,40 +32,35 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
       }
     }`;
 
-    const graphRes = await request(endpoints[chain], graphQuery);
-    const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-    const finalDailyFee = (dailyFee / 1e30);
-    const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
-    const finalUserFee = (userFee / 1e30);
+  const graphRes = await request(endpoints[chain], graphQuery);
+  const dailyFee = parseInt(graphRes.feeStat.mint) + parseInt(graphRes.feeStat.burn) + parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+  const finalDailyFee = (dailyFee / 1e30);
+  const userFee = parseInt(graphRes.feeStat.marginAndLiquidation) + parseInt(graphRes.feeStat.swap)
+  const finalUserFee = (userFee / 1e30);
 
-    return {
-      dailyFees: finalDailyFee.toString(),
-      dailyUserFees: finalUserFee.toString(),
-      dailyRevenue: (finalDailyFee * 0.3).toString(),
-      dailyProtocolRevenue: "0",
-      totalProtocolRevenue: "0",
-      dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
-      dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
-    };
+  return {
+    dailyFees: finalDailyFee.toString(),
+    dailyUserFees: finalUserFee.toString(),
+    dailyRevenue: (finalDailyFee * 0.3).toString(),
+    dailyProtocolRevenue: "0",
+    totalProtocolRevenue: "0",
+    dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
+    dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
+  };
 };
 
 
 const adapter: Adapter = {
+  methodology,
   version: 2,
   adapter: {
     [ARBITRUM]: {
       fetch: graphs,
       start: '2021-09-01',
-      meta: {
-        methodology
-      }
     },
     [AVAX]: {
       fetch: graphs,
       start: '2022-01-06',
-      meta: {
-        methodology
-      }
     },
   }
 }

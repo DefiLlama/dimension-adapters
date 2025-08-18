@@ -50,7 +50,7 @@ const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
   }
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: "Total reward and withdraw fees paid by users.",
     Revenue: "50% of collected fees earned by QiDAO, 50% fees to asset suppliers.",
@@ -58,8 +58,9 @@ const meta = {
   }
 };
 
-const options: any = { fetch, start: '2023-08-05', meta }
+const options: any = { start: '2023-08-05', }
 const adapter: SimpleAdapter = {
+  fetch, methodology: info.methodology,
   adapter: {
     [CHAIN.ARBITRUM]: options,
     [CHAIN.POLYGON]: options,

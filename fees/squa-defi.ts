@@ -9,19 +9,17 @@ const event_trade = 'event Trade(address indexed trader,address indexed influenc
 const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
-        fetch: getFeesExport(keyManagerQureFiAddr, [event_trade], {
-          token: ADDRESSES.base.USDC,
-        }),
-        start: '2023-12-22',
-        meta: {
-          methodology: {
-            Fees: "Fees paid by users while trading on social network.",
-            Revenue: "Fees paid by users while trading on social network.",
-          }
-        }
+      fetch: getFeesExport(keyManagerQureFiAddr, [event_trade], {
+        token: ADDRESSES.base.USDC,
+      }),
+      start: '2023-12-22',
     },
   },
   version: 2,
+  methodology: {
+    Fees: "Fees paid by users while trading on social network.",
+    Revenue: "Fees paid by users while trading on social network.",
+  }
 }
 
 export default adapter;

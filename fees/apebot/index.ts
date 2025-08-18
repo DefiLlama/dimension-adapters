@@ -26,14 +26,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2025-07-08',
-      meta: {
-        methodology: {
-          Fees: "Fees collected from the swaps.",
-          Revenue: "All collected fees are protocol revenue.",
-          ProtocolRevenue: "100% fees goes to the protocol.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Fees collected from the swaps.",
+    Revenue: "All collected fees are protocol revenue.",
+    ProtocolRevenue: "100% fees goes to the protocol.",
   },
 };
 

@@ -9,7 +9,7 @@ import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
   core: string;
-  start: number;
+  start: number|string;
 };
 
 const mangrove: Record<string, ChainConfig> = {
@@ -85,16 +85,14 @@ const adapter: Adapter = {
   adapter: {
     ...Object.entries(mangrove).reduce((acc, [key, config]) => {
       acc[key] = {
-        meta: {
-          methodology: {
-            dailyVolume: "Sum of all offers taken in the last 24hrs",
-          },
-        },
         fetch,
         start: config.start,
       };
       return acc;
     }, {} as BaseAdapter),
+  },
+  methodology: {
+    dailyVolume: "Sum of all offers taken in the last 24hrs",
   },
 };
 

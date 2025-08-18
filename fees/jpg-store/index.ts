@@ -25,15 +25,13 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: "2024-06-08",
-      meta: {
-        methodology: {
-          Fees: "All service fees collected from NFT sales",
-          UserFees: "All service fees collected from NFT sales",
-          Revenue: " service fees collected from NFT sales to protocol",
-          ProtocolRevenue: "service fees collected from NFT sales to protocol",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "All service fees collected from NFT sales",
+    UserFees: "All service fees collected from NFT sales",
+    Revenue: " service fees collected from NFT sales to protocol",
+    ProtocolRevenue: "service fees collected from NFT sales to protocol",
   },
 };
 
