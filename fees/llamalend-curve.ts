@@ -166,6 +166,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {},
 };
 
@@ -173,8 +174,7 @@ for (const [chain, factory] of Object.entries(OneWayLendingFactories)) {
   (adapter.adapter as BaseAdapter)[chain] = {
     fetch: fetch,
     start: factory.start,
-  },
-  methodology,
+  }
 }
 
 export default adapter;
