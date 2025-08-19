@@ -1,31 +1,17 @@
 import { request, gql } from 'graphql-request'
-import { Balances } from '@defillama/sdk'
 import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 
-type Torex = {
-  id: string
-  name: string
-  inToken: {
-    id: string
-    underlyingTokenAddress: string | null
-  }
-}
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
+// Subgraph endpoints for fetching torex contract addresses
 const TOREX_GRAPHQL_ENDPOINTS: Record<string, string> = {
   [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clsnd6xsoma5j012qepvucfpp/subgraphs/superboring_base-mainnet/prod/gn',
   [CHAIN.OPTIMISM]: 'https://api.goldsky.com/api/public/project_clsnd6xsoma5j012qepvucfpp/subgraphs/superboring_optimism-mainnet/prod/gn',
   [CHAIN.ARBITRUM]: 'https://api.goldsky.com/api/public/project_clsnd6xsoma5j012qepvucfpp/subgraphs/superboring_arbitrum-one/prod/gn',
 }
 
-const SUPERFLUID_PROTOCOL_SUBGRAPH: Record<string, string> = {
-  [CHAIN.BASE]: 'https://subgraph-endpoints.superfluid.dev/base-mainnet/protocol-v1',
-  [CHAIN.OPTIMISM]: 'https://subgraph-endpoints.superfluid.dev/optimism-mainnet/protocol-v1',
-  [CHAIN.ARBITRUM]: 'https://subgraph-endpoints.superfluid.dev/arbitrum-one/protocol-v1',
-}
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-
+// GraphQL query to fetch torex contracts and their input tokens
 const TOREXES_QUERY = gql`
   query Torexes {
     torexes {
@@ -39,127 +25,134 @@ const TOREXES_QUERY = gql`
   }
 `
 
-const STREAM_PERIODS_QUERY = gql`
-  query StreamPeriods($receiver: String!, $token: String!, $start: BigInt!, $end: BigInt!, $skip: Int!) {
-    streamPeriods(
-      first: 1000
-      skip: $skip
-      where: { receiver: $receiver, token: $token, startedAtTimestamp_lt: $end }
-      orderBy: startedAtTimestamp
-      orderDirection: asc
-    ) {
-      flowRate
-      startedAtTimestamp
-      stoppedAtTimestamp
-    }
-  }
-`
+const LIQUIDITY_MOVED_EVENT = 'event LiquidityMoved(address indexed liquidityMover, uint256 durationSinceLastLME, uint256 twapSinceLastLME, uint256 inAmount, uint256 minOutAmount, uint256 outAmount, uint256 actualOutAmount)'
 
-const TOKENS_QUERY = gql`
-  query Tokens($ids: [String!]) {
-    tokens(where: { id_in: $ids }) {
-      id
-      decimals
-      isNativeAssetSuperToken
-      underlyingAddress
-      underlyingToken { id decimals }
-    }
-  }
-`
-
-
-async function fetchTorexes(chain: string): Promise<Torex[]> {
-  const endpoint = TOREX_GRAPHQL_ENDPOINTS[chain]
-  if (!endpoint) return []
-  const res = await request<{ torexes: Torex[] }>(endpoint, TOREXES_QUERY)
-  return (res.torexes || []).filter(t => t?.inToken?.id)
+const SUPERTOKEN_ABI = {
+  getUnderlyingToken: 'function getUnderlyingToken() view returns (address)',
+  getUnderlyingDecimals: 'function getUnderlyingDecimals() view returns (uint8)',
+  decimals: 'function decimals() view returns (uint8)',
 }
 
-async function fetchAllStreamedAmountIntoReceiver(
-  receiver: string,
-  superToken: string,
-  startTimestamp: number,
-  endTimestamp: number,
-  chain: string
-): Promise<bigint> {
-  const endpoint = SUPERFLUID_PROTOCOL_SUBGRAPH[chain]
-  let skip = 0
-  let totalAmount = 0n
+
+type TorexData = {
+  address: string
+  inTokenAddress: string
+}
+
+async function fetchTorexes(chain: string): Promise<TorexData[]> {
+  const endpoint = TOREX_GRAPHQL_ENDPOINTS[chain]
+  if (!endpoint) return []
   
-  while (true) {
-    const { streamPeriods } = await request<{ streamPeriods: any[] }>(
-      endpoint,
-      STREAM_PERIODS_QUERY,
-      {
-        receiver: receiver.toLowerCase(),
-        token: superToken.toLowerCase(),
-        start: startTimestamp.toString(),
-        end: endTimestamp.toString(),
-        skip
-      }
-    )
+  try {
+    const res = await request<{ torexes: any[] }>(endpoint, TOREXES_QUERY)
+    return (res.torexes || [])
+      .filter(t => t?.id && t?.inToken?.id)
+      .map(t => ({
+        address: t.id,
+        inTokenAddress: t.inToken.id
+      }))
+  } catch (e) {
+    console.warn(`Failed to fetch torexes from subgraph for chain ${chain}:`, e)
+    return []
+  }
+}
+
+async function fetchLiquidityMovedAmount(
+  torexAddress: string,
+  options: FetchOptions
+): Promise<bigint> {
+  try {
+    const logs = await options.getLogs({
+      target: torexAddress,
+      eventAbi: LIQUIDITY_MOVED_EVENT
+    })
     
-    if (!streamPeriods || streamPeriods.length === 0) break
+    let totalInAmount = 0n
     
-    for (const period of streamPeriods) {
-      const flowRate = BigInt(period.flowRate || '0')
-      if (flowRate === 0n) continue
-      
-      const periodStart = Math.max(Number(period.startedAtTimestamp), startTimestamp)
-      const periodEnd = period.stoppedAtTimestamp 
-        ? Math.min(Number(period.stoppedAtTimestamp), endTimestamp)
-        : endTimestamp
-      
-      if (periodStart < periodEnd) {
-        const duration = BigInt(periodEnd - periodStart)
-        totalAmount += flowRate * duration
-      }
+    for (const log of logs) {
+      const inAmount = BigInt(log.inAmount || '0')
+      totalInAmount += inAmount
     }
     
-    if (streamPeriods.length < 1000) break
-    skip += 1000
+    return totalInAmount
+  } catch (e) {
+    console.warn(`Failed to fetch LiquidityMoved events for torex ${torexAddress}:`, e)
+    return 0n
   }
-  
-  return totalAmount
+}
+
+async function getSuperTokenMetadata(superTokenAddress: string, options: FetchOptions): Promise<{
+  underlyingToken: string | null,
+  underlyingDecimals: number,
+  isNativeAssetSuperToken: boolean
+}> {
+  try {
+    let underlyingToken: string | null = null
+    let underlyingDecimals = 18 // Default for SuperTokens
+    let isNativeAssetSuperToken = false
+    
+    try {
+      underlyingToken = await options.api.call({
+        target: superTokenAddress,
+        abi: SUPERTOKEN_ABI.getUnderlyingToken
+      })
+      
+      if (underlyingToken === ZERO_ADDRESS) {
+        isNativeAssetSuperToken = true
+        underlyingToken = null
+      } else {
+        underlyingDecimals = await options.api.call({
+          target: superTokenAddress,
+          abi: SUPERTOKEN_ABI.getUnderlyingDecimals
+        })
+      }
+    } catch (e) {
+      underlyingToken = null
+    }
+    
+    return {
+      underlyingToken,
+      underlyingDecimals: Number(underlyingDecimals),
+      isNativeAssetSuperToken
+    }
+  } catch (e) {
+    console.warn(`Failed to get SuperToken metadata for ${superTokenAddress}:`, e)
+    return {
+      underlyingToken: null,
+      underlyingDecimals: 18,
+      isNativeAssetSuperToken: false
+    }
+  }
 }
 
 async function fetchDailyVolume(options: FetchOptions) {
-  const { chain, startTimestamp, endTimestamp } = options
+  const { chain } = options
   const torexes = await fetchTorexes(chain)
-  const dailyVolumeBalances = new Balances({ chain, timestamp: endTimestamp })
-  if (!torexes.length) return { dailyVolume: dailyVolumeBalances }
-  const endpoint = SUPERFLUID_PROTOCOL_SUBGRAPH[chain]
-  const superTokenIds = Array.from(new Set(torexes.map(t => t.inToken.id.toLowerCase())))
-  const { tokens } = await request<{ tokens: any[] }>(endpoint, TOKENS_QUERY, { ids: superTokenIds })
-  const tokenMap = new Map(tokens.map(t => [t.id.toLowerCase(), t]))
+  const dailyVolumeBalances = options.createBalances()
+  
+  if (!torexes.length) {
+    return { dailyVolume: dailyVolumeBalances }
+  }
 
   for (const torex of torexes) {
-    const amount = await fetchAllStreamedAmountIntoReceiver(
-      torex.id,
-      torex.inToken.id,
-      startTimestamp,
-      endTimestamp,
-      chain
-    )
-    
+    const amount = await fetchLiquidityMovedAmount(torex.address, options)
     if (amount === 0n) continue
     
-    const token = tokenMap.get(torex.inToken.id.toLowerCase())
-    if (!token) continue
+    const tokenMetadata = await getSuperTokenMetadata(torex.inTokenAddress, options)
     
-    if (token.isNativeAssetSuperToken) {
+    if (tokenMetadata.isNativeAssetSuperToken) {
       // Native SuperToken (ETHx) - use zero address for native token pricing
       dailyVolumeBalances.add(ZERO_ADDRESS, amount.toString())
-    } else if (!token.underlyingToken || !token.underlyingToken.id) {
+    } else if (!tokenMetadata.underlyingToken) {
       // Pure SuperToken (no underlying) - use SuperToken address itself
-        dailyVolumeBalances.add(torex.inToken.id.toLowerCase(), amount.toString())
+      dailyVolumeBalances.add(torex.inTokenAddress.toLowerCase(), amount.toString())
     } else {
       // Wrapped SuperToken - use underlying token address
-      const underlyingDecimals = Number(token.underlyingToken.decimals)
-      // SuperTokens have 18 decimals, but underlying tokens may have different decimals for tokens like USDC , so scaling down here if necessary
+      const underlyingDecimals = tokenMetadata.underlyingDecimals
+      // SuperTokens have 18 decimals, but underlying tokens may have different decimals for tokens like USDC, so scaling down here if necessary
       const scaled = amount / (10n ** BigInt(18 - underlyingDecimals))
       if (scaled > 0n) {
-        dailyVolumeBalances.add(token.underlyingToken.id.toLowerCase(), scaled.toString())
+        dailyVolumeBalances.add(tokenMetadata.underlyingToken.toLowerCase(), scaled.toString())
       }
     }
   }
