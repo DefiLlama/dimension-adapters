@@ -7,7 +7,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
     const date = new Date(Number(options) * 1000);
     const formattedDate = date.toISOString().split("T")[0];
 
-    const query = `select * from xrpl.aggregated_metrics_daily where date = Date('${formattedDate}')`;
+    const query = `select dex_xrp_pair_volume_xrp,amm_xrp_volume_xrp from xrpl.aggregated_metrics_daily where date = Date('${formattedDate}')`;
     const queryResults = await queryDuneSql(options, query);
 
     const dexVolumeXrp = queryResults.length > 0 ? queryResults[0].dex_xrp_pair_volume_xrp : 0;
