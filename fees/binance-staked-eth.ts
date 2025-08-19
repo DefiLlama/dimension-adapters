@@ -40,11 +40,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.add(token, df)
 
   const dailyProtocolRevenue = dailyFees.clone(0.1)
+  const dailySupplySideRevenue = dailyFees.clone(0.9)
 
   return {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   }
 }
 
