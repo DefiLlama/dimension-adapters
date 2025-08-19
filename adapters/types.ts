@@ -152,6 +152,12 @@ export type FetchResultFees = FetchResultBase & {
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
   totalHoldersRevenue?: FetchResponseValue;
+  dailyOtherIncome?: FetchResponseValue;
+  totalOtherIncome?: FetchResponseValue;
+  dailyOperatingIncome?: FetchResponseValue;
+  totalOperatingIncome?: FetchResponseValue;
+  dailyNetIncome?: FetchResponseValue;
+  totalNetIncome?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -198,11 +204,12 @@ export const whitelistedDimensionKeys = new Set([
   'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
+  'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
 ])
 export const accumulativeKeySet = new Set([
-  'totalVolume', 'totalBridgeVolume', 'totalPremiumVolume', 'totalNotionalVolume',
-  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue',
+  'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
+  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue', 'totalOtherIncome', 'totalOperatingIncome', 'totalNetIncome'
 ])
 
 // End of specific adaptors type
