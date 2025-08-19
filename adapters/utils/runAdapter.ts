@@ -414,11 +414,15 @@ function validateAdapterResult(result: any) {
 }
 
 function addMissingMetrics(chain: string, result: any) {
-  if (result.dailyFees && result.dailyFees.hasBreakdownBalances()) {
+  // add missing metrics for Balances which has breakdown labels only
+  //  this is to ensure that we dont change behavior of existing adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+
     // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
     if (result.dailySupplySideRevenue && !result.dailyrevenue) {
       result.dailyRevenue = createBalanceFrom({chain, timestamp: result.timestamp, amount: result.dailyFees})
       subtractBalance({balance: result.dailyRevenue, amount: result.dailySupplySideRevenue})
     }
+
   }
 }

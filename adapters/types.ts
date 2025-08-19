@@ -207,7 +207,7 @@ export const whitelistedDimensionKeys = new Set([
   'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
-  'dailyOtherFees', 'totalOtherFees',
+  'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
 ])
 export const accumulativeKeySet = new Set([
