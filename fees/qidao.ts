@@ -40,13 +40,13 @@ const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
   log_withdraw_fees.map((e: any) => dailyFees.add(e.token, e.amount))
   log_token_earned.map((e: any) => dailyFees.add(e.perfToken, e.amount))
   const dailyRevenue = dailyFees.clone(0.5)
-  const totalSupplySideRevenue = dailyFees.clone(0.5)
+  const dailySupplySideRevenue = dailyFees.clone(0.5)
 
   return {
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue: dailyRevenue,
-    dailySupplySideRevenue: totalSupplySideRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
   }
 }
 

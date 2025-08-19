@@ -23,11 +23,9 @@ const fetchVolume = (poolType: 'basic' | 'precision') => {
         const index = response.findIndex(pool => pool.pool_type === poolType);
 
         const dailyVolume = Number(response[index].volume.usd["24h"]);
-        const totalVolume = Number(response[index].volume.usd.total);
 
         return {
             dailyVolume: dailyVolume,
-            totalVolume: totalVolume,
             timestamp
         };
     };

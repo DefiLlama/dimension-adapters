@@ -28,17 +28,11 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
 
     const chainData = [...historicalFees.stats.evm, ...historicalFees.stats.svm].find(cd => cd.chainId === chainId);
 
-    const totalFee = chainData.stats
-        .filter((item: any) => item.timestamp <= dayTimestamp)
-        .reduce((acc: any, { fees }: any) => acc + fees, 0)
-
     const dailyFee = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: totalFee,
         dailyFees: dailyFee,
-        totalRevenue: totalFee,
         dailyRevenue: dailyFee,
     };
 };
@@ -49,17 +43,11 @@ const getV1Data = async (endTimestamp: number, chainId: number) => {
 
     const chainData = historicalFees.stats.find((cd: any) => cd.chainId === chainId);
 
-    const totalFee = chainData.stats
-        .filter((item: any) => item.timestamp <= dayTimestamp)
-        .reduce((acc: any, { fees }: any) => acc + fees, 0)
-
     const dailyFee = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: totalFee,
         dailyFees: dailyFee,
-        totalRevenue: totalFee,
         dailyRevenue: dailyFee,
     };
 };

@@ -26,14 +26,10 @@ const calVolume = (total: IVolumeall): number => {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint, { headers: {"x-client-id": "defillama"}})).intervals;
-  const totalVolume = historicalVolume
-    .filter(volItem => Number(volItem.startTime) <= dayTimestamp)
-    .reduce((acc, res) => acc + calVolume(res), 0);
   const dailyVolumeCall = historicalVolume.find((dayItem: IVolumeall) => Number(dayItem.startTime) === dayTimestamp);
   const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };

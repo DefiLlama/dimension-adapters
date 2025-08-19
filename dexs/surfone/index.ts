@@ -23,7 +23,6 @@ const fetch = () => {
 
         const volume: IVolume = response.data;
         return {
-            totalVolume: `${volume?.total_vol || undefined}`,
             dailyVolume: `${volume['24h_vol'] || undefined}`,
             timestamp: dayTimestamp,
         };

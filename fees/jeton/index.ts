@@ -53,8 +53,6 @@ const fetch =
       return {
         dailyFees: data.daily.revenue,
         dailyRevenue: data.daily.revenue,
-        totalFees: data.total.revenue,
-        totalRevenue: data.total.revenue,
         timestamp
       };
     };

@@ -2,7 +2,6 @@ import * as sdk from "@defillama/sdk";
 import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { httpGet } from "../../utils/fetchURL";
@@ -46,25 +45,6 @@ const startTime: TStartTime = {
   [CHAIN.HYPERLIQUID]: 1751328000,
 };
 
-const TOTAL_VOLUME_FACTORY = "globalVariables";
-const TOTAL_VOLUME_FIELD = "totalVolumeUSD";
-
-const DAILY_VOLUME_FACTORY = "dayData";
-const DAILY_VOLUME_FIELD = "volumeUSD";
-
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: TOTAL_VOLUME_FACTORY,
-    field: TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DAILY_VOLUME_FACTORY,
-    field: DAILY_VOLUME_FIELD,
-    dateField: 'timestamp'
-  },
-});
-
 interface FetchResult {
   dayData: {
     volumeUSD: string;
@@ -90,7 +70,6 @@ const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
   return {
     timestamp: start,
     dailyVolume: Number(response?.dayData?.volumeUSD || 0) / 1e18,
-    totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
   }
 }
 

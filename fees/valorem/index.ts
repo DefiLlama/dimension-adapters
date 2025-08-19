@@ -39,12 +39,7 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
 
         // return with values set to 0 if not found
         if (!todayStats) {
-          return {
-            dailyFees: undefined,
-            dailyUserFees: undefined,
-            dailyRevenue: undefined,
-            dailyProtocolRevenue: undefined,
-          };
+          throw new Error('Data missing')
         }
 
         return {
@@ -57,48 +52,12 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
 
       const todaysStats = getTodaysStats();
 
-      // add up totals from each individual preceding day
-      const totalStatsUpToToday = filteredRecords.reduce(
-        (acc, dayData) => {
-          return {
-            totalFees: acc.totalFees + Number(dayData.volFeesAccruedUSD),
-            totalUserFees:
-              acc.totalUserFees + Number(dayData.volFeesAccruedUSD),
-            totalRevenue: acc.totalRevenue + Number(dayData.volFeesAccruedUSD),
-            totalProtocolRevenue:
-              acc.totalProtocolRevenue + Number(dayData.volFeesAccruedUSD),
-          };
-        },
-        {
-          totalFees: 0,
-          totalUserFees: 0,
-          totalRevenue: 0,
-          totalProtocolRevenue: 0,
-        }
-      );
-
       return {
         timestamp,
         dailyFees: todaysStats.dailyFees,
         dailyUserFees: todaysStats.dailyUserFees,
         dailyRevenue: todaysStats.dailyRevenue,
         dailyProtocolRevenue: todaysStats.dailyProtocolRevenue,
-        totalFees:
-          totalStatsUpToToday.totalFees > 0
-            ? totalStatsUpToToday.totalFees.toString()
-            : undefined,
-        totalUserFees:
-          totalStatsUpToToday.totalUserFees > 0
-            ? totalStatsUpToToday.totalUserFees.toString()
-            : undefined,
-        totalRevenue:
-          totalStatsUpToToday.totalRevenue > 0
-            ? totalStatsUpToToday.totalRevenue.toString()
-            : undefined,
-        totalProtocolRevenue:
-          totalStatsUpToToday.totalProtocolRevenue > 0
-            ? totalStatsUpToToday.totalProtocolRevenue.toString()
-            : undefined,
       };
     };
   };

@@ -41,15 +41,11 @@ const getFetch =
 
     const dailyFees =
       totalData.protocolState.totalFee - prevData.protocolState.totalFee;
-    const totalFees = totalData.protocolState.totalFee;
 
     return {
       dailyFees,
       dailyRevenue: dailyFees / 2,
       dailyProtocolRevenue: dailyFees / 2,
-      totalFees,
-      totalRevenue: totalFees / 2,
-      totalProtocolRevenue: totalFees / 2,
     };
   };
 

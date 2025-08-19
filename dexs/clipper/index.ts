@@ -121,17 +121,11 @@ const fetchSubgraph = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!id) return acc
     return acc + Number(pool.volumeUSD) - Number(id.volumeUSD);
   }, 0);
-  const totalVolume = response.today.reduce((acc, pool) => {  
-    return acc + Number(pool.volumeUSD);
-  }, 0);
 
   const dailyFees = response.today.reduce((acc, pool) => {
     const id = response.yesterday.find((p) => p.id === pool.id)
     if (!id) return acc
     return acc + Number(pool.feeUSD) - Number(id.feeUSD);
-  }, 0);
-  const totalFees = response.today.reduce((acc, pool) => {  
-    return acc + Number(pool.feeUSD);
   }, 0);
 
   const dailyRevenue = response.today.reduce((acc, pool) => {
@@ -139,19 +133,12 @@ const fetchSubgraph = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (!id) return acc
     return acc + Number(pool.revenueUSD) - Number(id.revenueUSD);
   },0);
-  const totalRevenue = response.today.reduce((acc, pool) => {  
-    return acc + Number(pool.revenueUSD);
-  }, 0);
 
   return {
     dailyVolume,
-    totalVolume,
     dailyFees,
-    totalFees,
     dailyRevenue,
-    totalRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    totalProtocolRevenue: totalRevenue,
   }
 }
 

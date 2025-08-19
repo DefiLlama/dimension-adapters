@@ -8,7 +8,6 @@ const API_ENDPOINT = "https://flask.tigristrade.info";
 interface ApiResponse {
   dailyNotionalVolume: number;
   day: number;
-  totalNotionalVolume: number;
 }
 
 const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
@@ -50,9 +49,7 @@ const fetch = (chain: Chain) => {
 
     return {
       dailyPremiumVolume: '0',
-      totalPremuimVolume: '0',
       dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
-      totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
       timestamp: matchingData.day
     };
   }

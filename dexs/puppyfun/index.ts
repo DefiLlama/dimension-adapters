@@ -29,11 +29,8 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(BNB_ADDRESS, feesResponse.dailyTotalFee)
 
     return {
-        totalVolume: volume,
         dailyVolume,
-        totalFees: fees,
         dailyFees,
-        totalRevenue: revenue,
         dailyRevenue,
     }
 }

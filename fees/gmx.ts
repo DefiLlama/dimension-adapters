@@ -43,7 +43,6 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
     dailyUserFees: finalUserFee.toString(),
     dailyRevenue: (finalDailyFee * 0.3).toString(),
     dailyProtocolRevenue: "0",
-    totalProtocolRevenue: "0",
     dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
     dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
   };

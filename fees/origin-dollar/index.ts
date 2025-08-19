@@ -30,19 +30,15 @@ interface ApiResponse {
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { startOfDay, createBalances } = options;
   const dailyRevenue = createBalances();
-  const totalRevenue = createBalances();
 
   const { data } = await axios.get<ApiResponse>(apiUrl);
 
   const dailyData = data.days.find((day) => day.date === startOfDay);
   if (dailyData) dailyRevenue.add(USDT, dailyData.revenue * decimals);
-  totalRevenue.add(USDT, data.revenue.now * decimals);
 
   return {
     dailyRevenue,
     dailyFees: dailyRevenue,
-    totalRevenue,
-    totalFees: totalRevenue,
   };
 };
 

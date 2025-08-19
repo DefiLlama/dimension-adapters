@@ -33,13 +33,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = parseInt(graphRes.feeStats[0].feeUsd);
 
       const finalDailyFee = dailyFee / 1e18;
-      const totalFees = parseInt(graphRes.feeStats[0].cumulativeFeeUsd) / 1e18;
 
       return {
         timestamp,
         dailyFees: finalDailyFee,
-        totalFees,
-        //dailyRevenue: (finalDailyFee * 0.3),
       };
     };
   };

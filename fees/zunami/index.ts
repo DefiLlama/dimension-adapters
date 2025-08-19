@@ -6,7 +6,6 @@ const API_ENDPOINT = "https://api.zunami.app/llama/revenue";
 
 interface RevenueData {
   dailyRevenue: number;
-  totalRevenue: number;
 }
 
 const fetchData: FetchV2 = async () => {
@@ -14,9 +13,7 @@ const fetchData: FetchV2 = async () => {
 
   return {
     dailyFees: data.dailyRevenue,
-    totalFees: data.totalRevenue,
     dailyRevenue: data.dailyRevenue,
-    totalRevenue: data.totalRevenue,
   };
 };
 

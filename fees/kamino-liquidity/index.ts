@@ -12,26 +12,15 @@ const fetch = async (_: any, _tt: any, options: FetchOptions) =>  {
     const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
 
     // Calculate total and daily revenue
-    const totalRevenue = historicalFeesRes['data']
-    .filter(row => row.timestamp <= dayTimestamp)
-    .reduce((acc, {KaminoLiquidityRevenueUsd}) => acc + KaminoLiquidityRevenueUsd, 0);
-
     const dailyRevenue = historicalFeesRes['data']
         .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityRevenueUsd;
-
-    // Calculate total and daily fees
-    const totalFees = historicalFeesRes['data']
-    .filter(row => row.timestamp <= dayTimestamp)
-    .reduce((acc, {KaminoLiquidityFeesUsd}) => acc + KaminoLiquidityFeesUsd, 0);
 
     const dailyFees = historicalFeesRes['data']
         .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityFeesUsd;
 
     return {
         timestamp: dayTimestamp,
-        totalRevenue: totalRevenue,
         dailyRevenue,
-        totalFees,
         dailyFees
     };
 };

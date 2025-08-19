@@ -5,15 +5,10 @@ import { CHAIN } from "../../helpers/chains"
 
 interface MarinadeAmounts {
   dailyFees: string;
-  totalFees: string;
   dailyUserFees: string;
-  totalRevenue: string;
   dailyRevenue: string;
   dailyProtocolRevenue: string;
   dailySupplySideRevenue: string;
-  totalProtocolRevenue: string;
-  totalSupplySideRevenue: string;
-  totalUserFees: string;
 }
 
 const fetch = async ({ createBalances }: FetchOptions) => {
@@ -21,38 +16,23 @@ const fetch = async ({ createBalances }: FetchOptions) => {
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).native
   const coin = ADDRESSES.solana.SOL
   const dailyFees = createBalances();
-  const totalFees = createBalances();
   const dailyUserFees = createBalances();
-  const totalRevenue = createBalances();
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
-  const totalProtocolRevenue = createBalances();
-  const totalSupplySideRevenue = createBalances();
-  const totalUserFees = createBalances();
 
   dailyFees.add(coin, amounts.dailyFees);
-  totalFees.add(coin, amounts.totalFees);
   dailyUserFees.add(coin, amounts.dailyUserFees);
-  totalRevenue.add(coin, amounts.totalRevenue);
   dailyRevenue.add(coin, amounts.dailyRevenue);
   dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
   dailySupplySideRevenue.add(coin, amounts.dailySupplySideRevenue);
-  totalProtocolRevenue.add(coin, amounts.totalProtocolRevenue);
-  totalSupplySideRevenue.add(coin, amounts.totalSupplySideRevenue);
-  totalUserFees.add(coin, amounts.totalUserFees);
 
   return {
-    totalFees,
     dailyFees,
     dailyUserFees,
-    totalRevenue,
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    totalProtocolRevenue,
-    totalSupplySideRevenue,
-    totalUserFees,
   }
 }
 

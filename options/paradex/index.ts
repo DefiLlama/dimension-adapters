@@ -19,16 +19,10 @@ const fetch = async (timestamp: number): Promise<FetchResultOptions> => {
   
   if (!dailyVolume) throw new Error('Perp_Option record missing for date: ' + timestampStr)
   
-  // Calculate total volume by summing all Perp_Option volumes up to the requested date
-  const totalVolume = volumesData.data.rows
-    .filter(row => (row[1] === 'Perp_Option' && row[0] <= timestampStr))
-    .reduce((sum, row) => sum + row[2], 0);
-  
   return { 
     timestamp,
     dailyNotionalVolume: dailyVolume,
     dailyPremiumVolume: 0,
-    totalNotionalVolume: totalVolume
   };
 };
 

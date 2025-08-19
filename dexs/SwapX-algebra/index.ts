@@ -46,13 +46,11 @@ export const fetchSwapXV3Data = async (
   return feedKey == "volumeUSD"
     ? {
         dailyVolume: dailyUSD,
-        totalVolume: totalUSD,
         timestamp,
       }
     : {
         timestamp,
         dailyFees: dailyUSD,
-        totalFees: totalUSD,
       };
 };
 

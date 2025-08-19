@@ -44,13 +44,11 @@ export const fetchSwapXV2Data = async (
   return feedKey == "volumeUSD"
     ? {
         dailyVolume: dailyUSD,
-        // totalVolume: totalUSD,  // value have spike 
         timestamp,
       }
     : {
         timestamp,
         dailyFees: dailyUSD,
-        // totalFees: totalUSD, // value have spike 
       };
 };
 

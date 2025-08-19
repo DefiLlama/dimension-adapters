@@ -42,11 +42,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
     });
 
     const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
-    const finalTotalVolume = parseInt(totalVolumeUSD.toString()) / 1e18;
 
     return {
       dailyVolume: finalDailyVolume.toString(),
-      totalVolume: finalTotalVolume.toString(),
       timestamp: todaysTimestamp,
     };
   };

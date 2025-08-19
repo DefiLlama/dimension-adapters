@@ -16,9 +16,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyRevenue: data.feeUsd24h * 0.12, // 12%
     dailyProtocolRevenue: data.feeUsd24h * 0.12, // 12% Treasury
     dailySupplySideRevenue: data.feeUsd24h * 0.88, // 88%
-
-    totalVolume: data.volumeAll,
-    totalFees: data.feeAll,
   };
 };
 

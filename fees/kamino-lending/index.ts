@@ -12,14 +12,6 @@ const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
     const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0];
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
-
-    const totalFee = historicalFeesRes['data']
-    .filter(row => row.timestamp <= startOfDay)
-    .reduce((acc, {KlendFeesUSD}) => acc + Number(KlendFeesUSD || 0), 0);
-
-    const totalRevenue = historicalFeesRes['data']
-    .filter(row => row.timestamp <= startOfDay)
-    .reduce((acc, {KaminoRevenueUSD}) => acc + Number(KaminoRevenueUSD || 0), 0);
     
     const dailyFee = historicalFeesRes['data']
         .find(row => row.day === dateString).KlendFeesUSD
@@ -29,9 +21,7 @@ const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     
     return {
         timestamp: startOfDay,
-        totalFees: totalFee,
         dailyFees: dailyFee,
-        totalRevenue: totalRevenue,
         dailyRevenue
     };
 };

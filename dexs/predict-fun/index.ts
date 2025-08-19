@@ -47,13 +47,11 @@ const fetch: Fetch = async (_: any, __, { chain }) => {
     }
   } while (after)
   const dailyVolume =  categories.reduce((vol, category) => vol + category.node.statistics.volume24hUsd, 0)
-  const totalVolume =  categories.reduce((vol, category) => vol + category.node.statistics.volumeTotalUsd, 0)
   
 
   return {
     timestamp: dayTimestamp,
     dailyVolume,
-    totalVolume,
   }
 }
 

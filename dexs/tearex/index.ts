@@ -7,7 +7,6 @@ const fetch = async () => {
 
   return {
     dailyVolume: res.trading.borrowAmount24h / 1e6,
-    totalVolume: res.trading.totalBorrowAmount / 1e6,
   };
 };
 

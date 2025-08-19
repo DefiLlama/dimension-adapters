@@ -37,15 +37,11 @@ const _fetchMobyVolumeData = async (timestamp, endPoint) => {
 
   const dailyNotionalVolume = Number(mobyVolumeData.daily_notional_volume).toFixed(2);
   const dailyPremiumVolume =  Number(mobyVolumeData.daily_premium_volume).toFixed(2);
-  const totalNotionalVolume = Number(mobyVolumeData.total_notional_volume).toFixed(2);
-  const totalPremiumVolume = Number(mobyVolumeData.total_premium_volume).toFixed(2);
 
   return {
     timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
 }
 

@@ -34,7 +34,6 @@ const historicalDataSwap = gql`
 const fetch: FetchV2 = async ({ startOfDay }: FetchOptions) => {
     // TODO: get result from fetching api call
     let dailyFees = 0;
-    let totalFees = 0;
     for (const api of apiEndPoints) {
         const response: FeeStatsQuery = await request(api, historicalDataSwap, {
             id: String(startOfDay),
@@ -46,22 +45,10 @@ const fetch: FetchV2 = async ({ startOfDay }: FetchOptions) => {
             )
         ) : 0;
 
-        const totalResponse: FeeStatsQuery = await request(api, historicalDataSwap, {
-            id: "total",
-            period: "total",
-        })
-
-        totalFees += totalResponse.feeStats.length ? Number(
-            Object.values(totalResponse.feeStats[0] || {}).reduce((sum, element) =>
-                String(Number(sum) + Number(element))
-            )
-        ) : 0;
     }
     dailyFees /= 1e30
-    totalFees /= 1e30
     return {
         dailyFees,
-        totalFees,
     }
 }
 

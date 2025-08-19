@@ -12,7 +12,6 @@ const fetch = async () => {
     const res = await fetchURL(gooseFxEndpoint);
     return {
         dailyVolume: res?.data.stats.stats24h.volume,
-        totalVolume: res?.data.stats.stats30d.volume
     };
 };
 
