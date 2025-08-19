@@ -11,9 +11,9 @@ interface IChartItem {
 
 const fetch = async (timestamp: number, _at: any, { startOfDay, dateString }: FetchOptions) => {
 
-  const hours24 = 24 * 60 * 60
+  const hours36 = 36 * 60 * 60
   const now = Math.floor(Date.now() / 1000)
-  if (now - startOfDay < hours24) throw new Error(`Data for ${dateString} is not available yet.`)
+  if (now - startOfDay < hours36) throw new Error(`Data for ${dateString} is not available yet.`)
   const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint));
 
   const dailyVolume = historicalVolume
