@@ -115,11 +115,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: async (_t:any, _tb: any , options: FetchOptions) => {
         const response = await v2Graph(options);
-        response.totalVolume =
-          Number(response.dailyVolume) + 1079453198606.2229;
-        response.totalFees = Number(response.totalVolume) * 0.003;
-        response.totalUserFees = Number(response.totalVolume) * 0.003;
-        response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
         return {
           ...response,
           dailyUserFees: response.dailyFees,
@@ -133,9 +128,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: async (_t:any, _tb: any , options: FetchOptions) => {
         const response = await v2Graph(options);
-        response.totalFees = Number(response.dailyVolume) * 0.003;
-        response.totalUserFees = Number(response.dailyVolume) * 0.003;
-        response.totalSupplySideRevenue = Number(response.dailyVolume) * 0.003;
         return {
           ...response,
           dailyUserFees: response.dailyFees,

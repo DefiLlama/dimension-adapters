@@ -107,8 +107,6 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
 
       return {
         timestamp,
-        totalPremiumVolume: totalVolume.totalPremium,
-        totalNotionalVolume: totalVolume.totalNotional,
         dailyPremiumVolume: totalVolume.premium,
         dailyNotionalVolume: totalVolume.notional,
       };

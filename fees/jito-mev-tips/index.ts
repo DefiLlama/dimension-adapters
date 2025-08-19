@@ -8,7 +8,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSolanaReceived } from "../../helpers/token"
 
-const fetchFees = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
   const targets = [
     '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
@@ -34,14 +34,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2022-11-01',
-      meta:{
-        methodology: {
-          fees: 'MEV/tips paid by users/searchers',
-        }
-      }
     }
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    fees: 'MEV/tips paid by users/searchers',
+  }
 }
 
 export default adapter

@@ -15,19 +15,17 @@ const feeAdapter = getDexChainFees({
   revenue: 0.0007,
   userFees: TOTAL_FEES,
   volumeAdapter,
-  meta: {
-    methodology: {
-      UserFees: "User pays 0.29% fees on each swap.",
-      ProtocolRevenue: "0.01% goes to an address which you can have no expectations (~4% of fees).",
-      SupplySideRevenue: "LPs receive 0.22% (~76% of fees).",
-      HoldersRevenue: "0.06% (~20% of fees) is used to buy and burn PLSX.",
-      Revenue: "All revenue generated comes from user fees.",
-      Fees: "All fees comes from the user."
-    }
-  }
 });
 
 const adapter: Adapter = {
+  methodology: {
+    UserFees: "User pays 0.29% fees on each swap.",
+    ProtocolRevenue: "0.01% goes to an address which you can have no expectations (~4% of fees).",
+    SupplySideRevenue: "LPs receive 0.22% (~76% of fees).",
+    HoldersRevenue: "0.06% (~20% of fees) is used to buy and burn PLSX.",
+    Revenue: "All revenue generated comes from user fees.",
+    Fees: "All fees comes from the user."
+  },
   version: 2,
   adapter: feeAdapter
 };

@@ -2,14 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Rabby wallet.',
-    Revenue: 'Fees collected by Rabby.',
-    ProtocolRevenue: 'Fees collected by Rabby.',
-  }
-}
-
 const feeWallet = "0x39041f1b366fe33f9a5a79de5120f2aee2577ebc"
 
 const fetchFees = async (options: FetchOptions) => {
@@ -48,23 +40,22 @@ const chains = [
     CHAIN.MANTA,
     CHAIN.ABSTRACT,
     CHAIN.BLAST,
-    
+
     // CHAIN.TAIKO,
     // CHAIN.CRONOS,
 ]
 
 const adapter: SimpleAdapter = {
+    fetch: fetchFees,
+    chains,
     version: 2,
-    adapter: chains.reduce((acc, chain) => {
-        return {
-            ...acc,
-            [chain]: {
-                fetch: fetchFees,
-                meta,
-            },
-        };
-    }, {}),
-    isExpensiveAdapter: true
+    adapter: {},
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: 'All fees paid by users for swapping, bridging in Rabby wallet.',
+        Revenue: 'Fees collected by Rabby.',
+        ProtocolRevenue: 'Fees collected by Rabby.',
+    }
 };
 
 export default adapter;

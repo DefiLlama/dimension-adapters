@@ -31,11 +31,10 @@ const historicalDataSwap = gql`
 `;
 
 
-const fetch: FetchV2 = async({ startOfDay }: FetchOptions) => {
+const fetch: FetchV2 = async ({ startOfDay }: FetchOptions) => {
     // TODO: get result from fetching api call
     let dailyFees = 0;
-    let totalFees = 0;
-    for (const api of apiEndPoints){
+    for (const api of apiEndPoints) {
         const response: FeeStatsQuery = await request(api, historicalDataSwap, {
             id: String(startOfDay),
             period: "daily",
@@ -44,38 +43,24 @@ const fetch: FetchV2 = async({ startOfDay }: FetchOptions) => {
             Object.values(response.feeStats[0] || {}).reduce((sum, element) =>
                 String(Number(sum) + Number(element))
             )
-            ) : 0;
+        ) : 0;
 
-        const totalResponse: FeeStatsQuery = await request(api, historicalDataSwap, {
-            id: "total",
-            period: "total",
-        })
-
-        totalFees += totalResponse.feeStats.length ? Number(
-            Object.values(totalResponse.feeStats[0] || {}).reduce((sum, element) =>
-                String(Number(sum) + Number(element))
-            )
-            ) : 0;
     }
     dailyFees /= 1e30
-    totalFees /= 1e30
     return {
         dailyFees,
-        totalFees,
     }
 }
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: "Trading fees queried from api calls from grpahql",
+    },
     version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
             start: '2024-01-09',
             fetch,
-            meta:{
-                methodology: {
-                    Fees: "Trading fees queried from api calls from grpahql",
-                }
-            }
         }
     }
 }
