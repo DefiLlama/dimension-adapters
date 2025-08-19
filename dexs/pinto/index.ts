@@ -58,7 +58,6 @@ export default {
         const endStats = await getVolumeStats(endBlock);
         return {
           dailyVolume: endStats - startStats,
-          totalVolume: endStats,
         }
         
       },

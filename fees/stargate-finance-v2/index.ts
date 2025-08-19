@@ -76,7 +76,6 @@ async function getPoolFees(
   { api, fromApi, toApi, createBalances }: FetchOptions,
   contracts: string[]
 ): Promise<FetchResultV2> {
-  const totalFees = createBalances();
   const dailyFees = createBalances();
 
   const [assets, prevFees, currFees] = await Promise.all([
@@ -90,11 +89,10 @@ async function getPoolFees(
     const currFee = currFees[index];
 
     if (!prevFee || !currFee) return;
-    totalFees.add(asset, currFees[index]);
     dailyFees.add(asset, currFees[index] - prevFees[index]);
   });
 
-  return { totalFees, dailyFees };
+  return { dailyFees };
 }
 
 function adapterByChain(contracts: string[], timestamp: number) {

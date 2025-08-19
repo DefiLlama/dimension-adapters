@@ -10,13 +10,10 @@ const methodology = {
 
 const fetchData = () => {
     return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-        const tfees = (await fetchURL(`https://haedal.xyz/api/v1/wal/vault/fees?fromTimestamp=&toTimestamp=`)).data;
         const fees = (await fetchURL(`https://haedal.xyz/api/v1/wal/vault/fees?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`)).data;
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
         return {
-            totalFees: tfees.fee,
             dailyFees: fees.fee,
-            totalRevenue: tfees.revenue,
             dailyRevenue: fees.revenue,
             dailyProtocolRevenue: fees.revenue,
             timestamp: dayTimestamp,

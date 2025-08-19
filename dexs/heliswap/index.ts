@@ -62,7 +62,6 @@ const fetch = async (timestamp: number) => {
     .reduce((a: number, b: IGraphResponse) => a+Number(b.volume24hUsd), 0)
 
   return {
-    // totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };

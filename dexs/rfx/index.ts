@@ -47,7 +47,6 @@ const getFetch =
     });
 
     let dailyVolume = 0;
-    let totalVolume = 0;
 
     if (dailyData.volumeInfos.length === 1) {
       const volumeObj = dailyData.volumeInfos[0];
@@ -58,13 +57,11 @@ const getFetch =
     if (totalData.volumeInfos.length === 1) {
       const volumeObj = totalData.volumeInfos[0];
       const sumOfFields = Object.values(volumeObj).reduce((sum, val) => sum + Number(val), 0);
-      totalVolume = sumOfFields * 1e-30;
     }
 
     return {
       timestamp: dayTimestamp,
       dailyVolume: String(dailyVolume),
-      totalVolume: String(totalVolume),
     };
   };
 
@@ -74,7 +71,6 @@ const startTimestamps: { [chain: string]: number } = {
 
 const methodology = {
   dailyVolume: "Sum of daily swap or margin volume for RFX subgraph.",
-  totalVolume: "Cumulative swap or margin volume since inception.",
 };
 
 const adapter: BreakdownAdapter = {

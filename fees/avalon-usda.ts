@@ -51,7 +51,6 @@ const v1Configs: any = {
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 	const dailyFees = options.createBalances()
-	const totalFees = options.createBalances()
 	const { poolAddress, feeTokenAddress } = configs[options.chain]
 	const protocolProfitAccumulateBefore = await options.fromApi.call({
 		abi: 'function protocolProfitAccumulate() returns (uint256)',
@@ -64,7 +63,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 	})
 
 	dailyFees.add(feeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore))
-	totalFees.add(feeTokenAddress, Number(protocolProfitAccumulateAfter))
 
 	// @dev Ethereum has both V1 and V2 pools, so we need to add the fees from the V1 pool
 	if (options.chain === 'ethereum') {
@@ -80,16 +78,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 		})
 
 		dailyFees.add(v1FeeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore))
-		totalFees.add(v1FeeTokenAddress, Number(protocolProfitAccumulateAfter))
 	}
 
 	return {
 		dailyFees,
-		totalFees,
 		dailyRevenue: dailyFees,
-		totalRevenue: totalFees,
 		dailyProtocolRevenue: dailyFees,
-		totalProtocolRevenue: totalFees,
 	}
 }
 

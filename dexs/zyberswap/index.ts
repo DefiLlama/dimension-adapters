@@ -1,20 +1,9 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FACTORY, DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
-import { uniV2Exports, uniV3Exports } from "../../helpers/uniswap";
+import {  getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports, } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('3g83GYhbyHtjy581vpTmN1AP9cB9MjWMh5TiuNpvTU4R'),
-};
-
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
 
 const endpointsV3 = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
