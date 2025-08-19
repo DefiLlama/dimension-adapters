@@ -78,9 +78,6 @@ export type BaseAdapterChainConfig = {
     start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
     fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    meta?: {
-      methodology?: string | IJSON<string>
-    }
   }
 
 export type BaseAdapter = {
