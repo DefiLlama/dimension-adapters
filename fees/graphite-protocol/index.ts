@@ -63,11 +63,11 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
     const dailyRevenueSol = currentEntry.solRevenue - (prevEntry?.solRevenue || 0);
     const totalFeesLamports = dailyRevenueSol * 1e9;
-    
+
     let graphiteHoldersRevenuePercentage: number;
     let graphiteProtocolRevenuePercentage: number;
     let graphiteTotalPercentage: number;
-    
+
     if (timestamp >= PERCENTAGE_CHANGE_TIMESTAMP) {
         // After percentage change: Graphite gets GP Reserve 7.67% + BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2% = 40%
         graphiteHoldersRevenuePercentage = 0.0767;
@@ -88,7 +88,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     dailyHoldersRevenue.add(SOL_ADDRESS, totalHoldersRevenue);
     dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue);
 
-    return { 
+    return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue: dailyFees,
@@ -103,16 +103,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-27',
-            meta: {
-                methodology: {
-                    Fees: "Graphite Protocol's portion of joint venture fees with Letsbonk. Before 10th jun 2025: 57.68% of total fees. After 10th jun 2025: 40% of total fees.",
-                    Revenue: "Total Graphite Protocol Revenue and Holders Revenue",
-                    ProtocolRevenue: "Before 10th jun 2025: 50% of total fees (BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4%). After 10th jun 2025: 32.33% of total fees (BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2%).",
-                    HoldersRevenue: "GP Reserve: 7.67% of total fees across both periods. Before 10th jun 2025: 43% of total fees."
-                },
-            }
         }
-    }
+    },
+    methodology: {
+        Fees: "Graphite Protocol's portion of joint venture fees with Letsbonk. Before 10th jun 2025: 57.68% of total fees. After 10th jun 2025: 40% of total fees.",
+        Revenue: "Total Graphite Protocol Revenue and Holders Revenue",
+        ProtocolRevenue: "Before 10th jun 2025: 50% of total fees (BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4%). After 10th jun 2025: 32.33% of total fees (BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2%).",
+        HoldersRevenue: "GP Reserve: 7.67% of total fees across both periods. Before 10th jun 2025: 43% of total fees."
+    },
 };
 
 export default adapter;

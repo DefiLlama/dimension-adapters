@@ -71,6 +71,7 @@ const methodology = {
 
 const adapter: BreakdownAdapter = {
     version: 2,
+    methodology,
     breakdown: {
         v2: Object.keys(v2ChainIDs).reduce((acc, chain) => {
             return {
@@ -78,9 +79,6 @@ const adapter: BreakdownAdapter = {
                 [chain]: {
                     fetch: async ({ startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
                     start: '2023-12-18',
-                    meta: {
-                        methodology,
-                    },
                 },
             }
         }, {}),
@@ -90,9 +88,6 @@ const adapter: BreakdownAdapter = {
                 [chain]: {
                     fetch: async ({ startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
                     start: '2021-09-17',
-                    meta: {
-                        methodology,
-                    },
                 },
             }
         }, {}),

@@ -15,25 +15,18 @@ const SUSN_RATE_PROVIDER = "0x3A89f87EA1D5B9fd0FEde73b5098678190D2EEaa";
 const REVENUE_RATIO = 0.2;
 
 async function getPrices(timestamp: number): Promise<number> {
-    const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp);
+    const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp })
+    await api.getBlock()
 
-    const price = await sdk.api.abi.call({
-        chain: CHAIN.ETHEREUM,
-        abi: "uint256:getRate",
-        target: SUSN_RATE_PROVIDER,
-        block: blockNumber
-    });
-    return price.output / 1e18;
+    const price = await api.call({ abi: "uint256:getRate", target: SUSN_RATE_PROVIDER, });
+    return price / 1e18;
 }
 
 const fetch = async (options: FetchOptions) => {
     const priceToday = await getPrices(options.toTimestamp)
     const priceYesterday = await getPrices(options.fromTimestamp)
 
-    let totalSupply = await options.api.call({
-        abi: "uint256:totalSupply",
-        target: SUSN[options.chain],
-    });
+    let totalSupply = await options.api.call({ abi: "uint256:totalSupply", target: SUSN[options.chain], });
 
     const dailyFees = totalSupply * (priceToday - priceYesterday) / (1 - REVENUE_RATIO) / 1e18
     const dailyRevenue = dailyFees * REVENUE_RATIO
@@ -49,17 +42,22 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
     Fees: "Total Yields from Noon strategies",
-    SupplySideRevenue: "All yields distributed to supply-side depositors",
-    Revenue: "No revenue for now",
-    ProtocolRevenue: "No revenue for Noon protocol now",
+    SupplySideRevenue: "All yields distributed to the depositors",
+    Revenue: "20% of the total yields goes to the protocol",
+    ProtocolRevenue: "All revenues from the protocol",
 };
 
 const adapter: SimpleAdapter = {
     version: 2,
     methodology,
+    start: '2025-04-16',
     fetch,
-    chains: [CHAIN.ETHEREUM, CHAIN.SOPHON, CHAIN.ERA, CHAIN.TAC],
-    start: "2025-03-22",
+    chains: [CHAIN.ETHEREUM, CHAIN.SOPHON, CHAIN.ERA,],
+    adapter: {
+        [CHAIN.TAC]: {
+            start: '2025-07-12',
+        },
+    },
 };
 
 export default adapter;

@@ -107,16 +107,14 @@ const adapters: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees as any,
       start: '2023-01-01',
-      meta: {
-        methodology: {
-          Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
-          UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
-          Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
-          ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
-          SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
+    UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
+    Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
+    ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
+    SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
   }
 }
 export default adapters;

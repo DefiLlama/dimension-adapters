@@ -55,7 +55,7 @@ const ContractAbis = {
   managementFee: 'uint16:managementFee',
 }
 
-const ChainIds: {[key: string]: number} = {
+const ChainIds: { [key: string]: number } = {
   [CHAIN.ETHEREUM]: 1,
   [CHAIN.OPTIMISM]: 10,
   [CHAIN.POLYGON]: 137,
@@ -201,43 +201,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const adapter: Adapter = {
+  methodology,
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2020-07-27',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
+    [CHAIN.ETHEREUM]: { start: '2020-07-27', },
+    [CHAIN.POLYGON]: { start: '2024-01-01', },
+    [CHAIN.OPTIMISM]: { start: '2024-01-01', },
+    [CHAIN.ARBITRUM]: { start: '2024-01-01', },
+    [CHAIN.BASE]: { start: '2024-01-01', },
   },
 };
 

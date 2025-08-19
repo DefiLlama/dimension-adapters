@@ -161,12 +161,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     })
 
     if (isAlgebraV3) {
-      let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool) })
-      _fees.forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
+      let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
+      _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
     }
     if (isAlgebraV2) {
-      let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool) })
-      _states.forEach((state: any, i: number) => fees[logs[i].pool] = Number(state.fee) / 1e6)
+      let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
+      _states.filter(state => state !== null).forEach((state: any, i: number) => fees[logs[i].pool] = Number(state.fee) / 1e6)
     }
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()

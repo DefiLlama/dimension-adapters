@@ -72,9 +72,9 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-06-18', // Based on SSV mainnet launch
-      meta: { methodology }
     },
   },
+  methodology,
 };
 
 export default adapter;

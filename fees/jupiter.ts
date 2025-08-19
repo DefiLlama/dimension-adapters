@@ -5,7 +5,7 @@ import { queryAllium } from "../helpers/allium"
 import { getSolanaReceived } from "../helpers/token"
 import ADDRESSES from "../helpers/coreAssets.json"
 
-interface IData  {
+interface IData {
   fee_usd: string;
 }
 
@@ -13,10 +13,12 @@ const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // limit order fees
-  const dailyFees = await getSolanaReceived({ options, targets: [
-    'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
-    ,'27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
-  ]})
+  const dailyFees = await getSolanaReceived({
+    options, targets: [
+      'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
+      , '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
+    ]
+  })
   // ultra fees
   // https://dune.com/queries/4769928
   const data: IData[] = await queryDuneSql(options, `
@@ -87,7 +89,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.add(ADDRESSES.solana.JUP, res[0].total_amount || 0);
 
-  return { 
+  return {
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue
@@ -101,16 +103,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2023-06-01',
-      meta: {
-        methodology: {
-          Fees: 'Trading fees paid by users.',
-          Revenue: 'Portion of fees collected by protocol.', // we don't add the holders revenue as it's 50% of ecosystem protocol revenue.
-          HolderRevenue: 'Jup Buybacks from 50% of jupiter ecosystem protocol revenue.',
-        }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Trading fees paid by users.',
+    Revenue: 'Portion of fees collected by protocol.', // we don't add the holders revenue as it's 50% of ecosystem protocol revenue.
+    HolderRevenue: 'Jup Buybacks from 50% of jupiter ecosystem protocol revenue.',
+  },
 }
 
 export default adapter

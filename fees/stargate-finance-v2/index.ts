@@ -109,16 +109,14 @@ const adapter: Adapter = {
   adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
     acc[chain] = {
       ...adapterByChain(contracts[chain], timestamp),
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users while using Stargate bridge.",
-        }
-      }
     };
     return acc;
   }, {}),
   version: 2,
   allowNegativeValue: true, // due to bridge gas fees
+  methodology: {
+    Fees: "All fees paid by users while using Stargate bridge.",
+  }
 };
 
 export default adapter;

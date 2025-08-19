@@ -1,6 +1,6 @@
-import {FetchOptions} from "../adapters/types";
-import {CHAIN} from "../helpers/chains";
-import {getVersionFromTimestamp, octasToApt, view} from "../helpers/aptops";
+import { FetchOptions } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getVersionFromTimestamp, octasToApt, view } from "../helpers/aptops";
 
 // The emojicoin package address.
 const MAINNET_PACKAGE_ADDRESS = "0xface729284ae5729100b3a9ad7f7cc025ea09739cd6e7252aff0beb53619cafe";
@@ -68,11 +68,9 @@ export default {
         [CHAIN.APTOS]: {
             fetch,
             start: '2024-11-20',
-            meta: {
-                methodology: {
-                    Fees: "Tokens trading and launching fees paid by users.",
-                }
-            }
         },
+    },
+    methodology: {
+        Fees: "Tokens trading and launching fees paid by users.",
     }
 };

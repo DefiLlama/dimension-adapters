@@ -47,16 +47,14 @@ export default {
             fetch: fetchMetrics,
             start: '2025-01-16',
             runAtCurrTime: true,
-            meta: {
-                methodology: {
-                    UserFees: "WaterNeuron takes 10% fee on users staking rewards",
-                    Fees: "Staking rewards earned by all staked ICP",
-                    Revenue: "Staking rewards",
-                    HoldersRevenue: "Staking rewards earned by nICP holders",
-                    ProtocolRevenue: "WaterNeuron applies a 10% fee on staking rewards that are directed towards WTN (the DAO token) stakers.",
-                    SupplySideRevenue: "Staking rewards earned by nICP holders"
-                }
-            }
         },
     },
+    methodology: {
+        UserFees: "WaterNeuron takes 10% fee on users staking rewards",
+        Fees: "Staking rewards earned by all staked ICP",
+        Revenue: "Staking rewards",
+        HoldersRevenue: "Staking rewards earned by nICP holders",
+        ProtocolRevenue: "WaterNeuron applies a 10% fee on staking rewards that are directed towards WTN (the DAO token) stakers.",
+        SupplySideRevenue: "Staking rewards earned by nICP holders"
+    }
 };

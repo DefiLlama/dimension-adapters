@@ -27,13 +27,11 @@ const fetchData = () => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    methodology,
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetchData(),
             start: '2023-8-24',
-            meta: {
-                methodology,
-            },
             runAtCurrTime: true,
         }
     }
