@@ -77,9 +77,9 @@ const abis = {
 };
 
 const methodology = {
-    UserFees: "User pays between 0.01% and 0.1% fees on each swap.",
-    ProtocolRevenue: "Currently no fees are taken by the protocl.",
-    Fees: "All fees comes from the user.",
+    UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
+    ProtocolRevenue: "The protocol does not currently charge any fees.",
+    Fees: "All fees come from the user.",
 };
 
 async function getAddresses(chain, api) {
