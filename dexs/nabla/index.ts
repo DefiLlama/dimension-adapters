@@ -8,11 +8,11 @@ const config = {
         backfill: {
             routers: ["0x7bcFc8b8ff61456ad7C5E2be8517D01df006d18d"],
             pools: [
-                "0xE70292D6054B753214D555930e0F11CD7206Efeb",
-                "0x058a0875DB2168AF97bbf01043C3e8F751cCd9A8",
-                "0xcC5544C63392952B6f94a695f8f9e153F4284A87",
-                "0x411eF79fE9Df8Ba82A09c7e93FdE85AF5732BF12",
-                "0x272dF896f4D0c97F65e787f861bb6e882776a155",
+                "0xE70292D6054B753214D555930e0F11CD7206Efeb", // ARB
+                "0x058a0875DB2168AF97bbf01043C3e8F751cCd9A8", // USDC
+                "0xcC5544C63392952B6f94a695f8f9e153F4284A87", // USDT
+                "0x411eF79fE9Df8Ba82A09c7e93FdE85AF5732BF12", // WBTC
+                "0x272dF896f4D0c97F65e787f861bb6e882776a155", // WETH
             ],
             assets: [
                 ADDRESSES.arbitrum.ARB,
@@ -28,9 +28,9 @@ const config = {
         backfill: {
             routers: ["0x791Fee7b66ABeF59630943194aF17B029c6F487B"],
             pools: [
-                "0xa83a20F4dCaB1a63a9118E9E432932c8BEB39b85",
-                "0x123456C6C27bb57013F4b943A0f032a0ab9c12eB",
-                "0xdd8f26dea84b13600039747b59797E615767Dab0",
+                "0xa83a20F4dCaB1a63a9118E9E432932c8BEB39b85", // CBBTC
+                "0x123456C6C27bb57013F4b943A0f032a0ab9c12eB", // WETH
+                "0xdd8f26dea84b13600039747b59797E615767Dab0", // DEGEN
             ],
             assets: [
                 ADDRESSES.base.cbBTC,
@@ -44,9 +44,9 @@ const config = {
         backfill: {
             routers: ["0x8756fd992569E0389bF357EB087f5827F364D2a4"],
             pools: [
-                "0xBa8cC2Ac11CbB65f542FF59A3af5655940fB3282",
-                "0x896BDED4b4A89C1104587dd045C1B441110B8B5f",
-                "0xE971445787DCB0BB577610126287DED493DDDAE7",
+                "0xBa8cC2Ac11CbB65f542FF59A3af5655940fB3282", // WETH
+                "0x896BDED4b4A89C1104587dd045C1B441110B8B5f", // WBTC
+                "0xE971445787DCB0BB577610126287DED493DDDAE7", // USDC
             ],
             assets: [
                 ADDRESSES.berachain.WETH,
