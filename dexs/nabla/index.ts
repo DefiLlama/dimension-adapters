@@ -244,6 +244,71 @@ export default {
             }) as FetchV2,
             start: "2024-09-12",
         },
+        [CHAIN.BERACHAIN]: {
+            fetch: (async ({ getLogs, createBalances, api }) => {
+                const { routers, pools, assets } = await getAddresses(
+                    CHAIN.BERACHAIN,
+                    api
+                );
+
+                // Get protcol volume
+                const dailyVolume = createBalances();
+
+                const swapLogsOfRouters = await Promise.all(
+                    routers.map((router) =>
+                        getLogs({
+                            target: router,
+                            eventAbi: abis.router.swapEvent,
+                        })
+                    )
+                );
+                swapLogsOfRouters.forEach((swapLogsOfRouter) => {
+                    swapLogsOfRouter.forEach((log: any) => {
+                        dailyVolume.add(log.tokenOut, log.amountOut);
+                    });
+                });
+
+                // Get protocol fees
+                const dailyFees = createBalances();
+                const dailyUserFees = createBalances();
+                const dailyProtocolRevenue = createBalances();
+
+                const chargedSwapFeesLogsOfPools = await Promise.all(
+                    pools.map((pool) =>
+                        getLogs({
+                            target: pool,
+                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
+                        })
+                    )
+                );
+                chargedSwapFeesLogsOfPools.forEach(
+                    (chargedSwapFeesLogsOfPool, i) => {
+                        chargedSwapFeesLogsOfPool.forEach((log: any) => {
+                            dailyFees.add(
+                                assets[i],
+                                log.lpFees + log.backstopFees + log.protocolFees
+                            );
+                            dailyUserFees.add(
+                                assets[i],
+                                log.lpFees + log.backstopFees + log.protocolFees
+                            );
+                            dailyProtocolRevenue.add(
+                                assets[i],
+                                log.protocolFees
+                            );
+                        });
+                    }
+                );
+
+                return {
+                    dailyFees,
+                    dailyProtocolRevenue,
+                    dailyUserFees,
+                    dailyVolume,
+                };
+            }) as FetchV2,
+            start: "2025-05-14",
+        },
     },
     version: 2,
 } as Adapter;
