@@ -1,8 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import type { SimpleAdapter } from "../../adapters/types";
 
-const URL = "https://api.orderly.org/v1/public/futures_market";
+const URL = "https://api.orderly.org/v1/public/futures_market?broker_id=desk";
 
 interface Response {
   rows: {
@@ -10,8 +10,8 @@ interface Response {
   }[];
 }
 
-const fetch = async (timestamp: number) => {
-  const response = await httpGet(`${URL}?broker_id=desk`);
+const fetch = async (_a: any) => {
+  const response = await fetchURL(URL);
   const data: Response = response.data;
 
   const dailyVolume = data.rows.reduce(
@@ -19,19 +19,15 @@ const fetch = async (timestamp: number) => {
     0
   );
 
-  return {
-    dailyVolume: dailyVolume.toString(),
-    timestamp,
-  };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: "2025-08-18",
-    },
-  },
+  version: 2,
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2025-08-18',
+  runAtCurrTime: true,
 };
 
 export default adapter;
