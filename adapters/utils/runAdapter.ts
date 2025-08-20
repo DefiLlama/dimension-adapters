@@ -414,7 +414,8 @@ function subtractBalance(options: {balance: Balances, amount: FetchResponseValue
 
 function validateAdapterResult(result: any) {
   // validate metrics
-  if (result.dailyFees) {
+  //  this is to ensure that we do this validation only for the new adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
     // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
     if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
       throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
