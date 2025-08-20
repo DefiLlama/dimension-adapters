@@ -59,16 +59,16 @@ const config = {
 
 const abis = {
     portal: {
-        routers:
-            "function getRouters() external view returns (address[] memory)",
-        routerAssets:
-            "function getRouterAssets(address router) external view returns (address[] memory)",
+        getRouters:
+            "function getRouters() external view returns (address[] memory routers)",
+        getRouterAssets:
+            "function getRouterAssets(address router) external view returns (address[] memory routerAssets)",
     },
     router: {
         poolByAsset:
-            "function poolByAsset(address asset) external view returns (address)",
+            "function poolByAsset(address asset) external view returns (address swapPool)",
         swapEvent:
-            "event Swap(address indexed,uint256,uint256 amountOut,address tokenIn,address tokenOut,address indexed to)",
+            "event Swap(address indexed sender, uint256 amountIn, uint256 amountOut, address tokenIn, address tokenOut, address indexed to)",
     },
     swapPool: {
         chargedSwapFeesEvent:
@@ -83,24 +83,30 @@ const methodology = {
 };
 
 async function getAddresses(chain, api) {
-    const { registry } = config[chain];
+    const registry = config[chain].registry;
     let routers;
     let pools;
     let assets;
+
     try {
+        // routers
         routers = await api.call({
-            abi: abis.portal.routers,
+            abi: abis.portal.getRouters,
             target: registry,
             block: "latest",
         });
+
+        // assets
         const assetsResponse = await api.multiCall({
-            abi: abis.portal.routerAssets,
+            abi: abis.portal.getRouterAssets,
             calls: routers.map((router: any) => ({
                 target: registry,
                 params: router,
             })),
         });
         assets = assetsResponse.reduce((acc, a: any[]) => [...acc, ...a], []);
+
+        // pools
         const poolsCalls: any[] = [];
         routers.forEach((router: any, i) => {
             assetsResponse[i].forEach((asset: any) => {
@@ -119,6 +125,7 @@ async function getAddresses(chain, api) {
         pools = config[chain].backfill.pools;
         assets = config[chain].backfill.assets;
     }
+
     return { routers, pools, assets };
 }
 
