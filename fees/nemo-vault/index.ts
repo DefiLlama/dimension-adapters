@@ -19,7 +19,6 @@ const fetchNemoStats: FetchV2 = async ({
   endTimestamp,
 }): Promise<FetchResultV2> => {
   const url = `${nemoApiURL}?starttime=${startTimestamp}&endtime=${endTimestamp}&tradeType=2`;
-  console.log(`url:${url}`);
   const { data }: NemoStats = await fetchURL(url);
   const dailyFees = data.fee;
   return {
