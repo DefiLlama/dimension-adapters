@@ -30,8 +30,29 @@ const config = {
             pools: [
                 "0xa83a20F4dCaB1a63a9118E9E432932c8BEB39b85",
                 "0x123456C6C27bb57013F4b943A0f032a0ab9c12eB",
+                "0xdd8f26dea84b13600039747b59797E615767Dab0",
             ],
-            assets: [ADDRESSES.ethereum.cbBTC, ADDRESSES.optimism.WETH_1],
+            assets: [
+                ADDRESSES.base.cbBTC,
+                ADDRESSES.base.WETH,
+                "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed", // DEGEN
+            ],
+        },
+    },
+    [CHAIN.BERACHAIN]: {
+        registry: "0x1F917Fe724F186a1fFA7744A73afed18C335b9eC",
+        backfill: {
+            routers: ["0x8756fd992569E0389bF357EB087f5827F364D2a4"],
+            pools: [
+                "0xBa8cC2Ac11CbB65f542FF59A3af5655940fB3282",
+                "0x896BDED4b4A89C1104587dd045C1B441110B8B5f",
+                "0xE971445787DCB0BB577610126287DED493DDDAE7",
+            ],
+            assets: [
+                ADDRESSES.berachain.WETH,
+                ADDRESSES.berachain.WBTC,
+                ADDRESSES.berachain.USDC,
+            ],
         },
     },
 };
