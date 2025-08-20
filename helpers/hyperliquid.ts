@@ -48,11 +48,9 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
         AND builder = '${builder_address}'
     )
     SELECT 
-      bfc.fills_count,
       COALESCE(bf.total_builder_fees, 0) as total_fees,
       COALESCE(dv.total_volume, 0) as total_volume
-    FROM builder_fills_check bfc
-    CROSS JOIN builder_fees bf
+    FROM builder_fees bf
     CROSS JOIN dex_volume dv
   `;
 
