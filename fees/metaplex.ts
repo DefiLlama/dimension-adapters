@@ -14,7 +14,10 @@ const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
   const res: IFees[] = (await httpGet(url)).query_result.data.rows;
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const dailyItem = res.find(item => item.block_date === dateStr)
-  const dailyFees = dailyItem?.revenue_in_usd || 0
+  if (!dailyItem) {
+    throw new Error(`No daily item found for ${dateStr}`)
+  }
+  const dailyFees = dailyItem.revenue_in_usd
   const dailyProtocolRevenue = (timestamp >= 1685577600) ? dailyFees * 0.5 : dailyFees
   const dailyHoldersRevenue = (timestamp >= 1685577600) ? dailyFees * 0.5 : 0
 
