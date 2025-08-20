@@ -139,123 +139,11 @@ export default {
                     api
                 );
 
-                const dailyVolume = createBalances();
-                const volumeLogs = await Promise.all(
-                    routers.map((router) =>
-                        getLogs({
-                            target: router,
-                            eventAbi: abis.router.swapEvent,
-                        })
-                    )
-                );
-
-                volumeLogs.forEach((logs, i) => {
-                    logs.forEach((e: any) => {
-                        dailyVolume.add(e.tokenOut, e.amountOut);
-                    });
-                });
-
-                const dailyFees = createBalances();
-                const dailyUserFees = createBalances();
-                const dailyProtocolRevenue = createBalances();
-                const logs = await Promise.all(
-                    pools.map((pool) =>
-                        getLogs({
-                            target: pool,
-                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
-                        })
-                    )
-                );
-                logs.forEach((log, i) => {
-                    log.forEach((e: any) => {
-                        dailyFees.add(
-                            assets[i],
-                            e.lpFees + e.backstopFees + e.protocolFees
-                        );
-                        dailyUserFees.add(
-                            assets[i],
-                            e.lpFees + e.backstopFees + e.protocolFees
-                        );
-                        dailyProtocolRevenue.add(assets[i], e.protocolFees);
-                    });
-                });
-                return {
-                    dailyFees,
-                    dailyProtocolRevenue,
-                    dailyUserFees,
-                    dailyVolume,
-                };
-            }) as FetchV2,
-            start: "2024-08-15",
-        },
-        [CHAIN.BASE]: {
-            fetch: (async ({ getLogs, createBalances, api }) => {
-                const { routers, pools, assets } = await getAddresses(
-                    CHAIN.BASE,
-                    api
-                );
-
-                const dailyVolume = createBalances();
-                const volumeLogs = await Promise.all(
-                    routers.map((router) =>
-                        getLogs({
-                            target: router,
-                            eventAbi: abis.router.swapEvent,
-                        })
-                    )
-                );
-
-                volumeLogs.forEach((logs, i) => {
-                    logs.forEach((e: any) => {
-                        dailyVolume.add(e.tokenOut, e.amountOut);
-                    });
-                });
-
-                const dailyFees = createBalances();
-                const dailyUserFees = createBalances();
-                const dailyProtocolRevenue = createBalances();
-                const logs = await Promise.all(
-                    pools.map((pool) =>
-                        getLogs({
-                            target: pool,
-                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
-                        })
-                    )
-                );
-                logs.forEach((log, i) => {
-                    log.forEach((e: any) => {
-                        dailyFees.add(
-                            assets[i],
-                            e.lpFees + e.backstopFees + e.protocolFees
-                        );
-                        dailyUserFees.add(
-                            assets[i],
-                            e.lpFees + e.backstopFees + e.protocolFees
-                        );
-                        dailyProtocolRevenue.add(assets[i], e.protocolFees);
-                    });
-                });
-                return {
-                    dailyFees,
-                    dailyProtocolRevenue,
-                    dailyUserFees,
-                    dailyVolume,
-                };
-            }) as FetchV2,
-            start: "2024-09-12",
-        },
-        [CHAIN.BERACHAIN]: {
-            fetch: (async ({ getLogs, createBalances, api }) => {
-                const { routers, pools, assets } = await getAddresses(
-                    CHAIN.BERACHAIN,
-                    api
-                );
-
-                // Get protcol volume
+                // Get protocol volume
                 const dailyVolume = createBalances();
 
                 const swapLogsOfRouters = await Promise.all(
-                    routers.map((router) =>
+                    routers.map((router: string) =>
                         getLogs({
                             target: router,
                             eventAbi: abis.router.swapEvent,
@@ -274,7 +162,137 @@ export default {
                 const dailyProtocolRevenue = createBalances();
 
                 const chargedSwapFeesLogsOfPools = await Promise.all(
-                    pools.map((pool) =>
+                    pools.map((pool: string) =>
+                        getLogs({
+                            target: pool,
+                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
+                        })
+                    )
+                );
+                chargedSwapFeesLogsOfPools.forEach(
+                    (chargedSwapFeesLogsOfPool, i) => {
+                        chargedSwapFeesLogsOfPool.forEach((log: any) => {
+                            dailyFees.add(
+                                assets[i],
+                                log.lpFees + log.backstopFees + log.protocolFees
+                            );
+                            dailyUserFees.add(
+                                assets[i],
+                                log.lpFees + log.backstopFees + log.protocolFees
+                            );
+                            dailyProtocolRevenue.add(
+                                assets[i],
+                                log.protocolFees
+                            );
+                        });
+                    }
+                );
+
+                return {
+                    dailyFees,
+                    dailyProtocolRevenue,
+                    dailyUserFees,
+                    dailyVolume,
+                };
+            }) as FetchV2,
+            start: "2024-08-15",
+        },
+        [CHAIN.BASE]: {
+            fetch: (async ({ getLogs, createBalances, api }) => {
+                const { routers, pools, assets } = await getAddresses(
+                    CHAIN.BASE,
+                    api
+                );
+
+                // Get protocol volume
+                const dailyVolume = createBalances();
+
+                const swapLogsOfRouters = await Promise.all(
+                    routers.map((router: string) =>
+                        getLogs({
+                            target: router,
+                            eventAbi: abis.router.swapEvent,
+                        })
+                    )
+                );
+                swapLogsOfRouters.forEach((swapLogsOfRouter) => {
+                    swapLogsOfRouter.forEach((log: any) => {
+                        dailyVolume.add(log.tokenOut, log.amountOut);
+                    });
+                });
+
+                // Get protocol fees
+                const dailyFees = createBalances();
+                const dailyUserFees = createBalances();
+                const dailyProtocolRevenue = createBalances();
+
+                const chargedSwapFeesLogsOfPools = await Promise.all(
+                    pools.map((pool: string) =>
+                        getLogs({
+                            target: pool,
+                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
+                        })
+                    )
+                );
+                chargedSwapFeesLogsOfPools.forEach(
+                    (chargedSwapFeesLogsOfPool, i) => {
+                        chargedSwapFeesLogsOfPool.forEach((log: any) => {
+                            dailyFees.add(
+                                assets[i],
+                                log.lpFees + log.backstopFees + log.protocolFees
+                            );
+                            dailyUserFees.add(
+                                assets[i],
+                                log.lpFees + log.backstopFees + log.protocolFees
+                            );
+                            dailyProtocolRevenue.add(
+                                assets[i],
+                                log.protocolFees
+                            );
+                        });
+                    }
+                );
+
+                return {
+                    dailyFees,
+                    dailyProtocolRevenue,
+                    dailyUserFees,
+                    dailyVolume,
+                };
+            }) as FetchV2,
+            start: "2024-09-12",
+        },
+        [CHAIN.BERACHAIN]: {
+            fetch: (async ({ getLogs, createBalances, api }) => {
+                const { routers, pools, assets } = await getAddresses(
+                    CHAIN.BERACHAIN,
+                    api
+                );
+
+                // Get protocol volume
+                const dailyVolume = createBalances();
+
+                const swapLogsOfRouters = await Promise.all(
+                    routers.map((router: string) =>
+                        getLogs({
+                            target: router,
+                            eventAbi: abis.router.swapEvent,
+                        })
+                    )
+                );
+                swapLogsOfRouters.forEach((swapLogsOfRouter) => {
+                    swapLogsOfRouter.forEach((log: any) => {
+                        dailyVolume.add(log.tokenOut, log.amountOut);
+                    });
+                });
+
+                // Get protocol fees
+                const dailyFees = createBalances();
+                const dailyUserFees = createBalances();
+                const dailyProtocolRevenue = createBalances();
+
+                const chargedSwapFeesLogsOfPools = await Promise.all(
+                    pools.map((pool: string) =>
                         getLogs({
                             target: pool,
                             eventAbi: abis.swapPool.chargedSwapFeesEvent,
