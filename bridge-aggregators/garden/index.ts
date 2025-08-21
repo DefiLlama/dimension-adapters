@@ -85,16 +85,10 @@ type SwapDetails = {
     initiate_timestamp: string;
 };
 
-type CreateOrder = {
-    source_chain: string;
-    fee: string;
-};
-
 type GardenTransaction = {
     created_at: string;
     source_swap: SwapDetails;
     destination_swap: SwapDetails;
-    create_order: CreateOrder;
 };
 
 type GardenApiResponse = {
@@ -108,15 +102,27 @@ type GardenApiResponse = {
     };
 };
 
-type ChainFees = {
-    [chain: string]: number;
+type ChainVolumes = {
+    [chain: string]: {
+        [tokenAddress: string]: string;
+    };
 };
 
-function addToFees(fees: ChainFees, chain: string, feeAmount: string) {
-    if (!fees[chain]) {
-        fees[chain] = 0;
+type VolumeCounters = {
+    sameChain: ChainVolumes;
+    crossChain: ChainVolumes;
+};
+
+function addToVolume(volumes: ChainVolumes, chain: string, tokenAddress: string, amount: string) {
+    if (!volumes[chain]) {
+        volumes[chain] = {};
     }
-    fees[chain] += Number(feeAmount);
+    if (!volumes[chain][tokenAddress]) {
+        volumes[chain][tokenAddress] = "0";
+    }
+    volumes[chain][tokenAddress] = (
+        Number(volumes[chain][tokenAddress]) + Number(amount)
+    ).toString();
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -127,14 +133,14 @@ const prefetch = async (options: FetchOptions) => {
 }
 
 async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp: number) {
-    const fees: ChainFees = {};
+    const volumes = { sameChain: {}, crossChain: {} };
     let currentPage = 1;
     let insideDateRange = false;
     let shouldContinue = true;
 
     while (shouldContinue) {
         const response: GardenApiResponse = await fetchURL(
-            `${baseUrl}/matched?page=${currentPage}&per_page=1000&status=completed`
+            `${baseUrl}/matched?page=${currentPage}&per_page=200&status=completed`
         );
         if (response.status !== "Ok" || !response.result.data.length) {
             break;
@@ -148,11 +154,12 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
                 if (!insideDateRange) {
                     insideDateRange = true;
                 }
-                const { create_order } = tx;
-                addToFees(
-                    fees,
-                    create_order.source_chain,
-                    create_order.fee,
+                const { source_swap, destination_swap } = tx;
+                addToVolume(
+                    source_swap.chain === destination_swap.chain ? volumes.sameChain : volumes.crossChain,
+                    source_swap.chain,
+                    source_swap.token_address,
+                    source_swap.filled_amount
                 );
             }
             if (insideDateRange && txTimestamp < startTimestamp) {
@@ -166,36 +173,31 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
             break;
         }
     }
-    return fees;
+    return volumes;
 }
 
 const fetch = async (options: FetchOptions) => {
-    const fees = options.preFetchedResults as ChainFees || {};
-    const dailyFees = options.createBalances();
+    const volumes = options.preFetchedResults as VolumeCounters || { sameChain: {}, crossChain: {} };
+    const dailyBridgeVolume = options.createBalances();
     const chainName = chainMapper[options.chain].name;
 
-    const chainFees = fees[chainName] || 0;
-    dailyFees.addUSDValue(chainFees);
+    const crossChainVolumes = volumes.crossChain[chainName] || {};
+    for (const [tokenAddress, volume] of Object.entries(crossChainVolumes)) {
+        if (tokenAddress === 'primary') {
+            dailyBridgeVolume.addCGToken(chainMapper[options.chain].primaryCGToken, Number(volume) / 10 ** chainMapper[options.chain].decimals)
+        } else {
+            dailyBridgeVolume.add(tokenAddress, volume);
+        }
+    }
 
     return {
-        dailyFees,
-        dailyUserFees: dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyBridgeVolume,
     };
 };
-
-const methodology = {
-    dailyFees: "swap fees paid by users",
-    dailyUserFees: "swap fees paid by users",
-    dailyRevenue: "fees going to treasury",
-    dailyProtocolRevenue: "fees going to protocol treasury",
-}
 
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
-    methodology,
     adapter: chainMapper,
     prefetch: prefetch as any
 };
