@@ -4,41 +4,44 @@ import { AaveMarkets } from './aave'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
+import { METRIC } from '../helpers/metrics'
 
 const methodology = {
   Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
   Revenue: 'Amount of fees go to Aave treasury.',
   SupplySideRevenue: 'Amount of fees distributed to suppliers.',
   ProtocolRevenue: 'Amount of fees go to Aave treasury.',
-  HoldersRevenue: 'Aave Token Buybacks from Aave Treasury after 14th April 2025.',
+  HoldersRevenue: 'Aave starts buy back AAVE tokens using Aave Treasury after 9th April 2025.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Borrow Interest': 'All interest paid by borrowers from all markets (excluding GHO).',
+    [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all markets (excluding GHO).',
     'Borrow Interest GHO': 'All interest paid by borrowers from GHO only.',
-    'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
-    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+    [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
+    [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
   },
   Revenue: {
-    'Borrow Interest': 'A portion of interest paid by borrowers from all markets (excluding GHO).',
+    [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets (excluding GHO).',
     'Borrow Interest GHO': 'All 100% interest paid by GHO borrowers.',
-    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
-    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+    [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
+    [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
   },
   SupplySideRevenue: {
-    'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO).',
+    [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO).',
     'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market.',
-    'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
-    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+    [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+    [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
   },
   ProtocolRevenue: {
-    'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
+    [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
     'Borrow Interest GHO': 'All interest paid on GHO market are collected by Aave treasury.',
-    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
-    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
+    [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
+    [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
   },
-  HoldersRevenue: 'Aave Token Buybacks from Aave Treasury after 14th April 2025.',
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "Aave starts buy back AAVE tokens using Aave Treasury after 9th April 2025. They bought daily basic, but there are days they didn't."
+  },
 }
 
 const chainConfig = {
@@ -126,7 +129,8 @@ const fetch = async (options: FetchOptions) => {
   let dailyHoldersRevenue = options.createBalances()
   if (options.chain === CHAIN.ETHEREUM) {
     // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-    dailyHoldersRevenue = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa' })
+    const aaveReceived = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa' })
+    dailyHoldersRevenue.addBalances(aaveReceived, METRIC.TOKEN_BUY_BACK)
   }
 
   return {

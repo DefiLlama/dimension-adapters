@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
+import { METRIC } from "../metrics";
 
 export interface CuratorConfig {
   methodology?: any;
@@ -182,8 +183,8 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
       // interest earned by vault curator
       const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.BORROW_INTEREST)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.BORROW_INTEREST)
     }
   }
 }
@@ -217,19 +218,19 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
       // interest earned by vault curator
       const interestFee = interestEarnedBeforeFee - interestEarned
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.BORROW_INTEREST)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.BORROW_INTEREST)
     }
   }
 }
 
 export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
   const methodology = curatorConfig.methodology ? curatorConfig.methodology :  {
-          Fees: 'Total yields from deposited assets in all curated vaults.',
-          Revenue: 'Yields are collected by curators.',
-          ProtocolRevenue: 'Yields are collected by curators.',
-          SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
-        }
+    Fees: 'Total yields from deposited assets in all curated vaults.',
+    Revenue: 'Yields are collected by curators.',
+    ProtocolRevenue: 'Yields are collected by curators.',
+    SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
+  }
   const exportObject: BaseAdapter = {}
 
   Object.entries(curatorConfig.vaults).map(([chain, vaults]) => {
