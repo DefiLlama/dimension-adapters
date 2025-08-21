@@ -1,6 +1,10 @@
-import { FetchOptions } from "../../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 import { capABI, capConfig, devAddresses, vaultsSymbols } from "./config";
-import { arrayZip } from "./utils";
+
+export const arrayZip = <A, B>(a: A[], b: B[]) => {
+	const maxLength = Math.max(a.length, b.length);
+	return Array.from({ length: maxLength }, (_, i) => [a[i], b[i]]) as [A, B][];
+};
 
 export const isKnownVault = (options: FetchOptions, vault: string) => {
 	const vaults = vaultsSymbols.map(

@@ -1,4 +1,4 @@
-import { CHAIN } from "../../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 
 export const capConfig = {
 	[CHAIN.ETHEREUM]: {
