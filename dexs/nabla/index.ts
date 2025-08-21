@@ -1,5 +1,5 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { Adapter, FetchV2 } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const config = {
@@ -76,12 +76,6 @@ const abis = {
     },
 };
 
-const methodology = {
-    UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
-    ProtocolRevenue: "The protocol does not currently charge any fees.",
-    Fees: "All fees come from the user.",
-};
-
 async function getAddresses(chain, api) {
     const registry = config[chain].registry;
     let routers;
@@ -129,204 +123,87 @@ async function getAddresses(chain, api) {
     return { routers, pools, assets };
 }
 
+const fetch = async (options: FetchOptions) => {
+    const { routers, pools, assets } = await getAddresses(options.chain, options.api);
+
+    const dailyVolume = options.createBalances();
+    const dailyFees = options.createBalances();
+    const dailyUserFees = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+
+    const swapLogsOfRouters = await Promise.all(
+        routers.map((router: string) =>
+            options.getLogs({
+                target: router,
+                eventAbi: abis.router.swapEvent,
+            })
+        )
+    );
+    swapLogsOfRouters.forEach((swapLogsOfRouter) => {
+        swapLogsOfRouter.forEach((log: any) => {
+            dailyVolume.add(log.tokenOut, log.amountOut);
+        });
+    });
+
+    const chargedSwapFeesLogsOfPools = await Promise.all(
+        pools.map((pool: string) =>
+            options.getLogs({
+                target: pool,
+                eventAbi: abis.swapPool.chargedSwapFeesEvent,
+            })
+        )
+    );
+    chargedSwapFeesLogsOfPools.forEach(
+        (chargedSwapFeesLogsOfPool, i) => {
+            chargedSwapFeesLogsOfPool.forEach((log: any) => {
+                dailyFees.add(
+                    assets[i],
+                    log.lpFees + log.backstopFees + log.protocolFees
+                );
+                dailyUserFees.add(
+                    assets[i],
+                    log.lpFees + log.backstopFees + log.protocolFees
+                );
+                dailyProtocolRevenue.add(
+                    assets[i],
+                    log.protocolFees
+                );
+            });
+        }
+    );
+
+    return {
+        dailyFees,
+        dailyUserFees,
+        dailyRevenue: dailyProtocolRevenue,
+        dailyProtocolRevenue,
+        dailyVolume,
+    };
+}
+
+const methodology = {
+    Fees: 'Users pay between 0.01% and 0.1% fees on each swap.',
+    UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
+    Revenue: "The protocol does not currently charge any fees.",
+    ProtocolRevenue: "The protocol does not currently charge any fees.",
+    Volume: "Swap Volume on Nabla AMM.",
+};
+
 export default {
+    version: 2,
     methodology,
     adapter: {
         [CHAIN.ARBITRUM]: {
-            fetch: (async ({ getLogs, createBalances, api }) => {
-                const { routers, pools, assets } = await getAddresses(
-                    CHAIN.ARBITRUM,
-                    api
-                );
-
-                // Get protocol volume
-                const dailyVolume = createBalances();
-
-                const swapLogsOfRouters = await Promise.all(
-                    routers.map((router: string) =>
-                        getLogs({
-                            target: router,
-                            eventAbi: abis.router.swapEvent,
-                        })
-                    )
-                );
-                swapLogsOfRouters.forEach((swapLogsOfRouter) => {
-                    swapLogsOfRouter.forEach((log: any) => {
-                        dailyVolume.add(log.tokenOut, log.amountOut);
-                    });
-                });
-
-                // Get protocol fees
-                const dailyFees = createBalances();
-                const dailyUserFees = createBalances();
-                const dailyProtocolRevenue = createBalances();
-
-                const chargedSwapFeesLogsOfPools = await Promise.all(
-                    pools.map((pool: string) =>
-                        getLogs({
-                            target: pool,
-                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
-                        })
-                    )
-                );
-                chargedSwapFeesLogsOfPools.forEach(
-                    (chargedSwapFeesLogsOfPool, i) => {
-                        chargedSwapFeesLogsOfPool.forEach((log: any) => {
-                            dailyFees.add(
-                                assets[i],
-                                log.lpFees + log.backstopFees + log.protocolFees
-                            );
-                            dailyUserFees.add(
-                                assets[i],
-                                log.lpFees + log.backstopFees + log.protocolFees
-                            );
-                            dailyProtocolRevenue.add(
-                                assets[i],
-                                log.protocolFees
-                            );
-                        });
-                    }
-                );
-
-                return {
-                    dailyFees,
-                    dailyProtocolRevenue,
-                    dailyUserFees,
-                    dailyVolume,
-                };
-            }) as FetchV2,
+            fetch,
             start: "2024-08-15",
         },
         [CHAIN.BASE]: {
-            fetch: (async ({ getLogs, createBalances, api }) => {
-                const { routers, pools, assets } = await getAddresses(
-                    CHAIN.BASE,
-                    api
-                );
-
-                // Get protocol volume
-                const dailyVolume = createBalances();
-
-                const swapLogsOfRouters = await Promise.all(
-                    routers.map((router: string) =>
-                        getLogs({
-                            target: router,
-                            eventAbi: abis.router.swapEvent,
-                        })
-                    )
-                );
-                swapLogsOfRouters.forEach((swapLogsOfRouter) => {
-                    swapLogsOfRouter.forEach((log: any) => {
-                        dailyVolume.add(log.tokenOut, log.amountOut);
-                    });
-                });
-
-                // Get protocol fees
-                const dailyFees = createBalances();
-                const dailyUserFees = createBalances();
-                const dailyProtocolRevenue = createBalances();
-
-                const chargedSwapFeesLogsOfPools = await Promise.all(
-                    pools.map((pool: string) =>
-                        getLogs({
-                            target: pool,
-                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
-                        })
-                    )
-                );
-                chargedSwapFeesLogsOfPools.forEach(
-                    (chargedSwapFeesLogsOfPool, i) => {
-                        chargedSwapFeesLogsOfPool.forEach((log: any) => {
-                            dailyFees.add(
-                                assets[i],
-                                log.lpFees + log.backstopFees + log.protocolFees
-                            );
-                            dailyUserFees.add(
-                                assets[i],
-                                log.lpFees + log.backstopFees + log.protocolFees
-                            );
-                            dailyProtocolRevenue.add(
-                                assets[i],
-                                log.protocolFees
-                            );
-                        });
-                    }
-                );
-
-                return {
-                    dailyFees,
-                    dailyProtocolRevenue,
-                    dailyUserFees,
-                    dailyVolume,
-                };
-            }) as FetchV2,
+            fetch,
             start: "2024-09-12",
         },
         [CHAIN.BERACHAIN]: {
-            fetch: (async ({ getLogs, createBalances, api }) => {
-                const { routers, pools, assets } = await getAddresses(
-                    CHAIN.BERACHAIN,
-                    api
-                );
-
-                // Get protocol volume
-                const dailyVolume = createBalances();
-
-                const swapLogsOfRouters = await Promise.all(
-                    routers.map((router: string) =>
-                        getLogs({
-                            target: router,
-                            eventAbi: abis.router.swapEvent,
-                        })
-                    )
-                );
-                swapLogsOfRouters.forEach((swapLogsOfRouter) => {
-                    swapLogsOfRouter.forEach((log: any) => {
-                        dailyVolume.add(log.tokenOut, log.amountOut);
-                    });
-                });
-
-                // Get protocol fees
-                const dailyFees = createBalances();
-                const dailyUserFees = createBalances();
-                const dailyProtocolRevenue = createBalances();
-
-                const chargedSwapFeesLogsOfPools = await Promise.all(
-                    pools.map((pool: string) =>
-                        getLogs({
-                            target: pool,
-                            eventAbi: abis.swapPool.chargedSwapFeesEvent,
-                        })
-                    )
-                );
-                chargedSwapFeesLogsOfPools.forEach(
-                    (chargedSwapFeesLogsOfPool, i) => {
-                        chargedSwapFeesLogsOfPool.forEach((log: any) => {
-                            dailyFees.add(
-                                assets[i],
-                                log.lpFees + log.backstopFees + log.protocolFees
-                            );
-                            dailyUserFees.add(
-                                assets[i],
-                                log.lpFees + log.backstopFees + log.protocolFees
-                            );
-                            dailyProtocolRevenue.add(
-                                assets[i],
-                                log.protocolFees
-                            );
-                        });
-                    }
-                );
-
-                return {
-                    dailyFees,
-                    dailyProtocolRevenue,
-                    dailyUserFees,
-                    dailyVolume,
-                };
-            }) as FetchV2,
+            fetch,
             start: "2025-05-14",
         },
     },
-    version: 2,
 } as Adapter;
