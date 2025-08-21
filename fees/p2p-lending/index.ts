@@ -1,11 +1,12 @@
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import type { FetchOptions, FetchResult } from "../../adapters/types";
+import { getEnv } from "../../helpers/env";
 
 const headers: HeadersInit = {
   origin: "https://subgraph.smardex.io",
   referer: "https://subgraph.smardex.io",
-  "x-api-key": process.env.SMARDEX_SUBGRAPH_API_KEY || "",
+  "x-api-key": getEnv('SMARDEX_SUBGRAPH_API_KEY') || "",
 };
 
 type DailyTokenMetric = {

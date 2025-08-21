@@ -1,5 +1,6 @@
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getEnv } from "../../helpers/env";
 import { httpGet } from "../../utils/fetchURL";
 
 const defiAppChainIdMap: Record<string, any> = {
@@ -27,7 +28,7 @@ const prefetch = async (options: FetchOptions) => {
   const res = await httpGet(`https://api.defi.app/api/stats/volume/between?startRefTime=${tsToISO(options.startTimestamp)}&endRefTime=${tsToISO(options.endTimestamp)}`, {
     headers: {
       "Content-Type": "application/json",
-      "X-API-KEY": process.env.DEFIAPP_API_KEY,
+      "X-API-KEY": getEnv('DEFIAPP_API_KEY'),
       User: "defillama",
     },
   });

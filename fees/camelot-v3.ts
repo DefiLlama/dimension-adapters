@@ -6,6 +6,7 @@ import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getEnv } from "../helpers/env";
 
 interface IPoolData {
   id: number;
@@ -18,12 +19,12 @@ type IURL = {
 
 const endpoints: IURL = {
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp'),
-  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-apechain/api`,
-  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-gravity/api`,
-  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-rari/api`,
-  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-reya/api`,
-  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-xai/api`,
-  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${process.env.CAMELOT_API_KEY}/camelot/camelot-ammv3-sanko/api`,
+  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-apechain/api`,
+  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-gravity/api`,
+  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-rari/api`,
+  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-reya/api`,
+  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-xai/api`,
+  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-sanko/api`,
 }
 
 const fetch =  async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
