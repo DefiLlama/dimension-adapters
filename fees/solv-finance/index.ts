@@ -266,19 +266,16 @@ async function solanas(options: FetchOptions, contracts: any, configKey: string)
   return await getSolanaReceived({ options, targets: solanaFeesConfig });
 }
 
-const meta = {
-  methodology: {
-    Fees: 'All yields are generated from staking assets.',
-    Revenue: 'Fees collected by Solv Protocol.',
-    ProtocolRevenue: 'Fees collected by Solv Protocol.',
-  }
+const methodology = {
+  Fees: 'All yields are generated from staking assets.',
+  Revenue: 'Fees collected by Solv Protocol.',
+  ProtocolRevenue: 'Fees collected by Solv Protocol.',
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2 };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, methodology, };
 
 Object.keys(chains).forEach((chain: Chain) => {
-  adapter.adapter[chain] = {
-    meta,
+  adapter.adapter![chain] = {
     fetch,
     start: chains[chain].deployedAt,
   };

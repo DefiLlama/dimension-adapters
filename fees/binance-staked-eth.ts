@@ -40,30 +40,27 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.add(token, df)
 
   const dailyProtocolRevenue = dailyFees.clone(0.1)
+  const dailySupplySideRevenue = dailyFees.clone(0.9)
 
   return {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-04-20',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.BSC]: {
       fetch,
       start: '2023-04-20',
-      meta: {
-        methodology,
-      },
     },
   },
 };

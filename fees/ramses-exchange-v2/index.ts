@@ -48,7 +48,7 @@ const v2Graphs = getGraphDimensions2({
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
+  UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
   ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
   HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
   SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
@@ -56,6 +56,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
@@ -66,12 +67,6 @@ const adapter: Adapter = {
         return v2Result;
       },
       start: startTimeV2[CHAIN.ARBITRUM],
-      meta: {
-        methodology: {
-          ...methodology,
-          UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-        },
-      },
     },
   },
 };

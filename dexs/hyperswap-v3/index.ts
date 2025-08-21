@@ -50,11 +50,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    methodology,
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,
             start: '2025-02-18',
-            meta: { methodology }
         }
     }
 }

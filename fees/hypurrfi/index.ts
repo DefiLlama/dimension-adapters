@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import type { SimpleAdapter } from "../../adapters/types";
 import { aaveExport } from "../../helpers/aave";
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
     Revenue: 'Amount of fees go to HypurrFi treasury.',
@@ -39,8 +39,8 @@ const meta = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology: meta.methodology,
-  breakdownMethodology: meta.breakdownMethodology,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   adapter: {
     ...aaveExport({
       [CHAIN.HYPERLIQUID]: {

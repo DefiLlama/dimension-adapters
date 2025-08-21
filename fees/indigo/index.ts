@@ -18,9 +18,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const liquidationsResponse = await axios.get(
     ANALYTICS_API_ENDPOINT + `/api/revenue/liquidations?totals&from=${options.startTimestamp}&to=${options.endTimestamp}`,
   );
-  
+
   const totalLovelaceLiquidations = Number(liquidationsResponse.data.totals['lovelace'] ?? 0);
-  
+
   // Collector Flows are all fees that are sent to INDY stakers: 
   // CDP Mint Fees, (partially) CDP Interest Payments, and Redemption Fees.
   const collectorFlowResponse = await axios.get(
@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   );
   const totalLovelaceTreasuryInflows = Number(flowsResponse.data.totals['lovelace'] ?? 0);
 
-  
+
   const dailyFeesUSD = options.createBalances();
   dailyFeesUSD.addCGToken('cardano', (totalLovelaceTreasuryInflows + totalLovelaceToIndyStakers + totalLovelaceLiquidations) / 1_000_000);
   dailyFeesUSD.addCGToken('indigo-protocol', Number(flowsResponse.data.totals[INDY_TOKEN] ?? 0) / 1_000_000);
@@ -64,7 +64,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   const dailyHoldersRevenueUSD = options.createBalances();
   dailyHoldersRevenueUSD.addCGToken('cardano', (totalLovelaceToIndyStakers) / 1_000_000);
-  
+
   return {
     timestamp: options.startOfDay,
     dailyFees: dailyFeesUSD,
@@ -81,14 +81,12 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: '2022-11-22',
-      meta: {
-        methodology: {
-          Fees: "Fees are: Liquidations, Payments to Treasury, and CDP Payments to INDY Stakers.",
-          Revenue: "Revenue is: Payments to Treasury, and CDP Payments to INDY Stakers.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Fees are: Liquidations, Payments to Treasury, and CDP Payments to INDY Stakers.",
+    Revenue: "Revenue is: Payments to Treasury, and CDP Payments to INDY Stakers.",
+  }
 };
 
 export default adapter;

@@ -25,14 +25,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
       start: '2022-01-01',
-      meta: {
-        methodology: {
-          Fees: 'Total fees paid by users for using DefiSaver services.',
-          Revenue: 'Total fees paid are distributed to DefiSaver.',
-          ProtocolRevenue: 'Total fees paid are distributed to DefiSaver.',
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: 'Total fees paid by users for using DefiSaver services.',
+    Revenue: 'Total fees paid are distributed to DefiSaver.',
+    ProtocolRevenue: 'Total fees paid are distributed to DefiSaver.',
   }
 }
 export default adapter;
