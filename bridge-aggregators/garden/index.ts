@@ -178,20 +178,20 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
 
 const fetch = async (options: FetchOptions) => {
     const volumes = options.preFetchedResults as VolumeCounters || { sameChain: {}, crossChain: {} };
-    const dailyVolume = options.createBalances();
+    const dailyBridgeVolume = options.createBalances();
     const chainName = chainMapper[options.chain].name;
 
-    const sameChainVolumes = volumes.sameChain[chainName] || {};
-    for (const [tokenAddress, volume] of Object.entries(sameChainVolumes)) {
+    const crossChainVolumes = volumes.crossChain[chainName] || {};
+    for (const [tokenAddress, volume] of Object.entries(crossChainVolumes)) {
         if (tokenAddress === 'primary') {
-            dailyVolume.addCGToken(chainMapper[options.chain].primaryCGToken, Number(volume) / 10 ** chainMapper[options.chain].decimals)
+            dailyBridgeVolume.addCGToken(chainMapper[options.chain].primaryCGToken, Number(volume) / 10 ** chainMapper[options.chain].decimals)
         } else {
-            dailyVolume.add(tokenAddress, volume);
+            dailyBridgeVolume.add(tokenAddress, volume);
         }
     }
 
     return {
-        dailyVolume,
+        dailyBridgeVolume,
     };
 };
 
