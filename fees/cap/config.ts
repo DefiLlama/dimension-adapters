@@ -22,14 +22,14 @@ export const capConfig = {
 		tokens: {
 			cUSD: {
 				id: "cUSD",
-				coingeckoId: "cap-money-c-usd",
+				coingeckoId: "cap-usd",
 				decimals: 18,
 				address: "0xcCcc62962d17b8914c62D74FfB843d73B2a3cccC",
 				fromBlock: 22874015,
 			},
 			stcUSD: {
 				id: "stcUSD",
-				coingeckoId: "cap-money-st-c-usd",
+				coingeckoId: "cap-staked-usd",
 				decimals: 18,
 				address: "0x88887bE419578051FF9F4eb6C858A951921D8888",
 				fromBlock: 22874056,
