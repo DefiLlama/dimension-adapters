@@ -1,5 +1,6 @@
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { request, gql } from "graphql-request";
 
 const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/47039/thirdfy-base/version/latest";
 
@@ -20,7 +21,6 @@ const fetch = async (options: FetchOptions) => {
   const startTimestamp = options.startTimestamp;
   const endTimestamp = options.endTimestamp;
 
-  // Query subgraph for daily pool data within the time range
   const query = `
     query {
       poolDayDatas(
@@ -44,30 +44,16 @@ const fetch = async (options: FetchOptions) => {
     }
   `;
 
-  try {
-    const response = await globalThis.fetch(SUBGRAPH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
+  const data = await request(SUBGRAPH_URL, query);
+  const poolDayDatas: PoolDayData[] = data?.poolDayDatas || [];
 
-    const data = await response.json();
-    const poolDayDatas: PoolDayData[] = data.data?.poolDayDatas || [];
+  let totalVolumeUSD = 0;
 
-    // Aggregate daily volume across all pools
-    let totalVolumeUSD = 0;
-
-    for (const dayData of poolDayDatas) {
-      totalVolumeUSD += parseFloat(dayData.volumeUSD || '0');
-    }
-
-    // Add to balances (DeFiLlama expects USD values)
-    dailyVolume.addUSDValue(totalVolumeUSD);
-
-  } catch (error) {
-    console.error('Error fetching from subgraph:', error);
-    // Return empty balances on error
+  for (const dayData of poolDayDatas) {
+    totalVolumeUSD += parseFloat(dayData.volumeUSD || '0');
   }
+
+  dailyVolume.addUSDValue(totalVolumeUSD);
 
   return { dailyVolume };
 };
