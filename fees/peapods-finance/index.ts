@@ -8,7 +8,6 @@ const fetch = async (options: FetchOptions) => {
     options,
     target: "0x6499Add1cC6223Aeec0BD9e5355EfE10ceF519C5", //vlPEAS wallet
     token:  "0x02f92800f57bcd74066f5709f1daa1a4302df875", //PEAS token
-    fromAdddesses: ["0x88eaFE23769a4FC2bBF52E77767C3693e6acFbD5"], //revenue wallet
   });
 
   const protocolB = await addTokensReceived({
