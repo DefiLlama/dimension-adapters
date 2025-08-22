@@ -138,16 +138,15 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchAptosRevenue,
       start: "2025-06-02",
-      meta: { methodology },
     },
     [CHAIN.POLYGON]: {
       fetch: fetchPolygonRevenue,
       start: "2025-06-23",
-      meta: { methodology },
     },
   },
 };

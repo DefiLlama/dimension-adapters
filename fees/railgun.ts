@@ -2,7 +2,7 @@
 // https://docs.railgun.org/wiki/rail-token/rail-active-governor-rewards
 
 import { Chain } from "../adapters/types";
-import { SimpleAdapter,FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 import ADDRESSES from '../helpers/coreAssets.json'
@@ -52,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
   }
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'All fees paid by users using Railgun privacy services.',
     Revenue: 'All fees collected by Railgun.',
@@ -61,12 +61,14 @@ const meta = {
 }
 
 const adapters: SimpleAdapter = {
+  fetch,
+  methodology: info.methodology,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2022-05-01', meta },
-    [CHAIN.ARBITRUM]: { fetch, start: '2022-05-01', meta },
-    [CHAIN.POLYGON]: { fetch, start: '2022-05-01', meta },
-    [CHAIN.BSC]: { fetch, start: '2022-05-01', meta },
+    [CHAIN.ETHEREUM]: { start: '2022-05-01', },
+    [CHAIN.ARBITRUM]: { start: '2022-05-01', },
+    [CHAIN.POLYGON]: { start: '2022-05-01', },
+    [CHAIN.BSC]: { start: '2022-05-01', },
   },
 }
 

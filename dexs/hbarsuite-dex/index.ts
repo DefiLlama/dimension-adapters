@@ -58,13 +58,7 @@ const fetch = async (timestamp: number) => {
     return acc;
   }, "0");
 
-  let allTimeVolumes = volumesForPools.reduce((acc, pool) => {
-    acc = new BigNumber(acc).plus(pool.total);
-    return acc;
-  }, "0");
-
   return {
-    totalVolume: allTimeVolumes.toString(),
     dailyVolume: dailyVolumes.toString(),
     timestamp: dayTimestamp
   };

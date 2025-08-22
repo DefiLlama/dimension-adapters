@@ -75,15 +75,11 @@ export async function fetchrequest(url: string, query: string) {
 }
 const graphs = (chain: Chain) => {
   return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historical: IHistory[] = (await fetchrequest(url, query)).dailyStatisticsByChain;
     // const historical: IHistory[] = require('./historical.json');
     const historicalVolume = historical
     const date = new Date(timestamp * 1000);
     const dateStr = date.toISOString().split('T')[0];
-    const totalFees = historicalVolume
-      .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
-      .reduce((acc,  b: IHistory) => acc + Number(b[chains[chain]]), 0)
     const dailyFees = historicalVolume
       .find(dayItem => dayItem.date  === dateStr)?.[chains[chain]]
 
@@ -92,9 +88,6 @@ const graphs = (chain: Chain) => {
       dailyFees,
       dailyRevenue: dailyFees,
       dailyUserFees: dailyFees,
-      totalFees,
-      totalUserFees: totalFees,
-      totalRevenue: totalFees,
 
     };
   };
@@ -108,15 +101,13 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
+  methodology,
   adapter: Object.keys(chains).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
         start: '2021-08-21',
-        meta: {
-          methodology
-        }
       }
     }
   }, {})

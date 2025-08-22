@@ -55,7 +55,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailyUserFees: finalUserFee.toString(),
         dailyRevenue: (finalDailyFee * 0.3).toString(),
         dailyProtocolRevenue: "0",
-        totalProtocolRevenue: "0",
         dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
         dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
       };
@@ -70,11 +69,9 @@ const adapter: Adapter = {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),
       start: '2022-12-31',
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology
 }
 
 export default adapter;

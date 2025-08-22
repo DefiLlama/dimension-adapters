@@ -49,110 +49,88 @@ const fetchFees = (chain: string) => {
   }
 }
 
-const meta = {
+const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All yields are generated from liquidity providers.',
     Revenue: 'All yields are distributed to Gamma Protocol.',
     ProtocolRevenue: 'All yields are distributed to Gamma Protocol.',
-  }
-}
-
-const adapter: SimpleAdapter = {
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees("ethereum"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees("polygon"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetchFees("polygon_zkevm"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees("optimism"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees("arbitrum"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetchFees("binance"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.MOONBEAM]: {
       fetch: fetchFees("moonbeam"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.CELO]: {
       fetch: fetchFees("celo"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.AVAX]: {
       fetch: fetchFees("avalanche"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.FANTOM]: {
       fetch: fetchFees("fantom"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.MANTLE]: {
       fetch: fetchFees("mantle"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.ROLLUX]: {
       fetch: fetchFees("rollux"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.LINEA]: {
       fetch: fetchFees("linea"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchFees("base"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.KAVA]: {
       fetch: fetchFees("kava"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.OP_BNB]: {
       fetch: fetchFees("op_bnb"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.MANTA]: {
       fetch: fetchFees("manta"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.METIS]: {
       fetch: fetchFees("metis"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.XDAI]: {
       fetch: fetchFees("gnosis"),
       start: '2023-04-22',
-      meta,
     },
     // [CHAIN.ASTRZK]: {
     //   fetch: fetchFees("astar_zkevm"),
@@ -161,77 +139,62 @@ const adapter: SimpleAdapter = {
     [CHAIN.IMX]: {
       fetch: fetchFees("immutable_zkevm"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.SCROLL]: {
       fetch: fetchFees("scroll"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.BLAST]: {
       fetch: fetchFees("blast"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.XLAYER]: {
       fetch: fetchFees("xlayer"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.MODE]: {
       fetch: fetchFees("mode"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.TAIKO]: {
       fetch: fetchFees("taiko"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.ROOTSTOCK]: {
       fetch: fetchFees("rootstock"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.SEI]: {
       fetch: fetchFees("sei"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.IOTAEVM]: {
       fetch: fetchFees("iota_evm"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.CORE]: {
       fetch: fetchFees("core"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.ZIRCUIT]: {
       fetch: fetchFees("zircuit"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.WC]: {
       fetch: fetchFees("worlchain"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.APECHAIN]: {
       fetch: fetchFees("apechain"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.SONIC]: {
       fetch: fetchFees("sonic"),
       start: '2023-04-22',
-      meta,
     },
     [CHAIN.BOB]: {
       fetch: fetchFees("bob"),
       start: '2023-04-22',
-      meta,
     },
   }
 }

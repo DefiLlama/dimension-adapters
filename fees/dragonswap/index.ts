@@ -13,24 +13,19 @@ const methodology = {
 
 
 const adapter: BreakdownAdapter = {
+  methodology,
   version: 2,
   breakdown: {
     v2: {
       [CHAIN.KLAYTN]: {
         runAtCurrTime: true,
         fetch: fetch('v2'),
-        meta: {
-          methodology
-        }
       }
     },
     v3: {
       [CHAIN.KLAYTN]: {
         runAtCurrTime: true,
         fetch: fetch('v3'),
-        meta: {
-          methodology
-        }
       }
     },
   },
@@ -38,17 +33,17 @@ const adapter: BreakdownAdapter = {
 
 export default adapter;
 
-function fetch(version:string) {
+function fetch(version: string) {
   return async () => {
     const { pools } = await httpGet(`https://dgswap.io/api/pools/?types=${version}&sortBy=apy24H&sortDirection=desc&limit=99`)
     let dailyFees = pools.reduce((acc: any, pool: any) => acc + Number(pool.feeUSD?.['24H'] ?? 0), 0)
     let dailyRevenue = pools.reduce((acc: any, pool: any) => acc + Number(pool.protocolFeeUSD?.['24H'] ?? 0), 0)
     if (version === 'v2') {
       dailyFees = pools.reduce((acc: any, pool: any) => acc + Number(pool.volumeUSD?.['24H'] ?? 0) * 0.003, 0)
-      dailyRevenue = dailyFees* 0.2
+      dailyRevenue = dailyFees * 0.2
     }
-    const dailySupplySideRevenue   = dailyFees - dailyRevenue
+    const dailySupplySideRevenue = dailyFees - dailyRevenue
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 
-  }  
+  }
 }

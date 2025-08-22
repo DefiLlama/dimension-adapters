@@ -38,11 +38,9 @@ const adapter: Adapter = {
     [CHAIN.SUI]: {
       fetch: fetchMagmaStats,
       start: "2025-02-12",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

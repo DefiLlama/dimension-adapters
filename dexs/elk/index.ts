@@ -1,51 +1,34 @@
-import * as sdk from "@defillama/sdk";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { SimpleAdapter } from "../../adapters/types";
-// import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-const fetch = univ2Adapter({
-  endpoints: {
-    [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('B8TGNwQ8xMoeFCdsv9dPkciRBpEYAy1UxmXDr7nc9fpE'),
-    [CHAIN.AVAX]: sdk.graph.modifyEndpoint('2dyce92CewvhV17C8BMFoMCgaXdPTtwBzaz8AReQR3YV'),
-    [CHAIN.BSC]: sdk.graph.modifyEndpoint('5tRz9anigEVND48Gx1mUpNNM4YSm3NpzG9XRB8dYAMhb'),
-    [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('pmqe2dQvH4PK7aaFh4GXrr49wpKRr3GjPCnNEgEb6U2'),
-    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('8jzpT6nnKgmqcdGocys97YWkuqwDbHBxpozsKcxH1KUP'),
-    // [CHAIN.HECO]: "https://api.thegraph.com/subgraphs/name/elkfinance/elkdex-heco"
-    [CHAIN.XDAI]: sdk.graph.modifyEndpoint('kD9njskfB9xv7gDnsU2sz4X4sXfEimBv8xMJ6votFND'),
-    // [CHAIN.MOONRIVER]: "https://moonriver-graph.elk.finance/subgraphs/name/elkfinance/elkdex-moonriver",
-    // [CHAIN.ELASTOS]: "https://elastos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-elastos",
-    // [CHAIN.OKEXCHAIN]: "https://okex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-okex",
-    // [CHAIN.KCC]: "https://kcc-graph.elk.finance/subgraphs/name/elkfinance/elkdex-kcc",
-    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('59tcH5BPyXj41XZgn1ZYy4pE8iDdzaZpR9MRhmuPW4Lr'),
-    [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('H7UcKWuAqQPqWKcnNLn2Jamy9zE7wVgsLSRQpPwXo2Ag'),
-    // [CHAIN.CRONOS]: "https://cronos-graph.elk.finance/subgraphs/name/elkfinance/elkdex-cronos",
-    // [CHAIN.FUSE]: "https://fuse-graph.elk.finance/subgraphs/name/elkfinance/elkdex-fuse",
-    // [CHAIN.IOTEX]: "https://iotex-graph.elk.finance/subgraphs/name/elkfinance/elkdex-iotex",
-    // [CHAIN.TELOS]: "https://telos-graph2.elk.finance/subgraphs/name/elkfinance/elkdex-telos"
-    },
-  factoriesName: "elkFactories",
-  dayData: "elkDayData",
-});
+const config = {
+  fees: 0.003,
+  userFeesRatio: 1,
+  revenueRatio: 0,
+}
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  methodology: {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
   adapter: {
-    [CHAIN.ARBITRUM]: { fetch, start: 1648950817 },
-    [CHAIN.AVAX]: { fetch, start: 1616118817 },
-    [CHAIN.BSC]: { fetch, start: 1629251617 },
-    [CHAIN.FANTOM]: { fetch, start: 1621562017 },
-    [CHAIN.POLYGON]: { fetch, start: 1618019617 },
-    [CHAIN.XDAI]: { fetch, start: 1629251617 },
-    [CHAIN.ETHEREUM]: { fetch, start: 1619747617 },
-    [CHAIN.OPTIMISM]: { fetch, start: 1651542817 },
-    // [CHAIN.ELASTOS]: { fetch, start: 1634954017 },
-    // [CHAIN.OKEXCHAIN]: { fetch, start: 1649555617 },
-    // [CHAIN.KCC]: { fetch, start: 1634954017 },
-    // [CHAIN.CRONOS]: { fetch, start: 1648684800 },
-    // [CHAIN.FUSE]: { fetch, start: 1639187617 },
-    // [CHAIN.IOTEX]: { fetch, start: 1639792417 },
-    // [CHAIN.TELOS]: { fetch, start: 1648684800 },
+    [CHAIN.XDAI]: { fetch: getUniV2LogAdapter({ factory: '0xCB018587dA9590A18f49fFE2b85314c33aF3Ad3B', ...config }) },
+    [CHAIN.POLYGON]: { fetch: getUniV2LogAdapter({ factory: '0xE3BD06c7ac7E1CeB17BdD2E5BA83E40D1515AF2a', ...config }) },
+    [CHAIN.FANTOM]: { fetch: getUniV2LogAdapter({ factory: '0x7Ba73c99e6f01a37f3e33854c8F544BbbadD3420', ...config }) },
+    [CHAIN.BSC]: { fetch: getUniV2LogAdapter({ factory: '0x31aFfd875e9f68cd6Cd12Cee8943566c9A4bBA13', ...config }) },
+    [CHAIN.AVAX]: { fetch: getUniV2LogAdapter({ factory: '0x091d35d7F63487909C863001ddCA481c6De47091', ...config }) },
+    [CHAIN.MOONRIVER]: { fetch: getUniV2LogAdapter({ factory: '0xd45145f10fD4071dfC9fC3b1aefCd9c83A685e77', ...config }) },
+    [CHAIN.ETHEREUM]: { fetch: getUniV2LogAdapter({ factory: '0x6511eBA915fC1b94b2364289CCa2b27AE5898d80', ...config }) },
+    [CHAIN.OPTIMISM]: { fetch: getUniV2LogAdapter({ factory: '0xedfad3a0F42A8920B011bb0332aDe632e552d846', ...config }) },
+    [CHAIN.ARBITRUM]: { fetch: getUniV2LogAdapter({ factory: '0xA59B2044EAFD15ee4deF138D410d764c9023E1F0', ...config }) },
+    [CHAIN.METIS]: { fetch: getUniV2LogAdapter({ factory: '0xfbb4E52FEcc90924c79F980eb24a9794ae4aFFA4', ...config }) },
+    [CHAIN.BASE]: { fetch: getUniV2LogAdapter({ factory: '0xfbb4E52FEcc90924c79F980eb24a9794ae4aFFA4', ...config }) },
+    [CHAIN.LINEA]: { fetch: getUniV2LogAdapter({ factory: '0xfbb4E52FEcc90924c79F980eb24a9794ae4aFFA4', ...config }) },
   },
 }
 

@@ -100,10 +100,10 @@ const mappingChain = (chain: string) => {
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: "Protocol have no revenue.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Holders have no revenue."
+  Revenue: 'Protocol make no revenue.',
+  ProtocolRevenue: 'Protocol make no revenue.',
+  SupplySideRevenue: 'All fees are distributed to LPs.',
+  HoldersRevenue: 'No revenue for UNI holders.',
 }
 
 const adapter: SimpleAdapter = {

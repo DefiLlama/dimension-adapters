@@ -1,99 +1,84 @@
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
-const houdiniToDefiLlamaMap: Record<string, string> = {
-  bitcoin: CHAIN.BITCOIN,
-  ethereum: CHAIN.ETHEREUM,
-  bsc: CHAIN.BSC,
-  arbitrum: CHAIN.ARBITRUM,
-  avalanche: CHAIN.AVAX,
-  cardano: CHAIN.CARDANO,
-  cronos: CHAIN.CRONOS,
-  polygon: CHAIN.POLYGON,
-  ripple: CHAIN.RIPPLE,
-  solana: CHAIN.SOLANA,
-  tron: CHAIN.TRON,
-  fantom: CHAIN.FANTOM,
-  litecoin: CHAIN.LITECOIN,
-  base: CHAIN.BASE,
-  optimism: CHAIN.OPTIMISM,
-  celo: CHAIN.CELO,
-  aurora: CHAIN.AURORA,
-  moonbeam: CHAIN.MOONBEAM,
-  moonriver: CHAIN.MOONRIVER,
-  hedera: CHAIN.HEDERA,
-  algorand: CHAIN.ALGORAND,
-  telos: CHAIN.TELOS,
-  thorchain: CHAIN.THORCHAIN,
-  aptos: CHAIN.APTOS,
-  phantasma: CHAIN.PHANTASMA,
-  ton: CHAIN.TON,
-  sui: CHAIN.SUI,
-  icp: CHAIN.ICP,
-  linea: CHAIN.LINEA,
-  mantle: CHAIN.MANTLE,
-  near: CHAIN.NEAR,
-  scroll: CHAIN.SCROLL,
-  taiko: CHAIN.TAIKO,
-  zklink: CHAIN.ZKLINK,
-  // "zksync-era": CHAIN.ERA,
-  // sei: CHAIN.SEI,
-  // morph: CHAIN.MORPH,
-  // "bounce-bit": CHAIN.BOUNCE_BIT,
-  // gravity: CHAIN.GRAVITY,
-  sonic: CHAIN.SONIC,
-  // hype: CHAIN.HYPERLIQUID,
-  bera: CHAIN.BERACHAIN,
-  // "cosmoshub-4": CHAIN.COSMOS,
-};
+const chainConfig: Record<string, string> = {
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BITCOIN]: 'bitcoin',
+  [CHAIN.BSC]: 'bsc',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.AVAX]: 'avalanche',
+  [CHAIN.CARDANO]: 'cardano',
+  [CHAIN.CRONOS]: 'cronos',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.SOLANA]: 'solana',
+  [CHAIN.TRON]: 'tron',
+  [CHAIN.FANTOM]: 'fantom',
+  [CHAIN.LITECOIN]: 'litecoin',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.CELO]: 'celo',
+  [CHAIN.AURORA]: 'aurora',
+  [CHAIN.MOONBEAM]:'moonbeam',
+  [CHAIN.MOONRIVER]:'moonriver',
+  [CHAIN.HEDERA]:'hedera',
+  [CHAIN.ALGORAND]:'algorand',
+  [CHAIN.TELOS]:'telos',
+  [CHAIN.THORCHAIN]:'thorchain',
+  [CHAIN.APTOS]:'aptos',
+  [CHAIN.PHANTASMA]:'phantasma',
+  [CHAIN.TON]:'ton',
+  [CHAIN.SUI]:'sui',
+  [CHAIN.ICP]:'icp',
+  [CHAIN.LINEA]:'linea',
+  [CHAIN.MANTLE]:'mantle',
+  [CHAIN.NEAR]:'near',
+  [CHAIN.SCROLL]:'scroll',
+  [CHAIN.TAIKO]:'taiko',
+  [CHAIN.ZKLINK]:'zklink',
+  // [CHAIN.ERA]: "zksync-era",
+  // [CHAIN.SEI]:'sei',
+  // [CHAIN.MORPH]:'morph',
+  // [CHAIN.BOUNCE_BIT]: "bounce-bit",
+  // [CHAIN.GRAVITY]:'gravity',
+  [CHAIN.SONIC]:'sonic',
+  [CHAIN.HYPERLIQUID]:'hype',
+  [CHAIN.BERACHAIN]:'bera',
+}
 
-const URL = "https://api.houdiniswap.com/api";
-const endpoint = "/aggregator-vol?";
+const URL = "https://api.houdiniswap.com/api/aggregator-vol?";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const startTimestamp = options.startOfDay;
   const endTimestamp = startTimestamp + 86400; // 24 hours in seconds
-  
-  // Find the Houdini chain key for the given DefiLlama chain
-  const houdiniChain = Object.entries(houdiniToDefiLlamaMap).find(
-    ([_, defiLlamaChain]) => defiLlamaChain === options.chain
-  )?.[0] || options.chain;
 
-  const url = `${URL}${endpoint}startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&chain=${houdiniChain}`;
+  // Find the Houdini chain key for the given DefiLlama chain
+  const houdiniChain = chainConfig[options.chain];
+
+  const url = `${URL}startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&chain=${houdiniChain}`;
   const defaultRes = {
     dailyVolume: 0,
   }
-  try {
-    const res = await httpGet(url);
-    if (!res || !res.length) {
-      return defaultRes
-    }
-    const targetDay = startTimestamp;
-    const dailyData = res.find((item: any) => item.timestamp === targetDay);
-    if (!dailyData) {
-      return defaultRes
-    }
-    return {
-      dailyVolume: dailyData.totalUSD,
-    };
-  } catch (error) {
-    console.error(`Error fetching data from HoudiniSwap: ${error}`);
+  const res = await fetchURL(url);
+  const targetDay = startTimestamp;
+  const dailyData = res.find((item: any) => item.timestamp === targetDay);
+  if (!dailyData) {
     return defaultRes
   }
+  let dailyVolume = dailyData.totalUSD;
+  if ((options.chain == CHAIN.ARBITRUM) && (dailyVolume > 1000000)) {
+    dailyVolume = 0
+  }
+  return {
+    dailyVolume
+  };
 };
 
 const adapter = {
   version: 1,
-  adapter: Object.fromEntries(
-    Object.entries(houdiniToDefiLlamaMap).map(([houdiniChain, defiLlamaChain]) => [
-      defiLlamaChain,
-      {
-        fetch,
-        start: '2021-01-01', // 2021-01-01
-      },
-    ])
-  ),
+  start: '2021-01-01', // 2021-01-01
+  fetch,
+  chains: Object.keys(chainConfig)
 };
 
 export default adapter;

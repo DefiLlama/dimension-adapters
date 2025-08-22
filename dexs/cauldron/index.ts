@@ -29,10 +29,6 @@ export async function fetchCauldronVolume(
   const endpoint = `${INDEXER_URL}/cauldron/contract/volume?end=${timestamp}`;
   const volume = await fetchURL(endpoint)
 
-  const total_sats = volume.reduce((acc, token) => {
-    return acc + Number(token.total_sats)
-  }, Number(0));
-
   const daily_sats = volume.reduce((acc, token) => {
       return acc + Number(token.one_day_sats)
   }, Number(0));
@@ -40,15 +36,12 @@ export async function fetchCauldronVolume(
   const COIN = 100000000;
 
   const dailyVolume = options.createBalances();
-  const totalVolume = options.createBalances();
 
   dailyVolume.addCGToken('bitcoin-cash', Number(daily_sats / COIN));
-  totalVolume.addCGToken('bitcoin-cash', Number(total_sats / COIN));
 
   return {
     timestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 

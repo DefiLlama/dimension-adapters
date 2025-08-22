@@ -44,17 +44,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined.',
+    Revenue: 'Daily revenue is calculated as 30% of the total fee.',
+  },
   version: 1,
   adapter: {
     [POLYGON]: {
       fetch: graphs(endpoints)(POLYGON),
       start: '2022-06-01',
-      meta: {
-        methodology: {
-          Fees: 'All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined.',
-          Revenue: 'Daily revenue is calculated as 30% of the total fee.',
-        }
-      }
     },
   },
 };

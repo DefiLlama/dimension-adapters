@@ -74,14 +74,12 @@ const adapter = {
       fetch,
       runAtCurrTime: true,
       start: "2024-12-13",
-      meta: {
-        methodology: {
-          Volume: "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
-          Fees: "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
-          ProtocolRevenue: "The daily revenue going to the protocol is 25% of the daily fees.",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume: "Volume is calculated by summing the token volume of all perpetual trades settled on the protocol that day.",
+    Fees: "Fees are the sum of the trading fees of all perpetual trades settled on the protocol that day.",
+    ProtocolRevenue: "The daily revenue going to the protocol is 25% of the daily fees.",
   },
 };
 export default adapter;

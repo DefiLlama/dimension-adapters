@@ -1,6 +1,7 @@
 import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
+import { getEnv } from './env';
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
@@ -98,7 +99,7 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
 
-          if (process.env.BLOCKSCOUT_BULK_MODE) {
+          if (getEnv('BLOCKSCOUT_BULK_MODE')) {
             if (allStatsApi && !gasData[chain]) {
               console.log('pulling chain data for', chain)
               const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`)
@@ -115,7 +116,7 @@ export function blockscoutFeeAdapter2(chain: string) {
               console.log('pulling CG data for', CGToken)
               const { prices } = await httpGet(`https://pro-api.coingecko.com/api/v3/coins/${CGToken}/market_chart?vs_currency=usd&days=max&interval=daily`, {
                 headers: {
-                  'x-cg-pro-api-key': process.env.CG_KEY
+                  'x-cg-pro-api-key': getEnv('CG_KEY'),
                 }
               })
               bulkStoreCGData[CGToken] = {}
