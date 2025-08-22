@@ -60,9 +60,9 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   methodology: {
-    Fees: 'Daily fees paid bu users which will be burned.',
-    UserFees: 'Daily fees paid bu users which will be burned.',
-    Revenue: 'Daily fees paid bu users which will be burned.',
+    Fees: 'Daily fees paid by users which will be burned.',
+    UserFees: 'Daily fees paid by users which will be burned.',
+    Revenue: 'Daily fees paid by users which will not be burned.',
   },
   chains: [CHAIN.SUI],
 }
