@@ -33,6 +33,7 @@ const adapters: SimpleAdapter = {
     version: 2,
     chains: [CHAIN.SOLANA],
     start: '2023-04-18',
+    isExpensiveAdapter: true
 };
 
 export default adapters;
