@@ -2,23 +2,31 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const factory = '0x4D1b18A7BDB8D0a02f692398337aBde8DeB8FB09';
-const order_match_topic = '0x4a240ab8d1caf8cac694a7c49e539b9a8eab4fce50166482114055aa4e19a31b';
-const order_match_event = 'event OrderMatched(address orderbook,uint256 id,bool isBid,address sender,address owner,uint256 price,uint256 amount)';
+const order_match_topic = '0xce93601d1019ced864b3e349b643ec762d7aeaeed6a8a82eb0a4d80034b9b4f7';
+const order_match_event = 'event OrderMatched(address pair,uint16 orderHistoryId,uint256 id,bool isBid,uint256 price,uint256 total,bool clear,(address sender,address owner,uint256 baseAmount,uint256 quoteAmount,uint256 baseFee,uint256 quoteFee,uint64 tradeId) orderMatch)';
+const pair_added_event = `event PairAdded(
+  address pair,
+  tuple(address token, uint8 decimals, string name, string symbol, uint256 totalSupply) base,
+  tuple(address token, uint8 decimals, string name, string symbol, uint256 totalSupply) quote,
+  uint256 listingPrice,
+  uint256 listingDate,
+  string supportedTerminals
+)`;
 
 interface IPair {
-  orderbook: string;
+  address: string;
   base: string;
   quote: string;
   bDecimal: number;
   qDecimal: number;
 }
 
-const fetchVolune: FetchV2 = async (options: FetchOptions) => {
+const fetchVolume: FetchV2 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const pairLogs = await options.getLogs({ target: factory, eventAbi: 'event PairAdded(address orderbook, address base, address quote, uint8 bDecimal, uint8 qDecimal)', onlyArgs: true, fromBlock: 4381503 })
+  const pairLogs = await options.getLogs({ target: factory, eventAbi: pair_added_event, onlyArgs: true, fromBlock: 4381503 })
   const pairs: IPair[] = pairLogs.map((log: any) => {
     return {
-      orderbook: log.orderbook,
+      address: log.pair,
       base: log.base,
       quote: log.quote,
       bDecimal: log.bDecimal,
@@ -27,20 +35,18 @@ const fetchVolune: FetchV2 = async (options: FetchOptions) => {
   })
   const logs_order_match = await options.getLogs({ target: factory, topics: [order_match_topic], eventAbi: order_match_event });
   logs_order_match.forEach((log: any) => {
-    const pair = pairs.find((pair) => pair.orderbook.toLowerCase() === log.orderbook.toLowerCase());
+    const pair = pairs.find((pair) => pair.address.toLowerCase() === log.pair.toLowerCase());
     if (pair) {
-      if (log.isBid) {
-        dailyVolume.add(pair.quote, log.amount);
-      } else {
-        dailyVolume.add(pair.base, log.amount);
-      }
+      // Use baseAmount and quoteAmount directly from the OrderMatch struct
+      dailyVolume.add(pair.base, log.orderMatch.baseAmount);
+      dailyVolume.add(pair.quote, log.orderMatch.quoteAmount);
     }
   });
   return { dailyVolume }
 }
 
 
-const options: any = { fetch: fetchVolune, start: '2024-02-27' }
+const options: any = { fetch: fetchVolume, start: 1708992000 }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: options,
