@@ -74,7 +74,7 @@ async function getDailyFees(fromTimestamp: number, endTimestamp: number): Promis
 async function fetch({ createBalances, endTimestamp, fromTimestamp }: FetchOptions) {
     const dailyRevenue = createBalances();
     const totalRevenue = await getDailyFees(fromTimestamp, endTimestamp);
-    dailyRevenue.addCGToken('tron', totalRevenue);
+    dailyRevenue.addCGToken('tron', totalRevenue, 'Buying Energy');
 
     return {
         dailyFees: dailyRevenue,
@@ -89,11 +89,19 @@ export default {
         Revenue: "All fees are collected by CatFee protocol.",
         ProtocolRevenue: "All fees are collected by CatFee protocol.",
     },
-    version: 2,
-    adapter: {
-        [CHAIN.TRON]: {
-            fetch,
-            start: CONFIG.START_TIMESTAMP,
+    breakdownMethodology: {
+        Fees: {
+            'Buying Energy': 'All fees paid by users for buying energy.',
+        },
+        Revenue: {
+            'Buying Energy': 'All fees are collected by CatFee protocol.',
+        },
+        ProtocolRevenue: {
+            'Buying Energy': 'All fees are collected by CatFee protocol.',
         },
     },
+    version: 2,
+    fetch,
+    chains: [CHAIN.TRON],
+    start: CONFIG.START_TIMESTAMP,
 };
