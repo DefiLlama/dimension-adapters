@@ -23,7 +23,7 @@ export async function fetchGRVTDex(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ZKSYNC]: {
+    [CHAIN.GRVT]: {
       fetch: fetchGRVTDex,
       start: '2024-12-01',
     },
