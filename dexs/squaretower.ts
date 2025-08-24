@@ -1,6 +1,6 @@
-import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 
 const MARKET_ID = "0x56cb0ef0b9d59125373112523b0adfc446dff989268547fa1a3379a6f98f5efd";
 const INJECTIVE_TRADES_V2 = "https://sentry.exchange.grpc-web.injective.network/api/exchange/derivative/v2/trades";
