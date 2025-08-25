@@ -1,7 +1,11 @@
 import { queryAllium } from './allium';
 import { FetchOptions } from '../adapters/types';
+import * as fs from 'fs';
+import * as path from 'path';
+import axios from "axios";
+import { decompressFrame } from 'lz4-napi';
 
-export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
+export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   // Delay as data is available only after 48 hours
   const startTimestamp = options.startOfDay;
   const endTimestamp = startTimestamp + 86400;
@@ -69,4 +73,110 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
   dailyVolume.addCGToken('usd-coin', totalVolume);
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+};
+
+/**
+ * Fetches builder code revenue directly from HyperLiquid's LZ4 compressed CSV files
+ * 
+ * NOTE: This function requires the 'lz4-napi' dependency to be installed.
+ * Run: npm install lz4-napi@^2.9.0
+ * 
+ * This uses the fastest LZ4 library for Node.js, powered by Rust and napi-rs.
+ * 
+ * @param options - FetchOptions containing startOfDay timestamp and other utilities
+ * @param builder_address - The builder address to fetch data for
+ * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
+ */
+export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
+  const startTimestamp = options.startOfDay;
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+
+  const date = new Date(startTimestamp * 1000);
+  const dateStr = date.getFullYear().toString() + 
+                  (date.getMonth() + 1).toString().padStart(2, '0') + 
+                  date.getDate().toString().padStart(2, '0');
+
+  const url = `https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/${builder_address}/${dateStr}.csv.lz4`;
+
+  const tempDir = path.join(__dirname, 'temp');
+  const lz4FilePath = path.join(tempDir, `${dateStr}.csv.lz4`);
+  const csvFilePath = path.join(tempDir, `${dateStr}.csv`);
+
+  try {
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    let response;
+    try {
+      response = await axios({
+        method: 'GET',
+        url: url,
+        responseType: 'stream',
+        timeout: 30000, // 30 second timeout
+      });
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        throw new Error(`Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`);
+      }
+      throw new Error(`Failed to download builder fee data: ${error.message}`);
+    }
+
+    const writer = fs.createWriteStream(lz4FilePath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });    
+    const compressedData = fs.readFileSync(lz4FilePath);
+    
+    let decompressedBuffer: Buffer = await decompressFrame(compressedData);    
+    const csvContent = decompressedBuffer.toString('utf8');
+    
+    const lines = csvContent.split('\n').filter(line => line.trim().length > 0);
+    const headers = lines[0].split(',').map((h: string) => h.trim());
+    const builderFeeIndex = headers.findIndex((h: string) => h === 'builder_fee');
+    const pxIndex = headers.findIndex((h: string) => h === 'px');
+    const szIndex = headers.findIndex((h: string) => h === 'sz');
+
+    let totalBuilderFees = 0;
+    let totalVolume = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line) {
+        const values = line.split(',');
+        
+        if (values.length >= Math.max(builderFeeIndex, pxIndex, szIndex) + 1) {
+          const builderFee = parseFloat(values[builderFeeIndex]) || 0;
+          const px = parseFloat(values[pxIndex]) || 0;
+          const sz = parseFloat(values[szIndex]) || 0;
+          
+          totalBuilderFees += builderFee;
+          totalVolume += px * sz;
+        }
+      }
+    }
+
+    dailyFees.addCGToken('usd-coin', totalBuilderFees);
+    dailyVolume.addCGToken('usd-coin', totalVolume);
+
+    return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+
+  } catch (error) {
+    throw error;
+  } finally {
+    try {
+      if (fs.existsSync(lz4FilePath)) {
+        fs.unlinkSync(lz4FilePath);
+      }
+      if (fs.existsSync(csvFilePath)) {
+        fs.unlinkSync(csvFilePath);
+      }
+    } catch (cleanupError) {
+      // Silently ignore cleanup errors
+    }
+  }
 };
