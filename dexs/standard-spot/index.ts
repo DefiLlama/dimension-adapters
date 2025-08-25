@@ -21,8 +21,9 @@ interface IPair {
   qDecimal: number;
 }
 
-const fetchVolume: FetchV2 = async (options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
   const pairLogs = await options.getLogs({ target: factory, eventAbi: pair_added_event, onlyArgs: true, fromBlock: 4381503 })
   const pairs: IPair[] = pairLogs.map((log: any) => {
     return {
@@ -40,13 +41,23 @@ const fetchVolume: FetchV2 = async (options: FetchOptions) => {
       // Use baseAmount and quoteAmount directly from the OrderMatch struct
       dailyVolume.add(pair.base, log.orderMatch.baseAmount);
       dailyVolume.add(pair.quote, log.orderMatch.quoteAmount);
+      dailyFees.add(pair.base, log.orderMatch.baseFee);
+      dailyFees.add(pair.quote, log.orderMatch.quoteFee);
     }
   });
-  return { dailyVolume }
+  return { dailyVolume, dailyFees }
+}
+
+const methodology = {
+  Volume: 'This is the total volume of all trades on the exchange.',
+  Fees: 'Trading fees paid by users.',
+  UserFees: 'Trading fees paid by users.',
+  Revenue: 'Fees from users.',
+  SupplySideRevenue: 'No supply side revenue. This is a P2P onchain CLOB exchange. Every trade is a match between two users as supplier and taker.',
 }
 
 
-const options: any = { fetch: fetchVolume, start: 1708992000 }
+const options: any = { fetch, methodology, start: 1708992000 }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: options,
