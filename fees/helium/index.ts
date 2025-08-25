@@ -17,6 +17,7 @@ const fetch = async (options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue: dailyFees,
+        dailyProtocolRevenue: '0',
         dailyHoldersRevenue: dailyFees,
     };
 }
@@ -24,6 +25,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: 'All fees paid(in Data credits) to use helium network services.',
     Revenue: 'Data credits are minted by burning HNT',
+    ProtocolRevenue: 'Protocol revenue is 0',
     HoldersRevenue: 'Data credits are minted by burning HNT',
 };
 
