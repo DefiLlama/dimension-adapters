@@ -5,7 +5,7 @@ import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/g
 const v3Endpoints: { [key: string]: string } = {
   [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn"
 }
-const v3Graphs = getGraphDimensions2({
+const fetch = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
     factory: "factories",
@@ -21,15 +21,21 @@ const v3Graphs = getGraphDimensions2({
   }
 });
 
-
-const adapters: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BERACHAIN]: {
-      fetch: v3Graphs
-    },
-  }
+const methodology = {
+  Fees: "Total swap fees paid by users.",
+  Revenue: "35% protocol revenue share and 65% holders revenue share.",
+  ProtocolRevenue: "35% of fees collected by the protocol.",
+  SupplySideRevenue: "65% of fees distributed to LPs.",
+  HoldersRevenue: "0% of fees used for buy-back and burn.",
+  UserFees: "Total swap fees paid by users."
 }
 
+// https://documentation.kodiak.finance/protocol/dex/trading-fees
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.BERACHAIN],
+  methodology
+}
 
-export default adapters;
+export default adapter;
