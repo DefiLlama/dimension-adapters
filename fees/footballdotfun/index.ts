@@ -12,6 +12,7 @@ const SELL_EVENT = {
 }
 
 async function fetch(options: FetchOptions) {
+
   const buyEvents = await options.getLogs({
     target: BUY_EVENT.contract,
     eventAbi: BUY_EVENT.event,
@@ -20,11 +21,21 @@ async function fetch(options: FetchOptions) {
     target: SELL_EVENT.contract,
     eventAbi: SELL_EVENT.event,
   });
+
   const buyfees = buyEvents.map(event => event.feeAmounts).flat().reduce((acc, fee) => acc + Number(fee), 0);
   const sellfees = sellEvents.map(event => event.feeAmounts).flat().reduce((acc, fee) => acc + Number(fee), 0);
+  const buyVolume = buyEvents.map(event => event.currencySpent).flat().reduce((acc, volume) => acc + Number(volume), 0);
+  const sellVolume = sellEvents.map(event => event.currencyReceived).flat().reduce((acc, volume) => acc + Number(volume), 0);
+
+  const dailyVolume = (Number(buyVolume) + Number(sellVolume)) / 1e6;
   const dailyFees = (Number(buyfees) + Number(sellfees)) / 1e6;
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyVolume
+  };
 }
 
 const methodology = {
