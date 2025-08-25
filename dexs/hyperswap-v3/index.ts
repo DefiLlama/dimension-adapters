@@ -23,10 +23,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyFees.addUSDValue(Number(e.feesUSD))
     })
 
-    const dailyRevenue = dailyFees.clone(0.4)
-    const dailyProtocolRevenue = dailyFees.clone(0.08)
-    const dailySupplySideRevenue = dailyFees.clone(0.6)
-    const dailyHoldersRevenue = dailyFees.clone(0.32)
+    const dailyRevenue = dailyFees.clone(0.18)
+    const dailyProtocolRevenue = dailyFees.clone(0.04)
+    const dailySupplySideRevenue = dailyFees.clone(0.84)
+    const dailyHoldersRevenue = dailyFees.clone(0.12)
 
     return {
         dailyVolume,
@@ -41,10 +41,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
     Fees: "Total swap fees paid by users.",
-    Revenue: "8% protocol revenue share and 32% holders revenue share.",
-    ProtocolRevenue: "8% of fees collected by the protocol.",
-    SupplySideRevenue: "60% of fees distributed to LPs.",
-    HoldersRevenue: "32% of fees used for buy-back and burn.",
+    Revenue: "4% protocol revenue share and 12% holders revenue share.",
+    ProtocolRevenue: "4% of fees collected by the protocol.",
+    SupplySideRevenue: "84% of fees distributed to LPs.",
+    HoldersRevenue: "12% of fees used for buy-back and burn.",
     UserFees: "Total swap fees paid by users."
 }
 
