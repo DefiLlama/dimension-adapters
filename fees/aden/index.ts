@@ -28,9 +28,14 @@ const fetch = async (_t: number, _: any, { startOfDay }: FetchOptions) => {
     dailyFees: dailyFees.toString(),
     dailyRevenue: dailyFees.toString(),
     dailyProtocolRevenue: dailyFees.toString(),
-    timestamp: startOfDay,
   };
 };
+
+const methodology = {
+  Fees: "(Builder Fees collected from Orderly Network(0.3 bps on taker volume).",
+  Revenue: "0.3 bps trading fees on taker volume, 0 on maker volume",
+  ProtocolRevenue: "0.3 bps trading fees on taker volume as builder fee from orderly network",
+}
 
 const adapter: SimpleAdapter = {
   fetch,
@@ -38,6 +43,7 @@ const adapter: SimpleAdapter = {
   // Using BNB Chain as the main chain since the API aggregates all chains data
   chains: [CHAIN.BSC],
   start: '2025-07-23',
+  methodology,
 };
 
 export default adapter;
