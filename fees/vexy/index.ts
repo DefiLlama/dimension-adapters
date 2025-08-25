@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     chains: [CHAIN.BASE, CHAIN.OPTIMISM],
-    start: "2025-08-03",
+    start: "2025-01-14",
     methodology
 };
 
