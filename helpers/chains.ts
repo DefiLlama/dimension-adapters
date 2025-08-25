@@ -252,6 +252,7 @@ export enum CHAIN {
   HYDRAGON = 'hydragon',
   TAC = "tac",
   NIBIRU = "nibiru",
+  GRVT = "grvt",
 }
 
 // Don´t use
