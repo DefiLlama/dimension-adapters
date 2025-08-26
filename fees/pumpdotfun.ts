@@ -64,16 +64,20 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       AND block_time <= from_unixtime(${options.endTimestamp})
       AND from_owner IN (
         '3vkpy5YHqnqJTnA5doWTpcgKyZiYsaXYzYM9wm8s3WTi',
-        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE'
+        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE',
+        '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx'
       )
       AND to_owner NOT IN (
         '6UJoY1CFEymoqMrnmBLeZoemBGiJcySNdR7Jyj2nF848',
-        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE'
+        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE',
+        '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx'
       )
-      AND token_mint_address = 'So11111111111111111111111111111111111111112'
-      AND amount_usd >= 100
+      AND (token_mint_address = 'So11111111111111111111111111111111111111112' OR token_mint_address = 'So11111111111111111111111111111111111111111')
   `
   const res = await queryDuneSql(options, query);
+
+  console.log(res)
+
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.add(ADDRESSES.solana.SOL, (res[0].total_amount || 0) * 1e9);
 
