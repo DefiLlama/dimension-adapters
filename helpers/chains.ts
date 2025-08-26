@@ -253,6 +253,7 @@ export enum CHAIN {
   TAC = "tac",
   NIBIRU = "nibiru",
   GRVT = "grvt",
+  HELIUM = "helium",
 }
 
 // Don´t use

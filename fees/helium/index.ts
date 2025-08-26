@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -33,8 +33,9 @@ const adapters: SimpleAdapter = {
     fetch,
     methodology,
     version: 2,
-    chains: [CHAIN.SOLANA],
+    chains: [CHAIN.HELIUM],
     start: '2023-04-18',
+    protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true
 };
 
