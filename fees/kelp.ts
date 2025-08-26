@@ -40,8 +40,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyProtocolRevenue = options.createBalances()
 
   // get corresponding block on ethereum chain
-  const beforeBlock = await sdk.util.blocks.getBlock(CHAIN.ETHEREUM, options.fromTimestamp) 
-  const afterBlock = await sdk.util.blocks.getBlock(CHAIN.ETHEREUM, options.toTimestamp) 
+  const beforeBlock = await sdk.util.blocks.getBlock(CHAIN.ETHEREUM, options.fromTimestamp)
+  const afterBlock = await sdk.util.blocks.getBlock(CHAIN.ETHEREUM, options.toTimestamp)
 
   // get rsETH prices on Ethereum
   const rsETHPriceBefore = await sdk.api2.abi.call({
@@ -67,7 +67,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       block: beforeBlock.number,
     });
     protocolFeeRate = Number(protocolFeeInBPS) / 1e4
-  } catch(e: any) {}
+  } catch (e: any) { }
 
   const totalSupply = await options.api.call({
     target: rsETHMaps[options.chain],
@@ -111,64 +111,18 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const adapter: Adapter = {
+  methodology,
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-12-11',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-02-07',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2024-03-20',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: '2024-03-26',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2024-04-06',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-04-06',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2024-04-16',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2024-05-16',
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-12-11', },
+    [CHAIN.ARBITRUM]: { start: '2024-02-07', },
+    [CHAIN.BLAST]: { start: '2024-03-20', },
+    [CHAIN.SCROLL]: { start: '2024-03-26', },
+    [CHAIN.OPTIMISM]: { start: '2024-04-06', },
+    [CHAIN.BASE]: { start: '2024-04-06', },
+    [CHAIN.LINEA]: { start: '2024-04-16', },
+    [CHAIN.ERA]: { start: '2024-05-16', },
   },
 };
 

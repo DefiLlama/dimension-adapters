@@ -108,14 +108,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.DCHAIN]: {
       fetch,
       start: "2024-01-01",
-      meta: {
-        methodology: {
-          Fees: "Fees paid by users while trading on Multiswap.",
-          Revenue: "Fees paid by users while trading on Multiswap.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Fees paid by users while trading on Multiswap.",
+    Revenue: "Fees paid by users while trading on Multiswap.",
+  }
 };
 
 export default adapter; 

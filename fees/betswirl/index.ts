@@ -96,38 +96,23 @@ function graphs() {
       const dailyProtocolRevenue = createBalances()
       const dailyHoldersRevenue = createBalances()
       const dailySupplySideRevenue = createBalances()
-      const totalFees = createBalances()
-      const totalRevenue = createBalances()
-      const totalProtocolRevenue = createBalances()
-      const totalDailyHoldersRevenue = createBalances()
-      const totalSupplySideRevenue = createBalances()
       for (const token of graphRes.todayTokens) {
         let tokenKey = token.id.split(':')[0];
         const { dividendAmount, bankAmount, partnerAmount, treasuryAmount, teamAmount, affiliateAmount } = token
 
-        totalFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
         dailyFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
-        totalSupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
         dailySupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
-        totalProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
         dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
-        totalDailyHoldersRevenue.add(tokenKey, +dividendAmount)
         dailyHoldersRevenue.add(tokenKey, +dividendAmount)
-        totalRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
         dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
       }
       for (const token of graphPvPRes.todayPvPTokens) {
         let tokenKey = token.id.split(':')[0];
         const { dividendAmount, initiatorAmount, treasuryAmount, teamAmount, affiliateAmount } = token
-        totalFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
         dailyFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
-        totalSupplySideRevenue.add(tokenKey,  +initiatorAmount)
         dailySupplySideRevenue.add(tokenKey,  +initiatorAmount)
-        totalProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
         dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
-        totalDailyHoldersRevenue.add(tokenKey, +dividendAmount)
         dailyHoldersRevenue.add(tokenKey, +dividendAmount)
-        totalRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
         dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
       }
 

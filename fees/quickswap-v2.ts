@@ -1,8 +1,4 @@
 
-import adapter from './quickswap'
-const { breakdown,  ...rest } = adapter
+import adapter from '../dexs/quickswap-v2'
 
-export default {
-  ...rest,
-  adapter: breakdown['v2'],
-}
+export default adapter;

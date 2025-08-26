@@ -24,10 +24,7 @@ const fetch = (chain: Chain) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const volume: IVolume = (await fetchURL(url[chain]));
     return {
-      totalVolume: `${volume?.totalVolume || undefined}`,
       dailyVolume: `${volume?.dailyVolume || undefined}`,
-      weekVolume: `${volume?.weekVolume || undefined}`,
-      monthVolume: `${volume?.monthVolume || undefined}`,
       timestamp: dayTimestamp,
     };
   };

@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import type { SimpleAdapter } from "../../adapters/types";
 import { aaveExport } from "../../helpers/aave";
+import { METRIC } from "../../helpers/metrics";
 
 const methodology = {
   Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
@@ -11,24 +12,24 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Borrow Interest': 'All interest paid by borrowers from all markets.',
-    'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
-    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+    [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all markets.',
+    [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
+    [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
   },
   Revenue: {
-    'Borrow Interest': 'A portion of interest paid by borrowers from all markets.',
-    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
-    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+    [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets.',
+    [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
+    [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
   },
   SupplySideRevenue: {
-    'Borrow Interest': 'Amount of interest distributed to lenders from all markets.',
-    'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
-    'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+    [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets.',
+    [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+    [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
   },
   ProtocolRevenue: {
-    'Borrow Interest': 'Amount of interest distributed to lenders from all markets are collected by Spark treasury.',
-    'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by Spark treasury.',
-    'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by Spark treasury.',
+    [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets are collected by Spark treasury.',
+    [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by Spark treasury.',
+    [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Spark treasury.',
   },
 }
 

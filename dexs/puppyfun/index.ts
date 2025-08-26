@@ -29,11 +29,8 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(BNB_ADDRESS, feesResponse.dailyTotalFee)
 
     return {
-        totalVolume: volume,
         dailyVolume,
-        totalFees: fees,
         dailyFees,
-        totalRevenue: revenue,
         dailyRevenue,
     }
 }
@@ -43,12 +40,10 @@ export default {
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetch,
-            meta: {
-                methodology: {
-                    Fees: "Token trading and launching fees paid by users.",
-                    Revenue: "All fees are revenue.",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "Token trading and launching fees paid by users.",
+        Revenue: "All fees are revenue.",
+    }
 }

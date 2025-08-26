@@ -78,9 +78,6 @@ export type BaseAdapterChainConfig = {
     start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
     fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    meta?: {
-      methodology?: string | IJSON<string>
-    }
   }
 
 export type BaseAdapter = {
@@ -155,6 +152,12 @@ export type FetchResultFees = FetchResultBase & {
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
   totalHoldersRevenue?: FetchResponseValue;
+  dailyOtherIncome?: FetchResponseValue;
+  totalOtherIncome?: FetchResponseValue;
+  dailyOperatingIncome?: FetchResponseValue;
+  totalOperatingIncome?: FetchResponseValue;
+  dailyNetIncome?: FetchResponseValue;
+  totalNetIncome?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -201,11 +204,12 @@ export const whitelistedDimensionKeys = new Set([
   'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
+  'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
-  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue',
+  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue', 'totalOtherIncome', 'totalOperatingIncome', 'totalNetIncome'
 ])
 
 // End of specific adaptors type

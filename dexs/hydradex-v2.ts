@@ -1,6 +1,6 @@
 
 import adapter from './hydradex'
-const { breakdown,  ...rest } = adapter
+const { breakdown, ...rest } = adapter
 
 export default {
   ...rest,

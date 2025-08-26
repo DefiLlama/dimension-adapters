@@ -91,20 +91,20 @@ const fetch = async (options: FetchOptions) => {
         allPnlHistories.push(pnlHistory);
         await new Promise((res) => setTimeout(res, DELAY));
     }
-    
+
     // Calculate PnL differences for each MS address separately
     let totalPnlDiff = 0;
-    
+
     for (const pnlHistory of allPnlHistories) {
         // Sort by timestamp to ensure correct order
         const sortedHistory = pnlHistory.sort((a, b) => Number(a[0]) - Number(b[0]));
-        
+
         // Calculate differences between adjacent PnL values
         for (let i = 1; i < sortedHistory.length; i++) {
             const currentTimestamp = Number(sortedHistory[i][0]);
-            const prevPnl = Number(sortedHistory[i-1][1]);
+            const prevPnl = Number(sortedHistory[i - 1][1]);
             const currentPnl = Number(sortedHistory[i][1]);
-            
+
             // Only include differences for timestamps within our range
             if (currentTimestamp >= START_TIMESTAMP && currentTimestamp <= END_TIMESTAMP) {
                 const pnlDiff = currentPnl - prevPnl;
@@ -129,17 +129,15 @@ const adapter: Adapter = {
         [CHAIN.HYPERLIQUID]: {
             fetch,
             start: '2025-06-06',
-            meta: {
-                methodology: {
-                    Fees: "Yield generated from HLP vault",
-                    Revenue: "No Revenue for hyperwave protocol",
-                    ProtocolRevenue: "No Protocol share in revenue",
-                    SupplySideRevenue: "100% of yield paid to hwHLP holders"
-                },
-            },
         },
     },
     allowNegativeValue: true, // PnL can be negative
+    methodology: {
+        Fees: "Yield generated from HLP vault",
+        Revenue: "No Revenue for hyperwave protocol",
+        ProtocolRevenue: "No Protocol share in revenue",
+        SupplySideRevenue: "100% of yield paid to hwHLP holders"
+    },
 };
 
 export default adapter;
