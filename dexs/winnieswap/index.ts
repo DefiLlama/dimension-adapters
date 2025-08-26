@@ -2,7 +2,7 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types
 import request, { gql } from "graphql-request";
 import { CHAIN } from "../../helpers/chains";
 
-const GRAPH_URL = ''
+const GRAPH_URL = 'https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap3/3.0.0/gn'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const query = gql`
