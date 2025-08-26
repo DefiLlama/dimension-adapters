@@ -10,9 +10,7 @@ const EVENT_ABI = {
 };
 
 async function fetch(options: FetchOptions) {
-    const dailyFees = options.createBalances();
     const dailyVolume = options.createBalances();
-    const dailyRewards = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     const bullLogs = await options.getLogs({
@@ -39,25 +37,17 @@ async function fetch(options: FetchOptions) {
     });
 
     rewardLogs.forEach(reward => {
-        dailyRewards.add(ADDRESSES.bsc.WBNB, reward.rewardAmount);
         dailySupplySideRevenue.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
     });
 
-    dailyFees.add(dailyVolume);
-    dailyFees.subtract(dailyRewards);
-    dailyFees.add(dailySupplySideRevenue);
-
-    const dailyProtocolRevenue = dailyFees.clone();
-    dailyProtocolRevenue.subtract(dailySupplySideRevenue);
-
-    return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue, dailySupplySideRevenue };
+    return { dailyVolume, dailyFees:dailySupplySideRevenue, dailyRevenue: dailySupplySideRevenue, dailyProtocolRevenue:0, dailySupplySideRevenue };
 }
 
 const methodology = {
-    Fees: "3% from winners' share and all the lost bets",
+    Fees: "3% from winners' share is taken as fee",
     Revenue: "All the fee is kept as revenue",
-    ProtocolRevenue: "Lost bets are transferred to the treasury",
-    SupplySideRevenue: "3% from winners' share goes to CAKE buyback and burn",
+    ProtocolRevenue: "Protocol doesn't take any revenue share",
+    SupplySideRevenue: "All the revenue goes to CAKE buyback and burn",
 };
 
 const adapter: SimpleAdapter = {
