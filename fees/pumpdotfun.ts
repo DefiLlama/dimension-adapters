@@ -75,9 +75,6 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       AND (token_mint_address = 'So11111111111111111111111111111111111111112' OR token_mint_address = 'So11111111111111111111111111111111111111111')
   `
   const res = await queryDuneSql(options, query);
-
-  console.log(res)
-
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.add(ADDRESSES.solana.SOL, (res[0].total_amount || 0) * 1e9);
 
