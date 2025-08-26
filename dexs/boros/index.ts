@@ -44,17 +44,17 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: abi.MARKET_CREATION_EVENT,
         fromBlock: firstMarketCreationBlock
     });
-
-    for (const marketLog of marketCreationLogs) {
-        const market: BorosMarket = {
+    const markets = marketCreationLogs
+        .filter(marketLog => Number(marketLog.immData.k_maturity) >= options.fromTimestamp)
+        .map(marketLog => ({
             address: marketLog.market,
             symbol: marketLog.immData.symbol,
             maturity: Number(marketLog.immData.k_maturity),
-        };
-        if (market.maturity < options.fromTimestamp) continue;
-        const cgId = getCgId(market.symbol);
-        if (!cgId) continue;
+            cgId: getCgId(marketLog.immData.symbol),
+        }))
+        .filter(market => market.cgId);
 
+    await Promise.all(markets.map(async (market) => {
         const marketOrderFilledLogs = await options.getLogs({
             target: market.address,
             eventAbi: abi.MARKET_ORDERS_FILLED_EVENT,
@@ -64,8 +64,8 @@ const fetch = async (options: FetchOptions) => {
             let tradeAmount = trade.totalTrade >> 128n;
             if (tradeAmount > TWO_127)
                 tradeAmount = TWO_128 - tradeAmount;
-            dailyVolume.addCGToken(cgId, Number(tradeAmount) / 1e18);
-            dailyFees.addCGToken(cgId, Number(trade.totalFees) / 1e18);
+            dailyVolume.addCGToken(market.cgId, Number(tradeAmount) / 1e18);
+            dailyFees.addCGToken(market.cgId, Number(trade.totalFees) / 1e18);
         });
 
         const otcSwapLogs = await options.getLogs({
@@ -77,9 +77,9 @@ const fetch = async (options: FetchOptions) => {
             let tradeAmount = swap.trade >> 128n;
             if (tradeAmount > TWO_127)
                 tradeAmount = TWO_128 - tradeAmount;
-            dailyVolume.addCGToken(cgId, Number(tradeAmount) / 1e18);
-            dailyFees.addCGToken(cgId, Number(swap.otcFee) / 1e18);
-            dailySupplySideRevenue.addCGToken(cgId, Number(swap.otcFee) / 1e18)
+            dailyVolume.addCGToken(market.cgId, Number(tradeAmount) / 1e18);
+            dailyFees.addCGToken(market.cgId, Number(swap.otcFee) / 1e18);
+            dailySupplySideRevenue.addCGToken(market.cgId, Number(swap.otcFee) / 1e18)
         })
 
         const paymentSettlementLogs = await options.getLogs({
@@ -87,9 +87,9 @@ const fetch = async (options: FetchOptions) => {
             eventAbi: abi.PAYMENT_FROM_SETTLEMENT_EVENT,
         });
         paymentSettlementLogs.forEach(settlement => {
-            dailyFees.addCGToken(cgId, Number(settlement.fees) / 1e18);
+            dailyFees.addCGToken(market.cgId, Number(settlement.fees) / 1e18);
         });
-    };
+    }));
     let dailyRevenue = dailyFees.clone();
     dailyRevenue.subtract(dailySupplySideRevenue);
 
