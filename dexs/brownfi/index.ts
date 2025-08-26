@@ -1,0 +1,94 @@
+import { CHAIN } from "../../helpers/chains";
+import { filterPools } from "../../helpers/uniswap";
+import { FetchOptions, SimpleAdapter, IJSON } from "../../adapters/types";
+import { addOneToken } from "../../helpers/prices";
+import { cache } from "@defillama/sdk";
+
+export const brownfiV2Factories: { [key: string]: any } = {
+  [CHAIN.BERACHAIN]: {
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+  },
+  [CHAIN.BASE]: {
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+  },
+  [CHAIN.ARBITRUM]: {
+    factory: "0xD05395a6b6542020FBD38D31fe1377130b35592E"
+  },
+  [CHAIN.HYPERLIQUID]: {
+    factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55"
+  },
+};
+
+const brownfiV2SwapEvent = "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, uint price0, uint price1, address indexed to)"
+
+const abis = {
+  fees: "function fee() external view returns (uint32)",
+};
+
+const getData = async (options: any) => {
+  const factory = brownfiV2Factories[options.chain].factory;
+  const { createBalances, getLogs, chain, api } = options
+  const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
+
+  const { pairs, token0s, token1s } = await cache.readCache(cacheKey, { readFromR2Cache: true })
+  if (!pairs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
+  const pairObject: IJSON<string[]> = {}
+  const fees: any = {}
+  pairs.forEach((pair: string, i: number) => {
+    pairObject[pair] = [token0s[i], token1s[i]]
+    fees[pair] = 0
+  })
+
+  let _fees = await api.multiCall({ abi: abis.fees, calls: pairs.map((pair: any) => pair), permitFailure: true })
+  _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[pairs[i]] = fee / 1e8)
+  const dailyVolume = createBalances()
+  const dailyFees = createBalances()
+  const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances, minUSDValue: 100 })
+  const pairIds = Object.keys(filteredPairs)
+
+  if (!pairIds.length) return {
+    dailyVolume,
+    dailyFees,
+  }
+
+  const allLogs = await getLogs({ targets: pairIds, eventAbi: brownfiV2SwapEvent, flatten: false })
+  allLogs.map((logs: any, index) => {
+    if (!logs.length) return;
+    const pair = pairIds[index]
+    const fee = fees[pair]
+    const [token0, token1] = pairObject[pair]
+    logs.forEach((log: any) => {
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * fee, amount1: Number(log.amount1In) * fee })
+      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * fee, amount1: Number(log.amount1Out) * fee })
+    })
+  })
+  return { dailyVolume, dailyFees };
+};
+
+const fetchBrownFiV2 = () => {
+  return async (options: FetchOptions) => {
+    return await getData(options);
+  };
+};
+
+const adapters: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.BERACHAIN]: {
+      fetch: fetchBrownFiV2(),
+    },
+    [CHAIN.BASE]: {
+      fetch: fetchBrownFiV2(),
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchBrownFiV2(),
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetchBrownFiV2(),
+    },
+  },
+};
+
+export default adapters;
