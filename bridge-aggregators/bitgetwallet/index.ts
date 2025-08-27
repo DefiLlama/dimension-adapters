@@ -29,7 +29,7 @@ interface IVolumeBridge {
 }
 
 async function queryDataByApi(path: string) {
-    const historicalVolumeEndpoint = "htttps://api-3rd.bitkeep.com/swap-go/open";
+    const historicalVolumeEndpoint = "https://api-3rd.bitkeep.com/swap-go/open";
     let info = await fetchURL(`${historicalVolumeEndpoint}${path}`);
     const data: IVolumeBridge[] = (info)?.data?.list || [];
     return data
