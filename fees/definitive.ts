@@ -2,8 +2,14 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getSolanaReceived } from "../helpers/token";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
+
+// Solana addresses for legacy fee collection
+const SOLANA_FEE_ADDRESSES = [
+  "Ggp9SGTqAKiJWRXeyEb2gEVdmD6n7fgHD7t4s8DrAqwf",
+];
 
 const prefetch = async (options: FetchOptions) => {
   const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
@@ -19,14 +25,31 @@ const chainConfig = {
   [CHAIN.BASE]: { start: '2022-01-01' },
   [CHAIN.POLYGON]: { start: '2022-01-01' },
   [CHAIN.AVAX]: { start: '2022-01-01' },
+  [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
 const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
+  // Handle Solana separately with the original logic
+  if (options.chain === CHAIN.SOLANA) {
+    const solanaFees = await getSolanaReceived({
+      options,
+      targets: SOLANA_FEE_ADDRESSES,
+    });
+    
+    return {
+      dailyFees: solanaFees,
+      dailyUserFees: solanaFees,
+      dailyRevenue: solanaFees,
+      dailyProtocolRevenue: solanaFees,
+    };
+  }
+
+  // Handle EVM chains with Dune query
   const preFetchedResults = options.preFetchedResults || [];
   const dune_chain = options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain;
   const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
-
-  const dailyFees = options.createBalances();
 
   if (data) {
     // The SQL query returns total_amount_usdc which is already in USD
