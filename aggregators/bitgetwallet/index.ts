@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st/getOrderDayList"
+const historicalVolumeEndpoint = "htttps://api-3rd.bitkeep.com/swap-go/open/getOrderDayVolume"
 
 interface IVolumeall {
     volume: string;
