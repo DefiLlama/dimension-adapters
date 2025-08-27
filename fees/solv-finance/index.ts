@@ -91,15 +91,15 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
     }),
     options.api.multiCall({
       abi: `function slotBaseInfo(uint256 slot_) view returns (tuple(address issuer, address currency, uint64 valueDate, uint64 maturity, uint64 createTime, bool transferable, bool isValid))`,
-      calls: pools.map((pool: { OpenFundShareAddress: string; openFundShareSlot: string }) => ({
-        target: shareConcretes[pool.OpenFundShareAddress],
+      calls: pools.map((pool: { openFundShareAddress: string; openFundShareSlot: string }) => ({
+        target: shareConcretes[pool.openFundShareAddress],
         params: [pool.openFundShareSlot],
       })),
     }),
     options.toApi.multiCall({
       abi: "function slotTotalValue(uint256) view returns (uint256)",
-      calls: pools.map((pool: { OpenFundShareAddress: string; openFundShareSlot: string }) => ({
-        target: shareConcretes[pool.OpenFundShareAddress],
+      calls: pools.map((pool: { openFundShareAddress: string; openFundShareSlot: string }) => ({
+        target: shareConcretes[pool.openFundShareAddress],
         params: [pool.openFundShareSlot],
       })),
     })
