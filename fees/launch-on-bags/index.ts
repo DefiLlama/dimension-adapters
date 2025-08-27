@@ -44,16 +44,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-05-11',
-            meta: {
-                methodology: {
-                    Fees: "Trading fees paid by users.",
-                    Revenue: "Fees collected by Bags App protocol.",
-                    ProtocolRevenue: "Fees collected by Bags App protocol."
-                }
-            }
         }
     },
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: "Trading fees paid by users.",
+        Revenue: "Fees collected by Bags App protocol.",
+        ProtocolRevenue: "Fees collected by Bags App protocol."
+    }
 }
 
 export default adapter

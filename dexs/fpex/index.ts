@@ -34,11 +34,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.FLARE]: {
       fetch,
       start: '2025-07-01',
-      meta: { methodology }
     }
   },
 };

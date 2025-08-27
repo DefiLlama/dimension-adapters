@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { ChainBlocks, FetchOptions, FetchResultFees, } from "../adapters/types";
+import { FetchOptions, } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { queryIndexer, toByteaArray } from "../helpers/indexer";
 import { CHAIN } from './chains';

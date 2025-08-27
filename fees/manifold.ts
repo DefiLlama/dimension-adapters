@@ -25,7 +25,7 @@ const evm = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     dailyFees.addBalances(post)
     dailyFees.subtract(pre)
-    if(Number(Object.values(dailyFees.getBalances())[0])<0){
+    if (Number(Object.values(dailyFees.getBalances())[0]) < 0) {
         /*
         When a new NFT is minted, a fee gets paid, the fee changes based on whether the NFT was minted with no whitelist or with a merkle whitelist
         However there's no event emitted that can be used to differentiate those two cases, so its impossible to track exact fees via events, only upper and lower bounds
@@ -61,16 +61,14 @@ const evm = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 1,
+    methodology: {
+        Fees: 'Fees paid by users for creating and publishing NFT.',
+        Revenue: 'All fees collected by Manifold protocol.',
+    },
     adapter: Object.keys(contracts).reduce((all, chain) => ({
         ...all,
         [chain]: {
             fetch: evm,
-            meta: {
-                methodology: {
-                Fees: 'Fees paid by users for creating and publishing NFT.',
-                Revenue: 'All fees collected by Manifold protocol.',
-                }
-            }
         }
     }), {}),
     allowNegativeValue: true, // allow as there is specific case, from fetch function comment

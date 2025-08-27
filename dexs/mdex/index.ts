@@ -25,15 +25,10 @@ const fetch = (chain: Chain) => {
     const queryByChainId = `?chain_id=${mapChainId[chain]}`;
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}${queryByChainId}`)).result;
-    const totalVolume = historicalVolume
-      .filter(volItem => getUniqStartOfTodayTimestamp(new Date(volItem.created_time)) <= dayTimestamp)
-      .reduce((acc, { max_swap_amount }) => acc + Number(max_swap_amount), 0)
-
     const dailyVolume = historicalVolume
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.created_time)) === dayTimestamp)?.max_swap_amount
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

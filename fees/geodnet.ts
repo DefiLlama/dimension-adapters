@@ -15,7 +15,7 @@ interface ILog {
   address: string;
 }
 
-const fetchFees = async ({ getLogs, createBalances }: FetchOptions)=> {
+const fetchFees = async ({ getLogs, createBalances }: FetchOptions) => {
   const balances = createBalances();
 
   const burnedEventLogs: ILog[] = await getLogs({
@@ -26,10 +26,10 @@ const fetchFees = async ({ getLogs, createBalances }: FetchOptions)=> {
   burnedEventLogs.forEach((log: ILog) => {
     balances.add(GEODNET_TOKEN_ADDRESS, Number(log.data));
   })
-  
+
 
   const dailyHoldersRevenue = balances
-  const dailyFees = balances.clone(1/0.8)
+  const dailyFees = balances.clone(1 / 0.8)
   const dailyRevenue = dailyFees;
 
   return {
@@ -45,16 +45,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
       start: '2023-09-10',
-      meta: {
-        methodology: {
-          Fees: 'GEODNET receives fees for station access to their RTK network.',
-          Revenue:
-            "When GEODNET receives fees for station access, 80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation. The remaining 20% supports the foundation's organizational costs.",
-          HoldersRevenue:
-            '80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation.',
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: 'GEODNET receives fees for station access to their RTK network.',
+    Revenue:
+      "When GEODNET receives fees for station access, 80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation. The remaining 20% supports the foundation's organizational costs.",
+    HoldersRevenue:
+      '80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation.',
   },
 };
 export default adapter;

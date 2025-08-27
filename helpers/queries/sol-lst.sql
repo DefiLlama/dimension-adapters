@@ -1,21 +1,12 @@
 WITH
     stake_accounts AS (
         SELECT
-            d.stake_account_raw,
-            d.vote_account_raw,
-            a.authority
-        FROM
-            dune.dune.result_solana_stake_accounts_vote_delegates AS d
-            LEFT JOIN dune.dune.result_solana_stake_accounts_authorities AS a ON d.stake_account_raw=a.stake_account_raw
-        WHERE
-            d.latest=1
-            AND a.latest=1
-            AND a.authority='{{stake_pool_withdraw_authority}}'
+            DISTINCT account_stakeAccount as stake_account_raw
+        FROM stake_program_solana.stake_call_delegatestake
+        WHERE account_stakeAuthority = '{{stake_pool_withdraw_authority}}'
         UNION ALL
         SELECT
-            '{{stake_pool_reserve_account}}' AS stake_account_raw,
-            NULL AS vote_account_raw,
-            NULL AS authority
+            '{{stake_pool_reserve_account}}' AS stake_account_raw
     ),
     staking_fees AS (
         SELECT

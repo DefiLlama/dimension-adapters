@@ -110,7 +110,7 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 
-const meta = {
+const info = {
     methodology: {
         Fees: "Interest that is paid by the borrowers to the vaults.",
         Revenue: "Fees collected by vaults owners, curators, and Euler.",
@@ -119,24 +119,24 @@ const meta = {
     },
     breakdownMethodology: {
         Fees: {
-            'Borrow Interest': 'All interest paid by borrowers from all vaults.',
+            [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all vaults.',
         },
         Revenue: {
-            'Borrow Interest': 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
+            [METRIC.BORROW_INTEREST]: 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
         },
         SupplySideRevenue: {
-            'Borrow Interest': 'Amount of interest distributed to lenders from all vaults.',
+            [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all vaults.',
         },
         ProtocolRevenue: {
-            'Borrow Interest': 'Amount of interest are collected by Euler protocol.',
+            [METRIC.BORROW_INTEREST]: 'Amount of interest are collected by Euler protocol.',
         },
     }
 }
 
 const adapters: Adapter = {
     version: 2,
-    methodology: meta.methodology,
-    breakdownMethodology: meta.breakdownMethodology,
+    methodology: info.methodology,
+    breakdownMethodology: info.breakdownMethodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,

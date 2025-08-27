@@ -16,11 +16,13 @@ interface IVolumeItem {
   value: string;
 }
 
-const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) => {
+const fetch = async (__: number, _: ChainBlocks, { startOfDay }: FetchOptions) => {
   const TwoDays = 2 * 24 * 3600
-  const historicalVolume: IVolumeItem[] = (await httpGet(historicalVolumeEndpoint(startOfDay - TwoDays, startOfDay + TwoDays), { headers: {
-    'origin': 'https://www.saucerswap.finance',
-  }}));
+  const historicalVolume: IVolumeItem[] = (await httpGet(historicalVolumeEndpoint(startOfDay - TwoDays, startOfDay + TwoDays), {
+    headers: {
+      'origin': 'https://www.saucerswap.finance',
+    }
+  }));
 
   const _dailyVolume = historicalVolume
     .find((dayItem: any) => Number(dayItem.timestampSeconds) === startOfDay)?.value
@@ -30,8 +32,8 @@ const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) 
   // https://docs.saucerswap.finance/protocol/saucerswap-v1
   // v1 charges fee 0.3% per swap, 5/6 goes to LP, 1/6 goes to protocol
   const dailyFees = dailyVolume * 0.003
-  const dailyRevenue = dailyFees * 1/6
-  const dailySupplySideRevenue = dailyFees * 5/6
+  const dailyRevenue = dailyFees * 1 / 6
+  const dailySupplySideRevenue = dailyFees * 5 / 6
 
   return {
     dailyVolume,
@@ -47,11 +49,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

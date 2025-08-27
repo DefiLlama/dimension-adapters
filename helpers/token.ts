@@ -432,7 +432,7 @@ function getAlliumChain(chain: string): string {
   }
 }
 
-export async function getETHReceived({ options, balances, target, targets = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
+export async function getETHReceived({ options, balances, target, targets = [], notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[], notFromSenders?: string[] }) {
   if (!balances) balances = options.createBalances()
 
   if (!target && !targets?.length) return balances
@@ -441,6 +441,11 @@ export async function getETHReceived({ options, balances, target, targets = [] }
 
   targets = targets.map(i => i.toLowerCase())
   targets = [...new Set(targets)]
+
+  notFromSenders = notFromSenders.map(i => i.toLowerCase())
+  notFromSenders = [...new Set(notFromSenders)]
+
+  const excludeSenders = targets.concat(notFromSenders)
 
   // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
@@ -478,13 +483,14 @@ export async function getETHReceived({ options, balances, target, targets = [] }
 
   let query = ``
   const targetList = '( ' + targets.map(i => `'${i}'`).join(', ') + ' )'
+  const excludeSenderList = '( ' + excludeSenders.map(i => `'${i}'`).join(', ') + ' )'
   const chainKey = chainMap[options.chain]
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
       FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
       WHERE to_address in ${targetList} 
-      ${targets.length > 1 ? `AND from_address not in ${targetList} ` : ' '}
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
@@ -497,7 +503,7 @@ export async function getETHReceived({ options, balances, target, targets = [] }
       FROM ${getAlliumChain(options.chain)}.raw.traces
       WHERE to_address in ${targetList} 
       AND status = 1
-      ${targets.length > 1 ? `AND from_address not in ${targetList} ` : ' '}
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   }

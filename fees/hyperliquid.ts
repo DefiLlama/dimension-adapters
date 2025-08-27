@@ -30,13 +30,11 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,
-            meta: {
-                methodology: {
-                    Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
-                    HoldersRevenue: "93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
+        HoldersRevenue: "93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault",
+    }
 }
 export default adapter
