@@ -1,7 +1,7 @@
 WITH params AS (
   SELECT
     0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643 AS collector,  -- your wallet
-    from_unixtime({{start}}) AT TIME ZONE 'America/New_York' AS t0  -- start date in EDT
+    from_unixtime({{start}}) AS t0                           -- start date from parameter
 ),
 
 usdc_by_chain AS (
@@ -11,7 +11,9 @@ usdc_by_chain AS (
       ('base',        0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913),
       ('ethereum',    0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48),
       ('polygon',     0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174),
-      ('avalanche_c', 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E)
+      ('avalanche_c', 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E),
+      ('optimism',    0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85), 
+      ('bnb',         0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d)
   ) AS t(blockchain, contract_address)   -- 👈 name the columns here
 ),
 
@@ -26,15 +28,15 @@ xfers AS (
     ON t.blockchain = u.blockchain
    AND t.contract_address = u.contract_address
   CROSS JOIN params p
-  WHERE t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c')
+  WHERE t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb')
     AND t."to" = p.collector         -- inbound only
     AND t."tx_to" <> p.collector     -- exclude self-sends
-    AND date_trunc('day', t.block_time AT TIME ZONE 'America/New_York') = date_trunc('day', p.t0)  -- same day in EDT
+    AND date_trunc('day', t.block_time) = date_trunc('day', p.t0)  -- same day only
     AND t.amount <= 3000             -- remove large transfers
 )
 
 SELECT
-  date_trunc('day', block_time AT TIME ZONE 'America/New_York') AS day,
+  date_trunc('day', block_time) AS day,
   blockchain,
   COUNT(*)        AS tx_count,
   SUM(amount_usd) AS total_amount_usdc,
