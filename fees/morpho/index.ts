@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 
-const meta = {
+const info = {
   methodology: {
     Fees: "Total borrow interest paid by borrowers.",
     SupplySideRevenue: "Total interests are distributed to suppliers/lenders.",
@@ -13,16 +13,16 @@ const meta = {
   },
   breakdownMethodology: {
     Fees: {
-      'Borrow Interest': 'All interest paid by borrowers from all vaults.',
+      [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all vaults.',
     },
     Revenue: {
-      'Borrow Interest': 'No revenue from Morpho protocol.',
+      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
     },
     SupplySideRevenue: {
-      'Borrow Interest': 'All interests paid are distributedd to vaults suppliers, lenders.',
+      [METRIC.BORROW_INTEREST]: 'All interests paid are distributedd to vaults suppliers, lenders.',
     },
     ProtocolRevenue: {
-      'Borrow Interest': 'No revenue from Morpho protocol.',
+      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
     },
   }
 }
@@ -256,8 +256,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology: meta.methodology,
-  breakdownMethodology: meta.breakdownMethodology,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   fetch: fetch,
   adapter: {}
 };

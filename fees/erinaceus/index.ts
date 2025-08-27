@@ -77,13 +77,11 @@ const adapter: Adapter = {
     [CHAIN.BAHAMUT]: {
       fetch: fetch(CHAIN.BAHAMUT),
       start: '2024-05-22',
-      meta: {
-        methodology: {
-          Fees: "All Fees generated from activity on Erinaceus VRF Coordinator contract.",
-          Revenue: "All Fees generated from activity on Erinaceus VRF Coordinator contract subtract transaction fees.",
-        }
-      },
     }
+  },
+  methodology: {
+    Fees: "All Fees generated from activity on Erinaceus VRF Coordinator contract.",
+    Revenue: "All Fees generated from activity on Erinaceus VRF Coordinator contract subtract transaction fees.",
   }
 }
 export default adapter;

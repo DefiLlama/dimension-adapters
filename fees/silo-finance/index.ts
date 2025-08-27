@@ -256,27 +256,22 @@ async function fetch(
   options: FetchOptions,
   rawSilos: ISilo[]
 ): Promise<FetchResultV2> {
-  const totalFees = options.createBalances();
   const dailyFees = options.createBalances();
 
   const rawSiloWithAddresses = await getSilos(rawSilos, options);
   const siloWithAssets = options.chain === "sonic"
     ? rawSiloWithAddresses
     : await getSilosAssets(rawSiloWithAddresses, options);
-  const { totalFeesResults, dailyFeesResults } = await getSilosFeesStorage(
+  const { dailyFeesResults } = await getSilosFeesStorage(
     siloWithAssets,
     options
   );
-
-  totalFeesResults.forEach(({ asset, fee }) => {
-    totalFees.add(asset, fee);
-  });
 
   dailyFeesResults.forEach(({ asset, fee }) => {
     dailyFees.add(asset, fee);
   });
 
-  return { totalFees, dailyFees };
+  return { dailyFees };
 }
 
 const adapter: Adapter = {

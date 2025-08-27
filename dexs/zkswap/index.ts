@@ -13,15 +13,13 @@ export default {
         revenueRatio: 1, // 100% swap fees
         protocolRevenueRatio: 1, // 100% swap fees
       }),
-      meta: {
-        methodology: {
-          Fees: "Total swap fees paided by users.",
-          Revenue: "Revenue collected from 100% swap fees.",
-          ProtocolRevenue: "Revenue for HyperSwap from 100% swap fees.",
-          SupplySideRevenue: "No fees distributed to LPs.",
-          UserFees: "Total swap fees paided by users."
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: "Total swap fees paided by users.",
+    Revenue: "Revenue collected from 100% swap fees.",
+    ProtocolRevenue: "Revenue for HyperSwap from 100% swap fees.",
+    SupplySideRevenue: "No fees distributed to LPs.",
+    UserFees: "Total swap fees paided by users."
   }
 }

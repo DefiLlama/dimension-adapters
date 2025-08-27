@@ -10,15 +10,13 @@ const adapter: Adapter = {
         '0x6776BE80dBAda6A02B5F2095cF13734ac303B8d1'
       ] }),
       start: '2024-12-29',
-      meta: {
+    },
+  },
+  protocolType: ProtocolType.CHAIN,
         methodology: {
           Fees: 'Transaction fees paid by users',
           Revenue: 'Total revenue on Soneium, calculated by subtracting the L1 Batch Costs from the total gas fees',
         }
-      }
-    },
-  },
-  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;

@@ -49,11 +49,9 @@ const adapter: Adapter = {
     [FANTOM]: {
       fetch: graphs(endpoints)(FANTOM),
       start: '2023-07-19',
-      meta: {
-        methodology: '100.00% of All & Any Fees generated from All activity on Any Equity Platform Product goes solely to veEQUAL voters.'
-      }
     },
   },
+  methodology: '100.00% of All & Any Fees generated from All activity on Any Equity Platform Product goes solely to veEQUAL voters.'
 };
 
 export default adapter;

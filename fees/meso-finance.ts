@@ -5,7 +5,7 @@ import { CHAIN } from '../helpers/chains';
 const feesQueryURL =
   'https://api.meso.finance/api/v1/Tool/defillama/fees?timeframe=';
 
-const revenueQueryURL = 
+const revenueQueryURL =
   'https://api.meso.finance/api/v1/Tool/defillama/revenue?timeframe=';
 
 interface IVolumeall {
@@ -41,7 +41,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   const dailyRevenue = dayRevenueData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp <= options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
   const dailySupplySideRevenue = dailyFees - dailyRevenue;
-  
+
   return {
     dailyFees,
     dailyRevenue,
@@ -50,20 +50,18 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: 'Interest paid by borrowers',
-    Revenue: 'Protocol fees + interest share of protocol fees',
-    ProtocolRevenue: 'Protocol fees going to meso treasury',
-    SupplySideRevenue: 'Interest earned by lenders',
-  }
+const methodology = {
+  Fees: 'Interest paid by borrowers',
+  Revenue: 'Protocol fees + interest share of protocol fees',
+  ProtocolRevenue: 'Protocol fees going to meso treasury',
+  SupplySideRevenue: 'Interest earned by lenders',
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      meta,
       start: '2024-09-28',
     },
   },
