@@ -77,7 +77,8 @@ export const PANCAKESWAP_V3_QUERY = (fromTime: number, toTime: number, blacklist
               THEN amount_usd
               ELSE 0 
           END
-        ) AS amount_usd
+        ) AS clean_volume_usd
+        , SUM(amount_usd) AS total_volume_usd 
     FROM dex.trades
     WHERE blockchain = 'bnb'
       AND project = 'pancakeswap'
@@ -141,8 +142,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       calls: poolsAndVolumes.map((item: any) => item.pool)
     })
     for (let i = 0; i < poolsAndVolumes.length; i++) {
-      if (poolsAndVolumes[i].amount_usd !== null) {
-        dailyVolume.addUSDValue(poolsAndVolumes[i].amount_usd)
+      if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
+        // add clean volume, exclude blacklist token
+        dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
 
         const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
         const protocolRevenueRatio = getProtocolRevenueRatio(fee);
@@ -150,11 +152,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
         const supplySideRevenueRatio = 1 - revenueRatio;
 
-        dailyFees.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee)
-        dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * revenueRatio)
-        dailyProtocolRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * protocolRevenueRatio)
-        dailyHoldersRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * holdersRevenueRatio)
-        dailySupplySideRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * supplySideRevenueRatio)
+        // add fees from total volume, including blacklist tokens
+        dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
+        dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * revenueRatio)
+        dailyProtocolRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * protocolRevenueRatio)
+        dailyHoldersRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * holdersRevenueRatio)
+        dailySupplySideRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * supplySideRevenueRatio)
       }
     }
   } else {
