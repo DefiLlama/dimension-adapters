@@ -57,22 +57,6 @@ const v3Graphs = getGraphDimensions2({
   },
 });
 
-const v2Methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  SupplySideRevenue: "LPs receive 0.06% of each swap.",
-  ProtocolRevenue: "Treasury receives 0.24% of each swap.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees come from the user.",
-};
-
-const v3Methodology = {
-  UserFees:
-    "User pays a variable percentage on each swap depending on the pool. Minimum: 0.008%, maximum: 1%.",
-  SupplySideRevenue: "LPs receive 36% of the current swap fee",
-  ProtocolRevenue: "Treasury receives 64% of the swap fee",
-  Fees: "All fees come from the user.",
-};
-
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
@@ -82,7 +66,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: v2Graph,
           start: '2024-09-23',
-          meta: { methodology: v2Methodology },
         },
       };
     }, {} as BaseAdapter),
@@ -90,7 +73,6 @@ const adapter: BreakdownAdapter = {
       acc[chain] = {
         fetch: v3Graphs,
         start: '2024-09-05',
-        meta: { methodology: v3Methodology },
       };
       return acc;
     }, {} as BaseAdapter),

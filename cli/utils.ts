@@ -32,7 +32,7 @@ export function printVolumes(volumes: any[], _?: SimpleAdapter) {
             throw new Error(`"${key}" is not a supported metric.Supported metrics can be found in adapters/types.ts`)
     })
     volumes.forEach((element) => {
-        // const methodology =  module?.methodology ?? module?.[element.chain].meta?.methodology
+        // const methodology =  module?.methodology
         if (typeof element.chain === 'string')
             console.info(element.chain.toUpperCase(), "👇")
         if (element.startTimestamp !== undefined && element.startTimestamp !== 0)
@@ -142,4 +142,25 @@ export function camelCaseToSpaces(s: string) {
         // uppercase the first character
         .replace(/^./, function (str) { return str.toUpperCase(); })
     return withSpaces[0] + withSpaces.slice(1).toLowerCase()
+}
+
+// move timestamp attr to the end of given object
+const timestampKey = 'timestamp'
+export function timestampLast(item: any): any {
+    const newItem: any = {}
+
+    // iterate over all keys in the original object
+    for (const key in item) {
+        if (key !== timestampKey) {
+            // Add keys that are not the one to move to the new object first
+            newItem[key] = item[key];
+        }
+    }
+
+    // Add the key to move at the end
+    if (item.hasOwnProperty(timestampKey)) {
+        newItem[timestampKey] = item[timestampKey];
+    }
+
+    return newItem
 }

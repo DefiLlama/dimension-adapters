@@ -53,20 +53,15 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
       start: '2022-12-26',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2023-06-09',
-      meta: {
-        methodology,
-      },
     },
   },
 }

@@ -27,19 +27,14 @@ const methodology = {
 const baseAdapter: BaseAdapter = {
   [CHAIN.ETHEREUM]: {
     fetch: fetch(CHAIN.ETHEREUM, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
   [CHAIN.SMARTBCH]: {
     fetch: fetch(CHAIN.SMARTBCH, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter,
   version: 2
 };

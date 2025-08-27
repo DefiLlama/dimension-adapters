@@ -8,7 +8,7 @@ import { getStartTimestamp } from "../helpers/getStartTimestamp";
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
   [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83'),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
+  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
 };
 
 const blacklisted = {
@@ -69,10 +69,10 @@ const v2Graph = getGraphDimensions2({
 const methodology = {
   Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: "Protocol have no revenue.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Holders have no revenue."
+  Revenue: 'Protocol make no revenue.',
+  ProtocolRevenue: 'Protocol make no revenue.',
+  SupplySideRevenue: 'All fees are distributed to LPs.',
+  HoldersRevenue: 'No revenue for UNI holders.',
 }
 
 const chainv2mapping: any = {
@@ -81,7 +81,7 @@ const chainv2mapping: any = {
   [CHAIN.POLYGON]: "POLYGON",
   [CHAIN.BSC]: "BNB",
   [CHAIN.UNICHAIN]: "UNI",
-  // [CHAIN.BASE]: "BASE",
+  [CHAIN.BASE]: "BASE",
   // [CHAIN.OPTIMISM]: "OPTIMISM",
 }
 
@@ -115,11 +115,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: async (_t:any, _tb: any , options: FetchOptions) => {
         const response = await v2Graph(options);
-        response.totalVolume =
-          Number(response.dailyVolume) + 1079453198606.2229;
-        response.totalFees = Number(response.totalVolume) * 0.003;
-        response.totalUserFees = Number(response.totalVolume) * 0.003;
-        response.totalSupplySideRevenue = Number(response.totalVolume) * 0.003;
         return {
           ...response,
           dailyUserFees: response.dailyFees,
@@ -133,9 +128,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: async (_t:any, _tb: any , options: FetchOptions) => {
         const response = await v2Graph(options);
-        response.totalFees = Number(response.dailyVolume) * 0.003;
-        response.totalUserFees = Number(response.dailyVolume) * 0.003;
-        response.totalSupplySideRevenue = Number(response.dailyVolume) * 0.003;
         return {
           ...response,
           dailyUserFees: response.dailyFees,

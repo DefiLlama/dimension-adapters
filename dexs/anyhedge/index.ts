@@ -1,12 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const methodology = {
   Volume: "Scan the blockchain for AnyHedge input pattern, add up all such inputs BCH value. The daily volume is the volume of all settled contracts for the day. Indexer: https://gitlab.com/0353F40E/anyhedge-stats",
-  Fees: "N/A",
-  Revenue: "N/A",
 }
 
 interface IAnyhedgeVolumeResponse {
@@ -26,14 +23,11 @@ const fetchAnyhedgeVolumeData: any = async (timestamp: number, _: any, options: 
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
   
   const dailyVolume = options.createBalances();
-  const totalVolume = options.createBalances();
   dailyVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData?.daily_volume));
-  totalVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData?.total_volume));
 
   return {
     timestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 

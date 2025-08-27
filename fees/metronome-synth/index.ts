@@ -87,40 +87,24 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Tracks synth asset inflows to treasury.",
+    Revenue: "Includes synth inflows and interest (converted to USD).",
+    HoldersRevenue: "Tracks MET distributed to esMET lockers.",
+  },
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-05-11',
-      meta: {
-        methodology: {
-          Fees: "Tracks synth asset inflows to treasury.",
-          Revenue: "Includes synth inflows and interest (converted to USD).",
-          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
-        },
-      },
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: '2023-05-11',
-      meta: {
-        methodology: {
-          Fees: "Tracks synth asset inflows to treasury.",
-          Revenue: "Includes synth inflows and interest (converted to USD).",
-          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
-        },
-      },
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2023-05-11',
-      meta: {
-        methodology: {
-          Fees: "Tracks synth asset inflows to treasury.",
-          Revenue: "Includes synth inflows and interest (converted to USD).",
-          HoldersRevenue: "Tracks MET distributed to esMET lockers.",
-        },
-      },
     },
   },
 };

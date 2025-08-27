@@ -4,7 +4,7 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchResultV2, FetchV2, SimpleAdapter, } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -124,6 +124,15 @@ async function _runAdapter({
   if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
+
+  const badChainNames = chains.filter(chain => !/^[a-z0-9_]+$/.test(chain));
+  if (badChainNames.length) {
+    throw new Error(`
+    Invalid chain names: ${badChainNames.join(', ')}
+    Chain names should only contain lowercase letters, numbers and underscores
+    `)
+  }
+  
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
@@ -201,6 +210,12 @@ async function _runAdapter({
       }
       const ignoreKeys = ['timestamp', 'block']
       const improbableValue = 2e11 // 200 billion
+
+      // validate and inject missing record if any
+      validateAdapterResult(result)
+
+      // add missing metrics if need
+      addMissingMetrics(chain, result)
 
       for (const [recordType, value] of Object.entries(result)) {
         if (ignoreKeys.includes(recordType)) continue;
@@ -369,4 +384,55 @@ async function _runAdapter({
     }
   }
 
+}
+
+function createBalanceFrom(options: {chain: string, timestamp: number | undefined, amount: FetchResponseValue}): Balances {
+  const { chain, timestamp, amount } = options
+
+  const balance = new Balances({ chain, timestamp })
+  if (amount) {
+    if (typeof amount === 'number' || typeof amount === 'string') {
+      balance.addUSDValue(amount)
+    } else {
+      balance.addBalances(amount)
+    }
+  }
+  return balance;
+}
+
+function subtractBalance(options: {balance: Balances, amount: FetchResponseValue}) {
+  const { balance, amount } = options
+  if (amount) {
+    if (typeof amount === 'number' || typeof amount === 'string') {
+      const otherBalance = createBalanceFrom({chain: balance.chain, timestamp: balance.timestamp, amount})
+      balance.subtract(otherBalance)
+    } else {
+      balance.subtract(amount)
+    }
+  }
+}
+
+function validateAdapterResult(result: any) {
+  // validate metrics
+  //  this is to ensure that we do this validation only for the new adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+    // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+      throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
+    }
+  }
+}
+
+function addMissingMetrics(chain: string, result: any) {
+  // add missing metrics for Balances which has breakdown labels only
+  //  this is to ensure that we dont change behavior of existing adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+
+    // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
+    if (result.dailySupplySideRevenue && !result.dailyrevenue) {
+      result.dailyRevenue = createBalanceFrom({chain, timestamp: result.timestamp, amount: result.dailyFees})
+      subtractBalance({balance: result.dailyRevenue, amount: result.dailySupplySideRevenue})
+    }
+
+  }
 }

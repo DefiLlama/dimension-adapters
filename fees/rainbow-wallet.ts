@@ -71,12 +71,10 @@ const methodology = {
   Revenue: "Take 0.85% from trading volume",
 }
 
-const chainAdapter = { fetch, start: '2023-01-01', meta: { methodology } }
-
 const adapter: Adapter = {
-  adapter: Object.fromEntries(Object.entries(RainBowRouter).map(
-    ([chain]) => [chain, chainAdapter]
-  )),
+  methodology,
+  fetch, start: '2023-01-01',
+  chains: Object.keys(RainBowRouter),
   prefetch: prefetch,
 }
 

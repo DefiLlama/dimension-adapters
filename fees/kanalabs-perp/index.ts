@@ -46,11 +46,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.APTOS]: {
       fetch,
       start: '2024-09-12',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

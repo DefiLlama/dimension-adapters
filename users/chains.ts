@@ -2,6 +2,7 @@ import { queryFlipside } from "../helpers/flipsidecrypto";
 import { queryAllium, startAlliumQuery } from "../helpers/allium";
 import { httpGet } from "../utils/fetchURL";
 import axios from "axios";
+import { getEnv } from "../helpers/env";
 
 
 function getUsersChain(chain: string) {
@@ -122,7 +123,7 @@ async function elrondUsers(start: number) {
     const endDate = new Date((start + 86400) * 1e3).toISOString().slice(0, 10)
     const { data } = await axios.get(`https://tools.multiversx.com/data-api-v2/accounts/count?startDate=${startDate}&endDate=${endDate}&resolution=day`, {
         headers: {
-            "x-api-key": process.env.MULTIVERSX_USERS_API_KEY
+            "x-api-key": getEnv('MULTIVERSX_USERS_API_KEY')
         }
     })
     const { value } = data.find((d: any) => d.date.slice(0, 10) === startDate) 
