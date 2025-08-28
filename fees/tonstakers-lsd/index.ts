@@ -102,7 +102,7 @@ const adapter: SimpleAdapter = {
   version: 1, //voting cycles once in 16 hours , so doesnt make sense to fetch hourly
   fetch: fetchFee,
   chains: [CHAIN.TON],
-  start: '2021-08-27',
+  start: '2025-04-01',
   methodology,
   isExpensiveAdapter: true
 };
