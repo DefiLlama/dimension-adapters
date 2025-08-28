@@ -27,18 +27,16 @@ const getFetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> 
 }
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: 'Total trading fees paid by users.',
+        Revenue: 'Total trading fees paid by users.',
+        ProtocolRevenue: 'Total trading fees paid by users.',
+    },
     version: 2,
     adapter: {
         [CHAIN.BASE]: {
             fetch: getFetch,
             start: '2024-04-09',
-            meta: {
-                methodology: {
-                    Fees: 'Total trading fees paid by users.',
-                    Revenue: 'Total trading fees paid by users.',
-                    ProtocolRevenue: 'Total trading fees paid by users.',
-                }
-            }
         }
     }
 }

@@ -22,16 +22,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2024-07-27',
-      meta: {
-        methodology: {
-          Fees: "All trading fees paid by users while using Mevx bot.",
-          Revenue: "Trading fees are collected by Mevx protocol.",
-          ProtocolRevenue: "Trading fees are collected by Mevx protocol.",
-        }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading fees paid by users while using Mevx bot.",
+    Revenue: "Trading fees are collected by Mevx protocol.",
+    ProtocolRevenue: "Trading fees are collected by Mevx protocol.",
+  }
 };
 
 export default adapter;

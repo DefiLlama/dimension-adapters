@@ -126,18 +126,16 @@ const adapter: SimpleAdapter = {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-05-01',
-            meta: {
-                methodology: {
-                    Fees: 'Total fees paid by users, comprising all SOL and BOOP tokens collected by the protocol, staker, and buyback wallets.',
-                    Revenue: 'Total fees paid by users.',
-                    ProtocolRevenue: 'Includes boopfun frontend fees(0.1%), graduation fees(0.1%), and Raydium Initial liquidity fees(0.1%)',
-                    HoldersRevenue: 'Includes frontend fees(0.9%), instant unstaking fees 5% (BOOP to buyback), Raydium trading fees(0.1%), and Staking rewards 5% supply at graduation(approx 20 SOL).',
-                }
-            }
         }
     },
     version: 1,
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: 'Total fees paid by users, comprising all SOL and BOOP tokens collected by the protocol, staker, and buyback wallets.',
+        Revenue: 'Total fees paid by users.',
+        ProtocolRevenue: 'Includes boopfun frontend fees(0.1%), graduation fees(0.1%), and Raydium Initial liquidity fees(0.1%)',
+        HoldersRevenue: 'Includes frontend fees(0.9%), instant unstaking fees 5% (BOOP to buyback), Raydium trading fees(0.1%), and Staking rewards 5% supply at graduation(approx 20 SOL).',
+    }
 }
 
 export default adapter

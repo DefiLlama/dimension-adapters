@@ -10,7 +10,7 @@ const endpoints = {
   [CHAIN.ARBITRUM]:
     sdk.graph.modifyEndpoint('https://api.goldsky.com/api/public/project_clu01p4nr68r301pze2tj4sh7/subgraphs/vela-arbitrum/mainnet/gn'),
   [CHAIN.BASE]:
-  sdk.graph.modifyEndpoint('https://api.goldsky.com/api/public/project_clu01p4nr68r301pze2tj4sh7/subgraphs/vela-base/mainnet/gn')
+    sdk.graph.modifyEndpoint('https://api.goldsky.com/api/public/project_clu01p4nr68r301pze2tj4sh7/subgraphs/vela-base/mainnet/gn')
 };
 
 const methodology = {
@@ -41,20 +41,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   deadFrom: '2024-10-24', // https://x.com/vela_exchange/status/1849512562552971665
   version: 1,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
       start: '2023-06-26',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints)(CHAIN.BASE),
       start: '2023-09-04',
-      meta: {
-        methodology,
-      },
     }
   },
 };

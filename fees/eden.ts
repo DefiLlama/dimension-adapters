@@ -60,14 +60,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2022-09-15',
-      meta: {
-        methodology: {
-            Fees: "Total MEV Tips for Eden Builders"
-        }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Total MEV Tips for Eden Builders"
+  }
 }
 
 export default adapter;

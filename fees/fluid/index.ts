@@ -23,12 +23,12 @@ const adapter: Adapter = {
   version: 1,
   adapter: Object.entries(CONFIG_FLUID).reduce((acc, [chain, config]) => {
     acc[chain] = {
-      meta: { methodology: METHODOLOGY_FLUID },
       start: config.dataStartTimestamp,
       fetch
     };
     return acc;
-  }, {})
+  }, {}),
+  methodology: METHODOLOGY_FLUID,
 }
 
 export default adapter

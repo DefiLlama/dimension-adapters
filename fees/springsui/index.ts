@@ -30,12 +30,12 @@ const methodology = {
 
 
 const adapter: Adapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.SUI]: {
       fetch,
       start: '2024-10-29',
-      meta: { methodology },
     },
   },
 };

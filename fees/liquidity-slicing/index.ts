@@ -18,15 +18,15 @@ interface DailyFeeResponse {
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
-    
+
     const apiResponse = await httpPost(API_ENDPOINT, {}) as DailyFeeResponse;
-    
+
     const marketFees = Number(apiResponse.result.daily_market_fee) * 1e6;
     const totalRevenue = Number(apiResponse.result.daily_fee) * 1e6;
-    
+
     dailyFees.add(ARB_USDT, marketFees);
     dailyRevenue.add(ARB_USDT, totalRevenue);
-    
+
     return { dailyFees, dailyRevenue };
 }
 
@@ -35,15 +35,13 @@ const adapter: Adapter = {
         [ARBITRUM]: {
             fetch,
             start: '2024-11-18',
-            meta: {
-                methodology: {
-                    Fees: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
-                    Revenue: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
-                },
-            },
         },
     },
     version: 2,
+    methodology: {
+        Fees: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
+        Revenue: "LSP charges a 0.5% fee (in USDT) on market transactions, and takes 10% fee on users staking rewards.",
+    },
 };
 
 export default adapter;
