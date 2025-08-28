@@ -165,12 +165,10 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
     let fee = (todayNav.minus(yesterdayNav)).times(todayShares.div(1e18)).div(BigNumber(1).minus(revenueRatio));
     if (fee.lte(BigNumber(0))) {
       fee = BigNumber(0);
-    } else {
-      dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber());
-      fee = fee.div(sharesDecimal);
     }
 
     dailyFees.add(poolBaseInfo.currency, fee.toNumber());
+    dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber());
   }
 
   if (Object.keys(redemptionFees).length > 0) {
