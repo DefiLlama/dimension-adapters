@@ -104,6 +104,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.TON],
   start: '2021-08-27',
   methodology,
+  isExpensiveAdapter: true
 };
 
 export default adapter;
