@@ -88,8 +88,8 @@ const fetch = async (options: FetchOptions) => {
         balances: dailyRevenue,
         token0,
         token1,
-        amount0: log.amount0.toString() * fee,
-        amount1: log.amount1.toString() * fee,
+        amount0: log.amount0.toString() * fee * 0.985,
+        amount1: log.amount1.toString() * fee * 0.985,
       });
     });
   });
