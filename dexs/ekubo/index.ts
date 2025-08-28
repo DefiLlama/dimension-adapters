@@ -27,6 +27,8 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
     dailyFees.add(token.token, token.fees)
   })
   responseRevenue.map((token) => {
+    // add withdrawal fees to fees too
+    dailyFees.add(token.token, token.revenue)
     dailyRevenue.add(token.token, token.revenue)
   })
   
@@ -64,6 +66,8 @@ const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {
     dailyFees.add(token, t.fees)
   })
   responseRevenue.filter((t) => t.date_trunc.split('T')[0] === dateStr).map((t) => {
+    // add withdrawal fees to fees too
+    dailyFees.add(toAddress(t.token), t.revenue)
     dailyRevenue.add(toAddress(t.token), t.revenue)
   })
 
