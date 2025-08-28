@@ -100,7 +100,7 @@ async function getCoinSupply(coin: string): Promise<{
     decimals: number;
     supply: number;
 }> {
-    const { data: { decimals, supply } } = await httpGet(`${APTOS_PRC}/v1/accounts/${coin}/resource/0x1::coin::CoinInfo<${coin}::usdy::USDY>`)
+    const { data: { decimals, supply } } = await httpGet(`${APTOS_PRC}/v1/accounts/${coin.split('::')[0]}/resource/0x1::coin::CoinInfo<${coin}>`)
     return {
         decimals: Number(decimals),
         supply: Number(supply.vec[0].integer.vec[0].value),

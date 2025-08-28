@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { APTOS_PRC, getResources } from '../../helpers/aptops';
+import { APTOS_PRC, getResources } from '../../helpers/aptos';
 import { httpGet } from "../../utils/fetchURL";
 const plimit = require('p-limit');
 const limits = plimit(1);
