@@ -99,7 +99,12 @@ const fetchHistoricalFees = async (chainId: CHAIN, query: string, volumeField: s
 
 const calculateManagerFees = (data: any, onlyForTorosAndMstableManagers: boolean): number =>
   data
-    .filter(f => onlyForTorosAndMstableManagers && TOROS_AND_MSTABLE_MANAGERS.includes(f.manager) || true)
+    .filter(f => {
+      if (onlyForTorosAndMstableManagers){
+        return TOROS_AND_MSTABLE_MANAGERS.includes(f.manager.toLowerCase());
+      }
+      return true;
+    })
     .reduce((acc: number, item: any) => {
       const managerFee = Number(item.managerFee);
       const tokenPrice = Number(item.tokenPriceAtFeeMint);
@@ -111,7 +116,12 @@ const calculateManagerFees = (data: any, onlyForTorosAndMstableManagers: boolean
 
 const calculateEntryFees = (data: any, onlyForTorosAndMstableManagers: boolean): number =>
   data
-    .filter(f => onlyForTorosAndMstableManagers && TOROS_AND_MSTABLE_MANAGERS.includes(f.managerAddress) || true)
+    .filter(f => {
+      if (onlyForTorosAndMstableManagers){
+        return TOROS_AND_MSTABLE_MANAGERS.includes(f.managerAddress.toLowerCase());
+      }
+      return true;
+    })
     .reduce((acc: number, item: any) => {
       const entryFee = Number(item.entryFeeAmount);
       const tokenPrice = Number(item.tokenPrice);
@@ -123,7 +133,12 @@ const calculateEntryFees = (data: any, onlyForTorosAndMstableManagers: boolean):
 
 const calculateExitFees = (data: any, onlyForTorosAndMstableManagers: boolean): number =>
   data
-    .filter(f => onlyForTorosAndMstableManagers && TOROS_AND_MSTABLE_MANAGERS.includes(f.managerAddress) || true)
+    .filter(f => {
+      if (onlyForTorosAndMstableManagers){
+        return TOROS_AND_MSTABLE_MANAGERS.includes(f.managerAddress.toLowerCase());
+      }
+      return true;
+    })
     .reduce((acc: number, item: any) => {
       const exitFee = Number(item.exitFeeAmount);
       const tokenPrice = Number(item.tokenPrice);
