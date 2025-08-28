@@ -162,7 +162,7 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
     }
 
     // fee = net value increase after on-chain deduction * today's shares / (1 - corresponding fund's revenue_ratio)
-    let fee = (todayNav.minus(yesterdayNav)).times(todayShares).div(BigNumber(1).minus(revenueRatio));
+    let fee = (todayNav.minus(yesterdayNav)).times(todayShares.div(1e18)).div(BigNumber(1).minus(revenueRatio));
     if (fee.lte(BigNumber(0))) {
       fee = BigNumber(0);
     } else {
