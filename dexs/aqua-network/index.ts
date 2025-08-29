@@ -27,8 +27,9 @@ const fetch = async (_: any, _1: any, { dateString, }: FetchOptions) => {
   return {
     dailyVolume: day.volume / 1e7,
     dailyFees: ProtocolFees + LPFees + ExternalRewards,
-    dailyHoldersRevenue: LPFees,
+    dailySupplySideRevenue: LPFees,
     dailyRevenue: LPFees + ExternalRewards,
+    dailyHoldersRevenue: LPFees + ExternalRewards,
     dailyProtocolRevenue: 0,
   }
 };
