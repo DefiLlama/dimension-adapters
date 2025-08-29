@@ -17,6 +17,7 @@ const eVaultFactories = {
     [CHAIN.ARBITRUM]: "0x78Df1CF5bf06a7f27f2ACc580B934238C1b80D50",
     [CHAIN.AVAX]: "0xaf4B4c18B17F6a2B32F6c398a3910bdCD7f26181",
     [CHAIN.TAC]: "0x2b21621b8Ef1406699a99071ce04ec14cCd50677",
+    [CHAIN.LINEA]: "0x84711986Fd3BF0bFe4a8e6d7f4E22E67f7f27F04",
 };
 
 
@@ -181,6 +182,10 @@ const adapters: Adapter = {
         [CHAIN.TAC]: {
             fetch,
             start: '2025-06-21',
+        },
+        [CHAIN.LINEA]: {
+            fetch,
+            start: '2025-08-11', // first vault created
         },
     },
 }
