@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains"
 import * as sdk from '@defillama/sdk'
 import * as solana from '../helpers/solana'
 import axios from "axios"
-import { getCoinSupply } from "../helpers/aptops"
+import { getCoinSupply } from "../helpers/aptos"
 import { getObject } from '../helpers/sui'
 
 /**
@@ -43,7 +43,7 @@ const OndoContracts: any = {
     USDY: '0x5bE26527e817998A7206475496fDE1E68957c5A6',
   },
   [CHAIN.APTOS]: {
-    USDY: '0xcfea864b32833f157f042618bd845145256b1bf4c0da34a7013b76e42daa53cc',
+    USDY: '0xcfea864b32833f157f042618bd845145256b1bf4c0da34a7013b76e42daa53cc::usdy::USDY',
   },
   [CHAIN.ARBITRUM]: {
     USDY: '0x35e050d3C0eC2d29D269a8EcEa763a183bDF9A9D',
