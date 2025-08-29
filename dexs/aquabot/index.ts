@@ -22,14 +22,15 @@ const fetch = async (
   );
 
   const REVENUE_CONSTANT = 0.75;
+  const dailyHoldersRevenue = dailyFees * REVENUE_CONSTANT
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees * REVENUE_CONSTANT,
+    dailyProtocolRevenue: dailyFees - dailyHoldersRevenue,
+    dailyHoldersRevenue: dailyFees,
   };
 };
 
