@@ -14,7 +14,6 @@ const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResu
   `
   const chainData = await queryDuneSql(options, query)
   const dailyFees = options.createBalances()
-  console.log(chainData)
   dailyFees.addCGToken('aptos', chainData[0]["total_rev"])
 
   return { dailyFees, dailyRevenue: dailyFees, };
@@ -25,7 +24,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
-      start: '2025-05-21',
+      start: '2025-07-21',
     }
   },
   isExpensiveAdapter: true,
