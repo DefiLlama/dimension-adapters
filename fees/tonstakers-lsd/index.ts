@@ -1,7 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter, FetchResultFees } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
-import { getPrices } from "../../utils/prices";
 
 async function fetchData(blockNumber: number): Promise<[number, number]> {
   const url = 'https://ton-mainnet.core.chainstack.com/f2a2411bce1e54a2658f2710cd7969c3/api/v2/runGetMethod';
@@ -29,35 +28,32 @@ async function fetchData(blockNumber: number): Promise<[number, number]> {
     const totalAssets = parseInt(data.result.stack[3][1], 16);
     const totalShares = parseInt(data.result.stack[14][1], 16);
     return [totalAssets, totalShares];
-  } catch (error) {
-    console.error(error);
-    return [0, 0];
+  } catch (err: any) {
+    throw new Error(`Error while fetching tonstakers data: ${err.message}`);
   }
 }
 
-const fetchFee = async (options: FetchOptions) => {
-  const fromTimestamp = Number(options) - 86400;
-  const toTimestamp = Number(options);
-  let dailyFees = 0;
+const fetchFee = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+  let dailyFees = options.createBalances();
   const query = `
     WITH block_no_yesterday AS (
       SELECT 
         mc_block_seqno, 
         block_time
         FROM ton.blocks
-        WHERE block_time > FROM_UNIXTIME(${fromTimestamp} - 60)
-      AND block_time < FROM_UNIXTIME(${fromTimestamp} + 60)
+        WHERE block_time > FROM_UNIXTIME(${options.fromTimestamp} - 60)
+      AND block_time < FROM_UNIXTIME(${options.fromTimestamp} + 60)
         ORDER BY
-      ABS(TO_UNIXTIME(block_time) - ${fromTimestamp}) LIMIT 1), 
+      ABS(TO_UNIXTIME(block_time) - ${options.fromTimestamp}) LIMIT 1), 
     block_no_today AS (
       SELECT 
         mc_block_seqno, 
         block_time 
         FROM ton.blocks
-        WHERE block_time > FROM_UNIXTIME(${toTimestamp} - 60)
-      AND block_time < FROM_UNIXTIME(${toTimestamp} + 60)
+        WHERE block_time > FROM_UNIXTIME(${options.toTimestamp} - 60)
+      AND block_time < FROM_UNIXTIME(${options.toTimestamp} + 60)
         ORDER BY
-      ABS(TO_UNIXTIME(block_time) - ${toTimestamp}) LIMIT 1)
+      ABS(TO_UNIXTIME(block_time) - ${options.toTimestamp}) LIMIT 1)
 
     SELECT 
       mc_block_seqno
@@ -79,9 +75,7 @@ const fetchFee = async (options: FetchOptions) => {
     if (yesterdaysData[0] != 0 && todaysData[0] != 0) {
       const votingRewardsInTon = ((todaysData[0] / todaysData[1]) - (yesterdaysData[0] / yesterdaysData[1])) * (todaysData[1] / 1e9);
 
-      const TON = "coingecko:the-open-network";
-      const tonPrice = await getPrices([TON], Number(options));
-      dailyFees = votingRewardsInTon * tonPrice[TON].price;
+      dailyFees.addCGToken("the-open-network", votingRewardsInTon);
     }
   }
 
