@@ -1,7 +1,6 @@
 import {Adapter, FetchV2} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import {httpGet} from "../../utils/fetchURL";
-import {getPrices} from "../../utils/prices";
 
 function normalizeAddress(address: string): string {
     return address == "native" ? "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c" : address
@@ -16,9 +15,6 @@ const fetch: FetchV2 = async ({startTimestamp, endTimestamp, createBalances}) =>
                 endTimestamp: endTimestamp
             }
         })
-
-    const tokens = statistics.map((entry: any) => `ton:${normalizeAddress(entry["address"])}`)
-    const prices = (await getPrices(tokens, startTimestamp))
 
     const dailyFees = createBalances();
     const dailyRevenue = createBalances();
@@ -35,7 +31,6 @@ const fetch: FetchV2 = async ({startTimestamp, endTimestamp, createBalances}) =>
     }
 
     return {
-        timestamp: startTimestamp,
         dailyFees: dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue: dailyRevenue,
@@ -46,12 +41,16 @@ const fetch: FetchV2 = async ({startTimestamp, endTimestamp, createBalances}) =>
 
 const adapter: Adapter = {
     version: 2,
-    adapter: {
-        [CHAIN.TON]: {
-            fetch,
-            start: '2025-05-09',
-        },
-    }
+    methodology: {
+        Fees: 'Swap fees paid by users',
+        UserFees: 'Swap fees paid by users',
+        Revenue: 'The amount of swap fees for protocol',
+        ProtocolRevenue: 'The amount of swap fees for protocol',
+        SupplySideRevenue: 'The amount of swap fees distributed to LPs',
+    },
+    fetch,
+    chains: [CHAIN.TON],
+    start: '2025-05-09',
 }
 
 export default adapter;
