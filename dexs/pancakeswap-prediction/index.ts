@@ -11,7 +11,7 @@ const EVENT_ABI = {
 
 async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
+    const dailyFees = options.createBalances();
 
     const bullLogs = await options.getLogs({
         target: PCS_BNB_PREDICTION_CONTRACT,
@@ -37,17 +37,23 @@ async function fetch(options: FetchOptions) {
     });
 
     rewardLogs.forEach(reward => {
-        dailySupplySideRevenue.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
+        dailyFees.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
     });
 
-    return { dailyVolume, dailyFees:dailySupplySideRevenue, dailyRevenue: dailySupplySideRevenue, dailyProtocolRevenue:0, dailySupplySideRevenue };
+    return { 
+        dailyVolume,
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue:0, 
+        dailyHoldersRevenue: dailyFees,
+    };
 }
 
 const methodology = {
     Fees: "3% from winners' share is taken as fee",
     Revenue: "All the fee is kept as revenue",
     ProtocolRevenue: "Protocol doesn't take any revenue share",
-    SupplySideRevenue: "All the revenue goes to CAKE buyback and burn",
+    HoldersRevenue: "All the revenue goes to CAKE buyback and burn",
 };
 
 const adapter: SimpleAdapter = {
