@@ -1,3 +1,4 @@
+import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
 import { getLiquityV2LogAdapter } from "../helpers/liquity";
 
@@ -18,14 +19,10 @@ async function fetch(options: FetchOptions) {
 
 export default {
   version: 2,
-  adapter: {
-    ethereum: {
-      fetch,
-    },
-  },
   methodology: {
     Fees: "Total interest, redemption fees paid by borrowers and liquidation profit",
-    Revenue:
-      "Total interest, redemption fees paid by borrowers and liquidation profit",
+    Revenue: "Total interest, redemption fees paid by borrowers and liquidation profit",
   },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
 };
