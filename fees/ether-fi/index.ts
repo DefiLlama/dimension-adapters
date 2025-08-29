@@ -262,7 +262,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   //steth holding staking rewards
-  dailyFees.add(STETH, BigInt(stethFees) + BigInt(stethRevenue));
+  dailyFees.add(STETH, stethFees + stethRevenue);
   dailyRev.add(STETH, (stethRevenue));
 
   //staking
