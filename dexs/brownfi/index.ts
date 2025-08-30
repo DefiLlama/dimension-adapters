@@ -64,7 +64,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * fee, amount1: Number(log.amount1Out) * fee })
     })
   })
-  return { dailyVolume, dailyFees };
+  return { 
+    dailyVolume, 
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: "0",
+    dailySupplySideRevenue: dailyFees,
+    dailyProtocolRevenue: "0",
+    dailyHoldersRevenue: "0",
+  };
 };
 
 const methodology = {
