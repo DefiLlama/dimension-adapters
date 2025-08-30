@@ -1,7 +1,8 @@
 WITH params AS (
   SELECT
-    0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643 AS collector,  -- your wallet
-    from_unixtime({{start}}) AS t0                           -- start date from parameter
+    {{collector}} AS collector,
+    from_unixtime({{start}}) AS t0,
+    from_unixtime({{end}}) AS t1
 ),
 
 usdc_by_chain AS (
@@ -14,7 +15,26 @@ usdc_by_chain AS (
       ('avalanche_c', 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E),
       ('optimism',    0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85), 
       ('bnb',         0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d)
-  ) AS t(blockchain, contract_address)   -- 👈 name the columns here
+  ) AS t(blockchain, contract_address)
+),
+
+filtered_transfers AS (
+  SELECT
+    t.block_time,
+    t.blockchain,
+    t.contract_address,
+    t.amount,
+    t.amount_usd,
+    t."to",
+    t."tx_to"
+  FROM tokens.transfers t
+  CROSS JOIN params p
+  WHERE t.block_time >= p.t0
+    AND t.block_time < p.t1
+    AND t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb')
+    AND t."to" = p.collector
+    AND t."tx_to" <> p.collector
+    AND t.amount <= 3000
 ),
 
 xfers AS (
@@ -23,20 +43,13 @@ xfers AS (
     t.blockchain,
     t.amount,
     t.amount_usd
-  FROM tokens.transfers t
+  FROM filtered_transfers t
   JOIN usdc_by_chain u
     ON t.blockchain = u.blockchain
    AND t.contract_address = u.contract_address
-  CROSS JOIN params p
-  WHERE t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb')
-    AND t."to" = p.collector         -- inbound only
-    AND t."tx_to" <> p.collector     -- exclude self-sends
-    AND date_trunc('day', t.block_time) = date_trunc('day', p.t0)  -- same day only
-    AND t.amount <= 3000             -- remove large transfers
 )
 
 SELECT
-  date_trunc('day', block_time) AS day,
   blockchain,
   COUNT(*)        AS tx_count,
   SUM(amount_usd) AS total_amount_usdc,
@@ -44,5 +57,5 @@ SELECT
   SUM(amount)     AS total_amount,
   AVG(amount)     AS avg_per_tx
 FROM xfers
-GROUP BY 1, 2
-ORDER BY day DESC, blockchain;
+GROUP BY 1
+ORDER BY blockchain;

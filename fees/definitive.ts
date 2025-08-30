@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { getSolanaReceived } from "../helpers/token";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
@@ -12,9 +11,10 @@ const SOLANA_FEE_ADDRESSES = [
 ];
 
 const prefetch = async (options: FetchOptions) => {
-  const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
   const sql = getSqlFromFile("helpers/queries/definitive.sql", {
-    start: startOfDay
+    start: options.startTimestamp,
+    end: options.endTimestamp,
+    collector: '0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643'
   });
   return await queryDuneSql(options, sql);
 }
@@ -52,12 +52,7 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
   const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
 
   if (data) {
-    // The SQL query returns total_amount_usdc which is already in USD
     const usdcFees = data.total_amount_usdc || 0;
-    
-    console.log(`${options.chain}: Found ${data.tx_count} transactions, ${usdcFees} USD in fees`);
-    
-    // Add USDC fees as USD value
     dailyFees.addUSDValue(usdcFees);
   } else { 
     console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
@@ -73,6 +68,7 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
 
 const methodology = {
   Fees: 'User pays 0.05% - 0.25% fee on each trade',
+  UserFees: 'User pays 0.05% - 0.25% fee on each trade',
   Revenue: 'Fees are distributed to Definitive',
   ProtocolRevenue: 'Fees are distributed to Definitive',
 }
