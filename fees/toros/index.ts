@@ -149,14 +149,12 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
     timestamp: endTimestamp,
   };
 }
 
 const methodology = {
   Fees: 'All fees generated from Toros vaults.',
-  Revenue: 'All revenue collected by the Toros protocol.',
 }
 
 const adapter: SimpleAdapter = {
