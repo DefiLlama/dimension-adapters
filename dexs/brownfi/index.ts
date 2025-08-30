@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { filterPools } from "../../helpers/uniswap";
-import { FetchOptions, SimpleAdapter, IJSON } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addOneToken } from "../../helpers/prices";
 import { cache } from "@defillama/sdk";
 
@@ -25,14 +25,14 @@ const abis = {
   fees: "function fee() external view returns (uint32)",
 };
 
-const getData = async (options: any) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const factory = brownfiV2Factories[options.chain].factory;
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
 
   const { pairs, token0s, token1s } = await cache.readCache(cacheKey, { readFromR2Cache: true })
   if (!pairs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
-  const pairObject: IJSON<string[]> = {}
+  const pairObject: { [key: string]: string[] } = {}
   const fees: any = {}
   pairs.forEach((pair: string, i: number) => {
     pairObject[pair] = [token0s[i], token1s[i]]
@@ -67,28 +67,19 @@ const getData = async (options: any) => {
   return { dailyVolume, dailyFees };
 };
 
-const fetchBrownFiV2 = () => {
-  return async (options: FetchOptions) => {
-    return await getData(options);
-  };
-};
+const methodology = {
+  Fees: "Fees from swap transactions.",
+  UserFees: "Fees from swap transactions.",
+  Revenue: "Brownfi does not earn any revenue.",
+  ProtocolRevenue: "Brownfi does not earn any revenue.",
+  SupplySideRevenue: "LPs earn 100% of the total fees.",
+  HoldersRevenue: "Holders does not earn any revenue.",
+}
 
 const adapters: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BERACHAIN]: {
-      fetch: fetchBrownFiV2(),
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchBrownFiV2(),
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchBrownFiV2(),
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetchBrownFiV2(),
-    },
-  },
+  fetch,
+  chains: [CHAIN.BERACHAIN, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.HYPERLIQUID],
+  methodology,
 };
 
 export default adapters;
