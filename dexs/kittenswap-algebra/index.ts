@@ -4,10 +4,8 @@ import { filterPools } from "../../helpers/uniswap";
 import { ethers } from "ethers";
 import { addOneToken } from "../../helpers/prices";
 
-const poolEvent =
-  "event Pool(address indexed token0, address indexed token1, address pool)";
-const poolSwapEvent =
-  "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
+const poolEvent = "event Pool(address indexed token0, address indexed token1, address pool)";
+const poolSwapEvent = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 
 const factory = "0x5f95E92c338e6453111Fc55ee66D4AafccE661A7";
 const fromBlock = 1102201;
@@ -105,18 +103,20 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "All swap fees paid by users.",
+  UserFees: "All swap fees paid by users.",
+  SupplySideRevenue: "No fees distributed to LPs.",
+  Revenue: "98.5% of swap fees are revenue. remaining 1.5% are distributed to Algebra.",
+  ProtocolRevenue: "Protocol makes no revenue.",
+  HoldersRevenue: "98.5% of revenue are distributed to veKITTENs holders. remaining 1.5% are distributed to Algebra.",
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology: {
-    Fees: "All swap fees paid by users.",
-    UserFees: "All swap fees paid by users.",
-    SupplySideRevenue: "No fees distributed to LPs.",
-    Revenue: "All swap fees are revenue.",
-    ProtocolRevenue: "Protocol makes no revenue.",
-    HoldersRevenue: "All revenue are distributed to veKITTENs holders.",
-  },
-  chains: [CHAIN.HYPERLIQUID],
   fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  methodology
 };
 
 export default adapter;
