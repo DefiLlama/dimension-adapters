@@ -1,8 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const date = new Date(options.fromTimestamp * 1000);
     const formattedDate = date.toISOString().split("T")[0];
 
@@ -15,20 +15,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     const dailyVolume = options.createBalances();
     dailyVolume.addCGToken("ripple", Number(ammVolumeXrp) + Number(dexVolumeXrp));
 
-    return {
-        dailyVolume
-    };
+    return { dailyVolume };
 };
 
-
 const adapter: any = {
-    version: 1,
-    adapter: {
-        [CHAIN.RIPPLE]: {
-            fetch,
-            start: '2025-03-19',
-        },
-    },
+    fetch,
+    chains: [CHAIN.RIPPLE],
+    start: '2025-03-19',
 };
 
 export default adapter;
