@@ -12,7 +12,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     AND TIME_RANGE
   `
   const result = await queryDuneSql(options, query);
-  const dailyFees = Number(result[0].deposits) * (0.0025);
+  const dailyFees = options.createBalances();
+  dailyFees.addCGToken('solana', Number(result[0].deposits) * (0.0025));
 
   return {
     dailyFees,
