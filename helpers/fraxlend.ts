@@ -12,6 +12,7 @@ interface FraxlenExportConfigs {
 
 const FUNCTION_ABI = {
   BORROW_ASSET: "function asset() view returns (address)",
+  COLLATERAL_CONTRACT: "function collateralContract() view returns (address)",
   ALL_PAIRS: "function getAllPairAddresses() view returns (address[])"
 };
 
@@ -33,10 +34,14 @@ const getFees = async (options: FetchOptions, configs: FraxlenExportConfigs) => 
 
   await Promise.all(
     allPairs.map(async (pairAddress: string) => {
-      const [asset, interestOccuralLogs1, interestOccuralLogs2, liquidationLogs] = await Promise.all([
+      const [asset, collateralContract, interestOccuralLogs1, interestOccuralLogs2, liquidationLogs] = await Promise.all([
         options.api.call({
           target: pairAddress,
           abi: FUNCTION_ABI.BORROW_ASSET,
+        }),
+        options.api.call({
+          target: pairAddress,
+          abi: FUNCTION_ABI.COLLATERAL_CONTRACT,
         }),
         options.getLogs({
           target: pairAddress,
@@ -60,7 +65,8 @@ const getFees = async (options: FetchOptions, configs: FraxlenExportConfigs) => 
       });
 
       liquidationLogs.forEach(liquidation => {
-        dailyFees.add(asset, liquidation.feesAmount);
+        // fees in collateral asset
+        dailyFees.add(collateralContract, liquidation.feesAmount);
       });
     })
   );
