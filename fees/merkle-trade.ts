@@ -1,6 +1,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getResources, APTOS_PRC } from '../helpers/aptops';
+import { getResources, APTOS_PRC } from '../helpers/aptos';
 import { httpGet } from "../utils/fetchURL";
 
 // Constants

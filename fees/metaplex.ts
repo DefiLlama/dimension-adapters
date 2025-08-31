@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains"
 import { getEnv } from "../helpers/env"
 import { httpGet } from "../utils/fetchURL"
 
-const url = `https://analytics.topledger.xyz/metaplex/api/queries/10849/results.json?api_key=${getEnv('METAPLEX_API_KEY')}`
+const url = `https://analytics.topledger.xyz/metaplex-api/api/queries/12250/results.json?api_key=${getEnv('METAPLEX_API_KEY')}`
 
 interface IFees {
   block_date: string;

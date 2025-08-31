@@ -7,7 +7,7 @@ WITH params AS (
     0x0000000000000000000000000000000000000000 as zero_address,
     0xe8f7c89C5eFa061e340f2d2F206EC78FD8f7e124 as uniswap_v3, -- uniswap v3 WBTC-cbBTC
     0xE0554a476A092703abdB3Ef35c80e0D76d32939F as uniswap_v3_usdc, -- uniswap v3 USDC
-    0xeF1eC136931Ab5728B0783FD87D109c9D15D31F1 as across, -- I think this is across protocol
+    0xeF1eC136931Ab5728B0783FD87D109c9D15D31F1 as across -- I think this is across protocol
 ),
 
 usdc_by_chain AS (
