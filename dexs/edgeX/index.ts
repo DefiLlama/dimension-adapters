@@ -1,4 +1,4 @@
-import fetchURL from "../../utils/fetchURL"
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL"
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -38,11 +38,11 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) * 1000
   const toTimestamp = dayTimestamp + 60 * 60 * 24 * 1000;
   const contractIds: string[] = parseContractIds(await fetchURL(metaDataEndpoint));
-  const klines = await Promise.all(contractIds.map(async (contractId) => {
-    const response: ApiResponse = await fetchURL(klineDailyEndpoint(contractId, dayTimestamp, toTimestamp));
-    return response.data.dataList;
+  const klines: Array<any> = [];
+  for (const contractId of contractIds) {
+    const response: ApiResponse = await fetchURLAutoHandleRateLimit(klineDailyEndpoint(contractId, dayTimestamp, toTimestamp), 5);
+    klines.push(response.data.dataList);
   }
-  ));
   const oi = await fetchURL(openInterestEndpoint);
   const volumes = klines
     .flat()
