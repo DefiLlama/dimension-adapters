@@ -13,16 +13,16 @@ const info = {
   },
   breakdownMethodology: {
     Fees: {
-      'Borrow Interest': 'All interest paid by borrowers from all vaults.',
+      [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all vaults.',
     },
     Revenue: {
-      'Borrow Interest': 'No revenue from Morpho protocol.',
+      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
     },
     SupplySideRevenue: {
-      'Borrow Interest': 'All interests paid are distributedd to vaults suppliers, lenders.',
+      [METRIC.BORROW_INTEREST]: 'All interests paid are distributedd to vaults suppliers, lenders.',
     },
     ProtocolRevenue: {
-      'Borrow Interest': 'No revenue from Morpho protocol.',
+      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
     },
   }
 }

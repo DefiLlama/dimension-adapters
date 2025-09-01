@@ -3,6 +3,7 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { getEnv } from "../../helpers/env";
 
 const tsToISO = (ts: number) => new Date(ts * 1e3).toISOString();
 
@@ -14,7 +15,7 @@ const fetch = async (_: any, _b: any, options: any): Promise<FetchResult> => {
   const response = await httpGet(`https://api.defi.app/api/stats/volume-perps/between?startTime=${tsToISO(startDate)}&endTime=${tsToISO(endDate)}`, {
     headers: {
       "Content-Type": "application/json",
-      "X-API-KEY": process.env.DEFIAPP_API_KEY,
+      "X-API-KEY": getEnv('DEFIAPP_API_KEY'),
       User: "defillama",
     },
   });

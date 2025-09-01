@@ -6,11 +6,9 @@ const fetch = async (timestamp: number) => {
   const url = `https://www.api.pearprotocol.io/v1/metric?timestamp=${timestamp}`;
   const response = await httpGet(url);
 
-  const totalVolume = response.payload.totalVolume;
   const dailyVolume = response.payload.dailyVolume;
 
   return {
-    totalVolume,
     dailyVolume,
     timestamp,
   };

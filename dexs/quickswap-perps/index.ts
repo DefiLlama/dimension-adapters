@@ -32,19 +32,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
     const volumeStats: IVolumeStat[] = graphRes.volumeStats;
 
     let dailyVolumeUSD = BigInt(0);
-    let totalVolumeUSD = BigInt(0);
 
     volumeStats.forEach((vol) => {
       dailyVolumeUSD += BigInt(vol.volumeUsd);
-      totalVolumeUSD += BigInt(vol.cumulativeVolumeUsd);
     });
 
     const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e30;
-    const finalTotalVolume = parseInt(totalVolumeUSD.toString()) / 1e30;
 
     return {
       dailyVolume: finalDailyVolume.toString(),
-      totalVolume: finalTotalVolume.toString(),
       timestamp: todaysTimestamp,
     };
   };

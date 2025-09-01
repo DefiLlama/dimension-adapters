@@ -30,11 +30,9 @@ const getData = async (chain: string, timestamp: number) => {
 
   const data: IGraph = await request(ENDPOINTS[chain], query);
 
-  // const totalVolume = Number(data.totalVolumes[0].volumeUsd);  // totalVolume has spikes, excluding from results
   const dailyVolume = Number(data.dailyVolume?.volumeUsd ?? "0");
 
   return {
-    // totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
@@ -43,7 +41,6 @@ const getData = async (chain: string, timestamp: number) => {
 export const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
   const data = await getData(options.chain, options.startOfDay);
   return {
-    // totalVolume: data.totalVolume,
     dailyVolume: data.dailyVolume,
     timestamp: data.timestamp,
   };

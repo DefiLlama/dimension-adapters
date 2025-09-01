@@ -6,8 +6,6 @@ import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 const methodology = {
   UserFees: "LPs collect 100% of the fee generated in a pool",
   Fees: "Fees generated on each swap at a rate set by the pool.",
-  TotalUserFees: "Cumulative all-time Fees",
-  TotalFees: "Cumulative all-time Fees",
 };
 
 const v3Graphs = getGraphDimensions2({

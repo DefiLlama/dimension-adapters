@@ -10,8 +10,6 @@ const v3Endpoints = {
   [CHAIN.METIS]: "https://metis-graph.maiadao.io/uniswap-v3",
 };
 
-const VOLUME_USD = "volumeUSD";
-
 const v3Graphs = getGraphDimensions2({
   graphUrls: v3Endpoints,
   totalVolume: {
