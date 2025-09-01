@@ -2,7 +2,12 @@ WITH params AS (
   SELECT
     {{collector}} AS collector,
     from_unixtime({{start}}) AS t0,
-    from_unixtime({{end}}) AS t1
+    from_unixtime({{end}}) AS t1,
+    0xa2fe8E38A14CF7BeECE22aE71E951F78CE233643 AS collector,  -- your wallet
+    0x0000000000000000000000000000000000000000 as zero_address,
+    0xe8f7c89C5eFa061e340f2d2F206EC78FD8f7e124 as uniswap_v3, -- uniswap v3 WBTC-cbBTC
+    0xE0554a476A092703abdB3Ef35c80e0D76d32939F as uniswap_v3_usdc, -- uniswap v3 USDC
+    0xeF1eC136931Ab5728B0783FD87D109c9D15D31F1 as across -- I think this is across protocol
 ),
 
 usdc_by_chain AS (
@@ -47,6 +52,16 @@ xfers AS (
   JOIN usdc_by_chain u
     ON t.blockchain = u.blockchain
    AND t.contract_address = u.contract_address
+  CROSS JOIN params p
+  WHERE t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb')
+    AND t."to" = p.collector         -- inbound only
+    AND t."tx_to" <> p.collector     -- exclude self-sends
+    AND t."tx_from" <> p.zero_address
+    AND t."tx_from" <> p.uniswap_v3
+    AND t."tx_from" <> p.uniswap_v3_usdc
+    AND t."tx_from" <> p.across
+    AND date_trunc('day', t.block_time) = date_trunc('day', p.t0)  -- same day only
+    AND t.amount <= 3000             -- remove large transfers
 )
 
 SELECT
