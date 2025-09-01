@@ -105,6 +105,8 @@ const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
     ORDER BY 1 DESC
   `);
 
+  options.api.log(data);
+
   const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
   const daily = data.find(e => e.day.split(' ')[0] === dateStr);
   const dailyVolume = options.createBalances();

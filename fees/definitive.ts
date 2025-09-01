@@ -10,6 +10,16 @@ const SOLANA_FEE_ADDRESSES = [
   "Ggp9SGTqAKiJWRXeyEb2gEVdmD6n7fgHD7t4s8DrAqwf",
 ];
 
+// Solana addresses to blacklist (exclude from fee calculation)
+const SOLANA_BLACKLIST = [
+  "BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV", // Jupiter Aggregator Authority 1
+  "ByRijnGjExGxNcidASSZcySmrvnB5NwgVK3QQacWXXvM", 
+  "9XLonXfbZqBp66WRDScfRp1MJYKd4k4tUDibMQBLJehJ", 
+  "CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps", // Jupiter Aggregator Authority 6
+  "5Dr7kc6U9hrwv1PQz67nyvhUpvXdQibt6L8RHwUrt2L4", 
+  "A1GC8eqyezWb5gbgaLxzg93LgP84SXhLZymmv7g4t87a",
+];
+
 const prefetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/definitive.sql", {
     start: options.startTimestamp,
@@ -36,6 +46,7 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
     const solanaFees = await getSolanaReceived({
       options,
       targets: SOLANA_FEE_ADDRESSES,
+      blacklists: SOLANA_BLACKLIST,
     });
     
     return {
