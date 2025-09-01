@@ -35,28 +35,26 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, };
 };
 
-const meta = {
+const adapter: SimpleAdapter = {
+  version: 2,
   methodology: {
     Fees: "All fees paid by users by using PinkSale services.",
     Revenue: "All fees are collected by PinkSale protocol.",
     ProtocolRevenue: "Trading fees are collected by PinkSale protocol.",
-  }
-}
-
-const adapter: SimpleAdapter = {
-  version: 2,
+  },
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2021-10-30', meta },
-    [CHAIN.BSC]: { fetch, start: '2021-06-01', meta },
-    [CHAIN.POLYGON]: { fetch, start: '2024-12-06', meta },
-    [CHAIN.ARBITRUM]: { fetch, start: '2023-02-01', meta },
-    [CHAIN.AVAX]: { fetch, start: '2021-09-18', meta },
-    // [CHAIN.CRONOS]: {  fetch,  start: '2022-04-01',},
-    // [CHAIN.CORE]: {  fetch,  start: '2023-10-19',},
-    // [CHAIN.ZETA]: {  fetch,  start: '2025-02-07',},
-    [CHAIN.BASE]: { fetch, start: '2024-04-05', meta },
-    [CHAIN.UNICHAIN]: { fetch, start: '2025-02-21', meta },
-    [CHAIN.SOLANA]: { fetch: fetchSolanaFees, start: '2024-02-04', meta },
+    [CHAIN.ETHEREUM]: { start: '2021-10-30', },
+    [CHAIN.BSC]: {start: '2021-06-01', },
+    [CHAIN.POLYGON]: {start: '2024-12-06', },
+    [CHAIN.ARBITRUM]: {start: '2023-02-01', },
+    [CHAIN.AVAX]: {start: '2021-09-18', },
+    // [CHAIN.CRONOS]: {  start: '2022-04-01',},
+    // [CHAIN.CORE]: {  start: '2023-10-19',},
+    // [CHAIN.ZETA]: {  start: '2025-02-07',},
+    [CHAIN.BASE]: {start: '2024-04-05', },
+    [CHAIN.UNICHAIN]: {start: '2025-02-21', },
+    [CHAIN.SOLANA]: { fetch: fetchSolanaFees, start: '2024-02-04', },
   },
 };
 

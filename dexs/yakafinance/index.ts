@@ -19,7 +19,6 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
     const req = await request(url, query);
     return {
         dailyVolume: req.pancakeDayData.dailyVolumeUSD,
-        totalVolume: req.pancakeFactories[0].totalVolumeUSD,
         timestamp: timestamp,
     }
 }

@@ -247,9 +247,13 @@ export enum CHAIN {
   XRPL_EVM = 'xrplevm',
   KATANA = 'katana',
   SOON = 'soon',
+  SOON_BSC = 'soon_bsc',
+  SOON_BASE = 'soon_base',
   HYDRAGON = 'hydragon',
   TAC = "tac",
   NIBIRU = "nibiru",
+  HAVEN1 = "haven1",
+  GRVT = "grvt",
 }
 
 // Don´t use

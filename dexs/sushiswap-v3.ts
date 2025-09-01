@@ -91,10 +91,7 @@ const v3: any = Object.keys(endpointsV3).reduce(
       fetch: async (options: FetchOptions) => {
         const res = (await v3Graphs(options))
         const result = {
-          totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,
-          totalFees: res.totalFees,
-          totalUserFees: res.totalUserFees,
           dailyFees: res.dailyFees,
           dailyUserFees: res.dailyUserFees,
           dailyRevenue: res.dailyRevenue,

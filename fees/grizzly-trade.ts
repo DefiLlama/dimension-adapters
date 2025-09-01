@@ -51,13 +51,11 @@ const methodology = {
 
 const adapter: Adapter = {
     deadFrom: "2024-12-14",
+    methodology,
     adapter: {
         [CHAIN.BSC]: {
             fetch,
             start: '2023-07-21',
-            meta: {
-                methodology
-            }
         },
     }
 }

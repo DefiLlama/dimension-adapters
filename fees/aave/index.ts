@@ -61,6 +61,13 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       lendingPoolProxy: '0x0AA97c284e98396202b6A04024F5E2c65026F3c0',
       dataProvider: '0x8Cb4b66f7B13F2Ae4D3c91338fC007dbF8C14208',
     },
+
+    // horizon market 
+    {
+      version: 3,
+      lendingPoolProxy: '0xAe05Cd22df81871bc7cC2a04BeCfb516bFe332C8',
+      dataProvider: '0x53519c32f73fE1797d10210c4950fFeBa3b21504',
+    },
   ],
   [CHAIN.OPTIMISM]: [
     {
@@ -169,7 +176,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
     Revenue: 'Amount of fees go to Aave treasury.',
@@ -206,8 +213,8 @@ const meta = {
 
 const adapter: BreakdownAdapter = {
   version: 2,
-  methodology: meta.methodology,
-  breakdownMethodology: meta.breakdownMethodology,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   breakdown: {
     v1: aaveExport({
       [CHAIN.ETHEREUM]: {

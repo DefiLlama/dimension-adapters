@@ -90,14 +90,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
         return {
           timestamp,
-          totalVolume: totalVolume.toString(),
           dailyVolume: last24hrVolume.toString(),
         };
       }
 
       return {
         timestamp,
-        totalVolume: "0",
         dailyVolume: "0",
       };
     };
