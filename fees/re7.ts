@@ -1,4 +1,3 @@
-import { SimpleAdapter } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
 const curatorConfig: CuratorConfig = {
@@ -56,12 +55,12 @@ const curatorConfig: CuratorConfig = {
         '0x7B41b9891887820A75A51a1025dB1A54f4798521',
       ],
     },
+    tac:{
+      eulerVaultOwners: [
+        '0xE5EAE3770750dC9E9eA5FB1B1d81A0f9C6c3369c',
+      ],
+    },
   }
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: getCuratorExport(curatorConfig),
-}
-
-export default adapter
+export default getCuratorExport(curatorConfig)

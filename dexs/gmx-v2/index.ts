@@ -38,20 +38,12 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (_tt: number,
     id: '1d:' + String(dayTimestamp),
     period: '1d',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
 
   return {
     timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeInfos.length == 1
         ? String(Number(Object.values(dailyData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-    totalVolume:
-      totalData.volumeInfos.length == 1
-        ? String(Number(Object.values(totalData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
         : undefined,
   }
 }
@@ -89,18 +81,15 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   const dailyVolume = res.volumeRecordDailies
     .filter((record: {timestamp : string}) => record.timestamp.split('T')[0] === targetDate.split('T')[0])
     .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
-  const totalVolume = res.volumeRecordDailies
-    .filter((record: {timestamp : string}) => record.timestamp <= targetDate)
-    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
   if (dailyVolume === 0) throw new Error('Not found daily data!.')
   return {
     timestamp: options.startOfDay,
     dailyVolume: dailyVolume / (10 ** 20),
-    totalVolume: totalVolume / (10 ** 20)
   }
 }
 
 const adapter: BreakdownAdapter = {
+  methodology,
   breakdown: {
     "gmx-v2-swap": Object.keys(endpoints).reduce((acc, chain) => {
       return {
@@ -108,7 +97,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataSwap)(chain),
           start: startTimestamps[chain],
-          meta: {methodology}
         }
       }
     }, {}),
@@ -118,7 +106,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: getFetch(historicalDataDerivatives)(chain),
           start: startTimestamps[chain],
-          meta: {methodology}
         }
       }
     }, {})
@@ -128,7 +115,6 @@ const adapter: BreakdownAdapter = {
 adapter.breakdown["gmx-v2-trade"][CHAIN.SOLANA] = {
   fetch: fetchSolana,
   start: '2021-08-31',
-  meta: {methodology}
 }
 
 export default adapter;

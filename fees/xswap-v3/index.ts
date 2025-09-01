@@ -1,2 +1,3 @@
-import adapter from '../../dexs/xswap-v3/index';
+import adapter from '../../dexs/xswap-v3';
+
 export default adapter;

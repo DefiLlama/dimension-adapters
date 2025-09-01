@@ -19,6 +19,7 @@ const fetch = univ2Adapter({
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2024-01-26',
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: async () => (24 * 60 * 60) * 19600 },
     [CHAIN.POLYGON]: { fetch, start: async () => (24 * 60 * 60) * 19600 },

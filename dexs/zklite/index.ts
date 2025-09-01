@@ -25,12 +25,10 @@ const fetch = async (timestamp: number) => {
   const markets: TMarket = (await fetchURL('https://api.zklite.io/api/v1/markets'));
   const marketInfos: TMarketInfo = (await fetchURL('https://api.zklite.io/api/v1/marketinfos?chain_id=1&market=' + Object.keys(markets).join(',')));
   let dailyVolume = 0
-  let totalVolume = 0
   Object.keys(markets).forEach(market => {
-    const { baseVolume, usdVolume24h, usdVolumeAll } = markets[market]
+    const { baseVolume, usdVolume24h, } = markets[market]
     if (usdVolume24h) {
       dailyVolume += usdVolume24h;
-      totalVolume += usdVolumeAll;
       return;
     }
 
@@ -40,12 +38,12 @@ const fetch = async (timestamp: number) => {
   })
   return {
     dailyVolume,
-    totalVolume,
     timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-01-01",
   adapter: {
     [CHAIN.ZKSYNC]: {
       fetch,

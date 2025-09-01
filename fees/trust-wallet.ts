@@ -186,16 +186,14 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: fetchFees,
         start: '2023-05-18',
-        meta: {
-          methodology: {
-            Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
-            Revenue: 'Fees collected by Trust Wallet.',
-            ProtocolRevenue: 'Fees collected by Trust Wallet.',
-          }
-        }
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
+    Revenue: 'Fees collected by Trust Wallet.',
+    ProtocolRevenue: 'Fees collected by Trust Wallet.',
+  }
 };
 
 export default adapter;

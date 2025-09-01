@@ -3,12 +3,10 @@ import { SimpleAdapter, FetchOptions, } from "../adapters/types";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
-const meta = {
-  methodology: {
-    Fees: "All trading fees paid by users while using Maestro bot.",
-    Revenue: "Trading fees are collected by Maestro protocol.",
-    ProtocolRevenue: "Trading fees are collected by Maestro protocol.",
-  }
+const methodology = {
+  Fees: "All trading fees paid by users while using Maestro bot.",
+  Revenue: "Trading fees are collected by Maestro protocol.",
+  ProtocolRevenue: "Trading fees are collected by Maestro protocol.",
 }
 
 const dispatcher: any = {
@@ -48,38 +46,19 @@ const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptio
 
 
 const adapter: SimpleAdapter = {
+  methodology,
+  fetch,
   version: 1,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2022-07-01', 
-      meta
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2022-07-01', 
-      meta
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2022-07-01', 
-      meta
-    },
+    [CHAIN.ETHEREUM]: { start: '2022-07-01', },
+    [CHAIN.BSC]: { start: '2022-07-01', },
+    [CHAIN.ARBITRUM]: { start: '2022-07-01', },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-03-05',
-      meta,
     },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-06-19', 
-      meta
-    },
-    // [CHAIN.TRON]: {
-    //   fetch,
-    //   start: '2022-07-01', 
-    //   meta
-    // },
+    [CHAIN.BASE]: { start: '2024-06-19', },
+    // [CHAIN.TRON]: {    //   start: '2022-07-01',     // },
   },
   isExpensiveAdapter: true
 }

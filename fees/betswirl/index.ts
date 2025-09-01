@@ -96,38 +96,23 @@ function graphs() {
       const dailyProtocolRevenue = createBalances()
       const dailyHoldersRevenue = createBalances()
       const dailySupplySideRevenue = createBalances()
-      const totalFees = createBalances()
-      const totalRevenue = createBalances()
-      const totalProtocolRevenue = createBalances()
-      const totalDailyHoldersRevenue = createBalances()
-      const totalSupplySideRevenue = createBalances()
       for (const token of graphRes.todayTokens) {
         let tokenKey = token.id.split(':')[0];
         const { dividendAmount, bankAmount, partnerAmount, treasuryAmount, teamAmount, affiliateAmount } = token
 
-        totalFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
         dailyFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
-        totalSupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
         dailySupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
-        totalProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
         dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
-        totalDailyHoldersRevenue.add(tokenKey, +dividendAmount)
         dailyHoldersRevenue.add(tokenKey, +dividendAmount)
-        totalRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
         dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
       }
       for (const token of graphPvPRes.todayPvPTokens) {
         let tokenKey = token.id.split(':')[0];
         const { dividendAmount, initiatorAmount, treasuryAmount, teamAmount, affiliateAmount } = token
-        totalFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
         dailyFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
-        totalSupplySideRevenue.add(tokenKey,  +initiatorAmount)
         dailySupplySideRevenue.add(tokenKey,  +initiatorAmount)
-        totalProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
         dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
-        totalDailyHoldersRevenue.add(tokenKey, +dividendAmount)
         dailyHoldersRevenue.add(tokenKey, +dividendAmount)
-        totalRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
         dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
       }
 
@@ -156,17 +141,12 @@ function graphs() {
         dailyProtocolRevenue,
         dailyHoldersRevenue,
         dailySupplySideRevenue,
-        totalFees,
-        totalUserFees: totalFees,
-        totalRevenue,
-        totalProtocolRevenue,
-        totalSupplySideRevenue,
       };
     };
   };
 }
 
-const meta = {
+const info = {
   methodology: {
     UserFees: "The player is charged of the fee when a bet is won. Or the PvP game prize pool.",
     Fees: "All fees (called «house edge» from 2.4% to 4% of the payout) comes from the player's bet. The fee has several allocations: Bank, Partner, Affiliate, Dividends, Treasury, and Team. The house edge on PvP games is from 3.5% to 7% allocated to Dividends, Host, Affiliate, Treasury and Team.",
@@ -178,32 +158,28 @@ const meta = {
 };
 
 const adapter: Adapter = {
+  methodology: info.methodology,
   version: 2,
   adapter: {
     [BSC]: {
       start: '2022-07-27',
       fetch: graphs()(BSC),
-      meta,
     },
     [POLYGON]: {
       start: '2022-07-27',
       fetch: graphs()(POLYGON),
-      meta,
     },
     [AVAX]: {
       start: '2022-07-27',
       fetch: graphs()(AVAX),
-      meta,
     },
     [ARBITRUM]: {
       start: '2022-07-27',
       fetch: graphs()(ARBITRUM),
-      meta,
     },
     base: {
       start: '2024-11-04',
       fetch: graphs()('base'),
-      meta,
     },
   },
 }

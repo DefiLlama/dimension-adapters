@@ -82,14 +82,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch,
       start: "2025-03-25",
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users for sending message to KOL via Reachme minus the Refunds",
-          Revenue: "Protocol revenue from the total fees",
-          ProtocolRevenue: "Protocol revenue from the total fees",
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: "All fees paid by users for sending message to KOL via Reachme minus the Refunds",
+    Revenue: "Protocol revenue from the total fees",
+    ProtocolRevenue: "Protocol revenue from the total fees",
   },
   allowNegativeValue: true, // as there can be more refunds than fees
 };

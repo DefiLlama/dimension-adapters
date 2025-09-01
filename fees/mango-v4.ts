@@ -40,11 +40,9 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       runAtCurrTime: true,
       fetch,
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
   allowNegativeValue: true, // maker fees were negative in the past
 };
 

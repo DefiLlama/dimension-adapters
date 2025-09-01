@@ -5,6 +5,9 @@ import fetchURL from "../utils/fetchURL";
 
 
 const adapter: SimpleAdapter = {
+        methodology: {
+          Volume: "Total costs + payouts",
+        },
   adapter: {
     [CHAIN.TON]: {
       fetch: async (timestamp: number, _t: any, options: FetchOptions) => {
@@ -17,11 +20,6 @@ const adapter: SimpleAdapter = {
         }
       },
       start: '2024-07-01',
-      meta: {
-        methodology: {
-          Volume: "Total costs + payouts",
-        }
-      }
     },
   },
 };

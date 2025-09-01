@@ -32,9 +32,6 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const response: IGraphResponse = (await getGQLClient().request(getHistorical())).overview;
 
-  const totalVolume = response.plotVolume
-    .filter(volItem => (new Date(volItem.time).getTime()) <= dayTimestamp)
-    .reduce((acc, { value, xtzUsdQuoteHistorical }) => acc + (Number(value || 0) * Number(xtzUsdQuoteHistorical || 0)), 0)
   const daily = response.plotVolume
     .find(dayItem => (new Date(dayItem.time).getTime()) === dayTimestamp);
   const dailyVolume = Number(daily?.value || 0) * Number(daily?.xtzUsdQuoteHistorical || 0);
@@ -42,7 +39,6 @@ const fetch = async (timestamp: number) => {
   return {
     timestamp: dayTimestamp,
     dailyVolume: dailyVolume.toString(),
-    totalVolume: totalVolume.toString(),
   }
 }
 

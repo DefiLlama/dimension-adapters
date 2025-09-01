@@ -11,8 +11,9 @@ const fetch = univ2Adapter2({
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch,
-  chains: [CHAIN.PULSECHAIN],
+  adapter: {
+    [CHAIN.PULSECHAIN]: { fetch, },
+  },
   start: '2023-05-25'
 }
 

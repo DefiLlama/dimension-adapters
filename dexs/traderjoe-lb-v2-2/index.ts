@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getEnv } from "../../helpers/env";
 import { httpGet } from "../../utils/fetchURL";
 
 interface IVolume {
@@ -21,7 +22,7 @@ const fetchV22Volume = async (_t: any, _tt: any, options: FetchOptions) => {
   const url = `https://api.lfj.dev/v1/dex/analytics/${chainKey}?startTime=${dayTimestamp - 86400}&endTime=${end}&version=v2.2`
   const historicalVolumeAndFees: IVolume[] = (await httpGet(url, {
     headers: {
-      'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
+      'x-traderjoe-api-key': getEnv('TRADERJOE_API_KEY')
     }
   }));
 

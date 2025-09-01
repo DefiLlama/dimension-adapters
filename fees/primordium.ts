@@ -36,16 +36,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-01-04',
-      meta: {
-        methodology: {
-          Fees: 'All trading fees paid by users while using Trojan bot.',
-          Revenue: 'Fees collected by Trojan protocol.',
-          ProtocolRevenue: "Fees collected by Trojan protocol.",
-        }
-      }
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'All trading fees paid by users while using Trojan bot.',
+    Revenue: 'Fees collected by Trojan protocol.',
+    ProtocolRevenue: "Fees collected by Trojan protocol.",
+  }
 };
 
 export default adapter;

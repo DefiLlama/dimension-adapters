@@ -5,7 +5,7 @@ import {
   SimpleAdapter,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { APTOS_PRC, getResources } from "../helpers/aptops";
+import { APTOS_PRC, getResources } from "../helpers/aptos";
 import fetchURL from "../utils/fetchURL";
 
 interface DepositFungible {
@@ -138,16 +138,15 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchAptosRevenue,
       start: "2025-06-02",
-      meta: { methodology },
     },
     [CHAIN.POLYGON]: {
       fetch: fetchPolygonRevenue,
       start: "2025-06-23",
-      meta: { methodology },
     },
   },
 };

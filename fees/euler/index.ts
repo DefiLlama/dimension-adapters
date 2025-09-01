@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { METRIC } from "../../helpers/metrics"
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -15,6 +16,8 @@ const eVaultFactories = {
     [CHAIN.UNICHAIN]: "0xbAd8b5BDFB2bcbcd78Cc9f1573D3Aad6E865e752",
     [CHAIN.ARBITRUM]: "0x78Df1CF5bf06a7f27f2ACc580B934238C1b80D50",
     [CHAIN.AVAX]: "0xaf4B4c18B17F6a2B32F6c398a3910bdCD7f26181",
+    [CHAIN.TAC]: "0x2b21621b8Ef1406699a99071ce04ec14cCd50677",
+    [CHAIN.LINEA]: "0x84711986Fd3BF0bFe4a8e6d7f4E22E67f7f27F04",
 };
 
 
@@ -92,9 +95,9 @@ const fetch = async (options: FetchOptions) => {
 
         const protocolRevenueShare = (interestEarnedBeforeFee - interestEarned) * BigInt(protocolFeeShare) / BigInt(1e4)
 
-        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee);
-        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned)
-        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare)
+        dailyFees.add(vaultAssets[i], interestEarnedBeforeFee, METRIC.BORROW_INTEREST);
+        dailyRevenue.add(vaultAssets[i], interestEarnedBeforeFee - interestEarned, METRIC.BORROW_INTEREST)
+        dailyProtocolRevenue.add(vaultAssets[i], protocolRevenueShare, METRIC.BORROW_INTEREST)
     }
 
     const dailySupplySideRevenue = dailyFees.clone()
@@ -108,65 +111,81 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 
-const methodology = {
-    Fees: "Interest that is paid by the borrowers to the vaults.",
-    Revenue: "Fees collected by vaults owners, curators, and Euler.",
-    ProtocolRevenue: "Fees share collected by Euler protocol.",
-    SupplySideRevenue: "Fees distributed to vaults lenders."
+const info = {
+    methodology: {
+        Fees: "Interest that is paid by the borrowers to the vaults.",
+        Revenue: "Fees collected by vaults owners, curators, and Euler.",
+        ProtocolRevenue: "Fees share collected by Euler protocol.",
+        SupplySideRevenue: "Fees distributed to vaults lenders.",
+    },
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all vaults.',
+        },
+        Revenue: {
+            [METRIC.BORROW_INTEREST]: 'A portion of interest were charged and distributed to vaults curators, owenrs, deployers and Euler protocol.',
+        },
+        SupplySideRevenue: {
+            [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all vaults.',
+        },
+        ProtocolRevenue: {
+            [METRIC.BORROW_INTEREST]: 'Amount of interest are collected by Euler protocol.',
+        },
+    }
 }
 
 const adapters: Adapter = {
     version: 2,
+    methodology: info.methodology,
+    breakdownMethodology: info.breakdownMethodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
             start: '2024-08-18',
-            meta: { methodology }
         },
         [CHAIN.SONIC]: {
             fetch,
             start: '2025-01-31',
-            meta: { methodology }
         },
         [CHAIN.BASE]: {
             fetch,
             start: '2024-11-27',
-            meta: { methodology }
         },
         [CHAIN.SWELLCHAIN]: {
             fetch,
             start: '2025-01-20',
-            meta: { methodology }
         },
         [CHAIN.BOB]: {
             fetch,
             start: '2025-01-21',
-            meta: { methodology }
         },
         [CHAIN.BERACHAIN]: {
             fetch,
             start: '2025-02-06',
-            meta: { methodology }
         },
         [CHAIN.BSC]: {
             fetch,
             start: '2025-02-04',
-            meta: { methodology }
         },
         [CHAIN.UNICHAIN]: {
             fetch,
             start: '2025-02-11',
-            meta: { methodology }
         },
         [CHAIN.ARBITRUM]: {
             fetch,
             start: '2025-01-30',
-            meta: { methodology }
         },
         [CHAIN.AVAX]: {
             fetch,
             start: '2025-02-04',
-            meta: { methodology }
+        },
+        [CHAIN.TAC]: {
+            fetch,
+            start: '2025-06-21',
+        },
+        [CHAIN.LINEA]: {
+            fetch,
+            start: '2025-08-11', // first vault created
         },
     },
 }
