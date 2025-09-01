@@ -43,7 +43,7 @@ const EVM_CHAIN_ADDRESSES: Record<string, string> = {
 };
 
 const NON_EVM_CHAINS: Record<string, string> = {
-  // [CHAIN.SOLANA]: "2025-05-17",
+  [CHAIN.SOLANA]: "2025-05-17",
   [CHAIN.APTOS]: "2025-05-17",
   [CHAIN.SUI]: "2025-05-17",
   [CHAIN.NEAR]: "2025-05-17",
