@@ -14,14 +14,16 @@ const fetch = async (options: FetchOptions) => {
     // https://hyperdash.info/statistics
     // 93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault
 
-    const dailyHoldersRevenue = dailyFees.clone();
-    dailyHoldersRevenue.resizeBy(0.93);
+    const dailyHoldersRevenue = dailyFees.clone(0.93);
+    const dailySupplySideRevenue = dailyFees.clone(0.07);
 
     return {
         dailyFees,
         dailyRevenue: dailyHoldersRevenue,
         dailyUserFees: dailyFees,
+        dailySupplySideRevenue: dailySupplySideRevenue,
         dailyHoldersRevenue: dailyHoldersRevenue,
+        dailyProtocolRevenue: 0,
     }
 }
 
@@ -34,7 +36,10 @@ const adapter: Adapter = {
     },
     methodology: {
         Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
-        HoldersRevenue: "93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault",
+        Revenue: "93% of fees go to Assistance Fund for burning tokens",
+        SupplySideRevenue: "7% of fees go to HLP Vault suppliers",
+        HoldersRevenue: "93% of fees go to Assistance Fund for burning tokens",
+        ProtocolRevenue: "No protocol revenue",
     }
 }
 export default adapter
