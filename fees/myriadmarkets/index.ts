@@ -54,8 +54,6 @@ async function fetch(options: FetchOptions) {
             dailyFees.add(marketToken, Number(tradeValue) * feeRate);
     });
 
-    console.log(tradeLogs.length, dailyVolume);
-
     const dailyRevenue = dailyFees.clone(1 / 3);
 
     return {
