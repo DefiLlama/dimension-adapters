@@ -127,10 +127,9 @@ with tokens (blockchain, token_address, token_symbol) as (
                 p.interest_code,
                 p.interest_per,
                 sum(p.amount) / 365 as tw_amount,
-                sum((p.amount / 365) * p.reward_per) as tw_rebate,
                 sum(
                         case
-                            when protocol_name = 'Sparklend' then sl.asset_rev_amount / 365
+                            when protocol_name = 'Sparklend' then (sl.interest_amount-sl.BR_cost) / 365
                             when protocol_name = 'Morpho'
                                 and token_symbol in ('DAI', 'USDC','USDS') then m.net_rev_interest / 365
                             when protocol_name = 'ethena' then e.daily_actual_revenue - e.daily_BR_cost
@@ -152,7 +151,6 @@ with tokens (blockchain, token_address, token_symbol) as (
      protocols_daily_usd as (
          select b.*,
                 p.price_usd,
-                b.tw_rebate * p.price_usd as tw_rebate_usd,
                 b.tw_net_rev_interest * p.price_usd as tw_net_rev_interest_usd
          from protocols_daily b
                   join tokens t on b.token_symbol = t.token_symbol
