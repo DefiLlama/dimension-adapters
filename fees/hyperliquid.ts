@@ -33,7 +33,7 @@ const methodology = {
     Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
     Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, before 30 Aug 2025 it was 97% of fees",
     ProtocolRevenue: "Protocol doesn't keep any fees.",
-    HoldersRevenue: "99% of fees go to Assistance Fund for burning tokens, before 30 Aug 2025 it was 97% of fees",
+    HoldersRevenue: "99% of fees go to Assistance Fund for bbuying HYPE tokens, before 30 Aug 2025 it was 97% of fees",
     SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3%",
 }
 
