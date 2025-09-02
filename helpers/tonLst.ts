@@ -114,6 +114,7 @@ export function tonLstExport(exportConfig: TonLstExportConfigs) {
             }
         }),
         chains: [CHAIN.TON],
+        isExpensiveAdapter: true
     }
     return adapter
 }
