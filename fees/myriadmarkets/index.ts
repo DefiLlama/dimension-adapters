@@ -76,7 +76,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     chains: [CHAIN.LINEA, CHAIN.ABSTRACT],
-    start: "2025-01-21",
+    start: "2025-07-04",
     methodology
 };
 
