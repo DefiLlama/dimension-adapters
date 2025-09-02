@@ -78,6 +78,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   fetch,
   start: "2025-06-29",
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "Trading tokens fees paid by users",
     ProtocolRevenue: "Trading fees are collected by Lab Terminal",
