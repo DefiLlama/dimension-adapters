@@ -21,27 +21,27 @@ const fetch = async (options: FetchOptions) => {
 
     return {
         dailyFees,
-        dailyRevenue: dailyHoldersRevenue,
         dailyUserFees: dailyFees,
         dailySupplySideRevenue: dailySupplySideRevenue,
+        dailyRevenue: dailyHoldersRevenue,
         dailyHoldersRevenue: dailyHoldersRevenue,
         dailyProtocolRevenue: 0,
     }
 }
 
+const methodology = {
+    Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
+    Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, before 30 Aug 2025 it was 97% of fees",
+    ProtocolRevenue: "Protocol doesn't keep any fees.",
+    HoldersRevenue: "99% of fees go to Assistance Fund for burning tokens, before 30 Aug 2025 it was 97% of fees",
+    SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3%",
+}
+
 const adapter: Adapter = {
     version: 2,
-    adapter: {
-        [CHAIN.HYPERLIQUID]: {
-            fetch,
-        },
-    },
-    methodology: {
-        Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
-        Revenue: "97% of fees go to Assistance Fund for burning tokens, it was 99% after network upgrade on 30 Aug, 2025",
-        SupplySideRevenue: "3% of fees go to HLP Vault suppliers, it was 1% after network upgrade on 30 Aug, 2025",
-        HoldersRevenue: "97% of fees go to Assistance Fund for burning tokens, it was 99% after network upgrade on 30 Aug, 2025",
-        ProtocolRevenue: "No protocol revenue",
-    }
+    fetch,
+    chains: [CHAIN.HYPERLIQUID],
+    methodology,
 }
+
 export default adapter
