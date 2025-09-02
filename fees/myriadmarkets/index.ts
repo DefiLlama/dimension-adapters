@@ -30,6 +30,7 @@ async function fetch(options: FetchOptions) {
         if (action == 0)
             dailyFees.addUSDValue(Number(tradeValue) * feeRate);
     });
+    console.log(tradeLogs.length,dailyVolume);
 
     const dailyRevenue = dailyFees.clone(1 / 3);
 
