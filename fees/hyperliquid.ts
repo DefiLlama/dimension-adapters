@@ -12,29 +12,37 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addCGToken("usd-coin", (endCumFees.total_fees - startCumFees.total_fees)/1e6)
 
     // https://hyperdash.info/statistics
-    // 93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault
+    // 97% of fees go to Assistance Fund for burning tokens, remaining 3% go to HLP Vault before 30th august 2025
+    // 99% of fees go to Assistance Fund for burning tokens, remaining 1% go to HLP Vault after 30th august 2025
 
     const dailyHoldersRevenue = dailyFees.clone();
-    dailyHoldersRevenue.resizeBy(0.93);
+    if(options.startOfDay < new Date('2025-08-30').getTime() / 1000) {
+        dailyHoldersRevenue.resizeBy(0.97);
+    } else {
+        dailyHoldersRevenue.resizeBy(0.99);
+    }
 
     return {
         dailyFees,
-        dailyRevenue: dailyHoldersRevenue,
         dailyUserFees: dailyFees,
+        dailyRevenue: dailyHoldersRevenue,
+        dailyProtocolRevenue: '0',
         dailyHoldersRevenue: dailyHoldersRevenue,
     }
 }
 
+const methodology = {
+    Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
+    Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, remaining 1% go to HLP Vault",
+    ProtocolRevenue: "Protocol doesn't keep any fees.",
+    HoldersRevenue: "99% of fees go to Assistance Fund for burning tokens, remaining 1% go to HLP Vault",
+}
+
 const adapter: Adapter = {
     version: 2,
-    adapter: {
-        [CHAIN.HYPERLIQUID]: {
-            fetch,
-        },
-    },
-    methodology: {
-        Fees: "Trade fees and Ticker auction proceeds. Note this excludes the HLP vault and HyperEVM fees.",
-        HoldersRevenue: "93% of fees go to Assistance Fund for burning tokens, remaining 7% go to HLP Vault",
-    }
+    fetch,
+    chains: [CHAIN.HYPERLIQUID],
+    methodology,
 }
+
 export default adapter
