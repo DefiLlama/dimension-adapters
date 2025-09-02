@@ -1,10 +1,8 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // https://dune.com/queries/4172945
   const data: any[] = await queryDuneSql(options, `
     with markets AS (
@@ -51,37 +49,32 @@ const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
         select * from market_data
     )
     SELECT
-        day,
         SUM(volume_usd) as total_volume_usd
     FROM (
         SELECT
-            DATE_TRUNC('day', evt_block_time) as day,
             SUM(CASE 
                     WHEN makerAssetId = 0 THEN makerAmountFilled
                     WHEN takerAssetId = 0 THEN takerAmountFilled 
                 END) / 1e6 as volume_usd
         FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled b
         where b.evt_block_number > 50505492
-        and evt_block_time >= NOW() - interval '2' DAY
-        GROUP BY 1
-
+            and evt_block_time >= from_unixtime(${options.startTimestamp})
+            and evt_block_time < from_unixtime(${options.endTimestamp})
         UNION ALL
 
         SELECT
-            DATE_TRUNC('day', evt_block_time) as day,
             SUM(CASE 
                     WHEN makerAssetId = 0 THEN makerAmountFilled
                     WHEN takerAssetId = 0 THEN takerAmountFilled 
                 END) / 1e6 as volume_usd
         FROM polymarket_polygon.CTFExchange_evt_OrderFilled a
         where a.evt_block_number > 33605403
-        and evt_block_time >= NOW() - interval '2' DAY
-        GROUP BY 1
+            and evt_block_time >= from_unixtime(${options.startTimestamp})
+            and evt_block_time < from_unixtime(${options.endTimestamp})
 
         UNION ALL
 
         select
-            DATE_TRUNC('day', pl.block_time) as day,
             bytearray_to_uint256(substr(pl.DATA, 1, 32)) / 1e6 as volume_usd
         from
             polygon.logs pl
@@ -98,33 +91,24 @@ const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
                 FROM
                 markets
             )
-            and pl.block_time >= NOW() - interval '2' DAY
-        GROUP BY 1,2
+            and pl.block_time >= from_unixtime(${options.startTimestamp})
+            and pl.block_time < from_unixtime(${options.endTimestamp})
     ) as combined_volumes
-    GROUP BY 1
-    ORDER BY 1 DESC
   `);
 
   options.api.log(data);
 
-  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
-  const daily = data.find(e => e.day.split(' ')[0] === dateStr);
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(daily.total_volume_usd);
-  return {
-    timestamp: timestamp,
-    dailyVolume: dailyVolume
-  }
+  dailyVolume.addUSDValue(data[0].total_volume_usd);
+
+  return { dailyVolume }
 }
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: fetchFees,
-      start: '2020-09-30',
-    }
-  },
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: '2020-09-30',
   isExpensiveAdapter: true,
 }
 
