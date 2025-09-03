@@ -23,7 +23,7 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
   async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
     if (!statsCache[broker_id]) statsCache[broker_id] = httpGet(url).then(data => {
       const dateDataMap: any = {}
-      data.forEach(i => {
+      data.forEach((i: any) => {
         dateDataMap[i.date.slice(0, 10)] = i
       })
       return dateDataMap
