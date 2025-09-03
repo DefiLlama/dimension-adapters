@@ -4,7 +4,7 @@ import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL"
 import { FetchOptions } from "../../adapters/types";
 
-const tickers_endpoint = 'https://serverprod.vest.exchange/v2/ticker/24hr'
+const tickers_endpoint = 'https://server-prod.hz.vestmarkets.com/v2/ticker/24hr'
 
 const blacklisted_tickers = ['VC-PERP'] // wash trading
 
