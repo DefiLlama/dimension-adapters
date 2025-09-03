@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v3Endpoints: { [key: string]: string } = {
-  [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap3/3.0.0/gn"
+  [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_cmesjqx64lbfh01wc6z2q9tb0/subgraphs/winnieswap/0.0.1/gn"
 }
 const fetch = getGraphDimensions2({
   graphUrls: v3Endpoints,
@@ -15,19 +15,19 @@ const fetch = getGraphDimensions2({
   },
   feesPercent: {
     type: "fees",
-    ProtocolRevenue: 25,
+    ProtocolRevenue: 0, // 25 later
     HoldersRevenue: 0,
     UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 75, // 75% of fees are going to LPs
-    Revenue: 25 // Revenue is 100% of collected fees
+    SupplySideRevenue: 100, // 75 later - 100% of fees are going to LPs
+    Revenue: 0 // 25 later - Revenue is 100% of collected fees
   }
 });
 
 const methodology = {
   Fees: "Total swap fees paid by users.",
-  Revenue: "25% protocol revenue share and 75% holders revenue share.",
-  ProtocolRevenue: "25% of fees collected by the protocol.",
-  SupplySideRevenue: "75% of fees distributed to LPs.",
+  Revenue: "0% protocol revenue share and 75% holders revenue share.", // 25% protocol revenue share and 75% holders revenue share.
+  ProtocolRevenue: "0% of fees collected by the protocol.", // 25% of fees collected by the protocol.
+  SupplySideRevenue: "100% of fees distributed to LPs.", // 75% of fees distributed to LPs.
   HoldersRevenue: "0% of fees used for buy-back and burn.",
   UserFees: "Total swap fees paid by users."
 }
