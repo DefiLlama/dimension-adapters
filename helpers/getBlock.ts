@@ -30,7 +30,6 @@ const blacklistedChains: string[] = [
   "vechain",
   "wax",
   "injective",
-  "ton",
   "obyte",
   "sora",
   "cosmos",
@@ -81,7 +80,11 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
   try {
     if (chain === CHAIN.WAVES)
       timestamp = Math.floor(timestamp * 1000)
-    block = await sdk.blocks.getBlockNumber(chain, timestamp)
+
+    if (chain === CHAIN.TON)
+      block = await getTonBlock(timestamp)
+    else
+      block = await sdk.blocks.getBlockNumber(chain, timestamp)
   } catch (e) {
     console.log('error fetching block', e)
   }
@@ -101,6 +104,11 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
   // https://explorer.kava.io
   //return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
 
+}
+
+async function getTonBlock(unixTS: number) {
+  const data = await httpGet(`https://toncenter.com/api/v2/lookupBlock?workchain=-1&shard=-1&unixtime=${unixTS}`)
+  return data.result.seqno
 }
 
 async function getBlocks(chain: Chain, timestamps: number[]) {
