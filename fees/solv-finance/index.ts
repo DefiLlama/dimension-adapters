@@ -1,15 +1,13 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
-import { addGasTokensReceived, addTokensReceived, getSolanaReceived } from "../../helpers/token";
-import { request } from "graphql-request";
+import { addGasTokensReceived, addTokensReceived } from "../../helpers/token";
 import { Balances } from "@defillama/sdk";
 import { getConfig } from "../../helpers/cache";
+import BigNumber from "bignumber.js";
+
 const feesConfig =
-  "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/main/solv-fees.json";
-const graphUrl =
-  "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/refs/heads/main/solv-graph.json";
-const yields = 0.2;
+  "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/main/solv-fees-v2.json";
 
 const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.ETHEREUM]: { deployedAt: 1726531200 },
@@ -17,7 +15,7 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
   [CHAIN.MANTLE]: { deployedAt: 1726531200 },
   [CHAIN.MERLIN]: { deployedAt: 1726531200 },
-  // [CHAIN.CORE]: { deployedAt: 1726531200 },
+  [CHAIN.CORE]: { deployedAt: 1726531200 },
   [CHAIN.SCROLL]: { deployedAt: 1726531200 },
   [CHAIN.SOLANA]: { deployedAt: 1726531200 },
   [CHAIN.AVAX]: { deployedAt: 1726531200 },
@@ -26,31 +24,38 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.LINEA]: { deployedAt: 1726531200 },
   [CHAIN.ROOTSTOCK]: { deployedAt: 1726531200 },
   [CHAIN.SONEIUM]: { deployedAt: 1742169600 },
+  [CHAIN.INK]: { deployedAt: 1742169600 },
+  [CHAIN.BERACHAIN]: { deployedAt: 1742169600 },
 };
 
 const fetch: FetchV2 = async (options) => {
   const contracts: {
-    [chain: Chain]: {
-      [protocolFees: string]: {
+    [chain: Chain]: Array<{
+      name: string;
+      marketAddress: string;
+      poolId: string;
+      openFundShareAddress: string;
+      navOracle: string;
+      openFundShareSlot: string;
+      revenueRatio: string;
+      receivedFee?: {
         address: string[];
         token: string[];
         deployedAt: number;
       };
-    };
+      subscriptionFee: boolean;
+      redemptionFee?: {
+        address: string[];
+        token: string[];
+      } | boolean;
+      gasTokens?: string[];
+    }>;
   } = await getConfig('solv-fi/fees', feesConfig);
 
   if (!contracts[options.chain])
     return {}
 
-
-  const dailyFees = await feeRevenues(options, contracts);
-  const dailyRevenue = await revenues(options, contracts);
-  const pureRevenueBalances = await pureRevenues(options, contracts);
-
-  dailyRevenue.addBalances(dailyFees.clone(yields));
-
-  dailyFees.addBalances(pureRevenueBalances);
-  dailyRevenue.addBalances(pureRevenueBalances);
+  const { dailyFees, dailyRevenue } = await fees(options, contracts);
 
   return {
     dailyFees,
@@ -59,211 +64,205 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
-async function pureRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
-  const pureRevenues = options.createBalances();
-
-  const receivedPureRevenue = await received(options, contracts, "receivedPureRevenue");
-  pureRevenues.addBalances(receivedPureRevenue);
-
-  const nativeTokenPureRevenue = await nativeToken(options, contracts, "nativeTokenPureRevenue");
-  pureRevenues.addBalances(nativeTokenPureRevenue);
-
-  return pureRevenues;
-}
-
-async function revenues(options: FetchOptions, contracts: any): Promise<Balances> {
-  const dailyRevenues = options.createBalances();
-
-  const receivedRevenue = await received(options, contracts, "receivedRevenue");
-  dailyRevenues.addBalances(receivedRevenue);
-
-  const nativeTokenRevenue = await nativeToken(options, contracts, "nativeTokenRevenue");
-  dailyRevenues.addBalances(nativeTokenRevenue);
-
-  const solanaRevenue = await solanas(options, contracts, "solanaRevenue");
-  dailyRevenues.addBalances(solanaRevenue);
-
-  return dailyRevenues;
-}
-
-async function feeRevenues(options: FetchOptions, contracts: any): Promise<Balances> {
+async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees: Balances, dailyRevenue: Balances }> {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const pools = contracts[options.chain];
+  if (!pools)
+    return { dailyFees, dailyRevenue };
+  const shareConcretes = await concrete(pools, options);
+  const fromTimestamp = options.fromTimestamp * 1000;
+  const toTimestamp = options.toTimestamp * 1000;
 
-  const protocolFees = await received(options, contracts, "protocolFees");
-  dailyFees.addBalances(protocolFees);
+  const [yesterdayNavs, todayNavs, poolBaseInfos, todayShareTotalValues] = await Promise.all([
+    options.fromApi.multiCall({
+      abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
+      calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
+        target: pool.navOracle,
+        params: [pool.poolId, fromTimestamp],
+      })),
+    }),
+    options.toApi.multiCall({
+      abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
+      calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
+        target: pool.navOracle,
+        params: [pool.poolId, toTimestamp],
+      })),
+    }),
+    options.api.multiCall({
+      abi: `function slotBaseInfo(uint256 slot_) view returns (tuple(address issuer, address currency, uint64 valueDate, uint64 maturity, uint64 createTime, bool transferable, bool isValid))`,
+      calls: pools.map((pool: { openFundShareAddress: string; openFundShareSlot: string }) => ({
+        target: shareConcretes[pool.openFundShareAddress],
+        params: [pool.openFundShareSlot],
+      })),
+    }),
+    options.toApi.multiCall({
+      abi: "function slotTotalValue(uint256) view returns (uint256)",
+      calls: pools.map((pool: { openFundShareAddress: string; openFundShareSlot: string }) => ({
+        target: shareConcretes[pool.openFundShareAddress],
+        params: [pool.openFundShareSlot],
+      })),
+    })
+  ]);
 
-  const poolFees = await pool(options, contracts, "poolFees");
-  dailyFees.addBalances(poolFees);
+  const currencyAddresses = poolBaseInfos.map((poolBaseInfo: any) => poolBaseInfo.currency);
 
-  const nativeTokenFees = await nativeToken(options, contracts, "nativeTokenFees");
-  dailyFees.addBalances(nativeTokenFees);
+  const currencyDecimals = await options.api.multiCall({
+    abi: "function decimals() view returns (uint8)",
+    calls: currencyAddresses.map((currency: string) => ({
+      target: currency,
+    })),
+  });
 
-  const solanaFees = await solanas(options, contracts, "solanaFees");
-  dailyFees.addBalances(solanaFees);
+  let redemptionFees: { [key: string]: { address: string, token: string } } = {};
+  for (let i = 0; i < pools.length; i++) {
+    const pool = pools[i];
+    const revenueRatio = BigNumber(pool.revenueRatio);
+    const subscriptionFee = pool.subscriptionFee;
+    const redemptionFee = pool.redemptionFee;
+    const receivedFee = pool.receivedFee;
+    const receivedFeeGasTokens = pool.receivedFeeGasTokens;
 
-  return dailyFees;
+    const yesterdayNav = BigNumber(yesterdayNavs[i].nav_);
+    const todayShares = BigNumber(todayShareTotalValues[i]);
+    const todayNav = BigNumber(todayNavs[i].nav_);
+
+    const poolBaseInfo = poolBaseInfos[i];
+
+    const currencyDecimal = BigNumber(currencyDecimals[i]);
+    const sharesDecimal = BigNumber(10).pow(18);
+
+    if (subscriptionFee) {
+      // Calculate subscription fee: daily subscription amount * (nav - 1)
+      const subscriptionAmount = await subscriptionFees(options, pool.marketAddress, pool.poolId);
+      const subscriptionFeeAmount = BigNumber(subscriptionAmount).times(todayNav.minus(BigNumber(10).pow(currencyDecimal)));
+      dailyRevenue.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber());
+    }
+
+    if (redemptionFee) {
+      for (const address of redemptionFee.address) {
+        for (const token of redemptionFee.token) {
+          redemptionFees[`${address.toLowerCase()}-${token.toLowerCase()}`] = {
+            address: address,
+            token: token,
+          };
+        }
+      }
+    }
+
+    if (receivedFee) {
+      const receivedFees = await received(options, receivedFee);
+      dailyFees.addBalances(receivedFees);
+      dailyRevenue.addBalances(receivedFees.clone(revenueRatio.toNumber()));
+    }
+
+    if (receivedFeeGasTokens) {
+      const nativeTokenFees = await gasTokensReceived(options, receivedFeeGasTokens);
+      dailyRevenue.addBalances(nativeTokenFees.clone(revenueRatio.toNumber()));
+    }
+
+    // fee = net value increase after on-chain deduction * today's shares / (1 - corresponding fund's revenue_ratio)
+    let fee = (todayNav.minus(yesterdayNav)).times(todayShares.div(1e18)).div(BigNumber(1).minus(revenueRatio));
+    if (fee.lte(BigNumber(0))) {
+      fee = BigNumber(0);
+    }
+
+    dailyFees.add(poolBaseInfo.currency, fee.toNumber());
+    dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber());
+  }
+
+  if (Object.keys(redemptionFees).length > 0) {
+    const redemptionFeeAddresses = Object.values(redemptionFees).map(fee => fee.address);
+    const redemptionFeeTokens = Object.values(redemptionFees).map(fee => fee.token);
+
+    const redemptionFeeAmount = await received(options, {
+      address: redemptionFeeAddresses,
+      token: redemptionFeeTokens
+    });
+    dailyRevenue.addBalances(redemptionFeeAmount);
+  }
+
+  return { dailyFees, dailyRevenue };
 }
 
 async function received(
   options: FetchOptions,
-  contracts: any,
-  configKey: string
+  contracts: any
 ): Promise<Balances> {
-  const protocolConfig = contracts[options.chain]?.[configKey];
-  if (!protocolConfig) {
-    return options.createBalances();
-  }
   return addTokensReceived({
     options,
-    targets: protocolConfig.address,
-    tokens: protocolConfig.token,
+    targets: contracts.address,
+    tokens: contracts.token,
   });
 }
 
-async function pool(options: FetchOptions, contracts: any, configKey: string): Promise<Balances> {
-  const poolConfig = contracts[options.chain]?.[configKey];
-  if (!poolConfig) {
-    return options.createBalances();
+async function subscriptionFees(
+  options: FetchOptions,
+  marketAddress: string,
+  poolId: string,
+): Promise<number> {
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+
+  const subscribeLogs = await options.getLogs({
+    target: marketAddress,
+    topics: [
+      "0xc51cca244fc8e01ee10b07c39991abc0fcb99dd8650fa53b0797d3e8446451f6", // Subscribe
+      poolId,
+    ],
+    fromBlock,
+    toBlock,
+  })
+
+  let subscribeTotal = BigNumber(0);
+  for (const log of subscribeLogs) {
+    const subscribeAmount = parseSubscribeEvent(log.data);
+    subscribeTotal = subscribeTotal.plus(subscribeAmount);
   }
 
-  const pools = await getGraphData(
-    poolConfig,
-    options.chain
-  );
-  const shareConcretes = await concrete(pools, options);
-
-  const fromTimestamp = options.fromTimestamp * 1000;
-  const toTimestamp = options.toTimestamp * 1000;
-
-  const yesterdayNavs = await options.fromApi.multiCall({
-    abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
-    calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
-      target: pool.navOracle,
-      params: [pool.poolId, fromTimestamp],
-    })),
-  });
-
-  const todayNavs = await options.toApi.multiCall({
-    abi: "function getSubscribeNav(bytes32 poolId_, uint256 time_) view returns (uint256 nav_, uint256 navTime_)",
-    calls: pools.map((pool: { navOracle: string; poolId: string }) => ({
-      target: pool.navOracle,
-      params: [pool.poolId, toTimestamp],
-    })),
-  });
-
-  const poolBaseInfos = await options.api.multiCall({
-    abi: `function slotBaseInfo(uint256 slot_) view returns (tuple(address issuer, address currency, uint64 valueDate, uint64 maturity, uint64 createTime, bool transferable, bool isValid))`,
-    calls: pools.map(
-      (index: {
-        contractAddress: string | number;
-        openFundShareSlot: any;
-      }) => ({
-        target: shareConcretes[index.contractAddress],
-        params: [index.openFundShareSlot],
-      })
-    ),
-  });
-
-  const shareTotalValues = await options.api.multiCall({
-    abi: "function slotTotalValue(uint256) view returns (uint256)",
-    calls: pools.map(
-      (index: {
-        contractAddress: string | number;
-        openFundShareSlot: any;
-      }) => ({
-        target: shareConcretes[index.contractAddress],
-        params: [index.openFundShareSlot],
-      })
-    ),
-  });
-
-  const dailyFees = options.createBalances();
-  for (let i = 0; i < pools.length; i++) {
-    const poolNavIncrease = todayNavs[i].nav_ - yesterdayNavs[i].nav_;
-    const poolBaseInfo = poolBaseInfos[i];
-    const shareTotalValue = shareTotalValues[i];
-
-    if (poolNavIncrease <= 0) {
-      continue;
-    }
-    if (shareTotalValue == 0) {
-      continue;
-    }
-
-    // PoolFee = (ShareTotalValue / 10^(ShareDecimals)) * (PoolNavIncrease / 10^(PoolTokenDecimals)) * 10^(PoolTokenDecimals)
-    const poolFee = shareTotalValue * poolNavIncrease / 1e18
-    dailyFees.add(poolBaseInfo.currency, poolFee)
-  }
-
-  return dailyFees;
+  return subscribeTotal.toNumber();
 }
 
-async function getGraphData(poolId: string[], chain: Chain) {
-  const graphUrlList: {
-    [chain: Chain]: string;
-  } = await getConfig(`solv-fi/graph`, graphUrl);
-  const query = `{
-              poolOrderInfos(first: 1000  where:{poolId_in: ${JSON.stringify(
-    poolId
-  )}}) {
-                marketContractAddress
-                contractAddress
-                navOracle
-                poolId
-                vault
-                openFundShareSlot
-            }
-          }`;
-  let response: any;
-  if (graphUrlList[chain]) {
-    response = (await request(graphUrlList[chain], query)).poolOrderInfos;
+function parseSubscribeEvent(data: string): BigNumber {
+  const hexData = data.slice(2);
+
+  if (hexData.length >= 192) {
+    const valueHex = hexData.slice(64, 96);
+    return BigNumber(`0x${valueHex}`);
   }
 
-  return response;
+  return BigNumber(0);
 }
 
-async function concrete(slots: any[], options: FetchOptions): Promise<any> {
-  var slotsList: any[] = [];
+async function concrete(pools: any[], options: FetchOptions): Promise<any> {
+  var contracts: any[] = [];
   var only = {};
-  for (var i = 0; i < slots.length; i++) {
-    if (!only[slots[i].contractAddress]) {
-      slotsList.push(slots[i]);
-      only[slots[i].contractAddress] = true;
+  for (var i = 0; i < pools.length; i++) {
+    if (!only[pools[i].openFundShareAddress]) {
+      contracts.push(pools[i]);
+      only[pools[i].openFundShareAddress] = true;
     }
   }
 
   const concreteLists = await options.api.multiCall({
-    calls: slotsList.map((index) => index.contractAddress),
+    calls: contracts.map((contract) => contract.openFundShareAddress),
     abi: "address:concrete",
   });
 
   let concretes = {};
   for (var k = 0; k < concreteLists.length; k++) {
-    concretes[slotsList[k].contractAddress] = concreteLists[k];
+    concretes[contracts[k].openFundShareAddress] = concreteLists[k];
   }
 
   return concretes;
 }
 
-async function nativeToken(
+async function gasTokensReceived(
   options: FetchOptions,
-  contracts: any, configKey: string
+  multisigAddress: any
 ): Promise<Balances> {
-  const nativeTokenConfig = contracts[options.chain]?.[configKey];
-  if (!nativeTokenConfig) {
-    return options.createBalances();
-  }
-  const multisig = nativeTokenConfig.address;
-  return addGasTokensReceived({ multisig, options })
-}
-
-async function solanas(options: FetchOptions, contracts: any, configKey: string): Promise<Balances> {
-  const solanaFeesConfig = contracts[options.chain]?.[configKey];
-  if (!solanaFeesConfig) {
-    return options.createBalances();
-  }
-
-  return await getSolanaReceived({ options, targets: solanaFeesConfig });
+  const multisigs = multisigAddress;
+  return addGasTokensReceived({ multisigs, options })
 }
 
 const methodology = {

@@ -497,10 +497,10 @@ const adapters = {
     fetch,
     start: '2024-02-25'
   },
-  [CHAIN.MOONRIVER]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // [CHAIN.MOONRIVER]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.OPTIMISM]: {
     fetch,
     start: '2024-02-25'
