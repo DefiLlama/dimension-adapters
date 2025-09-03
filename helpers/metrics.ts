@@ -6,5 +6,6 @@ export enum METRIC {
   LIQUIDATION_FEES = 'Liquidation Fees', // liquidation penalty and fees paid for liquidators and protocol in liquidation transactions
   FLASHLOAN_FEES = 'Flashloan Fees',     // fees paid by borrowers when execute flashloan from lending markets
   TOKEN_BUY_BACK = 'Token Buy Back',     // protocol buy back tokens
-  SWAP_FEES = 'Token Swap Fees',           // fee charged from token swaps
+  SWAP_FEES = 'Token Swap Fees',         // fee charged from token swaps
+  ASSETS_YIELDS = 'Assets Yeilds',       // protocols take users deposited assets and invest to other (on-chain or off-chain) platforms to generate yields
 }
