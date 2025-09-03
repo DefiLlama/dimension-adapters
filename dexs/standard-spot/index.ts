@@ -1,7 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const factory = '0x67285E88145f422403aB71b34394666C389Ffcb6';
+const matching_engine = '0x3Cb2CBb0CeB96c9456b11DbC7ab73c4848F9a14c';
 const order_match_topic = '0xce93601d1019ced864b3e349b643ec762d7aeaeed6a8a82eb0a4d80034b9b4f7';
 const order_match_event = 'event OrderMatched(address pair,uint16 orderHistoryId,uint256 id,bool isBid,uint256 price,uint256 total,bool clear,(address sender,address owner,uint256 baseAmount,uint256 quoteAmount,uint256 baseFee,uint256 quoteFee,uint64 tradeId) orderMatch)';
 const pair_added_event = `event PairAdded(
@@ -24,7 +24,7 @@ interface IPair {
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const pairLogs = await options.getLogs({ target: factory, eventAbi: pair_added_event, onlyArgs: true, fromBlock: 4381503 })
+  const pairLogs = await options.getLogs({ target: matching_engine, eventAbi: pair_added_event, onlyArgs: true, fromBlock: 4381503 })
   const pairs: IPair[] = pairLogs.map((log: any) => {
     return {
       address: log.pair,
@@ -34,7 +34,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       qDecimal: log.qDecimal
     }
   })
-  const logs_order_match = await options.getLogs({ target: factory, topics: [order_match_topic], eventAbi: order_match_event });
+  const logs_order_match = await options.getLogs({ target: matching_engine, topics: [order_match_topic], eventAbi: order_match_event });
   logs_order_match.forEach((log: any) => {
     const pair = pairs.find((pair) => pair.address.toLowerCase() === log.pair.toLowerCase());
     if (pair) {
@@ -60,7 +60,7 @@ const methodology = {
 const options: any = { fetch, methodology, start: 87125407 }
 const adapters: SimpleAdapter = {
   adapter: {
-    [CHAIN.MODE]: options,
+    [CHAIN.SOMNIA]: options,
   },
   version: 2,
 }
