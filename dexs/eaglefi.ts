@@ -22,18 +22,13 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    massa: {
-      fetch,
-      start: "2025-06-23",
-      meta: {
-        methodology: {
-          Volume: 'Trading volume get from EagleFi API.',
-          Fees: 'Trading fees get from EagleFi API.',
-        },
-      },
-    },
+  methodology: {
+    Volume: 'Trading volume get from EagleFi API.',
+    Fees: 'Trading fees get from EagleFi API.',
   },
+  fetch,
+  chains: ['massa'],
+  start: "2025-06-23",
 };
 
 export default adapter;
