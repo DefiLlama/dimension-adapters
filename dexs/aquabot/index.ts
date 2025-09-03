@@ -22,7 +22,7 @@ const fetch = async (
   );
 
   const REVENUE_CONSTANT = 0.75;
-  const dailyHoldersRevenue = dailyFees * REVENUE_CONSTANT
+  const dailyHoldersRevenue = dailyFees * REVENUE_CONSTANT;
 
   return {
     dailyVolume,
@@ -40,7 +40,8 @@ const methodology = {
   UserFees:
     "Users pay trade fees on each swap. Every user has a fee receiver and they are used to do regular payments on campaigns and referral programs.",
   ProtocolRevenue: "All swap fees goes to the protocol",
-  HoldersRevenue: "No Holders Revenue",
+  HoldersRevenue:
+    "The 90% of the protocol revenue goes directly as buybacks to $AQUA",
 };
 
 const adapter: SimpleAdapter = {
