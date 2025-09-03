@@ -57,7 +57,7 @@ const methodology = {
 }
 
 
-const options: any = { fetch, methodology, start: 1708992000 }
+const options: any = { fetch, methodology, start: 87125407 }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: options,
