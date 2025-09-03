@@ -254,6 +254,8 @@ export enum CHAIN {
   NIBIRU = "nibiru",
   HAVEN1 = "haven1",
   GRVT = "grvt",
+  SOMNIA = "somnia",
+  ORDERLY = "orderly",
 }
 
 // Don´t use
