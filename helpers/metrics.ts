@@ -10,4 +10,5 @@ export enum METRIC {
   ASSETS_YIELDS = 'Assets Yeilds',       // protocols take users deposited assets and invest to other (on-chain or off-chain) platforms to generate yields
   MINT_REDEEM_FEES = 'Mint/Redeem Fees', // protocols take fees by mint/redeem tokens
   MANAGERMENT_FEES = 'Management Fees', // protocols take fees manage assets for users
+  STAKING_REWARDS = 'Staking Rewards', // PoS staking rewards
 }
