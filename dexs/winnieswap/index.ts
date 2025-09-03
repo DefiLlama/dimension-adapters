@@ -1,5 +1,3 @@
-export default adapter
-
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../../helpers/getUniSubgraph";
