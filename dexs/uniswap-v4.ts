@@ -62,6 +62,7 @@ interface IUniswapConfig {
   positionManager: string;
   source: 'LOGS';
   start: string;
+  blacklistPoolIds?: Array<string>;
 }
 
 interface IPool {
@@ -80,6 +81,9 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e',
     source: 'LOGS',
     start: '2025-01-24',
+    blacklistPoolIds: [
+      '0x78f394840909614a7a1213503e4207d7e62f4a07af85561fc420e7ee6d22d6ce',
+    ],
   },
   [CHAIN.UNICHAIN]: {
     poolManager: '0x1f98400000000000000000000000000000000004',
@@ -225,6 +229,10 @@ async function fetch(options: FetchOptions) {
 
     const pools: {[key: string]: IPool | null} = {}
     for (const event of events) {
+      if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id)) {
+        // ignore blacklist pools
+        continue;
+      }
       pools[event.id] = null
     }
 
