@@ -5,6 +5,8 @@ const BOOL_KEYS = [
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
+  SOMNIA_RPC: "https://api.infra.mainnet.somnia.network",
+  SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
