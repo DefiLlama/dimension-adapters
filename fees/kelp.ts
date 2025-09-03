@@ -56,6 +56,15 @@ const HGETH_FEES_COLLECTOR = "0x2151A97C7819782fD99efF020CdfE0aE838Ad378";
 const HGETH_PERF_FEE_BPS = 2000; // 20%
 const HGETH_PERF_TVL_USD_THRESHOLD = 50_000_000;
 
+// Inclusive: 2025-01-25 00:00:00 UTC  →  2025-05-19 23:59:59 UTC (no fees of any kid were collected for hgETH vault during this period)
+const HGETH_FEE_HOLIDAY_START = Math.floor(Date.UTC(2025, 0, 25, 0, 0, 0) / 1000)   // Jan is 0
+const HGETH_FEE_HOLIDAY_END_EXCL = Math.floor(Date.UTC(2025, 4, 20, 0, 0, 0) / 1000) // May is 4 (exclusive end = May 20 00:00:00)
+
+function hgETHFeeHolidayOverlaps(fromTs: number, toTs: number) {
+  // true if the 24h window intersects the holiday range
+  return fromTs < HGETH_FEE_HOLIDAY_END_EXCL && toTs > HGETH_FEE_HOLIDAY_START;
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -161,71 +170,81 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }
 
   if (options.chain === CHAIN.ETHEREUM) {
-    // get hgETH management fees: rsETH transfers to hgETH fee collector
-    const targetTo = HGETH_FEES_COLLECTOR.toLowerCase();
-    const fromAllow = new Set([HGETH.toLowerCase()]);
-    let hgEthFees = 0;
-    for (const ev of rsEthLogs) {
-      if (
-        ev?.to?.toLowerCase() === targetTo &&
-        fromAllow.has(ev?.from?.toLowerCase())
-      ) {
-        hgEthFees += Number(ev.value); // rsETH wei
-      }
-    }
-    if (hgEthFees > 0) {
-      dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], hgEthFees.toString());
-      dailyProtocolRevenue.add(rsETHMaps[CHAIN.ETHEREUM], hgEthFees.toString());
-    }
+      const suppressHgETHFees = hgETHFeeHolidayOverlaps(
+        options.fromTimestamp,
+        options.toTimestamp
+      );
 
-    // get hgETH performance fees
-    if (options.chain === CHAIN.ETHEREUM) {
-      // reuse beforeBlock/afterBlock computed earlier
-      const [rateBefore, rateAfter] = await Promise.all([
-        sdk.api2.abi.call({
-          chain: CHAIN.ETHEREUM,
-          target: HGETH,
-          abi: Abis.convertToAssets,
-          params: ["1000000000000000000"], // 1e18
-          block: beforeBlock.number,
-        }),
-        sdk.api2.abi.call({
-          chain: CHAIN.ETHEREUM,
-          target: HGETH,
-          abi: Abis.convertToAssets,
-          params: ["1000000000000000000"], // 1e18
-          block: afterBlock.number,
-        }),
-      ]);
-
-      const hgSupply = await options.api.call({
-        target: HGETH,
-        abi: Abis.totalSupply,
-      }); // 18 decimal shares
-      const delta = Number(rateAfter) - Number(rateBefore); // rsETH/share (wei)
-      if (delta > 0) {
-        const gainsRsETHWei = (Number(hgSupply) * delta) / 1e18; // rsETH wei
-        const tvlRsETHWei = (Number(hgSupply) * Number(rateAfter)) / 1e18;
-
-        // price rsETH in USD
-        const prices = await getPrices(
-          [`ethereum:${rsETHMaps[CHAIN.ETHEREUM]}`],
-          options.toTimestamp
-        );
-        const rsEthUsd =
-          prices[`ethereum:${rsETHMaps[CHAIN.ETHEREUM]}`]?.price || 0;
-        const tvlUsd = (tvlRsETHWei / 1e18) * rsEthUsd;
-
-        if (tvlUsd > HGETH_PERF_TVL_USD_THRESHOLD) {
-          const perfFeeWei = gainsRsETHWei * (HGETH_PERF_FEE_BPS / 10_000); // 20% performance fee
-          dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], perfFeeWei.toString());
+      if (!suppressHgETHFees) {
+        // get hgETH management fees: rsETH transfers to hgETH fee collector
+        const targetTo = HGETH_FEES_COLLECTOR.toLowerCase();
+        const fromAllow = new Set([HGETH.toLowerCase()]);
+        let hgEthFees = 0;
+        for (const ev of rsEthLogs) {
+          if (
+            ev?.to?.toLowerCase() === targetTo &&
+            fromAllow.has(ev?.from?.toLowerCase())
+          ) {
+            hgEthFees += Number(ev.value); // rsETH wei
+          }
+        }
+        if (hgEthFees > 0) {
+          dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], hgEthFees.toString());
           dailyProtocolRevenue.add(
             rsETHMaps[CHAIN.ETHEREUM],
-            perfFeeWei.toString()
+            hgEthFees.toString()
           );
         }
+
+        // get hgETH performance fees
+        if (options.chain === CHAIN.ETHEREUM) {
+          // reuse beforeBlock/afterBlock computed earlier
+          const [rateBefore, rateAfter] = await Promise.all([
+            sdk.api2.abi.call({
+              chain: CHAIN.ETHEREUM,
+              target: HGETH,
+              abi: Abis.convertToAssets,
+              params: ["1000000000000000000"], // 1e18
+              block: beforeBlock.number,
+            }),
+            sdk.api2.abi.call({
+              chain: CHAIN.ETHEREUM,
+              target: HGETH,
+              abi: Abis.convertToAssets,
+              params: ["1000000000000000000"], // 1e18
+              block: afterBlock.number,
+            }),
+          ]);
+
+          const hgSupply = await options.api.call({
+            target: HGETH,
+            abi: Abis.totalSupply,
+          }); // 18 decimal shares
+          const delta = Number(rateAfter) - Number(rateBefore); // rsETH/share (wei)
+          if (delta > 0) {
+            const gainsRsETHWei = (Number(hgSupply) * delta) / 1e18; // rsETH wei
+            const tvlRsETHWei = (Number(hgSupply) * Number(rateAfter)) / 1e18;
+
+            // price rsETH in USD
+            const prices = await getPrices(
+              [`ethereum:${rsETHMaps[CHAIN.ETHEREUM]}`],
+              options.toTimestamp
+            );
+            const rsEthUsd =
+              prices[`ethereum:${rsETHMaps[CHAIN.ETHEREUM]}`]?.price || 0;
+            const tvlUsd = (tvlRsETHWei / 1e18) * rsEthUsd;
+
+            if (tvlUsd > HGETH_PERF_TVL_USD_THRESHOLD) {
+              const perfFeeWei = gainsRsETHWei * (HGETH_PERF_FEE_BPS / 10_000); // 20% performance fee
+              dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], perfFeeWei.toString());
+              dailyProtocolRevenue.add(
+                rsETHMaps[CHAIN.ETHEREUM],
+                perfFeeWei.toString()
+              );
+            }
+          }
+        }
       }
-    }
   }
 
   return {
