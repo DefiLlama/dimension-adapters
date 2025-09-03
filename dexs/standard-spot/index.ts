@@ -1,7 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const factory = '0x4D1b18A7BDB8D0a02f692398337aBde8DeB8FB09';
+const factory = '0x67285E88145f422403aB71b34394666C389Ffcb6';
 const order_match_topic = '0xce93601d1019ced864b3e349b643ec762d7aeaeed6a8a82eb0a4d80034b9b4f7';
 const order_match_event = 'event OrderMatched(address pair,uint16 orderHistoryId,uint256 id,bool isBid,uint256 price,uint256 total,bool clear,(address sender,address owner,uint256 baseAmount,uint256 quoteAmount,uint256 baseFee,uint256 quoteFee,uint64 tradeId) orderMatch)';
 const pair_added_event = `event PairAdded(
