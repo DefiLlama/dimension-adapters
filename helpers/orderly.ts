@@ -56,5 +56,6 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
     start,
     methodology,
     fetch,
+    doublecounted: true,
   }
 }
