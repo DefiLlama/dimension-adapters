@@ -29,12 +29,25 @@ const prefetch = async (options: FetchOptions) => {
   return await queryDuneSql(options, sql);
 }
 
+// Map DefiLlama chain names to Dune blockchain names
+const CHAIN_TO_DUNE_MAPPING: Record<string, string> = {
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.ARBITRUM]: 'arbitrum', 
+  [CHAIN.BASE]: 'base',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.AVAX]: 'avalanche_c',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.BSC]: 'bnb',
+};
+
 const chainConfig = {
   [CHAIN.ETHEREUM]: { start: '2022-01-01' },
   [CHAIN.ARBITRUM]: { start: '2022-01-01' },
   [CHAIN.BASE]: { start: '2022-01-01' },
   [CHAIN.POLYGON]: { start: '2022-01-01' },
   [CHAIN.AVAX]: { start: '2022-01-01' },
+  [CHAIN.OPTIMISM]: { start: '2022-01-01' },
+  [CHAIN.BSC]: { start: '2022-01-01' },
   [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
@@ -59,7 +72,18 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
 
   // Handle EVM chains with Dune query
   const preFetchedResults = options.preFetchedResults || [];
-  const dune_chain = options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain;
+  const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
+  
+  if (!dune_chain) {
+    console.log(`No Dune mapping found for chain ${options.chain}`);
+    return {
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees,
+    };
+  }
+  
   const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
 
   if (data) {
