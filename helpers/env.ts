@@ -7,6 +7,7 @@ const DEFAULTS: any = {
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_RPC: "https://api.infra.mainnet.somnia.network",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
+  CAMP_RPC: 'https://rpc.camp.raas.gelato.cloud',
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
