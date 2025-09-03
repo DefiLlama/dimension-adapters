@@ -1,68 +1,15 @@
-import { request, gql } from "graphql-request";
-import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getBasinAdapter } from "../basin";
 
-class SubgraphVolumeResponse {
-  wells: SubgraphWell[];
-}
-
-class SubgraphWell {
-  rollingDailyTradeVolumeUSD: string;
-  cumulativeTradeVolumeUSD: string;
-}
-
-const SUBGRAPH = "https://graph.pinto.money/exchange";
-
-const methodology = {
-  dailyVolume: "USD sum of all swaps and add/remove liquidity operations that affect the price of pooled tokens.",
-  UserFees: "There are no user fees.",
-  SupplySideRevenue: "There is no swap revenue for LP holders. Deposit rewards can be earned by depositing LP tokens in the Pinto Silo.",
-  Fees: "There are no fees."
-};
-
-/**
- * Returns daily/cumulative volume for the requested wells.
- * @param block - the block in which to query the subgraph.
- */
-async function getVolumeStats(block: number): Promise<number> {
-
-  // Gets the volume of each well from the subgraph.
-  const subgraphVolume = await request(SUBGRAPH, gql`
-    {
-      wells(
-        block: {number: ${block}}
-        first: 1000
-        orderBy: rollingDailyTradeVolumeUSD
-        orderDirection: desc
-      ) {
-        rollingDailyTradeVolumeUSD
-        cumulativeTradeVolumeUSD
-      }
-    }`
-  ) as SubgraphVolumeResponse;
-
-  // Sum and return the overall volume
-  return subgraphVolume.wells.reduce((result: number, next: SubgraphWell) => {
-    return result + parseFloat(next.cumulativeTradeVolumeUSD);
-  }, 0);
-}
-
-export default {
-  version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: async (fetchParams: FetchOptions): Promise<FetchResultV2> => {
-        const endBlock = await fetchParams.getEndBlock();
-        const startBlock = await fetchParams.getStartBlock();
-        const startStats = await getVolumeStats(startBlock);
-        const endStats = await getVolumeStats(endBlock);
-        return {
-          dailyVolume: endStats - startStats,
-        }
-        
-      },
-      start: '2024-11-19',
-    }
-  },
-  methodology
-};
+export default getBasinAdapter({
+  [CHAIN.BASE]: {
+    start: '2024-11-19',
+    wells: [
+      '0x3e11001CfbB6dE5737327c59E10afAB47B82B5d3',
+      '0x3e111115A82dF6190e36ADf0d552880663A4dBF1',
+      '0x3e11226fe3d85142B734ABCe6e58918d5828d1b4',
+      '0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1',
+      '0x3e11444c7650234c748D743D8d374fcE2eE5E6C9',
+    ]
+  }
+})
