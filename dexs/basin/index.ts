@@ -1,94 +1,77 @@
-import { request, gql } from "graphql-request";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapterChainConfig, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
-class SubgraphVolumeResponse {
-  wells: SubgraphWell[];
+interface BasinExchangeConfig {
+  wells: Array<string>;
+  start: string;
 }
 
-class SubgraphWell {
-  rollingDailyTradeVolumeUSD: string;
-  cumulativeTradeVolumeUSD: string;
+interface BasinExchangeExportConfig {
+  [key: string]: BasinExchangeConfig;
 }
 
-enum WellType {
-  SPOT
-};
+async function getBasinVolume(options: FetchOptions, configs: BasinExchangeExportConfig) {
+  const config = configs[options.chain];
 
-const chains = {
+  const dailyVolume = options.createBalances()
+
+  const wellsSwapEvents = await options.getLogs({
+    eventAbi: 'event Swap(address fromToken, address toToken, uint256 amountIn, uint256 amountOut, address recipient)',
+    targets: config.wells,
+    flatten: true,
+  });
+  
+  for (const event of wellsSwapEvents) {
+    addOneToken({ chain: options.chain, balances: dailyVolume, token0: event.fromToken, token1: event.toToken, amount0: event.amountIn, amount1: event.amountOut })
+  }
+
+  return { dailyVolume }
+}
+
+export function getBasinAdapter(configs: BasinExchangeExportConfig): SimpleAdapter {
+  const adapter: SimpleAdapter = {
+    version: 2,
+    methodology: {
+      Volume: 'Total swap volume from all Well pools on exchange.',
+    },
+    adapter: {}
+  }
+
+  for (const [chain, config] of Object.entries(configs)) {
+    (adapter.adapter as BaseAdapterChainConfig)[chain] = {
+      fetch: async function(options: FetchOptions) {
+        return await getBasinVolume(options, configs)
+      },
+      start: config.start,
+    }
+  }
+
+  return adapter;
+}
+
+export default getBasinAdapter({
   [CHAIN.ETHEREUM]: {
-    startBlock: 17977905,
-    startTime: 1692793703,
-    subgraph: "https://graph.bean.money/basin_eth"
+    start: '2023-08-24',
+    wells: [
+      '0xBEA0e11282e2bB5893bEcE110cF199501e872bAd',
+      '0xbea0000113b0d182f4064c86b71c315389e4715d',
+      '0x1125eac5f713503e2b7cb2299027960ce1aa5d42',
+      '0x54c04c9bf5af0bc3096cb0af24c4fa8379a2915e',
+      '0x905eafe9434fabacaf10d1490fcd0d1eb9b85fc8',
+      '0x8d97775623368f833f8fa82209e220f1c60508ea',
+      '0xdf9c4a067279857b463817ef773fe189c77e1686',
+    ],
   },
   [CHAIN.ARBITRUM]: {
-    startBlock: 261000000,
-    startTime: 1728223509,
-    subgraph: "https://graph.bean.money/basin"
-  }
-};
-
-const methodology = {
-  dailyVolume: "USD sum of all swaps and add/remove liquidity operations that affect the price of pooled tokens",
-  UserFees: "There are no user fees.",
-  SupplySideRevenue: "There is no swap revenue for LP holders. However, rewards can be received if whitelisted LP tokens are deposited in the Beanstalk Silo.",
-  Fees: "There are no fees."
-};
-
-/**
- * Returns daily/cumulative volume for the requested wells.
- * @param chain - the chain for which to retrieve the statistics.
- * @param type - the type of Well for which to get the volume.
- * @param block - the block in which to query the subgraph.
- * @dev Currently only type=SPOT is supported, as this is the only type of market which has been deployed
- *  so far. Future work in this adapter includes updating the subgraph query to account for the well type.
- */
-async function getVolumeStats(chain: CHAIN, type: WellType, block: number): Promise<FetchResultV2> {
-
-  // Gets the volume of each well from the subgraph.
-  // If there are more than 1,000 wells at some point in the future, this may need to be revisited.
-  const subgraphVolume = await request(chains[chain].subgraph, gql`
-    {
-      wells(
-        block: {number: ${block}}
-        first: 1000
-        orderBy: cumulativeTradeVolumeUSD
-        orderDirection: desc
-      ) {
-        rollingDailyTradeVolumeUSD
-        cumulativeTradeVolumeUSD
-      }
-    }`
-  ) as SubgraphVolumeResponse;
-
-  // Sum and return the overall volume
-  return subgraphVolume.wells.reduce((result: FetchResultV2, next: SubgraphWell) => {
-    return {
-      dailyVolume: result.dailyVolume as number + parseFloat(next.rollingDailyTradeVolumeUSD),
-    };
-  }, { dailyVolume: 0 });
-}
-
-function volumeForCategory(chain: CHAIN, type: WellType) {
-
-  return {
-    fetch: async (fetchParams: FetchOptions): Promise<FetchResultV2> => {
-      const block = await fetchParams.getEndBlock();
-      return await getVolumeStats(chain, type, block);
-    },
-    start: chains[chain].startTime,
-  }
-}
-
-// Currently there are only spot wells available, but it is expeted for more to exist in the future,
-// therefore using BreakdownAdapter.
-const adapter: SimpleAdapter = {
-  methodology,
-  version: 2,
-  adapter: Object.keys(chains).reduce((acc, chain) => {
-    acc[chain] = volumeForCategory(chain as CHAIN, WellType.SPOT);
-    return acc;
-  }, {})
-};
-
-export default adapter;
+    start: '2024-10-07',
+    wells: [
+      '0xBeA00Aa8130aCaD047E137ec68693C005f8736Ce',
+      '0xBEa00BbE8b5da39a3F57824a1a13Ec2a8848D74F',
+      '0xBeA00Cc9F93E9a8aC0DFdfF2D64Ba38eb9C2e48c',
+      '0xBea00DDe4b34ACDcB1a30442bD2B39CA8Be1b09c',
+      '0xBea00ee04D8289aEd04f92EA122a96dC76A91bd7',
+      '0xbEA00fF437ca7E8354B174339643B4d1814bED33',
+    ],
+  },
+})
