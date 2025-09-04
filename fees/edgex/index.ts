@@ -43,7 +43,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.EDGEX]: {
       fetch,
       start: '2025-02-25',
     },

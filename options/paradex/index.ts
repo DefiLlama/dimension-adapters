@@ -28,7 +28,7 @@ const fetch = async (timestamp: number): Promise<FetchResultOptions> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.PARADEX]: {
       fetch,
       start: '2025-03-29',
     },
