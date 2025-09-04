@@ -29,7 +29,7 @@ interface IVolumeBridge {
 }
 
 async function queryDataByApi(path: string) {
-    const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st";
+    const historicalVolumeEndpoint = "https://api-3rd.bitkeep.com/swap-go/open";
     let info = await fetchURL(`${historicalVolumeEndpoint}${path}`);
     const data: IVolumeBridge[] = (info)?.data?.list || [];
     return data
@@ -37,7 +37,7 @@ async function queryDataByApi(path: string) {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const startOfDay = options.startOfDay;
-    const path = `/getOrderDayList?bridge=1&chain=${options.chain}&timestamp=${startOfDay}`
+    const path = `/getOrderDayVolume?bridge=1&chain=${options.chain}&timestamp=${startOfDay}`
     const data = await queryDataByApi(path)
     const dateString = new Date(startOfDay * 1000).toISOString().split("T")[0];
     const dailyVolume = data.find(dayItem => dayItem.date === dateString)?.volume
@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
             return {
                 [chain]: {
                     fetch,
-                    start: '2024-01-01'
+                    start: '2025-04-01'
                 }
             }
         }).reduce((acc, item) => {
