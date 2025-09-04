@@ -19,7 +19,7 @@ const fetch = async (_: number, _1:any, { dateString }: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  deadFrom: '2025-09-10',
+  // deadFrom: '2025-09-10',
   adapter: {
     [CHAIN.LOGX]: {
       fetch,
