@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { formatAddress } from "../../utils/utils";
+import { METRIC } from "../metrics";
 import { addOneToken } from "../prices";
 import { CurveContractAbis, getAllPools, ICurveDexConfig, getPoolTokens, ITokenExchangeEvent, ContractVersion } from "./helpers";
 
@@ -141,7 +142,7 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}, feeSpl
                 dailyHoldersRevenue: swapFeesExcludeAdminFees.clone(feeSplitConfig.holdersRevenueRatio),
               }
             } else {
-              return { dailyVolume, dailyFees: swapFees, dailyRevenue: adminFees, dailyProtocolRevenue: adminFees };
+              return { dailyVolume, dailyFees: swapFees.clone(1, METRIC.SWAP_FEES), dailyRevenue: adminFees.clone(1, METRIC.SWAP_FEES), dailyProtocolRevenue: adminFees.clone(1, METRIC.SWAP_FEES) };
             }
           },
           start: configs[chain].start,

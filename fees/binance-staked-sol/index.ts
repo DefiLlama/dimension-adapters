@@ -1,5 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
@@ -25,9 +26,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("binance-staked-sol", row.amount || 0);
+      dailyRevenue.addCGToken("binance-staked-sol", row.amount || 0, METRIC.STAKING_REWARDS);
     }
   });
 

@@ -1,11 +1,28 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const methodology = {
   Fees: "Total rewards earned in EigenLayer.",
+  Revenue: "No revenue, all rewards earned by suppliers.",
   SupplySideRevenue: "Total rewards are distributed to stakers and operators.",
-  ProtocolRevenue: "Total rewards are earned by EigenLayer.",
-};
+  ProtocolRevenue: "No revenue for EigenLayer.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: "Total rewards earned in EigenLayer.",
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: "No revenue, all rewards earned by suppliers.",
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: "Total rewards are distributed to stakers and operators.",
+  },
+  ProtocolRevenue: {
+    [METRIC.STAKING_REWARDS]: "No revenue for EigenLayer.",
+  },
+}
 
 // EigenLayer calculates rewards off-chain and distributed to on-chain contracts weekly
 // we count daily fees by collect daily rewards were claimed by operators and stakers on RewardsCoordinator contract
@@ -27,11 +44,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: ContractAbis.RewardsClaimedEvent,
   })
   for (const event of events) {
-    dailyFees.add(event.token, event.claimedAmount)
+    dailyFees.add(event.token, event.claimedAmount, METRIC.STAKING_REWARDS)
   }
 
   return {
     dailyFees,
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
@@ -46,6 +64,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

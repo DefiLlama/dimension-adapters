@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { keccak256, AbiCoder } from "ethers";
+import { METRIC } from "../../helpers/metrics";
 
 /*//////////////////////////////////////////////////////////////
                             CONSTANTS
@@ -224,7 +225,7 @@ const fetch = async (options: FetchOptions) => {
       
       // Add volume and fees
       dailyVolume.add(actualToken, actualAmountIn);
-      dailyFees.add(actualToken, feesCollected);
+      dailyFees.add(actualToken, feesCollected, METRIC.SWAP_FEES);
     });
   };
 

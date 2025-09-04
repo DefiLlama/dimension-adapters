@@ -1,6 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 /**
  * 
@@ -29,6 +30,18 @@ const methodology = {
   Fees: 'Total ETH staking rewards from Rocketpool active validators',
   Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
   SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Total ETH staking rewards from Rocketpool active validators',
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: "Rocket Pool protocol doesn't take any fees or rewards cut.",
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
+  },
 }
 
 const rETH = ADDRESSES.ethereum.RETH;
@@ -129,7 +142,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const rewardFromBeacon = rewardToStakersAndOperators / (1 - nodeFeeRate)
 
 
-    dailyFees.addGasToken(rewardFromBeacon)
+    dailyFees.addGasToken(rewardFromBeacon, METRIC.STAKING_REWARDS)
   }
 
   const etherWithdrawnEvents: Array<any> = (await options.getLogs({
@@ -138,7 +151,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }))
   etherWithdrawnEvents.forEach((log: any) => {
     if (log.to.toLowerCase() === rETH.toLowerCase()) {
-      dailyFees.addGasToken(log.amount)
+      dailyFees.addGasToken(log.amount, METRIC.STAKING_REWARDS)
     }
   })
 

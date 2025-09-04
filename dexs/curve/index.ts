@@ -1,5 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveExport } from "../../helpers/curve";
+import { METRIC } from "../../helpers/metrics";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -384,6 +385,27 @@ adapter.methodology = {
   ProtocolRevenue: "Admin fees collected from every swap to Curve treasury",
   HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
   SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
+}
+
+adapter.breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Trading fees paid by users (typically range from 0.01%-0.04%)",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Trading fees paid by users (typically range from 0.01%-0.04%)",
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: "A 50% of the trading fee is collected by veCRV holders",
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: "Admin fees collected from every swap to Curve treasury",
+  },
+  HoldersRevenue: {
+    [METRIC.SWAP_FEES]: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
+  },
+  SupplySideRevenue: {
+    [METRIC.SWAP_FEES]: "A 50% of all trading fees are distributed among liquidity providers",
+  }
 }
 
 export default adapter;

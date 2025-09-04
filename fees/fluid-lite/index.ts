@@ -1,4 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import BigNumber from 'bignumber.js';
 
@@ -24,7 +25,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const revenueDelta = Number(currentRevenueValue) - Number(startRevenueValue)
   dailyRevenue.add(
     stETHAddress,
-    revenueDelta
+    revenueDelta,
+    METRIC.ASSETS_YIELDS,
   );
 
   const collectRevenueLogs = await options.getLogs({
@@ -49,7 +51,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   dailyRevenue.add(
     stETHAddress,
-    collectedRevenueAmount.toFixed()
+    collectedRevenueAmount.toFixed(),
+    METRIC.ASSETS_YIELDS,
   );
 
   return { dailyFees: dailyRevenue, dailyRevenue }
@@ -60,6 +63,14 @@ const adapter: Adapter = {
   methodology: {
     Fees: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
     Revenue: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
+    },
+    Revenue: {
+      [METRIC.ASSETS_YIELDS]: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
+    },
   },
   fetch,
   chains: [CHAIN.ETHEREUM],

@@ -2,6 +2,7 @@
 
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const chainMapping: { [key: string]: { chain: CHAIN; gasCgTokenId: string | null } } = {
     'ETH': { chain: CHAIN.ETHEREUM, gasCgTokenId: 'ethereum' },
@@ -35,10 +36,10 @@ const fetch = async (options: FetchOptions) => {
 
             if (addr && addr !== '') {
                 const tokenIdentifier = `${mappedChainData.chain}:${addr}`;
-                dailyFees.add(tokenIdentifier, amount, { skipChain: true });
+                dailyFees.add(tokenIdentifier, amount, METRIC.MANAGERMENT_FEES, { skipChain: true });
             } else if (mappedChainData.gasCgTokenId) {
                 const adjustedAmount = Number(amount) / (10 ** Number(_decimalsFromLog));
-                dailyFees.addCGToken(mappedChainData.gasCgTokenId, adjustedAmount);
+                dailyFees.addCGToken(mappedChainData.gasCgTokenId, adjustedAmount, METRIC.MANAGERMENT_FEES);
             } else {
                 // If there's no address and no gas token ID, we cannot process the fee.
                 throw new Error(`Cannot process fee for chain ${chainStr}`);
@@ -67,5 +68,16 @@ export default {
         Revenue: 'All services fees paid by users.',
         ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
         HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
-    }
+    },
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.MANAGERMENT_FEES]: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets.',
+        },
+        Revenue: {
+            [METRIC.MANAGERMENT_FEES]: 'All services fees paid by users.',
+        },
+        ProtocolRevenue: {
+            [METRIC.MANAGERMENT_FEES]: 'All services fees are collected by SoSoValue protocol.',
+        },
+    },
 };

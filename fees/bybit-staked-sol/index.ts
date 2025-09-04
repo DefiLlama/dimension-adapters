@@ -1,5 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
@@ -26,9 +27,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("bybit-staked-sol", row.amount || 0);
+      dailyRevenue.addCGToken("bybit-staked-sol", row.amount || 0, METRIC.STAKING_REWARDS);
     }
   });
 
@@ -45,9 +46,22 @@ const methodology = {
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Staking rewards from staked SOL on bybit staked solana',
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: 'Includes withdrawal fees and management fees collected by fee collector',
+  },
+  ProtocolRevenue: {
+    [METRIC.STAKING_REWARDS]: 'Revenue going to treasury/team',
+  },
+}
+
 export default {
   version: 1,
   methodology,
+  breakdownMethodology,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2024-09-07",

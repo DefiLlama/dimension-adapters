@@ -1,5 +1,6 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { ZeroAddress } from "ethers";
 
@@ -11,6 +12,21 @@ const methodology = {
   ProtocolRevenue: '10% staking rewards are charged by Binance.',
   Revenue: '10% staking rewards are charged by Binance.'
 }
+
+const breakdownMethodology = {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'Staking rewards earned by all staked ETH.',
+    },
+    Revenue: {
+      [METRIC.STAKING_REWARDS]: '10% staking rewards are charged by Binance.',
+    },
+    ProtocolRevenue: {
+      [METRIC.STAKING_REWARDS]: '10% staking rewards are charged by Binance.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: '90% staking rewards are distributed to WBETH holders.',
+    },
+  }
 
 const WBETH = ADDRESSES.bsc.wBETH
 const ETH_ON_BSC = ADDRESSES.bsc.ETH
@@ -37,10 +53,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   let token = options.chain === CHAIN.BSC ? ETH_ON_BSC : ZeroAddress
 
-  dailyFees.add(token, df)
+  dailyFees.add(token, df, METRIC.STAKING_REWARDS)
 
-  const dailyProtocolRevenue = dailyFees.clone(0.1)
-  const dailySupplySideRevenue = dailyFees.clone(0.9)
+  const dailyProtocolRevenue = dailyFees.clone(0.1, METRIC.STAKING_REWARDS)
+  const dailySupplySideRevenue = dailyFees.clone(0.9, METRIC.STAKING_REWARDS)
 
   return {
     dailyFees,
@@ -53,6 +69,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const adapter: Adapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

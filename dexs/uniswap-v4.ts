@@ -55,6 +55,7 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import ADDRESSES from '../helpers/coreAssets.json';
 
 interface IUniswapConfig {
@@ -270,7 +271,7 @@ async function fetch(options: FetchOptions) {
       const poolId = String(event.id)
       if (pools[poolId] as IPool) {
         const token = (pools[poolId] as IPool).currency0
-        dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
+        dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6), METRIC.SWAP_FEES)
         dailyVolume.add(token, Math.abs(Number(event.amount0)))
       }
     }

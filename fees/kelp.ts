@@ -1,5 +1,6 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 
@@ -7,7 +8,23 @@ import * as sdk from "@defillama/sdk";
 const methodology = {
   Fees: 'Total rewards were collected from staking assets.',
   SupplySideRevenue: 'Rewards are distributed to stakers (rsETH holders).',
+  Revenue: 'A portion of rewards are charged by protocol.',
   ProtocolRevenue: 'A portion of rewards are charged by protocol.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Total rewards were collected from staking assets.',
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: 'Rewards are distributed to stakers (rsETH holders).',
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: 'A portion of rewards are charged by protocol.',
+  },
+  ProtocolRevenue: {
+    [METRIC.STAKING_REWARDS]: 'A portion of rewards are charged by protocol.',
+  },
 }
 
 const LRTOracle = '0x349A73444b1a310BAe67ef67973022020d70020d'
@@ -79,9 +96,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const protocolRevenue = totalFees * protocolFeeRate
   const supplySideRevenue = totalFees - protocolRevenue
 
-  dailyFees.addGasToken(totalFees)
-  dailyProtocolRevenue.addGasToken(protocolRevenue)
-  dailySupplySideRevenue.addGasToken(supplySideRevenue)
+  dailyFees.addGasToken(totalFees, METRIC.STAKING_REWARDS)
+  dailyProtocolRevenue.addGasToken(protocolRevenue, METRIC.STAKING_REWARDS)
+  dailySupplySideRevenue.addGasToken(supplySideRevenue, METRIC.STAKING_REWARDS)
 
   if (options.chain === CHAIN.ETHEREUM) {
     const claimedEvents: Array<any> = await options.getLogs({
@@ -96,9 +113,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const feeRate = Number(feeInBPS) / 1e4
       for (const event of claimedEvents) {
         const amount = Number(event.amount)
-        dailyFees.add(EigenToken, amount)
-        dailyProtocolRevenue.add(EigenToken, amount * feeRate)
-        dailySupplySideRevenue.add(EigenToken, amount * (1 - feeRate))
+        dailyFees.add(EigenToken, amount, METRIC.STAKING_REWARDS)
+        dailyProtocolRevenue.add(EigenToken, amount * feeRate, METRIC.STAKING_REWARDS)
+        dailySupplySideRevenue.add(EigenToken, amount * (1 - feeRate), METRIC.STAKING_REWARDS)
       }
     }
   }
@@ -106,13 +123,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return {
     dailyFees,
     dailySupplySideRevenue,
+    dailyRevneue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   }
 }
 
 const adapter: Adapter = {
-  methodology,
   version: 2,
+  methodology,
+  breakdownMethodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-12-11', },

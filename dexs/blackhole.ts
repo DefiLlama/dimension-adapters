@@ -1,4 +1,5 @@
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { cache } from "@defillama/sdk";
 import { filterPools } from "../helpers/uniswap";
@@ -87,12 +88,12 @@ const fetch: FetchV2 = async (fetchOptions) => {
 
   return {
     dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyFees: dailyFees.clone(1, METRIC.SWAP_FEES),
+    dailyUserFees: dailyFees.clone(1, METRIC.SWAP_FEES),
+    dailyRevenue: dailyRevenue.clone(1, METRIC.SWAP_FEES),
+    dailySupplySideRevenue: dailySupplySideRevenue.clone(1, METRIC.SWAP_FEES),
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue.clone(1, METRIC.SWAP_FEES),
   }
 }
 
@@ -105,6 +106,26 @@ const adapter: SimpleAdapter = {
     Revenue: "Fees collected and distributed to staked LPs.",
     ProtocolRevenue: "No protocol revenue",
     HoldersRevenue: "Fees collected and distributed to veBlack holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: "All swap fees paid by users.",
+    },
+    UserFees: {
+      [METRIC.SWAP_FEES]: "All swap fees paid by users.",
+    },
+    SupplySideRevenue: {
+      [METRIC.SWAP_FEES]: "Unstake LPs receive 100% fee of each swap.",
+    },
+    Revenue: {
+      [METRIC.SWAP_FEES]: "Fees collected and distributed to staked LPs.",
+    },
+    ProtocolRevenue: {
+      [METRIC.SWAP_FEES]: "No protocol revenue",
+    },
+    HoldersRevenue: {
+      [METRIC.SWAP_FEES]: "Fees collected and distributed to veBlack holders.",
+    },
   },
   chains: [CHAIN.AVAX],
   fetch,

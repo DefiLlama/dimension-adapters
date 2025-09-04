@@ -1,6 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { request, gql } from "graphql-request";
+import { METRIC } from "../helpers/metrics";
+import { request } from "graphql-request";
 
 // count minter fees on MintExecuted transactions
 // count penalty fees on MissedIntervalsPenaltyImposed transactions
@@ -8,9 +9,29 @@ import { request, gql } from "graphql-request";
 // count collateral treasuries earning as supply side revenue
 const methodology = {
   Fees: 'Total minter fees and penalty fees paid by borrowers.',
+  Revenue: 'Total fees are earned by M0 protocol and distibuted to whitelised M staker',
   SupplySideRevenue: 'Total yields are earning from off-chain deposited collaterals',
   HoldersRevenue: 'Total fees are distibuted to whitelised M staker',
   ProtocolRevenue: 'Total fees are earned by M0 protocol',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Treasury yields earned from collateral assets.',
+    [METRIC.MINT_REDEEM_FEES]: 'Fees earned from mint/redeem M0 tokens, and penalty fees charged.',
+  },
+  Revenue: {
+    [METRIC.MINT_REDEEM_FEES]: 'Fees earned from mint/redeem M0 tokens, and penalty fees charged.',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Treasury yields earned from collateral assets',
+  },
+  HoldersRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Treasury yields earned from collateral assets and distibuted to whitelised M stakers.',
+  },
+  ProtocolRevenue: {
+    [METRIC.MINT_REDEEM_FEES]: 'Fees earned from mint/redeem M0 tokens, and penalty fees charged.',
+  },
 }
 
 const TokenM = '0x866a2bf4e572cbcf37d5071a7a58503bfb36be1b'
@@ -81,11 +102,11 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     // MinterGateway track mint rate by an index number
     // it reduces amount of fee right after the minting was executed
     const feeAmount = Number(event.amount) - Number(event.principalAmount)
-    dailyFees.add(TokenM, feeAmount)
-    dailyHoldersRevenue.add(TokenM, feeAmount * earnerRate)
+    dailyFees.add(TokenM, feeAmount, METRIC.MINT_REDEEM_FEES)
+    dailyHoldersRevenue.add(TokenM, feeAmount * earnerRate, METRIC.MINT_REDEEM_FEES)
   }
   for (const event of MissedIntervalsPenaltyImposedEvents) {
-    dailyFees.add(TokenM, Number(event.penaltyAmount))
+    dailyFees.add(TokenM, Number(event.penaltyAmount), METRIC.MINT_REDEEM_FEES)
   }
 
   const dailyProtocolRevenue = dailyFees.clone()
@@ -103,12 +124,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const timeframe = options.fromTimestamp && options.toTimestamp ? (options.toTimestamp - options.fromTimestamp) : 24 * 60 * 60
     const totalYield = totalBalance * yieldRate * timeframe / YEAR
 
-    dailyFees.add(TokenM, totalYield)
-    dailySupplySideRevenue.add(TokenM, totalYield)
+    dailyFees.add(TokenM, totalYield, METRIC.ASSETS_YIELDS)
+    dailySupplySideRevenue.add(TokenM, totalYield, METRIC.ASSETS_YIELDS)
   }
+
+  const dailyRevenue = dailyHoldersRevenue.clone(1)
+  dailyRevenue.addBalances(dailySupplySideRevenue)
 
   return {
     dailyFees,
+    dailyRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
@@ -123,6 +148,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
   version: 2,
 };
 
