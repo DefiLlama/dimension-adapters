@@ -9,7 +9,6 @@ const config = {
   ethereum: { endpoint: 'https://ambindexer.net/gcgo/', chainId: '0x1', poolIdx: '420' },
   canto: { endpoint: 'https://ambient-graphcache.fly.dev/gcgo/', chainId: '0x1e14', poolIdx: '420' },
   plume_mainnet: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18232', poolIdx: '420' },
-  plume: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18231', poolIdx: '420' },
   swellchain: { endpoint: 'https://ambindexer.net/swell-gcgo/', chainId: '0x783', poolIdx: '420' },
 }
 
@@ -37,8 +36,16 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, createBalances, ch
       dailyFees.subtractToken(quote, dataOld.quoteVolume * data.feeRate)
     })
   if (errors?.length) throw errors
-  return { dailyVolume, dailyFees, }
+  return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees, dailyProtocolRevenue: 0 }
 }
+
+const methodology = {
+  Volume: "Ambient finance trade volume",
+  Fees: "Trading fees paid by users",
+  Revenue: "Ambient doesnt take any fee share",
+  ProtocolRevenue: "Ambient doesnt take any fee share",
+  SupplySideRevenue: "All the trading fee goes to liquidity providers",
+};
 
 const adapter = { fetch, start: '2023-05-28', }
 
@@ -50,8 +57,8 @@ export default {
     // [CHAIN.CANTO]: adapter,
     [CHAIN.BLAST]: adapter,
     [CHAIN.PLUME]: adapter,
-    [CHAIN.PLUME_LEGACY]: adapter,
     [CHAIN.SWELLCHAIN]: adapter,
   },
   version: 2,
+  methodology
 };
