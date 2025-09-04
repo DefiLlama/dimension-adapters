@@ -15,7 +15,7 @@ const convertToDefiLlamaFormat = (suiAddress: string) => {
 };
 
 const fetchData = () => {
-  return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
+  return async ({ endTimestamp }: FetchOptions) => {
     const targetDate = new Date(endTimestamp * 1000);
     const dateString = targetDate.toISOString().split("T")[0];
 
