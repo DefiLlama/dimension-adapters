@@ -22,7 +22,6 @@ const EXCLUDED_ADDRESSES = [
 
 const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
     
     const query = `
         SELECT 
@@ -71,16 +70,16 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         
         // Add total revenue (gacha + marketplace fees)
         if (totalRevenue > 0) {
-            dailyFees.add(ADDRESSES.solana.USDC, totalRevenue * 1e6);
-            dailyRevenue.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
+            dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
         }
     }
 
     return {
         dailyFees,
-        dailyRevenue,
+        dailyRevenue: dailyFees,
         dailyUserFees: dailyFees,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue: dailyFees,
+        dailyHoldersRevenue: '0',
     }
 }
 
@@ -88,7 +87,7 @@ const methodology = {
     Fees: "Total fees from gacha (card pack sales) and marketplace transactions.",
     Revenue: "Revenue from gacha sales + marketplace fees/royalties.",
     UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-    ProtocolRevenue: "Net revenue after accounting for buyback expenses (Revenue - Buybacks)."
+    ProtocolRevenue: "Net revenue after accounting for gacha buyback expenses."
 }
 
 const adapter: SimpleAdapter = {
