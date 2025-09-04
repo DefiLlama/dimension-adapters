@@ -204,8 +204,7 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
         dune.ether_fi.result_aum
         where address in (0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf, 0x917cee801a67f933f2e6b33fc0cd1ed2d5909d88)
         and lower(token_symbol) like '%steth%'
-        and day >= date(from_unixtime(${options.startTimestamp})) 
-        and day < date(from_unixtime(${options.endTimestamp}))
+        and day = date(from_unixtime(${options.startOfDay})) 
         and token_balance_usd > 0
     ),
     
@@ -256,8 +255,7 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
             sum(daily_revenue) as revenue_usd
         from 
         query_5535845
-        where day >= date(from_unixtime(${options.startTimestamp})) 
-        and day < date(from_unixtime(${options.endTimestamp}))
+        where day = date(from_unixtime(${options.startOfDay}))
     ),
     
     -- ether.fi cash cashback events
@@ -301,51 +299,93 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
         and topic0 = 0x89d3571a498b5d3d68599f5f00c3016f9604aafa7701c52c1b04109cd909a798
     ),
     
-    -- ether.fi cashbacks revenue
-    cash_cashbacks_revenue as (
-        select 
-            'cash_cashbacks' as revenue_source,
-            sum(cashback_usd) as revenue_usd
-        from 
-        cashback_events
-    )
-    
-    -- Combine all revenue sources
-    select revenue_source, revenue_usd from restaking_rewards
-    union all
-    select revenue_source, revenue_usd from cash_spends_revenue  
-    union all
-    select revenue_source, revenue_usd from cash_borrows_revenue
-    union all
-    select revenue_source, revenue_usd from cash_cashbacks_revenue`;
+         -- ether.fi cashbacks revenue
+     cash_cashbacks_revenue as (
+         select 
+             'cash_cashbacks' as revenue_source,
+             sum(cashback_usd) as revenue_usd
+         from 
+         cashback_events
+     ),
+     
+     -- ether.fi buybacks (counted as holders revenue)
+     buybacks as (
+         select 
+             'buybacks' as revenue_source,
+             sum(amount_usd) as revenue_usd
+         from (
+             select 
+                 amount_usd
+             from 
+             dex_aggregator.trades 
+             where blockchain = 'ethereum'
+             and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F 
+             and TIME_RANGE
+
+             union all 
+
+             select 
+                 amount_usd
+             from (
+                 values 
+                     ('offchain', cast('2024-07-31' as timestamp), 'ETHFI', 64824.120603, 'USDC', 129000, 129000, 0x, 0x),
+                     ('offchain', cast('2024-08-31' as timestamp), 'ETHFI', 83333.3333333, 'USDC', 110000, 110000, 0x, 0x),
+                     ('offchain', cast('2024-09-30' as timestamp), 'ETHFI', 48295.4545455, 'USDC', 85000, 85000, 0x, 0x),
+                     ('offchain', cast('2024-10-31' as timestamp), 'ETHFI', 81944.4444444, 'USDC', 118000, 118000, 0x, 0x),
+                     ('offchain', cast('2024-11-30' as timestamp), 'ETHFI', 68093.385214, 'USDC', 175000, 175000, 0x, 0x),
+                     ('offchain', cast('2024-12-31' as timestamp), 'ETHFI', 82949.3087558, 'USDC', 180000, 180000, 0x, 0x),
+                     ('offchain', cast('2025-01-31' as timestamp), 'ETHFI', 100000, 'USDC', 165000, 165000, 0x, 0x),
+                     ('offchain', cast('2025-02-28' as timestamp), 'ETHFI', 126429.975704, 'USDC', 120000, 120000, 0x, 0x),
+                     ('offchain', cast('2025-03-31' as timestamp), 'ETHFI', 181716.860902, 'USDC', 105000, 105000, 0x, 0x),
+                     ('offchain', cast('2025-04-30' as timestamp), 'ETHFI', 203245.147522, 'USDC', 120000, 120000, 0x, 0x)
+             ) as tmp_table (project, block_time, token_bought_symbol, token_bought_amount, token_sold_symbol, token_sold_amount, amount_usd, taker, tx_hash)
+             where block_time >= from_unixtime(${options.startTimestamp})
+             and block_time < from_unixtime(${options.endTimestamp})
+         )
+     )
+     
+     -- Combine all revenue sources
+     select revenue_source, revenue_usd from restaking_rewards
+     union all
+     select revenue_source, revenue_usd from cash_spends_revenue  
+     union all
+     select revenue_source, revenue_usd from cash_borrows_revenue
+     union all
+     select revenue_source, revenue_usd from cash_cashbacks_revenue
+     union all
+     select revenue_source, revenue_usd from buybacks`;
 
   const result = await queryDuneSql(options, query);
-  const revenues = {
-    restakingRewards: 0,
-    cashSpends: 0,
-    cashBorrows: 0,
-    cashCashbacks: 0
-  };
+     const revenues = {
+     restakingRewards: 0,
+     cashSpends: 0,
+     cashBorrows: 0,
+     cashCashbacks: 0,
+     buybacks: 0
+   };
 
-  if (result && result.length > 0) {
-    result.forEach(row => {
-      switch (row.revenue_source) {
-        case 'restaking_rewards':
-          revenues.restakingRewards = Number(row.revenue_usd || 0);
-          break;
-        case 'cash_spends':
-          revenues.cashSpends = Number(row.revenue_usd || 0);
-          break;
-        case 'cash_borrows':
-          revenues.cashBorrows = Number(row.revenue_usd || 0);
-          break;
-        case 'cash_cashbacks':
-          revenues.cashCashbacks = Number(row.revenue_usd || 0);
-          break;
-      }
-    });
-  }
-  console.log(revenues);
+   if (result && result.length > 0) {
+     result.forEach(row => {
+       switch (row.revenue_source) {
+         case 'restaking_rewards':
+           revenues.restakingRewards = Number(row.revenue_usd || 0);
+           break;
+         case 'cash_spends':
+           revenues.cashSpends = Number(row.revenue_usd || 0);
+           break;
+         case 'cash_borrows':
+           revenues.cashBorrows = Number(row.revenue_usd || 0);
+           break;
+         case 'cash_cashbacks':
+           revenues.cashCashbacks = Number(row.revenue_usd || 0);
+           break;
+         case 'buybacks':
+           revenues.buybacks = Number(row.revenue_usd || 0);
+           break;
+       }
+     });
+   }
+  // console.log(revenues);
   return revenues;
 }
 
@@ -399,7 +439,6 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   dailyRev.add(EIGEN, eigenRevenue);
   dailyFees.add(EIGEN, eigenRevenue);
 
-  // Add missing revenue sources via optimized merged Dune query
   const additionalRevenues = await getAdditionalRevenueStreams(options);
   
   // Restaking rewards from Eigenlayer via restaker contract (0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf)
@@ -424,6 +463,12 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   if (additionalRevenues.cashCashbacks > 0) {
     dailyRev.addUSDValue(additionalRevenues.cashCashbacks);
     dailyFees.addUSDValue(additionalRevenues.cashCashbacks);
+  }
+
+  // ether.fi buybacks (counted as holders revenue)
+  const dailyHoldersRevenue = options.createBalances();
+  if (additionalRevenues.buybacks > 0) {
+    dailyHoldersRevenue.addUSDValue(additionalRevenues.buybacks);
   }
 
   // liquid earnings
@@ -459,6 +504,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyRev,
     dailyProtocolRevenue: dailyRev,
+    dailyHoldersRevenue,
   };
 };
 
@@ -470,6 +516,7 @@ const adapter: Adapter = {
     Fees: "Staking/restaking rewards, Liquid Vault fees, ether.fi cash transaction fees (1.38%), cashbacks, and borrowing interest.",
     Revenue: "Staking/restaking rewards including Eigenlayer restaking via restaker contract, Liquid Vault platform management fees, ether.fi cash revenue from spends/borrows/cashbacks.",
     ProtocolRevenue: "Staking/restaking rewards including Eigenlayer restaking via restaker contract, Liquid Vault platform management fees, ether.fi cash revenue from spends/borrows/cashbacks.",
+    HoldersRevenue: "Token buybacks executed by ether.fi from protocol revenue.",
   },
   start: '2024-03-13'
 };
