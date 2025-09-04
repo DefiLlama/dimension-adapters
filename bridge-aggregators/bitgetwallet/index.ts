@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
             return {
                 [chain]: {
                     fetch,
-                    start: '2024-01-01'
+                    start: '2025-04-01'
                 }
             }
         }).reduce((acc, item) => {
