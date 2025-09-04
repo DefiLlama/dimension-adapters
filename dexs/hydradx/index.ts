@@ -50,10 +50,15 @@ const fetch = async (timestamp: number) => {
   return {
     dailyVolume: dailyVolume,
     dailyFees: dailyFees,
-    dailyRevenue: dailyFees / 6,
+    dailyRevenue: dailyFees / 10,
     timestamp: dayTimestamp,
   };
 };
+
+const methodology = {
+  Fees: 'All fees paid by users for swaps on Hydration.',
+  Revenue: 'Approx 1/10th of fees is distributed to the protocol treasury',
+}
 
 const adapter: SimpleAdapter = {
   adapter: {
@@ -62,7 +67,8 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true,
       start: '2023-08-22',
     },
-  }
+  },
+  methodology,
 };
 
 export default adapter;
