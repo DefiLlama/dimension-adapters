@@ -1,146 +1,102 @@
+/**
+ * Thales Options Adapter
+ * 
+ * Fee Calculation: Fee = Revenue + LP Performance Fee
+ * - Revenue: SafeBoxFeePaid events from AMM contracts (uses safeBoxAmount field)
+ * - LP Performance Fee: SafeBoxSharePaid events from LP contracts (uses safeBoxAmount field)  
+ * - Volume: Tracked from various market creation and trading events
+ */
+
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
-import { addTokensReceived } from '../../helpers/token';
-import { OVERTIME_CHAIN_CONFIG, OVERTIME_CONTRACT_ADDRESSES } from './config';
+import { OVERTIME_CONTRACT_ADDRESSES, LP_CONTRACT_COLLATERAL_MAPPING } from './config';
 import { OVERTIME_EVENT_ABI } from './abis';
 import { 
   parseTicketCreatedEvent, 
   parseBoughtFromAmmEvent, 
   parseSpeedMarketCreatedEvent, 
-  parseChainedMarketCreatedEvent 
+  parseChainedMarketCreatedEvent,
+  parseSafeBoxFeePaidEvent,
+  parseSafeBoxSharePaidEvent
 } from './parsers';
 import { CHAIN } from "../../helpers/chains";
 
+const CONTRACT_EVENT_MAPPING = {
+  sportsAMMV2: { abi: 'ticketCreated', parser: parseTicketCreatedEvent },
+  thalesAMM: { abi: 'boughtFromAmm', parser: parseBoughtFromAmmEvent },
+  rangedAMM: { abi: 'boughtFromAmm', parser: parseBoughtFromAmmEvent },
+  speedMarket: { abi: 'speedMarketCreated', parser: parseSpeedMarketCreatedEvent },
+  chainedSpeedMarket: { abi: 'chainedMarketCreated', parser: parseChainedMarketCreatedEvent },
+} as const;
+
 function getChainContractsToQuery(
-  chain: string, 
+  chain: string,
   dailyNotionalVolume: ReturnType<FetchOptions['createBalances']>,
   dailyPremiumVolume: ReturnType<FetchOptions['createBalances']>
 ) {
-  switch(chain) {
-    case CHAIN.OPTIMISM: {
-      const { sportsAMMV2, thalesAMM, rangedAMM, speedMarket, chainedSpeedMarket } 
-        = OVERTIME_CONTRACT_ADDRESSES[CHAIN.OPTIMISM];
-      return [
-        {
-          address: sportsAMMV2,
-          eventAbi: OVERTIME_EVENT_ABI.ticketCreated,
-          parser: (log: any) => parseTicketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: thalesAMM,
-          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
-          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: rangedAMM,
-          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
-          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: speedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
-          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: chainedSpeedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
-          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        }
-      ];
-    }
-    case CHAIN.ARBITRUM: {
-      const { sportsAMMV2, thalesAMM, rangedAMM, speedMarket, chainedSpeedMarket } 
-        = OVERTIME_CONTRACT_ADDRESSES[CHAIN.ARBITRUM];
-      return [
-        {
-          address: sportsAMMV2,
-          eventAbi: OVERTIME_EVENT_ABI.ticketCreated,
-          parser: (log: any) => parseTicketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: thalesAMM,
-          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
-          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: rangedAMM,
-          eventAbi: OVERTIME_EVENT_ABI.boughtFromAmm,
-          parser: (log: any) => parseBoughtFromAmmEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: speedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
-          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: chainedSpeedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
-          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        }
-      ];
-    }
-    case CHAIN.BASE: {
-      const { sportsAMMV2, speedMarket, chainedSpeedMarket } = OVERTIME_CONTRACT_ADDRESSES[CHAIN.BASE];
-      return [
-        {
-          address: sportsAMMV2,
-          eventAbi: OVERTIME_EVENT_ABI.ticketCreated,
-          parser: (log: any) => parseTicketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: speedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
-          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: chainedSpeedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
-          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        }
-      ];
-    }
-    case CHAIN.POLYGON: {
-      const { speedMarket, chainedSpeedMarket } = OVERTIME_CONTRACT_ADDRESSES[CHAIN.POLYGON];
-      return [
-        {
-          address: speedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.speedMarketCreated,
-          parser: (log: any) => parseSpeedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        },
-        {
-          address: chainedSpeedMarket,
-          eventAbi: OVERTIME_EVENT_ABI.chainedMarketCreated,
-          parser: (log: any) => parseChainedMarketCreatedEvent(log, dailyNotionalVolume, dailyPremiumVolume)
-        }
-      ];
-    }
-    default:
-      throw new Error("No contracts found for this chain");
-  }
+  const contracts = OVERTIME_CONTRACT_ADDRESSES[chain];
+  if (!contracts) throw new Error(`No contracts found for chain: ${chain}`);
+
+  return Object.entries(contracts)
+    .filter(([, address]) => address)
+    .map(([contractType, address]) => {
+      const config = CONTRACT_EVENT_MAPPING[contractType as keyof typeof CONTRACT_EVENT_MAPPING];
+      const abiKey = config.abi as keyof typeof OVERTIME_EVENT_ABI;
+      return {
+        address: address as string,
+        eventAbi: OVERTIME_EVENT_ABI[abiKey] as string,
+        parser: (log: any) => config.parser(log, dailyNotionalVolume, dailyPremiumVolume)
+      };
+    });
 }
 
 export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
-  const contractConfigs = getChainContractsToQuery(options.chain, dailyNotionalVolume, dailyPremiumVolume);
+  const dailyRevenue = options.createBalances();
+  const dailyLPPerformanceFee = options.createBalances();
+  const collateralMapping = LP_CONTRACT_COLLATERAL_MAPPING[options.chain] || {};
   
-  await Promise.all(
-    contractConfigs.map(async (cfg) => {
-      const logs = await options.getLogs({
-        target: cfg.address,
-        eventAbi: cfg.eventAbi,
-        onlyArgs: true,
-      });
-      logs.forEach(log => cfg.parser(log));
-    })
-  );
+  await Promise.all([
+    // Volume events from AMM contracts
+    ...getChainContractsToQuery(options.chain, dailyNotionalVolume, dailyPremiumVolume)
+      .map(async ({ address, eventAbi, parser }) => {
+        const logs = await options.getLogs({ target: address, eventAbi, onlyArgs: true });
+        logs.forEach(parser);
+      }),
+    
+    // Revenue from SafeBoxFeePaid events (AMM contracts)
+    ...Object.values(OVERTIME_CONTRACT_ADDRESSES[options.chain] || {})
+      .map(async (address) => {
+        const logs = await options.getLogs({
+          target: address as string,
+          eventAbi: OVERTIME_EVENT_ABI.safeboxFeePaid,
+          onlyArgs: true,
+        });
+        logs.forEach(log => parseSafeBoxFeePaidEvent(log, dailyRevenue));
+      }),
+    
+    // LP performance fees from SafeBoxSharePaid events (LP contracts)
+    ...Object.keys(collateralMapping)
+      .map(async (address) => {
+        const logs = await options.getLogs({
+          target: address,
+          eventAbi: OVERTIME_EVENT_ABI.safeboxSharePaid,
+          onlyArgs: true,
+        });
+        logs.forEach(log => parseSafeBoxSharePaidEvent(log, address, collateralMapping, dailyLPPerformanceFee));
+      })
+  ]);
   
-  const dailyFees = await addTokensReceived({ ...OVERTIME_CHAIN_CONFIG[options.chain], options });
+  // Fee = Revenue + LP Performance Fee  
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailyLPPerformanceFee);
   
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
   };
 }
 

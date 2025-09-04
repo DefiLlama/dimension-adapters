@@ -1,6 +1,28 @@
-import { CHAIN } from "../helpers/chains"
-import { liquityV2Exports } from "../helpers/liquity"
+import { CHAIN } from "../helpers/chains";
+import { FetchOptions } from "../adapters/types";
+import { getLiquityV2LogAdapter } from "../helpers/liquity";
 
-export default liquityV2Exports({
-  [CHAIN.ETHEREUM]: { collateralRegistry: '0xCFf0DcAb01563e5324ef9D0AdB0677d9C167d791', }
-})
+async function fetch(options: FetchOptions) {
+  const v0DeploymentRes = await getLiquityV2LogAdapter({
+    collateralRegistry: "0xCFf0DcAb01563e5324ef9D0AdB0677d9C167d791",
+  })(options);
+  const dailyFees = v0DeploymentRes.dailyFees.clone();
+  let v1DeploymentRes = null;
+  if (options.startTimestamp >= 1753161467) {
+    v1DeploymentRes = await getLiquityV2LogAdapter({
+      collateralRegistry: "0x33d68055cd54061991b2e98b9ab326ffce4d60fe",
+    })(options);
+    dailyFees.addBalances(v1DeploymentRes.dailyFees);
+  }
+  return { dailyFees, dailyRevenue: dailyFees };
+}
+
+export default {
+  version: 2,
+  methodology: {
+    Fees: "Total interest, redemption fees paid by borrowers and liquidation profit",
+    Revenue: "Total interest, redemption fees paid by borrowers and liquidation profit",
+  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+};
