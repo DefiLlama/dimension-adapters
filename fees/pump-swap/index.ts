@@ -94,24 +94,42 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyCoinCreatorRevenue = options.createBalances();
 
     for (const item of data) {
-        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
-        dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
-        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0)
+        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee, 'ProtocolFees')
+        dailySupplySideRevenue.add(item.quoteMint, item.lpFee, 'DexLPFees')
+        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0, 'DexCreatorFees');
     }
-    dailyFees.addBalances(dailyProtocolRevenue);
-    dailyFees.addBalances(dailySupplySideRevenue);
-    dailyFees.addBalances(dailyCoinCreatorRevenue);
+    dailyFees.addBalances(dailyProtocolRevenue, 'ProtocolFees');
+    dailyFees.addBalances(dailySupplySideRevenue, 'DexLPFees');
+    dailyFees.addBalances(dailyCoinCreatorRevenue, 'DexCreatorFees');
+    dailySupplySideRevenue.addBalances(dailyCoinCreatorRevenue, 'DexCreatorFees');
 
     return {
         dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyUserFees: dailyFees,
         dailyProtocolRevenue,
-        dailySupplySideRevenue
+        dailySupplySideRevenue,
+        dailyHoldersRevenue: 0, // buybacks are tracked in pump fun launchpad
     }
 };
 
+const breakdownMethodology = {
+    Fees: {
+        'ProtocolFees': 'Trade fees from PumpFun AMM that goes to the protocol',
+        'DexLPFees': 'Trade fees from PumpFun AMM that goes to liquidity providers',
+        'DexCreatorFees': 'Trade fees from PumpFun AMM that goes to coin creators',
+    },
+    Revenue: {
+        'ProtocolFees': 'Trade fees from PumpFun AMM that goes to the protocol',
+    },
+    SupplySideRevenue: {
+        'DexLPFees': 'Trade fees from PumpFun AMM that goes to liquidity providers',
+        'DexCreatorFees': 'Trade fees from PumpFun AMM that goes to coin creators',
+    },
+}
+
 const adapter: SimpleAdapter = {
+    breakdownMethodology,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
