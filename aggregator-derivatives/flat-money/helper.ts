@@ -20,7 +20,7 @@ export const CONFIG = {
   },
   [CHAIN.ARBITRUM]: {
     startTimestamp: 1744830648,
-    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/QmbK9eGnhy5kivMa25LbhpTkgQzHp3E5bUZ1GNBZsrRHGM",
+    endpoint: "https://gateway-arbitrum.network.thegraph.com/api/c26ffec48be89fe71a1af11eb1ae5776/subgraphs/id/4Ttk2WinVSCURA9vVZ5tDz7TwG7tEDkQbFbGur5qxoWG",
     decimals: {
       price: 18,
       amount: 8,
