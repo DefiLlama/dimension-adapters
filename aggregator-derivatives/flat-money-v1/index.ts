@@ -1,12 +1,15 @@
 import { SimpleAdapter, FetchV2, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import {
-  calculateAdjustsVolume,
-  calculateClosesVolume,
+  calculateAdjustsVolume, calculateClosesVolume,
   calculateOpensVolume, CONFIG,
-  fetchVolume, leverageAdjustsQuery, leverageClosesQuery,
+  fetchVolume,
+  leverageAdjustsQuery,
+  leverageClosesQuery,
   leverageOpensQuery
-} from "./helper";
+} from "../flat-money/helper";
+
+
 
 
 const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, chain }): Promise<FetchResultV2> => {
@@ -33,9 +36,10 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, chain }): Promise<
 };
 
 
+
 const adapter: SimpleAdapter = {
   adapter: Object.fromEntries(
-    Object.entries(CONFIG).map(([chain, config]) => [
+    Object.entries(CONFIG).filter(([chain, config]) => chain === CHAIN.BASE).map(([chain, config]) => [
       chain,
       { fetch, start: config.startTimestamp }
     ])
