@@ -256,6 +256,9 @@ export enum CHAIN {
   GRVT = "grvt",
   SOMNIA = "somnia",
   ORDERLY = "orderly",
+  CAMP = "camp",
+  PARADEX = "paradex",
+  EDGEX = "edgex",
 }
 
 // Don´t use
