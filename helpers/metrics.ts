@@ -11,7 +11,6 @@ export enum METRIC {
   MINT_REDEEM_FEES = 'Mint/Redeem Fees', // protocols take fees by mint/redeem tokens
   DEPOSIT_WITHDRAW_FEES = 'Deposit/Withdraw Fees', // protocols take fees by deposit or withdraw tokens
   MANAGERMENT_FEES = 'Management Fees', // protocols take fees manage assets for users
-  STAKING_REWARDS = 'Staking Rewards', // PoS staking rewards
   TRANSACTION_GAS_FEES = 'Transaction Gas Fees', // Blockchain transactions gas fees paid by users
   TRANSACTION_BASE_FEES = 'Transaction Base Fees', // Blockchain transactions base fees paid by users
   TRANSACTION_PRIORITY_FEES = 'Transaction Priority Fees', // Blockchain transactions priority fees paid by users

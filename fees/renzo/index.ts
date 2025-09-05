@@ -1,5 +1,4 @@
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import {
   getETHFeesWei,
@@ -58,15 +57,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // All fees and value collected from all sources.
   // This represents the total value flow into the protocol's ecosystem due to its operation.
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(retainedBalances.getBalances(), METRIC.STAKING_REWARDS);
-  dailyFees.addBalances(distributedBalances.getBalances(), METRIC.STAKING_REWARDS);
+  dailyFees.addBalances(retainedBalances.getBalances());
+  dailyFees.addBalances(distributedBalances.getBalances());
 
   // Daily revenue:
   // The portion of dailyFees kept by the protocol entity itself,
   // distributed either to the treasury (dailyProtocolRevenue)
   // or governance token holders (dailyHoldersRevenue).
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(retainedBalances.getBalances(), METRIC.STAKING_REWARDS);
+  dailyRevenue.addBalances(retainedBalances.getBalances());
 
   return {
     dailyFees,
@@ -88,17 +87,6 @@ const adapter: SimpleAdapter = {
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
     ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
   },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.STAKING_REWARDS]: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
-    },
-    Revenue: {
-      [METRIC.STAKING_REWARDS]: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
-    },
-    ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
-    },
-  }
 }
 
 export default adapter;

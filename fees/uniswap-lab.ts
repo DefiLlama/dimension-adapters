@@ -1,7 +1,6 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from '../helpers/token';
-import { METRIC } from '../helpers/metrics';
 
 const config: any = {
   ethereum: { tokens: [ADDRESSES.ethereum.USDC], targets: ['0x163c5e051049e92915017fe7bb9b8ce6182bcbb1', '0x6460d14dbaeb27aefec8ebef85db35defa31c3b9', '0x27213E28D7fDA5c57Fe9e5dD923818DBCcf71c47'] },
@@ -14,8 +13,7 @@ const config: any = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const frontendFees = await addTokensReceived({ ...config[options.chain], options })
-  const dailyFees = frontendFees.clone(1, METRIC.TRADING_FEES)
+  const dailyFees = await addTokensReceived({ ...config[options.chain], options })
 
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
@@ -34,20 +32,6 @@ const adapters: SimpleAdapter = {
     UserFees: "All trading fees paid by users while using Uniswap frontend.",
     Revenue: "Trading fees are collected by Uniswap Labs.",
     ProtocolRevenue: "Trading fees are collected by Uniswap Labs.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.TRADING_FEES]: "All trading fees paid by users while using Uniswap frontend.",
-    },
-    UserFees: {
-      [METRIC.TRADING_FEES]: "All trading fees paid by users while using Uniswap frontend.",
-    },
-    Revenue: {
-      [METRIC.TRADING_FEES]: "Trading fees are collected by Uniswap Labs.",
-    },
-    ProtocolRevenue: {
-      [METRIC.TRADING_FEES]: "Trading fees are collected by Uniswap Labs.",
-    },
   },
 }
 export default adapters;

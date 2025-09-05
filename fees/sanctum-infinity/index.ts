@@ -15,7 +15,6 @@ Total revenue is what goes to Sanctum: 10% of total fees
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
@@ -39,9 +38,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   );
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("solana", fees[0].daily_fees, METRIC.STAKING_REWARDS);
+  dailyFees.addCGToken("solana", fees[0].daily_fees);
 
-  return { dailyFees, dailyRevenue: dailyFees.clone(0.1, METRIC.STAKING_REWARDS) };
+  return { dailyFees, dailyRevenue: dailyFees.clone(0.1) };
 };
 
 const methodology = {

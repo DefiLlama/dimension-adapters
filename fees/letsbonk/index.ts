@@ -34,7 +34,6 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from '../../helpers/chains'
-import { METRIC } from '../../helpers/metrics'
 import { getTimestampAtStartOfDayUTC } from '../../utils/date'
 import fetchURL from '../../utils/fetchURL'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
@@ -87,10 +86,10 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     const holdersRevenue = totalFeesLamports * letsbonkHoldersRevenuePercentage;
     const protocolRevenue = totalFeesLamports * letsbonkProtocolRevenuePercentage;
 
-    dailyFees.add(SOL_ADDRESS, totalFeesLamports, METRIC.TRADING_FEES);
-    dailyRevenue.add(SOL_ADDRESS, totalRevenue, METRIC.TRADING_FEES);
-    dailyHoldersRevenue.add(SOL_ADDRESS, holdersRevenue, METRIC.TRADING_FEES);
-    dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue, METRIC.TRADING_FEES);
+    dailyFees.add(SOL_ADDRESS, totalFeesLamports);
+    dailyRevenue.add(SOL_ADDRESS, totalRevenue);
+    dailyHoldersRevenue.add(SOL_ADDRESS, holdersRevenue);
+    dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue);
 
     return {
         dailyFees,
@@ -107,20 +106,6 @@ const adapter: SimpleAdapter = {
         Revenue: "Total Letsbonk Protocol Revenue and Holders Revenue",
         ProtocolRevenue: "2% of total fees for marketing.",
         HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
-    },
-    breakdownMethodology: {
-        Fees: {
-            [METRIC.TRADING_FEES]: "Fees are collected from users and distributed to holders and protocol.",
-        },
-        Revenue: {
-            [METRIC.TRADING_FEES]: "Total Letsbonk Protocol Revenue and Holders Revenue",
-        },
-        ProtocolRevenue: {
-            [METRIC.TRADING_FEES]: "2% of total fees for marketing.",
-        },
-        HoldersRevenue: {
-            [METRIC.TRADING_FEES]: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%).",
-        }
     },
     version: 1,
     adapter: {

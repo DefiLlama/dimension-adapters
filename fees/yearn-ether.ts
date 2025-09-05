@@ -1,27 +1,11 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 const methodology = {
   Fees: 'Total swap fees paid by users from yETH pool',
   SupplySideRevenue: 'Total fees are distributed to liquidity providers',
   Revenue: 'The amount of fees go Yearn treasury',
   ProtocolRevenue: 'The amount of fees go Yearn treasury',
-}
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.SWAP_FEES]: 'Total swap fees paid by users from yETH pool',
-  },
-  SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: 'Total fees are distributed to liquidity providers',
-  },
-  Revenue: {
-    [METRIC.SWAP_FEES]: 'The amount of fees go Yearn treasury',
-  },
-  ProtocolRevenue: {
-    [METRIC.SWAP_FEES]: 'The amount of fees go Yearn treasury',
-  },
 }
 
 const yETHPools: Array<string> = [
@@ -57,7 +41,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       target: pool,
     })
     for (const event of swapEvents) {
-      dailyFees.add(assets[Number(event.asset_in)], Number(event.amount_in) * SwapFeesRate, METRIC.SWAP_FEES)
+      dailyFees.add(assets[Number(event.asset_in)], Number(event.amount_in) * SwapFeesRate)
     }
   }
 
@@ -72,7 +56,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const adapter: Adapter = {
   version: 2,
   methodology,
-  breakdownMethodology,
   fetch,
   start: '2023-09-07',
   chains: [CHAIN.ETHEREUM],

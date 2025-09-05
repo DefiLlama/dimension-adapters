@@ -1,7 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Chain, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { sleep } from "../utils/utils";
 
@@ -83,7 +82,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  const dailyFees = dailyVolume.clone(0.0085, METRIC.TRADING_FEES)
+  const dailyFees = dailyVolume.clone(0.0085)
 
   return {
     dailyVolume,
@@ -113,17 +112,6 @@ const adapter: Adapter = {
     [CHAIN.LINEA]: { start: '2023-10-03', },
   },
   methodology,
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.TRADING_FEES]: "All fees paid by users for trading, swapping, bridging in Metamask wallet.",
-    },
-    Revenue: {
-      [METRIC.TRADING_FEES]: "Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.",
-    },
-    ProtocolRevenue: {
-      [METRIC.TRADING_FEES]: "Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.",
-    },
-  }
 }
 
 export default adapter;

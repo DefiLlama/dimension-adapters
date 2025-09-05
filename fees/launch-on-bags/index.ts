@@ -1,6 +1,5 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
@@ -25,8 +24,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     data.forEach(row => {
         const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees);
-        dailyFees.add(row.quote_mint, Number(totalFees), METRIC.TRADING_FEES);
-        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), METRIC.TRADING_FEES);
+        dailyFees.add(row.quote_mint, Number(totalFees));
+        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees));
     });
 
     return {
@@ -51,17 +50,6 @@ const adapter: SimpleAdapter = {
         Fees: "Trading fees paid by users.",
         Revenue: "Fees collected by Bags App protocol.",
         ProtocolRevenue: "Fees collected by Bags App protocol."
-    },
-    breakdownMethodology: {
-        Fees: {
-            [METRIC.TRADING_FEES]: "Trading fees paid by users.",
-        },
-        Revenue: {
-            [METRIC.TRADING_FEES]: "Fees collected by Bags App protocol.",
-        },
-        ProtocolRevenue: {
-            [METRIC.TRADING_FEES]: "Fees collected by Bags App protocol.",
-        },
     },
 }
 

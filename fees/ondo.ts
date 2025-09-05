@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { METRIC } from "../helpers/metrics"
 import * as sdk from '@defillama/sdk'
 import * as solana from '../helpers/solana'
 import axios from "axios"
@@ -23,21 +22,6 @@ const methodology = {
   Revenue: 'Total yields were distributed to investors and Ondo protocol.',
   PerotocolRevenue: 'Total yields were collected by Ondo protocol.',
   SupplySideRevenue: 'Total yields were distributed to investors.',
-}
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.ASSETS_YIELDS]: 'Total yields were collected by investment assets.',
-  },
-  Revenue: {
-    [METRIC.ASSETS_YIELDS]: 'Total yields were distributed to investors and Ondo protocol.',
-  },
-  PerotocolRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Total yields were collected by Ondo protocol.',
-  },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Total yields were distributed to investors.',
-  },
 }
 
 const OndoContracts: any = {
@@ -162,8 +146,8 @@ const fetch: any = async (options: FetchOptions) => {
 
   const supply = await getSupply(options.api)
 
-  dailyFees.addUSDValue(supply.OUSG * (newPrices.OUSG - oldPrices.OUSG), METRIC.ASSETS_YIELDS)
-  dailyFees.addUSDValue(supply.USDY * (newPrices.USDY - oldPrices.USDY), METRIC.ASSETS_YIELDS)
+  dailyFees.addUSDValue(supply.OUSG * (newPrices.OUSG - oldPrices.OUSG))
+  dailyFees.addUSDValue(supply.USDY * (newPrices.USDY - oldPrices.USDY))
 
   return {
     dailyFees,
@@ -176,7 +160,6 @@ const fetch: any = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
-  breakdownMethodology,
   runAtCurrTime: true,
   adapter: {
     [CHAIN.ETHEREUM]: {

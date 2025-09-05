@@ -1,7 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
@@ -29,9 +28,9 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
-  dailyFees.addUSDValue(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD, METRIC.STAKING_REWARDS)
-  dailySupplySideRevenue.addUSDValue(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD, METRIC.STAKING_REWARDS)
-  const dailyRevenue = dailyFees.clone(0.1, METRIC.STAKING_REWARDS)
+  dailyFees.addUSDValue(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD)
+  dailySupplySideRevenue.addUSDValue(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD)
+  const dailyRevenue = dailyFees.clone(0.1)
 
   return {
     dailyFees,
@@ -58,20 +57,6 @@ const adapter: Adapter = {
     ProtocolRevenue: "Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury",
     SupplySideRevenue: "Staking rewards earned by stETH holders"
   },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.STAKING_REWARDS]: 'Staking rewards earned by all staked ETH',
-    },
-    Revenue: {
-      [METRIC.STAKING_REWARDS]: 'Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury',
-    },
-    ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Lido applies a 10% fee on staking rewards that are split between node operators and the DAO Treasury',
-    },
-    SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Staking rewards earned by stETH holders',
-    },
-  }
 }
 
 export default adapter;

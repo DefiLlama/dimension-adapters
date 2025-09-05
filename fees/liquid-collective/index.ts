@@ -1,7 +1,6 @@
 // https://docs.liquidcollective.io/v1/faqs#what-is-the-protocol-service-fee
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const lsETH = "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549";
 
@@ -28,8 +27,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const dailyLsEthHoldersYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18);
 
-  dailyFees.addCGToken("ethereum", dailyLsEthHoldersYield / 0.9, METRIC.STAKING_REWARDS);
-  const dailyRevenue = dailyFees.clone(0.1, METRIC.STAKING_REWARDS);
+  dailyFees.addCGToken("ethereum", dailyLsEthHoldersYield / 0.9);
+  const dailyRevenue = dailyFees.clone(0.1);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
@@ -46,17 +45,6 @@ const adapter: Adapter = {
     Fees: "Total ETH staking rewards from all validators.",
     Revenue: "Liquid Collective charges 10% ETH staking rewards.",
     ProtocolRevenue: "Liquid Collective charges 10% ETH staking rewards.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.STAKING_REWARDS]: 'Total ETH staking rewards from all validators.',
-    },
-    Revenue: {
-      [METRIC.STAKING_REWARDS]: 'Liquid Collective charges 10% ETH staking rewards.',
-    },
-    ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Liquid Collective charges 10% ETH staking rewards.',
-    },
   },
 };
 

@@ -1,5 +1,4 @@
 import { CHAIN } from '../helpers/chains'
-import { METRIC } from '../helpers/metrics'
 import { FetchOptions } from '../adapters/types'
 
 const abi = {
@@ -32,7 +31,7 @@ export default {
           dailyVolume.addGasToken(log.parsedLog.args.eth_bought)
         })
 
-        const dailyFees = dailyVolume.clone(0.3 / 100, METRIC.SWAP_FEES)
+        const dailyFees = dailyVolume.clone(0.3 / 100)
 
         return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0 }
       },
@@ -45,25 +44,5 @@ export default {
     ProtocolRevenue: 'Protocol make no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.SWAP_FEES]: "User pays 0.3% fees on each swap.",
-    },
-    UserFees: {
-      [METRIC.SWAP_FEES]: "User pays 0.3% fees on each swap.",
-    },
-    Revenue: {
-      [METRIC.SWAP_FEES]: 'Protocol make no revenue.',
-    },
-    ProtocolRevenue: {
-      [METRIC.SWAP_FEES]: 'Protocol make no revenue.',
-    },
-    SupplySideRevenue: {
-      [METRIC.SWAP_FEES]: 'All fees are distributed to LPs.',
-    },
-    HoldersRevenue: {
-      [METRIC.SWAP_FEES]: 'No revenue for UNI holders.',
-    },
   },
 }

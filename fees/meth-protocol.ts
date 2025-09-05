@@ -1,5 +1,4 @@
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 
 // docs: https://docs.mantle.xyz/meth/components/smart-contracts/staking-meth
@@ -9,21 +8,6 @@ const methodology = {
   Revenue: '10% staking rewards are charged by mETH Protocol Treasury.',
   SupplySideRevenue: '90% staking rewards are distributed to mETH holders.',
   ProtocolRevenue: '10% staking rewards are charged by mETH Protocol Treasury.',
-}
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.STAKING_REWARDS]: 'Total validators fees and rewards from staked ETH.',
-  },
-  Revenue: {
-    [METRIC.STAKING_REWARDS]: '10% staking rewards are charged by mETH Protocol Treasury.',
-  },
-  SupplySideRevenue: {
-    [METRIC.STAKING_REWARDS]: '90% staking rewards are distributed to mETH holders.',
-  },
-  ProtocolRevenue: {
-    [METRIC.STAKING_REWARDS]: '10% staking rewards are charged by mETH Protocol Treasury.',
-  },
 }
 
 const mETH = '0xe3cBd06D7dadB3F4e6557bAb7EdD924CD1489E8f'
@@ -52,10 +36,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const df = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
 
   // add ETH fees
-  dailyFees.addGasToken(df, METRIC.STAKING_REWARDS)
+  dailyFees.addGasToken(df)
 
-  const dailyProtocolRevenue = dailyFees.clone(0.1, METRIC.STAKING_REWARDS)
-  const dailySupplySideRevenue = dailyFees.clone(0.9, METRIC.STAKING_REWARDS)
+  const dailyProtocolRevenue = dailyFees.clone(0.1)
+  const dailySupplySideRevenue = dailyFees.clone(0.9)
 
   return {
     dailyFees,
@@ -68,7 +52,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const adapter: Adapter = {
   version: 2,
   methodology,
-  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

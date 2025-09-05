@@ -1,27 +1,11 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 const methodology = {
   Fees: "Total rewards earned in EigenLayer.",
   Revenue: "No revenue, all rewards earned by suppliers.",
   SupplySideRevenue: "Total rewards are distributed to stakers and operators.",
   ProtocolRevenue: "No revenue for EigenLayer.",
-}
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.STAKING_REWARDS]: "Total rewards earned in EigenLayer.",
-  },
-  Revenue: {
-    [METRIC.STAKING_REWARDS]: "No revenue, all rewards earned by suppliers.",
-  },
-  SupplySideRevenue: {
-    [METRIC.STAKING_REWARDS]: "Total rewards are distributed to stakers and operators.",
-  },
-  ProtocolRevenue: {
-    [METRIC.STAKING_REWARDS]: "No revenue for EigenLayer.",
-  },
 }
 
 // EigenLayer calculates rewards off-chain and distributed to on-chain contracts weekly
@@ -44,7 +28,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: ContractAbis.RewardsClaimedEvent,
   })
   for (const event of events) {
-    dailyFees.add(event.token, event.claimedAmount, METRIC.STAKING_REWARDS)
+    dailyFees.add(event.token, event.claimedAmount)
   }
 
   return {
@@ -64,7 +48,6 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
