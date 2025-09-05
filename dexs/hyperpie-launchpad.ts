@@ -1,22 +1,20 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import ADRESSES from "../helpers/coreAssets.json";
 
 const config = {
-  HYPE: "0x0d01dc56dcaaca66ad901c959b4011ec",
   MEMELaunchpad: "0x9246d27EA8059529a615a4ACF35351dF0fa6168e",
   LaunchpadStorage: "0xbeB68E2EA9676a0744ca0552f78b87F40A5e9619",
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   const totalFee = await options.api.call({
     target: config.LaunchpadStorage,
     abi: "uint256:totalTradingFee",
   });
-  
+
   const buyLogs = await options.getLogs({
     target: config.MEMELaunchpad,
     eventAbi: "event MemeTokenBuy(address indexed memeToken, address indexed user, uint256 depositTokenAmount, uint256 memeTokenAmountRec)",
@@ -28,34 +26,33 @@ const fetch = async (options: FetchOptions) => {
   })
 
   buyLogs.forEach((log) => {
-    const amount = log.depositTokenAmount * BigInt(10 ** 8) / BigInt(10 ** 18);
-    dailyVolume.add(config.HYPE, amount);
+    dailyVolume.add(ADRESSES.hyperliquid.WHYPE, log.depositTokenAmount);
   });
 
   sellLogs.forEach((log) => {
-    const amount = log.depositTokenAmountRec * BigInt(10 ** 8) / BigInt(10 ** 18);
-    dailyVolume.add(config.HYPE, amount);
+    dailyVolume.add(ADRESSES.hyperliquid.WHYPE, log.depositTokenAmountRec);
   });
-  
-  dailyFees.add(dailyVolume.clone(totalFee / 10000));
 
-  dailyRevenue.add(dailyFees.clone(0.8));
+  const dailyFees = dailyVolume.clone(totalFee / 10000)
+  const dailyRevenue = dailyFees.clone(0.8);
+  const dailySupplySideRevenue = dailyFees.clone(0.2);
 
-  return { dailyVolume, dailyFees, dailyRevenue };
+  return { dailyVolume, dailyFees, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 }
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  start: '2025-08-21',
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2025-08-21',
     },
   },
   methodology: {
+    SupplySideRevenue: "20% of trading fees go to the coin creators",
     Volume: "Tokens trading volume.",
-    Fees: "Tokens trading fees paid by users.",
-    Revenue: "Tokens trading fees goes to the protocol.",
+    Fees: "1% trading fees on all trades.",
+    Revenue: "80% of Tokens trading fees goes to the protocol.",
   }
 };
 
