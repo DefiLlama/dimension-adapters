@@ -73,7 +73,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: Object.fromEntries(Object.keys(CHAINS).map((chain) => [chain, { fetch, start: UNIFORM_START }]))
+  fetch, start: UNIFORM_START,
+  chains: Object.keys(CHAINS),
 };
 
 export default adapter;
