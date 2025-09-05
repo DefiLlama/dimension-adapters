@@ -14,6 +14,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const response = await fetchURL(url);
 
   return {
+    dailyVolume: response.volumeUsd || 0,
     dailyFees: response.feesUsd || 0,
     dailyUserFees: response.feesUsd || 0,
     dailyRevenue: response.revenuesUsd || 0,
@@ -24,6 +25,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
+  Volume: "Total trading volume of the AMM",
   Fees: "Total amount of fees paid by users on AMM swaps",
   UserFees: "Same as Fees (explicitly denotes fees paid directly by end-users)",
   Revenue: "Portion of fees retained as AMM protocol revenue (commonly ~10%)",
