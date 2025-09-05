@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import {Adapter, FetchOptions, FetchResultFees} from "../adapters/types";
-import {ETHEREUM} from "../helpers/chains";
+import {CHAIN} from "../helpers/chains";
 import {request, gql} from "graphql-request";
 import type {Chain, ChainEndpoints} from "../adapters/types"
 import {getTimestampAtStartOfDayUTC} from "../utils/date";
@@ -8,7 +8,7 @@ import BigNumber from "bignumber.js";
 import {httpGet} from "../utils/fetchURL";
 
 const endpoints = {
-    [ETHEREUM]: sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
+    [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('86irRVuFotfaCFwtFxiSaJ76Y8pxfU3xX91gU6CoYTvi'),
 };
 
 // Constants for on-chain data
@@ -29,6 +29,34 @@ const methodology = {
     Revenue: "Sum of protocol revenue and holders' revenue",
     ProtocolRevenue: "Share of revenue going to Convex treasury (includes caller incentives on Frax pools, POL yield and Votemarket bribes)",
     SupplySideRevenue: "All CRV, CVX and FXS rewards redistributed to liquidity providers staking on Convex.",
+}
+
+const breakdownMethodology = {
+    Fees: {
+        'CVX Revenue': 'All CVX revenue for treasury, LPs, CVX lockers',
+        'CRV Revenue': 'All CRV revenue for treasury, LPs and liquid derivatives cvxCRV',
+        'FXS Revenue': 'All FXS revenue for treasury, LPs and liquid derivatives cvxFXS',
+        'Others Revenue': 'All others revenue for treasury',
+    },
+    Revenue: {
+        'CRV Revenue': 'Share of CRV revenue for CVX holders + treasury.',
+        'FXS Revenue': 'Share of FXS revenue for CVX holders + treasury.',
+        'Others Revenue': 'All others revenue for CVX holders + treasury',
+    },
+    HoldersRevenue: {
+        'CRV Revenue': 'Share of CRV revenue for CVX holders.',
+        'FXS Revenue': 'Share of FXS revenue for CVX holders.',
+    },
+    SupplySideRevenue: {
+        'CVX Revenue': 'All CVX revenue for LPs',
+        'CRV Revenue': 'All CRV revenue for LPs',
+        'FXS Revenue': 'All FXS revenue for LPs',
+    },
+    ProtocolRevenue: {
+        'CRV Revenue': 'Share of CRV revenue for CVX holders + treasury.',
+        'FXS Revenue': 'Share of FXS revenue for CVX holders + treasury.',
+        'Others Revenue': 'All others revenue for CVX holders + treasury',
+    },
 }
 
 const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
@@ -122,44 +150,60 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         }
     }
 
-    // All revenue redirected to LPs
-    const dailySupplySideRev = snapshot.crvRevenueToLpProvidersAmount
-        .plus(snapshot.cvxRevenueToLpProvidersAmount)
-        .plus(snapshot.fxsRevenueToLpProvidersAmount);
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
 
-    // Revenue to CVX Holders, including bribes (minus Votium fee)
-    const dailyHoldersRevenue = snapshot.crvRevenueToCvxStakersAmount
-        .plus(snapshot.fxsRevenueToCvxStakersAmount)
+    // all fees
+    dailyFees.addUSDValue(snapshot.crvRevenueToLpProvidersAmount.toNumber(), 'CRV Revenue')
+    dailyFees.addUSDValue(snapshot.cvxRevenueToLpProvidersAmount.toNumber(), 'CVX Revenue')
+    dailyFees.addUSDValue(snapshot.fxsRevenueToLpProvidersAmount.toNumber(), 'FXS Revenue')
+    dailyFees.addUSDValue(snapshot.crvRevenueToCvxStakersAmount.toNumber(), 'CRV Revenue')
+    dailyFees.addUSDValue(snapshot.fxsRevenueToCvxStakersAmount.toNumber(), 'FXS Revenue')
+    dailyFees.addUSDValue(snapshot.crvRevenueToPlatformAmount.toNumber(), 'CRV Revenue')
+    dailyFees.addUSDValue(snapshot.fxsRevenueToPlatformAmount.toNumber(), 'FXS Revenue')
+    dailyFees.addUSDValue(snapshot.fxsRevenueToCallersAmount.toNumber(), 'FXS Revenue')
+    dailyFees.addUSDValue(snapshot.otherRevenue.toNumber(), 'Others Revenue')
+    dailyFees.addUSDValue(reUSDRevenue.toNumber(), 'Others Revenue')
 
     // cvxCRV & cvxFXS liquid lockers revenue
-    const liquidRevenue = snapshot.crvRevenueToCvxCrvStakersAmount
-        .plus(snapshot.cvxRevenueToCvxCrvStakersAmount)
-        .plus(snapshot.threeCrvRevenueToCvxCrvStakersAmount)
-        .plus(snapshot.fxsRevenueToCvxFxsStakersAmount);
+    dailyFees.addUSDValue(snapshot.crvRevenueToCvxCrvStakersAmount.toNumber(), 'CRV Revenue')
+    dailyFees.addUSDValue(snapshot.cvxRevenueToCvxCrvStakersAmount.toNumber(), 'CVX Revenue')
+    dailyFees.addUSDValue(snapshot.threeCrvRevenueToCvxCrvStakersAmount.toNumber(), 'CRV Revenue')
+    dailyFees.addUSDValue(snapshot.fxsRevenueToCvxFxsStakersAmount.toNumber(), 'FXS Revenue')
+
+    // All revenue redirected to LPs
+    dailySupplySideRevenue.addUSDValue(snapshot.crvRevenueToLpProvidersAmount.toNumber(), 'CRV Revenue')
+    dailySupplySideRevenue.addUSDValue(snapshot.cvxRevenueToLpProvidersAmount.toNumber(), 'CVX Revenue')
+    dailySupplySideRevenue.addUSDValue(snapshot.fxsRevenueToLpProvidersAmount.toNumber(), 'FXS Revenue')
+
+    // Revenue to CVX Holders, including bribes (minus Votium fee)
+    dailyRevenue.addUSDValue(snapshot.crvRevenueToCvxStakersAmount.toNumber(), 'CRV Revenue')
+    dailyRevenue.addUSDValue(snapshot.fxsRevenueToCvxStakersAmount.toNumber(), 'FXS Revenue')
+    dailyHoldersRevenue.addUSDValue(snapshot.crvRevenueToCvxStakersAmount.toNumber(), 'CRV Revenue')
+    dailyHoldersRevenue.addUSDValue(snapshot.fxsRevenueToCvxStakersAmount.toNumber(), 'FXS Revenue')
 
     // Share of revenue redirected to treasury
-    const dailyTreasuryRevenue = snapshot.crvRevenueToPlatformAmount
-        .plus(snapshot.fxsRevenueToPlatformAmount)
-        .plus(snapshot.fxsRevenueToCallersAmount)
-        .plus(snapshot.otherRevenue)
-        .plus(reUSDRevenue);
-
-    // Platform fee on CRV rewards + Rewards to liquid lockers + Rewards to CVX holders
-    const dailyFees = dailyTreasuryRevenue
-        .plus(dailySupplySideRev)
-        .plus(liquidRevenue)
-        .plus(dailyHoldersRevenue);
-    
-    // Platform fee on CRV/FXS rewards + Gov token holder revenue
-    const dailyRevenue = dailyTreasuryRevenue.plus(dailyHoldersRevenue);
+    dailyRevenue.addUSDValue(snapshot.crvRevenueToPlatformAmount.toNumber(), 'CRV Revenue')
+    dailyRevenue.addUSDValue(snapshot.fxsRevenueToPlatformAmount.toNumber(), 'FXS Revenue')
+    dailyRevenue.addUSDValue(snapshot.fxsRevenueToCallersAmount.toNumber(), 'FXS Revenue')
+    dailyRevenue.addUSDValue(snapshot.otherRevenue.toNumber(), 'Others Revenue')
+    dailyRevenue.addUSDValue(reUSDRevenue.toNumber(), 'Others Revenue')
+    dailyProtocolRevenue.addUSDValue(snapshot.crvRevenueToPlatformAmount.toNumber(), 'CRV Revenue')
+    dailyProtocolRevenue.addUSDValue(snapshot.fxsRevenueToPlatformAmount.toNumber(), 'FXS Revenue')
+    dailyProtocolRevenue.addUSDValue(snapshot.fxsRevenueToCallersAmount.toNumber(), 'FXS Revenue')
+    dailyProtocolRevenue.addUSDValue(snapshot.otherRevenue.toNumber(), 'Others Revenue')
+    dailyProtocolRevenue.addUSDValue(reUSDRevenue.toNumber(), 'Others Revenue')
 
     return {
         timestamp,
         dailyFees,
         dailyUserFees: 0, // No fees levied on users
-        dailyHoldersRevenue: dailyHoldersRevenue,
-        dailyProtocolRevenue: dailyTreasuryRevenue,
-        dailySupplySideRevenue: dailySupplySideRev,
+        dailyHoldersRevenue,
+        dailyProtocolRevenue,
+        dailySupplySideRevenue,
         dailyBribesRevenue: dailyBribeRevenue,
         dailyRevenue,
     };
@@ -168,12 +212,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 const adapter: Adapter = {
     version: 2,
     adapter: {
-        [ETHEREUM]: {
+        [CHAIN.ETHEREUM]: {
             fetch,
             start: '2021-05-17',
         }
     },
-    methodology
+    methodology,
+    breakdownMethodology,
 }
 
 export default adapter;
