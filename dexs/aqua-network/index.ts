@@ -5,27 +5,31 @@ import { CHAIN } from "../../helpers/chains";
 const AQUA_VOLUME_ENDPOINT = "https://amm-api.aqua.network/api/external/v1/statistics/totals/?size=all"
 
 interface IVolumeAll {
-    volume: number;
-    tvl: number;
-    date: string;
-    protocol_fees: number;
-    lp_fees: number;
-    external_rewards: number;
-    timestamp_date_from: number;
-    timestamp_date_to: number;
+  volume: number;
+  tvl: number;
+  date: string;
+  protocol_fees: number;
+  lp_fees: number;
+  external_rewards: number;
+  timestamp_date_from: number;
+  timestamp_date_to: number;
 }
 
-const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
-  const historicalVolume: IVolumeAll[] = (await fetchURL(AQUA_VOLUME_ENDPOINT));
+let historicalVolume: IVolumeAll[] | any
+
+const fetch = async (_: any, _1: any, { startOfDay, dateString, }: FetchOptions) => {
+  if (!historicalVolume)
+    historicalVolume = fetchURL(AQUA_VOLUME_ENDPOINT)
+  historicalVolume = await historicalVolume
 
   // Seems like we have here gap about 3.5 hours in to-timestamps, can u maybe explain that diff? 
   // Finding day period from our api, that matches llama toTimestamp (current time)
   const day = historicalVolume
-    .find(i =>  toTimestamp >= i.timestamp_date_from && toTimestamp <= i.timestamp_date_to);
+    .find(i => startOfDay === i.timestamp_date_from);
 
-  if (!day) {
-    throw new Error('No data for timestamp: ' + fromTimestamp);
-  }
+  if (!day)
+    throw new Error('No data for timestamp: ' + dateString);
+
 
   const ProtocolFees = day.protocol_fees / 1e7
   const LPFees = day.lp_fees / 1e7
@@ -33,7 +37,7 @@ const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
 
   return {
     dailyVolume: day.volume / 1e7,
-    dailyFees: ProtocolFees + LPFees + ExternalRewards,
+    dailyFees: ProtocolFees + LPFees,
     dailyUserFees: ProtocolFees + LPFees,
     dailySupplySideRevenue: LPFees,
     dailyRevenue: ProtocolFees,
@@ -44,17 +48,17 @@ const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
 };
 
 const methodology = {
-    dailyFees: "All fees including 100% of the swap fees and external rewards for AQUA holders.",
-    dailyUserFees: "100% of the swap fees",
-    dailyRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected",
-    dailyProtocolRevenue: "Share of the fees kept by Aquarius. Currently equals 0.",
-    dailyHoldersRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected.",
-    dailySupplySideRevenue: "50% of the swap fees that are shared with the Aquarius liquidity providers",
-    dailyBribesRevenue: "Amount of external incentives for AQUA holders voting for specific markets on Aquarius.",
+  dailyFees: "All fees including 100% of the swap fees and external rewards for AQUA holders.",
+  dailyUserFees: "100% of the swap fees",
+  dailyRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected",
+  dailyProtocolRevenue: "Share of the fees kept by Aquarius. Currently equals 0.",
+  dailyHoldersRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected.",
+  dailySupplySideRevenue: "50% of the swap fees that are shared with the Aquarius liquidity providers",
+  dailyBribesRevenue: "Amount of external incentives for AQUA holders voting for specific markets on Aquarius.",
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   methodology,
   adapter: {
     [CHAIN.STELLAR]: { fetch, start: '2024-07-01' },
