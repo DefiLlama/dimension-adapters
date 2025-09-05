@@ -46,12 +46,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
 
     dailyFees.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
-    dailyFees.addCGToken('ethereum', partnerFeeCow, 'Partner Fees fro CoW');
+    dailyFees.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
     dailyFees.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
     dailyFees.addCGToken('ethereum', mevBlockerFee * 2, 'MEV Blocker Fees');
 
     dailyProtocolRevenue.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
-    dailyProtocolRevenue.addCGToken('ethereum', partnerFeeCow, 'Partner Fees fro CoW');
+    dailyProtocolRevenue.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
     dailyProtocolRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees');
   } else {
     if (options.chain === CHAIN.LENS) return {}
@@ -76,24 +76,24 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
-    'Partner Fees fro CoW': 'Share of partner fees for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
     'Partner Fees for Partners': 'Share of partner fees for partners.',
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol and block builders.',
   }, 
   UserFees: {
     'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
-    'Partner Fees fro CoW': 'Share of partner fees for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
     'Partner Fees for Partners': 'Share of partner fees for partners.',
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol and block builders.',
   },
   Revenue: {
     'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
-    'Partner Fees fro CoW': 'Share of partner fees for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol.',
   },
   ProtocolRevenue: {
     'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
-    'Partner Fees fro CoW': 'Share of partner fees for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol.',
   },
 }
