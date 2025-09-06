@@ -16,4 +16,5 @@ export enum METRIC {
   TRANSACTION_PRIORITY_FEES = 'Transaction Priority Fees', // Blockchain transactions priority fees paid by users
   TRADING_FEES = 'Trading Fees', // apps, bots, frontend, wallets charge users fees by using trading
   MARGIN_FEES = 'Margin Fees', // perpetual, derivatives margin fees
+  OPEN_CLOSE_FEES = 'Open/Close Fees', // trading open/close fees
 }
