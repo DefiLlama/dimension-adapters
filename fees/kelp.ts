@@ -7,6 +7,7 @@ import * as sdk from "@defillama/sdk";
 const methodology = {
   Fees: 'Total rewards were collected from staking assets.',
   SupplySideRevenue: 'Rewards are distributed to stakers (rsETH holders).',
+  Revenue: 'A portion of rewards are charged by protocol.',
   ProtocolRevenue: 'A portion of rewards are charged by protocol.',
 }
 
@@ -106,13 +107,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return {
     dailyFees,
     dailySupplySideRevenue,
+    dailyRevneue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   }
 }
 
 const adapter: Adapter = {
-  methodology,
   version: 2,
+  methodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-12-11', },

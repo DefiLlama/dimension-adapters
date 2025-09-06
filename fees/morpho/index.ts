@@ -4,54 +4,6 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 
-const info = {
-  methodology: {
-    Fees: "Total borrow interest paid by borrowers.",
-    SupplySideRevenue: "Total interests are distributed to suppliers/lenders.",
-    Revenue: "No revenue for Morpho protocol.",
-    ProtocolRevenue: "No revenue for Morpho protocol.",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all vaults.',
-    },
-    Revenue: {
-      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
-    },
-    SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'All interests paid are distributedd to vaults suppliers, lenders.',
-    },
-    ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
-    },
-  }
-}
-
-type MorphoMarket = {
-  marketId: string;
-  loanAsset: string;
-};
-
-type MorphoBlueAccrueInterestEvent = {
-  token: string | undefined | null;
-  interest: bigint;
-};
-
-const BLUE_API_ENDPOINT = "https://blue-api.morpho.org/graphql";
-
-const query = `
-  query GetMarketsData($chainId: Int!, $first: Int!, $skip: Int!) {
-    markets(where: { chainId_in: [$chainId], whitelisted: true }, first: $first, skip: $skip) {
-      items {
-        uniqueKey
-        loanAsset {
-          address
-        }
-      }
-    }
-  }
-`;
-
 const MorphoBlues = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
@@ -150,22 +102,98 @@ const MorphoBlues = {
   },
 };
 
+const info = {
+  methodology: {
+    Fees: "Total borrow interest paid by borrowers + liquidation bonues earned by liquidators.",
+    SupplySideRevenue: "Total interests are distributed to suppliers/lenders + liquidation bonues to liquidators.",
+    Revenue: "No revenue for Morpho protocol.",
+    ProtocolRevenue: "No revenue for Morpho protocol.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all markets.',
+      [METRIC.LIQUIDATION_FEES]: 'All bonuses earned by liquidators from liquidations.',
+    },
+    Revenue: {
+      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: 'All interests paid are distributedd to vaults suppliers, lenders.',
+      [METRIC.LIQUIDATION_FEES]: 'All bonuses earned by liquidators from liquidations.',
+    },
+    ProtocolRevenue: {
+      [METRIC.BORROW_INTEREST]: 'No revenue from Morpho protocol.',
+    },
+  }
+}
+
+type MorphoMarket = {
+  marketId: string;
+  loanAsset: string;
+  collateralAsset?: string;
+  lltv: bigint;
+  lif: bigint;
+};
+
+type MorphoBlueAccrueInterestEvent = {
+  token: string | undefined | null;
+  interest: bigint;
+};
+
+type MorphoBlueLiquidateEvent = {
+  token: string | undefined | null; // collateral asset
+  lif: bigint;
+  seizedAmount: bigint;
+};
+
+const BLUE_API_ENDPOINT = "https://blue-api.morpho.org/graphql";
+
+const query = `
+  query GetMarketsData($chainId: Int!, $first: Int!, $skip: Int!) {
+    markets(where: { chainId_in: [$chainId], whitelisted: true }, first: $first, skip: $skip) {
+      items {
+        uniqueKey
+        lltv
+        loanAsset {
+          address
+        }
+        collateralAsset {
+          address
+        }
+      }
+    }
+  }
+`;
+
 const MorphoBlueAbis = {
   AccrueInterest: "event AccrueInterest(bytes32 indexed id, uint256 prevBorrowRate, uint256 interest, uint256 feeShares)",
+  Liquidate: "event Liquidate(bytes32 indexed id,address indexed caller,address indexed borrower,uint256 repaidAssets,uint256 repaidShares,uint256 seizedAssets,uint256 badDebtAssets,uint256 badDebtShares)",
   CreateMarket: "event CreateMarket(bytes32 indexed id, tuple(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) marketParams)",
 };
+
+// https://docs.morpho.org/learn/concepts/liquidation/#liquidation-incentive-factor-lif
+function _getLIFFromLLTV(lltv: bigint): bigint {
+  const B = BigInt(3e17) // 0.3
+  const M = BigInt(115e16) // 1.15
+  const LIF = BigInt(1e36) / ((B * lltv / BigInt(1e18)) + (BigInt(1e18) - B))
+  return LIF > M ? M : LIF
+}
 
 const _fetchMarkets = async (chainId: number, url: string): Promise<Array<MorphoMarket>> => {
   let allMarkets: Array<MorphoMarket> = [];
   let skip = 0;
   const first = 300;
-  let marketsBatch;
+  let marketsBatch: Array<MorphoMarket> = [];
   do {
     const res = await request(url, query, { chainId, first, skip });
-    marketsBatch = res.markets.items.map((item: any) => {
+    marketsBatch = res.markets.items
+    .map((item: any) => {
       return {
         marketId: item.uniqueKey,
         loanAsset: item.loanAsset.address,
+        collateralAsset: item.collateralAsset ? item.collateralAsset.address : undefined,
+        lltv: BigInt(item.lltv),
+        lif: _getLIFFromLLTV(BigInt(item.lltv)),
       };
     });
     allMarkets = allMarkets.concat(marketsBatch);
@@ -188,27 +216,31 @@ const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<Morpho
     markets.push({
       marketId: event.id,
       loanAsset: event.marketParams.loanToken,
+      collateralAsset: event.marketParams.collateralToken,
+      lltv: BigInt(event.marketParams.lltv),
+      lif: _getLIFFromLLTV(BigInt(event.marketParams.lltv)),
     })
   }
 
   return markets;
 }
 
-async function fetchMarkets(
+async function fetchMarketsFromSubgraph(
   chainId: number,
   url: string
 ): Promise<Array<MorphoMarket>> {
-  return getConfig("morpho-blue/markets-" + chainId, "", {
-    fetcher: async () => _fetchMarkets(chainId, url),
-  });
+  // return getConfig("morpho-blue/markets-" + chainId, "", {
+  //   fetcher: async () => _fetchMarkets(chainId, url),
+  // });
+  return _fetchMarkets(chainId, url)
 }
 
 const fetchEvents = async (
   options: FetchOptions
-): Promise<Array<MorphoBlueAccrueInterestEvent>> => {
+): Promise<{interests: Array<MorphoBlueAccrueInterestEvent>, liquidations: Array<MorphoBlueLiquidateEvent>}> => {
   let markets: Array<MorphoMarket> = []
   if (MorphoBlues[options.chain].chainId) {
-    markets = await fetchMarkets(
+    markets = await fetchMarketsFromSubgraph(
       MorphoBlues[options.chain].chainId,
       BLUE_API_ENDPOINT
     );
@@ -216,31 +248,55 @@ const fetchEvents = async (
     markets = await fetchMarketsFromLogs(options);
   }
 
-  const marketMap = {} as any;
+  const marketMap = {} as {[key: string]: MorphoMarket};
   markets.forEach((item) => {
-    marketMap[item.marketId.toLowerCase()] = item.loanAsset;
+    marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  return (
+  const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
       eventAbi: MorphoBlueAbis.AccrueInterest,
       target: MorphoBlues[options.chain].blue,
     })
   ).map((log: any) => {
     return {
-      token: marketMap[String(log.id).toLowerCase()],
+      token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(log.interest),
     };
   });
+  const liquidations: Array<MorphoBlueLiquidateEvent> = (
+    await options.getLogs({
+      eventAbi: MorphoBlueAbis.Liquidate,
+      target: MorphoBlues[options.chain].blue,
+    })
+  ).map((log: any) => {
+    return {
+      token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].collateralAsset : null,
+      lif: marketMap[String(log.id).toLowerCase()].lif,
+      seizedAmount: BigInt(log.seizedAssets),
+    };
+  });
+
+  return { interests, liquidations }
 };
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const events = await fetchEvents(options);
-  for (const event of events) {
+  const { interests, liquidations } = await fetchEvents(options);
+
+  // count borrow interests
+  for (const event of interests) {
     if (event.token) {
       dailyFees.add(event.token, event.interest, METRIC.BORROW_INTEREST);
+    }
+  }
+
+  // count liqdation bonuses
+  for (const event of liquidations) {
+    if (event.token) {
+      const exactSeizedAmount = BigInt(event.seizedAmount) * BigInt(1e18) / event.lif
+      dailyFees.add(event.token, BigInt(event.seizedAmount) - exactSeizedAmount, METRIC.LIQUIDATION_FEES);
     }
   }
 
