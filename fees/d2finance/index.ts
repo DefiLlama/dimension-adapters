@@ -54,7 +54,9 @@ const VaultConfigs = {
     '0xade27c7dec9211973278876f3819aedc28cd50ca',
     '0x6bf9345b5d6b27b5cbf2e463dc5e0b2afcedc21c',
     '0x3ebb11ba6a5b61c04d1a703ea10728d519945440',
-  ]
+    '0x195eb4d088f222c982282b5dd495e76dba4bc7d1',
+    '0x8ef30c5ce9a460bfae82f1f039f7c5e5427d7018',
+  ],
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -124,6 +126,7 @@ export default {
   adapter: {
     [CHAIN.ARBITRUM]: { start: "2024-01-20", },
     [CHAIN.ETHEREUM]: { start: "2025-01-09", },
+    [CHAIN.BASE]: { start: "2025-01-09", },
     [CHAIN.BERACHAIN]: { start: "2025-01-26", },
     [CHAIN.HYPERLIQUID]: { start: "2025-05-06", },
   },

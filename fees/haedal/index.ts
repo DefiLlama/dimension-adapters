@@ -10,13 +10,10 @@ const methodology = {
 
 const fetchData = () => {
     return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-        const tres = (await fetchURL(`https://haedal.xyz/api/v1/hmm/fees_revenue?poolObjectId=&fromTimestamp=&toTimestamp=`)).data;
         const res = (await fetchURL(`https://haedal.xyz/api/v1/hmm/fees_revenue?poolObjectId=&fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`)).data;
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
         return {
-            totalFees: tres.fee,
             dailyFees: res.fee ,
-            totalRevenue: tres.revenue,
             dailyRevenue: res.revenue,
             dailyProtocolRevenue: res.revenu,
             timestamp: dayTimestamp,

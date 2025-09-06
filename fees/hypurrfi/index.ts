@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import type { SimpleAdapter } from "../../adapters/types";
 import { aaveExport } from "../../helpers/aave";
+import { METRIC } from "../../helpers/metrics";
 
 const info = {
   methodology: {
@@ -11,28 +12,28 @@ const info = {
   },
   breakdownMethodology: {
     Fees: {
-      'Borrow Interest': 'All interest paid by borrowers from all markets (excluding USDXL).',
+      [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all markets (excluding USDXL).',
       'Borrow Interest USDXL': 'All interest paid by borrowers from USDXL only.',
-      'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
-      'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+      [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
+      [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
     },
     Revenue: {
-      'Borrow Interest': 'A portion of interest paid by borrowers from all markets (excluding USDXL).',
+      [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets (excluding USDXL).',
       'Borrow Interest USDXL': 'All 100% interest paid by USDXL borrowers.',
-      'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
-      'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+      [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
+      [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
     },
     SupplySideRevenue: {
-      'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding USDXL).',
+      [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding USDXL).',
       'Borrow Interest USDXL': 'No supply side revenue for lenders on USDXL market.',
-      'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
-      'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+      [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+      [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
     },
     ProtocolRevenue: {
-      'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding USDXL) are collected by HypurrFi treasury.',
+      [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding USDXL) are collected by HypurrFi treasury.',
       'Borrow Interest USDXL': 'All interest paid on USDXL market are collected by HypurrFi treasury.',
-      'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by HypurrFi treasury.',
-      'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by HypurrFi treasury.',
+      [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by HypurrFi treasury.',
+      [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by HypurrFi treasury.',
     },
   }
 }

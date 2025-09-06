@@ -2,25 +2,6 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-// const v3Endpoints = {
-//   [CHAIN.ERA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-zksync-v3',
-//   [CHAIN.LINEA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-linea-v3',
-//   [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon-v3',
-// };
-
-
-// const v3Graphs = getChainVolume2({
-//   graphUrls: v3Endpoints,
-//   totalVolume: {
-//     factory: "factories",
-//     field: DEFAULT_TOTAL_VOLUME_FIELD,
-//   },
-//   dailyVolume: {
-//     factory: "uniswapDayData",
-//     field: 'volumeUSD',
-//   }
-// });
-
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",

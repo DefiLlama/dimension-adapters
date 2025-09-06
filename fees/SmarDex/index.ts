@@ -77,8 +77,6 @@ export async function feesFromSubgraph(
       feeDayData(id: ${dayId}) {
         dailyFeesPoolUSD
         dailyFeesLpUSD
-        totalFeesPoolUSD
-        totalFeesLpUSD
       }
     }
   `;
@@ -88,23 +86,19 @@ export async function feesFromSubgraph(
   const fees = graphRes["feeDayData"];
 
   // If the day is not available, fees are 0
-  if (!fees) return { timestamp };
+  if (!fees)  return {}
 
   const dailyFees = new BigNumber(fees.dailyFeesPoolUSD)
     .plus(new BigNumber(fees.dailyFeesLpUSD))
     .toString();
-  const totalFees = new BigNumber(fees.totalFeesPoolUSD)
-    .plus(new BigNumber(fees.totalFeesLpUSD))
-    .toString();
   const dailyRevenue = new BigNumber(fees.dailyFeesLpUSD).toString();
-  const totalRevenue = new BigNumber(fees.totalFeesLpUSD).toString();
 
   return {
     timestamp,
     dailyFees,
-    totalFees,
     dailyRevenue,
-    totalRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: dailyRevenue,
   };
 }
 

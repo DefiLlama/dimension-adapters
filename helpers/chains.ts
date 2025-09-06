@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  GALA = "gala",
   TARA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
@@ -252,6 +253,13 @@ export enum CHAIN {
   HYDRAGON = 'hydragon',
   TAC = "tac",
   NIBIRU = "nibiru",
+  HAVEN1 = "haven1",
+  GRVT = "grvt",
+  SOMNIA = "somnia",
+  ORDERLY = "orderly",
+  CAMP = "camp",
+  PARADEX = "paradex",
+  EDGEX = "edgex",
 }
 
 // Don´t use

@@ -35,24 +35,18 @@ export default {
         const yesterdayData = await fromApi.multiCall({ abi: abis.returnAllTimeProfitLossIncludingActiveEpoch, calls: vaults, permitFailure: true });
         const todayData = await api.multiCall({ abi: abis.returnAllTimeProfitLossIncludingActiveEpoch, calls: vaults, permitFailure: true });
         const dailyFees = createBalances()
-        const totalFees = createBalances()
         tokens.forEach((token, i) => {
           if (!todayData[i] || !yesterdayData[i]) return;
           const vaultProfitToday = Number(todayData[i].amountDelta_) * (todayData[i].isProfit_ ? 1 : -1)
           const vaultProfitYesterday = Number(yesterdayData[i].amountDelta_) * (yesterdayData[i].isProfit_ ? 1 : -1)
           dailyFees.add(token, vaultProfitToday - vaultProfitYesterday)
-          totalFees.add(token, vaultProfitToday)
         })
 
         return {
           dailyFees,
-          totalFees,
           dailyRevenue: dailyFees.clone(60 / 100),
-          totalRevenue: totalFees.clone(60 / 100),
           dailyProtocolRevenue: dailyFees.clone(60 / 100),
-          totalProtocolRevenue: totalFees.clone(60 / 100),
           dailyHoldersRevenue: dailyFees.clone(20 / 100),
-          totalHoldersRevenue: totalFees.clone(20 / 100),
         };
       }),
       start: '2024-11-20',

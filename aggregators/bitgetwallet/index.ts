@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st/getOrderDayList"
+const historicalVolumeEndpoint = "https://api-3rd.bitkeep.com/swap-go/open/getOrderDayVolume"
 
 interface IVolumeall {
     volume: string;
@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
             return {
                 [chain]: {
                     fetch,
-                    start: '2022-10-31'
+                    start: '2025-04-01'
                 }
             }
         }).reduce((acc, item) => {

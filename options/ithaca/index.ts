@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
-import fetchURL, { httpGet } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 import { parseUnits } from "ethers";
@@ -38,10 +38,6 @@ export async function fetchIthacaVolumeData(
   const dailyNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
   dailyNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.daily_volume_numeraire.toFixed(6), 6))
   dailyNotionalVolume.addToken(WETH_CONTRACT, parseUnits(`${ithacaStats.daily_volume_underlier}`, 18))
-
-  const totalNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
-  totalNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.total_volume_numeraire.toFixed(6), 6))
-  totalNotionalVolume.addToken(WETH_CONTRACT, parseUnits(`${ithacaStats.total_volume_underlier}`, 18))
 
   return {
     timestamp,
