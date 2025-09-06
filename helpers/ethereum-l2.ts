@@ -3,6 +3,7 @@ import { FetchOptions, } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { queryIndexer, toByteaArray } from "../helpers/indexer";
 import { CHAIN } from './chains';
+import { METRIC } from './metrics';
 
 const feeWallet = '0x4200000000000000000000000000000000000011';
 const l1FeeVault = '0x420000000000000000000000000000000000001a';
@@ -124,13 +125,13 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 			) AS total_revenue_usd
     `;
 
-    const feesResult: any[] = await queryDuneSql(options, query);
+	const feesResult: any[] = await queryDuneSql(options, query);
 
 	const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
+	const dailyRevenue = options.createBalances();
 
-	dailyFees.addGasToken(feesResult[0].total_fee * 1e18); // all from above list has 18 decimals
-    dailyRevenue.addGasToken(feesResult[0].total_revenue * 1e18); // all from above list has 18 decimals
+	dailyFees.addGasToken(feesResult[0].total_fee * 1e18, METRIC.TRANSACTION_GAS_FEES); // all from above list has 18 decimals
+	dailyRevenue.addGasToken(feesResult[0].total_revenue * 1e18, METRIC.TRANSACTION_GAS_FEES); // all from above list has 18 decimals
 
-    return { dailyFees, dailyRevenue };
+	return { dailyFees, dailyRevenue };
 }; 

@@ -4,6 +4,7 @@
 
 import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
@@ -11,7 +12,9 @@ import request, { gql } from "graphql-request";
 
 interface IFee {
     time: string;
-    v2_fees: number;
+    margin_fees_usd: number;
+    swap_fees_usd: number;
+    liquidation_fee_usd: number;
 }
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
@@ -21,21 +24,37 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
     {
        feesRecordDailies(where: {timestamp_eq: "${targetDate}"}) {
         tradeFees
+        swapFees
       }
     }
   `
     const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
     const res = await request(url, query)
-    const fees = res.feesRecordDailies
-        .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
-    if (fees === 0) throw new Error('Not found daily data!.')
-    const dailyFees = fees / (10 ** 20)
+
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+    for (const record of res.feesRecordDailies) {
+        dailyFees.addUSDValue(record.tradeFees / 1e20, METRIC.MARGIN_FEES)
+        dailyFees.addUSDValue(record.swapFees / 1e20, METRIC.SWAP_FEES)
+
+        dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.MARGIN_FEES)
+        dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
+
+        dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.1, METRIC.MARGIN_FEES)
+        dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.1, METRIC.SWAP_FEES)
+
+        dailyHoldersRevenue.addUSDValue(record.tradeFees / 1e20 * 0.27, METRIC.MARGIN_FEES)
+        dailyHoldersRevenue.addUSDValue(record.swapFees / 1e20 * 0.27, METRIC.SWAP_FEES)
+    }
+
     return {
         timestamp: options.startOfDay,
-        dailyFees: dailyFees,
-        dailyRevenue: dailyFees * 0.37,
-        dailyProtocolRevenue: dailyFees * 0.1,
-        dailyHoldersRevenue: dailyFees * 0.27,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
     }
 }
 
@@ -185,18 +204,15 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
 
       v2_fees AS (
           SELECT 
-              block_time, block_date, volume, fees, liquidation_fee_usd, chain
+              block_time, block_date, volume, fees as margin_fees_usd, 0 as swap_fees_usd, liquidation_fee_usd, chain
           FROM gmx_v2_trades
           UNION ALL
           SELECT
-              block_time, block_date, volume, fees, 0 AS liquidation_fee_usd, chain
+              block_time, block_date, volume, fees as swap_fees_usd, 0 AS margin_fees_usd, 0 AS liquidation_fee_usd, chain
           FROM gmx_v2_swaps
       )
 
-      SELECT 
-          SUM(volume) AS volume,
-          SUM(fees + liquidation_fee_usd) AS v2_fees
-      FROM v2_fees
+      SELECT margin_fees_usd, swap_fees_usd, liquidation_fee_usd FROM v2_fees
       WHERE (
           CASE '${chainName}'
               WHEN 'ALL' THEN 1=1
@@ -205,15 +221,38 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
           END
       )
       AND TIME_RANGE
+
+      
     `);
 
-    let dailyFees = fees.reduce((acc: number, item: IFee) => acc + item.v2_fees, 0);
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+
+    for (const item of fees) {
+        dailyFees.addUSDValue(item.margin_fees_usd, METRIC.MARGIN_FEES)
+        dailyFees.addUSDValue(item.swap_fees_usd, METRIC.SWAP_FEES)
+        dailyFees.addUSDValue(item.liquidation_fee_usd, METRIC.LIQUIDATION_FEES)
+
+        dailyRevenue.addUSDValue(item.margin_fees_usd * 0.37, METRIC.MARGIN_FEES)
+        dailyRevenue.addUSDValue(item.swap_fees_usd * 0.37, METRIC.SWAP_FEES)
+        dailyRevenue.addUSDValue(item.liquidation_fee_usd * 0.37, METRIC.LIQUIDATION_FEES)
+
+        dailyProtocolRevenue.addUSDValue(item.margin_fees_usd * 0.1, METRIC.MARGIN_FEES)
+        dailyProtocolRevenue.addUSDValue(item.swap_fees_usd * 0.1, METRIC.SWAP_FEES)
+        dailyProtocolRevenue.addUSDValue(item.liquidation_fee_usd * 0.1, METRIC.LIQUIDATION_FEES)
+
+        dailyHoldersRevenue.addUSDValue(item.margin_fees_usd * 0.27, METRIC.MARGIN_FEES)
+        dailyHoldersRevenue.addUSDValue(item.swap_fees_usd * 0.27, METRIC.SWAP_FEES)
+        dailyHoldersRevenue.addUSDValue(item.liquidation_fee_usd * 0.27, METRIC.LIQUIDATION_FEES)
+    }
 
     return {
         dailyFees,
-        dailyRevenue: `${dailyFees * 0.37}`,
-        dailyProtocolRevenue: `${dailyFees * 0.1}`,
-        dailyHoldersRevenue: `${dailyFees * 0.27}`,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
     };
 };
 

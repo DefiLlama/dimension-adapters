@@ -1,11 +1,25 @@
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
 
 const methodology = {
     Fees: 'Total unstaking fees and rewards from staked HYPE.',
-    Revenue: 'Total fee through 0.1%  KHYPE unstaking fee',
+    Revenue: 'Total fee through 0.1% KHYPE unstaking fee',
     ProtocolRevenue: 'All the revenue goes to the treasury.',
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.STAKING_REWARDS]: 'Total staking rewards from staked HYPE.',
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
+    },
+    Revenue: {
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
+    },
+    ProtocolRevenue: {
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Total fees from 0.1% KHYPE unstaking fee.',
+    },
 };
 
 const KHYPE = '0xfD739d4e423301CE9385c1fb8850539D657C296D';
@@ -32,13 +46,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         abi: 'uint256:totalSupply',
     }) / 1e18;
 
-    dailyFees.addCGToken('hyperliquid', totalSupply * (exchangeRateAfter - exchangeRateBefore));
+    dailyFees.addCGToken('hyperliquid', totalSupply * (exchangeRateAfter - exchangeRateBefore), METRIC.STAKING_REWARDS);
 
-    const dailyRevenue = await addTokensReceived({
+    const unstakingFees = await addTokensReceived({
         options,
         token: KHYPE,
         target: KHYPE_TREASURY,
     });
+    dailyFees.addBalances(unstakingFees, METRIC.DEPOSIT_WITHDRAW_FEES)
+    const dailyRevenue = unstakingFees.clone(1, METRIC.DEPOSIT_WITHDRAW_FEES)
 
     return {
         dailyFees,
@@ -56,6 +72,7 @@ const adapter: Adapter = {
         },
     },
     methodology,
+    breakdownMethodology,
 };
 
 export default adapter;

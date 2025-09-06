@@ -139,15 +139,15 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
 
 const fetch: any = async (options: FetchOptions) => {
   // USD value
-  let dailyFees = 0
+  const dailyFees = options.createBalances()
 
   const oldPrices = await getPrices(options.fromTimestamp)
   const newPrices = await getPrices(options.toTimestamp)
 
   const supply = await getSupply(options.api)
 
-  dailyFees += supply.OUSG * (newPrices.OUSG - oldPrices.OUSG)
-  dailyFees += supply.USDY * (newPrices.USDY - oldPrices.USDY)
+  dailyFees.addUSDValue(supply.OUSG * (newPrices.OUSG - oldPrices.OUSG))
+  dailyFees.addUSDValue(supply.USDY * (newPrices.USDY - oldPrices.USDY))
 
   return {
     dailyFees,
@@ -158,8 +158,8 @@ const fetch: any = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  methodology,
   version: 2,
+  methodology,
   runAtCurrTime: true,
   adapter: {
     [CHAIN.ETHEREUM]: {

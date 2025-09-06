@@ -1,6 +1,6 @@
 // https://docs.liquidcollective.io/v1/faqs#what-is-the-protocol-service-fee
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
-import { ETHEREUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 
 const lsETH = "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549";
 
@@ -29,12 +29,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   dailyFees.addCGToken("ethereum", dailyLsEthHoldersYield / 0.9);
   const dailyRevenue = dailyFees.clone(0.1);
-  return { dailyFees, dailyRevenue };
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const adapter: Adapter = {
   adapter: {
-    [ETHEREUM]: {
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2022-11-19',
     },
@@ -43,6 +44,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Total ETH staking rewards from all validators.",
     Revenue: "Liquid Collective charges 10% ETH staking rewards.",
+    ProtocolRevenue: "Liquid Collective charges 10% ETH staking rewards.",
   },
 };
 

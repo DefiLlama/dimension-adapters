@@ -24,7 +24,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const revenueDelta = Number(currentRevenueValue) - Number(startRevenueValue)
   dailyRevenue.add(
     stETHAddress,
-    revenueDelta
+    revenueDelta,
   );
 
   const collectRevenueLogs = await options.getLogs({
@@ -49,7 +49,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   dailyRevenue.add(
     stETHAddress,
-    collectedRevenueAmount.toFixed()
+    collectedRevenueAmount.toFixed(),
   );
 
   return { dailyFees: dailyRevenue, dailyRevenue }

@@ -1,4 +1,3 @@
-
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions } from '../adapters/types'
 
@@ -45,5 +44,5 @@ export default {
     ProtocolRevenue: 'Protocol make no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
-  }
+  },
 }

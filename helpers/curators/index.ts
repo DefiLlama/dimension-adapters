@@ -183,8 +183,8 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
       // interest earned by vault curator
       const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.BORROW_INTEREST)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.BORROW_INTEREST)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
@@ -218,8 +218,8 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
       // interest earned by vault curator
       const interestFee = interestEarnedBeforeFee - interestEarned
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.BORROW_INTEREST)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.BORROW_INTEREST)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
@@ -248,8 +248,8 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
         }
 
-        const dailySupplySideRevenue = dailyFees.clone()
-        dailySupplySideRevenue.subtract(dailyRevenue)
+        const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
+        dailySupplySideRevenue.subtract(dailyRevenue, METRIC.ASSETS_YIELDS)
 
         return {
           dailyFees,

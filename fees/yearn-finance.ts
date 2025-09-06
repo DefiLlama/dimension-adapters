@@ -1,11 +1,30 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const methodology = {
   Fees: 'Total yields from deposited assets across all vaults',
   SupplySideRevenue: 'Total yields are distributed to depositors',
+  Revenue: 'Performance and management fees to Yearn treasury',
   ProtocolRevenue: 'Performance and management fees to Yearn treasury',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields from deposited assets across all vaults',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields are distributed to depositors',
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
+    [METRIC.MANAGERMENT_FEES]: 'Management fees to Yearn treasury',
+  },
+  ProtocolRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
+    [METRIC.MANAGERMENT_FEES]: 'Management fees to Yearn treasury',
+  },
 }
 
 const vaultListApi = (chainId: number) => `https://ydaemon.yearn.finance/vaults/all?chainids=${chainId}&limit=100000`
@@ -187,9 +206,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const managementFees = tf * vault.managementFeeRate
     const protocolFees = performanceFees + managementFees
 
-    dailyFees.add(vault.token, tf)
-    dailySupplySideRevenue.add(vault.token, tf - protocolFees)
-    dailyProtocolRevenue.add(vault.token, protocolFees)
+    dailyFees.add(vault.token, tf, METRIC.ASSETS_YIELDS)
+    dailySupplySideRevenue.add(vault.token, tf - protocolFees, METRIC.ASSETS_YIELDS)
+    dailyProtocolRevenue.add(vault.token, performanceFees, METRIC.ASSETS_YIELDS)
+    dailyProtocolRevenue.add(vault.token, managementFees, METRIC.MANAGERMENT_FEES)
   }
 
   return {
@@ -202,6 +222,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   methodology,
+  breakdownMethodology,
   fetch,
   version: 2,
   adapter: {

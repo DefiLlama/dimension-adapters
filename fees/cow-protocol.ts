@@ -32,21 +32,27 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const partnerFeeCow = data.partner_fee_cow_revenue || 0;
 
     let totalFees = protocolFee + partnerFeeCow + partnerFeePartner + (mevBlockerFee * 2); // beaverbuild receive same amount for mevBlockerFee
-    let protocolRevenue = protocolFee + partnerFeeCow + mevBlockerFee; // Excluding partner fees
+    // let protocolRevenue = protocolFee + partnerFeeCow + mevBlockerFee; // Excluding partner fees
 
     // Sanity check for Gnosis chain
     if (options.chain === CHAIN.XDAI && totalFees > 5) {
       throw new Error(`Total fees ${totalFees} ETH very high for gnosis. Protocol: ${protocolFee}, Partner(Partner): ${partnerFeePartner}, Partner(COW): ${partnerFeeCow}, MEV: ${mevBlockerFee}`);
     }
 
-    if (options.chain === CHAIN.ETHEREUM && totalFees > 1000) {
-      totalFees = 0;
-      protocolRevenue = 0;
-      // throw new Error(`Total fees ${totalFees} ETH very high for ethereum. Protocol: ${protocolFee}, Partner: ${partnerFee}, MEV: ${mevBlockerFee}`);
+    if(options.chain === CHAIN.ETHEREUM && totalFees > 1000) {
+      // totalFees = 0;
+      // protocolRevenue = 0;
+      throw new Error(`Total fees ${totalFees} ETH very high for ethereum. Protocol: ${protocolFee}, Partner(Partner): ${partnerFeePartner}, Partner(COW): ${partnerFeeCow}, MEV: ${mevBlockerFee}`);
     }
 
-    dailyFees.addCGToken('ethereum', totalFees);
-    dailyProtocolRevenue.addCGToken('ethereum', protocolRevenue);
+    dailyFees.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
+    dailyFees.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
+    dailyFees.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
+    dailyFees.addCGToken('ethereum', mevBlockerFee * 2, 'MEV Blocker Fees');
+
+    dailyProtocolRevenue.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
+    dailyProtocolRevenue.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
+    dailyProtocolRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees');
   } else {
     if (options.chain === CHAIN.LENS) return {}
     throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
@@ -67,6 +73,31 @@ const methodology = {
   ProtocolRevenue: "Trading fees (protocol fees + cow's MEV blocker fees + partner fee share)",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
+    'Partner Fees for Partners': 'Share of partner fees for partners.',
+    'MEV Blocker Fees': 'MEV blockers fee for CoW protocol and block builders.',
+  }, 
+  UserFees: {
+    'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
+    'Partner Fees for Partners': 'Share of partner fees for partners.',
+    'MEV Blocker Fees': 'MEV blockers fee for CoW protocol and block builders.',
+  },
+  Revenue: {
+    'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
+    'MEV Blocker Fees': 'MEV blockers fee for CoW protocol.',
+  },
+  ProtocolRevenue: {
+    'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
+    'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
+    'MEV Blocker Fees': 'MEV blockers fee for CoW protocol.',
+  },
+}
+
 const chainConfig = {
   [CHAIN.ETHEREUM]: { start: '2023-02-03' },
   [CHAIN.ARBITRUM]: { start: '2024-05-20' },
@@ -81,6 +112,7 @@ const adapter: Adapter = {
   fetch,
   adapter: chainConfig,
   methodology,
+  breakdownMethodology,
   prefetch,
   isExpensiveAdapter: true,
 }

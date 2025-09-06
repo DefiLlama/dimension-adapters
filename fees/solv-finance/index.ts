@@ -1,5 +1,6 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { addGasTokensReceived, addTokensReceived } from "../../helpers/token";
 import { Balances } from "@defillama/sdk";
@@ -64,7 +65,7 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
-async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees: Balances, dailyRevenue: Balances }> {
+async function fees(options: FetchOptions, contracts: any) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const pools = contracts[options.chain];
@@ -136,7 +137,7 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
       // Calculate subscription fee: daily subscription amount * (nav - 1)
       const subscriptionAmount = await subscriptionFees(options, pool.marketAddress, pool.poolId);
       const subscriptionFeeAmount = BigNumber(subscriptionAmount).times(todayNav.minus(BigNumber(10).pow(currencyDecimal)));
-      dailyRevenue.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber());
+      dailyRevenue.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber(), METRIC.MINT_REDEEM_FEES);
     }
 
     if (redemptionFee) {
@@ -152,13 +153,13 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
 
     if (receivedFee) {
       const receivedFees = await received(options, receivedFee);
-      dailyFees.addBalances(receivedFees);
-      dailyRevenue.addBalances(receivedFees.clone(revenueRatio.toNumber()));
+      dailyFees.addBalances(receivedFees, METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.addBalances(receivedFees.clone(revenueRatio.toNumber()), METRIC.MINT_REDEEM_FEES);
     }
 
     if (receivedFeeGasTokens) {
       const nativeTokenFees = await gasTokensReceived(options, receivedFeeGasTokens);
-      dailyRevenue.addBalances(nativeTokenFees.clone(revenueRatio.toNumber()));
+      dailyRevenue.addBalances(nativeTokenFees.clone(revenueRatio.toNumber()), METRIC.MINT_REDEEM_FEES);
     }
 
     // fee = net value increase after on-chain deduction * today's shares / (1 - corresponding fund's revenue_ratio)
@@ -167,8 +168,8 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
       fee = BigNumber(0);
     }
 
-    dailyFees.add(poolBaseInfo.currency, fee.toNumber());
-    dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber());
+    dailyFees.add(poolBaseInfo.currency, fee.toNumber(), METRIC.STAKING_REWARDS);
+    dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber(), METRIC.STAKING_REWARDS);
   }
 
   if (Object.keys(redemptionFees).length > 0) {
@@ -179,10 +180,10 @@ async function fees(options: FetchOptions, contracts: any): Promise<{ dailyFees:
       address: redemptionFeeAddresses,
       token: redemptionFeeTokens
     });
-    dailyRevenue.addBalances(redemptionFeeAmount);
+    dailyRevenue.addBalances(redemptionFeeAmount, METRIC.MINT_REDEEM_FEES);
   }
 
-  return { dailyFees, dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 }
 
 async function received(
@@ -266,12 +267,25 @@ async function gasTokensReceived(
 }
 
 const methodology = {
-  Fees: 'All yields are generated from staking assets.',
-  Revenue: 'Fees collected by Solv Protocol.',
-  ProtocolRevenue: 'Fees collected by Solv Protocol.',
+  Fees: 'All yields are generated from staking assets and mint/redemption fees.',
+  Revenue: 'Mint/Redemption Fees collected by Solv Protocol.',
+  ProtocolRevenue: 'Mint/Redemption collected by Solv Protocol.',
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, methodology, };
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'All yields are generated from staking assets.',
+    [METRIC.MINT_REDEEM_FEES]: 'All mint/redemption fees.',
+  },
+  Revenue: {
+    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption Fees collected by Solv Protocol.',
+  },
+  ProtocolRevenue: {
+    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption Fees collected by Solv Protocol.',
+  },
+}
+
+const adapter: SimpleAdapter = { adapter: {}, version: 2, methodology, breakdownMethodology };
 
 Object.keys(chains).forEach((chain: Chain) => {
   adapter.adapter![chain] = {

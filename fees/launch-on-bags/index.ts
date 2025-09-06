@@ -1,4 +1,3 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
@@ -51,7 +50,7 @@ const adapter: SimpleAdapter = {
         Fees: "Trading fees paid by users.",
         Revenue: "Fees collected by Bags App protocol.",
         ProtocolRevenue: "Fees collected by Bags App protocol."
-    }
+    },
 }
 
 export default adapter
