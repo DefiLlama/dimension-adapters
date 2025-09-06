@@ -1,4 +1,5 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
+import { METRIC } from "../../helpers/metrics";
 import { findClosest } from "../../helpers/utils/findClosest"
 import { httpGet } from "../../utils/fetchURL";
 
@@ -27,11 +28,12 @@ export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestat
                     const tbills = supply * closestAttestation.allocated / closestAttestation.circulation
                     const annualYield = tbills * closestAttestation.tbillRate / 100 // yield in repos (SOFR) and yield in tbills is almost the same
                     const decimals = 1e6 // assuming 6 decimals
-                    dailyFees.add(stablecoinData.address, decimals * annualYield / 365)
+                    dailyFees.add(stablecoinData.address, decimals * annualYield / 365, METRIC.ASSETS_YIELDS)
 
                     return {
                         dailyFees,
-                        dailyRevenue: dailyFees
+                        dailyRevenue: dailyFees,
+                        dailyProtocolRevenue: dailyFees,
                     }
                 },
             }

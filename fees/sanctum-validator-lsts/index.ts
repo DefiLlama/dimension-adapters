@@ -14,6 +14,7 @@ Here are the different materialized query you can find in the query below:
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
@@ -101,16 +102,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  dailyFees.addCGToken(
-    "solana",
-    Number(fees[0].daily_epoch_fees) +
-      Number(fees[0].daily_withdraw_and_deposit_fees)
-  );
-  dailyRevenue.addCGToken(
-    "solana",
-    Number(fees[0].daily_epoch_revenue) +
-      Number(fees[0].daily_withdraw_and_deposit_fees)
-  );
+
+  dailyFees.addCGToken('solana', Number(fees[0].daily_epoch_fees), METRIC.STAKING_REWARDS)
+  dailyFees.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
+
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_epoch_revenue), METRIC.STAKING_REWARDS)
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
 
   return {
     dailyFees,
@@ -123,7 +120,24 @@ const methodology = {
   Fees: "Staking rewards + withdrawal/deposit fees from Sanctum LSTs",
   Revenue:
     "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  ProtocolRevenue:
+    "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Validators staking rewards from Sanctum LSTS.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'SOL deposit and withdraw fees.',
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
+  },
+  ProtocolRevenue: {
+    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -134,6 +148,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 
