@@ -7,13 +7,10 @@ import { getPrices } from "../utils/prices";
 // Kelp earns rewards from ETH and reward tokens (e.g. EIGEN) via EigenLayer restaking.
 // Methodology below describes how fees and revenues are categorized.
 const methodology = {
-  Fees: "Total rewards were collected from staking assets.",
-  SupplySideRevenue: "Rewards are distributed to stakers (rsETH holders).",
-  ProtocolRevenue: "A portion of rewards are charged by protocol.",
-  agETH:
-    "Management fee only: sum of rsETH transfers to agETH feesCollector (2% management fee, charged manually). Counted 100% as protocol revenue.",
-  hgETH:
-    "Management fee: sum of rsETH transfers to hgETH feesCollector (1.5% management fee). Performance fee: 20% of positive hgETH rate delta (convertToAssets) is accrued only when TVL > $50 million; this is added separately and is not sourced from the feesCollector transfers.",
+  Fees: "Sum of total staking rewards from agETH, hgETH.",
+  SupplySideRevenue: "All staking rewards are distributed to stakers (rsETH holders).",
+  Revenue: "Sum of rsETH transfers to agETH feesCollector (2% management fee, charged manually), sum of rsETH transfers to hgETH feesCollector (1.5% management fee), performance fee: 20% of positive hgETH rate delta",
+  ProtocolRevenue: "Sum of rsETH transfers to agETH feesCollector (2% management fee, charged manually), sum of rsETH transfers to hgETH feesCollector (1.5% management fee), performance fee: 20% of positive hgETH rate delta",
 };
 
 const LRTOracle = "0x349A73444b1a310BAe67ef67973022020d70020d";
@@ -250,6 +247,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return {
     dailyFees,
     dailySupplySideRevenue,
+    dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   };
 }
