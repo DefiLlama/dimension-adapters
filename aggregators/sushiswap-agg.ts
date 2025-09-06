@@ -327,6 +327,14 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
 }
 
+const BLACKLIST_TOKENS: any = {
+  [CHAIN.ARBITRUM]: [
+    '0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501',
+    '0x3B94Cfdf557f9AAd983fE4E56dd4846958EF708A',
+    '0xC1fb38F174D16b1ff46c1CB04b52D5CF157940ee',
+  ],
+}
+
 const useSushiAPIPrice = (chain: any) => [
   CHAIN.BOBA_BNB,
   CHAIN.MOONRIVER
@@ -359,10 +367,10 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
     logsPromises.push(getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   }
 
+  const dailyVolume = createBalances()
   const logs = (await Promise.all(logsPromises)).flat()
 
   if (useSushiAPIPrice(chain)) {
-    const dailyVolume = createBalances()
     const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
       acc[key.toLowerCase()] = value
       return acc
@@ -391,11 +399,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
         dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
       }
     })
-
-    return { dailyVolume }
   } else {
-    const dailyVolume = createBalances()
-
     logs.forEach((log) => {
       if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
@@ -403,9 +407,16 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       else
         dailyVolume.add(log.tokenIn, log.amountIn)
     })
-
-    return { dailyVolume }
   }
+
+  // remove blacklist tokens volume
+  if (BLACKLIST_TOKENS[chain]) {
+    for (const token of BLACKLIST_TOKENS[chain]) {
+      dailyVolume.removeTokenBalance(token);
+    }
+  }
+
+  return { dailyVolume }
 }
 
 const adapters = {
