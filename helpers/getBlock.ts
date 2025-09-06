@@ -1,7 +1,7 @@
 import { Chain, ChainBlocks } from "../adapters/types";
 import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
-import { httpGet } from "../utils/fetchURL";
+import { httpGet, httpPost } from "../utils/fetchURL";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
@@ -117,8 +117,17 @@ async function getBlocks(chain: Chain, timestamps: number[]) {
 
 const canGetBlock = (chain: string) => Object.keys(sdk.api2.config.providers).includes(chain)
 
+async function getHydrationBlock(unixTs: number) {
+  const data = await httpPost('https://hydradx.api.subscan.io/api/scan/block', {
+    "block_timestamp": unixTs,
+    "only_head": true
+  })
+  return data.data.block_num
+}
+
 export {
   getBlock,
   canGetBlock,
-  getBlocks
+  getBlocks,
+  getHydrationBlock,
 }
