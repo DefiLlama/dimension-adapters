@@ -12,12 +12,14 @@ async function fetch({ createBalances }: FetchOptions) {
   const dailyFees = createBalances();
   const data = await httpGet('https://dex-backend-prod1.defi.gala.com/coin-gecko/tickers')
   data.forEach((item: any) => {
+    if (!item.base_volume) return;
+
     const cgToken = baseCGMap[item.base_currency]
     if (!cgToken) {
       console.log('No CG mapping for', item.base_currency);
       return;
     }
-    if (!item.base_volume) return;
+
     const fee = item.ticker_id.split('/')[2] / 1e6
 
     dailyVolume.addCGToken(cgToken, item.base_volume)
