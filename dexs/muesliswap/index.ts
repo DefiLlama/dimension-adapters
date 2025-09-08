@@ -27,9 +27,9 @@ const fetch = async (_,_1,options: FetchOptions) => {
 
 export default {
   adapter: {
-    [CHAIN.MILKOMEDA]: {
-      fetch: async (_: any, _1: any, options: FetchOptions) => getUniV2LogAdapter({ factory: '0x57A8C24B2B0707478f91D3233A264eD77149D408'})(options)
-    },
+    // [CHAIN.MILKOMEDA]: {  // milkomeda chain is dead
+    //   fetch: async (_: any, _1: any, options: FetchOptions) => getUniV2LogAdapter({ factory: '0x57A8C24B2B0707478f91D3233A264eD77149D408'})(options)
+    // },
     [CHAIN.CARDANO]: {
       fetch,
     }

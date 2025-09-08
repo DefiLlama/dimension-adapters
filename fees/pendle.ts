@@ -23,6 +23,7 @@ const ABI = {
 type IConfig = {
   [s: string | Chain]: {
     treasury: string;
+    blacklists?: Array<string>;
   };
 };
 
@@ -54,6 +55,9 @@ const BRIDGED_ASSETS = [
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
     treasury: "0x8270400d528c34e1596ef367eedec99080a1b592",
+    blacklists: [
+      '0xe2796707590384430d887f15bdf97c660d95894a',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
@@ -144,6 +148,8 @@ const fetch = (chain: Chain) => {
     for (const token in allRevenueTokenList) {
       const tokenAddr = token.split(":")[1];
       const index = sys.indexOf(tokenAddr);
+
+      if (chainConfig[options.chain].blacklists && chainConfig[options.chain].blacklists?.includes(tokenAddr)) continue;
 
       if (index == -1 || !assetInfos[index]) continue;
 
@@ -238,34 +244,34 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-06-09',
     },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: '2023-06-09',
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: '2023-06-09',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-08-11',
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetch(CHAIN.MANTLE),
-      start: '2024-03-27',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: '2024-11-12',
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch(CHAIN.SONIC),
-      start: '2025-02-14',
-    },
-    [CHAIN.BERACHAIN]: {
-      fetch: fetch(CHAIN.BERACHAIN),
-      start: '2025-02-07',
-    }
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: fetch(CHAIN.ARBITRUM),
+    //   start: '2023-06-09',
+    // },
+    // [CHAIN.BSC]: {
+    //   fetch: fetch(CHAIN.BSC),
+    //   start: '2023-06-09',
+    // },
+    // [CHAIN.OPTIMISM]: {
+    //   fetch: fetch(CHAIN.OPTIMISM),
+    //   start: '2023-08-11',
+    // },
+    // [CHAIN.MANTLE]: {
+    //   fetch: fetch(CHAIN.MANTLE),
+    //   start: '2024-03-27',
+    // },
+    // [CHAIN.BASE]: {
+    //   fetch: fetch(CHAIN.BASE),
+    //   start: '2024-11-12',
+    // },
+    // [CHAIN.SONIC]: {
+    //   fetch: fetch(CHAIN.SONIC),
+    //   start: '2025-02-14',
+    // },
+    // [CHAIN.BERACHAIN]: {
+    //   fetch: fetch(CHAIN.BERACHAIN),
+    //   start: '2025-02-07',
+    // }
   },
 };
 

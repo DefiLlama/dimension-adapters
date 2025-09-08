@@ -22,7 +22,7 @@ mevblocker_eth as (
     from dune.cowprotocol.result_fees_revenue_per_order as rev
     where 
         date_trunc('day', block_time) = from_unixtime({{start}})
-        and blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon')
+        and blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'lens')
     group by 1,2
 )
 select
