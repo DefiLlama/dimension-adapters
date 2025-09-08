@@ -1,21 +1,15 @@
 import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const fetch = async (timestamp: number) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
-
+const fetch = async (_:any, _1:any, { startOfDay }: FetchOptions) => {
   const data = await fetchURL(
-    `https://bytzz.xyz/api/stats?timestamp=${unixTimestamp}`
+    `https://bytzz.xyz/api/stats?timestamp=${startOfDay}`
   );
+  if (!data) throw new Error("No data");
 
   return {
-    dailyVolume: data?.volume24h || 0,
-    totalVolume: data?.cumulativeVolume || 0,
-    timestamp: unixTimestamp,
+    dailyVolume: data?.volume24h,
   };
 };
 
