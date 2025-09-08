@@ -14,6 +14,7 @@ async function historicFetch(options: FetchOptions) {
 }
 
 export default {
+  start: '2021-06-30',
   chains: [CHAIN.KALSHI],
   fetch: async (_: any, _1: any, options: FetchOptions) => {
     return historicFetch(options)
