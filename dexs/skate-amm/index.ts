@@ -1,4 +1,3 @@
-import { encodeBase58, dataSlice, getAddress } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -44,7 +43,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    "Volume": "Describes the amount of tokens swapped into the pool."
+    Volume: "Total token swap volumes by users.",
+    Fees: 'All fees paid by users for trading.'
 }
 
 const adapter: SimpleAdapter = {
