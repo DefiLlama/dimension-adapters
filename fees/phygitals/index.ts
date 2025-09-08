@@ -72,8 +72,11 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         const result = data[0];
         const gachaTotalSpend = (result.gacha_spend || 0) + (result.gacha_spend1 || 0);
         const totalRevenue = gachaTotalSpend + (result.luckydraw_fees || 0) + (result.royalties || 0);
-        const netRevenue = totalRevenue - (result.buyback || 0);        
-        dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
+        const gachaNetRevenue = gachaTotalSpend - (result.buyback || 0);        
+        // dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
+        dailyFees.add(ADDRESSES.solana.USDC, gachaNetRevenue * 1e6);
+        dailyFees.add(ADDRESSES.solana.USDC, result.luckydraw_fees || 0);
+        dailyFees.add(ADDRESSES.solana.USDC, result.royalties || 0);
     }
 
     return {
@@ -85,11 +88,30 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     }
 }
 
+const breakdownMethodology: Record<string, Record<string, string>> = {
+  Fees: {
+    'GACHA_FEES': 'Net fees collected from gacha (card pack) sales.',
+    'LUCKYDRAW_FEES': 'Fees collected from lucky draw events.',
+    'ROYALTIES': 'Royalties and marketplace fees collected from secondary market transactions.',
+  },
+  Revenue: {
+    'GACHA_FEES': 'Net revenue from gacha (card pack) sales.',
+    'LUCKYDRAW_FEES': 'Revenue from lucky draw events.',
+    'ROYALTIES': 'Revenue from marketplace fees and royalties.',
+  },
+  ProtocolRevenue: {
+    'GACHA_FEES': 'Net revenue from gacha sales after buyback expenses.',
+    'LUCKYDRAW_FEES': 'Net revenue from lucky draw events.',
+    'ROYALTIES': 'Net revenue from marketplace fees and royalties.',
+  },
+}
+
 const methodology = {
-    Fees: "Total fees from gacha (card pack sales) and marketplace transactions.",
-    Revenue: "Revenue from gacha sales + marketplace fees/royalties.",
-    UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-    ProtocolRevenue: "Net revenue after accounting for gacha buyback expenses."
+  Fees: "Net fees from gacha (card pack sales) and royalties/luckydraw/marketplace transactions.",
+  Revenue: "Net revenue from gacha sales + royalties/luckydraw/marketplace transactions.",
+  UserFees: "Net fees paid by users for gacha sales and royalties/luckydraw/marketplace transactions.",
+  ProtocolRevenue: "Net revenue from gacha sales + royalties/luckydraw/marketplace transactions.",
+  HoldersRevenue: "No holders revenue"
 }
 
 const adapter: SimpleAdapter = {
@@ -98,6 +120,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.SOLANA],
     start: '2025-03-16',
     methodology,
+    breakdownMethodology,
 }
 
 export default adapter;
