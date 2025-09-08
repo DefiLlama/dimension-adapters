@@ -2,18 +2,18 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const PANCAKESWAP_LOTTERY_CONTRACT = '0x5aF6D33DE2ccEC94efb1bDF8f92Bd58085432d2c';
-const TICKETS_CLAIMED_ABI = "event TicketsPurchase (address indexed buyer, uint256 indexed lotteryId, uint256 numberTickets)";
+const TICKETS_PURCHASE_ABI = "event TicketsPurchase (address indexed buyer, uint256 indexed lotteryId, uint256 numberTickets)";
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
 
-    const lotteryClaims = await options.getLogs({
+    const lotteryPurchases = await options.getLogs({
         target: PANCAKESWAP_LOTTERY_CONTRACT,
-        eventAbi: TICKETS_CLAIMED_ABI,
+        eventAbi: TICKETS_PURCHASE_ABI,
     });
 
-    lotteryClaims.forEach((lottery: any) => {
-        const ticketsCount = Number(lottery.numberTickets);
+    lotteryPurchases.forEach((purchase: any) => {
+        const ticketsCount = Number(purchase.numberTickets);
         const discount = Math.min(0.1, ((ticketsCount - 1) * (100 / 99000)));
         const volume = ticketsCount * 5 * (1 - discount); //Each ticket worth 5 usd of CAKE
         dailyVolume.addUSDValue(volume);
