@@ -67,5 +67,5 @@ export default {
         Revenue: 'All services fees paid by users.',
         ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
         HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
-    }
+    },
 };
