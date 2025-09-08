@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    
-    const query = `
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
+  const query = `
         SELECT 
             SUM(
               CASE 
@@ -65,27 +65,27 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
               OR from_owner = '62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS'
             )
     `;
-    
-    const data = await queryDuneSql(options, query);
-    
-    if (data && data.length > 0) {
-        const result = data[0];
-        const gachaTotalSpend = (result.gacha_spend || 0) + (result.gacha_spend1 || 0);
-        const totalRevenue = gachaTotalSpend + (result.luckydraw_fees || 0) + (result.royalties || 0);
-        const gachaNetRevenue = gachaTotalSpend - (result.buyback || 0);        
-        // dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
-        dailyFees.add(ADDRESSES.solana.USDC, gachaNetRevenue * 1e6);
-        dailyFees.add(ADDRESSES.solana.USDC, result.luckydraw_fees || 0);
-        dailyFees.add(ADDRESSES.solana.USDC, result.royalties || 0);
-    }
 
-    return {
-        dailyFees,
-        dailyRevenue: dailyFees,
-        dailyUserFees: dailyFees,
-        dailyProtocolRevenue: dailyFees,
-        dailyHoldersRevenue: '0',
-    }
+  const data = await queryDuneSql(options, query);
+
+  if (data && data.length > 0) {
+    const result = data[0];
+    const gachaTotalSpend = (result.gacha_spend || 0) + (result.gacha_spend1 || 0);
+    const totalRevenue = gachaTotalSpend + (result.luckydraw_fees || 0) + (result.royalties || 0);
+    const gachaNetRevenue = gachaTotalSpend - (result.buyback || 0);
+    // dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
+    dailyFees.add(ADDRESSES.solana.USDC, gachaNetRevenue * 1e6, 'GACHA_FEES');
+    dailyFees.add(ADDRESSES.solana.USDC, result.luckydraw_fees || 0, 'LUCKYDRAW_FEES');
+    dailyFees.add(ADDRESSES.solana.USDC, result.royalties || 0, 'ROYALTIES');
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue: '0',
+  }
 }
 
 const breakdownMethodology: Record<string, Record<string, string>> = {
@@ -93,17 +93,7 @@ const breakdownMethodology: Record<string, Record<string, string>> = {
     'GACHA_FEES': 'Net fees collected from gacha (card pack) sales.',
     'LUCKYDRAW_FEES': 'Fees collected from lucky draw events.',
     'ROYALTIES': 'Royalties and marketplace fees collected from secondary market transactions.',
-  },
-  Revenue: {
-    'GACHA_FEES': 'Net revenue from gacha (card pack) sales.',
-    'LUCKYDRAW_FEES': 'Revenue from lucky draw events.',
-    'ROYALTIES': 'Revenue from marketplace fees and royalties.',
-  },
-  ProtocolRevenue: {
-    'GACHA_FEES': 'Net revenue from gacha sales after buyback expenses.',
-    'LUCKYDRAW_FEES': 'Net revenue from lucky draw events.',
-    'ROYALTIES': 'Net revenue from marketplace fees and royalties.',
-  },
+  }
 }
 
 const methodology = {
@@ -115,12 +105,12 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    fetch,
-    chains: [CHAIN.SOLANA],
-    start: '2025-03-16',
-    methodology,
-    breakdownMethodology,
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-03-16',
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter;
