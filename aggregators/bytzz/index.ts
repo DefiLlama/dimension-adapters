@@ -1,27 +1,25 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { SimpleAdapter } from "../../adapters/types";
 
-const TransformedERC20Event = "event TransformedERC20 (address taker, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
+const fetch = async (timestamp: number) => {
+  const unixTimestamp = getUniqStartOfTodayTimestamp(
+    new Date(timestamp * 1000)
+  );
 
-const BYTZZ_ADDRESS = "0x80197522c069a86dd8bb437e58c91cfbc05f378b"
+  const data = await fetchURL(
+    `https://bytzz.xyz/api/stats?timestamp=${unixTimestamp}`
+  );
 
-const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-
-  const logs: any[] = await options.getLogs({
-    target: BYTZZ_ADDRESS,
-    eventAbi: TransformedERC20Event,
-  });
-
-  logs.forEach((log: any) => {
-    dailyVolume.add(log.inputToken, log.inputTokenAmount);
-  });
-
-  return { dailyVolume };
+  return {
+    dailyVolume: data?.volume24h || 0,
+    totalVolume: data?.cumulativeVolume || 0,
+    timestamp: unixTimestamp,
+  };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   fetch,
   start: "2025-08-26",
   methodology: {
