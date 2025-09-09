@@ -1,54 +1,5 @@
-import { BaseAdapterChainConfig, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addOneToken } from "../../helpers/prices";
-
-interface BasinExchangeConfig {
-  wells: Array<string>;
-  start: string;
-}
-
-interface BasinExchangeExportConfig {
-  [key: string]: BasinExchangeConfig;
-}
-
-async function getBasinVolume(options: FetchOptions, configs: BasinExchangeExportConfig) {
-  const config = configs[options.chain];
-
-  const dailyVolume = options.createBalances()
-
-  const wellsSwapEvents = await options.getLogs({
-    eventAbi: 'event Swap(address fromToken, address toToken, uint256 amountIn, uint256 amountOut, address recipient)',
-    targets: config.wells,
-    flatten: true,
-  });
-  
-  for (const event of wellsSwapEvents) {
-    addOneToken({ chain: options.chain, balances: dailyVolume, token0: event.fromToken, token1: event.toToken, amount0: event.amountIn, amount1: event.amountOut })
-  }
-
-  return { dailyVolume }
-}
-
-export function getBasinAdapter(configs: BasinExchangeExportConfig): SimpleAdapter {
-  const adapter: SimpleAdapter = {
-    version: 2,
-    methodology: {
-      Volume: 'Total swap volume from all Well pools on exchange.',
-    },
-    adapter: {}
-  }
-
-  for (const [chain, config] of Object.entries(configs)) {
-    (adapter.adapter as BaseAdapterChainConfig)[chain] = {
-      fetch: async function(options: FetchOptions) {
-        return await getBasinVolume(options, configs)
-      },
-      start: config.start,
-    }
-  }
-
-  return adapter;
-}
+import { getBasinAdapter } from "./helper";
 
 export default getBasinAdapter({
   [CHAIN.ETHEREUM]: {
@@ -74,4 +25,4 @@ export default getBasinAdapter({
       '0xbEA00fF437ca7E8354B174339643B4d1814bED33',
     ],
   },
-})
+});
