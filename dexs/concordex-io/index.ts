@@ -24,6 +24,7 @@ const adapter: SimpleAdapter = {
         })
         return {
           dailyVolume: data.daily_volume,
+          dailyFees: data.daily_fees,
         }
       }
     }

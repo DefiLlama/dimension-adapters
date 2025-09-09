@@ -268,8 +268,6 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
   ]);
   const dailyNotionalVolume = createBalances()
   const dailyPremiumVolume = createBalances()
-  // const totalNotionalVolume = createBalances()
-  // const totalPremiumVolume = createBalances()
 
   const tokenSet= new Set<string>()
   const allOrders =  [...dailyCallData.callOrderEntities, ...dailyCallDataV2.callOrderEntities, ...dailyPutData.putOrderEntities, ...dailyPutDataV2.putOrderEntities]
@@ -292,14 +290,10 @@ export async function fetchSubgraphData({ createBalances, startTimestamp, endTim
 
   calculateNotionalVolume(dailyNotionalVolume,allOrders, chain);
   calculatePremiumVolume(dailyPremiumVolume, dailyPremiumData.optionPremiums);
-  // calculateNotionalVolume(totalNotionalVolume, [...totalCallData.callOrderEntities, ...totalPutData.putOrderEntities]);
-  // calculatePremiumVolume(totalPremiumVolume, totalPremiumData.optionPremiums);
 
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
-    // totalNotionalVolume,
-    // totalPremiumVolume,
   }
 }
 

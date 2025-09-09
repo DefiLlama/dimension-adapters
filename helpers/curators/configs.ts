@@ -116,4 +116,9 @@ export const EulerConfigs: any = {
       '0x7f53e2755eb3c43824e162f7f6f087832b9c9df6',
     ],
   },
+  [CHAIN.TAC]: {
+    vaultFactories: [
+      '0x2b21621b8Ef1406699a99071ce04ec14cCd50677',
+    ],
+  },
 }

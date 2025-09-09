@@ -34,23 +34,22 @@ const adapter: SimpleAdapter = {
 							tradeVolumeUSD
 							swapUSD
 							feesUSD
+							swapCount
 						}
 					}`));
-				const dailySupplySideRevenue = graphData.dailies[0].feesUSD;
-				const dailyFees = dailySupplySideRevenue;
-				const dailyUserFees = dailyFees;
+
+				const dailySupplySideRevenue = Number(graphData.dailies[0].feesUSD);
+				const dailyRevenue = Number(graphData.dailies[0].swapCount) * 0.5;
+
+				const dailyFees = dailySupplySideRevenue + dailyRevenue;
 
 				return {
 					dailyVolume: graphData.dailies[0].tradeVolumeUSD,
-					dailyUserFees,
 					dailyFees,
+					dailyUserFees: dailyFees,
+					dailyRevenue,
+					dailyProtocolRevenue: dailyRevenue,
 					dailySupplySideRevenue,
-				}
-			},
-			meta: {
-				methodology: {
-					Fees: "User pays a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
-					SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
 				}
 			},
 			start: '2021-10-03'
@@ -74,16 +73,16 @@ const adapter: SimpleAdapter = {
 					dailySupplySideRevenue,
 				}
 			},
-			meta: {
-				methodology: {
-					Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
-					Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
-					SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
-				}
-			},
 			start: '2023-11-24'
 		}
 	},
+				methodology: {
+					Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
+					UserFees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
+					Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
+					ProtocolRevenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
+					SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
+				}
 };
 
 export default adapter;

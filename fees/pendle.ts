@@ -23,6 +23,7 @@ const ABI = {
 type IConfig = {
   [s: string | Chain]: {
     treasury: string;
+    blacklists?: Array<string>;
   };
 };
 
@@ -54,6 +55,9 @@ const BRIDGED_ASSETS = [
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
     treasury: "0x8270400d528c34e1596ef367eedec99080a1b592",
+    blacklists: [
+      '0xe2796707590384430d887f15bdf97c660d95894a',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
@@ -145,6 +149,8 @@ const fetch = (chain: Chain) => {
       const tokenAddr = token.split(":")[1];
       const index = sys.indexOf(tokenAddr);
 
+      if (chainConfig[options.chain].blacklists && chainConfig[options.chain].blacklists?.includes(tokenAddr)) continue;
+
       if (index == -1 || !assetInfos[index]) continue;
 
       const assetInfo = assetInfos[index]!;
@@ -201,9 +207,7 @@ const fetch = (chain: Chain) => {
       }
     }
 
-    const dailyFees = dailyRevenue.clone();
-    dailyFees.addBalances(dailySupplySideFees);
-
+    // these revenue should be counted in fees too
     dailyRevenue.addBalances(
       await addTokensReceived({
         options,
@@ -211,9 +215,13 @@ const fetch = (chain: Chain) => {
       })
     )
 
+    const dailyFees = dailyRevenue.clone();
+    dailyFees.addBalances(dailySupplySideFees);
+
     return {
       dailyFees,
       dailyRevenue,
+      dailyProtocolRevenue: 0,
       dailyHoldersRevenue: dailyRevenue,
       dailySupplySideRevenue: dailySupplySideFees,
       timestamp,
@@ -221,57 +229,49 @@ const fetch = (chain: Chain) => {
   };
 };
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
     Revenue: 'Share of yields and trading fees collected by protocol',
+    ProtocolRevenue: 'Share of yields and trading fees collected by protocol',
     HoldersRevenue: 'Share of yields and trading fees distributed to vePENDLE',
     SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers',
-  }
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-06-09',
-      meta,
     },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: '2023-06-09',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: '2023-06-09',
-      meta,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-08-11',
-      meta,
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetch(CHAIN.MANTLE),
-      start: '2024-03-27',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: '2024-11-12',
-      meta,
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch(CHAIN.SONIC),
-      start: '2025-02-14',
-      meta,
-    },
-    [CHAIN.BERACHAIN]: {
-      fetch: fetch(CHAIN.BERACHAIN),
-      start: '2025-02-07',
-      meta,
-    }
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: fetch(CHAIN.ARBITRUM),
+    //   start: '2023-06-09',
+    // },
+    // [CHAIN.BSC]: {
+    //   fetch: fetch(CHAIN.BSC),
+    //   start: '2023-06-09',
+    // },
+    // [CHAIN.OPTIMISM]: {
+    //   fetch: fetch(CHAIN.OPTIMISM),
+    //   start: '2023-08-11',
+    // },
+    // [CHAIN.MANTLE]: {
+    //   fetch: fetch(CHAIN.MANTLE),
+    //   start: '2024-03-27',
+    // },
+    // [CHAIN.BASE]: {
+    //   fetch: fetch(CHAIN.BASE),
+    //   start: '2024-11-12',
+    // },
+    // [CHAIN.SONIC]: {
+    //   fetch: fetch(CHAIN.SONIC),
+    //   start: '2025-02-14',
+    // },
+    // [CHAIN.BERACHAIN]: {
+    //   fetch: fetch(CHAIN.BERACHAIN),
+    //   start: '2025-02-07',
+    // }
   },
 };
 

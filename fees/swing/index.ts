@@ -40,7 +40,7 @@ const chains: Record<string, string> = {
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const unixTimestamp = getUniqStartOfTodayTimestamp(
         new Date(options.startOfDay * 1000)
     );
@@ -50,7 +50,6 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
     );
 
-
     const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
         headers: {
             'Content-Type': 'application/json',
@@ -58,53 +57,39 @@ const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
         params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
     });
 
-    const chainFeeVolumes = dailyRes?.historicalFeeByChain?.map((history: any) => {
-        const chainVol = history?.volume.find((vol: any) => {
+    const chainFees = dailyRes?.historicalFeeByChain?.map((history: any) => {
+        const fees = history?.volume.find((vol: any) => {
             return vol?.chainSlug.toLowerCase() === chains[options.chain].toLowerCase();
         })
-
-        return chainVol;
+        return fees;
     });
 
-    // calculate the total volume
-    const chainFeeVolume = chainFeeVolumes?.reduce((acc: number, curr: any) => {
+    let dailyFees = chainFees?.reduce((acc: number, curr: any) => {
         return acc + Number(curr?.value || 0);
     }, 0);
-
+    if (dailyFees >= 25000) { // Very high spikes in the fees API, so kept yearly fee as a safe guard to prevent spikes
+        dailyFees = 0;
+    }
     return {
-        dailyFees: chainFeeVolume || 0,
-        timestamp: unixTimestamp,
+        dailyFees: dailyFees || 0
     };
 };
 
 
-const meta = {
-    methodology: {
-        UserFees: "Users pays 0.3% of each bridge. The exact fee is calculated based on the partner fee configuration but not over 10%.",
-        Fees: "A 0.3% bridge fee is collected",
-        Revenue: "100% of the fee collected, 85% of the fee collected to partners, 15% of the fee collected to treasury",
-        ProtocolRevenue: "A 15% of the fee collected to treasury",
-    }
+const methodology = {
+    UserFees: "Users pays 0.3% of each bridge. The exact fee is calculated based on the partner fee configuration but not over 10%.",
+    Fees: "A 0.3% bridge fee is collected",
+    Revenue: "100% of the fee collected, 85% of the fee collected to partners, 15% of the fee collected to treasury",
+    ProtocolRevenue: "A 15% of the fee collected to treasury",
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        ...Object.entries(chains).reduce((acc, chain) => {
-            const [key, value] = chain;
-
-            return {
-                ...acc,
-                [key]: {
-                    fetch: fetchVolume,
-                    start: '2023-11-01', // 2023-11-01'
-                    meta
-                },
-            };
-        }, {}),
-
-    },
-
-    version: 1
+    fetch,
+    methodology,
+    version: 1,
+    chains: Object.keys(chains),
+    start: '2023-11-01',
+    adapter: {}
 };
 
 export default adapter;

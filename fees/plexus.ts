@@ -42,14 +42,12 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: fetch(ChainId[chain]),
         start: '2023-02-01',
-        meta: {
-          methodology: {
-            Fees: 'Swap fees paid by users.',
-          }
-        }
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+  }
 };
 
 export default adapter;

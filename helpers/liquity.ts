@@ -14,7 +14,13 @@ export const getLiquityV2LogAdapter: any = ({
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
     const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
     const tokens = await api.multiCall({ abi: 'address:collToken', calls: activePools })
-    let interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: activePools })
+    let interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: activePools, permitFailure: true })
+    let nullInterestRouterFound = interestRouters.some(i => !i)
+    if (nullInterestRouterFound) {
+      api.log('sometimes interestRouter is found in address registry, trying to fetch from there')
+      const addressesRegistries = await api.multiCall({ abi: 'address:addressesRegistry', calls: activePools })
+      interestRouters = await api.multiCall({ abi: 'address:interestRouter', calls: addressesRegistries, })
+    }
     const stabilityPools = await api.multiCall({ abi: 'address:stabilityPool', calls: activePools })
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 
@@ -92,10 +98,10 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     const redemptionEvent = config.redemptionEvent || RedemptionEvent
     const borrowingEvent = config.borrowingEvent || BorrowingEvent
 
-    // Get brrower opertaor contract
+    // Get brrower operator contract
     const borrowerOperator = await api.call({ abi: 'address:borrowerOperationsAddress', target: config.troveManager })
-    
-    // redemtions fees
+
+    // redemptions fees
     const redemptionLogs = await getLogs({
       target: config.troveManager,
       eventAbi: redemptionEvent,
@@ -160,7 +166,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       } else {
         dailyRevenue = dailyProtocolRevenue.clone()
       }
-    } 
+    }
     if (dailyRevenue) {
       result.dailyRevenue = dailyRevenue
     }
@@ -170,23 +176,23 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     return result
   }
   return fetch
-} 
+}
 
 export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV1LogAdapter(chainConfig),
-      meta: {
-        methodology: {
-          Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-          Revenue: 'Total fees distributed to protocol and token holders',
-          HoldersRevenue: 'Total fees distributed to holders',
-          SupplySideRevenue: 'Total gas compensation to borrowers',
-          ProtocolRevenue: 'Total fees distributed to protocol',
-        }
-      }
     }
   })
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return {
+    adapter: exportObject, version: 2,
+    methodology: {
+      Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+      Revenue: 'Total fees distributed to protocol and token holders',
+      HoldersRevenue: 'Total fees distributed to holders',
+      SupplySideRevenue: 'Total gas compensation to borrowers',
+      ProtocolRevenue: 'Total fees distributed to protocol',
+    },
+  } as SimpleAdapter
 }

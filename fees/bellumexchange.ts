@@ -29,14 +29,12 @@ const adapter: Adapter = {
         return { dailyFees, dailyRevenue: dailyFees }
       }) as any,
       start: '2024-08-11',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users.",
-          Revenue: "Trading fees paid by users.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Trading fees paid by users.",
+    Revenue: "Trading fees paid by users.",
+  }
 
 }
 

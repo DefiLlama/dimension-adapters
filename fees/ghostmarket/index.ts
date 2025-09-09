@@ -3,7 +3,7 @@ import type { FetchOptions } from "../../adapters/types"
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-const endpoints:Record<string, string> = {
+const endpoints: Record<string, string> = {
   [CHAIN.NEO]: "https://api-external.ghostmarket.io/defillama/fees?chain=n3&timestamp=",
   [CHAIN.BSC]: "https://api-external.ghostmarket.io/defillama/fees?chain=bsc&timestamp=",
   [CHAIN.AVAX]: "https://api-external.ghostmarket.io/defillama/fees?chain=avalanche&timestamp=",
@@ -26,7 +26,7 @@ const methodology = {
 }
 
 
-const fetch =  async ({chain, endTimestamp }: FetchOptions) => {
+const fetch = async ({ chain, endTimestamp }: FetchOptions) => {
   const url = await buildUrl(endpoints[chain], endTimestamp);
   const data = (await fetchURL(url));
 
@@ -42,57 +42,17 @@ const fetch =  async ({chain, endTimestamp }: FetchOptions) => {
 
 const adapter: Adapter = {
   deadFrom: "2024-12-14",
+  methodology,
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.NEO]: {
-      fetch,
-      start: '2021-08-24',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2022-05-30',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: '2022-05-30',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2022-05-30',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2022-05-13',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.PHANTASMA]: {
-      fetch,
-      start: '2019-12-30',
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2023-08-10',
-      meta: {
-        methodology
-      }
-    }
+    [CHAIN.NEO]: { start: '2021-08-24', },
+    [CHAIN.BSC]: { start: '2022-05-30', },
+    [CHAIN.AVAX]: { start: '2022-05-30', },
+    [CHAIN.POLYGON]: { start: '2022-05-30', },
+    [CHAIN.ETHEREUM]: { start: '2022-05-13', },
+    [CHAIN.PHANTASMA]: { start: '2019-12-30', },
+    [CHAIN.BASE]: { start: '2023-08-10', }
   }
 }
 

@@ -16,8 +16,8 @@ const adapter: Adapter = {
         });
 
         const feeAddress = await options.api.call({
-            target: BREAD_CONTRACT_ADDRESS,
-            abi: 'function breadTreasury() view returns (address)'
+          target: BREAD_CONTRACT_ADDRESS,
+          abi: 'function breadTreasury() view returns (address)'
         });
 
         logs
@@ -31,14 +31,12 @@ const adapter: Adapter = {
         }
       },
       start: '2025-03-17',
-      meta: {
-        methodology: {
-          Fees: "All fees are captured by monitoring SendBera events to breadTreasury",
-        }
-      }
     }
   },
-  version: 2
+  version: 2,
+  methodology: {
+    Fees: "All fees are captured by monitoring SendBera events to breadTreasury",
+  }
 };
 
 export default adapter;

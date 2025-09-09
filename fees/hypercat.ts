@@ -50,11 +50,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  
+
   try {
     // Fetch data from the official Hypercat API
     const response: HypercatResponse = await httpGet(HYPERCAT_API_URL);
-    
+
     if (!response?.data?.pools) {
       console.warn("No pools data received from Hypercat API");
       return {
@@ -115,17 +115,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYPERLIQUID]: {
       fetch,
       runAtCurrTime: true,
-      meta: {
-        methodology: {
-          Fees: "Trading fees collected by Hypercat exchange, sourced from official Hypercat API using calculated24h feesUSD",
-          Revenue: "Protocol revenue from trading fees (25% of total fees, per fee switch)",
-          UserFees: "Trading fees paid by users (same as total fees)",
-          SupplySideRevenue: "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
-          ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
-          HoldersRevenue: "Revenue distributed to token holders (currently 0)",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Trading fees collected by Hypercat exchange, sourced from official Hypercat API using calculated24h feesUSD",
+    Revenue: "Protocol revenue from trading fees (25% of total fees, per fee switch)",
+    UserFees: "Trading fees paid by users (same as total fees)",
+    SupplySideRevenue: "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
+    ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
+    HoldersRevenue: "Revenue distributed to token holders (currently 0)",
   },
 };
 

@@ -53,18 +53,10 @@ const methodology = {
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch,
-            start: '2025-06-09',
-            meta: { methodology }
-        },
-        [CHAIN.UNICHAIN]: {
-            fetch,
-            start: '2025-06-05',
-            meta: { methodology }
-        },
-    },
+    fetch,
+    chains: [CHAIN.ETHEREUM, CHAIN.UNICHAIN, CHAIN.BSC],
+    start: '2025-06-05',
+    methodology,
     prefetch,
     doublecounted: true,
     isExpensiveAdapter: true

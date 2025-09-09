@@ -21,8 +21,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total fees accumulated by protocol-owned liquidity measured by k value growth",
-  Revenue: "10% of all bond sales go to treasury",
+  Fees:
+    "Total fees accumulated by bond sales and trading fees from Protocol-Owned liquidity",
+  Revenue: "10% of all bond sales and fees go to treasury",
   HoldersRevenue: "Rewards distributed to holders of staked RZR",
 };
 
@@ -31,11 +32,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch,
       start: "2025-06-13",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
   version: 2,
 };
 

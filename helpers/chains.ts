@@ -1,5 +1,8 @@
 // Use
 export enum CHAIN {
+  CHROMIA = "chromia",
+  KALSHI = "kalshi",
+  GALA = "gala",
   TARA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
@@ -10,6 +13,7 @@ export enum CHAIN {
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
   BIFROST = "bifrost",
+  BOTANIX = "btnx",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
@@ -52,6 +56,7 @@ export enum CHAIN {
   GODWOKEN_V1 = "godwoken_v1",
   FUSE = "fuse",
   SX = "sx",
+  SXR = "sxr",
   ELROND = "elrond",
   DEFICHAIN = "defichain",
   CUBE = "cube",
@@ -185,6 +190,7 @@ export enum CHAIN {
   CELESTIA = "celestia",
   MORPH = "morph",
   APECHAIN = "apechain",
+  DCHAIN = "dchainmainnet",
   DUCKCHAIN = "duckchain",
   GRAVITY = "gravity",
   RARI = "rari",
@@ -243,7 +249,19 @@ export enum CHAIN {
   AO = 'ao',
   XRPL_EVM = 'xrplevm',
   KATANA = 'katana',
-  BOTANIX = 'btnx',
+  SOON = 'soon',
+  SOON_BSC = 'soon_bsc',
+  SOON_BASE = 'soon_base',
+  HYDRAGON = 'hydragon',
+  TAC = "tac",
+  NIBIRU = "nibiru",
+  HAVEN1 = "haven1",
+  GRVT = "grvt",
+  SOMNIA = "somnia",
+  ORDERLY = "orderly",
+  CAMP = "camp",
+  PARADEX = "paradex",
+  EDGEX = "edgex",
 }
 
 // Don´t use

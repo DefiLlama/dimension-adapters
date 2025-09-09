@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
 import volumeAdapter from "../dexs/verse";
 
-const adapterObj = volumeAdapter.adapter;
+const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
 const fetch = (chain: string, tf: number, rf: number, ssr: number) => {
   return async (options: FetchOptions) => {
@@ -27,19 +27,14 @@ const methodology = {
 const baseAdapter: BaseAdapter = {
   [CHAIN.ETHEREUM]: {
     fetch: fetch(CHAIN.ETHEREUM, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
   [CHAIN.SMARTBCH]: {
     fetch: fetch(CHAIN.SMARTBCH, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter,
   version: 2
 };
