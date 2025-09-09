@@ -1,6 +1,18 @@
-import request, { gql } from "graphql-request";
+import request, { gql, GraphQLClient } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+
+// Hardcoded bearer token for The Graph decentralized network
+const GRAPH_BEARER_TOKEN = "e8cbd58884ab58d21be68ac2c1e15a24";
+
+// Create GraphQL client with bearer token authentication
+const createGraphQLClient = (endpoint: string) => {
+  return new GraphQLClient(endpoint, {
+    headers: {
+      Authorization: `Bearer ${GRAPH_BEARER_TOKEN}`,
+    },
+  });
+};
 
 const chainConfig: Record<string, { url: string, start: string }> = {
   [CHAIN.LIGHTLINK_PHOENIX]: {
@@ -8,7 +20,7 @@ const chainConfig: Record<string, { url: string, start: string }> = {
     start: "2024-06-01",
   },
   [CHAIN.SONIC]: {
-    url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/sonic-trades/1.0.7/gn",
+    url: "https://gateway.thegraph.com/api/subgraphs/id/6hzdSJf3xaPxsRHCEqCfe9evk3xmmwB291ZJ9RoqgHfH",
     start: "2024-12-31",
   },
   // [CHAIN.BSC]: {
@@ -53,10 +65,22 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const dayTimestamp = options.startOfDay;
   const chain = chainConfig[options.chain];
 
-  const dailyData: IGraphResponse = await request(chain.url, historicalDataQuery, {
-    id: String(dayTimestamp) + ":daily" ,
-    period: "daily",
-  });
+  let dailyData: IGraphResponse;
+  
+  // Use bearer token authentication only for Sonic network
+  if (options.chain === CHAIN.SONIC) {
+    const client = createGraphQLClient(chain.url);
+    dailyData = await client.request(historicalDataQuery, {
+      id: String(dayTimestamp) + ":daily" ,
+      period: "daily",
+    });
+  } else {
+    // Use regular request for other networks
+    dailyData = await request(chain.url, historicalDataQuery, {
+      id: String(dayTimestamp) + ":daily" ,
+      period: "daily",
+    });
+  }
 
   const dailyFees = dailyData.feeStats?.length == 1
     ? Number(
