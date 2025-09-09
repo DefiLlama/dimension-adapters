@@ -79,6 +79,7 @@ async function fetch({ createBalances, endTimestamp, fromTimestamp }: FetchOptio
     return {
         dailyFees,
         dailySupplySideRevenue: dailyFees,
+        dailyRevenue: 0, // catfee takes no comission or fees
     };
 }
 
@@ -86,6 +87,7 @@ export default {
     methodology: {
         Fees: "All fees paid by users for buying energy.",
         SupplySideRevenue: "All fees are distributed to supply side TRX stakers.",
+        Revenue: "No revenue for protocol.",
     },
     breakdownMethodology: {
         Fees: {
@@ -93,6 +95,9 @@ export default {
         },
         SupplySideRevenue: {
             'Buying Energy': 'All fees are distributed to supply side TRX stakers.',
+        },
+        Revenue: {
+            'Buying Energy': 'No revenue for protocol.',
         },
     },
     version: 2,
