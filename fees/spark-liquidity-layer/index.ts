@@ -41,6 +41,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   fetch,
+  allowNegativeValue: true,
   start: '2025-07-01',
   chains: [CHAIN.ETHEREUM],
 }
