@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { getBasinAdapter } from "../basin";
+import { getBasinAdapter } from "../basin/index";
 
 export default getBasinAdapter({
   [CHAIN.BASE]: {
