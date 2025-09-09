@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { getBasinAdapter } from "../basin/index";
+import { getBasinAdapter } from "../basin/helper";
 
 export default getBasinAdapter({
   [CHAIN.BASE]: {
@@ -10,6 +10,6 @@ export default getBasinAdapter({
       '0x3e11226fe3d85142B734ABCe6e58918d5828d1b4',
       '0x3e1133aC082716DDC3114bbEFEeD8B1731eA9cb1',
       '0x3e11444c7650234c748D743D8d374fcE2eE5E6C9',
-    ]
-  }
-})
+    ],
+  },
+});
