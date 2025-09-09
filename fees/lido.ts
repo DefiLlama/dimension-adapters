@@ -26,11 +26,9 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
   const graphRes = await request(endpoints[options.chain], graphQuery);
 
-  const dailyFees = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  dailyFees.addUSDValue(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD)
-  dailySupplySideRevenue.addUSDValue(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD)
-  const dailyRevenue = dailyFees.clone(0.1)
+  const dailyFees = Number(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD)
+  const dailySupplySideRevenue = Number(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD)
+  const dailyRevenue = dailyFees * 0.1
 
   return {
     dailyFees,
