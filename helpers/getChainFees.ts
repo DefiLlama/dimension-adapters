@@ -59,8 +59,10 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
     adapter: {
       [chain]: {
         fetch: async (_: any, _1: any, options: FetchOptions) => {
+          const transactionFees = await fetchTransactionFees(options)
           return {
-            dailyFees: await fetchTransactionFees(options),
+            dailyFees: transactionFees,
+            dailyRevenue: transactionFees,
           }
         },
         start,
