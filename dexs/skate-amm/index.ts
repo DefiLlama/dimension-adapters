@@ -31,9 +31,9 @@ const fetch = async (options: FetchOptions) => {
     }
     const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
 
-    for (const pool of tokenVolumeInfo.data) {
-        dailyVolume.add(pool.token, pool.volume);
-        dailyFees.add(pool.token, pool.fees);
+    for (const tokenInfo of tokenVolumeInfo.data) {
+        dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+        dailyFees.add(tokenInfo.token, tokenInfo.fees);
     }
 
     return {
