@@ -94,7 +94,7 @@ export function getFetch(metric: 'volume' | 'fees'): FetchV2 {
         }
       }
   
-      return { dailyFees, dailySupplySideRevenue, dailyRevenue }
+      return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue }
     }
   }
 
