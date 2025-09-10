@@ -7,26 +7,28 @@ const getDay = (ts: number) => new Date(ts * 1000).toISOString().split('T')[0]
 
 async function fetch(options: FetchOptions): Promise<FetchResultFees> {
   const dailyRevenue = options.createBalances()
+  const dailyFees = options.createBalances()
 
   const date = getDay(options.startOfDay)
   const sql = getSqlFromFile('fees/spark-liquidity-layer/spark-liquidity-layer-revenue.sql', { dt: date })
 
   const response = await queryDuneSql(options, sql)
 
-  dailyRevenue.addUSDValue(response[0].revenue, METRIC.ASSETS_YIELDS,{ skipChain: true })
+  dailyRevenue.addUSDValue(response[0].revenue, METRIC.ASSETS_YIELDS, { skipChain: true })
+  dailyFees.addUSDValue(response[0].fees, METRIC.ASSETS_YIELDS, { skipChain: true })
 
-  return { dailyFees: dailyRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue, }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, }
 }
 
 const methodology = {
-  Fees: 'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',
+  Fees: 'Total interest earned on all loans.',
   Revenue: 'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',
   ProtocolRevenue: 'All revenue are collected by Spark protocol.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: 'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',
+    [METRIC.ASSETS_YIELDS]: 'Total interest earned on all loans.',
   },
   Revenue: {
     [METRIC.ASSETS_YIELDS]: 'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',

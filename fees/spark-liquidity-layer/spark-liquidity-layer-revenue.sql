@@ -192,11 +192,20 @@ with tokens (blockchain, token_address, token_symbol) as (
                         case
                             when protocol_name = 'Sparklend' then (sl.interest_amount-sl.BR_cost) / 365
                             when protocol_name = 'Morpho'
-                                and token_symbol in ('DAI', 'USDC','USDS') then (m.interest_amount-m.BR_cost)/ 365+coalesce(mr.MORPHO_rewards_USDC,0)
+                                and token_symbol in ('DAI', 'USDC','USDS') then (m.interest_amount-m.BR_cost) / 365 + coalesce(mr.MORPHO_rewards_USDC,0)
                             when protocol_name = 'ethena' then e.daily_actual_revenue - e.daily_BR_cost
                             else (p.amount / 365) * p.reward_per + (p.amount / 365) * p.interest_per
                             end
-                ) as tw_net_rev_interest
+                ) as tw_net_rev_interest,
+                sum(
+                        case
+                            when protocol_name = 'Sparklend' then sl.interest_amount / 365
+                            when protocol_name = 'Morpho'
+                                and token_symbol in ('DAI', 'USDC','USDS') then m.interest_amount / 365 + coalesce(mr.MORPHO_rewards_USDC,0)
+                            when protocol_name = 'ethena' then e.daily_actual_revenue
+                            else (p.amount / 365) * p.reward_per + (p.amount / 365) * p.interest_per
+                            end
+                ) as tw_net_fees
          from protocols_data p
                   left join dune.sparkdotfi.result_spark_idle_dai_usds_in_sparklend_by_alm_proxy sl using (dt, protocol_name, token_symbol) -- Spark - Idle DAI & USDS in Sparklend by ALM Proxy
                   left join dune.sparkdotfi.result_spark_idle_dai_usdc_in_morpho_by_alm_proxy m using (dt, protocol_name, token_symbol) -- Spark - Idle DAI & USDC in Morpho by ALM Proxy
@@ -213,14 +222,15 @@ with tokens (blockchain, token_address, token_symbol) as (
      protocols_daily_usd as (
          select b.*,
                 p.price_usd,
-                b.tw_net_rev_interest * p.price_usd as tw_net_rev_interest_usd
+                b.tw_net_rev_interest * p.price_usd as tw_net_rev_interest_usd,
+                b.tw_net_fees * p.price_usd as tw_net_fees_usd
          from protocols_daily b
                   join tokens t on b.token_symbol = t.token_symbol
                   left join dune.steakhouse.result_token_price p on t.blockchain = p.blockchain
              and t.token_address = p.token_address
              and b.dt = p.dt
      )
-select dt, sum(tw_net_rev_interest_usd) as revenue
+select dt, sum(tw_net_rev_interest_usd) as revenue, sum(tw_net_fees_usd) as fees
 from protocols_daily_usd
 where dt = date '{{dt}}'
 group by 1
