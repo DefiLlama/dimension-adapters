@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  PEAQ = "peaq",
   CHROMIA = "chromia",
   KALSHI = "kalshi",
   GALA = "gala",
