@@ -1,5 +1,5 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { getFetch } from "../../dexs/myx-finance";
+import { getFetch } from "../../dexs/myx-finance/helpers.";
 import { CHAIN } from "../../helpers/chains";
 
 const methodology = {
