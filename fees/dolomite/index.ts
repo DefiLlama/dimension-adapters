@@ -101,7 +101,7 @@ const adapters: Adapter = {
     adapter: {
         [CHAIN.ARBITRUM]: { fetch: fetchArbitrum, start: '2022-10-03', },
         [CHAIN.BERACHAIN]: { fetch: fetch, start: '2024-01-24', },
-        [CHAIN.ETHEREUM]: { fetch: fetch, start: '2024-06-22', },
+        [CHAIN.ETHEREUM]: { fetch: fetch, start: '2025-06-22', },
         [CHAIN.MANTLE]: { fetch: fetch, start: '2024-04-28', },
         [CHAIN.POLYGON_ZKEVM]: { fetch: fetch, start: '2024-02-01', },
         // [CHAIN.XLAYER]: { fetch: fetch, start: '2024-04-28', }
