@@ -12,8 +12,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   dailyFees.addCGToken("cardano", Number(daily.totalFeesByAsset.ADA));
   dailyRevenue.addCGToken("cardano", Number(daily.totalRevenueByAsset.ADA));
-  dailyFees.addCGToken("snek", Number(daily.totalFeesByAsset.SNEK));
-  dailyRevenue.addCGToken("snek", Number(daily.totalRevenueByAsset.SNEK));
+  dailyFees.addCGToken("snek", daily.totalFeesByAsset.SNEK ? Number(daily.totalFeesByAsset.SNEK) : 0);
+  dailyRevenue.addCGToken("snek", daily.totalRevenueByAsset.SNEK ? Number(daily.totalRevenueByAsset.SNEK) : 0);
 
   return {
     dailyFees,
