@@ -1,4 +1,4 @@
-import { httpGet } from "../../utils/fetchURL";
+import { httpGet, httpPost } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -7,11 +7,19 @@ const CONFIG = {
     chainName: "CRONOS",
     start: "2025-04-29",
     address: "0xE6F6351fb66f3a35313fEEFF9116698665FBEeC9",
+    excludeFilters: [
+      {
+        pairBase: "0xbad4ccc91ef0dfffbcab1402c519601fbaf244ef", // 500BTC pair address
+        excludeStartTime: "2025-07-08T09:00:00.000Z", // Jul 8 5:00pm HKT
+        excludeEndTime: "2025-07-29T09:00:00.000Z", // Jul 29 5:00pm HKT
+      },
+    ],
   },
   [CHAIN.CRONOS_ZKEVM]: {
     chainName: "CRONOS_ZKEVM",
     start: "2024-12-17",
     address: "0x02ae2e56bfDF1ee4667405eE7e959CD3fE717A05",
+    excludeFilters: [], // No need to remove zkEVM's
   },
 };
 
@@ -21,18 +29,23 @@ const marketInfoAbi =
   "function getMarketInfos(address[] pairBases) view returns ((address pairBase, uint256 longQty, uint256 shortQty, uint128 lpLongAvgPrice, uint128 lpShortAvgPrice, int256 fundingFeeRate)[])";
 const priceAbi = "function getPrice(address token) view returns (uint256)";
 
-const dailyEndpoint =
-  "https://api.moonlander.trade/v1/trading-volumes/sum-by-date";
-const feesEndPoint = "https://api.moonlander.trade/v1/defillama/fee";
+const BASE_API_URL = "https://api.moonlander.trade/v1/defillama";
+const VOLUME_ENDPOINT = `${BASE_API_URL}/volume`;
+const FEES_ENDPOINT = `${BASE_API_URL}/fee`;
 
-const getDailyUri = ({ chain, startTime, endTime }: any) => {
-  return `${dailyEndpoint}?chains=${
-    CONFIG[chain].chainName
-  }&startTime=${startTime.toISOString()}&endTime=${endTime.toISOString()}`;
+const getDailyVolumeData = async ({ chain, startTime, endTime }: any) => {
+  const requestBody = {
+    chains: [CONFIG[chain].chainName],
+    startTime: startTime.toISOString(),
+    endTime: endTime.toISOString(),
+    exclusionFilters: CONFIG[chain].excludeFilters,
+  };
+
+  return await httpPost(VOLUME_ENDPOINT, requestBody);
 };
 
 const getFeesUri = ({ chain, startTime, endTime }: any) => {
-  return `${feesEndPoint}?block_chain=${
+  return `${FEES_ENDPOINT}?block_chain=${
     CONFIG[chain].chainName
   }&startDate=${startTime.toISOString()}&endDate=${endTime.toISOString()}`;
 };
@@ -98,13 +111,11 @@ async function fetch({
   chain,
   api,
 }: FetchOptions) {
-  const dailyData: DailyDateAPIResponse = await httpGet(
-    getDailyUri({
-      chain,
-      startTime: new Date(startTimestamp * 1000),
-      endTime: new Date(endTimestamp * 1000),
-    })
-  );
+  const dailyData: DailyDateAPIResponse = await getDailyVolumeData({
+    chain,
+    startTime: new Date(startTimestamp * 1000),
+    endTime: new Date(endTimestamp * 1000),
+  });
 
   const dailyFeesData: FeesAPIResponse = await httpGet(
     getFeesUri({
