@@ -105,27 +105,31 @@ export const BungeeGatewayContracts: {[key: string]: {
 }
 
 interface AutoEvent {
+  txid: string;
   implId: number;
   token: string;
   amount: string;
 }
 
-// data from log.data
-function decodeAutoEvent(data: string, auditedSwap: boolean): AutoEvent {
-  if (auditedSwap) {
-    return {
-      implId: parseInt(ethers.dataSlice(data, 1, 32), 16),
-      token: `0x${ethers.dataSlice(data, 481, 481 + 31).slice(24, 64)}`,
-      amount: new BigNumber(ethers.dataSlice(data, 513, 513 + 31), 16).toString(10),
-    }
-  } else {
-    return {
-      implId: parseInt(ethers.dataSlice(data, 1, 32), 16),
-      token: `0x${ethers.dataSlice(data, 481, 481 + 31).slice(24, 64)}`,
-      amount: new BigNumber(ethers.dataSlice(data, 513, 513 + 31), 16).toString(10),
-    }
+// data from event.execution
+function decodeAutoEventRequestExtracted(log: any): AutoEvent {
+  return {
+    txid: log.transactionHash,
+    implId: Number(log.args.implId),
+    token: `0x${ethers.dataSlice(log.args.execution, 609, 640).slice(24, 64)}`,
+    amount: new BigNumber(ethers.dataSlice(log.args.execution, 641, 672), 16).toString(10),
   }
 }
+
+// event.execution
+// function decodeAutoEventRequestFulfilled(log: any): AutoEvent {
+//   return {
+//     txid: log.transactionHash,
+//     implId: Number(log.args.implId),
+//     token: `0x${ethers.dataSlice(log.args.execution, 545, 576).slice(24, 64)}`,
+//     amount: new BigNumber(ethers.dataSlice(log.args.execution, 577, 608), 16).toString(10),
+//   }
+// }
 
 function formatToken(token: string): string {
   return String(token).toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase() ? ethers.ZeroAddress : token
@@ -156,6 +160,7 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
   const dailyFees = options.createBalances()
 
   if (params.bridgeVolume) {
+    // manual bridge
     if (SocketGatewayContracts[options.chain]) {
       const bridgeEvents: Array<any> = await options.getLogs({
         target: SocketGatewayContracts[options.chain],
@@ -166,13 +171,14 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
       }
     }
 
+    // auto bridge
     if (BungeeGatewayContracts[options.chain]) {
       // count bridge volumes on both audited and unaudited contracts
       const requestExtractedEvents: Array<any> = (await options.getLogs({
         targets: BungeeGatewayContracts[options.chain].audited.concat(BungeeGatewayContracts[options.chain].unaudited),
         eventAbi: BungeeGatewayAbis.RequestExtracted,
-        entireLog: true,
-      })).map(log => decodeAutoEvent(log.data, false))
+        onlyArgs: false,
+      })).map(log => decodeAutoEventRequestExtracted(log))
       for (const event of requestExtractedEvents) {
         dailyBridgeVolume.add(formatToken(event.token), event.amount)
       }
@@ -180,6 +186,7 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
   }
 
   if (params.swapVolume) {
+    // manual swap
     if (SocketGatewayContracts[options.chain]) {
       const swapEvents: Array<any> = await options.getLogs({
         target: SocketGatewayContracts[options.chain],
@@ -190,30 +197,31 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
       }
     }
 
-    if (BungeeGatewayContracts[options.chain]) {
-      let events: Array<any> = [];
-      if (BungeeGatewayContracts[options.chain].audited.length > 0){
-        events = events.concat((
-          await options.getLogs({
-            targets: BungeeGatewayContracts[options.chain].audited,
-            eventAbi: BungeeGatewayAbis.RequestFulfilled,
-            entireLog: true,
-          })).map(log => decodeAutoEvent(log.data, true)
-        ))
-      }
-      if (BungeeGatewayContracts[options.chain].unaudited.length > 0) {
-        events = events.concat((
-          await options.getLogs({
-            targets: BungeeGatewayContracts[options.chain].unaudited,
-            eventAbi: BungeeGatewayAbis.RequestFulfilled,
-            entireLog: true,
-          })).map(log => decodeAutoEvent(log.data, false)
-        ))
-      }
-      for (const event of events.filter(item => item.implId === 2)) {
-        dailyVolume.add(formatToken(event.token), event.amount)
-      }
-    }
+    // auto swap
+    // if (BungeeGatewayContracts[options.chain]) {
+    //   let events: Array<any> = [];
+    //   if (BungeeGatewayContracts[options.chain].audited.length > 0){
+    //     events = events.concat((
+    //       await options.getLogs({
+    //         targets: BungeeGatewayContracts[options.chain].audited,
+    //         eventAbi: BungeeGatewayAbis.RequestFulfilled,
+    //         onlyArgs: false,
+    //       })).map(log => decodeAutoEventRequestFulfilled(log)
+    //     ))
+    //   }
+    //   if (BungeeGatewayContracts[options.chain].unaudited.length > 0) {
+    //     events = events.concat((
+    //       await options.getLogs({
+    //         targets: BungeeGatewayContracts[options.chain].unaudited,
+    //         eventAbi: BungeeGatewayAbis.RequestFulfilled,
+    //         onlyArgs: false,
+    //       })).map(log => decodeAutoEventRequestFulfilled(log)
+    //     ))
+    //   }
+    //   for (const event of events.filter(item => item.implId === 2)) {
+    //     dailyVolume.add(formatToken(event.token), event.amount)
+    //   }
+    // }
   }
 
   if (params.fees && SocketGatewayContracts[options.chain]) {
