@@ -56,6 +56,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     FROM stability_pool_yields s
     LEFT JOIN xsol_transfer_txs x ON s.tx_id = x.tx_id
     WHERE x.tx_id IS NULL  -- Exclude transactions with any xSOL transfers
+                           -- This is because stability pool operations also mint/burn hyUSD to this wallet,
+                           -- so if a transaction has xSOL movement it means it's not a yield distribution but just a swap
     GROUP BY token_mint_address
   `;
 
