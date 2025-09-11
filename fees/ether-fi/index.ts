@@ -390,9 +390,30 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
   return revenues;
 }
 
+/**
+ * EtherFi Revenue Stream Categories:
+ * 
+ * STAKING_REWARDS: Consolidated category including:
+ *   - Core ETH staking protocol fees (10% to protocol, 90% to stakers)
+ *   - Eigenlayer restaking rewards from L2 claims (~11% to protocol, rest to stakers) 
+ *   - Restaking rewards from stETH holdings in restaker contracts (protocol only)
+ *   - Lido stETH rebasing rewards (2.5% to protocol, rest to stakers)
+ *   - SSV/OBOL rewards for running validators (protocol only)
+ *   - Direct token transfers and miscellaneous earnings (protocol only)
+ * 
+ * LIQUID_VAULT_FEES: Management fees from vault products (protocol only)
+ * DEPOSIT_WITHDRAW_FEES: Withdrawal fees from vault operations (protocol only)  
+ * CASH_TRANSACTION_FEES: 1.38% fees from card transactions (protocol only)
+ * BORROW_INTEREST: Interest from lending services (protocol only)
+ * CASHBACKS: Rewards paid to users by external providers (supply side only)
+ * TOKEN_BUY_BACK: ETHFI buybacks benefiting token holders (holders revenue)
+ * 
+ * Note: Different revenue streams have different protocol vs supply side splits
+ */
 const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRev = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const totalSteth = await getTotalSteth(options);
 
@@ -409,62 +430,66 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const stethFees = await getStethFees(options, totalSteth);
   const stethRevenue = totalSteth * 3.5 / 100 * 0.025 / 365
 
-  // add restaking fees claimed weekly
+  // Eigenlayer restaking rewards claimed weekly on Optimism L2
   const optimismApi = new sdk.ChainApi({ chain: 'optimism' });
   const restakingRewardsEigen = BigInt(await optimismApi.call({
     target: '0xAB7590CeE3Ef1A863E9A5877fBB82D9bE11504da',
     abi: 'function categoryTVL(string _category) view returns (uint256)',
     params: [EIGEN]
   }));
-  dailyFees.add(EIGEN, restakingRewardsEigen / BigInt(7), 'STAKING_REWARDS');
-  dailyRev.add(EIGEN, restakingRewardsEigen / BigInt(7 * 90) * BigInt(10), 'STAKING_REWARDS');
+  const eigenFeesTotal = restakingRewardsEigen / BigInt(7); // Convert weekly to daily
+  const eigenRevenueShare = restakingRewardsEigen / BigInt(7 * 90) * BigInt(10); // ~11% protocol share
+  dailyFees.add(EIGEN, eigenFeesTotal, 'STAKING_REWARDS');
+  dailyRevenue.add(EIGEN, eigenRevenueShare, 'STAKING_REWARDS');
+  dailySupplySideRevenue.add(EIGEN, eigenFeesTotal - eigenRevenueShare, 'STAKING_REWARDS');
 
-  // add ssv revenue for running ssv validators
+  // SSV token rewards for running SSV-based validators
   const ssvRevenue = await getSsvRevenue(options);
   dailyFees.add(SSV, ssvRevenue, 'STAKING_REWARDS');
-  dailyRev.add(SSV, ssvRevenue, 'STAKING_REWARDS');
+  dailyRevenue.add(SSV, ssvRevenue, 'STAKING_REWARDS');
 
-  // add obol revenue for running obol validators
+  // OBOL token rewards for running OBOL-based validators
   const obolRevenue = await getObolRevenue(options);
   dailyFees.add(OBOL, obolRevenue, 'STAKING_REWARDS');
-  dailyRev.add(OBOL, obolRevenue, 'STAKING_REWARDS');
+  dailyRevenue.add(OBOL, obolRevenue, 'STAKING_REWARDS');
 
   // add withdrawal fees
   const withdrawalFees = await getWithdrawalFees(options);
   dailyFees.add(EETH, withdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
-  dailyRev.add(EETH, withdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
+  dailyRevenue.add(EETH, withdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
 
   const { wethRevenue, eigenRevenue } = await getMiscStakingRevenue(options);
-  dailyRev.add(EETH, wethRevenue, 'STAKING_REWARDS');
+  dailyRevenue.add(EETH, wethRevenue, 'STAKING_REWARDS');
   dailyFees.add(EETH, wethRevenue, 'STAKING_REWARDS');
-  dailyRev.add(EIGEN, eigenRevenue, 'STAKING_REWARDS');
+  dailyRevenue.add(EIGEN, eigenRevenue, 'STAKING_REWARDS');
   dailyFees.add(EIGEN, eigenRevenue, 'STAKING_REWARDS');
 
   const additionalRevenues = await getAdditionalRevenueStreams(options);
   
-  // Restaking rewards from Eigenlayer via restaker contract (0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf)
+  // Restaking rewards calculated from stETH holdings in restaker contracts 
+  // (separate from L2 Eigen claims above - this is based on actual stETH restaked)
   if (additionalRevenues.restakingRewards > 0) {
-    dailyRev.addUSDValue(additionalRevenues.restakingRewards, 'STAKING_REWARDS');
+    dailyRevenue.addUSDValue(additionalRevenues.restakingRewards, 'STAKING_REWARDS');
     dailyFees.addUSDValue(additionalRevenues.restakingRewards, 'STAKING_REWARDS');
   }
 
   // ether.fi cash spends revenue (1.38% fee)
   if (additionalRevenues.cashSpends > 0) {
-    dailyRev.addUSDValue(additionalRevenues.cashSpends, 'CASH_TRANSACTION_FEES');
+    dailyRevenue.addUSDValue(additionalRevenues.cashSpends, 'CASH_TRANSACTION_FEES');
     dailyFees.addUSDValue(additionalRevenues.cashSpends, 'CASH_TRANSACTION_FEES');
   }
 
   // ether.fi cash borrows revenue
   if (additionalRevenues.cashBorrows > 0) {
-    dailyRev.addUSDValue(additionalRevenues.cashBorrows, 'CASH_BORROW_INTEREST');
+    dailyRevenue.addUSDValue(additionalRevenues.cashBorrows, 'CASH_BORROW_INTEREST');
     dailyFees.addUSDValue(additionalRevenues.cashBorrows, 'CASH_BORROW_INTEREST');
   }
 
-  // // ether.fi cashbacks revenue
-  // if (additionalRevenues.cashCashbacks > 0) {
-  //   dailyRev.addUSDValue(additionalRevenues.cashCashbacks, 'CASHBACKS');
-  //   dailyFees.addUSDValue(additionalRevenues.cashCashbacks, 'CASHBACKS');
-  // }
+  // ether.fi cashbacks revenue
+  if (additionalRevenues.cashCashbacks > 0) {
+    dailyFees.addUSDValue(additionalRevenues.cashCashbacks, 'CASHBACKS');
+    dailySupplySideRevenue.addUSDValue(additionalRevenues.cashCashbacks, 'CASHBACKS');
+  }
 
   // ether.fi buybacks (counted as holders revenue)
   const dailyHoldersRevenue = options.createBalances();
@@ -489,22 +514,25 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     const totalSupply_vault = await getTotalSupply(options, vault.target);
     const [asset_vault, rate_vault] = await getPayoutDetails(options, vault.accountant);
 
-    dailyFees.add(asset_vault, (totalSupply_vault * rate_vault) / 1e18 * vaultFees / YEAR, 'STAKING_REWARDS');
-    dailyRev.add(asset_vault, (totalSupply_vault * rate_vault) / 1e18 * vaultFees / YEAR, 'STAKING_REWARDS');
+    dailyFees.add(asset_vault, (totalSupply_vault * rate_vault) / 1e18 * vaultFees / YEAR, 'LIQUID_VAULT_FEES');
+    dailyRevenue.add(asset_vault, (totalSupply_vault * rate_vault) / 1e18 * vaultFees / YEAR, 'LIQUID_VAULT_FEES');
   }
 
-  //steth holding staking rewards
+  // stETH holding rewards from Lido rebasing (protocol keeps revenue portion, stakers get fees)
   dailyFees.add(STETH, stethFees + stethRevenue, 'STAKING_REWARDS');
-  dailyRev.add(STETH, (stethRevenue), 'STAKING_REWARDS');
+  dailyRevenue.add(STETH, stethRevenue, 'STAKING_REWARDS'); // Protocol share (2.5%)
+  dailySupplySideRevenue.add(STETH, stethFees, 'STAKING_REWARDS'); // Staker share (rebasing rewards)
 
-  //staking
-  dailyRev.add(EETH, totalStakeFees, 'STAKING_REWARDS');
-  dailyFees.add(EETH, totalStakeFees * BigInt(10), 'STAKING_REWARDS');
+  // Core staking protocol fees from eETH staking operations  
+  dailyRevenue.add(EETH, totalStakeFees, 'STAKING_REWARDS');
+  dailyFees.add(EETH, totalStakeFees * BigInt(10), 'STAKING_REWARDS'); // 10x for total staking rewards
+  dailySupplySideRevenue.add(EETH, totalStakeFees * BigInt(9), 'STAKING_REWARDS'); // ~90% to stakers
 
   return {
     dailyFees,
-    dailyRevenue: dailyRev,
-    dailyProtocolRevenue: dailyRev,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue,
   };
 };
@@ -514,24 +542,23 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   methodology: {
-    Fees: "Staking/restaking rewards, Liquid Vault fees, ether.fi cash transaction fees (1.38%), cashbacks, and borrowing interest.",
-    Revenue: "Staking/restaking rewards including Eigenlayer restaking via restaker contract, Liquid Vault platform management fees, ether.fi cash revenue from spends/borrows/cashbacks.",
-    ProtocolRevenue: "Staking/restaking rewards including Eigenlayer restaking via restaker contract, Liquid Vault platform management fees, ether.fi cash revenue from spends/borrows/cashbacks.",
-    HoldersRevenue: "Token buybacks executed by ether.fi from protocol revenue.",
+    Fees: "Total rewards generated from all ether.fi services: ETH staking, Eigenlayer restaking, validator operations, liquid vaults, and ether.fi Cash services.",
+    Revenue: "Protocol's share of fees including management fees from staking/restaking, validator operations rewards, liquid vault management fees, and cash service fees.",
+    ProtocolRevenue: "Same as Revenue - all protocol earnings retained by ether.fi.",
+    SupplySideRevenue: "Portion of fees distributed to stakers, users, and liquidity providers.",
+    HoldersRevenue: "Token buybacks executed by ether.fi benefiting ETHFI token holders.",
   },
   breakdownMethodology: {
     Fees: {
-      'STAKING_REWARDS': 'Total staking, restaking, running validators rewards.',
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Liquid Vault platform withdraw fees',
-      [METRIC.BORROW_INTEREST]: 'Liquid Vault platform withdraw fees',
-      'CASH_TRANSACTION_FEES': 'Liquid Vault platform withdraw fees',
-    },
-    Revenue: {
-      'STAKING_REWARDS': 'Share of staking, restaking, running validators rewards.',
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Liquid Vault platform withdraw fees',
+      'STAKING_REWARDS': 'All staking and restaking related rewards including: core ETH staking fees, Eigenlayer restaking rewards, stETH holding rewards, SSV/OBOL validator rewards',
+      'LIQUID_VAULT_FEES': 'Management fees from liquid vault products',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from vault operations',
+      [METRIC.BORROW_INTEREST]: 'Interest earned from ether.fi Cash lending',
+      'CASH_TRANSACTION_FEES': 'Transaction fees from ether.fi Cash card usage (1.38%)',
+      'CASHBACKS': 'Cashback rewards paid to card users by external providers',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'Token buybacks executed by ether.fi from protocol revenue.',
+      [METRIC.TOKEN_BUY_BACK]: 'ETHFI token buybacks executed by ether.fi from protocol revenue',
     },
   },
   start: '2024-03-13'
