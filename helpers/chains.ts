@@ -263,6 +263,7 @@ export enum CHAIN {
   CAMP = "camp",
   PARADEX = "paradex",
   EDGEX = "edgex",
+  AKASH = "akash"
 }
 
 // Don´t use
