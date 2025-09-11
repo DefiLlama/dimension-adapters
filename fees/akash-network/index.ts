@@ -47,5 +47,5 @@ export default {
     methodology,
     fetch,
     chains: [CHAIN.AKASH],
-    startDate: "2021-03-08"
+    start: "2021-03-08"
 }
