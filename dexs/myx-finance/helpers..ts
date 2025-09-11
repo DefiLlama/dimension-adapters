@@ -3,8 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 
 const ABIS = {
   PairAddedEvent: 'event PairAdded ( address  indexed indexToken,  address  indexed stableToken, address lpToken, uint256 index)',
-  ExecuteOrderV2Event : 'event ExecuteOrderV2(address account, uint256 orderId, uint256 pairIndex, uint8 tradeType, int256 collateral, uint256 orderSize, uint256 orderPrice, uint256 executionSize, uint256 executionPrice, uint256 executedSize, int256 pnl, uint256 tradingFee, int256 fundingFee, uint8 paymentType, uint256 networkFeeAmount, uint256 flags)',
-  DistributeTradingFeeV2Event : 'event DistributeTradingFeeV2(address account, uint256 pairIndex, uint256 orderId, uint256 sizeDelta, uint256 regularTradingFee, bool isMaker, int256 feeRate, int256 vipTradingFee, uint256 returnAmount, uint256 referralsAmount, uint256 referralUserAmount, address referralOwner, int256 lpAmount, int256 keeperAmount, int256 stakingAmount, int256 reservedAmount, int256 ecoFundAmount, int256 treasuryAmount)',
+  ExecuteOrderV2Event: 'event ExecuteOrderV2(address account, uint256 orderId, uint256 pairIndex, uint8 tradeType, int256 collateral, uint256 orderSize, uint256 orderPrice, uint256 executionSize, uint256 executionPrice, uint256 executedSize, int256 pnl, uint256 tradingFee, int256 fundingFee, uint8 paymentType, uint256 networkFeeAmount, uint256 flags)',
+  DistributeTradingFeeV2Event: 'event DistributeTradingFeeV2(address account, uint256 pairIndex, uint256 orderId, uint256 sizeDelta, uint256 regularTradingFee, bool isMaker, int256 feeRate, int256 vipTradingFee, uint256 returnAmount, uint256 referralsAmount, uint256 referralUserAmount, address referralOwner, int256 lpAmount, int256 keeperAmount, int256 stakingAmount, int256 reservedAmount, int256 ecoFundAmount, int256 treasuryAmount)',
 }
 
 interface IPair {
@@ -45,7 +45,7 @@ const ExchangeConfigs: Record<string, ExchangeConfig> = {
 export function getFetch(metric: 'volume' | 'fees'): FetchV2 {
   const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // get all pairs
-    const pairIdsMaps: {[key: number]: IPair} = {}
+    const pairIdsMaps: { [key: number]: IPair } = {}
     const pairCreatedEvents = await options.getLogs({
       target: ExchangeConfigs[options.chain].factory,
       eventAbi: ABIS.PairAddedEvent,
@@ -69,11 +69,13 @@ export function getFetch(metric: 'volume' | 'fees'): FetchV2 {
       })
       for (const event of executeOrderV2Events) {
         const pairIndex = Number(event.pairIndex)
+
         if (pairIdsMaps[pairIndex]) {
-          dailyVolume.add(pairIdsMaps[pairIndex].indexToken, event.orderSize)
+          const decimals = await options.api.multiCall({ abi: 'erc20:decimals', calls: [pairIdsMaps[pairIndex].indexToken, pairIdsMaps[pairIndex].stableToken] })
+          dailyVolume.add(pairIdsMaps[pairIndex].indexToken, Number(event.executionSize) * Number(event.executionPrice) / (10 ** (30 + Number(decimals[0]) - Number(decimals[1]))))
         }
       }
-  
+
       return { dailyVolume }
     } else {
       const dailyFees = options.createBalances()
@@ -87,13 +89,13 @@ export function getFetch(metric: 'volume' | 'fees'): FetchV2 {
       for (const event of distributeTradingFeeV2Events) {
         const pairIndex = Number(event.pairIndex)
         if (pairIdsMaps[pairIndex]) {
-          dailyFees.add(pairIdsMaps[pairIndex].stableToken, Number(event.lpAmount) + Number(event.keeperAmount) + Number(event.stakingAmount) + Number(event.ecoFundAmount) + Number(event.treasuryAmount))
+          dailyFees.add(pairIdsMaps[pairIndex].stableToken, Number(event.regularTradingFee))
           dailySupplySideRevenue.add(pairIdsMaps[pairIndex].stableToken, event.lpAmount)
           dailyRevenue.add(pairIdsMaps[pairIndex].stableToken, Number(event.keeperAmount) + Number(event.stakingAmount) + Number(event.ecoFundAmount) + Number(event.treasuryAmount))
-          dailyProtocolRevenue.add(pairIdsMaps[pairIndex].stableToken, event.treasuryAmount)
+          dailyProtocolRevenue.add(pairIdsMaps[pairIndex].stableToken, Number(event.stakingAmount) + Number(event.ecoFundAmount) + Number(event.treasuryAmount))
         }
       }
-  
+
       return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue }
     }
   }
