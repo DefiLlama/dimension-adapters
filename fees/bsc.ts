@@ -1,5 +1,5 @@
 import { Adapter, ProtocolType } from "../adapters/types";
-import { BSC } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import type { FetchOptions } from "../adapters/types"
 import { fetchTransactionFees } from "../helpers/getChainFees";
 import { METRIC } from "../helpers/metrics";
@@ -22,7 +22,7 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [BSC]: {
+    [CHAIN.BSC]: {
       fetch,
       start: '2020-08-29',
     },
