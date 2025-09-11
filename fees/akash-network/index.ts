@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -40,6 +40,7 @@ const methodology = {
 export default {
   methodology,
   fetch,
+  protocolType: ProtocolType.CHAIN,
   chains: [CHAIN.AKASH],
   start: "2021-03-08"
 }
