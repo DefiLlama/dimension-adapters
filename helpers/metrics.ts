@@ -7,7 +7,7 @@ export enum METRIC {
   FLASHLOAN_FEES = 'Flashloan Fees',     // fees paid by borrowers when execute flashloan from lending markets
   TOKEN_BUY_BACK = 'Token Buy Back',     // protocol buy back tokens
   SWAP_FEES = 'Token Swap Fees',         // fee charged from token swaps
-  ASSETS_YIELDS = 'Assets Yeilds',       // protocols take users deposited assets and invest to other (on-chain or off-chain) platforms to generate yields
+  ASSETS_YIELDS = 'Assets Yields',       // protocols take users deposited assets and invest to other (on-chain or off-chain) platforms to generate yields
   MINT_REDEEM_FEES = 'Mint/Redeem Fees', // protocols take fees by mint/redeem tokens
   DEPOSIT_WITHDRAW_FEES = 'Deposit/Withdraw Fees', // protocols take fees by deposit or withdraw tokens
   MANAGERMENT_FEES = 'Management Fees', // protocols take fees manage assets for users
