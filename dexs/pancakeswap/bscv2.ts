@@ -57,7 +57,7 @@ export async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2
     dailyUserFees: dailyVolume.clone(0.0025),
     dailyRevenue: dailyVolume.clone(0.0008),
     dailySupplySideRevenue: dailyVolume.clone(0.0017),
-    dailyProtocolRevenue: dailyVolume.clone(0.0000225),
-    dailyHoldersRevenue: dailyVolume.clone(0.0000575),
+    dailyProtocolRevenue: dailyVolume.clone(0.000225),
+    dailyHoldersRevenue: dailyVolume.clone(0.000575),
   }
 }
