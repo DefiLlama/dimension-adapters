@@ -26,8 +26,8 @@ const ExchangeConfigs: Record<string, ExchangeConfig> = {
     factory: '0x22cEc08111BBae24D0b80BDA2a6503EaB9BA704b',
     feeCollector: '0x459F76E2Ee136043FabEea0878007d06582235AA',
     executors: [
-      '0x9B9806e6134729881caBd7318e2dCa923894e2d6',
-      '0xB42685d6542c0AbDB9f3FC8388e0205570b8673b',
+      '0x9B9806e6134729881caBd7318e2dCa923894e2d6', // LiquidationLogic
+      '0xB42685d6542c0AbDB9f3FC8388e0205570b8673b', // ExecutionLogic
     ],
     fromBlock: 47537511,
   },
@@ -35,7 +35,8 @@ const ExchangeConfigs: Record<string, ExchangeConfig> = {
     factory: '0x03f61a185efEEEFdd3Ba032AFa8A0259337CEd64',
     feeCollector: '0x53Aa15BeBAA37998d7ADAF27E52B8a2b9A0C2977',
     executors: [
-      '0xA9065E6E37507A587ba7d08FC8682e427F96f912',
+      '0x4140f5df95dA5fEb411EFddf9D96Ed2C8231921D', // LiquidationLogic
+      '0xA9065E6E37507A587ba7d08FC8682e427F96f912', // ExecutionLogic
     ],
     fromBlock: 2390784,
   },
@@ -43,7 +44,8 @@ const ExchangeConfigs: Record<string, ExchangeConfig> = {
     factory: '0x8932aA60A7b5EfEFA8Ec3ee899Fd238D029d10c6',
     feeCollector: '0xA9b2083a62d6A65Cdb958FdE3e91Dd8Df577fB5A',
     executors: [
-      '0xCaa1074AfD8109D4B5010cbD4682749dCEe6Fd7B',
+      '0x3D7F65D30b40f0711048CaBDcCa3C311Fc61cdFb', // LiquidationLogic
+      '0xCaa1074AfD8109D4B5010cbD4682749dCEe6Fd7B', // ExecutionLogic
     ],
     fromBlock: 175954437,
   },
