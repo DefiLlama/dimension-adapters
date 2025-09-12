@@ -4,10 +4,10 @@ import { CHAIN } from "../../helpers/chains";
 const YDL = "0xfB7920B55887840643e20952f22Eb18dDC474B2B";
 
 // Recipient addresses
-const ZVL = "0x0C03592375ed4Aa105C0C19249297bD7c65fb731";
-const stZVE = "0xb397Aa1D78109115dCC57B907dCD9d61Bb6b2DCE";
-const stSTT = "0x0D45c292baCdC47CE850E4c83a2FA2e8509DEd5D";
-const stJTT = "0xcacdB1A5a11F824E02De4CA6E7b2D12BB278aA7c";
+const ZVL = "0x0C03592375ed4Aa105C0C19249297bD7c65fb731".toLowerCase()
+const stZVE = "0xb397Aa1D78109115dCC57B907dCD9d61Bb6b2DCE".toLowerCase();
+const stSTT = "0x0D45c292baCdC47CE850E4c83a2FA2e8509DEd5D".toLowerCase();
+const stJTT = "0xcacdB1A5a11F824E02De4CA6E7b2D12BB278aA7c".toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -28,14 +28,19 @@ const fetch = async (options: FetchOptions) => {
 
     dailyFees.add(asset, amount);
 
-    if (recipient === stZVE.toLowerCase()) {
-      dailyHoldersRevenue.add(asset, amount);
-      dailyRevenue.add(asset, amount);
-    } else if (recipient === ZVL.toLowerCase()) {
-      dailyProtocolRevenue.add(asset, amount);
-      dailyRevenue.add(asset, amount);
-    } else if (recipient === stSTT.toLowerCase() || recipient === stJTT.toLowerCase()) {
-      dailySupplySideRevenue.add(asset, amount);
+    switch (recipient) {
+      case stZVE:
+        dailyHoldersRevenue.add(asset, amount);
+        dailyRevenue.add(asset, amount);
+        break;
+      case ZVL:
+        dailyProtocolRevenue.add(asset, amount);
+        dailyRevenue.add(asset, amount);
+        break;
+      case stSTT:
+      case stJTT:
+        dailySupplySideRevenue.add(asset, amount);
+        break;
     }
   });
 
@@ -57,12 +62,9 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "The portion of fees distributed to zVLT token holders.",
   },
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2024-10-10",
-    },
-  },
+  fetch,
+  start: "2024-10-10",
+  chains: [CHAIN.ETHEREUM],
 };
 
 export default adapter;
