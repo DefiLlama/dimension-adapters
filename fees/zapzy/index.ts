@@ -26,17 +26,10 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     }
 
     const dailyRevenueSol = currentEntry.solFees - (prevEntry?.solFees || 0);
-    const dailyRefFeesSol = currentEntry.refFees - (prevEntry?.refFees || 0);
     const totalFeesLamports = dailyRevenueSol * 1e9;
-    const refFeesLamports = dailyRefFeesSol * 1e9;
 
-    // Zapzy revenue calculation:
-    // 1. First subtract 10% for creators
-    // 2. Then subtract referral fees from the remaining amount
-    const creatorFeePercentage = 0.10;
-    const creatorFees = totalFeesLamports * creatorFeePercentage;
-    const remainingAfterCreators = totalFeesLamports - creatorFees;
-    const protocolRevenue = remainingAfterCreators - refFeesLamports;
+    // Zapzy revenue calculation: 50% of fees goes to the protocol
+    const protocolRevenue = totalFeesLamports * 0.5;
 
     dailyFees.add(SOL_ADDRESS, totalFeesLamports);
     dailyRevenue.add(SOL_ADDRESS, protocolRevenue);
@@ -50,8 +43,8 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     methodology: {
-        Fees: "Fees are collected from users and distributed to coin creators, referral users, and the protocol.",
-        Revenue: "10% goes to coin creators, if a referral code is used 30% is split between refferal user and the referrer, the remaining amount goes to the protocol.",
+        Fees: "Fees are collected from users and distributed to coin creators and the protocol.",
+        Revenue: "50% of fees are distributed to coin creators, 50% of fees goes to the protocol.",
     },
     version: 1,
     adapter: {
