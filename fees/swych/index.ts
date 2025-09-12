@@ -126,6 +126,7 @@ const adapter: Adapter = {
         Fees: 'Swych collects fees from different transactions done on the Perpetual Exchange.',
     },
     version: 2,
+    deadFrom: '2025-01-01',
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchFees,
