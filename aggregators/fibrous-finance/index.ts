@@ -30,6 +30,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 const adapter = {
   adapter: chainConfig,
   fetch,
+  runAtCurrTime: true,
   version: 1,
 };
 
