@@ -252,6 +252,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  isExpensiveAdapter: true,
   methodology,
   adapter: {
     [CHAIN.SOLANA]: {
