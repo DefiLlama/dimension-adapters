@@ -59,7 +59,15 @@ const fetch = async (options: FetchOptions) => {
     })
   })
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: 0, dailySupplySideRevenue, dailyHoldersRevenue: dailyRevenue }
+  return { 
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: dailyRevenue,
+  }
 }
 
 const adapter: SimpleAdapter = {

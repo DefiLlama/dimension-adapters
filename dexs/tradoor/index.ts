@@ -11,6 +11,13 @@ const fetch = async (options: FetchOptions) => {
       "endTime": options.endTimestamp
   })
 
+  console.log(options.fromTimestamp, options.toTimestamp)
+
+  // bad data
+  if (options.startTimestamp >= 1757635199 || options.toTimestamp <= 1757721599) {
+    res['data'] = 0;
+  }
+
   return {
     dailyVolume: parseInt(res['data']),
     timestamp: options.startTimestamp,

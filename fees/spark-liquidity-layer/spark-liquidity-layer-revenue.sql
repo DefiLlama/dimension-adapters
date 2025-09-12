@@ -23,8 +23,69 @@ with tokens (blockchain, token_address, token_symbol) as (
         ('ethereum', 0x8236a87084f8b84306f72007f36f2618a5634494, 'LBTC'),
         ('ethereum', 0x18084fba666a33d37592fa2633fd49a74dd93a88, 'tBTC'),
         ('ethereum', 0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf, 'cbBTC'),
-        ('ethereum', 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599, 'WBTC')
+        ('ethereum', 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599, 'WBTC'),
+        ('base', 0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842, 'MORPHO')
 ),
+    morpho_daily_changes AS (
+        SELECT
+            DATE(evt_block_time) as dt,
+            contract_address,
+            SUM(
+                CASE
+                    WHEN "to" = 0x2917956eFF0B5eaF030abDB4EF4296DF775009cA
+                        THEN value / 1e18
+                    WHEN "from" = 0x2917956eFF0B5eaF030abDB4EF4296DF775009cA
+                        THEN -(value / 1e18)
+                    ELSE 0
+                END
+            ) as daily_net_change
+        FROM thirdweb_base.morphotokenoptimism_evt_transfer
+        WHERE
+            (
+                "from" = 0x2917956eFF0B5eaF030abDB4EF4296DF775009cA
+                OR "to" = 0x2917956eFF0B5eaF030abDB4EF4296DF775009cA
+            )
+        GROUP BY 1,2
+    ),
+    -- Get USDC token info for price lookup
+    usdc_token AS (
+        SELECT
+            blockchain,
+            token_address
+        FROM tokens
+        WHERE token_symbol = 'USDC'
+        LIMIT 1  -- In case there are multiple USDC entries
+    ),
+    morpho_rewards AS (
+        SELECT
+            b.dt,
+            'base' as blockchain,
+            'Morpho' as protocol_name,
+            'USDC' as token_symbol,
+            b.daily_net_change as MORPHO_rewards,
+            p.price_usd as MORPHO_price_usd,
+            b.daily_net_change * p.price_usd as MORPHO_rewards_usd,
+            -- Add USDC price for the same date
+            p_usdc.price_usd as USDC_price_usd,
+            b.daily_net_change * p.price_usd/p_usdc.price_usd as MORPHO_rewards_USDC,
+            SUM(b.daily_net_change) OVER (
+                ORDER BY b.dt ROWS UNBOUNDED PRECEDING
+            ) as cumulative_MORPHO_balance
+        FROM morpho_daily_changes b
+        JOIN tokens t
+            ON b.contract_address = t.token_address
+        LEFT JOIN dune.steakhouse.result_token_price p
+            ON t.blockchain = p.blockchain
+            AND t.token_address = p.token_address
+            AND b.dt = p.dt
+        -- Join USDC price for the same date
+        LEFT JOIN usdc_token ut ON 1=1  -- Cross join to get USDC token info
+        LEFT JOIN dune.steakhouse.result_token_price p_usdc
+            ON ut.blockchain = p_usdc.blockchain
+            AND ut.token_address = p_usdc.token_address
+            AND b.dt = p_usdc.dt
+        ORDER BY b.dt DESC
+    ),
      protocols_data as (
          select *
          from (
@@ -131,15 +192,25 @@ with tokens (blockchain, token_address, token_symbol) as (
                         case
                             when protocol_name = 'Sparklend' then (sl.interest_amount-sl.BR_cost) / 365
                             when protocol_name = 'Morpho'
-                                and token_symbol in ('DAI', 'USDC','USDS') then m.net_rev_interest / 365
+                                and token_symbol in ('DAI', 'USDC','USDS') then (m.interest_amount-m.BR_cost) / 365 + coalesce(mr.MORPHO_rewards_USDC,0)
                             when protocol_name = 'ethena' then e.daily_actual_revenue - e.daily_BR_cost
                             else (p.amount / 365) * p.reward_per + (p.amount / 365) * p.interest_per
                             end
-                ) as tw_net_rev_interest
+                ) as tw_net_rev_interest,
+                sum(
+                        case
+                            when protocol_name = 'Sparklend' then sl.interest_amount / 365
+                            when protocol_name = 'Morpho'
+                                and token_symbol in ('DAI', 'USDC','USDS') then m.interest_amount / 365 + coalesce(mr.MORPHO_rewards_USDC,0)
+                            when protocol_name = 'ethena' then e.daily_actual_revenue
+                            else (p.amount / 365) * p.reward_per + (p.amount / 365) * p.interest_per
+                            end
+                ) as tw_net_fees
          from protocols_data p
                   left join dune.sparkdotfi.result_spark_idle_dai_usds_in_sparklend_by_alm_proxy sl using (dt, protocol_name, token_symbol) -- Spark - Idle DAI & USDS in Sparklend by ALM Proxy
                   left join dune.sparkdotfi.result_spark_idle_dai_usdc_in_morpho_by_alm_proxy m using (dt, protocol_name, token_symbol) -- Spark - Idle DAI & USDC in Morpho by ALM Proxy
                   left join dune.sparkdotfi.result_spark_ethena_payout_apy e using (dt, protocol_name, token_symbol) -- Spark - Ethena Payout + APY
+                  left join morpho_rewards mr using (dt, protocol_name, token_symbol) --Spark - $MORPHO Rewards
          group by 1,
                   2,
                   3,
@@ -151,14 +222,15 @@ with tokens (blockchain, token_address, token_symbol) as (
      protocols_daily_usd as (
          select b.*,
                 p.price_usd,
-                b.tw_net_rev_interest * p.price_usd as tw_net_rev_interest_usd
+                b.tw_net_rev_interest * p.price_usd as tw_net_rev_interest_usd,
+                b.tw_net_fees * p.price_usd as tw_net_fees_usd
          from protocols_daily b
                   join tokens t on b.token_symbol = t.token_symbol
                   left join dune.steakhouse.result_token_price p on t.blockchain = p.blockchain
              and t.token_address = p.token_address
              and b.dt = p.dt
      )
-select dt, sum(tw_net_rev_interest_usd) as revenue
+select dt, sum(tw_net_rev_interest_usd) as revenue, sum(tw_net_fees_usd) as fees
 from protocols_daily_usd
 where dt = date '{{dt}}'
 group by 1

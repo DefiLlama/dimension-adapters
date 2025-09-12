@@ -29,7 +29,7 @@ const prefetch = async (options: FetchOptions) => {
 			SUM(amount_usd) as dailyVolume
 		FROM dex_aggregator.trades
 		WHERE tx_hash IN (
-			SELECT hash FROM evms.transactions 
+			SELECT DISTINCT hash FROM evms.transactions 
 			WHERE
 				block_time >= FROM_UNIXTIME(${options.startTimestamp})
 				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
