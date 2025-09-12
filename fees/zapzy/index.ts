@@ -44,7 +44,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
     methodology: {
         Fees: "Fees are collected from users and distributed to coin creators and the protocol.",
-        Revenue: "50% of fees are distributed to coin creators, 50% of fees goes to the protocol.",
+        Revenue: "50% of fees are distributed to coin creators, 50% of fees go to the protocol.",
     },
     version: 1,
     adapter: {
