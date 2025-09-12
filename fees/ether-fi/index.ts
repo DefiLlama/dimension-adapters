@@ -386,7 +386,6 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
        }
      });
    }
-  // console.log(revenues);
   return revenues;
 }
 

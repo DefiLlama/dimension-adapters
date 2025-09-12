@@ -46,7 +46,6 @@ let allContracts: any;
 const fetch = async (options: FetchOptions) => {
   if (!allContracts) {
     allContracts = await getConfig('sofa-org/fees', contractsJsonFile);
-    //console.log("allContracts:", allContracts);
   }
   const tokens = allContracts.tokens;
   const dailyFees = options.createBalances();
@@ -102,7 +101,6 @@ const fetch = async (options: FetchOptions) => {
       }
     });
   }
-  //console.log("dailyFees:", dailyFees);
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
@@ -129,7 +127,6 @@ async function getLog(options: FetchOptions, targets: [], eventAbi: string) {
     targets: targets,
     eventAbi: eventAbi,
   });
-  //console.log("  data:", data);
   return data;
 }
 

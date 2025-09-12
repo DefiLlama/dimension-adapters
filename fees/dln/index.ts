@@ -139,7 +139,6 @@ const fetchHoldersRevenue = async (options: FetchOptions) => {
     }
     return acc;
   }, 0);
-  console.log(dateFrom)
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.addCGToken('debridge', holderRevenue);
 
