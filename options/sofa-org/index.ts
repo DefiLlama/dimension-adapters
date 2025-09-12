@@ -46,7 +46,6 @@ const fetch = async (options: FetchOptions) => {
       } else {
         data.forEach((log: any) => dailyPremiumVolume.add(token, log.totalCollateral - log.makerCollateral));
       }
-      //console.log("dailyPremiumVolume:", dailyPremiumVolume);
     }
   }
   return { dailyPremiumVolume };

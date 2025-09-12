@@ -138,11 +138,11 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
         if (nextCursor) {
             await delay(1000);
         }
-        console.log(`page: ${page} and nextCursor: ${nextCursor}`);
+        options.api.log(`page: ${page} and nextCursor: ${nextCursor}`);
     } while (nextCursor);
     const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);
     const validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
-    console.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${allPools.length}`);
+    options.api.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${allPools.length}`);
 
     const dailyVolume = validPools.reduce(
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0

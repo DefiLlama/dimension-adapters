@@ -51,7 +51,6 @@ const fetchV2Volume = async (chain: Chain) => {
   const res = (
     await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
   ) as  { data: ResponseItem[], success: boolean }
-  // console.log(res)
   if (res.data === null && res.success === false) {
     return fetchV2Volume(chain)
   }

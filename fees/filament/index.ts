@@ -17,7 +17,6 @@ const fetchAllFeeEntries = async (maxPages = 1000, options: FetchOptions): Promi
   let pageCount = 0;
   let lastId = ''
 
-  console.log("Starting fee data collection with pagination");
 
   while (hasMoreData && pageCount < maxPages) {
     pageCount++;
@@ -39,7 +38,6 @@ const fetchAllFeeEntries = async (maxPages = 1000, options: FetchOptions): Promi
     const response: any = await request(endpoint, query,);
 
     const { totalTradingFees } = response;
-    console.log(pageCount, totalTradingFees.length);
     allEntries.push(...totalTradingFees)
     lastId = totalTradingFees[totalTradingFees.length - 1].id
 

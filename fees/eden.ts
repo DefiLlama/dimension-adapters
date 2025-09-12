@@ -43,7 +43,6 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
     from block_with_eob_payment
   `
   const res = await queryDuneSql(options, query);
-  console.log(res);
 
   const dayItem = res[0];
   dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18);

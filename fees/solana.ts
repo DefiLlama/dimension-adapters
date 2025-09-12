@@ -32,26 +32,7 @@ const adapter: Adapter = {
         `;
 
         const res = await queryAllium(alliumFeequery);
-        // console.log(res);
-
-        // const duneFeequery = `
-        //   WITH total_fees_with_base_fee AS (
-        //       SELECT
-        //           COUNT(*) AS tx_count,
-        //           SUM(fee) AS total_fees,
-        //           (COUNT(*) * 5000) AS total_base_fees
-        //       FROM solana.transactions
-        //       WHERE TIME_RANGE
-        //   )
-        //   SELECT
-        //       f.total_fees,
-        //       f.total_base_fees AS total_base_fees,
-        //       (f.total_fees - f.total_base_fees) AS total_priority_fees
-        //   FROM total_fees_with_base_fee f
-        //   `;
-        // const res = await queryDuneSql(options, duneFeequery);
-        // console.log(res);
-
+        
         dailyFees.add(ADDRESSES.solana.SOL, res[0].total_base_fees, METRIC.TRANSACTION_BASE_FEES)
         dailyFees.add(ADDRESSES.solana.SOL, res[0].total_priority_fees, METRIC.TRANSACTION_PRIORITY_FEES)
         
