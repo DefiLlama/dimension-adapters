@@ -90,10 +90,9 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+      fetch: async function fetch(_t: any, _a: any, options: FetchOptions): Promise<FetchResultV2> {
         return await getZoraCoinsData(options, 'fees');
       },
       start: '2025-02-19',

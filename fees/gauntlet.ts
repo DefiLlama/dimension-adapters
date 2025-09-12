@@ -124,7 +124,7 @@ async function calculateGrossReturns(options: FetchOptions): Promise<number> {
 }
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   // Get manager fees from Dune SQL
@@ -201,7 +201,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  breakdownMethodology,
   methodology,
   adapter: {
     ...curatorExport.adapter,
