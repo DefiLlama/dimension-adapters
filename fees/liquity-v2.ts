@@ -22,5 +22,16 @@ export default {
   methodology: {
     Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
     Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest': 'borrow interests paid by borrowers.',
+      'Redemption Fees': 'Redemption fees paid by borrowers.',
+      'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+    },
+    Revenue: {
+      'Borrow Interest': 'borrow interests paid by borrowers.',
+      'Redemption Fees': 'Redemption fees paid by borrowers.',
+    },
+  },
 }
