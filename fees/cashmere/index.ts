@@ -1,6 +1,6 @@
-import fetchURL from "../utils/fetchURL";
-import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const CASHMERE_API_URL = "https://kapi.cashmere.exchange/defillama/fees";
 
@@ -37,7 +37,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ETHEREUM], // Aggregate data across all chains, represented under Ethereum
-  start: "2025-09-12",
+  start: "2025-09-08",
   methodology,
 };
 
