@@ -111,6 +111,7 @@ async function _runAdapter({
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
+  const moduleUID = module._randomUID
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
   const { prefetch, allowNegativeValue = false, } = module
@@ -132,7 +133,7 @@ async function _runAdapter({
     Chain names should only contain lowercase letters, numbers and underscores
     `)
   }
-  
+
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
@@ -146,7 +147,7 @@ async function _runAdapter({
   if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
-      const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID });
       preFetchedResults = await prefetch(options);
     }
   }
@@ -194,7 +195,7 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
-      const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
       }
@@ -284,7 +285,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
@@ -341,6 +342,7 @@ async function _runAdapter({
       getStartBlock,
       getEndBlock,
       dateString: getDateString(startOfDay),
+      moduleUID,
     }
   }
 
@@ -386,7 +388,7 @@ async function _runAdapter({
 
 }
 
-function createBalanceFrom(options: {chain: string, timestamp: number | undefined, amount: FetchResponseValue}): Balances {
+function createBalanceFrom(options: { chain: string, timestamp: number | undefined, amount: FetchResponseValue }): Balances {
   const { chain, timestamp, amount } = options
 
   const balance = new Balances({ chain, timestamp })
@@ -400,11 +402,11 @@ function createBalanceFrom(options: {chain: string, timestamp: number | undefine
   return balance;
 }
 
-function subtractBalance(options: {balance: Balances, amount: FetchResponseValue}) {
+function subtractBalance(options: { balance: Balances, amount: FetchResponseValue }) {
   const { balance, amount } = options
   if (amount) {
     if (typeof amount === 'number' || typeof amount === 'string') {
-      const otherBalance = createBalanceFrom({chain: balance.chain, timestamp: balance.timestamp, amount})
+      const otherBalance = createBalanceFrom({ chain: balance.chain, timestamp: balance.timestamp, amount })
       balance.subtract(otherBalance)
     } else {
       balance.subtract(amount)
@@ -430,8 +432,8 @@ function addMissingMetrics(chain: string, result: any) {
 
     // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
     if (result.dailySupplySideRevenue && !result.dailyrevenue) {
-      result.dailyRevenue = createBalanceFrom({chain, timestamp: result.timestamp, amount: result.dailyFees})
-      subtractBalance({balance: result.dailyRevenue, amount: result.dailySupplySideRevenue})
+      result.dailyRevenue = createBalanceFrom({ chain, timestamp: result.timestamp, amount: result.dailyFees })
+      subtractBalance({ balance: result.dailyRevenue, amount: result.dailySupplySideRevenue })
     }
 
   }
