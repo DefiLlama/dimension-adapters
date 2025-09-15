@@ -23,11 +23,12 @@ const adapter: Adapter = {
         
         const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0]
         const response = await fetchURL('https://storage.googleapis.com/explorer_stats/chain_stats_mainnet_v2.json');
-        for (const item of response.daily_gas_from_user_transactions) {
-          if (item.date === dateString) {
-            dailyFees.addCGToken('movement', Number(item.gas_cost))
-          }
+        const dateItem = response.daily_gas_from_user_transactions.find((item: any) => item.date === dateString)
+        if (!dateItem) {
+          throw Error('no day data found!');
         }
+
+        dailyFees.addCGToken('movement', Number(dateItem.gas_cost))
         
         return { dailyFees, dailyRevenue: dailyFees };
       }) as any,
