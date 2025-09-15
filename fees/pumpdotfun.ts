@@ -94,7 +94,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT
       SUM(daily_revenue_sol) as total_sol_revenue
     FROM daily_revenue
-    `
+    `, { extraUIDKey: 'pump-fees' }
   ));
   dailyFees.add(ADDRESSES.solana.SOL, value[0].total_sol_revenue * 1e9, 'LaunchpadFee');
   const response = {
@@ -126,7 +126,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       )
       AND (token_mint_address = 'So11111111111111111111111111111111111111112' OR token_mint_address = 'So11111111111111111111111111111111111111111')
   `
-  const res = await queryDuneSql(options, query);
+  const res = await queryDuneSql(options, query, { extraUIDKey: 'pump-burn' });
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.add(ADDRESSES.solana.SOL, (res[0].total_amount || 0) * 1e9, METRIC.TOKEN_BUY_BACK)
 

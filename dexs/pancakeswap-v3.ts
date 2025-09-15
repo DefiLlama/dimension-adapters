@@ -135,7 +135,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   if (options.chain === CHAIN.BSC) {
     const poolsAndVolumes = await queryDune('3996608',{
       fullQuery: PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp, factories[options.chain].blacklistTokens as Array<string>),
-    });
+    }, options);
 
     const poolFees = await options.api.multiCall({
       abi: 'uint256:fee',
