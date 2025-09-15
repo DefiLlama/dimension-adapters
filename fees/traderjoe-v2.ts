@@ -1,8 +1,3 @@
+import adapter from "../dexs/traderjoe-v2";
 
-import adapter from './traderjoe'
-const { breakdown,  ...rest } = adapter as any
-
-export default {
-  ...rest,
-  adapter: breakdown['v2'],
-}
+export default adapter;
