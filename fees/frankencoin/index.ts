@@ -45,46 +45,37 @@ const fetch = async (options: FetchOptions) => {
     }
   `;
 
-	try {
-		const { frankencoinProfitLosss } = await request(
-			FRANKENCOIN_GRAPH_URL,
-			PROFIT_LOSS_QUERY
-		);
+	const { frankencoinProfitLosss } = await request(
+		FRANKENCOIN_GRAPH_URL,
+		PROFIT_LOSS_QUERY
+	);
 
-		const entries: RevenueQuery[] = frankencoinProfitLosss.items;
+	const entries: RevenueQuery[] = frankencoinProfitLosss.items;
 
-		const profits = entries.filter((e) => e.kind == 'Profit');
-		const losses = entries.filter((e) => e.kind == 'Loss');
+	const profits = entries.filter((e) => e.kind == 'Profit');
+	const losses = entries.filter((e) => e.kind == 'Loss');
 
-		// accumulate
-		const accumProfits = profits.reduce((a, b) => {
-			return a + BigInt(b.amount);
-		}, 0n);
+	// accumulate
+	const accumProfits = profits.reduce((a, b) => {
+		return a + BigInt(b.amount);
+	}, 0n);
 
-		const accumLosses = losses.reduce((a, b) => {
-			return a + BigInt(b.amount);
-		}, 0n);
+	const accumLosses = losses.reduce((a, b) => {
+		return a + BigInt(b.amount);
+	}, 0n);
 
-		// Fees are the total profits in ZCHF
-		dailyFees.add(ZCHF_ADDRESS, accumLosses);
+	// Fees are the total profits in ZCHF
+	dailyFees.add(ZCHF_ADDRESS, accumLosses);
 
-		// Revenue is profits minus losses in ZCHF
-		const revenue = accumProfits - accumLosses;
-		dailyRevenue.add(ZCHF_ADDRESS, revenue > 0n ? revenue : 0n);
+	// Revenue is profits minus losses in ZCHF
+	const revenue = accumProfits - accumLosses;
+	dailyRevenue.add(ZCHF_ADDRESS, revenue > 0n ? revenue : 0n);
 
-		return {
-			dailyFees,
-			dailyRevenue,
-			dailyProtocolRevenue: dailyRevenue,
-		};
-	} catch (error) {
-		console.error('Error fetching Frankencoin data:', error);
-		return {
-			dailyFees,
-			dailyRevenue,
-			dailyProtocolRevenue: dailyRevenue,
-		};
-	}
+	return {
+		dailyFees,
+		dailyRevenue,
+		dailyProtocolRevenue: dailyRevenue,
+	};
 };
 
 const adapter: SimpleAdapter = {
