@@ -10,7 +10,7 @@
 3. Please fill the form below  **only if the PR is for listing a new protocol** else it can be ignored/replaced with reason/details about the PR
 4. **For updating listing info** It is a different repo, you can find your listing in this file: https://github.com/DefiLlama/defillama-server/blob/master/defi/src/protocols/data4.ts, you can  edit it there and put up a PR
 5. Do not edit/push `poackage.json/package-lock.json` file as part of your changes
-6. No need to go to our discord/tg chat and announce that you've created a PR, we monitor all PRs and will review it asap
+6. No need to go to our discord/other channel and announce that you've created a PR, we monitor all PRs and will review it asap
 
 ---
 ##### Name (to be shown on DefiLlama): 
