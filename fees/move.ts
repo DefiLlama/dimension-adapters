@@ -9,17 +9,6 @@ const adapter: Adapter = {
         const { startOfDay, createBalances } = options
 
         const dailyFees = createBalances()
-
-        // const feeQuery = await queryFlipside(`
-        //   SELECT 
-        //     SUM(gas_used * gas_unit_price)/pow(10,8)
-        //   FROM movement.core.fact_transactions
-        //   WHERE SUCCESS AND 
-        //   block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${startTimestamp}) AND TO_TIMESTAMP_NTZ(${endTimestamp})
-        // `, 260)
-
-        // const fees = Number(feeQuery[0][0])
-        // dailyFees.addCGToken('movement', fees)
         
         const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0]
         const response = await fetchURL('https://storage.googleapis.com/explorer_stats/chain_stats_mainnet_v2.json');
