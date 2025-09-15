@@ -53,8 +53,8 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    // dailyRevenue: dailyFees,  // skipping these for now as we are not excluding amount for referrals
+    // dailyProtocolRevenue: dailyFees,
     dailyVolume,
   };
 };
@@ -66,8 +66,8 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Trading tokens fees paid by users",
-    ProtocolRevenue: "Trading fees are collected by Lab Terminal",
-    Revenue: "Trading fees are collected by Lab Terminal",
+    // ProtocolRevenue: "Trading fees are collected by Lab Terminal",
+    // Revenue: "Trading fees are collected by Lab Terminal",
   },
 };
 
