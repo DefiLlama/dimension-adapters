@@ -36,7 +36,7 @@ const methodology = {
 const adapter = getBuilderExports({ broker_id: 'aden', start: '2025-07-14', methodology }) as SimpleAdapter
 
 adapter.adapter = {
-  [CHAIN.ORDERLY]: { start: '2025-07-14', fetch: adapter.fetch, },
+  [CHAIN.ORDERLY]: { start: '2025-07-14', fetch: async function(_: any, _1: any, options: FetchOptions) { return { ...(await (adapter.fetch as any)(_, _1, options)), dailyHoldersRevenue: 0 } }, },
   [CHAIN.OFF_CHAIN]: { start: '2025-07-19', fetch: asterFetch },
 }
 
