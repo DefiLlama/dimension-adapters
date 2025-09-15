@@ -81,6 +81,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		[CHAIN.POLYGON_ZKEVM]: 'polygon zkevm',
 		[CHAIN.ZORA]: 'zora',
 		[CHAIN.LYRA]: 'lyra',
+		[CHAIN.OP_BNB]: 'opbnb',
 
 		// Non-EVM
 		[CHAIN.STARKNET]: 'starknet',
