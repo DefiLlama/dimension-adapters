@@ -41,6 +41,7 @@ export type FetchOptions = {
   getEndBlock: () => Promise<number>,
   dateString: string,
   preFetchedResults?: any,
+  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching
 }
 
 export type FetchGetLogsOptions = {
