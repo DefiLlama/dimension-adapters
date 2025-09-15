@@ -15,7 +15,7 @@ interface IPair {
   version: FactoryVersion;
   tokenX: string;
   tokenY: string;
-  protocolFeeShare?: number;
+  protocolFeeShare: number;
 }
 
 interface ExportConfig {
@@ -71,7 +71,7 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
           version: factory.version,
           tokenX: formatAddress(event.tokenX),
           tokenY: formatAddress(event.tokenY),
-          protocolFeeShare: feeParameter ? feeParameter.protocolShare / 1e4 : undefined,
+          protocolFeeShare: feeParameter ? feeParameter.protocolShare / 1e4 : 0,
         }
       }
 
