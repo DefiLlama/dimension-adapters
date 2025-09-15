@@ -1,5 +1,3 @@
-import { Chain } from "../../adapters/types";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -45,14 +43,17 @@ async function sleep (time: number) {
 }
 let sleepCount = 0
 
-const fetchV2Volume = async (chain: Chain) => {
+const fetchV2Volume = async (retry = 0) => {
+  if (retry >= 3) {
+    throw new Error("Failed to fetch v2 volume after 3 retries");
+  }
   // This is very important!!! because our API will throw error when send >=2 requests at the same time.
   await sleep(sleepCount++ * 2 * 1e3)
   const res = (
-    await httpGet(v2VolumeAPI, { params: { chain, excludeCake: true } })
+    await httpGet(v2VolumeAPI, { params: { excludeCake: true } })
   ) as  { data: ResponseItem[], success: boolean }
   if (res.data === null && res.success === false) {
-    return fetchV2Volume(chain)
+    return fetchV2Volume(retry + 1)
   }
   const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
   const openInterestAtEnd = (res.data || []).reduce((p, c) => p + +c.openInterest, 0);
@@ -66,39 +67,17 @@ const fetchV1Volume = async () => {
   return dailyVolume
 };
 
-const fetch = async (timestamp: number, _a:any, options: FetchOptions) => {
-  let dailyVolume = 0;
-  if (options.chain == CHAIN.BSC) {
-    dailyVolume = await fetchV1Volume();
-  }
-  const data = await fetchV2Volume(options.chain);
+const fetch = async () => {
+  let dailyVolume = await fetchV1Volume();
+  const data = await fetchV2Volume();
   dailyVolume += data.dailyVolume;
   return { dailyVolume, openInterestAtEnd: data.openInterestAtEnd }
 }
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-04-21',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-04-21',
-    },
-    [CHAIN.OP_BNB]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-04-21',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-04-21',
-    },
-  },
+export default {
+  fetch,
+  start: '2023-04-21',
+  runAtCurrTime: true,
+  chains: [CHAIN.OFF_CHAIN]
 };
 
-export default adapter;

@@ -46,7 +46,7 @@ const fetchV2 = async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
+    [CHAIN.ZK_LIGHTER]: {
       fetch: fetchV2,
       start: '2023-10-12',
     },
