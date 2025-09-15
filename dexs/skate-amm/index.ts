@@ -15,7 +15,7 @@ const skateChainIds = {
     [CHAIN.SUI]: 1001
 }
 
-const skateDataApi = "https://revamp-data.skatechain.org/pools/stats";
+const skateDataApi = "https://api.skatechain.org/amm-data/pools/stats";
 
 const fetch = async (options: FetchOptions) => {
 
