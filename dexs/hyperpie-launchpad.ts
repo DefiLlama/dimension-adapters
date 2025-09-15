@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = dailyFees.clone(0.8);
   const dailySupplySideRevenue = dailyFees.clone(0.2);
 
-  return { dailyVolume, dailyFees, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 }
+  return { dailyVolume, dailyFees, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue, }
 };
 
 const adapter: SimpleAdapter = {
