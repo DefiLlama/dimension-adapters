@@ -11,7 +11,6 @@ const fetch = async (timestamp) => {
   // Request revenue for exactly this day
   const url = `https://api.alkimi.org/api/v1/public/data?startDate=${day}&endDate=${day}`;
   const resp = await axios.get(url);
-  console.log(url);
   const entry = resp.data?.data?.[0];
   if (!entry) {
     throw new Error(`No Alkimi revenue data found for ${day}`);
