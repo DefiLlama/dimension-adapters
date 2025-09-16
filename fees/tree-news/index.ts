@@ -7,7 +7,7 @@ interface IData {
   burned_tokens: string;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const tokenAddress = options.chain === CHAIN.BASE
     ? '0x52c2b317eb0bb61e650683d2f287f56c413e4cf6'
     : '0xba25b2281214300e4e649fead9a6d6acd25f1c0a';
@@ -39,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_: any, _1: any, options: FetchOptions) => {
   const data: IData[] = await queryDuneSql(options, `
     SELECT 
       CAST(COALESCE(SUM(amount), 0) AS VARCHAR) AS burned_tokens
@@ -75,7 +75,6 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {fetch, start: '2024-11-01'},
     [CHAIN.BASE]: { fetch, start: '2024-11-01' },

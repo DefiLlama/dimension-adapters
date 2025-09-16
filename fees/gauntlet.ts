@@ -124,7 +124,7 @@ async function calculateGrossReturns(options: FetchOptions): Promise<number> {
 }
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   // Get manager fees from Dune SQL
@@ -175,6 +175,15 @@ const fetchSolana = async (options: FetchOptions) => {
 // Get curator export for EVM chains and combine with Solana
 const curatorExport = getCuratorExport(curatorConfig);
 
+// need to convert adapter v2 to adapter v1
+for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
+  (curatorExport.adapter as any)[chain] = {
+    fetch: async (_t: any, _a: any, options: FetchOptions) => {
+      return await (adapter as any).fetch(options);
+    }
+  }
+}
+
 const methodology = {
   Fees: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
   Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
@@ -201,14 +210,15 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  breakdownMethodology,
   methodology,
   adapter: {
     ...curatorExport.adapter,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01'
-    }
+    },
   },
   allowNegativeValue: true,
   isExpensiveAdapter: true

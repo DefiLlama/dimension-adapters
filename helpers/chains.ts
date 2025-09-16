@@ -2,7 +2,8 @@
 export enum CHAIN {
   PEAQ = "peaq",
   CHROMIA = "chromia",
-  KALSHI = "kalshi",
+  OFF_CHAIN = "off_chain",
+  ZK_LIGHTER = 'zklighter',
   GALA = "gala",
   TARA = "tara",
   ARBITRUM = "arbitrum",

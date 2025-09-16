@@ -1,35 +1,21 @@
-import fetchURL from '../../utils/fetchURL';
-import type { FetchOptions, SimpleAdapter } from '../../adapters/types';
-import { CHAIN } from '../../helpers/chains';
+import { CHAIN } from '../../helpers/chains'
+import { joeLiquidityBookExport } from "../../helpers/joe";
 
-interface IData {
-  feesUSD: number;
-  volumeUSD: number;
-  timestamp: number;
-}
-
-const fetch = async (options:FetchOptions) => {
-  const startOfDay = options.startOfDay;
-  const endpointsV2 = `https://api.hyperbrick.xyz/lb/dex/analytics?startTime=${startOfDay}&aggregateBy=daily`;
-
-  const historical: IData[] = await fetchURL(endpointsV2);
-
-  const dailyFees = historical.find((dayItem) => dayItem.timestamp === startOfDay)?.feesUSD || 0;
-  const dailyVolume = historical.find((dayItem) => dayItem.timestamp === startOfDay)?.volumeUSD || 0;
-
-  return {
-    dailyVolume,
-    dailyFees,
-  };
-};
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
+export default {
+  ...joeLiquidityBookExport({
     [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2025-07-24',
+      factories: [
+        {
+          factory: '0x4A1EFb00B4Ad1751FC870C6125d917C3f1586600',
+          version: 2.2,
+          fromBlock: 9069569,
+        },
+      ]
     },
+  }),
+  methodologyy: {
+    Fees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
+    UserFees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
+    Revenue: 'Share of amount of swap fees.',
   },
-};
-export default adapter;
+}
