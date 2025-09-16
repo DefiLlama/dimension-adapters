@@ -6,17 +6,14 @@ function getUniqStartOfTodayTimestamp(date) {
 
 const fetch = async (timestamp) => {
   const date = new Date(timestamp * 1000);
+  const day = date.toISOString().split("T")[0];
 
-  // fetch last 30 days so we always have data
-  const start = new Date(timestamp * 1000 - 86400 * 30 * 1000).toISOString().split("T")[0];
-  const end = date.toISOString().split("T")[0];
-
-  const url = `https://api.alkimi.org/api/v1/public/data?startDate=${start}&endDate=${end}`;
-  console.log("URL : ", url);
+  // Request revenue for exactly this day
+  const url = `https://api.alkimi.org/api/v1/public/data?startDate=${day}&endDate=${day}`;
   const resp = await axios.get(url);
 
-  const records = resp.data?.data;
-  if (!records || records.length === 0) {
+  const entry = resp.data?.data?.[0];
+  if (!entry) {
     return {
       timestamp: getUniqStartOfTodayTimestamp(date),
       dailyFees: "0",
@@ -26,12 +23,10 @@ const fetch = async (timestamp) => {
     };
   }
 
-  // pick the most recent day available
-  const entry = records[records.length - 1];
   const revenueUsd = parseFloat(entry.alkimi_revenue || "0");
 
   return {
-    timestamp: getUniqStartOfTodayTimestamp(new Date(entry.date)),
+    timestamp: getUniqStartOfTodayTimestamp(date),
     dailyFees: revenueUsd.toString(),
     dailyRevenue: revenueUsd.toString(),
     dailyHoldersRevenue: revenueUsd.toString(),
@@ -43,6 +38,7 @@ module.exports = {
   adapter: {
     general: {
       fetch,
-      start: 1723507200, // replace with Alkimi fees start date (UTC midnight)
+      start: 1723507200, // replace with Alkimi's actual fees start date (UTC midnight)
     },
   },
+};
