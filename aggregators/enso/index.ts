@@ -14,6 +14,11 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.SONIC]: { duneChain: "sonic", start: "2025-01-01" },
   [CHAIN.UNICHAIN]: { duneChain: "unichain", start: "2025-01-01" },
   [CHAIN.HYPERLIQUID]: { duneChain: "hyperevm", start: "2025-01-01" },
+  [CHAIN.KATANA]: { duneChain: "katana", start: "2025-01-01" },
+  [CHAIN.PLUME]: { duneChain: "plume", start: "2025-01-01" },
+  [CHAIN.ZKSYNC]: { duneChain: "zksync", start: "2025-01-01" },
+  [CHAIN.AVAX]: { duneChain: "avalanche_c", start: "2023-01-01" },
+  [CHAIN.XDAI]: { duneChain: "gnosis", start: "2023-01-01" },
 };
 
 // Prefetch function that will run once before any fetch calls
