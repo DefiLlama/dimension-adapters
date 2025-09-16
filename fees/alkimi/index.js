@@ -7,7 +7,7 @@ function getUniqStartOfTodayTimestamp(date) {
 const fetch = async (timestamp) => {
   const date = new Date(timestamp * 1000);
   const day = date.toISOString().split("T")[0];
-	console.log(timestamp, date, day);
+
   // Request revenue for exactly this day
   const url = `https://api.alkimi.org/api/v1/public/data?startDate=${day}&endDate=${day}`;
   const resp = await axios.get(url);
@@ -15,6 +15,7 @@ const fetch = async (timestamp) => {
   const entry = resp.data?.data?.[0];
   if (!entry) {
     throw new Error(`No Alkimi revenue data found for ${day}`);
+
   }
 
   const revenueUsd = parseFloat(entry.alkimi_revenue || "0");
