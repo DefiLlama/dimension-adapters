@@ -46,4 +46,3 @@ module.exports = {
       start: 1723507200, // replace with Alkimi fees start date (UTC midnight)
     },
   },
-};
