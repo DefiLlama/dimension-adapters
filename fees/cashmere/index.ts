@@ -18,8 +18,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     dailyUserFees: response.feesUsd || 0,
     dailyRevenue: response.revenuesUsd || 0,
     dailyProtocolRevenue: response.protocolRevenueUsd || 0,
-    dailyHoldersRevenue: (response.revenuesUsd - response.protocolRevenueUsd) || 0,
-    dailySupplySideRevenue: (response.feesUsd - response.revenuesUsd) || 0,
+    dailyHoldersRevenue:  0,
+    dailySupplySideRevenue:0,
   };
 };
 
