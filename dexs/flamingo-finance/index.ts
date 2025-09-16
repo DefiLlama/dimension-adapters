@@ -3,18 +3,11 @@ import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
 
-  const data = (await fetchURL('https://flamingo-us-1.b-cdn.net/flamingo/analytics/rolling-30-days/pool_data'))
+  const data = (await fetchURL('https://flamingo-us-1.b-cdn.net/flamingo/analytics/rolling-30-days/total_data'))
   const dayData = data.find((day: any) => day.date.slice(0, 10) === dateString)
   if (!dayData) throw new Error(`No data for date ${dateString}`)
-  let dailyVolume = 0;
-  let dailyFees = 0
 
-  Object.values(dayData.pool_data).forEach((pool: any) => {
-    if (pool.fees_usd_total) dailyFees += +pool.fees_usd_total
-    if (pool.volume_usd_total) dailyVolume += +pool.volume_usd_total
-  })
-
-  return { dailyVolume, dailyFees, };
+  return { dailyVolume: dayData.total_data.total_order_volume, dailyFees: dayData.total_data.total_order_fee_usd };
 };
 
 const adapter: SimpleAdapter = {
