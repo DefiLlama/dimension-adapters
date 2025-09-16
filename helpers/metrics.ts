@@ -2,6 +2,8 @@
 // for creating new metrics, please carefully check this list before make an new one
 // otherwise, we end up with alot of metrics and fragment data
 export enum METRIC {
+  CREATOR_FEES = 'Creator Fees',   // fees paid to creators (NFT, meme, content, artwork, music, etc)
+  LP_FEES = 'LP Fees',           // fees paid to liquidity providers
   BORROW_INTEREST = 'Borrow Interest',   // interest paid by borrowers in lending markets
   LIQUIDATION_FEES = 'Liquidation Fees', // liquidation penalty and fees paid for liquidators and protocol in liquidation transactions
   FLASHLOAN_FEES = 'Flashloan Fees',     // fees paid by borrowers when execute flashloan from lending markets

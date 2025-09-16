@@ -3,12 +3,18 @@ import { FetchOptions, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addOneToken } from "../helpers/prices";
 import { filterPools, } from "../helpers/uniswap";
+import { METRIC } from "../helpers/metrics";
 
 export default {
   chains: [CHAIN.HYPERLIQUID],
   fetch,
   version: 2,
   start: '2025-08-17',
+  methodology: {
+    Fees: "0.3% trading fees on all trades.",
+    SupplySideRevenue: "LPs receive 60% of trading fees, creators receive 20% of trading fees.",
+    Revenue: "20% of trading fees goes to the protocol.",
+  }
 }
 
 async function fetch(fetchOptions: FetchOptions) {
@@ -54,9 +60,10 @@ async function fetch(fetchOptions: FetchOptions) {
     })
   })
 
+  const dailySupplySideRevenue = createBalances()
+  const dailyRevenue = dailyFees.clone(0.2)
+  dailySupplySideRevenue.add(dailyFees.clone(0.2), METRIC.CREATOR_FEES)
+  dailySupplySideRevenue.add(dailyFees.clone(0.6), METRIC.LP_FEES)
 
-
-  const response: any = { dailyVolume, dailyFees }
-
-  return response
+  return { dailyVolume, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue,dailyHoldersRevenue: 0,  }
 }
