@@ -7,13 +7,10 @@ const IOTEX_SUM_GAS_URL = "https://gateway1.iotex.me/analyzer/sumGasFeeIotx";
 
 const fetch = async (timestamp, _, { createBalances}: FetchOptions) => {
   const dailyFees = createBalances()
-  const totalFees = createBalances()
   dailyFees.addCGToken('iotex', await getDailyFees(timestamp))
-  totalFees.addCGToken('iotex', await getTotalFees())
 
   return {
     dailyFees,
-    totalFees,
     timestamp,
   };
 };
@@ -38,10 +35,5 @@ const getDailyFees = async (timestamp: number) => {
 
   const result = await httpGet(`${IOTEX_SUM_GAS_URL}?start_date=${today}&end_date=${today}`);
 
-  return parseFloat(result);
-};
-
-const getTotalFees = async () => {
-  const result = await httpGet(IOTEX_SUM_GAS_URL);
   return parseFloat(result);
 };

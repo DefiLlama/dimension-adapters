@@ -1,4 +1,4 @@
-import { Adapter,  } from "../adapters/types";
+import { Adapter, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getFeesExport } from "../helpers/friend-tech";
 
@@ -9,26 +9,18 @@ const FriendV2Address = '0x2C5bF6f0953ffcDE678A35AB7d6CaEBC8B6b29F0';
 const event_trade_V2 = 'event Trade (address trader , bytes32 subjectId , bool isBuy , uint256 ticketAmount , uint256 tokenAmount , uint256 protocolEthAmount , uint256 protocolEthAmount , uint256 holderEthAmount , uint256 referrerEthAmount , uint256 supply)'
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: "Fees paid by users while trading on social network.",
+    Revenue: "Fees paid by users while trading on social network.",
+  },
   adapter: {
     [CHAIN.BSC]: {
       fetch: getFeesExport(FriendV1Address, [event_trade]),
       start: '2023-08-24',
-      meta: {
-        methodology: {
-          Fees: "Fees paid by users while trading on social network.",
-          Revenue: "Fees paid by users while trading on social network.",
-        }
-      }
     },
     [CHAIN.OP_BNB]: {
       fetch: getFeesExport(FriendV2Address, [event_trade_V2]),
       start: '2023-10-31',
-      meta: {
-        methodology: {
-          Fees: "Fees paid by users while trading on social network.",
-          Revenue: "Fees paid by users while trading on social network.",
-        }
-      }
     },
   },
   version: 2,

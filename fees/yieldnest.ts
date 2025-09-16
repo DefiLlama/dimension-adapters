@@ -42,16 +42,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: "2020-12-19",
-      meta: {
-        methodology: {
-          Fees: 'All yield generated from staking assets.',
-          Revenue: 'Amount of fees collected by YieldNest.',
-          ProtocolRevenue: 'Amount of fees collected by YieldNest.',
-          SupplySideRevenue: 'Amount of fees distributed to asset stakers.',
-        }
-      }
     },
   },
+  methodology: {
+    Fees: 'All yield generated from staking assets.',
+    Revenue: 'Amount of fees collected by YieldNest.',
+    ProtocolRevenue: 'Amount of fees collected by YieldNest.',
+    SupplySideRevenue: 'Amount of fees distributed to asset stakers.',
+  }
 };
 
 export default adapter;

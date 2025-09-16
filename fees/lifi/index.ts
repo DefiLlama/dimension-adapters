@@ -1,14 +1,5 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiFeeCollectors } from "../../helpers/aggregators/lifi";
-
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users for swap and bridge tokens via LI.FI.',
-    Revenue: 'Fees are distributed to LI.FI and intergations.',
-    ProtocolRevenue: 'Fees are distributed to LI.FI and intergations.',
-  }
-}
 
 const FeeCollectedEvent = "event FeesCollected(address indexed _token, address indexed _integrator, uint256 _integratorFee, uint256 _lifiFee)"
 
@@ -32,12 +23,17 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
-                meta,
                 fetch,
                 start: LifiFeeCollectors[chain].startTime
             }
         }
-    }, {})
+    }, {}),
+
+    methodology: {
+        Fees: 'All fees paid by users for swap and bridge tokens via LI.FI.',
+        Revenue: 'Fees are distributed to LI.FI and intergations.',
+        ProtocolRevenue: 'Fees are distributed to LI.FI and intergations.',
+    }
 };
 
 export default adapter;

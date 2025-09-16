@@ -2,9 +2,52 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from '../helpers/metrics';
+import { httpGet } from '../utils/fetchURL';
+
+let buybackData: any
+async function fetchFromApi({ dateString, createBalances, }: FetchOptions) {
+  if (!buybackData)
+    buybackData = httpGet('https://fees.pump.fun/api/buybacks').then(({ dailyBuybacks }) => {
+      const dateMap: any = {}
+      Object.entries(dailyBuybacks).forEach(([date, i]: any) => {
+        date = date.split('T')[0]
+        dateMap[date] = i
+      })
+      return dateMap
+    })
+
+  buybackData = await buybackData
+  if (!buybackData[dateString]) throw new Error('No buyback data for date: ' + dateString)
+  const { pumpFeesUsd, buybackUsd } = buybackData[dateString]
+  const dailyFees = createBalances()
+  const dailyHoldersRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances()
+  dailyFees.addUSDValue(pumpFeesUsd, 'LaunchpadFee')
+  dailyHoldersRevenue.addUSDValue(buybackUsd, METRIC.TOKEN_BUY_BACK)
+  dailyProtocolRevenue.addUSDValue(pumpFeesUsd - buybackUsd)
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees.clone(1, 'LaunchpadFee'),
+    dailyProtocolRevenue,
+    dailyHoldersRevenue
+  }
+}
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+
+  if (options.startTimestamp >= 1721779200) { // 2025-07-14 00:00:00 UTC,  there is no buyback before that
+    try {
+      const response = await fetchFromApi(options);
+      return response
+    } catch (e) {
+      console.log('Error fetching from API, falling back to Dune', e);
+    }
+  }
+
   const dailyFees = options.createBalances();
+
 
   // https://dune.com/queries/4313339
   const value = (await queryDuneSql(options,
@@ -51,9 +94,18 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     SELECT
       SUM(daily_revenue_sol) as total_sol_revenue
     FROM daily_revenue
-    `
+    `, { extraUIDKey: 'pump-fees' }
   ));
-  dailyFees.add(ADDRESSES.solana.SOL, value[0].total_sol_revenue * 1e9);
+  dailyFees.add(ADDRESSES.solana.SOL, value[0].total_sol_revenue * 1e9, 'LaunchpadFee');
+  const response = {
+    dailyFees,
+    dailyRevenue: dailyFees.clone(1, 'LaunchpadFee'),
+    dailyProtocolRevenue: dailyFees.clone(1, 'LaunchpadFee'),
+  }
+
+  if (options.startTimestamp <= 1721779200) { // 2025-07-14 00:00:00 UTC,  there is no buyback before that
+    return response
+  }
 
   const query = `
     SELECT 
@@ -64,25 +116,36 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       AND block_time <= from_unixtime(${options.endTimestamp})
       AND from_owner IN (
         '3vkpy5YHqnqJTnA5doWTpcgKyZiYsaXYzYM9wm8s3WTi',
-        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE'
+        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE',
+        '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx'
       )
       AND to_owner NOT IN (
         '6UJoY1CFEymoqMrnmBLeZoemBGiJcySNdR7Jyj2nF848',
-        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE'
+        '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE',
+        '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx'
       )
-      AND token_mint_address = 'So11111111111111111111111111111111111111112'
-      AND amount_usd >= 100
+      AND (token_mint_address = 'So11111111111111111111111111111111111111112' OR token_mint_address = 'So11111111111111111111111111111111111111111')
   `
-  const res = await queryDuneSql(options, query);
+  const res = await queryDuneSql(options, query, { extraUIDKey: 'pump-burn' });
   const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.add(ADDRESSES.solana.SOL, (res[0].total_amount || 0) * 1e9);
+  dailyHoldersRevenue.add(ADDRESSES.solana.SOL, (res[0].total_amount || 0) * 1e9, METRIC.TOKEN_BUY_BACK)
 
-  return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue
-  }
+  const dailyProtocolRevenue = dailyFees.clone()
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue)
+
+  return { ...response, dailyHoldersRevenue, dailyProtocolRevenue };
+}
+
+const breakdownMethodology = {
+  Fees: {
+    'LaunchpadFee': 'Trade fees from launchpad',
+  },
+  Revenue: {
+    'LaunchpadFee': 'Trade fees from launchpad that goes to the protocol',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "Pump token buyback"
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -90,7 +153,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   fetch,
   isExpensiveAdapter: true,
+  allowNegativeValue: true,
   start: '2024-01-14',
+  breakdownMethodology,
   methodology: {
     Fees: "Trading and launching tokens fees paid by users",
     Revenue: "Trading and launching tokens fees paid by users",

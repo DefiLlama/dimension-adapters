@@ -31,7 +31,6 @@ const fetchV2 = async (timestamp: number) => {
     `&timestamp=${dayTimestamp}`
   );
 
-  const result: IVolumeall = (await fetchURL(lighterV2VolumeEndpoint));
   const markets = (await fetchURL(marketurl)) as IMarket[]
   const res = (await Promise.all(markets.map(async ({ symbol }) => fetchURL(url(symbol, dayTimestamp + 86400)))))
     .map((res) => res)
@@ -41,14 +40,13 @@ const fetchV2 = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume,
-    totalVolume: result ? `${result.totalVolume}` : undefined,
     timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ARBITRUM]: {
+    [CHAIN.ZK_LIGHTER]: {
       fetch: fetchV2,
       start: '2023-10-12',
     },

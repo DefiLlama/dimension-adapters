@@ -106,16 +106,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: START_DATE,
-      meta: {
-        methodology: {
-          Fees: "All trading fees collected from users.",
-          Revenue:
-            "All protocol fees collected from trading and withdrawals. Does not include referral fees.",
-          ProtocolRevenue:
-            "All protocol fees collected from trading and withdrawals. Does not include referral fees.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "All trading fees collected from users.",
+    Revenue:
+      "All protocol fees collected from trading and withdrawals. Does not include referral fees.",
+    ProtocolRevenue:
+      "All protocol fees collected from trading and withdrawals. Does not include referral fees.",
   },
   isExpensiveAdapter: true,
 };

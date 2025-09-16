@@ -216,23 +216,7 @@ const ABIS = {
   }
 }
 
-const methodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 0.0225% of each swap.",
-  SupplySideRevenue: "LPs receive 0.17% of the fees.",
-  HoldersRevenue: "0.0575% is used to facilitate CAKE buyback and burn.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees comes from the user."
-}
 
-const stableSwapMethodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 10% of the fees.",
-  SupplySideRevenue: "LPs receive 50% of the fees.",
-  HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
-  Revenue: "Revenue is 50% of the fees paid by users.",
-  Fees: "All fees comes from the user fees, which is 0.25% of each trade."
-}
 
 const createEndpointMap = (version: keyof typeof PROTOCOL_CONFIG) => {
   const result: IJSON<string> = {};
@@ -504,7 +488,7 @@ const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_
   };
 };
 
-const fetchV2 = async (options: FetchOptions) => {
+const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v2[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -530,7 +514,7 @@ const fetchV2 = async (options: FetchOptions) => {
   throw new Error('Invalid data source');
 }
 
-const fetchV3 = async (options: FetchOptions) => {
+const fetchV3 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v3[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -619,7 +603,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     if (version === 'v1' && chain === CHAIN.BSC) {
       const customConfig = config as CustomChainConfig;
       acc[chain] = {
-        fetch: async ({ startTimestamp }: any) => {
+        fetch: async (_t: any, _a: any, { startTimestamp }: any) => {
           return {
             totalVolume: customConfig.totalVolume,
             timestamp: startTimestamp
@@ -631,7 +615,6 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       acc[chain] = {
         fetch: fetchV2,
         start: config.start,
-        meta: { methodology }
       };
     } else if (version === 'v3') {
       acc[chain] = {
@@ -641,9 +624,8 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options),
+        fetch: chain === CHAIN.ETHEREUM ? (_t: any, _a: any, options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (_t: any, _a: any, options: FetchOptions) => graphsStableSwap(options),
         start: config.start,
-        meta: { methodology: stableSwapMethodology }
       };
     }
     
@@ -652,7 +634,6 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v1: createAdapter('v1'),
     v2: createAdapter('v2'),

@@ -5,10 +5,9 @@ const URL = "https://api.kuma.bid/v1/exchange";
 
 const fetch = async () => {
   const response = await httpGet(URL);
-  const { totalVolume, volume24h } = response;
+  const { volume24h } = response;
 
   return {
-    totalVolume: totalVolume?.toString(),
     dailyVolume: volume24h?.toString(),
   };
 };

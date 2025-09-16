@@ -28,14 +28,10 @@ const fetch = (chainId: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]));
 
-    const totalVolume = historicalVolume
-      .find(item => item.time === dayTimestamp)?.totalTradeAmount
-
     const dailyVolume = historicalVolume
       .find(item => item.time === dayTimestamp)?.dayTradeAmount
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

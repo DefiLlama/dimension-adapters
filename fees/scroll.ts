@@ -13,13 +13,11 @@ const adapter: Adapter = {
 		[CHAIN.SCROLL]: {
 			fetch,
 			start: '2023-10-10',
-			meta: {
-        methodology: {
-          Fees: 'Transaction fees paid by users',
-          Revenue: 'Total revenue on Scroll, calculated by subtracting the L1 Batch Costs from the total gas fees',
-        }
-      }
 		},
+	},
+	methodology: {
+		Fees: 'Transaction fees paid by users',
+		Revenue: 'Total revenue on Scroll, calculated by subtracting the L1 Batch Costs from the total gas fees',
 	},
 	protocolType: ProtocolType.CHAIN,
 	isExpensiveAdapter: true,

@@ -76,7 +76,6 @@ async function getPoolFees(
   { api, fromApi, toApi, createBalances }: FetchOptions,
   contracts: string[]
 ): Promise<FetchResultV2> {
-  const totalFees = createBalances();
   const dailyFees = createBalances();
 
   const [assets, prevFees, currFees] = await Promise.all([
@@ -90,11 +89,10 @@ async function getPoolFees(
     const currFee = currFees[index];
 
     if (!prevFee || !currFee) return;
-    totalFees.add(asset, currFees[index]);
     dailyFees.add(asset, currFees[index] - prevFees[index]);
   });
 
-  return { totalFees, dailyFees };
+  return { dailyFees };
 }
 
 function adapterByChain(contracts: string[], timestamp: number) {
@@ -109,16 +107,14 @@ const adapter: Adapter = {
   adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
     acc[chain] = {
       ...adapterByChain(contracts[chain], timestamp),
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users while using Stargate bridge.",
-        }
-      }
     };
     return acc;
   }, {}),
   version: 2,
   allowNegativeValue: true, // due to bridge gas fees
+  methodology: {
+    Fees: "All fees paid by users while using Stargate bridge.",
+  }
 };
 
 export default adapter;

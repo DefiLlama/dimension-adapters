@@ -22,17 +22,34 @@ const chainConfig = {
 
 const prefetch = async (options: FetchOptions) => {
 	return await queryDuneSql(options, `
-        select
-			blockchain,
-			SUM(amount_usd) as dailyBridgeVolume
-        from tokens.transfers
-        where tx_hash in (
-			SELECT hash FROM evms.transactions
-            where varbinary_substring (data, varbinary_length (data) - 3, 4) = from_hex('865d8597')
-				AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+        WITH opensea_txs AS (
+            SELECT DISTINCT tx.hash, tx.blockchain
+            FROM evms.transactions tx
+            WHERE varbinary_substring(tx.data, varbinary_length(tx.data) - 3, 4) = from_hex('865d8597')
+                AND tx.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+                AND tx.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+        ),
+        dex_txs AS (
+            SELECT DISTINCT tx_hash
+            FROM dex_aggregator.trades
+            WHERE block_time >= FROM_UNIXTIME(${options.startTimestamp})
+                AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+        ),
+        filtered_bridge_txs AS (
+            SELECT os.hash, os.blockchain
+            FROM opensea_txs os
+            WHERE NOT EXISTS (
+                SELECT 1 FROM dex_txs dt WHERE dt.tx_hash = os.hash
+            )
         )
-		GROUP BY 1
+        SELECT
+            t.blockchain,
+            SUM(t.amount_usd) as dailyBridgeVolume
+        FROM tokens.transfers t
+        INNER JOIN filtered_bridge_txs fb ON t.tx_hash = fb.hash
+        WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+            AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+        GROUP BY 1
 	`);
 };
 
