@@ -13,6 +13,34 @@ const methodology = {
   ProtocolRevenue: "Protocol fees from rsETH (3.5% of staking rewards), agETH management fees (2%), hgETH management fees (1.5%), and hgETH performance fees (20% of positive rate delta).",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    'ETH Staking Rewards': 'Total ETH staking rewards from EigenLayer restaking across all chains.',
+    'EIGEN Token Rewards': 'EIGEN token rewards distributed from EigenLayer reward distributor.',
+    'agETH Management Fees': 'Management fees (2%) collected from agETH vault in rsETH tokens.',
+    'hgETH Management Fees': 'Management fees (1.5%) collected from hgETH vault in rsETH tokens.',
+    'hgETH Performance Fees': 'Performance fees (20%) collected from positive rate delta in hgETH vault.',
+  },
+  SupplySideRevenue: {
+    'ETH Staking Rewards': 'ETH staking rewards distributed to rsETH holders after protocol fees.',
+    'EIGEN Token Rewards': 'EIGEN token rewards distributed to rsETH holders after protocol fees.',
+  },
+  Revenue: {
+    'ETH Staking Rewards': 'Protocol fees (3.5%) from ETH staking rewards.',
+    'EIGEN Token Rewards': 'Protocol fees from EIGEN token rewards.',
+    'agETH Management Fees': 'Management fees (2%) collected from agETH vault.',
+    'hgETH Management Fees': 'Management fees (1.5%) collected from hgETH vault.',
+    'hgETH Performance Fees': 'Performance fees (20%) from positive rate delta in hgETH vault.',
+  },
+  ProtocolRevenue: {
+    'ETH Staking Rewards': 'Protocol fees (3.5%) from ETH staking rewards.',
+    'EIGEN Token Rewards': 'Protocol fees from EIGEN token rewards.',
+    'agETH Management Fees': 'Management fees (2%) collected from agETH vault.',
+    'hgETH Management Fees': 'Management fees (1.5%) collected from hgETH vault.',
+    'hgETH Performance Fees': 'Performance fees (20%) from positive rate delta in hgETH vault.',
+  },
+};
+
 const LRTOracle = "0x349A73444b1a310BAe67ef67973022020d70020d";
 const LRTConfig = "0x947Cb49334e6571ccBFEF1f1f1178d8469D65ec7";
 const EigenRewardDistributor = "0x9bb6d4b928645eda8f9c019495695ba98969eff1";
@@ -114,9 +142,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const protocolRevenue = totalFees * protocolFeeRate;
   const supplySideRevenue = totalFees - protocolRevenue;
 
-  dailyFees.addGasToken(totalFees);
-  dailyProtocolRevenue.addGasToken(protocolRevenue);
-  dailySupplySideRevenue.addGasToken(supplySideRevenue);
+  dailyFees.addGasToken(totalFees, 'ETH Staking Rewards');
+  dailyProtocolRevenue.addGasToken(protocolRevenue, 'ETH Staking Rewards');
+  dailySupplySideRevenue.addGasToken(supplySideRevenue, 'ETH Staking Rewards');
 
   if (options.chain === CHAIN.ETHEREUM) {
     const claimedEvents: Array<any> = await options.getLogs({
@@ -131,9 +159,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const feeRate = Number(feeInBPS) / 1e4;
       for (const event of claimedEvents) {
         const amount = Number(event.amount);
-        dailyFees.add(EigenToken, amount);
-        dailyProtocolRevenue.add(EigenToken, amount * feeRate);
-        dailySupplySideRevenue.add(EigenToken, amount * (1 - feeRate));
+        dailyFees.add(EigenToken, amount, 'EIGEN Token Rewards');
+        dailyProtocolRevenue.add(EigenToken, amount * feeRate, 'EIGEN Token Rewards');
+        dailySupplySideRevenue.add(EigenToken, amount * (1 - feeRate), 'EIGEN Token Rewards');
       }
     }
   }
@@ -161,8 +189,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       }
     }
     if (agEthFees > 0) {
-      dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], agEthFees.toString());
-      dailyProtocolRevenue.add(rsETHMaps[CHAIN.ETHEREUM], agEthFees.toString());
+      dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], agEthFees.toString(), 'agETH Management Fees');
+      dailyProtocolRevenue.add(rsETHMaps[CHAIN.ETHEREUM], agEthFees.toString(), 'agETH Management Fees');
     }
   }
 
@@ -186,10 +214,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           }
         }
         if (hgEthFees > 0) {
-          dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], hgEthFees.toString());
+          dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], hgEthFees.toString(), 'hgETH Management Fees');
           dailyProtocolRevenue.add(
             rsETHMaps[CHAIN.ETHEREUM],
-            hgEthFees.toString()
+            hgEthFees.toString(),
+            'hgETH Management Fees'
           );
         }
 
@@ -240,10 +269,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
               if (tvlUsd > HGETH_PERF_TVL_USD_THRESHOLD) {
                 const perfFeeWei = gainsRsETHWei * (HGETH_PERF_FEE_BPS / 10_000); // 20% performance fee
-                dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], perfFeeWei.toString());
+                dailyFees.add(rsETHMaps[CHAIN.ETHEREUM], perfFeeWei.toString(), 'hgETH Performance Fees');
                 dailyProtocolRevenue.add(
                   rsETHMaps[CHAIN.ETHEREUM],
-                  perfFeeWei.toString()
+                  perfFeeWei.toString(),
+                  'hgETH Performance Fees'
                 );
               }
             }
@@ -263,6 +293,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const adapter: Adapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2023-12-11" },
