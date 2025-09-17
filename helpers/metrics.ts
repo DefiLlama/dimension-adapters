@@ -12,11 +12,12 @@ export enum METRIC {
   ASSETS_YIELDS = 'Assets Yields',       // protocols take users deposited assets and invest to other (on-chain or off-chain) platforms to generate yields
   MINT_REDEEM_FEES = 'Mint/Redeem Fees', // protocols take fees by mint/redeem tokens
   DEPOSIT_WITHDRAW_FEES = 'Deposit/Withdraw Fees', // protocols take fees by deposit or withdraw tokens
-  MANAGERMENT_FEES = 'Management Fees', // protocols take fees manage assets for users
+  MANAGEMENT_FEES = 'Management Fees', // protocols take fees manage assets for users
   TRANSACTION_GAS_FEES = 'Transaction Gas Fees', // Blockchain transactions gas fees paid by users
   TRANSACTION_BASE_FEES = 'Transaction Base Fees', // Blockchain transactions base fees paid by users
   TRANSACTION_PRIORITY_FEES = 'Transaction Priority Fees', // Blockchain transactions priority fees paid by users
   TRADING_FEES = 'Trading Fees', // apps, bots, frontend, wallets charge users fees by using trading
   MARGIN_FEES = 'Margin Fees', // perpetual, derivatives margin fees
   OPEN_CLOSE_FEES = 'Open/Close Fees', // trading open/close fees
+  PERFORMANCE_FEES = 'Performance Fees' // protocols take fee based on how the assets under their management are performing
 }
