@@ -13,6 +13,7 @@ const ERC4626Abis: any = {
 
 interface ERC4626VaultInfo {
   asset: string;
+  decimals: number;
   assetDecimals: number;
   totalAssets: bigint;
   assetsPerShare: bigint;
@@ -34,6 +35,11 @@ export async function getERC4626VaultsInfo(usingApi: ChainApi, vaults: Array<str
     abi: ERC4626Abis.decimals,
     permitFailure: true,
     calls: vaults,
+  })
+  const assetsDecimals: Array<string> = await usingApi.multiCall({
+    abi: ERC4626Abis.decimals,
+    permitFailure: true,
+    calls: assets,
   })
   const totalAssets: Array<string> = await usingApi.multiCall({
     abi: ERC4626Abis.totalAssets,
@@ -58,7 +64,8 @@ export async function getERC4626VaultsInfo(usingApi: ChainApi, vaults: Array<str
     if (asset) {
       vaultInfos[vault.toLowerCase()] = {
         asset: asset,
-        assetDecimals: Number(decimals[i]),
+        decimals: Number(decimals[i]),
+        assetDecimals: Number(assetsDecimals[i]),
         totalAssets: BigInt(totalAssets[i]),
         assetsPerShare: BigInt(assetsPerShares[i]),
       }
