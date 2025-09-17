@@ -1,61 +1,61 @@
+import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const registry = '0x251be3a17af4892035c37ebf5890f4a4d889dcad'
-const topic0 = '0xa6ae807740439025f50884311ce0f96f5c3809a8f7170f9459dab1b14c9d8afd'
+const topic0_transfers = '0xa6ae807740439025f50884311ce0f96f5c3809a8f7170f9459dab1b14c9d8afd'
+const topic0_mint = '0x3ac06088fd2f047b705cf81c76a5be8b7d378860415de575a9974868ca188980'
 
-const minters = [
-  '0x0725D2B69e107a7404C98C98AAB7Ec9dBF7aF3C4',
-  '0x243880832644839397725558B108dCf2aF12A58D',
-  '0x732134D7f99b90C704d736B360dB45425073380f',
-  '0x776023A4573bd972c4C3e2a76F611d3C2bef516E'
-]
-
-const burners = [
-  '0x0725D2B69e107a7404C98C98AAB7Ec9dBF7aF3C4',
-  '0x732134D7f99b90C704d736B360dB45425073380f',
-  '0xf0F4F0B48BE34920Afef4Ed883cD3c947D7FfaCC',
-  '0x66DbFf2Ce099d19b4E8C5Dc8B254EC7aeAF5E642'
-]
+const abis = {
+  listTrustedOperatorRoleMembers: "function listTrustedOperatorRoleMembers() view returns (address[])",
+  listTrustedForwarderRoleMembers: "function listTrustedForwarderRoleMembers() view returns (address[])",
+  listMinterRoleMembers: "function listMinterRoleMembers() view returns (address[])",
+}
 
 const eventAbis = {
   approval: "event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId)",
-  tradeExecuted: "event TradeExecuted(address indexed bidder, address indexed asker, uint256 indexed nftTokenId, address erc20Token, uint256 amount, bytes tradeSignature, uint256 feeAccrued)"
+  tradeExecuted: "event TradeExecuted(address indexed bidder, address indexed asker, uint256 indexed nftTokenId, address erc20Token, uint256 amount, bytes tradeSignature, uint256 feeAccrued)",
+  tokenPurchasedAndMinted: "event TokenPurchasedAndMinted(address indexed mintedToAddress, address mintedTokenAddress, uint256 mintedTokenId, address paymentTokenAddress, uint256 paymentAmount)",
+}
+
+const getMintedNFTs = async (minters: string [], options: FetchOptions, fromBlock: number, toBlock: number, dailyFees: Balances) => {
+  const datas = await options.api.getLogs({ targets: minters, fromBlock, toBlock, topics: [topic0_mint], eventAbi: eventAbis.tokenPurchasedAndMinted, onlyArgs: true })
+  return datas.map(({ paymentTokenAddress, paymentAmount }) => {
+    dailyFees.add(paymentTokenAddress, paymentAmount)
+  })
+}
+
+const getMarketsPlaceDatas = async (allowedAddresses: string [], options: FetchOptions, fromBlock: number, toBlock: number, dailyFees: Balances) => {
+  const datas = await options.api.getLogs({ targets: allowedAddresses, fromBlock, toBlock, topics: [topic0_transfers], eventAbi: eventAbis.tradeExecuted, onlyArgs: true })
+  return datas.map(({ erc20Token, feeAccrued }) => {
+    dailyFees.add(erc20Token, feeAccrued)
+  })
 }
 
 const fetch = async (options: FetchOptions) => {
-  const [fromBlock, _toBlock] = await Promise.all([
+  const [listTrustedOperatorRoleMembers, listTrustedForwarderRoleMembers, listMinterRoleMembers, fromBlock, _toBlock] = await Promise.all([
+    options.api.call({ target: registry, abi: abis.listTrustedOperatorRoleMembers }),
+    options.api.call({ target: registry, abi: abis.listTrustedForwarderRoleMembers }),
+    options.api.call({ target: registry, abi: abis.listMinterRoleMembers }),
     options.getFromBlock(),
     options.getToBlock()
   ])
 
-  const toBlock = _toBlock - 100
+  const allowedAddresses = [...new Set([...listTrustedOperatorRoleMembers, ...listTrustedForwarderRoleMembers].map(a => a.toLowerCase()))]
+  const toBlock = _toBlock - 100 // safeBlock query
   const dailyFees = options.createBalances()
-  const dailyVolume = options.createBalances()
-  const allowedAddresses = new Set([...minters, ...burners].map(a => a.toLowerCase()))
 
-  console.log(fromBlock,toBlock)
-  const feesDatas = await options.api.getLogs({ fromBlock, toBlock, topics: [topic0], eventAbi: eventAbis.tradeExecuted, noTarget: true, onlyArgs: true, skipCache: true, skipCacheRead: true })
-  // feesDatas.forEach(({ erc20Token, feeAccrued }) => {
-  //   dailyFees.add(erc20Token, feeAccrued)
-  // })
-  feesDatas
-    .filter(({ bidder, asker }) =>
-      allowedAddresses.has(bidder.toLowerCase()) ||
-      allowedAddresses.has(asker.toLowerCase())
-    )
-    .forEach(({ erc20Token, feeAccrued }) => {
-      dailyFees.add(erc20Token, feeAccrued)
-    })
+  await getMarketsPlaceDatas(allowedAddresses, options, fromBlock, toBlock, dailyFees)
+  await getMintedNFTs(listMinterRoleMembers.map((x: string) => x.toLowerCase()), options, fromBlock, toBlock, dailyFees)
 
-
-
-  return { dailyFees, dailyVolume }
+  return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const methodology = {
-  Fees: "Fee paid by the user to execute the transaction.",
-  Revenue: "Fee collected by the protocol upon execution of a trade",
+  Fees: "Total fees from nfts (card pack sales) and marketplace transactions.",
+  Revenue: "Revenue from nfts sales + marketplace fees/royalties.",
+  UserFees: "Total fees paid by users for nfts and marketplace transactions.",
+  ProtocolRevenue: "Net revenue after accounting for nfts buyback expenses."
 };
 
 const adapter: SimpleAdapter = {
