@@ -48,7 +48,7 @@ const fetchFees = async (
 
   return {
     dailyFees: totalDailyFees,
-    dailyRevenue: totalDailyFees,
+    dailyRevenue: totalDailyFees + totalBurn,
     dailyHoldersRevenue: totalDailyFees + totalBurn,
     timestamp,
   };
