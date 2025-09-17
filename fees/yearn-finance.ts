@@ -19,11 +19,11 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
-    [METRIC.MANAGERMENT_FEES]: 'Management fees to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
   },
   ProtocolRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
-    [METRIC.MANAGERMENT_FEES]: 'Management fees to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
   },
 }
 
@@ -209,7 +209,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.add(vault.token, tf, METRIC.ASSETS_YIELDS)
     dailySupplySideRevenue.add(vault.token, tf - protocolFees, METRIC.ASSETS_YIELDS)
     dailyProtocolRevenue.add(vault.token, performanceFees, METRIC.ASSETS_YIELDS)
-    dailyProtocolRevenue.add(vault.token, managementFees, METRIC.MANAGERMENT_FEES)
+    dailyProtocolRevenue.add(vault.token, managementFees, METRIC.MANAGEMENT_FEES)
   }
 
   return {
