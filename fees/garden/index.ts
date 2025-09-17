@@ -190,6 +190,7 @@ const methodology = {
     dailyUserFees: "swap fees paid by users",
     dailyRevenue: "fees going to treasury",
     dailyProtocolRevenue: "fees going to protocol treasury",
+    Revenue: "Percentage of swap fees going to solvers and/or token holders",
 }
 
 const adapter: SimpleAdapter = {
