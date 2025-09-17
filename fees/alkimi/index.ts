@@ -20,7 +20,7 @@ const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
   };
 };
 
-module.exports = {
+export default {
   methodology: {
     Fees: "Transaction fees paid",
     HoldersRevenue: "All fees are used to buy back alkimi tokens and distributed to stakers",
