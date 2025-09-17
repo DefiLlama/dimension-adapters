@@ -7,10 +7,6 @@ interface IFeesResponse {
   total_fees_usd: number;
 }
 
-interface IRewardsResponse {
-  total_reward_usd: number;
-}
-
 interface IAuctionsDailyData {
   amount_inj: string;
   amount_stablecoin: string;
@@ -35,21 +31,14 @@ const fetchFees = async (
   _t: ChainBlocks,
   options: FetchOptions
 ) => {
-  const dateStr = new Date(options.startOfDay * 1000)
-    .toISOString()
-    .split("T")[0];
-
-  const feesUrl = `${BASE_URL}/fees?start_date=${dateStr}`;
-  const feesRes: IFeesResponse = await httpGet(feesUrl);
-
-  const rewardsUrl = `${BASE_URL}/rewards?start_date=${dateStr}`;
-  const rewardsRes: IRewardsResponse = await httpGet(rewardsUrl);
-
-  const auctionUrl = `${BASE_URL}/auction?start_date=${dateStr}`;
-  const auctionRes: IAuctionsResponse = await httpGet(auctionUrl);
+  const feesRes: IFeesResponse = await httpGet(
+    `${BASE_URL}/fees?start_date=${options.dateString}`
+  );
+  const auctionRes: IAuctionsResponse = await httpGet(
+    `${BASE_URL}/auction?start_date=${options.dateString}`
+  );
 
   const totalDailyFees = feesRes.total_fees_usd;
-  const totalRewards = rewardsRes.total_reward_usd;
 
   const totalBurn = auctionRes.days.reduce((sum, day) => {
     const amountBurned = parseFloat(day.winning_bid);
@@ -60,7 +49,7 @@ const fetchFees = async (
   return {
     dailyFees: totalDailyFees,
     dailyRevenue: totalDailyFees,
-    dailyHoldersRevenue: totalRewards + totalBurn,
+    dailyHoldersRevenue: totalDailyFees + totalBurn,
     timestamp,
   };
 };
