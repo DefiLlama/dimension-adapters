@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { postURL } from "../../utils/fetchURL";
-import ADDRESSES from '../../helpers/coreAssets.json'
 
 export const STREAMFLOW_TREASURY_SOLANA = "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw";   
 export const STREAMFLOW_TREASURY_SUI = "0x2834d0d631b56f59ad2a37af3b7fa4d2c067781065bcd6623c682de690af59b9";
@@ -12,6 +11,7 @@ const solanaFetch: any = async (options: FetchOptions) => {
     const dailyFees = await getSolanaReceived({
         target: STREAMFLOW_TREASURY_SOLANA,
         options,
+        // exclude swap transactions
         blacklist_signers: [STREAMFLOW_TREASURY_SOLANA],
     })
 
@@ -63,11 +63,10 @@ const suiFetch = async (options: FetchOptions) => {
             for (const change of tx.balanceChanges) {
               if (
                 change.owner?.AddressOwner === STREAMFLOW_TREASURY_SUI &&
-                change.coinType === ADDRESSES.sui.SUI &&
                 Number(change.amount) > 0
               ) {
                 total += Number(change.amount);
-                dailyFees.add(ADDRESSES.sui.SUI, Number(change.amount));
+                dailyFees.add(change.coinType, Number(change.amount));
               }
             }
           }
