@@ -65,6 +65,7 @@ async function fetchFees(options: FetchOptions): Promise<FetchResultV2> {
     return {
         dailyFees,
         dailyRevenue,
+        dailyProtocolRevenue : dailyRevenue,
         dailySupplySideRevenue,
     };
 }
