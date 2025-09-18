@@ -18,17 +18,19 @@ const eventAbis = {
   tokenPurchasedAndMinted: "event TokenPurchasedAndMinted(address indexed mintedToAddress, address mintedTokenAddress, uint256 mintedTokenId, address paymentTokenAddress, uint256 paymentAmount)",
 }
 
-const getMintedNFTs = async (minters: string [], options: FetchOptions, fromBlock: number, toBlock: number, dailyFees: Balances) => {
+const getMintedNFTs = async (minters: string [], options: FetchOptions, fromBlock: number, toBlock: number, dailyFees: Balances, dailyRevenue: Balances) => {
   const datas = await options.api.getLogs({ targets: minters, fromBlock, toBlock, topics: [topic0_mint], eventAbi: eventAbis.tokenPurchasedAndMinted, onlyArgs: true })
   return datas.map(({ paymentTokenAddress, paymentAmount }) => {
-    dailyFees.add(paymentTokenAddress, paymentAmount)
+    dailyFees.add(paymentTokenAddress, paymentAmount * 6n / 100n)
+    dailyRevenue.add(paymentTokenAddress, paymentAmount * 6n / 100n)
   })
 }
 
-const getMarketsPlaceDatas = async (allowedAddresses: string [], options: FetchOptions, fromBlock: number, toBlock: number, dailyFees: Balances) => {
+const getMarketsPlaceDatas = async (allowedAddresses: string [], options: FetchOptions, fromBlock: number, toBlock: number, dailyFees: Balances, dailyRevenue: Balances) => {
   const datas = await options.api.getLogs({ targets: allowedAddresses, fromBlock, toBlock, topics: [topic0_transfers], eventAbi: eventAbis.tradeExecuted, onlyArgs: true })
   return datas.map(({ erc20Token, feeAccrued }) => {
     dailyFees.add(erc20Token, feeAccrued)
+    dailyRevenue.add(erc20Token, feeAccrued)
   })
 }
 
@@ -44,11 +46,12 @@ const fetch = async (options: FetchOptions) => {
   const allowedAddresses = [...new Set([...listTrustedOperatorRoleMembers, ...listTrustedForwarderRoleMembers].map(a => a.toLowerCase()))]
   const toBlock = _toBlock - 100 // safeBlock query
   const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
 
-  await getMarketsPlaceDatas(allowedAddresses, options, fromBlock, toBlock, dailyFees)
-  await getMintedNFTs(listMinterRoleMembers.map((x: string) => x.toLowerCase()), options, fromBlock, toBlock, dailyFees)
+  await getMarketsPlaceDatas(allowedAddresses, options, fromBlock, toBlock, dailyFees, dailyRevenue)
+  await getMintedNFTs(listMinterRoleMembers.map((x: string) => x.toLowerCase()), options, fromBlock, toBlock, dailyFees, dailyRevenue)
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees, dailyProtocolRevenue: dailyFees }
+  return { dailyFees, dailyRevenue, dailyUserFees: dailyFees, dailyProtocolRevenue: dailyRevenue }
 }
 
 const methodology = {
