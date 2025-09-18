@@ -1,15 +1,15 @@
 import * as sdk from "@defillama/sdk";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { BSC, POLYGON, AVAX, ARBITRUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 
 const endpoints: any = {
-  [BSC]: sdk.graph.modifyEndpoint('69xMkatN58qWXZS7FXqiVQmvkHhNrq3thTfdB6t85Wvk'),
-  [POLYGON]:
+  [CHAIN.BSC]: sdk.graph.modifyEndpoint('69xMkatN58qWXZS7FXqiVQmvkHhNrq3thTfdB6t85Wvk'),
+  [CHAIN.POLYGON]:
     sdk.graph.modifyEndpoint('FL3ePDCBbShPvfRJTaSCNnehiqxsPHzpLud6CpbHoeKW'),
-  [AVAX]: sdk.graph.modifyEndpoint('4nQJ4T5TXvTxgECqQ6ox6Nwf57d5BNt6SCn7CzzxjDZN'),
-  [ARBITRUM]: sdk.graph.modifyEndpoint('AsPBS4ymrjoR61r1x2avNJJtMPvzZ3quMHxvQTgDJbU'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('4nQJ4T5TXvTxgECqQ6ox6Nwf57d5BNt6SCn7CzzxjDZN'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('AsPBS4ymrjoR61r1x2avNJJtMPvzZ3quMHxvQTgDJbU'),
   base: sdk.graph.modifyEndpoint('6rt22DL9aaAjJHDUZ25sSsPuvuKxp1Tnf8LBXhL8WdZi'),
 };
 
@@ -161,25 +161,25 @@ const adapter: Adapter = {
   methodology: info.methodology,
   version: 2,
   adapter: {
-    [BSC]: {
+    [CHAIN.BSC]: {
       start: '2022-07-27',
-      fetch: graphs()(BSC),
+      fetch: graphs()(CHAIN.BSC),
     },
-    [POLYGON]: {
+    [CHAIN.POLYGON]: {
       start: '2022-07-27',
-      fetch: graphs()(POLYGON),
+      fetch: graphs()(CHAIN.POLYGON),
     },
-    [AVAX]: {
+    [CHAIN.AVAX]: {
       start: '2022-07-27',
-      fetch: graphs()(AVAX),
+      fetch: graphs()(CHAIN.AVAX),
     },
-    [ARBITRUM]: {
+    [CHAIN.ARBITRUM]: {
       start: '2022-07-27',
-      fetch: graphs()(ARBITRUM),
+      fetch: graphs()(CHAIN.ARBITRUM),
     },
-    base: {
+    [CHAIN.BASE]: {
       start: '2024-11-04',
-      fetch: graphs()('base'),
+      fetch: graphs()(CHAIN.BASE),
     },
   },
 }
