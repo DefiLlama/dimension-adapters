@@ -44,31 +44,28 @@ async function fetchFees(options: FetchOptions): Promise<FetchResultV2> {
 
     const vaultInfosBefore = await getERC4626VaultsInfo(options.fromApi, vaults)
     const vaultInfosAfter = await getERC4626VaultsInfo(options.toApi, vaults)
-
     for (const vault of Object.keys(vaultInfosBefore)) {
         if (vaultInfosBefore[vault] && vaultInfosAfter[vault]) {
-            const totalAssets = Number(vaultInfosAfter[vault].totalAssets) * (10 ** vaultInfosAfter[vault].assetDecimals) / (10 ** vaultInfosAfter[vault].decimals)
+            const totalAssets = Number(vaultInfosAfter[vault].totalAssets) / (10 ** vaultInfosAfter[vault].decimals)
             const growthCumulativeIndex = Number(vaultInfosAfter[vault].assetsPerShare) - Number(vaultInfosBefore[vault].assetsPerShare)
-            const growthYields = growthCumulativeIndex * totalAssets / 1e18
-            
+            const growthYields = (growthCumulativeIndex / (10 ** vaultInfosAfter[vault].assetDecimals)) * totalAssets;
             // management fees on totalAssets
             const feeRate = getFeeRate(options.chain, vault)
             const year = 365 * 24 * 3600
             const timeframe = options.toTimestamp - options.fromTimestamp
             const managementFees = totalAssets * feeRate * timeframe / year;
 
-            dailyFees.add(vaultInfosBefore[vault].asset, growthYields + managementFees)
-            dailyRevenue.add(vaultInfosBefore[vault].asset, managementFees)
+            dailyFees.add(vaultInfosBefore[vault].asset, ((growthYields + managementFees) * (10 ** vaultInfosAfter[vault].assetDecimals)))
+            dailyRevenue.add(vaultInfosBefore[vault].asset, (managementFees * (10 ** vaultInfosAfter[vault].assetDecimals)))
         }
     }
-
     const dailySupplySideRevenue = dailyFees.clone(1)
     dailySupplySideRevenue.subtract(dailyRevenue)
 
     return {
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue : dailyRevenue,
         dailySupplySideRevenue,
     };
 }
