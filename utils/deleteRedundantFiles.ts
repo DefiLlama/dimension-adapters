@@ -6,7 +6,6 @@ import * as path from 'path';
 async function run() {
  const dirs = Object.values(AdapterType).filter(i => i !== AdapterType.DERIVATIVES && i !== AdapterType.PROTOCOLS)
 
- console.log(dirs)
 // Global object to store results by directory
 const filesByDirectory: Record<string, Record<string, {
   path: string,
@@ -84,6 +83,7 @@ console.log('\nChecking for duplicate files with less than 20 lines...');
 
 // Group files by key across directories
 const filesByKey: Record<string, Array<{
+  key: string;
   dir: string;
   path: string;
   lineCount: number;
@@ -98,6 +98,7 @@ for (const dir of Object.keys(filesByDirectory)) {
     }
     
     filesByKey[key].push({
+      key,
       dir,
       path: fileInfo.path,
       lineCount: fileInfo.lineCount,
@@ -119,8 +120,8 @@ for (const [key, files] of Object.entries(filesByKey)) {
   // Skip if no files have less than 20 lines
   if (smallFiles.length === 0) continue;
   
-  console.log(`\nFound duplicate key: ${key}`);
-  console.log(`Found in ${files.length} directories`);
+  // console.log(`\nFound duplicate key: ${key}`);
+  // console.log(`Found in ${files.length} directories`);
   
   // Keep track of directories with larger files
   const largeFileDirectories = new Set(
@@ -135,12 +136,12 @@ for (const [key, files] of Object.entries(filesByKey)) {
       || content.includes('/helpers/')
       || content.includes('methodology')
     ) continue;
-    console.log(`  Directory: ${file.dir}, Path: ${file.path}, Lines: ${file.lineCount}`);
+    // console.log(`  Directory: ${file.dir}, Path: ${file.path}, Lines: ${file.lineCount}`);
     
-    if (file.content) {
-      console.log('    Content:');
-      console.log(`    ${file.content.replace(/\n/g, '\n    ')}`);
-    }
+    // if (file.content) {
+    //   console.log('    Content:');
+    //   console.log(`    ${file.content.replace(/\n/g, '\n    ')}`);
+    // }
     
     // Only delete if there's at least one other copy (either small or large)
     const shouldDelete = largeFileDirectories.size > 0 || 
@@ -148,8 +149,8 @@ for (const [key, files] of Object.entries(filesByKey)) {
     
     if (shouldDelete) {
       try {
-        console.log(`  Deleting: ${file.path}`);
-        await fs.unlink(file.path);
+        console.log(`  Deleting: lines: ${file.lineCount} ${file.dir}/${file.key} `);
+        // await fs.unlink(file.path);
         deletionCount++;
       } catch (e) {
         console.error(`  Failed to delete ${file.path}:`, e);
