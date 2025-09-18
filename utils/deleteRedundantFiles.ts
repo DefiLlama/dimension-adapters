@@ -150,7 +150,7 @@ for (const [key, files] of Object.entries(filesByKey)) {
     if (shouldDelete) {
       try {
         console.log(`  Deleting: lines: ${file.lineCount} ${file.dir}/${file.key} `);
-        // await fs.unlink(file.path);
+        await fs.unlink(file.path);
         deletionCount++;
       } catch (e) {
         console.error(`  Failed to delete ${file.path}:`, e);
