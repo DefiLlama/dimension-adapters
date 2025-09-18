@@ -184,8 +184,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: 'Users pay between 0.01% and 0.1% fees on each swap.',
     UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
-    Revenue: "The protocol does not currently charge any fees.",
-    ProtocolRevenue: "The protocol does not currently charge any fees.",
+    Revenue: "Protocol fees (if enabled) will be allocated to the Nabla DAO Treasury.",
+    ProtocolRevenue: "Protocol fees (if enabled) will be allocated to the Nabla DAO Treasury.",
     Volume: "Swap Volume on Nabla AMM.",
 };
 
