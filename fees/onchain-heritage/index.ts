@@ -1,44 +1,42 @@
 // fees/onchain-heritage/index.ts
 // Onchain Heritage — Fees/Revenue (Optimism)
-// نهج بلا Indexer ولا .env:
-// نحسب عدد أحداث `Participated` خلال اليوم × رسم ثابت لكل مشاركة (ETH)
+// Indexer-free approach: fees = count(Participated events) × fixed fee per participation (in ETH).
+// NOTE: We intentionally set the fixed fee to 0n to avoid counting Optimism network gas as protocol fees.
 
 import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// ======== اضبط قيمة الرسم الثابت لكل مشاركة هنا (بالـ wei) ========
-// مثال: 0.001 ETH = 1e15 wei  →  1000000000000000n
-// عدّلها إلى قيمة رسمك الفعلية!
-const FEE_PER_PARTICIPATION_WEI = 0n; // 0.001 ETH (مثال)
+// ===== Fixed fee per participation (in wei) =====
+// Example conversions:
+// 0.0005 ETH → 500000000000000n
+// 0.001  ETH → 1000000000000000n
+// Set to 0n since there is currently no on-chain protocol fee.
+const FEE_PER_PARTICIPATION_WEI = 0n;
 
-// ABI الحدث الذي سنعدّه
 const PARTICIPATED_EVENT =
   "event Participated(address indexed user, uint256 userTotal, uint256 total)";
 
-// عنوان عقدك على Optimism
 const CONTRACT = "0x988Ac408aBCa2032E2a2DF9E0296c5e3416Cc15b";
 
 const fetch = async (options: FetchOptions) => {
-  // نجلب لوجات الحدث خلال نافذة اليوم
+  // Pull event logs within the given daily window
   const logs = await options.getLogs({
     target: CONTRACT,
     eventAbi: PARTICIPATED_EVENT,
   });
 
-  // عدد المشاركات خلال الفترة
   const count = BigInt(logs.length);
 
-  // الرسوم الكليّة = عدد المشاركات × الرسم الثابت (بالـ wei)
+  // Total fees = event count × fixed fee (wei)
   const totalFeesWei = count * FEE_PER_PARTICIPATION_WEI;
 
-  // balances helper لتجميع وتحويل العملة لاحقاً
+  // Balance helper for aggregation & pricing (Llama infra handles pricing)
   const balances = options.createBalances();
 
-  // نضيفها كـ Gas Token (ETH على Optimism)
-  // ملاحظة: هذا لا يحتاج Indexer، مجرد تجميع قيمة
+  // Add as native gas token on Optimism (not L2 gas! this is the modeled protocol fee)
   balances.addGasToken(totalFeesWei);
 
-  // نفترض أن كل الرسوم تؤول للبروتوكول (عدّل إن كان لديك توزيع آخر)
+  // Assuming 100% of fees accrue to the protocol treasury
   return {
     dailyFees: balances,
     dailyRevenue: balances,
@@ -49,13 +47,13 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.OPTIMISM],
-  // ضع تاريخ بدء منطقي (أول يوم بدأت تحصيل فيه الرسوم)
+  // Pick a sensible historical start for backfill
   start: "2025-07-21",
   methodology: {
     Fees:
-      "عدد أحداث `Participated` خلال اليوم مضروبًا برسم ثابت لكل مشاركة (بالـ ETH). لا يعتمد على Indexer.",
+      "Computed as count of `Participated` events per day multiplied by a fixed per-participation fee (in ETH). Set to 0 by default to avoid conflating Optimism network gas with protocol fees.",
     Revenue:
-      "نعتبر 100% من الرسوم تؤول للتريجري. عدّل إذا كان هناك توزيع لحاملي التوكن/LPs.",
+      "Assumes 100% of collected fees accrue to the protocol. Will update if there is a split to LPs/holders.",
   },
 };
 
