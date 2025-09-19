@@ -4,13 +4,14 @@ import { getSolanaReceived } from "../../helpers/token";
 
 const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const fees = await getSolanaReceived({ options, targets: ['h7HnoyxPxBW25UaG6ayo4jSSmFARX9DmpYhbNZsLfiP'] })
-  return { dailyFees: fees, dailyRevenue: fees, dailyProtocolRevenue: fees }
+  return { dailyFees: fees, dailyRevenue: fees, dailyProtocolRevenue: fees, dailyUserFees: fees }
 }
 
 const methodology = {
-  Fees: "Fees collected by the migrate.fun bot.",
-  Revenue: "Revenue collected by the migrate.fun bot.",
-  ProtocolRevenue: "Protocol revenue collected by the migrate.fun bot.",
+  Fees: "Platform fees is 3.75% of total liquidity migrated.",
+  UserFees: "Platform fees is 3.75% of total liquidity migrated.",
+  Revenue: "3.75% of total liquidity migrated.",
+  ProtocolRevenue: "3.75% of total liquidity migrated.",
 }
 
 const adapter: SimpleAdapter = {
