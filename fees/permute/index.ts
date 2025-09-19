@@ -3,19 +3,27 @@ import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const photonBridgeEndpoint = "https://bridge.superproof.ai/bridge"
+const permuteEndpoint = "https://api.permute.finance/bridge"
 
 const chainMapping = {
-  ETH: CHAIN.ETHEREUM,
   BTC: CHAIN.BITCOIN,
+  ETH: CHAIN.ETHEREUM,
+  AVAXC: CHAIN.AVAX,
+  ARBITRUM: CHAIN.ARBITRUM,
+  BSC: CHAIN.BSC,
+  TRON: CHAIN.TRON,
+  LTC: CHAIN.LITECOIN,
+  BCH: CHAIN.BITCOIN_CASH,
+  DOGE: CHAIN.DOGE,
+  SOL: CHAIN.SOLANA,
 }
 
-const CHAINS = ['BTC', 'ETH']
+const CHAINS = ['BTC', 'ETH', 'AVAXC', 'ARBITRUM', 'BSC', 'TRON', 'LTC', 'BCH', 'DOGE', 'SOL']
 
 const getFetchForChain = (chainShortName: string) => {
   return async (_a: any, _b: any, options: FetchOptions) => {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
-    const feesForChainAndDay = await httpGet(photonBridgeEndpoint.concat(`/dashboard/fees/chain/day?chain=${chainShortName}&timestamp=${startOfDay}`))
+    const feesForChainAndDay = await httpGet(permuteEndpoint.concat(`/dashboard/fees/chain/day?chain=${chainShortName}&timestamp=${startOfDay}`))
 
     let dailyFees = feesForChainAndDay.total_fees
     let dailyRevenue = feesForChainAndDay.electron_fees
