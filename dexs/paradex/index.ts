@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 // const historicalVolumeEndpoint = (market: string, start: number, end: number) => `https://api.prod.paradex.trade/v1/markets/summary?market=${market}&start=${start}&end=${end}`
 // const marketsEndpoint = "https://api.prod.paradex.trade/v1/markets"
-const volumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/10655/card/9655?parameters=%5B%5D'
+const volumeEndpoint = 'https://data.prod.paradex.trade/tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/18119/card/18713'
 
 
 interface IVolumeData {
