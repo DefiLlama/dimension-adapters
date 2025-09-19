@@ -24,7 +24,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     });
     const dailyVolume = solanaFees.clone(100);
     console.log(solanaFees)
-    return { dailyFees: solanaFees, dailyRevenue: solanaFees, dailyProtocolRevenue: solanaFees, dailyVolume }
+    return { dailyFees: solanaFees, dailyUserFees: solanaFees, dailyRevenue: solanaFees, dailyProtocolRevenue: solanaFees, dailyVolume }
   }
   const baseFees = await addTokensReceived({
     options,
@@ -32,11 +32,12 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   });
   const dailyVolume = baseFees.clone(100);
 
-  return { dailyFees: baseFees, dailyRevenue: baseFees, dailyProtocolRevenue: baseFees, dailyVolume }
+  return { dailyFees: baseFees, dailyUserFees: baseFees, dailyRevenue: baseFees, dailyProtocolRevenue: baseFees, dailyVolume }
 }
 
 const methodology = {
-  Fees: "Trading fees paid by users while using o1.exchange.",
+  Fees: "1% Trading fees paid by users while using o1.exchange.",
+  UserFees: "1% Trading fees paid by users while using o1.exchange.",
   Revenue: "All fees are collected by o1.exchange.",
   ProtocolRevenue: "All fees are collected by o1.exchange.",
 }
