@@ -34,7 +34,7 @@ export default {
   }, {
     holdersRevenueFromRevenue: 1, // 100% revenue
   }),
-  methodologyy: {
+  methodology: {
     Fees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
     UserFees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
     Revenue: 'Share of amount of swap fees.',
