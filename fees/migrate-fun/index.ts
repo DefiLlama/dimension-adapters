@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const fees = await getSolanaReceived({ options, targets: ['h7HnoyxPxBW25UaG6ayo4jSSmFARX9DmpYhbNZsLfiP'] })
   return { dailyFees: fees, dailyRevenue: fees, dailyProtocolRevenue: fees }
 }
