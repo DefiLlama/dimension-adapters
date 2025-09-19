@@ -18,7 +18,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
   const volumesData = await fetchURL(volumeEndpoint) as IVolumeData
   const timestampStr = new Date(timestamp * 1000).toISOString().split('T')[0] + "T00:00:00Z"
-  const dailyVolume = volumesData.data.rows.find(row => ((row[0] === timestampStr)))?.[2]
+  const dailyVolume = volumesData.data.rows.find(row => ((row[0] === timestampStr && row[1] === 'PERP')))?.[2]
   if (!dailyVolume) throw new Error('record missing!')
 
     return { 
