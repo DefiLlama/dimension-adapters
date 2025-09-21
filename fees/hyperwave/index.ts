@@ -1,6 +1,6 @@
-import { Adapter, FetchOptions } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { httpPost } from "../utils/fetchURL";
+import { Adapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { httpPost } from "../../utils/fetchURL";
 
 // Each entry in the history is a tuple: [timestamp, value]
 type HistoryEntry = [number, string];
