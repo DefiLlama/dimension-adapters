@@ -1,17 +1,19 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { appendHwhlpRev } from "./hwhlp";
+import { appendHwhypeRev } from "./hwhype";
 
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const hwhlpAppendedFees = await appendHwhlpRev(options, dailyFees);
+    const hwhypeAppendedFees = await appendHwhypeRev(options, hwhlpAppendedFees);
 
     return {        
-        dailyFees: hwhlpAppendedFees,
+        dailyFees: hwhypeAppendedFees,
         dailyRevenue: '0',
         dailyProtocolRevenue: '0',
-        dailySupplySideRevenue: hwhlpAppendedFees,
+        dailySupplySideRevenue: hwhypeAppendedFees,
     };
 };
 
@@ -25,10 +27,10 @@ const adapter: Adapter = {
     },
     allowNegativeValue: true, // PnL can be negative
     methodology: {
-        Fees: "Yield generated from HLP vault",
-        Revenue: "No Revenue for hyperwave protocol",
+        Fees: "Yield generated from HLP and hwHYPE vault",
+        Revenue: "No Revenue for Hyperwave protocol",
         ProtocolRevenue: "No Protocol share in revenue",
-        SupplySideRevenue: "100% of yield paid to hwHLP holders"
+        SupplySideRevenue: "100% of yield paid to hwHLP and hwHYPE holders"
     },
 };
 
