@@ -1,18 +1,17 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getHwhlpRev } from "./hwhlp";
+import { appendHwhlpRev } from "./hwhlp";
 
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const hwhlpFees = await getHwhlpRev(options);
-    dailyFees.addCGToken("usd-coin", hwhlpFees);
+    const hwhlpAppendedFees = await appendHwhlpRev(options, dailyFees);
 
-    return {
-        dailyFees,
+    return {        
+        dailyFees: hwhlpAppendedFees,
         dailyRevenue: '0',
         dailyProtocolRevenue: '0',
-        dailySupplySideRevenue: dailyFees,
+        dailySupplySideRevenue: hwhlpAppendedFees,
     };
 };
 

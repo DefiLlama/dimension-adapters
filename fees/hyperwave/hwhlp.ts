@@ -1,5 +1,5 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { Balances } from "@defillama/sdk";
+import { FetchOptions } from "../../adapters/types";
 import { httpPost } from "../../utils/fetchURL";
 
 // Each entry in the history is a tuple: [timestamp, value]
@@ -59,7 +59,7 @@ async function fetchHyperliquidInfo<T>(input: any, path: string): Promise<T> {
     return data;
 }
 
-export async function getHwhlpRev(options: FetchOptions) : Promise<number> {
+export async function appendHwhlpRev(options: FetchOptions, dailyFees:Balances) : Promise<Balances> {
     let JMES_TO_PNL = "[0][1].pnlHistory";
     const DELAY = 200; // ms
     // const delay = 10000 // ms
@@ -111,5 +111,7 @@ export async function getHwhlpRev(options: FetchOptions) : Promise<number> {
             }
         }
     }
-    return totalPnlDiff;
+
+    dailyFees.addCGToken("usd-coin", totalPnlDiff);
+    return dailyFees
 };
