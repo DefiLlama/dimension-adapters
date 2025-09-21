@@ -11,6 +11,7 @@ interface IBoringVault {
     vault: string;
     accountant: string;
     accountantAbiVersion: 1 | 2;
+    startTimestamp: number;
 }
 
 const BoringVaults: { [key: string]: Array<IBoringVault> } = {
@@ -19,6 +20,7 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
             vault: "0x4DE03cA1F02591B717495cfA19913aD56a2f5858",
             accountant: "0xCf9be8BF79ad26fdD7aA73f3dd5bA73eCDee2a32",
             accountantAbiVersion: 1,
+            startTimestamp: 1754073000,
         },
     ],
 };
@@ -50,11 +52,22 @@ interface ExchangeRateUpdatedEvent {
     newRate: bigint;
 }
 
-export async function appendHwhypeRev(options: FetchOptions, dailyFees:sdk.Balances): Promise<sdk.Balances> {
-    const dailySupplySideRevenue = options.createBalances();
-    const dailyProtocolRevenue = options.createBalances();
+export async function appendHwhypeRev(
+    options: FetchOptions,
+    dailyFees: sdk.Balances
+): Promise<sdk.Balances> {
+    const START_TIMESTAMP = options.startTimestamp;
+    const END_TIMESTAMP = options.endTimestamp;
 
-    const vaults = BoringVaults[options.chain];
+    // const dailySupplySideRevenue = options.createBalances();
+    // const dailyProtocolRevenue = options.createBalances();
+
+    const allVaults = BoringVaults[options.chain];
+    const vaults = allVaults.filter(
+        (v) =>
+            // only vaults that have startTimestamp after before START_TIMESTAMP are considered
+            v.startTimestamp < START_TIMESTAMP
+    );
 
     if (vaults) {
         const getDecimals: Array<string> = await options.api.multiCall({
@@ -104,7 +117,6 @@ export async function appendHwhypeRev(options: FetchOptions, dailyFees:sdk.Balan
                         ? Number(event.newRate - event.oldRate)
                         : 0;
 
-
                 // console.log(event.blockNumber)
 
                 // don't need to make calls if there isn't rate growth
@@ -150,8 +162,8 @@ export async function appendHwhypeRev(options: FetchOptions, dailyFees:sdk.Balan
                     const protocolFee = totalYield - supplySideYield;
 
                     dailyFees.add(token, totalYield);
-                    dailySupplySideRevenue.add(token, supplySideYield);
-                    dailyProtocolRevenue.add(token, protocolFee);
+                    // dailySupplySideRevenue.add(token, supplySideYield);
+                    // dailyProtocolRevenue.add(token, protocolFee);
                 }
             }
 
@@ -193,7 +205,7 @@ export async function appendHwhypeRev(options: FetchOptions, dailyFees:sdk.Balan
                 yearInSecs;
 
             dailyFees.add(token, platformFee);
-            dailyProtocolRevenue.add(token, platformFee);
+            // dailyProtocolRevenue.add(token, platformFee);
         }
     }
 
