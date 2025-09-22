@@ -30,6 +30,7 @@ type IConfig = {
 const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH;
 const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
 const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
+const USDT_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.USDT;
 
 const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
 
@@ -210,13 +211,14 @@ const fetch = (chain: Chain) => {
     }
 
     // these revenue should be counted in fees too
-    dailyRevenue.addBalances(
-      await addTokensReceived({
-        options,
-        target: AIRDROP_DISTRIBUTOR,
-      })
-    )
+    const tokenToDistributor = await addTokensReceived({
+      options,
+      target: AIRDROP_DISTRIBUTOR,
+    })
 
+    tokenToDistributor.removeTokenBalance(USDT_ETHEREUM) // ignore USDT airdrop
+
+    dailyRevenue.addBalances(tokenToDistributor)
     dailyFees.addBalances(dailyRevenue);
     dailyFees.addBalances(dailySupplySideRevenue);
 
