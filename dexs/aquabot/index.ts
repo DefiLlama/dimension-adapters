@@ -45,6 +45,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   fetch,
+  deadFrom: '2025-09-13', // likely rugged after the presale
   chains: [CHAIN.SOLANA],
   start: "2025-08-11",
   methodology,
