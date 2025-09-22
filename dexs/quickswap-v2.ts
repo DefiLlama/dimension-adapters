@@ -32,6 +32,7 @@ async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
     dailyRevenue: dailyFees * 0.05 / 0.3,
     dailyProtocolRevenue: dailyFees * 0.05 / 0.3,
     dailyHoldersRevenue: 0,
+    dailySupplySideRevenue: dailyFees * 0.25 / 0.3,
     dailyUserFees: dailyFees,
   }
 }
