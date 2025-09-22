@@ -2,36 +2,12 @@ import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const baseCGMap: any = {
-  "GALA": 'gala',
-  "GUSDC": 'usd-coin', "GUSDT": 'tether', "GSOL": 'solana', "$GMUSIC": 'gala-music', "GFARTCOIN": 'fartcoin',
-}
-
-async function fetch({ createBalances }: FetchOptions) {
-  const dailyVolume = createBalances();
-  const dailyFees = createBalances();
-  const data = await httpGet('https://dex-backend-prod1.defi.gala.com/coin-gecko/tickers')
-  data.forEach((item: any) => {
-    if (!item.base_volume) return;
-
-    const cgToken = baseCGMap[item.base_currency]
-    if (!cgToken) {
-      console.log('No CG mapping for', item.base_currency);
-      return;
-    }
-
-    const fee = item.ticker_id.split('/')[2] / 1e6
-
-    dailyVolume.addCGToken(cgToken, item.base_volume)
-    dailyFees.addCGToken(cgToken, item.base_volume * fee)
-  })
-
+async function fetch(_: any, _2: any, { dateString }: FetchOptions) {
+  const { volumeUSD: dailyVolume, feesUSD: dailyFees } = await httpGet('https://dex-backend-prod1.defi.gala.com/dex/pairs/volume-fees?date=' + dateString);
   return { dailyVolume, dailyFees }
 }
 
 export default {
-  version: 2,
-  runAtCurrTime: true,
   fetch,
   start: '2025-09-03',
   chains: [CHAIN.GALA],
