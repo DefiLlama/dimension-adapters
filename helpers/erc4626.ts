@@ -81,7 +81,7 @@ export async function getERC4626VaultsYield({
   options,
   vaults,
   assetAbi = 'address:asset',
-  valueAbi = 'uint256:totalAssets',
+  valueAbi = 'uint256:totalSupply',
   convertAbi = 'function convertToAssets(uint256) view returns (uint256)',
 }: {
   options: FetchOptions,
@@ -112,7 +112,7 @@ export async function getERC4626VaultsYield({
     if (token && value && decimal && cumulativeIndexBeforeValue && cumulativeIndexAfterValue) {
       const totalTokenBalance = Number(value) / (10 ** Number(decimal))
       const growthCumulativeIndex = Number(cumulativeIndexAfterValue) - Number(cumulativeIndexBeforeValue)
-      const growthInterest = growthCumulativeIndex * totalTokenBalance / (10 ** Number(decimal))
+      const growthInterest = growthCumulativeIndex * totalTokenBalance
       balances.add(token, growthInterest)
     }
   }
