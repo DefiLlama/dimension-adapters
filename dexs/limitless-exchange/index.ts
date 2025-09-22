@@ -85,7 +85,7 @@ async function fetch(options: FetchOptions) {
   });
 
   feeRefundedLogs.forEach(feeRefund => {
-    dailyRevenue.addToken(ADDRESSES.base.USDC, -1 * feeRefund.amount);
+    dailyRevenue.subtractToken(ADDRESSES.base.USDC,feeRefund.amount);
   });
 
   const dailyFees = dailyRevenue.clone();
