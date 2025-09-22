@@ -20,44 +20,24 @@ const abi = {
   FEE_REFUNDED: "event FeeRefunded (address token, address to, uint256 id, uint256 amount)"
 };
 
-async function fetch(options: FetchOptions) {
+async function fetch(_: any, _1: any, options: FetchOptions) {
+  const { api } = options
   const dailyVolume = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const fpmmMarkets: any[] = [];
 
   const marketCreationLogs = await options.getLogs({
     eventAbi: abi.FPMM_CREATION,
     targets: [contracts.FPMM_FACTORY, contracts.FPMM_FACTORY_V1],
-    fromBlock: 13549462
+    fromBlock: 13549462,
+    cacheInCloud: true,
+    skipIndexer: true,
   });
 
-  marketCreationLogs.forEach(market => {
-    fpmmMarkets.push({ fixedProductMarketMaker: market.fixedProductMarketMaker, collateralToken: market.collateralToken })
-  });
-
-  await Promise.all(fpmmMarkets.map(async (market) => {
-    const { fixedProductMarketMaker, collateralToken } = market
-    const fpmmBuyLogs = await options.getLogs({
-      eventAbi: abi.FPMM_BUY,
-      target: fixedProductMarketMaker
-    });
-
-    const fpmmSellLogs = await options.getLogs({
-      eventAbi: abi.FPMM_SELL,
-      target: fixedProductMarketMaker
-    });
-
-    fpmmBuyLogs.forEach(buy => {
-      dailyVolume.addToken(collateralToken, buy.investmentAmount);
-      dailySupplySideRevenue.addToken(collateralToken, buy.feeAmount)
-    });
-
-    fpmmSellLogs.forEach(sell => {
-      dailyVolume.addToken(collateralToken, sell.returnAmount);
-      dailySupplySideRevenue.addToken(collateralToken, sell.feeAmount)
-    });
-  }))
+  const buyLogs = await options.getLogs({ eventAbi: abi.FPMM_BUY, noTarget: true, entireLog: true, parseLog: true })
+  const sellLogs = await options.getLogs({ eventAbi: abi.FPMM_SELL, noTarget: true, entireLog: true, parseLog: true })
 
   const orderMatchedLogs = await options.getLogs({
     eventAbi: abi.ORDERS_MATCHED,
@@ -74,6 +54,32 @@ async function fetch(options: FetchOptions) {
     targets: [contracts.FEE_MODULE, contracts.NEG_RISK_FEE_MODULE]
   });
 
+
+
+  marketCreationLogs.forEach(market => {
+    fpmmMarkets.push({ fixedProductMarketMaker: market.fixedProductMarketMaker, collateralToken: market.collateralToken })
+  });
+  
+  const fpmmMarketMap: any = {}
+  fpmmMarkets.forEach(market => {
+    fpmmMarketMap[market.fixedProductMarketMaker.toLowerCase()] = market.collateralToken
+  })
+
+  buyLogs.forEach(log => {
+    const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
+    if (!collateralToken) return;
+    dailyVolume.addToken(collateralToken, log.args.investmentAmount);
+    dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount, 'LPFee')
+    // dailyFees.addToken(collateralToken, log.args.feeAmount, 'BuyFee')
+  })
+  sellLogs.forEach(log => {
+    const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
+    if (!collateralToken) return;
+    dailyVolume.addToken(collateralToken, log.args.returnAmount);
+    dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount, 'LPFee')
+    dailyFees.addToken(collateralToken, log.args.feeAmount, 'SellFee')
+  })
+
   orderMatchedLogs.forEach(order => {
     const { makerAssetId, makerAmountFilled, takerAmountFilled } = order;
     const tradeVolume = makerAssetId === 0 ? makerAmountFilled : takerAmountFilled;
@@ -81,14 +87,17 @@ async function fetch(options: FetchOptions) {
   });
 
   feeChargedLogs.forEach(feeCharge => {
-    dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount);
+    dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount, 'TreasuryFee');
+    dailyFees.addToken(ADDRESSES.base.USDC, feeCharge.amount, 'TreasuryFee');
   });
+
+
 
   feeRefundedLogs.forEach(feeRefund => {
-    dailyRevenue.subtractToken(ADDRESSES.base.USDC,feeRefund.amount);
+    dailyRevenue.subtractToken(feeRefund.token, feeRefund.amount, 'TreasuryFee');
+    dailyFees.subtractToken(feeRefund.token, feeRefund.amount, 'TreasuryFee');
   });
 
-  const dailyFees = dailyRevenue.clone();
   dailyFees.add(dailySupplySideRevenue);
 
   return {
@@ -123,7 +132,6 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   fetch,
   breakdownMethodology,
   chains: [CHAIN.BASE],
