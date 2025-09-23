@@ -18,7 +18,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
         solana.account_activity
       WHERE
         TIME_RANGE
-        AND address = 'J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5'
+        AND address IN ('J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5', 'DoAsxPQgiyAxyaJNvpAAUb2ups6rbJRdYrCPyWxwRxBb')
         AND tx_success
         AND balance_change > 0 
     )
@@ -30,6 +30,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     WHERE
       TIME_RANGE
       AND trades.trader_id != 'J5XGHmzrRmnYWbmw45DbYkdZAU2bwERFZ11qCDXPvFB5'
+      AND trades.trader_id != 'DoAsxPQgiyAxyaJNvpAAUb2ups6rbJRdYrCPyWxwRxBb'
   `;
 
   const fees = await queryDuneSql(options, query);
