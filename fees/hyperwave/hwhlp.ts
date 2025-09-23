@@ -1,6 +1,6 @@
-import { Adapter, FetchOptions } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { httpPost } from "../utils/fetchURL";
+import { Balances } from "@defillama/sdk";
+import { FetchOptions } from "../../adapters/types";
+import { httpPost } from "../../utils/fetchURL";
 
 // Each entry in the history is a tuple: [timestamp, value]
 type HistoryEntry = [number, string];
@@ -59,8 +59,9 @@ async function fetchHyperliquidInfo<T>(input: any, path: string): Promise<T> {
     return data;
 }
 
-const fetch = async (options: FetchOptions) => {
-    const dailyFees = options.createBalances();
+export async function getHwhlpFees(options: FetchOptions) : Promise<Balances> {
+    const dailyFees = options.createBalances()
+
     let JMES_TO_PNL = "[0][1].pnlHistory";
     const DELAY = 200; // ms
     // const delay = 10000 // ms
@@ -114,30 +115,5 @@ const fetch = async (options: FetchOptions) => {
     }
 
     dailyFees.addCGToken("usd-coin", totalPnlDiff);
-
-    return {
-        dailyFees,
-        dailyRevenue: '0',
-        dailyProtocolRevenue: '0',
-        dailySupplySideRevenue: dailyFees,
-    };
+    return dailyFees
 };
-
-const adapter: Adapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.HYPERLIQUID]: {
-            fetch,
-            start: '2025-06-06',
-        },
-    },
-    allowNegativeValue: true, // PnL can be negative
-    methodology: {
-        Fees: "Yield generated from HLP vault",
-        Revenue: "No Revenue for hyperwave protocol",
-        ProtocolRevenue: "No Protocol share in revenue",
-        SupplySideRevenue: "100% of yield paid to hwHLP holders"
-    },
-};
-
-export default adapter;
