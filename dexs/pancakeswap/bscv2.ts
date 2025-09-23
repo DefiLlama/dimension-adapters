@@ -43,7 +43,7 @@ export async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2
 
   const tokensAndAmounts = await queryDune('3996608',{
     fullQuery: PANCAKESWAP_V2_QUERY(options.fromTimestamp, options.toTimestamp, whitelistedTokens),
-  });
+  }, options);
 
   for (const tokenAndAmount of tokensAndAmounts) {
     if (whitelistedTokens.includes(formatAddress(tokenAndAmount.token))) {

@@ -147,13 +147,13 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   if (managerFeesData && managerFeesData.length > 0) {
     managerFeesData.forEach((fee: any) => {
       if (fee.total_amount && fee.token_mint_address) {
-        dailyRevenue.add(fee.token_mint_address, fee.total_amount, METRIC.MANAGERMENT_FEES);
+        dailyRevenue.add(fee.token_mint_address, fee.total_amount, METRIC.MANAGEMENT_FEES);
       }
     });
   }
 
   // add revenue to fees
-  const dailyFees = dailyRevenue.clone(1, METRIC.MANAGERMENT_FEES);
+  const dailyFees = dailyRevenue.clone(1, METRIC.MANAGEMENT_FEES);
   const dailySupplySideRevenue = options.createBalances();
 
   const grossReturns = await calculateGrossReturns(options);
@@ -175,6 +175,15 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
 // Get curator export for EVM chains and combine with Solana
 const curatorExport = getCuratorExport(curatorConfig);
 
+// need to convert adapter v2 to adapter v1
+for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
+  (curatorExport.adapter as any)[chain] = {
+    fetch: async (_t: any, _a: any, options: FetchOptions) => {
+      return await (adapter as any).fetch(options);
+    }
+  }
+}
+
 const methodology = {
   Fees: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
   Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
@@ -185,15 +194,15 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.ASSETS_YIELDS]: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
-    [METRIC.MANAGERMENT_FEES]: "Management fees chagred by Gauntlet",
+    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
   },
   Revenue: {
     [METRIC.ASSETS_YIELDS]: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
-    [METRIC.MANAGERMENT_FEES]: "Management fees chagred by Gauntlet",
+    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
   },
   ProtocolRevenue: {
     [METRIC.ASSETS_YIELDS]: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
-    [METRIC.MANAGERMENT_FEES]: "Management fees chagred by Gauntlet",
+    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
   },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: "Amount of yields distributed to supply-side depositors.",
@@ -201,6 +210,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   breakdownMethodology,
   methodology,
   adapter: {
@@ -208,7 +218,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01'
-    }
+    },
   },
   allowNegativeValue: true,
   isExpensiveAdapter: true

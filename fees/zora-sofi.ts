@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getZoraCoinsData } from "../dexs/zora-sofi";
+import { METRIC } from "../helpers/metrics";
 
 // interface IDuneUSDResult {
 //   trade_fees_usd: number | null;
@@ -82,11 +83,47 @@ import { getZoraCoinsData } from "../dexs/zora-sofi";
 //   }
 // }
 
+const ZoraMetricCreatorReward = 'Creator Rewards'
+const ZoraMetricTradeReferrer = 'Trade Referrer'
+const ZoraMetricPlatformReferrer = 'Platform Referrer'
+const ZoraMetricProtocolReward = 'Protocol Rewards'
+
 const methodology = {
   Fees: "All fees from trading coins, including: 1% Trade Rewards fee on direct Zora trades (0.5% to Creator, 0.15% to Trade Referrer, 0.15% to Create Referrer, 0.2% to Zora) and 1% Market Rewards fee on initial Uniswap market trades (0.5% to Creator, 0.25% to Create Referrer, 0.25% to Zora)",
   UserFees: "All fees paid by users when trading coins.",
-  Revenue: "All trading fees on Zora are revenue.",
+  SupplySideRevenue: "All trading fees distributed to creators, trade and platform referrers.",
+  Revenue: "Portion of fees that go to the Zora protocol.",
   ProtocolRevenue: "Portion of fees that go to the Zora protocol."
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Total swap fees paid by users while trading coins on Zora.',
+    [ZoraMetricCreatorReward]: 'Fees are distributed to coin creators.',
+    [ZoraMetricTradeReferrer]: 'Fees are collected by trade referrers.',
+    [ZoraMetricPlatformReferrer]: 'Fees are collected by platform referrers.',
+    [ZoraMetricProtocolReward]: 'Fees are collected by Zora protocol.',
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: 'Total swap fees paid by users while trading coins on Zora.',
+    [ZoraMetricCreatorReward]: 'Fees are distributed to coin creators.',
+    [ZoraMetricTradeReferrer]: 'Fees are collected by trade referrers.',
+    [ZoraMetricPlatformReferrer]: 'Fees are collected by platform referrers.',
+    [ZoraMetricProtocolReward]: 'Fees are collected by Zora protocol.',
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: 'Portion of fees that go to the Zora protocol.',
+    [ZoraMetricProtocolReward]: 'Share of protocol rewards to Zora protocol.',
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: 'Portion of fees that go to the Zora protocol.',
+    [ZoraMetricProtocolReward]: 'Share of protocol rewards to Zora protocol.',
+  },
+  SupplySideRevenue: {
+    [ZoraMetricCreatorReward]: 'Fees are distributed to coin creators.',
+    [ZoraMetricTradeReferrer]: 'Fees are collected by trade referrers.',
+    [ZoraMetricPlatformReferrer]: 'Fees are collected by platform referrers.',
+  },
 }
 
 const adapter: Adapter = {
@@ -99,6 +136,7 @@ const adapter: Adapter = {
     },
   },
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true
 }
 

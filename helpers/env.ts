@@ -66,6 +66,8 @@ export const ENV_KEYS = new Set([
   'DEFIAPP_API_KEY',
   'SMARDEX_SUBGRAPH_API_KEY',
   'VIRTUS_BACKEND_BASE',
+  'DUNE_BULK_MODE',
+  'DUNE_BULK_MODE_BATCH_TIME',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
