@@ -52,15 +52,16 @@ interface ExchangeRateUpdatedEvent {
     newRate: bigint;
 }
 
-export async function appendHwhypeRev(
-    options: FetchOptions,
-    dailyFees: sdk.Balances
-): Promise<sdk.Balances> {
-    const START_TIMESTAMP = options.startTimestamp;
-    const END_TIMESTAMP = options.endTimestamp;
+export async function getHwhypeFees(
+    options: FetchOptions
+): Promise<{
+    dailyFees: sdk.Balances,
+    dailyRevenue: sdk.Balances,
+}> {
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
 
-    // const dailySupplySideRevenue = options.createBalances();
-    // const dailyProtocolRevenue = options.createBalances();
+    const START_TIMESTAMP = options.startTimestamp;
 
     const allVaults = BoringVaults[options.chain];
     const vaults = allVaults.filter(
@@ -162,8 +163,6 @@ export async function appendHwhypeRev(
                     const protocolFee = totalYield - supplySideYield;
 
                     dailyFees.add(token, totalYield);
-                    // dailySupplySideRevenue.add(token, supplySideYield);
-                    // dailyProtocolRevenue.add(token, protocolFee);
                 }
             }
 
@@ -205,15 +204,9 @@ export async function appendHwhypeRev(
                 yearInSecs;
 
             dailyFees.add(token, platformFee);
-            // dailyProtocolRevenue.add(token, platformFee);
+            dailyRevenue.add(token, platformFee);
         }
     }
 
-    return dailyFees;
-
-    // return {
-    //     dailyFees,
-    //     dailySupplySideRevenue,
-    //     dailyProtocolRevenue,
-    // };
+    return { dailyFees, dailyRevenue };
 }

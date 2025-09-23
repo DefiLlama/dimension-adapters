@@ -59,7 +59,9 @@ async function fetchHyperliquidInfo<T>(input: any, path: string): Promise<T> {
     return data;
 }
 
-export async function appendHwhlpRev(options: FetchOptions, dailyFees:Balances) : Promise<Balances> {
+export async function getHwhlpFees(options: FetchOptions) : Promise<Balances> {
+    const dailyFees = options.createBalances()
+
     let JMES_TO_PNL = "[0][1].pnlHistory";
     const DELAY = 200; // ms
     // const delay = 10000 // ms

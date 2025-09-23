@@ -1,19 +1,21 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { appendHwhlpRev } from "./hwhlp";
-import { appendHwhypeRev } from "./hwhype";
-
+import { getHwhlpFees } from "./hwhlp";
+import { getHwhypeFees } from "./hwhype";
 
 const fetch = async (options: FetchOptions) => {
+    const hwhlpFees = await getHwhlpFees(options);
+    const { dailyFees: hwhypeFees, dailyRevenue} = await getHwhypeFees(options);
+    
     const dailyFees = options.createBalances();
-    const hwhlpAppendedFees = await appendHwhlpRev(options, dailyFees);
-    const hwhypeAppendedFees = await appendHwhypeRev(options, hwhlpAppendedFees);
+    dailyFees.addBalances(hwhlpFees)
+    dailyFees.addBalances(hwhypeFees)
 
     return {        
-        dailyFees: hwhypeAppendedFees,
-        dailyRevenue: '0',
-        dailyProtocolRevenue: '0',
-        dailySupplySideRevenue: hwhypeAppendedFees,
+        dailyFees,
+        dailySupplySideRevenue: dailyFees,
+        dailyRevenue: dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     };
 };
 
@@ -27,10 +29,10 @@ const adapter: Adapter = {
     },
     allowNegativeValue: true, // PnL can be negative
     methodology: {
-        Fees: "Yield generated from HLP and hwHYPE vault",
-        Revenue: "No Revenue for Hyperwave protocol",
-        ProtocolRevenue: "No Protocol share in revenue",
-        SupplySideRevenue: "100% of yield paid to hwHLP and hwHYPE holders"
+        Fees: "Yields generated from HLP and hwHYPE vaults.",
+        Revenue: "Yields collected by protocol as revenue, currently, no revenue.",
+        ProtocolRevenue: "Revenue share for protocol, currently no revenue share for Hyperwave protocol.",
+        SupplySideRevenue: "Currewntly, 100% of yields paid to hwHLP and hwHYPE holders, suppliers."
     },
 };
 
