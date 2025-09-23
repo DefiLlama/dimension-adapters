@@ -10,6 +10,7 @@ const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
 async function fetch(options:FetchOptions){
     // MISSING INTERNAL ETH TRANSFERS!
     const dailyFees = await addTokensReceived({target: feeCollector, options})
+    if (options.api.chain === CHAIN.ARBITRUM) dailyFees.removeTokenBalance('0x1a6b3a62391eccaaa992ade44cd4afe6bec8cff1') // UXLINK has unrealistic high value
     return {dailyFees, dailyRevenue: dailyFees }
 }
 
