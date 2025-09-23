@@ -66,18 +66,18 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   })
 
   buyLogs.forEach(log => {
-    const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
+    const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
     dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount, 'LPFee')
     // dailyFees.addToken(collateralToken, log.args.feeAmount, 'BuyFee')
   })
   sellLogs.forEach(log => {
-    const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
+    const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
     dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount, 'LPFee')
-    dailyFees.addToken(collateralToken, log.args.feeAmount, 'SellFee')
+    //dailyFees.addToken(collateralToken, log.args.feeAmount, 'SellFee')
   })
 
   orderMatchedLogs.forEach(order => {
@@ -94,8 +94,8 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
 
   feeRefundedLogs.forEach(feeRefund => {
-    dailyRevenue.subtractToken(feeRefund.token, feeRefund.amount, 'TreasuryFee');
-    dailyFees.subtractToken(feeRefund.token, feeRefund.amount, 'TreasuryFee');
+    dailyRevenue.subtractToken(ADDRESSES.base.USDC, feeRefund.amount, 'TreasuryFee');
+    dailyFees.subtractToken(ADDRESSES.base.USDC, feeRefund.amount, 'TreasuryFee');
   });
 
   dailyFees.add(dailySupplySideRevenue);
