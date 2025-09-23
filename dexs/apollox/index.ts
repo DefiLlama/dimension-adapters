@@ -71,7 +71,8 @@ const fetch = async () => {
   let dailyVolume = await fetchV1Volume();
   const data = await fetchV2Volume();
   dailyVolume += data.dailyVolume;
-  return { dailyVolume, openInterestAtEnd: data.openInterestAtEnd }
+  //return { dailyVolume, openInterestAtEnd: data.openInterestAtEnd }
+  return {dailyVolume}
 }
 
 export default {
