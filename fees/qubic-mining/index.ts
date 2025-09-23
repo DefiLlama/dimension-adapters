@@ -7,7 +7,7 @@ const RPC_ENDPOINT = "https://rpc.qubic.org"
 const fetch = async (_: any, _1: any, _options: FetchOptions) => {
   const res = await httpGet(`${RPC_ENDPOINT}/v1/latest-stats`)
 
-  const dailyFees = res.data.burnedQus * res.data.price;
+  const dailyFees = 25942857143 * res.data.price;
 
   return { 
     dailyFees,
