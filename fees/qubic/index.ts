@@ -12,9 +12,9 @@ const fetchfunc = async (_: any, _1: any, _options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: 'All fees paid by users for swap and bridge tokens via Qubic.',
-    Revenue: 'Fees are distributed to Qubic.',
-    ProtocolRevenue: 'Fees are distributed to Qubic.',
+    Fees: 'All fees are burned via Qubic.',
+    Revenue: 'Revenue is burned via Qubic.',
+    ProtocolRevenue: 'Protocol revenue is burned via Qubic.',
   },
   adapter: {
   [CHAIN.QUBIC]: {
