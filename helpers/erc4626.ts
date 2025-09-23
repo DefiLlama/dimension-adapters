@@ -7,7 +7,7 @@ import { ChainApi } from "@defillama/sdk";
 const ERC4626Abis: any = {
   asset: 'address:asset',
   decimals: 'uint8:decimals',
-  totalAssets: 'uint256:totalSupply',
+  totalAssets: 'uint256:totalAssets',
   assetsPerShare: 'function convertToAssets(uint256 shares) view returns (uint256 assets)',
 }
 
@@ -110,9 +110,9 @@ export async function getERC4626VaultsYield({
     const cumulativeIndexBeforeValue = cumulativeIndexBefore[i]
     const cumulativeIndexAfterValue = cumulativeIndexAfter[i]
     if (token && value && decimal && cumulativeIndexBeforeValue && cumulativeIndexAfterValue) {
-      const totalTokenBalance = Number(value) / (10 ** Number(decimal))
+      const totalTokenBalance = Number(value)
       const growthCumulativeIndex = Number(cumulativeIndexAfterValue) - Number(cumulativeIndexBeforeValue)
-      const growthInterest = growthCumulativeIndex * totalTokenBalance
+      const growthInterest = growthCumulativeIndex * totalTokenBalance / (10 ** Number(decimal))
       balances.add(token, growthInterest)
     }
   }
