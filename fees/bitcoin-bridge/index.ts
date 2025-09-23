@@ -16,9 +16,10 @@ const chainMapping = {
   BCH: CHAIN.BITCOIN_CASH,
   DOGE: CHAIN.DOGE,
   SOL: CHAIN.SOLANA,
+  BERA: CHAIN.BERACHAIN,
 }
 
-const CHAINS = ['BTC', 'ETH', 'AVAXC', 'ARBITRUM', 'BSC', 'TRON', 'LTC', 'BCH', 'DOGE', 'SOL']
+const CHAINS = Object.keys(chainMapping);
 
 const getFetchForChain = (chainShortName: string) => {
   return async (_a: any, _b: any, options: FetchOptions) => {
