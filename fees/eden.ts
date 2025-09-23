@@ -43,7 +43,6 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
     from block_with_eob_payment
   `
   const res = await queryDuneSql(options, query);
-  console.log(res);
 
   const dayItem = res[0];
   dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18);
@@ -60,14 +59,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2022-09-15',
-      meta: {
-        methodology: {
-            Fees: "Total MEV Tips for Eden Builders"
-        }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Total MEV Tips for Eden Builders"
+  }
 }
 
 export default adapter;

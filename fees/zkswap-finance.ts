@@ -9,7 +9,7 @@ const adapterObj = volumeAdapter.adapter;
 
 const fetch = (chain: string, tf: number, rf: number) => {
   return async (timestamp: number, chainBlocks: ChainBlocks, options: FetchOptions) => {
-    const fetchedResult = await (adapterObj[chain].fetch as Fetch)(timestamp, chainBlocks, options);
+    const fetchedResult = await ((adapterObj as BaseAdapter)[chain].fetch as Fetch)(timestamp, chainBlocks, options);
     const chainDailyVolume = (await (fetchedResult.dailyVolume as Balances).getUSDValue()).toString();
 
     const ssrFee = tf - rf
@@ -36,26 +36,19 @@ const methodology = {
 
 const baseAdapter: BaseAdapter = {
   [CHAIN.ERA]: {
-    ...adapterObj[CHAIN.ERA],
+    ...(adapterObj as BaseAdapter)[CHAIN.ERA],
     fetch: fetch(CHAIN.ERA, 0.002, 0.00067),
-    customBackfill: fetch(CHAIN.ERA, 0.002, 0.00067),
     start: '2024-12-17',
-    meta: {
-      methodology
-    }
   },
   [CHAIN.SONIC]: {
-    ...adapterObj[CHAIN.SONIC],
+    ...(adapterObj as BaseAdapter)[CHAIN.SONIC],
     fetch: fetch(CHAIN.SONIC, 0.002, 0.00067),
-    customBackfill: fetch(CHAIN.SONIC, 0.002, 0.00067),
     start: '2025-04-09',
-    meta: {
-      methodology
-    }
   }
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter
 };
 

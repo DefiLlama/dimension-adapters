@@ -143,6 +143,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     ...Object.keys(config).reduce((acc, chain) => {
       return {
@@ -150,18 +151,15 @@ const adapter: SimpleAdapter = {
         [chain]: {
           fetch: evmFetch,
           start: config[chain].start,
-          meta: { methodology },
         },
       };
     }, {}),
     [CHAIN.SOLANA]: {
       fetch: solanaFetch,
-      meta: { methodology },
     },
     [CHAIN.SUI]: {
       fetch: suiFetch,
       start: "2025-03-19",
-      meta: { methodology },
     },
   },
   isExpensiveAdapter: true,

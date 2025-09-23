@@ -110,20 +110,17 @@ const  getVolume = async (options: FetchOptions) => {
     const graphQLClient = new GraphQLClient(url, { timeout: 3000 });
     const result: Data = await graphQLClient.request(query)
     const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0)
-    const totalVolume = Number(result.end?.totalSwapVolume || 0)
     return {
         // If the daily volume is negative, set it to 0
         dailyVolume: dailyVolume < 0 ? 0 : dailyVolume,
-        totalVolume,
     }
 }
 
 const v2graphs = async (_t: any, _tt: any ,options: FetchOptions): Promise<FetchResult> => {
-    const { dailyVolume, totalVolume }  = await getVolume(options)
+    const { dailyVolume, }  = await getVolume(options)
     return {
         timestamp: options.startOfDay,
         dailyVolume,
-        totalVolume
     }
 }
 
@@ -148,11 +145,9 @@ const adapter: BreakdownAdapter = {
         v1: {
             [CHAIN.POLYGON]: {
                 fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
-                    const { dailyVolume, totalVolume }  = await v1graphs(options.chain)(_t, _tt, options)
+                    const { dailyVolume }  = await v1graphs(options.chain)(_t, _tt, options)
                     return  {
-                        timestamp: options.startOfDay,
                         dailyVolume,
-                        totalVolume
                     }
                 },
                 start: '2022-06-14'

@@ -1,4 +1,3 @@
-import { SimpleAdapter } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
 const curatorConfig: CuratorConfig = {
@@ -17,9 +16,4 @@ const curatorConfig: CuratorConfig = {
   }
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: getCuratorExport(curatorConfig),
-}
-
-export default adapter
+export default getCuratorExport(curatorConfig)

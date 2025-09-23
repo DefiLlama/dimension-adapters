@@ -1,11 +1,11 @@
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { ZeroAddress } from "ethers";
 
 // docs: https://docs.mantle.xyz/meth/components/smart-contracts/staking-meth
 // mETH treasury takes 10%: https://etherscan.io/address/0x1766be66fBb0a1883d41B4cfB0a533c5249D3b82#readProxyContract#F5
 const methodology = {
   Fees: 'Total validators fees and rewards from staked ETH.',
+  Revenue: '10% staking rewards are charged by mETH Protocol Treasury.',
   SupplySideRevenue: '90% staking rewards are distributed to mETH holders.',
   ProtocolRevenue: '10% staking rewards are charged by mETH Protocol Treasury.',
 }
@@ -43,6 +43,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   return {
     dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
   }
@@ -50,11 +51,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-10-07',
-      meta: { methodology },
     },
   },
 };

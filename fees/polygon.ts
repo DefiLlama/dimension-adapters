@@ -49,17 +49,15 @@ const adapter: Adapter = {
         [CHAIN.POLYGON]: {
             fetch,
             start: '2020-05-30',
-            meta: {
-                methodology: {
-                    Fees: 'Total transaction fees paid by users',
-                    Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
-                }
-            }
         },
     },
     protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true,
     allowNegativeValue: true, // L1 Costs
+    methodology: {
+        Fees: 'Total transaction fees paid by users',
+        Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
+    }
 }
 
 export default adapter;

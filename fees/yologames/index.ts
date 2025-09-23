@@ -19,15 +19,13 @@ const fetch: any = async ({ createBalances, fromTimestamp, toTimestamp }: FetchO
 
 const adapter: Adapter = {
   version: 2,
+  methodology: {
+    Fees: "YOLO Games collects a 1% fee for Moon Or Doom and YOLO winnings, and a 3% fee on Poke The Bear winnings.",
+  },
   adapter: {
     [CHAIN.BLAST]: {
       fetch,
       start: '2024-03-01',
-      meta: {
-        methodology: {
-          Fees: "YOLO Games collects a 1% fee for Moon Or Doom and YOLO winnings, and a 3% fee on Poke The Bear winnings.",
-        },
-      },
     },
   },
 };

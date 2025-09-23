@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   logsAll.forEach((logs: any, idx: number) => {
     const token = tokens[idx]
-    const reserveFactor = reserveFactors[idx]/1e18
+    const reserveFactor = reserveFactors[idx] / 1e18
     const revenue = logs.map((i: any) => i.interest.toString() * reserveFactor)
     const fees = logs.map((i: any) => i.interest.toString())
     dailyFees.add(token, fees)
@@ -33,16 +33,14 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch,
       start: "2025-02-28",
-      meta: {
-        methodology: {
-          Fees: "Interest accrued from lending pools, collected as fees.",
-          Revenue:
-            "Portion of interest from lending pools, based on reserve factor.",
-        },
-      },
     },
   },
   version: 2,
+  methodology: {
+    Fees: "Interest accrued from lending pools, collected as fees.",
+    Revenue:
+      "Portion of interest from lending pools, based on reserve factor.",
+  },
 };
 
 export default adapter;

@@ -37,18 +37,16 @@ const adapter: Adapter = {
       fetch,
       // 2024-04-30T17:55:14:00Z
       start: '2024-04-30',
-      meta: {
-        methodology: {
-          UserFees: "MilkyWay takes 10% fee on users staking rewards",
-          Fees: "Staking rewards earned by all staked TIA",
-          Revenue: "MilkyWay takes 10% fee on users staking rewards",
-          ProtocolRevenue: "MilkyWay takes 10% fee on users staking rewards",
-          SuplySideRevenue: "Staking rewards earned by milkTIA holders",
-        },
-      }
     },
   },
-  version: 2
+  version: 2,
+  methodology: {
+    UserFees: "MilkyWay takes 10% fee on users staking rewards",
+    Fees: "Staking rewards earned by all staked TIA",
+    Revenue: "MilkyWay takes 10% fee on users staking rewards",
+    ProtocolRevenue: "MilkyWay takes 10% fee on users staking rewards",
+    SuplySideRevenue: "Staking rewards earned by milkTIA holders",
+  },
 };
 
 export default adapter; // yarn test fees milkyway

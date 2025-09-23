@@ -77,7 +77,7 @@ const fetch = async (timestamp: number, _b: any, options: FetchOptions): Promise
       BigInt(dailyPerpVolumeData?.total || "0") +
       BigInt(dailyAphVolumeData?.total || "0")
     ),
-    dailyOpenInterest: convertStringNumber(
+    openInterestAtEnd: convertStringNumber(
       openInterestValue < 0 ? -openInterestValue : openInterestValue
     ),
     timestamp: timestamp,

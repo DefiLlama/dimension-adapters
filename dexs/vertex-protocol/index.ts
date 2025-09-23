@@ -129,13 +129,11 @@ const computeVolume = async (
     );
     const dailyVolume = totalVolume - totalVolumeOneDayAgo;
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: timestamp,
     };
   } else {
     return {
-      totalVolume: undefined,
       dailyVolume: undefined,
       timestamp: timestamp,
     };
@@ -175,6 +173,7 @@ const abstractStartTime = 1738158858;
 const avaxStartTime = 1742994000;
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-07-18', // https://docs.vertexprotocol.com
   breakdown: {
     swap: {
       [CHAIN.ARBITRUM]: {

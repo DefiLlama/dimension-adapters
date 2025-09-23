@@ -1,10 +1,11 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { addOneToken } from "../helpers/prices"
 
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
 const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06' },
+  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: ['0xde04da55b74435d7b9f2c5c62d9f1b53929b09aa', '0xe6df05ce8c8301223373cf5b969afcb1498c5528'] },
+  [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
   version: 2,
@@ -12,7 +13,7 @@ const adapter: SimpleAdapter = {
 }
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
-  const { clPoolManager, fromBlock } = config[chain]
+  const { clPoolManager, fromBlock, blacklistTokens } = config[chain]
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
@@ -43,6 +44,11 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
       return;
     }
     const { currency0, currency1 } = pool
+
+    if (blacklistTokens && (blacklistTokens.includes(currency0.toLowerCase()) || blacklistTokens.includes(currency1.toLowerCase()))) {
+      return;
+    }
+
     const amoun0Fees = (amount0 * BigInt(fee)) / BigIntE6
     const amoun1Fees = (amount1 * BigInt(fee)) / BigIntE6
     const amount0ProtocolFees = (amount0 * BigInt(protocolFee)) / BigIntE6
@@ -56,6 +62,6 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 
 Object.keys(config).forEach(chain => {
   const { start } = config[chain];
-  adapter.adapter[chain] = { fetch, start, }
+  (adapter.adapter as BaseAdapter)[chain] = { fetch, start, }
 })
 export default adapter

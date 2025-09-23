@@ -27,8 +27,6 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
         dailyTotalFeesIncrease
         dailyOperatorEarningsIncrease
         dailyNetworkEarningsIncrease
-        activeOperators
-        lastUpdated
       }
     }
   `;
@@ -74,9 +72,9 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-06-18', // Based on SSV mainnet launch
-      meta: { methodology }
     },
   },
+  methodology,
 };
 
 export default adapter;

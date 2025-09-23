@@ -78,17 +78,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.CORE]: {
       fetch: fetch,
       start: '2024-11-06',
-      meta: {
-        methodology: {
-          UserFees: "User pays a 0.05% fee on each swap.",
-          Fees: "A 0.05% of each swap is collected as trading fees",
-          Revenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
-          ProtocolRevenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
-          SupplySideRevenue: "0.025% of the swap fee is distributed to LPs (50% of total fees)",
-          HoldersRevenue: "No direct revenue to token holders",
-        }
-      }
     }
+  },
+  methodology: {
+    UserFees: "User pays a 0.05% fee on each swap.",
+    Fees: "A 0.05% of each swap is collected as trading fees",
+    Revenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
+    ProtocolRevenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
+    SupplySideRevenue: "0.025% of the swap fee is distributed to LPs (50% of total fees)",
+    HoldersRevenue: "No direct revenue to token holders",
   }
 };
 

@@ -51,15 +51,13 @@ const adapter: Adapter = {
         [CHAIN.ERA]: {
             fetch: graphs(endpoints)(CHAIN.ERA),
             start: '2022-12-10',
-            meta: {
-                methodology: {
-                    Fees: "All mint, burn, margin and liquidation and swap fees are collected",
-                    UserFees: "Users pay swap fees and margin and liquidation fees",
-                    Revenue: "Revenue is calculated as 30% of the total fee.",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "All mint, burn, margin and liquidation and swap fees are collected",
+        UserFees: "Users pay swap fees and margin and liquidation fees",
+        Revenue: "Revenue is calculated as 30% of the total fee.",
+    }
 };
 
 export default adapter;
