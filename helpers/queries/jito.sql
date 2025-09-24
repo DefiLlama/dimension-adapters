@@ -63,7 +63,7 @@ WITH
             AND a.block_date < FROM_UNIXTIME({{end}})
             AND a.address = '5eosrve6LktMZgVNszYzebgmmC7BjLK8NoWyRQtcmGTF'
             AND any_match(account_keys, x -> x = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt')
-    ),
+    )
 SELECT
     (SELECT COALESCE(SUM(usd_amt), 0) FROM jitostake_pool_fees) AS jitostake_pool_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM interceptor_fees) AS interceptor_fees,
