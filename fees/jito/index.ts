@@ -47,9 +47,9 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       'JITOSOL_FEES': 'Withdrawal Fees (0.1% on unstake) from the JitoSOL stake pool',
-      'INTERCEPTOR_FEES': 'a portion of MEV rewards directed to the DAO',
-      'TIP_ROUTER': 'MEV tips explicitly routed to the DAO',
-      'MEV_TIPS': 'jito-block-engine-fees and BAM Fees',
+      'INTERCEPTOR_FEES': 'Fees generated from early unstake claims',
+      'TIP_ROUTER': 'Fees generated from the TipRouter Node Consensus Network',
+      'MEV_TIPS': 'Block engine fees routed directly to the DAO',
     }
   },
   methodology: {
