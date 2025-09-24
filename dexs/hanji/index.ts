@@ -13,8 +13,6 @@ interface IGraph {
   };
   dailyFees: {
     feesUsd: string;
-    userFeesUsd: string;
-    revenueUsd: string;
   };
 }
 
@@ -27,8 +25,6 @@ const getData = async (chain: string, timestamp: number) => {
     }
     dailyFees(id: ${dateId}) {
       feesUsd
-      userFeesUsd
-      revenueUsd
     }
   }
   `;
@@ -37,8 +33,8 @@ const getData = async (chain: string, timestamp: number) => {
 
   const dailyVolume = Number(data.dailyVolume?.volumeUsd ?? "0");
   const dailyFees = Number(data.dailyFees?.feesUsd ?? "0");
-  const dailyUserFees = Number(data.dailyFees?.userFeesUsd ?? "0");
-  const dailyRevenue = Number(data.dailyFees?.revenueUsd ?? "0");
+  const dailyUserFees = dailyFees * 0;
+  const dailyRevenue = dailyFees * 1;
 
   return {
     dailyFees: `${dailyFees}`,
