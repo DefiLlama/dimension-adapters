@@ -12,11 +12,20 @@ const chains = [
   CHAIN.AVAX,
 ];
 
+const blacklistTokens = [
+  '0x888888ae2c4a298efd66d162ffc53b3f2a869888',
+  '0x618679df9efcd19694bb1daa8d00718eacfa2883',
+]
+
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
     target: "0x382fFCe2287252F930E1C8DC9328dac5BF282bA1",
   });
+
+  for (const token of blacklistTokens) {
+    dailyFees.removeTokenBalance(token)
+  }
 
   return {
     dailyFees,
