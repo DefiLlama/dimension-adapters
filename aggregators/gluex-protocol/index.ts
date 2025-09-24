@@ -54,7 +54,8 @@ const ROUTERS_NEW: Partial<Record<string, string>> = {
   [CHAIN.BERACHAIN]: "0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd",
   [CHAIN.SONIC]: "0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd",
   [CHAIN.UNICHAIN]: "0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd",
-  [CHAIN.HYPERLIQUID]: "0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd"
+  [CHAIN.HYPERLIQUID]: "0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd",
+  [CHAIN.PLASMA]: "0xe95f6eaeae1e4d650576af600b33d9f7e5f9f7fd"
 };
 
 async function fetch(options: FetchOptions) {
