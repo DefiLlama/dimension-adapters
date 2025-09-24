@@ -10,7 +10,7 @@ const fetch = async () => {
 
   return {
     dailyFees: alpFeeVOFor24Hour.fee || 0,
-    dailyRevenue: alpFeeVOFor24Hour.revenue || 0,
+    // dailyRevenue: alpFeeVOFor24Hour.revenue || 0,  // skipping this as we dont have a breakdown on how is returned as rebate
   };
 }
 
