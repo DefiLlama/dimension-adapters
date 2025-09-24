@@ -45,9 +45,9 @@ const solanaFetch: any = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
     methodology: {
         Fees: "All fees paid by users to use a particular Streamflow product.",
-        Revenue: "All fees collected by the Streamflow protocols, a portion of which goes towards $STREAM buybacks and distribution to stakers",
-        ProtocolRevenue: "All fees collected by the Streamflow protocols that go into the Streamflow treasury",
-        HoldersRevenue: "Portion of the revenue used to buyback $STREAM tokens",
+        Revenue: "All fees collected by the Streamflow protocols, a portion of which goes towards $STREAM buybacks and distribution to stakers.",
+        ProtocolRevenue: "All fees collected by the Streamflow protocols that go into the Streamflow treasury.",
+        HoldersRevenue: "Portion of the revenue used to buyback $STREAM tokens.",
     },
     version: 2,
     adapter: {
