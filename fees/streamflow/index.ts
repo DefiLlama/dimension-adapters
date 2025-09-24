@@ -1,103 +1,59 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
-import { postURL } from "../../utils/fetchURL";
+import fetchURL, { postURL } from "../../utils/fetchURL";
 
 export const STREAMFLOW_TREASURY_SOLANA = "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw";   
 export const STREAMFLOW_TREASURY_SUI = "0x2834d0d631b56f59ad2a37af3b7fa4d2c067781065bcd6623c682de690af59b9";
 
+type RevenueDailyPoint = {
+  day: string;
+  revenue_usdc: string;
+  buyback_usdc: string;
+};
+
+type RevenueDailyResponseSchema = {
+  total_revenue_usdc: string;
+  total_buyback_usdc: string;
+  data: RevenueDailyPoint[];
+};
 
 const solanaFetch: any = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({
-        target: STREAMFLOW_TREASURY_SOLANA,
-        options,
-        // exclude swap transactions
-        blacklist_signers: [STREAMFLOW_TREASURY_SOLANA],
-    })
+  const result: RevenueDailyResponseSchema = await fetchURL("https://metabase.internal-streamflow.com/_public/api/v1/stats/revenue-daily?days=365");
 
-    return { dailyFees, dailyRevenue: dailyFees }
+  const day = 60 * 60 * 24;
+  const fromTimestamp = options.fromTimestamp - day;
+  const toTimestamp = options.toTimestamp - day;
+
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  const filteredData = result.data.filter(point => {
+    const dayTimestamp = new Date(point.day).getTime() / 1000;
+    return dayTimestamp > fromTimestamp && dayTimestamp < toTimestamp;
+  });
+
+  for (const point of filteredData) {
+      dailyFees.addUSDValue(Number(point.revenue_usdc));
+      dailyProtocolRevenue.addUSDValue(Number(point.revenue_usdc) - Number(point.buyback_usdc));
+      dailyHoldersRevenue.addUSDValue(Number(point.buyback_usdc));
+  }
+
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue, dailyHoldersRevenue }
 }
-
-const suiFetch = async (options: FetchOptions) => {
-    const fromTimestamp = options.fromTimestamp;
-    const toTimestamp = options.toTimestamp;
-    let cursor = null;
-    let hasNextPage = true;
-    let stopFetching = false;
-    const dailyFees = options.createBalances();
-    let total = 0;
-  
-    while (hasNextPage && !stopFetching) {
-      const body = {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "suix_queryTransactionBlocks",
-        params: [
-          {
-            filter: { ToAddress: STREAMFLOW_TREASURY_SUI },
-            options: {
-              showInput: true,
-              showEffects: true,
-              showEvents: true,
-              showBalanceChanges: true,
-            },
-          },
-          cursor,
-          100,
-          true,
-        ],
-      };
-  
-      const data = await postURL("https://fullnode.mainnet.sui.io:443", body);
-  
-      if (data.result && data.result.data) {
-        for (const tx of data.result.data) {
-          const ts = Number(tx.timestampMs) / 1000;
-          if (ts < fromTimestamp) {
-            stopFetching = true;
-            break;
-          }
-          if (ts > toTimestamp) continue;
-  
-          if (tx.balanceChanges) {
-            for (const change of tx.balanceChanges) {
-              if (
-                change.owner?.AddressOwner === STREAMFLOW_TREASURY_SUI &&
-                Number(change.amount) > 0
-              ) {
-                total += Number(change.amount);
-                dailyFees.add(change.coinType, Number(change.amount));
-              }
-            }
-          }
-        }
-        hasNextPage = data.result.hasNextPage;
-        cursor = data.result.nextCursor;
-      } else {
-        hasNextPage = false;
-      }
-    }
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-    };
-  };
-    
 
 const adapter: SimpleAdapter = {
     methodology: {
         Fees: "All fees paid by users to use a particular Streamflow product.",
-        Revenue: "All fees collected by the Streamflow protocol, a portion of which goes towards $STREAM buybacks and distribution to stakers",
+        Revenue: "All fees collected by the Streamflow protocols, a portion of which goes towards $STREAM buybacks and distribution to stakers",
+        ProtocolRevenue: "All fees collected by the Streamflow protocols that go into the Streamflow treasury",
+        HoldersRevenue: "Portion of the revenue used to buyback $STREAM tokens",
     },
     version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: solanaFetch,
-            start: '2023-01-05',
-        },
-        [CHAIN.SUI]: {
-            fetch: suiFetch,
-            start: '2025-02-03',
+            start: '2025-04-20',
         },
     },
 }
