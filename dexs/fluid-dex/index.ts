@@ -31,6 +31,8 @@ const dexReservesResolver = (chain: string) => {
       return "0xA508fd16Bf3391Fb555cce478C616BDe4a613052";
     case CHAIN.BASE: 
       return "0x160ffC75904515f38C9b7Ed488e1F5A43CE71eBA";
+    case CHAIN.PLASMA: 
+      return "0x2e28FBdE85512086bF2f61477274646c06b2032b";
     default: 
       throw new Error("DexReservesResolver not defined");
   }
@@ -46,6 +48,8 @@ const dexResolver = (chain: string) => {
       return "0xa17798d03bB563c618b9C44cAd937340Bad99138";
     case CHAIN.BASE: 
       return "0x93f587618A5380f40329E652f8D26CB16dAE3a47";
+    case CHAIN.PLASMA: 
+      return "0x851ab045dFD8f3297a11401110d31Fa9191b0E04";
     default: 
       throw new Error("DexResolver not defined");
   }
@@ -82,7 +86,7 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
         eventAbi: abi.swap,
       });
       
-      return logs.map(log => ({
+      return logs.map((log: any) => ({
         swap0to1: log[0] as boolean,
         amountIn: log[1] as bigint,
         amountOut: log[2] as bigint,
@@ -164,6 +168,7 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: { fetch, start: '2024-12-23' },
     [CHAIN.POLYGON]: { fetch, start: '2025-04-03' },
     [CHAIN.BASE]: { fetch, start: '2025-05-22' },
+    [CHAIN.PLASMA]: { fetch, start: '2025-09-22' },
   },
 };
 
