@@ -20,7 +20,7 @@ const blacklistTokens = [
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
-    target: "0x382fFCe2287252F930E1C8DC9328dac5BF282bA1",
+    target: options.startOfDay > 1758067200 ? "0x8d413db42d6901de42b2c481cc0f6d0fd1c52828" : "0x382fFCe2287252F930E1C8DC9328dac5BF282bA1",
   });
 
   for (const token of blacklistTokens) {
