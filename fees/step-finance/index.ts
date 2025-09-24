@@ -44,6 +44,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   fetch,
   methodology,
-  chains: [CHAIN.SOLANA]
+  chains: [CHAIN.SOLANA],
+  isExpensiveAdapter: true
 }
 export default adapter
