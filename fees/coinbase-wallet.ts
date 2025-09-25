@@ -7,7 +7,7 @@ const chains = [
   CHAIN.BASE,
   CHAIN.OPTIMISM,
   CHAIN.POLYGON,
-  CHAIN.BSC,
+  // CHAIN.BSC,  // skipping bsc as lot of tokens there are mispriced
   CHAIN.ARBITRUM,
   CHAIN.AVAX,
 ];
