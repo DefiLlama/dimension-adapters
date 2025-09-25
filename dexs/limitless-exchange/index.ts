@@ -65,14 +65,14 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   })
 
   buyLogs.forEach(log => {
-    const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
+    const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
     dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount)
     dailyFees.addToken(collateralToken, log.args.feeAmount)
   })
   sellLogs.forEach(log => {
-    const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
+    const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
     dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount)
