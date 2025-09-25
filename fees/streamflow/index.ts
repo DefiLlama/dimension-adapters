@@ -2,9 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL, { postURL } from "../../utils/fetchURL";
 
-export const STREAMFLOW_TREASURY_SOLANA = "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw";   
-export const STREAMFLOW_TREASURY_SUI = "0x2834d0d631b56f59ad2a37af3b7fa4d2c067781065bcd6623c682de690af59b9";
-
 type RevenueDailyPoint = {
   day: string;
   revenue_usdc: string;
