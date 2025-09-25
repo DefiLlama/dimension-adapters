@@ -7,7 +7,7 @@ const chains = [
   CHAIN.BASE,
   CHAIN.OPTIMISM,
   CHAIN.POLYGON,
-  // CHAIN.BSC,  // skipping bsc as lot of tokens there are mispriced
+  CHAIN.BSC,
   CHAIN.ARBITRUM,
   CHAIN.AVAX,
 ];
@@ -23,7 +23,7 @@ const blacklistTokens = [
   '0x3fda9383a84c05ec8f7630fe10adf1fac13241cc',
 ]
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
     target: options.startOfDay > 1758067200 ? "0x8d413db42d6901de42b2c481cc0f6d0fd1c52828" : "0x382fFCe2287252F930E1C8DC9328dac5BF282bA1",
@@ -45,14 +45,8 @@ const adapter: SimpleAdapter = {
     Revenue: 'Fees collected by Coinbase paid by users for trading, swapping, bridging in Coinbase Wallet',
   },
   version: 2,
-  adapter: chains.reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: fetchFees,
-      },
-    };
-  }, {}),
+  chains,
+  fetch,
 };
 
 export default adapter;
