@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
-const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas']
+const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const iface = new ethers.Interface([LifiSwapEvent]);
 
