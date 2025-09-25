@@ -31,6 +31,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 	})
 
 	dailyFees.addGasToken(logs.length * LAUNCH_FEE, MetricLaunchCoinsFee)
+	dailyProtocolRevenue.addGasToken(logs.length * LAUNCH_FEE, MetricLaunchCoinsFee)
 
 	const events = await options.getLogs({
 		target: config[options.chain].uniderpHook,
