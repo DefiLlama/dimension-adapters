@@ -5,47 +5,32 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const permuteEndpoint = "https://api.permute.finance/bridge"
 
-const chainMapping = {
-  BTC: CHAIN.BITCOIN,
-  ETH: CHAIN.ETHEREUM,
-  AVAXC: CHAIN.AVAX,
-  ARBITRUM: CHAIN.ARBITRUM,
-  BSC: CHAIN.BSC,
-  TRON: CHAIN.TRON,
-  LTC: CHAIN.LITECOIN,
-  BCH: CHAIN.BITCOIN_CASH,
-  DOGE: CHAIN.DOGE,
-  SOL: CHAIN.SOLANA,
-  BERA: CHAIN.BERACHAIN,
+const chainConfig = {
+  [CHAIN.BITCOIN]: { start: '2025-05-28', key: 'BTC'},
+  [CHAIN.ETHEREUM]: { start: '2025-05-28', key: 'ETH'},
+  [CHAIN.AVAX]: { start: '2025-05-28', key: 'AVXC'},
+  [CHAIN.ARBITRUM]: { start: '2025-05-28', key: 'ARBITRUM'},
+  [CHAIN.BSC]: { start: '2025-05-28', key: 'BSC'},
+  [CHAIN.TRON]: { start: '2025-05-28', key: 'TRON'},
+  [CHAIN.LITECOIN]: { start: '2025-05-28', key: 'LTC'},
+  [CHAIN.BITCOIN_CASH]: { start: '2025-05-28', key: 'BCH'},
+  [CHAIN.DOGE]: { start: '2025-05-28', key: 'DOGE'},
+  [CHAIN.SOLANA]: { start: '2025-05-28', key: 'SOL'},
+  [CHAIN.BERACHAIN]: { start: '2025-05-28', key: 'BERA'},
 }
 
-const CHAINS = Object.keys(chainMapping);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
+  const url = permuteEndpoint.concat(`/dashboard/vol/chain/day?chain=${chainConfig[options.chain].key}&timestamp=${startOfDay}`)
+  const volumeForDay = await fetchURL(url)
 
-const getFetchForChain = (chainShortName: string) => {
-  return async (_a: any, _b: any, options: FetchOptions) => {
-    const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
-    const volumeForDay = await fetchURL(permuteEndpoint.concat(`/dashboard/vol/chain/day?chain=${chainShortName}&timestamp=${startOfDay}`))
-
-    const dailyVolume = volumeForDay.day_vol
-
-    return {
-      dailyVolume: dailyVolume,
-    };
-  };
+  const dailyVolume = volumeForDay.day_vol
+  return { dailyVolume };
 };
 
-
 const adapter: SimpleAdapter = {
-  methodology: {
-    Volume: "This represents the total value of assets bridged over the period.",
-  },
-  adapter: CHAINS.reduce((acc, chainKey) => {
-    acc[chainMapping[chainKey]] = {
-      fetch: getFetchForChain(chainKey) as any,
-      start: '2025-05-28',
-    };
-    return acc;
-  }, {}),
+  fetch,
+  adapter: chainConfig,
 };
 
 export default adapter;
