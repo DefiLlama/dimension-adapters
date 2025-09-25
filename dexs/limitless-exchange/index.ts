@@ -21,7 +21,6 @@ const abi = {
 };
 
 async function fetch(_: any, _1: any, options: FetchOptions) {
-  const { api } = options
   const dailyVolume = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyFees = options.createBalances();
@@ -69,15 +68,15 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
     const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
-    dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount, 'LPFee')
-    // dailyFees.addToken(collateralToken, log.args.feeAmount, 'BuyFee')
+    dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount)
+    dailyFees.addToken(collateralToken, log.args.feeAmount)
   })
   sellLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.source.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
-    dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount, 'LPFee')
-    dailyFees.addToken(collateralToken, log.args.feeAmount, 'SellFee')
+    dailySupplySideRevenue.addToken(collateralToken, log.args.feeAmount)
+    dailyFees.addToken(collateralToken, log.args.feeAmount)
   })
 
   orderMatchedLogs.forEach(order => {
@@ -87,18 +86,16 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   });
 
   feeChargedLogs.forEach(feeCharge => {
-    dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount, 'TreasuryFee');
-    dailyFees.addToken(ADDRESSES.base.USDC, feeCharge.amount, 'TreasuryFee');
+    dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount);
+    dailyFees.addToken(ADDRESSES.base.USDC, feeCharge.amount);
   });
 
 
 
   feeRefundedLogs.forEach(feeRefund => {
-    dailyRevenue.subtractToken(feeRefund.token, feeRefund.amount, 'TreasuryFee');
-    dailyFees.subtractToken(feeRefund.token, feeRefund.amount, 'TreasuryFee');
+    dailyRevenue.subtractToken(feeRefund.token, feeRefund.amount);
+    dailyFees.subtractToken(feeRefund.token, feeRefund.amount);
   });
-
-  dailyFees.add(dailySupplySideRevenue);
 
   return {
     dailyVolume,
@@ -113,27 +110,13 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 const methodology = {
   Volume: "Limitless exchange orderbook and fpmm volume",
   Fees: "Orderbook and fpmm fee post fee refunds",
-  Revenue: "Orderbook fee post refunds",
-  ProtocolRevenue: "All revenue go to the protocol",
-  SupplySideRevenue: "FPMM fee going to liquidity providers",
-};
-
-const breakdownMethodology = {
-  Fees: {
-    'BuyFee': 'Fee charged while buying',
-    'SellFee': 'Fee charged while selling',
-  },
-  Revenue: {
-    'TreasuryFee': 'Orderbook trading fee that goes to the protocol treasury',
-  },
-  SupplySideRevenue: {
-    'LPFee': 'FPMM trading fees goes to the Liquidity providers',
-  },
+  Revenue: "Orderbook trading fee that goes to the protocol treasury",
+  ProtocolRevenue: "Orderbook trading fee that goes to the protocol treasury",
+  SupplySideRevenue: "FPMM trading fees goes to the Liquidity providers",
 };
 
 const adapter: SimpleAdapter = {
   fetch,
-  breakdownMethodology,
   chains: [CHAIN.BASE],
   methodology,
   start: '2024-04-23'
