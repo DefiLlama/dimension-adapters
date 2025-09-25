@@ -267,4 +267,5 @@ export enum CHAIN {
   AKASH = "akash",
   DOGE = "doge",
   PLASMA = "plasma",
+  QUBIC = "qubic",
 }
