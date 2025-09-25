@@ -93,8 +93,8 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
 
   feeRefundedLogs.forEach(feeRefund => {
-    dailyRevenue.subtractToken(feeRefund.token, feeRefund.amount);
-    dailyFees.subtractToken(feeRefund.token, feeRefund.amount);
+    dailyRevenue.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
+    dailyFees.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
   });
 
   return {
