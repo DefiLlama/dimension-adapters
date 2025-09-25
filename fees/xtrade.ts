@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   },
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "User pays 0.75%-1% fee on each trade",
+    Fees: "User pays 1% fee on each trade",
     Revenue: "Portion of fees collected by XTrade",
     ProtocolRevenue: "Portion of fees collected by XTrade",
   },
