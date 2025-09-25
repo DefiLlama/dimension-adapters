@@ -1,7 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL"
 
 const historicalVolumeEndpoint = "https://public-osmosis-api.numia.xyz/volume/historical/chart"
@@ -11,37 +9,27 @@ interface IChartItem {
   value: number
 }
 
-const fetch = async (timestamp: number, _at: any, options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
+const fetch = async (timestamp: number, _at: any, { startOfDay, dateString }: FetchOptions) => {
+
+  const hours36 = 36 * 60 * 60
+  const now = Math.floor(Date.now() / 1000)
+  if (now - startOfDay < hours36) throw new Error(`Data for ${dateString} is not available yet.`)
   const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint));
 
-  const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
-
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + value, 0)
-
   const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.time === dateStr)?.value
+    .find(dayItem => dayItem.time.split('T')[0] === dateString)?.value
 
-  return {
-    totalVolume: totalVolume,
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    return {
+      dailyVolume: dailyVolume,
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))
-  return (new Date(historicalVolume[0].time).getTime()) / 1000
-}
-
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.OSMOSIS]: {
       fetch,
-      // runAtCurrTime: true,
-      start: getStartTimestamp,
+      start: "2022-04-15",
     },
   },
 };

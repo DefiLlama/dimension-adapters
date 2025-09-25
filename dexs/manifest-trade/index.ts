@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 
@@ -7,8 +8,7 @@ async function fetch(timestamp: number) {
   const response = await httpGet(volumeEndpoint);
 
   return {
-    totalVolume: response.totalVolume['solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'],
-    dailyVolume: response.dailyVolume['solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'],
+    dailyVolume: response.dailyVolume['solana:' + ADDRESSES.solana.USDC],
     timestamp: timestamp
   }
 }

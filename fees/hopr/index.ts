@@ -2,7 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ethers } from "ethers";
-import { getProvider } from "@defillama/sdk/build/general";
+import * as sdk from "@defillama/sdk";
 
 const channels_address = '0x693Bac5ce61c720dDC68533991Ceb41199D8F8ae';
 const wxHOPR_address = ADDRESSES.xdai.XHOPR;
@@ -23,7 +23,7 @@ interface ITx {
 }
 
 const fetch = async ({ toTimestamp, getLogs, createBalances, }: FetchOptions) => {
-  const provider = getProvider('xdai');
+  const provider = sdk.getProvider('xdai');
   const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
   const ticketRedeemedLogs: ITx[] = await getLogs({
@@ -63,13 +63,11 @@ const fetch = async ({ toTimestamp, getLogs, createBalances, }: FetchOptions) =>
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,
       start: '2023-08-31',
-      meta: {
-        methodology
-      }
     },
   }
 }

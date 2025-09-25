@@ -40,34 +40,6 @@ export default {
           })
           .filter(Boolean);
 
-        const getTotalVolume = async () => {
-          const volumeDetails = await api.multiCall({
-            abi: abis.returnEpochResultInActiveEpochByAddress,
-            calls: JUSTBET_BANKROLL_INDEXES as any,
-            target: WINR_VAULT_ADAPTER_CONTRACT,
-            permitFailure: true,
-          });
-
-          let totalVolume = 0;
-
-          volumeDetails.forEach((vault, i) => {
-            if (!vault || !vaultCurrentPrices[i]) return;
-
-            const vaultDecimal = Number(vaultCurrentPrices[i].decimals);
-            const vaultCurrentPrice = Number(
-              ethers.formatUnits(vaultCurrentPrices[i].priceInUSD, 8)
-            );
-            const totalVolumeUSDToday =
-              Number(
-                ethers.formatUnits(vault.totalPaidOutAllTimeUSD, vaultDecimal)
-              ) * vaultCurrentPrice;
-
-            totalVolume += totalVolumeUSDToday;
-          });
-
-          return totalVolume;
-        };
-
         const getDailyVolume = async () => {
           let dailyVolume = 0;
           const logs = await getLogs({
@@ -111,14 +83,13 @@ export default {
           return dailyVolume;
         };
 
-        const [totalVolume, dailyVolume] = await Promise.all([
-          getTotalVolume(),
+        const [dailyVolume] = await Promise.all([
           getDailyVolume(),
         ]);
 
-        return { totalVolume, dailyVolume };
+        return { dailyVolume };
       },
-      start: 1732060800,
+      start: '2024-11-20',
     },
   },
   version: 2,

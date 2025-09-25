@@ -20,7 +20,12 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
       start: '2023-04-24',
     },
-  }
+  },
+  methodology: {
+    Fees: "Interest paid by borrowers",
+    Revenue: "Interest paid by borrowers",
+    HoldersRevenue: "Governance token holders's share of fees paid by borrowers",
+  },
 };
 
 export default adapter;

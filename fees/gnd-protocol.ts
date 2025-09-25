@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from '../helpers/token';
@@ -48,11 +48,9 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2023-04-14',
-      meta: {
-        methodology
-      }
+    },
   },
-  }
+  methodology,
 }
 
 export default adapter;

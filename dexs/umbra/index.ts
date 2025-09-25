@@ -14,14 +14,6 @@ type VolumeResponse = {
 const fetch: Fetch = async (timestamp) => {
   const baseUrl = 'https://api.umbra.finance/1/explore/volume';
 
-  const monthlyVolumeFetch = axios
-    .get<VolumeResponse>(`${baseUrl}?timeframe=M`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-    .then((response) => response.data.result);
-
   const dailyVolumeFetch = axios
     .get<VolumeResponse>(`${baseUrl}?timeframe=D`, {
       headers: {
@@ -30,8 +22,7 @@ const fetch: Fetch = async (timestamp) => {
     })
     .then((response) => response.data.result);
 
-  const [monthlyVolumeItems, dailyVolumeItems] = await Promise.all([
-    monthlyVolumeFetch,
+  const [dailyVolumeItems] = await Promise.all([
     dailyVolumeFetch,
   ]);
 
@@ -42,14 +33,8 @@ const fetch: Fetch = async (timestamp) => {
 
   const dailyVolumeUsd = dailyVolumeItem?.data ?? 0;
 
-  const totalVolumeUsd = monthlyVolumeItems.reduce(
-    (sum, { data }) => (sum = sum + data),
-    0
-  );
-
   return {
     dailyVolume: dailyVolumeUsd,
-    totalVolume: totalVolumeUsd,
   };
 };
 
@@ -58,13 +43,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.ECLIPSE]: {
       fetch: fetch,
       start: '2025-02-22',
-      meta: {
-        methodology: {
-          Volume:
-            "USD Volume of Umbra V3 using datasource from protocol's indexed data.",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume:
+      "USD Volume of Umbra V3 using datasource from protocol's indexed data.",
   },
 };
 

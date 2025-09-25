@@ -18,12 +18,18 @@ const adapter: Adapter = {
         return {
           dailyFees,
           dailyRevenue: dailyFees,
+          dailyProtocolRevenue: dailyFees,
           timestamp: options.startOfDay,
         };
       }) as any,
       start: "2024-11-28",
     },
   },
+  methodology: {
+    Fees: "Tokens trading and launching fees paid by users.",
+    Revenue: "All fees are revenue.",
+    ProtocolRevenue: "All revenue collected by protocol.",
+  }
 };
 
 export default adapter;

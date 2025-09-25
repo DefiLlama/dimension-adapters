@@ -3,7 +3,6 @@ import { FetchOptions } from "../../adapters/types"
 import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import BigNumber from "bignumber.js";
 import { uniV2Exports } from "../../helpers/uniswap";
 
 const FACTORY_ADDRESS = '0x3e40739d8478c58f9b973266974c58998d4f9e8b';
@@ -17,19 +16,10 @@ const startDate = 1684702800;
 
 const feeAdapter =  uniV2Exports({
   [CHAIN.ARBITRUM]: { factory: FACTORY_ADDRESS, },
-}).adapter[CHAIN.ARBITRUM].fetch
+}).adapter![CHAIN.ARBITRUM].fetch
 
 
 const fetch = async (options: FetchOptions) => {
-	const dataFactory = await request(endpoints[options.chain], gql
-		`{
-			dexSwapFactories {
-				totalVolumeETH
-			}
-		}`
-	)
-	const totalVolume = dataFactory.dexSwapFactories[0].totalVolumeETH;
-	let totalFees = 0;
 	let date = startDate;
 	let skip = 0;
 	while (true) {
@@ -45,16 +35,11 @@ const fetch = async (options: FetchOptions) => {
 		if (dataFees.dexSwapFees.length === 1000) {
 			skip += 1000;
 		}
-		dataFees.dexSwapFees.forEach((data) => {
-			totalFees += data.volume/1e18 
-		})
 		if (dataFees.dexSwapFees.length < 1000) break;
 	}
 	const dailyData = await feeAdapter(options as any, {}, options);
 	return {
 		...dailyData,
-		totalVolume,
-		totalFees,
 	}
 }
 

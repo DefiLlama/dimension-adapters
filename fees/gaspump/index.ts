@@ -29,6 +29,9 @@ const adapter: any = {
       start: '2024-08-31',
     },
   },
+  methodology: {
+    Fees: "Tokens trading and launching fees paid by users.",
+  }
 };
 
 export default adapter;

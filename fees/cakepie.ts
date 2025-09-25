@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_paid_stream = 'event V3PoolFeesPaidTo  (address indexed _user, uint256 _positionId, address _token, uint256 _feeAmount)';
 const event_paid_bribe = 'event NewBribe ( address indexed _user, uint256 indexed _targetTime, address _pool, address _bribeToken, uint256 _amount)';
@@ -46,11 +46,15 @@ const graph = (chain: Chain) => {
   }
 }
 
+const methodology = {
+  Fees: 'Staking rewards collected from assets staked on PancakeSwap',
+  Revenue: 'Staking rewards collected from assets staked on PancakeSwap',
+}
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
-
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
     },

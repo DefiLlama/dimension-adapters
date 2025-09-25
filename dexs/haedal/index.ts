@@ -5,11 +5,9 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 const fetchData = () => {
     return async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-        const totalVolume = (await fetchURL(`https://haedal.xyz/api/v1/hmm/volume?poolObjectId=&fromTimestamp=&toTimestamp=`)).data.volume;
         const dailyVolume = (await fetchURL(`https://haedal.xyz/api/v1/hmm/volume?poolObjectId=&fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`)).data.volume;
         const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(endTimestamp * 1000))
         return {
-            totalVolume: totalVolume,
             dailyVolume: dailyVolume,
             timestamp: dayTimestamp,
         };

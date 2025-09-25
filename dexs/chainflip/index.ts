@@ -13,22 +13,19 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyVolume: dimensionsData.dailyVolume,
-    totalVolume: dimensionsData.totalVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    Volume:
+      "Cumulative USD value of swaps executed on the chainflip protocol",
+  },
   adapter: {
     [CHAIN.CHAINFLIP]: {
       fetch,
       start: "2023-11-23", // Protocol start date
-      meta: {
-        methodology: {
-          Volume:
-            "Cumulative USD value of swaps executed on the chainflip protocol",
-        },
-      },
     },
   },
 };

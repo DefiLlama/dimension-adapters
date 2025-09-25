@@ -1,48 +1,48 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 
 
-type IRequest = {
-  [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
-
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startOfDay;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4514149", {
-      start: start,
-      end: start + (24 * 60 * 60),
-    })
-  return requests[key]
+const prefetch = async (options: FetchOptions) => {
+  const sql_query = getSqlFromFile('helpers/queries/virtual-protocol.sql', { startTimestamp: options.startTimestamp, endTimestamp: options.endTimestamp })
+  return await queryDuneSql(options, sql_query);
 }
 
-const fetchFees = async (_t: any, _b: any ,options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const res = await fetchURLWithRetry("4514149", options);
-  const fees = res.find((e: any) => e.chain === options.chain);
-  dailyFees.addUSDValue(fees.fees_usd);
+
+  const results = options.preFetchedResults || [];
+  const chainData = results.find((item: any) => item.chain === options.chain);
+  if (chainData) {
+    dailyFees.addUSDValue(chainData.fees_usd);
+  }
+
   return {
     timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  }
+}
+
+const info = {
+  methodology: {
+    Fees: 'Revenue from Virtual Protocol across 4 main streams: 1) Base Virtual-fun (legacy buy/sell transactions), 2) Base Virtual-app (legacy non-trading), 3) Base CBBTC-prototype (direct transfers to prototype wallet), 4) Base CBBTC-sentient (outflows from tax manager representing agent treasury distributions). Also includes Ethereum Virtual transfers and Solana prototype fees + 1% of agent trading volume. Individual ecosystem and treasury transfers are replaced by the tax manager outflow method to avoid double counting.',
+    Revenue: 'Fees collected by the Protocol.',
+    ProtocolRevenue: 'Revenue from all sources to the Protocol.',
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  methodology: info.methodology,
   adapter: {
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: "2024-10-16",
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: "2024-10-16",
-    },
+    [CHAIN.BASE]: { start: "2024-10-15", },
+    [CHAIN.ETHEREUM]: { start: "2025-06-11", },
+    [CHAIN.SOLANA]: { start: "2025-02-11", },
   },
+  prefetch,
   isExpensiveAdapter: true,
 }
 

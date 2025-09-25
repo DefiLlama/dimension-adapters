@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
-import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const chains: Record<string, string> = {
   [CHAIN.SOLANA]: 'solana',
@@ -32,7 +31,7 @@ const chains: Record<string, string> = {
   [CHAIN.MOONBEAM]: 'moonbeam',
   [CHAIN.FUSE]: 'fuse',
   [CHAIN.CELO]: 'celo',
-  [CHAIN.OKEXCHAIN]: 'oke-x-chain',
+  // [CHAIN.OKEXCHAIN]: 'oke-x-chain',
   [CHAIN.CRONOS]: 'cronos',
   [CHAIN.MODE]: 'mode',
   [CHAIN.MERLIN]: 'merlin',
@@ -60,7 +59,8 @@ const chains: Record<string, string> = {
   [CHAIN.VELAS]: 'velas',
   [CHAIN.SYSCOIN]: 'syscoin',
   [CHAIN.BOBA_BNB]: 'boba-bsc',
-  [CHAIN.FLARE]: 'flare'
+  [CHAIN.FLARE]: 'flare',
+  [CHAIN.HEMI]: 'hemi'
 };
 
 interface ApiResponse {
@@ -70,33 +70,33 @@ interface ApiResponse {
   total_transaction_count: string;
 }
 
-const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
-  const response: ApiResponse = (
-    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chain}`)
-  );
+async function sleep(time: number) {
+  return new Promise((resolve) => setTimeout(resolve, time * 1000))
+}
+
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  await sleep(Math.floor(Math.random() * 5) + 1)
+
+  const data: ApiResponse = await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chains[options.chain]}`);
 
   return {
-    dailyVolume: response?.daily_volume_in_usd || '0',
-    totalVolume: response?.total_volume_in_usd || '0',
-    timestamp: options.startTimestamp,
+    dailyVolume: data?.daily_volume_in_usd || '0',
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    ...Object.entries(chains).reduce((acc, chain) => {
-      const [key, value] = chain;
-
+    ...Object.entries(chains).reduce((acc, [key]) => {
       return {
         ...acc,
         [key]: {
-          fetch: fetch(value),
-          start: '2023-01-01', // 01.01.2023
+          fetch,
+          start: '2023-01-01',
         },
       };
     }, {}),
   },
-  version: 2
 };
 
 export default adapter;

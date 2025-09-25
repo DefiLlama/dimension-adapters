@@ -10,3 +10,4 @@ const adapters: SimpleAdapter = {
   version: 2,
 };
 export default adapters;
+

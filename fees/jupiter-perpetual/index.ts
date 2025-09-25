@@ -1,34 +1,53 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const data: any[] = (await queryDune("4751411", {
-    start: options.startTimestamp,
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+
+  // Use the new decoded query for better performance
+  const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
+    start: options.startTimestamp - (7 * 24 * 60 * 60), // 7 days before start
     end: options.endTimestamp
-  }));
-  const dailyFees = data[0].total_fees;
+  });
+  const data: any[] = (await queryDuneSql(options, sql));
+  
+  // Filter data for the requested date range
+  const startDate = new Date(options.startTimestamp * 1000);
+  const endDate = new Date(options.endTimestamp * 1000);
+  
+  const filteredData = data.filter(row => {
+    const rowDate = new Date(row.day);
+    return rowDate >= startDate && rowDate <= endDate;
+  });
+  
+  // Sum up the total fees for the filtered period
+  const dailyFees = filteredData.reduce((sum, row) => sum + (row.total_fees || 0), 0);
+
   return {
     dailyFees,
-    dailyRevenue: `${dailyFees * (25/100)}`,
-    dailyHoldersRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
-    dailyProtocolRevenue: `${(dailyFees * (25/100)) * (50/100)}`,
-    dailySupplySideRevenue: `${dailyFees * (75/100)}`,
+    dailyRevenue: `${dailyFees * (25 / 100)}`,
+    dailyHoldersRevenue: `${(dailyFees * (25 / 100)) * (50 / 100)}`,
+    dailyProtocolRevenue: `${(dailyFees * (25 / 100)) * (50 / 100)}`,
+    dailySupplySideRevenue: `${dailyFees * (75 / 100)}`,
   }
 };
 
 const adapter = {
-  version: 2,
-  breakdown: {
-    derivatives: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        runAtCurrTime: true,
-        start: '2024-01-23',
-      },
+  methodology: {
+    Fees: "Fees paid by users to open/close positions for perps",
+    Revenue: "25% of total fees goes to protocol tresuary + JLP holders",
+    ProtocolRevenue: "50% of revenue (12.5% of total fees) goes to protocol treasury",
+    HoldersRevenue: "50% of revenue (12.5% of total fees) goes to JUP holders", 
+    SupplySideRevenue: "75% of total fees goes to liquidity providers",
+  },
+  version: 1,
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      start: '2024-01-23',
     },
   },
   isExpensiveAdapter: true,
 };
-export default adapter;
 
+export default adapter;

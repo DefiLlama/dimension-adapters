@@ -1,33 +1,8 @@
-import { SimpleAdapter } from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { CHAIN } from "../../helpers/chains";
+import { uniV3Exports } from "../../helpers/uniswap";
 
-const endpoint = {
-    [CHAIN.FUSE]: "https://api.studio.thegraph.com/query/78455/exchange-v3/version/latest",
-};
-
-const v3Graph = getGraphDimensions2({
-    graphUrls: endpoint,
-    totalVolume: {
-        factory: "factories"
-    },
-    totalFees: {
-        factory: "factories"
-    },
+export default uniV3Exports({
+  [CHAIN.FUSE]: {
+    factory: "0xaD079548b3501C5F218c638A02aB18187F62b207",
+  },
 })
-
-const v3StartTimes = {
-    [CHAIN.FUSE]: 1703725380,
-}
-
-const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.FUSE]: {
-            fetch: v3Graph(CHAIN.FUSE),
-            start: v3StartTimes[CHAIN.FUSE]
-        }
-    }
-}
-
-export default adapter

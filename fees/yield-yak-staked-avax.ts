@@ -35,6 +35,12 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLog
 
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: "Yield and rewards are distributed.",
+    Revenue: "Fees distributed to holders and protocol.",
+    HoldersRevenue: "All revenue distributed to holders.",
+    ProtocolRevenue: "All revenue collected by protocol.",
+  },
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,

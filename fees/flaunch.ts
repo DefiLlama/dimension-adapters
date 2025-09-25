@@ -16,6 +16,7 @@ const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue,
+        dailyProtocolrevenue: dailyRevenue,
     };
 };
 
@@ -26,6 +27,11 @@ const adapter: SimpleAdapter = {
             fetch: fetchFees,
         },
     },
+    methodology: {
+        Fees: "Tokens trading and launching fees paid by users.",
+        Revenue: "Tokens trading and launching fees paid by users.",
+        ProtocolRevenue: "Tokens trading and launching fees paid by users.",
+    }
 };
 
 export default adapter;

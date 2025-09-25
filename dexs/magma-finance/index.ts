@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -13,7 +13,7 @@ type IUrl = {
 const url: IUrl = {
   [CHAIN.SUI]: {
     histogramUrl:
-      "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=99999",
+      "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=40",
   },
 };
 
@@ -34,13 +34,6 @@ function calculateDailyVolume(historicalVolume: IVolumeData[], dateStr: string):
   )?.num;
 }
 
-function calculateTotalVolume(historicalVolume: IVolumeData[]): string {
-  return historicalVolume.reduce(
-    (acc, item) => acc + Number(item.num),
-    0
-  ).toString();
-}
-
 const fetch = (chain: Chain) => {
   return async (_tt: any,_t: any, options: FetchOptions): Promise<FetchResult> => {
     const date = new Date(options.startOfDay * 1000);
@@ -49,12 +42,10 @@ const fetch = (chain: Chain) => {
 
     const historicalVolume = await fetchHistoricalVolume(chain);
     const dailyVolume = calculateDailyVolume(historicalVolume, dateStr);
-    const totalVolume = calculateTotalVolume(historicalVolume);
 
     return {
       timestamp: dayTimestamp,
       dailyVolume,
-      totalVolume,
     };
   };
 };

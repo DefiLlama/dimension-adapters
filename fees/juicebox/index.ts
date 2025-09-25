@@ -9,7 +9,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     target: "0xf4BF4D5a5631d29Bd0B7A33a0a1870bcC4529f03",
     eventAbi: "event BuybackDelegate_Swap(uint256 indexed projectId, uint256 amountIn, address pool, uint256 amountOut, address caller)"
   });
-  logsFees.forEach(log=>{
+  logsFees.forEach(log => {
     dailyFees.add(ADDRESSES.null, log.amountIn)
   })
 
@@ -20,13 +20,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-            meta: {
-        methodology:
-          "2.5% of money raised in juicebox goes to buyback JBX upon withdrawal (money sent from one juicebox to another is not counted)",
-      },
     },
   },
   version: 2,
+  methodology: {
+    Fees: "2.5% of money raised in juicebox goes to buyback JBX upon withdrawal (money sent from one juicebox to another is not counted)",
+    Revenue: "All fees on Juicebox are revenue.",
+    HoldersRevenue: "All fees on Juicebox are distributed to holders.",
+  },
 };
 
 export default adapter;

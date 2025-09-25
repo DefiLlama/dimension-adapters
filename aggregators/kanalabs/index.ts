@@ -28,9 +28,7 @@ const fetch = (chain: KanaChainID) => async (timestamp: number, t: any, options:
     `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
   );
   return {
-    timestamp: timestamp,
     dailyVolume: data.today.volume,
-    totalVolume: data.totalVolume.volume,
   };
 };
 
@@ -50,58 +48,54 @@ const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
   const result = data.getTransactionVolumesForTransactions;
   
   return {
-    timestamp: timestamp,
     dailyVolume: result.today.volume,
-    totalVolume: result.totalVolume.volume,
   };
 };
 
-const startTimeBlock = 1695897800;
+const start = '2023-09-08';
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(KanaChainID.ethereum),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.BSC]: {
       fetch: fetch(KanaChainID.bsc),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(KanaChainID.Avalanche),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(KanaChainID.Arbitrum),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(KanaChainID.polygon),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.ERA]: {
       fetch: fetch(KanaChainID.zkSync),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.APTOS]: {
       fetch: async (timestamp: number, t: any, options: FetchOptions) => {
         const swap = await fetchAptos(options.startOfDay, t, options);
         return {
           dailyVolume: swap.dailyVolume.toString(),
-          totalVolume: swap.totalVolume.toString(),
-          timestamp,
         };
       },
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.SUI]: {
       fetch: fetch(KanaChainID.sui),
-      start: startTimeBlock,
+      start: start,
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(KanaChainID.solana),
-      start: startTimeBlock,
+      start: start,
     },
   },
 };

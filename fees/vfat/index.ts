@@ -62,99 +62,111 @@ const chainSettings: any = {
     chainName: 'avax',
     fromBlockSickle: 52924795
   },
+  ink: {
+    factory: '0xc6013E57a0811C7111A8fB07ACd2E248D9489C99',
+    chainName: 'ink',
+    fromBlockSickle: 7174745
+  },
+  unichain: {
+    factory: '0x233D9067677dCf1a161954D45B4C965B9d567168',
+    chainName: 'unichain',
+    fromBlockSickle: 10858337
+  },
+  katana: {
+    factory: '0x233D9067677dCf1a161954D45B4C965B9d567168',
+    chainName: 'katana',
+    fromBlockSickle: 5297524
+  },
+  polygon: {
+    factory: '0xAc371D6E651b6450ea8c4cE346Ddd44B62d851B5',
+    chainName: 'polygon',
+    fromBlockSickle: 70860185
+  },
+  lisk: {
+    factory: '0x233D9067677dCf1a161954D45B4C965B9d567168',
+    chainName: 'lisk',
+    fromBlockSickle: 17528958
+  },
 };
 
-const fetchFees = async (_t: any, _b: any,{ createBalances, getLogs, chain }: FetchOptions) => {
+const fetchFees = async (_t: any, _b: any, { createBalances, getLogs, chain }: FetchOptions) => {
   const dailyFees = createBalances();
   const settings = chainSettings[chain];
 
+  // Fetch Deploy events to get all Sickle contract addresses
+  const deployLogs = await getLogs({
+    target: settings.factory,
+    fromBlock: settings.fromBlock,
+    eventAbi: 'event Deploy(address indexed admin, address sickle)',
+    cacheInCloud: true,
+  });
 
-  /*     // Fetch Deploy events to get all Sickle contract addresses
-      const deployLogs = await getLogs({
-        target: settings.factory,
-        fromBlock: settings.fromBlock,
-        eventAbi: 'event Deploy(address indexed admin, address sickle)',
-        cacheInCloud: true,
-      });
-  
-      const sickleContracts = deployLogs.map((log: any) => log.sickle); */
+  const sickleContracts = deployLogs.map((log: any) => log.sickle.toLowerCase());
+  const sickleContractsSet = new Set(sickleContracts);
 
   const logs = await getLogs({
-    // targets: sickleContracts,
+    entireLog: true,
+    parseLog: true,
+    noTarget: true,
     eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
   });
 
   const logs2 = await getLogs({
-    // targets: sickleContracts,
+    entireLog: true,
+    parseLog: true,
+    noTarget: true,
     eventAbi: 'event FeeCharged(address strategy, bytes4 feeDescriptor, uint256 amount, address token)',
   });
 
-
   logs.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
+    let target = (log.address || log.source).toLowerCase();
+    if (!sickleContractsSet.has(target)) return;
+    const decodedLog = log.parsedLog.args
+    dailyFees.add(decodedLog.token, decodedLog.amount);
   });
 
   logs2.forEach((log: any) => {
-    dailyFees.add(log.token, log.amount);
+    let target = (log.address || log.source).toLowerCase();
+    if (!sickleContractsSet.has(target)) return;
+    const decodedLog = log.parsedLog.args
+    dailyFees.add(decodedLog.token, decodedLog.amount);
   });
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
+const methodology = {
+  Fees: 'All fees paid by users using vfat.io services.',
+  Revenue: 'All fees collected by vfat.io.',
+  ProtocolRevenue: 'All fees collected by vfat.io.',
+}
+
 const adapter: SimpleAdapter = {
+  fetch: fetchFees,
+  methodology,
   version: 1,
   adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.LINEA]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.MODE]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.FANTOM]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchFees,
-      start: '2024-03-21',
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetchFees,
-      start: '2024-12-24',
-    },
-    [CHAIN.FRAXTAL]: {
-      fetch: fetchFees,
-      start: '2024-12-03',
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetchFees,
-      start: '2024-11-11',
-    },
+    [CHAIN.OPTIMISM]: { start: '2024-03-21', },
+    [CHAIN.BASE]: { start: '2024-03-21', },
+    [CHAIN.ARBITRUM]: { start: '2024-03-21', },
+    [CHAIN.LINEA]: { start: '2024-03-21', },
+    [CHAIN.ETHEREUM]: { start: '2024-03-21', },
+    [CHAIN.MODE]: { start: '2024-03-21', },
+    [CHAIN.FANTOM]: { start: '2024-03-21', },
+    [CHAIN.MANTLE]: { start: '2024-03-21', },
+    [CHAIN.BSC]: { start: '2024-03-21', },
+    [CHAIN.SONIC]: { start: '2024-12-24', },
+    [CHAIN.FRAXTAL]: { start: '2024-12-03', },
+    [CHAIN.AVAX]: { start: '2024-11-11', },
+    [CHAIN.INK]: { start: '2025-02-27', },
+    [CHAIN.UNICHAIN]: { start: '2025-03-10', },
+    [CHAIN.KATANA]: { start: '2025-06-09', },
+    [CHAIN.POLYGON]: { start: '2025-04-28', },
+    [CHAIN.LISK]: { start: '2025-06-13', },
   }
 }
 

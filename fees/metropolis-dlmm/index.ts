@@ -48,7 +48,7 @@ const getData = async (from: number, to: number) => {
 
 
         const responses = [
-            await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22', 
+            await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22-2-w-v',
                 {query: Sonic_LB_V22_QUERY}
             ),
         ];
@@ -80,11 +80,9 @@ const adapter: SimpleAdapter = {
         [CHAIN.SONIC]: {
             fetch: fetchFee,
             start: "2024-12-16",
-            meta: {
-                methodology,
-            },
         },
     },
+    methodology,
 };
 
 export default adapter;

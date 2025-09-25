@@ -1,8 +1,7 @@
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, DISABLED_ADAPTER_KEY, Fetch } from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const graphEndpoint = "https://api.studio.thegraph.com/query/51510/nefi-base-mainnet-stats/version/latest";
 const startTimestamp = 1693526400;
@@ -43,10 +42,6 @@ const getFetch =
       id: dailyId,
       period: "daily",
     });
-    const totalData: IGraphResponse = await request(graphEndpoint, query, {
-      id: "total",
-      period: "total",
-    });
 
     return {
       timestamp: dayTimestamp,
@@ -55,15 +50,6 @@ const getFetch =
           ? String(
               Number(
                 Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))
-              ) *
-                10 ** -30
-            )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))
               ) *
                 10 ** -30
             )

@@ -11,7 +11,6 @@ const fetch = async (timestamp: number) => {
   const res = (await fetchURL(`${endpoint}?ts=${timestamp}`));
 
   return {
-    totalVolume: res.totalVolume,
     dailyVolume: res.dailyVolume,
     timestamp: dayTimestamp,
   };

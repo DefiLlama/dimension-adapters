@@ -1,7 +1,7 @@
 import BigNumber from "bignumber.js";
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN, } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { secondsInDay } from "../../utils/date";
 
@@ -169,11 +169,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2022-12-11',
-      meta: {
-        methodology,
-      },
     },
-  }
+  },
+  methodology,
 };
 
 export default adapter;

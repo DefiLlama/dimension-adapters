@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/types";
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -77,8 +77,9 @@ const createEVMVolumeFetcher = (chain: string) => {
       },
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`)
+    if (!response.ok || response.status !== 200) {
+      // throw new Error(`HTTP error! Status: ${response.status}`)
+      return {}
     }
 
     const volumeByAsset = await response.json()

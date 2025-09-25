@@ -59,28 +59,21 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     dailyVolume = dailyVolume.plus(new BigNumber(data.tradeVolume))
   });
 
-  let totalVolume = new BigNumber(0);
-  response.totalHistories.forEach(data => {
-    totalVolume = totalVolume.plus(new BigNumber(data.tradeVolume))
-  });
-
   dailyVolume = dailyVolume.dividedBy(new BigNumber(1e18))
-  totalVolume = totalVolume.dividedBy(new BigNumber(1e18))
 
   const _dailyVolume = toString(dailyVolume)
-  const _totalVolume = toString(totalVolume)
 
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
 
   return {
     timestamp: dayTimestamp,
     dailyVolume: _dailyVolume,
-    totalVolume: _totalVolume,
   }
 
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-09-01',
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolume,

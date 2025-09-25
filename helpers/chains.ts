@@ -1,5 +1,10 @@
 // Use
 export enum CHAIN {
+  PEAQ = "peaq",
+  CHROMIA = "chromia",
+  OFF_CHAIN = "off_chain",
+  ZK_LIGHTER = 'zklighter',
+  GALA = "gala",
   TARA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
@@ -10,11 +15,12 @@ export enum CHAIN {
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
   BIFROST = "bifrost",
+  BOTANIX = "btnx",
   CELO = "celo",
   ETHEREUM = "ethereum",
   FANTOM = "fantom",
   HARMONY = "harmony",
-  HAQQ = "haqq",
+  HAQQ = "islm",
   HECO = "heco",
   OKEXCHAIN = "okexchain",
   OPTIMISM = "optimism",
@@ -52,6 +58,7 @@ export enum CHAIN {
   GODWOKEN_V1 = "godwoken_v1",
   FUSE = "fuse",
   SX = "sx",
+  SXR = "sxr",
   ELROND = "elrond",
   DEFICHAIN = "defichain",
   CUBE = "cube",
@@ -60,7 +67,7 @@ export enum CHAIN {
   SYSCOIN = "syscoin",
   CRONOS = "cronos",
   VISION = "vision",
-  KARURA = "KARURA",
+  KARURA = "karura",
   SMARTBCH = "smartbch",
   KAVA = "kava",
   HEDERA = "hedera",
@@ -159,10 +166,10 @@ export enum CHAIN {
   SVM = "svm",
   ASTRZK = "astrzk",
   LYRA = "lyra",
-  BITLAYER = "bitlayer",
+  BITLAYER = "btr",
   XLAYER = "xlayer",
   MERLIN = "merlin",
-  CHILIZ = "chiliz",
+  CHILIZ = "chz",
   PLANQ = "planq",
   BOB = "bob",
   TAIKO = "taiko",
@@ -170,7 +177,7 @@ export enum CHAIN {
   IOTAEVM = "iotaevm",
   ZKLINK = "zklink",
   DEXALOT = "dexalot",
-  IMMUTABLEX = "immutablex",
+  IMMUTABLEX = "imx",
   CHAINFLIP = "chainflip",
   CRONOS_ZKEVM = "cronos_zkevm",
   LOGX = "logx_network",
@@ -185,6 +192,7 @@ export enum CHAIN {
   CELESTIA = "celestia",
   MORPH = "morph",
   APECHAIN = "apechain",
+  DCHAIN = "dchainmainnet",
   DUCKCHAIN = "duckchain",
   GRAVITY = "gravity",
   RARI = "rari",
@@ -197,7 +205,7 @@ export enum CHAIN {
   BOUNCE_BIT = "bouncebit",
   ZIRCUIT = "zircuit",
   WC = "wc",
-  ARCHWAY = "archway-1",
+  ARCHWAY = "archway",
   VINUCHAIN = "vinu",
   NEUTRON = "neutron",
   CORN = "corn",
@@ -212,7 +220,8 @@ export enum CHAIN {
   SHAPE = "shape",
   ABSTRACT = "abstract",
   REDSTONE = "redstone",
-  PLUME = "plume",
+  PLUME = "plume_mainnet",
+  PLUME_LEGACY = "plume",
   PENUMBRA = "penumbra",
   BERACHAIN = "berachain",
   UNICHAIN = "unichain",
@@ -233,53 +242,30 @@ export enum CHAIN {
   GOAT = "goat",
   HASHKEY = "hsk",
   NOBLE = "noble",
+  ELYS = "elys",
+  BITKUB = "bitkub",
+  INITIA = "initia",
+  COTI = "coti",
+  LENS = "lens",
+  SSEED = "sseed",
+  AO = 'ao',
+  XRPL_EVM = 'xrplevm',
+  KATANA = 'katana',
+  SOON = 'soon',
+  SOON_BSC = 'soon_bsc',
+  SOON_BASE = 'soon_base',
+  HYDRAGON = 'hydragon',
+  TAC = "tac",
+  NIBIRU = "nibiru",
+  HAVEN1 = "haven1",
+  GRVT = "grvt",
+  SOMNIA = "somnia",
+  ORDERLY = "orderly",
+  CAMP = "camp",
+  PARADEX = "paradex",
+  EDGEX = "edgex",
+  AKASH = "akash",
+  DOGE = "doge",
+  PLASMA = "plasma",
+  QUBIC = "qubic",
 }
-
-// Don´t use
-const ARBITRUM = "arbitrum";
-const AVAX = "avax";
-const BOBA = "boba";
-const BSC = "bsc";
-const CELO = "celo";
-const ETHEREUM = "ethereum";
-const FANTOM = "fantom";
-const HARMONY = "harmony";
-const HECO = "heco";
-const OKEXCHAIN = "okexchain";
-const OPTIMISM = "optimism";
-const POLYGON = "polygon";
-const RONIN = "ronin";
-const XDAI = "xdai";
-const AURORA = "aurora";
-const MOONRIVER = "moonriver";
-const BITCOIN = "bitcoin";
-const LITECOIN = "litecoin";
-const DOGE = "doge";
-const ZKSYNC = "zksync";
-const MANTLE = "mantle";
-const POLYNOMIAL = "polynomial";
-// Don't use
-export {
-  ARBITRUM,
-  AURORA,
-  AVAX,
-  BITCOIN,
-  BOBA,
-  BSC,
-  CELO,
-  DOGE,
-  ETHEREUM,
-  FANTOM,
-  HARMONY,
-  HECO,
-  LITECOIN,
-  MANTLE,
-  MOONRIVER,
-  OKEXCHAIN,
-  OPTIMISM,
-  POLYGON,
-  RONIN,
-  XDAI,
-  ZKSYNC,
-  POLYNOMIAL,
-};

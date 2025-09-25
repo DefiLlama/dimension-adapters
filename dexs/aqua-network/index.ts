@@ -1,41 +1,68 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const AQUA_VOLUME_ENDPOINT = "https://amm-api.aqua.network/api/external/v1/statistics/totals/?size=all"
 
 interface IVolumeAll {
-    volume: number;
-    tvl: number;
-    date: string;
+  volume: number;
+  tvl: number;
+  date: string;
+  protocol_fees: number;
+  lp_fees: number;
+  external_rewards: number;
+  timestamp_date_from: number;
+  timestamp_date_to: number;
 }
 
-const fetch = async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolumeAll[] = (await fetchURL(AQUA_VOLUME_ENDPOINT));
+let historicalVolume: IVolumeAll[] | any
 
-    const totalVolume = historicalVolume
-        .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
-        .reduce((acc, { volume }) => acc + Number(volume), 0)
+const fetch = async (_: any, _1: any, { startOfDay, dateString, }: FetchOptions) => {
+  if (!historicalVolume)
+    historicalVolume = fetchURL(AQUA_VOLUME_ENDPOINT)
+  historicalVolume = await historicalVolume
 
-    const dailyVolume = historicalVolume
-        .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
-    
-    return {
-        totalVolume: `${totalVolume / 10e7}`,
-        dailyVolume: dailyVolume ? `${Number(dailyVolume) / 10e7}` : undefined,
-        timestamp: dayTimestamp,
-    };
+  // Seems like we have here gap about 3.5 hours in to-timestamps, can u maybe explain that diff? 
+  // Finding day period from our api, that matches llama toTimestamp (current time)
+  const day = historicalVolume
+    .find(i => startOfDay === i.timestamp_date_from);
+
+  if (!day)
+    throw new Error('No data for timestamp: ' + dateString);
+
+
+  const ProtocolFees = day.protocol_fees / 1e7
+  const LPFees = day.lp_fees / 1e7
+  const ExternalRewards = day.external_rewards / 1e7
+
+  return {
+    dailyVolume: day.volume / 1e7,
+    dailyFees: ProtocolFees + LPFees,
+    dailyUserFees: ProtocolFees + LPFees,
+    dailySupplySideRevenue: LPFees,
+    dailyRevenue: ProtocolFees,
+    dailyHoldersRevenue: ProtocolFees,
+    dailyBribesRevenue: ExternalRewards,
+    dailyProtocolRevenue: 0,
+  }
 };
 
+const methodology = {
+  dailyFees: "All fees including 100% of the swap fees and external rewards for AQUA holders.",
+  dailyUserFees: "100% of the swap fees",
+  dailyRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected",
+  dailyProtocolRevenue: "Share of the fees kept by Aquarius. Currently equals 0.",
+  dailyHoldersRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected.",
+  dailySupplySideRevenue: "50% of the swap fees that are shared with the Aquarius liquidity providers",
+  dailyBribesRevenue: "Amount of external incentives for AQUA holders voting for specific markets on Aquarius.",
+}
+
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.STELLAR]: {
-            fetch,
-            start: '2024-07-01',
-        },
-    },
+  version: 1,
+  methodology,
+  adapter: {
+    [CHAIN.STELLAR]: { fetch, start: '2024-07-01' },
+  },
 };
 
 export default adapter;

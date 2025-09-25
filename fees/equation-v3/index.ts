@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { BreakdownAdapter, FetchV2, SimpleAdapter } from "../../adapters/types";
@@ -56,11 +56,9 @@ const adapter: SimpleAdapter = {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),
             start: '2024-05-13',
-            meta: {
-                methodology
-            }
         },
-    }
+    },
+    methodology
 }
 
 export default adapter;

@@ -18,11 +18,11 @@ const options = {
   },
 };
 
-const fetch = async ({ startTimestamp, endTimestamp, chain, }: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_t: any, _b: any, { startOfDay, chain, }: FetchOptions): Promise<FetchResultV2> => {
   const data = {
     timeRange: {
-      start: startTimestamp.toString(),
-      end: endTimestamp.toString(),
+      start: startOfDay.toString(),
+      end: (startOfDay + 86400).toString(),
       step: 3600,
     },
     queries: [
@@ -36,6 +36,9 @@ const fetch = async ({ startTimestamp, endTimestamp, chain, }: FetchOptions): Pr
         dataSource: 'METRICS',
       },
     ],
+    cachePolicy: {
+      noCache: true,
+    },
   };
   const res = await postURL(url[chain], data, 3, options);
   const values = res?.results?.[0]?.matrix?.samples?.[0]?.values;
@@ -43,21 +46,18 @@ const fetch = async ({ startTimestamp, endTimestamp, chain, }: FetchOptions): Pr
     throw new Error('No data found for the given time range');
 
   let dailyVolume = 0;
-  let totalVolume = 0;
 
   const beginVolume = Number(values[0].value);
   const latestVolume = Number(values[values.length - 1].value);
   dailyVolume = latestVolume - beginVolume;
-  totalVolume = latestVolume;
 
   return {
     dailyVolume: dailyVolume,
-    totalVolume: totalVolume,
   };
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SUI]: {
       fetch,

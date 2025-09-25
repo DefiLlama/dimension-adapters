@@ -28,6 +28,10 @@ const adapterFees: SimpleAdapter = {
       fetch,
       start: '2023-08-10',
     }
+  },
+  methodology: {
+    Fees: 'Fees paid by users for using BasePaint services.',
+    Revenue: 'Fees portion collected by BasePaint.',
   }
 }
 

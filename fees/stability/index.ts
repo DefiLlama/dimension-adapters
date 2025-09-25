@@ -70,6 +70,9 @@ const adapter: SimpleAdapter = {
             start: '2024-12-24',
         },
     },
+    methodology: {
+        Fees: "Yield and management fees collected from managed assets and vaults.",
+    },
 }
 
 export default adapter;

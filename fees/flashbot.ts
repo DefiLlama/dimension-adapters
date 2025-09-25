@@ -2,9 +2,9 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
-  
+
   // https://dune.com/queries/4742045
   const sql = getSqlFromFile('helpers/queries/flashbots.sql', {
     start: options.startTimestamp,
@@ -22,13 +22,16 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Total ETH fees paid to block proposers by users.',
+  },
 }
 
 export default adapter;
