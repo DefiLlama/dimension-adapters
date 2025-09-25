@@ -19,8 +19,5 @@ export enum METRIC {
   TRADING_FEES = 'Trading Fees', // apps, bots, frontend, wallets charge users fees by using trading
   MARGIN_FEES = 'Margin Fees', // perpetual, derivatives margin fees
   OPEN_CLOSE_FEES = 'Open/Close Fees', // trading open/close fees
-  PERFORMANCE_FEES = 'Performance Fees', // protocols take fee based on how the assets under their management are performing
-  AUCTION_FEES = 'Auction Fees', // Fees collected by auction proceeds
-  FAILED_PROPOSAL_FEES = 'Failed Propoal Fees', //Governance fees collected when proposal dails
-  PENALTY_FEES = 'Penalty Fees' //Penalty fees
+  PERFORMANCE_FEES = 'Performance Fees' // protocols take fee based on how the assets under their management are performing
 }

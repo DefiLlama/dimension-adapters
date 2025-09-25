@@ -3,6 +3,10 @@ import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { addTokensReceived } from "../helpers/token";
 
+const AUCTION_FEES = 'Auction Fees'; // Fees collected by auction proceeds
+const FAILED_PROPOSAL_FEES = 'Failed Propoal Fees'; //Governance fees collected when proposal dails
+const PENALTY_FEES = 'Penalty Fees'; //Penalty fees
+
 const methodology = {
   Fees: 'Total minter fees,penalty fees paid by borrowers, auction proceeds and failed proposals fee',
   Revenue: 'Total fees earned by distribution vault(Excess yields, auction proceeds and failed proposals fee',
@@ -14,18 +18,18 @@ const methodology = {
 const breakdownMethodology = {
   Revenue: {
     [METRIC.ASSETS_YIELDS]: 'Excess yields due to rounding, interest rate spreads',
-    [METRIC.PENALTY_FEES]: 'Charges imposed on minters for missed collateral updates or undercollateralization',
-    [METRIC.AUCTION_FEES]: 'The Power token contract auctions off newly inflated tokens in non-voting epochs, with proceeds directed to the vault.',
-    [METRIC.FAILED_PROPOSAL_FEES]: 'Fees submitted with proposals in the StandardGovernor flow to the Distribution Vault if the proposal fails.'
+    [PENALTY_FEES]: 'Charges imposed on minters for missed collateral updates or undercollateralization',
+    [AUCTION_FEES]: 'The Power token contract auctions off newly inflated tokens in non-voting epochs, with proceeds directed to the vault.',
+    [FAILED_PROPOSAL_FEES]: 'Fees submitted with proposals in the StandardGovernor flow to the Distribution Vault if the proposal fails.'
   },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Treasury yields earned from collateral assets',
   },
   HoldersRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Excess yields due to rounding, interest rate spreads',
-    [METRIC.PENALTY_FEES]: 'Charges imposed on minters for missed collateral updates or undercollateralization',
-    [METRIC.AUCTION_FEES]: 'The Power token contract auctions off newly inflated tokens in non-voting epochs, with proceeds directed to the vault.',
-    [METRIC.FAILED_PROPOSAL_FEES]: 'Fees submitted with proposals in the StandardGovernor flow to the Distribution Vault if the proposal fails.'
+    [PENALTY_FEES]: 'Charges imposed on minters for missed collateral updates or undercollateralization',
+    [AUCTION_FEES]: 'The Power token contract auctions off newly inflated tokens in non-voting epochs, with proceeds directed to the vault.',
+    [FAILED_PROPOSAL_FEES]: 'Fees submitted with proposals in the StandardGovernor flow to the Distribution Vault if the proposal fails.'
   }
 }
 const TokenM = '0x866a2bf4e572cbcf37d5071a7a58503bfb36be1b';
@@ -38,6 +42,7 @@ const ContractAbis = {
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
 
   const totalEarningSupply = await options.api.call({
     abi: ContractAbis.totalEarningSupply,
@@ -52,7 +57,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const YEAR = 365 * 24 * 60 * 60
   const timeframe = options.fromTimestamp && options.toTimestamp ? (options.toTimestamp - options.fromTimestamp) : 24 * 60 * 60
   const dailyYield = (totalEarningSupply * (earnerRate / 100) * (timeframe / YEAR)) / 100;
-  dailySupplySideRevenue.add(TokenM, dailyYield);
+  dailySupplySideRevenue.add(TokenM, dailyYield, METRIC.ASSETS_YIELDS);
+  dailyFees.add(TokenM, dailyYield, METRIC.ASSETS_YIELDS);
 
   const dailyHoldersRevenue = await addTokensReceived({
     options,
@@ -60,7 +66,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     target: DistributionVault,
   });
 
-  const dailyFees = dailySupplySideRevenue.clone();
   dailyFees.add(dailyHoldersRevenue)
 
   return {
