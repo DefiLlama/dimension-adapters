@@ -13,6 +13,7 @@ const HYPERBLOOM_ADDRESSES = [
 const INTEGRATORS_ADDRESSES = [
   "0x0a0758d937d1059c356D4714e57F5df0239bce1A", // LI.FI diamond
   "0x3e851976DCA1bc02A2F35Ce926dCAFD1dEB3359b",  // LI.FI 
+  '0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf' // Enso
 ];
 
 const iface = new ethers.Interface([BridgeFillEvent]);
