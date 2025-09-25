@@ -11,6 +11,7 @@ const v3ChainMapping: any = {
   [CHAIN.AVAX]: "AVALANCHE",
   [CHAIN.BASE]: "BASE",
   [CHAIN.HYPERLIQUID]: "HYPEREVM",
+  [CHAIN.PLASMA]: "PLASMA",
 };
 
 async function fetch(options: FetchOptions) {
