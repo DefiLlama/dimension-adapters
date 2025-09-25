@@ -22,7 +22,6 @@ const fetch = async (_,_a:any,{ startOfDay }: FetchOptions): Promise<FetchResult
 
     const resp = await httpGet(volumeEndpoint, configRule);
     if (!resp || !resp.success) {
-        console.log(resp);
         return {
             timestamp: dayTimestamp,
         }
