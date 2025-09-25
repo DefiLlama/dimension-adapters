@@ -32,6 +32,12 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     }
   });
 
+  if (LifiDiamonds[options.chain].blacklistTokens) {
+    for (const token of (LifiDiamonds[options.chain].blacklistTokens as Array<string>)) {
+      dailyVolume.removeTokenBalance(token)
+    }
+  }
+
   return { dailyVolume } as any;
 };
 
