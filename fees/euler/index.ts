@@ -5,7 +5,7 @@ import { METRIC } from "../../helpers/metrics"
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
-const eVaultFactories = {
+const eVaultFactories: Record<string, string> = {
     [CHAIN.ETHEREUM]: "0x29a56a1b8214D9Cf7c5561811750D5cBDb45CC8e",
     [CHAIN.BASE]: "0x7F321498A801A191a93C840750ed637149dDf8D0",
     [CHAIN.SONIC]: "0xF075cC8660B51D0b8a4474e3f47eDAC5fA034cFB",
@@ -18,6 +18,8 @@ const eVaultFactories = {
     [CHAIN.AVAX]: "0xaf4B4c18B17F6a2B32F6c398a3910bdCD7f26181",
     [CHAIN.TAC]: "0x2b21621b8Ef1406699a99071ce04ec14cCd50677",
     [CHAIN.LINEA]: "0x84711986Fd3BF0bFe4a8e6d7f4E22E67f7f27F04",
+    [CHAIN.PLASMA]: "0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3",
+    [CHAIN.MANTLE]: "0x47Aaf2f062aa1D55AFa602f5C9597588f71E2d76",
 };
 
 
@@ -133,7 +135,7 @@ const info = {
         },
     }
 }
-
+ // first vault created
 const adapters: Adapter = {
     version: 2,
     methodology: info.methodology,
@@ -185,8 +187,16 @@ const adapters: Adapter = {
         },
         [CHAIN.LINEA]: {
             fetch,
-            start: '2025-08-11', // first vault created
+            start: '2025-08-11',
         },
+        [CHAIN.PLASMA]: {
+            fetch,
+            start: '2025-09-22',
+        },
+        // [CHAIN.MANTLE]: {
+        //     fetch,
+        //     start: '2025-08-11', // no vaults created
+        // },
     },
 }
 
