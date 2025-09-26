@@ -4,6 +4,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from "axios";
 import { decompressFrame } from 'lz4-napi';
+import { getEnv } from './env';
+import { httpGet } from '../utils/fetchURL';
+import { formatAddress } from '../utils/utils';
 
 export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   // Delay as data is available only after 48 hours
@@ -87,10 +90,25 @@ export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }
  * @param builder_address - The builder address to fetch data for
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
+// hl indexer only supports data from this date
+const FROM_TIME = 1758585600
 export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
+
+  // try with llama hl indexer
+  const endpoint = getEnv('LLAMA_HL_INDEXER')
+  if (startTimestamp >= FROM_TIME && endpoint) {
+    const dateString = new Date(startTimestamp * 1000).toISOString().split('T')[0].replace('-', '').replace('-', '');
+    const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}&builder=${formatAddress(builder_address)}`);
+    for (const item of response.data) {
+      dailyFees.addCGToken('usd-coin', item.feeByTokens.USDC || 0)
+      dailyVolume.addCGToken('usd-coin', item.volumeUsd)
+    }
+
+    return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  }
 
   const date = new Date(startTimestamp * 1000);
   const dateStr = date.getFullYear().toString() + 
