@@ -4,7 +4,7 @@ import { addOneToken } from "../helpers/prices"
 
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
 const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: ['0xde04da55b74435d7b9f2c5c62d9f1b53929b09aa', '0xe6df05ce8c8301223373cf5b969afcb1498c5528'] },
+  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: ['0xde04da55b74435d7b9f2c5c62d9f1b53929b09aa', '0xe6df05ce8c8301223373cf5b969afcb1498c5528', '0x4fa7c69a7b69f8bc48233024d546bc299d6b03bf'] },
   [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
