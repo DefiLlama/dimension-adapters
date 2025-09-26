@@ -10,8 +10,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
 
-  //Ignoring STEP and STEP_SOL , as STEP would be brought back daily and would be doubly counted, also whenever SOL is received its swapped to STEP_SOL and would be doubly counted too
-  const query = `select 
+  // Ignoring STEP and STEP_SOL , as STEP would be brought back daily and would be doubly counted, also whenever SOL is received its swapped to STEP_SOL and would be doubly counted too
+  const query = `
+    select 
       token_mint_address as token, 
       sum(amount) as fee_received  
     from tokens_solana.transfers
@@ -20,7 +21,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       and token_mint_address not in ('${STEP}','${STEP_SOL}') 
       and block_time >= from_unixtime(${options.fromTimestamp}) 
       and block_time< from_unixtime(${options.toTimestamp}) 
-    group by token_mint_address`;
+    group by token_mint_address
+  `;
 
   const feeData = await queryDuneSql(options, query);
 
@@ -39,12 +41,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
   Fees: "Fees come from different sources under the Step Finance Organization, Solana Allstars, Solana Floor, Step revenue in its dashboard and APIs.",
   Revenue: "All fees are revenue.",
-  HoldersRevenue: "All the revenue is used to buy back STEP ,part of which goes to STEP token stakers and the rest are burnt"
+  HoldersRevenue: "All the revenue is used to buy back STEP, part of which goes to STEP token stakers and the rest are burnt.",
+  ProtocolRevenue: "No protocol revenue."
 }
+
 const adapter: SimpleAdapter = {
   fetch,
   methodology,
   chains: [CHAIN.SOLANA],
   isExpensiveAdapter: true
 }
+
 export default adapter
