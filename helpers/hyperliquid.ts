@@ -91,7 +91,7 @@ export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
-const FROM_TIME = 1758585600
+export const LLAMA_HL_INDEXER_FROM_TIME = 1758585600
 export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
@@ -99,7 +99,7 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
 
   // try with llama hl indexer
   const endpoint = getEnv('LLAMA_HL_INDEXER')
-  if (startTimestamp >= FROM_TIME && endpoint) {
+  if (startTimestamp >= LLAMA_HL_INDEXER_FROM_TIME && endpoint) {
     const dateString = new Date(startTimestamp * 1000).toISOString().split('T')[0].replace('-', '').replace('-', '');
     const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}&builder=${formatAddress(builder_address)}`);
     for (const item of response.data) {

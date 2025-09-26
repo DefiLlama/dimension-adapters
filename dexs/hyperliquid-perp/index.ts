@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { getEnv } from "../../helpers/env";
+import { LLAMA_HL_INDEXER_FROM_TIME } from "../../helpers/hyperliquid";
 
 // const URL = "https://api.hyperliquid.xyz/info";
 
@@ -12,11 +13,8 @@ import { getEnv } from "../../helpers/env";
 //   markPx: string;
 // }
 
-// hl indexer only supports data from this date
-const FROM_TIME = 1758585600
-
 const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  if (timestamp < FROM_TIME) {
+  if (timestamp < LLAMA_HL_INDEXER_FROM_TIME) {
     throw Error('request data too old, unsupported by LLAMA_HL_INDEXER');
   }
 
