@@ -8,7 +8,8 @@ const contracts = {
   CTF_EXCHANGE: "0xa4409d988ca2218d956beefd3874100f444f0dc3",
   NEG_RISK_CTF_EXCHANGE: "0x5a38afc17f7e97ad8d6c547ddb837e40b4aedfc6",
   FEE_MODULE: "0x6d8a7d1898306ca129a74c296d14e55e20aae87d",
-  NEG_RISK_FEE_MODULE: "0x73fc1b1395ba964fea8705bff7ef8ea5c23cc661"
+  NEG_RISK_FEE_MODULE: "0x73fc1b1395ba964fea8705bff7ef8ea5c23cc661",
+  CONDITIONAL_TOKENS: "0xC9c98965297Bc527861c898329Ee280632B76e18"
 };
 
 const abi = {
@@ -17,7 +18,9 @@ const abi = {
   FPMM_SELL: 'event FPMMSell(address indexed seller, uint256 returnAmount, uint256 feeAmount, uint256 indexed outcomeIndex, uint256 outcomeTokensSold)',
   ORDERS_MATCHED: 'event OrdersMatched (bytes32 indexed takerOrderHash, address indexed takerOrderMaker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled)',
   FEE_CHARGED: "event FeeCharged (address indexed receiver, uint256 tokenId, uint256 amount)",
-  FEE_REFUNDED: "event FeeRefunded (address token, address to, uint256 id, uint256 amount)"
+  FEE_REFUNDED: "event FeeRefunded (address token, address to, uint256 id, uint256 amount)",
+  CONDITION_RESOLUTION: "event ConditionResolution (bytes32 indexed conditionId, address indexed oracle,bytes32 indexed questionId, uint256 outcomeSlotCount, uint256[] payoutNumerators)",
+  TOKEN_REGISTERED: "event TokenRegistered (uint256 indexed token0,uint256 indexed token1, bytes32 indexed conditionId)"
 };
 
 async function fetch(_: any, _1: any, options: FetchOptions) {
@@ -33,6 +36,19 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
     fromBlock: 13549462,
     cacheInCloud: true,
     skipIndexer: true,
+  });
+
+  const tokenRegisteredLogs = await options.getLogs({
+    eventAbi: abi.TOKEN_REGISTERED,
+    targets: [contracts.CTF_EXCHANGE, contracts.NEG_RISK_CTF_EXCHANGE],
+    fromBlock: 26043405,
+    cacheInCloud: true,
+    skipIndexer: true
+  });
+
+  const conditionResolutionLogs = await options.getLogs({
+    eventAbi: abi.CONDITION_RESOLUTION,
+    target: contracts.CONDITIONAL_TOKENS,
   });
 
   const buyLogs = await options.getLogs({ eventAbi: abi.FPMM_BUY, noTarget: true, entireLog: true, parseLog: true })
@@ -53,16 +69,28 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
     targets: [contracts.FEE_MODULE, contracts.NEG_RISK_FEE_MODULE]
   });
 
-
-
   marketCreationLogs.forEach(market => {
     fpmmMarkets.push({ fixedProductMarketMaker: market.fixedProductMarketMaker, collateralToken: market.collateralToken })
   });
-  
+
   const fpmmMarketMap: any = {}
   fpmmMarkets.forEach(market => {
     fpmmMarketMap[market.fixedProductMarketMaker.toLowerCase()] = market.collateralToken
   })
+
+  const tokenPairs = new Map<string, [string, string]>();
+  tokenRegisteredLogs.forEach(tokenRegistration => {
+    const { token0, token1, conditionId } = tokenRegistration;
+    if (!tokenPairs.has(conditionId)) tokenPairs.set(conditionId, [token0, token1]);
+  });
+
+  const winningTokens = new Set<string | undefined>();
+  conditionResolutionLogs.forEach(resolution => {
+    const { conditionId, payoutNumerators } = resolution;
+    const tokenPair = tokenPairs.get(conditionId);
+    if (payoutNumerators[0] === 1) winningTokens.add(tokenPair?.[0])
+    else if (payoutNumerators[1] === 1) winningTokens.add(tokenPair?.[1])
+  });
 
   buyLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
@@ -86,15 +114,19 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   });
 
   feeChargedLogs.forEach(feeCharge => {
-    dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount);
-    dailyFees.addToken(ADDRESSES.base.USDC, feeCharge.amount);
+    const tokenId = feeCharge.tokenId;
+    if (winningTokens.has(tokenId)) {
+      dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount);
+      dailyFees.addToken(ADDRESSES.base.USDC, feeCharge.amount);
+    }
   });
 
-
-
   feeRefundedLogs.forEach(feeRefund => {
-    dailyRevenue.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
-    dailyFees.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
+    const tokenId = feeRefund.tokenId;
+    if (winningTokens.has(tokenId)) {
+      dailyRevenue.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
+      dailyFees.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
+    }
   });
 
   return {
