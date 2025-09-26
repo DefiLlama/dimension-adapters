@@ -68,6 +68,7 @@ export const ENV_KEYS = new Set([
   'VIRTUS_BACKEND_BASE',
   'DUNE_BULK_MODE',
   'DUNE_BULK_MODE_BATCH_TIME',
+  'LLAMA_HL_INDEXER',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
