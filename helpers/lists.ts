@@ -1,3 +1,4 @@
+import { formatAddress } from "../utils/utils";
 import { CHAIN } from "./chains";
 
 const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
@@ -24,5 +25,5 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
 }
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
-  return DefaultDexTokensBlacklisted[chain] ? DefaultDexTokensBlacklisted[chain].map(item => item.toLowerCase()) : [];
+  return DefaultDexTokensBlacklisted[chain] ? DefaultDexTokensBlacklisted[chain].map(item => formatAddress(item)) : [];
 }
