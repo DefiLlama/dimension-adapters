@@ -24,5 +24,5 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
 }
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
-  return DefaultDexTokensBlacklisted[chain].map(item => item.toLowerCase());
+  return DefaultDexTokensBlacklisted[chain] ? DefaultDexTokensBlacklisted[chain].map(item => item.toLowerCase()) : [];
 }
