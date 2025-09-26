@@ -13,20 +13,19 @@ import { getEnv } from "../../helpers/env";
 // }
 
 // hl indexer only supports data from this date
-const FROM_TIME = 1758499200
+const FROM_TIME = 1758585600
 
 const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   if (timestamp < FROM_TIME) {
     throw Error('request data too old, unsupported by LLAMA_HL_INDEXER');
   }
 
-  // 20250925
   const endpoint = getEnv('LLAMA_HL_INDEXER')
   if (!endpoint) {
     throw Error('missing LLAMA_HL_INDEXER env');
   }
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  // 20250925
   const dateString = new Date(timestamp * 1000).toISOString().split('T')[0].replaceAll('-', '');
   const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}`);
   
@@ -50,7 +49,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     // openInterestAtEnd: openInterestAtEnd?.toString(),
-    timestamp: dayTimestamp,
+    timestamp: getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)),
   };
 };
 
