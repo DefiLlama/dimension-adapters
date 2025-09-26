@@ -57,6 +57,7 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { formatAddress } from "../utils/utils";
 
 interface IUniswapConfig {
   poolManager: string;
@@ -272,7 +273,7 @@ async function fetch(options: FetchOptions) {
         const poolId = String(event.id)
         if (pools[poolId] as IPool) {
           const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
-          if (blacklistTokens.has((pools[poolId] as IPool).currency0) || blacklistTokens.has((pools[poolId] as IPool).currency1)) {
+          if (blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency0)) || blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency1))) {
             continue;
           }
 
