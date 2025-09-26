@@ -4,7 +4,7 @@ import { METRIC } from "../helpers/metrics";
 import { addTokensReceived } from "../helpers/token";
 
 const AUCTION_FEES = 'Auction Fees'; // Fees collected by auction proceeds
-const FAILED_PROPOSAL_FEES = 'Failed Propoal Fees'; //Governance fees collected when proposal dails
+const FAILED_PROPOSAL_FEES = 'Failed Proposal Fees'; //Governance fees collected when proposal dails
 const PENALTY_FEES = 'Penalty Fees'; //Penalty fees
 
 const methodology = {
