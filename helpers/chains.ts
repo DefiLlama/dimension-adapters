@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  PACASWAP = "pacaswap",
   PEAQ = "peaq",
   CHROMIA = "chromia",
   OFF_CHAIN = "off_chain",
@@ -266,4 +267,6 @@ export enum CHAIN {
   EDGEX = "edgex",
   AKASH = "akash",
   DOGE = "doge",
+  PLASMA = "plasma",
+  QUBIC = "qubic",
 }
