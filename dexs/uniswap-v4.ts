@@ -56,6 +56,7 @@ import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
 interface IUniswapConfig {
   poolManager: string;
@@ -269,6 +270,11 @@ async function fetch(options: FetchOptions) {
     for (const event of events) {
       const poolId = String(event.id)
       if (pools[poolId] as IPool) {
+        const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+        if (blacklistTokens.has((pools[poolId] as IPool).currency0) || blacklistTokens.has((pools[poolId] as IPool).currency1)) {
+          continue;
+        }
+
         const token = (pools[poolId] as IPool).currency0
         dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
         dailyVolume.add(token, Math.abs(Number(event.amount0)))
