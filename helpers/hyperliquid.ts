@@ -250,6 +250,8 @@ interface QueryIndexerOptions {
   // spot fees = sport revenue + unit revenue
   dailySpotRevenue: Balances;
   dailyUnitRevenue: Balances;
+
+  currentPerpOpenInterest?: number;
 }
 
 export async function queryHyperliquidIndexer(options: FetchOptions): Promise<QueryIndexerOptions> {
@@ -273,7 +275,11 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
   const dailyBuildersRevenue = options.createBalances()
   const dailyUnitRevenue = options.createBalances()
 
-  for (const item of response.data) {
+  let currentPerpOpenInterest: number | undefined = undefined
+
+  const houyItems = response.data.sort(function (a: any, b: any) { return a.timestamp > b.timestamp ? 1 : -1 })
+
+  for (const item of houyItems) {
     dailyPerpVolume.addCGToken('usd-coin', item.perpsVolumeUsd);
     dailySpotVolume.addCGToken('usd-coin', item.spotVolumeUsd);
 
@@ -294,6 +300,8 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
         dailySpotRevenue.addCGToken(CoinGeckoMaps[coin], fees);
       }
     }
+
+    currentPerpOpenInterest = item.perpsOpenInterestUsd ? Number(item.perpsOpenInterestUsd) : undefined
   }
 
   return {
@@ -303,5 +311,6 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
     dailySpotRevenue,
     dailyBuildersRevenue,
     dailyUnitRevenue,
+    currentPerpOpenInterest,
   }
 }

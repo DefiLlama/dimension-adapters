@@ -63,6 +63,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
     dailyHoldersRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: 0,
+    openInterestAtEnd: result.currentPerpOpenInterest,
   }
 }
 
