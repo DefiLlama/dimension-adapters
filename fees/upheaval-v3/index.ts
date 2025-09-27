@@ -6,7 +6,7 @@ import { LLAMA_HL_INDEXER_FROM_TIME } from '../../helpers/hyperliquid';
 
 // const HYPERUNIT_DEPLOYER_ADDRESS = '0xf036a5261406a394bd63eb4df49c464634a66155'
 
-const CG_UNIT_DEPLOYED_TOKENS: Record<string, string> = {
+const DEPLOYED_TOKENS: Record<string, string> = {
   'PUP': 'pup',
 }
 
@@ -29,7 +29,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
   //       buyer_fee_token as fee_token,
   //       SUM(buyer_fee) as total_fees
   //     FROM base_trades
-  //     WHERE buyer_fee_token IN (${Object.keys(CG_UNIT_DEPLOYED_TOKENS).map(token => `'${token}'`).join(',')})
+  //     WHERE buyer_fee_token IN (${Object.keys(DEPLOYED_TOKENS).map(token => `'${token}'`).join(',')})
   //       AND buyer_fee > 0
   //     GROUP BY buyer_fee_token
   //   ),
@@ -38,7 +38,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
   //       seller_fee_token as fee_token,
   //       SUM(seller_fee) as total_fees
   //     FROM base_trades
-  //     WHERE seller_fee_token IN (${Object.keys(CG_UNIT_DEPLOYED_TOKENS).map(token => `'${token}'`).join(',')})
+  //     WHERE seller_fee_token IN (${Object.keys(DEPLOYED_TOKENS).map(token => `'${token}'`).join(',')})
   //       AND seller_fee > 0
   //     GROUP BY seller_fee_token
   //   )
@@ -53,7 +53,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
   // `;
   // const data = await queryAllium(spotTradeFeesQuery);
   // for(const row of data) {
-  //   const cgToken = CG_UNIT_DEPLOYED_TOKENS[row.token_symbol];
+  //   const cgToken = DEPLOYED_TOKENS[row.token_symbol];
   //   dailyFees.addCGToken(cgToken, Number(row.total_fees));
   // }
 
@@ -73,7 +73,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
   for (const item of response.data) {
     for (const [token, feeAmount] of Object.entries(item.spotFeeByTokens)) {
-      const cgToken = CG_UNIT_DEPLOYED_TOKENS[token];
+      const cgToken = DEPLOYED_TOKENS[token];
       if (cgToken) {
         dailyFees.addCGToken(cgToken, Number(feeAmount));
       }
