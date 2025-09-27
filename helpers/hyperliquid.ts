@@ -5,7 +5,7 @@ import * as path from 'path';
 import axios from "axios";
 import { decompressFrame } from 'lz4-napi';
 import { getEnv } from './env';
-import { httpGet } from '../utils/fetchURL';
+import { httpGet, httpPost } from '../utils/fetchURL';
 import { formatAddress } from '../utils/utils';
 import { Balances } from '@defillama/sdk';
 
@@ -217,18 +217,6 @@ export function getRevenueRatioShares(timestamp: number): { holdersShare: number
   }
 }
 
-// coins deployed by unit protocol
-export const CoinsDeployedByUnitProtocol: Record<string, string> = {
-  'UBTC': 'unit-bitcoin',
-  'UETH': 'unit-ethereum',
-  'USOL': 'unit-solana',
-  'UPUMP': 'unit-pump',
-  'UBONK': 'bonk',
-  'UFART': 'unit-fartcoin',
-  'UUUSPX': 'spx6900',
-  'UXPL': 'plasma',
-}
-
 // need a better way to do on this coin mapping
 export const CoinGeckoMaps: Record<string, string> = {
   USDC: 'usd-coin',
@@ -236,7 +224,29 @@ export const CoinGeckoMaps: Record<string, string> = {
   USDT0: 'usdt0',
   XAUT0: 'tether-gold-tokens',
   USDE: 'ethena-usde',
-  ...CoinsDeployedByUnitProtocol,
+  UBTC: 'unit-bitcoin',
+  UETH: 'unit-ethereum',
+  USOL: 'unit-solana',
+  UPUMP: 'unit-pump',
+  UBONK: 'bonk',
+  UFART: 'unit-fartcoin',
+  UUUSPX: 'spx6900',
+  UXPL: 'plasma',
+  UENA: 'ethena',
+  UWLD: 'worldcoin-wld',
+  UDOGE: 'dogecoin',
+}
+
+export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
+  const coins: Record<string, string> = {}
+
+  const response = await httpPost('https://api-ui.hyperliquid.xyz/info', { type: 'spotMeta' })
+  const names = response.tokens.filter((item: any) => String(item.fullName).startsWith('Unit ')).map((item: any) => item.name)
+  for (const name of names) {
+    coins[name] = CoinGeckoMaps[name]
+  }
+
+  return coins
 }
 
 interface QueryIndexerOptions {
@@ -268,6 +278,8 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
   const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0].replace('-', '').replace('-', '');
   const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}`)
 
+  const coinsDeployedByUnit = await getUnitSeployedCoins()
+
   const dailyPerpVolume = options.createBalances()
   const dailySpotVolume = options.createBalances()
   const dailyPerpRevenue = options.createBalances()
@@ -294,8 +306,8 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
     // add fees from spot trading
     for (const [coin, fees] of Object.entries(item.spotFeeByTokens)) {
       // add unit evneue
-      if (CoinsDeployedByUnitProtocol[coin]) {
-        dailyUnitRevenue.addCGToken(CoinsDeployedByUnitProtocol[coin], fees);
+      if (coinsDeployedByUnit[coin]) {
+        dailyUnitRevenue.addCGToken(coinsDeployedByUnit[coin], fees);
       } else if (CoinGeckoMaps[coin]) {
         dailySpotRevenue.addCGToken(CoinGeckoMaps[coin], fees);
       }
