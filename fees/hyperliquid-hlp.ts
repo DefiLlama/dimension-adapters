@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
       start: '2023-02-25',
     },
   },
-  doublecounted: true,
+  doublecounted: true, // we have already counted to supplySideRevenue on perps and spot
 };
 
 export default adapter;

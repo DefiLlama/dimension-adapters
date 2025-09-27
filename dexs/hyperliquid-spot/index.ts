@@ -41,14 +41,14 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
   const dailySupplySideRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
 
-  // all perp fees
+  // all spot fees
   dailyFees.add(result.dailySpotRevenue, 'Spot Fees')
   dailyFees.add(result.dailyUnitRevenue, 'Unit Revenue')
 
   // spot fees - unit revenue
   dailyRevenue.add(result.dailySpotRevenue, 'Spot Fees')
 
-  // builders fees + 1% revenue
+  // unit revenue + 1% spot revenue
   dailySupplySideRevenue.add(result.dailySpotRevenue.clone(hlpShare), 'HLP')
   dailySupplySideRevenue.add(result.dailyUnitRevenue, 'Unit Revenue')
   
