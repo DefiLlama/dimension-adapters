@@ -88,8 +88,8 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   conditionResolutionLogs.forEach(resolution => {
     const { conditionId, payoutNumerators } = resolution;
     const tokenPair = tokenPairs.get(conditionId);
-    if (payoutNumerators[0] === 1) winningTokens.add(tokenPair?.[0])
-    else if (payoutNumerators[1] === 1) winningTokens.add(tokenPair?.[1])
+    if (payoutNumerators[0] == 1) winningTokens.add(tokenPair?.[0])
+    else if (payoutNumerators[1] == 1) winningTokens.add(tokenPair?.[1])
   });
 
   buyLogs.forEach(log => {
@@ -115,15 +115,15 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
   feeChargedLogs.forEach(feeCharge => {
     const tokenId = feeCharge.tokenId;
-    if (winningTokens.has(tokenId)) {
+    if (tokenId==0||winningTokens.has(tokenId)) {
       dailyRevenue.addToken(ADDRESSES.base.USDC, feeCharge.amount);
       dailyFees.addToken(ADDRESSES.base.USDC, feeCharge.amount);
     }
   });
 
   feeRefundedLogs.forEach(feeRefund => {
-    const tokenId = feeRefund.tokenId;
-    if (winningTokens.has(tokenId)) {
+    const tokenId = feeRefund.id;
+    if (tokenId==0||winningTokens.has(tokenId)) {
       dailyRevenue.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
       dailyFees.subtractToken(ADDRESSES.base.USDC, feeRefund.amount);
     }
