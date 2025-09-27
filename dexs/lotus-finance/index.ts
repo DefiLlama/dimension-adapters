@@ -66,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Daily trading volume in USD from Lotus Finance `/contract/performance` (interval=1d). Parses tuple rows and sums the 2nd column per day.",
+    Volume: "USD-denominated sum of executed orders across all pools.",
 };
 
 const adapter: SimpleAdapter = {
