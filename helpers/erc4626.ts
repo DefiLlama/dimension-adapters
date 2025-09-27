@@ -7,12 +7,13 @@ import { ChainApi } from "@defillama/sdk";
 const ERC4626Abis: any = {
   asset: 'address:asset',
   decimals: 'uint8:decimals',
-  totalAssets: 'uint256:totalSupply',
+  totalAssets: 'uint256:totalAssets',
   assetsPerShare: 'function convertToAssets(uint256 shares) view returns (uint256 assets)',
 }
 
 interface ERC4626VaultInfo {
   asset: string;
+  decimals: number;
   assetDecimals: number;
   totalAssets: bigint;
   assetsPerShare: bigint;
@@ -34,6 +35,11 @@ export async function getERC4626VaultsInfo(usingApi: ChainApi, vaults: Array<str
     abi: ERC4626Abis.decimals,
     permitFailure: true,
     calls: vaults,
+  })
+  const assetsDecimals: Array<string> = await usingApi.multiCall({
+    abi: ERC4626Abis.decimals,
+    permitFailure: true,
+    calls: assets,
   })
   const totalAssets: Array<string> = await usingApi.multiCall({
     abi: ERC4626Abis.totalAssets,
@@ -58,7 +64,8 @@ export async function getERC4626VaultsInfo(usingApi: ChainApi, vaults: Array<str
     if (asset) {
       vaultInfos[vault.toLowerCase()] = {
         asset: asset,
-        assetDecimals: Number(decimals[i]),
+        decimals: Number(decimals[i]),
+        assetDecimals: Number(assetsDecimals[i]),
         totalAssets: BigInt(totalAssets[i]),
         assetsPerShare: BigInt(assetsPerShares[i]),
       }
@@ -74,7 +81,7 @@ export async function getERC4626VaultsYield({
   options,
   vaults,
   assetAbi = 'address:asset',
-  valueAbi = 'uint256:totalAssets',
+  valueAbi = 'uint256:totalSupply',
   convertAbi = 'function convertToAssets(uint256) view returns (uint256)',
 }: {
   options: FetchOptions,
@@ -103,7 +110,7 @@ export async function getERC4626VaultsYield({
     const cumulativeIndexBeforeValue = cumulativeIndexBefore[i]
     const cumulativeIndexAfterValue = cumulativeIndexAfter[i]
     if (token && value && decimal && cumulativeIndexBeforeValue && cumulativeIndexAfterValue) {
-      const totalTokenBalance = Number(value) / (10 ** Number(decimal))
+      const totalTokenBalance = Number(value)
       const growthCumulativeIndex = Number(cumulativeIndexAfterValue) - Number(cumulativeIndexBeforeValue)
       const growthInterest = growthCumulativeIndex * totalTokenBalance / (10 ** Number(decimal))
       balances.add(token, growthInterest)

@@ -64,7 +64,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
     if (block) chainBlocks[chain] = block
     return block
   } catch (e) {
-    console.error('error fetching block' + chain + ' ' + (e as any)?.message)
+    console.log('error fetching block' + chain + ' ' + (e as any)?.message)
     return null
   }
 }

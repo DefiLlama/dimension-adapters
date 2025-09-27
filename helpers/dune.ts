@@ -118,9 +118,9 @@ export function queryDune(queryId: string, query_parameters: any, options: Fetch
                 .map((r, index) => `(SELECT *, ${index} as _batch_index FROM (${r.parameters.fullQuery}))`)
                 .join(' UNION ALL ');
 
+              const startTime = Date.now();
               const results = await _queryDune(queryId, { fullQuery: combinedQuery });
-              log(`[Dune] Batched query for ${moduleUID} returned ${results.length} rows`);
-
+              log(`[Dune] Batched query for ${moduleUID} returned ${results.length} rows took ${(Date.now() - startTime) / 1000}s, batchCount: ${batch.requests.length}`);
               // Split results by _batch_index
               const resultsByIndex = results.reduce((acc: Record<number, any[]>, row: any) => {
                 const index = row._batch_index;

@@ -56,6 +56,8 @@ import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { formatAddress } from "../utils/utils";
 
 interface IUniswapConfig {
   poolManager: string;
@@ -227,52 +229,59 @@ async function fetch(options: FetchOptions) {
       onlyArgs: true,
     });
 
-    const pools: {[key: string]: IPool | null} = {}
-    for (const event of events) {
-      if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id)) {
-        // ignore blacklist pools
-        continue;
-      }
-      pools[event.id] = null
-    }
-
-    // query pools info
-    const poolIds = Object.keys(pools)
-    const poolKeys = await options.api.multiCall({
-      abi: FunctionPoolKeys,
-      calls: poolIds.map(poolId => {
-        return {
-          target: config.positionManager,
-          params: [getPoolKey(poolId)],
+    if (events.length > 0) {
+      const pools: {[key: string]: IPool | null} = {}
+      for (const event of events) {
+        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id)) {
+          // ignore blacklist pools
+          continue;
         }
-      }),
-      permitFailure: true,
-    })
+        pools[event.id] = null
+      }
 
-    for (let i = 0; i < poolIds.length; i++) {
-      if (poolKeys[i]) {
-        // uniswap v4 supports hooks execute before and after swap
-        // so poolManager may be emit Swap event without the liquidity pool was even existed
-        // these logics are likely can be ignored because it didn't work as LP or swap from users
-        // to check a valid liquidity pool, we need atleast one token is not null address
-        if (poolKeys[i].currency0 !== ADDRESSES.null || poolKeys[i].currency1 !== ADDRESSES.null) {
-          pools[poolIds[i]] = {
-            poolId: poolIds[i],
-            poolKey: getPoolKey(poolIds[i]),
-            currency0: String(poolKeys[i].currency0),
-            currency1: String(poolKeys[i].currency1),
+      // query pools info
+      const poolIds = Object.keys(pools)
+      const poolKeys = await options.api.multiCall({
+        abi: FunctionPoolKeys,
+        calls: poolIds.map(poolId => {
+          return {
+            target: config.positionManager,
+            params: [getPoolKey(poolId)],
+          }
+        }),
+        permitFailure: true,
+      })
+
+      for (let i = 0; i < poolIds.length; i++) {
+        if (poolKeys[i]) {
+          // uniswap v4 supports hooks execute before and after swap
+          // so poolManager may be emit Swap event without the liquidity pool was even existed
+          // these logics are likely can be ignored because it didn't work as LP or swap from users
+          // to check a valid liquidity pool, we need atleast one token is not null address
+          if (poolKeys[i].currency0 !== ADDRESSES.null || poolKeys[i].currency1 !== ADDRESSES.null) {
+            pools[poolIds[i]] = {
+              poolId: poolIds[i],
+              poolKey: getPoolKey(poolIds[i]),
+              currency0: String(poolKeys[i].currency0),
+              currency1: String(poolKeys[i].currency1),
+            }
           }
         }
       }
-    }
-    
-    for (const event of events) {
-      const poolId = String(event.id)
-      if (pools[poolId] as IPool) {
-        const token = (pools[poolId] as IPool).currency0
-        dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
-        dailyVolume.add(token, Math.abs(Number(event.amount0)))
-      }
+      
+      for (const event of events) {
+        const poolId = String(event.id)
+        if (pools[poolId] as IPool) {
+          const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+          if (blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency0)) || blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency1))) {
+            continue;
+          }
+
+          const token = (pools[poolId] as IPool).currency0
+          dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
+          dailyVolume.add(token, Math.abs(Number(event.amount0)))
+        }
+      }      
     }
   }
 

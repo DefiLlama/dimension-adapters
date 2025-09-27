@@ -17,7 +17,7 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   const usdcRecord = usdcFeeData.snapshots.find((day: any) => day.date == startOfDayIso);
   const aktRecord = aktFeeData.snapshots.find((day: any) => day.date == startOfDayIso);
 
-  if (!usdcRecord || !usdcRecord.value || !aktRecord || !aktRecord.value) throw new Error(`No data for ${startOfDayIso}`);
+  if (!usdcRecord || !aktRecord) throw new Error(`No data for ${startOfDayIso}`);
 
   const dailyFees = options.createBalances();
 
