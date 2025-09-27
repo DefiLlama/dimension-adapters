@@ -4,8 +4,6 @@ import { httpGet } from '../../utils/fetchURL';
 import { getEnv } from '../../helpers/env';
 import { LLAMA_HL_INDEXER_FROM_TIME } from '../../helpers/hyperliquid';
 
-// const HYPERUNIT_DEPLOYER_ADDRESS = '0xf036a5261406a394bd63eb4df49c464634a66155'
-
 const DEPLOYED_TOKENS: Record<string, string> = {
   'PUP': 'pup',
 }
