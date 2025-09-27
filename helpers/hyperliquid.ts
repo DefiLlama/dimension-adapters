@@ -226,6 +226,7 @@ export const CoinsDeployedByUnitProtocol: Record<string, string> = {
   'UBONK': 'bonk',
   'UFART': 'unit-fartcoin',
   'UUUSPX': 'spx6900',
+  'UXPL': 'plasma',
 }
 
 // need a better way to do on this coin mapping
