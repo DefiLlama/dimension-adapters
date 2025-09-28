@@ -5,8 +5,9 @@ import * as path from 'path';
 import axios from "axios";
 import { decompressFrame } from 'lz4-napi';
 import { getEnv } from './env';
-import { httpGet } from '../utils/fetchURL';
+import { httpGet, httpPost } from '../utils/fetchURL';
 import { formatAddress } from '../utils/utils';
+import { Balances } from '@defillama/sdk';
 
 export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   // Delay as data is available only after 48 hours
@@ -198,3 +199,130 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
     }
   }
 };
+
+// confirm from hyperliquid team
+// before 30 Aug, 97% of fees go to Assistance Fund for burning tokens, remaining 3% go to HLP Vault
+// after 30 Aug, 99% of fees go to Assistance Fund for burning tokens, remaining 1% go to HLP Vault
+export function getRevenueRatioShares(timestamp: number): { holdersShare: number, hlpShare: number } {
+  if (timestamp > 1756512000) {
+    return {
+      holdersShare: 0.99,
+      hlpShare: 0.01,
+    }
+  } else {
+    return {
+      holdersShare: 0.97,
+      hlpShare: 0.03,
+    }
+  }
+}
+
+// need a better way to do on this coin mapping
+export const CoinGeckoMaps: Record<string, string> = {
+  USDC: 'usd-coin',
+  HYPE: 'hyperliquid',
+  USDT0: 'usdt0',
+  XAUT0: 'tether-gold-tokens',
+  USDE: 'ethena-usde',
+  UBTC: 'unit-bitcoin',
+  UETH: 'unit-ethereum',
+  USOL: 'unit-solana',
+  UPUMP: 'unit-pump',
+  UBONK: 'bonk',
+  UFART: 'unit-fartcoin',
+  UUUSPX: 'spx6900',
+  UXPL: 'plasma',
+  UENA: 'ethena',
+  UWLD: 'worldcoin-wld',
+  UDOGE: 'dogecoin',
+}
+
+export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
+  const coins: Record<string, string> = {}
+
+  const response = await httpPost('https://api-ui.hyperliquid.xyz/info', { type: 'spotMeta' })
+  const names = response.tokens.filter((item: any) => String(item.fullName).startsWith('Unit ')).map((item: any) => item.name)
+  for (const name of names) {
+    coins[name] = CoinGeckoMaps[name]
+  }
+
+  return coins
+}
+
+interface QueryIndexerOptions {
+  dailyPerpVolume: Balances;
+  dailySpotVolume: Balances;
+
+  // perp fees = perp revenue + builders revenue
+  dailyPerpRevenue: Balances;
+  dailyBuildersRevenue: Balances;
+
+  // spot fees = sport revenue + unit revenue
+  dailySpotRevenue: Balances;
+  dailyUnitRevenue: Balances;
+
+  currentPerpOpenInterest?: number;
+}
+
+export async function queryHyperliquidIndexer(options: FetchOptions): Promise<QueryIndexerOptions> {
+  if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
+    throw Error('request data too old, unsupported by LLAMA_HL_INDEXER');
+  }
+
+  const endpoint = getEnv('LLAMA_HL_INDEXER')
+  if (!endpoint) {
+    throw Error('missing LLAMA_HL_INDEXER env');
+  }
+
+  // 20250925
+  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0].replace('-', '').replace('-', '');
+  const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}`)
+
+  const coinsDeployedByUnit = await getUnitSeployedCoins()
+
+  const dailyPerpVolume = options.createBalances()
+  const dailySpotVolume = options.createBalances()
+  const dailyPerpRevenue = options.createBalances()
+  const dailySpotRevenue = options.createBalances()
+  const dailyBuildersRevenue = options.createBalances()
+  const dailyUnitRevenue = options.createBalances()
+
+  let currentPerpOpenInterest: number | undefined = undefined
+
+  const houyItems = response.data.sort(function (a: any, b: any) { return a.timestamp > b.timestamp ? 1 : -1 })
+
+  for (const item of houyItems) {
+    dailyPerpVolume.addCGToken('usd-coin', item.perpsVolumeUsd);
+    dailySpotVolume.addCGToken('usd-coin', item.spotVolumeUsd);
+
+    // add fees from perps trading
+    dailyPerpRevenue.addCGToken('usd-coin', item.perpsFeeByTokens.USDC);
+
+    // add builder fees
+    for (const builder of Object.values(item.builders)) {
+      dailyBuildersRevenue.addCGToken('usd-coin', Number((builder as any).feeByTokens.USDC || 0));
+    }
+
+    // add fees from spot trading
+    for (const [coin, fees] of Object.entries(item.spotFeeByTokens)) {
+      // add unit evneue
+      if (coinsDeployedByUnit[coin]) {
+        dailyUnitRevenue.addCGToken(coinsDeployedByUnit[coin], fees);
+      } else if (CoinGeckoMaps[coin]) {
+        dailySpotRevenue.addCGToken(CoinGeckoMaps[coin], fees);
+      }
+    }
+
+    currentPerpOpenInterest = item.perpsOpenInterestUsd ? Number(item.perpsOpenInterestUsd) : undefined
+  }
+
+  return {
+    dailyPerpVolume,
+    dailySpotVolume,
+    dailyPerpRevenue,
+    dailySpotRevenue,
+    dailyBuildersRevenue,
+    dailyUnitRevenue,
+    currentPerpOpenInterest,
+  }
+}

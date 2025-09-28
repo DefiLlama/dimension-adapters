@@ -1,44 +1,81 @@
-import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
-import { getEnv } from "../../helpers/env";
-import { LLAMA_HL_INDEXER_FROM_TIME } from "../../helpers/hyperliquid";
+import { METRIC } from "../../helpers/metrics";
+import { getRevenueRatioShares, queryHyperliquidIndexer } from "../../helpers/hyperliquid";
+import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
 
-const fetch = async (_1: number, _: any, { createBalances, startOfDay }: FetchOptions) => {
-  if (startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
-    throw Error('request data too old, unsupported by LLAMA_HL_INDEXER');
-  }
+const methodology = {
+  Fees: "Include perps trading fees and builders fees, excluding spot fees.",
+  Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees.",
+  ProtocolRevenue: "Protocol doesn't keep any fees.",
+  HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees.",
+  SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3% + fees for builders.",
+}
 
-  const endpoint = getEnv('LLAMA_HL_INDEXER')
-  if (!endpoint) {
-    throw Error('missing LLAMA_HL_INDEXER env');
-  }
+const breakdownMethodology = {
+  Fees: {
+    'Perp Fees': 'Perp trade fees collected as revenue, excluding spot fees.',
+    'Builders Revenue': 'Perp trade fees share for builders fees, excluding spot fees.',
+  },
+  Revenue: {
+    'Perp Fees': '99% of perp trade fees, excluding spot fees and builders fees.',
+  },
+  SupplySideRevenue: {
+    'Builders Revenue': 'Perp trade rees share for builders.',
+    'HLP': '1% of the perp trade fees go to HLP vault (used to be 3% before 30 Aug 2025)',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "99% of perp trade fees (excluding spot fees and builders fees) for buy back HYPE tokens."
+  },
+}
 
-  // 20250925
-  const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0].replaceAll('-', '');
-  const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}`);
+async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchResultV2> {
+  const result = await queryHyperliquidIndexer(options);
 
-  const dailyVolume = createBalances()
-  const dailyFees = createBalances()
+  const { holdersShare, hlpShare } = getRevenueRatioShares(options.startOfDay)
 
-  for (const item of response.data) {
-    dailyVolume.addCGToken('usd-coin', item.volumeUsd);
-    dailyFees.addCGToken('usd-coin', item.perpsFeeByTokens.USDC);
-  }
+  // perp volume
+  const dailyVolume = result.dailyPerpVolume;
+
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  // all perp fees
+  dailyFees.add(result.dailyPerpRevenue, 'Perp Fees')
+  dailyFees.add(result.dailyBuildersRevenue, 'Builders Revenue')
+
+  // perp fees - builders revenue
+  dailyRevenue.add(result.dailyPerpRevenue, 'Perp Fees')
+
+  // builders fees + 1% revenue
+  dailySupplySideRevenue.add(result.dailyPerpRevenue.clone(hlpShare), 'HLP')
+  dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builders Revenue')
+  
+  // 99% of revenue
+  dailyHoldersRevenue.add(result.dailyPerpRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
   return {
     dailyVolume,
     dailyFees,
-  };
-};
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: 0,
+    openInterestAtEnd: result.currentPerpOpenInterest,
+  }
+}
 
 const adapter: SimpleAdapter = {
+  methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
       start: '2023-02-25',
     },
-  }
+  },
 };
 
 export default adapter;
