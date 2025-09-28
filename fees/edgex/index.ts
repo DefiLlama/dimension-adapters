@@ -10,6 +10,7 @@ interface IEdgeXFeeResponse {
   data: {
     dayTimestamp: number;
     fee: string;
+    revenue: string;
   }[];
   msg: string | null;
   errorParam: string | null;
@@ -31,7 +32,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
   }
 
   const dailyFees = dayData.fee;
-  const dailyRevenue = dayData.fee;
+  const dailyRevenue = dayData.revenue;
 
   return {
     dailyFees,
