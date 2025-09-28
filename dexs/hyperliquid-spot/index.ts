@@ -1,33 +1,79 @@
-import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { httpPost } from "../../utils/fetchURL";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
+import { getRevenueRatioShares, queryHyperliquidIndexer } from "../../helpers/hyperliquid";
 
-const URL = "https://api.hyperliquid.xyz/info";
-
-interface Response {
-  dayNtlVlm: string;
+const methodology = {
+  Fees: "Include spot trading fees and unit protocol fees, excluding perps fees.",
+  Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding unit protocol fees.",
+  ProtocolRevenue: "Protocol doesn't keep any fees.",
+  HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding unit protocol fees.",
+  SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3% + fees for unit protocol.",
 }
 
-const fetch = async (timestamp: number) => {
-  const respose: Response[] = (await httpPost(URL, {"type": "spotMetaAndAssetCtxs"}))[1];
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const dailyVolume = respose.reduce((acc, item) => {
-    return acc + Number(item.dayNtlVlm);
-  },0);
+const breakdownMethodology = {
+  Fees: {
+    'Spot Fees': 'Spot trade fees collected as revenue, excluding perp fees.',
+    'Unit Revenue': 'Spot trade share for unit protocol fees, excluding perp fees.',
+  },
+  Revenue: {
+    'Spot Fees': '99% of spot trade fees, excluding perp fees and unit protocol fees.',
+  },
+  SupplySideRevenue: {
+    'Unit Revenue': 'Spot fees share for unit protocol.',
+    'HLP': '1% of the fpot fees go to HLP vault (used to be 3% before 30 Aug 2025)',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "99% of spot trade fees (excluding perp fees and unit protocol fees) for buy back HYPE tokens."
+  },
+}
+
+async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchResultV2> {
+  const result = await queryHyperliquidIndexer(options);
+
+  const { holdersShare, hlpShare } = getRevenueRatioShares(options.startOfDay)
+
+  // spot volume
+  const dailyVolume = result.dailySpotVolume;
+
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  // all spot fees
+  dailyFees.add(result.dailySpotRevenue, 'Spot Fees')
+  dailyFees.add(result.dailyUnitRevenue, 'Unit Revenue')
+
+  // spot fees - unit revenue
+  dailyRevenue.add(result.dailySpotRevenue, 'Spot Fees')
+
+  // unit revenue + 1% spot revenue
+  dailySupplySideRevenue.add(result.dailySpotRevenue.clone(hlpShare), 'HLP')
+  dailySupplySideRevenue.add(result.dailyUnitRevenue, 'Unit Revenue')
+  
+  // 99% of revenue
+  dailyHoldersRevenue.add(result.dailySpotRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
   return {
-    dailyVolume: dailyVolume?.toString(),
-    timestamp: dayTimestamp,
-  };
-};
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: 0,
+  }
+}
 
 const adapter: SimpleAdapter = {
+  methodology,
+  breakdownMethodology,
   adapter: {
-    "hyperliquid": {
+    [CHAIN.HYPERLIQUID]: {
       fetch,
       start: '2023-02-25',
     },
-  }
+  },
 };
 
 export default adapter;
