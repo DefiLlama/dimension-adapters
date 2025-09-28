@@ -498,10 +498,10 @@ const adapters = {
     fetch,
     start: '2024-03-22'
   },
-  [CHAIN.BOBA_BNB]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // [CHAIN.BOBA_BNB]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.BSC]: {
     fetch,
     start: '2024-02-25'
