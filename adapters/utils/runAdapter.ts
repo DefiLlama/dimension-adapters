@@ -103,6 +103,15 @@ function getRunKey(options: AdapterRunOptions) {
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
 }
 
+const startOfDayIdCache: { [key: string]: string } = {}
+
+function getStartOfDayId(timestamp: number): string {
+  if (!startOfDayIdCache[timestamp]) {
+    startOfDayIdCache[timestamp] =  '' + Math.floor(timestamp / 86400)
+  }
+  return startOfDayIdCache[timestamp]
+}
+
 
 async function _runAdapter({
   module, endTimestamp, name,
@@ -343,6 +352,7 @@ async function _runAdapter({
       getEndBlock,
       dateString: getDateString(startOfDay),
       moduleUID,
+      startOfDayId: getStartOfDayId(startOfDay),
     }
   }
 
