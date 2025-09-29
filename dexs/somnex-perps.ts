@@ -32,10 +32,10 @@ async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
   if (!res.today.length || !res.yesterday.length || res.today[0].snap.length !== 1 || res.yesterday[0].snap.length !== 1)
     throw new Error("Error: No data")
 
-  const volToday = res.today.reduce((a: number, b) => a + Number(b.snap[0].totalTrade), 0)
-  const volYesterday = res.yesterday.reduce((a: number, b) => a + Number(b.snap[0].totalTrade), 0)
-  const feesToday = res.today.reduce((a: number, b) => a + Number(b.snap[0].totalFees), 0)
-  const feesYesterday = res.yesterday.reduce((a: number, b) => a + Number(b.snap[0].totalFees), 0)
+  const volToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
+  const volYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
+  const feesToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
+  const feesYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
 
   const dailyVolume = volToday - volYesterday
   const dailyFees = feesToday - feesYesterday
