@@ -21,6 +21,7 @@ const GQL_QUERIES = {
         first: ${limit}
       ) {
         poolInTransaction {
+          id
           futureVault {
             underlyingAsset {
               address
@@ -56,6 +57,7 @@ const chains: {
     start: string;
     protocolSubgraphUrl: string;
     limit?: number;
+    blacklistPools?: Array<string>;
   };
 } = {
   [CHAIN.ETHEREUM]: {
@@ -81,6 +83,9 @@ const chains: {
     start: "2024-07-01",
     protocolSubgraphUrl:
       "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-base/api",
+    blacklistPools: [
+      '0x447d24edf78b20a4cf748a7cee273510edf87df1',
+    ],
   },
   [CHAIN.SONIC]: {
     id: 146,
@@ -118,6 +123,7 @@ const chains: {
 type Address = `0x${string}`;
 type Transaction = {
   poolInTransaction: {
+    id: string;
     futureVault: {
       underlyingAsset: {
         address: Address;
@@ -162,6 +168,10 @@ const fetchDailyFeesAndVolume = async ({
   ).transactions as Transaction[];
 
   dailyData.forEach((transaction) => {
+    if (chains[chain].blacklistPools && (new Set(chains[chain].blacklistPools)).has(transaction.poolInTransaction.id)) {
+      return
+    }
+
     dailyFees.add(
       transaction.poolInTransaction.futureVault.underlyingAsset.address,
       transaction.feeUnderlying
