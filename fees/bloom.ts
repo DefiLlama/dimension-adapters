@@ -1,9 +1,47 @@
+import ADDRESSES from '../helpers/coreAssets.json'
+// source: https://dune.com/queries/4966713/8220253
+
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getSolanaReceived } from "../helpers/token";
+import { queryDuneSql } from "../helpers/dune";
 
-const fetchFees = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, targets: ['7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM']})
+const methodology = {
+    Fees: "All trading fees paid by users while using Bloom Trading bot.",
+    Revenue: "Trading fees are collected by Bloom protocol.",
+}
+
+const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
+
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
+  const query = `
+    WITH
+    allFeePayments AS (
+      SELECT
+        tx_id,
+        balance_change / 1e9 AS fee_token_amount
+      FROM
+        solana.account_activity
+      WHERE
+        TIME_RANGE
+        AND tx_success
+        AND address = '7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM'
+        AND balance_change > 0 
+    )
+    SELECT
+      SUM(fee_token_amount) AS fee
+    FROM
+      dex_solana.trades AS trades
+      JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+    WHERE
+      TIME_RANGE
+      AND trades.trader_id != '7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM'
+  `;
+
+  const fees = await queryDuneSql(options, query);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9);
+
   return { dailyFees, dailyRevenue: dailyFees }
 }
 
@@ -57,8 +95,8 @@ const contract: any = {
     // '0x4198fdc83f4c47b79d5ce84927a758bc85b9b3ec',
   ]
 }
-const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
-const fetchMVE = async (options: FetchOptions) => {
+
+const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
   const logs = await options.getLogs({
     topics: [topic],
     targets: [...new Set(contract[options.chain])] as string[], 
@@ -74,19 +112,20 @@ const fetchMVE = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  methodology,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
-      start: '2024-10-01'
+      start: '2024-10-01',
     },
     [CHAIN.BSC]: {
-      fetch: fetchMVE,
-      start: '2024-12-12'
+      fetch: fetchEVM,
+      start: '2024-12-12',
     },
     [CHAIN.BASE]: {
-      fetch: fetchMVE,
-      start: '2024-12-12'
+      fetch: fetchEVM,
+      start: '2024-12-12',
     }
   },
   isExpensiveAdapter: true,

@@ -4,7 +4,7 @@ import { fetchVolumeFromLIFIAPI, LifiDiamonds } from "../../helpers/aggregators/
 
 
 const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId, bool hasSourceSwaps, bool hasDestinationCall) bridgeData)"
-const exclude_integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas']
+const exclude_integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {

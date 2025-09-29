@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -26,10 +27,11 @@ import { CHAIN } from "../helpers/chains";
 
 const methodology = {
   Fees: 'Total ETH staking rewards from Rocketpool active validators',
+  Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
   SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
 }
 
-const rETH = '0xae78736cd615f374d3085123a210448e74fc6393';
+const rETH = ADDRESSES.ethereum.RETH;
 
 // MEV and priority fees send to smoothing pool by block builders
 const smoothingPool = '0xd4E96eF8eee8678dBFf4d535E033Ed1a4F7605b7';
@@ -142,6 +144,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   return {
     dailyFees,
+    dailyRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
 }
@@ -152,11 +155,9 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2021-09-31',
-      meta: {
-        methodology,
-      }
     },
   },
+  methodology,
 };
 
 export default adapter;

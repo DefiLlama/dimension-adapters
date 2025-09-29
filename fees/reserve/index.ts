@@ -69,6 +69,10 @@ const adapter: Adapter = {
       start: '2023-04-18',
     },
   },
+  methodology: {
+    Fees: "Yield, redeemtion fees.",
+    Revenue: "All fees are revenue.",
+  }
 };
 
 export default adapter;

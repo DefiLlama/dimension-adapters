@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 type TMarketPlaceAddress = {
@@ -18,22 +18,28 @@ const marketplace_address: TMarketPlaceAddress = {
 }
 
 const fetch = (chain: Chain) => {
-  return async ({ createBalances, getLogs,  }: FetchOptions) => {
+  return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
     (await getLogs({
       target: marketplace_address[chain],
       eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
-    })).forEach((e: any) =>       dailyFees.add(e.erc20, e.amount))
+    })).forEach((e: any) => dailyFees.add(e.erc20, e.amount))
     return { dailyFees, dailyRevenue: dailyFees };
   }
 }
 
+const methodology = {
+  Fees: "Fees paid by users for using RPC services.",
+  Revenue: "All fees are revenue.",
+}
+
 const adapter: Adapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-        fetch: fetch(CHAIN.ETHEREUM),
-        start: '2023-02-03',
+      fetch: fetch(CHAIN.ETHEREUM),
+      start: '2023-02-03',
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),

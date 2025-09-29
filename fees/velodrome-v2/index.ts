@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains"
 import { uniV2Exports } from "../../helpers/uniswap";
 
@@ -17,7 +18,7 @@ const config = {
   },
   [CHAIN.BOB]: {
     stakingRewards: "0x8Eb6838B4e998DA08aab851F3d42076f21530389",
-    rewardToken: "0x4200000000000000000000000000000000000006",
+    rewardToken: ADDRESSES.optimism.WETH_1,
   }
 }
 

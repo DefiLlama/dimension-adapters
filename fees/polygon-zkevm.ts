@@ -12,8 +12,12 @@ const adapter: Adapter = {
 	adapter: {
 		[CHAIN.POLYGON_ZKEVM]: {
 			fetch,
-			start: '2023-03-24'
+			start: '2023-03-24',
 		},
+	},
+	methodology: {
+		Fees: 'Total transaction fees paid by users',
+		Revenue: 'Total revenue on Polygon ZkEVM, calculated by subtracting the L1 Batch Costs from the total gas fees',
 	},
 	protocolType: ProtocolType.CHAIN,
 	isExpensiveAdapter: true,

@@ -26,19 +26,19 @@ const QuestBoardABI = {
 }
 
 const getBribe = async ({ createBalances, getLogs, api }: FetchOptions) => {
-    const dailyBribesRevenue = createBalances()
-    const logs = await getLogs({ targets: questBoards, flatten: false, eventAbi: 'event NewQuest(uint256 indexed questID,address indexed creator,address indexed gauge,address rewardToken,uint48 duration,uint256 startPeriod)' });
-    if (!logs || logs.length === 0) return { dailyBribesRevenue };
-    const questCalls = logs.map((questBoardLogs, index) => questBoardLogs.map(log => ({
-        target: questBoards[index],
-        params: log.questID,
-    }))).flat();
-    const quests = await api.multiCall({ abi: QuestBoardABI.quests, calls: questCalls, permitFailure: true, excludeFailed: true });
-    const rewardTokens = quests.map(quest => quest.rewardToken);
-    const amounts = quests.map(quest => quest.totalRewardAmount);
+  const dailyBribesRevenue = createBalances()
+  const logs = await getLogs({ targets: questBoards, flatten: false, eventAbi: 'event NewQuest(uint256 indexed questID,address indexed creator,address indexed gauge,address rewardToken,uint48 duration,uint256 startPeriod)' });
+  if (!logs || logs.length === 0) return { dailyBribesRevenue };
+  const questCalls = logs.map((questBoardLogs, index) => questBoardLogs.map(log => ({
+    target: questBoards[index],
+    params: log.questID,
+  }))).flat();
+  const quests = await api.multiCall({ abi: QuestBoardABI.quests, calls: questCalls, permitFailure: true, excludeFailed: true });
+  const rewardTokens = quests.map(quest => quest.rewardToken);
+  const amounts = quests.map(quest => quest.totalRewardAmount);
 
-    dailyBribesRevenue.add(rewardTokens, amounts);
-    return { dailyBribesRevenue }
+  dailyBribesRevenue.add(rewardTokens, amounts);
+  return { dailyBribesRevenue }
 }
 
 const getFees = async ({ createBalances, getLogs, api }: FetchOptions) => {
@@ -84,6 +84,12 @@ const adapter: Adapter = {
       start: '2025-01-21',
     },
   },
+  methodology: {
+    Fees: "Yield collected from deposited assets.",
+    Revenue: "Yield collected from deposited assets.",
+    HoldersRevenue: 'Fees distributed to token holders',
+    BridesRevenue: "Rewards are distributed to quest participants",
+  }
 };
 
 export default adapter;

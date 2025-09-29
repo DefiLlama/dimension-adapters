@@ -17,9 +17,7 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   
   const returnObj = {
-    totalVolume: response?.data.totalVol?.toString(),
     dailyVolume: response?.data.dayVol?.toString(),
-    timestamp: dayTimestamp,
   };
   
   return returnObj;

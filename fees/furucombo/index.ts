@@ -13,14 +13,17 @@ function fetch(chainId: number) {
     );
 
     return {
-      ...resp,
-      totalRevenue: resp.totalFees,
       dailyRevenue: resp.dailyFees,
+      dailyFees: resp.dailyFees,
     };
   };
 }
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'Fees paid by users for using Furucombo services.',
+    Revenue: 'All fees are revenue.',
+  },
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {

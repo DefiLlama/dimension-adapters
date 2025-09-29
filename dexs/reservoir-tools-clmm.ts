@@ -37,24 +37,24 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ABSTRACT]: {
       fetch: (options: FetchOptions) =>  {
-        return v3Graphs(options.chain)(options)
+        return v3Graphs(options)
       }
     },
     [CHAIN.ZERO]: {
       fetch: (options: FetchOptions) =>  {
-        return v3Graphs(options.chain)(options)
+        return v3Graphs(options)
       }
     },
     [CHAIN.SHAPE]: {
       fetch: (options: FetchOptions) =>  {
-        return v3Graphs(options.chain)(options)
+        return v3Graphs(options)
       }
     },
-    [CHAIN.REDSTONE]: {
-      fetch: (options: FetchOptions) =>  {
-        return v3Graphs(options.chain)(options)
-      }
-    },
+    // [CHAIN.REDSTONE]: {
+    //   fetch: (options: FetchOptions) =>  {
+    //     return v3Graphs(options)
+    //   }
+    // },
   }
 }
 

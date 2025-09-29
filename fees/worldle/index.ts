@@ -41,19 +41,17 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, toApi }: FetchOp
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.WC]: {
-            fetch,
-            start: 1746206283,
-            meta: {
-                methodology: {
-                  dailyFees: 'Fees are calculated as sum of all Transfer events to the royale resolver',
-                  dailyRevenue: 'Revenue is the same as fees'
-                },
-            }
-        },
-    }
+  version: 2,
+  methodology: {
+    Fees: 'Fees are calculated as sum of all Transfer events to the royale resolver',
+    Revenue: 'Revenue is the same as fees'
+  },
+  adapter: {
+    [CHAIN.WC]: {
+      fetch,
+      start: '2025-05-02',
+    },
+  }
 };
 
 export default adapter;

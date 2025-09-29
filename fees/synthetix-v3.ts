@@ -1,6 +1,6 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 const methodology = {
   UserFees: "Users pay fees to trade on derivatives markets.",
@@ -55,17 +55,12 @@ const adapters: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-01-13',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
       start: '2024-08-15',
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology,
 }
 export default adapters

@@ -1,23 +1,27 @@
+import ADDRESSES from '../helpers/coreAssets.json'
+// source: https://dune.com/adam_tehc/gmgn
+// https://dune.com/queries/3958821/6661029
+
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const fees = await queryDuneSql(options, `
+  const dailyFees = options.createBalances();
+
+  const query = `
     WITH
     allFeePayments AS (
       SELECT
         tx_id,
-        'SOL' AS feeTokenType,
-        balance_change / 1e9 AS fee_token_amount,
-        'So11111111111111111111111111111111111111112' AS fee_token_mint_address 
+        balance_change AS fee_token_amount
       FROM
         solana.account_activity
       WHERE
-        tx_success
+        TIME_RANGE
         AND address = 'BB5dnY55FXS1e1NXqZDwCzgdYJdMCj3B92PU6Q5Fb6DT' 
+        AND tx_success
         AND balance_change > 0 
-        AND TIME_RANGE
   )
   SELECT
     SUM(fee_token_amount) AS fee
@@ -27,9 +31,11 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   WHERE
     trades.trader_id != 'BB5dnY55FXS1e1NXqZDwCzgdYJdMCj3B92PU6Q5Fb6DT'
     AND TIME_RANGE
-  `);
-  const dailyFees = options.createBalances()
-  dailyFees.add('So11111111111111111111111111111111111111112', fees[0].fee*1e9);
+  `;
+
+  const fees = await queryDuneSql(options, query);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+
   return { dailyFees, dailyRevenue: dailyFees, }
 }
 
@@ -38,10 +44,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: '2024-03-20'
+      start: '2024-03-20',
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading fees paid by users while using GMGN AI bot.",
+    Revenue: "Trading fees are collected by GMGN AI protocol."
+  }
 };
 
 export default adapter;

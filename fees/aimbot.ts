@@ -9,7 +9,7 @@ interface IData {
 }
 
 const fetch: any = async (options: FetchOptions) => {
-    const { createBalances, } = options
+  const { createBalances, } = options
   const dailyFees = createBalances()
   const transfer_txs = `
       SELECT
@@ -53,6 +53,10 @@ const adapter: SimpleAdapter = {
       start: '2023-08-02',
     },
   },
+  methodology: {
+    Fees: "Fees paid by users while using the bot.",
+    Revenue: "All fees are revenue.",
+  }
 };
 
 export default adapter;

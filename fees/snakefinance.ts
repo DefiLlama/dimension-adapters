@@ -22,6 +22,9 @@ const adapter: SimpleAdapter = {
       start: '2025-02-15',
     },
   },
+  methodology: {
+    Fees: 'Total fees paid by users.',
+  }
 }
 
 export default adapter;

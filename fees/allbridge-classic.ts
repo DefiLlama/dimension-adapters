@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import type { Adapter, BaseAdapter, FetchResultFees, IJSON } from '../adapters/types';
-import type { Chain } from '@defillama/sdk/build/general';
+import type { Adapter, BaseAdapter, Chain, FetchResultFees, IJSON } from '../adapters/types';
 import fetchURL from '../utils/fetchURL';
 
 interface ChainData {
@@ -91,11 +90,11 @@ const adapter: Adapter = {
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch: getFeesFunction(chain),
-      meta: { methodology },
       start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)
 }
 
+adapter.methodology = methodology;
 export default adapter;

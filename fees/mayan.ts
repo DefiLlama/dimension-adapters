@@ -76,52 +76,39 @@ const fetch = (chain: string) => {
   };
 };
 
-const meta: any = {
-  Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.'
+const methodology: any = {
+    Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
+    Revenue: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
+  runAtCurrTime: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.SOLANA]: {
       fetch: fetch(CHAIN.SOLANA),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      runAtCurrTime: true,
-      meta: meta
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      runAtCurrTime: true,
-      meta: meta
     },
   },
 };

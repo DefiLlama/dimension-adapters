@@ -124,12 +124,12 @@ const prefetch = async (options: FetchOptions) => {
 async function fetchDune(_:any, _1:any, options: FetchOptions){
   const results = options.preFetchedResults || [];
   const chainData = results.find(item => item.blockchain.toLowerCase() === options.chain.toLowerCase());
-  
-  const dailyVolume = options.createBalances();
+  // volume can be null
+  let dailyVolume = 0
   if (chainData) {
-    dailyVolume.addCGToken("tether", chainData.vol);
+    dailyVolume = chainData.vol;
   }
-  
+
   return { dailyVolume };
 }
 

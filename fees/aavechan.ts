@@ -39,6 +39,10 @@ const adapter: SimpleAdapter = {
     }
   },
   version: 2,
+  methodology: {
+    Fees: "Incentive streams streams distribution.",
+    Revenue: "Incentive streams streams distribution.",
+  }
 }
 
 export default adapter;

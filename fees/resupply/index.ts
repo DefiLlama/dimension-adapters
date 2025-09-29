@@ -36,11 +36,11 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  dailyFees: "Total interest paid by borrowers + redemption fees",
-  dailyRevenue: "Protocol's share of interest (treasury + RSUP stakers)",
-  dailyProtocolRevenue: "Treasury's portion of interest",
-  dailyHoldersRevenue: "Platform fees distributed to RSUP stakers",
-  dailySupplySideRevenue: "Interest paid to lenders in the insurance pool"
+  Fees: "Total interest paid by borrowers + redemption fees",
+  Revenue: "Protocol's share of interest (treasury + RSUP stakers)",
+  ProtocolRevenue: "Treasury's portion of interest",
+  HoldersRevenue: "Platform fees distributed to RSUP stakers",
+  SupplySideRevenue: "Interest paid to lenders in the insurance pool"
 }
 
 const adapters: Adapter = {
@@ -48,11 +48,9 @@ const adapters: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2025-03-13',
-      meta: {
-        methodology
-      }
     },
   },
+  methodology,
   version: 2
 }
 

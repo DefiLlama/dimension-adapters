@@ -1,4 +1,5 @@
-const { CHAIN } = require("../../helpers/chains");
+import { CHAIN } from "../../helpers/chains";
+import { SimpleAdapter } from "../../adapters/types";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
 /*
@@ -6,12 +7,19 @@ use axiedao.org proxy, because public endpoint
 https://thegraph-v2.roninchain.com/subgraphs/name/axieinfinity/katana-subgraph-blue
 blocks requests from the DefiLlama server
 */
-const adpters = univ2Adapter2({
-  [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana"
-}, {
+const fetch = univ2Adapter2({
+  endpoints: {
+    [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana"
+  },
   factoriesName: "katanaFactories",
-  dayData: "katanaDayData",
-});
+  totalVolume: "totalVolumeUSD",
+})
 
-adpters.adapter[CHAIN.RONIN].start = 1635724800;
-export default adpters;
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.RONIN],
+  start: '2021-11-01'
+}
+
+export default adapter;

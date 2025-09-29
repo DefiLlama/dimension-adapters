@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -19,24 +19,31 @@ const fetchFees = (chain: Chain) => {
             logs.forEach((i: any) => dailyFees.add(i.spentCurrency, i.spentAmount / BigInt(100)))
         }))
 
-        return { dailyFees, dailyRevenue: dailyFees }
+        return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
     }
+}
+
+const methodology = {
+    Fees: 'All fees paid by users using Coinbase Commerce service.',
+    Revenue: 'All fees paid by users using Coinbase Commerce service.',
+    ProtocolRevenue: 'All fees paid by users using Coinbase Commerce service.',
 }
 
 const start = 1700053261
 const adapters: SimpleAdapter = {
+    methodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetchFees(CHAIN.ETHEREUM),
-            start
+            start,
         },
         [CHAIN.BASE]: {
             fetch: fetchFees(CHAIN.BASE),
-            start
+            start,
         },
         [CHAIN.POLYGON]: {
             fetch: fetchFees(CHAIN.POLYGON),
-            start
+            start,
         }
     },
     version: 2

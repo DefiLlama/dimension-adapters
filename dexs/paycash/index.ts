@@ -1,7 +1,5 @@
-import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
@@ -20,15 +18,10 @@ interface IVolumeall {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.timestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + Number(value), 0)
-
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
@@ -40,7 +33,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.EOS]: {
       fetch,
       start: '2021-04-14',
-      customBackfill: customBackfill(CHAIN.EOS as Chain, (_chian: string) => fetch)
     },
   },
 };

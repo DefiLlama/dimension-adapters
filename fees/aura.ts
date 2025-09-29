@@ -88,6 +88,13 @@ const adapter: Adapter = {
       start: '2022-12-01',
     },
   },
+  methodology: {
+    Fees: "Staking rewards from all staking pools from users.",
+    Revenue: "Staking rewards collected by Aura.",
+    HoldersRevenue: "Staking rewards earned by AURA holders.",
+    ProtocolRevenue: "Staking rewards earned by Aura.",
+    SupplySideRevenue: "Staking rewards distributed to depositors."
+  }
 
 }
 

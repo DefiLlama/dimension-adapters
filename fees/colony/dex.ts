@@ -1,20 +1,16 @@
-import { getGraphDimensions, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { FetchOptions } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
 
 interface DexFees {
-  timestamp: number
-  block?: number
   dailyVolume: Balances
-  totalVolume: Balances
   dailyProtocolRevenue: Balances
-  totalProtocolRevenue: Balances
   dailySupplySideRevenue: Balances
-  totalSupplySideRevenue: Balances
 }
 
-const usdcToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+const usdcToken = ADDRESSES.avax.USDC;
 
 export async function dexFees(
   options: FetchOptions,
@@ -23,11 +19,8 @@ export async function dexFees(
   const { createBalances } = options;
 
   let dailyVolume = createBalances()
-  let totalVolume = createBalances()
   let dailyProtocolRevenue = createBalances()
-  let totalProtocolRevenue = createBalances()
   let dailySupplySideRevenue = createBalances()
-  let totalSupplySideRevenue = createBalances()
 
   const VOLUME_USD = "volumeUSD";
   const FEES_USD = "feesUSD";
@@ -46,29 +39,19 @@ export async function dexFees(
     },
   });
 
-  const results = await v2Graph(options.chain)(options)
+  const results = await v2Graph(options)
   const resultsDailyFees = new BigNumber(results.dailyFees?.toString() ?? 0).multipliedBy(1e6)
-  const resultsTotalFees = new BigNumber(results.totalFees?.toString() ?? 0).multipliedBy(1e6)
   const resultsDailyVolume = new BigNumber(results.dailyVolume?.toString() ?? 0).multipliedBy(1e6)
-  const resultsTotalVolume = new BigNumber(results.totalVolume?.toString() ?? 0).multipliedBy(1e6)
 
   dailySupplySideRevenue.add(usdcToken, resultsDailyFees.multipliedBy(5).div(6).toFixed(0))
-  totalSupplySideRevenue.add(usdcToken, resultsTotalFees.multipliedBy(5).div(6).toFixed(0))
 
   dailyProtocolRevenue.add(usdcToken, resultsDailyFees.div(6).toFixed(0))
-  totalProtocolRevenue.add(usdcToken, resultsTotalFees.div(6).toFixed(0))
 
   dailyVolume.add(usdcToken, resultsDailyVolume.toFixed(0))
-  totalVolume.add(usdcToken, resultsTotalVolume.toFixed(0))
 
   return {
-    timestamp: results.timestamp,
-    block: results.block,
     dailyVolume,
-    totalVolume,
     dailyProtocolRevenue,
-    totalProtocolRevenue,
     dailySupplySideRevenue,
-    totalSupplySideRevenue
   }
 }

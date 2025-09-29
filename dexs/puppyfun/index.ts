@@ -1,8 +1,9 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL"
 
-const BNB_ADDRESS = "0x0000000000000000000000000000000000000000"
+const BNB_ADDRESS = ADDRESSES.null
 const apiBaseURL = "https://bd-fun-defilama-ts-backend-main.puppy.fun/lama-api"
 const volumeMethod = "/volume"
 const feesMethod = "/fees"
@@ -28,11 +29,8 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(BNB_ADDRESS, feesResponse.dailyTotalFee)
 
     return {
-        totalVolume: volume,
         dailyVolume,
-        totalFees: fees,
         dailyFees,
-        totalRevenue: revenue,
         dailyRevenue,
     }
 }
@@ -44,4 +42,8 @@ export default {
             fetch: fetch,
         },
     },
+    methodology: {
+        Fees: "Token trading and launching fees paid by users.",
+        Revenue: "All fees are revenue.",
+    }
 }

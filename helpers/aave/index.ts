@@ -3,11 +3,18 @@ import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
 import { normalizeAddress } from "@defillama/sdk/build/util";
+import { METRIC } from '../../helpers/metrics';
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
   lendingPoolProxy: string;
   dataProvider: string;
+
+  // GHO on aave
+  selfLoanAssets?: {
+    // address => symbol
+    [key: string]: string;
+  },
 }
 
 export interface AaveAdapterExportConfig {
@@ -21,7 +28,7 @@ const PercentageMathDecimals = 1e4;
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
 
-async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
+export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
   dailySupplySideRevenue: sdk.Balances,
   dailyProtocolRevenue: sdk.Balances,
@@ -65,6 +72,7 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     let totalLiquidity = BigInt(0)
+    let totalVariableDebt = BigInt(0)
     if (pool.version === 1) {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalLiquidity)
     } else if (pool.version === 2) {
@@ -74,18 +82,35 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
         + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     } else {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     }
 
+    const token = reservesList[reserveIndex].toLowerCase()
     const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
-    const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
-    const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-    const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-    const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
-    const revenueAccrued = Number(interestAccrued) * reserveFactor
 
-    balances.dailyFees.add(reservesList[reserveIndex], interestAccrued)
-    balances.dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued)
-    balances.dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued)
+    if (pool.selfLoanAssets && pool.selfLoanAssets[token]) {
+      // self-loan assets, no supply-side revenue
+      const symbol = pool.selfLoanAssets[token]
+      const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
+      const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
+
+      balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
+      balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${symbol}`)
+      balances.dailyProtocolRevenue.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
+    } else {
+      // normal reserves
+      const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
+      const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
+      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+      const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+      const revenueAccrued = Number(interestAccrued) * reserveFactor
+
+      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, Number(interestAccrued) - revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
+    }
   }
 
   // get flashloan fees
@@ -94,22 +119,22 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
     eventAbi: AaveAbis.FlashloanEvent,
   })
   if (flashloanEvents.length > 0) {
-    const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
-      target: pool.lendingPoolProxy,
-      abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
-    })
+    // const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
+    //   target: pool.lendingPoolProxy,
+    //   abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
+    // })
     const FLASHLOAN_PREMIUM_TO_PROTOCOL = await options.fromApi.call({
       target: pool.lendingPoolProxy,
       abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
     })
-    const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
+    // const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
     const flashloanFeeProtocolRate = Number(FLASHLOAN_PREMIUM_TO_PROTOCOL) / 1e4
 
     for (const event of flashloanEvents) {
-      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate / flashloanFeeRate
+      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
 
-      balances.dailyFees.add(event.asset, flashloanPremiumForProtocol)
-      balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol)
+      balances.dailyFees.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
+      balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
       
       // we don't count flashloan premium for LP as fees
       // because they have already counted in liquidity index
@@ -176,13 +201,13 @@ async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, b
         const b2 = b * y
 
         // count liquidation bonus as fees
-        balances.dailyFees.add(event.collateralAsset, b)
+        balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
 
         // count liquidation bonus for liquidator as supply side fees
-        balances.dailySupplySideRevenue.add(event.collateralAsset, b - b2)
+        balances.dailySupplySideRevenue.add(event.collateralAsset, b - b2, METRIC.LIQUIDATION_FEES)
 
         // count liquidation bonus protocol fee as revenue
-        balances.dailyProtocolRevenue.add(event.collateralAsset, b2)
+        balances.dailyProtocolRevenue.add(event.collateralAsset, b2, METRIC.LIQUIDATION_FEES)
       }
     }
   }

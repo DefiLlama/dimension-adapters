@@ -21,17 +21,16 @@ export const v2_adapter: SimpleAdapter = {
   },
 };
 
+
 export async function fetchArrowMarketsVolumeData(options: FetchOptions) {
   const ArrowMarketsVolumeData = await getArrowMarketsVolumeData(arrowMarketsVolumeEndpoint, options.endTimestamp);
 
   const dailyPremiumVolume = Number(ArrowMarketsVolumeData.daily_premium_volume ? ArrowMarketsVolumeData.daily_premium_volume : 0).toFixed(2);
   const dailyNotionalVolume = Number(ArrowMarketsVolumeData.daily_notional_volume ? ArrowMarketsVolumeData.daily_notional_volume : 0).toFixed(2);
-  const totalNotionalVolume = Number(ArrowMarketsVolumeData.total_notional_volume ? ArrowMarketsVolumeData.total_notional_volume : 0).toFixed(2);
 
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
   };
 }
 

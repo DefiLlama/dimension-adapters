@@ -42,7 +42,10 @@ async function _queryAllium(sqlQuery: string) {
     query: sqlQuery,
     table: sqlQuery.split(/from/i)[1].split(/\s/)[1],
   }
-
+  const API_KEY = HEADERS["X-API-KEY"]
+  if (!API_KEY) {
+    throw new Error("Allium API Key is required[Ignore this error for github bot]")
+  }
 
   const _response = retry(
     async (bail) => {
@@ -74,8 +77,10 @@ async function _queryAllium(sqlQuery: string) {
       throw new Error("Still running")
     },
     {
-      retries: 42,
-      maxTimeout: 1000 * 60 * 21
+      retries: 15,
+      maxTimeout: 1000 * 60 * 2, // 2 minutes
+      minTimeout: 1000 * 10, // 10 seconds
+      randomize: true,
     }
   );
 

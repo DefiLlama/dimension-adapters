@@ -1,22 +1,26 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 
 const coins = {
-  DEEP: "0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP",
+  DEEP: ADDRESSES.sui.DEEP,
   SUI: "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
-  USDC: "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
-  ETH: "0xd0e89b2af5e4910726fbcd8b8dd37bb79b29e5f83f7491bca830e94f7f226d29::eth::ETH",
+  USDC: ADDRESSES.sui.USDC_CIRCLE,
+  ETH: ADDRESSES.sui.ETH,
   WUSDT:
-    "0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN",
+    ADDRESSES.sui.USDT,
   WUSDC:
-    "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN",
+    ADDRESSES.sui.USDC,
   NS: "0x5145494a5f5100e645e4b0aa950fa6b68f614e8c59e17bc5ded3495123a79178::ns::NS",
   TYPUS:
     "0xf82dc05634970553615eef6112a1ac4fb7bf10272bf6cbe0f80ef44a6c489385::typus::TYPUS",
   AUSD: "0x2053d08c1e2bd02791056171aab0fd12bd7cd7efad2ab8f6b9c8902f14df2ff2::ausd::AUSD",
   WAL: "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
+  DRF: "0x294de7579d55c110a00a7c4946e09a1b5cbeca2592fbb83fd7bfacba3cfeaf0e::drf::DRF",
+  SEND: "0xb45fcfcc2cc07ce0702cc2d229621e046c906ef14d9b25e8e4d25f6e8763fef7::send::SEND",
+  XBTC: "0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC",
 };
 
 const fetchVolumeInUsd = (
@@ -59,13 +63,11 @@ const methodology = {
 
 export default {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch,
       start: "2024-10-01",
-      meta: {
-        methodology,
-      },
     },
   },
 } as SimpleAdapter;

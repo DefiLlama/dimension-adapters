@@ -1,11 +1,11 @@
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { ZeroAddress } from "ethers";
 
 // docs: https://docs.mantle.xyz/meth/components/smart-contracts/staking-meth
 // mETH treasury takes 10%: https://etherscan.io/address/0x1766be66fBb0a1883d41B4cfB0a533c5249D3b82#readProxyContract#F5
 const methodology = {
   Fees: 'Total validators fees and rewards from staked ETH.',
+  Revenue: '10% staking rewards are charged by mETH Protocol Treasury.',
   SupplySideRevenue: '90% staking rewards are distributed to mETH holders.',
   ProtocolRevenue: '10% staking rewards are charged by mETH Protocol Treasury.',
 }
@@ -33,16 +33,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // fees distributed to mETH holders are deducted by 10% protocol fees
   // it was 90% of total rewards earned from ETH staking
-  const totalFees = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
+  const df = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
 
   // add ETH fees
-  dailyFees.addGasToken(totalFees)
+  dailyFees.addGasToken(df)
 
   const dailyProtocolRevenue = dailyFees.clone(0.1)
   const dailySupplySideRevenue = dailyFees.clone(0.9)
 
   return {
     dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
   }
@@ -50,13 +51,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-10-07',
-      meta: {
-        methodology,
-      },
     },
   },
 };

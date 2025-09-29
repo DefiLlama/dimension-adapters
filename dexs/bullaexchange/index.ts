@@ -1,93 +1,75 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { gql, request } from "graphql-request";
+import fetchURL from "../../utils/fetchURL";
 
-const endpoint = "https://api.goldsky.com/api/public/project_clols2c0p7fby2nww199i4pdx/subgraphs/algebra-berachain-mainnet/0.0.3/gn";
+const BULLA_API_URL = "https://api.gamma.xyz/frontend/externalApis/bulla/pools";
 
-// GraphQL query to fetch total volume
-const totalVolumeQuery = gql`
-  query {
-    factories(first: 1) {
-      totalVolumeUSD
-    }
-  }
-`;
+interface BullaPool {
+  calculated24h: {
+    volumeUSD: number;
+    feesUSD: number;
+  };
+}
 
-// GraphQL query to fetch daily volume, total fees, and per-pool fees/community fees
-const dailyVolumeFeesQuery = gql`
-  query ($date: Int!) {
-    algebraDayDatas(where: { date: $date }) {
-      volumeUSD
-      feesUSD
-    }
-    pools {
-      feesUSD
-      communityFee
-    }
-  }
-`;
+interface BullaResponse {
+  data: {
+    pools: BullaPool[];
+  };
+}
 
-// Function to fetch total volume
-const fetchTotalVolume = async () => {
-  const response = await request(endpoint, totalVolumeQuery);
-  return response.factories[0]?.totalVolumeUSD || "0";
-};
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances(); // No holder revenue for now
 
-// Function to fetch daily volume, fees, and correctly calculated revenue
-const fetchDailyData = async (date: number) => {
-  const response = await request(endpoint, dailyVolumeFeesQuery, { date });
-  const data = response.algebraDayDatas[0] || {};
-  const pools = response.pools || [];
+  const response: BullaResponse = await fetchURL(BULLA_API_URL);
 
-  const totalFeesUSD = parseFloat(data.feesUSD) || 0;
+  const totalDailyFees = response.data.pools.reduce((acc, pool) => {
+    return acc + (pool.calculated24h?.feesUSD || 0);
+  }, 0);
 
+  const protocolRevenue = totalDailyFees * 0.25;
+  const supplySideRevenue = totalDailyFees * 0.75;
 
-  if (totalFeesUSD === 0) {
-    return { volumeUSD: data.volumeUSD || "0", feesUSD: "0", revenueUSD: "0" };
-  }
-
-  let totalRevenue = 0;
-
-  pools.forEach(pool => {
-    const poolFees = parseFloat(pool.feesUSD) || 0;
-    let communityFee = parseFloat(pool.communityFee) || 0;
-
-
-    // Correct the scaling of communityFee by dividing by 10000
-    communityFee /= 10000;
-
-
-
-    const poolRevenue = (poolFees / totalFeesUSD) * totalFeesUSD * communityFee;
-    totalRevenue += poolRevenue;
-  });
-
-
+  // Add fees to balances (in USD)
+  dailyFees.addUSDValue(totalDailyFees);
+  dailyProtocolRevenue.addUSDValue(protocolRevenue);
+  dailySupplySideRevenue.addUSDValue(supplySideRevenue);
+  const dailyVolume = options.createBalances();
+  dailyVolume.addUSDValue(
+    response.data.pools.reduce((acc, pool) => {
+      return acc + (pool.calculated24h?.volumeUSD || 0);
+    }, 0)
+  );
   return {
-    volumeUSD: data.volumeUSD || "0",
-    feesUSD: data.feesUSD || "0",
-    revenueUSD: totalRevenue.toFixed(2),
+    dailyFees,
+    dailyVolume,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyUserFees: dailyFees, // User fees are the same as total fees
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.BERACHAIN]: {
-      fetch: async (timestamp: number) => {
-        const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-        const totalVolume = await fetchTotalVolume();
-        const { volumeUSD, feesUSD, revenueUSD } = await fetchDailyData(dayTimestamp);
-
-        return {
-          totalVolume: parseFloat(totalVolume),
-          dailyVolume: parseFloat(volumeUSD),
-          dailyFees: parseFloat(feesUSD),
-          dailyRevenue: parseFloat(revenueUSD), // Now correctly weighted
-          timestamp: dayTimestamp,
-        };
-      },
-      start: async () => 1738800000, // Timestamp for February 6, 2025
+      fetch,
+      runAtCurrTime: true,
     },
+  },
+  methodology: {
+    Fees: "Trading fees collected by Bulla exchange",
+    UserFees: "Trading fees paid by users",
+    Revenue:
+      "Protocol revenue from trading fees (25% of total fees, per fee switch)",
+    ProtocolRevenue:
+      "Revenue retained by the protocol (25% of fees, per fee switch)",
+    SupplySideRevenue:
+      "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
   },
 };
 

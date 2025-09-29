@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees, FetchResultVolume } from "../../adapters/types";
@@ -47,12 +47,10 @@ const fetch = (chain: Chain) => {
 
     const res: IValume = (await request(endpoints[chain], graphQuery));
     const dailyVolume = Number(res.vaultDayData.cumulativeVolume) / 10 ** 8;
-    const totalVolume = Number(res.vaults[0].cumulativeVolume) / 10 ** 8;
 
     return {
       timestamp,
       dailyVolume: dailyVolume.toString(),
-      totalVolume: totalVolume.toString()
     };
   }
 }

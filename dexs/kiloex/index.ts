@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -28,14 +28,10 @@ const fetch = (chainId: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]));
 
-    const totalVolume = historicalVolume
-      .find(item => item.time === dayTimestamp)?.totalTradeAmount
-
     const dailyVolume = historicalVolume
       .find(item => item.time === dayTimestamp)?.dayTradeAmount
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

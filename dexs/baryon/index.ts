@@ -29,15 +29,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: graphs,
-      start: 1691829674,
+      start: '2023-08-12',
     },
     [CHAIN.ANCIENT8]: {
       fetch: graphs,
-      start: 1691829674,  
+      start: '2023-08-12',  
     },
     [CHAIN.BITKUB]: {
       fetch: graphs,
-      start: 1691829674,  
+      start: '2023-08-12',  
     },
   },
 };

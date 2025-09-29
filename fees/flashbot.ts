@@ -4,7 +4,7 @@ import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
 const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
-  
+
   // https://dune.com/queries/4742045
   const sql = getSqlFromFile('helpers/queries/flashbots.sql', {
     start: options.startTimestamp,
@@ -29,6 +29,9 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Total ETH fees paid to block proposers by users.',
+  },
 }
 
 export default adapter;

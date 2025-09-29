@@ -32,12 +32,10 @@ export async function fetchLyraVolumeData(
   const timestamp_in_ms = dayTimestamp * 1000
   const lyraVolumeData = await getLyraVolumeData(lyraVolumeEndpoint(timestamp_in_ms));
   const dailyVolume = Number(lyraVolumeData.daily_premium_volume).toFixed(2);
-  const totalVolume = Number(lyraVolumeData.total_premium_volume).toFixed(2);
 
   return {
     timestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 

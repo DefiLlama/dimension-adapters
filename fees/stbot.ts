@@ -16,7 +16,7 @@ const fetch: any = async (options: FetchOptions) => {
     // 'K1LRSA1DSoKBtC5DkcvnermRQ62YxogWSCZZPWQrdG5',
   ]
   const dailyFees = await getSolanaReceived({ options, targets })
-  return { dailyFees, dailyRevenue: dailyFees, }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
@@ -26,7 +26,12 @@ const adapter: SimpleAdapter = {
       fetch: fetch,
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'All trading fees paid by users for using Sol Trading Bot.',
+    Revenue: 'Fees collected by Sol Trading Bot protocol.',
+    ProtocolRevenue: 'Fees collected by Sol Trading Bot protocol.',
+  }
 };
 
 export default adapter;

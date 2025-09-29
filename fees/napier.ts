@@ -1,5 +1,5 @@
 import { ChainApi } from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import axios from "axios";
 import BigNumber from "bignumber.js";
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
@@ -144,13 +144,11 @@ const adapter: SimpleAdapter = {
         {
           fetch: fetch(chain as Chain),
           start: config.start,
-          meta: {
-            methodology,
-          },
         },
       ])
     ),
   },
+  methodology,
 };
 
 export default adapter;
