@@ -95,7 +95,11 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
   else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey]
+  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
+
+  function clone(obj: any) {
+    return JSON.parse(JSON.stringify(obj))
+  }
 }
 
 function getRunKey(options: AdapterRunOptions) {
