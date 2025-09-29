@@ -9,7 +9,8 @@ const v2_contract_address = {
   [CHAIN.ETHEREUM]: '0xfdb7ef80bd6ab675cd52811bfb9329fbd9b92aba',
   [CHAIN.SONIC]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
   [CHAIN.BERACHAIN]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810',
-  [CHAIN.AVAX]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810'
+  [CHAIN.AVAX]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810',
+  [CHAIN.STORY]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810',
 };
 
 const v3_contract_address = {
@@ -18,7 +19,8 @@ const v3_contract_address = {
   [CHAIN.ETHEREUM]: '0x196f75367A9286E039C6CFEBa5B8686ed84cBa68',
   [CHAIN.SONIC]: '0xB23495f9a4807cD7672f382B9b0c2a3A0ec78649',
   [CHAIN.BERACHAIN]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
-  [CHAIN.AVAX]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d'
+  [CHAIN.AVAX]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
+  [CHAIN.STORY]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
 };
 
 const virtual_contract_address = { [CHAIN.BASE]: '0x803A70b24062e429Ce48801a0fAb6B13a994A454' };
@@ -75,6 +77,10 @@ const contractAddresses = {
     v2_contract_address[CHAIN.ETHEREUM],
     v3_contract_address[CHAIN.ETHEREUM],
   ],
+  [CHAIN.STORY]: [
+    v2_contract_address[CHAIN.STORY],
+    v3_contract_address[CHAIN.STORY],
+  ],
 };
 
 const fetchFees = async (options: FetchOptions) => {
@@ -127,6 +133,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: { fetch: fetchFees, start: '2025-02-26', },
     [CHAIN.BERACHAIN]: { fetch: fetchFees, start: '2025-02-06', },
     [CHAIN.SOLANA]: { fetch: fetchFeesSolana, start: '2024-11-23', },
+    [CHAIN.STORY]: { fetch: fetchFees, start: '2025-08-12', },
   },
   isExpensiveAdapter: true,
 };
