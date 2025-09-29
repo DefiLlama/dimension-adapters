@@ -1,7 +1,6 @@
 import request from "graphql-request";
 import { CHAIN } from "../helpers/chains";
-import BigNumber from "bignumber.js";
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const endpoint = 'https://api.goldsky.com/api/public/project_cm1hfr4527p0f01u85mz499u8/subgraphs/bnb_analytics/latest/gn'
 
@@ -12,48 +11,29 @@ const query = `
       platformFee
       accountSource
       tradeVolume
+      openInterest
     }
   }
 `
 
+const fetch = async (_: any, _1: any, { fromTimestamp, toTimestamp }: FetchOptions) => {
+  const response: any = await request(endpoint, query, { from: String(fromTimestamp), to: String(toTimestamp) })
 
-interface IGraphResponse {
-  dailyHistories: Array<{
-    tiemstamp: string,
-    platformFee: string,
-    accountSource: string,
-    tradeVolume: string
-  }>
-}
-
-const toString = (x: BigNumber) => {
-  if (x.isEqualTo(0)) return '0'
-  return x.toString()
-}
-
-const fetch = async (_:any, _1:any, { fromTimestamp, toTimestamp}: FetchOptions): Promise<FetchResultFees> => {
-  const response: IGraphResponse = await request(endpoint, query, {
-    from: String(fromTimestamp),
-    to: String(toTimestamp)
-  })
-
-  if (response.dailyHistories.length !==1) throw new Error("Unexpected dailyHistories length")
-  let dailyFees = new BigNumber(0);
-  response.dailyHistories.forEach(data => {
-    dailyFees = dailyFees.plus(new BigNumber(data.platformFee))
-  });
-
-  dailyFees = dailyFees.dividedBy(new BigNumber(1e18))
-
-  const _dailyFees = toString(dailyFees)
+  if (response.dailyHistories.length !== 1) throw new Error("Unexpected dailyHistories length")
+  let { dailyHistories: [{ platformFee: dailyFees, tradeVolume: dailyVolume, openInterest: openInterestAtEnd }] } = response
+  dailyFees /= 1e18
+  dailyVolume /= 1e18
+  openInterestAtEnd /= 1e18
 
   return {
-    dailyFees: _dailyFees,
-    dailyUserFees: _dailyFees,
-    dailyRevenue: _dailyFees,
-    dailyProtocolRevenue: '0',
-    dailyHoldersRevenue: _dailyFees,
-    dailySupplySideRevenue: '0',
+    dailyFees: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
+    dailyVolume,
+    openInterestAtEnd,
   }
 }
 
