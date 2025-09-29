@@ -48,11 +48,13 @@ const fetch = async (options: FetchOptions) => {
 
   log_swapped.forEach((log) => {
     addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut })
-    dailyFees.addToken(log.tokenIn, log.amountIn)
+    dailyFees.addToken(log.tokenIn, Number(log.amountIn) * 0.006) // fixed 0.6%
   })
 
   return {
-    dailyVolume, dailyFees,
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
   };
 };
 
@@ -61,8 +63,9 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2025-04-16",
   methodology: {
-    dailyVolume:
-      "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
+    Volume: "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
+    Fees: "Users pay fees (0.6%) per swap.",
+    UserFees: "Users pay fees (0.6%) per swap.",
   },
   chains: [CHAIN.WC],
 };
