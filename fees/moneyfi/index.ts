@@ -21,7 +21,7 @@ const TOKENS = [
 
 
 const fetch = async (_opts: FetchOptions) => {
-const FeesCollected = _opts.createBalances();
+const dailyProtocolRevenue = _opts.createBalances();
 
   const results = await Promise.all(
     TOKENS.map(t =>
@@ -40,9 +40,9 @@ const FeesCollected = _opts.createBalances();
     usdTotal += (Number(raw) * 5) / 10 ** TOKENS[i].decimals;
   });
 
-  FeesCollected.addUSDValue(usdTotal);
+  dailyProtocolRevenue.addUSDValue(usdTotal);
 
-  return { FeesCollected };
+  return { dailyProtocolRevenue };
 };
 
 
@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.APTOS],
   start: "2025-08-04",
-  methodology: { FeesCollected: "Revenue moneyfi" },
+  methodology: { ProtocolRevenue: "Revenue moneyfi" },
 };
 
 export default adapter;
