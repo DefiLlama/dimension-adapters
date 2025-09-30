@@ -94,7 +94,7 @@ interface ApiResponse {
   total_transaction_count: string;
 }
 
-const BadDataDays = ['1758931200', '1759190400']
+const BadDataDays = [1758931200, 1759190400]
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
   const response: ApiResponse = (
