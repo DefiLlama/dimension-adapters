@@ -2,6 +2,7 @@ import { Chain } from "../../adapters/types";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { parseUnits } from "ethers";
 
 type BadDebtSilo = {
   silo: string;
@@ -47,11 +48,6 @@ const subgraphMapping: SubgraphMapping = {
     "https://api.studio.thegraph.com/query/100068/silo-v-2-develop-avax/version/latest",
   [CHAIN.SONIC]:
     "https://api.studio.thegraph.com/query/95375/silo-v-2-develop-sonic/version/latest",
-};
-
-const parseDecimals = (number: number, decimals: string): bigint => {
-  const decimalsNumber = Number(decimals);
-  return BigInt((number * 10 ** decimalsNumber).toFixed());
 };
 
 // Some silos started to represent bad debt because of a token price drop,
@@ -181,7 +177,7 @@ async function fetch(
 
     const protocolRevenueRatio =
       protocolRevenueRatioDenominator > 0
-        ? protocolRevenueAsset / (protocolRevenueAsset + deployerRevenueAsset)
+        ? protocolRevenueAsset / protocolRevenueRatioDenominator
         : 0.5;
 
     const liquidationRevenueAsset = getFeeSumWithFilter(
@@ -212,24 +208,35 @@ async function fetch(
       ["collateral"]
     );
 
-    const tokenDecimals = tokens.find((token) => token.id === asset)?.decimals;
+    const tokenDecimals = Number(
+      tokens.find((token) => token.id === asset)?.decimals
+    );
 
     if (!tokenDecimals) {
       throw new Error(`Token ${asset} not found in tokens`);
     }
 
-    dailyFees.add(asset, parseDecimals(dailyFee, tokenDecimals || "18"));
+    dailyFees.add(
+      asset,
+      parseUnits(dailyFee.toFixed(tokenDecimals), tokenDecimals)
+    );
     dailyRevenue.add(
       asset,
-      parseDecimals(dailyRevenueAsset, tokenDecimals || "18")
+      parseUnits(dailyRevenueAsset.toFixed(tokenDecimals), tokenDecimals)
     );
     dailyProtocolRevenue.add(
       asset,
-      parseDecimals(dailyProtocolRevenueAsset, tokenDecimals || "18")
+      parseUnits(
+        dailyProtocolRevenueAsset.toFixed(tokenDecimals),
+        tokenDecimals
+      )
     );
     dailySupplySideRevenue.add(
       asset,
-      parseDecimals(dailySupplySideRevenueAsset, tokenDecimals || "18")
+      parseUnits(
+        dailySupplySideRevenueAsset.toFixed(tokenDecimals),
+        tokenDecimals
+      )
     );
   });
 
