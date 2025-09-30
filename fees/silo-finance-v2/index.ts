@@ -39,15 +39,14 @@ type SubgraphTokenQueryResponse = {
 };
 
 const subgraphMapping: SubgraphMapping = {
-  // TODO: Update this with official subgraphs
   [CHAIN.ETHEREUM]:
-    "https://api.studio.thegraph.com/query/95375/silo-v-2-develop-mainnet/version/latest",
+    "https://gateway.thegraph.com/api/subgraphs/id/2z5Mn4WW7K4yR1iH9KdignREkTq9EM1S4GX3yLaztRFg",
   [CHAIN.ARBITRUM]:
-    "https://api.studio.thegraph.com/query/100068/test-silo-v-2-arb/version/latest",
+    "https://gateway.thegraph.com/api/subgraphs/id/DK5qWsSJSqkeW2GHDQQCB7xHnHwVN3K1LPpP6CYNXMh8",
   [CHAIN.AVAX]:
-    "https://api.studio.thegraph.com/query/100068/silo-v-2-develop-avax/version/latest",
+    "https://gateway.thegraph.com/api/subgraphs/id/6NLL9WmjPYima4NhUpNEWeDu5eBXFuhP9QheRXkoJXR5",
   [CHAIN.SONIC]:
-    "https://api.studio.thegraph.com/query/95375/silo-v-2-develop-sonic/version/latest",
+    "https://gateway.thegraph.com/api/subgraphs/id/8wcbzcdNirQvk1ETh25wpVzb5GWs8DvugpbwrYnTCcxj",
 };
 
 // Some silos started to represent bad debt because of a token price drop,
