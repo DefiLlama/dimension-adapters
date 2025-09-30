@@ -5,6 +5,7 @@ import { request } from 'graphql-request'
 const v2Endpoints: any = {
   [CHAIN.ETHEREUM]: 'https://api.studio.thegraph.com/query/61509/ring-v2-eth-mainnet/version/latest',
   [CHAIN.BLAST]: 'https://api.studio.thegraph.com/query/61509/ring-v2-blast-mainnet/version/latest',
+  [CHAIN.BSC]: 'https://api.studio.thegraph.com/query/109372/ring-v-2-bsc/version/latest',
 }
 
 const methodology = {
