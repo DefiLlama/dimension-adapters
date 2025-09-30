@@ -34,20 +34,20 @@ async function fetch(options: FetchOptions) {
     const prizePool = PRIZE_POOL[options.chain as POOLTOGETHER_CHAIN];
     const poolVault = POOL_VAULTS[options.chain as POOLTOGETHER_CHAIN];
 
-    const prizeToken = await options.api.call({ 
-        target: prizePool, 
+    const prizeToken = await options.api.call({
+        target: prizePool,
         abi: 'address:prizeToken'
     });
 
-    const yieldLogs = await options.getLogs({ 
-        target: prizePool, 
+    const yieldLogs = await options.getLogs({
+        target: prizePool,
         eventAbi: EVENT_ABI.CONTRIBUTE_PRIZE_TOKENS,
     });
 
     yieldLogs.forEach(yieldLog => {
         allContributions.add(prizeToken, yieldLog.amount);
 
-        if(yieldLog.vault.toLowerCase() === poolVault) {
+        if (yieldLog.vault.toLowerCase() === poolVault) {
             poolVaultContributions.add(prizeToken, yieldLog.amount);
         }
     });
@@ -84,7 +84,8 @@ const adapter: SimpleAdapter = {
         [CHAIN.SCROLL]: { start: '2024-09-11' },
         [CHAIN.WC]: { start: '2025-03-19' }
     },
-    methodology
+    methodology,
+    allowNegativeValue: true, // casino can lose money
 };
 
 export default adapter;
