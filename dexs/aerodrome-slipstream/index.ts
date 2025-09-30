@@ -11,6 +11,7 @@ const CONFIG = {
   GaugeFactory: '0xd30677bd8dd15132f251cb54cbda552d2a05fb08'
 }
 
+
 const eventAbis = {
   event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
   event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
@@ -23,8 +24,43 @@ const abis = {
   fee: 'uint256:fee'
 }
 
+const PRE_LAUNCH_TOKEN_PRICING = {
+  // SYND token configuration
+  '0x11dc28d01984079b7efe7763b533e6ed9e3722b9': {
+    decimals: 18,
+    ticker: 'SYND',
+    conversionRate: 1.5887, // close VWAP price of SYND launch day on Sept 19, 2025
+    cutoffTimestamp: 1758240000, // September 19, 2025 00:00:00 UTC
+    description: 'SYND to USDC conversion at launch VWAP price'
+  }
+  // Future pre-launch tokens can be added here following the same structure:
+  // '0xtoken_address': {
+  //   decimals: decimals of the token,
+  //   conversionRate: price_per_token,
+  //   cutoffTimestamp: unix_timestamp,
+  //   description: 'Token description'
+  // }
+}
+
+const handlePreLaunchTokenConversion = (
+  token: string, 
+  amount: string, 
+  currentTimestamp: number, 
+  dailyBribesRevenue: sdk.Balances
+): boolean => {
+  const tokenConfig = PRE_LAUNCH_TOKEN_PRICING[token.toLowerCase()]
+  if (!tokenConfig) return false
+  if (currentTimestamp >= tokenConfig.cutoffTimestamp) return false
+
+  const targetToken = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'
+  const convertedAmount = (BigInt(amount) * BigInt(Math.floor(tokenConfig.conversionRate * (10 ** 6)))) / BigInt(10 ** tokenConfig.decimals)
+
+  dailyBribesRevenue.add(targetToken, convertedAmount.toString())
+  return true
+}
+
 const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
-  const { createBalances, getLogs } = fetchOptions
+  const { createBalances, getLogs, startTimestamp } = fetchOptions
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
@@ -41,7 +77,14 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
     const parsedLog = iface.parseLog(log)
-    dailyBribesRevenue.add(parsedLog!.args.reward, parsedLog!.args.amount)
+    const token = parsedLog!.args.reward.toLowerCase()
+    const amount = parsedLog!.args.amount
+    
+    // Try to handle pre-launch token conversion
+    const wasConverted = handlePreLaunchTokenConversion(token, amount, startTimestamp, dailyBribesRevenue)
+    if (!wasConverted) {
+      dailyBribesRevenue.add(token, amount)
+    }
   })
   return { dailyBribesRevenue }
 }
