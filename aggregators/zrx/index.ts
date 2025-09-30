@@ -23,6 +23,7 @@ const CHAINS: TChain = {
   [CHAIN.INK]: 57073,
   [CHAIN.UNICHAIN]: 130,
   [CHAIN.WC]: 480,
+  [CHAIN.PLASMA]: 9745,
 };
 
 const fetch = async (_a, _b, options: FetchOptions) => {
