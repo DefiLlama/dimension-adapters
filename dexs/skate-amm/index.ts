@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const skateChainIds = {
+const skateChainIds: Record<string, number> = {
     [CHAIN.ETHEREUM]: 1,
     [CHAIN.BSC]: 56,
     [CHAIN.BASE]: 8453,
@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
     fetch,
     adapter: {
         [CHAIN.ETHEREUM]: { start: '2025-03-24', },
-        [CHAIN.BSC]: { start: '2025-04-07', },
+        // [CHAIN.BSC]: { start: '2025-04-07', },
         [CHAIN.BASE]: { start: '2025-03-17', },
         [CHAIN.ARBITRUM]: { start: '2025-03-17', },
         [CHAIN.SOLANA]: { start: '2025-04-01', },
