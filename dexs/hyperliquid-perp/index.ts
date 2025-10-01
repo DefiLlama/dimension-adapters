@@ -1,8 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { getRevenueRatioShares, queryHyperliquidIndexer } from "../../helpers/hyperliquid";
-import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../../helpers/hyperliquid";
 
 const methodology = {
   Fees: "Include perps trading fees and builders fees, excluding spot fees.",
@@ -30,40 +29,63 @@ const breakdownMethodology = {
 }
 
 async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchResultV2> {
-  const result = await queryHyperliquidIndexer(options);
-
   const { holdersShare, hlpShare } = getRevenueRatioShares(options.startOfDay)
 
-  // perp volume
-  const dailyVolume = result.dailyPerpVolume;
+  if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
+    // get fees from hypurrscan, no volume
+    const result = await queryHypurrscanApi(options);
 
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
 
-  // all perp fees
-  dailyFees.add(result.dailyPerpRevenue, 'Perp Fees')
-  dailyFees.add(result.dailyBuildersRevenue, 'Builders Revenue')
+    dailyFees.add(result.dailyPerpFees, 'Perp Fees')
+    dailySupplySideRevenue.add(result.dailyPerpFees.clone(hlpShare), 'HLP')
+    dailyHoldersRevenue.add(result.dailyPerpFees.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
-  // perp fees - builders revenue
-  dailyRevenue.add(result.dailyPerpRevenue, 'Perp Fees')
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue: 0,
+    }
+  } else {
+    // get volume and fees from indexer
+    const result = await queryHyperliquidIndexer(options);
 
-  // builders fees + 1% revenue
-  dailySupplySideRevenue.add(result.dailyPerpRevenue.clone(hlpShare), 'HLP')
-  dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builders Revenue')
-  
-  // 99% of revenue
-  dailyHoldersRevenue.add(result.dailyPerpRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
+    // perp volume
+    const dailyVolume = result.dailyPerpVolume;
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue: 0,
-    openInterestAtEnd: result.currentPerpOpenInterest,
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+
+    // all perp fees
+    dailyFees.add(result.dailyPerpRevenue, 'Perp Fees')
+    dailyFees.add(result.dailyBuildersRevenue, 'Builders Revenue')
+
+    // perp fees - builders revenue
+    dailyRevenue.add(result.dailyPerpRevenue, 'Perp Fees')
+
+    // builders fees + 1% revenue
+    dailySupplySideRevenue.add(result.dailyPerpRevenue.clone(hlpShare), 'HLP')
+    dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builders Revenue')
+    
+    // 99% of revenue
+    dailyHoldersRevenue.add(result.dailyPerpRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
+
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue: 0,
+      openInterestAtEnd: result.currentPerpOpenInterest,
+    }
   }
 }
 
