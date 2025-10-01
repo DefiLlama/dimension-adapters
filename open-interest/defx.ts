@@ -2,24 +2,12 @@ import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-interface DEFXResponse {
-  data: {
-    totalUsers: string;
-    totalVol: string;
-    openInterest: string;
-    tvl: string | null;
-    dayVol: string;
-    dayTrades: string;
-    totalNotionalLiq: string;
-  };
-}
-
 const fetch = async (options: FetchOptions) => {
-  const response: DEFXResponse = await fetchURL(
+  const response = await fetchURL(
     "https://api.defx.com/v1/open/analytics/market/overview"
   );
 
-  const openInterest = Number(response.data.openInterest);
+  const openInterest = Number(response.data.openInterest || 0);
 
   return { openInterestAtEnd: openInterest };
 };
