@@ -27,7 +27,8 @@ WITH
             END as amt,
             CASE 
                 WHEN "to" = 0x86CbAC9d9Ac726F729eEf6627Dc4817BcBB03A9c THEN 'legacy'
-                WHEN "to" = 0x89c69df65d0F6a0Df92b2f5B0715E9663b711341 THEN 'prototype'
+                -- Modified: Exclude cowswap address from prototype category
+                WHEN "to" = 0x89c69df65d0F6a0Df92b2f5B0715E9663b711341 AND "from" != 0x9008d19f58aabd9ed0d60971565aa8510560ab41 THEN 'prototype'
                 WHEN "to" = 0xb51C52d9E5E41937B0100840b6C3CBA6f7A57A0C THEN 'ecosystem'
                 WHEN "to" IN (SELECT treasury_add FROM agent_treasury_add) THEN 'sentient'
                 ELSE null 
@@ -37,7 +38,7 @@ WITH
         AND (
             "to" IN (
                 0x86CbAC9d9Ac726F729eEf6627Dc4817BcBB03A9c, -- virtual legacy 
-                0x89c69df65d0F6a0Df92b2f5B0715E9663b711341, -- cbbtc prototype
+                0x89c69df65d0F6a0Df92b2f5B0715E9663b711341, -- cbbtc prototype (but exclude cowswap)
                 0xb51C52d9E5E41937B0100840b6C3CBA6f7A57A0C  -- builder code (ecosystem)
             ) 
             OR "to" IN (SELECT treasury_add FROM agent_treasury_add)

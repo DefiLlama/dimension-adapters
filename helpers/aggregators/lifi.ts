@@ -6,6 +6,7 @@ type IContract = {
   [c: string | Chain]: {
     id: string;
     startTime: string;
+    blacklistTokens?: Array<string>;
   }
 }
 
@@ -123,7 +124,11 @@ export const LifiDiamonds: IContract = {
   },
   [CHAIN.BSC]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-    startTime: '2023-07-21'
+    startTime: '2023-07-21',
+    blacklistTokens: [
+        '0x4fa7c69a7b69f8bc48233024d546bc299d6b03bf',
+        '0xe6df05ce8c8301223373cf5b969afcb1498c5528',
+    ]
   },
   [CHAIN.LINEA]: {
     id: '0xDE1E598b81620773454588B85D6b5D4eEC32573e',
@@ -192,7 +197,19 @@ export const LifiDiamonds: IContract = {
   [CHAIN.KATANA]: {
     id: '0xC59fe32C9549e3E8B5dCcdAbC45BD287Bd5bA2bc',
     startTime: '2025-07-01'
-  }
+  },
+  [CHAIN.HYPERLIQUID]: {
+    id: '0x0a0758d937d1059c356D4714e57F5df0239bce1A',
+    startTime: '2025-06-01'
+  },
+  [CHAIN.KLAYTN]: {
+    id: '0x1255d17c1BC2f764d087536410879F2d0D8772fD',
+    startTime: '2025-08-01'
+  },
+  [CHAIN.PLUME]: {
+    id: '0x6f5C8Bb0C5Fe4ECeAC40EE1C238EaB6bbb29761c',
+    startTime: '2025-09-01'
+  },
 }
 
 export const LifiFeeCollectors: IContract = {

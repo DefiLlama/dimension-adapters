@@ -1,6 +1,7 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { queryDuneSql } from "../helpers/dune";
 import fetchURL from "../utils/fetchURL";
 
@@ -123,7 +124,7 @@ async function calculateGrossReturns(options: FetchOptions): Promise<number> {
 }
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   // Get manager fees from Dune SQL
@@ -146,13 +147,13 @@ const fetchSolana = async (options: FetchOptions) => {
   if (managerFeesData && managerFeesData.length > 0) {
     managerFeesData.forEach((fee: any) => {
       if (fee.total_amount && fee.token_mint_address) {
-        dailyRevenue.add(fee.token_mint_address, fee.total_amount);
+        dailyRevenue.add(fee.token_mint_address, fee.total_amount, METRIC.MANAGEMENT_FEES);
       }
     });
   }
 
   // add revenue to fees
-  const dailyFees = dailyRevenue.clone();
+  const dailyFees = dailyRevenue.clone(1, METRIC.MANAGEMENT_FEES);
   const dailySupplySideRevenue = options.createBalances();
 
   const grossReturns = await calculateGrossReturns(options);
@@ -160,8 +161,8 @@ const fetchSolana = async (options: FetchOptions) => {
   // Cap fees at 0 - fees cannot be negative by definition
   const cappedGrossReturns = Math.max(0, grossReturns);
 
-  dailyFees.addUSDValue(cappedGrossReturns);
-  dailySupplySideRevenue.addUSDValue(cappedGrossReturns);
+  dailyFees.addUSDValue(cappedGrossReturns, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addUSDValue(cappedGrossReturns, METRIC.ASSETS_YIELDS);
 
   return {
     dailyFees,
@@ -174,6 +175,15 @@ const fetchSolana = async (options: FetchOptions) => {
 // Get curator export for EVM chains and combine with Solana
 const curatorExport = getCuratorExport(curatorConfig);
 
+// need to convert adapter v2 to adapter v1
+for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
+  (curatorExport.adapter as any)[chain] = {
+    fetch: async (_t: any, _a: any, options: FetchOptions) => {
+      return await (adapter as any).fetch(options);
+    }
+  }
+}
+
 const methodology = {
   Fees: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
   Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
@@ -181,15 +191,34 @@ const methodology = {
   SupplySideRevenue: "Amount of yields distributed to supply-side depositors.",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
+    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
+    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
+  },
+  ProtocolRevenue: {
+    [METRIC.ASSETS_YIELDS]: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
+    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: "Amount of yields distributed to supply-side depositors.",
+  },
+}
+
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  breakdownMethodology,
   methodology,
   adapter: {
     ...curatorExport.adapter,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-01'
-    }
+    },
   },
   allowNegativeValue: true,
   isExpensiveAdapter: true

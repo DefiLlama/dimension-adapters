@@ -44,6 +44,8 @@ const chainConfig: Record<string, string> = {
   [CHAIN.SONIC]:'sonic',
   [CHAIN.HYPERLIQUID]:'hype',
   [CHAIN.BERACHAIN]:'bera',
+  [CHAIN.IOTAEVM]:'iota',
+  [CHAIN.HEMI]:'hemi',
 }
 
 const URL = "https://api.houdiniswap.com/api/aggregator-vol?";

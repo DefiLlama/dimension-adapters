@@ -31,15 +31,11 @@ const config = {
     'https://api.studio.thegraph.com/query/46041/impermax-base-solv2/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-base-solv2-stable/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-base-v2/v0.0.3',
-    'https://api.studio.thegraph.com/query/46041/impermax-v-3-base/v0.0.2',
+    'https://api.studio.thegraph.com/query/46041/impermax-v-3-base/v0.0.3',
   ],
   [CHAIN.SCROLL]: [
     'https://api.studio.thegraph.com/query/46041/impermax-scroll-solv2/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-scroll-solv2-stable/0.0.9',
-  ],
-  [CHAIN.REAL]: [
-    "https://api.goldsky.com/api/public/project_cm2d5q4l4w31601vz4swb3vmi/subgraphs/impermax-finance/impermax-real-v2-stable/gn",
-    "https://api.goldsky.com/api/public/project_cm2rhb30ot9wu01to8c9h9e37/subgraphs/impermax-real-solv2/3.0/gn",
   ],
   [CHAIN.AVAX]: [
     'https://api.studio.thegraph.com/query/46041/impermax-avalanche-v1/v0.0.2',
@@ -144,7 +140,6 @@ const adapter: Adapter = {
     [CHAIN.BASE]: { start: '2023-10-23', },
     [CHAIN.SCROLL]: { start: '2023-10-23', },
     [CHAIN.OPTIMISM]: { start: '2023-10-23', },
-    [CHAIN.REAL]: { start: '2023-10-23', },
     [CHAIN.AVAX]: { start: '2023-10-23', },
     [CHAIN.SONIC]: { start: '2023-10-23', },
     [CHAIN.BLAST]: { start: '2023-10-23', },

@@ -20,6 +20,7 @@ export const config: any = {
   optimism: {},
   polygon: {},
   zora: {},
+  hyperliquid: {},
 }
 
 export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {

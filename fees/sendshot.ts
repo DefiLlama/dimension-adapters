@@ -24,8 +24,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
-    console.log(data);
-
     data.forEach(row => {
         const totalFees = Number(row.total_trading_fees);
         dailyFees.add(row.quote_mint, Number(totalFees));

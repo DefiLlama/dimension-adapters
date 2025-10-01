@@ -1,4 +1,5 @@
 import { CHAIN } from "../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 import { cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { ethers } from "ethers";
@@ -20,21 +21,7 @@ const factories: {[key: string]: Ifactory} = {
   [CHAIN.BSC]: {
     start: '2023-04-01',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
-    blacklistTokens: [
-      '0xc71b5f631354be6853efe9c3ab6b9590f8302e81',
-      '0xe6df05ce8c8301223373cf5b969afcb1498c5528',
-      '0xa0c56a8c0692bd10b3fa8f8ba79cf5332b7107f9',
-      '0xb4357054c3da8d46ed642383f03139ac7f090343',
-      '0x6bdcce4a559076e37755a78ce0c06214e59e4444',
-      '0x87d00066cf131ff54b72b134a217d5401e5392b6',
-      '0x30c60b20c25b2810ca524810467a0c342294fc61',
-      '0xd82544bf0dfe8385ef8fa34d67e6e4940cc63e16',
-      '0x595e21b20e78674f8a64c1566a20b2b316bc3511',
-      '0x783c3f003f172c6ac5ac700218a357d2d66ee2a2',
-      '0xb9e1fd5a02d3a33b25a14d661414e6ed6954a721',
-      '0x95034f653D5D161890836Ad2B6b8cc49D14e029a',
-      '0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41',
-    ]
+    blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC),
   },
   [CHAIN.ETHEREUM]: {
     start: '2023-04-01',
@@ -77,7 +64,8 @@ export const PANCAKESWAP_V3_QUERY = (fromTime: number, toTime: number, blacklist
               THEN amount_usd
               ELSE 0 
           END
-        ) AS amount_usd
+        ) AS clean_volume_usd
+        , SUM(amount_usd) AS total_volume_usd 
     FROM dex.trades
     WHERE blockchain = 'bnb'
       AND project = 'pancakeswap'
@@ -134,15 +122,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   if (options.chain === CHAIN.BSC) {
     const poolsAndVolumes = await queryDune('3996608',{
       fullQuery: PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp, factories[options.chain].blacklistTokens as Array<string>),
-    });
+    }, options);
 
     const poolFees = await options.api.multiCall({
       abi: 'uint256:fee',
       calls: poolsAndVolumes.map((item: any) => item.pool)
     })
     for (let i = 0; i < poolsAndVolumes.length; i++) {
-      if (poolsAndVolumes[i].amount_usd !== null) {
-        dailyVolume.addUSDValue(poolsAndVolumes[i].amount_usd)
+      if (poolsAndVolumes[i].clean_volume_usd !== null && poolsAndVolumes[i].total_volume_usd !== null) {
+        // add clean volume, exclude blacklist token
+        dailyVolume.addUSDValue(poolsAndVolumes[i].clean_volume_usd)
 
         const fee = poolFees[i] ? Number(poolFees[i] / 1e6) : 0
         const protocolRevenueRatio = getProtocolRevenueRatio(fee);
@@ -150,11 +139,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
         const supplySideRevenueRatio = 1 - revenueRatio;
 
-        dailyFees.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee)
-        dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * revenueRatio)
-        dailyProtocolRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * protocolRevenueRatio)
-        dailyHoldersRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * holdersRevenueRatio)
-        dailySupplySideRevenue.addUSDValue(Number(poolsAndVolumes[i].amount_usd) * fee * supplySideRevenueRatio)
+        // add fees from total volume, including blacklist tokens
+        dailyFees.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee)
+        dailyRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * revenueRatio)
+        dailyProtocolRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * protocolRevenueRatio)
+        dailyHoldersRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * holdersRevenueRatio)
+        dailySupplySideRevenue.addUSDValue(Number(poolsAndVolumes[i].total_volume_usd) * fee * supplySideRevenueRatio)
       }
     }
   } else {
@@ -249,6 +239,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  isExpensiveAdapter: true,
   methodology,
   adapter: {
     [CHAIN.SOLANA]: {

@@ -3,6 +3,7 @@ import { Balances, ChainApi } from "@defillama/sdk";
 import { BigNumber } from "bignumber.js";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { ABI, CONFIG_FLUID, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 import { getVaultsT1Resolver } from "./fees";
 
@@ -209,7 +210,7 @@ export const getFluidDailyRevenue = async (options: FetchOptions): Promise<Balan
     getVaultsT1Revenues(options),
   ]);
 
-  dailyRevenue.addBalances(liquidityRevenues)
-  dailyRevenue.addBalances(vaultRevenues)
+  dailyRevenue.addBalances(liquidityRevenues, METRIC.BORROW_INTEREST)
+  dailyRevenue.addBalances(vaultRevenues, METRIC.BORROW_INTEREST)
   return dailyRevenue
 };
