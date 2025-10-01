@@ -8,6 +8,7 @@ import { getEnv } from './env';
 import { httpGet, httpPost } from '../utils/fetchURL';
 import { formatAddress } from '../utils/utils';
 import { Balances } from '@defillama/sdk';
+import { findClosest } from "./utils/findClosest";
 
 export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   // Delay as data is available only after 48 hours
@@ -249,7 +250,7 @@ export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
   return coins
 }
 
-interface QueryIndexerOptions {
+interface QueryIndexerResult {
   dailyPerpVolume: Balances;
   dailySpotVolume: Balances;
 
@@ -264,7 +265,7 @@ interface QueryIndexerOptions {
   currentPerpOpenInterest?: number;
 }
 
-export async function queryHyperliquidIndexer(options: FetchOptions): Promise<QueryIndexerOptions> {
+export async function queryHyperliquidIndexer(options: FetchOptions): Promise<QueryIndexerResult> {
   if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
     throw Error('request data too old, unsupported by LLAMA_HL_INDEXER');
   }
@@ -325,4 +326,35 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
     dailyUnitRevenue,
     currentPerpOpenInterest,
   }
+}
+
+interface QueryHypurrscanApiResult {
+  dailyPerpFees: Balances;
+  dailySpotFees: Balances;
+}
+
+const HYPURRSCAN_API = 'https://api.hypurrscan.io/fees';
+export async function queryHypurrscanApi(options: FetchOptions): Promise<QueryHypurrscanApiResult> {
+  const result: QueryHypurrscanApiResult = {
+    dailyPerpFees: options.createBalances(),
+    dailySpotFees: options.createBalances(),
+  }
+
+  const feesItems = (await httpGet(HYPURRSCAN_API)).map((item: any) => {
+    return {
+      ...item,
+      time: Number(item.time) * 1000,
+    }
+  })
+
+  const startCumFees: any = findClosest(options.startTimestamp, feesItems, 3600)
+  const endCumFees: any = findClosest(options.endTimestamp, feesItems, 3600)
+
+  const totalFees = (Number(endCumFees.total_fees) - Number(startCumFees.total_fees)) / 1e6
+  const spotFees = (Number(endCumFees.total_spot_fees) - Number(startCumFees.total_spot_fees)) / 1e6
+
+  result.dailyPerpFees.addUSDValue(totalFees - spotFees)
+  result.dailySpotFees.addUSDValue(spotFees)
+
+  return result;
 }

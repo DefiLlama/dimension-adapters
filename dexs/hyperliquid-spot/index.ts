@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { getRevenueRatioShares, queryHyperliquidIndexer } from "../../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../../helpers/hyperliquid";
 
 const methodology = {
   Fees: "Include spot trading fees and unit protocol fees, excluding perps fees.",
@@ -29,39 +29,61 @@ const breakdownMethodology = {
 }
 
 async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchResultV2> {
-  const result = await queryHyperliquidIndexer(options);
-
   const { holdersShare, hlpShare } = getRevenueRatioShares(options.startOfDay)
 
-  // spot volume
-  const dailyVolume = result.dailySpotVolume;
+  if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
+    // get fees from hypurrscan, no volume
+    const result = await queryHypurrscanApi(options);
 
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
 
-  // all spot fees
-  dailyFees.add(result.dailySpotRevenue, 'Spot Fees')
-  dailyFees.add(result.dailyUnitRevenue, 'Unit Revenue')
+    dailyFees.add(result.dailySpotFees, 'Spot Fees')
+    dailySupplySideRevenue.add(result.dailySpotFees.clone(hlpShare), 'HLP')
+    dailyHoldersRevenue.add(result.dailySpotFees.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
-  // spot fees - unit revenue
-  dailyRevenue.add(result.dailySpotRevenue, 'Spot Fees')
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue: 0,
+    }
+  } else {
+    const result = await queryHyperliquidIndexer(options);
 
-  // unit revenue + 1% spot revenue
-  dailySupplySideRevenue.add(result.dailySpotRevenue.clone(hlpShare), 'HLP')
-  dailySupplySideRevenue.add(result.dailyUnitRevenue, 'Unit Revenue')
-  
-  // 99% of revenue
-  dailyHoldersRevenue.add(result.dailySpotRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
+    // spot volume
+    const dailyVolume = result.dailySpotVolume;
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue: 0,
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+
+    // all spot fees
+    dailyFees.add(result.dailySpotRevenue, 'Spot Fees')
+    dailyFees.add(result.dailyUnitRevenue, 'Unit Revenue')
+
+    // spot fees - unit revenue
+    dailyRevenue.add(result.dailySpotRevenue, 'Spot Fees')
+
+    // unit revenue + 1% spot revenue
+    dailySupplySideRevenue.add(result.dailySpotRevenue.clone(hlpShare), 'HLP')
+    dailySupplySideRevenue.add(result.dailyUnitRevenue, 'Unit Revenue')
+    
+    // 99% of revenue
+    dailyHoldersRevenue.add(result.dailySpotRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
+
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue: 0,
+    }
   }
 }
 
