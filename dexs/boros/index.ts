@@ -22,23 +22,26 @@ interface BorosMarket {
     coinGeckoId: string;
 };
 
-const SYMBOL_TO_CGID = {
+const SYMBOL_TO_CGID: Record<string, string> = {
     'ETH': 'ethereum',
     'BTC': 'bitcoin',
 };
 
-const getCgId = (marketSymbol: string) => {
+const EXCLUDE_OTC_SWAPS: Array<string> = [
+    '0x752eea9b38bb427e10a1ae0b8a55783cd700033c6967ae70590202645a1177ad',
+    '0xf8e45548cbf08c48c71d054ce872f7e8cbef6633b45224a28d5c7c5128471856',
+]
+
+const getCgId = (marketSymbol: string): string => {
     let symbol = "";
     try {
         symbol = marketSymbol.split("-")[1].replace("USDT", "");
     } catch (error) {
-        console.error("Failed to extract base asset from symbol:", symbol, error);
-        return null;
+        throw Error(`Failed to extract base asset from symbol: ${symbol}`)
     }
     const cgId = SYMBOL_TO_CGID[symbol];
     if (!cgId) {
-        console.error("No CG mapping for symbol:", symbol);
-        return null;
+        throw Error(`No CG mapping for symbol: ${symbol}`)
     }
     return cgId;
 }
@@ -83,9 +86,15 @@ const fetch = async (options: FetchOptions) => {
         const otcSwapLogs = await options.getLogs({
             target: market.address,
             eventAbi: BOROS_ABIS.OTC_SWAP_EVENT,
+            onlyArgs: false,
         });
 
-        otcSwapLogs.forEach(swap => {
+        otcSwapLogs.forEach((item: any) => {
+            if (EXCLUDE_OTC_SWAPS.includes(item.transaction_hash)) {
+                return;
+            }
+
+            const swap = item.args;
             let tradeAmount = swap.trade >> 128n;
             if (tradeAmount > TWO_127)
                 tradeAmount = TWO_128 - tradeAmount;
