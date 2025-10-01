@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { Chain } from "../../adapters/types";
 import { request } from "graphql-request";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
@@ -39,14 +40,10 @@ type SubgraphTokenQueryResponse = {
 };
 
 const subgraphMapping: SubgraphMapping = {
-  [CHAIN.ETHEREUM]:
-    "https://gateway.thegraph.com/api/subgraphs/id/2z5Mn4WW7K4yR1iH9KdignREkTq9EM1S4GX3yLaztRFg",
-  [CHAIN.ARBITRUM]:
-    "https://gateway.thegraph.com/api/subgraphs/id/DK5qWsSJSqkeW2GHDQQCB7xHnHwVN3K1LPpP6CYNXMh8",
-  [CHAIN.AVAX]:
-    "https://gateway.thegraph.com/api/subgraphs/id/6NLL9WmjPYima4NhUpNEWeDu5eBXFuhP9QheRXkoJXR5",
-  [CHAIN.SONIC]:
-    "https://gateway.thegraph.com/api/subgraphs/id/8wcbzcdNirQvk1ETh25wpVzb5GWs8DvugpbwrYnTCcxj",
+  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2z5Mn4WW7K4yR1iH9KdignREkTq9EM1S4GX3yLaztRFg'),
+  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('DK5qWsSJSqkeW2GHDQQCB7xHnHwVN3K1LPpP6CYNXMh8'),
+  [CHAIN.AVAX]: sdk.graph.modifyEndpoint('6NLL9WmjPYima4NhUpNEWeDu5eBXFuhP9QheRXkoJXR5'),
+  [CHAIN.SONIC]: sdk.graph.modifyEndpoint('8wcbzcdNirQvk1ETh25wpVzb5GWs8DvugpbwrYnTCcxj'),
 };
 
 // Some silos started to represent bad debt because of a token price drop,
