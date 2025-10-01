@@ -27,6 +27,7 @@ const SYMBOL_TO_CGID: Record<string, string> = {
     'BTC': 'bitcoin',
 };
 
+// AMMConfigUpdated transactions, ignore volume from these transactions
 const EXCLUDE_OTC_SWAPS: Array<string> = [
     '0x752eea9b38bb427e10a1ae0b8a55783cd700033c6967ae70590202645a1177ad',
     '0xf8e45548cbf08c48c71d054ce872f7e8cbef6633b45224a28d5c7c5128471856',
