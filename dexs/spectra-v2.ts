@@ -83,9 +83,7 @@ const chains: {
     start: "2024-07-01",
     protocolSubgraphUrl:
       "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-base/api",
-    blacklistPools: [
-      '0x447d24edf78b20a4cf748a7cee273510edf87df1',
-    ],
+    blacklistPools: ["0x447d24edf78b20a4cf748a7cee273510edf87df1"],
   },
   [CHAIN.SONIC]: {
     id: 146,
@@ -116,6 +114,13 @@ const chains: {
     start: "2025-06-01",
     protocolSubgraphUrl:
       "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/1.2.1/gn",
+    limit: 1000,
+  },
+  [CHAIN.KATANA]: {
+    id: 747474,
+    start: "2025-07-02",
+    protocolSubgraphUrl:
+      "https://api.studio.thegraph.com/query/17172/spectra-katana/version/latest",
     limit: 1000,
   },
 };
@@ -168,8 +173,13 @@ const fetchDailyFeesAndVolume = async ({
   ).transactions as Transaction[];
 
   dailyData.forEach((transaction) => {
-    if (chains[chain].blacklistPools && (new Set(chains[chain].blacklistPools)).has(transaction.poolInTransaction.id)) {
-      return
+    if (
+      chains[chain].blacklistPools &&
+      new Set(chains[chain].blacklistPools).has(
+        transaction.poolInTransaction.id
+      )
+    ) {
+      return;
     }
 
     dailyFees.add(
