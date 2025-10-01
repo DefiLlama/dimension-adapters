@@ -120,9 +120,7 @@ const chains: {
   [CHAIN.KATANA]: {
     id: 747474,
     start: "2025-07-02",
-    protocolSubgraphUrl: sdk.graph.modifyEndpoint(
-      "FFz8eoWmY2G8ntMnhHZqeAu71CEpstm7wVZbhyMh7GNa"
-    ),
+    protocolSubgraphUrl: sdk.graph.modifyEndpoint("FFz8eoWmY2G8ntMnhHZqeAu71CEpstm7wVZbhyMh7GNa"),
     limit: 1000,
   },
 };
@@ -175,12 +173,7 @@ const fetchDailyFeesAndVolume = async ({
   ).transactions as Transaction[];
 
   dailyData.forEach((transaction) => {
-    if (
-      chains[chain].blacklistPools &&
-      new Set(chains[chain].blacklistPools).has(
-        transaction.poolInTransaction.id
-      )
-    ) {
+    if (chains[chain].blacklistPools && new Set(chains[chain].blacklistPools).has(transaction.poolInTransaction.id)) {
       return;
     }
 
@@ -216,9 +209,8 @@ const fetchDailyHoldersRevenue = async ({
 
   // Count both reward types (voting incentives + fees) separately
   dailyData.forEach((reward) => {
-    if (
-      reward.distributor.governancePool.chainId === chains[chain].id.toString() // Only count rewards for pools on the current chain
-    ) {
+    // Only count rewards for pools on the current chain
+    if (reward.distributor.governancePool.chainId === chains[chain].id.toString()) {
       if (reward.distributor.type === "FEE") {
         dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
       } else {
@@ -239,8 +231,7 @@ const fetch: FetchV2 = async (options) => {
 
   const dailyRevenue = dailyFees.clone(0.8);
   const dailySupplySideRevenue = dailyFees.clone(0.2);
-  const [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue] =
-    await fetchDailyHoldersRevenue(options);
+  const [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue] = await fetchDailyHoldersRevenue(options);
 
   return {
     dailyVolume,
