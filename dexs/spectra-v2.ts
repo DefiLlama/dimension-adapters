@@ -1,4 +1,5 @@
-import { BaseAdapterChainConfig, FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 import { gql, GraphQLClient } from "graphql-request";
@@ -116,13 +117,14 @@ const chains: {
       "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/1.2.1/gn",
     limit: 1000,
   },
-  // [CHAIN.KATANA]: {
-  //   id: 747474,
-  //   start: "2025-07-02",
-  //   protocolSubgraphUrl:
-  //     "https://api.studio.thegraph.com/query/17172/spectra-katana/version/latest",
-  //   limit: 1000,
-  // },
+  [CHAIN.KATANA]: {
+    id: 747474,
+    start: "2025-07-02",
+    protocolSubgraphUrl: sdk.graph.modifyEndpoint(
+      "FFz8eoWmY2G8ntMnhHZqeAu71CEpstm7wVZbhyMh7GNa"
+    ),
+    limit: 1000,
+  },
 };
 
 type Address = `0x${string}`;
@@ -173,7 +175,12 @@ const fetchDailyFeesAndVolume = async ({
   ).transactions as Transaction[];
 
   dailyData.forEach((transaction) => {
-    if (chains[chain].blacklistPools && new Set(chains[chain].blacklistPools).has(transaction.poolInTransaction.id)) {
+    if (
+      chains[chain].blacklistPools &&
+      new Set(chains[chain].blacklistPools).has(
+        transaction.poolInTransaction.id
+      )
+    ) {
       return;
     }
 
@@ -265,7 +272,7 @@ for (const [chain, config] of Object.entries(chains)) {
   (adapter.adapter as any)[chain] = {
     fetch,
     start: config.start,
-  } 
+  };
 }
 
 export default adapter;
