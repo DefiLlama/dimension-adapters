@@ -4,6 +4,7 @@ import AaveAbis from '../helpers/aave/abi';
 
 const PercentageMathDecimals = 1e4;
 const LiquidityIndexDecimals = BigInt(1e27);
+const HOLLAR_ADDRESS = '0x531a654d1696ED52e7275A8cede955E82620f99a';
 
 const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances()
@@ -107,6 +108,33 @@ const fetch = async (options: FetchOptions) => {
           }
         }
       }
+    }
+  }
+
+  const hollarBalances = dailyFees.getBalances();
+  const hollarKey = Object.keys(hollarBalances).find(k => k.toLowerCase().includes(HOLLAR_ADDRESS.toLowerCase()));
+  
+  if (hollarKey) {
+    const hollarAmount = hollarBalances[hollarKey];
+    dailyFees.addCGToken('hydrated-dollar', Number(hollarAmount) / 1e18);
+    delete hollarBalances[hollarKey]; // Remove the address-based entry
+    
+    const supplyBalances = dailySupplySideRevenue.getBalances();
+    const supplyHollarKey = Object.keys(supplyBalances).find(k => k.toLowerCase().includes(HOLLAR_ADDRESS.toLowerCase()));
+    if (supplyHollarKey) {
+      const supplyHollarAmount = supplyBalances[supplyHollarKey];
+      // Remove from supply side
+      delete supplyBalances[supplyHollarKey];
+      // Add to protocol revenue
+      dailyProtocolRevenue.addCGToken('hydrated-dollar', Number(supplyHollarAmount) / 1e18);
+    }
+    
+    const protocolBalances = dailyProtocolRevenue.getBalances();
+    const protocolHollarKey = Object.keys(protocolBalances).find(k => k.toLowerCase().includes(HOLLAR_ADDRESS.toLowerCase()));
+    if (protocolHollarKey && protocolHollarKey !== 'coingecko:hydrated-dollar') {
+      const protocolHollarAmount = protocolBalances[protocolHollarKey];
+      dailyProtocolRevenue.addCGToken('hydrated-dollar', Number(protocolHollarAmount) / 1e18);
+      delete protocolBalances[protocolHollarKey];
     }
   }
 
