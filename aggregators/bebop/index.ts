@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
 import JAM_ABI from "./jamAbi";
 import {queryDuneSql} from "../../helpers/dune"
@@ -136,6 +136,7 @@ async function fetchDune(_:any, _1:any, options: FetchOptions){
 const adapter: Adapter = {
   version: 1,
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     arbitrum: { fetch: fetchDune, start: '2023-05-31', },
     ethereum: { fetch: fetchDune, start: '2023-05-31', },

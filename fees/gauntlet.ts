@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -221,6 +221,7 @@ const adapter: SimpleAdapter = {
     },
   },
   allowNegativeValue: true,
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true
 };
 
