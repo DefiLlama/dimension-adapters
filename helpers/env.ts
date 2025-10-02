@@ -22,7 +22,7 @@ const DEFAULTS: any = {
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
-  APTOS_PRC: 'https://aptos-mainnet.pontem.network',
+  APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   HYDRAGON_RPC: "https://rpc-mainnet.hydrachain.org",
   TAC_RPC: "https://rpc.tac.build",
   FRAXTAL_RPC: "https://rpc.frax.com",
