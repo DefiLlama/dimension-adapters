@@ -83,14 +83,13 @@ const contractAddresses = {
   ],
 };
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
   const chain = options.chain;
   const addresses = contractAddresses[chain as keyof typeof contractAddresses] || [];
 
   if (addresses.length === 0) {
-    return { dailyFees, dailyRevenue };
+    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
 
   const logPromises = addresses.map((address) =>
@@ -104,28 +103,28 @@ const fetchFees = async (options: FetchOptions) => {
   logs.forEach((logSet) =>
     logSet.forEach((log: any) => {
       dailyFees.addGasToken(Number(log.data));
-      dailyRevenue.addGasToken(Number(log.data));
     })
   );
 
-  return { dailyFees, dailyRevenue, dailyProtocoLRevenue: dailyRevenue };
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchFeesSolana = async (options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: '4TTaKEKLjh1WJZttu1kvDtZt9N4G854C6ZKPAprZFRuy' });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const methodology = {
   Fees: 'All trading fees paid by users.',
-  Revenue: 'All trading fees paid by users.',
-  ProtocolRevenue: 'All trading fees paid by users.',
+  UserFees: 'All trading fees paid by users.',
+  Revenue: 'All trading revenue goes to the protocol.',
+  ProtocolRevenue: 'All trading revenue goes to the protocol.',
 }
 
 const adapter: SimpleAdapter = {
-  methodology,
   version: 2,
   adapter: {
+
     [CHAIN.ETHEREUM]: { fetch: fetchFees, start: '2024-03-01', },
     [CHAIN.BSC]: { fetch: fetchFees, start: '2024-03-01', },
     [CHAIN.BASE]: { fetch: fetchFees, start: '2024-03-01', },
@@ -134,7 +133,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: { fetch: fetchFees, start: '2025-02-06', },
     [CHAIN.SOLANA]: { fetch: fetchFeesSolana, start: '2024-11-23', },
     [CHAIN.STORY]: { fetch: fetchFees, start: '2025-08-01', },
+
   },
+  methodology,
   isExpensiveAdapter: true,
 };
 

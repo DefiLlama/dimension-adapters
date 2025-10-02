@@ -1,16 +1,21 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getRevenueRatioShares, queryHyperliquidIndexer } from "../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../helpers/hyperliquid";
 
 async function fetch(_1: number, _: any,  options: FetchOptions) {
-  const result = await queryHyperliquidIndexer(options);
-
+  const dailyFees = options.createBalances()
   const { hlpShare } = getRevenueRatioShares(options.startOfDay)
 
-  const dailyFees = options.createBalances()
-  
-  dailyFees.add(result.dailyPerpRevenue.clone(hlpShare), 'Perp Fees')
-  dailyFees.add(result.dailyPerpRevenue.clone(hlpShare), 'Spot Fees')
+  if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
+    // get fees from hypurrscan, no volume
+    const result = await queryHypurrscanApi(options);
+    dailyFees.add(result.dailyPerpFees.clone(hlpShare), 'Perp Fees')
+    dailyFees.add(result.dailySpotFees.clone(hlpShare), 'Spot Fees')
+  } else {
+    const result = await queryHyperliquidIndexer(options);
+    dailyFees.add(result.dailyPerpRevenue.clone(hlpShare), 'Perp Fees')
+    dailyFees.add(result.dailyPerpRevenue.clone(hlpShare), 'Spot Fees')
+  }
 
   return {
     dailyFees,
@@ -42,7 +47,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
-      start: '2023-02-25',
+      start: '2024-12-23',
     },
   },
   doublecounted: true, // we have already counted to supplySideRevenue on perps and spot
