@@ -8,7 +8,7 @@ const LIMIT_ORDER_FILLED_ABI = "event LimitOrderFilled(uint256 indexed cycleId, 
 
 // V2 Off-chain execution contract (after off-chain transition)
 const OPTFUN_CONTRACT = "0x7dB5B94c875d12bB77062d368d36D43EAbB6A961"
-const CYCLE_SETTLED_ABI = "event CycleSettled(uint256 indexed cycleId, uint256 notionalVolume)"
+const CYCLE_SETTLED_ABI = "event CycleSettled(uint256 indexed cycleId, uint256 notionalVolume, uint256 premiumVolume)"
 
 // Off-chain transition date - Please update with the actual transition date
 // Using a placeholder date - replace with actual transition timestamp
@@ -64,17 +64,24 @@ async function fetchV2OffChain(options: FetchOptions): Promise<FetchResult> {
   });
 
   let dailyNotional = 0;
+  let dailyPremium = 0;
 
   for (const log of logs) {
     const notionalVolume = Number(log.notionalVolume);
+    const premiumVolume = Number(log.premiumVolume);
     dailyNotional += notionalVolume;
+    dailyPremium += premiumVolume;
   }
 
   const dailyNotionalVolume = options.createBalances();
+  const dailyPremiumVolume = options.createBalances();
+
   dailyNotionalVolume.addCGToken('tether', dailyNotional / 1e6);
+  dailyPremiumVolume.addCGToken('tether', dailyPremium / 1e6);
 
   return {
     dailyNotionalVolume,
+    dailyPremiumVolume,
   };
 }
 
@@ -93,7 +100,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResult> {
 const adapter: SimpleAdapter = {
   methodology: {
     NotionalVolume: "V1 (Before Sept 25, 2025): On-chain execution - Notional volume calculated as size * btcPrice / 100 from LimitOrderFilled events. V2 (After Sept 25, 2025): Off-chain execution - Notional volume summed from CycleSettled events in USDC.",
-    PremiumVolume: "V1: Premium volume calculated as limitPrice * size from LimitOrderFilled events. Not available in V2 off-chain execution.",
+    PremiumVolume: "V1 (Before Sept 25, 2025): Premium volume calculated as limitPrice * size from LimitOrderFilled events. V2 (After Sept 25, 2025): Premium volume summed from CycleSettled events in USDC.",
     OffchainTransition: "Protocol transitioned from on-chain to off-chain execution on Sept 25, 2025. V1 uses LimitOrderFilled events from BTC_MARKET and PUMP_MARKET contracts. V2 uses CycleSettled events from OPTFUN_CONTRACT for aggregated off-chain volume reporting.",
   },
   version: 2,
