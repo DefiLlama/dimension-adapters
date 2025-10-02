@@ -7,7 +7,9 @@ const SETTLED_ABI = "event Settled(address indexed market, uint256 indexed cycle
 
 const adapter: Adapter = {
   methodology: {
-    Fees: "Protocol fees collected by FEE_RECIPIENT address during settlement",
+    Fees: "Trading fees collected from options settlements. Fees are generated from trade fees (7% taker fees, 2% maker rebate, so net 5% to protocol), and liquidation penalties",
+    Revenue: "All fees collected go directly to the protocol treasury",
+    ProtocolRevenue: "100% of fees are retained by the protocol",
   },
   version: 2,
   adapter: {
