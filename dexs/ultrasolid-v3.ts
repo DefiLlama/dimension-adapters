@@ -1,3 +1,21 @@
+// https://ultrasolid.notion.site/fluvi/Fee-Split-Structure-26ba25711cfa80e9b103f0845d6d175f
+// ## Private Launching Phase
+
+// - **100%** distributed to Liquidity Providers (LPs)
+
+// ## Pre-TGE Phase
+
+// - **87%** distributed to Liquidity Providers (LPs)
+// - **13%** allocated for initial costs and essential liquidity provision (Not yet applied)
+
+// ## Post-TGE Phase
+
+// - Following ve-tokenomics model:
+//     - **100% of fees distributed to $veUS voters**
+//     - Liquidity Providers receive $US token emissions
+// - For Unstaked LPs:
+//     - **14%** of fees redirected to **voter** gauge to incentivize staking participation
+
 import { CHAIN } from "../helpers/chains";
 import { uniV3Exports } from "../helpers/uniswap";
 
