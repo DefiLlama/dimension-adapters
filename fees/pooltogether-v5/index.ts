@@ -85,7 +85,6 @@ const adapter: SimpleAdapter = {
         [CHAIN.WC]: { start: '2025-03-19' }
     },
     methodology,
-    allowNegativeValue: true, // casino can lose money
 };
 
 export default adapter;
