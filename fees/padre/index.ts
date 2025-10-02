@@ -4,8 +4,12 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+const dataAvaliableTill = (Date.now() / 1e3 - 10 * 3600) // 10 hours ago
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
+  if (options.endTimestamp > dataAvaliableTill) 
+    throw new Error("Data not available till 10 hours ago. Please try a date before: " + new Date(dataAvaliableTill * 1e3).toISOString());
+
   const dailyFees = options.createBalances();
 
   const query = `
