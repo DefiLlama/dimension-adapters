@@ -2,15 +2,10 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const BASE_TUNA_URL =
-  "https://api.defituna.com/api/v1/integration/defillama/tuna-revenues";
-
-const getUrl = (startTime: number, endTime: number): string => {
-  return `${BASE_TUNA_URL}?from_timestamp=${startTime}&to_timestamp=${endTime}`;
-};
+const BASE_TUNA_URL = "https://api.defituna.com/api/v1/integration/defillama/tuna-revenues";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const url = getUrl(options.startTimestamp, options.endTimestamp);
+  const url = `${BASE_TUNA_URL}?from_timestamp=${options.startTimestamp}&to_timestamp=${options.endTimestamp}`;
   const response = await fetchURL(url);
 
   return {
@@ -23,11 +18,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Fees: "Total fees paid by users of DefiTuna Liquidity services",
-  UserFees: "Same as Fees (explicitly denotes fees paid directly by end-users)",
-  Revenue: "All fees collected by DefiTuna Liquidity are counted as revenue",
-  ProtocolRevenue: "Share of revenue allocated to the protocol treasury, determined by its fixed 500M TUNA holdings",
-  HoldersRevenue: "Share of revenue distributed to TUNA token holders, proportional to their share of the circulating TUNA supply (excluding the treasury’s 500M)",
+  Fees: "Liquidity services fees(borrowing/limit order execution fee/collateral fee and liquidation fees)",
+  UserFees: "Liquidity services fees(borrowing/limit order execution fee/collateral fee and liquidation fees)",
+  Revenue: "Share of revenue allocated to treasury and shared with token stakers",
+  ProtocolRevenue: "Share of revenue allocated to the protocol treasury",
+  HoldersRevenue: "Share of revenue distributed to TUNA token holders, proportional to their share of the circulating TUNA supply (excluding the treasury's 500M)",
 };
 
 const adapter: SimpleAdapter = {
