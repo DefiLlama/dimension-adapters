@@ -2,7 +2,7 @@ import axios from "axios";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { GraphQLClient } from "graphql-request";
 
-export const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
+export const APTOS_RPC = 'https://aptos-mainnet.pontem.network';
 
 // Number of decimals for the APT token.
 const APT_DECIMALS = 8;
@@ -79,7 +79,7 @@ const getResources = async (account: string): Promise<any[]> => {
     let lastData: any;
     let cursor
     do {
-        let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
+        let url = `${APTOS_RPC}/v1/accounts/${account}/resources?limit=9999`
         if (cursor) url += '&start=' + cursor
         const res = await httpGet(url, undefined, { withMetadata: true })
         lastData = res.data
@@ -100,7 +100,7 @@ async function getCoinSupply(coin: string): Promise<{
     decimals: number;
     supply: number;
 }> {
-    const { data: { decimals, supply } } = await httpGet(`${APTOS_PRC}/v1/accounts/${coin.split('::')[0]}/resource/0x1::coin::CoinInfo<${coin}>`)
+    const { data: { decimals, supply } } = await httpGet(`${APTOS_RPC}/v1/accounts/${coin.split('::')[0]}/resource/0x1::coin::CoinInfo<${coin}>`)
     return {
         decimals: Number(decimals),
         supply: Number(supply.vec[0].integer.vec[0].value),
