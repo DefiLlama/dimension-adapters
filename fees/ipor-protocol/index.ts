@@ -80,7 +80,7 @@ const adapter: SimpleAdapter = {
     adapter: Object.fromEntries(
         Object.entries(vaultsPerChain).map(([chain, vaultData]) => [
             chain,
-            { fetch: fetch(vaultData), start: 1704067200 }
+            { fetch: fetch(vaultData) }
         ])
     ),
     methodology
