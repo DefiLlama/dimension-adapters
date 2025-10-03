@@ -73,13 +73,19 @@ const fetch = async (options: FetchOptions) => {
         const marketOrderFilledLogs = await options.getLogs({
             target: market.address,
             eventAbi: BOROS_ABIS.MARKET_ORDERS_FILLED_EVENT,
+            onlyArgs: false,
         });
 
-        marketOrderFilledLogs.forEach(trade => {
+        marketOrderFilledLogs.forEach((item: any) => {
+            const trade = item.args;
+
             let tradeAmount = trade.totalTrade >> 128n;
             if (tradeAmount > TWO_127)
                 tradeAmount = TWO_128 - tradeAmount;
+
             dailyVolume.addCGToken(market.coinGeckoId, Number(tradeAmount) / 1e18);
+
+            // add open/close fees
             dailyFees.addCGToken(market.coinGeckoId, Number(trade.totalFees) / 1e18, METRIC.OPEN_CLOSE_FEES);
             dailyRevenue.addCGToken(market.coinGeckoId, Number(trade.totalFees) / 1e18, METRIC.OPEN_CLOSE_FEES);
         });
@@ -96,10 +102,15 @@ const fetch = async (options: FetchOptions) => {
             }
 
             const swap = item.args;
-            let tradeAmount = swap.trade >> 128n;
-            if (tradeAmount > TWO_127)
-                tradeAmount = TWO_128 - tradeAmount;
-            dailyVolume.addCGToken(market.coinGeckoId, Number(tradeAmount) / 1e18);
+
+            // let tradeAmountAfterFee = swap.trade >> 128n;
+            // if (tradeAmountAfterFee > TWO_127)
+            //     tradeAmountAfterFee = TWO_128 - tradeAmountAfterFee;
+
+            // don't add volume from otc swap
+            // dailyVolume.addCGToken(market.coinGeckoId, (Number(tradeAmountAfterFee) + Number(swap.otcFee)) / 1e18);
+
+            // add swap fees
             dailyFees.addCGToken(market.coinGeckoId, Number(swap.otcFee) / 1e18, METRIC.SWAP_FEES);
             dailySupplySideRevenue.addCGToken(market.coinGeckoId, Number(swap.otcFee) / 1e18, METRIC.SWAP_FEES)
         })
