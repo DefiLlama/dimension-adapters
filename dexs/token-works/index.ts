@@ -2,11 +2,6 @@ import { FetchOptions, FetchResultV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { METRIC } from '../../helpers/metrics';
 
-interface StrategyToken {
-  address: string;
-  hookAddress: string;
-}
-
 const PunkStreategy = '0xfAaad5B731F52cDc9746F2414c823eca9B06E844';
 const TokenWorksHook = '0xe3C63A9813Ac03BE0e8618B627cb8170cfA468c4';
 const UniswapPositionManager = '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e';
@@ -102,10 +97,28 @@ export default {
   chains: [CHAIN.ETHEREUM],
   methodology: {
     Volume: 'Deployed strategy tokens trading volume on Uniswap V4.',
-    Fees: 'Launch fees + total tax collected from strategy tokens trading (not including swap fees on dexes).',
+    Fees: 'Launch fees + total buy/sell tax collected from strategy tokens trading (not including swap fees on dexes).',
     Revenue: 'All fees are revenue will be shared for creators and token buy back.',
     ProtocolRevenue: 'Fees charged when launch strategy tokens on TokenWorks, currently no launch fees.',
     SupplySideRevenue: '10% of token tax will be distributed to NFT creators.',
     HoldersRevenue: '10% of token tax and all NFT saled will be use to buy back strategy tokens.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TOKEN_BUY_BACK]: '90% token buy/sell tax will be used to buy back strategy tokens.',
+      [METRIC.CREATOR_FEES]: '10% token buy/sell tax distributed to NFT creators.',
+    },
+    Revenue: {
+      [METRIC.TOKEN_BUY_BACK]: '90% token buy/sell tax will be used to buy back strategy tokens.',
+    },
+    SupplySideRevenue: {
+      [METRIC.CREATOR_FEES]: '10% token buy/sell tax distributed to NFT creators.',
+    },
+    ProtocolRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: '90% token buy/sell tax will be used to buy back strategy tokens.',
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: '90% token buy/sell tax will be used to buy back strategy tokens.',
+    },
   },
 }
