@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
@@ -77,6 +77,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
     version: 1,
     fetch,
+    dependencies: [Dependencies.DUNE],
     chains: [CHAIN.SOLANA],
     start: '2025-05-20',
     methodology,

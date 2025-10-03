@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
 const chains: Record<string, { duneChain: string; start: string }> = {
@@ -101,6 +101,7 @@ const fetchVolume = async (_: any, _1: any, options: FetchOptions) => {
 const adapter: any = {
   version: 1,
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   adapter: Object.fromEntries(
     Object.entries(chains).map(([chain, { start }]) => [
       chain,

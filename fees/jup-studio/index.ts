@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -99,12 +99,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-07-02',
-        }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2025-07-02',
     isExpensiveAdapter: true,
     methodology: {
         Fees: "Trading fees paid by users.",

@@ -1,6 +1,6 @@
 import ADDRESSES from "../helpers/coreAssets.json";
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { evmReceivedGasAndTokens } from "../helpers/token";
@@ -66,6 +66,7 @@ const adapter: SimpleAdapter = {
       start: "2025-03-30",
     },
   },
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "All trading fees paid by users while using UnicornX app and website.",

@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -34,6 +34,7 @@ const adapter: Adapter = {
   methodology,
   version: 1,
   fetch,
+  dependencies: [Dependencies.DUNE],
   chains: [CHAIN.SOLANA],
   start: '2025-08-15',
   isExpensiveAdapter: true,

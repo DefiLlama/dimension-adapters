@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -81,7 +81,6 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  methodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-06-01', },
@@ -95,6 +94,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { start: '2024-03-15', },
     [CHAIN.UNICHAIN]: { start: '2025-02-10', },
   },
+  dependencies: [Dependencies.DUNE],
+  methodology,
   isExpensiveAdapter: true,
 };
 

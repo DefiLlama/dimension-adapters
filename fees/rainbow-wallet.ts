@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -49,7 +49,7 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   const results = options.preFetchedResults || [];
-  
+
   let dailyFees = 0;
   for (const result of results) {
     if (result.chain === options.chain) {
@@ -72,10 +72,12 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  methodology,
-  fetch, start: '2023-01-01',
+  fetch,
   chains: Object.keys(RainBowRouter),
-  prefetch: prefetch,
+  start: '2023-01-01',
+  prefetch,
+  dependencies: [Dependencies.DUNE],
+  methodology,
 }
 
 export default adapter;

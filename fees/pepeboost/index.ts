@@ -1,7 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 // source: https://dune.com/queries/4022970/6772481
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -39,18 +39,16 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: '2024-01-06',
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "Trading fees paid by users while using PepeBoost bot.",
     Revenue: "All fees are collected by PepeBoost protocol.",
   },
-  version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-01-06',
-    },
-  },
-  isExpensiveAdapter: true
 };
 
 export default adapter;

@@ -14,7 +14,7 @@
  * querying processed cross-chain transfer data.
  */
 
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -63,7 +63,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
-  methodology,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: "2021-11-03" },
     [CHAIN.ARBITRUM]: { fetch, start: "2022-05-24" },
@@ -84,6 +84,7 @@ const adapter: Adapter = {
     [CHAIN.BSC]: { fetch, start: "2025-05-03" },
   },
   prefetch,
+  methodology,
   allowNegativeValue: true, // Gas Fee cost be higher than estimated
   isExpensiveAdapter: true,
 };

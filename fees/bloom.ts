@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/queries/4966713/8220253
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -113,7 +113,6 @@ const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  methodology,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
@@ -129,6 +128,8 @@ const adapter: SimpleAdapter = {
     }
   },
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
+  methodology,
 }
 
 export default adapter;

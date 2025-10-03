@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, ChainBlocks, Dependencies, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -102,6 +102,7 @@ const adapter: Adapter = {
     },
   },
   prefetch: prefetch,
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };
 

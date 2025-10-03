@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -45,11 +45,14 @@ const methodology = {
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
-export default {
+const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   fetch,
+  dependencies: [Dependencies.DUNE],
   chains: [CHAIN.SOLANA],
   start: "2024-06-09",
   isExpensiveAdapter: true
 };
+
+export default adapter;

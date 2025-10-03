@@ -2,7 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/adam_tehc/gmgn
 // https://dune.com/queries/3958821/6661029
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -41,13 +41,11 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-03-20',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-03-20',
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: "All trading fees paid by users while using GMGN AI bot.",
     Revenue: "Trading fees are collected by GMGN AI protocol."
