@@ -131,7 +131,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: { fetch, start: '2025-02-26', },
     [CHAIN.BERACHAIN]: { fetch, start: '2025-02-06', },
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: '2024-11-23', },
-    [CHAIN.STORY]: { fetch, start: '2025-08-12', },
+    [CHAIN.STORY]: { fetch, start: '2025-08-01', },
   },
   methodology,
   isExpensiveAdapter: true,
