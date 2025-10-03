@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
@@ -69,6 +69,7 @@ const adapter: SimpleAdapter = {
 	fetch,
 	chains: Object.keys(chainConfig),
 	prefetch,
+	dependencies: [Dependencies.DUNE],
 	doublecounted: true
 }
 

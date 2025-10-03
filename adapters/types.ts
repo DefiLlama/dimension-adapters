@@ -92,9 +92,16 @@ export enum ProtocolType {
   COLLECTION = 'collection',
 }
 
+export enum Dependencies {
+  DUNE = 'dune',
+  ALLIUM = 'allium'
+}
+
+
 export type AdapterBase = {
   timetravel?: boolean
   isExpensiveAdapter?: boolean,
+  dependencies?: Dependencies[]
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;

@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from '../helpers/metrics';
@@ -150,11 +150,12 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  chains: [CHAIN.SOLANA],
   fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-01-14',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   allowNegativeValue: true,
-  start: '2024-01-14',
   breakdownMethodology,
   methodology: {
     Fees: "Trading and launching tokens fees paid by users",

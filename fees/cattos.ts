@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, } from "../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -21,12 +21,10 @@ const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResu
 
 const adapter: any = {
   version: 1,
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: fetch,
-      start: '2025-07-21',
-    }
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: '2025-07-21',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'APT collected from selling chests.',

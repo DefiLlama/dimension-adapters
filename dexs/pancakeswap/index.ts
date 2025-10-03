@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, Dependencies, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
@@ -640,6 +640,7 @@ const adapter: BreakdownAdapter = {
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')
   },
+  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;
