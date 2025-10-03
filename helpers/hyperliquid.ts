@@ -236,6 +236,9 @@ export const CoinGeckoMaps: Record<string, string> = {
   UENA: 'ethena',
   UWLD: 'worldcoin-wld',
   UDOGE: 'dogecoin',
+  UDZ: 'doublezero',
+  USPYX: 'sp500-xstock',
+  UMOG: 'mog-coin',
 }
 
 export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
