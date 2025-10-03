@@ -14,11 +14,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.chain === options.chain);
   if (chainData) {
-    dailyFees.addUSDValue(chainData.fees_usd);
+    dailyFees.addCGToken('virtual-protocol', chainData.virtual_fees);
+    dailyFees.addCGToken('coinbase-wrapped-btc', chainData.cbbtc_fees);
   }
 
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
