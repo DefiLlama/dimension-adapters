@@ -7,8 +7,8 @@ const TokenWorksHook = '0xe3C63A9813Ac03BE0e8618B627cb8170cfA468c4';
 const UniswapPositionManager = '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e';
 
 const Abis = {
-  Trade: 'event Trade(address indexed nftStrategy, uint160 sqrtPriceX96, int128 ethAmount, int128 tokenAmount)',
   HookFee: 'event HookFee(bytes32 indexed id, address indexed sender, uint128 feeAmount0, uint128 feeAmount1)',
+  poolKeys: 'function poolKeys(bytes25) view returns(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)',
 }
 
 function getPoolKey(poolId: string): string {
@@ -16,18 +16,9 @@ function getPoolKey(poolId: string): string {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-
-  const tradeEvents = await options.getLogs({
-    target: TokenWorksHook,
-    eventAbi: Abis.Trade,
-  });
-  for(const tradeEvent of tradeEvents) {
-    dailyVolume.addGasToken(Math.abs(Number(tradeEvent.ethAmount)))
-  }
 
   const feeEvents = await options.getLogs({
     targets: [TokenWorksHook, PunkStreategy],
@@ -43,7 +34,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const poolIds: Array<string> = Object.keys(uniswapV4Pools);
 
   const poolKeys = await options.api.multiCall({
-    abi: 'function poolKeys(bytes25) view returns(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)',
+    abi: Abis.poolKeys,
     calls: poolIds.map(poolId => {
       return {
         target: UniswapPositionManager,
@@ -82,7 +73,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }
 
   return {
-    dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: 0, // no launch fees for now
@@ -96,12 +86,11 @@ export default {
   fetch,
   chains: [CHAIN.ETHEREUM],
   methodology: {
-    Volume: 'Deployed strategy tokens trading volume on Uniswap V4.',
     Fees: 'Launch fees + total buy/sell tax collected from strategy tokens trading (not including swap fees on dexes).',
-    Revenue: 'All fees are revenue will be shared for creators and token buy back.',
+    Revenue: 'All buy/sell tax are revenue, they will be shared for creators and token buy back.',
     ProtocolRevenue: 'Fees charged when launch strategy tokens on TokenWorks, currently no launch fees.',
     SupplySideRevenue: '10% of token tax will be distributed to NFT creators.',
-    HoldersRevenue: '10% of token tax and all NFT saled will be use to buy back strategy tokens.',
+    HoldersRevenue: '90% of token tax and all NFT saled will be use to buy back strategy tokens.',
   },
   breakdownMethodology: {
     Fees: {
