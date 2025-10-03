@@ -22,9 +22,20 @@ interface BorosMarket {
     coinGeckoId: string;
 };
 
-const SYMBOL_TO_CGID: Record<string, string> = {
-    'ETH': 'ethereum',
-    'BTC': 'bitcoin',
+const MARKET_TO_CGID: Record<string, string> = {
+    // bitcoin
+    '0x25A62D6Ca94F67248fBFB7257513BcF74210BCDF': 'bitcoin',
+    '0xaf71Ddb2B890Cbd470eD91f293FA35C0ACb41EbE': 'bitcoin',
+    '0x725fa7500F1b6e08972f04f7FC1931eA7C47314F': 'bitcoin',
+
+    // ethereum
+    '0xF9997C488e7286988b0829583DE8787ba9683D34': 'ethereum',
+    '0xc7c820668e16c5fA8AF3122d118611c186ED85B5': 'ethereum',
+    '0x8FCf5E75f4d8BC03b8970593cc8a841fc65C12b3': 'ethereum',
+
+    // tether
+    '0x6F79341ab878D0b34ad69320411E910396C03B94': 'tether',
+    '0xEfF94Cf7EA8E2640a8aCDd62521fa24bEA7889e4': 'tether',
 };
 
 // AMMConfigUpdated transactions, ignore volume from these transactions
@@ -33,17 +44,13 @@ const EXCLUDE_OTC_SWAPS: Array<string> = [
     '0xf8e45548cbf08c48c71d054ce872f7e8cbef6633b45224a28d5c7c5128471856',
 ]
 
-const getCgId = (marketSymbol: string): string => {
-    let symbol = "";
-    try {
-        symbol = marketSymbol.split("-")[1].replace("USDT", "");
-    } catch (error) {
-        throw Error(`Failed to extract base asset from symbol: ${symbol}`)
-    }
-    const cgId = SYMBOL_TO_CGID[symbol];
+const getCgId = (marketAddress: string): string => {
+    const cgId = MARKET_TO_CGID[marketAddress];
+
     if (!cgId) {
-        throw Error(`No CG mapping for symbol: ${symbol}`)
+        throw Error(`No CG mapping for market: ${marketAddress}`)
     }
+    
     return cgId;
 }
 
@@ -65,7 +72,7 @@ const fetch = async (options: FetchOptions) => {
             address: marketLog.market,
             symbol: marketLog.immData.symbol,
             maturity: Number(marketLog.immData.k_maturity),
-            coinGeckoId: getCgId(marketLog.immData.symbol),
+            coinGeckoId: getCgId(marketLog.market),
         }))
         .filter(market => market.coinGeckoId);
 
