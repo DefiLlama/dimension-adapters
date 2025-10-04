@@ -25,7 +25,7 @@ const fetch = async (_: number, _1: any, { startOfDay }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.TOMOCHAIN]: {
+    [CHAIN.VICTION]: {
       fetch,
       start: "2024-11-12",
     },
