@@ -4,6 +4,7 @@ import { CHAIN } from "./chains";
 const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
     '0x044fe33895Cb7c6e4566DA8E24420C1110933a63',
+    '0x888888aE2c4A298EFd66D162fFC53b3F2a869888',
   ],
   [CHAIN.BSC]: [
     '0xc71b5f631354be6853efe9c3ab6b9590f8302e81',
@@ -33,6 +34,8 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     '0xd81Fb17c5A0e6c20BEf8a6a9757a7daf88bfBbbC',
     '0x570F95A4Ac86E2b8EBA86B09d88B1916EF9a39E4',
     '0xc519cE7572EA48b64acbf6BE37a8f9CA39CC5671',
+    '0x22B2bA593B6c35Ea3188936CC8502123b7719AaC',
+    '0x56ccFe64Cd2420192C5b954b884C9FaD4F667EcF',
   ],
 }
 
