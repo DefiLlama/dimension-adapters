@@ -21,6 +21,8 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     '0xFf7d6A96ae471BbCD7713aF9CB1fEeB16cf56B41',
     '0xde04da55b74435d7b9f2c5c62d9f1b53929b09aa',
     '0x4fa7c69a7b69f8bc48233024d546bc299d6b03bf',
+    '0x27d72484f1910F5d0226aFA4E03742c9cd2B297a',
+    '0x6e7573e492f31107Ef98029276922854e919cA28',
   ],
 }
 
