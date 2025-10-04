@@ -88,7 +88,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch: getUniV3LogAdapter({ factory: V3_FACTORY, ...getUniV3LogAdapterConfig }),
   start: V3_FACTORY_START,
-  chains: [CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.SONIC],
+  chains: [CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.SONIC, CHAIN.PLASMA],
   methodology,
 };
 
