@@ -3,6 +3,7 @@ import { FetchResultV2, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 import { getDefaultDexTokensBlacklisted } from '../helpers/lists';
+import { addOneToken } from '../helpers/prices';
 
 const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
 const ROUTE_RP6_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
@@ -384,6 +385,8 @@ const useSushiAPIPrice = (chain: any) => [
 interface Log {
   tokenIn: string;
   amountIn: string;
+  tokenOut: string;
+  amountOut: string;
 }
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
@@ -448,8 +451,10 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
         dailyVolume.addGasToken(log.amountIn)
-      else
-        dailyVolume.add(log.tokenIn, log.amountIn)
+      else {
+        // this will reduce value from bad price tokens
+        addOneToken({ balances: dailyVolume, chain: chain, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut })
+      }
     })
   }
 
