@@ -1,6 +1,7 @@
 import ADDRESSES from './coreAssets.json'
 import { BaseAdapter, Fetch, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
+import { METRIC } from './metrics';
 
 const comptrollerABI = {
   underlying: "address:underlying",
@@ -41,8 +42,8 @@ export async function getFees(market: string, { createBalances, api, getLogs, }:
   logs.forEach((log: any) => {
     const marketIndex = log.marketIndex;
     const underlying = underlyings[marketIndex]
-    dailyFees!.add(underlying, log.interestAccumulated);
-    dailyRevenue!.add(underlying, log.interestAccumulated * Number(reserveFactors[marketIndex]) / 1e18);
+    dailyFees!.add(underlying, log.interestAccumulated, METRIC.BORROW_INTEREST);
+    dailyRevenue!.add(underlying, log.interestAccumulated * Number(reserveFactors[marketIndex]) / 1e18, METRIC.BORROW_INTEREST);
   })
 
   return { dailyFees, dailyRevenue }
@@ -78,13 +79,31 @@ export function compoundV2Export(config: IJSON<string>) {
     }
   })
   return {
-    adapter: exportObject, version: 2,
+    adapter: exportObject,
+    version: 2,
     methodology: {
       Fees: "Total interest paid by borrowers",
       Revenue: "Protocol's share of interest treasury",
       ProtocolRevenue: "Protocol's share of interest into treasury",
       HoldersRevenue: "Share of interest into protocol governance token holders.",
       SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+    },
+    breakdownMethodology: {
+      Fees: {
+        [METRIC.BORROW_INTEREST]: 'Total interest paid by borrowers',
+      },
+      Revenue: {
+        [METRIC.BORROW_INTEREST]: 'Share of borrow interest to treasury',
+      },
+      ProtocolRevenue: {
+        [METRIC.BORROW_INTEREST]: 'Share of borrow interest to protocol',
+      },
+      HoldersRevenue: {
+        [METRIC.BORROW_INTEREST]: 'Share of borrow interest to token holders',
+      },
+      SupplySideRevenue: {
+        [METRIC.BORROW_INTEREST]: 'Borrow interest distributed to suppliers, lenders',
+      },
     },
   } as SimpleAdapter
 }

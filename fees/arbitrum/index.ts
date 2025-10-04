@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchL2FeesWithDune } from "../../helpers/ethereum-l2";
 
@@ -8,18 +8,16 @@ import { fetchL2FeesWithDune } from "../../helpers/ethereum-l2";
 //   '0x51de512aa5dfb02143a91c6f772261623ae64564'
 // ];
 
-const fetchArbitrumFees = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return await fetchL2FeesWithDune(options);
 };
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchArbitrumFees,
-      start: '2021-08-10',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2021-08-10',
+  dependencies: [Dependencies.DUNE],
   protocolType: ProtocolType.CHAIN,
   isExpensiveAdapter: true,
   allowNegativeValue: true, // L1 Costs

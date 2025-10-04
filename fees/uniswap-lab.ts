@@ -14,7 +14,8 @@ const config: any = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({ ...config[options.chain], options })
-  return { dailyFees, dailyRevenue: dailyFees }
+
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapters: SimpleAdapter = {
@@ -28,7 +29,9 @@ const adapters: SimpleAdapter = {
   version: 2,
   methodology: {
     Fees: "All trading fees paid by users while using Uniswap frontend.",
-    Revenue: "Trading fees are collected by Uniswap Labs."
-  }
+    UserFees: "All trading fees paid by users while using Uniswap frontend.",
+    Revenue: "Trading fees are collected by Uniswap Labs.",
+    ProtocolRevenue: "Trading fees are collected by Uniswap Labs.",
+  },
 }
 export default adapters;

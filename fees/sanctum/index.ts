@@ -7,7 +7,7 @@ For the Reserve and the Router, fees = revenue because there is no stakeholder o
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -84,12 +84,10 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2022-07-22", // First unstake transaction
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2022-07-22", // First unstake transaction
   methodology,
   isExpensiveAdapter: true,
 };

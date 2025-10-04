@@ -134,6 +134,14 @@ const adapter: SimpleAdapter = {
   },
 };
 
+(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
 // (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
 //   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
 //     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })

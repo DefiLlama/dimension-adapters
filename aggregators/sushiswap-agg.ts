@@ -279,6 +279,52 @@ const RP9_ADDRESS: any = {
   [CHAIN.SONIC]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
   [CHAIN.HEMI]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
   [CHAIN.KATANA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.HYPERLIQUID]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BERACHAIN]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+}
+
+const RP9_1_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ARBITRUM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.OPTIMISM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BASE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.POLYGON]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.AVAX]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BSC]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.LINEA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ARBITRUM_NOVA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.XDAI]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.FANTOM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BITTORRENT]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.CELO]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.FILECOIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HAQQ]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.KAVA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.METIS]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.THUNDERCORE]: '0x861255aef9aad3e268fb67a3c97afd490bff3d6b',
+  [CHAIN.SCROLL]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ZETA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.POLYGON_ZKEVM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HARMONY]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BOBA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BOBA_BNB]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.CORE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.CRONOS]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BLAST]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.SKALE_EUROPA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ROOTSTOCK]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ERA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.MANTLE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.MANTA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.MODE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.TAIKO]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ZKLINK]: '0xfb7eedd827c4bed92b9b6c5159bee11301f3da8c',
+  [CHAIN.APECHAIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.SONIC]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HEMI]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.KATANA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HYPERLIQUID]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BERACHAIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
 }
 
 const WNATIVE_ADDRESS: any = {
@@ -325,6 +371,19 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.SONIC]: ADDRESSES.sonic.wS,
   [CHAIN.HEMI]: ADDRESSES.optimism.WETH_1,
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
+  [CHAIN.HYPERLIQUID]: ADDRESSES.hyperliquid.WHYPE,
+  [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA
+}
+
+const BLACKLIST_TOKENS: any = {
+  [CHAIN.ARBITRUM]: [
+    '0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501',
+    '0x3B94Cfdf557f9AAd983fE4E56dd4846958EF708A',
+    '0xC1fb38F174D16b1ff46c1CB04b52D5CF157940ee',
+    '0x9B34F0cfA7800d21a21BDA50253264e292CBB217',
+    '0x560363BdA52BC6A44CA6C8c9B4a5FadbDa32fa60',
+    '0xd81Fb17c5A0e6c20BEf8a6a9757a7daf88bfBbbC',
+  ],
 }
 
 const useSushiAPIPrice = (chain: any) => [
@@ -358,11 +417,14 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_ADDRESS[chain]) {
     logsPromises.push(getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   }
+  if (RP9_1_ADDRESS[chain]) {
+    logsPromises.push(getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  }
 
+  const dailyVolume = createBalances()
   const logs = (await Promise.all(logsPromises)).flat()
 
   if (useSushiAPIPrice(chain)) {
-    const dailyVolume = createBalances()
     const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
       acc[key.toLowerCase()] = value
       return acc
@@ -391,11 +453,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
         dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
       }
     })
-
-    return { dailyVolume }
   } else {
-    const dailyVolume = createBalances()
-
     logs.forEach((log) => {
       if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
@@ -403,9 +461,16 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       else
         dailyVolume.add(log.tokenIn, log.amountIn)
     })
-
-    return { dailyVolume }
   }
+
+  // remove blacklist tokens volume
+  if (BLACKLIST_TOKENS[chain]) {
+    for (const token of BLACKLIST_TOKENS[chain]) {
+      dailyVolume.removeTokenBalance(token);
+    }
+  }
+
+  return { dailyVolume }
 }
 
 const adapters = {
@@ -433,10 +498,10 @@ const adapters = {
     fetch,
     start: '2024-03-22'
   },
-  [CHAIN.BOBA_BNB]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // [CHAIN.BOBA_BNB]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.BSC]: {
     fetch,
     start: '2024-02-25'
@@ -497,10 +562,10 @@ const adapters = {
     fetch,
     start: '2024-02-25'
   },
-  [CHAIN.MOONRIVER]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // [CHAIN.MOONRIVER]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.OPTIMISM]: {
     fetch,
     start: '2024-02-25'
@@ -572,6 +637,14 @@ const adapters = {
   [CHAIN.KATANA]: {
     fetch,
     start: '2025-07-01'
+  },
+  [CHAIN.HYPERLIQUID]: {
+    fetch,
+    start: '2025-09-01'
+  },
+  [CHAIN.BERACHAIN]: {
+    fetch,
+    start: '2025-09-01'
   }
 }
 

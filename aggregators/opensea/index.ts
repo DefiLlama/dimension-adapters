@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
@@ -29,7 +29,7 @@ const prefetch = async (options: FetchOptions) => {
 			SUM(amount_usd) as dailyVolume
 		FROM dex_aggregator.trades
 		WHERE tx_hash IN (
-			SELECT hash FROM evms.transactions 
+			SELECT DISTINCT hash FROM evms.transactions 
 			WHERE
 				block_time >= FROM_UNIXTIME(${options.startTimestamp})
 				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
@@ -69,6 +69,7 @@ const adapter: SimpleAdapter = {
 	fetch,
 	chains: Object.keys(chainConfig),
 	prefetch,
+	dependencies: [Dependencies.DUNE],
 	doublecounted: true
 }
 

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter, BaseAdapter, FetchOptions } from "../adapters/types";
+import { BreakdownAdapter, BaseAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { queryDuneSql } from "../helpers/dune";
@@ -271,6 +271,7 @@ const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
 
 const adapter: BreakdownAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {

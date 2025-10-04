@@ -1,6 +1,6 @@
 // Program: 9H6tua7jkLhdm3w8BvgpTn5LZNU7g4ZynDmCiNN3q6Rp
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
 
@@ -34,6 +34,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     fetch,
+    dependencies: [Dependencies.DUNE],
     chains: [CHAIN.SOLANA],
     start: '2025-05-26',
 }

@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { Dependencies, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { FetchOptions } from "../adapters/types";
@@ -24,8 +24,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
-    console.log(data);
-
     data.forEach(row => {
         const totalFees = Number(row.total_trading_fees);
         dailyFees.add(row.quote_mint, Number(totalFees));
@@ -43,12 +41,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-06-18',
-        }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2025-06-18',
+    dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,
     methodology: {
         Fees: "Trading fees paid by users.",

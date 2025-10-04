@@ -72,32 +72,32 @@ async function getDailyFees(fromTimestamp: number, endTimestamp: number): Promis
 }
 
 async function fetch({ createBalances, endTimestamp, fromTimestamp }: FetchOptions) {
-    const dailyRevenue = createBalances();
-    const totalRevenue = await getDailyFees(fromTimestamp, endTimestamp);
-    dailyRevenue.addCGToken('tron', totalRevenue, 'Buying Energy');
+    const dailyFees = createBalances();
+    const totalFees = await getDailyFees(fromTimestamp, endTimestamp);
+    dailyFees.addCGToken('tron', totalFees, 'Buying Energy');
 
     return {
-        dailyFees: dailyRevenue,
-        dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyFees,
+        dailySupplySideRevenue: dailyFees,
+        dailyRevenue: 0, // catfee takes no comission or fees
     };
 }
 
 export default {
     methodology: {
         Fees: "All fees paid by users for buying energy.",
-        Revenue: "All fees are collected by CatFee protocol.",
-        ProtocolRevenue: "All fees are collected by CatFee protocol.",
+        SupplySideRevenue: "All fees are distributed to supply side TRX stakers.",
+        Revenue: "No revenue for protocol.",
     },
     breakdownMethodology: {
         Fees: {
             'Buying Energy': 'All fees paid by users for buying energy.',
         },
-        Revenue: {
-            'Buying Energy': 'All fees are collected by CatFee protocol.',
+        SupplySideRevenue: {
+            'Buying Energy': 'All fees are distributed to supply side TRX stakers.',
         },
-        ProtocolRevenue: {
-            'Buying Energy': 'All fees are collected by CatFee protocol.',
+        Revenue: {
+            'Buying Energy': 'No revenue for protocol.',
         },
     },
     version: 2,

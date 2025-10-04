@@ -1,5 +1,11 @@
 // Use
 export enum CHAIN {
+  PACASWAP = "pacaswap",
+  PEAQ = "peaq",
+  CHROMIA = "chromia",
+  OFF_CHAIN = "off_chain",
+  ZK_LIGHTER = 'zklighter',
+  GALA = "gala",
   TARA = "tara",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
@@ -252,54 +258,17 @@ export enum CHAIN {
   HYDRAGON = 'hydragon',
   TAC = "tac",
   NIBIRU = "nibiru",
+  HAVEN1 = "haven1",
   GRVT = "grvt",
+  SOMNIA = "somnia",
+  ORDERLY = "orderly",
+  CAMP = "camp",
+  PARADEX = "paradex",
+  EDGEX = "edgex",
+  AKASH = "akash",
+  DOGE = "doge",
+  PLASMA = "plasma",
+  QUBIC = "qubic",
+  HIBACHI = "hibachi",
+  SATORI = "satori",
 }
-
-// Don´t use
-const ARBITRUM = "arbitrum";
-const AVAX = "avax";
-const BOBA = "boba";
-const BSC = "bsc";
-const CELO = "celo";
-const ETHEREUM = "ethereum";
-const FANTOM = "fantom";
-const HARMONY = "harmony";
-const HECO = "heco";
-const OKEXCHAIN = "okexchain";
-const OPTIMISM = "optimism";
-const POLYGON = "polygon";
-const RONIN = "ronin";
-const XDAI = "xdai";
-const AURORA = "aurora";
-const MOONRIVER = "moonriver";
-const BITCOIN = "bitcoin";
-const LITECOIN = "litecoin";
-const DOGE = "doge";
-const ZKSYNC = "zksync";
-const MANTLE = "mantle";
-const POLYNOMIAL = "polynomial";
-// Don't use
-export {
-  ARBITRUM,
-  AURORA,
-  AVAX,
-  BITCOIN,
-  BOBA,
-  BSC,
-  CELO,
-  DOGE,
-  ETHEREUM,
-  FANTOM,
-  HARMONY,
-  HECO,
-  LITECOIN,
-  MANTLE,
-  MOONRIVER,
-  OKEXCHAIN,
-  OPTIMISM,
-  POLYGON,
-  RONIN,
-  XDAI,
-  ZKSYNC,
-  POLYNOMIAL,
-};
