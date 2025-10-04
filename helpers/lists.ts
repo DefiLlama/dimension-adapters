@@ -24,6 +24,16 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     '0x27d72484f1910F5d0226aFA4E03742c9cd2B297a',
     '0x6e7573e492f31107Ef98029276922854e919cA28',
   ],
+  [CHAIN.ARBITRUM]: [
+    '0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501',
+    '0x3B94Cfdf557f9AAd983fE4E56dd4846958EF708A',
+    '0xC1fb38F174D16b1ff46c1CB04b52D5CF157940ee',
+    '0x9B34F0cfA7800d21a21BDA50253264e292CBB217',
+    '0x560363BdA52BC6A44CA6C8c9B4a5FadbDa32fa60',
+    '0xd81Fb17c5A0e6c20BEf8a6a9757a7daf88bfBbbC',
+    '0x570F95A4Ac86E2b8EBA86B09d88B1916EF9a39E4',
+    '0xc519cE7572EA48b64acbf6BE37a8f9CA39CC5671',
+  ],
 }
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
