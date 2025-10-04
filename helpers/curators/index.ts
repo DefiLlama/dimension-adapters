@@ -189,7 +189,7 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   }
 }
 
-async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+export async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
   const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.euler.interestFee,
