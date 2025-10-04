@@ -7,17 +7,18 @@ import { getEulerVaultFee } from "../helpers/curators/index";
  * 
  * Usual takes RWA stablecoins from users and issue USD0 stablecoins
  * Users can stake USD0, receive USD0++ and earn USUAL tokens
- * Users can stake USUAL, receive USUALx and earn USIAL tokens
+ * Users can stake USUAL, receive USUALx and earn USUAL tokens
  * 
- * There are fours places where Usual takes fees:
+ * There are four places where Usual takes fees:
  * 1. Usual earns fees from locked RWA assets
  * 2. When users redeem USD0 stablecoins, Usual takes an amount of redemption fees in USD0 tokens
  * 3. When users early unstake USD0++ at floor price
  * 4. When users early unstake USD0++, users must commit an amount of USUAL tokens
  *    these USUAL tokens then are burnt and distributed to USUALx stakers
+ * 5. Usual deployed Euler vaults for borrowing and takes borrow interest
  * 
  * So:
- * We count 1, 2, 3 as protocol revenue
+ * We count 1, 2, 3, 5 as protocol revenue
  * We count 4 as holder revenue
  * 
  * There is no source of revenue for supply side users - USD0 minters.
@@ -27,7 +28,7 @@ import { getEulerVaultFee } from "../helpers/curators/index";
 
 const methodology = {
   Fees: 'Yields from underlying assets,usual stability loan interests, total USD0 redemption fees and USD0++ early unstake fees.',
-  Revenue: 'Total fees collected by protocol, distributed to USUAL token stakers,buyback and burn',
+  Revenue: 'Total fees collected by protocol, distributed to USUAL token stakers, buyback and burn.',
   ProtocolRevenue: 'Total fees are distributed to protocol treasury.',
   HoldersRevenue: 'Total fees are distributed to token holders, token burns',
 }
