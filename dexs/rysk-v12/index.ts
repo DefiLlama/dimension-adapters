@@ -43,13 +43,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     return {
         dailyVolume,
         dailyFees,
+        dailyRevenue:0,
         dailySupplySideRevenue: dailyFees
     }
 }
 
 const methodology = {
-    DailyVolume: "Assets deposited by the users to be executed at pre-agreed price",
-    DailyFees: "Option premium received by users of rysk",
+    Volume: "Assets deposited by the users to be executed at pre-agreed price",
+    Fees: "Option premium received by users of rysk",
     SupplySideRevenue: "Option premiums received by users"
 };
 
