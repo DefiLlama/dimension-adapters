@@ -131,11 +131,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
             abi: BoringVaultAbis.totalSupply,
             target: vault.vault,
             block: event.blockNumber,
+            chain: options.chain,
           })
           const getAccountantState = await sdk.api2.abi.call({
             abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
             target: accountant,
             block: event.blockNumber,
+            chain: options.chain,
           })
 
           let exchangeRate = vaultRateBase
