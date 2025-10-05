@@ -4,6 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 import { getDefaultDexTokensBlacklisted } from '../helpers/lists';
 import { addOneToken } from '../helpers/prices';
+import { formatAddress } from '../utils/utils';
 
 const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
 const ROUTE_RP6_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
@@ -415,7 +416,12 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   }
 
   const dailyVolume = createBalances()
-  const logs = (await Promise.all(logsPromises)).flat()
+
+  const blacklistTokens = getDefaultDexTokensBlacklisted(chain)
+  
+  const logs = (await Promise.all(logsPromises))
+    .flat()
+    .filter(log => !blacklistTokens.includes(formatAddress(log.tokenIn)) && !blacklistTokens.includes(formatAddress(log.tokenOut)))
 
   if (useSushiAPIPrice(chain)) {
     const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
@@ -452,19 +458,12 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
         dailyVolume.addGasToken(log.amountIn)
       else {
-        // this will reduce value from bad price tokens
-        addOneToken({ balances: dailyVolume, chain: chain, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut })
+        dailyVolume.add(log.tokenIn, log.amountIn)
       }
     })
   }
 
-  // remove blacklist tokens volume
-  const blacklistTokens = getDefaultDexTokensBlacklisted(chain)
-  if (blacklistTokens) {
-    for (const token of blacklistTokens) {
-      dailyVolume.removeTokenBalance(token);
-    }
-  }
+  await dailyVolume.getUSDJSONs({ debug: true })
 
   return { dailyVolume }
 }
