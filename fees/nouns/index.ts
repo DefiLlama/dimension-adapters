@@ -34,14 +34,14 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         ]
     });
 
-    let latestSettlementPrice = 0;
+    let latestSettlementPrice = 0n;
 
     auctionSettledLogs.forEach((settlement: any) => {
         latestSettlementPrice = settlement.amount;
         dailyFees.addToken(ADDRESSES.ethereum.WETH, latestSettlementPrice);
     });
 
-    dailyFees.addToken(ADDRESSES.ethereum.WETH, Number(latestSettlementPrice) * noundersRewardLogs.length);
+    dailyFees.addToken(ADDRESSES.ethereum.WETH, latestSettlementPrice * BigInt(noundersRewardLogs.length));
 
     return {
         dailyFees,
