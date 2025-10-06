@@ -11,7 +11,7 @@ WITH
             0xeb8A7B0184373550DCAa79156812F5d33e998C1E
         )
         AND topic0 = 0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
-        AND block_time >= timestamp '2025-02-01'
+        AND block_time >= timestamp '2024-08-30'
         AND block_time <= from_unixtime({{endTimestamp}})
     ),
     
@@ -110,10 +110,10 @@ WITH
     --             FROM tokens_solana.transfers
     --             WHERE to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
     --             AND token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-    --             AND block_time >= timestamp '2025-02-01'
+    --             AND block_time >= timestamp '2024-08-30'
     --             AND block_time <= from_unixtime({{endTimestamp}})
     --         )
-    --         AND block_time >= timestamp '2025-02-01'
+    --         AND block_time >= timestamp '2024-08-30'
     --         AND block_time <= from_unixtime({{endTimestamp}})
     --         AND token_mint_address NOT IN ('3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y', 'So11111111111111111111111111111111111111112')
     --         AND token_mint_address LIKE '%virt%'
@@ -144,13 +144,13 @@ WITH
     --     AND block_time <= from_unixtime({{endTimestamp}})
     -- ),
     
-    -- -- Solana prototype fees (starts from 2025-02-01)
+    -- -- Solana prototype fees (starts from 2024-08-30)
     -- sol_prototype_fees AS (
     --     SELECT 
     --         COALESCE(SUM(amount) / power(10, 9), 0) as amt
     --     FROM tokens_solana.transfers
     --     WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-    --     AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2025-02-01')
+    --     AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2024-08-30')
     --     AND block_time <= from_unixtime({{endTimestamp}})
     --     AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
     -- )
