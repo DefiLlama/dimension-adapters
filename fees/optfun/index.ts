@@ -106,7 +106,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: Adapter = {
   methodology: {
-    Fees: "V1: Trading fees calculated as 5% of trade value (size * limitPrice) from LimitOrderFilled events. Net after taker fee/maker rebate is 5% to protocol. V2 (After Sept 25, 2025): Fees extracted from Settled events where the fee recipient receives positive pnl, including trading fees and liquidation penalties.",
+    Fees: "V1: Trading fees calculated as 5% of trade value (size * limitPrice) from LimitOrderFilled events. Net after taker fee/maker rebate is 5% to protocol. V2 (After Sept 25, 2025): Fees extracted from Settled events where the fee recipient receives positive pnl, including trading fees and liquidation penalties. Same 5% net fee to protocol.",
     Revenue: "All fees collected go directly to the protocol treasury",
     ProtocolRevenue: "100% of fees are retained by the protocol",
   },
