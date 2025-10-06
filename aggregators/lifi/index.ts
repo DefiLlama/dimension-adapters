@@ -1,13 +1,12 @@
-import { ethers } from "ethers";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { formatAddress } from "../../utils/utils";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
-const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas']
-
-const iface = new ethers.Interface([LifiSwapEvent]);
+const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
@@ -17,18 +16,18 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     };
   }
 
+  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
   const dailyVolume = options.createBalances();
-  const logs: any[] = await options.getLogs({
+  const logs: any[] = (await options.getLogs({
     target: LifiDiamonds[options.chain].id,
     topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
     eventAbi: LifiSwapEvent,
-    entireLog: true
-  });
+  }))
+    .filter(log => !blacklistTokens.includes(formatAddress(log.fromAssetId)) && !blacklistTokens.includes(formatAddress(log.toAssetId)))
 
-  logs.forEach((e: any) => {
-    const parsedLog = iface.parseLog(e);
-    if (!integrators.includes(parsedLog?.args.integrator)) {
-      dailyVolume.add(parsedLog?.args.fromAssetId, parsedLog?.args.fromAmount);
+  logs.forEach((log: any) => {
+    if (!integrators.includes(log.integrator)) {
+      dailyVolume.add(log.fromAssetId, log.fromAmount);
     }
   });
 

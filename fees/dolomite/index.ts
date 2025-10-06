@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains"
 const dolomiteMarginAddresses = {
     [CHAIN.ARBITRUM]: "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
     [CHAIN.BERACHAIN]: "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
+    [CHAIN.ETHEREUM]: "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
     [CHAIN.MANTLE]: "0xE6Ef4f0B2455bAB92ce7cC78E35324ab58917De8",
     [CHAIN.POLYGON_ZKEVM]: "0x836b557Cf9eF29fcF49C776841191782df34e4e5",
     [CHAIN.XLAYER]: "0x836b557Cf9eF29fcF49C776841191782df34e4e5"
@@ -100,6 +101,7 @@ const adapters: Adapter = {
     adapter: {
         [CHAIN.ARBITRUM]: { fetch: fetchArbitrum, start: '2022-10-03', },
         [CHAIN.BERACHAIN]: { fetch: fetch, start: '2024-01-24', },
+        [CHAIN.ETHEREUM]: { fetch: fetch, start: '2025-06-22', },
         [CHAIN.MANTLE]: { fetch: fetch, start: '2024-04-28', },
         [CHAIN.POLYGON_ZKEVM]: { fetch: fetch, start: '2024-02-01', },
         // [CHAIN.XLAYER]: { fetch: fetch, start: '2024-04-28', }

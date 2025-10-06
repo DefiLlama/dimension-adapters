@@ -1,88 +1,34 @@
-import {SimpleAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import {FetchOptions} from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 import { httpPost } from "../../utils/fetchURL";
 
-interface DayData {
-    feesUSD: string;
-    volumeUSD: string;
-}
-
-interface MetricsAccumulator {
-    fees: number;
-    volume: number;
-}
-
-const calculateMetrics = (dayDatas: DayData[]): MetricsAccumulator => {
-    return dayDatas.reduce((acc, data) => ({
-        fees: acc.fees + parseFloat(data.feesUSD || '0'),
-        volume: acc.volume + parseFloat(data.volumeUSD || '0')
-    }), { fees: 0, volume: 0 });
+const fetch = async (_: number, _block: any, { startOfDayId }: FetchOptions) => {
+  const query = `query { traderJoeDayData(id: ${startOfDayId}) { volumeUSD feesUSD } }`;
+  const { data: { traderJoeDayData: { volumeUSD, feesUSD } } } = await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22-2-w-v', { query })
+  const dailyVolume = +volumeUSD
+  const dailyFees = +feesUSD
+  return {
+    dailyVolume,
+    dailyFees,
+    dailySupplySideRevenue: dailyFees * 0.8,
+    dailyRevenue: dailyFees * 0.2,
+    dailyProtocolRevenue: dailyFees * 0.05,
+    dailyHoldersRevenue: dailyFees * 0.15,
+  }
 };
 
-const getData = async (from: number, to: number) => {
-    const Sonic_LB_V22_QUERY = `
-        query lbpairDayDatas {
-            lbpairDayDatas(
-                where: {
-                    date_gte: ${from}
-                    date_lte: ${to}
-                },
-                orderBy: date,
-                first: 1000,
-                skip: 0
-            ) {
-                lbPair {
-                name
-                id
-                feesTokenX
-                feesTokenY
-                tokenXPriceUSD
-                tokenYPriceUSD
-            }
-            feesUSD
-            volumeUSD
-            date
-          }
-        }`;
-
-
-        const responses = [
-            await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22-2-w-v',
-                {query: Sonic_LB_V22_QUERY}
-            ),
-        ];
-
-        const feeData = responses.flat().map(data => data?.data?.lbpairDayDatas);
-        if (feeData.length > 0 && feeData[0]) {
-            return calculateMetrics(feeData[0]);
-        }
-
-    return { fees: 0, volume: 0 };
-}
-
-export const fetchFee = async (timestamp: number, _block: any, options: FetchOptions) => {
-    const {fees, volume} = await getData(options.fromTimestamp, options.toTimestamp);
-    if (!fees || !volume) { throw new Error('No data') }
-    return {
-        timestamp: timestamp,
-        dailyFees: fees,
-        dailyVolume: volume,
-    };
-};
-
+// https://docs.metropolis.exchange/protocol/or-pools-and-farms/or-dlmm-lb
 const methodology = {
-    Fees: "Fees generated on each swap at a rate set by the pool.",
+  Fees: "Swap fees",
+  Revenue: "20% of the swap fees",
+  ProtocolRevenue: "5% of the swap fees",
+  SupplySideRevenue: "80% of the swap fees",
+  HoldersRevenue: "15% of the swap fees",
 };
 
-const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SONIC]: {
-            fetch: fetchFee,
-            start: "2024-12-16",
-        },
-    },
-    methodology,
-};
-
-export default adapter;
+export default {
+  fetch,
+  start: "2024-12-16",
+  chains: [CHAIN.SONIC],
+  methodology,
+}

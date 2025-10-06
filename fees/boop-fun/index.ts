@@ -1,7 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 // Fee Source : https://docs.boop.fun/token-deployment-101
 
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -122,13 +122,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-05-01',
-        }
-    },
     version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2025-05-01',
+    dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,
     methodology: {
         Fees: 'Total fees paid by users, comprising all SOL and BOOP tokens collected by the protocol, staker, and buyback wallets.',

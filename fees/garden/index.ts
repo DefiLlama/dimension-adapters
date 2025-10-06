@@ -186,10 +186,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    dailyFees: "swap fees paid by users",
-    dailyUserFees: "swap fees paid by users",
-    dailyRevenue: "fees going to treasury",
-    dailyProtocolRevenue: "fees going to protocol treasury",
+    Fees: "Swap fees paid by users",
+    UserFees: "Swap fees paid by users",
+    Revenue: "Percentage of swap fees going to solvers and/or token holders",
+    ProtocolRevenue: "Fees going to treasury",
 }
 
 const adapter: SimpleAdapter = {

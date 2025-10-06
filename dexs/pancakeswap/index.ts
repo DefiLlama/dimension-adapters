@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, Dependencies, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
@@ -285,14 +285,14 @@ interface ISwapEventData {
 
 const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_PRC = getEnv('APTOS_PRC');
+const APTOS_RPC = getEnv('APTOS_RPC');
 
 const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
   let lastData: any;
   let cursor
   do {
-    let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
+    let url = `${APTOS_RPC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
     const res = await httpGet(url, undefined, { withMetadata: true })
     lastData = res.data
@@ -429,14 +429,14 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
   let start = (pool.swap_events.counter - limit) < 0 ? 0 : pool.swap_events.counter - limit;
   while (true) {
     if (start < 0) break;
-    const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
+    const getEventByCreation = `${APTOS_RPC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
       const event: any[] = (await httpGet(getEventByCreation));
       const listSequence: number[] = event.map(e => Number(e.sequence_number))
       const lastMin = Math.min(...listSequence)
       if (lastMin >= Infinity || lastMin <= -Infinity) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
-      const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastVision}`;
+      const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastVision}`;
       const block = (await httpGet(urlBlock));
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp
@@ -488,7 +488,7 @@ const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_
   };
 };
 
-const fetchV2 = async (options: FetchOptions) => {
+const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v2[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -514,7 +514,7 @@ const fetchV2 = async (options: FetchOptions) => {
   throw new Error('Invalid data source');
 }
 
-const fetchV3 = async (options: FetchOptions) => {
+const fetchV3 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v3[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -603,7 +603,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     if (version === 'v1' && chain === CHAIN.BSC) {
       const customConfig = config as CustomChainConfig;
       acc[chain] = {
-        fetch: async ({ startTimestamp }: any) => {
+        fetch: async (_t: any, _a: any, { startTimestamp }: any) => {
           return {
             totalVolume: customConfig.totalVolume,
             timestamp: startTimestamp
@@ -624,7 +624,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options),
+        fetch: chain === CHAIN.ETHEREUM ? (_t: any, _a: any, options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (_t: any, _a: any, options: FetchOptions) => graphsStableSwap(options),
         start: config.start,
       };
     }
@@ -634,13 +634,13 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v1: createAdapter('v1'),
     v2: createAdapter('v2'),
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')
   },
+  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;
