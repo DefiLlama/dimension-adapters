@@ -69,7 +69,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         const netRevenue = totalRevenue - (result.buyback_expense || 0);
         
         // Add total revenue (gacha + marketplace fees)
-        if (totalRevenue > 0) {
+        if (netRevenue > 0) {
             dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
         }
     }

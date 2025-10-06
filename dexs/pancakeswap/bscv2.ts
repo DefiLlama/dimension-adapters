@@ -1,16 +1,20 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { queryDune } from "../../helpers/dune";
 import { httpGet } from "../../utils/fetchURL";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { CHAIN } from "../../helpers/chains";
 
 function formatAddress(address: any): string {
   return String(address).toLowerCase();
 }
 
 async function getWhitelistedTokens(): Promise<Array<string>> {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
   const data = await httpGet('https://raw.githubusercontent.com/pancakeswap/token-list/main/lists/coingecko.json');
   return data.tokens
     .filter((token: any) => Number(token.chainId) === 56)
     .map((token: any) => formatAddress(token.address))
+    .filter((token: string) => !blacklisted.includes(token))
 }
 
 export const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelistedTokens: Array<string>) => {
