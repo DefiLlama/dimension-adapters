@@ -4,10 +4,10 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 const TREASURY = "0x21ad6eF3979638d8e73747f22B92C4AadE145D82".toLowerCase();
 
 const CHAINS = [
-  'ethereum','base','optimism','arbitrum','polygon','avalanche','bsc',
+  'ethereum','base','optimism','arbitrum','polygon','bsc',
   'scroll','mantle','linea','zksync','taiko','blast','mode','zora','metis',
-  'cronos','celo','gnosis','conflux','ronin','lisk',
-  'berachain','kaia','x-layer','core','redstone','cyber','story','morph','zircuit',
+  'cronos','celo','conflux','ronin','lisk',
+  'berachain','core','redstone','morph','zircuit',
   'apechain','ancient8','degen','botanix','mezo','bob','world-chain',
   'abstract','soneium','ink','unichain','plume','gravity','sonic','manta',
   'polygon-zkevm',
