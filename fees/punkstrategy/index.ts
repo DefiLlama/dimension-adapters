@@ -60,10 +60,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-    Fees: "Includes 10% fees collected from PNKR trades on the Uniswap V4 pool and NFT sale profits which are sold at 1.2x the purchase price.",
-    Revenue: "Includes 20% of the fees collected by the protocol and the NFT sale profits which are used to buy-back and burn PNKR tokens.",
+    Fees: "Includes 10% fees (80% to buy punk nft and the 20% to the team) collected from PNKR trades on the Uniswap V4 pool and NFT sale profits which are sold at 1.2x the purchase price.",
+    Revenue: "Includes 20% of the fees going to team and the NFT sale profits which are used to buy-back and burn PNKR tokens.",
     HoldersRevenue: "Includes the revenue used to buy-back and burn PNKR tokens from the NFT sale profits.",
-    ProtocolRevenue: "Includes 20% of the fees collected by the protocol.",
+    ProtocolRevenue: "Includes 20% of the fees going to the team.",
 };
 
 const adapter: Adapter = {
