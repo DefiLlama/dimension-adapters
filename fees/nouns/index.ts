@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { ethers } from "ethers";
@@ -46,16 +46,19 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     return {
         dailyFees,
         dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     }
 }
 
 const methodology = {
-    Fees: "Includes Nouns NFT auction settlement amount received by treasury and every 10th Noun NFT received by Nounders' Multisig.",
-    Revenue: "All fees are considered revenue.",
+    Fees: "Nouns NFT auction proceeds received by treasury and every 10th Noun NFT received by Nounders' Multisig.",
+    Revenue: "auction ETH proceeds goes to dao treasury.",
+    ProtocolRevenue: "auction ETH proceeds goes to dao treasury.",
 };
 
-//Version 1 bcz auction settlement just once a day
-const adapter: Adapter = {
+// Version 1 bcz auction settlement just once a day
+const adapter: SimpleAdapter = {
+    version: 1,
     fetch,
     methodology,
     chains: [CHAIN.ETHEREUM],
