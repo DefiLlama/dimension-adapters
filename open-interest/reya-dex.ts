@@ -7,18 +7,20 @@ const marketsEndpoint = "https://api.reya.xyz/api/markets"
 const fetch = async (_a: any) => {
   const markets = (await fetchURL(marketsEndpoint))
 
-  let openInterestAtEnd = 0
   let longOpenInterestAtEnd = 0
   let shortOpenInterestAtEnd = 0
 
   for (const market of markets) {
     if (market.isActive !== true) continue
-    openInterestAtEnd += Number(market.openInterest) * Number(market.markPrice)
     longOpenInterestAtEnd += Number(market.longOI) * Number(market.markPrice)
     shortOpenInterestAtEnd += Number(market.shortOI) * Number(market.markPrice)
   }
 
-  return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd }
+  return { 
+    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
+    longOpenInterestAtEnd,
+    shortOpenInterestAtEnd
+  }
 };
 
 const adapter: SimpleAdapter = {

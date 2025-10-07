@@ -2,6 +2,9 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultV2, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
+import { getDefaultDexTokensBlacklisted } from '../helpers/lists';
+import { addOneToken } from '../helpers/prices';
+import { formatAddress } from '../utils/utils';
 
 const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
 const ROUTE_RP6_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
@@ -375,17 +378,6 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA
 }
 
-const BLACKLIST_TOKENS: any = {
-  [CHAIN.ARBITRUM]: [
-    '0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501',
-    '0x3B94Cfdf557f9AAd983fE4E56dd4846958EF708A',
-    '0xC1fb38F174D16b1ff46c1CB04b52D5CF157940ee',
-    '0x9B34F0cfA7800d21a21BDA50253264e292CBB217',
-    '0x560363BdA52BC6A44CA6C8c9B4a5FadbDa32fa60',
-    '0xd81Fb17c5A0e6c20BEf8a6a9757a7daf88bfBbbC',
-  ],
-}
-
 const useSushiAPIPrice = (chain: any) => [
   CHAIN.BOBA_BNB,
   CHAIN.MOONRIVER
@@ -394,6 +386,8 @@ const useSushiAPIPrice = (chain: any) => [
 interface Log {
   tokenIn: string;
   amountIn: string;
+  tokenOut: string;
+  amountOut: string;
 }
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
@@ -422,7 +416,12 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   }
 
   const dailyVolume = createBalances()
-  const logs = (await Promise.all(logsPromises)).flat()
+
+  const blacklistTokens = getDefaultDexTokensBlacklisted(chain)
+  
+  const logs = (await Promise.all(logsPromises))
+    .flat()
+    .filter(log => !blacklistTokens.includes(formatAddress(log.tokenIn)) && !blacklistTokens.includes(formatAddress(log.tokenOut)))
 
   if (useSushiAPIPrice(chain)) {
     const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
@@ -458,16 +457,10 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
         dailyVolume.addGasToken(log.amountIn)
-      else
+      else {
         dailyVolume.add(log.tokenIn, log.amountIn)
+      }
     })
-  }
-
-  // remove blacklist tokens volume
-  if (BLACKLIST_TOKENS[chain]) {
-    for (const token of BLACKLIST_TOKENS[chain]) {
-      dailyVolume.removeTokenBalance(token);
-    }
   }
 
   return { dailyVolume }

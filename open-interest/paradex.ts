@@ -15,7 +15,7 @@ const fetch = async (_a: FetchOptions) => {
   for (const market of markets) {
     if (market.asset_kind !== 'PERP') continue
     const openInterest = (await fetchURL(marketsSummaryEndpoint(market.symbol))).results[0]
-    openInterestAtEnd += Number(openInterest.open_interest)
+    openInterestAtEnd += Number(openInterest.open_interest) * Number(openInterest.mark_price)
   }
 
   return { openInterestAtEnd }

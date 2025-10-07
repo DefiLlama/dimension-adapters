@@ -23,6 +23,10 @@ const v2_SUBGRAPHS: Record<string, { graph: string, start: string }> = {
     graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-v2-sonic/prod/gn",
     start: '2023-01-01'
   },
+  [CHAIN.PLASMA]: {
+    graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-v2-plasma/prod/gn",
+    start: '2023-01-01'
+  },
   [CHAIN.BSC]: {
     graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-v2-bsc/prod/gn",
     start: '2023-01-01'

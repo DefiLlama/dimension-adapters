@@ -28,6 +28,11 @@ const flux_SUBGRAPHS: Record<string, { clamm_graph: string, bin_graph: string, s
     bin_graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-bin-sonic/prod/gn",
     start: '2023-01-01'
   },
+  [CHAIN.PLASMA]: {
+    clamm_graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-clamm-plasma/prod/gn",
+    bin_graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-bin-plasma/prod/gn",
+    start: '2023-01-01'
+  },
   [CHAIN.BSC]: {
     clamm_graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-clamm-bsc/prod/gn",
     bin_graph: "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/omni-bin-bsc/prod/gn",
