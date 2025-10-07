@@ -2,8 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultV2, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
-import { getDefaultDexTokensBlacklisted } from '../helpers/lists';
-import { addOneToken } from '../helpers/prices';
+import { getDefaultDexTokensWhitelisted } from '../helpers/lists';
 import { formatAddress } from '../utils/utils';
 
 const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
@@ -391,8 +390,9 @@ interface Log {
 }
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
-  const logsPromises: Promise<Log[]>[] = []
+  const dailyVolume = createBalances()
 
+  const logsPromises: Promise<Log[]>[] = []
   if (RP4_ADDRESS[chain]) {
     logsPromises.push(getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
   }
@@ -415,13 +415,13 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
     logsPromises.push(getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   }
 
-  const dailyVolume = createBalances()
-
-  const blacklistTokens = getDefaultDexTokensBlacklisted(chain)
+  let logs = (await Promise.all(logsPromises)).flat()
   
-  const logs = (await Promise.all(logsPromises))
-    .flat()
-    .filter(log => !blacklistTokens.includes(formatAddress(log.tokenIn)) && !blacklistTokens.includes(formatAddress(log.tokenOut)))
+  // count volune only from whitelisted tokens
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: chain})
+  if (whitelistedTokens.length > 0) {
+    logs = logs.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+  }
 
   if (useSushiAPIPrice(chain)) {
     const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {

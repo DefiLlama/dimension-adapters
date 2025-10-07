@@ -1,3 +1,4 @@
+import { httpGet } from "../utils/fetchURL";
 import { formatAddress } from "../utils/utils";
 import { CHAIN } from "./chains";
 
@@ -43,9 +44,66 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     '0xc519cE7572EA48b64acbf6BE37a8f9CA39CC5671',
     '0x22B2bA593B6c35Ea3188936CC8502123b7719AaC',
     '0x56ccFe64Cd2420192C5b954b884C9FaD4F667EcF',
+    '0x7f70b6b4da3197012128f447482d0c8168A9dA3b',
+    '0x845E0f28770E36f4a8DAF3e1d89C6BA3aFFdE345',
+    '0xB7e628eB685AeBfa272dfA9C2AA5a6c71d39BCD7',
+    '0xfa17041041bF3B19C02C775CC1707C0c5F8E0A44',
+    '0x2ba2bA7C299b1c27651FDfb3A830426008663a5A',
+    '0xf2224C287c90364391d1fEb4a8eBaadf0b50B774',
+    '0x02688Db98424c177672700741454a8CA9e3AE304',
+    '0xEAb61ED949a34a32E18359b1A143000406B484B9',
+    '0x01538B776363CF6363b0217853082342669825f3',
+    '0x0F10f8679d5A417ECd77efDC81EC2EFDB082178D',
+    '0x4f8599F84774244E94f66BFF4b14E8C3a431edA3',
+    '0x5AF536856E00386cE981FAcb5AF9454Dc389B4AE',
+    '0x34890c6cD538c8b1fdbD110b9A5472336F7536c6',
+    '0xaa1Aa4da0275f537cfb8729252B775749dDd7eb1',
+    '0xbEa03EDB4C8B8d94bcD0993bBde41749e5d71f20',
   ],
 }
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
   return DefaultDexTokensBlacklisted[chain] ? DefaultDexTokensBlacklisted[chain].map(item => formatAddress(item)) : [];
+}
+
+interface ChainTokenConfig {
+  chainId: number;
+  tokenListUrl: string;
+}
+
+const ChainConfigs: {[key: string]: ChainTokenConfig} = {
+  [CHAIN.ETHEREUM]: {
+    chainId: 1,
+    tokenListUrl: 'https://tokens.coingecko.com/ethereum/all.json',
+  },
+  [CHAIN.ARBITRUM]: {
+    chainId: 42161,
+    tokenListUrl: 'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/arbitrum.json',
+  },
+  [CHAIN.BSC]: {
+    chainId: 56,
+    tokenListUrl: 'https://raw.githubusercontent.com/pancakeswap/token-list/main/lists/coingecko.json',
+  },
+  [CHAIN.BASE]: {
+    chainId: 8453,
+    tokenListUrl: 'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/base.json',
+  },
+  [CHAIN.AVAX]: {
+    chainId: 43114,
+    tokenListUrl: 'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json',
+  },
+}
+
+export async function getDefaultDexTokensWhitelisted({ chain }: { chain: string }): Promise<Array<string>> {
+  if (ChainConfigs[chain]) {
+    const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+    const data = await httpGet(ChainConfigs[chain].tokenListUrl);
+    const tokens = data.tokens ? data.tokens : data;
+    return tokens
+      .filter((token: any) => Number(token.chainId) === ChainConfigs[chain].chainId)
+      .map((token: any) => formatAddress(token.address))
+      .filter((token: string) => !blacklisted.includes(token))
+  }
+
+  return [];
 }
