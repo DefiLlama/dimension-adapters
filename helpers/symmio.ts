@@ -110,7 +110,7 @@ export const fetchBuilderSymmioPerpsByName = async ({ options, affiliateName }: 
 };
 
 export const symmioAffiliateAdapter = (affiliateName: string, chains: Chain[] = Object.keys(config), doublecounted = true): SimpleAdapter => ({
-  version: 2,
+  version: 1,
   chains,
   doublecounted,
   methodology: BUILDER_METHODOLOGY,

@@ -92,7 +92,7 @@ const fetch = async ({ chain, startOfDay, createBalances }: FetchOptions): Promi
 }
 
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: Object.fromEntries(Object.keys(config).map((chain) => [chain, { fetch }, methodology, start]))
 }
 
