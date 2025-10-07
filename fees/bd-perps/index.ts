@@ -10,13 +10,13 @@ const methodology = {
 
 const adapter = getBuilderExports({
   broker_id: "baby_doge",
-  start: "2025-10-06",
+  start: "2025-09-26",
   methodology,
 }) as SimpleAdapter;
 
 adapter.adapter = {
   [CHAIN.ORDERLY]: {
-    start: "2025-09-29",
+    start: "2025-09-26",
     fetch: async function (_: any, _1: any, options: FetchOptions) {
       return {
         ...(await (adapter.fetch as any)(_, _1, options)),
