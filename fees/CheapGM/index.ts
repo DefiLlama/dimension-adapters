@@ -8,9 +8,8 @@ const CHAINS = [
   'scroll','mantle','linea','zksync','taiko','blast','mode','zora','metis',
   'cronos','celo','conflux','ronin','lisk',
   'berachain','core','redstone','morph','zircuit',
-  'apechain','ancient8','degen','botanix','mezo','bob','world-chain',
+  'apechain','ancient8','degen','botanix','mezo','bob',
   'abstract','soneium','ink','unichain','plume','gravity','sonic','manta',
-  'polygon-zkevm',
 ] as const;
 
 function buildFetch(chain: string) {
