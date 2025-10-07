@@ -9,17 +9,53 @@ const eventAbis = {
     "event PassivePerpMatchOrder(uint128 indexed marketId, uint128 indexed accountId, int256 orderBase, (uint256 protocolFeeCredit, uint256 exchangeFeeCredit, uint256 takerFeeDebit, int256[] makerPayments) matchOrderFees, uint256 executedOrderPrice, uint256 blockTimestamp)",
 };
 
+const functionAbis = {
+  getSharePrice: "function getSharePrice(uint128 poolId) external view returns (uint256)",
+  getShareSupply: "function getShareSupply(uint128 poolId) external view returns (uint256)",
+};
+
 const CONFIG = {
   priceDecimals: 18,
   baseDecimals: 18,
-  quoteDecimals: 6
+  quoteDecimals: 6,
+  supplyDecimals: 30,
+  poolId: 1,
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances()
+  const dailyRevenue = options.createBalances();
 
+  // Fetch fees paid through spreads to the pool
+  const [sharePriceStart, sharePriceEnd, shareSupplyEnd] = await Promise.all([
+    options.fromApi.call({
+      target: '0xB4B77d6180cc14472A9a7BDFF01cc2459368D413',
+      abi: functionAbis.getSharePrice,
+      params: [CONFIG.poolId],
+    }),
+    options.toApi.call({
+      target: '0xB4B77d6180cc14472A9a7BDFF01cc2459368D413',
+      abi: functionAbis.getSharePrice,
+      params: [CONFIG.poolId],
+    }),
+    options.toApi.call({
+        target: '0xB4B77d6180cc14472A9a7BDFF01cc2459368D413',
+        abi: functionAbis.getShareSupply,
+        params: [CONFIG.poolId],
+      })
+  ]);
+
+  const priceStart = Number(sharePriceStart) / (10 ** CONFIG.priceDecimals);
+  const priceEnd = Number(sharePriceEnd) / (10 ** CONFIG.priceDecimals);
+  const supplyEnd = Number(shareSupplyEnd) / (10 ** CONFIG.supplyDecimals);
+  const timeframe = options.toTimestamp - options.fromTimestamp;
+  const apyFees = (priceEnd - priceStart) * supplyEnd * timeframe / (365 * 24 * 3600);
+
+  dailyFees.addToken(ADDRESSES.reya.RUSD, apyFees);
+
+
+  // Add the fees and revenue earned through trading
   const [older_logs, newer_logs] = await Promise.all([
     options.getLogs({
       target: '0x27e5cb712334e101b3c232eb0be198baaa595f5f',
