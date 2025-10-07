@@ -1,6 +1,5 @@
 // Use
 export enum CHAIN {
-  COINWEB = "coinweb",
   PACASWAP = "pacaswap",
   PEAQ = "peaq",
   CHROMIA = "chromia",
@@ -273,4 +272,5 @@ export enum CHAIN {
   HIBACHI = "hibachi",
   SATORI = "satori",
   SHIBARIUM = "shibarium",
+  COINWEB = "coinweb",
 }
