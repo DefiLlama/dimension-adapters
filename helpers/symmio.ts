@@ -1,5 +1,6 @@
 import request from "graphql-request";
-import { Chain, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Adapter, Chain, Fetch } from "../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { CHAIN } from "./chains";
 
 type DailyHistory = {
@@ -59,60 +60,69 @@ const dailyByDayAndAccounts = `
   }
 `;
 
-export const fetchBuilderSymmioPerps = async ({ options, builder_addresses }: { options: FetchOptions; builder_addresses: string[] }) => {
-  const endpoint = config[options.chain];
-  if (!endpoint || !builder_addresses?.length) return {};
+export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
+  return async (timestamp: number, _c: any, { chain }: { chain: Chain }) => {
+    const endpoint = config[chain];
+    if (!endpoint || !builderAddresses?.length) return { timestamp };
 
-  const day = String(Math.floor(options.startOfDay / 86400));
-  const accounts = [...new Set(builder_addresses.map(a => a.toLowerCase()))];
+    const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+    const day = String(Math.floor(startOfDay / 86400));
+    const accounts = [...new Set(builderAddresses.map((a) => a.toLowerCase()))];
 
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const openInterestAtEnd = options.createBalances();
+    let dailyVolume = 0;
+    let dailyFees = 0;
+    let dailyRevenue = 0;
+    let openInterestAtEnd = 0;
 
-  const { dailyHistories }: { dailyHistories: DailyHistory[] } =
-    await request(endpoint, dailyByDayAndAccounts, { day, accounts });
+    const { dailyHistories }: { dailyHistories: DailyHistory[] } =
+      await request(endpoint, dailyByDayAndAccounts, { day, accounts });
 
-  for (const { platformFee, symmioShare, tradeVolume, openInterest } of dailyHistories) {
-    const fee = +platformFee / 1e18
-    const share = +symmioShare / 1e18
-    const volume = +tradeVolume / 1e18
-    const oi = +openInterest / 1e18
-    const revenue = fee - share;
+    dailyHistories.forEach(({ platformFee, symmioShare, tradeVolume, openInterest }) => {
+      const fee = Number(platformFee) / 1e18;
+      const share = Number(symmioShare) / 1e18;
+      const volume = Number(tradeVolume) / 1e18;
+      const oi = Number(openInterest) / 1e18;
 
-    dailyVolume.addUSDValue(volume);
-    dailyFees.addUSDValue(fee);
-    dailyRevenue.addUSDValue(revenue);
-    dailyProtocolRevenue.addUSDValue(revenue);
-    openInterestAtEnd.addUSDValue(oi);
-  }
+      dailyVolume += volume;
+      dailyFees += fee;
+      dailyRevenue += share;
+      openInterestAtEnd += oi;
+    })
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, openInterestAtEnd };
+    return {
+      timestamp: startOfDay,
+      dailyVolume: dailyVolume.toString(),
+      dailyFees: dailyFees.toString(),
+      dailyRevenue: dailyRevenue.toString(),
+      openInterestAtEnd: openInterestAtEnd.toString(),
+    };
+  };
 };
 
-export const fetchBuilderSymmioPerpsByName = async ({ options, affiliateName }: { options: FetchOptions; affiliateName: string }) => {
-  const endpoint = config[options.chain];
-  if (!endpoint || !affiliateName) return {};
+export const fetchBuilderSymmioPerpsByName = (affiliateName: string): Fetch => {
+  return async (timestamp: number, _c: any, { chain }) => {
+    const endpoint = config[chain];
+    if (!endpoint || !affiliateName) return { timestamp };
 
-  const res = await request(endpoint, affiliateQuery) as { symmioEntities: SymmioEntity[] };
-  const wanted = affiliateName.trim().toLowerCase();
+    const res = await request(endpoint, affiliateQuery) as { symmioEntities: SymmioEntity[] };
+    const wanted = affiliateName.trim().toLowerCase();
 
-  const addresses = res.symmioEntities
-    .filter(e => e.type === "Affiliate" && e.name?.trim().toLowerCase() === wanted)
-    .map(e => e.address)
-    .filter(Boolean);
+    const addresses = res.symmioEntities
+      .filter(e => e.type === "Affiliate" && e.name?.trim().toLowerCase() === wanted)
+      .map(e => e.address)
+      .filter(Boolean);
 
-  if (!addresses.length) return {};
+    if (!addresses.length) return { timestamp: getTimestampAtStartOfDayUTC(timestamp) };
 
-  return fetchBuilderSymmioPerps({ options, builder_addresses: addresses });
+    return fetchBuilderSymmioPerps(addresses)(timestamp, _c, { chain } as any);
+  };
 };
 
-export const symmioAffiliateAdapter = (affiliateName: string, chains: Chain[] = Object.keys(config), doublecounted = true): SimpleAdapter => ({
+export const symmioAffiliateAdapter = (affiliateName: string, chains: Chain[] = Object.keys(config) as Chain[], doublecounted = true): Adapter => ({
   version: 1,
-  chains,
   doublecounted,
   methodology: BUILDER_METHODOLOGY,
-  fetch: (options: FetchOptions) => fetchBuilderSymmioPerpsByName({ options, affiliateName }),
+  adapter: Object.fromEntries(
+    chains.map((c) => [c, { fetch: fetchBuilderSymmioPerpsByName(affiliateName)}])
+  ),
 });

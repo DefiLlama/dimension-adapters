@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
+import { Adapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderSymmioPerpsByName } from "../../helpers/symmio";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -47,28 +47,17 @@ const graphs = (graphUrls: Record<string, string>) => {
   return fetch;
 };
 
-const fetchSymmioQuickswap = async (options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, openInterestAtEnd } =
-    await fetchBuilderSymmioPerpsByName({ options, affiliateName: 'Quickswap' });
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, openInterestAtEnd };
-};
-
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   doublecounted: true,
   methodology: methodology.symmio,
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       start: '2024-01-01',
-      fetch: async (options: FetchOptions) => {
-        const res = await graphs(endpoints)(options.startOfDay,undefined as any, { chain: options.chain } as any);
-        const dailyVolume = options.createBalances();
-        if (res?.dailyVolume) dailyVolume.addUSDValue(Number(res.dailyVolume));
-        return { dailyVolume };
+      fetch: graphs(endpoints)
       },
-    },
     [CHAIN.BASE]: {
-      fetch: fetchSymmioQuickswap,
+      fetch: fetchBuilderSymmioPerpsByName("Quickswap"),
     },
   },
 };

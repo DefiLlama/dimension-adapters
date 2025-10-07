@@ -1,6 +1,7 @@
 import request from "graphql-request";
-import { Chain, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { Adapter, Chain, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 type DailyHistory = {
   platformFee: string
@@ -57,19 +58,21 @@ const query = `
   }
 `
 
-const fetch = async ({ chain, startOfDay, createBalances }: FetchOptions): Promise<FetchResult> => {
+const fetch: Fetch = async (timestamp, _cb, { chain }) => {
   const endpoint = config[chain]
   if (!endpoint) return {}
 
-  const day = String(Math.floor(startOfDay / 86400))
-  const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-  const dailySupplySideRevenue = createBalances()
-  const openInterestAtEnd = createBalances()
+  const startOfDay = getTimestampAtStartOfDayUTC(timestamp);
+  const day = String(Math.floor(startOfDay / 86400));
 
   const { dailyHistories }: { dailyHistories: DailyHistory[] } = await request(endpoint, query, { day })
   const { solverDailyHistories }: { solverDailyHistories: DailySolver[] } = await request(endpoint, solverQuery, { day })
+
+  let dailyVolume = 0;
+  let dailyFees = 0;
+  let dailyRevenue = 0;
+  let dailySupplySideRevenue = 0;
+  let openInterestAtEnd = 0;
 
   dailyHistories.forEach(({ platformFee, symmioShare, tradeVolume, openInterest } ) => {
     const fee = Number(platformFee) / 1e18
@@ -77,21 +80,28 @@ const fetch = async ({ chain, startOfDay, createBalances }: FetchOptions): Promi
     const volume = Number(tradeVolume) / 1e18
     const oi = Number(openInterest) / 1e18
 
-    dailyVolume.addUSDValue(volume)
-    dailyFees.addUSDValue(fee)
-    dailyRevenue.addUSDValue(share)
-    dailySupplySideRevenue.addUSDValue(fee - share)
-    openInterestAtEnd.addUSDValue(oi)
+    dailyVolume += volume;
+    dailyFees += fee;
+    dailyRevenue += share;
+    dailySupplySideRevenue += (fee - share);
+    openInterestAtEnd += oi;
   })
 
   solverDailyHistories.forEach(({ openInterest }) => {
-    openInterestAtEnd.addUSDValue(Number(openInterest) / 1e18)
+    openInterestAtEnd += Number(openInterest) / 1e18;
   })
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, openInterestAtEnd }
+  return {
+    timestamp: startOfDay,
+    dailyVolume: dailyVolume.toString(),
+    dailyFees: dailyFees.toString(),
+    dailyRevenue: dailyRevenue.toString(),
+    dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+    openInterestAtEnd: openInterestAtEnd.toString(),
+  };
 }
 
-const adapters: SimpleAdapter = {
+const adapters: Adapter = {
   version: 1,
   adapter: Object.fromEntries(Object.keys(config).map((chain) => [chain, { fetch }, methodology, start]))
 }
