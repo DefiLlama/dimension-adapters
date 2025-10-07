@@ -1,41 +1,80 @@
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { ethers } from "ethers";
+import ADDRESSES from '../helpers/coreAssets.json';
 
-export default {
-  chains: [CHAIN.ETHEREUM],
-  fetch,
-  version: 2,
-  methodology: {
-    Fees: "10% of the PNKSTR swap value",
-    Revenue: "10% of the PNKSTR swap value",
-    ProtocolRevenue: "20% of the tokens fees",
-    SupplySideRevenue: "n/a",
-    HoldersRevenue: "Value of the punk sale, the ETH from the sale is used to buy back and burn PNKSTR tokens",
-  },
-  start: '2025-09-07',
+const ABI = {
+  SWAP_EVENT: 'event Swap (bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)',
+  PUNK_BOUGHT_EVENT: 'event PunkBought (uint256 indexed punkIndex, uint256 value, address indexed fromAddress, address indexed toAddress)'
+};
+
+const ADDRESS = {
+  UNISWAP_POOL_MANAGER: "0x000000000004444c5dc75cB358380D2e3dE08A90",
+  FEE_MANAGER: "0xfAaad5B731F52cDc9746F2414c823eca9B06E844",
+  SWAP_TOPIC: '0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f',
+  POOL_ID: '0xbdb0f9c31367485f85e691f638345f3de673a78effaff71ce34bc7ff1d54fddc',
+  CRYPTO_PUNKS_NFT: '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
+  PUNK_STRATEGY_PATCH: '0x1244EAe9FA2c064453B5F605d708C0a0Bfba4838',
+  PUNK_BOUGHT_TOPIC: '0x58e5d5a525e3b40bc15abaa38b5882678db1ee68befd2f60bafe3a7fd06db9e3'
 }
 
-async function fetch({ getLogs, createBalances, fromApi, toApi, }: FetchOptions) {
-  const dailyFees = createBalances()
-  const dailyHoldersRevenue = createBalances()
+async function fetch(options: FetchOptions) {
+  const dailyFees = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
-  const feeDayBefore = await fromApi.call({ target: '0xc50673edb3a7b94e8cad8a7d4e0cd68864e33edf', abi: 'uint256:currentFees' })
-  const feeToday = await toApi.call({ target: '0xc50673edb3a7b94e8cad8a7d4e0cd68864e33edf', abi: 'uint256:currentFees' })
+  const tradeFeeLogs = await options.getLogs({
+    target: ADDRESS.UNISWAP_POOL_MANAGER,
+    topics: [
+      ADDRESS.SWAP_TOPIC,
+      ADDRESS.POOL_ID,
+      ethers.zeroPadValue(ADDRESS.FEE_MANAGER, 32)
+    ],
+    eventAbi: ABI.SWAP_EVENT
+  });
 
-  dailyFees.addGasToken(feeToday - feeDayBefore)
+  tradeFeeLogs.forEach((trade: any) => {
+    dailyFees.add(ADDRESSES.ethereum.WETH, trade.amount0)
+  });
 
-  const feeLogs = await getLogs({
-    target: '0x1244EAe9FA2c064453B5F605d708C0a0Bfba4838',
-    eventAbi: 'event ProtocolFeesFromSales(uint256 fees)',
+  const nftSoldLogs = await options.getLogs({
+    target: ADDRESS.CRYPTO_PUNKS_NFT,
+    topics: [
+      ADDRESS.PUNK_BOUGHT_TOPIC, 
+      null as any, 
+      ethers.zeroPadValue(ADDRESS.PUNK_STRATEGY_PATCH, 32), 
+      null as any
+    ]
+  });
+
+  dailyProtocolRevenue.add(dailyFees.clone(0.2));
+
+  nftSoldLogs.forEach((nftSold: any) => {
+    // Though the entire amount is used for buy-back and burn, we consider only 20% (profit) because the base amount is collected by PNKR trade fees which is indirectly paid by holders
+    dailyFees.add(ADDRESSES.ethereum.WETH, nftSold.data / 6)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, nftSold.data)
   })
-
-  dailyHoldersRevenue.addGasToken(feeLogs.map(log => log.fees))
 
   return {
     dailyFees,
-    dailyHoldersRevenue,
-    dailyProtocolRevenue: dailyFees.clone(0.2),
-    dailySupplySideRevenue: 0,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   }
 }
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2025-09-06',
+  methodology: {
+    Fees: "10% fees (80% to buy punk nft and the 20% to the team) collected from PNKR trades on the Uniswap V4 pool and NFT sale profits which are sold at 1.2x the purchase price",
+    Revenue: "20% of the swap fees going to team and the NFT sale profits which are used to buy-back and burn PNKSTR tokens",
+    ProtocolRevenue: "20% of the swap fees going to the team.",
+    HoldersRevenue: "NFT sale proceeds are used for buy-back and burn PNKSTR tokens",
+  }
+}
+
+export default adapter;
