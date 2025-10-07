@@ -14,7 +14,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0};
 };
 
 
@@ -25,10 +25,8 @@ const adapter: SimpleAdapter = {
   start: '2025-07-01',
   methodology: {
     Fees: 'User pays 0.5%-1% fee on each trade',
-    Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
     UserFees: 'User pays 0.5%-1% fee on each trade',
     HoldersRevenue: 'No token holder revenue',
-    ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
   },
   isExpensiveAdapter: true,
 };
