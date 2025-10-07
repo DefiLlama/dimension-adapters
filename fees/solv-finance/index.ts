@@ -237,7 +237,7 @@ function parseSubscribeEvent(data: string): BigNumber {
 
 async function concrete(pools: any[], options: FetchOptions): Promise<any> {
   var contracts: any[] = [];
-  var only = {};
+  var only: any = {};
   for (var i = 0; i < pools.length; i++) {
     if (!only[pools[i].openFundShareAddress]) {
       contracts.push(pools[i]);
@@ -250,7 +250,7 @@ async function concrete(pools: any[], options: FetchOptions): Promise<any> {
     abi: "address:concrete",
   });
 
-  let concretes = {};
+  let concretes: any = {};
   for (var k = 0; k < concreteLists.length; k++) {
     concretes[contracts[k].openFundShareAddress] = concreteLists[k];
   }

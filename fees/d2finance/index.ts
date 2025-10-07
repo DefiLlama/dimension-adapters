@@ -10,7 +10,7 @@ const info = {
   }
 }
 
-const VaultConfigs = {
+const VaultConfigs: any = {
   ethereum: ['0x07Dff4087b43c4A759f4Fc69511c26d51929dAF4'],
   base: ['0x6c05A7d2c24B48fC3C615D294fEc2eB068548897'],
   arbitrum: [
