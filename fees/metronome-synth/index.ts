@@ -24,17 +24,16 @@ const TREASURY = {
   ],
 };
 
-// main revenue treasuries
 const REVENUE_TREASURY = {
   [CHAIN.ETHEREUM]: ["0xd1de3f9cd4ae2f23da941a67ca4c739f8dd9af33"],
-  [CHAIN.BASE]:     ["0xe01df4ac1e1e57266900e62c37f12c986495A618"],
+  [CHAIN.BASE]: ["0xe01df4ac1e1e57266900e62c37f12c986495A618"],
   [CHAIN.OPTIMISM]: ["0xE01Df4ac1E1e57266900E62C37F12C986495A618"],
 }
 
 // fee harvesters (earn rewards, then forward them on-chain)
 const FEE_HARVESTERS = {
   [CHAIN.ETHEREUM]: ["0xCE3187216B39ED222319D877956aC6b2eF1961E9"],
-  [CHAIN.BASE]:     ["0x3b06d40f1a7ad2d936b5f11a161e84dd637945b6"],
+  [CHAIN.BASE]: ["0x3b06d40f1a7ad2d936b5f11a161e84dd637945b6"],
   [CHAIN.OPTIMISM]: ["0x91ecadb8ef5dacc6156ffc036acf6295eab7a545"],
 }
 
@@ -43,9 +42,9 @@ const SYNTHS = {
     "0x8b4F8aD3801B4015Dea6DA1D36f063Cbf4e231c7",
     "0xab5eB14c09D416F0aC63661E57EDB7AEcDb9BEfA",
     "0x64351fC9810aDAd17A690E4e1717Df5e7e085160",
-    "0xD533a949740bb3306d119CC777fa900bA034cd52", // CRV
+    ADDRESSES.ethereum.CRV,
     "0x856c4Efb76C1D1AE02e20CEB03A2A6a08b0b8dC3", // OETH
-    "0x365accfca291e7d3914637abf1f7635db165bb09", // FXN
+    ADDRESSES.ethereum.FXN,
   ],
   [CHAIN.BASE]: [
     "0x7Ba6F01772924a82D9626c126347A28299E98c98",
@@ -106,7 +105,8 @@ function getToAddr(log: any): string | null {
   return null
 }
 
-const fetch = (chain: string) => async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
   const treasurySenders = new Set(TREASURY[chain].map(a => a.toLowerCase()))
   const revenueTargets = REVENUE_TREASURY[chain].map(a => a.toLowerCase())
   const harvesters = new Set((FEE_HARVESTERS[chain] ?? []).map(a => a.toLowerCase()))
@@ -148,14 +148,14 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
     dailyFees.add(v.underlying, gainRaw);
   }
 
- if (chain === CHAIN.ETHEREUM) {
-   const metTransfers = await addTokensReceived({
-     options,
-     tokens: [MET_TOKEN],
-     targets: [DISTRIBUTOR],
-   });
-   dailyHoldersRevenue.addBalances(metTransfers);
- }
+  if (chain === CHAIN.ETHEREUM) {
+    const metTransfers = await addTokensReceived({
+      options,
+      tokens: [MET_TOKEN],
+      targets: [DISTRIBUTOR],
+    });
+    dailyHoldersRevenue.addBalances(metTransfers);
+  }
 
   return {
     dailyFees,
@@ -165,25 +165,17 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  adapter: {
+    [CHAIN.ETHEREUM]: { start: '2023-05-11' },
+    [CHAIN.BASE]: { start: '2023-05-11' },
+    [CHAIN.OPTIMISM]: { start: '2023-05-11' },
+  },
   methodology: {
-    Fees: "Counts synth/reward inflows.",
+    Fees: "synth/reward inflows to treasury.",
     Revenue: "Fees plus vault interest.",
     HoldersRevenue: "MET distributed to esMET lockers.",
-  },
-  version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: '2023-05-11',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: '2023-05-11',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-05-11',
-    },
   },
 };
 
