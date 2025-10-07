@@ -19,7 +19,7 @@ async function prefetch(_a: any): Promise<any> {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-    let dailyFees = options.createBalances();
+    const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const vaultsData = options.preFetchedResults;
@@ -29,77 +29,58 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const currentChainVaults = vaultsData.filter((vault: any) => vault.chain === CHAIN_ID_MAP[options.chain]);
 
     await Promise.all(currentChainVaults.map(async (vault: any) => {
-        try {
-            const { address, weekly_performance_fee_bps, platform_fee_override } = vault;
-            const management_fee = platform_fee_override?.management_fee ?? 0;
-            const dailyYield = await getERC4626VaultsYield({ options, vaults: [address] });
-            const totalSupply = await options.api.call({
-                target: address,
-                abi: 'uint256:totalSupply',
-            })
+        const { address, weekly_performance_fee_bps, platform_fee_override } = vault;
+        const management_fee = platform_fee_override?.management_fee ?? 0;
+        const dailyYield = await getERC4626VaultsYield({ options, vaults: [address] });
+        const totalSupply = await options.api.call({
+            target: address,
+            abi: 'uint256:totalSupply',
+        })
 
-            if (+Object.values(dailyYield._balances)[0] > 0) {
-                dailySupplySideRevenue.add(dailyYield, METRIC.ASSETS_YIELDS);
-                dailyFees.add(dailyYield.clone(1 / (1 - weekly_performance_fee_bps / 100)), METRIC.ASSETS_YIELDS);
-                dailyRevenue.add(dailyYield.clone(1 / (1 - weekly_performance_fee_bps / 100) - 1), METRIC.PERFORMANCE_FEES);
-            }
+        if (+Object.values(dailyYield._balances)[0] > 0) {
+            dailySupplySideRevenue.add(dailyYield, METRIC.ASSETS_YIELDS);
+            dailyFees.add(dailyYield.clone(1 / (1 - weekly_performance_fee_bps / 100)), METRIC.ASSETS_YIELDS);
+            dailyRevenue.add(dailyYield.clone(1 / (1 - weekly_performance_fee_bps / 100) - 1), METRIC.PERFORMANCE_FEES);
+        }
 
-            const dailyManagementFee = totalSupply * (management_fee / 100) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR)
-            dailyFees.add(address, dailyManagementFee, METRIC.MANAGEMENT_FEES);
-            dailyRevenue.add(address, dailyManagementFee, METRIC.MANAGEMENT_FEES);
-        }
-        catch (error) {
-            console.error('Error occured while fetching upshift vault data');
-        }
+        const dailyManagementFee = totalSupply * (management_fee / 100) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR)
+        dailyFees.add(address, dailyManagementFee, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(address, dailyManagementFee, METRIC.MANAGEMENT_FEES);
     }))
 
     return {
         dailyFees,
         dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue
     }
-
 }
 
 const methodology = {
-    Fees: 'Total yields from deposited assets in all vaults',
-    Revenue: 'Total performance fees and management fees paid by vault user',
-    SupplySideRevenue: 'Yields earned by vault users post fees',
+    Fees: 'yields generated from deposited assets in all vaults',
+    Revenue: 'performance fees and management fees paid from user yields',
+    ProtocolRevenue: 'performance fees and management fees paid from user yields',
+    SupplySideRevenue: 'yields earned by vault users post fees',
 }
+
 const breakdownMethodology = {
     Fees: {
-        [METRIC.ASSETS_YIELDS]: 'Total yields from deposited assets in all vaults',
-        [METRIC.PERFORMANCE_FEES]: 'Total performance fees paid by vault users',
-        [METRIC.MANAGEMENT_FEES]: 'Total management fees paid by vault users',
-    },
-    Revenue: {
-        [METRIC.PERFORMANCE_FEES]: 'Total performance fees paid by vault users',
-        [METRIC.MANAGEMENT_FEES]: 'Total management fees paid by vault users',
-    },
-    SupplySideRevenue: {
-        [METRIC.ASSETS_YIELDS]: 'Total yields from deposited assets in all vaults post fees',
+        [METRIC.ASSETS_YIELDS]: 'yields generated from deposited assets in all vaults',
+        [METRIC.PERFORMANCE_FEES]: 'performance fees paid by vault users',
+        [METRIC.MANAGEMENT_FEES]: 'management fees paid by vault users',
     }
 }
+
 const adapter: Adapter = {
     version: 2,
     prefetch,
     fetch,
     adapter: {
-        [CHAIN.ETHEREUM]: {
-            start: '2024-09-15',
-        },
-        [CHAIN.AVAX]: {
-            start: '2024-11-04',
-        },
-        [CHAIN.BASE]: {
-            start: '2024-11-22',
-        },
-        [CHAIN.BSC]: {
-            start: '2025-04-10',
-        },
-        [CHAIN.HYPERLIQUID]: {
-            start: '2025-04-04',
-        },
+        [CHAIN.ETHEREUM]: { start: '2024-09-15' },
+        [CHAIN.AVAX]: { start: '2024-11-04' },
+        [CHAIN.BASE]: { start: '2024-11-22' },
+        [CHAIN.BSC]: { start: '2025-04-10' },
+        [CHAIN.HYPERLIQUID]: { start: '2025-04-04' },
     },
     methodology,
     breakdownMethodology,
