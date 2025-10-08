@@ -68,6 +68,30 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.UNICHAIN]: {
+    vaultFactories: [
+      {
+        address: '0xe9EdE3929F43a7062a007C3e8652e4ACa610Bdc0',
+        fromBlock: 9316789,
+      },
+    ],
+  },
+  [CHAIN.KATANA]: {
+    vaultFactories: [
+      {
+        address: '0x1c8De6889acee12257899BFeAa2b7e534de32E16',
+        fromBlock: 2741420,
+      },
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    vaultFactories: [
+      {
+        address: '0x878988f5f561081deEa117717052164ea1Ef0c82',
+        fromBlock: 296447195,
+      },
+    ],
+  },
 }
 
 export const EulerConfigs: any = {
@@ -119,6 +143,21 @@ export const EulerConfigs: any = {
   [CHAIN.TAC]: {
     vaultFactories: [
       '0x2b21621b8Ef1406699a99071ce04ec14cCd50677',
+    ],
+  },
+  [CHAIN.LINEA]: {
+    vaultFactories: [
+      '0x84711986fd3bf0bfe4a8e6d7f4e22e67f7f27f04',
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    vaultFactories: [
+      '0x78df1cf5bf06a7f27f2acc580b934238c1b80d50',
+    ],
+  },
+  [CHAIN.PLASMA]: {
+    vaultFactories: [
+      '0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3',
     ],
   },
 }

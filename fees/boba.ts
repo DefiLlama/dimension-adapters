@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 
@@ -9,12 +9,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
 	version: 1,
-	adapter: {
-		[CHAIN.BOBA]: {
-			fetch,
-			start: '2021-08-13'
-		},
-	},
+	fetch,
+	chains: [CHAIN.BOBA],
+	start: '2021-08-13',
+	dependencies: [Dependencies.DUNE],
 	protocolType: ProtocolType.CHAIN,
 	isExpensiveAdapter: true,
 	allowNegativeValue: true, // L1 Costs

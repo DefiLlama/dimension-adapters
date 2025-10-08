@@ -22,24 +22,37 @@ interface BorosMarket {
     coinGeckoId: string;
 };
 
-const SYMBOL_TO_CGID = {
-    'ETH': 'ethereum',
-    'BTC': 'bitcoin',
+const MARKET_TO_CGID: Record<string, string> = {
+    // bitcoin
+    '0x25A62D6Ca94F67248fBFB7257513BcF74210BCDF': 'bitcoin',
+    '0xaf71Ddb2B890Cbd470eD91f293FA35C0ACb41EbE': 'bitcoin',
+    '0x725fa7500F1b6e08972f04f7FC1931eA7C47314F': 'bitcoin',
+    '0xd490dD635051D609887883d364368B223631653D': 'bitcoin',
+
+    // ethereum
+    '0xF9997C488e7286988b0829583DE8787ba9683D34': 'ethereum',
+    '0xc7c820668e16c5fA8AF3122d118611c186ED85B5': 'ethereum',
+    '0x8FCf5E75f4d8BC03b8970593cc8a841fc65C12b3': 'ethereum',
+    '0x30c3cf7Bfe1C694382C4901aAE5C9D679EC8450D': 'ethereum',
+
+    // tether
+    '0x6F79341ab878D0b34ad69320411E910396C03B94': 'tether',
+    '0xEfF94Cf7EA8E2640a8aCDd62521fa24bEA7889e4': 'tether',
 };
 
-const getCgId = (marketSymbol: string) => {
-    let symbol = "";
-    try {
-        symbol = marketSymbol.split("-")[1].replace("USDT", "");
-    } catch (error) {
-        console.error("Failed to extract base asset from symbol:", symbol, error);
-        return null;
-    }
-    const cgId = SYMBOL_TO_CGID[symbol];
+// AMMConfigUpdated transactions, ignore volume from these transactions
+const EXCLUDE_OTC_SWAPS: Array<string> = [
+    '0x752eea9b38bb427e10a1ae0b8a55783cd700033c6967ae70590202645a1177ad',
+    '0xf8e45548cbf08c48c71d054ce872f7e8cbef6633b45224a28d5c7c5128471856',
+]
+
+const getCgId = (marketAddress: string): string => {
+    const cgId = MARKET_TO_CGID[marketAddress];
+
     if (!cgId) {
-        console.error("No CG mapping for symbol:", symbol);
-        return null;
+        throw Error(`No CG mapping for market: ${marketAddress}`)
     }
+    
     return cgId;
 }
 
@@ -61,7 +74,7 @@ const fetch = async (options: FetchOptions) => {
             address: marketLog.market,
             symbol: marketLog.immData.symbol,
             maturity: Number(marketLog.immData.k_maturity),
-            coinGeckoId: getCgId(marketLog.immData.symbol),
+            coinGeckoId: getCgId(marketLog.market),
         }))
         .filter(market => market.coinGeckoId);
 
@@ -69,13 +82,19 @@ const fetch = async (options: FetchOptions) => {
         const marketOrderFilledLogs = await options.getLogs({
             target: market.address,
             eventAbi: BOROS_ABIS.MARKET_ORDERS_FILLED_EVENT,
+            onlyArgs: false,
         });
 
-        marketOrderFilledLogs.forEach(trade => {
+        marketOrderFilledLogs.forEach((item: any) => {
+            const trade = item.args;
+
             let tradeAmount = trade.totalTrade >> 128n;
             if (tradeAmount > TWO_127)
                 tradeAmount = TWO_128 - tradeAmount;
+
             dailyVolume.addCGToken(market.coinGeckoId, Number(tradeAmount) / 1e18);
+
+            // add open/close fees
             dailyFees.addCGToken(market.coinGeckoId, Number(trade.totalFees) / 1e18, METRIC.OPEN_CLOSE_FEES);
             dailyRevenue.addCGToken(market.coinGeckoId, Number(trade.totalFees) / 1e18, METRIC.OPEN_CLOSE_FEES);
         });
@@ -83,13 +102,24 @@ const fetch = async (options: FetchOptions) => {
         const otcSwapLogs = await options.getLogs({
             target: market.address,
             eventAbi: BOROS_ABIS.OTC_SWAP_EVENT,
+            onlyArgs: false,
         });
 
-        otcSwapLogs.forEach(swap => {
-            let tradeAmount = swap.trade >> 128n;
-            if (tradeAmount > TWO_127)
-                tradeAmount = TWO_128 - tradeAmount;
-            dailyVolume.addCGToken(market.coinGeckoId, Number(tradeAmount) / 1e18);
+        otcSwapLogs.forEach((item: any) => {
+            if (EXCLUDE_OTC_SWAPS.includes(item.transaction_hash)) {
+                return;
+            }
+
+            const swap = item.args;
+
+            // let tradeAmountAfterFee = swap.trade >> 128n;
+            // if (tradeAmountAfterFee > TWO_127)
+            //     tradeAmountAfterFee = TWO_128 - tradeAmountAfterFee;
+
+            // don't add volume from otc swap
+            // dailyVolume.addCGToken(market.coinGeckoId, (Number(tradeAmountAfterFee) + Number(swap.otcFee)) / 1e18);
+
+            // add swap fees
             dailyFees.addCGToken(market.coinGeckoId, Number(swap.otcFee) / 1e18, METRIC.SWAP_FEES);
             dailySupplySideRevenue.addCGToken(market.coinGeckoId, Number(swap.otcFee) / 1e18, METRIC.SWAP_FEES)
         })

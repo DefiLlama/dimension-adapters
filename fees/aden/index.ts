@@ -5,11 +5,11 @@ import { httpGet } from "../../utils/fetchURL";
 
 let asterBuilderData: any = null
 async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
-  const asterVolumeEndpoint = "https://www.asterdex.com/bapi/futures/v1/public/future/volume/builder/daily_stats/aden";
-  if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ data }) => {
+  const asterVolumeEndpoint = "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy";
+  if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ perps: data }) => {
     const dateDataMap: any = {}
     data.forEach((i: any) => {
-      dateDataMap[i.date.slice(0, 10)] = i
+      dateDataMap[i.dateString] = i
     })
     return dateDataMap
   })
@@ -28,7 +28,7 @@ async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Builder Fees collected from Orderly Network(0.3 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)",
+  Fees: "Builder Fees collected from Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)",
   Revenue: "All the fees collected",
   ProtocolRevenue: "All the revenue go to the protocol",
 }

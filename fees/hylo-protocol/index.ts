@@ -1,5 +1,4 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -109,16 +108,17 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  start: '2025-04-01',
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "hyUSD <-> xSOL swap fees and stability pool yields (in hyUSD) distributed to users.",
     Revenue: "Swap fees, and part of jtoSOL yield",
     SupplySideRevenue: "Stability pool yields (in hyUSD) distributed to users.",
   },
-  version: 1,
-  fetch,
-  start: '2025-04-01',
-  chains: [CHAIN.SOLANA],
-  isExpensiveAdapter: true
 };
 
 export default adapter;
