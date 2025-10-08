@@ -14,7 +14,6 @@ interface IData {
 
 const chainsMap: Record<string, string> = {
     "ethereum": CHAIN.ETHEREUM,
-    "arbitrum": CHAIN.ARBITRUM,
     "base": CHAIN.BASE,
     "bnb": CHAIN.BSC,
     "sonic": CHAIN.SONIC,
