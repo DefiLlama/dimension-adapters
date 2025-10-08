@@ -7,7 +7,7 @@ export interface ITicketCreatedEvent {
   totalQuote: bigint;
   collateral: string;
 }
-
+  
 export interface IBoughtFromAmmEvent {
   buyer: string;
   market: string;
@@ -41,5 +41,16 @@ export interface ISpeedMarketCreatedEvent {
   buyinAmount: bigint;
   safeBoxImpact: bigint;
   lpFeeWithSkew?: bigint;
+}
+
+export interface ISafeBoxFeePaidEvent {
+  safeBoxFee: bigint;
+  safeBoxAmount: bigint;
+  collateral: string;
+}
+
+export interface ISafeBoxSharePaidEvent {
+  safeBoxShare: bigint;
+  safeBoxAmount: bigint;
 }
   

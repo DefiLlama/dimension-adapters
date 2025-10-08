@@ -1,13 +1,15 @@
 import { Balances } from '@defillama/sdk';
-import {
-  ITicketCreatedEvent,
-  IBoughtFromAmmEvent,
-  ISpeedMarketCreatedEvent,
-  IChainedMarketCreatedEvent
+import { 
+  ITicketCreatedEvent, 
+  IBoughtFromAmmEvent, 
+  ISpeedMarketCreatedEvent, 
+  IChainedMarketCreatedEvent,
+  ISafeBoxFeePaidEvent,
+  ISafeBoxSharePaidEvent
 } from './eventArgs';
 
 export function parseTicketCreatedEvent(
-  log: ITicketCreatedEvent,
+  log: ITicketCreatedEvent, 
   dailyNotionalVolume: Balances,
   dailyPremiumVolume: Balances
 ) {
@@ -17,7 +19,7 @@ export function parseTicketCreatedEvent(
 }
 
 export function parseBoughtFromAmmEvent(
-  log: IBoughtFromAmmEvent,
+  log: IBoughtFromAmmEvent, 
   dailyNotionalVolume: Balances,
   dailyPremiumVolume: Balances
 ) {
@@ -27,7 +29,7 @@ export function parseBoughtFromAmmEvent(
 }
 
 export function parseSpeedMarketCreatedEvent(
-  log: ISpeedMarketCreatedEvent,
+  log: ISpeedMarketCreatedEvent, 
   dailyNotionalVolume: Balances,
   dailyPremiumVolume: Balances
 ) {
@@ -37,7 +39,7 @@ export function parseSpeedMarketCreatedEvent(
 }
 
 export function parseChainedMarketCreatedEvent(
-  log: IChainedMarketCreatedEvent,
+  log: IChainedMarketCreatedEvent, 
   dailyNotionalVolume: Balances,
   dailyPremiumVolume: Balances
 ) {
@@ -45,4 +47,25 @@ export function parseChainedMarketCreatedEvent(
   const notionalVolume = (Number(buyinAmount) / 1e18) * Math.pow(Number(payoutMultiplier) / 1e18, directions.length);
   dailyNotionalVolume.addUSDValue(notionalVolume);
   dailyPremiumVolume.addUSDValue(Number(buyinAmount) / 1e18);
+}
+
+export function parseSafeBoxFeePaidEvent(
+  log: ISafeBoxFeePaidEvent,
+  dailyRevenue: Balances
+) {
+  const { safeBoxAmount, collateral } = log;
+  dailyRevenue.addToken(collateral, safeBoxAmount);
+}
+
+export function parseSafeBoxSharePaidEvent(
+  log: ISafeBoxSharePaidEvent,
+  contractAddress: string,
+  collateralMapping: Record<string, string>,
+  dailyLPPerformanceFee: Balances
+) {
+  const { safeBoxAmount } = log;
+  const collateral = collateralMapping[contractAddress.toLowerCase()];
+  if (collateral) {
+    dailyLPPerformanceFee.addToken(collateral, safeBoxAmount);
+  }
 }
