@@ -466,6 +466,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     ink: 'ink',
     berachain: 'berachain',
     polygon_zkevm: 'polygon_zkevm',
+    plasma: 'plasma',
   }
   const tableMap: any = {
     bsc: 'bnb_token_transfers',
@@ -479,6 +480,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     polygon_zkevm: 'native_token_transfers',
     unichain: 'native_token_transfers',
     sonic: 'native_token_transfers',
+    plasma: 'native_token_transfers',
   }
 
   let query = ``
