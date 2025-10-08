@@ -11,7 +11,7 @@ const chainsMap: Record<string, string> = {
   OPTIMISM: CHAIN.OPTIMISM,
   BASE: CHAIN.BASE,
   GNOSIS: CHAIN.XDAI,
-  FANTOM: CHAIN.FANTOM,
+  // FANTOM: CHAIN.FANTOM,
   LINEA: CHAIN.LINEA,
   SONIC: CHAIN.SONIC,
   UNICHAIN: CHAIN.UNICHAIN,
@@ -40,7 +40,7 @@ const fetch = async (
 ): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
   const chainData = results.find(
-    (item) => chainsMap[item.blockchain] === options.chain.toLowerCase()
+    (item: any) => chainsMap[item.blockchain] === options.chain.toLowerCase()
   );
 
   return {
