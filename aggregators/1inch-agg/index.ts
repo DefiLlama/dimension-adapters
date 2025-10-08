@@ -1,36 +1,42 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 
 const chainsMap: Record<string, string> = {
-  ETHEREUM: CHAIN.ETHEREUM,
-  ARBITRUM: CHAIN.ARBITRUM,
-  POLYGON: CHAIN.POLYGON,
-  BNB: CHAIN.BSC,
-  AVALANCHE: CHAIN.AVAX,
-  OPTIMISM: CHAIN.OPTIMISM,
-  BASE: CHAIN.BASE,
-  GNOSIS: CHAIN.XDAI,
-  // FANTOM: CHAIN.FANTOM,
-  LINEA: CHAIN.LINEA,
-  SONIC: CHAIN.SONIC,
-  UNICHAIN: CHAIN.UNICHAIN,
-  ZKSYNC: CHAIN.ZKSYNC,
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.BSC]: 'bnb',
+  [CHAIN.AVAX]: 'avalanche_c',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.XDAI]: 'gnosis',
+  [CHAIN.LINEA]: 'linea',
+  [CHAIN.SONIC]: 'sonic',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.ERA]: 'zksync',
 };
 
 const prefetch = async (options: FetchOptions) => {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC);
+
   const sql_query = `
     SELECT
-        split_part(upper(blockchain), '_', 1) as blockchain,
-        sum(amount_usd) as volume_24h
+      blockchain,
+      sum(amount_usd) as volume_24h
     FROM oneinch.swaps
     WHERE
-        (protocol = 'AR' OR flags['second_side'])
-        AND TIME_RANGE
+      (protocol = 'AR' OR flags['second_side'])
+      AND TIME_RANGE
+      AND src_token_address NOT IN (${blacklisted})
+      AND dst_token_address NOT IN (${blacklisted})
     GROUP BY 1
     ORDER BY volume_24h DESC
   `;
-  return await queryDuneSql(options, sql_query);
+  const result = await queryDuneSql(options, sql_query);
+
+  return result;
 };
 
 const fetch = async (
@@ -39,29 +45,19 @@ const fetch = async (
   options: FetchOptions
 ): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
-  const chainData = results.find(
-    (item: any) => chainsMap[item.blockchain] === options.chain.toLowerCase()
-  );
+  const chainData = results.find((item: any) => item.blockchain === chainsMap[options.chain]);
 
   return {
-    dailyVolume: chainData.volume_24h,
+    dailyVolume: chainData ? chainData.volume_24h : 0,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
-  adapter: {
-    ...Object.values(chainsMap).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [(chainsMap as any)[chain] || chain]: {
-          fetch: fetch,
-          start: "2023-12-05",
-        },
-      };
-    }, {}),
-  },
+  fetch,
+  chains: Object.keys(chainsMap),
+  start: "2023-12-05",
   prefetch,
   isExpensiveAdapter: true,
 };
