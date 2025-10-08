@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import axios from "axios";
-import Decimal from "decimal.js";
 
 async function call(
   method: string,
@@ -42,7 +41,7 @@ const fetchFees = async (options: FetchOptions) => {
     const decimals = coinMetadata.decimals;
     dailyFees.addCGToken(
       feeInfo.token_cg_name,
-      new Decimal(feeInfo.house_pnl).div(10 ** decimals).toNumber()
+      feeInfo.house_pnl / 10 ** decimals
     );
   }
 
