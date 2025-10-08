@@ -46,14 +46,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       })
   ]);
 
-  const priceStart = Number(sharePriceStart) / (10 ** CONFIG.priceDecimals);
-  const priceEnd = Number(sharePriceEnd) / (10 ** CONFIG.priceDecimals);
-  const supplyEnd = Number(shareSupplyEnd) / (10 ** CONFIG.supplyDecimals);
-  const timeframe = options.toTimestamp - options.fromTimestamp;
-  const apyFees = (priceEnd - priceStart) * supplyEnd * timeframe / (365 * 24 * 3600);
+  // absolute pool fees from fromTimestamp to toTimestamp
+  const supplyEndRusd = Number(shareSupplyEnd) / (10 ** (CONFIG.supplyDecimals - CONFIG.quoteDecimals));
+  const poolFees = (Number(sharePriceEnd) - Number(sharePriceStart)) * supplyEndRusd / (10 ** CONFIG.priceDecimals);
 
-  dailyFees.addToken(ADDRESSES.reya.RUSD, apyFees);
-
+  if (poolFees > 0) {
+    dailyFees.addToken(ADDRESSES.reya.RUSD, poolFees);
+  }
 
   // Add the fees and revenue earned through trading
   const [older_logs, newer_logs] = await Promise.all([
@@ -86,9 +85,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 const adapters: SimpleAdapter = {
   version: 2,
   methodology: {
+    Volume: "Notional volume of trades",
     Fees: "All fees paid by traders, including the APY earned by stakers",
     Revenue: "Portion of fees distributed to the DAO Treasury",
-    Volume: "Notional volume of trades"
   },
   chains: [CHAIN.REYA],
   start: "2024-03-20",
