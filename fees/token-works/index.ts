@@ -117,9 +117,9 @@ export default {
   fetch,
   chains: [CHAIN.ETHEREUM],
   methodology: {
-    Fees: 'Launch fees + total buy/sell tax collected from strategy tokens trading (not including swap fees on dexes).',
-    Revenue: 'All buy/sell tax are revenue, they will be shared for creators and token buy back.',
-    ProtocolRevenue: 'Fees charged when launch strategy tokens on TokenWorks, currently no launch fees.',
+    Fees: 'Total buy/sell tax collected from strategy tokens trading (not including swap fees on dexes).',
+    Revenue: '90% of token tax will be used for buybacks and burns.',
+    ProtocolRevenue: 'No launch fees.',
     SupplySideRevenue: '10% of token tax will be distributed to NFT creators.',
     HoldersRevenue: '90% of token tax and all NFT sold will be used to buy back strategy tokens.',
   },
