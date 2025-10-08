@@ -48,11 +48,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   const priceStart = Number(sharePriceStart) / (10 ** CONFIG.priceDecimals);
   const priceEnd = Number(sharePriceEnd) / (10 ** CONFIG.priceDecimals);
-  const supplyEnd = Number(shareSupplyEnd) / (10 ** CONFIG.supplyDecimals);
-  const timeframe = options.toTimestamp - options.fromTimestamp;
-  const apyFees = (priceEnd - priceStart) * supplyEnd * timeframe / (365 * 24 * 3600);
+  const supplyEndRusd = Number(shareSupplyEnd) / (10 ** (CONFIG.supplyDecimals - CONFIG.quoteDecimals));
 
-  dailyFees.addToken(ADDRESSES.reya.RUSD, apyFees);
+  // absolute pool fees over 1 day
+  const timeframe = options.toTimestamp - options.fromTimestamp;
+  const poolFees = (priceEnd - priceStart) * supplyEndRusd * (24 * 3600) / timeframe;
+
+  dailyFees.addToken(ADDRESSES.reya.RUSD, poolFees);
 
 
   // Add the fees and revenue earned through trading
