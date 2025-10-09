@@ -327,6 +327,7 @@ const RP9_1_ADDRESS: any = {
   [CHAIN.KATANA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
   [CHAIN.HYPERLIQUID]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
   [CHAIN.BERACHAIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.PLASMA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
 }
 
 const RP9_2_ADDRESS: any = {
@@ -371,6 +372,7 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.KATANA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.HYPERLIQUID]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.BERACHAIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.PLASMA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
 }
 
 const WNATIVE_ADDRESS: any = {
@@ -418,7 +420,8 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.HEMI]: ADDRESSES.optimism.WETH_1,
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
   [CHAIN.HYPERLIQUID]: ADDRESSES.hyperliquid.WHYPE,
-  [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA
+  [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
+  [CHAIN.PLASMA]: '0x6100e367285b01f48d07953803a2d8dca5d19873',
 }
 
 const useSushiAPIPrice = (chain: any) => [
@@ -685,6 +688,10 @@ const adapters = {
   [CHAIN.BERACHAIN]: {
     fetch,
     start: '2025-09-01'
+  },
+  [CHAIN.PLASMA]: {
+    fetch,
+    start: '2025-09-25'
   }
 }
 
