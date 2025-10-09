@@ -226,7 +226,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-    //deadFrom: '2024-05-02',
+    deadFrom: '2024-05-02',
     fetch,
     adapter: {
         [CHAIN.ETHEREUM]: { start: '2020-10-20', },
