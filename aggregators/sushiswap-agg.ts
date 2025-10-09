@@ -2,7 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultV2, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
-import { getDefaultDexTokensWhitelisted } from '../helpers/lists';
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from '../helpers/lists';
 import { formatAddress } from '../utils/utils';
 
 const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
@@ -468,9 +468,13 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   let logs = (await Promise.all(logsPromises)).flat()
   
   // count volune only from whitelisted tokens
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: chain})
   if (whitelistedTokens.length > 0) {
-    logs = logs.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+    logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
+      && !blacklistedTokens.includes(formatAddress(log.tokenIn))
+      && !blacklistedTokens.includes(formatAddress(log.tokenOut))
+    )
   }
 
   if (useSushiAPIPrice(chain)) {
@@ -512,6 +516,8 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       }
     })
   }
+
+  await dailyVolume.getUSDJSONs({ debug: true })
 
   return { dailyVolume }
 }
