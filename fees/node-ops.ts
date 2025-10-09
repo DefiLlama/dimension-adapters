@@ -40,6 +40,8 @@ const chainExplorerMapping: any = {
   [CHAIN.BASE]: 'basescan',
   [CHAIN.POLYGON]: 'polygonscan',
   [CHAIN.OFF_CHAIN]: 'copperx',
+  [CHAIN.SOLANA]: 'solscan',
+  [CHAIN.ETHEREUM]: 'etherscan',
 }
 
 export default {
