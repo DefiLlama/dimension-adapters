@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
-import { getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
 
 
@@ -24,9 +24,13 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   })
 
   // count volune only from whitelisted tokens
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
   if (whitelistedTokens.length > 0) {
-    logs = logs.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+    logs = logs.filter(log => (whitelistedTokens.includes(formatAddress(log.fromAssetId)) || whitelistedTokens.includes(formatAddress(log.toAssetId)))
+      && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
+      && !blacklistedTokens.includes(formatAddress(log.toAssetId))
+    )
   }
 
   logs.forEach((log: any) => {

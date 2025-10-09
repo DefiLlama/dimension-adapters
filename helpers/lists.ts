@@ -96,7 +96,7 @@ const ChainConfigs: {[key: string]: ChainTokenConfig} = {
 
 export async function getDefaultDexTokensWhitelisted({ chain }: { chain: string }): Promise<Array<string>> {
   if (ChainConfigs[chain]) {
-    const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+    const blacklisted = getDefaultDexTokensBlacklisted(chain)
     const data = await httpGet(ChainConfigs[chain].tokenListUrl);
     const tokens = data.tokens ? data.tokens : data;
     return tokens
