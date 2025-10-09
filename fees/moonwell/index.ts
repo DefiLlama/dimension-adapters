@@ -100,14 +100,12 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     return { dailyFees, dailyRevenue }
 }
 
-const meta = {
-    methodology: {
-        Fees: "Total interest paid by borrowers",
-        Revenue: "Protocol's share of interest treasury",
-        ProtocolRevenue: "Protocol's share of interest into treasury",
-        HoldersRevenue: "No revenue for WELL holders.",
-        SupplySideRevenue: "Interest paid to lenders in liquidity pools"
-    }
+const methodology = {
+    Fees: "Total interest paid by borrowers",
+    Revenue: "Protocol's share of interest treasury",
+    ProtocolRevenue: "Protocol's share of interest into treasury",
+    HoldersRevenue: "No revenue for WELL holders.",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
 }
 
 function moonwellExport(config: IJSON<string>) {
@@ -123,10 +121,10 @@ function moonwellExport(config: IJSON<string>) {
                 })
                 return { dailyFees, dailyRevenue, dailyHoldersRevenue: 0, dailySupplySideRevenue }
             }),
-                    }
+        }
     })
     // dailySupplySideRevenue could be negative if protocol revenue exceeds total fees, though unlikely in normal conditions(like bad liquidations)
-    return { adapter: exportObject, version: 2, allowNegativeValue: true, } as SimpleAdapter
+    return { adapter: exportObject, version: 2, allowNegativeValue: true, methodology, } as SimpleAdapter
 }
 
 export default moonwellExport({ base: baseUnitroller, moonbeam: moonbeamUnitroller, moonriver: moonriverUnitroller, optimism: optimismUnitroller });

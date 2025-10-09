@@ -31,20 +31,12 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
   const formattedDate = `${year}/${String(month).padStart(2, "0")}/${String(
     day
   ).padStart(2, "0")}`;
-  const totalVolume = historicalVolume
-    .filter(
-      (volItem) =>
-        Number(new Date(volItem.date.split("/").join("-")).getTime() / 1000) <=
-        dayTimestamp
-    )
-    .reduce((acc, { volume }) => acc + Number(volume), 0);
 
   const dailyVolume = historicalVolume.find(
     (dayItem) => dayItem.date === formattedDate
   )?.volume;
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };

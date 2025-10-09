@@ -42,6 +42,21 @@ swap_events as (
     from eulerswap_multichain.eulerswap_evt_swap
     where evt_block_time >= from_unixtime({{start}})
         and evt_block_time < from_unixtime({{end}})
+        and chain != 'unichain'
+
+    union all
+
+    select
+        evt_block_time,
+        'unichain' as chain,
+        contract_address as pool,
+        cast(amount0in as double) as asset0_amount_in,
+        cast(amount1in as double) as asset1_amount_in,
+        evt_tx_hash,
+        evt_index
+    from eulerswap_unichain.eulerswapinstance_evt_swap
+    where evt_block_time >= from_unixtime({{start}})
+        and evt_block_time < from_unixtime({{end}})
 ),
 raw_swaps as (
     select
@@ -53,7 +68,7 @@ raw_swaps as (
         config.fee,
         config.protocolfee,
         config.lpfee,
-        row_number() over (partition by config.evt_block_time, s.evt_tx_hash, s.evt_index, s.chain, s.pool, s.evt_block_time order by config.evt_block_time desc) as rn
+        row_number() over (partition by s.chain, s.pool, s.evt_tx_hash, s.evt_index order by config.evt_block_time desc) as rn
     from swap_events s
     left join config
         on s.chain = config.chain
@@ -71,7 +86,8 @@ swaps as (
         lpfee
     from raw_swaps
     left join pools
-        on raw_swaps.pool = pools.pool
+        on raw_swaps.chain = pools.chain
+        and raw_swaps.pool = pools.pool
     left join prices p0
         on pools.chain = p0.blockchain
         and date_trunc('hour', raw_swaps.evt_block_time) = p0.time

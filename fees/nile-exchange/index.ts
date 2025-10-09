@@ -67,11 +67,9 @@ const adapter: Adapter = {
         return response;
       },
       start: startTimeV2[CHAIN.LINEA],
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

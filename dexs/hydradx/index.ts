@@ -1,33 +1,39 @@
-import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getHydrationBlock } from "../../helpers/getBlock";
+import { request } from "graphql-request";
 
-const URL = "https://api.hydradx.io/defillama/v1/volume"
 
-type IAPIResponse = {
-  volume_usd: number;
-}[];
+const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
+  const fromBlock = await getHydrationBlock(fromTimestamp)
+  const toBlock = await getHydrationBlock(toTimestamp)
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse = (await fetchURL(URL));
-  const dailyVolume = response[0].volume_usd;
+  // Fetch fees data from GraphQL endpoint
+  const feesQuery = `query MyQuery { platformTotalVolumesByPeriod( filter: {startBlockNumber: ${fromBlock}, endBlockNumber: ${toBlock}} ) { nodes { totalVolNorm} } }
+    `;
+
+  const feesResponse = await request("https://galacticcouncil.squids.live/hydration-pools:whale-prod/api/graphql", feesQuery);
+
+  if (feesResponse.platformTotalVolumesByPeriod?.nodes?.length == 0)
+    throw new Error("No fees data found for the given block range")
+
+  const node = feesResponse.platformTotalVolumesByPeriod.nodes[0];
+
 
   return {
-    dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
+    dailyVolume: node.totalVolNorm,
   };
 };
 
+
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.HYDRADX]: {
       fetch,
-      runAtCurrTime: true,
       start: '2023-08-22',
     },
-  }
+  },
 };
 
 export default adapter;

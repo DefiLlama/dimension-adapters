@@ -64,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
       .sort((a, b) => a.blockNumber - b.blockNumber);
 
     // Calculate total fee shares collected
-    const totalFeeShares = allFeeEvents.reduce((sum, event) => 
+    const totalFeeShares = allFeeEvents.reduce((sum, event) =>
       sum + Number(event[1]), 0);
 
     let sharePrice: number | undefined;
@@ -85,7 +85,7 @@ const fetch = async (options: FetchOptions) => {
       // If no states in current period, search backwards for the latest state
       let currentBlock = fromBlock;
       let latestState = null;
-      
+
       while (!latestState && currentBlock > VAULT_STATE_BLOCK_LIMIT) {
         const previousStates = await options.getLogs({
           target: vault,
@@ -93,12 +93,12 @@ const fetch = async (options: FetchOptions) => {
           fromBlock: Math.max(VAULT_STATE_BLOCK_LIMIT, currentBlock - 50000),
           toBlock: currentBlock
         }) || [];
-        
+
         if (previousStates.length > 0) {
           latestState = previousStates
             .sort((a, b) => b.blockNumber - a.blockNumber)[0];
         }
-        
+
         currentBlock -= 50000;
       }
 
@@ -111,7 +111,7 @@ const fetch = async (options: FetchOptions) => {
     if (sharePrice !== undefined) {
       // Convert fee shares to underlying asset amount using the determined share price
       const totalFeeInAssets = totalFeeShares * sharePrice;
-      
+
       dailyFees.add(assetAddress, totalFeeInAssets);
     }
   }
@@ -130,14 +130,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      meta: {
-        methodology: {
-          Fees: "Sum of management and performance fees collected from all vaults",
-          Revenue: "Sum of management and performance fees collected from all vaults",
-        },
-      },
       start: '2024-04-26',
     },
+  },
+  methodology: {
+    Fees: "Sum of management and performance fees collected from all vaults",
+    Revenue: "Sum of management and performance fees collected from all vaults",
   },
 };
 

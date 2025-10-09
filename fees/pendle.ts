@@ -23,12 +23,14 @@ const ABI = {
 type IConfig = {
   [s: string | Chain]: {
     treasury: string;
+    blacklists?: Array<string>;
   };
 };
 
 const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH;
 const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
 const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
+const USDT_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.USDT;
 
 const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
 
@@ -54,6 +56,9 @@ const BRIDGED_ASSETS = [
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
     treasury: "0x8270400d528c34e1596ef367eedec99080a1b592",
+    blacklists: [
+      '0xe2796707590384430d887f15bdf97c660d95894a',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
@@ -85,7 +90,10 @@ const fetch = (chain: Chain) => {
     options: FetchOptions
   ): Promise<FetchResultFees> => {
     await getWhitelistedAssets(options.api);
-    const { api, getLogs, createBalances } = options;
+    const { api, getLogs } = options;
+
+    const dailyFees = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
 
     const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
 
@@ -114,7 +122,6 @@ const fetch = (chain: Chain) => {
       }
     }
 
-    const dailySupplySideFees = createBalances();
     const allSwapEvents = await getLogs({
       targets: markets,
       eventAbi: ABI.marketSwapEvent,
@@ -127,7 +134,7 @@ const fetch = (chain: Chain) => {
       logs.forEach((log: any) => {
         const netSyFee = log.netSyFee;
         const netSyToReserve = log.netSyToReserve;
-        dailySupplySideFees.add(token!, netSyFee - netSyToReserve); // excluding revenue fee
+        dailySupplySideRevenue.add(token!, netSyFee - netSyToReserve); // excluding revenue fee
       })
     })
 
@@ -139,11 +146,13 @@ const fetch = (chain: Chain) => {
     });
 
     const allRevenueTokenList = dailyRevenue.getBalances();
-    const allSupplySideTokenList = dailySupplySideFees.getBalances();
+    const allSupplySideTokenList = dailySupplySideRevenue.getBalances();
 
     for (const token in allRevenueTokenList) {
       const tokenAddr = token.split(":")[1];
       const index = sys.indexOf(tokenAddr);
+
+      if (chainConfig[options.chain].blacklists && chainConfig[options.chain].blacklists?.includes(tokenAddr)) continue;
 
       if (index == -1 || !assetInfos[index]) continue;
 
@@ -153,7 +162,7 @@ const fetch = (chain: Chain) => {
       const rawAmountSupplySide = allSupplySideTokenList[token];
 
       dailyRevenue.removeTokenBalance(token);
-      dailySupplySideFees.removeTokenBalance(token);
+      dailySupplySideRevenue.removeTokenBalance(token);
 
       let underlyingAsset = assetInfo[1]!;
 
@@ -189,7 +198,7 @@ const fetch = (chain: Chain) => {
       );
 
       if (rawAmountSupplySide !== undefined) {
-        dailySupplySideFees.addToken(
+        dailySupplySideRevenue.addToken(
           underlyingAsset,
           assetAmountSupplySide,
           isBridged
@@ -202,78 +211,74 @@ const fetch = (chain: Chain) => {
     }
 
     // these revenue should be counted in fees too
-    dailyRevenue.addBalances(
-      await addTokensReceived({
-        options,
-        target: AIRDROP_DISTRIBUTOR,
-      })
-    )
+    const tokenToDistributor = await addTokensReceived({
+      options,
+      target: AIRDROP_DISTRIBUTOR,
+    })
 
-    const dailyFees = dailyRevenue.clone();
-    dailyFees.addBalances(dailySupplySideFees);
+    tokenToDistributor.removeTokenBalance(USDT_ETHEREUM) // ignore USDT airdrop
+
+    dailyRevenue.addBalances(tokenToDistributor)
+    dailyFees.addBalances(dailyRevenue);
+    dailyFees.addBalances(dailySupplySideRevenue);
+
+    // https://docs.pendle.finance/ProtocolMechanics/Mechanisms/Fees
+    const dailyHoldersRevenue = dailyRevenue.clone(0.8)
+    const dailyProtocolRevenue = dailyRevenue.clone(0.2)
 
     return {
       dailyFees,
       dailyRevenue,
-      dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: dailyRevenue,
-      dailySupplySideRevenue: dailySupplySideFees,
+      dailyProtocolRevenue,
+      dailyHoldersRevenue,
+      dailySupplySideRevenue,
       timestamp,
     };
   };
 };
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
-    Revenue: 'Share of yields and trading fees collected by protocol',
-    ProtocolRevenue: 'Share of yields and trading fees collected by protocol',
-    HoldersRevenue: 'Share of yields and trading fees distributed to vePENDLE',
-    SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers',
-  }
+    Revenue: 'Sum of 5% fee from all yield + points accrued and 80% trading fees.',
+    ProtocolRevenue: '20% revenue to protocol treasury and operations.',
+    HoldersRevenue: '80% revenue distributed to vePENDLE',
+    SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers.',
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-06-09',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2023-06-09',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: '2023-06-09',
-      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2023-08-11',
-      meta,
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
       start: '2024-03-27',
-      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: '2024-11-12',
-      meta,
     },
     [CHAIN.SONIC]: {
       fetch: fetch(CHAIN.SONIC),
       start: '2025-02-14',
-      meta,
     },
     [CHAIN.BERACHAIN]: {
       fetch: fetch(CHAIN.BERACHAIN),
       start: '2025-02-07',
-      meta,
     }
   },
 };

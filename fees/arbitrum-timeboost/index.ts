@@ -10,31 +10,29 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: (async (options: FetchOptions) => {
-        const { getFromBlock, getToBlock, createBalances, } = options
+        const { createBalances, } = options
         const dailyRevenue = createBalances()
 
         const logs = await options.getLogs({
-            target: '0x5fcb496a31b7ae91e7c9078ec662bd7a55cd3079',
-            eventAbi: AUCTIONRESOLVED_EVENT_ABI,
+          target: '0x5fcb496a31b7ae91e7c9078ec662bd7a55cd3079',
+          eventAbi: AUCTIONRESOLVED_EVENT_ABI,
         });
 
         logs.map((log: any) => {
-            dailyRevenue.add(WETH_ADDRESS, log.price);
+          dailyRevenue.add(WETH_ADDRESS, log.price);
         });
 
         return { dailyFees: dailyRevenue, dailyRevenue: dailyRevenue, dailyProtocolRevenue: dailyRevenue };
       }) as any,
       start: '2021-08-10',
-      meta: {
-        methodology: {
-          Fees: 'All priority/boost ETH fees paid transactions by users.',
-          Revenue: 'All fees go to Arbitrum protocol treasury.',
-          ProtocolRevenue: 'All fees go to Arbitrum protocol treasury.',
-        }
-      }
     },
   },
-  version: 2
+  version: 2,
+  methodology: {
+    Fees: 'All priority/boost ETH fees paid transactions by users.',
+    Revenue: 'All fees go to Arbitrum protocol treasury.',
+    ProtocolRevenue: 'All fees go to Arbitrum protocol treasury.',
+  }
 }
 
 export default adapter;

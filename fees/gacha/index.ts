@@ -65,20 +65,18 @@ const fetch: FetchV2 = async ({ api, getLogs, createBalances, fromApi, toApi, }:
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    Volumes:
+      "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",
+    Fees:
+      "Fees are computed as a percentage (feeBPS from the contract config) of the Gacha ticket purchase volume.",
+    Revenue: "Revenue is equal to the fees collected.",
+    ProtocolRevenue: "Revenue is equal to the fees collected.",
+  },
+  fetch,
   adapter: {
     [CHAIN.ABSTRACT]: {
-      fetch,
       start: "2025-02-10",
-      meta: {
-        methodology: {
-          Volumes:
-            "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",
-          Fees:
-            "Fees are computed as a percentage (feeBPS from the contract config) of the Gacha ticket purchase volume.",
-          Revenue: "Revenue is equal to the fees collected.",
-          ProtocolRevenue: "Revenue is equal to the fees collected.",
-        },
-      },
     },
   },
 };

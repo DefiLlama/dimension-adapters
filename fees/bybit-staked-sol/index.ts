@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -39,22 +39,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: 'Staking rewards from staked SOL on bybit staked solana',
-    Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-    ProtocolRevenue: 'Revenue going to treasury/team',
-  }
+const methodology = {
+  Fees: 'Staking rewards from staked SOL on bybit staked solana',
+  Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
+  ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
 export default {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2024-09-07",
-      meta
-    }
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2024-09-07",
+  methodology,
   isExpensiveAdapter: true
 };

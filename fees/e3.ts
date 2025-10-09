@@ -80,19 +80,17 @@ const adapter: SimpleAdapter = {
 		[CHAIN.FANTOM]: {
 			fetch,
 			start: '2023-04-10',
-			meta: { methodology }
 		},
 		[CHAIN.ARBITRUM]: {
 			fetch,
 			start: '2023-06-11',
-			meta: { methodology }
 		},
 		[CHAIN.BASE]: {
 			fetch,
 			start: '2023-08-09',
-			meta: { methodology }
 		}
-	}
+	},
+	methodology,
 };
 
 export default adapter;

@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResultV2 } from "../../adapters/types"
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'All yields are generated from all staking assets across all trading strategies.',
     Revenue: '20% Performance and 2% management fees charged by D2 Finance.',
@@ -10,7 +10,7 @@ const meta = {
   }
 }
 
-const VaultConfigs = {
+const VaultConfigs: any = {
   ethereum: ['0x07Dff4087b43c4A759f4Fc69511c26d51929dAF4'],
   base: ['0x6c05A7d2c24B48fC3C615D294fEc2eB068548897'],
   arbitrum: [
@@ -47,14 +47,16 @@ const VaultConfigs = {
     '0xcd18006cc69c6d5fa4fd4eaf99910b58464fa3ae',
     '0xBf075980792f8cc89DFb74b553acf6750a7E941b',
     '0xC4fEE8c68293a63241b64e5A2EF07fcf89005dD3',
-  ], 
+  ],
   hyperliquid: [
     '0xf44f49E6577B3934f981C6f0629d15154d2606E6',
     '0x7410E69958a8ECE2A51C231C8528513d4d668C7a',
     '0xade27c7dec9211973278876f3819aedc28cd50ca',
     '0x6bf9345b5d6b27b5cbf2e463dc5e0b2afcedc21c',
     '0x3ebb11ba6a5b61c04d1a703ea10728d519945440',
-  ]
+    '0x195eb4d088f222c982282b5dd495e76dba4bc7d1',
+    '0x8ef30c5ce9a460bfae82f1f039f7c5e5427d7018',
+  ],
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -119,27 +121,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 export default {
+  fetch, methodology: info.methodology,
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: "2024-01-20",
-      meta,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: "2025-01-09",
-      meta,
-    },
-    [CHAIN.BERACHAIN]: {
-      fetch: fetch,
-      start: "2025-01-26",
-      meta,
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetch,
-      start: "2025-05-06",
-      meta,
-    },
+    [CHAIN.ARBITRUM]: { start: "2024-01-20", },
+    [CHAIN.ETHEREUM]: { start: "2025-01-09", },
+    [CHAIN.BASE]: { start: "2025-01-09", },
+    [CHAIN.BERACHAIN]: { start: "2025-01-26", },
+    [CHAIN.HYPERLIQUID]: { start: "2025-05-06", },
   },
 };
