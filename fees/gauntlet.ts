@@ -99,7 +99,10 @@ async function calculateGrossReturns(options: FetchOptions): Promise<number> {
           const endNetValue = endValue - endNetDeposits;
           const periodReturns = endNetValue - startNetValue;
           const periodManagerFees = endManagerFees - startManagerFees;
-          const periodValueGenerated = periodReturns + periodManagerFees;
+          
+          // Only add period returns to avoid double-counting manager fees
+          // Manager fees are tracked separately in dailyRevenue
+          const periodValueGenerated = periodReturns;
 
           totalGrossReturns += periodValueGenerated;
         }
@@ -127,14 +130,17 @@ const fetchSolana = async (options: FetchOptions) => {
       AND to_owner = '${MANAGER_ADDRESS}'
       AND block_time >= from_unixtime(${options.startTimestamp})
       AND block_time < from_unixtime(${options.endTimestamp})
+      AND amount_display IS NOT NULL
+      AND amount_display != 0
     GROUP BY token_mint_address, symbol
+    HAVING SUM(amount_display) != 0
     ORDER BY total_amount DESC
   `;
   const managerFeesData = await queryDuneSql(options, managerFeesQuery);
 
   if (managerFeesData && managerFeesData.length > 0) {
     managerFeesData.forEach((fee: any) => {
-      if (fee.total_amount && fee.token_mint_address) {
+      if (fee.total_amount && fee.token_mint_address && fee.total_amount !== 0) {
         dailyRevenue.add(fee.token_mint_address, fee.total_amount);
       }
     });
