@@ -41,7 +41,9 @@ const VAULT_ADDRESSES = [
   "4F7c7v9cZHatcZLy9TZFv1jrRrReACLBxciMkbDqVkfQ", // jitoSOL Plus
   "8ziYC1onrdfq2KhRQamz392Ykx8So48uWzd3f8tXJpVz", // DRIFT Plus
   "5M13RDhVWSGiuUPU3ewnxLWdMjcYx5zCzBLgvMjVuZ2K", // JTO Plus
-  "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ"  // Carrot hJLP
+  "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ", // Carrot hJLP
+  "An26iG1Cx5W8tsxa8cHg8zjt7G15rBBj6swextzwMGCG", // wETH Plus
+  "12HURxP9axx1FRKKHEWMiPcS6ixuekZ6pzfTbp3YQ1EH"  // dfdvSOL Plus
 ];
 
 async function calculateGrossReturns(options: FetchOptions): Promise<number> {
