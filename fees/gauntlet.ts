@@ -155,7 +155,7 @@ const fetchSolana = async (options: FetchOptions) => {
   };
 };
 
-// Get curator export for EVM chains and combine with Solana
+// Get curator export for EVM chains
 const curatorExport = getCuratorExport(curatorConfig);
 
 const methodology = {
