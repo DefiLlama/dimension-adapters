@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
-import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { BreakdownAdapter, Dependencies, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
@@ -80,6 +80,7 @@ const adapter: BreakdownAdapter = {
     },
   },
   prefetch: prefetch,
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };
 

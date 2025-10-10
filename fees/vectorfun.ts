@@ -2,7 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/adam_tehc/vectorfun
 // https://dune.com/queries/4411229/7390130
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -66,12 +66,10 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-07-28',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-07-28',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "All trading and launching tokens fees paid by users.",

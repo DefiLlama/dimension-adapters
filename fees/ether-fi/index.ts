@@ -1,6 +1,6 @@
 // https://etherfi.gitbook.io/etherfi/liquid/technical-documentation#fees
 import * as sdk from "@defillama/sdk";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ethers } from "ethers";
 import ADDRESSES from '../../helpers/coreAssets.json';
@@ -540,6 +540,8 @@ const adapter: Adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ETHEREUM],
+  dependencies: [Dependencies.DUNE],
+  start: '2024-03-13',
   methodology: {
     Fees: "Total rewards generated from all ether.fi services: ETH staking, Eigenlayer restaking, validator operations, liquid vaults, and ether.fi Cash services.",
     Revenue: "Protocol's share of fees including management fees from staking/restaking, validator operations rewards, liquid vault management fees, and cash service fees.",
@@ -559,8 +561,7 @@ const adapter: Adapter = {
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: 'ETHFI token buybacks executed by ether.fi from protocol revenue',
     },
-  },
-  start: '2024-03-13'
+  }
 };
 
 export default adapter;

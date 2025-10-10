@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -108,6 +108,7 @@ const adapters: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.POLYGON],
+  dependencies: [Dependencies.DUNE],
   start: '2020-09-30',
   isExpensiveAdapter: true,
 }

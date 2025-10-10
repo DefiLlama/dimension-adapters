@@ -1,6 +1,6 @@
 // Source: https://solanacompass.com/stake-pools/9mhGNSPArRMHpLDMSmxAvuoizBqtBGqYdT8WGuqgxNdn
 
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -48,9 +48,10 @@ const methodology = {
 
 export default {
     version: 1,
-    methodology,
     fetch,
     chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
     start: "2024-08-26",
+    methodology,
     isExpensiveAdapter: true
 };

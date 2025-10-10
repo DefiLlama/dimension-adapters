@@ -18,7 +18,7 @@
  * Source: https://docs.berachain.com/learn/guides/add-incentives-for-reward-vault
  */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -196,18 +196,15 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    BribeRevenue:
-        "Incentives Distributed From Berachain Reward Vaults",
+    BribeRevenue: "Incentives Distributed From Berachain Reward Vaults",
 };
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.BERACHAIN]: {
-            fetch: fetch,
-            start: "2025-02-05", // Berachain launch
-        },
-    },
+    dependencies: [Dependencies.DUNE],
+    fetch,
+    chains: [CHAIN.BERACHAIN],
+    start: "2025-02-05",
     methodology,
     isExpensiveAdapter: true,
 };

@@ -1,8 +1,8 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const query = `
     with tx_ct as (
@@ -55,12 +55,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   deadFrom: '2025-05-28',
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2022-09-15',
-    },
-  },
+  fetch,
+  start: '2022-09-15',
+  chains: [CHAIN.ETHEREUM],
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Total MEV Tips for Eden Builders"

@@ -11,7 +11,7 @@ WITH
             0xeb8A7B0184373550DCAa79156812F5d33e998C1E
         )
         AND topic0 = 0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
-        AND block_time >= from_unixtime({{startTimestamp}})
+        AND block_time >= timestamp '2024-08-30'
         AND block_time <= from_unixtime({{endTimestamp}})
     ),
     
@@ -67,7 +67,7 @@ WITH
                 -- buy / sell methods are fun, the rest are app
                 CASE 
                     WHEN varbinary_substring(b.data, 1, 4) IN (0x4189a68e, 0x7deb6025) THEN 'fun'
-                    ELSE 'app' 
+                    ELSE 'app'
                 END as category2
             FROM trading_txns a
             LEFT JOIN base.transactions b ON a.evt_tx_hash = b.hash 
@@ -97,125 +97,103 @@ WITH
         AND contract_address = 0x44ff8620b8cA30902395A7bD3F2407e1A091BF73
         AND evt_block_time >= from_unixtime({{startTimestamp}})
         AND evt_block_time <= from_unixtime({{endTimestamp}})
-    ),
-    
-    -- Solana contracts for agent tokens
-    sol_contracts AS (
-        SELECT DISTINCT token_mint_address
-        FROM (
-            SELECT token_mint_address
-            FROM tokens_solana.transfers
-            WHERE tx_id IN (
-                SELECT tx_id
-                FROM tokens_solana.transfers
-                WHERE to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
-                AND token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-                AND block_time >= from_unixtime({{startTimestamp}})
-                AND block_time <= from_unixtime({{endTimestamp}})
-            )
-            AND block_time >= from_unixtime({{startTimestamp}})
-            AND block_time <= from_unixtime({{endTimestamp}})
-            AND token_mint_address NOT IN ('3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y', 'So11111111111111111111111111111111111111112')
-            AND token_mint_address LIKE '%virt%'
-        ) agent_tokens
-    ),
-    
-    -- Solana trading volume for sentient revenue
-    sol_volume AS (
-        SELECT
-            COALESCE(SUM(
-                CASE
-                    WHEN token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y' THEN token_bought_amount
-                    ELSE token_sold_amount 
-                END
-            ), 0) as base_token_amount
-        FROM dex_solana.trades
-        WHERE (
-            (
-                token_bought_mint_address IN (SELECT token_mint_address FROM sol_contracts)
-                AND token_sold_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-            )
-            OR (
-                token_sold_mint_address IN (SELECT token_mint_address FROM sol_contracts)
-                AND token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-            )
-        )
-        AND block_time >= from_unixtime({{startTimestamp}})
-        AND block_time <= from_unixtime({{endTimestamp}})
-    ),
-    
-    -- Solana prototype fees (starts from 2025-02-01)
-    sol_prototype_fees AS (
-        SELECT 
-            COALESCE(SUM(amount) / power(10, 9), 0) as amt
-        FROM tokens_solana.transfers
-        WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-        AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2025-02-01')
-        AND block_time <= from_unixtime({{endTimestamp}})
-        AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
-    ),
-    
-    -- Price data for conversions
-    vir_price AS (
-        SELECT COALESCE(AVG(price), 0) as price
-        FROM prices.usd_daily
-        WHERE contract_address = 0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
-        AND blockchain = 'base'
-        AND day >= from_unixtime({{startTimestamp}})
-        AND day <= from_unixtime({{endTimestamp}})
-    ),
-    
-    cbbtc_price AS (
-        SELECT COALESCE(AVG(price), 0) as price
-        FROM prices.usd_daily
-        WHERE contract_address = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
-        AND blockchain = 'base'
-        AND day >= from_unixtime({{startTimestamp}})
-        AND day <= from_unixtime({{endTimestamp}})
     )
+    
+    -- -- Solana contracts for agent tokens
+    -- sol_contracts AS (
+    --     SELECT DISTINCT token_mint_address
+    --     FROM (
+    --         SELECT token_mint_address
+    --         FROM tokens_solana.transfers
+    --         WHERE tx_id IN (
+    --             SELECT tx_id
+    --             FROM tokens_solana.transfers
+    --             WHERE to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+    --             AND token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --             AND block_time >= timestamp '2024-08-30'
+    --             AND block_time <= from_unixtime({{endTimestamp}})
+    --         )
+    --         AND block_time >= timestamp '2024-08-30'
+    --         AND block_time <= from_unixtime({{endTimestamp}})
+    --         AND token_mint_address NOT IN ('3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y', 'So11111111111111111111111111111111111111112')
+    --         AND token_mint_address LIKE '%virt%'
+    --     ) agent_tokens    
+    -- ),
+    
+    -- -- Solana trading volume for sentient revenue
+    -- sol_volume AS (
+    --     SELECT
+    --         COALESCE(SUM(
+    --             CASE
+    --                 WHEN token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y' THEN token_bought_amount
+    --                 ELSE token_sold_amount 
+    --             END
+    --         ), 0) as base_token_amount
+    --     FROM dex_solana.trades
+    --     WHERE (
+    --         (
+    --             token_bought_mint_address IN (SELECT token_mint_address FROM sol_contracts)
+    --             AND token_sold_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --         )
+    --         OR (
+    --             token_sold_mint_address IN (SELECT token_mint_address FROM sol_contracts)
+    --             AND token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --         )
+    --     )
+    --     AND block_time >= from_unixtime({{startTimestamp}})
+    --     AND block_time <= from_unixtime({{endTimestamp}})
+    -- ),
+    
+    -- -- Solana prototype fees (starts from 2024-08-30)
+    -- sol_prototype_fees AS (
+    --     SELECT 
+    --         COALESCE(SUM(amount) / power(10, 9), 0) as amt
+    --     FROM tokens_solana.transfers
+    --     WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --     AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2024-08-30')
+    --     AND block_time <= from_unixtime({{endTimestamp}})
+    --     AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+    -- )
 
 -- Final output following original query structure exactly
 SELECT
     chain,
-    fees_usd
+    virtual_fees,
+    cbbtc_fees
 FROM (
     -- Base chain revenues following original evm_combined structure
     SELECT 
         'base' as chain,
+        -- Virtual fun + app + cbbtc prototype (from base_rev_txns)
+        -- CBBTC sentient revenue (from base_rev_combined - 70% dev + 30% ecosystem = 100%)
         (
-            -- Virtual fun + app + cbbtc prototype (from base_rev_txns)
-            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-virtual-fun'), 0) * vp.price +
-            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-virtual-app'), 0) * vp.price +
-            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-cbbtc-prototype'), 0) * cp.price +
-            -- CBBTC sentient revenue (from base_rev_combined - 70% dev + 30% ecosystem = 100%)
-            COALESCE(bco.amt * cp.price, 0)
-        ) as fees_usd
+            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-virtual-fun'), 0) + 
+            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-virtual-app'), 0)
+        ) as virtual_fees,
+        (
+            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-cbbtc-prototype'), 0) + 
+            COALESCE(bco.amt, 0)
+        ) as cbbtc_fees
     FROM base_rev_cbbtc_out bco
-    CROSS JOIN vir_price vp
-    CROSS JOIN cbbtc_price cp
     
     UNION ALL
     
     -- Ethereum revenues (from eth_rev - already includes 70% + 30% = 100%)
     SELECT 
         'ethereum' as chain,
-        COALESCE(er.amt * vp.price, 0) as fees_usd
+        COALESCE(er.amt, 0) as virtual_fees,
+        0 as cbbtc_fees
     FROM eth_rev er
-    CROSS JOIN vir_price vp
     
-    UNION ALL
+    -- UNION ALL
     
-    -- Solana revenues (from sol_trading_rev)
-    SELECT 
-        'solana' as chain,
-        (
-            -- Sol prototype fees
-            COALESCE(spf.amt * vp.price, 0) +
-            -- Sol sentient (1% of trading volume)
-            COALESCE(sv.base_token_amount * vp.price * 0.01, 0)
-        ) as fees_usd
-    FROM sol_prototype_fees spf
-    CROSS JOIN sol_volume sv
-    CROSS JOIN vir_price vp
-) combined_revenue
-WHERE fees_usd > 0
+    -- -- Solana revenues (from sol_trading_rev)
+    -- -- Sol prototype fees
+    -- -- Sol sentient (1% of trading volume)
+    -- SELECT 
+    --     'solana' as chain,
+    --     ( COALESCE(spf.amt, 0) + COALESCE(sv.base_token_amount * 0.01, 0) ) as virtual_fees,
+    --     0 as cbbtc_fees
+    -- FROM sol_prototype_fees spf
+    -- CROSS JOIN sol_volume sv
+)
