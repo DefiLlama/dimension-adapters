@@ -15,7 +15,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const recordDate = t.DATE.split(' ')[0]
     return recordDate === options.dateString
   })?.GROSS_AMOUNT_USD
-  return { dailyVolume }
+  return { dailyBridgeVolume: dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
