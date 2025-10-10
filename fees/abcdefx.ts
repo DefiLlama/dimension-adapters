@@ -1,4 +1,4 @@
-import { BaseAdapter, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const FACTORY_ADDRESS = '0x01f43d2a7f4554468f77e06757e707150e39130c';
@@ -20,8 +20,5 @@ const adapters: SimpleAdapter = uniV2Exports({
   [CHAIN.KAVA]: { factory: FACTORY_ADDRESS, },
 })
 
-
-Object.keys(adapters.adapter as BaseAdapter).forEach((chain: any) => {
-  (adapters.adapter as BaseAdapter)[chain].meta = { methodology }
-})
+adapters.methodology = methodology;
 export default adapters;

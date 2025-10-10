@@ -92,10 +92,6 @@ async function getFeeRevenueData(
   const dailyFees = !isYesterdayEmpty && !isTodayEmpty ? toNumber(today.totalFeeRevenueDailies[0].totalFeeRevenueInUsd) - toNumber(yesterday.totalFeeRevenueDailies[0].totalFeeRevenueInUsd) : 0;
   // const dailyPremiums = !isYesterdayEmpty && !isTodayEmpty ? toNumber(today.totalPremiumsDailies[0].totalPremiumsInUsd) - toNumber(yesterday.totalPremiumsDailies[0].totalPremiumsInUsd) : 0;
 
-
-  const totalFees = toNumber(today._totalFeeRevenueDailies[0].totalFeeRevenueInUsd);
-  // const totalPremiums = toNumber(today._totalPremiumsDailies[0].totalPremiumsInUsd);
-
   return {
     timestamp: timestamp,
     dailyFees,
@@ -103,13 +99,6 @@ async function getFeeRevenueData(
     dailyRevenue: (dailyFees * 0.8),
     dailyProtocolRevenue: (dailyFees * 0.2),
     dailyHoldersRevenue: (dailyFees * 0.8),
-    // dailySupplySideRevenue: dailyPremiums,
-    totalFees,
-    totalUserFees: totalFees,
-    totalRevenue: (totalFees * 0.8),
-    totalProtocolRevenue: (totalFees * 0.2),
-    totalHoldersRevenue: (totalFees * 0.8),
-    // totalSupplySideRevenue: totalPremiums,
   };
 }
 

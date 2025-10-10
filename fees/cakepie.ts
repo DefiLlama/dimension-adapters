@@ -46,27 +46,23 @@ const graph = (chain: Chain) => {
   }
 }
 
-const meta = {
-  methodology: {
-    Fees: 'Staking rewards collected from assets staked on PancakeSwap',
-    Revenue: 'Staking rewards collected from assets staked on PancakeSwap',
-  }
+const methodology = {
+  Fees: 'Staking rewards collected from assets staked on PancakeSwap',
+  Revenue: 'Staking rewards collected from assets staked on PancakeSwap',
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      meta,
     },
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
-      meta,
     },
   }
 };

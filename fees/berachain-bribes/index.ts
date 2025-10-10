@@ -18,7 +18,7 @@
  * Source: https://docs.berachain.com/learn/guides/add-incentives-for-reward-vault
  */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -112,6 +112,60 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
             AND t.evt_block_time <= from_unixtime(${options.endTimestamp})
         group by
             t.token
+    ),
+    incentive_taxes as (
+        SELECT
+            *
+        FROM
+            TABLE (
+                decode_evm_event (
+                    abi => '{
+                    "type": "event",
+                    "name": "IncentiveFeeCollected",
+                    "inputs": [
+                        {
+                            "name": "token",
+                            "type": "address",
+                            "indexed": true,
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "amount",
+                            "type": "uint256",
+                            "indexed": false,
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "anonymous": false
+                }',
+                input => TABLE (
+                    SELECT
+                        *
+                    FROM
+                        berachain.logs
+                    WHERE
+                        contract_address in (
+                            select vault from berachain_berachain.reward_vault_factory_evt_vaultcreated
+                        )
+                        AND topic0 = 0x38cdaea8a7ee499a6e329f9f098f5b7943ea1e992b5fb4ad0a88884db15c3f89
+                        AND block_time >= from_unixtime(${options.startTimestamp})
+                        AND block_time <= from_unixtime(${options.endTimestamp})
+                )
+            )
+        )
+    ),
+    taxes as (
+        select
+            it.token,
+            sum(it.amount) as token_amount
+        from
+            incentive_taxes it
+            left join incentives_token a on a.token = it.token
+        where
+            it.block_time >= from_unixtime(${options.startTimestamp})
+            AND it.block_time <= from_unixtime(${options.endTimestamp})
+        group by
+            it.token
     )
     select 
         token,
@@ -120,6 +174,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         select * from distribution
         union all
         select * from distribution_validators
+        union all
+        select * from taxes
     ) a
     group by token
     `;
@@ -140,21 +196,16 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    BribeRevenue:
-        "Incentives Distributed From Berachain Reward Vaults",
+    BribeRevenue: "Incentives Distributed From Berachain Reward Vaults",
 };
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.BERACHAIN]: {
-            fetch: fetch,
-            start: "2025-02-05", // Berachain launch
-            meta: {
-                methodology,
-            },
-        },
-    },
+    dependencies: [Dependencies.DUNE],
+    fetch,
+    chains: [CHAIN.BERACHAIN],
+    start: "2025-02-05",
+    methodology,
     isExpensiveAdapter: true,
 };
 

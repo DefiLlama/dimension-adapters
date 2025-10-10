@@ -22,11 +22,9 @@ interface IGraphResult {
 async function fetch(timestamp: number) {
     const res: IGraphResult = await request(subgraphEndpoint, query);
     const dailyFees = res.daily.reduce((acc, d) => acc + d.total_swap_fee, 0);
-    const totalFees = res.total[0].total_fee_generated;
     return {
         timestamp: getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)),
         dailyFees,
-        totalFees,
     };
 }
 

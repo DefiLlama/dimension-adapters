@@ -27,6 +27,8 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
     dailyFees.add(token.token, token.fees)
   })
   responseRevenue.map((token) => {
+    // add withdrawal fees to fees too
+    dailyFees.add(token.token, token.revenue)
     dailyRevenue.add(token.token, token.revenue)
   })
   
@@ -64,6 +66,8 @@ const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {
     dailyFees.add(token, t.fees)
   })
   responseRevenue.filter((t) => t.date_trunc.split('T')[0] === dateStr).map((t) => {
+    // add withdrawal fees to fees too
+    dailyFees.add(toAddress(t.token), t.revenue)
     dailyRevenue.add(toAddress(t.token), t.revenue)
   })
 
@@ -81,27 +85,22 @@ const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {
   };
 }
 
-const meta = {
+const adapter: Adapter = {
   methodology: {
     Fees: 'Swap fees paid by users per swap.',
     Revenue: 'A partition of swap fees and withdrawal fees charged by Ekubo.',
     SupplySideRevenue: 'Amount of fees distributed to liquidity providers.',
     HoldersRevenue: 'Amount of fees used to buy back and burn EKUBO tokens on Starknet.',
     ProtocolRevenue: 'Ekubo protocol collects revenue on Ethereum.',
-  }
-}
-
-const adapter: Adapter = {
+  },
   adapter: {
     [CHAIN.STARKNET]: {
       fetch: fetch,
       start: '2023-09-19',
-      meta,
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchEVM,
       start: '2025-01-31',
-      meta,
     }
   }
 }

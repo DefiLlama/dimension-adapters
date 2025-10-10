@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains"
 import { httpGet } from "../../utils/fetchURL";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const chainMapping = {
+const chainMapping: any = {
   ETH: CHAIN.ETHEREUM,
   BTC: CHAIN.BITCOIN,
   AVAX: CHAIN.AVAX,
@@ -14,10 +14,11 @@ const chainMapping = {
   DOGE: CHAIN.DOGECHAIN,
   GAIA: CHAIN.COSMOS,
   BASE: CHAIN.BASE,
-  THOR: CHAIN.THORCHAIN
+  THOR: CHAIN.THORCHAIN,
+  XRP: CHAIN.RIPPLE,
 }
 
-const THORCHAIN_SUPPORTED_CHAINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH', 'BASE', 'THOR']
+const THORCHAIN_SUPPORTED_CHAINS = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH', 'BASE', 'THOR', 'XRP']
 
 interface Pool {
   assetLiquidityFees: string
@@ -51,7 +52,7 @@ const assetFromString = (s: string) => {
   return { chain, symbol, ticker }
 }
 
-const findInterval = (timestamp: number, intervals) => {
+const findInterval = (timestamp: number, intervals: any) => {
   for (const interval of intervals) {
     if (interval.startTime <= timestamp && timestamp < interval.endTime) {
       return interval;
@@ -94,11 +95,11 @@ const getFetchForChain = (chainShortName: string) => {
     const selectedRevenueInterval = findInterval(startOfDay, revenue.intervals);
 
 
-    const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter(pool => assetFromString(pool.pool)?.chain === chainShortName);
+    const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => assetFromString(pool.pool)?.chain === chainShortName);
 
-    const totalRuneDepth = pools.reduce((acum, pool) => acum.plus(pool.runeDepth), BigNumber(0));
-    const poolsByChainData = pools.filter(pool => assetFromString(pool.asset)?.chain === chainShortName);
-    const runeDepthPerChain = poolsByChainData.reduce((acum, pool) => acum.plus(pool.runeDepth), BigNumber(0));
+    const totalRuneDepth = pools.reduce((acum: BigNumber, pool: any) => acum.plus(pool.runeDepth), BigNumber(0));
+    const poolsByChainData = pools.filter((pool: any) => assetFromString(pool.asset)?.chain === chainShortName);
+    const runeDepthPerChain = poolsByChainData.reduce((acum: BigNumber, pool: any) => acum.plus(pool.runeDepth), BigNumber(0));
 
     const protocolRevenue = BigNumber(selectedRevenueInterval.gasFeeOutbound || 0).minus(BigNumber(selectedRevenueInterval.gasReimbursement || 0));
 
@@ -125,13 +126,13 @@ const getFetchForChain = (chainShortName: string) => {
     const runePriceUSDNum = selectedEarningInterval.runePriceUSD ? Number(selectedEarningInterval.runePriceUSD) : 0;
     const protocolRevenueByChainInDollars = protocolRevenuePerChainBasedOnRuneDepth.div(1e8).times(runePriceUSDNum);
     const dailyHoldersRevenue = bondingRewardPerChainBasedOnRuneDepth.div(1e8).times(runePriceUSDNum);
-    if (dailyFees.isZero()) throw new Error("No fees found for this day");
+    // if (dailyFees.isZero()) throw new Error("No fees found for this day");
 
       return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue: `${dailyHoldersRevenue.plus(protocolRevenueByChainInDollars)}`,
-        dailyProtocolRevenue: protocolRevenueByChainInDollars,
+        dailyProtocolRevenue: protocolRevenueByChainInDollars.gt(0) ? protocolRevenueByChainInDollars : 0,
         dailyHoldersRevenue: dailyHoldersRevenue,
         dailySupplySideRevenue: dailySupplysideRevenue,
         timestamp: startOfDay
@@ -141,7 +142,7 @@ const getFetchForChain = (chainShortName: string) => {
 
 const adapters: SimpleAdapter = {
   adapter: THORCHAIN_SUPPORTED_CHAINS.reduce((acc, chainKey) => {
-    acc[chainMapping[chainKey]] = {
+    (acc as any)[chainMapping[chainKey]] = {
       fetch: getFetchForChain(chainKey) as any,
       // runAtCurrTime: true,
     };

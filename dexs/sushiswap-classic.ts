@@ -1,8 +1,6 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { getChainVolumeWithGasToken2 }  from "../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 
@@ -115,7 +113,7 @@ const classic = Object.keys(endpointsClassic).reduce(
       fetch: async (options: FetchOptions) => {
         try {
           const call = chain === CHAIN.BOBA ? graphsClassicBoba : [CHAIN.ETHEREUM, CHAIN.KATANA].includes(chain as CHAIN) ? graphsClassicETH : graphsClassic;
-          const values = (await call(chain as Chain)(options));
+          const values = (await call(options));
           const result = {
             dailyVolume: values?.dailyVolume || 0,
             dailyFees: values?.dailyFees || 0,
@@ -143,17 +141,6 @@ const classic = Object.keys(endpointsClassic).reduce(
           }
         }
       },
-      start: '2024-04-01',
-      meta: {
-        methodology: {
-          Fees: "SushiSwap charges a flat 0.3% fee",
-          UserFees: "Users pay a 0.3% fee on each trade",
-          Revenue: "A 0.05% of each trade goes to treasury",
-          HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue: "Liquidity providers get 5/6 of all trades in their pools"
-        }
-      }
     },
   }),
   {}
@@ -175,7 +162,7 @@ const classic = Object.keys(endpointsClassic).reduce(
 //     const values = await fantomGraphs(CHAIN.FANTOM)(options);
 //     const vol = Number(values.dailyVolume);
 //     if (vol < 0) throw new Error(`Volume cannot be negative. Current value: ${vol}`);
-    
+
 //     const result = {
 //       ...values,
 //       dailyFees: vol * 0.003,
@@ -196,9 +183,9 @@ const classic = Object.keys(endpointsClassic).reduce(
 
 const getUniV2LogAdapterConfig = {
   userFeesRatio: 1,
-  revenueRatio: 1/6,
+  revenueRatio: 1 / 6,
   protocolRevenueRatio: 0,
-  holdersRevenueRatio: 1/6,
+  holdersRevenueRatio: 1 / 6,
 }
 
 classic[CHAIN.FANTOM] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', ...getUniV2LogAdapterConfig }) }
@@ -207,6 +194,15 @@ classic[CHAIN.FUSE] = { fetch: getUniV2LogAdapter({ factory: '0x43eA90e2b7867285
 classic[CHAIN.HARMONY] = { fetch: getUniV2LogAdapter({ factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', ...getUniV2LogAdapterConfig }) }
 
 export default {
+  start: '2024-04-01',
+  methodology: {
+    Fees: "SushiSwap charges a flat 0.3% fee",
+    UserFees: "Users pay a 0.3% fee on each trade",
+    Revenue: "A 0.05% of each trade goes to treasury",
+    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get 5/6 of all trades in their pools"
+  },
   version: 2,
   adapter: classic,
 }

@@ -1,5 +1,5 @@
 import { Adapter } from "../adapters/types";
-import { ARBITRUM, OPTIMISM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import { Chain } from "../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
@@ -8,8 +8,8 @@ import type { ChainEndpoints } from "../adapters/types";
 const UNIT = BigInt("1000000000000000000");
 
 const endpoints = {
-  [OPTIMISM]: "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/optimism-mainnet-newport/api",
-  [ARBITRUM]: "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/arbitrum-mainnet/api",
+  [CHAIN.OPTIMISM]: "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/optimism-mainnet-newport/api",
+  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/sw9vuxiQey3c/lyra/arbitrum-mainnet/api",
 };
 
 interface IGetChainFeesParams {
@@ -91,12 +91,12 @@ const graph = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
-    [OPTIMISM]: {
-      fetch: graph(endpoints)(OPTIMISM),
+    [CHAIN.OPTIMISM]: {
+      fetch: graph(endpoints)(CHAIN.OPTIMISM),
       start: '2022-06-25',
     },
-    [ARBITRUM]: {
-      fetch: graph(endpoints)(ARBITRUM),
+    [CHAIN.ARBITRUM]: {
+      fetch: graph(endpoints)(CHAIN.ARBITRUM),
       start: '2023-01-26',
     },
   },

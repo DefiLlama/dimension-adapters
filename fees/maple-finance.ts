@@ -3,30 +3,20 @@ import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { queryIndexer } from "../helpers/indexer";
 
-const eth_base = '0x373bdcf21f6a939713d5de94096ffdb24a406391';
-
-const contract_loan_mangaer: string[] = [
-  '0x91582bdfef0bf36fc326a4ab9b59aacd61c105ff',
-  '0xeca9d2c5f81dd50dce7493104467dc33362a436f',
-  '0xf4d4a5270aa834a2a77011526447fdf1e227018f',
-  '0x1b61765e954113e6508c4f9db07675989f7f5874',
-  '0xd05998a1940294e3e49f99dbb13fe20a3483f5ae',
-  '0xd7217f29d51deffc6d5f95ff0a5200f3d34c0f66',
-  '0x6b6491aaa92ce7e901330d8f91ec99c2a157ebd7',
-  '0x74cb3c1938a15e532cc1b465e3b641c2c7e40c2b',
-  '0x9b300a28d7dc7d422c7d1b9442db0b51a6346e00',
-  '0x373bdcf21f6a939713d5de94096ffdb24a406391',
-  '0xfdc7541201aa6831a64f96582111ced633fa5078'
-]
-
-const contract_open_term_loan: string[] = [
+const contract_open_term_loan_manager_stablecoin: string[] = [
   '0x2638802a78d6a97d0041cc7b52fb9a80994424cd',
   '0x483082e93635ef280bc5e9f65575a7ff288aba33',
-  '0x93b0f6f03cc6996120c19abff3e585fdb8d88648',
-  '0xd205b3ed8408afca53315798b891f37bd4c5ce2a',
   '0xdc9b93a8a336fe5dc9db97616ea2118000d70fc0',
-  '0xfab269cb4ab4d33a61e1648114f6147742f5eecc'
+  '0xfab269cb4ab4d33a61e1648114f6147742f5eecc',
+  '0x9ab77dbd4197c532f9c9f30a7e83a710e03da70a',
+  '0x616022e54324ef9c13b99c229dac8ea69af4faff',
+  '0x6aceb4caba81fa6a8065059f3a944fb066a10fac',
+  '0x56ef41693f69d422a88cc6492888a1bd41923d33',
+  '0xb50d675f3c6d18ce5ccac691354f92afebd1675e'
 ]
+const contract_open_term_loan_manager_eth = '0xe3aac29001c769fafcef0df072ca396e310ed13b';
+
+const CLAIMED_FUNDS_DISTRIBUTED_EVENT = 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)';
 
 const fetchFees = async (options: FetchOptions) => {
   const { getLogs } = options
@@ -67,37 +57,34 @@ const fetchFees = async (options: FetchOptions) => {
           )
           AND block_time BETWEEN llama_replace_date_range;
           `, options);
-  const logs_funds_distribution = await getLogs({
-    targets: contract_loan_mangaer,
-    flatten: false,
-    eventAbi: 'event FundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_)'
-  })
-  const logs_claim_funds = await getLogs({
-    targets: contract_open_term_loan,
-    eventAbi: 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)'
+
+  const logs_claim_funds_stablecoin = await getLogs({
+    targets: contract_open_term_loan_manager_stablecoin,
+    eventAbi: CLAIMED_FUNDS_DISTRIBUTED_EVENT,
   })
 
-  logs_funds_distribution.map((e: any, index: number) => {
-    const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();
-    const token = isEthBase ? [ADDRESSES.ethereum.WETH]: ADDRESSES.ethereum.USDC
-    e.forEach((i: any) => {
-      dailyFees.add(token, i.netInterest_)
-      dailySupplySideRevenue.add(token, i.netInterest_)
-    })
-  })
-
-  logs_claim_funds.map((e: any) => {
+  logs_claim_funds_stablecoin.map((e: any) => {
     dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_)
     dailySupplySideRevenue.add(ADDRESSES.ethereum.USDC, e.netInterest_)
   })
-  
+
+  const logs_claim_funds_eth = await getLogs({
+    target: contract_open_term_loan_manager_eth,
+    eventAbi: CLAIMED_FUNDS_DISTRIBUTED_EVENT,
+  })
+
+  logs_claim_funds_eth.map((e: any) => {
+    dailyFees.add(ADDRESSES.ethereum.WETH, e.netInterest_)
+    dailySupplySideRevenue.add(ADDRESSES.ethereum.WETH, e.netInterest_)
+  })
+
   // Filter for specific tokens (USDC, WETH, USDT) during processing
   const allowedTokens = [
     ADDRESSES.ethereum.USDC, // USDC
     ADDRESSES.ethereum.WETH, // WETH
     ADDRESSES.ethereum.USDT  // USDT
   ];
-  
+
   logsTranferERC20.forEach((b: any) => {
     if (allowedTokens.includes(b.contract_address.toLowerCase())) {
       dailyFees.add(b.contract_address, b.value)
@@ -105,7 +92,7 @@ const fetchFees = async (options: FetchOptions) => {
     }
   });
 
-  return { 
+  return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
@@ -120,16 +107,14 @@ const adapters: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees as any,
       start: '2023-01-01',
-      meta: {
-          methodology: {
-            Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
-            UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
-            Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
-            ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
-            SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
-          }
-        }
     }
+  },
+  methodology: {
+    Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
+    UserFees: "Interest and fees paid by borrowers when taking loans from Maple pools. This includes net interest on both traditional loan manager contracts and open-term loans.",
+    Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
+    ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
+    SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
   }
 }
 export default adapters;

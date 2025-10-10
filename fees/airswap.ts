@@ -29,41 +29,35 @@ const graph = (chain: Chain) => {
   }
 }
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: 'Swap fees paid by users.',
     Revenue: 'All fees are revenue.',
     ProtocolRevenue: 'All revenue are collected by AirSwap.',
-  }
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
       start: '2023-04-01',
-      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: graph(CHAIN.POLYGON),
       start: '2023-04-01',
-      meta,
     },
     [CHAIN.AVAX]: {
       fetch: graph(CHAIN.AVAX),
       start: '2023-04-01',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
       start: '2023-04-01',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
       start: '2023-07-20',
-      meta,
     },
   }
 };

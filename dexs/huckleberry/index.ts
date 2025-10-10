@@ -1,8 +1,18 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-export default univ2Adapter({
-  [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('EMTH8qnNbMGgjoFxE8YZh4qGMMxTQu44WDbn2xKexzwb'),
-  // [CHAIN.CLV]: "https://clover-graph-node.huckleberry.finance/subgraphs/name/huckleberry/clv-parachain-subgraph"
-}, {});
+const adapter: SimpleAdapter = {
+  version: 2,
+  methodology: {
+    Fees: 'Users pay 0.3% fees per swap.',
+    UserFees: 'Users pay 0.3% fees per swap.',
+    Revenue: 'No protocol revenue.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  fetch: getUniV2LogAdapter({ factory: '0x017603C8f29F7f6394737628a93c57ffBA1b7256', userFeesRatio: 1, revenueRatio: 0 }),
+  chains: [CHAIN.MOONRIVER],
+  start: '2021-09-26',
+}
+
+export default adapter;

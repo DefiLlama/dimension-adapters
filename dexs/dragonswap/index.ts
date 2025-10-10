@@ -31,6 +31,7 @@ const ABIS = {
 }
 
 const adapter: BreakdownAdapter = {
+  methodology,
   version: 2,
   breakdown: {
     v2: Object.keys(endpoints).reduce((acc, chain) => {
@@ -40,9 +41,6 @@ const adapter: BreakdownAdapter = {
           poolCreatedEvent: ABIS.V2.POOL_CREATE,
           swapEvent: ABIS.V2.SWAP_EVENT
         }),
-        meta: {
-          methodology
-        }
       }
       return acc
     }, {} as BaseAdapter),
@@ -53,9 +51,6 @@ const adapter: BreakdownAdapter = {
           poolCreatedEvent: ABIS.V3.POOL_CREATE,
           swapEvent: ABIS.V3.SWAP_EVENT
         }),
-        meta: {
-          methodology
-        }
       }
       return acc
     }, {} as BaseAdapter),

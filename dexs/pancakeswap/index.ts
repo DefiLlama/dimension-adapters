@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, Dependencies, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
@@ -8,11 +8,12 @@ import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
 import { queryDuneSql } from "../../helpers/dune";
 import { getEnv } from "../../helpers/env";
+import { getBscV2Data } from "./bscv2";
 
 enum DataSource {
   GRAPH = 'graph',
   LOGS = 'logs',
-  PANCAKE_EXPLORER = 'pacnake_explorer',
+  PANCAKE_EXPLORER = 'pancake_explorer',
   CUSTOM = 'custom',
   DUNE = 'dune'
 }
@@ -62,16 +63,17 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v2: {
     [CHAIN.BSC]: {
       start: '2021-04-23',
-      dataSource: DataSource.GRAPH,
-      endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
-      requestHeaders: {
-        "origin": "https://pancakeswap.finance",
-      }
+      dataSource: DataSource.CUSTOM,
+      // endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
+      // requestHeaders: {
+      //   "origin": "https://pancakeswap.finance",
+      // }
     },
     [CHAIN.ETHEREUM]: {
       start: '2022-09-27',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      factory: '0x1097053fd2ea711dad45caccc45eff7548fcb362',
     },
     [CHAIN.POLYGON_ZKEVM]: {
       start: '2023-06-28',
@@ -87,18 +89,21 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ARBITRUM]: {
       start: '2023-08-08',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.LINEA]: {
       start: '2023-08-24',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.BASE]: {
       start: '2023-08-31',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.OP_BNB]: {
       start: '2023-09-19',
@@ -211,23 +216,7 @@ const ABIS = {
   }
 }
 
-const methodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 0.0225% of each swap.",
-  SupplySideRevenue: "LPs receive 0.17% of the fees.",
-  HoldersRevenue: "0.0575% is used to facilitate CAKE buyback and burn.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees comes from the user."
-}
 
-const stableSwapMethodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 10% of the fees.",
-  SupplySideRevenue: "LPs receive 50% of the fees.",
-  HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
-  Revenue: "Revenue is 50% of the fees paid by users.",
-  Fees: "All fees comes from the user fees, which is 0.25% of each trade."
-}
 
 const createEndpointMap = (version: keyof typeof PROTOCOL_CONFIG) => {
   const result: IJSON<string> = {};
@@ -296,14 +285,14 @@ interface ISwapEventData {
 
 const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_PRC = getEnv('APTOS_PRC');
+const APTOS_RPC = getEnv('APTOS_RPC');
 
 const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
   let lastData: any;
   let cursor
   do {
-    let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
+    let url = `${APTOS_RPC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
     const res = await httpGet(url, undefined, { withMetadata: true })
     lastData = res.data
@@ -440,14 +429,14 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
   let start = (pool.swap_events.counter - limit) < 0 ? 0 : pool.swap_events.counter - limit;
   while (true) {
     if (start < 0) break;
-    const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
+    const getEventByCreation = `${APTOS_RPC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
       const event: any[] = (await httpGet(getEventByCreation));
       const listSequence: number[] = event.map(e => Number(e.sequence_number))
       const lastMin = Math.min(...listSequence)
       if (lastMin >= Infinity || lastMin <= -Infinity) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
-      const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastVision}`;
+      const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastVision}`;
       const block = (await httpGet(urlBlock));
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp
@@ -499,7 +488,7 @@ const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_
   };
 };
 
-const fetchV2 = async (options: FetchOptions) => {
+const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v2[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -515,15 +504,17 @@ const fetchV2 = async (options: FetchOptions) => {
       ...calculateFeesBalances(v2stats.dailyVolume, FEE_CONFIG.V2_V3)
     };
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v2stats = await graphs(options.chain)(options);
+    const v2stats = await graphs(options);
     return v2stats;
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     return fetchVolume(options);
+  } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.BSC) {
+    return await getBscV2Data(options);
   }
   throw new Error('Invalid data source');
 }
 
-const fetchV3 = async (options: FetchOptions) => {
+const fetchV3 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v3[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -535,7 +526,7 @@ const fetchV3 = async (options: FetchOptions) => {
     });
     return await adapter(options);   
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v3stats = await v3Graph(options.chain)(options);
+    const v3stats = await v3Graph(options);
     // Ethereum-specific adjustment
     if (options.chain === CHAIN.ETHEREUM) {
       v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
@@ -612,7 +603,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     if (version === 'v1' && chain === CHAIN.BSC) {
       const customConfig = config as CustomChainConfig;
       acc[chain] = {
-        fetch: async ({ startTimestamp }: any) => {
+        fetch: async (_t: any, _a: any, { startTimestamp }: any) => {
           return {
             totalVolume: customConfig.totalVolume,
             timestamp: startTimestamp
@@ -624,7 +615,6 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       acc[chain] = {
         fetch: fetchV2,
         start: config.start,
-        meta: { methodology }
       };
     } else if (version === 'v3') {
       acc[chain] = {
@@ -634,9 +624,8 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options.chain)(options),
+        fetch: chain === CHAIN.ETHEREUM ? (_t: any, _a: any, options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (_t: any, _a: any, options: FetchOptions) => graphsStableSwap(options),
         start: config.start,
-        meta: { methodology: stableSwapMethodology }
       };
     }
     
@@ -645,13 +634,13 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v1: createAdapter('v1'),
     v2: createAdapter('v2'),
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')
   },
+  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;

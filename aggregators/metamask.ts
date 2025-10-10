@@ -4,15 +4,6 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { sleep } from "../utils/utils";
 
-const meta = {
-  methodology: {
-    Volume: 'Total token swap volumes by users using Metamask wallet.',
-    Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
-    Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
-    ProtocolRevenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
-  }
-}
-
 type IConfig = {
   [s: string | Chain]: {
     routerAddress: string;
@@ -61,7 +52,7 @@ async function retry(chain: string, fromBlock: number, toBlock: number, address:
         transactionType: 'to',
         addresses: [address],
       })) as Array<any>;
-    } catch(e: any) {
+    } catch (e: any) {
       if (i === 4) {
         throw e;
       }
@@ -82,15 +73,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const toBlock = blockNumber + limit > Number(options.toApi.block) ? Number(options.toApi.block) : blockNumber + limit;
     const transactions = await retry(options.chain, blockNumber, toBlock, configs[options.chain].routerAddress);
 
-    if (transactions) {
-      for (const transaction of transactions) {
-        const data = transaction.input.replace('0x5f575529', '');
-        const address = data.slice(64, 128);
-        const amount = Number('0x' + data.slice(128, 192));
-        const tokenAddress = '0x' + address.slice(24, address.length);
-  
-        dailyVolume.add(tokenAddress, amount);
-      }
+    for (const transaction of transactions.filter(tx => tx.status === 1)) {
+      const data = transaction.input.replace('0x5f575529', '');
+      const address = data.slice(64, 128);
+      const amount = Number('0x' + data.slice(128, 192));
+      const tokenAddress = '0x' + address.slice(24, address.length);
+      dailyVolume.add(tokenAddress, amount);
     }
   }
 
@@ -104,45 +92,26 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 }
 
+const methodology = {
+  Volume: 'Total token swap volumes by users using Metamask wallet.',
+  Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
+  Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
+  ProtocolRevenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
+}
+
 const adapter: Adapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2023-01-01',
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch,
-      start: '2023-01-01',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: '2023-01-01',
-      meta,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: '2023-01-01',
-      meta,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch,
-      start: '2023-01-01',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch,
-      start: '2023-11-18',
-      meta,
-    },
-    [CHAIN.LINEA]: {
-      fetch: fetch,
-      start: '2023-10-03',
-      meta,
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-01-01', },
+    [CHAIN.POLYGON]: { start: '2023-01-01', },
+    [CHAIN.BSC]: { start: '2023-01-01', },
+    [CHAIN.ARBITRUM]: { start: '2023-01-01', },
+    [CHAIN.OPTIMISM]: { start: '2023-01-01', },
+    [CHAIN.BASE]: { start: '2023-11-18', },
+    [CHAIN.LINEA]: { start: '2023-10-03', },
   },
+  methodology,
 }
 
 export default adapter;

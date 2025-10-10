@@ -47,7 +47,8 @@ export default {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      runAtCurrTime: true
+      runAtCurrTime: true,
+      start: '2025-04-18'
     }
   }
 }

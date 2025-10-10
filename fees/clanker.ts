@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -127,19 +127,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch,
-            start: "2024-11-08", // Updated to cover V4 start date
-            meta: {
-                methodology: {
-                    Fees: "All trading and launching tokens fees paid by users.",
-                    Revenue: "Clanker protocol collects 20% of LP fees.",
-                    ProtocolRevenue: "Clanker protocol collects 20% of LP fees.",
-                }
-            }
-        },
-    },
+    fetch,
+    chains: [CHAIN.BASE],
+    start: "2024-11-08",
+    dependencies: [Dependencies.DUNE],
+    methodology: {
+        Fees: "All trading and launching tokens fees paid by users.",
+        Revenue: "Clanker protocol collects 20% of LP fees.",
+        ProtocolRevenue: "Clanker protocol collects 20% of LP fees.",
+    }
 };
 
 export default adapter;

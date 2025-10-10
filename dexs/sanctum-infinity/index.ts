@@ -8,10 +8,12 @@ Example transaction: https://solscan.io/tx/5HrEhUHHfeNktcQbRWcAEWemd3K475bxUqKJe
 
 import {
   ChainBlocks,
+  Dependencies,
   FetchOptions,
   FetchResultVolume,
   SimpleAdapter,
 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (
@@ -82,12 +84,11 @@ const fetch = async (
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    solana: {
-      fetch,
-      start: "2024-01-01", // First unstake transaction
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2024-01-01", // First unstake transaction
   isExpensiveAdapter: true,
 };
 

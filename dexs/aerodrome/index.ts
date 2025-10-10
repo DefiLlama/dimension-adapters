@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
+import { handleBribeToken } from "./utils";
 
 const CONFIG = {
   PoolFactory: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da',
@@ -28,7 +29,7 @@ const abis = {
 }
 
 const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
-  const { createBalances, } = fetchOptions
+  const { createBalances, startTimestamp } = fetchOptions
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
@@ -45,8 +46,11 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
     const parsedLog = iface.parseLog(log)
-    dailyBribesRevenue.add(parsedLog!.args.reward, parsedLog!.args.amount)
+    const token = parsedLog!.args.reward.toLowerCase()
+    const amount = parsedLog!.args.amount
+    handleBribeToken(token, amount, startTimestamp, dailyBribesRevenue)
   })
+
   return { dailyBribesRevenue }
 }
 

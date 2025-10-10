@@ -1,5 +1,5 @@
 import { Adapter, FetchOptions } from "../adapters/types";
-import { ETHEREUM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 
 const OxOPoolETHAddress = "0x3d18AD735f949fEbD59BBfcB5864ee0157607616";
 const OxOToken = "0x5a3e6A77ba2f983eC0d371ea3B475F8Bc0811AD5";
@@ -35,17 +35,15 @@ const fetch: any = async ({ getLogs, api,}: FetchOptions) => {
 const adapter: Adapter = {
     version: 2,
     adapter: {
-        [ETHEREUM]: {
+        [CHAIN.ETHEREUM]: {
             fetch,
             start: '2023-05-29',
-            meta: {
-                methodology: {
-                    Fees: "0x0 collects a 0.9% fee on deposits",
-                    Revenue: "0x0 collects a 0.9% fee on deposits and distributed to token holders",
-                    HoldersRevenue: "0x0 token holders collect a 0.9% fee on deposits",
-                }
-            }
         }
+    },
+    methodology: {
+        Fees: "0x0 collects a 0.9% fee on deposits",
+        Revenue: "0x0 collects a 0.9% fee on deposits and distributed to token holders",
+        HoldersRevenue: "0x0 token holders collect a 0.9% fee on deposits",
     }
 }
 export default adapter;

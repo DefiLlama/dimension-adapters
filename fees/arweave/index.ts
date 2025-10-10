@@ -35,14 +35,12 @@ const adapter: Adapter = {
     [CHAIN.ARWEAVE]: {
       fetch,
       start: '2018-06-08',
-      meta: {
-        methodology: {
-          Fees: 'Fees are collected in AR (Arweave) tokens for each transaction on the Arweave network. The data is fetched from ViewBlock API which aggregates transaction fees from the Arweave blockchain. The fees represent the total amount paid by users for data storage and transfer on the network.'
-        }
-      }
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Fees are collected in AR (Arweave) tokens for each transaction on the Arweave network. The data is fetched from ViewBlock API which aggregates transaction fees from the Arweave blockchain. The fees represent the total amount paid by users for data storage and transfer on the network.'
+  }
 }
 
 export default adapter;

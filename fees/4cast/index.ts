@@ -35,13 +35,11 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-07-17',
-      meta: {
+    },
+  },
         methodology: {
           Fees: "Tokens trading and launching fees paid by users.",
         }
-      }
-    },
-  },
 };
 
 export default adapter;

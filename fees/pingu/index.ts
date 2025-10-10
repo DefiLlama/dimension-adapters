@@ -23,7 +23,9 @@ const fetch = async (timestamp: number, _: any, { createBalances }: FetchOptions
 			}`;
 		const response: IGraph = (await request(URL, query)).dayAssetData;
 		const element = response;
-		dailyFees.add(asset, element.totalFees);
+		if (element && element.totalFees) {
+			dailyFees.add(asset, element.totalFees);
+		}
 	}
 	return {
 		dailyFees,
