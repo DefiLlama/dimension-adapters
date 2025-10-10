@@ -16,7 +16,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: 'BBuilder code revenue from Hyperliquid Perps Trades.',
+  Fees: 'Builder code revenue from Hyperliquid Perps Trades.',
   Revenue: 'Builder code revenue from Hyperliquid Perps Trades.',
   ProtocolRevenue: 'Builder code revenue from Hyperliquid Perps Trades.',
 }
