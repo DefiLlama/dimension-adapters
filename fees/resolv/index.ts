@@ -28,15 +28,11 @@ const WST_USR_ABI = 'function convertToAssets(uint256 _wstUSRAmount) external vi
 const methodology = {
   Fees: 'Total investment yields from backing assets for RLP and USR',
   Revenue: 'Protocol share of daily yield (profit) which was actived from Aug 2025',
-  ProtocolRevenue: 'Protocol share of daily yield (profit) which was actived from Aug 2025',
-  SupplySideRevenue: 'Assets yields are distributed to USR and RLP stakers and suppliers',
 };
 
 const breakdownMethodology = {
   Fees: { [METRIC.ASSETS_YIELDS]: 'Total investment yields from backing assets for RLP and USR' },
   Revenue: { [METRIC.ASSETS_YIELDS]: 'Protocol share of daily yield (profit) which was actived from Aug 2025' },
-  ProtocolRevenue: { [METRIC.ASSETS_YIELDS]: 'Protocol share of daily yield (profit) which was actived from Aug 2025' },
-  SupplySideRevenue: { [METRIC.ASSETS_YIELDS]: 'Assets yields are distributed to USR and RLP stakers and suppliers' },
 };
 
 const getOtherRevenues = async (options: FetchOptions) => {
@@ -76,12 +72,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
   dailyFees.addUSDValue(dailyYield / (1 - revenueRatio), METRIC.ASSETS_YIELDS)
+
   const coreRevenue = dailyFees.clone(revenueRatio, METRIC.ASSETS_YIELDS)
 
-  const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
-  dailySupplySideRevenue.subtract(coreRevenue, METRIC.ASSETS_YIELDS)
-  
   const dailyRevenue = coreRevenue.clone(1, METRIC.ASSETS_YIELDS)
+
   const otherRevenuesLogs = await getOtherRevenues(options)
   otherRevenuesLogs.forEach(({ token, value }: { token: string, value: string }) => {
     dailyRevenue.add(token, value, METRIC.ASSETS_YIELDS)
@@ -90,8 +85,6 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
