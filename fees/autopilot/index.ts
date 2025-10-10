@@ -56,7 +56,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 1, //rewards are weekly once
     fetch,
     chains: [CHAIN.BASE],
     start: '2025-07-24',
