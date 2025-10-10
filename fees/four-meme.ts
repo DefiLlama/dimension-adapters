@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 // import { addGasTokensReceived, addTokensReceived, getETHReceived } from "../helpers/token";
@@ -18,7 +18,7 @@ import { queryDuneSql } from "../helpers/dune";
 // ]
 // const revshareWallet = "0x2b6e6e4def77583229299cf386438a227e683b28" // not entirely sure but i suspect this is a rev share wallet
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
   const query = `
     WITH bnb_received AS (
       SELECT
@@ -139,13 +139,12 @@ const fetch: any = async (options: FetchOptions) => {
 // };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2024-12-25',
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2024-12-25',
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
     Fees: 'All fees paid by users for launching, trading tokens.',
     Revenue: 'Fees collected by four.meme protocol.',
