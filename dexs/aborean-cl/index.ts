@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
-import { handleBribeToken } from "../aerodrome/utils";
+import { handleBribeToken } from "../aborean/utils";
 
 const CONFIG = {
   factory: '0x8cfE21F272FdFDdf42851f6282c0f998756eEf27',
