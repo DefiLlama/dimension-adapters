@@ -161,7 +161,6 @@ export function blockscoutFeeAdapter2(chain: string) {
               timestamp: startOfDay,
               dailyFees,
               dailyRevenue,
-              dailyHoldersRevenue: dailyRevenue
             }
           }
 
