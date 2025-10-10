@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
   const targets = Array.from(pairMeta.keys());
 
   const swaps = await options.getLogs({
-    targets: targets.slice(0, 10),
+    targets: targets,
     eventAbi: SWAP_ABI,
     fromBlock,
     toBlock,
