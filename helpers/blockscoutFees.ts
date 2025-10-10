@@ -155,6 +155,15 @@ export function blockscoutFeeAdapter2(chain: string) {
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)
 
+          if (chain == CHAIN.SOMNIA) {
+            const dailyRevenue = dailyFees.clone(0.5);
+            return  {
+              timestamp: startOfDay,
+              dailyFees,
+              dailyRevenue,
+            }
+          }
+
           return {
             timestamp: startOfDay, dailyFees,
           };
