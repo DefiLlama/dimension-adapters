@@ -11,8 +11,13 @@ import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume"
 function getAvgPnlForDay({ historyPnls, timestamp }: { historyPnls: {[key: number]: number}, timestamp: number }): number {
   const ONE_DAY = 24 * 3600
 
-  let upperTimestamp = timestamp
-  let lowerTimestamp = timestamp - ONE_DAY
+  const currentTimestamp = Math.floor(new Date().getTime() / 1000)
+  let upperTimestamp = timestamp + ONE_DAY
+  if (upperTimestamp > currentTimestamp) {
+    throw Error(`can not found data for day ${timestamp}`)
+  }
+
+  let lowerTimestamp = timestamp
 
   while(!historyPnls[upperTimestamp]) {
     upperTimestamp += ONE_DAY;
@@ -45,7 +50,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions) {
     }
   }
 
-  let dailyPnl = getAvgPnlForDay({ timestamp: options.startOfDay, historyPnls })
+  const dailyPnl = getAvgPnlForDay({ timestamp: options.startOfDay, historyPnls })
 
   let perpFees = options.createBalances()
   let spotFees = options.createBalances()
