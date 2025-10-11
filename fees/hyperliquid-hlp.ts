@@ -4,6 +4,10 @@ import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidInde
 import { httpPost } from "../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume"
 
+// hl api return data in random days, not every days
+// so we will cal avg pnl from lower timestamp to upper timestamp
+// for example, hl api return data for 9 Oct, 11 Oct but missing 10 Oct
+// so the fees for both 9 Oct and 10 Oct are: (Fees of 11 Oct - Fees of 1 Oct) / 2
 function getAvgPnlForDay({ historyPnls, timestamp }: { historyPnls: {[key: number]: number}, timestamp: number }): number {
   const ONE_DAY = 24 * 3600
 
