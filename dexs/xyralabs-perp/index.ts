@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
-export enum KanaChainID {
+export enum XyraChainID {
   "aptos" = 2
 }
 
@@ -17,7 +17,7 @@ const fetch = async (timestamp: number, t: any, options: FetchOptions) => {
   `;
   const variables = {
     timestamp: dayTimestamp - 1,
-    chainId: KanaChainID.aptos,
+    chainId: XyraChainID.aptos,
   };
   const data = await request(GRAPHQL_URL, query, variables);
   const result = data.getDefillamaVolumeForPerps;

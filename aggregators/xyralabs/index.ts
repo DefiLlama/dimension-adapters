@@ -7,7 +7,7 @@ const URL = "https://stats.kanalabs.io/transaction/volume";
 const TRADE_URL = "https://stats.kanalabs.io/trade/volume";
 const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
-export enum KanaChainID {
+export enum XyraChainID {
   "solana" = 1,
   "aptos" = 2,
   "polygon" = 3,
@@ -22,7 +22,7 @@ export enum KanaChainID {
   "optimistic" = 12,
 }
 
-const fetch = (chain: KanaChainID) => async (timestamp: number, t: any, options: FetchOptions) => {
+const fetch = (chain: XyraChainID) => async (timestamp: number, t: any, options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
   const data = await fetchURL(
     `${URL}?timestamp=${dayTimestamp - 1}&chainId=${chain}`
@@ -41,7 +41,7 @@ const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
   `;
   const variables = {
     timestamp: dayTimestamp - 1,
-    chainId: KanaChainID.aptos,
+    chainId: XyraChainID.aptos,
   };
   const data = await request(GRAPHQL_URL, query, variables);
   
@@ -57,27 +57,27 @@ const start = '2023-09-08';
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch(KanaChainID.ethereum),
+      fetch: fetch(XyraChainID.ethereum),
       start: start,
     },
     [CHAIN.BSC]: {
-      fetch: fetch(KanaChainID.bsc),
+      fetch: fetch(XyraChainID.bsc),
       start: start,
     },
     [CHAIN.AVAX]: {
-      fetch: fetch(KanaChainID.Avalanche),
+      fetch: fetch(XyraChainID.Avalanche),
       start: start,
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(KanaChainID.Arbitrum),
+      fetch: fetch(XyraChainID.Arbitrum),
       start: start,
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(KanaChainID.polygon),
+      fetch: fetch(XyraChainID.polygon),
       start: start,
     },
     [CHAIN.ERA]: {
-      fetch: fetch(KanaChainID.zkSync),
+      fetch: fetch(XyraChainID.zkSync),
       start: start,
     },
     [CHAIN.APTOS]: {
@@ -90,11 +90,11 @@ const adapter: SimpleAdapter = {
       start: start,
     },
     [CHAIN.SUI]: {
-      fetch: fetch(KanaChainID.sui),
+      fetch: fetch(XyraChainID.sui),
       start: start,
     },
     [CHAIN.SOLANA]: {
-      fetch: fetch(KanaChainID.solana),
+      fetch: fetch(XyraChainID.solana),
       start: start,
     },
   },

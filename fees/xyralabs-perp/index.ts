@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
-export enum KanaChainID {
+export enum XyraChainID {
   "aptos" = 2
 }
 
@@ -19,7 +19,7 @@ const fetch = async (timestamp: number, t: any, options: FetchOptions) => {
 
   const variables = {
     day_ts: dayTimestamp - 1,
-    chainId: KanaChainID.aptos,
+    chainId: XyraChainID.aptos,
   };
 
   const data = await request(GRAPHQL_URL, query, variables);
@@ -35,7 +35,7 @@ const fetch = async (timestamp: number, t: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees are collected from the users when they trade on Kana Perps.",
+  Fees: "Fees are collected from the users when they trade on Xyra Perps.",
   Revenue: "Revenue is the sum of fees collected from the users.",
   ProtocolRevenue: "Protocol revenue is the sum of fees collected from the users.",
 }
