@@ -1,6 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter, FetchOptions, } from "../adapters/types";
-import { addTokensReceived, getSolanaReceived } from "../helpers/token";
+import { addTokensReceived, getETHReceived, getSolanaReceived } from "../helpers/token";
 import { queryIndexer } from "../helpers/indexer";
 
 const methodology = {
@@ -13,14 +13,16 @@ const dispatcher: any = {
   [CHAIN.ETHEREUM]: "0x2ff99ee6b22aedaefd8fd12497e504b18983cb14",
   [CHAIN.BSC]: "0x7176456e98443a7000b44e09149a540d06733965",
   [CHAIN.ARBITRUM]: "0x34b5561c30a152b5882c8924973f19df698470f4",
-  [CHAIN.BASE]: "0xb0999731f7c2581844658a9d2ced1be0077b7397",
+  [CHAIN.BASE]: "0x2CDF4CAdF2272B77475732446Ba664443277E8C1",
+  [CHAIN.AVAX]: "0xB0999731f7c2581844658A9d2ced1be0077b7397",
   [CHAIN.TRON]: "TS4yvUzwmaSh4XM1scBXRgoKeVdb4oot4S"
 }
+
 const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
-  const dailyFees = options.createBalances()
-  await addTokensReceived({ options, target: feesAddress, balances: dailyFees })
+  const dailyFees = await addTokensReceived({ options, target: feesAddress, skipIndexer: true })
+  // await getETHReceived({ options, target: feesAddress, balances: dailyFees })
   const logs = await options.getLogs({ target: dispatcher[options.chain], eventAbi: 'event BalanceTransfer (address to, uint256 amount)', })
   logs.map((log: any) => dailyFees.addGasToken(log.amount))
   if (CHAIN.ETHEREUM === options.chain) {
@@ -53,11 +55,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { start: '2022-07-01', },
     [CHAIN.BSC]: { start: '2022-07-01', },
     [CHAIN.ARBITRUM]: { start: '2022-07-01', },
+    [CHAIN.BASE]: { start: '2024-06-19', },
+    // [CHAIN.SONIC]: { start: '2025-02-26', },
+    // [CHAIN.AVAX]: { start: '2025-06-08', },
+    // [CHAIN.HYPERLIQUID]: { start: '2025-05-27', },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-03-05',
     },
-    [CHAIN.BASE]: { start: '2024-06-19', },
     // [CHAIN.TRON]: {    //   start: '2022-07-01',     // },
   },
   isExpensiveAdapter: true
