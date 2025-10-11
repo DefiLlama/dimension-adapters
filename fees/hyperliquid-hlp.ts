@@ -101,6 +101,7 @@ const adapter: SimpleAdapter = {
     },
   },
   doublecounted: true, // we have already counted to supplySideRevenue on perps and spot
+  allowNegativeValue: true, // HLP vault PnL can be negative
 };
 
 export default adapter;
