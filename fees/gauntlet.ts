@@ -42,7 +42,9 @@ const VAULT_ADDRESSES = [
   "4F7c7v9cZHatcZLy9TZFv1jrRrReACLBxciMkbDqVkfQ", // jitoSOL Plus
   "8ziYC1onrdfq2KhRQamz392Ykx8So48uWzd3f8tXJpVz", // DRIFT Plus
   "5M13RDhVWSGiuUPU3ewnxLWdMjcYx5zCzBLgvMjVuZ2K", // JTO Plus
-  "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ"  // Carrot hJLP
+  "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ", // Carrot hJLP
+  "An26iG1Cx5W8tsxa8cHg8zjt7G15rBBj6swextzwMGCG", // wETH Plus
+  "12HURxP9axx1FRKKHEWMiPcS6ixuekZ6pzfTbp3YQ1EH"  // dfdvSOL Plus
 ];
 
 async function calculateGrossReturns(options: FetchOptions): Promise<number> {
@@ -113,7 +115,10 @@ async function calculateGrossReturns(options: FetchOptions): Promise<number> {
         const endNetValue = endValue - endNetDeposits;
         const periodReturns = endNetValue - startNetValue;
         const periodManagerFees = endManagerFees - startManagerFees;
-        const periodValueGenerated = periodReturns + periodManagerFees;
+        
+        // Only add period returns to avoid double-counting manager fees
+        // Manager fees are tracked separately in dailyRevenue
+        const periodValueGenerated = periodReturns;
 
         totalGrossReturns += periodValueGenerated;
       }
@@ -139,14 +144,17 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
       AND to_owner = '${MANAGER_ADDRESS}'
       AND block_time >= from_unixtime(${options.startTimestamp})
       AND block_time < from_unixtime(${options.endTimestamp})
+      AND amount_display IS NOT NULL
+      AND amount_display != 0
     GROUP BY token_mint_address, symbol
+    HAVING SUM(amount_display) != 0
     ORDER BY total_amount DESC
   `;
   const managerFeesData = await queryDuneSql(options, managerFeesQuery);
 
   if (managerFeesData && managerFeesData.length > 0) {
     managerFeesData.forEach((fee: any) => {
-      if (fee.total_amount && fee.token_mint_address) {
+      if (fee.total_amount && fee.token_mint_address && fee.total_amount !== 0) {
         dailyRevenue.add(fee.token_mint_address, fee.total_amount, METRIC.MANAGEMENT_FEES);
       }
     });
@@ -158,11 +166,9 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
 
   const grossReturns = await calculateGrossReturns(options);
 
-  // Cap fees at 0 - fees cannot be negative by definition
-  const cappedGrossReturns = Math.max(0, grossReturns);
-
-  dailyFees.addUSDValue(cappedGrossReturns, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.addUSDValue(cappedGrossReturns, METRIC.ASSETS_YIELDS);
+  // Don't cap fees at 0 - allow negative values for losses to avoid double-counting
+  dailyFees.addUSDValue(grossReturns, METRIC.ASSETS_YIELDS);
+  dailySupplySideRevenue.addUSDValue(grossReturns, METRIC.ASSETS_YIELDS);
 
   return {
     dailyFees,
