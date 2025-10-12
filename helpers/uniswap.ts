@@ -68,7 +68,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
 
-    if (!pairIds.length) return { 
+    if (!pairIds.length) return {
       dailyVolume,
       dailyFees,
       dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
@@ -149,9 +149,15 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
     const iface = new ethers.Interface([poolCreatedEvent])
+    const algebraIface = new ethers.Interface([algebraV3PoolCreatedEvent])
     let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
-    logs = logs.map((log: any) => iface.parseLog(log)?.args)
+
+      if (isAlgebraV3)
+      logs = logs.map((log: any) => algebraIface.parseLog(log)?.args)
+    else
+      logs = logs.map((log: any) => iface.parseLog(log)?.args)
+
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
 
