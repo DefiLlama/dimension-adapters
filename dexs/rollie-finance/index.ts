@@ -44,9 +44,6 @@ const getFetch = (chain: string): FetchV2 => async (options: FetchOptions): Prom
         ? (BigInt(response.marketDayDatas[0].tradeVolume) /
           BigInt(10 ** USDC_DECIMALS[chain])).toString()
         : '0',
-    totalVolume: (BigInt(response.tradeVolume) /
-      BigInt(10 ** USDC_DECIMALS[chain])).toString(),
-
   };
 };
 

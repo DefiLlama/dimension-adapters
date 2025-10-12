@@ -179,11 +179,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch,
       start: "2024-01-14",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -27,11 +27,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.HEDERA]: {
       fetch,
       start: "2024-12-16",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

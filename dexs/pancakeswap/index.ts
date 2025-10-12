@@ -1,4 +1,4 @@
-import { BaseAdapter, BreakdownAdapter, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
+import { BaseAdapter, BreakdownAdapter, Dependencies, FetchOptions, FetchResult, FetchV2, IJSON } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { getUniV2LogAdapter, getUniV3LogAdapter } from "../../helpers/uniswap";
@@ -7,11 +7,13 @@ import { httpGet } from "../../utils/fetchURL";
 import { ethers } from "ethers";
 import { cache } from "@defillama/sdk";
 import { queryDuneSql } from "../../helpers/dune";
+import { getEnv } from "../../helpers/env";
+import { getBscV2Data } from "./bscv2";
 
 enum DataSource {
   GRAPH = 'graph',
   LOGS = 'logs',
-  PANCAKE_EXPLORER = 'pacnake_explorer',
+  PANCAKE_EXPLORER = 'pancake_explorer',
   CUSTOM = 'custom',
   DUNE = 'dune'
 }
@@ -61,16 +63,17 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   v2: {
     [CHAIN.BSC]: {
       start: '2021-04-23',
-      dataSource: DataSource.GRAPH,
-      endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
-      requestHeaders: {
-        "origin": "https://pancakeswap.finance",
-      }
+      dataSource: DataSource.CUSTOM,
+      // endpoint: "https://proxy-worker.pancake-swap.workers.dev/bsc-exchange",
+      // requestHeaders: {
+      //   "origin": "https://pancakeswap.finance",
+      // }
     },
     [CHAIN.ETHEREUM]: {
       start: '2022-09-27',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('9opY17WnEPD4REcC43yHycQthSeUMQE26wyoeMjZTLEx')
+      factory: '0x1097053fd2ea711dad45caccc45eff7548fcb362',
     },
     [CHAIN.POLYGON_ZKEVM]: {
       start: '2023-06-28',
@@ -86,18 +89,21 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ARBITRUM]: {
       start: '2023-08-08',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('EsL7geTRcA3LaLLM9EcMFzYbUgnvf8RixoEEGErrodB3')
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.LINEA]: {
       start: '2023-08-24',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('Eti2Z5zVEdARnuUzjCbv4qcimTLysAizsqH3s6cBfPjB'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.BASE]: {
       start: '2023-08-31',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('2NjL7L4CmQaGJSacM43ofmH6ARf6gJoBeBaJtz9eWAQ9'),
+      factory: '0x02a84c1b3bbd7401a5f7fa98a384ebc70bb5749e',
     },
     [CHAIN.OP_BNB]: {
       start: '2023-09-19',
@@ -132,8 +138,9 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     },
     [CHAIN.ERA]: {
       start: '2023-07-24',
-      dataSource: DataSource.GRAPH,
-      endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      dataSource: DataSource.LOGS,
+      // endpoint: sdk.graph.modifyEndpoint('3dKr3tYxTuwiRLkU9vPj3MvZeUmeuGgWURbFC72ZBpYY')
+      factory: '0x1bb72e0cbbea93c08f535fc7856e0338d7f7a8ab',
     },
     [CHAIN.ARBITRUM]: {
       start: '2023-08-08',
@@ -144,6 +151,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
       start: '2023-08-24',
       dataSource: DataSource.GRAPH,
       endpoint: sdk.graph.modifyEndpoint('6gCTVX98K3A9Hf9zjvgEKwjz7rtD4C1V173RYEdbeMFX')
+      // factory: '0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865',
     },
     [CHAIN.BASE]: {
       start: '2023-08-21',
@@ -176,7 +184,7 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
   }
 };
 
-const FEE_CONFIG = {
+export const FEE_CONFIG = {
   V2_V3: {
     type: "volume" as const,
     Fees: 0.25,
@@ -193,7 +201,7 @@ const FEE_CONFIG = {
     HoldersRevenue: 0.1,
     UserFees: 0.25,
     SupplySideRevenue: 0.125,
-    Revenue: 0.0225
+    Revenue: 0.125, // ProtocolRevenue + HoldersRevenue
   }
 }
 
@@ -208,23 +216,7 @@ const ABIS = {
   }
 }
 
-const methodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 0.0225% of each swap.",
-  SupplySideRevenue: "LPs receive 0.17% of the fees.",
-  HoldersRevenue: "0.0575% is used to facilitate CAKE buyback and burn.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees comes from the user."
-}
 
-const stableSwapMethodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 10% of the fees.",
-  SupplySideRevenue: "LPs receive 50% of the fees.",
-  HoldersRevenue: "A 40% of the fees is used to facilitate CAKE buyback and burn.",
-  Revenue: "Revenue is 50% of the fees paid by users.",
-  Fees: "All fees comes from the user fees, which is 0.25% of each trade."
-}
 
 const createEndpointMap = (version: keyof typeof PROTOCOL_CONFIG) => {
   const result: IJSON<string> = {};
@@ -293,14 +285,14 @@ interface ISwapEventData {
 
 const account = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
 const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_PRC = 'https://aptos-mainnet.pontem.network';
+const APTOS_RPC = getEnv('APTOS_RPC');
 
 const getResources = async (account: string): Promise<any[]> => {
   const data: any = []
   let lastData: any;
   let cursor
   do {
-    let url = `${APTOS_PRC}/v1/accounts/${account}/resources?limit=9999`
+    let url = `${APTOS_RPC}/v1/accounts/${account}/resources?limit=9999`
     if (cursor) url += '&start=' + cursor
     const res = await httpGet(url, undefined, { withMetadata: true })
     lastData = res.data
@@ -346,9 +338,22 @@ const fetchVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances
     balances.add(token1, e.amount_y_out)
   })
 
+  // fees are same as v2 on bsc
+  const dailyVolume = await balances.getUSDString()
+  const dailyFees = Number(dailyVolume) * FEE_CONFIG.V2_V3.Fees;
+  const dailyRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.Revenue;
+  const dailyProtocolRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.ProtocolRevenue;
+  const dailySupplySideRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.SupplySideRevenue;
+  const dailyHoldersRevenue = Number(dailyVolume) * FEE_CONFIG.V2_V3.HoldersRevenue;
+
   return {
-    dailyVolume: await balances.getUSDString(),
-    dailyFees: "0",
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
@@ -424,14 +429,14 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
   let start = (pool.swap_events.counter - limit) < 0 ? 0 : pool.swap_events.counter - limit;
   while (true) {
     if (start < 0) break;
-    const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
+    const getEventByCreation = `${APTOS_RPC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
       const event: any[] = (await httpGet(getEventByCreation));
       const listSequence: number[] = event.map(e => Number(e.sequence_number))
       const lastMin = Math.min(...listSequence)
       if (lastMin >= Infinity || lastMin <= -Infinity) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
-      const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastVision}`;
+      const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastVision}`;
       const block = (await httpGet(urlBlock));
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp
@@ -458,19 +463,32 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
 }
 const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
 
-const calculateFees = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+const calculateFeesDune = (dailyVolume: string | Number, feeConfig: typeof FEE_CONFIG.V2_V3) => {
   if (!dailyVolume) return {};
   const dailyVolumeNumber = Number(dailyVolume) || 0;
 
   return {
-    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue).toString() || "0",
-    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue).toString() || "0", 
-    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue).toString() || "0",
-    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees).toString() || "0",
+    dailyFees: (dailyVolumeNumber * feeConfig.Fees / 100).toString() || "0",
+    dailyUserFees: (dailyVolumeNumber * feeConfig.UserFees / 100).toString() || "0",
+    dailyRevenue: (dailyVolumeNumber * feeConfig.Revenue / 100).toString() || "0",
+    dailyProtocolRevenue: (dailyVolumeNumber * feeConfig.ProtocolRevenue / 100).toString() || "0",
+    dailySupplySideRevenue: (dailyVolumeNumber * feeConfig.SupplySideRevenue / 100).toString() || "0", 
+    dailyHoldersRevenue: (dailyVolumeNumber * feeConfig.HoldersRevenue / 100).toString() || "0",
   };
 };
 
-const fetchV2 = async (options: FetchOptions) => {
+const calculateFeesBalances = (dailyVolume: sdk.Balances, feeConfig: typeof FEE_CONFIG.V2_V3) => {
+  return {
+    dailyFees: dailyVolume.clone(feeConfig.Fees/100),
+    dailyUserFees: dailyVolume.clone(feeConfig.UserFees/100),
+    dailyRevenue: dailyVolume.clone(feeConfig.Revenue/100),
+    dailyProtocolRevenue: dailyVolume.clone(feeConfig.ProtocolRevenue/100),
+    dailySupplySideRevenue: dailyVolume.clone(feeConfig.SupplySideRevenue/100),
+    dailyHoldersRevenue: dailyVolume.clone(feeConfig.HoldersRevenue/100),
+  };
+};
+
+const fetchV2 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v2[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -478,24 +496,25 @@ const fetchV2 = async (options: FetchOptions) => {
     const adapter = getUniV2LogAdapter({ 
       factory: logConfig.factory, 
       eventAbi: ABIS.V2.SWAP_EVENT, 
-      pairCreatedAbi: ABIS.V2.POOL_CREATE 
+      pairCreatedAbi: ABIS.V2.POOL_CREATE
     });
     const v2stats = await adapter(options);
-    const usdDailyVolume = await v2stats.dailyVolume.toString();
     return {
       ...v2stats,
-      ...calculateFees(usdDailyVolume, FEE_CONFIG.V2_V3)
+      ...calculateFeesBalances(v2stats.dailyVolume, FEE_CONFIG.V2_V3)
     };
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v2stats = await graphs(options.chain)(options);
+    const v2stats = await graphs(options);
     return v2stats;
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     return fetchVolume(options);
+  } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.BSC) {
+    return await getBscV2Data(options);
   }
   throw new Error('Invalid data source');
 }
 
-const fetchV3 = async (options: FetchOptions) => {
+const fetchV3 = async (_t: any, _a: any, options: FetchOptions) => {
   const chainConfig = PROTOCOL_CONFIG.v3[options.chain];
   
   if (chainConfig.dataSource === DataSource.LOGS) {
@@ -507,7 +526,7 @@ const fetchV3 = async (options: FetchOptions) => {
     });
     return await adapter(options);   
   } else if (chainConfig.dataSource === DataSource.GRAPH) {
-    const v3stats = await v3Graph(options.chain)(options);
+    const v3stats = await v3Graph(options);
     // Ethereum-specific adjustment
     if (options.chain === CHAIN.ETHEREUM) {
       v3stats.totalVolume = (Number(v3stats.totalVolume) - 7385565913).toString();
@@ -527,7 +546,7 @@ const fetchV3 = async (options: FetchOptions) => {
     return {
       dailyVolume: totalVolume.toString(),
       dailyFees: dailyFees.toString(),
-      ...calculateFees(inflated_volume.toString(), FEE_CONFIG.V2_V3)
+      ...calculateFeesDune(inflated_volume.toString(), FEE_CONFIG.V2_V3)
     };
   }
   throw new Error('Invalid data source');
@@ -562,9 +581,11 @@ const fetchStableSwap = async (options: FetchOptions, {factory}: {factory: strin
     const dailySupplySideRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.SupplySideRevenue/100)
     const dailyHoldersRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.HoldersRevenue/100)
     const dailyUserFees = dailyVolume.clone(FEE_CONFIG.STABLESWAP.UserFees/100)
+    const dailyRevenue = dailyVolume.clone(FEE_CONFIG.STABLESWAP.Revenue/100)
     return {
       dailyVolume: dailyVolume,
       dailyFees,
+      dailyRevenue,
       dailyProtocolRevenue,
       dailySupplySideRevenue,
       dailyHoldersRevenue,
@@ -582,7 +603,7 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
     if (version === 'v1' && chain === CHAIN.BSC) {
       const customConfig = config as CustomChainConfig;
       acc[chain] = {
-        fetch: async ({ startTimestamp }: any) => {
+        fetch: async (_t: any, _a: any, { startTimestamp }: any) => {
           return {
             totalVolume: customConfig.totalVolume,
             timestamp: startTimestamp
@@ -594,7 +615,6 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       acc[chain] = {
         fetch: fetchV2,
         start: config.start,
-        meta: { methodology }
       };
     } else if (version === 'v3') {
       acc[chain] = {
@@ -604,9 +624,8 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
       };
     } else if (version === 'stableswap') {
       acc[chain] = {
-        fetch: chain === CHAIN.ETHEREUM ? (options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (options: FetchOptions) => graphsStableSwap(options.chain)(options),
+        fetch: chain === CHAIN.ETHEREUM ? (_t: any, _a: any, options: FetchOptions) => fetchStableSwap(options, {factory: '0xD173bf0851D2803177CC3928CF52F7b6bd29D054'}) : (_t: any, _a: any, options: FetchOptions) => graphsStableSwap(options),
         start: config.start,
-        meta: { methodology: stableSwapMethodology }
       };
     }
     
@@ -615,13 +634,13 @@ const createAdapter = (version: keyof typeof PROTOCOL_CONFIG) => {
 };
 
 const adapter: BreakdownAdapter = {
-  version: 2,
   breakdown: {
     v1: createAdapter('v1'),
     v2: createAdapter('v2'),
     v3: createAdapter('v3'),
     stableswap: createAdapter('stableswap')
   },
+  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;

@@ -3,9 +3,10 @@ import { CHAIN } from "../helpers/chains";
 
 const methodology = {
   Fees: "Total rewards earned in EigenLayer.",
+  Revenue: "No revenue, all rewards earned by suppliers.",
   SupplySideRevenue: "Total rewards are distributed to stakers and operators.",
-  ProtocolRevenue: "Total rewards are earned by EigenLayer.",
-};
+  ProtocolRevenue: "No revenue for EigenLayer.",
+}
 
 // EigenLayer calculates rewards off-chain and distributed to on-chain contracts weekly
 // we count daily fees by collect daily rewards were claimed by operators and stakers on RewardsCoordinator contract
@@ -32,6 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   return {
     dailyFees,
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
@@ -42,12 +44,10 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      meta: {
-        methodology,
-      },
       start: '2024-07-20',
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -17,23 +17,17 @@ function removeInvalidKeys(obj: any) {
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResult> => {
   const chain = options.chain
   const urlDaily = `${MANTIS_VOLUME_API}?timestamp=${options.startOfDay}&chain=${chain == CHAIN.ETHEREUM ? 1 : 2}&period=1&solved_only=true`;
-  const urlTotal = `${MANTIS_VOLUME_API}?timestamp=${options.startOfDay}&chain=${chain == CHAIN.ETHEREUM ? 1 : 2}&period=0&solved_only=true`;
 
   const volumeDaily = (await fetchURL(urlDaily)).assets;
-  const volumeTotal = (await fetchURL(urlTotal)).assets;
 
   removeInvalidKeys(volumeDaily);
-  removeInvalidKeys(volumeTotal);
 
   const dailyVolume = options.createBalances();
-  const totalVolume = options.createBalances();
   dailyVolume.addBalances(volumeDaily);
-  totalVolume.addBalances(volumeTotal);
 
 
   return {
     dailyVolume,
-    totalVolume,
     timestamp
   };
 };
@@ -44,16 +38,11 @@ export default {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-11-30',
-      meta: {
-        methodology: "Sum of all executed intents with Solana as input or output",
-      },
     },
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2024-11-30',
-      meta: {
-        methodology: "Sum of all executed intents with Ethereum as input or output",
-      },
     }
   },
+  methodology: "Sum of all executed intents with Solana as input or output",
 } as Adapter;

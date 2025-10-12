@@ -22,14 +22,12 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch,
       start: '2024-11-18',
-      meta: {
-        methodology: {
-          Volumes: 'Sum of all open/close/increase/liquidate position volumes.',
-        },
-      },
     }
+  },
+  fetch,
+  methodology: {
+    Volumes: 'Sum of all open/close/increase/liquidate position volumes.',
   },
 }
 

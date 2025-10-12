@@ -1,12 +1,13 @@
 import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
+import { getEnv } from './env';
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
   [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://stats-celo-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.AURORA]: { explorer: 'https://aurorascan.dev', allStatsApi: 'https://stats.explorer.mainnet.aurora.dev', CGToken: 'ethereum' },
-  [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'dai',  allStatsApi: 'https://stats-gnosis-mainnet.k8s-prod-1.blockscout.com', start: '2018-11-01' },
+  [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'dai', allStatsApi: 'https://stats-gnosis-mainnet.k8s-prod-1.blockscout.com', start: '2018-11-01' },
   [CHAIN.CANTO]: { explorer: 'https://explorer.plexnode.wtf', CGToken: 'canto', },
   [CHAIN.CRONOS]: { explorer: 'https://cronos.org/explorer', CGToken: 'crypto-com-chain', },
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
@@ -69,7 +70,7 @@ export const chainConfigMap: any = {
   [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
-
+  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', },
 }
 
 function getTimeString(timestamp: number) {
@@ -98,7 +99,7 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
 
-          if (process.env.BLOCKSCOUT_BULK_MODE) {
+          if (getEnv('BLOCKSCOUT_BULK_MODE')) {
             if (allStatsApi && !gasData[chain]) {
               console.log('pulling chain data for', chain)
               const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`)
@@ -115,7 +116,7 @@ export function blockscoutFeeAdapter2(chain: string) {
               console.log('pulling CG data for', CGToken)
               const { prices } = await httpGet(`https://pro-api.coingecko.com/api/v3/coins/${CGToken}/market_chart?vs_currency=usd&days=max&interval=daily`, {
                 headers: {
-                  'x-cg-pro-api-key': process.env.CG_KEY
+                  'x-cg-pro-api-key': getEnv('CG_KEY'),
                 }
               })
               bulkStoreCGData[CGToken] = {}
@@ -147,12 +148,22 @@ export function blockscoutFeeAdapter2(chain: string) {
           const dailyFees = createBalances()
           const fees = await httpGet(`${url}&date=${dateString}`)
           if (!fees || fees.result === undefined || fees.result === null) {
-            console.log(chain,' Error fetching fees', fees)
+            console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
           }
           if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)
+
+          if (chain == CHAIN.SOMNIA) {
+            const dailyRevenue = dailyFees.clone(0.5);
+            return  {
+              timestamp: startOfDay,
+              dailyFees,
+              dailyRevenue,
+              dailyHoldersRevenue: dailyRevenue
+            }
+          }
 
           return {
             timestamp: startOfDay, dailyFees,

@@ -79,7 +79,7 @@ const contracts: string[] = [
   '0x50a40d947726ac1373DC438e7aaDEde9b237564d'
 ]
 
-const fetchVolume: any = async (timestamp: number, _, { getLogs, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (_a: any, _b: any, { getLogs }: FetchOptions): Promise<FetchResultVolume> => {
   let dailyVolume = 0
   const logs_modify: any[] = await getLogs({ targets: contracts, eventAbi: event_modified_positions, })
   logs_modify.forEach((log: any) => {
@@ -88,15 +88,13 @@ const fetchVolume: any = async (timestamp: number, _, { getLogs, }: FetchOptions
     dailyVolume += value
   })
 
-  return { dailyVolume, timestamp }
+  return { dailyVolume }
 }
+
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchVolume,
-      start: '2023-04-22',
-    },
-  }
+  fetch,
+  chains: [CHAIN.OPTIMISM],
+  start: '2023-04-22',
 };
 
 export default adapter;

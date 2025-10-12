@@ -1,8 +1,8 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const query = `
     with tx_ct as (
@@ -43,7 +43,6 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
     from block_with_eob_payment
   `
   const res = await queryDuneSql(options, query);
-  console.log(res);
 
   const dayItem = res[0];
   dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18);
@@ -56,18 +55,14 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   deadFrom: '2025-05-28',
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2022-09-15',
-      meta: {
-        methodology: {
-            Fees: "Total MEV Tips for Eden Builders"
-        }
-      }
-    },
-  },
+  fetch,
+  start: '2022-09-15',
+  chains: [CHAIN.ETHEREUM],
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Total MEV Tips for Eden Builders"
+  }
 }
 
 export default adapter;

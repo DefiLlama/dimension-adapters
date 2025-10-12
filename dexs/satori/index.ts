@@ -34,7 +34,6 @@ async function fetch({ chain }: FetchOptions) {
   const volumeData: VolumeInfo = (await postURL(DATA_URL, { exchange: config[chain] })).data;
 
   return {
-    totalVolume: volumeData.totalTradVol,
     dailyVolume: volumeData.tradVol24h,
     dailyFees: volumeData.fee24h,
     dailyRevenue: volumeData.fee24h,

@@ -29,12 +29,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
       `;
 
       const graphRes = await request(graphUrls[chain], graphQuery);
-      const totalVolume = parseInt(graphRes.globalInfos[0].volume) / 1e30;
       const dailyVolume =
         parseInt(graphRes.dailyGlobalInfos[0].tradeVolume) / 1e30;
       return {
         timestamp,
-        totalVolume: totalVolume.toString(),
         dailyVolume: dailyVolume.toString(),
       };
     };

@@ -1,8 +1,8 @@
-import * as sdk from "@defillama/sdk";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
-import { CHAIN } from "../../helpers/chains";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-// Not complete! Missing older versions
-export default univ2Adapter({
-    [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('Dizc6HBJZWB276wcyycYMxN8FMKeKb7RpSvwu83F4gTc'),
-}, {});
+export default uniV2Exports({ 
+  polygon: {
+    factory: '0xE7Fb3e833eFE5F9c441105EB65Ef8b261266423B',
+  }
+})
+

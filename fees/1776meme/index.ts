@@ -75,11 +75,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: 22764597,
-      meta: {
-        methodology
-      }
     }
   },
+  methodology
 };
 
 export default adapter;

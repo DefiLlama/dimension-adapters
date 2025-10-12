@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 // Decoded Schema: https://github.com/duneanalytics/spellbook/blob/main/dbt_subprojects/solana/models/_sector/dex/pumpdotfun/solana/pumpdotfun_solana_base_trades.sql
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -30,6 +30,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,

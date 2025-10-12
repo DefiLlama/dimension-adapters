@@ -1,5 +1,4 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
 import { BreakdownAdapter, BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
@@ -67,65 +66,27 @@ const stableGraph = getGraphDimensions2({
   },
 });
 
-const methodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  Fees: "A 0.25% of each swap is collected as trading fees",
-  Revenue:
-    "Protocol receives 0.1% on each swap. A part is used to buyback and burn and a part is used to buy WETH and distribute to stakers.",
-  ProtocolRevenue: "Protocol receives 0.1% on each swap.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Stakers receive WETH a part of protocol revenue.",
-};
-
-const methodologyV3 = {
-  UserFees: "User pays dynamic swap fee.",
-  Fees: "A dynamic swap fee is collected as trading fee",
-  Revenue: "Protocol receives 10% of the dynamic swap fee",
-  ProtocolRevenue: "Protocol receives 10% of the dynamic swap fee",
-  SupplySideRevenue: "90% of the dynamic swap fee is distributed to LPs",
-  HoldersRevenue:
-    "A portion of the protocol fees is used to purchase WETH and distribute to stakers.",
-};
-
-const methodologyStable = {
-  UserFees: "User pays a 0.04% fee on each swap.",
-  Fees: "A 0.04% of each swap is collected as trading fees",
-  Revenue: "Protocol receives 0.02% of the swap fee",
-  ProtocolRevenue: "Protocol receives 0.02% of the swap fee",
-  SupplySideRevenue: "0.02% of the swap fee is distributed to LPs",
-  HoldersRevenue:
-    "A portion of the protocol fees is used to purchase WETH and distribute to stakers.",
-};
 
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v2: {
       [CHAIN.ARBITRUM]: {
-        fetch: v2Graph(CHAIN.ARBITRUM),
+        fetch: v2Graph,
         start: '2023-01-23',
-        meta: {
-          methodology,
-        },
       },
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
+        fetch: v3Graphs,
         start: '2023-02-20',
-        meta: {
-          methodology: methodologyV3,
-        },
       };
       return acc;
     }, {} as BaseAdapter),
     stable: {
       [CHAIN.ARBITRUM]: {
-        fetch: stableGraph(CHAIN.ARBITRUM),
+        fetch: stableGraph,
         start: '2023-02-11',
-        meta: {
-          methodology: methodologyStable,
-        },
       },
     },
   },

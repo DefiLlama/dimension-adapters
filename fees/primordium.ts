@@ -1,26 +1,47 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getSolanaReceived } from "../helpers/token";
+import { queryDuneSql } from "../helpers/dune";
 
-const fetch: any = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, target: '9yMwSPk9mrXSN7yDHUuZurAh1sjbJsfpUqjZ7SvVtdco' })
-  return { dailyFees, dailyRevenue: dailyFees, }
+// Trojan Fee Wallet: 9yMwSPk9mrXSN7yDHUuZurAh1sjbJsfpUqjZ7SvVtdco
+
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {  
+  const query = `
+    WITH botTrades AS (
+        SELECT
+            block_time,
+            amount_usd,
+            fee_usd
+        FROM
+            trojan_solana.bot_trades
+        WHERE
+            blockchain = 'solana'
+            AND is_last_trade_in_transaction = true
+            AND TIME_RANGE
+    )
+    SELECT
+        SUM(fee_usd) AS dailyFees
+    FROM
+        botTrades
+  `;
+  const data = await queryDuneSql(options, query);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(data[0].dailyFees);
+
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: 'All trading fees paid by users while using Trojan bot.',
-          Revenue: 'Fees collected by Trojan protocol.',
-        }
-      }
-    },
-  },
-  isExpensiveAdapter: true
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-01-04',
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'All trading fees paid by users while using Trojan bot.',
+    Revenue: 'Fees collected by Trojan protocol.',
+    ProtocolRevenue: "Fees collected by Trojan protocol.",
+  }
 };
 
 export default adapter;

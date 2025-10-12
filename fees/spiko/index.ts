@@ -3,15 +3,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-type IFunds = {
-  [s: string]: string;
-};
-
-type IAddress = {
-  [key: string]: IFunds;
-};
-
-const funds: IAddress = {
+const funds: Record<string, Record<string, string>> = {
   [CHAIN.ETHEREUM]: {
     EUTBL: "0xa0769f7A8fC65e47dE93797b4e21C073c117Fc80",
     USTBL: "0xe4880249745eAc5F1eD9d8F7DF844792D560e750",
@@ -43,15 +35,11 @@ const calcFees = (totalSupply: number, isEUTBL: boolean) => {
   };
 };
 
-async function getFundsFees(
-  funds: IFunds,
-  { api, createBalances }: FetchOptions
-): Promise<FetchResultV2> {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const { api, createBalances, chain } = options;
   const dailyFees = createBalances();
   const dailyRevenues = createBalances();
-  const totalFees = createBalances();
-  const totalRevenues = createBalances();
-  const { EUTBL, USTBL } = funds;
+  const { EUTBL, USTBL } = funds[chain];
 
   const totalSupplies = await api.multiCall({
     calls: [EUTBL, USTBL],
@@ -73,35 +61,28 @@ async function getFundsFees(
 
   feesDatas.forEach(({ fund, fees, revenues }) => {
     dailyFees.add(fund, fees / 365);
-    totalFees.add(fund, fees);
     dailyRevenues.add(fund, revenues / 365);
-    totalRevenues.add(fund, revenues);
   });
 
-  return { dailyFees, dailyRevenues, totalFees, totalRevenues };
-}
+  return { dailyFees, dailyRevenue: dailyRevenues };
+};
 
-const meta = {
-  methodology: {
-    Fees: 'Total yields are generated from investment assets.',
-    Revenue: '15% yields are collected by Spiko protocol.',
-  }
+const methodology = {
+  Fees: 'Total yields are generated from investment assets.',
+  Revenue: '15% yields are collected by Spiko protocol.',
 }
 
 const adapter: Adapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
+      fetch,
       start: '2024-05-01',
-      fetch: (options: FetchOptions) =>
-        getFundsFees(funds[CHAIN.ETHEREUM], options),
-      meta,
     },
     [CHAIN.POLYGON]: {
+      fetch,
       start: '2024-04-20',
-      fetch: (options: FetchOptions) =>
-        getFundsFees(funds[CHAIN.POLYGON], options),
-      meta,
     },
   },
 };

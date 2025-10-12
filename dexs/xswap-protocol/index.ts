@@ -1,28 +1,10 @@
-import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const endpoints = {
-  [CHAIN.XDC]: "https://analytics.xspswap.finance/subgraphs/name/xswap/factory"
-}
-
-const graphs = getGraphDimensions2({
-  graphUrls: endpoints,
-  graphRequestHeaders: {
-    [CHAIN.XDC]: {
-      "origin": "https://analytics.xspswap.finance",
-      "referer": "https://analytics.xspswap.finance/home"
-    },
+export default uniV2Exports({
+  [CHAIN.XDC]: { 
+    factory: '0x347D14b13a68457186b2450bb2a6c2Fd7B38352f', 
+    userFeesRatio: 1,
+    revenueRatio: 0,
   },
-});
-
-const adapters: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.XDC]: {
-      fetch: graphs(CHAIN.XDC),
-      start: '2022-03-23',
-    },
-  },
-}
-export default adapters;
+})

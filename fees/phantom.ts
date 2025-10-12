@@ -2,13 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
 
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Phantom wallet.',
-    Revenue: 'Fees collected by Phantom.',
-  }
-}
-
 // Solana fee wallet addresses
 const solana_fee_wallet_addresses = [
   '25mYnjJ2MXHZH6NvTTdA63JvjgRVcuiaj6MRiEQNs1Dq',
@@ -28,43 +21,45 @@ const eth_fee_wallet_addresses = [
 ];
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ 
     options, 
     targets: solana_fee_wallet_addresses, 
     blacklist_signers: solana_fee_wallet_addresses 
   });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 // ETH fetch function for each chain
-const fetchETH = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({
     options,
-    targets: eth_fee_wallet_addresses
+    targets: eth_fee_wallet_addresses,
+
+    // Phantom uses Matcha to sell their tokens for ETH
+    // we must exclude ETH transferred from Matcha Router contracts
+    notFromSenders: [
+      '0x8331f9ACcE69b02C281F40a00706f758665ccE77',
+      '0x07d889ebae9E9203a0443EdBa3cB5ca499c4ceF1',
+    ],
   });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
+const methodology = {
+  Fees: 'All fees paid by users for swapping, bridging in Phantom wallet.',
+  Revenue: 'Fees collected by Phantom.',
+  ProtocolRevenue: 'Fees collected by Phantom.',
+}
+
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  methodology,
   adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      meta,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchETH,
-      meta,
-    }
+    [CHAIN.SOLANA]: { fetch: fetchSolana },
+    [CHAIN.ETHEREUM]: { fetch },
+    [CHAIN.BASE]: { fetch },
+    [CHAIN.POLYGON]: { fetch },
   },
   isExpensiveAdapter: true
 };

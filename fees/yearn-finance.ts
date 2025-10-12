@@ -1,11 +1,30 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const methodology = {
   Fees: 'Total yields from deposited assets across all vaults',
   SupplySideRevenue: 'Total yields are distributed to depositors',
+  Revenue: 'Performance and management fees to Yearn treasury',
   ProtocolRevenue: 'Performance and management fees to Yearn treasury',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields from deposited assets across all vaults',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields are distributed to depositors',
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
+  },
+  ProtocolRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
+  },
 }
 
 const vaultListApi = (chainId: number) => `https://ydaemon.yearn.finance/vaults/all?chainids=${chainId}&limit=100000`
@@ -55,7 +74,7 @@ const ContractAbis = {
   managementFee: 'uint16:managementFee',
 }
 
-const ChainIds: {[key: string]: number} = {
+const ChainIds: { [key: string]: number } = {
   [CHAIN.ETHEREUM]: 1,
   [CHAIN.OPTIMISM]: 10,
   [CHAIN.POLYGON]: 137,
@@ -187,9 +206,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const managementFees = tf * vault.managementFeeRate
     const protocolFees = performanceFees + managementFees
 
-    dailyFees.add(vault.token, tf)
-    dailySupplySideRevenue.add(vault.token, tf - protocolFees)
-    dailyProtocolRevenue.add(vault.token, protocolFees)
+    dailyFees.add(vault.token, tf, METRIC.ASSETS_YIELDS)
+    dailySupplySideRevenue.add(vault.token, tf - protocolFees, METRIC.ASSETS_YIELDS)
+    dailyProtocolRevenue.add(vault.token, performanceFees, METRIC.ASSETS_YIELDS)
+    dailyProtocolRevenue.add(vault.token, managementFees, METRIC.MANAGEMENT_FEES)
   }
 
   return {
@@ -201,43 +221,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const adapter: Adapter = {
+  methodology,
+  breakdownMethodology,
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2020-07-27',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
+    [CHAIN.ETHEREUM]: { start: '2020-07-27', },
+    [CHAIN.POLYGON]: { start: '2024-01-01', },
+    [CHAIN.OPTIMISM]: { start: '2024-01-01', },
+    [CHAIN.ARBITRUM]: { start: '2024-01-01', },
+    [CHAIN.BASE]: { start: '2024-01-01', },
   },
 };
 
