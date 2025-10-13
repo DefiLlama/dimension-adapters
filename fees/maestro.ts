@@ -15,15 +15,15 @@ const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 
 async function fetch(_a: any, _b: any, options: FetchOptions) {
   const dailyFees = options.createBalances()
-  const have_dispatcher = Object.keys(dispatcher).includes(options.chain)
+  // const have_dispatcher = Object.keys(dispatcher).includes(options.chain)
 
-  if (have_dispatcher) {
-    const logs = await options.getLogs({ target: dispatcher[options.chain], eventAbi: 'event BalanceTransfer (address to, uint256 amount)', })
-    logs.map((log: any) => dailyFees.addGasToken(log.amount))
-  } else {
-    await addTokensReceived({ options, target: feesAddress, balances: dailyFees })
-    await getETHReceived({ options, target: feesAddress, balances: dailyFees })
-  }
+  // if (have_dispatcher) {
+  //   const logs = await options.getLogs({ target: dispatcher[options.chain], eventAbi: 'event BalanceTransfer (address to, uint256 amount)', })
+  //   logs.map((log: any) => dailyFees.addGasToken(log.amount))
+  // } else {
+  await addTokensReceived({ options, target: feesAddress, balances: dailyFees })
+  await getETHReceived({ options, target: feesAddress, balances: dailyFees })
+  // }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
@@ -49,12 +49,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { start: '2024-06-19', },
     [CHAIN.SONIC]: { start: '2025-02-26', },
     [CHAIN.AVAX]: { start: '2025-06-08', },
+    [CHAIN.TRON]: { start: '2022-07-01', },
     // [CHAIN.HYPERLIQUID]: { start: '2025-05-27', },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-03-05',
     },
-    [CHAIN.TRON]: { start: '2022-07-01', },
   },
   methodology,
   isExpensiveAdapter: true
