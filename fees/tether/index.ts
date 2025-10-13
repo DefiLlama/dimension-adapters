@@ -122,20 +122,23 @@ const adapter = buildStablecoinAdapter('1', 30* 3,
 ]);
 
 adapter.methodology = {
-    Fees: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
-    Revenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
-    ProtocolRevenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+    Fees: 'All yields from USDT backing assets investments, mostly US Treasury Bills and 0.1% mint and redeem fees.',
+    Revenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether and 0.1% mint and redeem fees.',
+    ProtocolRevenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether and 0.1% mint and redeem fees.',
 }
 
 adapter.breakdownMethodology = {
     Fees: {
         [METRIC.ASSETS_YIELDS]: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
+        [METRIC.MINT_REDEEM_FEES]: '0.1% Mint and redeem fees.'
     },
     Revenue: {
         [METRIC.ASSETS_YIELDS]: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+        [METRIC.MINT_REDEEM_FEES]: '0.1% Mint and redeem fees.'
     },
     ProtocolRevenue: {
         [METRIC.ASSETS_YIELDS]: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+        [METRIC.MINT_REDEEM_FEES]: '0.1% Mint and redeem fees.'
     },
 }
 
