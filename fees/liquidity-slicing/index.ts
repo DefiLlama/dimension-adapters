@@ -31,6 +31,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 
 const adapter: Adapter = {
+    runAtCurrTime: true,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
