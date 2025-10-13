@@ -60,6 +60,7 @@ const fetch = async (timestamp: number) => {
 
 
 const adapter: SimpleAdapter = {
+    deadFrom: '2025-04-26', // https://apex-pro.gitbook.io/apex-pro/apex-pro-discontinued/about-apex-pro
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
