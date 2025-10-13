@@ -49,7 +49,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { start: '2024-06-19', },
     [CHAIN.SONIC]: { start: '2025-02-26', },
     [CHAIN.AVAX]: { start: '2025-06-08', },
-    [CHAIN.TRON]: { start: '2022-07-01', },
+    // [CHAIN.TRON]: { start: '2022-07-01', },
     // [CHAIN.HYPERLIQUID]: { start: '2025-05-27', },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
