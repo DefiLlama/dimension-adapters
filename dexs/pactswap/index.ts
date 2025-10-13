@@ -1,5 +1,5 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
-import { fetchVolumeFromPactswapAPI, PACTSWAP_SUPPORTED_CHAINS } from "../../helpers/aggregators/pactswap";
+import { fetchVolumeFromPactswapAPI, PACTSWAP_SUPPORTED_CHAINS } from "./pactswap";
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const timeframes = await fetchVolumeFromPactswapAPI(options.chain, options.startTimestamp, options.endTimestamp);

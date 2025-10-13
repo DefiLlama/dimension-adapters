@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { CHAIN } from "../chains";
+import { CHAIN } from "../../helpers/chains";
 
 export const PACTSWAP_SUPPORTED_CHAINS = [
     CHAIN.BSC,
