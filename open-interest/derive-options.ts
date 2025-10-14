@@ -10,7 +10,7 @@ async function fetch() {
         ]
     );
     
-    const statsList = statsData.result.filter((statsEntry: any) => statsEntry.instrument_type === 'perp');
+    const statsList = statsData.result.filter((statsEntry: any) => statsEntry.instrument_type === 'option');
     const currencyList = currencyData.result;
 
     statsList.forEach((statsEntry: any) => {
