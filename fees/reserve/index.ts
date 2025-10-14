@@ -1,7 +1,7 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
+import fetchURL from "../../utils/fetchURL";
 
 const indexDtfDeployerAddresses: any = {
   [CHAIN.ETHEREUM]: [
@@ -25,20 +25,20 @@ const yieldDtfDeployerAddresses: any = {
   ],
 }
 
-const CHAIN_IDS: any = {
-  [CHAIN.ETHEREUM]: 1,
-  [CHAIN.BASE]: 8453,
-};
-
-const indexDtfStartBlock: any = {
-  [CHAIN.ETHEREUM]: 21845736,
-  [CHAIN.BASE]: 25958005,
-};
-
-const yieldDtfStartBlock: any = {
-  [CHAIN.ETHEREUM]: 16681681,
-  [CHAIN.BASE]: 10871647,
-};
+const chainConfig: Record<string, { start: string, chainId: number, indexDtfStartBlock: number, yieldDtfStartBlock: number }> = {
+  [CHAIN.ETHEREUM]: {
+    start: '2023-04-18',
+    chainId: 1,
+    indexDtfStartBlock: 21845736,
+    yieldDtfStartBlock: 16681681,
+  },
+  [CHAIN.BASE]: {
+    start: '2023-10-12',
+    chainId: 8453,
+    indexDtfStartBlock: 25958005,
+    yieldDtfStartBlock: 10871647,
+  },
+}
 
 const ABI = {
   folioDeployed: "event GovernedFolioDeployed (address indexed stToken, address indexed folio, address ownerGovernor, address ownerTimelock, address tradingGovernor, address tradingTimelock)",
@@ -51,8 +51,8 @@ const ABI = {
 
 const RESERVE_ENDPOINT = "https://api.reserve.org/current/dtf?";
 
-const fetch: any = async (options: FetchOptions) => {
-  const chainId = CHAIN_IDS[options.chain]
+const fetch = async (options: FetchOptions) => {
+  const chainId = chainConfig[options.chain].chainId
   const dailyFees = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -60,13 +60,13 @@ const fetch: any = async (options: FetchOptions) => {
   const folioDeployedLogs: any[] = await options.getLogs({
     targets: indexDtfDeployerAddresses[options.chain],
     eventAbi: ABI.folioDeployed,
-    fromBlock: indexDtfStartBlock[options.chain]
+    fromBlock: chainConfig[options.chain].indexDtfStartBlock
   });
 
   const rTokenCreatedLogs = await options.getLogs({
     targets: yieldDtfDeployerAddresses[options.chain],
     eventAbi: ABI.rTokenCreated,
-    fromBlock: yieldDtfStartBlock[options.chain]
+    fromBlock: chainConfig[options.chain].yieldDtfStartBlock
   });
 
   const indexFoliosList: any[] = folioDeployedLogs.flatMap(deploy => deploy.folio);
@@ -92,7 +92,7 @@ const fetch: any = async (options: FetchOptions) => {
     }).then(folioFeeLogs => ({ folio, folioFeeLogs }))
   ));
 
-  const priceResult = await Promise.allSettled(indexFoliosList.map(async (folio: any) => httpGet(`${RESERVE_ENDPOINT}address=${folio}&chainId=${chainId}`)
+  const priceResult = await Promise.allSettled(indexFoliosList.map(async (folio: any) => fetchURL(`${RESERVE_ENDPOINT}address=${folio}&chainId=${chainId}`)
   ));
 
   const folioPriceMap = new Map();
@@ -184,21 +184,14 @@ const breakdownMethodology = {
     [METRIC.STAKING_REWARDS]: 'Part of yields from yield bearing DTFs going to RSR buy back which is distributed among RSR stakers'
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Yields received by yield DTF holders due to yields from underlying assets, which is realised by  periodically melting yield DTFs'
+    [METRIC.ASSETS_YIELDS]: 'Yields received by yield DTF holders due to yields from underlying assets, which is realised by periodically melting yield DTFs'
   }
 };
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      start: '2023-04-18',
-    },
-    [CHAIN.BASE]: {
-      start: '2023-10-12',
-    },
-  },
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
 };
