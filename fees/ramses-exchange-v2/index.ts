@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { ARBITRUM, CHAIN } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
 import {
   DEFAULT_TOTAL_VOLUME_FIELD,

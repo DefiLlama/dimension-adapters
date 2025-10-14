@@ -1,22 +1,24 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from '../../helpers/dune';
+import ADDRESSES from '../../helpers/coreAssets.json';
+import { queryAllium } from "../../helpers/allium";
 
 const treasuryAddress = 'h7HnoyxPxBW25UaG6ayo4jSSmFARX9DmpYhbNZsLfiP'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
     SELECT
-      SUM(balance_change/1e9) AS total_fees
-    FROM solana.account_activity
-    WHERE address = '${treasuryAddress}'
-      AND balance_change > 0
-      AND tx_success = true
-      AND TIME_RANGE
+      SUM(usd_amount) as total_usd_amount
+    FROM solana.assets.transfers
+    WHERE to_address = '${treasuryAddress}'
+      AND from_address != '${treasuryAddress}'
+      AND mint IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.SOL}')
+      AND outer_program_id IN ('migK824DsBMp2eZXdhSBAWFS6PbvA6UN8DV15HfmstR')
+      AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+      AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `;
-  const res = await queryDuneSql(options, query);
-  const dailyFees = options.createBalances();
-  dailyFees.addCGToken("solana", res[0]?.total_fees || 0);
+  const res = await queryAllium(query);
+  const dailyFees = res[0]?.total_usd_amount || 0;
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyUserFees: dailyFees }
 }

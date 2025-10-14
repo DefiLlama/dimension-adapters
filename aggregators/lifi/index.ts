@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
-import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
 
 
@@ -16,14 +16,22 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     };
   }
 
-  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
   const dailyVolume = options.createBalances();
-  const logs: any[] = (await options.getLogs({
+  let logs: any[] = await options.getLogs({
     target: LifiDiamonds[options.chain].id,
     topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
     eventAbi: LifiSwapEvent,
-  }))
-    .filter(log => !blacklistTokens.includes(formatAddress(log.fromAssetId)) && !blacklistTokens.includes(formatAddress(log.toAssetId)))
+  })
+
+  // count volune only from whitelisted tokens
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
+  if (whitelistedTokens.length > 0) {
+    logs = logs.filter(log => (whitelistedTokens.includes(formatAddress(log.fromAssetId)) || whitelistedTokens.includes(formatAddress(log.toAssetId)))
+      && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
+      && !blacklistedTokens.includes(formatAddress(log.toAssetId))
+    )
+  }
 
   logs.forEach((log: any) => {
     if (!integrators.includes(log.integrator)) {
