@@ -3,24 +3,16 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
-  const volume = await fetchURL(
-    `https://api.flowx.finance/flowx-be/api/perp-tracking/volume-in-timerange?startTime=${
-      fromTimestamp * 1000
-    }&endTime=${toTimestamp * 1000}`
-  );
+  const volume = await fetchURL(`https://api.flowx.finance/flowx-be/api/perp-tracking/volume-in-timerange?startTime=${fromTimestamp * 1000}&endTime=${toTimestamp * 1000}`);
 
   return { dailyVolume: volume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  timetravel: true,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch: fetch,
-      start: "2025-10-01",
-    },
-  },
+  fetch,
+  chains: [CHAIN.SUI],
+  start: "2025-10-01",
 };
 
 export default adapter;
