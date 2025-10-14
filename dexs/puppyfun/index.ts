@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from '../../helpers/token';
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
 const TOKEN_ADDRESS = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
 const WALLET_ADDRESS = "0x3f0F3359A168b90C7F45621Dde5A4cDc3C61529D"
@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(TOKEN_ADDRESS, dailyIncome)
   dailyRevenue.add(TOKEN_ADDRESS, dailyIncome)
 
-  const volumeResponse = await httpGet(apiBaseURL + volumeMethod)
+  const volumeResponse = await fetchURL(apiBaseURL + volumeMethod)
   const dailyVolume = options.createBalances()
   dailyVolume.add(TOKEN_ADDRESS, volumeResponse.dailyVolume)
 
