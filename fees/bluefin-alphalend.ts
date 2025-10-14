@@ -1,19 +1,15 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import {
+  FetchOptions,
+  FetchResultFees,
+  SimpleAdapter,
+} from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const truncateToClosestHour = (timestamp: number) => {
-  return Math.floor(timestamp / 3600000) * 3600000;
-}
+const fetch = async (_: number): Promise<FetchResultFees> => {
 
-const fetch = async (_: number,_b: any, options: FetchOptions): Promise<FetchResultFees> => {
-  // truncate to closest hour timestamp
-  const closestHourStartTimestampMs = truncateToClosestHour(options.startTimestamp);
-  const closestHourEndTimestampMs = truncateToClosestHour(options.endTimestamp);
-
-  
   const data = await fetchURL(
-    `https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily?startTime=${closestHourStartTimestampMs}&endTime=${closestHourEndTimestampMs}`
+    `https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily`
   );
   const dailyFees = Number(data.fees || 0);
   const dailyRevenue = Number(data.revenue || 0);
@@ -23,9 +19,9 @@ const fetch = async (_: number,_b: any, options: FetchOptions): Promise<FetchRes
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue: '0',
+    dailyHoldersRevenue: "0",
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue
+    dailySupplySideRevenue,
   };
 };
 
@@ -38,11 +34,11 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   methodology,
   chains: [CHAIN.SUI],
-  start: '2025-06-17',
+  start: "2025-06-17",
   runAtCurrTime: true,
 };
 
