@@ -1,9 +1,20 @@
 import fetchURL from "../utils/fetchURL";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_: any) => {
-  const data = await fetchURL("https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily");
+const truncateToClosestHour = (timestamp: number) => {
+  return Math.floor(timestamp / 3600000) * 3600000;
+}
+
+const fetch = async (_: number,_b: any, options: FetchOptions): Promise<FetchResultFees> => {
+  // truncate to closest hour timestamp
+  const closestHourStartTimestampMs = truncateToClosestHour(options.startTimestamp);
+  const closestHourEndTimestampMs = truncateToClosestHour(options.endTimestamp);
+
+  
+  const data = await fetchURL(
+    `https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily?startTime=${closestHourStartTimestampMs}&endTime=${closestHourEndTimestampMs}`
+  );
   const dailyFees = Number(data.fees || 0);
   const dailyRevenue = Number(data.revenue || 0);
   const dailySupplySideRevenue = Number(dailyFees - dailyRevenue);
