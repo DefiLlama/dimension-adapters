@@ -15,7 +15,7 @@ async function fetch() {
 
     statsList.forEach((statsEntry: any) => {
         const currentPrice = currencyList.filter((currencyEntry: any) => statsEntry.currency === currencyEntry.currency).at(0)?.spot_price ?? 0;
-        openInterestAtEnd += (statsEntry.open_interest * currentPrice);
+        openInterestAtEnd += (statsEntry.open_interest * currentPrice * 2);
     });
 
     return { openInterestAtEnd }
