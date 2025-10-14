@@ -39,6 +39,7 @@ const blacklistedTokens = [
   '0x560363bda52bc6a44ca6c8c9b4a5fadbda32fa60',
   '0xb02f37a282c028958de65711158422199a61e9ae',
   '0x633e254585ade6e9d40d2a4b8cc2f3769b94cb48',
+  '0x677db5a751fbd0b130ddc02715223d9da4a98f8f',
 
   // MAGA
   '0xda2e903b0b67f30bf26bd3464f9ee1a383bbbe5f',
