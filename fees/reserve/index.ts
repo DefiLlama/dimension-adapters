@@ -108,14 +108,14 @@ const fetch: any = async (options: FetchOptions) => {
     const { folio, protocolFeeLogs } = result;
     protocolFeeLogs.forEach((protocolFee: any) => {
       dailyHoldersRevenue.addUSDValue(folioPriceMap.get(folio) * Number(protocolFee.amount) / 1e18, METRIC.TOKEN_BUY_BACK);
-      dailyFees.addUSDValue(folioPriceMap.get(folio) * Number(protocolFee.amount) / 1e18, METRIC.TOKEN_BUY_BACK);
+      dailyFees.addUSDValue(folioPriceMap.get(folio) * Number(protocolFee.amount) / 1e18);
     });
   });
 
   folioFeeResults.forEach((result: any) => {
     const { folio, folioFeeLogs } = result;
     folioFeeLogs.forEach((folioFee: any) => {
-      dailyFees.addUSDValue(folioPriceMap.get(folio) * Number(folioFee.amount) / 1e18, METRIC.MANAGEMENT_FEES);
+      dailyFees.addUSDValue(folioPriceMap.get(folio) * Number(folioFee.amount) / 1e18);
     });
   });
 
@@ -130,7 +130,7 @@ const fetch: any = async (options: FetchOptions) => {
     const { folio, meltedLogs } = result;
     meltedLogs.forEach((melt: any) => {
       dailySupplySideRevenue.add(folio, melt.amount, METRIC.ASSETS_YIELDS);
-      dailyFees.add(folio, melt.amount, METRIC.ASSETS_YIELDS);
+      dailyFees.add(folio, melt.amount);
     });
   });
 
@@ -155,7 +155,7 @@ const fetch: any = async (options: FetchOptions) => {
   stRsrList.forEach((_, index: any) => {
     const revenue = (stExchangeRateAfter[index] - stRsrExchangeRateBefore[index]) * (stRsrSupplyList[index] / 1e36);
     dailyHoldersRevenue.addCGToken("reserve-rights-token", revenue, METRIC.STAKING_REWARDS);
-    dailyFees.addCGToken("reserve-rights-token", revenue, METRIC.STAKING_REWARDS);
+    dailyFees.addCGToken("reserve-rights-token", revenue);
   });
 
   return {
