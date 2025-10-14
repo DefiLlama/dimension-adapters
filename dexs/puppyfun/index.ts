@@ -1,6 +1,7 @@
+import { lookupBlock } from "@defillama/sdk/build/util";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from '../../helpers/token';
+import { addGasTokensReceived, addTokensReceived, getETHReceived, nullAddress } from '../../helpers/token';
 import fetchURL from "../../utils/fetchURL";
 
 const TOKEN_ADDRESS = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
@@ -13,16 +14,28 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
 
-  const balancesKey = `bsc:${TOKEN_ADDRESS.toLowerCase()}`
+  const balancesKeyERC20 = `bsc:${TOKEN_ADDRESS.toLowerCase()}`
+  const balancesKeyBNB = `bsc:${nullAddress.toLowerCase()}`
   const tokensReceivedDaily = await addTokensReceived({
     options,
     tokens: [TOKEN_ADDRESS],
     targets: [WALLET_ADDRESS],
   })
+  const nativeReceivedDaily = await getETHReceived({
+    options,
+    target: WALLET_ADDRESS,
+  })
 
-  const dailyIncome = tokensReceivedDaily.getBalances()[balancesKey]
-  dailyFees.add(TOKEN_ADDRESS, dailyIncome)
-  dailyRevenue.add(TOKEN_ADDRESS, dailyIncome)
+  const dailyIncomeERC20 = tokensReceivedDaily.getBalances()[balancesKeyERC20]
+  const dailyIncomeBNB = nativeReceivedDaily.getBalances()[balancesKeyBNB]
+
+  // ERC20 fees
+  dailyFees.add(TOKEN_ADDRESS, dailyIncomeERC20)
+  dailyRevenue.add(TOKEN_ADDRESS, dailyIncomeBNB)
+
+  // BNB fees
+  dailyFees.add(nullAddress, dailyIncomeERC20)
+  dailyRevenue.add(nullAddress, dailyIncomeBNB)
 
   const volumeResponse = await fetchURL(apiBaseURL + volumeMethod)
   const dailyVolume = options.createBalances()
