@@ -4,9 +4,13 @@ import { CHAIN } from "../../helpers/chains";
 
 
 const fetch = async (_: any, _1: any, { fromTimestamp, toTimestamp }: FetchOptions) => {
-  const dailyVolume = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/vol/time_range?date_type=hour&start_time=${fromTimestamp}&end_time=${toTimestamp}`)).data.vol_in_usd;
+  const volList = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/dlmm/histogram?dateType=hour&dataType=vol&beginTimestamp=${fromTimestamp}&endTimestamp=${toTimestamp}`)).data.list;
+  var Volume = 0;
+  for (const item of volList) {
+    Volume += Number(item.value);
+  }
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume: Volume,
   };
 };
 
@@ -14,7 +18,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch,
-      start: '2023-05-02',
+      start: '2025-09-30',
     }
   }
 };
