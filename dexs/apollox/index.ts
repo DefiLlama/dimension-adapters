@@ -68,6 +68,9 @@ const fetch = async () => {
   const v2DailyVolume = await fetchV2Volume();
 
   const dailyVolume = v2DailyVolume.dailyVolume + v1DailyVolume.dailyVolume;
+  if (dailyVolume >= 25_000_000_000) {
+    throw new Error("Daily volume is greater than 25 billion");
+  }
 
   return { dailyVolume,  };
 };
