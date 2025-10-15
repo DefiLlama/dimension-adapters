@@ -4,7 +4,7 @@ import {
   FetchResultV2,
 } from "../../adapters/types.ts";
 import { CHAIN } from "../../helpers/chains.ts";
-import ADDRESSES from "../helpers/coreAssets.json";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const FeeCollectorAddress = "0xc47756133753280c37B227C24782984E021c4544";
 
