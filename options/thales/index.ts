@@ -120,6 +120,9 @@ const adapter: Adapter = {
       start: '2025-04-01',
     },
   },
+  methodology: {
+    HoldersRevenue: "100% of revenue goes to $OVER token buybacks",
+  },
 };
 
 export default adapter;
