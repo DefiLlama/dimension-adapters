@@ -1,6 +1,6 @@
 
 import {
-  HaikuAddreses,
+  HaikuChainConfig,
   mappingChainToDuneChain,
 } from "../../helpers/aggregators/haiku";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
@@ -13,7 +13,7 @@ interface IResponse {
 
 // Prefetch function that will run once before any fetch calls
 const prefetch = async (options: FetchOptions) => {
-  const chains = Object.keys(HaikuAddreses);
+  const chains = Object.keys(HaikuChainConfig);
   const unionQueries = chains
     .map((chain) => {
       const blockchainName = mappingChainToDuneChain(chain);
@@ -75,15 +75,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
-  adapter: Object.keys(HaikuAddreses).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        start: HaikuAddreses[chain].startTime,
-      },
-    };
-  }, {}),
+  adapter: HaikuChainConfig,
   prefetch: prefetch,
   isExpensiveAdapter: true,
 };

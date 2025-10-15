@@ -4,78 +4,78 @@ import { CHAIN } from "../chains";
 type IContract = {
   [c: string | Chain]: {
     id: string;
-    startTime: string;
+    start: string;
   };
 };
 
-export const HaikuAddreses: IContract = {
+export const HaikuChainConfig: IContract = {
   [CHAIN.ETHEREUM]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-05-19",
+    start: "2025-05-19",
   },
   [CHAIN.BASE]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-05-19",
+    start: "2025-05-19",
   },
   [CHAIN.ARBITRUM]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-05-19",
+    start: "2025-05-19",
   },
   [CHAIN.SONIC]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-05-19",
+    start: "2025-05-19",
   },
   [CHAIN.BERACHAIN]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-05-19",
+    start: "2025-05-19",
   },
   [CHAIN.BSC]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-05-19",
+    start: "2025-05-19",
   },
   [CHAIN.HYPERLIQUID]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-06-24",
+    start: "2025-06-24",
   },
   [CHAIN.POLYGON]: {
     id: "0x2d1f05273292378A8CE938628dA7D8bDbCA4D9FF",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.OPTIMISM]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.UNICHAIN]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.SEI]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.AVAX]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.SCROLL]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.KATANA]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.APECHAIN]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.XDAI]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
   [CHAIN.WC]: {
     id: "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
-    startTime: "2025-09-01",
+    start: "2025-09-01",
   },
 };
 
