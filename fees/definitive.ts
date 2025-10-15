@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { getSolanaReceived } from "../helpers/token";
@@ -10,6 +10,16 @@ const SOLANA_FEE_ADDRESSES = [
   "Ggp9SGTqAKiJWRXeyEb2gEVdmD6n7fgHD7t4s8DrAqwf",
 ];
 
+// Solana addresses to blacklist (exclude from fee calculation)
+const SOLANA_BLACKLIST = [
+  "BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV", // Jupiter Aggregator Authority 1
+  "ByRijnGjExGxNcidASSZcySmrvnB5NwgVK3QQacWXXvM", 
+  "9XLonXfbZqBp66WRDScfRp1MJYKd4k4tUDibMQBLJehJ", 
+  "CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps", // Jupiter Aggregator Authority 6
+  "5Dr7kc6U9hrwv1PQz67nyvhUpvXdQibt6L8RHwUrt2L4", 
+  "A1GC8eqyezWb5gbgaLxzg93LgP84SXhLZymmv7g4t87a",
+];
+
 const prefetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/definitive.sql", {
     start: options.startTimestamp,
@@ -19,12 +29,25 @@ const prefetch = async (options: FetchOptions) => {
   return await queryDuneSql(options, sql);
 }
 
+// Map DefiLlama chain names to Dune blockchain names
+const CHAIN_TO_DUNE_MAPPING: Record<string, string> = {
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.ARBITRUM]: 'arbitrum', 
+  [CHAIN.BASE]: 'base',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.AVAX]: 'avalanche_c',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.BSC]: 'bnb',
+};
+
 const chainConfig = {
   [CHAIN.ETHEREUM]: { start: '2022-01-01' },
   [CHAIN.ARBITRUM]: { start: '2022-01-01' },
   [CHAIN.BASE]: { start: '2022-01-01' },
   [CHAIN.POLYGON]: { start: '2022-01-01' },
   [CHAIN.AVAX]: { start: '2022-01-01' },
+  [CHAIN.OPTIMISM]: { start: '2022-01-01' },
+  [CHAIN.BSC]: { start: '2022-01-01' },
   [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
@@ -36,6 +59,7 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
     const solanaFees = await getSolanaReceived({
       options,
       targets: SOLANA_FEE_ADDRESSES,
+      blacklists: SOLANA_BLACKLIST,
     });
     
     return {
@@ -48,7 +72,18 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
 
   // Handle EVM chains with Dune query
   const preFetchedResults = options.preFetchedResults || [];
-  const dune_chain = options.chain === CHAIN.AVAX ? 'avalanche_c' : options.chain;
+  const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
+  
+  if (!dune_chain) {
+    console.log(`No Dune mapping found for chain ${options.chain}`);
+    return {
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees,
+    };
+  }
+  
   const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
 
   if (data) {
@@ -76,8 +111,9 @@ const methodology = {
 const adapter: Adapter = {
   fetch,
   adapter: chainConfig,
-  methodology,
   prefetch,
+  dependencies: [Dependencies.DUNE],
+  methodology,
   isExpensiveAdapter: true,
 };
 

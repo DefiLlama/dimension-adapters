@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import * as sdk from '@defillama/sdk';
 
 // const fetch: any = async (_a, _b, options: FetchOptions) => {
@@ -73,6 +74,11 @@ const Events = {
   CreatorCoinRewards: 'event CreatorCoinRewards(address indexed coin, address currency, address creator, address protocol, uint256 creatorAmount, uint256 protocolAmount)',
   CoinMarketRewardsV4: 'event CoinMarketRewardsV4(address coin, address currency, address payoutRecipient, address platformReferrer, address tradeReferrer, address protocolRewardRecipient, address dopplerRecipient, tuple(uint256 creatorPayoutAmountCurrency, uint256 creatorPayoutAmountCoin, uint256 platformReferrerAmountCurrency, uint256 platformReferrerAmountCoin, uint256 tradeReferrerAmountCurrency, uint256 tradeReferrerAmountCoin, uint256 protocolAmountCurrency, uint256 protocolAmountCoin, uint256 dopplerAmountCurrency, uint256 dopplerAmountCoin) marketRewards)',
 }
+
+const ZoraMetricCreatorReward = 'Creator Rewards'
+const ZoraMetricTradeReferrer = 'Trade Referrer'
+const ZoraMetricPlatformReferrer = 'Platform Referrer'
+const ZoraMetricProtocolReward = 'Protocol Rewards'
 
 // v3, we count CoinBuy and CoinSell events from all created coins and creator coins on Zora
 // v4, we count Swapped events from coin hook and creator coin hook
@@ -159,7 +165,8 @@ async function getZoraCoinsVolume(options: FetchOptions): Promise<FetchResultV2>
 // v4, we count CreatorCoinRewards events from creator coin hook and CoinMarketRewardsV4 events from coin hook
 async function getZoraCoinsfees(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const zoraFactory = ZoraFactories[options.chain];
 
@@ -204,10 +211,10 @@ async function getZoraCoinsfees(options: FetchOptions): Promise<FetchResultV2> {
     if (coins[String(event.address).toLowerCase()] === zoraFactory.protocolRewards) {
       const currency = event.args.currency;
       const coin = event.address;
-      dailyFees.add(currency, event.args.marketRewards.totalAmountCurrency);
-      dailyFees.add(coin, event.args.marketRewards.totalAmountCoin);
-      dailyProtocolRevenue.add(currency, event.args.marketRewards.protocolAmountCurrency);
-      dailyProtocolRevenue.add(coin, event.args.marketRewards.protocolAmountCoin);
+      dailyFees.add(currency, event.args.marketRewards.totalAmountCurrency, METRIC.SWAP_FEES);
+      dailyFees.add(coin, event.args.marketRewards.totalAmountCoin, METRIC.SWAP_FEES);
+      dailyRevenue.add(currency, event.args.marketRewards.protocolAmountCurrency, METRIC.SWAP_FEES);
+      dailyRevenue.add(coin, event.args.marketRewards.protocolAmountCoin, METRIC.SWAP_FEES);
     }
   }
   for (const event of CoinTradeRewardsEvents) {
@@ -219,8 +226,17 @@ async function getZoraCoinsfees(options: FetchOptions): Promise<FetchResultV2> {
         + Number(event.args.traderReferrerReward) 
         + Number(event.args.protocolReward);
 
-      dailyFees.add(currency, totalFees);
-      dailyProtocolRevenue.add(currency, event.args.protocolReward);
+      dailyFees.add(currency, event.args.creatorReward, ZoraMetricCreatorReward);
+      dailySupplySideRevenue.add(currency, event.args.creatorReward, ZoraMetricCreatorReward);
+
+      dailyFees.add(currency, event.args.platformReferrerReward, ZoraMetricPlatformReferrer);
+      dailySupplySideRevenue.add(currency, event.args.platformReferrerReward, ZoraMetricPlatformReferrer);
+
+      dailyFees.add(currency, event.args.traderReferrerReward, ZoraMetricTradeReferrer);
+      dailySupplySideRevenue.add(currency, event.args.traderReferrerReward, ZoraMetricTradeReferrer);
+
+      dailyFees.add(currency, event.args.protocolReward, ZoraMetricProtocolReward);
+      dailyRevenue.add(currency, event.args.protocolReward, ZoraMetricProtocolReward);
     }
   }
 
@@ -235,8 +251,11 @@ async function getZoraCoinsfees(options: FetchOptions): Promise<FetchResultV2> {
     onlyArgs: true,
   });
   for (const event of CreatorCoinHookRewardsEvents) {
-    dailyFees.add(event.currency, Number(event.creatorAmount) + Number(event.protocolAmount));
-    dailyProtocolRevenue.add(event.currency, event.protocolAmount);
+    dailyFees.add(event.currency, event.creatorAmount, ZoraMetricCreatorReward)
+    dailySupplySideRevenue.add(event.currency, event.creatorAmount, ZoraMetricCreatorReward)
+
+    dailyFees.add(event.currency, event.protocolAmount, ZoraMetricProtocolReward)
+    dailyRevenue.add(event.currency, event.protocolAmount, ZoraMetricProtocolReward)
   }
 
   // v4 market fees - events from v4 coin hook contract
@@ -253,28 +272,39 @@ async function getZoraCoinsfees(options: FetchOptions): Promise<FetchResultV2> {
     const currency = event.currency;
     const coin = event.coin;
 
-    const totalCurrency = Number(event.marketRewards.creatorPayoutAmountCurrency) 
-      + Number(event.marketRewards.platformReferrerAmountCurrency) 
-      + Number(event.marketRewards.tradeReferrerAmountCurrency) 
-      + Number(event.marketRewards.protocolAmountCurrency) 
-      + Number(event.marketRewards.dopplerAmountCurrency);
-    const totalCoin = Number(event.marketRewards.creatorPayoutAmountCoin) 
-      + Number(event.marketRewards.platformReferrerAmountCoin) 
-      + Number(event.marketRewards.tradeReferrerAmountCoin) 
-      + Number(event.marketRewards.protocolAmountCoin) 
-      + Number(event.marketRewards.dopplerAmountCoin);
+      // currency
+    dailyFees.add(currency, event.marketRewards.creatorPayoutAmountCurrency, ZoraMetricCreatorReward)
+    dailySupplySideRevenue.add(currency, event.marketRewards.creatorPayoutAmountCurrency, ZoraMetricCreatorReward)
 
-    dailyFees.add(currency, totalCurrency);
-    dailyFees.add(coin, totalCoin);
-    dailyProtocolRevenue.add(currency, event.marketRewards.protocolAmountCurrency);
-    dailyProtocolRevenue.add(coin, event.marketRewards.protocolAmountCoin);
+    dailyFees.add(currency, event.marketRewards.platformReferrerAmountCurrency, ZoraMetricPlatformReferrer)
+    dailySupplySideRevenue.add(currency, event.marketRewards.platformReferrerAmountCurrency, ZoraMetricPlatformReferrer)
+
+    dailyFees.add(currency, event.marketRewards.tradeReferrerAmountCurrency, ZoraMetricTradeReferrer)
+    dailySupplySideRevenue.add(currency, event.marketRewards.tradeReferrerAmountCurrency, ZoraMetricTradeReferrer)
+
+    dailyFees.add(currency, Number(event.marketRewards.protocolAmountCurrency) + Number(event.marketRewards.dopplerAmountCurrency), ZoraMetricProtocolReward)
+    dailyRevenue.add(currency, Number(event.marketRewards.protocolAmountCurrency) + Number(event.marketRewards.dopplerAmountCurrency), ZoraMetricProtocolReward)
+
+    // coin
+    dailyFees.add(coin, event.marketRewards.creatorPayoutAmountCoin, ZoraMetricCreatorReward)
+    dailySupplySideRevenue.add(coin, event.marketRewards.creatorPayoutAmountCoin, ZoraMetricCreatorReward)
+
+    dailyFees.add(coin, event.marketRewards.platformReferrerAmountCoin, ZoraMetricPlatformReferrer)
+    dailySupplySideRevenue.add(coin, event.marketRewards.platformReferrerAmountCoin, ZoraMetricPlatformReferrer)
+
+    dailyFees.add(coin, event.marketRewards.tradeReferrerAmountCoin, ZoraMetricTradeReferrer)
+    dailySupplySideRevenue.add(coin, event.marketRewards.tradeReferrerAmountCoin, ZoraMetricTradeReferrer)
+
+    dailyFees.add(coin, Number(event.marketRewards.protocolAmountCoin) + Number(event.marketRewards.dopplerAmountCoin), ZoraMetricProtocolReward)
+    dailyRevenue.add(coin, Number(event.marketRewards.protocolAmountCoin) + Number(event.marketRewards.dopplerAmountCoin), ZoraMetricProtocolReward)
   }
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 

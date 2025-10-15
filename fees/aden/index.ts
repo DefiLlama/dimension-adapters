@@ -1,49 +1,43 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getBuilderExports } from "../../helpers/orderly";
 import { httpGet } from "../../utils/fetchURL";
 
-const startTime = 1723478400; // August 13, 2025
-const chains = [CHAIN.SOLANA, CHAIN.ARBITRUM, CHAIN.BSC];
+let asterBuilderData: any = null
+async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
+  const asterVolumeEndpoint = "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy";
+  if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ perps: data }) => {
+    const dateDataMap: any = {}
+    data.forEach((i: any) => {
+      dateDataMap[i.dateString] = i
+    })
+    return dateDataMap
+  })
 
-interface DailyStats {
-  date: string;
-  takerVolume: string;
-  makerVolume: string;
-  builderFee: string;
+  const data = (await asterBuilderData)[dateString]
+
+  if (!data)
+    throw new Error('Data missing for date: ' + dateString)
+
+  const dailyVolume = +data.takerVolume + +data.makerVolume
+  const dailyFees = +data.builderFee
+
+  const response: any = { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
+
+  return response
 }
-
-const fetch = async (_t: number, _: any, { startOfDay }: FetchOptions) => {
-  const dailyStats: DailyStats[] = await httpGet(
-    "https://api.orderly.org/md/volume/builder/daily_stats?broker_id=aden"
-  );
-
-  const targetDate = new Date(startOfDay * 1000).toISOString().split("T")[0];
-  const dayStats = dailyStats.find((day) => 
-    day.date.startsWith(targetDate)
-  );
-
-  const dailyFees = dayStats ? parseFloat(dayStats.builderFee || "0") : 0;
-
-  return {
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyFees.toString(),
-    dailyProtocolRevenue: dailyFees.toString(),
-  };
-};
 
 const methodology = {
-  Fees: "(Builder Fees collected from Orderly Network(0.3 bps on taker volume).",
-  Revenue: "0.3 bps trading fees on taker volume, 0 on maker volume",
-  ProtocolRevenue: "0.3 bps trading fees on taker volume as builder fee from orderly network",
+  Fees: "Builder Fees collected from Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)",
+  Revenue: "All the fees collected",
+  ProtocolRevenue: "All the revenue go to the protocol",
 }
 
-const adapter: SimpleAdapter = {
-  fetch,
-  // ADEN operates on Solana, Arbitrum, and BNB Chain through Orderly Network
-  // Using BNB Chain as the main chain since the API aggregates all chains data
-  chains: [CHAIN.BSC],
-  start: '2025-07-23',
-  methodology,
-};
+const adapter = getBuilderExports({ broker_id: 'aden', start: '2025-07-14', methodology }) as SimpleAdapter
 
-export default adapter;
+adapter.adapter = {
+  [CHAIN.ORDERLY]: { start: '2025-07-14', fetch: async function(_: any, _1: any, options: FetchOptions) { return { ...(await (adapter.fetch as any)(_, _1, options)), dailyHoldersRevenue: 0 } }, },
+  [CHAIN.OFF_CHAIN]: { start: '2025-07-19', fetch: asterFetch },
+}
+
+export default adapter

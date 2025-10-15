@@ -124,6 +124,7 @@ const fetchVolumeStats = async (timestamp: number) => {
 };
 
 export default {
+    deadFrom: '2025-01-01',
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchVolumeStats,

@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -43,5 +43,6 @@ export default {
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2024-04-08",
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true
 };

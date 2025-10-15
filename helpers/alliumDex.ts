@@ -15,7 +15,6 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
         AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
       `
     const data = await queryAllium(query)
-    console.log(data)
     return {
       dailyVolume: data[0]?.dailyvolume ?? 0
     }

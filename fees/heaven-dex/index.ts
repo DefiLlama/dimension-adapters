@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json';
-import { FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
 
@@ -27,6 +27,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
   start: '2025-08-13',
   methodology: {
     Fees: 'User pays 0.25%-1% fee on each trade based on marketcap to protocol',
