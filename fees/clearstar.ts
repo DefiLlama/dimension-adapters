@@ -39,6 +39,5 @@ const curatorConfig: CuratorConfig = {
       ],
     },
 }
-}
 
 export default getCuratorExport(curatorConfig)
