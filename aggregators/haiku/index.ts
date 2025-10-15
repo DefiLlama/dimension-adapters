@@ -1,5 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { HaikuAddreses } from "../../helpers/aggregators/haiku";
+import {
+  HaikuAddreses,
+  mappingChainToDuneChain,
+} from "../../helpers/aggregators/haiku";
 import { queryDuneSql } from "../../helpers/dune";
 
 interface IResponse {
@@ -12,8 +15,7 @@ const prefetch = async (options: FetchOptions) => {
   const chains = Object.keys(HaikuAddreses);
   const unionQueries = chains
     .map((chain) => {
-      const blockchainName =
-        chain.toLowerCase() === "bsc" ? "bnb" : chain.toLowerCase();
+      const blockchainName = mappingChainToDuneChain(chain);
       return `
 		SELECT
 			'${chain.toLowerCase()}' as chain,
