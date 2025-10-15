@@ -66,7 +66,6 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
   );
 
   return {
-    timestamp: dayStart.toString(),
     ...daily,
     dailyFees: daily.dailyRevenue,
   };

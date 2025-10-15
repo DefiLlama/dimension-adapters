@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const CometAbis: any = {
   baseToken: 'address:baseToken',
@@ -86,13 +87,14 @@ const fetchComets: FetchV2 = async (options: FetchOptions): Promise<FetchResultV
   const DAY = (options.fromTimestamp && options.toTimestamp) ? options.toTimestamp - options.fromTimestamp : 24 * 60 * 60
   for (let i = 0; i < assets.length; i++) {
     if (assets[i]) {
-      dailyFees.add(assets[i], Number(getBorrowRates[i]) * Number(totalBorrows[i]) * DAY / 1e18)
+      dailyFees.add(assets[i], Number(getBorrowRates[i]) * Number(totalBorrows[i]) * DAY / 1e18, METRIC.BORROW_INTEREST)
     }
   }
 
   return {
     dailyFees: dailyFees,
     dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
   }
 };
@@ -137,6 +139,26 @@ const adapter: SimpleAdapter = {
     },
   },
   version: 2,
+  methodology: {
+    Fees: 'Total borrow interest paid by borrowers.',
+    Revenue: 'No borrow interest to Compound treasury.',
+    ProtocolRevenue: 'No borrow interest to Compound treasury.',
+    SupplySideRevenue: 'All borrow interest paid to lenders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers.',
+    },
+    Revenue: {
+      [METRIC.BORROW_INTEREST]: 'No borrow interest to Compound treasury.',
+    },
+    ProtocolRevenue: {
+      [METRIC.BORROW_INTEREST]: 'No borrow interest to Compound treasury.',
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: 'All borrow interest paid to lenders.',
+    },
+  }
 };
 
 export default adapter;

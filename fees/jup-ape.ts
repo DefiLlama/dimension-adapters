@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 // import { queryAllium } from "../helpers/allium";
 import { queryDuneSql } from "../helpers/dune";
 import { CHAIN } from "../helpers/chains";
@@ -6,7 +6,7 @@ import { CHAIN } from "../helpers/chains";
 
 const JUP_FEE_RECEIVER = '5YET3YapxD6to6rqPqTWB3R9pSbURy6yduuUtoZkzoPX';
 
-const fetchFeesSolana = async (_as: any, _b: any, options: FetchOptions) => {
+const fetch = async (_as: any, _b: any, options: FetchOptions) => {
   const query = `
     SELECT
       SUM(balance_change/1e9) AS total_fees
@@ -26,12 +26,10 @@ const fetchFeesSolana = async (_as: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchFeesSolana,
-      start: '2024-09-13',
-    }
-  },
+  chains: [CHAIN.SOLANA],
+  fetch,
+  start: '2024-09-13',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'Token trading and launching fees.',

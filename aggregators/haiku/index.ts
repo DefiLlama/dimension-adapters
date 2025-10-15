@@ -1,8 +1,9 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+
 import {
   HaikuAddreses,
   mappingChainToDuneChain,
 } from "../../helpers/aggregators/haiku";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
 interface IResponse {
@@ -73,6 +74,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   adapter: Object.keys(HaikuAddreses).reduce((acc, chain) => {
     return {
       ...acc,

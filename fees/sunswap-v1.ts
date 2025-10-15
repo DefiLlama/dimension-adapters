@@ -31,7 +31,6 @@ const adapterHistorical: Adapter = {
 }
 async function fetch() {
   const { data: { list } } = await httpGet('https://abc.endjgfsv.link/swap/v2/exchanges/scan?pageNo=1&orderBy=volume24hrs&desc=true&pageSize=1000')
-  console.log(list.length, "exchanges found")
   let dailyFees = 0
   list.forEach((item: { volume24hrs: number; liquidity: number; tokenSymbol: string, fees24hrs: number }) => {
     if (!item.volume24hrs || +item.volume24hrs === 0) return;
@@ -39,7 +38,7 @@ async function fetch() {
     if (volTvlRatio < 50 && +item.liquidity < 1e7) { // filter out scam volume
       dailyFees += +item.fees24hrs;
     } else {
-      console.log(`Volume: ${item.volume24hrs}, TVL: ${item.liquidity}, Ratio: ${volTvlRatio} symbol: ${item.tokenSymbol} - Skipping this exchange due to high ratio`);
+      // console.log(`Volume: ${item.volume24hrs}, TVL: ${item.liquidity}, Ratio: ${volTvlRatio} symbol: ${item.tokenSymbol} - Skipping this exchange due to high ratio`);
     }
   });
 

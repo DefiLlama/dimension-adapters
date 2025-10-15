@@ -1,13 +1,13 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
-import { POLYGON, AVAX } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../adapters/types"
 import { Chain } from  "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints = {
-  [POLYGON]: sdk.graph.modifyEndpoint('B8469Fs5athX6XeADT1LUYLKpcupEpWumfRuMbQw6cXs'),
+  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('B8469Fs5athX6XeADT1LUYLKpcupEpWumfRuMbQw6cXs'),
 }
 
 let dailyFee= 0;
@@ -83,8 +83,8 @@ const graphs = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [POLYGON]: {
-      fetch: graphs(endpoints)(POLYGON),
+    [CHAIN.POLYGON]: {
+      fetch: graphs(endpoints)(CHAIN.POLYGON),
       start: '2023-03-29',
     },
   },

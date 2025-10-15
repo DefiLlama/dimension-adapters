@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter, ChainBlocks, FetchOptions } from "../adapters/types";
-import { POLYGON } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 
 const PROTOCOL_SUBGRAPH = sdk.graph.modifyEndpoint('5CW9dVhyCBHhhxpaEwqtZrfGms3gSYnGQKpqULsu4qSU');
@@ -78,7 +78,7 @@ const graphs = () => {
 
 const adapter: Adapter = {
   adapter: {
-    [POLYGON]: {
+    [CHAIN.POLYGON]: {
       fetch: graphs(),
       start: '2021-09-01',
     },
