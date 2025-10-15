@@ -29,8 +29,8 @@ const prefetch = async (options: FetchOptions) => {
     WHERE
       (protocol = 'AR' OR flags['second_side'])
       AND TIME_RANGE
-      AND src_token_address NOT IN (${blacklisted})
-      AND dst_token_address NOT IN (${blacklisted})
+      -- AND src_token_address NOT IN (${blacklisted})
+      -- AND dst_token_address NOT IN (${blacklisted})
     GROUP BY 1
     ORDER BY volume_24h DESC
   `;
