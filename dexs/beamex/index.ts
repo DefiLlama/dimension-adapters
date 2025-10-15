@@ -75,29 +75,20 @@ const methodologyBeamex = {
     "70% of all collected fees will be distributed to BLP stakers. Currently they are distributed to treasury",
   Revenue: "70% of all collected fees are distributed to the treasury",
   ProtocolRevenue: "70% of all collected fees are distributed to the treasury",
-};
+}
 const adapter: BreakdownAdapter = {
+  methodology: methodologyBeamex,
   breakdown: {
     "beamex-swap": {
       [CHAIN.MOONBEAM]: {
         fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAM),
         start: '2023-06-22',
-        meta: {
-          methodology: {
-            ...methodologyBeamex,
-          },
-        },
       },
     },
     "beamex-perps": {
       [CHAIN.MOONBEAM]: {
         fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAM),
         start: '2023-06-22',
-        meta: {
-          methodology: {
-            ...methodologyBeamex,
-          },
-        },
       },
     },
   },

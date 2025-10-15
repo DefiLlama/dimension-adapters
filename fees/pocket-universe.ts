@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
-import {routers} from "./kerberos/routers"
+import { routers } from "./kerberos/routers"
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
@@ -14,7 +14,7 @@ const fetch: any = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 };
 
-const meta = {
+const info = {
   methodology: {
     Fees: "All fess paid by users while use extension.",
     Revenue: "All fess paid by users while use extension.",
@@ -24,14 +24,10 @@ const meta = {
 
 const start = 1712710800
 const adapter: SimpleAdapter = {
+  fetch, methodology: info.methodology,
+  start,
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start, meta },
-    [CHAIN.BASE]: { fetch, start, meta },
-    [CHAIN.ARBITRUM]: { fetch, start, meta },
-    [CHAIN.POLYGON]: { fetch, start, meta },
-    [CHAIN.BSC]: { fetch, start, meta },
-    [CHAIN.OPTIMISM]: { fetch, start, meta },
-  },
+  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.BSC, CHAIN.OPTIMISM,],
+  adapter: {},
 };
 export default adapter;

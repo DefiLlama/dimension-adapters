@@ -13,6 +13,7 @@ const HYPERBLOOM_ADDRESSES = [
 const INTEGRATORS_ADDRESSES = [
   "0x0a0758d937d1059c356D4714e57F5df0239bce1A", // LI.FI diamond
   "0x3e851976DCA1bc02A2F35Ce926dCAFD1dEB3359b",  // LI.FI 
+  '0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf' // Enso
 ];
 
 const iface = new ethers.Interface([BridgeFillEvent]);
@@ -20,7 +21,7 @@ const iface = new ethers.Interface([BridgeFillEvent]);
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const logs: any[] = await options.getLogs({noTarget: true, eventAbi: BridgeFillEvent, entireLog: true});
+  const logs: any[] = await options.getLogs({ noTarget: true, eventAbi: BridgeFillEvent, entireLog: true });
 
   const txHashes = [...new Set(logs.map((l) => l.transactionHash))];
   const txs: any[] = await getTransactions(options.chain, txHashes, {
@@ -85,17 +86,12 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: "2025-05-31",
-      meta: {
-        methodology: {
-          Volume: "Volume from Hyperbloom",
-        },
-      },
-    },
+  fetch,
+  start: "2025-05-31",
+  methodology: {
+    Volume: "Volume from Hyperbloom",
   },
+  chains: [CHAIN.HYPERLIQUID],
 };
 
 export default adapter;

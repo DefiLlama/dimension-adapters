@@ -53,16 +53,13 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       start: '2024-09-27',
-      fetch,
-      meta: { methodology }
     },
     [CHAIN.ETHEREUM]: {
       start: "2024-11-28",
-      fetch,
-      meta: { methodology },
     },
   },
-
+  fetch,
+  methodology,
 }
 
 export default adapter;

@@ -26,13 +26,11 @@ const adapter: Adapter = {
     [CHAIN.RONIN]: {
       fetch,
       start: '2025-04-09',
-      meta: {
-        methodology: {
-          Fees: "Deposit fee and staking rewards.",
-          Revenue: "Liquid RON takes 6.5% performance fee whenever staking rewards are claimed.",
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: "Deposit fee and staking rewards.",
+    Revenue: "Liquid RON takes 6.5% performance fee whenever staking rewards are claimed.",
   }
 }
 

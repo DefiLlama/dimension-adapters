@@ -1,6 +1,7 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
+import { METRIC } from "../../helpers/metrics";
 
 type IConfig = {
   [s: string | Chain] : {
@@ -93,6 +94,19 @@ export const TOPIC0: any = {
 export const METHODOLOGY_FLUID = {
   Fees: "Interest paid by borrowers",
   Revenue: "Percentage of interest going to treasury",
+  ProtocolRevenue: "Percentage of interest going to treasury",
+};
+
+export const BREAKDOWN_METHODOLOGY_FLUID = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers",
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: "Percentage of interest going to treasury",
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: "Percentage of interest going to treasury",
+  },
 };
 
 export const parseInTopic = (address: string): string => {

@@ -28,15 +28,10 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
 
     const chainData = historicalVolume.stats.evm.find((cd: any) => cd.chainId === chainId);
 
-    const totalVolume = chainData.stats
-        .filter((item: any) => item.timestamp <= dayTimestamp)
-        .reduce((acc: any, { volume }: any) => acc + volume, 0)
-
     const dailyVolume = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.volume
 
     return {
-        totalVolume: totalVolume,
         dailyVolume: dailyVolume,
     };
 };
@@ -47,15 +42,10 @@ const getV1Data = async (endTimestamp: number, chainId: number) => {
 
     const chainData = historicalVolume.stats.find((cd: any) => cd.chainId === chainId);
 
-    const totalVolume = chainData.stats
-        .filter((item: any) => item.timestamp <= dayTimestamp)
-        .reduce((acc: any, { volume }: any) => acc + volume, 0)
-
     const dailyVolume = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.volume
 
     return {
-        totalVolume: totalVolume,
         dailyVolume: dailyVolume,
     };
 };

@@ -33,9 +33,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         timestamp,
-        totalFees: graphRes[DEFAULT_TOTAL_FEES_FACTORY][0][DEFAULT_TOTAL_FEES_FIELD],
         dailyFees: graphRes[DEFAULT_DAILY_FEES_FACTORY][DEFAULT_DAILY_FEES_FIELD],
-        totalRevenue: "0",
         dailyRevenue: "0",
       };
     };

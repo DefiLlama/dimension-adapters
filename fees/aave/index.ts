@@ -36,16 +36,16 @@ const AaveV2Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
-const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
     // core market
     {
       version: 3,
       lendingPoolProxy: '0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2',
       dataProvider: '0x7b4eb56e7cd4b454ba8ff71e4518426369a138a3',
-      seflLoanAssets: {
-        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': true, // GHO
-      },
+      selfLoanAssets: {
+        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': 'GHO',
+      }
     },
 
     // lido market
@@ -60,6 +60,13 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x0AA97c284e98396202b6A04024F5E2c65026F3c0',
       dataProvider: '0x8Cb4b66f7B13F2Ae4D3c91338fC007dbF8C14208',
+    },
+
+    // horizon market 
+    {
+      version: 3,
+      lendingPoolProxy: '0xAe05Cd22df81871bc7cC2a04BeCfb516bFe332C8',
+      dataProvider: '0x53519c32f73fE1797d10210c4950fFeBa3b21504',
     },
   ],
   [CHAIN.OPTIMISM]: [
@@ -167,124 +174,139 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0xa0208CE8356ad6C5EC6dFb8996c9A6B828212022',
     },
   ],
+  [CHAIN.PLASMA]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x925a2A7214Ed92428B5b1B090F80b25700095e12',
+      dataProvider: '0xf2D6E38B407e31E7E7e4a16E6769728b76c7419F',
+    },
+  ],
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
     Revenue: 'Amount of fees go to Aave treasury.',
     SupplySideRevenue: 'Amount of fees distributed to suppliers.',
     ProtocolRevenue: 'Amount of fees go to Aave treasury.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest': 'All interest paid by borrowers from all markets (excluding GHO).',
+      'Borrow Interest GHO': 'All interest paid by borrowers from GHO only.',
+      'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
+      'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+    },
+    Revenue: {
+      'Borrow Interest': 'A portion of interest paid by borrowers from all markets (excluding GHO).',
+      'Borrow Interest GHO': 'All 100% interest paid by GHO borrowers.',
+      'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
+      'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+    },
+    SupplySideRevenue: {
+      'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO).',
+      'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market.',
+      'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+      'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+    },
+    ProtocolRevenue: {
+      'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
+      'Borrow Interest GHO': 'All interest paid on GHO market are collected by Aave treasury.',
+      'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
+      'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
+    },
   }
 }
 
 const adapter: BreakdownAdapter = {
   version: 2,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
   breakdown: {
     v1: aaveExport({
       [CHAIN.ETHEREUM]: {
         pools: AaveV1Markets[CHAIN.ETHEREUM],
         start: '2020-01-09',
-        meta,
       },
     }),
     v2: aaveExport({
       [CHAIN.ETHEREUM]: {
         pools: AaveV2Markets[CHAIN.ETHEREUM],
         start: '2020-12-01',
-        meta,
       },
       [CHAIN.POLYGON]: {
         pools: AaveV2Markets[CHAIN.POLYGON],
         start: '2021-04-01',
-        meta,
       },
       [CHAIN.AVAX]: {
         pools: AaveV2Markets[CHAIN.AVAX],
         start: '2021-09-21',
-        meta,
       },
     }),
     v3: aaveExport({
       [CHAIN.ETHEREUM]: {
         pools: AaveMarkets[CHAIN.ETHEREUM],
         start: '2023-01-01',
-        meta,
       },
       [CHAIN.OPTIMISM]: {
         pools: AaveMarkets[CHAIN.OPTIMISM],
         start: '2022-08-05',
-        meta,
       },
       [CHAIN.ARBITRUM]: {
         pools: AaveMarkets[CHAIN.ARBITRUM],
         start: '2022-03-12',
-        meta,
       },
       [CHAIN.POLYGON]: {
         pools: AaveMarkets[CHAIN.POLYGON],
         start: '2022-03-12',
-        meta,
       },
       [CHAIN.AVAX]: {
         pools: AaveMarkets[CHAIN.AVAX],
         start: '2022-03-12',
-        meta,
       },
       [CHAIN.FANTOM]: {
         pools: AaveMarkets[CHAIN.FANTOM],
         start: '2022-03-12',
-        meta,
       },
       [CHAIN.BASE]: {
         pools: AaveMarkets[CHAIN.BASE],
         start: '2023-08-09',
-        meta,
       },
       [CHAIN.BSC]: {
         pools: AaveMarkets[CHAIN.BSC],
         start: '2023-11-18',
-        meta,
       },
       [CHAIN.METIS]: {
         pools: AaveMarkets[CHAIN.METIS],
         start: '2023-04-24',
-        meta,
       },
       [CHAIN.XDAI]: {
         pools: AaveMarkets[CHAIN.XDAI],
         start: '2023-10-05',
-        meta,
       },
       [CHAIN.SCROLL]: {
         pools: AaveMarkets[CHAIN.SCROLL],
         start: '2024-01-21',
-        meta,
       },
       [CHAIN.ERA]: {
         pools: AaveMarkets[CHAIN.ERA],
         start: '2024-09-09',
-        meta,
       },
       [CHAIN.LINEA]: {
         pools: AaveMarkets[CHAIN.LINEA],
         start: '2024-11-24',
-        meta,
       },
       [CHAIN.SONIC]: {
         pools: AaveMarkets[CHAIN.SONIC],
         start: '2025-02-16',
-        meta,
       },
       [CHAIN.CELO]: {
         pools: AaveMarkets[CHAIN.CELO],
         start: '2025-02-16',
-        meta,
       },
       [CHAIN.SONEIUM]: {
         pools: AaveMarkets[CHAIN.SONEIUM],
         start: '2025-05-14',
-        meta,
       },
     }),
   }

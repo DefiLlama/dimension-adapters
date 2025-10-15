@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { ARBITRUM, CHAIN } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { fees_bribes } from './bribes';
 import {
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -48,7 +48,7 @@ const v2Graphs = getGraphDimensions2({
 });
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
+  UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
   ProtocolRevenue: "Revenue going to the protocol. 5% of collected fees. (is probably right because the distribution is dynamic.)",
   HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
   SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)"
@@ -56,22 +56,17 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: async (options: FetchOptions) => {
-        const v2Result = await v2Graphs(ARBITRUM)(options)
+        const v2Result = await v2Graphs(options)
         const bribesResult = await getBribes(options);
         v2Result.dailyBribesRevenue = bribesResult.dailyBribesRevenue;
 
         return v2Result;
       },
       start: startTimeV2[CHAIN.ARBITRUM],
-      meta: {
-        methodology: {
-          ...methodology,
-          UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-        },
-      },
     },
   },
 };

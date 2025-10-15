@@ -1,4 +1,3 @@
-
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions } from '../adapters/types'
 
@@ -32,20 +31,18 @@ export default {
           dailyVolume.addGasToken(log.parsedLog.args.eth_bought)
         })
 
-        const dailyFees = dailyVolume.clone(0.3/100)
+        const dailyFees = dailyVolume.clone(0.3 / 100)
 
         return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0 }
       },
-      meta: {
-        methodology: {
-          Fees: "User pays 0.3% fees on each swap.",
-          UserFees: "User pays 0.3% fees on each swap.",
-          Revenue: "Protocol have no revenue.",
-          ProtocolRevenue: "Protocol have no revenue.",
-          SupplySideRevenue: "All user fees are distributed among LPs.",
-          HoldersRevenue: "Holders have no revenue."
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: "User pays 0.3% fees on each swap.",
+    UserFees: "User pays 0.3% fees on each swap.",
+    Revenue: 'Protocol make no revenue.',
+    ProtocolRevenue: 'Protocol make no revenue.',
+    SupplySideRevenue: 'All fees are distributed to LPs.',
+    HoldersRevenue: 'No revenue for UNI holders.',
   },
 }

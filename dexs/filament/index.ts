@@ -32,7 +32,6 @@ const fetch = async () => {
   );
   return {
     dailyVolume: results.reduce((acc, item) => acc + item.dailyVolume, 0),
-    totalVolume: results.reduce((acc, item) => acc + item.totalVolume, 0),
   }
 };
 

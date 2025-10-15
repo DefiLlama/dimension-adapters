@@ -20,11 +20,12 @@ const chainConfig: Record<Chain, { id: number, start: string }> = {
   [CHAIN.ZETA]: { id: 7000, start: '2023-07-17' },
   [CHAIN.MODE]: { id: 34443, start: '2023-07-17' },
   [CHAIN.IOTEX]: { id: 4689, start: '2023-07-17' },
-  [CHAIN.HEMI]: { id: 43111, start: '2023-07-17' },
+  // [CHAIN.HEMI]: { id: 43111, start: '2023-07-17' },
 };
 
 interface IVolumeall {
   volDay: number;
+  feesDay: number;
   chainId: number;
   timestamp: number;
 }
@@ -55,8 +56,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     )
     .reduce((sum, { volDay }) => sum + Number(volDay), 0);
 
+  const dailyFees = historical
+    .filter(({ chainId: id, timestamp }) =>
+      id === chainId && timestamp > startTimestamp && timestamp < endTimestamp
+    )
+    .reduce((sum, { feesDay }) => sum + Number(feesDay), 0);
+
   return {
     dailyVolume,
+    dailyFees,
   };
 };
 

@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -77,7 +77,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyProtocolRevenue = options.createBalances();
 
     const accepted_quote_mints = [
-        'So11111111111111111111111111111111111111112', 
+        'So11111111111111111111111111111111111111112',
         'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
     ]
@@ -101,20 +101,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-04-23',
-            meta: {
-                methodology: {
-                    Fees: "Trading fees paid by users.",
-                    Revenue: "Protocol fees collected by Meteora DBC protocol.",
-                    ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol."
-                }
-            }
-        }
-    },
-    isExpensiveAdapter: true
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2025-04-23',
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: "Trading fees paid by users.",
+        Revenue: "Protocol fees collected by Meteora DBC protocol.",
+        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol."
+    }
 }
 
 export default adapter

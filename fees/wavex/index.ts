@@ -42,13 +42,11 @@ const fetch: FetchV2 = async ({ chain, endTimestamp }) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.SONEIUM]: {
       fetch,
       start: "2024-12-27",
-      meta: {
-        methodology,
-      },
     },
   },
 };

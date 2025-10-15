@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
-import { ETHEREUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { queryIndexer } from '../../helpers/indexer';
-
 
 const fetch = async (options: FetchOptions) => {
   const toBlock = await options.getToBlock()
@@ -32,33 +32,51 @@ const fetch = async (options: FetchOptions) => {
       AND eb.gas_used IS NOT NULL
       and eb.number > ${fromBlock} and eb.number < ${toBlock}`, options);
 
-  const dailyRev = options.createBalances()
-  dailyRev.addGasToken(eth_txs_burn[0]['daily_eth_burned'] * 10 ** 18)
-  const dailyFee = options.createBalances()
-  dailyFee.addGasToken(Number(eth_txs[0].txn_fees) * 10 ** 18)
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+
+  const totalFees = Number(eth_txs[0].txn_fees)
+  const baseFees = Number(eth_txs_burn[0]['daily_eth_burned'])
+  const priorityFees =  totalFees - baseFees
+
+  dailyFees.addGasToken(baseFees * 10 ** 18, METRIC.TRANSACTION_BASE_FEES)
+  dailyFees.addGasToken(priorityFees * 10 ** 18, METRIC.TRANSACTION_PRIORITY_FEES)
+
+  dailyRevenue.addGasToken(baseFees * 10 ** 18, METRIC.TRANSACTION_BASE_FEES)
+  
   return {
-    dailyFees: dailyFee,
-    dailyRevenue: dailyRev,
-    dailyHoldersRevenue: dailyRev,
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
   };
 };
 
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [ETHEREUM]: {
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2015-07-30',
-      meta: {
-        methodology: {
-          Fees: 'Total ETH gas fees paid by users',
-          Revenue: 'Amount of ETH base fees that were burned',
-          HoldersRevenue: 'Amount of ETH base fees that were burned',
-        }
-      }
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Total ETH gas fees (including base fees and priority fees) paid by users',
+    Revenue: 'Amount of ETH base fees that were burned',
+    HoldersRevenue: 'Amount of ETH base fees that were burned',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees paid by users',
+      [METRIC.TRANSACTION_PRIORITY_FEES]: 'Total ETH priority fees paid by users',
+    },
+    Revenue: {
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+    },
+    HoldersRevenue: {
+      [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+    },
+  }
 }
 
 export default adapter;

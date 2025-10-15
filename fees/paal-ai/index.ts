@@ -1,13 +1,18 @@
-import { Adapter, FetchOptions, } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryIndexer } from "../../helpers/indexer";
-import { getTokenDiff } from "../../helpers/token";
+import { getETHReceived } from "../../helpers/token";
+import { METRIC } from "../../helpers/metrics";
 
 /** Address to check = paalecosystemfund.eth */
-const CONTRACT_ADDRESS = "0x54821d1B461aa887D37c449F3ace8dddDFCb8C0a";
+const CONTRACT_ECOSYSTEM_FUND = "0x54821d1B461aa887D37c449F3ace8dddDFCb8C0a";
+const CONTRACT_STAKING = "0x85e253162C7e97275b703980F6b6fA8c0469D624";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  await getTokenDiff({ target: CONTRACT_ADDRESS, options, includeGasToken: true, balances: dailyFees, })
+  // any funds on the CONTRACT_ECOSYSTEM_FUND is revenue
+  const dailyRevenue = options.createBalances();
+  await getETHReceived({ options, balances: dailyRevenue, target: CONTRACT_ECOSYSTEM_FUND })
+
   const transactions = await queryIndexer(`
     SELECT
       block_number,
@@ -24,24 +29,40 @@ const fetch = async (options: FetchOptions) => {
       AND block_time BETWEEN llama_replace_date_range;
       `, options);
 
-  transactions.map((transaction: any) => dailyFees.addGasToken(transaction.eth_value))
-  return { dailyFees, }
+  transactions.map((transaction: any) => dailyRevenue.addGasToken(transaction.eth_value))
+
+  const dailyFees = dailyRevenue.clone();
+  const dailyHoldersRevenue = options.createBalances();
+
+  // track Eth distribution to stakers
+  const transferEvents = await options.getLogs({
+    target: CONTRACT_STAKING,
+    eventAbi: 'event DistributeReward(address indexed user, uint256 amount, bool _wasCompounded)',
+  });
+
+  transferEvents.forEach((log: any) => {
+    dailyHoldersRevenue.addGasToken(log.amount, METRIC.TRADING_FEES);
+  });
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
+  }
 }
 
-/** Adapter */
-const adapter: Adapter = {
+const methodology = {
+  Fees: "Fees paid by users for using PAAL AI services.",
+  Revenue: "50% of certain earnings are allocated to stakers",
+  HoldersRevenue: "50% of certain earnings are allocated to stakers",
+}
+
+const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    ethereum: {
-      fetch,
-      start: '2023-07-23',
-      meta: {
-        methodology: {
-          Fees: 'Fees paid by users for using PAAL AI services.',
-        }
-      }
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-07-23',
+  methodology,
 }
 
 export default adapter;

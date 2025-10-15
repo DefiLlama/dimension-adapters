@@ -47,12 +47,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.WC]: {
       fetch: fetch,
       start: "2025-04-19",
-      meta: {
-        methodology: {
-          dailyVolume: "Volume is calculated as the sum of all amountIn in SwapExecuted events",
-        },
-      },
     },
+  },
+  methodology: {
+    dailyVolume: "Volume is calculated as the sum of all amountIn in SwapExecuted events",
   },
 };
 

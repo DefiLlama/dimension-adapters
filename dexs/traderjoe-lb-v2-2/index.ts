@@ -1,51 +1,35 @@
-import { FetchOptions, SimpleAdapter, } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
 
-interface IVolume {
-  timestamp: number;
-  volumeUsd: number;
-  feesUsd: number;
-  protocolFeesUsd: number;
-}
-const chainMap: any = {
-  [CHAIN.AVAX]:{ chainKey:"avalanche", start: "2024-07-01" },
-  [CHAIN.ARBITRUM]:{ chainKey:"arbitrum", start: "2024-07-01" },
-  // [CHAIN.BSC]: "binance",
-}
+import { CHAIN } from '../../helpers/chains'
+import { joeLiquidityBookExport } from "../../helpers/joe";
 
-const fetchV22Volume = async (_t: any, _tt: any, options: FetchOptions) => {
-  const dayTimestamp = options.startOfDay
-  let { chainKey } = chainMap[options.chain];
-  const end = dayTimestamp + 24 * 60 * 60;
-  const url = `https://api.lfj.dev/v1/dex/analytics/${chainKey}?startTime=${dayTimestamp - 86400}&endTime=${end}&version=v2.2`
-  const historicalVolumeAndFees: IVolume[] = (await httpGet(url, {
-    headers: {
-      'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
-    }
-  }));
-
-  const { feesUsd: dailyFees, protocolFeesUsd: dailyHoldersRevenue, volumeUsd: dailyVolume, } = historicalVolumeAndFees.find(item => item.timestamp === dayTimestamp) ?? {}
-
-  return {
-    dailyVolume,
-    timestamp: dayTimestamp,
-    dailyFees,
-    dailyHoldersRevenue,
-    dailyRevenue: dailyHoldersRevenue,
-  }
-}
-
-const adapters: SimpleAdapter = {
-  adapter: {
+export default {
+  ...joeLiquidityBookExport({
     [CHAIN.AVAX]: {
-      fetch: fetchV22Volume,
-      start: chainMap[CHAIN.AVAX].start,
+      factories: [
+        {
+          factory: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
+          version: 2.2,
+          fromBlock: 46536129,
+        },
+      ]
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchV22Volume,
-      start: chainMap[CHAIN.ARBITRUM].start,
+      factories: [
+        {
+          factory: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
+          version: 2.2,
+          fromBlock: 220345864,
+        },
+      ]
     },
-  }
+  }, {
+    holdersRevenueFromRevenue: 1, // 100% revenue
+  }),
+  methodology: {
+    Fees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
+    UserFees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
+    Revenue: 'Share of amount of swap fees.',
+    ProtocolRevenue: 'No protocol fees.',
+    HoldersRevenue: 'All revenue distributed to sJOE stakers',
+  },
 }
-export default adapters

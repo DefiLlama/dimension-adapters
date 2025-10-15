@@ -2,7 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/queries/3819841/6424423
 // https://dune.com/queries/4601837
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -11,7 +11,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const cutoffTimestamp = 1731715200;
   const isNewAddress = options.startOfDay >= cutoffTimestamp;
-  
+
   const address = isNewAddress ? '9RYJ3qr5eU5xAooqVcbmdeusjcViL5Nkiq7Gske3tiKq' : 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3';
   const traderId = isNewAddress ? '9RYJ3qr5eU5xAooqVcbmdeusjcViL5Nkiq7Gske3tiKq' : 'F4hJ3Ee3c5UuaorKAMfELBjYCjiiLH75haZTKqTywRP3';
 
@@ -49,27 +49,23 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
 
-  return { 
-    dailyFees, 
+  return {
+    dailyFees,
     dailyRevenue: dailyFees,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-04-03',
-      meta: {
-        methodology: {
-          Fees: "All trading fees paid by users while using BullX bot.",
-          Revenue: "Trading fees are collected by BullX protocol."
-        }
-      }
-    },
-  },
-  isExpensiveAdapter: true
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-04-03',
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading fees paid by users while using BullX bot.",
+    Revenue: "Trading fees are collected by BullX protocol."
+  }
 };
 
 export default adapter;

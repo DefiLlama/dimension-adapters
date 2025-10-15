@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { getGraphDimensions, getGraphDimensions2 } from "../../helpers/getUniSubgraph"
+import { getGraphDimensions2 } from "../../helpers/getUniSubgraph"
 import { FetchOptions } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
 import BigNumber from "bignumber.js";
@@ -39,7 +39,7 @@ export async function dexFees(
     },
   });
 
-  const results = await v2Graph(options.chain)(options)
+  const results = await v2Graph(options)
   const resultsDailyFees = new BigNumber(results.dailyFees?.toString() ?? 0).multipliedBy(1e6)
   const resultsDailyVolume = new BigNumber(results.dailyVolume?.toString() ?? 0).multipliedBy(1e6)
 

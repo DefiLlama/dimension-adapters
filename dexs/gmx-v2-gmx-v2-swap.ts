@@ -67,34 +67,27 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   }
 }
 
-const meta = {
-  methodology: {
+const methodology = {
     Volume: "Sum of daily total volume for all markets on a given day.",
-  }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch,
       start: '2021-08-31',
-      meta
     },
     [CHAIN.AVAX]: {
-      fetch,
       start: '2021-12-22',
-      meta
     },
     [CHAIN.BOTANIX]: {
-      fetch,
       start: '2025-05-30',
-      meta
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2021-08-31',
-      meta
     },
   }
 }
