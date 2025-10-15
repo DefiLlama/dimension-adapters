@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { getSolanaReceived } from "../helpers/token";
@@ -111,8 +111,9 @@ const methodology = {
 const adapter: Adapter = {
   fetch,
   adapter: chainConfig,
-  methodology,
   prefetch,
+  dependencies: [Dependencies.DUNE],
+  methodology,
   isExpensiveAdapter: true,
 };
 
