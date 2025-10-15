@@ -39,8 +39,8 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const dailyFees = restOpts.createBalances();
   const dailyRevenue = restOpts.createBalances();
 
-  dailyFees.addGasToken(dayItem.cumulativeFeesBNB);
-  dailyRevenue.addGasToken(dayItem.cumulativeRevenueBNB);
+  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0);
+  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0);
 
   return {
     dailyFees,
@@ -53,16 +53,13 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       start: '2024-09-27',
-      fetch,
-      meta: { methodology }
     },
     [CHAIN.ETHEREUM]: {
       start: "2024-11-28",
-      fetch,
-      meta: { methodology },
     },
   },
-
+  fetch,
+  methodology,
 }
 
 export default adapter;

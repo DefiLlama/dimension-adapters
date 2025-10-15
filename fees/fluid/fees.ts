@@ -2,6 +2,7 @@ import { Balances, ChainApi } from "@defillama/sdk";
 import { BigNumber } from "bignumber.js";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { ABI, EVENT_ABI, LIQUIDITY, zeroAddress } from "./config";
 
 const reserveContract = "0x264786EF916af64a1DB19F513F24a3681734ce92"
@@ -23,8 +24,8 @@ export const getDexResolver = async (api: ChainApi) => {
       break;
 
     case CHAIN.BASE:
-      if (block < 25847553) break;
-      address = "0x800104086BECa15A54e8c61dC1b419855fdA3377";
+      if (block < 30500000) break;
+      address = "0xa3B18522827491f10Fc777d00E69B3669Bf8c1f8";
       break;
 
     case CHAIN.POLYGON:
@@ -305,7 +306,7 @@ export const getFluidDailyFees = async (options: FetchOptions): Promise<Balances
     getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
   ])
 
-  dailyFees.addBalances(vaultFees)
-  dailyFees.addBalances(dexFees)
+  dailyFees.addBalances(vaultFees, METRIC.BORROW_INTEREST)
+  dailyFees.addBalances(dexFees, METRIC.BORROW_INTEREST)
   return dailyFees
 }

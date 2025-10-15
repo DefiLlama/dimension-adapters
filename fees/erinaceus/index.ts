@@ -1,7 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "../../utils/prices";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import getTxReceipts from "../../helpers/getTxReceipts";
 const sdk = require('@defillama/sdk')
 
@@ -77,10 +77,11 @@ const adapter: Adapter = {
     [CHAIN.BAHAMUT]: {
       fetch: fetch(CHAIN.BAHAMUT),
       start: '2024-05-22',
-      meta: {
-        methodology: 'All Fees generated from activity on Erinaceus VRF Coordinator contract.'
-      },
     }
+  },
+  methodology: {
+    Fees: "All Fees generated from activity on Erinaceus VRF Coordinator contract.",
+    Revenue: "All Fees generated from activity on Erinaceus VRF Coordinator contract subtract transaction fees.",
   }
 }
 export default adapter;

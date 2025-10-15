@@ -27,13 +27,13 @@ const config: any = {
   [CHAIN.BSC]: 'bsc',
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.TON]: 'ton',
+  [CHAIN.HEMI]: 'hemi',
 }
 
 async function fetch({ chain }: FetchOptions) {
   const volumeData: VolumeInfo = (await postURL(DATA_URL, { exchange: config[chain] })).data;
 
   return {
-    totalVolume: volumeData.totalTradVol,
     dailyVolume: volumeData.tradVol24h,
     dailyFees: volumeData.fee24h,
     dailyRevenue: volumeData.fee24h,
@@ -46,7 +46,7 @@ const adapter: SimpleAdapter = {
 };
 
 Object.keys(config).forEach((chain) => {
-  adapter.adapter[chain] = { fetch, runAtCurrTime: true, start: 1684003134 }
+  adapter.adapter[chain] = { fetch, runAtCurrTime: true, start: '2023-05-13' }
 })
 
 export default adapter;

@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // protocol accepts collateral in either usdc or tether
 const tokens = {
-  usdc: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
-  usdt: "0x6047828dc181963ba44974801ff68e538da5eaf9",
+  usdc: ADDRESSES.sonic.USDC_e,
+  usdt: ADDRESSES.sonic.USDT,
 };
 
 // each relevant peg stability module for the tokens above
@@ -60,12 +61,10 @@ const adapter: Adapter = {
     [CHAIN.SONIC]: {
       fetch,
       // Saturday, 1 March 2025 00:00:00
-      start: 1740787200,
-      meta: {
-        methodology,
-      },
+      start: '2025-03-01',
     },
   },
+  methodology,
 };
 
 export default adapter;

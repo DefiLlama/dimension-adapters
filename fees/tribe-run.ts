@@ -7,7 +7,7 @@ const fetchFees = async (options: FetchOptions) => {
     '2gsCTYYQUE7Ty5cDHa2FsjDC7Q95qBxywnFAT5C7RU9V',
   ]
   const dailyRevenue = await getSolanaReceived({ options, targets: targets })
-  const dailyFees = dailyRevenue.clone(1 + (1/2) + (1/0.6))
+  const dailyFees = dailyRevenue.clone(1 + (1 / 2) + (1 / 0.6))
   return { dailyFees, dailyRevenue, }
 }
 
@@ -17,6 +17,10 @@ const adapters: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
     }
+  },
+  methodology: {
+    Fees: "Trading fees paid by users on Tribe.run.",
+    Revenue: "Portion of fees collected by Tribe.run.",
   }
 }
 

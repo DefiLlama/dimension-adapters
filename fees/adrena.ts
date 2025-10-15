@@ -6,9 +6,7 @@ type PoolHighLevelStats = {
   start_date: string,
   end_date: string;
   daily_volume_usd: number;
-  total_volume_usd: number;
   daily_fee_usd: number;
-  total_fee_usd: number;
 }
 async function fetch({ endTimestamp, }: FetchOptions) {
   const endDate = new Date(endTimestamp * 1000).toISOString();
@@ -24,10 +22,6 @@ async function fetch({ endTimestamp, }: FetchOptions) {
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue: stats.daily_fee_usd * 30 / 100,
     dailySupplySideRevenue: stats.daily_fee_usd * 70 / 100,
-    totalFees: stats.total_fee_usd,
-    totalRevenue: stats.total_fee_usd * 30 / 100,
-    totalProtocolRevenue: 0,
-    totalSupplySideRevenue: stats.total_fee_usd * 70 / 100,
   };
 };
 
@@ -37,14 +31,12 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-11-18',
-      meta: {
-        methodology: {
-          Fees: 'All fees accrued by liquidity pools.',
-          Revenue: '20% to gov token holder, 10% to buyback gov token, 0% to protocol.',
-          SupplySideRevenue: "70% to pool token holders.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: 'All fees accrued by liquidity pools.',
+    Revenue: '20% to gov token holder, 10% to buyback gov token, 0% to protocol.',
+    SupplySideRevenue: "70% to pool token holders.",
   },
 };
 

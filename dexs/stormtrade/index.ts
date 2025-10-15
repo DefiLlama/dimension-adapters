@@ -3,16 +3,14 @@ import fetchURL from '../../utils/fetchURL'
 import { FetchResult } from "../../adapters/types";
 
 export default {
+    methodology: {
+        DailyVolume: 'Leverage trading volume',
+        DataSource: 'Data prepared by the project team by indexing blockchain data'
+    },
     adapter: {
         [CHAIN.TON]: {
             runAtCurrTime: true,
             start: '2023-11-14',
-            meta: {
-                methodology: {
-                    DailyVolume: 'Leverage trading volume',
-                    DataSource: 'Data prepared by the project team by indexing blockchain data'
-                },
-            },
             fetch: async (timestamp: number): Promise<FetchResult> => {
                 const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${timestamp}`)
 

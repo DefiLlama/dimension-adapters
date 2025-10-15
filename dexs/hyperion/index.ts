@@ -2,17 +2,7 @@ import request, { gql } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraph/utils";
-
-interface VolumeFeeStat {
-  api: {
-    getVolumeFeeStat: {
-      dailyVolume: number;
-      dailyFees: number;
-      totalVolume: number;
-      totalFees: number;
-    };
-  };
-}
+import fetchURL from "../../utils/fetchURL";
 
 const BASE_URL = "https://api.hyperion.xyz/v1/graphql";
 
@@ -24,32 +14,42 @@ const fetch = async (timestamp: number) => {
       api {
         getVolumeFeeStat(timestamp: $timestamp) {
           dailyFees
-          totalFees
-          totalVolume
-          dailyVolume
         }
       }
     }
   `;
 
+  const poolList: Array<{ dailyVolumeUSD: string }> = (
+    await fetchURL(
+      `https://assets.hyperion.xyz/files/pool-list.json?t=${dayTimestamp}`
+    )
+  ).data;
+
+  const dailyVolume = poolList.reduce(
+    (acc, { dailyVolumeUSD }) => acc + Number(dailyVolumeUSD),
+    0
+  );
+
   const variables = {
     timestamp: dayTimestamp,
   };
 
-  const data = await request<VolumeFeeStat>(BASE_URL, query, variables);
+  const data = await request(BASE_URL, query, variables);
+  const dailyFees = data.api.getVolumeFeeStat.dailyFees;
+  const dailyRevenue = Number(dailyFees) * 0.2;
 
-  const res = {
-    totalVolume: `${data.api.getVolumeFeeStat.totalVolume}`,
-    dailyVolume: `${data.api.getVolumeFeeStat.dailyVolume}`,
-    dailyFees: `${data.api.getVolumeFeeStat.dailyFees}`,
-    totalFees: `${data.api.getVolumeFeeStat.totalFees}`,
-    timestamp: timestamp,
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyVolume,
   };
-
-  return res;
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Total Fee user pays for the trades",
+    Revenue: "Revenue is calculated as 0.2% of the daily fees",
+  },
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,

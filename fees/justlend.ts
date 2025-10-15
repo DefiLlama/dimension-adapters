@@ -24,7 +24,7 @@ interface IAccrueInterestLog {
   totalBorrowsNew: BigNumberish;
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp,  }: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
   const context = await getContext(timestamp, {}, { fromTimestamp, toTimestamp });
   const dailyProtocolFees = createBalances();
   const dailyProtocolRevenue = createBalances();
@@ -35,12 +35,12 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTi
     timestamp,
     dailyFees: dailyProtocolFees,
     dailyRevenue: dailyProtocolRevenue,
-    dailyHoldersRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: 0,
     dailySupplySideRevenue: dailySupplySideRevenue
   }
 }
 
-const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, toTimestamp }: { fromTimestamp: number, toTimestamp: number}): Promise<IContext> => {
+const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, toTimestamp }: { fromTimestamp: number, toTimestamp: number }): Promise<IContext> => {
   const min_block_timestamp = fromTimestamp * 1000;
   const max_block_timestamp = toTimestamp * 1000;
 
@@ -128,7 +128,7 @@ const getDailyProtocolFees = async ({
   reserveFactors,
   startBlock,
   endBlock,
-}: IContext, { dailyProtocolFees, dailyProtocolRevenue }: { dailyProtocolFees: sdk.Balances, dailyProtocolRevenue: sdk.Balances}) => {
+}: IContext, { dailyProtocolFees, dailyProtocolRevenue }: { dailyProtocolFees: sdk.Balances, dailyProtocolRevenue: sdk.Balances }) => {
 
   let logs: any[] = [];
   for (let i = 0; i < markets.length; i++) {
@@ -168,6 +168,13 @@ const adapter: Adapter = {
       // runAtCurrTime: true,
     },
   },
+  methodology: {
+    Fees: "Total interest paid by borrowers",
+    Revenue: "Protocol's share of interest treasury",
+    ProtocolRevenue: "Protocol's share of interest into treasury",
+    HoldersRevenue: "No revenue distributed to JST holders",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+  }
 };
 
 export default adapter;

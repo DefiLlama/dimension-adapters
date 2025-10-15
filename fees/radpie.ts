@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_paid_stream = 'event RewardPaid (address indexed _user, address indexed _receiver, uint256 _reward, address indexed _token)';
 const event_paid_rdnt = 'event RDNTEntitled (address indexed _receipt, uint256 _amount)';
@@ -55,11 +55,9 @@ const graph = (chain: Chain) => {
   }
 }
 
-
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
     },
@@ -69,6 +67,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
     },
+  },
+  methodology: {
+    Fees: 'Staking rewards collected from assets staked on Radiant',
+    Revenue: 'Staking rewards collected from assets staked on Radiant',
   }
 };
 

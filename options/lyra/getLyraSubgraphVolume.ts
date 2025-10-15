@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { wrapGraphError } from "../../helpers/getUniSubgraph";
@@ -107,8 +107,6 @@ function getChainVolume({ graphUrls }: IGetChainVolumeParams) {
 
       return {
         timestamp,
-        totalPremiumVolume: totalVolume.totalPremium,
-        totalNotionalVolume: totalVolume.totalNotional,
         dailyPremiumVolume: totalVolume.premium,
         dailyNotionalVolume: totalVolume.notional,
       };

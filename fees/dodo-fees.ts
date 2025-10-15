@@ -1,4 +1,4 @@
-import { Adapter, BreakdownAdapter } from "../adapters/types";
+import { Adapter, } from "../adapters/types";
 import { request, gql } from "graphql-request";
 
 const feesReq = gql`
@@ -12,6 +12,7 @@ query FetchDashboardPairs($where: Dashboardrate24h_filter) {
 `
 
 const adapter: Adapter = {
+  version: 1,
   adapter: ["ethereum", "bsc", "polygon", "arbitrum", "aurora", "boba"].reduce((all, chain)=>({
     ...all,
     [chain]: {
@@ -34,12 +35,4 @@ const adapter: Adapter = {
   }), {} as any)
 };
 
-const breakdownAdapter: BreakdownAdapter = {
-  version: 1,
-  breakdown: {
-    "dodo": adapter.adapter
-  }
-}
-
-
-export default breakdownAdapter;
+export default adapter

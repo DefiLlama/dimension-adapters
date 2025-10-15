@@ -37,7 +37,7 @@ async function fetchTransactionPage(params: {
         end_timestamp: params.endTimestamp.toString(),
     };
 
-    Object.entries(queryParams).forEach(([key, value]) => 
+    Object.entries(queryParams).forEach(([key, value]) =>
         url.searchParams.append(key, value)
     );
 
@@ -55,12 +55,12 @@ async function getDailyFees(fromTimestamp: number, endTimestamp: number): Promis
 
     while (true) {
         const response = await fetchTransactionPage({ fromTimestamp, endTimestamp, start });
-        
+
         if (response?.page_size === 0) break;
         if (response?.data?.length === 0 || !response?.data) break;
 
         totalFees += response.data.reduce(
-            (acc, tx) => acc + Number(tx?.amount || 0) / 1_000_000, 
+            (acc, tx) => acc + Number(tx?.amount || 0) / 1_000_000,
             0
         );
 
@@ -75,14 +75,20 @@ async function fetch({ createBalances, endTimestamp, fromTimestamp }: FetchOptio
     const dailyRevenue = createBalances();
     const totalRevenue = await getDailyFees(fromTimestamp, endTimestamp);
     dailyRevenue.addCGToken('tron', totalRevenue);
-    
+
     return {
         dailyFees: dailyRevenue,
-        dailyRevenue
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     };
 }
 
 export default {
+    methodology: {
+        Fees: "All fees paid by users for buying energy.",
+        Revenue: "All fees are collected by TronSave protocol.",
+        ProtocolRevenue: "All fees are collected by TronSave protocol.",
+    },
     version: 2,
     adapter: {
         [CHAIN.TRON]: {

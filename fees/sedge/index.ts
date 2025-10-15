@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // Subgraph endpoint for Sedge (formerly DFX Finance) on Base
@@ -14,7 +14,7 @@ const headers = {
 // Calculate fees from the DFXDayData entity
 async function getDailyFees(timestamp: number) {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-  
+
   const query = gql`
     query getFees($dayTimestamp: Int!) {
       dfxdayDatas(where: { date: $dayTimestamp }) {
@@ -36,22 +36,23 @@ async function getDailyFees(timestamp: number) {
 
   // Calculate total daily fees
   const dailyFees = response.dfxdayDatas[0].dailyFeeUSD;
-  
+
   // Based on the subgraph data, all pairs have protocolFee of 0
   // This means 100% of fees go to liquidity providers and 0% to the protocol
-  
+
   return {
     dailyFees,
-    dailyRevenue: "0", // Protocol revenue is 0
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees, // All fees go to holders
-    dailyVolume: response.dfxdayDatas[0].dailyVolumeUSD
+    dailyVolume: response.dfxdayDatas[0].dailyVolumeUSD,
+    dailyProtocolRevenue: "0"
   };
 }
 
 // Fallback method: Calculate fees by summing individual pair data
 async function getPairsDailyFees(timestamp: number) {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400; // Start of the day (UTC)
-  
+
   const query = gql`
     query getPairFees($dayTimestamp: Int!) {
       pairDayDatas(
@@ -70,48 +71,50 @@ async function getPairsDailyFees(timestamp: number) {
     dayTimestamp
   }, headers);
 
-  if (!response.pairDayDatas || response.pairDayDatas.length === 0) {
-    return {
-      dailyFees: "0",
-      dailyRevenue: "0",
-      dailyHoldersRevenue: "0",
-      dailyVolume: "0"
-    };
-  }
 
-  let totalFees = 0;
-  let totalVolume = 0;
+  let dailyFees = 0;
+  let dailyVolume = 0;
 
   for (const pairData of response.pairDayDatas) {
     const feeUSD = parseFloat(pairData.feeUSD);
-    totalFees += feeUSD;
-    totalVolume += parseFloat(pairData.volumeUSD);
+    dailyFees += feeUSD;
+    dailyVolume += parseFloat(pairData.volumeUSD);
   }
 
   // 100% of fees go to liquidity providers and 0% to the protocol
   return {
-    dailyFees: totalFees.toString(),
-    dailyRevenue: "0", // Protocol takes 0% of fees
-    dailyHoldersRevenue: totalFees.toString(), // LPs get 100% of fees
-    dailyVolume: totalVolume.toString()
+    dailyFees: dailyFees.toString(),
+    dailyRevenue: dailyFees.toString(),
+    dailyProtocolRevenue: '0', // Protocol takes 0% of fees
+    dailyHoldersRevenue: dailyFees.toString(), // LPs get 100% of fees
+    dailyVolume: dailyVolume.toString()
+  };
+}
+
+const fetch = async (options: FetchOptions) => {
+  const result = await getDailyFees(options.endTimestamp);
+  return {
+    dailyFees: result.dailyFees,
+    dailyUserFees: result.dailyFees,
+    dailyRevenue: result.dailyRevenue,
+    dailyHoldersRevenue: result.dailyHoldersRevenue,
+    dailyProtocolRevenue: result.dailyProtocolRevenue
   };
 }
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: async ({ endTimestamp }) => {
-        const result = await getDailyFees(endTimestamp);
-        return {
-          dailyFees: result.dailyFees,
-          dailyRevenue: result.dailyRevenue,
-          dailyHoldersRevenue: result.dailyHoldersRevenue,
-        };
-      },
-      start: 1739404800, // February 13, 2025
+      fetch,
+      start: '2025-02-13', // February 13, 2025
     },
   },
-  version: 2,
+  methodology: {
+    Fees: "Fees are collected from users on each trade.",
+    HoldersRevenue: "100% of fees go to liquidity providers.",
+    Revenue: "0% of fees go to the protocol.",
+  }
 };
 
 export default adapter;

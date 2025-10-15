@@ -1,15 +1,12 @@
-import {FetchOptions} from "../adapters/types";
-import {CHAIN} from "../helpers/chains";
-import {getVersionFromTimestamp, octasToApt, view} from "../helpers/aptops";
+import { FetchOptions } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getVersionFromTimestamp, octasToApt, view } from "../helpers/aptos";
 
 // The emojicoin package address.
 const MAINNET_PACKAGE_ADDRESS = "0xface729284ae5729100b3a9ad7f7cc025ea09739cd6e7252aff0beb53619cafe";
 
 // The emojicoin module.
 const MODULE = "emojicoin_dot_fun";
-
-// Date at which the contract was deployed.
-const DEPLOYED_AT_DATE = '2024-11-20';
 
 // Block close to the start date but before it.
 const DEPLOYED_AT_BLOCK = 254000000;
@@ -53,25 +50,15 @@ const fetch = async (options: FetchOptions) => {
     const volumeEnd = BigInt(viewEnd.cumulative_quote_volume.value);
     const volumeStart = BigInt(viewStart.cumulative_quote_volume.value);
 
-    // Calculate daily and total values
-
     const dailyFees = options.createBalances();
-    dailyFees.addCGToken('aptos', octasToApt(feesEnd - feesStart));
-
-    const totalFees = options.createBalances();
-    totalFees.addCGToken('aptos', octasToApt(feesEnd));
-
     const dailyVolume = options.createBalances();
-    dailyVolume.addCGToken('aptos', octasToApt(volumeEnd - volumeStart));
 
-    const totalVolume = options.createBalances();
-    totalVolume.addCGToken('aptos', octasToApt(volumeEnd));
+    dailyFees.addCGToken('aptos', octasToApt(feesEnd - feesStart));
+    dailyVolume.addCGToken('aptos', octasToApt(volumeEnd - volumeStart));
 
     return {
         dailyFees,
-        totalFees,
         dailyVolume,
-        totalVolume,
     };
 };
 
@@ -80,7 +67,10 @@ export default {
     adapter: {
         [CHAIN.APTOS]: {
             fetch,
-            start: DEPLOYED_AT_DATE,
+            start: '2024-11-20',
         },
+    },
+    methodology: {
+        Fees: "Tokens trading and launching fees paid by users.",
     }
 };

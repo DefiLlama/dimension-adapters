@@ -10,7 +10,11 @@ const adapter: Adapter = {
       start: '2024-12-20',
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Transaction fees paid by users',
+    Revenue: 'Total revenue on Ink, calculated by subtracting the L1 Batch Costs from the total gas fees',
+  }
 }
 
 export default adapter;

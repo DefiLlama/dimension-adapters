@@ -44,20 +44,18 @@ type Responce = {
 
 const fetch =
   (chain: string) =>
-  async (timestamp: number): Promise<FetchResultFees> => {
-    const resp: Responce = await httpGet(`${url}?timestamp=${timestamp}`);
-    const data = resp.chains[chain];
-    if (!data || !data.daily || !data.total) {
-      return {} as FetchResultFees;
-    }
-    return {
-      dailyFees: data.daily.revenue,
-      dailyRevenue: data.daily.revenue,
-      totalFees: data.total.revenue,
-      totalRevenue: data.total.revenue,
-      timestamp
+    async (timestamp: number): Promise<FetchResultFees> => {
+      const resp: Responce = await httpGet(`${url}?timestamp=${timestamp}`);
+      const data = resp.chains[chain];
+      if (!data || !data.daily || !data.total) {
+        return {} as FetchResultFees;
+      }
+      return {
+        dailyFees: data.daily.revenue,
+        dailyRevenue: data.daily.revenue,
+        timestamp
+      };
     };
-  };
 
 const adapter: Adapter = {
   adapter: {
@@ -72,6 +70,10 @@ const adapter: Adapter = {
       };
     }, {}),
   },
+  methodology: {
+    Fees: "Fees paid by users for trading and bridging.",
+    Revenue: "All fees are revenue.",
+  }
 };
 
 export default adapter;

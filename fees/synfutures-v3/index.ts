@@ -55,11 +55,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFeesToLP = createBalances();
       const dailyProcotolFees = createBalances();
 
-      const totalFee = createBalances();
-      const totalMakerRebates = createBalances();
-      const totalFeesToLP = createBalances();
-      const totalProcotolFees = createBalances();
-
       const graphRes = await request(graphUrls[chain], graphQuery);
 
       for (const record of graphRes.dailyQuoteDatas) {
@@ -67,23 +62,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailyMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) - Number(record.poolFee), record.quote.decimals))
         dailyFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.poolFee), record.quote.decimals))
         dailyProcotolFees.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
-
-        totalFee.addToken(record.quote.id, convertDecimals(Number(record.totalLiquidityFee) + Number(record.totalProtocolFee), record.quote.decimals))
-        totalMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.totalLiquidityFee) - Number(record.totalPoolFee), record.quote.decimals))
-        totalFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.totalPoolFee), record.quote.decimals))
-        totalProcotolFees.addToken(record.quote.id, convertDecimals(Number(record.totalProtocolFee), record.quote.decimals))
       }
 
       return {
-        dailyFees: await dailyFee.getUSDValue(),
-        dailyMakerRebates: await dailyMakerRebates.getUSDValue(),
-        dailyFeesToLp: await dailyFeesToLP.getUSDValue(),
-        dailyProcotolFees: await dailyProcotolFees.getUSDValue(),
-
-        totalFees: await totalFee.getUSDValue(),
-        totalMakerRebates: await totalMakerRebates.getUSDValue(),
-        totalFeesToLp: await totalFeesToLP.getUSDValue(),
-        totalProcotolFees: await totalProcotolFees.getUSDValue()
+        dailyFees: dailyFee,
+        dailyMakerRebates: dailyMakerRebates,
+        dailyFeesToLp: dailyFeesToLP,
+        dailyProcotolFees: dailyProcotolFees,
       };
     };
     return fetch 
@@ -92,20 +77,15 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints),
       start: '2024-02-27',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.BASE]: {
       fetch: graphs(endpoints),
       start: '2024-06-26',
-      meta: {
-        methodology
-      }
     }
   }
 }

@@ -1,5 +1,4 @@
 import * as sdk from '@defillama/sdk';
-import { getUniqueAddresses } from '@defillama/sdk/build/generalUtil';
 import axios from 'axios';
 import { ethers } from "ethers";
 import { FetchOptions } from "../adapters/types";
@@ -7,6 +6,7 @@ import { queryAllium } from './allium';
 import { getCache, setCache } from "./cache";
 import ADDRESSES from './coreAssets.json';
 import { getEnv } from './env';
+import { sleep } from '../utils/utils';
 
 export const nullAddress = ADDRESSES.null
 
@@ -89,11 +89,17 @@ type AddTokensReceivedParams = {
 export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   if (!params.skipIndexer) {
-    try {
-      const balances = await _addTokensReceivedIndexer(params)
-      return balances
-    } catch (e) {
-      console.error('Token transfers: Failed to use indexer, falling back to logs', (e as any)?.message)
+    for (let i = 0; i < 2; i++) {
+      // retry 2 times if failed
+      try {
+        const balances = await _addTokensReceivedIndexer(params)
+        return balances
+      } catch (e) {
+        if (i === 1) {
+          console.error('Token transfers: Failed to use indexer, falling back to logs', params.options.chain, (e as any)?.message)
+        }
+      }
+      await sleep(5);
     }
   }
 
@@ -142,7 +148,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   if (!tokens?.length) return balances
 
-  tokens = getUniqueAddresses(tokens.filter(i => !!i), options.chain)
+  tokens = sdk.util.getUniqueAddresses(tokens.filter(i => !!i), options.chain)
 
   const logs = await getLogs({
     targets: tokens,
@@ -395,7 +401,7 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
 
   // Construct SQL query to get sum of received token values in USD and native amount
   const query = `
-      SELECT mint as token, SUM(raw_amount) as amount
+      SELECT '${ADDRESSES.solana.USDC}' as token, SUM(usd_amount * 1000000) as amount
       FROM solana.assets.transfers
       WHERE to_address IN (${formattedAddresses})
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
@@ -414,8 +420,19 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
   return balances;
 }
 
+function getAlliumChain(chain: string): string {
+  switch(chain) {
+    case 'avax': return 'avalanche'
+    case 'era': return 'zksync';
+    case 'xdai': return 'gnosis';
+    case 'rsk': return 'rootstock';
+    case 'wc': return 'worldchain';
+    case 'manta': return 'manta_pacific';
+    default: return chain
+  }
+}
 
-export async function getETHReceived({ options, balances, target, targets = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
+export async function getETHReceived({ options, balances, target, targets = [], notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[], notFromSenders?: string[] }) {
   if (!balances) balances = options.createBalances()
 
   if (!target && !targets?.length) return balances
@@ -424,6 +441,11 @@ export async function getETHReceived({ options, balances, target, targets = [] }
 
   targets = targets.map(i => i.toLowerCase())
   targets = [...new Set(targets)]
+
+  notFromSenders = notFromSenders.map(i => i.toLowerCase())
+  notFromSenders = [...new Set(notFromSenders)]
+
+  const excludeSenders = targets.concat(notFromSenders)
 
   // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
@@ -435,18 +457,16 @@ export async function getETHReceived({ options, balances, target, targets = [] }
     arbitrum: 'arbitrum',
     avax: 'avalanche',
     polygon: 'polygon',
-    blast: 'blast',
     celo: 'celo',
     tron: 'tron',
     unichain: 'unichain',
-    worldchain: 'worldchain',
     zora: 'zora',
-    sonic: 'sonic',
-    soneium: 'soneium',
-    rsk: 'rootstock',
-    mode: 'mode',
     near: 'near',
     xdai: 'gnosis',
+    ink: 'ink',
+    berachain: 'berachain',
+    polygon_zkevm: 'polygon_zkevm',
+    plasma: 'plasma',
   }
   const tableMap: any = {
     bsc: 'bnb_token_transfers',
@@ -460,23 +480,35 @@ export async function getETHReceived({ options, balances, target, targets = [] }
     polygon_zkevm: 'native_token_transfers',
     unichain: 'native_token_transfers',
     sonic: 'native_token_transfers',
-    soneium: 'native_token_transfers',
-    rsk: 'native_token_transfers',
-    mode: 'native_token_transfers',
+    plasma: 'native_token_transfers',
   }
-  const chainKey = chainMap[options.chain]
-  if (!chainKey) throw new Error('[Pull eth transfers] Chain not supported: ' + options.chain)
 
+  let query = ``
   const targetList = '( ' + targets.map(i => `'${i}'`).join(', ') + ' )'
-
-  const query = `
-    SELECT SUM(raw_amount) as value
-    FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
-    WHERE to_address in ${targetList} 
-    ${targets.length > 1 ? `AND from_Address not in ${targetList} ` : ' '}
-    AND transfer_type = 'value_transfer'
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    `
+  const excludeSenderList = '( ' + excludeSenders.map(i => `'${i}'`).join(', ') + ' )'
+  const chainKey = chainMap[options.chain]
+  if (chainKey) {
+    query = `
+      SELECT SUM(raw_amount) as value
+      FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
+      WHERE to_address in ${targetList} 
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
+      AND transfer_type = 'value_transfer'
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      `
+  } else {
+    // support all EVM chain on allium now
+    // sum value from traces calls to targets addresses
+    // if (!chainKey) throw new Error('[Pull eth transfers] Chain not supported: ' + options.chain)
+    query = `
+      SELECT SUM(value) as value
+      FROM ${getAlliumChain(options.chain)}.raw.traces
+      WHERE to_address in ${targetList} 
+      AND status = 1
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
+      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      `
+  }
 
   const res = await queryAllium(query)
   balances.add(nullAddress, res[0].value)

@@ -22,11 +22,12 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-06-01',
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch,
       runAtCurrTime: true,
-          },
+    },
   }
 };
 

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/types";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
@@ -65,6 +65,11 @@ const adapter: SimpleAdapter = {
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'All fees paid by users for swap and bridge tokens via Jumper Exchange.',
+    Revenue: 'All fees are distributed to Jumper Exchange.',
+    ProtocolRevenue: 'All fees are distributed to Jumper Exchange.',
+  }
 };
 
 export default adapter;

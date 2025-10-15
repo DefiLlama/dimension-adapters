@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
@@ -45,6 +45,9 @@ const adapter: SimpleAdapter = {
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+  }
 };
 
 export default adapter;

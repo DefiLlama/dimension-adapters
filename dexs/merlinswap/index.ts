@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -39,15 +38,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
       };
     };
     const historicalVolume = historical.filter(e => e.chainId === chains[options.chain]);
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.timestamp).getTime()) <= dayTimestamp)
-      .reduce((acc, { volDay }) => acc + Number(volDay), 0)
-
     const dailyVolume = historicalVolume
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
     
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
@@ -55,12 +49,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
 const adapters: TAdapter = {};
 for (const chain in chains) {
-  let startTime = 1706946000;
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch,
-      start: startTime,
-      customBackfill: customBackfill(chain, () => fetch)
+      start: 1706946000,
     };
   };
 };

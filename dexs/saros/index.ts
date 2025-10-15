@@ -1,23 +1,21 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-import { postURL } from "../../utils/fetchURL"
+import { httpPost } from "../../utils/fetchURL"
 
-async function fetch() {
-  const { data: { data } } = await postURL('https://api.saros.xyz/api/saros/token/top', {
-    "page": 1,
-    "size": 100,
+async function fetch(_: any, _1: any, { startTimestamp, dateString }: FetchOptions) {
+  const { data } = await httpPost('https://api.saros.xyz/api/saros/pool/total', {
+    "from": (startTimestamp - 86400) * 1000
   })
-
-  const dailyVolume = data.reduce((acc: number, { volume24h }) => acc + Number(volume24h), 0);
-  return { dailyVolume }
+  const item = data.find((dayItem: any) => dayItem.from.startsWith(dateString))
+  if (!item) throw new Error(`No data for date: ${dateString}`)
+  return { dailyVolume: item.volume }
 }
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      runAtCurrTime: true,
     },
   },
 };

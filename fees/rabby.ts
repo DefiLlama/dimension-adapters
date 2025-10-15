@@ -15,22 +15,47 @@ const fetchFees = async (options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
     };
 };
 
-const chains = [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.BASE, CHAIN.ARBITRUM]
+const chains = [
+    CHAIN.ETHEREUM,
+    CHAIN.BSC,
+    CHAIN.BASE,
+    CHAIN.ARBITRUM,
+    CHAIN.SONIC,
+    CHAIN.OPTIMISM,
+    CHAIN.AVAX,
+    CHAIN.POLYGON,
+    CHAIN.UNICHAIN,
+    CHAIN.ERA,
+    CHAIN.SCROLL,
+    CHAIN.XDAI,
+    CHAIN.ARBITRUM_NOVA,
+    CHAIN.BERACHAIN,
+    CHAIN.MANTLE,
+    CHAIN.LINEA,
+    CHAIN.POLYGON_ZKEVM,
+    CHAIN.MANTA,
+    CHAIN.ABSTRACT,
+    CHAIN.BLAST,
+
+    // CHAIN.TAIKO,
+    // CHAIN.CRONOS,
+]
 
 const adapter: SimpleAdapter = {
+    fetch: fetchFees,
+    chains,
     version: 2,
-    adapter: chains.reduce((acc, chain) => {
-        return {
-            ...acc,
-            [chain]: {
-                fetch: fetchFees,
-            },
-        };
-    }, {}),
-    isExpensiveAdapter: true
+    adapter: {},
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: 'All fees paid by users for swapping, bridging in Rabby wallet.',
+        Revenue: 'Fees collected by Rabby.',
+        ProtocolRevenue: 'Fees collected by Rabby.',
+    }
 };
 
 export default adapter;

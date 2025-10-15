@@ -1,5 +1,4 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
@@ -40,40 +39,37 @@ function isVolumeReport(data: any): data is VolumeReport {
   return data && typeof data.reportByChain === 'object';
 }
 
-const fetch = (chain: string) =>
-    async (_: number): Promise<FetchResult> => {
-      const unixTimestamp = getUniqStartOfTodayTimestamp();
-      const chainCode = CHAINS[chain];
-      if (!chainCode) {
-        return {
-          dailyVolume: 0,
-          timestamp: unixTimestamp,
-        }; 
-      }
-      const url = `https://api.zcx.com/private/integrators/report/volumeAndCount/24h`;
-      const data = (await httpGet(url, { headers: {
-        'User-Agent': 'Mozilla/5.0+(compatible; unizen; exchange)',
-        'Content-Type': 'application/json',
-      }}));
-      if (!isVolumeReport(data)) throw new Error(`Invalid data structure for chain ${chainCode}: ${JSON.stringify(data)}`);
-      const chainData = data.reportByChain[chainCode];
-      return {
-        dailyVolume: chainData?.volume || 0,
-        timestamp: unixTimestamp,
-      };
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const chainCode = CHAINS[options.chain];
+  if (!chainCode) {
+    return {
+      dailyVolume: 0,
     };
+  }
+  const url = `https://api.zcx.com/private/integrators/report/volumeAndCount/24h`;
+  const data = (await httpGet(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0+(compatible; unizen; exchange)',
+      'Content-Type': 'application/json',
+    }
+  }));
+  if (!isVolumeReport(data)) throw new Error(`Invalid data structure for chain ${chainCode}: ${JSON.stringify(data)}`);
+  const chainData = data.reportByChain[chainCode];
+  return {
+    dailyVolume: chainData?.volume || 0,
+  };
+};
 
 const adapter: SimpleAdapter = {
   version: 1,
-  timetravel: false,
   adapter: {
     ...Object.keys(CHAINS).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
-          fetch: fetch(chain),
+          fetch,
           runAtCurrTime: true,
-          start: '2024-10-19', 
+          start: '2024-10-19',
         },
       };
     }, {}),

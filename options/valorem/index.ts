@@ -1,8 +1,8 @@
 import { Adapter } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { CHAIN } from "../../helpers/chains";
+import { Chain } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import type { ChainEndpoints, FetchResultOptions } from "../../adapters/types";
+import type { ChainEndpoints, } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import {
   endpoints,
@@ -10,12 +10,10 @@ import {
   methodology,
 } from "../../fees/valorem/constants";
 import {
-  IValoremDayData,
   IValoremTokenDayData,
 } from "../../fees/valorem/interfaces";
 import {
   DailyTokenRecords,
-  getAllDailyRecords,
   getAllDailyTokenRecords,
 } from "../../fees/valorem/helpers";
 
@@ -68,46 +66,11 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
       };
 
       const todaysStats = await getTodaysStats();
-
-      /** Backfilled USD Metrics */
-      // add up totals from each individual preceding day
-      // get all daily records and filter out any that are after the timestamp
-      const allDailyRecords = await getAllDailyRecords(
-        graphUrls,
-        chain,
-        timestamp
-      );
-
-      const filteredRecords = allDailyRecords
-        .map((dayData) => {
-          if (dayData.date <= formattedTimestamp) {
-            return dayData;
-          }
-        })
-        .filter((x) => x !== undefined) as IValoremDayData[];
-      // add up totals from each individual preceding day
-      const totalStatsUpToToday = filteredRecords.reduce(
-        (acc, dayData) => {
-          return {
-            totalNotionalVolume: (
-              Number(acc.totalNotionalVolume) +
-              Number(dayData.notionalVolCoreSumUSD)
-            ).toString(),
-            totalPremiumVolume: undefined,
-          };
-        },
-        {
-          totalNotionalVolume: "0",
-          totalPremiumVolume: undefined,
-        }
-      );
       
       return {
         timestamp,
         dailyNotionalVolume: todaysStats.dailyNotionalVolume,
         dailyPremiumVolume: todaysStats.dailyPremiumVolume,
-        totalNotionalVolume: totalStatsUpToToday.totalNotionalVolume,
-        totalPremiumVolume: totalStatsUpToToday.totalPremiumVolume,
       };
     };
   };
@@ -115,14 +78,12 @@ const graphOptions = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   adapter: {
-    [ARBITRUM]: {
-      fetch: graphOptions(endpoints)(ARBITRUM),
-      start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
-      meta: {
-        methodology,
-      },
+    [CHAIN.ARBITRUM]: {
+      fetch: graphOptions(endpoints)(CHAIN.ARBITRUM),
+      start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[CHAIN.ARBITRUM],
     },
   },
+  methodology,
 };
 
 export default adapter;
