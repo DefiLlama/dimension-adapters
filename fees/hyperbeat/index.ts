@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { CuratorConfig, getCuratorExport } from "../../helpers/curators";
 const sdk = require('@defillama/sdk')
 import { METRIC } from "../../helpers/metrics";
 
@@ -122,6 +123,14 @@ const fetch = async (options: FetchOptions) => {
     return {
         dailyFees,
     };
+};
+
+const curatorConfig: CuratorConfig = {
+    vaults: {
+        [CHAIN.HYPERLIQUID]: {
+            morphoVaultOwners: MORPHO_VAULT_CURATORS,
+        },
+    }
 };
 
 const adapter: Adapter = {
