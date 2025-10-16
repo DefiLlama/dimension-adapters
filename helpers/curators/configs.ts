@@ -100,6 +100,14 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.HEMI]: {
+    vaultFactories: [
+      {
+        address: '0x8e52179BeB18E882040b01632440d8Ca0f01da82',
+        fromBlock: 1188885,
+      },
+    ],
+  },
 }
 
 export const EulerConfigs: any = {
