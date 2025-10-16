@@ -19,9 +19,4 @@ const curatorConfig: CuratorConfig = {
   }
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: getCuratorExport(curatorConfig),
-}
-
-export default adapter
+export default getCuratorExport(curatorConfig)
