@@ -97,6 +97,8 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyPremiumVolume,
     dailyFees,
     dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
   };
 }
 
@@ -121,6 +123,9 @@ const adapter: Adapter = {
     },
   },
   methodology: {
+    Fees: "Fees are collected from users for each trade and LP performance fees",
+    Revenue: "Revenue is distributed to $OVER token holders",
+    ProtocolRevenue: "Protocol doesn't keep any revenue",
     HoldersRevenue: "100% of revenue goes to $OVER token buybacks",
   },
 };
