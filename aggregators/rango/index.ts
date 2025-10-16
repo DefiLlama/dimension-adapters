@@ -69,7 +69,6 @@ const prefetch = async (_: FetchOptions) => {
 
   const fromTs = new Date(`${DEFAULT_START}T00:00:00Z`).getTime();
 
-  // Send a single request without source and destination parameters
   const url = `https://api.rango.exchange/scanner/summary/daily` +
     `?from=${fromTs}` +
     `&to=${Date.now()}` +
@@ -78,8 +77,6 @@ const prefetch = async (_: FetchOptions) => {
     `&txType=DEX`;
 
   const response = await httpGet(url);
-
-  // Organize results by bucket (chain code)
   const resultsByChain: Record<string, any> = {};
 
   for (const stat of response.stats) {
