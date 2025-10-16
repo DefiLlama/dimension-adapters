@@ -69,20 +69,18 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, getFromBlock, ge
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.ABSTRACT]: {
-            fetch,
-            start: '2025-01-30',
-            meta: {
-                methodology: {
-                  Volume: 'Volume is calculated as the sum of tolls collected from Coin events and payouts from Solve events',
-                  Fees: 'Fees are calculated as the difference in available balance of the fee collector address before and after the block',
-                  Revenue: 'Revenue is the same as fees'
-                },
-            }
-        },
-    }
+  methodology: {
+    Volume: 'Volume is calculated as the sum of tolls collected from Coin events and payouts from Solve events',
+    Fees: 'Fees are calculated as the difference in available balance of the fee collector address before and after the block',
+    Revenue: 'Revenue is the same as fees'
+  },
+  version: 2,
+  adapter: {
+    [CHAIN.ABSTRACT]: {
+      fetch,
+      start: '2025-01-30',
+    },
+  }
 };
 
 export default adapter;

@@ -79,16 +79,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      meta: {
-        methodology: {
-          Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
-          Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
-          ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
-        },
-      },
       start: '2024-09-04' // September 4th, 2024 -- M4 EigenPod Upgrade
     }
-  }
+  },
+  methodology: {
+    Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
+    Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+    ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
+  },
 }
 
 export default adapter;

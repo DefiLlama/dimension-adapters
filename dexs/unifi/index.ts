@@ -35,14 +35,10 @@ const graphs = (chain: Chain) => {
     if(dayTimestamp > 1687478400) return {}
     const historicalVolume: IVolumeall[] = (await fetchURL(poolsDataEndpoint(chains[chain]))).results;
 
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.datetime).getTime() / 1000) <= dayTimestamp)
-      .reduce((acc, { volume }) => acc + Number(volume), 0)
     const dailyVolume = historicalVolume
       .find(dayItem => (new Date(dayItem.datetime).getTime() / 1000) === dayTimestamp)?.volume
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

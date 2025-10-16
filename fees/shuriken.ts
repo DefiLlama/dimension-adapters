@@ -1,7 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/queries/4043813/6866844
 
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
 import { queryDuneSql } from "../helpers/dune";
@@ -72,29 +72,22 @@ const fetchSolana = async (_: any, _1: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
       start: '2023-10-13',
-      meta: {
-          methodology: {
-              Fees: "Trading fees paid by users.",
-              Revenue: "All fees are revenue.",
-          }
-      }
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2024-01-14',
-      meta: {
-          methodology: {
-              Fees: "Trading fees paid by users while using Shuriken bot.",
-              Revenue: "All fees are collected by Shuriken protocol.",
-          }
-      }
     },
   },
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Trading fees paid by users while using Shuriken bot.",
+    Revenue: "All fees are collected by Shuriken protocol.",
+  }
 };
 
 export default adapter;

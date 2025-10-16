@@ -28,17 +28,11 @@ const getV2Data = async (endTimestamp: number, chainId: number) => {
 
     const chainData = [...historicalFees.stats.evm, ...historicalFees.stats.svm].find(cd => cd.chainId === chainId);
 
-    const totalFee = chainData.stats
-        .filter((item: any) => item.timestamp <= dayTimestamp)
-        .reduce((acc: any, { fees }: any) => acc + fees, 0)
-
     const dailyFee = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: totalFee,
         dailyFees: dailyFee,
-        totalRevenue: totalFee,
         dailyRevenue: dailyFee,
     };
 };
@@ -49,17 +43,11 @@ const getV1Data = async (endTimestamp: number, chainId: number) => {
 
     const chainData = historicalFees.stats.find((cd: any) => cd.chainId === chainId);
 
-    const totalFee = chainData.stats
-        .filter((item: any) => item.timestamp <= dayTimestamp)
-        .reduce((acc: any, { fees }: any) => acc + fees, 0)
-
     const dailyFee = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
 
     return {
-        totalFees: totalFee,
         dailyFees: dailyFee,
-        totalRevenue: totalFee,
         dailyRevenue: dailyFee,
     };
 };
@@ -71,6 +59,7 @@ const methodology = {
 
 const adapter: BreakdownAdapter = {
     version: 2,
+    methodology,
     breakdown: {
         v2: Object.keys(v2ChainIDs).reduce((acc, chain) => {
             return {
@@ -78,9 +67,6 @@ const adapter: BreakdownAdapter = {
                 [chain]: {
                     fetch: async ({ startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
                     start: '2023-12-18',
-                    meta: {
-                        methodology,
-                    },
                 },
             }
         }, {}),
@@ -90,9 +76,6 @@ const adapter: BreakdownAdapter = {
                 [chain]: {
                     fetch: async ({ startOfDay }: FetchOptions) => await getV1Data(startOfDay, v1ChainIDs[chain]),
                     start: '2021-09-17',
-                    meta: {
-                        methodology,
-                    },
                 },
             }
         }, {}),

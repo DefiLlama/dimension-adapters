@@ -12,8 +12,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   dailyFees.addCGToken("cardano", Number(daily.totalFeesByAsset.ADA));
   dailyRevenue.addCGToken("cardano", Number(daily.totalRevenueByAsset.ADA));
-  dailyFees.addCGToken("snek", Number(daily.totalFeesByAsset.SNEK));
-  dailyRevenue.addCGToken("snek", Number(daily.totalRevenueByAsset.SNEK));
+  dailyFees.addCGToken("snek", daily.totalFeesByAsset.SNEK ? Number(daily.totalFeesByAsset.SNEK) : 0);
+  dailyRevenue.addCGToken("snek", daily.totalRevenueByAsset.SNEK ? Number(daily.totalRevenueByAsset.SNEK) : 0);
 
   return {
     dailyFees,
@@ -28,17 +28,15 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: "2025-05-16",
-      meta: {
-        methodology: {
-          Fees: "All trading fees associated with opening a perpetual position.",
-          Revenue: "All open fees plus liquidation and trading revenue.",
-          ProtocolRevenue:
-            "All open fees plus liquidation and trading revenue.",
-        },
-      },
     },
   },
   allowNegativeValue: true, // bad liquidation
+  methodology: {
+    Fees: "All trading fees associated with opening a perpetual position.",
+    Revenue: "All open fees plus liquidation and trading revenue.",
+    ProtocolRevenue:
+      "All open fees plus liquidation and trading revenue.",
+  },
 };
 
 export default adapter;

@@ -17,7 +17,6 @@ const fetchBsxVolumeData: FetchV2 = async ({ endTimestamp }) => {
   return {
     timestamp: endTimestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 

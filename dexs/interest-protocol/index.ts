@@ -17,7 +17,6 @@ const fetch  =  async (_timestamp: number) => {
     const volumeData: GetVolumeReturn = (await fetchURL(getVolumeURL));
 
     return {
-            totalVolume: volumeData.totalVolume.toString(),
             dailyVolume: volumeData.dailyVolume.toString(),
             timestamp: volumeData.timestamp,
         };

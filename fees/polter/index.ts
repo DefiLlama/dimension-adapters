@@ -178,36 +178,20 @@ const fetch: FetchV2 = async ({
 
 const adapter: Adapter = {
 	version: 2,
+	methodology: {
+		Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
+		Revenue: "depositors' revenue from borrow interests",
+	},
+	fetch,
 	adapter: {
 		[CHAIN.SONIC]: {
-			fetch: fetch,
 			start: "2025-03-23", // Mar-23-2025 04:19:01 AM +UTC
-			meta: {
-				methodology: {
-					Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
-					Revenue: "depositors' revenue from borrow interests",
-				},
-			},
 		},
 		[CHAIN.FANTOM]: {
-			fetch: fetch,
 			start: "2024-01-29", // Jan-29-2024 04:49:13 PM +UTC
-			meta: {
-				methodology: {
-					Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
-					Revenue: "depositors' revenue from borrow interests",
-				},
-			},
 		},
 		[CHAIN.BASE]: {
-			fetch: fetch,
 			start: "2024-09-14", // Sep-14-2024 02:51:51 AM +UTC
-			meta: {
-				methodology: {
-					Fees: "lockers' revenue = stakers' revenue + 50% penalty from early exit",
-					Revenue: "depositors' revenue from borrow interests",
-				},
-			},
 		},
 	},
 };

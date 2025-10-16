@@ -4,7 +4,7 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchResultV2, FetchV2, SimpleAdapter, } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -95,12 +95,25 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
   else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey]
+  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
+
+  function clone(obj: any) {
+    return JSON.parse(JSON.stringify(obj))
+  }
 }
 
 function getRunKey(options: AdapterRunOptions) {
   let randomUID = options.module._randomUID ?? genUID(10)
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
+}
+
+const startOfDayIdCache: { [key: string]: string } = {}
+
+function getStartOfDayId(timestamp: number): string {
+  if (!startOfDayIdCache[timestamp]) {
+    startOfDayIdCache[timestamp] =  '' + Math.floor(timestamp / 86400)
+  }
+  return startOfDayIdCache[timestamp]
 }
 
 
@@ -111,6 +124,7 @@ async function _runAdapter({
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
+  const moduleUID = module._randomUID
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
   const { prefetch, allowNegativeValue = false, } = module
@@ -124,6 +138,15 @@ async function _runAdapter({
   if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
+
+  const badChainNames = chains.filter(chain => !/^[a-z0-9_]+$/.test(chain));
+  if (badChainNames.length) {
+    throw new Error(`
+    Invalid chain names: ${badChainNames.join(', ')}
+    Chain names should only contain lowercase letters, numbers and underscores
+    `)
+  }
+
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
@@ -137,7 +160,7 @@ async function _runAdapter({
   if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
-      const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID });
       preFetchedResults = await prefetch(options);
     }
   }
@@ -185,7 +208,7 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
-      const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
       }
@@ -201,6 +224,12 @@ async function _runAdapter({
       }
       const ignoreKeys = ['timestamp', 'block']
       const improbableValue = 2e11 // 200 billion
+
+      // validate and inject missing record if any
+      validateAdapterResult(result)
+
+      // add missing metrics if need
+      addMissingMetrics(chain, result)
 
       for (const [recordType, value] of Object.entries(result)) {
         if (ignoreKeys.includes(recordType)) continue;
@@ -269,7 +298,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
@@ -326,6 +355,8 @@ async function _runAdapter({
       getStartBlock,
       getEndBlock,
       dateString: getDateString(startOfDay),
+      moduleUID,
+      startOfDayId: getStartOfDayId(startOfDay),
     }
   }
 
@@ -369,4 +400,55 @@ async function _runAdapter({
     }
   }
 
+}
+
+function createBalanceFrom(options: { chain: string, timestamp: number | undefined, amount: FetchResponseValue }): Balances {
+  const { chain, timestamp, amount } = options
+
+  const balance = new Balances({ chain, timestamp })
+  if (amount) {
+    if (typeof amount === 'number' || typeof amount === 'string') {
+      balance.addUSDValue(amount)
+    } else {
+      balance.addBalances(amount)
+    }
+  }
+  return balance;
+}
+
+function subtractBalance(options: { balance: Balances, amount: FetchResponseValue }) {
+  const { balance, amount } = options
+  if (amount) {
+    if (typeof amount === 'number' || typeof amount === 'string') {
+      const otherBalance = createBalanceFrom({ chain: balance.chain, timestamp: balance.timestamp, amount })
+      balance.subtract(otherBalance)
+    } else {
+      balance.subtract(amount)
+    }
+  }
+}
+
+function validateAdapterResult(result: any) {
+  // validate metrics
+  //  this is to ensure that we do this validation only for the new adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+    // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+      throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
+    }
+  }
+}
+
+function addMissingMetrics(chain: string, result: any) {
+  // add missing metrics for Balances which has breakdown labels only
+  //  this is to ensure that we dont change behavior of existing adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+
+    // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
+    if (result.dailySupplySideRevenue && !result.dailyrevenue) {
+      result.dailyRevenue = createBalanceFrom({ chain, timestamp: result.timestamp, amount: result.dailyFees })
+      subtractBalance({ balance: result.dailyRevenue, amount: result.dailySupplySideRevenue })
+    }
+
+  }
 }

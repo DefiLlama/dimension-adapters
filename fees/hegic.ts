@@ -1,5 +1,5 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
-import { ARBITRUM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 
 import {
   fetchArbitrumAnalyticsData,
@@ -7,15 +7,13 @@ import {
 } from "../options/hegic";
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'All premiums fees paid by users while trading on Hegic.',
+  },
   adapter: {
-    [ARBITRUM]: {
+    [CHAIN.ARBITRUM]: {
       fetch: getHegicFees,
       start: getEarliestAvailableTimestamp,
-      meta: {
-        methodology: {
-          Fees: 'All premiums fees paid by users while trading on Hegic.',
-        },
-      },
     },
   },
 };

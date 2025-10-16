@@ -9,7 +9,7 @@ interface IVolumeall {
   date: string;
 }
 
-const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE]
+const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC]
 
 const chainToEnv = (chain: CHAIN) => {
   switch (chain) {
@@ -19,6 +19,8 @@ const chainToEnv = (chain: CHAIN) => {
       return "production-multi-arb"
     case CHAIN.BASE:
       return "production-multi-base"
+    case CHAIN.BSC:
+      return "production-multi-bsc"
     default:
       return "production-multi-subnet"
   }

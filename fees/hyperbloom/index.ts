@@ -14,6 +14,7 @@ const HYPERBLOOM_ADDRESSES = [
 const INTEGRATORS_ADDRESSES = [
   "0x0a0758d937d1059c356D4714e57F5df0239bce1A", // LI.FI diamond
   "0x3e851976DCA1bc02A2F35Ce926dCAFD1dEB3359b",  // LI.FI 
+  '0xF75584eF6673aD213a685a1B58Cc0330B8eA22Cf' // Enso
 ];
 
 const HYPERBLOOM_FEE_WALLETS = [
@@ -27,7 +28,7 @@ const transferTopic = ethers.id("Transfer(address,address,uint256)");
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const logs: any[] = await options.getLogs({noTarget: true, eventAbi: BridgeFillEvent, entireLog: true});
+  const logs: any[] = await options.getLogs({ noTarget: true, eventAbi: BridgeFillEvent, entireLog: true });
 
   const txHashes = [...new Set(logs.map((l) => l.transactionHash))];
   const txs: any[] = await getTransactions(options.chain, txHashes, {
@@ -71,18 +72,16 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "0.025% trading fees on all trades + positive slippage fees",
+    Revenue: "0.025% per trade revenue and positive slippage revenue",
+    ProtocolRevenue: "0.025% per trade revenue and positive slippage revenue",
+  },
   version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
       start: "2025-05-31",
-      meta: {
-        methodology: {
-          Fees: "0.025% trading fees on all trades + positive slippage fees",
-          Revenue: "0.025% per trade revenue and positive slippage revenue",
-          ProtocolRevenue: "0.025% per trade revenue and positive slippage revenue",
-        },
-      },
     },
   },
   isExpensiveAdapter: true

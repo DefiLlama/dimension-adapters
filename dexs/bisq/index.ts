@@ -23,7 +23,6 @@ const fetch = async (__: number, _: ChainBlocks, {startOfDay, createBalances, }:
   dailyVolume.addCGToken('bitcoin', +(dailyVol as any))
 
   return {
-    // totalVolume,
     dailyVolume, timestamp: startOfDay };
 };
 

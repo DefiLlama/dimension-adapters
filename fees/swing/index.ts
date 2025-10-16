@@ -76,30 +76,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 
-const meta = {
-    methodology: {
-        UserFees: "Users pays 0.3% of each bridge. The exact fee is calculated based on the partner fee configuration but not over 10%.",
-        Fees: "A 0.3% bridge fee is collected",
-        Revenue: "100% of the fee collected, 85% of the fee collected to partners, 15% of the fee collected to treasury",
-        ProtocolRevenue: "A 15% of the fee collected to treasury",
-    }
+const methodology = {
+    UserFees: "Users pays 0.3% of each bridge. The exact fee is calculated based on the partner fee configuration but not over 10%.",
+    Fees: "A 0.3% bridge fee is collected",
+    Revenue: "100% of the fee collected, 85% of the fee collected to partners, 15% of the fee collected to treasury",
+    ProtocolRevenue: "A 15% of the fee collected to treasury",
 };
 
 const adapter: SimpleAdapter = {
+    fetch,
+    methodology,
     version: 1,
-    adapter: {
-        ...Object.entries(chains).reduce((acc, chain) => {
-            const [key, _] = chain;
-            return {
-                ...acc,
-                [key]: {
-                    fetch,
-                    start: '2023-11-01',
-                    meta
-                },
-            };
-        }, {}),
-    }
+    chains: Object.keys(chains),
+    start: '2023-11-01',
+    adapter: {}
 };
 
 export default adapter;

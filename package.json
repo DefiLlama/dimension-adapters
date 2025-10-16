@@ -32,6 +32,7 @@
     "ethers": "^6.9.2",
     "graphql": "^16.6.0",
     "graphql-request": "5.1.0",
+    "lz4-napi": "^2.9.0",
     "p-limit": "^3.1.0",
     "pg": "^8.11.3",
     "sequelize": "^6.36.0",

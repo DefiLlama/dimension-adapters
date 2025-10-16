@@ -1,6 +1,6 @@
 import { Balances } from "@defillama/sdk";
 import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
-import { CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
+import { BREAKDOWN_METHODOLOGY_FLUID, CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
 import { getFluidDailyFees } from "./fees";
 import { getFluidDailyRevenue } from "./revenue";
 
@@ -16,19 +16,20 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
     throw new Error(`Fluid fees are too high: ${JSON.stringify(await (dailyFees as Balances).getUSDJSONs())}`);
   }
 
-  return { dailyFees, dailyRevenue, timestamp: options.startOfDay }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, timestamp: options.startOfDay }
 }
 
 const adapter: Adapter = {
   version: 1,
   adapter: Object.entries(CONFIG_FLUID).reduce((acc, [chain, config]) => {
     acc[chain] = {
-      meta: { methodology: METHODOLOGY_FLUID },
       start: config.dataStartTimestamp,
       fetch
     };
     return acc;
-  }, {})
+  }, {}),
+  methodology: METHODOLOGY_FLUID,
+  breakdownMethodology: BREAKDOWN_METHODOLOGY_FLUID,
 }
 
 export default adapter

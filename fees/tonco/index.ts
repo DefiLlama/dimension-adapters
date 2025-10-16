@@ -53,7 +53,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const swap of swaps.data.swaps) {
 
         const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
-        
+
         if (swap.pool.version === 'v1.5') {
             continue;
         }
@@ -66,7 +66,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
             continue;
         }
 
-        const amount = Number(swap.amount) / ( 10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals) );
+        const amount = Number(swap.amount) / (10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals));
         const amountUsd = amount * fromJetton.derivedUsd;
 
         const fee = swap.pool.fee / 10_000;
@@ -77,7 +77,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         totalProtocolFees += protocolFee
 
     }
-    
+
     return {
         dailyUserFees: totalFees,
         dailyFees: totalFees,
@@ -88,20 +88,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: 'Users pay fees on each swap.',
+        UserFees: 'Users pay fees on each swap.',
+        Revenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+        ProtocolRevenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+        SupplySideRevenue: '(prev 90%) 80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
+    },
     version: 2,
     adapter: {
         [CHAIN.TON]: {
             fetch,
             start: '2024-11-25',
-            meta: {
-                methodology: {
-                    Fees: 'Users pay fees on each swap.',
-                    UserFees: 'Users pay fees on each swap.',
-                    Revenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
-                    ProtocolRevenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
-                    SupplySideRevenue: '(prev 90%) 80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
-                }
-            },
         },
     }
 };
