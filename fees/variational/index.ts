@@ -5,26 +5,13 @@ import {
 } from "../../adapters/types.ts";
 import { CHAIN } from "../../helpers/chains.ts";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { addTokensReceived } from "../../helpers/token.ts";
 
 const FeeCollectorAddress = "0xc47756133753280c37B227C24782984E021c4544";
 
-async function getFees(options: FetchOptions) {
-  const { api, createBalances } = options;
-
-  const feeVaults = [FeeCollectorAddress];
-
-  const balances = createBalances();
-  await api.sumTokens({
-    owners: feeVaults,
-    tokens: [ADDRESSES.arbitrum.USDC_CIRCLE],
-  });
-
-  balances.addBalances(api.getBalancesV2());
-  return balances;
-}
-
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyFees = await getFees(options);
+
+  const dailyFees = await addTokensReceived({ options, tokens: [ADDRESSES.arbitrum.USDC_CIRCLE], targets: [FeeCollectorAddress] });
 
   return {
     dailyFees,
