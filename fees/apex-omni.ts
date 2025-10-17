@@ -12,7 +12,7 @@ interface IFees {
   feeOfDate: string;
 }
 
-const fetchFees = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay) * 1000;
   const url = `https://omni.apex.exchange/api/v3/data/fee-by-date?time=${todaysTimestamp}`;
   const feesData: IFees = (await httpGet(url, { timeout: 10000 })).data;
@@ -20,6 +20,8 @@ const fetchFees = async (_: any, _b: any, options: FetchOptions): Promise<FetchR
   return {
     dailyFees,
     dailyUserFees: dailyFees,
+    dailyRevenue: 0,
+    dailyHoldersRevenue: 0,
   }
 }
 
@@ -38,6 +40,9 @@ const fetchRevenue = async (_: any, _b: any, options: FetchOptions): Promise<Fet
     }
   });
   return {
+    dailyFees: 0,
+    dailyUserFees: 0,
+    dailyRevenue: dailyHoldersRevenue,
     dailyHoldersRevenue
   }
 }
@@ -45,11 +50,12 @@ const fetchRevenue = async (_: any, _b: any, options: FetchOptions): Promise<Fet
 const info = {
   methodology: {
     Fees: "All fees collected from trading on APEX Omni exchange.",
-    HoldersRevenue: "50-90% of revenue used to buy back APEX tokens on a weekly basis on random days of the week.",
+    Revenue: "50-90% of fees used to buy back APEX tokens.",
+    HoldersRevenue: "50-90% of fees used to buy back APEX tokens on a weekly basis on random days of the week.",
   },
   breakdownMethodology: {
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: '50-90% of revenue used to buy back APEX tokens on a weekly basis on random days of the week.',
+      [METRIC.TOKEN_BUY_BACK]: '50-90% of fees used to buy back APEX tokens on a weekly basis on random days of the week.',
     },
   }
 }
@@ -60,7 +66,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: info.breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
+      fetch,
       start: '2023-08-31',
     },
     [CHAIN.ARBITRUM]: {
