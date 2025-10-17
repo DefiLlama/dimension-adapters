@@ -1,4 +1,5 @@
 // Source: https://gliquids-organization.gitbook.io/gliquid/about-us/fee-structure
+// Past Source: https://gliquids-organization.gitbook.io/gliquid/about-us/fee-structure
 
 import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
@@ -37,16 +38,16 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch: fetch,
+      fetch,
       start: "2025-05-29",
     },
   },
   methodology: {
     Fees: "Swap fees paid by users.",
     UserFees: "Swap fees paid by users",
-    Revenue: "Total revenue from fees",
-    ProtocolRevenue: "5% of fee goes to the protocol",
-    SupplySideRevenue: "95% of fee goes to the supply side",
+    Revenue: "0% of fees goes to the protocol, previously it was 13% gliquid and algebra team",
+    ProtocolRevenue: "0% of fee goes to the protocol, previously it was 10%",
+    SupplySideRevenue: "100% of fee goes to the supply side, previously it was 87%",
   },
 };
 
