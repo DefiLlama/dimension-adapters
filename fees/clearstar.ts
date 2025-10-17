@@ -33,6 +33,11 @@ const curatorConfig: CuratorConfig = {
         '0x30988479C2E6a03E7fB65138b94762D41a733458',
       ],
     },
+    [CHAIN.HEMI]: {
+      morphoVaultOwners: [
+        '0x30988479C2E6a03E7fB65138b94762D41a733458'
+      ],
+    },
   }
 }
 
