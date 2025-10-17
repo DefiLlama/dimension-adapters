@@ -121,13 +121,14 @@ const getTotalSupply = async (options: FetchOptions, target: string) => {
   return await options.api.call({
     target: target,
     abi: "function totalSupply() external view returns (uint256)",
+    permitFailure: true,
   });
 };
 
 const getExchangeRateBeforeAfterVaults = async (options: FetchOptions, target: string, abi: string) => {
   const [exchangeRateBefore, exchangeRateAfter] = await Promise.all([
-    options.fromApi.call({ target: target, abi: abi, params: [] }),
-    options.toApi.call({ target: target, abi: abi, params: [] }),
+    options.fromApi.call({ target: target, abi: abi, params: [], permitFailure: true }),
+    options.toApi.call({ target: target, abi: abi, params: [], permitFailure: true }),
   ])
 
   return [exchangeRateBefore, exchangeRateAfter]
@@ -142,24 +143,38 @@ const curatorAdapter = getCuratorExport({
 })
 
 const fetch = async (options: FetchOptions) => {
-  const { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue } = await (curatorAdapter.adapter as any)[options.chain].fetch(options);
+  const { dailyFees: morphoDailyFees, dailyRevenue: morphoDailyRevenue, dailySupplySideRevenue: morphoDailySupplySideRevenue } = await (curatorAdapter.adapter as any)[options.chain].fetch(options);
+
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  dailyFees.addCGToken('usd-coin', await morphoDailyFees.getUSDValue())
+  dailyRevenue.addCGToken('usd-coin', await morphoDailyRevenue.getUSDValue())
+  dailySupplySideRevenue.addCGToken('usd-coin', await morphoDailySupplySideRevenue.getUSDValue())
 
   for (const vault of StandaloneVaults) {
     const totalAssets = await getTotalSupply(options, vault.address);
     const [exchangeRateBefore, exchangeRateAfter] = await getExchangeRateBeforeAfterVaults(options, vault.priceFeed, vault.priceFeedAbi);
-    const supplySideRevenue = (totalAssets / 1e18) * (exchangeRateAfter / 1e8 - exchangeRateBefore / 1e8)
-    const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue;
 
-    dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue);
-    dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue);
-    dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
-    dailyProtocolRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
+    if (totalAssets && exchangeRateBefore && exchangeRateAfter) {
+      const growthRate = (exchangeRateAfter - exchangeRateBefore) / 1e8
+  
+      if (growthRate > 0) {
+        const supplySideRevenue = (totalAssets / 1e18) * growthRate;
+        const protocolRevenue = (supplySideRevenue / (1 - vault.performanceFeeRate)) - supplySideRevenue;
+    
+        dailyFees.addCGToken(vault.assetCoingeckoId, supplySideRevenue + protocolRevenue);
+        dailySupplySideRevenue.addCGToken(vault.assetCoingeckoId, supplySideRevenue);
+        dailyRevenue.addCGToken(vault.assetCoingeckoId, protocolRevenue);
+      }
+    }
   }
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -174,7 +189,7 @@ const adapter: Adapter = {
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: '2025-05-01',
+  start: '2025-06-01',
 };
 
 export default adapter;
