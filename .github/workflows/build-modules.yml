@@ -22,7 +22,7 @@ jobs:
         run: npm ci
 
       - name: Run buildImports script
-        run: npx ts-node ./cli/buildModules.ts
+        run: npm run build
 
       - name: Publish dimensionModules.json as "latest" release
         uses: ncipollo/release-action@v1
