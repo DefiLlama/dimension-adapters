@@ -22,6 +22,8 @@ jobs:
           # Checkout back to the original commit
           git checkout $current_commit
 
+          pnpm -v
+
           RUN_FILES=$(
             MODIFIED=${{ steps.file_changes.outputs.files_modified}} \
             ADDED=${{ steps.file_changes.outputs.files_added}} \
@@ -33,7 +35,7 @@ jobs:
             exit 0
           fi
 
-          npm ci
+          pnpm install
 
           list=$(echo $RUN_FILES | tr  -d '"[]' | tr "," "\n")
 
