@@ -18,7 +18,8 @@ usdc_by_chain AS (
       ('polygon',     0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174),
       ('avalanche_c', 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E),
       ('optimism',    0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85), 
-      ('bnb',         0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d)
+      ('bnb',         0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d),
+      ('bnb',         0x55d398326f99059fF775485246999027B3197955)
   ) AS t(blockchain, contract_address)
 ),
 

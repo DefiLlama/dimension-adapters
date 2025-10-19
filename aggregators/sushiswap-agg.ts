@@ -517,8 +517,6 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
     })
   }
 
-  await dailyVolume.getUSDJSONs({ debug: true })
-
   return { dailyVolume }
 }
 
