@@ -240,6 +240,7 @@ async function _runAdapter({
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
           const { labelBreakdown, usdTvl, usdTokenBalances, rawTokenBalances } = await value.getUSDJSONs()
+          // if (usdTvl > 1e6) value.debug()
           result[recordType] = usdTvl
           breakdownByToken[chain] = breakdownByToken[chain] || {}
           breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
