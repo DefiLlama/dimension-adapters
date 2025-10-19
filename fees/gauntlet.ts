@@ -160,15 +160,10 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
     });
   }
 
-  // add revenue to fees
+  // For Drift vaults, fees should equal revenue (only manager fees)
+  // Remove gross returns calculation as it was causing double-counting
   const dailyFees = dailyRevenue.clone(1, METRIC.MANAGEMENT_FEES);
   const dailySupplySideRevenue = options.createBalances();
-
-  const grossReturns = await calculateGrossReturns(options);
-
-  // Don't cap fees at 0 - allow negative values for losses to avoid double-counting
-  dailyFees.addUSDValue(grossReturns, METRIC.ASSETS_YIELDS);
-  dailySupplySideRevenue.addUSDValue(grossReturns, METRIC.ASSETS_YIELDS);
 
   return {
     dailyFees,
@@ -191,27 +186,24 @@ for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
 }
 
 const methodology = {
-  Fees: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
-  Revenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
-  ProtocolRevenue: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
-  SupplySideRevenue: "Amount of yields distributed to supply-side depositors.",
+  Fees: "Daily management fees claimed by the Gauntlet manager during the specified time period (fees now equal revenue for Drift vaults)",
+  Revenue: "Daily management fees claimed by the Gauntlet manager during the specified time period",
+  ProtocolRevenue: "Daily management fees claimed by the Gauntlet manager during the specified time period",
+  SupplySideRevenue: "Amount of yields distributed to supply-side depositors (currently zero as fees equal revenue).",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: "Daily value generated for depositors from vault operations during the specified time period (includes both gains and losses)",
-    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
+    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
   },
   Revenue: {
-    [METRIC.ASSETS_YIELDS]: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
-    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
+    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
   },
   ProtocolRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Daily performance fees claimed by the Gauntlet manager during the specified time period",
-    [METRIC.MANAGEMENT_FEES]: "Management fees chagred by Gauntlet",
+    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Amount of yields distributed to supply-side depositors.",
+    [METRIC.ASSETS_YIELDS]: "Amount of yields distributed to supply-side depositors (currently zero).",
   },
 }
 
