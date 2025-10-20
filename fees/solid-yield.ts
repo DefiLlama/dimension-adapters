@@ -116,7 +116,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     for (const event of events) {
       // newRate - oldRate
       const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
-
+      if (growthRate > 10_000) continue
       // don't need to make calls if there isn't rate growth
       if (growthRate > 0) {
 
