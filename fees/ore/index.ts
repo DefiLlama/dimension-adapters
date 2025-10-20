@@ -1,4 +1,3 @@
-// Dune Query ID: 5982386
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
