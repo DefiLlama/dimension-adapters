@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains"
 
 const swapABI = "event Swap (address indexed user, uint256 amountIn, uint256 amountOut, uint256 fees, uint256 treasuryFees)";
 const sharesToAssetsABI = "function convertToAssets (uint256 shares) external view returns (uint256)";
-const unstakePool = "0xdF261F967E87B2aa44e18a22f4aCE5d7f74f03Cc"
+const unstakePool = "0xdF261F967E87B2aa44e18a22f4aCE5d7f74f03Cc";
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
