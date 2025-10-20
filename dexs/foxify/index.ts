@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { getUniV2LogAdapter } from "../../helpers/uniswap";
+import fetchURL from "../../utils/fetchURL";
 
 // Foxify contract addresses
 const contracts: any = {
@@ -24,39 +24,15 @@ const methodology = {
         "Portion of trading fees distributed to liquidity providers and stakers.",
 };
 
-// Foxify fetch implementation
+// Foxify API-based fetch implementation using existing Foxify API
 const fetch = async (options: FetchOptions) => {
-    const { getLogs, createBalances, chain } = options;
+    // Fetch data from Foxify's existing API endpoint
+    const apiResponse = await fetchURL("https://api.foxify.trade/FoxifyStats");
 
-    const chainContracts = contracts[chain];
-    if (!chainContracts) {
-        throw new Error(`Foxify contracts not found for chain ${chain}`);
-    }
-
-    // TODO: Implement actual event tracking based on Foxify's smart contract events
-    // This is a placeholder implementation that needs to be updated with actual Foxify events
-
-    // Example implementation for tracking swaps/trades on Foxify
-    // You'll need to replace these with actual Foxify event signatures
-    const swapLogs = await getLogs({
-        target: chainContracts.foxifyProxy,
-        // TODO: Replace with actual Foxify swap/trade event signature
-        eventAbi:
-            "event Trade(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)",
-    });
-
-    const dailyVolume = createBalances();
-
-    // Process swap logs to calculate volume
-    for (const log of swapLogs) {
-        // TODO: Implement actual volume calculation based on Foxify's event structure
-        // This is placeholder logic - update with actual Foxify event data processing
-        // Example: Add volume based on trade amounts
-        // dailyVolume.add(log.tokenIn, log.amountIn);
-        // dailyVolume.add(log.tokenOut, log.amountOut);
-    }
-
-    return { dailyVolume };
+    return {
+        dailyVolume: apiResponse.volume?.daily || 0,
+        totalVolume: apiResponse.volume?.alltime || 0,
+    };
 };
 
 const adapter: SimpleAdapter = {

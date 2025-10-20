@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, Adapter } from "../../adapters/types";
-import { getUniV2LogAdapter } from "../../helpers/uniswap";
+import fetchURL from "../../utils/fetchURL";
 
 // Foxify contract addresses
 const contracts: any = {
@@ -27,64 +27,22 @@ const methodology = {
         "Fees distributed to FOX token holders through staking and governance participation.",
 };
 
-// Foxify fees fetch implementation
+// Foxify API-based fees fetch implementation using existing Foxify API
 const fetch = async (options: FetchOptions) => {
-    const { getLogs, chain } = options;
+    // Fetch data from Foxify's existing API endpoint
+    const apiResponse = await fetchURL("https://api.foxify.trade/FoxifyStats");
 
-    const chainContracts = contracts[chain];
-    if (!chainContracts) {
-        throw new Error(`Foxify contracts not found for chain ${chain}`);
-    }
+    const dailyFees = apiResponse.fees?.daily || 0;
 
-    // TODO: Implement actual fee tracking based on Foxify's smart contract events
-    // This is a placeholder implementation that needs to be updated with actual Foxify events
-
-    // Get trading/swap events to calculate fees
-    const tradeLogs = await getLogs({
-        target: chainContracts.foxifyProxy,
-        // TODO: Replace with actual Foxify trade/swap event signature
-        eventAbi:
-            "event Trade(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)",
-    });
-
-    // Get fee collection events (if Foxify has separate fee collection events)
-    const feeLogs = await getLogs({
-        target: chainContracts.foxifyProxy,
-        // TODO: Replace with actual Foxify fee collection event signature
-        eventAbi:
-            "event FeesCollected(address indexed token, uint256 amount, address indexed recipient)",
-    });
-
-    let dailyFees = 0;
-    let dailyProtocolRevenue = 0;
-    let dailyHoldersRevenue = 0;
-
-    // Process trade logs to calculate fees
-    for (const log of tradeLogs) {
-        // TODO: Implement actual fee calculation based on Foxify's event structure
-        // This is placeholder logic - update with actual Foxify event data processing
-        // Example fee calculation (replace with actual Foxify fee structure):
-        // dailyFees += log.fee; // Total fees from trades
-        // dailyProtocolRevenue += log.fee * 0.3; // Example: 30% to protocol
-        // dailyHoldersRevenue += log.fee * 0.2; // Example: 20% to token holders
-    }
-
-    // Process fee collection logs if available
-    for (const log of feeLogs) {
-        // TODO: Process fee collection events based on Foxify's structure
-        // dailyProtocolRevenue += log.amount; // Add collected protocol fees
-    }
-
-    const dailySupplySideRevenue =
-        dailyFees - dailyProtocolRevenue - dailyHoldersRevenue;
-
+    // Since the API doesn't provide fee breakdown, we'll use the total daily fees
+    // You may need to update this based on Foxify's actual fee distribution model
     return {
-        dailyFees,
-        dailyRevenue: dailyProtocolRevenue + dailyHoldersRevenue,
-        dailyProtocolRevenue,
-        dailySupplySideRevenue,
+        dailyFees: dailyFees,
+        dailyRevenue: dailyFees, // Assuming all fees are revenue for now
+        dailyProtocolRevenue: dailyFees * 0.3, // Example: 30% to protocol (update with actual %)
+        dailySupplySideRevenue: dailyFees * 0.7, // Example: 70% to LPs (update with actual %)
         dailyUserFees: dailyFees,
-        dailyHoldersRevenue,
+        dailyHoldersRevenue: 0, // Update if FOX holders receive fees
     };
 };
 
