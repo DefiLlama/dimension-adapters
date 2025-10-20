@@ -1,9 +1,11 @@
-name: Check ts
+name: Build dimensionModules and upload artifact
 
-on: [pull_request]
-    
+on:
+  push:
+    branches: [ "master" ]
+
 jobs:
-  ts-check:
+  build-and-upload:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,8 +28,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Checking adapters
-        run: pnpm run ts-check
-        
-      - name: Checking cli
-        run: pnpm run ts-check-cli
+      - name: Run buildImports script
+        run: pnpm run build
+
+      - name: Publish dimensionModules.json as "latest" release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: Latest dimensionModules
+          artifacts: cli/dimensionModules.json
+          allowUpdates: true

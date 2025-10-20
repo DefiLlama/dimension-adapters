@@ -9,8 +9,8 @@ async function historicFetch(options: FetchOptions) {
   let openInterestAtEnd = 0
 
   for (const market of data) {
-    if (market.status !== 'active') continue
     dailyVolume += Number(market.daily_volume)
+    if (market.status !== 'active') continue // the market might have settled in the past24 hours
     openInterestAtEnd += Number(market.open_interest)
   }
 
