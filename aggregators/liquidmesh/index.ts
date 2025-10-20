@@ -27,6 +27,7 @@ const ExcludeTxns: Array<string> = [
 	'0xf469df5649084d5028dce9037a055ab784e94ec2cb2f0f80c22b8e0101612194',
 	'0x6f8253da458212d0f2924a24df969561c7fdb134df310687ec200b720e769658',
 	'0x6ca69c2e57e67c07106c3f95700d8dfad9260f0c61ac19423a149f8f3ab471cd',
+	'0xe1d89b68828097d506e9dded1cc2e06742c42688ad51d99395aee640831bad4b',
 ]
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
