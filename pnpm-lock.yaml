@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@defillama/sdk':
-        specifier: ^5.0.177
+        specifier: ^5.0.154
         version: 5.0.177
       '@supercharge/promise-pool':
         specifier: ^3.1.0
