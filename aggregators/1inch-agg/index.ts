@@ -27,8 +27,7 @@ const prefetch = async (options: FetchOptions) => {
       sum(amount_usd) as volume_24h
     FROM oneinch.swaps
     WHERE
-      (protocol = 'AR' OR flags['second_side'])
-      AND TIME_RANGE
+      TIME_RANGE
       -- AND src_token_address NOT IN (${blacklisted})
       -- AND dst_token_address NOT IN (${blacklisted})
     GROUP BY 1
