@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 const abis = {
   "Trade": "event Trade(address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)", // gnosis
 }
+
 const fetch = async (_:any, _1: any, { createBalances, getLogs, }: FetchOptions) => {
   const dailyVolume = createBalances()
 
