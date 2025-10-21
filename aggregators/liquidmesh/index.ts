@@ -62,7 +62,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 	const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
 	const whitesliedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain])) {
+	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain] && item.token !== '0x0000000000000000000000000000000000000000')) {
 		if (options.chain === CHAIN.BSC) {
 			if (whitesliedTokens.includes(formatAddress(token.token))) {
 				dailyVolume.add(token.token, token.amount);
