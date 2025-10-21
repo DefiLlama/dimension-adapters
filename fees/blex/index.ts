@@ -1,5 +1,4 @@
 import { Adapter,Fetch } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -88,8 +87,8 @@ const getFetch = (allFeeQuery: string,userFeeQuery: string)=> (chain: string): F
 
 const adapter: Adapter = {
   adapter: {
-    [ARBITRUM]: {
-      fetch: getFetch(allFeesData,userFeesData)(ARBITRUM),
+    [CHAIN.ARBITRUM]: {
+      fetch: getFetch(allFeesData,userFeesData)(CHAIN.ARBITRUM),
       start: '2023-08-05',
     },
   },
