@@ -7,7 +7,7 @@ const v3ChainMapping: any = {
   [CHAIN.BSC]: "BSC",
 };
 
-async function fetch(options: FetchOptions) {
+async function fetch(_a: any,_b:any, options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -15,42 +15,45 @@ async function fetch(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
 
   const query = `query {
-  pools: poolGetPools(
-    orderBy: volume24h
-    orderDirection: desc
-    where: { chainIn: [${v3ChainMapping[options.chain]}] protocolVersionIn: [3]}
-  ) {
-    address
-    chain
-    createTime
-    decimals
-    protocolVersion
-    tags
-    dynamicData {
-      totalLiquidity
-      lifetimeVolume
-      lifetimeSwapFees
-      volume24h
-      fees24h
-      yieldCapture24h
+    pools: poolGetPools(
+      orderBy: volume24h
+      orderDirection: desc
+      where: { chainIn: [${v3ChainMapping[options.chain]}] protocolVersionIn: [3]}
+    ) {
+      address
+      chain
+      createTime
+      decimals
+      protocolVersion
+      tags
+      dynamicData {
+        totalLiquidity
+        lifetimeVolume
+        lifetimeSwapFees
+        volume24h
+        fees24h
+        yieldCapture24h
+      }
     }
-  }
-}`;
+  }`;
   const { pools } = await request("https://api.coinhain.fi/graphql", query);
   pools.forEach((pool: any) => {
     dailyVolume.addUSDValue(+pool.dynamicData.volume24h);
 
     dailyFees.addUSDValue(+pool.dynamicData.fees24h, METRIC.SWAP_FEES);
+    dailyFees.addUSDValue(+pool.dynamicData.yieldCapture24h, METRIC.ASSETS_YIELDS);
     dailyUserFees.addUSDValue(+pool.dynamicData.fees24h, METRIC.SWAP_FEES);
     dailyRevenue.addUSDValue(+(pool.dynamicData.fees24h * 0.5), METRIC.SWAP_FEES); // 50% of fees go to the protocol
+    dailyRevenue.addUSDValue(+(pool.dynamicData.yieldCapture24h * 0.5), METRIC.ASSETS_YIELDS); // 50% of fees go to the protocol
     dailySupplySideRevenue.addUSDValue(+pool.dynamicData.fees24h * 0.5, METRIC.SWAP_FEES); // 50% of fees goes to the supply side
+    dailySupplySideRevenue.addUSDValue(+pool.dynamicData.yieldCapture24h * 0.5, METRIC.ASSETS_YIELDS); // 50% of fees goes to the supply side
   });
 
   return { dailyFees, dailyUserFees, dailyVolume, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   runAtCurrTime: true,
   chains: Object.keys(v3ChainMapping),
