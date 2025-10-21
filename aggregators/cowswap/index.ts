@@ -25,6 +25,7 @@ const adapter: any = {
     polygon: { start: '2023-12-10', },
     avax: { start: '2025-03-10', },
     [CHAIN.LENS]: { start: '2025-06-16', },
+    [CHAIN.BSC]: { start: '2025-09-04', },
   },
 };
 
