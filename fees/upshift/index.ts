@@ -28,7 +28,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     const currentChainVaults = vaultsData.filter((vault: any) => vault.chain === CHAIN_ID_MAP[options.chain]);
 
-    await Promise.all(currentChainVaults.map(async (vault: any) => {
+    await Promise.allSettled(currentChainVaults.map(async (vault: any) => {
         const { address, weekly_performance_fee_bps, platform_fee_override } = vault;
         const management_fee = platform_fee_override?.management_fee ?? 0;
         const dailyYield = await getERC4626VaultsYield({ options, vaults: [address] });
