@@ -9,7 +9,7 @@ async function fetch() {
     ]);
 
     const openInterest = ois.reduce((acc: any, market: any) => {
-        const curPrice = +tickers.find((ticker: any) => ticker.symbol === market.symbol)?.indexPrice;
+        const curPrice = + (tickers.find((ticker: any) => ticker.symbol === market.symbol)?.indexPrice || 0);
         acc.shortOi += +market.shortOi * curPrice;
         acc.longOi += +market.longOi * curPrice;
         return acc;
