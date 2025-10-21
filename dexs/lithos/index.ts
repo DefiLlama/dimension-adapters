@@ -18,10 +18,8 @@ const CONFIG = {
 };
 
 const eventAbis = {
-  gaugeCreated:
-    "event GaugeCreated(address indexed gauge, address indexed creator, address indexed internal_bribe, address external_bribe, address pool)",
-  rewardAdded:
-    "event RewardAdded(address indexed rewardToken, uint256 reward, uint256 startTimestamp)",
+  gaugeCreated: "event GaugeCreated(address indexed gauge, address indexed creator, address indexed internal_bribe, address external_bribe, address pool)",
+  rewardAdded: "event RewardAdded(address indexed rewardToken, uint256 reward, uint256 startTimestamp)",
 };
 
 const baseFetch = getUniV2LogAdapter({
@@ -100,11 +98,7 @@ const getDailyBribesRevenue = async (
 };
 
 const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
-  const baseResult = await baseFetch(fetchOptions);
-  const dailyFees =
-    baseResult.dailyFees ?? fetchOptions.createBalances().setZero();
-  const dailyVolume =
-    baseResult.dailyVolume ?? fetchOptions.createBalances().setZero();
+  const { dailyVolume, dailyFees } = await baseFetch(fetchOptions);
 
   const dailyBribesRevenue = await getDailyBribesRevenue(fetchOptions);
 
@@ -129,13 +123,10 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
 const methodology = {
   Fees: "Users pay 0.25% on volatile swaps and 0.05% on stable swaps.",
   UserFees: "Users are charged the full swap fee on every trade.",
-  Revenue:
-    "12% of collected swap fees accrue to the Lithos protocol treasury.",
+  Revenue: "12% of collected swap fees accrue to the Lithos protocol treasury.",
   ProtocolRevenue: "Same as Revenue (12% treasury share of swap fees).",
-  HoldersRevenue:
-    "External incentives deposited into Lithos bribe contracts for veLITH voters.",
-  SupplySideRevenue:
-    "88% of collected swap fees accrue to LPs via internal fee bribes.",
+  HoldersRevenue: "External incentives deposited into Lithos bribe contracts for veLITH voters.",
+  SupplySideRevenue: "88% of collected swap fees accrue to LPs via internal fee bribes.",
 };
 
 const adapter: SimpleAdapter = {
