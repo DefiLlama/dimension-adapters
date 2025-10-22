@@ -19,16 +19,34 @@ async function fetchStatistics(startOfDay: number) {
   }));
 }
 
-interface Config {
-  supportedProtocols: Array<string>;
-}
-
-const configs: Record<string, Config> = {
-  [CHAIN.ARBITRUM]: { supportedProtocols: ['ostium', 'gmx', 'gains', 'synfutures']},
-  [CHAIN.OPTIMISM]: { supportedProtocols: ['orderly']},
-  [CHAIN.HYPERLIQUID]: { supportedProtocols: ['hyperliquid']},
-  [CHAIN.BSC]: { supportedProtocols: ['kiloex']},
-  [CHAIN.BASE]: { supportedProtocols: ['kiloex']},
+const getItems: Record<string, (items: Array<any>) => Array<any>> = {
+  [CHAIN.ARBITRUM]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol === 'ostium' || (['gmx', 'gains', 'synfutures'].includes(item.protocol) && item.network === 'arbitrum'))
+  },
+  [CHAIN.OPTIMISM]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol === 'orderly')
+  },
+  [CHAIN.HYPERLIQUID]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol === 'hyperliquid')
+  },
+  [CHAIN.BSC]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && (item.network === 'bnb' || item.network === null))
+  },
+  [CHAIN.BASE]: (items: Array<any>): Array<any> => {
+    return items.filter(item => ['synfutures', 'kiloex'].includes(item.protocol) && item.network === 'base')
+  },
+  [CHAIN.BLAST]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && item.network === 'blast')
+  },
+  [CHAIN.TAIKO]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'synfutures' && item.network === 'taiko')
+  },
+  [CHAIN.MANTA]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && item.network === 'manta')
+  },
+  [CHAIN.OP_BNB]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && item.network === 'opbnb')
+  },
 }
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
@@ -37,13 +55,12 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 
 const fetch = async (_a: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
   const prefetch = options.preFetchedResults;
-  const items = prefetch.filter((i: any) => i.network === options.chain);
+
+  const items = getItems[options.chain](prefetch)
 
   let dailyVolume = 0;
   for (const item of items) {
-    if (configs[options.chain].supportedProtocols.includes(item.protocol)) {
-      dailyVolume += item.dailyVolume;
-    }
+    dailyVolume += item.dailyVolume;
   }
 
   return { dailyVolume }
@@ -68,6 +85,18 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.HYPERLIQUID]: {
       start: "2024-11-04",
+    },
+    [CHAIN.TAIKO]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.MANTA]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.BLAST]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.OP_BNB]: {
+      start: "2025-10-20",
     },
   },
   doublecounted: true,
