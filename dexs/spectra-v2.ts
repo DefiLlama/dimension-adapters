@@ -121,7 +121,7 @@ const chains: {
     id: 747474,
     start: "2025-07-02",
     protocolSubgraphUrl: sdk.graph.modifyEndpoint(
-      "FFz8eoWmY2G8ntMnhHZqeAu71CEpstm7wVZbhyMh7GNa"
+      "EM1PDEWqo1BWaLEW5FotmHtVK1HX8z7eFnLVfDRLjfQh"
     ),
     limit: 1000,
   },
