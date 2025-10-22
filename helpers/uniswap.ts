@@ -190,7 +190,6 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    console.log(Object.keys(filteredPairs))
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
     const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
