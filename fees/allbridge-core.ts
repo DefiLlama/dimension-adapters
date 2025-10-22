@@ -2,6 +2,7 @@ import { Chain } from "../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
+import { queryEvents } from '../helpers/sui';
 
 type TChainAddress = {
   [s: Chain | string]: string[];
@@ -54,6 +55,11 @@ const lpTokenAddresses: TChainAddress = {
   ]
 }
 
+const SUI_EVENT_TYPES = [
+  "0x83d6f864a6b0f16898376b486699aa6321eb6466d1daf6a2e3764a51908fe99d::events::SwappedToVUsdEvent",
+  "0x83d6f864a6b0f16898376b486699aa6321eb6466d1daf6a2e3764a51908fe99d::events::SwappedFromVUsdEvent",
+];
+
 const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
 const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
 
@@ -98,6 +104,21 @@ const fetchFeesTron = async ({ chain, createBalances, toTimestamp, fromTimestamp
   return balances.getUSDValue()
 };
 
+const fetchFeesSui = async (options: FetchOptions): Promise<number> => {
+  const { createBalances } = options;
+  const balances = createBalances();
+
+  for (const eventType of SUI_EVENT_TYPES) {
+    const events = await queryEvents({
+      eventType,
+      options,
+    });
+    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee));
+  }
+
+  return balances.getUSDValue();
+};
+
 const tronRpc = `https://api.trongrid.io`
 const getTronLogs = async (address: string, eventName: string, minBlockTimestamp: number, maxBlockTimestamp: number) => {
   const url = `${tronRpc}/v1/contracts/${address}/events?event_name=${eventName}&min_block_timestamp=${minBlockTimestamp}&max_block_timestamp=${maxBlockTimestamp}&limit=200`;
@@ -106,7 +127,14 @@ const getTronLogs = async (address: string, eventName: string, minBlockTimestamp
 }
 
 const fetch: any = async (options: FetchOptions) => {
-  let dailyFees = await (options.chain === CHAIN.TRON ? fetchFeesTron(options) : fetchFees(options));
+  let dailyFees: number;
+  if (options.chain === CHAIN.TRON) {
+    dailyFees = await fetchFeesTron(options);
+  } else if (options.chain === CHAIN.SUI) {
+    dailyFees = await fetchFeesSui(options);
+  } else {
+    dailyFees = await fetchFees(options);
+  }
   const dailyRevenue = dailyFees * 0.2;
   const dailySupplySideRevenue = dailyFees * 0.8;
   return {
@@ -138,6 +166,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.SONIC]: { start: '2025-05-27', },
     [CHAIN.UNICHAIN]: { start: '2025-08-26', },
     [CHAIN.TRON]: { start: '2023-05-26', },
+    [CHAIN.SUI]: { start: "2025-01-24", },
   },
 };
 
