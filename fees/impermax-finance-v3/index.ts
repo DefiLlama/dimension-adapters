@@ -1,10 +1,9 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request } from "graphql-request";
-import { query } from "./query";
+import { gql, request } from "graphql-request";
 import { BLACKLIST } from "./blacklist";
 
-const config = {
+const config: Record<string, Array<string>> = {
   [CHAIN.BASE]: [
     'https://api.studio.thegraph.com/query/46041/impermax-v-3-base/v0.0.3',
   ],
@@ -15,6 +14,28 @@ const config = {
     'https://api.goldsky.com/api/public/project_cm2d5q4l4w31601vz4swb3vmi/subgraphs/impermax-v3-hyperevm/0.0.1/gn',
   ]
 };
+
+const query = gql`
+  {
+    borrowables {
+      id
+      totalBalance
+      totalBorrows
+      reserveFactor
+      borrowRate
+      accrualTimestamp
+      underlying {
+        id
+        name
+        symbol
+        decimals
+      }
+      lendingPool {
+        id
+      }
+    }
+  }
+`;
 
 interface IBorrowable {
   id: string;
