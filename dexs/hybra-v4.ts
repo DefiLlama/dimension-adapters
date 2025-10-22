@@ -2,12 +2,12 @@ import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 import { addOneToken } from "../helpers/prices";
+import { request } from "graphql-request";
 
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)'
 const swapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
-const setCustomFeeEvent = 'event SetCustomFee(address indexed pool, uint24 indexed fee)';
 
-const FEE_MANAGER = '0xbEc2Bf10B7172C8E5621569bD285E9adB1806426';
+const FEE_SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cmbj707z4cd9901sib1f6cu0c/subgraphs/fee-setting/fee-setting/gn';
 
 // Default fee mapping based on tickSpacing (from Hybra V4 factory initialization)
 // enableTickSpacing(tickSpacing, fee) where fee is in basis points (1e6 = 100%)
@@ -22,41 +22,57 @@ const TICK_SPACING_TO_FEE: {[key: number]: number} = {
 
 interface FeeEvent {
 	blockNumber: number;
-	logIndex: number;
+	timestamp: number;
 	fee: number;
+}
+
+interface SetCustomFee {
+	pool: string;
+	fee: string;
+	timestamp_: string;
+	block_number: string;
 }
 
 const customLogic = async ({ pairObject, dailyVolume, filteredPairs, fetchOptions }: any) => {
 	const { api, getLogs, chain, createBalances } = fetchOptions;
 	const poolAddresses = Object.keys(filteredPairs);
 
-	// 1. Get all SetCustomFee events to track fee history
-	const feeEvents = await getLogs({
-		target: FEE_MANAGER,
-		eventAbi: setCustomFeeEvent,
-	});
+	// 1. Get all SetCustomFee events from GraphQL to track fee history
+	const query = `
+		query {
+			setCustomFees(orderBy: timestamp_, orderDirection: asc) {
+				fee
+				pool
+				timestamp_
+				block_number
+			}
+		}
+	`;
 
-	// 2. Build fee history mapping: pool -> [(blockNumber, logIndex, fee)]
+	const data = await request(FEE_SUBGRAPH_URL, query);
+	const customFees: SetCustomFee[] = data?.setCustomFees || [];
+
+	// 2. Build fee history mapping: pool -> [(blockNumber, timestamp, fee)]
 	const feeHistory: {[pool: string]: FeeEvent[]} = {};
-	feeEvents.forEach((event: any) => {
+	customFees.forEach((event: SetCustomFee) => {
 		const pool = event.pool.toLowerCase();
 		if (!feeHistory[pool]) {
 			feeHistory[pool] = [];
 		}
 		feeHistory[pool].push({
-			blockNumber: event.blockNumber,
-			logIndex: event.logIndex,
-			fee: Number(event.fee) / 1e6
+			blockNumber: parseInt(event.block_number),
+			timestamp: parseInt(event.timestamp_),
+			fee: parseFloat(event.fee) / 1e6
 		});
 	});
 
-	// Sort fee events by blockNumber and logIndex
+	// Sort fee events by blockNumber and timestamp (already sorted by query, but ensure consistency)
 	Object.keys(feeHistory).forEach(pool => {
 		feeHistory[pool].sort((a, b) => {
 			if (a.blockNumber !== b.blockNumber) {
 				return a.blockNumber - b.blockNumber;
 			}
-			return a.logIndex - b.logIndex;
+			return a.timestamp - b.timestamp;
 		});
 	});
 
@@ -93,16 +109,14 @@ const customLogic = async ({ pairObject, dailyVolume, filteredPairs, fetchOption
 
 		logs.forEach((log: any) => {
 			// Find the applicable fee at the time of this swap
-			let fee = defaultFees[pool] || 0.003;
+			let fee = defaultFees[pool]
 
 			const poolFeeHistory = feeHistory[pool];
 			if (poolFeeHistory && poolFeeHistory.length > 0) {
-				// Find the most recent fee change before or at this swap
-				// If same block, the fee change must have lower logIndex (occurred before the swap)
+				// Find the most recent fee change before or at this swap's block
 				for (let i = poolFeeHistory.length - 1; i >= 0; i--) {
 					const feeEvent = poolFeeHistory[i];
-					if (feeEvent.blockNumber < log.blockNumber ||
-						(feeEvent.blockNumber === log.blockNumber && feeEvent.logIndex < log.logIndex)) {
+					if (feeEvent.blockNumber <= log.blockNumber) {
 						fee = feeEvent.fee;
 						break;
 					}
