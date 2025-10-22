@@ -103,6 +103,12 @@ const adapter: SimpleAdapter = {
         [CHAIN.AVAX]: {
             start: '2025-07-31',
         },
+        [CHAIN.TAC]: {
+            start: '2025-07-17',
+        },
+        [CHAIN.PLASMA]: {
+            start: '2025-09-30',
+        },
     },
 };
 

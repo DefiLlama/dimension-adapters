@@ -93,7 +93,7 @@ export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
-export const LLAMA_HL_INDEXER_FROM_TIME = 1758585600
+export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400
 export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();

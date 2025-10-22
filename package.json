@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "ts-node --transpile-only cli/testAdapter.ts",
+    "build": "ts-node --transpile-only cli/buildModules.ts",
     "ts-check": "tsc --project tsconfig.json",
     "ts-check-cli": "tsc --project tsconfig.cli.json",
     "use-token-labels": "node helpers/useTokenLabels.js",
