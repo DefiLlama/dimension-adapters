@@ -7,5 +7,4 @@ export type DanogoDimensions = {
 
 export type DanogoFees = {
     dailyFees: string,
-    totalFees: string,
 }

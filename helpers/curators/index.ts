@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
+import { METRIC } from "../metrics";
 
 export interface CuratorConfig {
   methodology?: any;
@@ -177,18 +178,18 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
       // it mean that vault fees were added from vault token shares
 
       // interest earned and distributed to vault deposited including fees
-      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**vaultInfo[i].assetDecimals)
+      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
       
       // interest earned by vault curator
       const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
 
-async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+export async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
   const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.euler.interestFee,
@@ -217,13 +218,19 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
       // interest earned by vault curator
       const interestFee = interestEarnedBeforeFee - interestEarned
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
 
-export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
+export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
+  const methodology = curatorConfig.methodology ? curatorConfig.methodology :  {
+    Fees: 'Total yields from deposited assets in all curated vaults.',
+    Revenue: 'Yields are collected by curators.',
+    ProtocolRevenue: 'Yields are collected by curators.',
+    SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
+  }
   const exportObject: BaseAdapter = {}
 
   Object.entries(curatorConfig.vaults).map(([chain, vaults]) => {
@@ -241,8 +248,8 @@ export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
         }
 
-        const dailySupplySideRevenue = dailyFees.clone()
-        dailySupplySideRevenue.subtract(dailyRevenue)
+        const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
+        dailySupplySideRevenue.subtract(dailyRevenue, METRIC.ASSETS_YIELDS)
 
         return {
           dailyFees,
@@ -252,18 +259,13 @@ export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
         }
       }),
       start: vaults.start,
-      meta: curatorConfig.methodology ? {
-        methodology: curatorConfig.methodology,
-      } : {
-        methodology: {
-          Fees: 'Total yields from deposited assets in all curated vaults.',
-          Revenue: 'Yields are collected by curators.',
-          ProtocolRevenue: 'Yields are collected by curators.',
-          SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
-        }
-      },
     }
   })
 
-  return exportObject
+  return {
+    version: 2,
+    methodology,
+    adapter: exportObject,
+  }
 }
+

@@ -143,7 +143,10 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
   [CHAIN.BASE]: {
     start: '2023-08-23',
     contract: beefyRevenueBridgeAddress,
-    stables: [ADDRESSES.base.USDbC],
+    stables: [
+      ADDRESSES.base.USDbC,
+      ADDRESSES.base.USDC, // switch tx 0xdceede703d8bb52c9f7d22fc4238b2ff114af9d33090d7e988f8be87d2e16f7f
+    ],
   },
   [CHAIN.MODE]: {
     start: '2023-08-23',
@@ -251,7 +254,11 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
 
 const fetch = async (options: FetchOptions) => {
   const { chain } = options;
-  const config = chainConfig[chain];
+  const config = chainConfig[chain as CHAIN];
+  if (!config) {
+    throw new Error(`No config for chain ${chain}`);
+  }
+
   const { excludeFrom, contract, stables } = config;
 
   const logFilter = excludeFrom && excludeFrom.length > 0 ? makeErc20BlacklistFromFilter(excludeFrom) : undefined;

@@ -1,4 +1,4 @@
-import { FetchOptions, Fetch, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, Fetch, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
 
@@ -65,6 +65,7 @@ const fetch: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEthereum,
@@ -75,8 +76,8 @@ const adapter: SimpleAdapter = {
       start: "2022-07-27",
     },
   },
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  version: 1,
 };
 
 export default adapter;

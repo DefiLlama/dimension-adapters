@@ -100,10 +100,10 @@ const mappingChain = (chain: string) => {
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: "Protocol have no revenue.",
-  ProtocolRevenue: "Protocol have no revenue.",
-  SupplySideRevenue: "All user fees are distributed among LPs.",
-  HoldersRevenue: "Holders have no revenue."
+  Revenue: 'Protocol make no revenue.',
+  ProtocolRevenue: 'Protocol make no revenue.',
+  SupplySideRevenue: 'All fees are distributed to LPs.',
+  HoldersRevenue: 'No revenue for UNI holders.',
 }
 
 const adapter: SimpleAdapter = {
@@ -129,6 +129,14 @@ const adapter: SimpleAdapter = {
 (adapter.adapter as BaseAdapter)[CHAIN.WC] = {
   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
     const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
   },

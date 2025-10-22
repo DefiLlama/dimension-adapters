@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 export type GrixMetricsData = {
-  totalNotionalVolume: string;
   totalNotionalVolume24Hr: string;
 };
 
@@ -19,11 +18,9 @@ const fetchGrix = async ({ endTimestamp}: FetchOptions) => {
     throw new Error("No data found when fetching Grix volume data");
   }
 
-  const totalNotionalVolume = Number(grixMetricsData.totalNotionalVolume);
   const dailyNotionalVolume = Number(grixMetricsData.totalNotionalVolume24Hr);
 
   return {
-    totalNotionalVolume,
     dailyNotionalVolume,
   };
 };

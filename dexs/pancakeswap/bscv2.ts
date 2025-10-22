@@ -1,16 +1,20 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { queryDune } from "../../helpers/dune";
 import { httpGet } from "../../utils/fetchURL";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { CHAIN } from "../../helpers/chains";
 
 function formatAddress(address: any): string {
   return String(address).toLowerCase();
 }
 
 async function getWhitelistedTokens(): Promise<Array<string>> {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
   const data = await httpGet('https://raw.githubusercontent.com/pancakeswap/token-list/main/lists/coingecko.json');
   return data.tokens
     .filter((token: any) => Number(token.chainId) === 56)
     .map((token: any) => formatAddress(token.address))
+    .filter((token: string) => !blacklisted.includes(token))
 }
 
 export const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelistedTokens: Array<string>) => {
@@ -43,7 +47,7 @@ export async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2
 
   const tokensAndAmounts = await queryDune('3996608',{
     fullQuery: PANCAKESWAP_V2_QUERY(options.fromTimestamp, options.toTimestamp, whitelistedTokens),
-  });
+  }, options);
 
   for (const tokenAndAmount of tokensAndAmounts) {
     if (whitelistedTokens.includes(formatAddress(tokenAndAmount.token))) {
@@ -57,7 +61,7 @@ export async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2
     dailyUserFees: dailyVolume.clone(0.0025),
     dailyRevenue: dailyVolume.clone(0.0008),
     dailySupplySideRevenue: dailyVolume.clone(0.0017),
-    dailyProtocolRevenue: dailyVolume.clone(0.0000225),
-    dailyHoldersRevenue: dailyVolume.clone(0.0000575),
+    dailyProtocolRevenue: dailyVolume.clone(0.000225),
+    dailyHoldersRevenue: dailyVolume.clone(0.000575),
   }
 }

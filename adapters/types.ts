@@ -41,6 +41,8 @@ export type FetchOptions = {
   getEndBlock: () => Promise<number>,
   dateString: string,
   preFetchedResults?: any,
+  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching
+  startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
 }
 
 export type FetchGetLogsOptions = {
@@ -78,9 +80,6 @@ export type BaseAdapterChainConfig = {
     start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
     fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
-    meta?: {
-      methodology?: string | IJSON<string>
-    }
   }
 
 export type BaseAdapter = {
@@ -93,9 +92,16 @@ export enum ProtocolType {
   COLLECTION = 'collection',
 }
 
+export enum Dependencies {
+  DUNE = 'dune',
+  ALLIUM = 'allium'
+}
+
+
 export type AdapterBase = {
   timetravel?: boolean
   isExpensiveAdapter?: boolean,
+  dependencies?: Dependencies[]
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
@@ -155,6 +161,12 @@ export type FetchResultFees = FetchResultBase & {
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
   totalHoldersRevenue?: FetchResponseValue;
+  dailyOtherIncome?: FetchResponseValue;
+  totalOtherIncome?: FetchResponseValue;
+  dailyOperatingIncome?: FetchResponseValue;
+  totalOperatingIncome?: FetchResponseValue;
+  dailyNetIncome?: FetchResponseValue;
+  totalNetIncome?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -188,6 +200,7 @@ export enum AdapterType {
   DERIVATIVES = 'derivatives',
   OPTIONS = 'options',
   PROTOCOLS = 'protocols',
+  OPEN_INTEREST = 'open-interest',
   // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
@@ -201,11 +214,12 @@ export const whitelistedDimensionKeys = new Set([
   'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
+  'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
-  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue',
+  'totalFees', 'totalRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'totalHoldersRevenue', 'totalOtherIncome', 'totalOperatingIncome', 'totalNetIncome'
 ])
 
 // End of specific adaptors type
@@ -213,3 +227,5 @@ export const accumulativeKeySet = new Set([
 export interface IJSON<T> {
   [key: string]: T
 }
+
+export const ADAPTER_TYPES = Object.values(AdapterType).filter((adapterType: any) => adapterType !== AdapterType.PROTOCOLS)

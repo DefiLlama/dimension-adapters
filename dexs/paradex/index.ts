@@ -1,36 +1,34 @@
 import fetchURL from "../../utils/fetchURL"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // const historicalVolumeEndpoint = (market: string, start: number, end: number) => `https://api.prod.paradex.trade/v1/markets/summary?market=${market}&start=${start}&end=${end}`
 // const marketsEndpoint = "https://api.prod.paradex.trade/v1/markets"
-const volumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/7734/card/6988?parameters=%5B%5D'
+// const volumeEndpoint = 'https://data.prod.paradex.trade/tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/18119/card/18713'
+const volumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/10655/card/9655?parameters=%5B%5D'
+let volumeCache: { [key: string]: number } = {}
+let volData: any
 
+const fetch = async (_: number, _1: any, { dateString }: FetchOptions): Promise<FetchResultVolume> => {
 
-interface IVolumeData {
-  data: {
-    rows: [string, string, number][];
-  }
-}
+  if (!volData)
+    volData = fetchURL(volumeEndpoint).then(({ data: { rows } }: any) => {
+      volumeCache = {}
+      rows.forEach((row: any) => {
+        const [date, , volume] = row
+        if (date.slice(10) !== "T00:00:00Z") return
+        volumeCache[date.slice(0, 10)] = volume
+      })
+    })
 
-
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-
-  const volumesData = await fetchURL(volumeEndpoint) as IVolumeData
-  const timestampStr = new Date(timestamp * 1000).toISOString().split('T')[0] + "T00:00:00Z"
-  const dailyVolume = volumesData.data.rows.find(row => ((row[0] === timestampStr) && (row[1] === 'Perp')))?.[2]
-  if (!dailyVolume) throw new Error('record missing!')
-
-    return { 
-        timestamp,
-        dailyVolume
-        // totalVolume: totalVol
-    };
+  await volData
+  if (!volumeCache[dateString]) throw new Error('record missing!')
+  return { dailyVolume: volumeCache[dateString] }
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.PARADEX]: {
       fetch,
       start: '2023-09-01',
     },

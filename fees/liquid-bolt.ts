@@ -35,50 +35,10 @@ const fetch = async (_a: number, _b: any, options: FetchOptions) => {
   };
 }
 
-const getAdapter = () => {
-
-  const baseAdapter: BaseAdapter = {
-    [CHAIN.FANTOM]: {
-      fetch,
-      start: '2022-11-24',
-      runAtCurrTime: true,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-02-08',
-      runAtCurrTime: true,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2022-11-24',
-      runAtCurrTime: true,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: { // no longer in api response 
-      fetch: async (timestamp: number) => ({
-        timestamp
-      }),
-      start: '2022-11-24',
-      runAtCurrTime: true,
-      meta: {
-        methodology
-      }
-    },
-  }
-  return baseAdapter;
-}
-
-
 const adapter: Adapter = {
-  adapter: getAdapter()
+  methodology,
+  fetch,
+  chains: [CHAIN.FANTOM, CHAIN.ARBITRUM, CHAIN.BSC],
 };
 
 
