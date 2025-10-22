@@ -115,7 +115,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   methodology: {
-    Fees: 'Totalcomission fees from every trade.',
+    Fees: 'Total comission fees from every trade.',
     UserFees: 'Users pay small amount of fees on trades.',
     Revenue: 'No revenue',
     SupplySideRevenue: 'All comission fees distributed to referrer addresses.',
