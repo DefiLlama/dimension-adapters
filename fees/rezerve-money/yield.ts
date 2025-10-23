@@ -41,16 +41,6 @@ const POOLS: PoolConfig[] = [
     chain: CHAIN.ETHEREUM,
   },
   {
-    poolAddress: "0x91fae2cBfacc492E668F9259190b3b098175d304",
-    vaultAddress: "0xbA1333333333a1BA1108E8412f11850A5C319bA9",
-    tokens: [
-      { address: "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642", symbol: "eBTC" },
-      { address: "0xb4444468e444f89e1c2CAc2F1D3ee7e336cBD1f5", symbol: "RZR" },
-    ],
-    poolType: "balancer",
-    chain: CHAIN.ETHEREUM,
-  },
-  {
     poolAddress: "0x36e6765907DD61b50Ad33F79574dD1B63339B59c",
     vaultAddress: "0xbA1333333333a1BA1108E8412f11850A5C319bA9",
     tokens: [
@@ -96,12 +86,6 @@ const ORACLES: Oracles[] = [
     oracleAddredd: "0x5FF4c905B4bA7bF8249f7C7f3F5cb0856F41e1a8",
     tokenSymbol: "rETH",
     tokenAddress: "0xae78736Cd615f374D3085123A210448E74Fc6393",
-    chain: CHAIN.ETHEREUM,
-  },
-  {
-    oracleAddredd: "0x8Bfe8650CF9B5aA083cd5e634A42238dcf890014", //not working, arithmetic underflow or overflow because of decimal
-    tokenSymbol: "eBTC",
-    tokenAddress: "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642",
     chain: CHAIN.ETHEREUM,
   },
   {
@@ -223,17 +207,11 @@ export async function stSAPR(): Promise<number> {
 
     // The APR is a decimal (e.g. "0.03944573862134899" for 3.94%)
     const aprPct = parseFloat(aprString) * 100;
-    console.log("Fetched stS APR from Beets backend:", aprPct.toFixed(2) + "%");
     return aprPct;
   } catch (e) {
     console.error("Failed to fetch stS APR from Beets backend:", e);
     return 0;
   }
-}
-
-
-async function eBTCAPR(): Promise<number>{
-  return 0;
 }
 
 export async function fetchYieldFromPools(
@@ -256,7 +234,6 @@ export async function fetchYieldFromPools(
       aprs["weETH"] = await getTokenAPR("Ethereum","ether.fi-stake","WEETH");
       aprs["wstETH"] = await getTokenAPR("Ethereum","lido","STETH");
       aprs["rETH"] = await getTokenAPR("Ethereum", "rocket-pool","RETH");
-      aprs["eBTC"] = await eBTCAPR();
     }
     else{
       aprs["stS"] = await stSAPR();
