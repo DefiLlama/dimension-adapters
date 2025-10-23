@@ -22,7 +22,7 @@ async function fetch(_a: any, _b: any, _c: FetchOptions): Promise<FetchResult> {
 }
 
 const adapter: SimpleAdapter = {
-    chains: [CHAIN.ETHEREUM],
+    chains: [CHAIN.ETHEREAL],
     fetch,
     runAtCurrTime: true
 }
