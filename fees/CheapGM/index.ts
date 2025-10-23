@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 const TREASURY = "0x21ad6eF3979638d8e73747f22B92C4AadE145D82".toLowerCase();
 const start = "2025-08-11";
 
-// safe-pick:  slug or undefined
+
 function pick(...keys: string[]) {
   for (const k of keys) {
     const v = (CHAIN as any)[k];
@@ -12,6 +12,40 @@ function pick(...keys: string[]) {
   }
   return undefined;
 }
+
+function toBig(v: any): bigint {
+  try {
+    if (v == null) return 0n;
+    if (typeof v === "bigint") return v;
+    if (typeof v === "number") return BigInt(Math.trunc(v));
+    if (typeof v === "string") return v.startsWith("0x") ? BigInt(v) : BigInt(v);
+  } catch {}
+  return 0n;
+}
+
+async function txNetInflow(opts: FetchOptions): Promise<bigint> {
+  const from_block = (opts as any).fromBlock;
+  const to_block = (opts as any).toBlock;
+
+  const toTx = await opts.getTransactions({
+    addresses: [TREASURY],
+    from_block,
+    to_block,
+    transactionType: "to",
+  }).catch(() => []);
+
+  const fromTx = await opts.getTransactions({
+    addresses: [TREASURY],
+    from_block,
+    to_block,
+    transactionType: "from",
+  }).catch(() => []);
+
+  const inflow = (toTx as any[]).reduce((a, tx) => a + toBig(tx.value ?? tx.valueHex ?? tx.inputValue ?? 0), 0n);
+  const outflow = (fromTx as any[]).reduce((a, tx) => a + toBig(tx.value ?? tx.valueHex ?? tx.inputValue ?? 0), 0n);
+  return inflow - outflow;
+}
+
 
 const CANDIDATE_SLUGS = [
   pick('ETHEREUM'), pick('BASE'), pick('OPTIMISM'), pick('ARBITRUM'),
@@ -48,35 +82,45 @@ const CANDIDATE_SLUGS = [
   pick('WORLDCHAIN','WORLD_CHAIN'),
 ].filter(Boolean) as string[];
 
+
 function buildFetch(_chain: string) {
   return async (opts: FetchOptions) => {
     const dailyRevenue = opts.createBalances();
+
+
+    let usedFallback = false;
     try {
       const [balStart, balEnd] = await Promise.all([
-        opts.getBalance({ target: TREASURY, block: opts.fromBlock }),
-        opts.getBalance({ target: TREASURY, block: opts.toBlock }),
+        opts.getBalance({ target: TREASURY, block: (opts as any).fromBlock }),
+        opts.getBalance({ target: TREASURY, block: (opts as any).toBlock }),
       ]);
-      const delta = BigInt(balEnd as any) - BigInt(balStart as any);
-      if (delta > 0n) dailyRevenue.addGasToken(delta); // net inflow per day
+      const delta = toBig(balEnd) - toBig(balStart);
+      if (delta > 0n) dailyRevenue.addGasToken(delta);
+      else usedFallback = true;             
     } catch {
+      usedFallback = true;                  
     }
+
+
+    if (usedFallback) {
+      const net = await txNetInflow(opts);
+      if (net > 0n) dailyRevenue.addGasToken(net);
+    }
+
     return { dailyRevenue };
   };
 }
 
-// build adapter without undefined
-const adapterEntries = CANDIDATE_SLUGS.map((slug) => [
-  slug,
-  { fetch: buildFetch(slug), start },
-] as const);
-
 const adapter: Adapter = {
   version: 2,
-  adapter: Object.fromEntries(adapterEntries),
+  adapter: Object.fromEntries(
+    CANDIDATE_SLUGS.map((slug) => [slug, { fetch: buildFetch(slug), start }]),
+  ),
   methodology: {
     Revenue:
-      "Daily net inflow into treasury 0x21ad6eF... per chain’s native token: balance(endOfDay) − balance(startOfDay). " +
-      "Same-day outflows can zero the metric. Gross dailyFees will be added later via on-chain log parsing.",
+      "Net inflow into treasury per day: primary = balance on start/end blocks; " +
+      "fallback = sum(native inflow to treasury) − sum(native outflow from treasury) between the day’s blocks. " +
+      "Same-day outflows can zero the metric; rounding in UI applies.",
   },
 };
 
