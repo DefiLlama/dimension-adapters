@@ -100,6 +100,22 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.HEMI]: {
+    vaultFactories: [
+      {
+        address: '0x8e52179BeB18E882040b01632440d8Ca0f01da82',
+        fromBlock: 1188885,
+      },
+    ],
+  },
+  [CHAIN.HYPERLIQUID]: {
+    vaultFactories: [
+      {
+        address: '0xec051b19d654C48c357dC974376DeB6272f24e53',
+        fromBlock: 1988677,
+      },
+    ],
+  },
 }
 
 export const EulerConfigs: any = {
