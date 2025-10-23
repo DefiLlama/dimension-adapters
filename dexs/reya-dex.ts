@@ -40,6 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       target: CONFIG.poolContract,
       abi: functionAbis.getSharePrice,
       params: [CONFIG.poolId],
+      permitFailure: true,
     }),
     options.toApi.call({
       target: CONFIG.poolContract,
@@ -48,13 +49,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     })
   ]);
 
-  // Calculate pool fees from share price changes
-  const supplyEndRusd = Number(shareSupplyEnd) / (10 ** (CONFIG.supplyDecimals - CONFIG.quoteDecimals));
-  const poolFees = (Number(sharePriceEnd) - Number(sharePriceStart)) * supplyEndRusd / (10 ** CONFIG.priceDecimals);
-
-  if (poolFees > 0) {
-    dailyFees.addToken(ADDRESSES.reya.RUSD, poolFees);
+  // Calculate pool fees from share price changes, there is contract bug, ignore when failed to get price share
+  if (sharePriceStart && sharePriceEnd && shareSupplyEnd) {
+    const supplyEndRusd = Number(shareSupplyEnd) / (10 ** (CONFIG.supplyDecimals - CONFIG.quoteDecimals));
+    const poolFees = (Number(sharePriceEnd) - Number(sharePriceStart)) * supplyEndRusd / (10 ** CONFIG.priceDecimals);
+  
+    if (poolFees > 0) {
+      dailyFees.addToken(ADDRESSES.reya.RUSD, poolFees);
+    }
   }
+
 
   const processLog = (log: any) => {
     const orderBase = Number(log.orderBase);
