@@ -23,7 +23,6 @@ const eth_fee_wallet_addresses = [
 
 // Solana fetch function
 const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
-  throw new Error('Fix bug that inflates fees')
   const dailyFees = await getSolanaReceived({ 
     options, 
     targets: solana_fee_wallet_addresses, 
@@ -34,7 +33,6 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 
 // ETH fetch function for each chain
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  throw new Error('Fix bug that inflates fees')
   const dailyFees = await getETHReceived({
     options,
     targets: eth_fee_wallet_addresses,
