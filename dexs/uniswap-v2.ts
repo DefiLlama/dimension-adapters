@@ -8,7 +8,7 @@ import { getStartTimestamp } from "../helpers/getStartTimestamp";
 const v2Endpoints = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum'),
   [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('8vvhJXc9Fi2xpc3wXtRpYrWVYfcxThU973HhBukmFh83'),
-  // [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
+  [CHAIN.BASE]: sdk.graph.modifyEndpoint('4jGhpKjW4prWoyt5Bwk1ZHUwdEmNWveJcjEyjoTZWCY9'),
 };
 
 const blacklisted = {
@@ -79,10 +79,10 @@ const chainv2mapping: any = {
   [CHAIN.ARBITRUM]: "ARBITRUM",
   [CHAIN.ETHEREUM]: "ETHEREUM",
   [CHAIN.POLYGON]: "POLYGON",
-  [CHAIN.BSC]: "BNB",
-  [CHAIN.UNICHAIN]: "UNI",
   [CHAIN.BASE]: "BASE",
-  // [CHAIN.OPTIMISM]: "OPTIMISM",
+  [CHAIN.UNICHAIN]: "UNI",
+  // [CHAIN.BSC]: "BNB",
+  [CHAIN.OPTIMISM]: "OPTIMISM",
 }
 
 async function fetchV2Volume(_t:any, _tb: any , options: FetchOptions) {
@@ -105,6 +105,7 @@ async function fetchV2Volume(_t:any, _tb: any , options: FetchOptions) {
   })
   const dailyVolume = res.stats.historicalProtocolVolume.Month.v2
     .find((item: any) => item.timestamp === options.startOfDay)?.value;
+
   return { dailyVolume, dailyFees: Number(dailyVolume) * 0.003, dailyUserFees: Number(dailyVolume) * 0.003, dailySupplySideRevenue: Number(dailyVolume) * 0.003, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0 }
 }
 
@@ -112,32 +113,32 @@ const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-        const response = await v2Graph(options);
-        return {
-          ...response,
-          dailyUserFees: response.dailyFees,
-        }
-      },
-      start: getStartTimestamp({
-        endpoints: v2Endpoints,
-        chain: CHAIN.ETHEREUM,
-      }),
-    },
-    [CHAIN.BASE]: {
-      fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-        const response = await v2Graph(options);
-        return {
-          ...response,
-          dailyUserFees: response.dailyFees,
-        }
-      },
-      start: getStartTimestamp({
-        endpoints: v2Endpoints,
-        chain: CHAIN.BASE,
-      }),
-    },
+    // [CHAIN.ETHEREUM]: {
+    //   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+    //     const response = await v2Graph(options);
+    //     return {
+    //       ...response,
+    //       dailyUserFees: response.dailyFees,
+    //     }
+    //   },
+    //   start: getStartTimestamp({
+    //     endpoints: v2Endpoints,
+    //     chain: CHAIN.ETHEREUM,
+    //   }),
+    // },
+    // [CHAIN.BASE]: {
+    //   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+    //     const response = await v2Graph(options);
+    //     return {
+    //       ...response,
+    //       dailyUserFees: response.dailyFees,
+    //     }
+    //   },
+    //   start: getStartTimestamp({
+    //     endpoints: v2Endpoints,
+    //     chain: CHAIN.BASE,
+    //   }),
+    // },
     ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
       acc[chain] = {
         fetch: fetchV2Volume,

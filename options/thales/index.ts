@@ -10,10 +10,10 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { OVERTIME_CONTRACT_ADDRESSES, LP_CONTRACT_COLLATERAL_MAPPING } from './config';
 import { OVERTIME_EVENT_ABI } from './abis';
-import { 
-  parseTicketCreatedEvent, 
-  parseBoughtFromAmmEvent, 
-  parseSpeedMarketCreatedEvent, 
+import {
+  parseTicketCreatedEvent,
+  parseBoughtFromAmmEvent,
+  parseSpeedMarketCreatedEvent,
   parseChainedMarketCreatedEvent,
   parseSafeBoxFeePaidEvent,
   parseSafeBoxSharePaidEvent
@@ -55,7 +55,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyRevenue = options.createBalances();
   const dailyLPPerformanceFee = options.createBalances();
   const collateralMapping = LP_CONTRACT_COLLATERAL_MAPPING[options.chain] || {};
-  
+
   await Promise.all([
     // Volume events from AMM contracts
     ...getChainContractsToQuery(options.chain, dailyNotionalVolume, dailyPremiumVolume)
@@ -63,7 +63,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         const logs = await options.getLogs({ target: address, eventAbi, onlyArgs: true });
         logs.forEach(parser);
       }),
-    
+
     // Revenue from SafeBoxFeePaid events (AMM contracts)
     ...Object.values(OVERTIME_CONTRACT_ADDRESSES[options.chain] || {})
       .map(async (address) => {
@@ -74,7 +74,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         });
         logs.forEach(log => parseSafeBoxFeePaidEvent(log, dailyRevenue));
       }),
-    
+
     // LP performance fees from SafeBoxSharePaid events (LP contracts)
     ...Object.keys(collateralMapping)
       .map(async (address) => {
@@ -86,39 +86,36 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         logs.forEach(log => parseSafeBoxSharePaidEvent(log, address, collateralMapping, dailyLPPerformanceFee));
       })
   ]);
-  
+
   // Fee = Revenue + LP Performance Fee  
   const dailyFees = options.createBalances();
   dailyFees.addBalances(dailyRevenue);
   dailyFees.addBalances(dailyLPPerformanceFee);
-  
+
   return {
     dailyNotionalVolume,
     dailyPremiumVolume,
     dailyFees,
     dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
   };
 }
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-08-01',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2024-08-01',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-08-01',
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2025-04-01',
-    },
+    [CHAIN.ARBITRUM]: { start: '2024-08-01' },
+    [CHAIN.OPTIMISM]: { start: '2024-08-01' },
+    [CHAIN.BASE]: { start: '2024-08-01' },
+    [CHAIN.POLYGON]: { start: '2025-04-01' },
+  },
+  methodology: {
+    Fees: "Fees are collected from users for each trade and LP performance fees",
+    Revenue: "Revenue is distributed to $OVER token holders",
+    ProtocolRevenue: "Protocol doesn't keep any revenue",
+    HoldersRevenue: "100% of revenue goes to $OVER token buybacks",
   },
 };
 
