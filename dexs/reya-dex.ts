@@ -92,12 +92,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         eventAbi: eventAbis.event_old_order,
         fromBlock: batch.fromBlock,
         toBlock: batch.toBlock,
+        skipCache: true,
+        skipCacheRead: true,
       }),
       options.getLogs({
         target: CONFIG.perpContract,
         eventAbi: eventAbis.event_order,
         fromBlock: batch.fromBlock,
         toBlock: batch.toBlock,
+        skipCache: true,
+        skipCacheRead: true,
       })
     ]);
     older_logs.forEach(processLog);
