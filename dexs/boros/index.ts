@@ -22,28 +22,10 @@ interface BorosMarket {
     coinGeckoId: string;
 };
 
-const MARKET_TO_CGID: Record<string, string> = {
-    // bitcoin
-    '0x25A62D6Ca94F67248fBFB7257513BcF74210BCDF': 'bitcoin',
-    '0xaf71Ddb2B890Cbd470eD91f293FA35C0ACb41EbE': 'bitcoin',
-    '0x725fa7500F1b6e08972f04f7FC1931eA7C47314F': 'bitcoin',
-    '0xd490dD635051D609887883d364368B223631653D': 'bitcoin',
-    '0x80e5Ec0aAF0a0389a062FFf8cD44b73384c3c580': 'bitcoin',
-    '0x680204411579f8A59505E2985513d752B404AA75': 'bitcoin',
-    '0xc1AF5a647260102659743B85977f753471EA2F7b': 'bitcoin',
-
-    // ethereum
-    '0xF9997C488e7286988b0829583DE8787ba9683D34': 'ethereum',
-    '0xc7c820668e16c5fA8AF3122d118611c186ED85B5': 'ethereum',
-    '0x8FCf5E75f4d8BC03b8970593cc8a841fc65C12b3': 'ethereum',
-    '0x30c3cf7Bfe1C694382C4901aAE5C9D679EC8450D': 'ethereum',
-    '0xEa6B89B3BE925716fD25b48888fBA4417Aeb0491': 'ethereum',
-    '0x5FA69Cc29Cba94D0CBf816f9266b211673F8206A': 'ethereum',
-    '0x97A22f2384F8971e60AE735979D486F9810bB2ed': 'ethereum',
-
-    // tether
-    '0x6F79341ab878D0b34ad69320411E910396C03B94': 'tether',
-    '0xEfF94Cf7EA8E2640a8aCDd62521fa24bEA7889e4': 'tether',
+const TOKENID_TO_CGID: Record<number, string> = {
+    1: 'bitcoin',
+    2: 'ethereum',
+    3: 'tether',
 };
 
 // AMMConfigUpdated transactions, ignore volume from these transactions
@@ -52,13 +34,13 @@ const EXCLUDE_OTC_SWAPS: Array<string> = [
     '0xf8e45548cbf08c48c71d054ce872f7e8cbef6633b45224a28d5c7c5128471856',
 ]
 
-const getCgId = (marketAddress: string): string => {
-    const cgId = MARKET_TO_CGID[marketAddress];
+const getCgId = (tokenId: number): string => {
+    const cgId = TOKENID_TO_CGID[tokenId];
 
     if (!cgId) {
-        throw Error(`No CG mapping for market: ${marketAddress}`)
+        throw Error(`No CG mapping for tokenId: ${tokenId}`)
     }
-    
+
     return cgId;
 }
 
@@ -80,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
             address: marketLog.market,
             symbol: marketLog.immData.symbol,
             maturity: Number(marketLog.immData.k_maturity),
-            coinGeckoId: getCgId(marketLog.market),
+            coinGeckoId: getCgId(marketLog.immData.k_tokenId),
         }))
         .filter(market => market.coinGeckoId);
 

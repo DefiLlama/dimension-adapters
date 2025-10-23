@@ -24,6 +24,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.UNICHAIN]: { id: 130, start: '2025-02-11' },
   [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-07-09' },
   [CHAIN.PLASMA]: { id: 9745, start: '2025-09-24' },
+  [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
