@@ -8,7 +8,7 @@ const start = "2025-08-11";
 function pick(...keys: string[]) {
   for (const k of keys) {
     const v = (CHAIN as any)[k];
-    if (typeof v === "string" && v.length) return v;
+    if (typeof v === "string" && v.length) return v;       
   }
   return undefined;
 }
@@ -24,33 +24,38 @@ function toBig(v: any): bigint {
 }
 
 async function txNetInflow(opts: FetchOptions): Promise<bigint> {
-  const from_block = (opts as any).fromBlock;
-  const to_block = (opts as any).toBlock;
+  const anyOpts = opts as any;
+  if (typeof anyOpts.getTransactions !== "function") return 0n;
 
-  const toTx = await opts.getTransactions({
+  const from_block = anyOpts.fromBlock;
+  const to_block = anyOpts.toBlock;
+
+  const toTx = (await anyOpts.getTransactions({
     addresses: [TREASURY],
     from_block,
     to_block,
     transactionType: "to",
-  }).catch(() => []);
+  }).catch(() => [])) as any[];
 
-  const fromTx = await opts.getTransactions({
+  const fromTx = (await anyOpts.getTransactions({
     addresses: [TREASURY],
     from_block,
     to_block,
     transactionType: "from",
-  }).catch(() => []);
+  }).catch(() => [])) as any[];
 
-  const inflow = (toTx as any[]).reduce((a, tx) => a + toBig(tx.value ?? tx.valueHex ?? tx.inputValue ?? 0), 0n);
-  const outflow = (fromTx as any[]).reduce((a, tx) => a + toBig(tx.value ?? tx.valueHex ?? tx.inputValue ?? 0), 0n);
+  const inflow = toTx.reduce((a, tx) => a + toBig(tx.value ?? tx.valueHex ?? 0), 0n);
+  const outflow = fromTx.reduce((a, tx) => a + toBig(tx.value ?? tx.valueHex ?? 0), 0n);
   return inflow - outflow;
 }
 
 
 const CANDIDATE_SLUGS = [
+  // core
   pick('ETHEREUM'), pick('BASE'), pick('OPTIMISM'), pick('ARBITRUM'),
   pick('BSC'), pick('POLYGON'), pick('AVAX'),
   pick('SCROLL'), pick('MANTLE'), pick('LINEA'),
+
   pick('BERACHAIN'),
   pick('CORE','COREDAO'),
   pick('REDSTONE'),
@@ -63,7 +68,7 @@ const CANDIDATE_SLUGS = [
   pick('MODE'),
   pick('METIS'),
   pick('RONIN'),
-  pick('XDAI','GNOSIS'),
+  pick('XDAI','GNOSIS'),            
   pick('CELO'),
   pick('CONFLUX'),
   pick('LISK'),
@@ -76,19 +81,21 @@ const CANDIDATE_SLUGS = [
   pick('MORPH'),
   pick('MANTA','MANTA_PACIFIC'),
   pick('ANCIENT8'),
-  pick('KLAYTN','KAIA'),
+  pick('KLAYTN','KAIA'),            
   pick('CRONOS'),
   pick('XAI'),
   pick('WORLDCHAIN','WORLD_CHAIN'),
+  
 ].filter(Boolean) as string[];
+
 
 
 function buildFetch(_chain: string) {
   return async (opts: FetchOptions) => {
     const dailyRevenue = opts.createBalances();
+    let needFallback = false;
 
 
-    let usedFallback = false;
     try {
       const [balStart, balEnd] = await Promise.all([
         opts.getBalance({ target: TREASURY, block: (opts as any).fromBlock }),
@@ -96,14 +103,13 @@ function buildFetch(_chain: string) {
       ]);
       const delta = toBig(balEnd) - toBig(balStart);
       if (delta > 0n) dailyRevenue.addGasToken(delta);
-      else usedFallback = true;             
+      else needFallback = true;            
     } catch {
-      usedFallback = true;                  
+      needFallback = true;                  
     }
 
-
-    if (usedFallback) {
-      const net = await txNetInflow(opts);
+    if (needFallback) {
+      const net = await txNetInflow(opts).catch(() => 0n);
       if (net > 0n) dailyRevenue.addGasToken(net);
     }
 
@@ -118,9 +124,9 @@ const adapter: Adapter = {
   ),
   methodology: {
     Revenue:
-      "Net inflow into treasury per day: primary = balance on start/end blocks; " +
-      "fallback = sum(native inflow to treasury) − sum(native outflow from treasury) between the day’s blocks. " +
-      "Same-day outflows can zero the metric; rounding in UI applies.",
+      "Daily net inflow into treasury  per chain’s native token. " +
+      "Primary = Δbalance on start/end blocks; fallback = inflow(to) − outflow(from) by tx scan over the day. " +
+      "Same-day outflows can zero the metric; UI shows rounded USD for daily view.",
   },
 };
 
