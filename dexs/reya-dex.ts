@@ -35,6 +35,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       target: CONFIG.poolContract,
       abi: functionAbis.getSharePrice,
       params: [CONFIG.poolId],
+      permitFailure: true,
     }),
     options.toApi.call({
       target: CONFIG.poolContract,
