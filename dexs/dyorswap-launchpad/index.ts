@@ -14,16 +14,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const empty = options.createBalances();
 
-  const [fromBlock, toBlock] = await Promise.all([
-    options.getFromBlock(),
-    options.getToBlock()
-  ]);
-
   const pairs = await options.getLogs({
     target: LAUNCHPAD,
     eventAbi: PAIR_ABI,
     fromBlock: START_BLOCK,
-    toBlock,
     cacheInCloud: true,
   });
 
@@ -44,9 +38,6 @@ const fetch = async (options: FetchOptions) => {
   const swaps = await options.getLogs({
     targets: targets,
     eventAbi: SWAP_ABI,
-    fromBlock,
-    toBlock,
-    cacheInCloud: true,
     entireLog: true,
   });
 
