@@ -13,10 +13,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     throw new Error('Failed to fetch fees');
   }
 
-
   const dailyFees = res.data;
-  const dailyRevenue = res.data;;
-  const dailyProtocolRevenue = res.data;;
+  const dailyRevenue = res.data;
+  const dailyProtocolRevenue = res.data;
 
   return {
     dailyFees: dailyFees,
