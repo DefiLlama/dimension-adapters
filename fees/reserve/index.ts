@@ -77,20 +77,25 @@ const fetch = async (options: FetchOptions) => {
     yieldFoliosList.push(rToken.rToken);
     stRsrList.push(rToken.stRSR);
   });
+  const allProtocolFeeLogs = await options.getLogs({
+    targets: indexFoliosList,
+    eventAbi: ABI.protocolFee,
+    flatten: false,
+  });
+  const protocolFeeResults = allProtocolFeeLogs.map((logs: any, i: number) => ({
+    folio: indexFoliosList[i],
+    protocolFeeLogs: logs
+  }));
 
-  const protocolFeeResults = await Promise.all(indexFoliosList.map((folio: string) =>
-    options.getLogs({
-      target: folio,
-      eventAbi: ABI.protocolFee,
-    }).then(protocolFeeLogs => ({ folio, protocolFeeLogs }))
-  ));
-
-  const folioFeeResults = await Promise.all(indexFoliosList.map((folio: string) =>
-    options.getLogs({
-      target: folio,
-      eventAbi: ABI.folioFee,
-    }).then(folioFeeLogs => ({ folio, folioFeeLogs }))
-  ));
+  const allFolioFeeLogs = await options.getLogs({
+    targets: indexFoliosList,
+    eventAbi: ABI.folioFee,
+    flatten: false,
+  });
+  const folioFeeResults = allFolioFeeLogs.map((logs: any, i: number) => ({
+    folio: indexFoliosList[i],
+    folioFeeLogs: logs
+  }));
 
   const priceResult = await Promise.allSettled(indexFoliosList.map(async (folio: any) => fetchURL(`${RESERVE_ENDPOINT}address=${folio}&chainId=${chainId}`)
   ));
@@ -119,12 +124,16 @@ const fetch = async (options: FetchOptions) => {
     });
   });
 
-  const yieldFolioMeltedResults = await Promise.all(yieldFoliosList.map((folio: any) =>
-    options.getLogs({
-      eventAbi: ABI.melted,
-      target: folio
-    }).then(meltedLogs => ({ folio, meltedLogs })
-    )));
+  const yieldFolioMeltedLogs: any[] = await options.getLogs({
+    targets: yieldFoliosList,
+    eventAbi: ABI.melted,
+    flatten: false,
+  });
+
+  const yieldFolioMeltedResults = yieldFoliosList.map((folio: any, i: number) => ({
+    folio,
+    meltedLogs: yieldFolioMeltedLogs[i]
+  }));
 
   yieldFolioMeltedResults.forEach((result: any) => {
     const { folio, meltedLogs } = result;
