@@ -31,9 +31,9 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   methodology: {
-    Fees: "0.025% trading fees on all trades + positive slippage fees",
-    Revenue: "0.025% per trade revenue and positive slippage revenue",
-    ProtocolRevenue: "0.025% per trade revenue and positive slippage revenue",
+    Fees: "0.025% trading fees on all trades",
+    Revenue: "0.025% per trade revenue",
+    ProtocolRevenue: "0.025% per trade revenuee",
   },
   version: 2,
   adapter: {
