@@ -1,19 +1,34 @@
 import { FetchOptions } from '../adapters/types';
+import { getConfig } from '../helpers/cache';
 import { CHAIN } from '../helpers/chains';
 import { addOneToken } from '../helpers/prices';
-import { httpGet } from '../utils/fetchURL';
+import { filterPools2 } from '../helpers/uniswap';
 
 const endpoint = "https://asia-southeast1-ktx-finance-2.cloudfunctions.net/sailor_poolapi/getPoolList";
 
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
 
 const fetch = async (options: FetchOptions) => {
-  const { poolStats } = await httpGet(endpoint)
+  const { poolStats } = await getConfig('sailor-v3/sei', endpoint)
+  const filterObject: any = {
+    fetchOptions: options,
+    pairs: [],
+    token0s: [],
+    token1s: [],
+  }
+
+  poolStats.forEach((pool: any) => {
+    filterObject.pairs.push(pool.id)
+    filterObject.token0s.push(pool.token0.id)
+    filterObject.token1s.push(pool.token1.id)
+  })
+
+  const { pairs } = await filterPools2(filterObject)
+  const filteredPoolStats = poolStats.filter((pool: any) => pairs.includes(pool.id))
+
 
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
 
   const logs = await options.getLogs({
     eventAbi: poolSwapEvent,
@@ -21,13 +36,11 @@ const fetch = async (options: FetchOptions) => {
     flatten: false,
   })
 
-  for (let i = 0; i < poolStats.length; i++) {
-    const feeRate = Number(poolStats[i].feeTier) / 1e6
+  for (let i = 0; i < filteredPoolStats.length; i++) {
+    const feeRate = Number(filteredPoolStats[i].feeTier) / 1e6
     for (const log of logs[i]) {
-      addOneToken({ chain: options.chain, balances: dailyVolume, token0: poolStats[i].token0.id, token1: poolStats[i].token1.id, amount0: Math.abs(Number(log.amount0)), amount1: Math.abs(Number(log.amount1)) })
-      addOneToken({ chain: options.chain, balances: dailyFees, token0: poolStats[i].token0.id, token1: poolStats[i].token1.id, amount0: Math.abs(Number(log.amount0)) * feeRate, amount1: Math.abs(Number(log.amount1)) * feeRate })
-      addOneToken({ chain: options.chain, balances: dailyRevenue, token0: poolStats[i].token0.id, token1: poolStats[i].token1.id, amount0: Math.abs(Number(log.amount0)) * feeRate * 0.16, amount1: Math.abs(Number(log.amount1)) * feeRate * 0.16 })
-      addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0: poolStats[i].token0.id, token1: poolStats[i].token1.id, amount0: Math.abs(Number(log.amount0)) * feeRate * 0.84, amount1: Math.abs(Number(log.amount1)) * feeRate * 0.84 })
+      addOneToken({ chain: options.chain, balances: dailyVolume, token0: filteredPoolStats[i].token0.id, token1: filteredPoolStats[i].token1.id, amount0: Math.abs(Number(log.amount0)), amount1: Math.abs(Number(log.amount1)) })
+      addOneToken({ chain: options.chain, balances: dailyFees, token0: filteredPoolStats[i].token0.id, token1: filteredPoolStats[i].token1.id, amount0: Math.abs(Number(log.amount0)) * feeRate, amount1: Math.abs(Number(log.amount1)) * feeRate })
     }
   }
 
@@ -35,9 +48,10 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyRevenue,
+    dailyRevenue: dailyFees.clone(0.16),
+    dailyHolderRevenue: 0,
+    dailyProtocolRevenue: dailyFees.clone(0.16),
+    dailySupplySideRevenue: dailyFees.clone(0.84),
   }
 };
 
