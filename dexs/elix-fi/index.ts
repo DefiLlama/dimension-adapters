@@ -73,24 +73,21 @@ export async function fetchElixFiMetrics(
   return data.rows || [];
 }
 
-async function fetchFunction({
-  chain,
-  createBalances,
-  fromTimestamp,
-  toTimestamp,
-}: FetchOptions): Promise<FetchResultV2> {
-  const dailyVolume = createBalances();
-  const dailyFees = createBalances();
-  const metrics = await fetchElixFiMetrics(chain, fromTimestamp, toTimestamp);
+async function fetchFunction(_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  const metrics = await fetchElixFiMetrics(options.chain, options.fromTimestamp, options.toTimestamp);
+  
   metrics.forEach((metric) => {
     dailyVolume.add(metric.token, metric.volume);
     dailyFees.add(metric.token, metric.fee);
   });
+  
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
 }
 
 const adapter: Adapter = {
-  version: 2,
   adapter: {
     ...Object.entries(elixfiConfig).reduce((acc, [key, config]) => {
       acc[key] = {
