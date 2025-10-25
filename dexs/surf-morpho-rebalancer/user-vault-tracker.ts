@@ -57,97 +57,88 @@ export class UserVaultTracker {
    * Get total number of vaults deployed by the factory
    */
   async getTotalVaults(): Promise<number> {
-    try {
-      console.log(`🔍 Getting total vaults from factory ${FACTORY_ADDRESS}...`);
-      const totalVaults = await this.api.call({
-        target: FACTORY_ADDRESS,
-        abi: FACTORY_ABI.getTotalVaults,
-      });
-      const count = Number(totalVaults);
-      console.log(`📊 Total vaults found: ${count}`);
-      return count;
-    } catch (error) {
-      console.error(`❌ Error getting total vaults on ${this.chain}:`, error);
-      return 0;
-    }
+    const totalVaults = await this.api.call({
+      target: FACTORY_ADDRESS,
+      abi: FACTORY_ABI.getTotalVaults,
+    });
+    const count = Number(totalVaults);
+    return count;
   }
 
   /**
    * Get vault information by index
    */
   async getVaultInfo(index: number): Promise<VaultInfo | null> {
-    try {
-      const vaultInfo = await this.api.call({
-        target: FACTORY_ADDRESS,
-        abi: FACTORY_ABI.getVaultInfo,
-        params: [index],
-      }) as VaultInfo;
+    const vaultInfo = await this.api.call({
+      target: FACTORY_ADDRESS,
+      abi: FACTORY_ABI.getVaultInfo,
+      params: [index],
+    }) as VaultInfo;
 
-      return vaultInfo;
-    } catch (error) {
-      console.error(`❌ Error getting vault info for index ${index} on ${this.chain}:`, error);
-      return null;
-    }
+    return vaultInfo;
   }
 
   /**
    * Get current Morpho vault address for a UserVault
    */
   async getCurrentMorphoVault(vaultAddress: string): Promise<string | null> {
-    try {
-      const currentVault = await this.api.call({
-        target: vaultAddress,
-        abi: USER_VAULT_ABI.currentVault,
-      });
+    const currentVault = await this.api.call({
+      target: vaultAddress,
+      abi: USER_VAULT_ABI.currentVault,
+    });
 
-      return currentVault as string;
-    } catch (error) {
-      console.error(`❌ Error getting current vault for ${vaultAddress} on ${this.chain}:`, error);
-      return null;
-    }
+    return currentVault as string;
   }
 
   /**
    * Get all vaults with their current Morpho vault addresses
    */
   async getAllUserVaults(): Promise<ExtendedVaultInfo[]> {
-    console.log(`\n🏭 SURF MORPHO USER VAULT TRACKER`);
-    console.log(`=================================`);
-    console.log(`Factory Address: ${FACTORY_ADDRESS}`);
-    console.log(`Chain: ${this.chain}`);
-    console.log(`Admin Address: ${ADMIN_ADDRESS}\n`);
-    
     const totalVaults = await this.getTotalVaults();
     
     if (totalVaults === 0) {
-      console.log(`❌ No vaults found in factory`);
       return [];
     }
 
     const allVaults: ExtendedVaultInfo[] = [];
-    console.log(`\n🔍 Fetching vault details...`);
 
-    for (let i = 0; i < totalVaults; i++) {
-      process.stdout.write(`\r📋 Processing vault ${i + 1}/${totalVaults}...`);
+    // Process vaults in batches to avoid overwhelming the API
+    const batchSize = 10;
+    for (let i = 0; i < totalVaults; i += batchSize) {
+      const batchEnd = Math.min(i + batchSize, totalVaults);
       
-      const vaultInfo = await this.getVaultInfo(i);
-      if (!vaultInfo) {
-        console.warn(`\n⚠️ Failed to get vault info for index ${i}`);
-        continue;
+      const batchPromises: Promise<ExtendedVaultInfo | null>[] = [];
+      for (let j = i; j < batchEnd; j++) {
+        batchPromises.push(this.processVault(j));
       }
-
-      const currentMorphoVault = await this.getCurrentMorphoVault(vaultInfo.vaultAddress);
       
-      const extendedVaultInfo: ExtendedVaultInfo = {
-        ...vaultInfo,
-        currentMorphoVault: currentMorphoVault || 'N/A'
-      };
-
-      allVaults.push(extendedVaultInfo);
+      const batchResults = await Promise.allSettled(batchPromises);
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          allVaults.push(result.value);
+        }
+      });
     }
 
-    console.log(`\n✅ Successfully processed ${allVaults.length} vaults!`);
     return allVaults;
+  }
+
+  /**
+   * Process a single vault
+   */
+  private async processVault(index: number): Promise<ExtendedVaultInfo | null> {
+    const vaultInfo = await this.getVaultInfo(index);
+    
+    if (!vaultInfo) {
+      return null;
+    }
+
+    const currentMorphoVault = await this.getCurrentMorphoVault(vaultInfo.vaultAddress);
+    
+    return {
+      ...vaultInfo,
+      currentMorphoVault: currentMorphoVault || 'N/A'
+    };
   }
 
   /**
@@ -228,80 +219,28 @@ export class UserVaultTracker {
   }
 
   /**
-   * Display detailed vault information
+   * Get vault summary data
    */
-  async displayVaultDetails(): Promise<void> {
+  async getVaultSummaryData(): Promise<{
+    totalVaults: number;
+    uniqueOwners: number;
+    uniqueAdmins: number;
+    uniqueMorphoVaults: number;
+    vaultsByChain: Record<number, number>;
+    adminVaults: number;
+    recentVaults: ExtendedVaultInfo[];
+  }> {
     const allVaults = await this.getAllUserVaults();
-    
-    if (allVaults.length === 0) {
-      console.log(`❌ No vaults found`);
-      return;
-    }
-
-    const summary = await this.getVaultSummary();
-    
-    console.log(`\n📊 VAULT SUMMARY:`);
-    console.log(`================`);
-    console.log(`Total Vaults: ${summary.totalVaults}`);
-    console.log(`Unique Owners: ${summary.uniqueOwners}`);
-    console.log(`Unique Admins: ${summary.uniqueAdmins}`);
-    console.log(`Unique Morpho Vaults: ${summary.uniqueMorphoVaults}`);
-    console.log(`Admin Vaults: ${summary.adminVaults}`);
-    console.log(`Vaults by Chain:`, summary.vaultsByChain);
-
-    // Display all vaults
-    console.log(`\n📋 ALL USER VAULTS:`);
-    console.log(`==================`);
-    allVaults.forEach((vault, index) => {
-      console.log(`\n${index + 1}. Vault Address: ${vault.vaultAddress}`);
-      console.log(`   Owner: ${vault.owner}`);
-      console.log(`   Admin: ${vault.admin}`);
-      console.log(`   Chain ID: ${vault.chainId}`);
-      console.log(`   Current Morpho Vault: ${vault.currentMorphoVault}`);
-      console.log(`   Deployed At: ${new Date(vault.deployedAt * 1000).toISOString()}`);
-      console.log(`   Salt: ${vault.salt}`);
-      console.log(`   Is Admin Vault: ${vault.admin.toLowerCase() === ADMIN_ADDRESS.toLowerCase() ? '✅ YES' : '❌ NO'}`);
-    });
-
-    // Display admin vaults specifically
-    const adminVaults = allVaults.filter(v => 
-      v.admin.toLowerCase() === ADMIN_ADDRESS.toLowerCase()
-    );
-
-    if (adminVaults.length > 0) {
-      console.log(`\n🎯 VAULTS MANAGED BY ADMIN (${ADMIN_ADDRESS}):`);
-      console.log(`=============================================`);
-      adminVaults.forEach((vault, index) => {
-        console.log(`\n${index + 1}. Vault: ${vault.vaultAddress}`);
-        console.log(`   Owner: ${vault.owner}`);
-        console.log(`   Current Morpho Vault: ${vault.currentMorphoVault}`);
-        console.log(`   Deployed: ${new Date(vault.deployedAt * 1000).toISOString()}`);
-      });
-    } else {
-      console.log(`\n⚠️ No vaults found managed by admin address ${ADMIN_ADDRESS}`);
-    }
+    return await this.getVaultSummary();
   }
 }
 
 // Main execution function
 export async function trackAllUserVaults(chain: string = CHAIN.BASE): Promise<ExtendedVaultInfo[]> {
-  console.log(`🚀 Starting User Vault Tracking on ${chain}`);
-  console.log(`==========================================\n`);
-  
   const tracker = new UserVaultTracker(chain);
-  
-  try {
-    await tracker.displayVaultDetails();
-    const allVaults = await tracker.getAllUserVaults();
-    
-    console.log(`\n✅ Tracking completed successfully!`);
-    console.log(`📊 Found ${allVaults.length} user vaults total`);
-    
-    return allVaults;
-  } catch (error) {
-    console.error(`❌ Error tracking vaults:`, error);
-    return [];
-  }
+  const allVaults = await tracker.getAllUserVaults();
+  console.log(`Total user vaults: ${allVaults.length}`);
+  return allVaults;
 }
 
 // Export for use in other files
@@ -316,13 +255,5 @@ export type { VaultInfo, ExtendedVaultInfo };
 
 // Run if this file is executed directly
 if (require.main === module) {
-  trackAllUserVaults(CHAIN.BASE)
-    .then((vaults) => {
-      console.log(`\n🎉 Process completed! Found ${vaults.length} vaults.`);
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error(`❌ Process failed:`, error);
-      process.exit(1);
-    });
+  trackAllUserVaults(CHAIN.BASE);
 }
