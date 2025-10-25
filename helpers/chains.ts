@@ -272,4 +272,5 @@ export enum CHAIN {
   HIBACHI = "hibachi",
   SATORI = "satori",
   SHIBARIUM = "shibarium",
+  MEZO= "mezo"
 }
