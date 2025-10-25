@@ -5,7 +5,7 @@ import * as path from 'path';
 import { elastic, log } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
 
-const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0] ?? "Ho3ALP1cDdJVajWd0YagegDZlWu9uBTb"
+const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0] ?? "L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"
 
 const axiosDune = axios.create({
   headers: {
