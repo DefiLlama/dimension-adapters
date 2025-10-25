@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const FEE_ACCURED_EVENT = "event FeeAccrued(address indexed account, bytes32 indexed subaccount, address token, uint256 feeAmount, uint256 balance, uint64 messageIdx)";
 
-const ORDER_MATCHED_EVENET = "event PerpOrderMatched(uint32 indexed productId, address indexed maker, address indexed taker, bytes32 makerSubaccount, bytes32 takerSubaccount, uint8 makerSide, uint8 takerSide, uint128 fillQuantity, uint128 price, uint64 messageIdx)";
+const ORDER_MATCHED_EVENT = "event PerpOrderMatched(uint32 indexed productId, address indexed maker, address indexed taker, bytes32 makerSubaccount, bytes32 takerSubaccount, uint8 makerSide, uint8 takerSide, uint128 fillQuantity, uint128 price, uint64 messageIdx)";
 
 const EXCHANGE_GATEWAY = "0xB3cDC82035C495c484C9fF11eD5f3Ff6d342e3cc";
 
@@ -18,7 +18,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const orderMatchedLogs = await options.getLogs({
         target: EXCHANGE_GATEWAY,
-        eventAbi: ORDER_MATCHED_EVENET
+        eventAbi: ORDER_MATCHED_EVENT
     });
 
     feeAccuredLogs.forEach((fee: any) => {
