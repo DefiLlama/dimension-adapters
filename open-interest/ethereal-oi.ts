@@ -1,6 +1,6 @@
-import { SimpleAdapter, FetchResult, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import fetchUrl from "../../utils/fetchURL";
+import { SimpleAdapter, FetchResult, FetchOptions } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import fetchUrl from "../utils/fetchURL";
 
 async function fetch(_a: any, _b: any, _c: FetchOptions): Promise<FetchResult> {
 
@@ -8,16 +8,14 @@ async function fetch(_a: any, _b: any, _c: FetchOptions): Promise<FetchResult> {
 
     const marketPrice = (await fetchUrl(`https://api.ethereal.trade/v1/product/market-price?productIds=${tradeData.map((market: any) => market.id).join('&productIds=')}`)).data;
 
-    const results = tradeData.reduce((acc: { volume: number, openInterest: number }, market: any) => {
+    const openInterestAtEnd = tradeData.reduce((acc: number, market: any) => {
         const price = + ((marketPrice.find((priceEntry: any) => market.id === priceEntry.productId))?.oraclePrice || 0);
-        acc.volume += price * +(market.volume24h || 0);
-        acc.openInterest += price * +(market.openInterest || 0);
+        acc+= price * +(market.openInterest || 0);
         return acc;
-    }, { volume: 0, openInterest: 0 });
+    }, 0);
 
     return {
-        dailyVolume: results.volume,
-        openInterestAtEnd: results.openInterest,
+        openInterestAtEnd,
     }
 }
 
