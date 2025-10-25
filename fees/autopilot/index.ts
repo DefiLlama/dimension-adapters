@@ -12,16 +12,20 @@ const ABI = {
 };
 
 const REWARDS_DISTRIBUTOR = "0xA7c68a960bA0F6726C4b7446004FE64969E2b4d4";
-const SWAPPER = "0x04D07A6f489C36e1A7C8271a2438666868137b2F";
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
 
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
+    const swapper = await options.api.call({
+        target: REWARDS_DISTRIBUTOR,
+        abi:"address:swapper_contract_address"
+    });
+
     const feeCollectedLogs = await options.getLogs({
         eventAbi: ABI.FEE_COLLECTED,
-        target: SWAPPER,
+        target: swapper,
     });
 
     const rewardLogs = await options.getLogs({
