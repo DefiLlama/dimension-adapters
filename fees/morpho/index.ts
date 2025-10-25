@@ -96,16 +96,16 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xE75Fc5eA6e74B824954349Ca351eb4e671ADA53a",
     start: "2025-05-01",
   },
-  [CHAIN.TAC]: {
-    fromBlock: 853025,
-    blue: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c",
-    start: "2025-06-25",
-  },
   [CHAIN.ZIRCUIT]: {
     fromBlock: 14640172,
     blue: "0xA902A365Fe10B4a94339B5A2Dc64F60c1486a5c8",
     start: "2025-06-07",
   },
+  // [CHAIN.TAC]: {
+  //   fromBlock: 853025,
+  //   blue: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c",
+  //   start: "2025-06-25",
+  // },
 };
 
 const info = {
