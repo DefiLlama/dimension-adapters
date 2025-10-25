@@ -1,4 +1,4 @@
-import {Adapter, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
+import {Adapter, Dependencies, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {Balances} from "@defillama/sdk";
 import {getSolanaReceived} from "../../helpers/token";
@@ -248,6 +248,8 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
 
 const adapters: Adapter = {
   version: 2,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   adapter: Object.keys(evmContracts).reduce((acc, chain) => {
     return {
       ...acc,
