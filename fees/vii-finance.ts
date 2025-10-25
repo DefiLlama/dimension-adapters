@@ -8,6 +8,7 @@ const curatorConfig: CuratorConfig = {
   },
   vaults: {
     [CHAIN.UNICHAIN]: {
+      start: '2025-09-01',
       eulerVaultOwners: [
         '0x12e74f3C61F6b4d17a9c3Fdb3F42e8f18a8bB394',
       ],
