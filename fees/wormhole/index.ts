@@ -1,6 +1,8 @@
 import {FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {Balances} from "@defillama/sdk";
+import {getSolanaReceived} from "../../helpers/token";
+import {queryDuneSql} from "../../helpers/dune";
 
 const WormholeAbis = {
   StandardRelayer: 'event SendEvent(uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue)',
@@ -95,17 +97,84 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   return {dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0}
 };
 
+interface IData {
+  pda: string;
+}
+const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const SOLANA_MSG_FEE_COLLECTOR = '9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy' // all type of wormhole messages fees
+  const SOLANA_EXECUTOR_FEE_COLLECTOR = 'HpGb3q9cpDmWP2HaFWM8uFGR96sGEUY5e2jDb4Kh6DPA' // NTN,WTT,CCTP executions
+
+  // query rent accounts created for postMessage,postVaa,verifySignature; happens only with legacy implementation
+  // more info : https://wormhole.com/docs/products/messaging/concepts/solana-shim/#the-core-bridge-account-problem
+  const data: IData[] = await queryDuneSql(options, `
+      WITH base AS (
+          SELECT
+              CASE
+                  WHEN bytearray_substring(data, 1, 1) = 0x01
+                      AND CARDINALITY(account_arguments) >= 2 THEN account_arguments[2]
+                  WHEN bytearray_substring(data, 1, 1) = 0x02
+                      AND CARDINALITY(account_arguments) >= 4 THEN account_arguments[4]
+                  ELSE NULL
+                  END AS pda
+          FROM solana.instruction_calls
+          WHERE
+              executing_account = 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth'
+            AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
+            AND block_time < FROM_UNIXTIME(${options.endTimestamp})
+            AND length(data) >= 1
+            AND (
+              bytearray_substring(data, 1, 1) = 0x01
+                  OR bytearray_substring(data, 1, 1) = 0x02
+              )
+      )
+      SELECT DISTINCT pda
+      FROM base
+      WHERE pda IS NOT NULL
+  `);
+
+  const chunkSize = 1000;
+  const dailyFees = options.createBalances();
+
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.slice(i, i + chunkSize)
+    await getSolanaReceived({
+      options,
+      targets: chunk.map(item => item.pda),
+      balances : dailyFees,
+    })
+  }
+
+  // get collectors balances
+  await getSolanaReceived({
+    options,
+    targets: [
+      SOLANA_MSG_FEE_COLLECTOR,
+      SOLANA_EXECUTOR_FEE_COLLECTOR
+    ],
+    balances : dailyFees,
+  })
+
+  return {dailyFees}
+};
+
+
 const adapter: SimpleAdapter = {
   version: 2,
   // adapter: Object.keys(WormholeStandardRelayerContracts).reduce((acc, chain) => {
-  adapter: Object.keys(WormholeExecutorContracts).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch, start: '2025-01-10',
-      }
+  // adapter: Object.keys(WormholeExecutorContracts).reduce((acc, chain) => {
+  //   return {
+  //     ...acc,
+  //     [chain]: {
+  //       fetch, start: '2025-01-10',
+  //     }
+  //   }
+  // }, {}),
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana, start: '2025-01-10',
     }
-  }, {}),
+
+  },
   methodology: {
     Fees: 'Total fees paid by users by using Wormhole Standard relayers or Request for Execution.',
     Revenue: 'Wormhole has no revenue as it takes 0 fees at the moment for message relaying.',
