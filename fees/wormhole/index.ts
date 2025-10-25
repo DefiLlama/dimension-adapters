@@ -171,13 +171,9 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
   const dailyFees = options.createBalances()
 
   if (evmContracts[options.chain]['standardRelayer'] != null) {
-    console.log(`Chain ${options.chain} contract standardRelayer logs`)
-
       await fetchStandardRelayersFees(options, dailyFees);
   }
   if (evmContracts[options.chain]['executor'] != null) {
-    console.log(`Chain ${options.chain} contract executor logs`)
-
     await fetchExecutorFees(options, dailyFees);
   }
 
