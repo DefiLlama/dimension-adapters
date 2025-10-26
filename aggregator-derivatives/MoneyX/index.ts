@@ -1,6 +1,6 @@
 import { request, gql } from "graphql-request";
-import { sumTokens2 } from "../../helper/unwrapLPs";
-import { Adapter } from "../../helper/types";
+import { sumTokens2 } from "../../helpers/unwrapLPs";
+import { Adapter } from "../../helpers/types";
 
 const endpoints = {
   stats: "https://api.goldsky.com/api/public/project_clhjdosm96z2v49wghcvog65t/subgraphs/project_clhjdosm96z2v4/moneyx-stats/gn",
