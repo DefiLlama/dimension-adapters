@@ -44,23 +44,12 @@ const statsQuery = gql`
   }
 `;
 
-const tradeCountQuery = gql`
-  query trades($timestamp: Int!) {
-    trades(where: { timestamp_gte: $timestamp }) {
-      id
-    }
-  }
-`;
-
-// ✅ Fetch daily volume, fees, and trade count
+// ✅ Fetch daily volume & fees
 const fetchVolume = async (timestamp: number) => {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-  const variables = { id: `${dayTimestamp}:daily`, timestamp: dayTimestamp };
+  const variables = { id: `${dayTimestamp}:daily` };
 
-  const [stats, trades] = await Promise.all([
-    request(endpoints.stats, statsQuery, variables),
-    request(endpoints.trades, tradeCountQuery, variables).catch(() => ({ trades: [] })),
-  ]);
+  const stats = await request(endpoints.stats, statsQuery, variables).catch(() => ({}));
 
   const volume = stats.volumeStat || {};
   const fees = stats.feeStat || {};
@@ -75,9 +64,8 @@ const fetchVolume = async (timestamp: number) => {
     0
   );
 
-  const tradeCount = trades.trades?.length || 0;
-
-  return { timestamp: dayTimestamp, dailyVolume, dailyFees, tradeCount };
+  // ✅ Only return allowed keys
+  return { timestamp: dayTimestamp, dailyVolume, dailyFees };
 };
 
 // ✅ Fetch on-chain vault balances for TVL
@@ -88,7 +76,7 @@ const tvl = async (_ts: number, _ethBlock: number, { bsc: block }) =>
     tokensAndOwners: TOKENS.map((t) => [t, VAULT]),
   });
 
-// ✅ DefiLlama adapter configuration
+// ✅ DefiLlama adapter export
 const adapter: Adapter = {
   adapter: {
     bsc: {
