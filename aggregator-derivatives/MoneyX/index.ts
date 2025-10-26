@@ -8,8 +8,10 @@ const endpoints = {
   raw: "https://api.goldsky.com/api/public/project_clhjdosm96z2v49wghcvog65t/subgraphs/moneyx-raw/v1.0.0/gn",
 };
 
+// Vault contract holding protocol assets
 const VAULT = "0xeB0E5E1a8500317A1B8fDd195097D5509Ef861de";
 
+// Supported assets (BNB Chain)
 const TOKENS = [
   "0x55d398326f99059fF775485246999027B3197955", // USDT
   "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", // USDC
@@ -21,6 +23,7 @@ const TOKENS = [
   "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", // XRP
 ];
 
+// GraphQL queries for stats and trades
 const statsQuery = gql`
   query volume($id: String!) {
     volumeStat(id: $id) {
@@ -48,6 +51,7 @@ const tradeCountQuery = gql`
   }
 `;
 
+// Fetch daily volume, fees, and trade count
 const fetchVolume = async (timestamp: number) => {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
   const variables = { id: `${dayTimestamp}:daily`, timestamp: dayTimestamp };
@@ -59,13 +63,23 @@ const fetchVolume = async (timestamp: number) => {
 
   const volume = stats.volumeStat || {};
   const fees = stats.feeStat || {};
-  const dailyVolume = Object.values(volume).reduce((a: any, b: any) => a + Number(b || 0), 0);
-  const dailyFees = Object.values(fees).reduce((a: any, b: any) => a + Number(b || 0), 0);
+
+  // Convert from wei to token units
+  const dailyVolume = Object.values(volume).reduce(
+    (a: number, b: any) => a + Number(b || 0) / 1e18,
+    0
+  );
+  const dailyFees = Object.values(fees).reduce(
+    (a: number, b: any) => a + Number(b || 0) / 1e18,
+    0
+  );
+
   const tradeCount = trades.trades?.length || 0;
 
   return { timestamp: dayTimestamp, dailyVolume, dailyFees, tradeCount };
 };
 
+// Fetch total vault balances (TVL)
 const tvl = async (_ts: number, _ethBlock: number, { bsc: block }) =>
   await sumTokens2({
     chain: "bsc",
@@ -73,6 +87,7 @@ const tvl = async (_ts: number, _ethBlock: number, { bsc: block }) =>
     tokensAndOwners: TOKENS.map((t) => [t, VAULT]),
   });
 
+// DefiLlama adapter export
 const adapter: Adapter = {
   adapter: {
     bsc: {
