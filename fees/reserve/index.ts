@@ -149,11 +149,11 @@ const fetch = async (options: FetchOptions) => {
     });
   });
 
-  const yieldFolioMeltedLogs: any[] = await options.getLogs({
+  const yieldFolioMeltedLogs: any[] = yieldFoliosList.length ?  await options.getLogs({
     targets: yieldFoliosList,
     eventAbi: ABI.melted,
     flatten: false,
-  });
+  }) : [];
 
   const yieldFolioMeltedResults = yieldFoliosList.map((folio: any, i: number) => ({
     folio,
