@@ -2,16 +2,17 @@ import { request, gql } from "graphql-request";
 import { sumTokens2 } from "../../helpers/unwrapLPs";
 import { Adapter } from "../../helpers/types";
 
+// ✅ Goldsky subgraph endpoints (MoneyX ecosystem)
 const endpoints = {
   stats: "https://api.goldsky.com/api/public/project_clhjdosm96z2v49wghcvog65t/subgraphs/project_clhjdosm96z2v4/moneyx-stats/gn",
   trades: "https://api.goldsky.com/api/public/project_clhjdosm96z2v49wghcvog65t/subgraphs/moneyx-trades/v1.0.1/gn",
   raw: "https://api.goldsky.com/api/public/project_clhjdosm96z2v49wghcvog65t/subgraphs/moneyx-raw/v1.0.0/gn",
 };
 
-// Vault contract holding protocol assets
+// ✅ Core vault holding protocol TVL
 const VAULT = "0xeB0E5E1a8500317A1B8fDd195097D5509Ef861de";
 
-// Supported assets (BNB Chain)
+// ✅ Supported tokens on BNB Chain
 const TOKENS = [
   "0x55d398326f99059fF775485246999027B3197955", // USDT
   "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d", // USDC
@@ -23,7 +24,7 @@ const TOKENS = [
   "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", // XRP
 ];
 
-// GraphQL queries for stats and trades
+// ✅ Subgraph query definitions
 const statsQuery = gql`
   query volume($id: String!) {
     volumeStat(id: $id) {
@@ -51,7 +52,7 @@ const tradeCountQuery = gql`
   }
 `;
 
-// Fetch daily volume, fees, and trade count
+// ✅ Fetch daily volume, fees, and trade count
 const fetchVolume = async (timestamp: number) => {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
   const variables = { id: `${dayTimestamp}:daily`, timestamp: dayTimestamp };
@@ -64,13 +65,13 @@ const fetchVolume = async (timestamp: number) => {
   const volume = stats.volumeStat || {};
   const fees = stats.feeStat || {};
 
-  // Convert from wei to token units
+  // ⚙️ GMX-style precision: values are in 1e30 USD units
   const dailyVolume = Object.values(volume).reduce(
-    (a: number, b: any) => a + Number(b || 0) / 1e18,
+    (a: number, b: any) => a + Number(b || 0) / 1e30,
     0
   );
   const dailyFees = Object.values(fees).reduce(
-    (a: number, b: any) => a + Number(b || 0) / 1e18,
+    (a: number, b: any) => a + Number(b || 0) / 1e30,
     0
   );
 
@@ -79,7 +80,7 @@ const fetchVolume = async (timestamp: number) => {
   return { timestamp: dayTimestamp, dailyVolume, dailyFees, tradeCount };
 };
 
-// Fetch total vault balances (TVL)
+// ✅ Fetch on-chain vault balances for TVL
 const tvl = async (_ts: number, _ethBlock: number, { bsc: block }) =>
   await sumTokens2({
     chain: "bsc",
@@ -87,12 +88,12 @@ const tvl = async (_ts: number, _ethBlock: number, { bsc: block }) =>
     tokensAndOwners: TOKENS.map((t) => [t, VAULT]),
   });
 
-// DefiLlama adapter export
+// ✅ DefiLlama adapter configuration
 const adapter: Adapter = {
   adapter: {
     bsc: {
       fetch: fetchVolume,
-      start: async () => 1720000000,
+      start: async () => 1720000000, // ~July 2024
       tvl,
     },
   },
