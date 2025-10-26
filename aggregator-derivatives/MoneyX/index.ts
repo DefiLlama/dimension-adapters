@@ -1,6 +1,6 @@
 import { request, gql } from "graphql-request";
-import { sumTokens2 } from "../helpers/unwrapLPs";
-import { Adapter } from "../helpers/types";
+import { sumTokens2 } from "../../helper/unwrapLPs";
+import { Adapter } from "../../helper/types";
 
 const endpoints = {
   stats: "https://api.goldsky.com/api/public/project_clhjdosm96z2v49wghcvog65t/subgraphs/project_clhjdosm96z2v4/moneyx-stats/gn",
@@ -50,7 +50,6 @@ const tradeCountQuery = gql`
 
 const fetchVolume = async (timestamp: number) => {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-
   const variables = { id: `${dayTimestamp}:daily`, timestamp: dayTimestamp };
 
   const [stats, trades] = await Promise.all([
@@ -62,7 +61,6 @@ const fetchVolume = async (timestamp: number) => {
   const fees = stats.feeStat || {};
   const dailyVolume = Object.values(volume).reduce((a: any, b: any) => a + Number(b || 0), 0);
   const dailyFees = Object.values(fees).reduce((a: any, b: any) => a + Number(b || 0), 0);
-
   const tradeCount = trades.trades?.length || 0;
 
   return { timestamp: dayTimestamp, dailyVolume, dailyFees, tradeCount };
