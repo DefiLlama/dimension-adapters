@@ -262,7 +262,7 @@ const adapters: Adapter = {
     // TODO: Track Sui & Aptos
   }),
   methodology: {
-    Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers,Executions, CCTP and Cross chain message fees.',
+    Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers, Executions, CCTP and Cross chain message fees.',
   }
 };
 

@@ -1,6 +1,13 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { addTokensReceived } from "../helpers/token";
+
+const BUY_BACK_WALLETS = [
+    '0x8d4ab2a3e89eadfdc729204adf863a0bfc7746f6',
+];
+
+const BUY_BACK_TOKEN = '0x1bc0c42215582d5a085795f4badbac3ff36d1bcb';
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
@@ -118,10 +125,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.addUSDValue(res[0].daily_fees_usd);
     const dailyProtocolRevenue = dailyFees.clone(0.2) // 20% of fees to protocol
 
+    const dailyHoldersRevenue = options.createBalances();
+    addTokensReceived({
+        options,
+        balances: dailyHoldersRevenue,
+        targets: BUY_BACK_WALLETS,
+        tokens: [BUY_BACK_TOKEN],
+    })
+
     return {
         dailyFees,
         dailyRevenue: dailyProtocolRevenue,
-        dailyProtocolRevenue: dailyProtocolRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue: dailyProtocolRevenue,
     };
 };
 
@@ -135,6 +151,7 @@ const adapter: SimpleAdapter = {
         Fees: "All trading and launching tokens fees paid by users.",
         Revenue: "Clanker protocol collects 20% of LP fees.",
         ProtocolRevenue: "Clanker protocol collects 20% of LP fees.",
+        HoldersRevenue: "Amount of CLANKER tokens buy back.",
     }
 };
 
