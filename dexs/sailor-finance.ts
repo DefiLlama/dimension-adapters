@@ -26,13 +26,12 @@ const fetch = async (options: FetchOptions) => {
   const { pairs } = await filterPools2(filterObject)
   const filteredPoolStats = poolStats.filter((pool: any) => pairs.includes(pool.id))
 
-
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
 
   const logs = await options.getLogs({
     eventAbi: poolSwapEvent,
-    targets: poolStats.map((item: any) => item.id),
+    targets: filteredPoolStats.map((item: any) => item.id),
     flatten: false,
   })
 
@@ -49,7 +48,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees.clone(0.16),
-    dailyHolderRevenue: 0,
+    dailyHoldersRevenue: 0,
     dailyProtocolRevenue: dailyFees.clone(0.16),
     dailySupplySideRevenue: dailyFees.clone(0.84),
   }
