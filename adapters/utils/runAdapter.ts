@@ -75,6 +75,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 }
 
 type AdapterRunOptions = {
+  deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -121,6 +122,7 @@ async function _runAdapter({
   module, endTimestamp, name,
   isTest = false,
   withMetadata = false,
+  deadChains = new Set(),
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
@@ -173,7 +175,7 @@ async function _runAdapter({
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
-    return validStart[chain]?.canRun
+    return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
   Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
