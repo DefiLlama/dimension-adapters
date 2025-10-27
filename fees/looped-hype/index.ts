@@ -53,7 +53,7 @@ const adapter: Adapter = {
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: "2025-03-01",
+  start: "2025-02-18",
 };
 
 export default adapter;
