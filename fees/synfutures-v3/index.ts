@@ -79,10 +79,10 @@ const adapter: Adapter = {
   version: 2,
   methodology,
   adapter: {
-    [CHAIN.BLAST]: {
-      fetch: graphs(endpoints),
-      start: '2024-02-27',
-    },
+    // [CHAIN.BLAST]: {
+    //   fetch: graphs(endpoints),
+    //   start: '2024-02-27',
+    // }, sunset - '2025-04-11
     [CHAIN.BASE]: {
       fetch: graphs(endpoints),
       start: '2024-06-26',
