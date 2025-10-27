@@ -47,9 +47,9 @@ const adapter: Adapter = {
   version: 2,
   methodology: {
     Fees: "Staking rewards and fees accumulated on the strategy pools and vaults.",
-    Revenue: "The share of staking rewards and fees for Looping Collective.",
-    ProtocolRevenue: "The share of staking rewards and fees for Looping Collective.",
-    SupplySideRevenue: "The share of yield distributed to LHYPE depositors.",
+    Revenue: "20% of staking rewards and fees for Looping Collective.",
+    ProtocolRevenue: "20% of staking rewards and fees for Looping Collective.",
+    SupplySideRevenue: "80% of yield distributed to LHYPE depositors after fee switch(100% before 17th october 2025).",
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
