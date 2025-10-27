@@ -38,8 +38,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  console.log(fees);
-  dailyFees.addUSDValue(fees[0].fee_usd);
+  dailyFees.addUSDValue(Number(fees[0].fee_usd));
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
