@@ -71,7 +71,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 tokenAddress 
             FROM 
                 socialdex_base.SocialDexDeployer_evt_TokenCreated
-            WHERE evt_block_time > TIMESTAMP '2024-11-27'
+            WHERE evt_block_time > TIMESTAMP '2024-11-08'
                 AND evt_block_time <= from_unixtime(${options.endTimestamp})
                 AND evt_tx_from IN (0xe0c959eedcfd004952441ea4fb4b8f5af424e74b,
                                 0xc204af95b0307162118f7bc36a91c9717490ab69)
@@ -137,7 +137,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
-        dailyHoldersRevenue: dailyProtocolRevenue,
+        dailyHoldersRevenue,
     };
 };
 
