@@ -66,8 +66,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
       return {
         dailyFees: dailyFee,
-        dailyMakerRebates: dailyMakerRebates,
-        dailyFeesToLp: dailyFeesToLP,
         dailyProcotolFees: dailyProcotolFees,
       };
     };
