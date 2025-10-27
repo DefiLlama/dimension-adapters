@@ -53,7 +53,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = createBalances();
       const dailyMakerRebates = createBalances();
       const dailyFeesToLP = createBalances();
-      const dailyProcotolFees = createBalances();
+      const dailyProtocolRevenue = createBalances();
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
@@ -61,13 +61,13 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailyFee.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.protocolFee), record.quote.decimals))
         dailyMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) - Number(record.poolFee), record.quote.decimals))
         dailyFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.poolFee), record.quote.decimals))
-        dailyProcotolFees.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
+        dailyProtocolRevenue.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
       }
 
       return {
         dailyFees: dailyFee,
-        dailyRevenue: dailyProcotolFees,
-        dailyProcotolFees: dailyProcotolFees,
+        dailyRevenue: dailyProtocolRevenue,
+        dailyProtocolRevenue,
       };
     };
     return fetch 
