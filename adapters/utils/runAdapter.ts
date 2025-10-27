@@ -313,7 +313,13 @@ async function _runAdapter({
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
+    const problematicChains = new Set(['sei'])
+
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
+
+
+      if (problematicChains.has(chain)) throw new Error(`getLogs is disabled for ${chain} chain due to frequent timeouts`)
+
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
