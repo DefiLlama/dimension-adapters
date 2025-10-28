@@ -167,6 +167,7 @@ const breakdownMethodology = {
     ProtocolRevenue: {
         [METRIC.OPEN_CLOSE_FEES]: "All fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "All fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     }
 };
 
