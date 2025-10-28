@@ -46,11 +46,6 @@ const evmContracts: Record<string, any> = {
     executor: '0xe6Ea5087c6860B94Cf098a403506262D8F28cF05',
     startDate: '2023-06-16'
   },
-  // [CHAIN.CREDIT_COIN]: { // not available in defillama yet
-  //   standardRelayer: null,
-  //   executor: '0xd2e420188f17607Aa6344ee19c3e76Cf86CA7BDe',
-  //   startDate: '2025-09-25'
-  // },
   [CHAIN.FANTOM]: {
     standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
     executor: null,
@@ -111,11 +106,6 @@ const evmContracts: Record<string, any> = {
     executor: '0xcFAdDE24640e395F5A71456A825D0D7C3741F075',
     startDate: '2024-05-02'
   },
-  [CHAIN.SEI]: {
-    standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
-    executor: '0x25f1c923fb7a5aefa5f0a2b419fc70f2368e66e5',
-    startDate: '2025-05-23'
-  },
   [CHAIN.SONIC]: {
     standardRelayer: null,
     executor: '0x3Fdc36b4260Da38fBDba1125cCBD33DD0AC74812',
@@ -131,16 +121,27 @@ const evmContracts: Record<string, any> = {
     executor: '0x8689b4E6226AdC8fa8FF80aCc3a60AcE31e8804B',
     startDate: '2024-11-13'
   },
-  [CHAIN.XLAYER]: {
-    standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
-    executor: null,
-    startDate: '2024-07-03'
-  },
   [CHAIN.XRPL_EVM]: {
     standardRelayer: null,
     executor: '0x8345E90Dcd92f5Cf2FAb0C8E2A56A5bc2c30d896',
     startDate: '2025-08-22'
   },
+  
+  // [CHAIN.CREDIT_COIN]: { // not available in defillama yet
+  //   standardRelayer: null,
+  //   executor: '0xd2e420188f17607Aa6344ee19c3e76Cf86CA7BDe',
+  //   startDate: '2025-09-25'
+  // },
+  // [CHAIN.XLAYER]: {
+  //   standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
+  //   executor: null,
+  //   startDate: '2024-07-03'
+  // },
+  // [CHAIN.SEI]: {
+  //   standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
+  //   executor: '0x25f1c923fb7a5aefa5f0a2b419fc70f2368e66e5',
+  //   startDate: '2025-05-23'
+  // },
 };
 
 const fetchExecutorFees = async (options: FetchOptions, dailyFees: Balances): Promise<void> => {
@@ -263,6 +264,8 @@ const adapters: Adapter = {
   }),
   methodology: {
     Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers, Executions, CCTP and Cross chain message fees.',
+    Revenue: 'Wormhole makes no revenue.',
+    SupplySideRevenue: 'All execution fees are collected by Relayers.',
   }
 };
 
