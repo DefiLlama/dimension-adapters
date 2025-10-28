@@ -178,7 +178,11 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
     await fetchExecutorFees(options, dailyFees);
   }
 
-  return {dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0}
+  return {
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
+  }
 };
 
 interface IData {
@@ -239,7 +243,11 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
     })
   }
 
-  return {dailyFees}
+  return {
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
+  }
 };
 
 
