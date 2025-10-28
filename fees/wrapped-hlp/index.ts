@@ -13,20 +13,15 @@ const WHLP = {
 
 const BASE_COINGECKO_ID = "usdt0";
 
-async function erBeforeAfter(
-  options: FetchOptions,
-  target: string,
-  abi: string,
-): Promise<[number | null, number | null]> {
+async function erBeforeAfter(options: FetchOptions, target: string, abi: string): Promise<[number, number]> {
   const [before, after] = await Promise.all([
-    options.fromApi.call({ target, abi, params: [], permitFailure: true }),
-    options.toApi.call({ target, abi, params: [], permitFailure: true }),
+    options.fromApi.call({ target, abi, params: [] }),
+    options.toApi.call({ target, abi, params: [] }),
   ]);
-  if (before == null || after == null) return [null, null];
   return [Number(before), Number(after)];
 }
 
-const fetch: Adapter["fetch"] = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -34,43 +29,22 @@ const fetch: Adapter["fetch"] = async (options: FetchOptions) => {
   const totalSharesRaw = await options.api.call({
     target: WHLP.shareToken,
     abi: "function totalSupply() view returns (uint256)",
-    permitFailure: true,
   });
 
-  const [erBefore, erAfter] = await erBeforeAfter(
-    options,
-    WHLP.accountant,
-    WHLP.accountantAbi,
-  );
-
-  if (!totalSharesRaw || erBefore == null || erAfter == null) {
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue,
-    };
-  }
+  const [erBefore, erAfter] = await erBeforeAfter(options, WHLP.accountant, WHLP.accountantAbi);
 
   const shares = Number(totalSharesRaw) / WHLP.shareDecimals;
   const growthPerShare = (erAfter - erBefore) / WHLP.erDecimals;
-
-  if (growthPerShare <= 0) {
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue,
-    };
+  
+  if (growthPerShare > 0) {
+    const grossRewards = shares * growthPerShare;
+    const protocolRevenue = grossRewards * WHLP.performanceFeeRate;
+    const supplySideRevenue = grossRewards - protocolRevenue;
+  
+    dailyFees.addCGToken(BASE_COINGECKO_ID, grossRewards);
+    dailySupplySideRevenue.addCGToken(BASE_COINGECKO_ID, supplySideRevenue);
+    dailyRevenue.addCGToken(BASE_COINGECKO_ID, protocolRevenue);
   }
-
-  const grossRewards = shares * growthPerShare;
-  const protocolRevenue = grossRewards * WHLP.performanceFeeRate;
-  const supplySideRevenue = grossRewards - protocolRevenue;
-
-  dailyFees.addCGToken(BASE_COINGECKO_ID, grossRewards);
-  dailySupplySideRevenue.addCGToken(BASE_COINGECKO_ID, supplySideRevenue);
-  dailyRevenue.addCGToken(BASE_COINGECKO_ID, protocolRevenue);
 
   return {
     dailyFees,
@@ -83,14 +57,10 @@ const fetch: Adapter["fetch"] = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   methodology: {
-    Fees:
-      "Total fees generated from HLP by the WHLP vault and its deployed strategies.",
-    Revenue:
-      "The share of fees for Looping Collective.",
-    ProtocolRevenue:
-      "The share of fees for Looping Collective.",
-    SupplySideRevenue:
-      "Yield distributed to WHLP holders.",
+    Fees: "Total fees generated from HLP by the WHLP vault and its deployed strategies.",
+    Revenue: "The share of fees for Looping Collective.",
+    ProtocolRevenue: "The share of fees for Looping Collective.",
+    SupplySideRevenue: "Yield distributed to WHLP holders.",
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
