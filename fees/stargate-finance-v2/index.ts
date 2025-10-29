@@ -1,3 +1,16 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
@@ -20,7 +33,7 @@ const contracts: IAddress = {
     "0xcDafB1b2dB43f366E48e6F614b8DCCBFeeFEEcD3",
     "0x268Ca24DAefF1FaC2ed883c598200CcbB79E931D",
   ],
-  [CHAIN.BSC]: ["0x138EB30f73BC423c6455C53df6D89CB01d9eBc63"],
+  [CHAIN.BSC]: ["0x138EB30f73BC423c6455C53df6D89CB01d9eBc63", "0x962Bd449E630b0d928f308Ce63f1A21F02576057"],
   [CHAIN.AVAX]: [
     "0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47",
     "0x12dC9256Acc9895B076f6638D628382881e62CeE",
@@ -67,10 +80,14 @@ const contracts: IAddress = {
     "0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3",
     "0xe9aBA835f813ca05E50A6C0ce65D0D74390F7dE7",
   ],
+  [CHAIN.SEI]:["0x45d417612e177672958dC0537C45a8f8d754Ac2E", "0x0dB9afb4C33be43a0a0e396Fd1383B4ea97aB10a"], 
   [CHAIN.LIGHTLINK_PHOENIX]: ["0x8731d54E9D02c286767d56ac03e8037C07e01e98"],
   [CHAIN.HEMI]: [ADDRESSES.fuse.WETH_3],
   [CHAIN.SONIC]: ["0x45d417612e177672958dC0537C45a8f8d754Ac2E"],
-};
+  [CHAIN.SONEIUM]:["0x45f1A95A4D3f3836523F5c83673c797f4d4d263B", ADDRESSES.fuse.WETH_3],
+  [CHAIN.MANTA]:["0x9895D81bB462A195b4922ED7De0e3ACD007c32CB"],
+  [CHAIN.SWELLCHAIN]:["0xCc0587aeBDa397146cc828b445dB130a94486e74"]
+};  
 
 async function getPoolFees(
   { api, fromApi, toApi, createBalances }: FetchOptions,
