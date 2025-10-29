@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
@@ -54,6 +54,7 @@ const methodology = {
 const adapter: Adapter = {
     version: 1,
     fetch,
+    dependencies: [Dependencies.DUNE],
     chains: [CHAIN.ETHEREUM, CHAIN.UNICHAIN, CHAIN.BSC],
     start: '2025-06-05',
     methodology,

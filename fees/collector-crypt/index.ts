@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
@@ -69,7 +69,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         const netRevenue = totalRevenue - (result.buyback_expense || 0);
         
         // Add total revenue (gacha + marketplace fees)
-        if (totalRevenue > 0) {
+        if (netRevenue > 0) {
             dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
         }
     }
@@ -95,6 +95,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2025-06-04',
+    dependencies: [Dependencies.DUNE],
     methodology,
 }
 

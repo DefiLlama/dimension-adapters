@@ -2,26 +2,27 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const endpoint = "https://api.thetis.market/indexer/v1/stats/";
+const endpoint = "https://api.thetis.market/indexer/v1/stats/volume-daily";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const startTime = options.startOfDay;
-  const endTime = startTime + 86400;
+  const data = await fetchURL(endpoint);
 
-  const [{ swap } = { swap: 0 }] = [] = await fetchURL(`${endpoint}volume-daily?startTime=${startTime}&endTime=${endTime}`);
+  let dailyVolume = 0;
+  for (const item of data) {
+    if (item.time == startTime) {
+      dailyVolume += ((item.swap) / 1e18);
+    }
+  }
 
-  return {
-    dailyVolume: swap / 1e18
-  };
+  return { dailyVolume };
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: "2024-08-09"
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: "2024-08-09",
 };
 
 export default adapter;

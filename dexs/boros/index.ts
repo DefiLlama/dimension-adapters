@@ -7,6 +7,7 @@ const BOROS_ABIS = {
     MARKET_ORDERS_FILLED_EVENT: 'event MarketOrdersFilled (bytes26 user, uint256 totalTrade, uint256 totalFees)',
     OTC_SWAP_EVENT: 'event OtcSwap (bytes26 user, bytes26 counterParty, uint256 trade, int256 cashToCounter, uint256 otcFee)',
     PAYMENT_FROM_SETTLEMENT_EVENT: 'event PaymentFromSettlement (bytes26 user, uint256 lastFTime, uint256 latestFTime, int256 payment, uint256 fees)',
+    LIQUIDATION_EVENT: 'event Liquidate (bytes26 liq, bytes26 vio, uint256 liqTrade, uint256 liqFee)',
 }
 
 const BOROS_FACTORY = '0x3080808080Ee6a795c1a6Ff388195Aa5F11ECeE0';
@@ -22,24 +23,25 @@ interface BorosMarket {
     coinGeckoId: string;
 };
 
-const SYMBOL_TO_CGID = {
-    'ETH': 'ethereum',
-    'BTC': 'bitcoin',
+const TOKENID_TO_CGID: Record<number, string> = {
+    1: 'bitcoin',
+    2: 'ethereum',
+    3: 'tether',
 };
 
-const getCgId = (marketSymbol: string) => {
-    let symbol = "";
-    try {
-        symbol = marketSymbol.split("-")[1].replace("USDT", "");
-    } catch (error) {
-        console.error("Failed to extract base asset from symbol:", symbol, error);
-        return null;
-    }
-    const cgId = SYMBOL_TO_CGID[symbol];
+// AMMConfigUpdated transactions, ignore volume from these transactions
+const EXCLUDE_OTC_SWAPS: Array<string> = [
+    '0x752eea9b38bb427e10a1ae0b8a55783cd700033c6967ae70590202645a1177ad',
+    '0xf8e45548cbf08c48c71d054ce872f7e8cbef6633b45224a28d5c7c5128471856',
+]
+
+const getCgId = (tokenId: number): string => {
+    const cgId = TOKENID_TO_CGID[tokenId];
+
     if (!cgId) {
-        console.error("No CG mapping for symbol:", symbol);
-        return null;
+        throw Error(`No CG mapping for tokenId: ${tokenId}`)
     }
+
     return cgId;
 }
 
@@ -61,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
             address: marketLog.market,
             symbol: marketLog.immData.symbol,
             maturity: Number(marketLog.immData.k_maturity),
-            coinGeckoId: getCgId(marketLog.immData.symbol),
+            coinGeckoId: getCgId(marketLog.immData.k_tokenId),
         }))
         .filter(market => market.coinGeckoId);
 
@@ -69,13 +71,19 @@ const fetch = async (options: FetchOptions) => {
         const marketOrderFilledLogs = await options.getLogs({
             target: market.address,
             eventAbi: BOROS_ABIS.MARKET_ORDERS_FILLED_EVENT,
+            onlyArgs: false,
         });
 
-        marketOrderFilledLogs.forEach(trade => {
+        marketOrderFilledLogs.forEach((item: any) => {
+            const trade = item.args;
+
             let tradeAmount = trade.totalTrade >> 128n;
             if (tradeAmount > TWO_127)
                 tradeAmount = TWO_128 - tradeAmount;
+
             dailyVolume.addCGToken(market.coinGeckoId, Number(tradeAmount) / 1e18);
+
+            // add open/close fees
             dailyFees.addCGToken(market.coinGeckoId, Number(trade.totalFees) / 1e18, METRIC.OPEN_CLOSE_FEES);
             dailyRevenue.addCGToken(market.coinGeckoId, Number(trade.totalFees) / 1e18, METRIC.OPEN_CLOSE_FEES);
         });
@@ -83,13 +91,24 @@ const fetch = async (options: FetchOptions) => {
         const otcSwapLogs = await options.getLogs({
             target: market.address,
             eventAbi: BOROS_ABIS.OTC_SWAP_EVENT,
+            onlyArgs: false,
         });
 
-        otcSwapLogs.forEach(swap => {
-            let tradeAmount = swap.trade >> 128n;
-            if (tradeAmount > TWO_127)
-                tradeAmount = TWO_128 - tradeAmount;
-            dailyVolume.addCGToken(market.coinGeckoId, Number(tradeAmount) / 1e18);
+        otcSwapLogs.forEach((item: any) => {
+            if (EXCLUDE_OTC_SWAPS.includes(item.transaction_hash)) {
+                return;
+            }
+
+            const swap = item.args;
+
+            // let tradeAmountAfterFee = swap.trade >> 128n;
+            // if (tradeAmountAfterFee > TWO_127)
+            //     tradeAmountAfterFee = TWO_128 - tradeAmountAfterFee;
+
+            // don't add volume from otc swap
+            // dailyVolume.addCGToken(market.coinGeckoId, (Number(tradeAmountAfterFee) + Number(swap.otcFee)) / 1e18);
+
+            // add swap fees
             dailyFees.addCGToken(market.coinGeckoId, Number(swap.otcFee) / 1e18, METRIC.SWAP_FEES);
             dailySupplySideRevenue.addCGToken(market.coinGeckoId, Number(swap.otcFee) / 1e18, METRIC.SWAP_FEES)
         })
@@ -101,6 +120,16 @@ const fetch = async (options: FetchOptions) => {
         paymentSettlementLogs.forEach(settlement => {
             dailyFees.addCGToken(market.coinGeckoId, Number(settlement.fees) / 1e18, METRIC.TRADING_FEES);
             dailyRevenue.addCGToken(market.coinGeckoId, Number(settlement.fees) / 1e18, METRIC.TRADING_FEES);
+        });
+
+        const liquidationLogs = await options.getLogs({
+            target:market.address,
+            eventAbi:BOROS_ABIS.LIQUIDATION_EVENT
+        });
+
+        liquidationLogs.forEach((liquidation:any)=>{
+            dailyFees.addCGToken(market.coinGeckoId, Number(liquidation.liqFee)/1e18,METRIC.LIQUIDATION_FEES);
+            dailyRevenue.addCGToken(market.coinGeckoId, Number(liquidation.liqFee) / 1e18, METRIC.LIQUIDATION_FEES);
         });
     }));
 
@@ -114,7 +143,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-    Fees: "Includes open/close trades fees, swap fees and settlement fees.",
+    Fees: "Includes open/close trades fees, swap fees, liquidation and settlement fees.",
     Revenue: "Include open/close fees and settlement fees going to the protocol.",
     SupplySideRevenue: "Swap fees paid to vault liquidity providers.",
     ProtocolRevenue: "Include open/close fees and settlement fees going to the protocol.",
@@ -125,10 +154,12 @@ const breakdownMethodology = {
         [METRIC.SWAP_FEES]: "Total fees from token swaps.",
         [METRIC.OPEN_CLOSE_FEES]: "Total fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "Total fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     },
     Revenue: {
         [METRIC.OPEN_CLOSE_FEES]: "All fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "All fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     },
     SupplySideRevenue: {
         [METRIC.SWAP_FEES]: "Total fees from token swaps distributed to liquidity providers.",
@@ -136,6 +167,7 @@ const breakdownMethodology = {
     ProtocolRevenue: {
         [METRIC.OPEN_CLOSE_FEES]: "All fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "All fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     }
 };
 

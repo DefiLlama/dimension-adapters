@@ -173,8 +173,8 @@ const info = {
   methodology: {
     Fees: 'All fees paid by users for swap and bridge tokens via deBridge.',
     Revenue: 'Fees are distributed to deBridge protocol.',
-    ProtocolRevenue: '0% of fee goes to protocol treasury from 20th june 2025.',
-    HoldersRevenue: '100% protocol revenue is used for buyback(started from 20th june 2025).',
+    ProtocolRevenue: 'Fee goes to protocol treasury from 20th june 2025.',
+    HoldersRevenue: 'Protocol revenue is used for buyback(started from 20th june 2025).',
   }
 }
 
@@ -182,7 +182,7 @@ const adapter: Adapter = {
   methodology: info.methodology,
   version: 1,
   adapter: Object.keys(config).reduce((acc, chain) => {
-    acc[chain] = {
+    (acc as any)[chain] = {
       fetch,
       start: config[chain].start,
     }

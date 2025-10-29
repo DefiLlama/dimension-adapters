@@ -41,7 +41,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -68,7 +68,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
 
-    if (!pairIds.length) return { 
+    if (!pairIds.length) return {
       dailyVolume,
       dailyFees,
       dailyUserFees: userFeesRatio !== undefined ? 0 : undefined,
@@ -78,10 +78,12 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
     const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
       const pair = pairIds[index]
+      if (blacklistPoolsSet && blacklistPoolsSet.has(pair.toLowerCase())) return;
       let _fees = isStablePair[index] ? stableFees : fees
       const [token0, token1] = pairObject[pair]
       logs.forEach((log: any) => {
@@ -140,7 +142,7 @@ const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
 
@@ -149,9 +151,15 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
     const iface = new ethers.Interface([poolCreatedEvent])
+    const algebraIface = new ethers.Interface([algebraV3PoolCreatedEvent])
     let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
-    logs = logs.map((log: any) => iface.parseLog(log)?.args)
+
+      if (isAlgebraV3)
+      logs = logs.map((log: any) => algebraIface.parseLog(log)?.args)
+    else
+      logs = logs.map((log: any) => iface.parseLog(log)?.args)
+
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
 
@@ -182,10 +190,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoo
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
     const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
       const pair = Object.keys(filteredPairs)[index]
+      if (blacklistPoolsSet && blacklistPoolsSet.has(pair.toLowerCase())) return;
       const [token0, token1] = pairObject[pair]
       const fee = fees[pair]
       logs.forEach((log: any) => {
@@ -226,6 +236,7 @@ type UniV2Config = {
   revenueRatio?: number,
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
+  blacklistPools?: Array<string>,
 }
 
 type UniV3Config = {
@@ -240,6 +251,7 @@ type UniV3Config = {
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
   start?: number | string,
+  blacklistPools?: Array<string>,
 }
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {}) {

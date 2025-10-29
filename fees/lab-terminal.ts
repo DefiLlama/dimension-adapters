@@ -1,12 +1,16 @@
 import ADDRESSES from "../helpers/coreAssets.json";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
 const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
-  const FEE_WALLET = "Eno27Pu6ok2nNwLTgNCLnFmY2YxQsAXecmrnnLvJeFYh";
+  const FEE_WALLETS = [
+    "Eno27Pu6ok2nNwLTgNCLnFmY2YxQsAXecmrnnLvJeFYh",
+    "3VZjDxp8grQbocYwEisZxSpvpw4XURL1CBwii5gkoAw6",
+  ];
 
   const combinedQuery = `
     WITH
@@ -20,7 +24,9 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
           block_time >= from_unixtime(${options.startTimestamp})
           AND block_time <= from_unixtime(${options.endTimestamp})
           AND tx_success
-          AND address = '${FEE_WALLET}'
+          AND address IN (${FEE_WALLETS.map((wallet) => `'${wallet}'`).join(
+            ", "
+          )})
           AND balance_change > 0
       ),
       botTrades AS (
@@ -37,7 +43,9 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
         WHERE
           trades.block_time >= from_unixtime(${options.startTimestamp})
           AND trades.block_time <= from_unixtime(${options.endTimestamp})
-          AND trades.trader_id != '${FEE_WALLET}'
+          AND trades.trader_id NOT IN (${FEE_WALLETS.map(
+            (wallet) => `'${wallet}'`
+          ).join(", ")})
       )
     SELECT
       COALESCE(SUM(allFeePayments.balance_change), 0) AS daily_fees,
@@ -60,9 +68,11 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  chains: [CHAIN.SOLANA],
+  version: 1,
   fetch,
+  chains: [CHAIN.SOLANA],
   start: "2025-06-29",
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Trading tokens fees paid by users",

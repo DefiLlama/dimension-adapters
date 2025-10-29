@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -75,6 +75,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ETHEREUM]: {fetch, start: '2024-11-01'},
     [CHAIN.BASE]: { fetch, start: '2024-11-01' },

@@ -123,7 +123,7 @@ export const LifiDiamonds: IContract = {
   },
   [CHAIN.BSC]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-    startTime: '2023-07-21'
+    startTime: '2023-07-21',
   },
   [CHAIN.LINEA]: {
     id: '0xDE1E598b81620773454588B85D6b5D4eEC32573e',
@@ -193,11 +193,11 @@ export const LifiDiamonds: IContract = {
     id: '0xC59fe32C9549e3E8B5dCcdAbC45BD287Bd5bA2bc',
     startTime: '2025-07-01'
   },
-  [CHAIN.HYPEREVM]: {
+  [CHAIN.HYPERLIQUID]: {
     id: '0x0a0758d937d1059c356D4714e57F5df0239bce1A',
     startTime: '2025-06-01'
   },
-  [CHAIN.KAIA]: {
+  [CHAIN.KLAYTN]: {
     id: '0x1255d17c1BC2f764d087536410879F2d0D8772fD',
     startTime: '2025-08-01'
   },

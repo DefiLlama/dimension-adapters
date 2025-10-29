@@ -22,7 +22,7 @@ const DEFAULTS: any = {
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
-  APTOS_PRC: 'https://aptos-mainnet.pontem.network',
+  APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   HYDRAGON_RPC: "https://rpc-mainnet.hydrachain.org",
   TAC_RPC: "https://rpc.tac.build",
   FRAXTAL_RPC: "https://rpc.frax.com",
@@ -68,6 +68,7 @@ export const ENV_KEYS = new Set([
   'VIRTUS_BACKEND_BASE',
   'DUNE_BULK_MODE',
   'DUNE_BULK_MODE_BATCH_TIME',
+  'LLAMA_HL_INDEXER',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

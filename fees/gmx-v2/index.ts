@@ -2,7 +2,7 @@
 // https://dune.com/queries/4959575/9826428
 // https://dune.com/queries/5234847/8604606 - for refill
 
-import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
@@ -258,6 +258,7 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
 
 const adapter: Adapter = {
     version: 1,
+    dependencies: [Dependencies.DUNE],
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,

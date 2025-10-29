@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -129,20 +129,18 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
+    version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2025-02-20',
     breakdownMethodology,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-02-20',
-        }
-    },
     methodology: {
         Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
         Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
         SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
         Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
     },
-    version: 1,
     isExpensiveAdapter: true
 }
 

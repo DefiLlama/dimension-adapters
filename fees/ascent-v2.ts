@@ -64,6 +64,7 @@ const getFees = () => {
 
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-05-05',  // EON chain is deprecated
   version: 2,
   adapter: {
     [CHAIN.EON]: {

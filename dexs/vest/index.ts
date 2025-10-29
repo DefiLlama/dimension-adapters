@@ -24,7 +24,7 @@ const fetch = async (): Promise<FetchResultVolume> => {
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
-        [CHAIN.BASE]: {
+        [CHAIN.OFF_CHAIN]: {
             fetch,
             runAtCurrTime: true,
             start: '2025-01-01',
