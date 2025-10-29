@@ -82,7 +82,7 @@ export enum CHAIN {
   STELLAR = "stellar",
   ALGORAND = "algorand",
   TELOS = "telos",
-  VICTION = "viction",
+  TOMOCHAIN = "tomochain",
   BITGERT = "bitgert",
   FINDORA = "findora",
   FUNCTIONX = "functionx",
