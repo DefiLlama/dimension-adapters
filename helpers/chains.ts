@@ -277,4 +277,5 @@ export enum CHAIN {
   LORENZO = 'lorenzo',
   MEZO = 'mezo',
   RUNES = 'runes',
+  ETHEREAL = "ethereal",
 }
