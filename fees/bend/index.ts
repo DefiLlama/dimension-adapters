@@ -18,7 +18,6 @@ const methodology = {
 
 const abi = {
   morphoBlueFunctions: {
-    idToMarketParams: "function idToMarketParams(bytes32 Id) returns (address loanToken, address collateralToken, address oracle, address irm, uint256 lltv)",
     market: "function market(bytes32 input) returns (uint128 totalSupplyAssets, uint128 totalSupplyShares, uint128 totalBorrowAssets, uint128 totalBorrowShares, uint128 lastUpdate, uint128 fee)",
     feeRecipient: "function feeRecipient() returns(address feeRecipient)"
   },
@@ -30,7 +29,8 @@ const abi = {
   },
   morphoBlueEvents: {
     AccrueInterest: "event AccrueInterest(bytes32 indexed id, uint256 prevBorrowRate, uint256 interest, uint256 feeShares)",
-    Liquidate: "event Liquidate(bytes32 indexed id,address indexed caller,address indexed borrower,uint256 repaidAssets,uint256 repaidShares,uint256 seizedAssets,uint256 badDebtAssets,uint256 badDebtShares)",
+    CreateMarket: "event CreateMarket(bytes32 indexed id, tuple(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) marketParams)",
+    Liquidate: "event Liquidate(bytes32 indexed id,address indexed caller,address indexed borrower,uint256 repaidAssets,uint256 repaidShares,uint256 seizedAssets,uint256 badDebtAssets,uint256 badDebtShares)"
   },
   metaMorphoEvents: {
     Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)"
@@ -88,54 +88,52 @@ function _getLIFFromLLTV(lltv: bigint): bigint {
 
 const _getWhitelistedVaults = async () => {
   const data = await request(BERACHAIN_API, `
-            {
-                polGetRewardVaults(where: {protocolsIn: ["Bend"], includeNonWhitelisted: false}) {
-                    vaults {
-                        stakingTokenAddress
-                    }
-                }
-            }
-        `);
+          {
+              polGetRewardVaults(where: {protocolsIn: ["Bend"], includeNonWhitelisted: false}) {
+                  vaults {
+                      stakingTokenAddress
+                  }
+              }
+          }
+      `);
   return data.polGetRewardVaults.vaults.map((v: RewardVault) => v.stakingTokenAddress);
 }
 
-const _fetchMarkets = async (options: FetchOptions): Promise<Array<MorphoMarket>> => {
-  const whitelistedVaults = await _getWhitelistedVaults();
+const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<MorphoMarket>> => {
+  const markets: Array<MorphoMarket> = [];
 
-  const marketIds = await options.api.fetchList(
-    { lengthAbi: 'withdrawQueueLength', itemAbi: abi.metaMorphoFunctions.withdrawQueue, targets: whitelistedVaults }
-  )
-
-  const [marketsData, marketsFees] = await Promise.all([
-    options.api.multiCall({
-      target: CONFIG.blue,
-      calls: marketIds,
-      abi: abi.morphoBlueFunctions.idToMarketParams,
-    }),
-    options.api.multiCall({
-      target: CONFIG.blue,
-      calls: marketIds,
-      abi: abi.morphoBlueFunctions.market,
-    }),
-  ]);
-
-  return marketsData.map((item: any, idx: number) => {
-    return {
-      marketId: marketIds[idx],
-      loanAsset: item.loanToken,
-      collateralAsset: item.collateralToken,
-      lltv: item.lltv,
-      lif: _getLIFFromLLTV(item.lltv),
-      fee: BigInt(marketsFees[idx]?.fee),
-    };
+  const events = await options.getLogs({
+    target: CONFIG.blue,
+    eventAbi: abi.morphoBlueEvents.CreateMarket,
+    fromBlock: CONFIG.fromBlock,
   });
+
+  const marketIds = events.map(event => event.id)
+
+  const marketsInfo = await options.api.multiCall({
+    target: CONFIG.blue,
+    calls: marketIds,
+    abi: abi.morphoBlueFunctions.market,
+  });
+
+  events.forEach((event, idx) => {
+    markets.push({
+      marketId: event.id,
+      loanAsset: event.marketParams.loanToken,
+      collateralAsset: event.marketParams.collateralToken,
+      lltv: BigInt(event.marketParams.lltv),
+      lif: _getLIFFromLLTV(BigInt(event.marketParams.lltv)),
+      fee: BigInt(marketsInfo[idx]?.fee)
+    })
+  })
+
+  return markets;
 }
 
 const fetchEvents = async (
   options: FetchOptions
 ): Promise<{ interests: Array<MorphoBlueAccrueInterestEvent>, liquidations: Array<MorphoBlueLiquidateEvent> }> => {
-  let markets: Array<MorphoMarket> = await _fetchMarkets(options)
-
+  let markets: Array<MorphoMarket> = await fetchMarketsFromLogs(options)
 
   const marketMap = {} as { [key: string]: MorphoMarket };
   markets.forEach((item) => {
@@ -207,12 +205,12 @@ const fetchPerformanceFees = async (options: FetchOptions): Promise<Array<Perfor
       target: v,
       eventAbi: abi.metaMorphoEvents.Transfer,
     }))
-    .filter(log => log[0] == ZERO_ADDRESS && log[1] == feeRecipient)
-    .map(log => log[2])
-    .reduce((totalAmount: bigint, value: bigint) => totalAmount + value, 0n);
+      .filter(log => log[0] == ZERO_ADDRESS && log[1] == feeRecipient)
+      .map(log => log[2])
+      .reduce((totalAmount: bigint, value: bigint) => totalAmount + value, 0n);
 
     const assetAmount = await options.api.call({
-      target: v, 
+      target: v,
       abi: abi.metaMorphoFunctions.convertToAssets,
       params: [sharesAmount]
     })
@@ -250,7 +248,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(event.token, bonus, METRIC.LIQUIDATION_FEES);
   }
 
-  for (const performanceFee of performanceFees ) {
+  for (const performanceFee of performanceFees) {
     dailyRevenue.add(performanceFee.token, performanceFee.amount, METRIC.PERFORMANCE_FEES)
   }
 
