@@ -36,50 +36,50 @@ const createFuelVolumeFetcher = () => {
   }
 }
 
-const SUPPORTED_CHAIN_MAPPING: { [chain: Chain]: number } = {
-  [CHAIN.MANTLE]: 5000,
-  [CHAIN.OPTIMISM]: 10,
-  [CHAIN.POLYGON]: 137,
-  [CHAIN.LINEA]: 59144,
-  [CHAIN.BSC]: 56,
-  [CHAIN.AVAX]: 43114,
-  [CHAIN.TAIKO]: 167000,
-  [CHAIN.BASE]: 8453,
-  [CHAIN.ARBITRUM]: 42161,
-  [CHAIN.BLAST]: 81457,
-  [CHAIN.METIS]: 1088,
-  [CHAIN.XDAI]: 100,
-  [CHAIN.MODE]: 34443,
-  [CHAIN.HEMI]: 43111,
-  [CHAIN.SCROLL]: 534352,
-  [CHAIN.CORE]: 1116,
-  [CHAIN.SONIC]: 146,
-  [CHAIN.FANTOM]: 250,
-  [CHAIN.KLAYTN]: 8217, // Kaia
-  [CHAIN.SONEIUM]: 1868,
-  [CHAIN.HYPERLIQUID]: 999,
-  [CHAIN.BERACHAIN]: 80094,
-  [CHAIN.CRONOS]: 25,
-  [CHAIN.XDC]: 50,
-  [CHAIN.UNICHAIN]: 130,
-  [CHAIN.KATANA]: 747474,
-  [CHAIN.ETHEREUM]: 1,
-  [CHAIN.TELOS]: 40,
-  [CHAIN.MORPH]: 2818,
-  [CHAIN.MANTA]: 169,
-  [CHAIN.PLASMA]: 9745,
-  [CHAIN.MOONBEAM]: 1284,
+const SUPPORTED_CHAIN_MAPPING: { [chain: Chain]: { chainId: number, start: string } } = {
+  [CHAIN.MANTLE]: { chainId: 5000, start: '2025-03-01' },
+  [CHAIN.OPTIMISM]: { chainId: 10, start: '2025-03-01' },
+  [CHAIN.POLYGON]: { chainId: 137, start: '2025-03-01' },
+  [CHAIN.LINEA]: { chainId: 59144, start: '2025-03-01' },
+  [CHAIN.BSC]: { chainId: 56, start: '2025-03-01' },
+  [CHAIN.AVAX]: { chainId: 43114, start: '2025-03-01' },
+  [CHAIN.TAIKO]: { chainId: 167000, start: '2025-03-01' },
+  [CHAIN.BASE]: { chainId: 8453, start: '2025-03-01' },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2025-03-01' },
+  [CHAIN.BLAST]: { chainId: 81457, start: '2025-03-01' },
+  [CHAIN.METIS]: { chainId: 1088, start: '2025-03-01' },
+  [CHAIN.XDAI]: { chainId: 100, start: '2025-03-01' },
+  [CHAIN.MODE]: { chainId: 34443, start: '2025-03-01' },
+  [CHAIN.HEMI]: { chainId: 43111, start: '2025-03-01' },
+  [CHAIN.SCROLL]: { chainId: 534352, start: '2025-03-01' },
+  [CHAIN.CORE]: { chainId: 1116, start: '2025-03-01' },
+  [CHAIN.SONIC]: { chainId: 146, start: '2025-03-01' },
+  [CHAIN.FANTOM]: { chainId: 250, start: '2025-03-01' },
+  [CHAIN.KLAYTN]: { chainId: 8217, start: '2025-10-21' }, // Kaia
+  [CHAIN.SONEIUM]:  { chainId: 1868, start: '2025-10-21' },
+  [CHAIN.HYPERLIQUID]:  { chainId: 999, start: '2025-10-21' },
+  [CHAIN.BERACHAIN]:  { chainId: 80094, start: '2025-10-21' },
+  [CHAIN.CRONOS]:  { chainId: 25, start: '2025-10-21' },
+  [CHAIN.XDC]:  { chainId: 50, start: '2025-10-21' },
+  [CHAIN.UNICHAIN]:  { chainId: 130, start: '2025-10-21' },
+  [CHAIN.KATANA]:  { chainId: 747474, start: '2025-10-21' },
+  [CHAIN.ETHEREUM]:  { chainId: 1, start: '2025-10-21' },
+  [CHAIN.TELOS]:  { chainId: 40, start: '2025-10-21' },
+  [CHAIN.MORPH]:  { chainId: 2818, start: '2025-10-21' },
+  [CHAIN.MANTA]:  { chainId: 169, start: '2025-10-21' },
+  [CHAIN.PLASMA]:  { chainId: 9745, start: '2025-10-21' },
+  [CHAIN.MOONBEAM]:  { chainId: 1284, start: '2025-10-21' },
 }
 
 const getEVMVolumeAPI = (chainId: number, fromBlock: number, toBlock: number) =>
   `https://volume.1delta.io/volume?chainId=${chainId}&fromBlock=${fromBlock}&toBlock=${toBlock}`
 
-const createEVMVolumeFetcher = (chain: string) => {
+const createEVMVolumeFetcher = (cId?: number) => {
   return async ({ getFromBlock, getToBlock, api, createBalances }: FetchOptions) => {
     const dailyVolume = createBalances()
 
-    const chainId: number | undefined = SUPPORTED_CHAIN_MAPPING[chain] ?? api.chainId
-    if (!chainId) throw new Error(`Chain ${chain} is not supported`)
+    const chainId: number | undefined = cId ?? api.chainId
+    if (!chainId) throw new Error(`Chain is not supported`)
 
     const fromBlock = await getFromBlock()
     const toBlock = await getToBlock()
@@ -113,9 +113,9 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     ...Object.fromEntries(
-      Object.keys(SUPPORTED_CHAIN_MAPPING).map(chain => [
+      Object.entries(SUPPORTED_CHAIN_MAPPING).map(([chain, { chainId, start }]) => [
         chain,
-        { fetch: createEVMVolumeFetcher(chain), start: '2025-03-01' }
+        { fetch: createEVMVolumeFetcher(chainId), start }
       ])
     ),
     [CHAIN.FUEL]: { fetch: createFuelVolumeFetcher(), start: '2025-01-20' }
