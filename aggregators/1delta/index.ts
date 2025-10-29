@@ -74,12 +74,9 @@ const SUPPORTED_CHAIN_MAPPING: { [chain: Chain]: { chainId: number, start: strin
 const getEVMVolumeAPI = (chainId: number, fromBlock: number, toBlock: number) =>
   `https://volume.1delta.io/volume?chainId=${chainId}&fromBlock=${fromBlock}&toBlock=${toBlock}`
 
-const createEVMVolumeFetcher = (cId?: number) => {
+const createEVMVolumeFetcher = (chainId: number) => {
   return async ({ getFromBlock, getToBlock, api, createBalances }: FetchOptions) => {
     const dailyVolume = createBalances()
-
-    const chainId: number | undefined = cId ?? api.chainId
-    if (!chainId) throw new Error(`Chain is not supported`)
 
     const fromBlock = await getFromBlock()
     const toBlock = await getToBlock()
