@@ -27,7 +27,7 @@ const createFuelVolumeFetcher = () => {
       .then((result) => {
         const rows = result.syncSqlResponse.result?.rows || []
 
-        const dailyVolume = rows.reduce((acc: number, row) => acc + Number(row.volumeUsd), 0)
+        const dailyVolume = rows.reduce((acc: number, row: any) => acc + Number(row.volumeUsd), 0)
 
         return {
           dailyVolume,
@@ -45,7 +45,7 @@ const SUPPORTED_CHAIN_MAPPING: { [chain: Chain]: number } = {
   [CHAIN.AVAX]: 43114,
   [CHAIN.TAIKO]: 167000,
   [CHAIN.BASE]: 8453,
-  // [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.ARBITRUM]: 42161,
   [CHAIN.BLAST]: 81457,
   [CHAIN.METIS]: 1088,
   [CHAIN.XDAI]: 100,
@@ -54,7 +54,21 @@ const SUPPORTED_CHAIN_MAPPING: { [chain: Chain]: number } = {
   [CHAIN.SCROLL]: 534352,
   [CHAIN.CORE]: 1116,
   [CHAIN.SONIC]: 146,
-  [CHAIN.FANTOM]: 250
+  [CHAIN.FANTOM]: 250,
+  [CHAIN.KLAYTN]: 8217, // Kaia
+  [CHAIN.SONEIUM]: 1868,
+  [CHAIN.HYPERLIQUID]: 999,
+  [CHAIN.BERACHAIN]: 80094,
+  [CHAIN.CRONOS]: 25,
+  [CHAIN.XDC]: 50,
+  [CHAIN.UNICHAIN]: 130,
+  [CHAIN.KATANA]: 747474,
+  [CHAIN.ETHEREUM]: 1,
+  [CHAIN.TELOS]: 40,
+  [CHAIN.MORPH]: 2818,
+  [CHAIN.MANTA]: 169,
+  [CHAIN.PLASMA]: 9745,
+  [CHAIN.MOONBEAM]: 1284,
 }
 
 const getEVMVolumeAPI = (chainId: number, fromBlock: number, toBlock: number) =>
