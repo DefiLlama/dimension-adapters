@@ -52,7 +52,7 @@ const chains: Record<string, string> = {
   [CHAIN.KROMA]: 'kroma',
   [CHAIN.XLAYER]: 'xlayer',
   [CHAIN.SEI]: 'sei',
-  [CHAIN.EON]: 'horizen-eon',
+  // [CHAIN.EON]: 'horizen-eon',   // chain is dead
   [CHAIN.BAHAMUT]: 'bahamut',
   [CHAIN.KLAYTN]: 'klaytn',
   // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',

@@ -62,10 +62,10 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2024-02-29',
-    },
+    // [CHAIN.BLAST]: {
+    //   fetch,
+    //   start: '2024-02-29',
+    // }, sunset -> '2025-04-11
     [CHAIN.BASE]: {
       fetch,
       start: '2024-06-26',

@@ -1,18 +1,25 @@
 import { gql, request } from "graphql-request";
 
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 
 interface DappStat {
   volume_usd: number;
 }
 
-interface DailyVolumeResponse {
+interface TezosVolumeResponse {
   dapp_stat_1d: DappStat[];
 }
 
+interface EtherlinkVolumeResponse {
+  day: string;
+  total_volume: number;
+}
+
 const dappSlug = '3route'
-const endpoint = 'https://dapps-indexer.dipdup.net/v1/graphql';
+const tezosURL = 'https://dapps-indexer.dipdup.net/v1/graphql';
+const etherlinkURL = 'https://3route-etherlink.dipdup.net/v1/volume/day'
 
 const query = gql`
   query GetDailyVolume($dappSlug: String!, $startDate: timestamptz!, $endDate: timestamptz!) {
@@ -31,11 +38,11 @@ const query = gql`
 `;
 
 
-const fetch = async (_: any, _1: any, { startOfDay }: FetchOptions): Promise<FetchResult> => {
+const fetchTezos = async (_: any, _1: any, { startOfDay }: FetchOptions): Promise<FetchResult> => {
   const startDate = new Date(startOfDay * 1000).toISOString()
   const endDate = new Date((startOfDay + 86400) * 1000).toISOString()
 
-  const response = await request<DailyVolumeResponse>(endpoint, query, { dappSlug, startDate, endDate })
+  const response = await request<TezosVolumeResponse>(tezosURL, query, { dappSlug, startDate, endDate })
   if (response.dapp_stat_1d.length == 0) {
     return { dailyVolume: 0 }
   }
@@ -45,12 +52,30 @@ const fetch = async (_: any, _1: any, { startOfDay }: FetchOptions): Promise<Fet
   }
 }
 
+const fetchEtherlink = async (_: any, _1: any, { startOfDay }: FetchOptions): Promise<FetchResult> => {
+  const startDate = new Date(startOfDay * 1000).toISOString().split('T')[0]
+  const endDate = new Date((startOfDay + 86400) * 1000).toISOString().split('T')[0]
+
+  const response: EtherlinkVolumeResponse[] = await fetchURL(`${etherlinkURL}?start=${startDate}&end=${endDate}`);
+  if (response.length == 0) {
+    return { dailyVolume: 0 }
+  }
+
+  return {
+    dailyVolume: response[0].total_volume
+  }
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.TEZOS]: {
-      fetch,
+      fetch: fetchTezos,
       start: '2022-11-15',
+    },
+    [CHAIN.ETHERLINK]: {
+      fetch: fetchEtherlink,
+      start: '2025-09-01',
     },
   },
 };

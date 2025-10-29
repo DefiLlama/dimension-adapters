@@ -14,10 +14,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   logs.forEach((log: any) => {
-
-
-    dailyFees.add(log.collateralToken, log.amount);
-
+    dailyFees.add('0xEDB5180661F56077292C92Ab40B1AC57A279a396', log.amount);
   });
 
   return {
