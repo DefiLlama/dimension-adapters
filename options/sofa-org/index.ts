@@ -70,10 +70,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: startTimestamp[CHAIN.POLYGON],
     },
-    [CHAIN.SEI]: {
-      fetch,
-      start: startTimestamp[CHAIN.SEI],
-    },
+    // [CHAIN.SEI]: {
+    //   fetch,
+    //   start: startTimestamp[CHAIN.SEI],
+    // },
   }
 }
 

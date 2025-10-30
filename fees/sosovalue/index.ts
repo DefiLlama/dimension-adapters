@@ -12,6 +12,7 @@ const chainMapping: { [key: string]: { chain: CHAIN; gasCgTokenId: string | null
     'BTC': { chain: CHAIN.BITCOIN, gasCgTokenId: 'bitcoin' },
     'XRP': { chain: CHAIN.RIPPLE, gasCgTokenId: 'ripple' },
     'ADA': { chain: CHAIN.CARDANO, gasCgTokenId: 'cardano' },
+    'HYPEREVM_HYPE': { chain: CHAIN.HYPERLIQUID, gasCgTokenId: 'hyperliquid' },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -27,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
         const feeTokenset = log.feeTokenset;
         feeTokenset.forEach((tokenData: any) => {
             const [chainStr, _symbol, addr, _decimalsFromLog, amount] = tokenData;
-
+            
             const mappedChainData = chainMapping[chainStr];
             if (!mappedChainData) {
                 throw new Error(`Chain ${chainStr} not found in mapping`);
