@@ -73,27 +73,18 @@ const fetch = async (options: FetchOptions) => {
   const toBlock = await options.getToBlock()
 
   const url = `https://volume.1delta.io/volume?chainId=${chainConfig[chain].chainId}&fromBlock=${fromBlock}&toBlock=${toBlock}`
-  const response = await httpGet(url, {
+
+  const volumeByAsset = await httpGet(url, {
     headers: {
       'Content-Type': 'application/json',
     }
   })
 
-  const volumeByAsset = response.data
-
-  if (!volumeByAsset || Object.keys(volumeByAsset).length === 0) {
-    return {
-      dailyVolume,
-    }
-  }
-
   Object.entries(volumeByAsset).forEach(([asset, volume]) => {
     dailyVolume.add(asset, volume)
   })
 
-  return {
-    dailyVolume,
-  }
+  return { dailyVolume }
 }
 
 const adapter: Adapter = {
