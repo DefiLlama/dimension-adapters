@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
-import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { getAllDexTokensBlacklisted } from "../../helpers/lists";
 
 const chainsMap: Record<string, string> = {
   [CHAIN.ETHEREUM]: 'ethereum',
@@ -19,7 +19,7 @@ const chainsMap: Record<string, string> = {
 };
 
 const prefetch = async (options: FetchOptions) => {
-  //const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC);
+  const blacklisted = getAllDexTokensBlacklisted();
 
   const sql_query = `
   with sol as (
@@ -69,6 +69,8 @@ const prefetch = async (options: FetchOptions) => {
                 )
             and not amount_usd is null
             and TIME_RANGE
+            and token_sold_address NOT IN (${blacklisted.toString()}) 
+            and token_bought_address NOT IN (${blacklisted.toString()}) 
     )
         , total as (
         select
@@ -97,16 +99,16 @@ const prefetch = async (options: FetchOptions) => {
   return result;
 };
 
-const fetch = async (
-  _a: any,
-  _b: any,
-  options: FetchOptions
-): Promise<FetchResult> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.blockchain === chainsMap[options.chain]);
 
+  if (!chainData) {
+    throw Error(`can not get data from query chain ${options.chain}`);
+  }
+  
   return {
-    dailyVolume: chainData ? chainData.volume_24h : 0,
+    dailyVolume: chainData.volume_24h,
   };
 };
 
