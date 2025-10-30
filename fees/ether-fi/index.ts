@@ -508,13 +508,13 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
       abi: accountStateAbi,
       target: vault.accountant,
     });
-    const vaultFees = vaultState.managementFee / 100;
+    const vaultFees = vaultState.managementFee / (100 * 100); // as fees are in basis points
 
     const totalSupply_vault = await getTotalSupply(options, vault.target);
     const [asset_vault, rate_vault] = await getPayoutDetails(options, vault.accountant);
 
-    dailyFees.add(asset_vault, (totalSupply_vault * rate_vault) / 1e18 * vaultFees / YEAR, 'LIQUID_VAULT_FEES');
-    dailyRevenue.add(asset_vault, (totalSupply_vault * rate_vault) / 1e18 * vaultFees / YEAR, 'LIQUID_VAULT_FEES');
+    dailyFees.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees/ YEAR), 'LIQUID_VAULT_FEES');
+    dailyRevenue.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), 'LIQUID_VAULT_FEES');
   }
 
   // stETH holding rewards from Lido rebasing (protocol keeps revenue portion, stakers get fees)
