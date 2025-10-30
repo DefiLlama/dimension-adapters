@@ -84,6 +84,16 @@ export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
   return DefaultDexTokensBlacklisted[chain] ? DefaultDexTokensBlacklisted[chain].map(item => formatAddress(item)) : [];
 }
 
+export function getAllDexTokensBlacklisted(): Array<string> {
+  let bl: Array<string> = [];
+  
+  for (const tokens of Object.values(DefaultDexTokensBlacklisted)) {
+    bl = bl.concat(tokens.map(item => formatAddress(item)))
+  }
+  
+  return bl;
+}
+
 interface ChainTokenConfig {
   chainId: number;
   tokenListUrl: string;
