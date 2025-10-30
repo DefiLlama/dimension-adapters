@@ -6,15 +6,16 @@ const FUEL_SUBGRAPH_URL = 'https://endpoint.sentio.xyz/1delta/fuel-subgraph/volu
 const FUEL_SUBGRAPH_API_KEY = 'mHWELZ01Oo3BRfGb0WrhFvryge78baQVT'
 
 const fetchFuelVolume = async (options: FetchOptions) => {
-  const data = await httpPost(FUEL_SUBGRAPH_URL, {
+  const data = await httpPost(
+    FUEL_SUBGRAPH_URL, 
+    JSON.stringify({
+      "startTimestamp": options.startTimestamp,
+      "endTimestamp": options.endTimestamp
+    }), {
     headers: {
       'api-key': FUEL_SUBGRAPH_API_KEY,
       'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      "startTimestamp": options.startTimestamp,
-      "endTimestamp": options.endTimestamp
-    }),
+    }
   })
 
   const dailyVolume = data.syncSqlResponse.result?.rows.reduce((acc: number, row: any) => acc + Number(row.volumeUsd), 0)
