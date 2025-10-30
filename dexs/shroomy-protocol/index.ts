@@ -1,8 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const TransformedERC20Event =
-  "event TransformedERC20(address indexed taker, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
+const TransformedERC20Event = "event TransformedERC20(address indexed taker, address inputToken, address outputToken, uint256 inputTokenAmount, uint256 outputTokenAmount)";
 
 const SHROOMY_AGGREGATOR_ADDRESS = "0x6cAcD722b95C1a5D055a3A45932C42246060132e"
 
@@ -26,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-   };
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -34,10 +33,10 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2025-09-15",
   methodology: {
-    Volume: "Total trading volume aggregated via Shroomy Protocol routers.",
-    Fees: "Flat 0.05% amount of trading fees on all trades.",
-    Revenue: "Flat 0.05% amount of trading fees on all trades are revenue.",
-    ProtocolRevenue: "Flat 0.05% amount of trading fees on all trades are revenue.",
+    Volume: "Total trading swap volume via Shroomy Protocol.",
+    Fees: "Flat 0.05% amount of trading swap fees on all trades.",
+    Revenue: "Flat 0.05% amount of trading swap fees on all trades are revenue.",
+    ProtocolRevenue: "Flat 0.05% amount of trading swap fees on all trades are revenue.",
   },
   chains: [CHAIN.INK],
 };
