@@ -62,6 +62,7 @@ const graphsV2 = getChainVolume({
 
 const uniV2LogAdapters = uniV2Exports({
   [CHAIN.BSC]: { factory: '0x4f8bdc85e3eec5b9de67097c3f59b6db025d9986', start: '2022-10-04', fees: TOTAL_FEES, revenueRatio: PROTOCOL_FEES/TOTAL_FEES, holdersRevenueRatio: PROTOCOL_FEES/TOTAL_FEES, },
+  [CHAIN.AVAX]: { factory: '0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10', start: '2021-08-09', fees: TOTAL_FEES, revenueRatio: PROTOCOL_FEES/TOTAL_FEES, holdersRevenueRatio: PROTOCOL_FEES/TOTAL_FEES, },
 }, { runAsV1: true,})
 
 const adapter: BreakdownAdapter = {
@@ -69,10 +70,10 @@ const adapter: BreakdownAdapter = {
   breakdown: {
     v1: {
       ...uniV2LogAdapters.adapter,
-      [CHAIN.AVAX]: {
-        fetch: fetchV1,
-        start: '2021-08-09',
-      },
+      // [CHAIN.AVAX]: {
+      //   fetch: fetchV1,
+      //   start: '2021-08-09',
+      // },
       [CHAIN.ARBITRUM]: {
         fetch: fetchV1,
         start: '2022-10-04',
