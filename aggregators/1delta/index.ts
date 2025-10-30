@@ -80,6 +80,12 @@ const fetch = async (options: FetchOptions) => {
 
   const volumeByAsset = response.data
 
+  if (!volumeByAsset || Object.keys(volumeByAsset).length === 0) {
+    return {
+      dailyVolume,
+    }
+  }
+
   Object.entries(volumeByAsset).forEach(([asset, volume]) => {
     dailyVolume.add(asset, volume)
   })
