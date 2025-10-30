@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-async function fetch(_a: any, _b: any, { startTimestamp, endTimestamp, chain }: FetchOptions) {
+async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
   if (chain === CHAIN.APTOS && endTimestamp > 1747958400){
     return { dailyVolume: 0 }
   }
@@ -21,7 +21,7 @@ async function fetch(_a: any, _b: any, { startTimestamp, endTimestamp, chain }: 
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SUI, CHAIN.APTOS],
   start: '2023-05-02',
