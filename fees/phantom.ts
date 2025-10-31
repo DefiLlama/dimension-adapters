@@ -16,6 +16,7 @@ const solana_fee_wallet_addresses = [
 
 const solana_blacklist_mints = [
   'DWxU1Ew5yjFebSui8xzRYPE3FwgGzp8F1iKcQFyUezJX',
+  '2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F'
 ];
 
 // ETH fee wallet addresses
