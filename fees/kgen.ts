@@ -86,7 +86,7 @@ async function getEventData(
     for (let seq = totalEvents - 1; seq >= 0; seq -= PAGE_SIZE) {
       const batchStart = Math.max(seq - PAGE_SIZE + 1, 0);
 
-      const url = `${APTOS_PRC}/v1/accounts/${contractAddress}/events/${creationNum}?start=${batchStart}&limit=${PAGE_SIZE}`;
+      const url = `${APTOS_RPC}/v1/accounts/${contractAddress}/events/${creationNum}?start=${batchStart}&limit=${PAGE_SIZE}`;
 
       const events: any[] = await fetchURL(url);
       if (!events?.length) break;
@@ -191,7 +191,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.APTOS]: {
       fetch: fetchAptosRevenue,
       start: "2025-06-02", 
-      meta: { methodology },
 
     },
     [CHAIN.POLYGON]: {
