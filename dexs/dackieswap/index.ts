@@ -15,7 +15,7 @@ const factories: {[key: string]: string} = {
   [CHAIN.BLAST]: '0xCFC8BfD74422472277fB5Bc4Ec8851d98Ecb2976',
   [CHAIN.MODE]: '0xc6f3966E5D08Ced98aC30f8B65BeAB5882Be54C7',
   [CHAIN.LINEA]: '0xc6255ec7CDb11C890d02EBfE77825976457B2470',
-  [CHAIN.XLAYER]: '0xc6f3966e5d08ced98ac30f8b65beab5882be54c7',
+  // [CHAIN.XLAYER]: '0xc6f3966e5d08ced98ac30f8b65beab5882be54c7',
 }
 
 function getRevenueRatio(fee: number): number {
@@ -73,26 +73,16 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
-const meta = {
+const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
     UserFees: "Same as Fees - total trading fees paid by users",
     Revenue: "Protocol fees collected by DackieSwap - 0.05% of each trade for most pools",
     SupplySideRevenue: "Fees distributed to LPs - 0.25% of each trade for most pools",
     ProtocolRevenue: "Protocol fees collected by DackieSwap - 0.05% of each trade for most pools",
-  }
-}
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BASE]: { fetch: fetch, meta, },
-    [CHAIN.OPTIMISM]: { fetch: fetch, meta, },
-    [CHAIN.ARBITRUM]: { fetch: fetch, meta },
-    [CHAIN.BLAST]: { fetch: fetch, meta },
-    [CHAIN.MODE]: { fetch: fetch, meta },
-    [CHAIN.LINEA]: { fetch: fetch, meta },
-    // [CHAIN.XLAYER]: { fetch: fetch, meta },
   },
+  fetch,
+  chains: Object.keys(factories),
   version: 2
 };
 

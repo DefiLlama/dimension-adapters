@@ -5,22 +5,47 @@ import { CHAIN } from "../helpers/chains";
 const topic0 = 'event AccrueRewards(uint256 userRewardAmount,uint256 protocolRewardAmount)';
 const address = ADDRESSES.avax.SAVAX
 
-const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
-  const dailyFees = createBalances()
-  const logs = await getLogs({ target: address, eventAbi: topic0 })
-  logs.map((log) => dailyFees.add(ADDRESSES.avax.SAVAX, log.protocolRewardAmount))
-  dailyFees.resizeBy(1 / 0.9)
+const fetchFees = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+
+  const sAvaxSupplyBefore = await options.fromApi.call({
+    target: address,
+    abi: 'uint256:totalSupply',
+  });
+  const sAvaxSupplyAfter = await options.toApi.call({
+    target: address,
+    abi: 'uint256:totalSupply',
+  });
+
+  const totalPooledAvaxBefore = await options.fromApi.call({
+    target: address,
+    abi: 'uint256:totalPooledAvax',
+  });
+
+  const totalPooledAvaxAfter = await options.toApi.call({
+    target: address,
+    abi: 'uint256:totalPooledAvax',
+  });
+
+  const dailysAvaxHoldersYield = (totalPooledAvaxAfter / sAvaxSupplyAfter - totalPooledAvaxBefore / sAvaxSupplyBefore) * (sAvaxSupplyAfter / 1e18);
+  dailyFees.addCGToken("avalanche-2", dailysAvaxHoldersYield/0.9);
+
   const dailyRevenue = dailyFees.clone(0.1)
-  const dailySupplySideRevenue = dailyFees.clone(0.9)
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
+const methodology = {
+  Fees: 'Total yields from staked Avax.',
+  Revenue: '10 % of the total yields are charged by Benqi.',
+  ProtocolRevenue: 'All revenue goes to the protocol'
+}
 const adapters: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetchFees,
-      start: '2022-02-13'
+      start: '2022-02-13',
     }
   }
 }

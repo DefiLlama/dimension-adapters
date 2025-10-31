@@ -1,12 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
-import { queryAllium } from "../helpers/allium";
-
-
-const HL_FEE_TOKEN_CG_MAPPING: Record<string, string> = {
-  'USDC': 'usd-coin'
-}
 
 // Solana fee wallet addresses
 const solana_fee_wallet_addresses = [
@@ -20,109 +14,60 @@ const solana_fee_wallet_addresses = [
   'D1NJy3Qq3RKBG29EDRj28ozbGwnhmM5yBUp8PonSYUnm',
 ];
 
+const solana_blacklist_mints = [
+  'DWxU1Ew5yjFebSui8xzRYPE3FwgGzp8F1iKcQFyUezJX',
+];
+
 // ETH fee wallet addresses
 const eth_fee_wallet_addresses = [
   '0x1bcc58d165e5374d7b492b21c0a572fd61c0c2a0',
-  '0x7afa9d836d2fccf172b66622625e56404e465dbd'
+  '0x7afa9d836d2fccf172b66622625e56404e465dbd',
+  '0x2cffed5d56eb6a17662756ca0fdf350e732c9818',
 ];
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+  // throw new Error('Fix bug that inflates fees')
   const dailyFees = await getSolanaReceived({ 
     options, 
     targets: solana_fee_wallet_addresses, 
-    blacklist_signers: solana_fee_wallet_addresses 
+    blacklist_signers: solana_fee_wallet_addresses,
+    blacklist_mints: solana_blacklist_mints,
   });
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 // ETH fetch function for each chain
-const fetchETH = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  // throw new Error('Fix bug that inflates fees')
   const dailyFees = await getETHReceived({
     options,
-    targets: eth_fee_wallet_addresses
+    targets: eth_fee_wallet_addresses,
+
+    // Phantom uses Matcha to sell their tokens for ETH
+    // we must exclude ETH transferred from Matcha Router contracts
+    notFromSenders: [
+      '0x8331f9ACcE69b02C281F40a00706f758665ccE77',
+      '0x07d889ebae9E9203a0443EdBa3cB5ca499c4ceF1',
+    ],
   });
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchHL = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
-  const query = `
-    SELECT 
-      PARSE_JSON(t._extra_fields):buyer:fee_token::string as buyer_fee_token,
-      PARSE_JSON(t._extra_fields):seller:fee_token::string as seller_fee_token,
-      SUM(COALESCE(TRY_TO_DECIMAL(PARSE_JSON(t._extra_fields):buyer:builder_fee::string, 38, 18), 0)) as buyer_builder_fee,
-      SUM(COALESCE(TRY_TO_DECIMAL(PARSE_JSON(t._extra_fields):seller:builder_fee::string, 38, 18), 0)) as seller_builder_fee
-    FROM hyperliquid.dex.trades t
-    WHERE timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
-    AND transaction_hash IN (SELECT 
-        hash
-      FROM hyperliquid.raw.transactions
-      WHERE action:builder:b = '0xb84168cf3be63c6b8dad05ff5d755e97432ff80b'
-        AND action:builder:f IS NOT NULL
-        AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-        AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
-    )
-    GROUP BY buyer_fee_token, seller_fee_token;
-  `;
-  const data = await queryAllium(query);
-
-  data.forEach((item: any) => {
-    if (item.buyer_fee_token) {
-      const token = HL_FEE_TOKEN_CG_MAPPING[item.buyer_fee_token];
-      if (token) {
-        const amount = parseFloat(item.buyer_builder_fee);
-        if (amount > 0) {
-          dailyFees.addCGToken(token, amount);
-        }
-      }
-    }
-    if (item.seller_fee_token) {
-      const token = HL_FEE_TOKEN_CG_MAPPING[item.seller_fee_token];
-      if (token) {
-        const amount = parseFloat(item.seller_builder_fee);
-        if (amount > 0) {
-          dailyFees.addCGToken(token, amount);
-        }
-      }
-    }
-  });
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-};
-
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Phantom wallet And Builder Code Fees.',
-    Revenue: 'Fees collected by Phantom and Builder Code Fees from Hyperliquid Perps.',
-  }
+const methodology = {
+  Fees: 'All fees paid by users for swapping, bridging in Phantom wallet.',
+  Revenue: 'Fees collected by Phantom.',
+  ProtocolRevenue: 'Fees collected by Phantom.',
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  methodology,
   adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      meta,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchETH,
-      meta,
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetchHL,
-      start: '2025-07-01',
-      meta
-    }
+    [CHAIN.SOLANA]: { fetch: fetchSolana },
+    [CHAIN.ETHEREUM]: { fetch },
+    [CHAIN.BASE]: { fetch },
+    [CHAIN.POLYGON]: { fetch },
   },
   isExpensiveAdapter: true
 };

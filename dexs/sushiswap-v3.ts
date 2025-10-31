@@ -1,12 +1,11 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { FetchOptions } from "../adapters/types";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
 const endpointsV3 = {
-  [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
+  // [CHAIN.ARBITRUM_NOVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-arbitrum-nova/gn",
   [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('96EYD64NqmnFxMELu2QLWB95gqCmA9N96ssYsZfFiYHg'),
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('94BrP5miCYj9qezUqULAYpuLtKb5AyAo4jnU6wsAj8JJ'),
   // [CHAIN.BSC]: sdk.graph.modifyEndpoint('FiJDXMFCBv88GP17g2TtPh8BcA8jZozn5WRW7hCN7cUT'), // index error
@@ -85,28 +84,14 @@ const startTimeV3: { [key: string]: number } = {
   [CHAIN.SONIC]: 1711982400,
 }
 
-const meta = {
-  methodology: {
-    Fees: "Each pool charge between 0.01% to 1% fee",
-    UserFees: "Users pay between 0.01% to 1% fee",
-    Revenue: "0 to 1/4 of the fee goes to treasury",
-    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
-    ProtocolRevenue: "Treasury receives a share of the fees",
-    SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
-  }
-}
-
 const v3: any = Object.keys(endpointsV3).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
       fetch: async (options: FetchOptions) => {
-        const res = (await v3Graphs(chain as Chain)(options))
+        const res = (await v3Graphs(options))
         const result = {
-          totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,
-          totalFees: res.totalFees,
-          totalUserFees: res.totalUserFees,
           dailyFees: res.dailyFees,
           dailyUserFees: res.dailyUserFees,
           dailyRevenue: res.dailyRevenue,
@@ -122,7 +107,6 @@ const v3: any = Object.keys(endpointsV3).reduce(
         return result;
       },
       start: startTimeV3[chain],
-      meta,
     },
   }),
   {}
@@ -135,18 +119,27 @@ const getUniV3LogAdapterConfig = {
   holdersRevenueRatio: 0,
 }
 
-v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.LINEA] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.THUNDERCORE] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba661d51a773d3a992Fc9DDCB', ...getUniV3LogAdapterConfig }), meta, }
-// v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), meta, }
+v3[CHAIN.ARBITRUM_NOVA] = { fetch: getUniV3LogAdapter({ factory: '0xaa26771d497814e81d305c511efbb3ced90bf5bd', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.LINEA] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.THUNDERCORE] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba661d51a773d3a992Fc9DDCB', ...getUniV3LogAdapterConfig }), }
+// v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), }
 
 export default {
   version: 2,
+  methodology: {
+    Fees: "Each pool charge between 0.01% to 1% fee",
+    UserFees: "Users pay between 0.01% to 1% fee",
+    Revenue: "0 to 1/4 of the fee goes to treasury",
+    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
+  },
   adapter: v3,
 }

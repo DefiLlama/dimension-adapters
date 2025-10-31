@@ -2,10 +2,13 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchResultV2, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from '../helpers/lists';
+import { formatAddress } from '../utils/utils';
 
 const ROUTE_RP45_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMin,uint256 amountOut)'
 const ROUTE_RP6_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
 const ROUTE_RP7_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
+const ROUTE_RP9_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 slippage, uint32 indexed referralCode, bytes32 diagnosticsFirst32)'
 
 const CHAIN_ID: any = {
   [CHAIN.ETHEREUM]: 1,
@@ -234,6 +237,144 @@ const RP8_ADDRESS: any = {
   [CHAIN.KATANA]: '0x2905d7e4D048d29954F81b02171DD313F457a4a4',
 }
 
+const RP9_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.ARBITRUM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.OPTIMISM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BASE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.POLYGON]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.AVAX]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BSC]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.LINEA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.ARBITRUM_NOVA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.XDAI]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.FANTOM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BITTORRENT]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.CELO]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.FILECOIN]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.HAQQ]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.KAVA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.METIS]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.THUNDERCORE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.SCROLL]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.ZETA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.MOONBEAM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.MOONRIVER]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.POLYGON_ZKEVM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.FUSE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.HARMONY]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.TELOS]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BOBA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BOBA_BNB]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.CORE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.CRONOS]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BLAST]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.SKALE_EUROPA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.ROOTSTOCK]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.ERA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.MANTLE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.MANTA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.MODE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.TAIKO]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.ZKLINK]: '0xE2eFedE921B3114fdde3F9529bc682dBAf742058',
+  [CHAIN.APECHAIN]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.SONIC]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.HEMI]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.KATANA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.HYPERLIQUID]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BERACHAIN]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+}
+
+const RP9_1_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ARBITRUM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.OPTIMISM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BASE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.POLYGON]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.AVAX]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BSC]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.LINEA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ARBITRUM_NOVA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.XDAI]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.FANTOM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BITTORRENT]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.CELO]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.FILECOIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HAQQ]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.KAVA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.METIS]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.THUNDERCORE]: '0x861255aef9aad3e268fb67a3c97afd490bff3d6b',
+  [CHAIN.SCROLL]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ZETA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.POLYGON_ZKEVM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HARMONY]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BOBA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BOBA_BNB]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.CORE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.CRONOS]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BLAST]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.SKALE_EUROPA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ROOTSTOCK]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ERA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.MANTLE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.MANTA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.MODE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.TAIKO]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.ZKLINK]: '0xfb7eedd827c4bed92b9b6c5159bee11301f3da8c',
+  [CHAIN.APECHAIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.SONIC]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HEMI]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.KATANA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HYPERLIQUID]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BERACHAIN]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.PLASMA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+}
+
+const RP9_2_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.ARBITRUM]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.OPTIMISM]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BASE]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.POLYGON]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.AVAX]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BSC]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.LINEA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.ARBITRUM_NOVA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.XDAI]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.FANTOM]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BITTORRENT]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.CELO]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.FILECOIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.HAQQ]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.KAVA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.METIS]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.THUNDERCORE]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.SCROLL]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.ZETA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.POLYGON_ZKEVM]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.HARMONY]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BOBA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BOBA_BNB]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.CORE]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.CRONOS]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BLAST]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.SKALE_EUROPA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.ROOTSTOCK]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.ERA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.MANTLE]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.MANTA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.MODE]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.TAIKO]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.ZKLINK]: '0xe0a091ceeb255ce3abc3b18305d48a07521e19e1',
+  [CHAIN.APECHAIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.SONIC]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.HEMI]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.KATANA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.HYPERLIQUID]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BERACHAIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.PLASMA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+}
+
 const WNATIVE_ADDRESS: any = {
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
   [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
@@ -278,6 +419,9 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.SONIC]: ADDRESSES.sonic.wS,
   [CHAIN.HEMI]: ADDRESSES.optimism.WETH_1,
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
+  [CHAIN.HYPERLIQUID]: ADDRESSES.hyperliquid.WHYPE,
+  [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
+  [CHAIN.PLASMA]: '0x6100e367285b01f48d07953803a2d8dca5d19873',
 }
 
 const useSushiAPIPrice = (chain: any) => [
@@ -288,31 +432,35 @@ const useSushiAPIPrice = (chain: any) => [
 interface Log {
   tokenIn: string;
   amountIn: string;
+  tokenOut: string;
+  amountOut: string;
 }
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
-  const logsPromises: Promise<Log[]>[] = []
+  const dailyVolume = createBalances()
 
-  if (RP4_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
-  }
-  if (RP5_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
-  }
-  if (RP6_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
-  }
-  if (RP7_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP7_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
-  }
-  if (RP8_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP8_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
-  }
+  let logs: Array<Log> = [];
 
-  const logs = (await Promise.all(logsPromises)).flat()
+  if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  if (RP5_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  if (RP6_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
+  if (RP7_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP7_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
+  if (RP8_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP8_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
+  if (RP9_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP9_1_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  
+  // count volune only from whitelisted tokens
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: chain})
+  if (whitelistedTokens.length > 0) {
+    logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
+      && !blacklistedTokens.includes(formatAddress(log.tokenIn))
+      && !blacklistedTokens.includes(formatAddress(log.tokenOut))
+    )
+  }
 
   if (useSushiAPIPrice(chain)) {
-    const dailyVolume = createBalances()
     const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
       acc[key.toLowerCase()] = value
       return acc
@@ -330,7 +478,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       return tokens
     }, {});
 
-    logs.forEach((log) => {
+    for (const log of logs) {
       const token = tokens[log.tokenIn.toLowerCase()]
       if (token && log.tokenIn.toLowerCase() !== ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
         const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
@@ -340,22 +488,19 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
         if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
         dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
       }
-    })
-
-    return { dailyVolume }
+    }
   } else {
-    const dailyVolume = createBalances()
-
-    logs.forEach((log) => {
+    for (const log of logs) {
       if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
         dailyVolume.addGasToken(log.amountIn)
-      else
+      else {
         dailyVolume.add(log.tokenIn, log.amountIn)
-    })
-
-    return { dailyVolume }
+      }
+    }
   }
+
+  return { dailyVolume }
 }
 
 const adapters = {
@@ -383,10 +528,10 @@ const adapters = {
     fetch,
     start: '2024-03-22'
   },
-  [CHAIN.BOBA_BNB]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // [CHAIN.BOBA_BNB]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.BSC]: {
     fetch,
     start: '2024-02-25'
@@ -447,10 +592,10 @@ const adapters = {
     fetch,
     start: '2024-02-25'
   },
-  [CHAIN.MOONRIVER]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // [CHAIN.MOONRIVER]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.OPTIMISM]: {
     fetch,
     start: '2024-02-25'
@@ -522,6 +667,18 @@ const adapters = {
   [CHAIN.KATANA]: {
     fetch,
     start: '2025-07-01'
+  },
+  [CHAIN.HYPERLIQUID]: {
+    fetch,
+    start: '2025-09-01'
+  },
+  [CHAIN.BERACHAIN]: {
+    fetch,
+    start: '2025-09-01'
+  },
+  [CHAIN.PLASMA]: {
+    fetch,
+    start: '2025-09-25'
   }
 }
 

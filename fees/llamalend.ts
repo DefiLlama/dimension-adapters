@@ -47,7 +47,8 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(endpoints)(CHAIN.ETHEREUM),
       start: '2022-11-01',
-      meta: {
+    },
+  },
         methodology: {
           Fees: "Interest paid by borrowers",
           UserFees: "Interest paid to borrow ETH",
@@ -56,9 +57,6 @@ const adapter: Adapter = {
           HoldersRevenue: "Token holders have no revenue",
           ProtocolRevenue: "Protocol have no revenue"
         }
-      }
-    },
-  }
 }
 
 export default adapter;

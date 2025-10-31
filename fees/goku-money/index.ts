@@ -63,7 +63,7 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.MANTA]: {
-      fetch: async ({getLogs }: FetchOptions) => {
+      fetch: async ({ getLogs }: FetchOptions) => {
         const balances = new sdk.Balances({ chain: CHAIN.MANTA as Chain });
         await fetchGaiRevenue(getLogs, balances);
         await fetchCollateralRedemptionRevenue(getLogs, balances);
@@ -76,16 +76,14 @@ const adapter: Adapter = {
         };
       },
       start: '2023-10-31', // 01 Nov 2023
-      meta: {
-        methodology: {
-          Fees: "Interest and redemption fees paid by borrowers",
-          Revenue: "Interest and redemption fees paid by borrowers",
-          ProtocolRevenue: "Interest and redemption fees paid by borrowers",
-          HoldersRevenue: "Interest and redemption fees paid by borrowers"
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Interest and redemption fees paid by borrowers",
+    Revenue: "Interest and redemption fees paid by borrowers",
+    ProtocolRevenue: "Interest and redemption fees paid by borrowers",
+    HoldersRevenue: "Interest and redemption fees paid by borrowers"
+  }
 };
 
 export default adapter;

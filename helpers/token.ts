@@ -365,13 +365,14 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
  * @param blacklist_signers - Optional array of transaction signers to exclude
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
+export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers, blacklist_mints }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
   targets?: string[];
   blacklists?: string[];
   blacklist_signers?: string[];
+  blacklist_mints?: string[];
 }) {
   // Initialize balances if not provided
   if (!balances) balances = options.createBalances();
@@ -396,22 +397,44 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
     blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
   }
 
+  // Build SQL condition to exclude blacklisted tokens
+  let blacklist_mintsCondition = '';
+
+  if (blacklist_mints && blacklist_mints.length > 0) {
+    const formattedBlacklist = blacklist_mints.map(addr => `'${addr}'`).join(', ');
+    blacklist_mintsCondition = `AND mint NOT IN (${formattedBlacklist})`;
+  }
+
   // Format addresses for IN clause
   const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
 
   // Construct SQL query to get sum of received token values in USD and native amount
   const query = `
-      SELECT '${ADDRESSES.solana.USDC}' as token, SUM(usd_amount * 1000000) as amount
-      FROM solana.assets.transfers
-      WHERE to_address IN (${formattedAddresses})
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      ${blacklistCondition}
-      ${blacklist_signersCondition}
-      GROUP BY mint
-    `;
+    SELECT '${ADDRESSES.solana.USDC}' as token, SUM(usd_amount * 1000000) as amount
+    FROM solana.assets.transfers
+    WHERE to_address IN (${formattedAddresses})
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ${blacklistCondition}
+    ${blacklist_signersCondition}
+    ${blacklist_mintsCondition}
+    GROUP BY mint
+  `;
 
   // Execute query against Allium database
   const res = await queryAllium(query);
+
+  // for debug purpose
+  // const query2 = `
+  //   SELECT mint, SUM(usd_amount * 1000000) as amount
+  //   FROM solana.assets.transfers
+  //   WHERE to_address IN (${formattedAddresses})
+  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   ${blacklistCondition}
+  //   ${blacklist_signersCondition}
+  //   ${blacklist_mintsCondition}
+  //   GROUP BY mint
+  //   ORDER BY amount DESC
+  // `;
 
   // Add the USD value to the balances object (defaulting to 0 if no results)
   res.forEach((row: any) => {
@@ -432,7 +455,7 @@ function getAlliumChain(chain: string): string {
   }
 }
 
-export async function getETHReceived({ options, balances, target, targets = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
+export async function getETHReceived({ options, balances, target, targets = [], notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[], notFromSenders?: string[] }) {
   if (!balances) balances = options.createBalances()
 
   if (!target && !targets?.length) return balances
@@ -441,6 +464,11 @@ export async function getETHReceived({ options, balances, target, targets = [] }
 
   targets = targets.map(i => i.toLowerCase())
   targets = [...new Set(targets)]
+
+  notFromSenders = notFromSenders.map(i => i.toLowerCase())
+  notFromSenders = [...new Set(notFromSenders)]
+
+  const excludeSenders = targets.concat(notFromSenders)
 
   // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
@@ -461,6 +489,7 @@ export async function getETHReceived({ options, balances, target, targets = [] }
     ink: 'ink',
     berachain: 'berachain',
     polygon_zkevm: 'polygon_zkevm',
+    plasma: 'plasma',
   }
   const tableMap: any = {
     bsc: 'bnb_token_transfers',
@@ -474,17 +503,19 @@ export async function getETHReceived({ options, balances, target, targets = [] }
     polygon_zkevm: 'native_token_transfers',
     unichain: 'native_token_transfers',
     sonic: 'native_token_transfers',
+    plasma: 'native_token_transfers',
   }
 
   let query = ``
   const targetList = '( ' + targets.map(i => `'${i}'`).join(', ') + ' )'
+  const excludeSenderList = '( ' + excludeSenders.map(i => `'${i}'`).join(', ') + ' )'
   const chainKey = chainMap[options.chain]
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
       FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
       WHERE to_address in ${targetList} 
-      ${targets.length > 1 ? `AND from_address not in ${targetList} ` : ' '}
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
@@ -497,7 +528,7 @@ export async function getETHReceived({ options, balances, target, targets = [] }
       FROM ${getAlliumChain(options.chain)}.raw.traces
       WHERE to_address in ${targetList} 
       AND status = 1
-      ${targets.length > 1 ? `AND from_address not in ${targetList} ` : ' '}
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   }

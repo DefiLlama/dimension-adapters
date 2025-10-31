@@ -46,11 +46,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
       start: "2023-11-01",
-      meta: { methodology },
     },
   },
 };

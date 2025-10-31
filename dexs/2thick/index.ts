@@ -18,9 +18,6 @@ const adapters: SimpleAdapter = uniV3Exports({
   //[CHAIN.BSC]: { factory: "0x5C0a9661E0bC1294bB87686C472F7C699831B1ea", }, //different
   [CHAIN.SONIC]: { factory: poolFactoryAddress, },
 })
+adapters.methodology = methodology;
 
-
-Object.keys(adapters.adapter).forEach((chain: any) => {
-  adapters.adapter[chain].meta = { methodology }
-})
 export default adapters;

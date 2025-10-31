@@ -1,5 +1,4 @@
 import { Adapter,Fetch } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
@@ -72,17 +71,6 @@ const getFetch = (allFeeQuery: string,userFeeQuery: string)=> (chain: string): F
         period: 'daily',
     })
 
-    const totalUserData: IGraphResponse = await request(endpoints[chain], userFeeQuery, {
-      id: 'total',
-      period: 'total',
-  })
-
-
-    const totalAllFeeData: IGraphResponse = await request(endpoints[chain], allFeeQuery, {
-      id: 'total',
-      period: 'total',
-    })
-
 
     return {
       timestamp: dayTimestamp,
@@ -90,25 +78,17 @@ const getFetch = (allFeeQuery: string,userFeeQuery: string)=> (chain: string): F
       dailyUserData.fees.length==1
         ? String(Number(Object.values(dailyUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
           : undefined,
-      totalUserFees:
-      totalUserData.fees.length == 1
-          ? String(Number(Object.values(totalUserData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
-          : undefined,
       dailyFees:
       dailyAllFeeData.fees.length==1
         ? String(Number(Object.values(dailyAllFeeData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
-          : undefined,
-      totalFees:
-      totalAllFeeData.fees.length == 1
-          ? String(Number(Object.values(totalAllFeeData.fees[0]).reduce((sum, element) => String(Number(sum) + Math.abs(Number(element))))) * 10 ** -18)
           : undefined,
     }
   }
 
 const adapter: Adapter = {
   adapter: {
-    [ARBITRUM]: {
-      fetch: getFetch(allFeesData,userFeesData)(ARBITRUM),
+    [CHAIN.ARBITRUM]: {
+      fetch: getFetch(allFeesData,userFeesData)(CHAIN.ARBITRUM),
       start: '2023-08-05',
     },
   },

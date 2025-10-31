@@ -16,14 +16,12 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch: fetchFees,
-            meta: {
-                methodology: {
-                    Fees: 'Total fees paid by users for creating and trading tokens.',
-                    Revenue: 'Total fees paid by users for creating and trading tokens.',
-                    ProtocolRevenue: 'Total fees paid by users for creating and trading tokens.',
-                }
-            }
         },
+    },
+    methodology: {
+        Fees: 'Total fees paid by users for creating and trading tokens.',
+        Revenue: 'Total fees paid by users for creating and trading tokens.',
+        ProtocolRevenue: 'Total fees paid by users for creating and trading tokens.',
     }
 }
 

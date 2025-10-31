@@ -10,11 +10,10 @@ const methodologyv3 = {
   HoldersRevenue: "Holders have no revenue.",
 };
 
-
 const adapter = uniV3Exports({
-  [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71',start: '2023-05-18', revenueRatio: 0.16, holdersRevenueRatio: 0, protocolRevenueRatio: 0.16, },
+  [CHAIN.MOONBEAM]: { factory: '0xd118fa707147c54387b738f54838ea5dd4196e71', start: '2023-05-18', revenueRatio: 0.16, holdersRevenueRatio: 0, protocolRevenueRatio: 0.16, },
 })
 
-adapter.adapter[CHAIN.MOONBEAM].meta = { methodology: methodologyv3 }
+adapter.methodology = methodologyv3
 
 export default adapter;

@@ -4,6 +4,7 @@ import { queryAllium } from '../helpers/allium';
 import { Balances } from '@defillama/sdk';
 import { FetchOptions, ProtocolType, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from './chains';
+import { METRIC } from './metrics';
 
 interface ChainMapping {
   [key: string]: string;
@@ -49,7 +50,7 @@ export const fetchTransactionFees = async (options: FetchOptions): Promise<Balan
 
   const dailyFees = options.createBalances();
   const res = await queryAllium(query);
-  dailyFees.addGasToken(res[0].tx_fees);
+  dailyFees.addGasToken(res[0].tx_fees, METRIC.TRANSACTION_GAS_FEES);
   return dailyFees;
 };
 
@@ -58,8 +59,10 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
     adapter: {
       [chain]: {
         fetch: async (_: any, _1: any, options: FetchOptions) => {
+          const transactionFees = await fetchTransactionFees(options)
           return {
-            dailyFees: await fetchTransactionFees(options),
+            dailyFees: transactionFees,
+            dailyRevenue: transactionFees,
           }
         },
         start,

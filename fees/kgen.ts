@@ -5,7 +5,7 @@ import {
   SimpleAdapter,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { APTOS_PRC, getResources } from "../helpers/aptops";
+import { APTOS_RPC, getResources } from "../helpers/aptos";
 import fetchURL from "../utils/fetchURL";
 
 interface DepositFungible {
@@ -59,7 +59,7 @@ const version2tsCache: Record<string, number> = {};
 
 async function versionToTimestamp(version: string): Promise<number> {
   if (version2tsCache[version] !== undefined) return version2tsCache[version];
-  const block = await fetchURL(`${APTOS_PRC}/v1/blocks/by_version/${version}`);
+  const block = await fetchURL(`${APTOS_RPC}/v1/blocks/by_version/${version}`);
   const ts = block?.block_timestamp ? toUnixTime(block.block_timestamp) : 0;
   version2tsCache[version] = ts;
   return ts;
@@ -85,7 +85,9 @@ async function getEventData(
 
     for (let seq = totalEvents - 1; seq >= 0; seq -= PAGE_SIZE) {
       const batchStart = Math.max(seq - PAGE_SIZE + 1, 0);
+
       const url = `${APTOS_PRC}/v1/accounts/${contractAddress}/events/${creationNum}?start=${batchStart}&limit=${PAGE_SIZE}`;
+
       const events: any[] = await fetchURL(url);
       if (!events?.length) break;
 
@@ -184,16 +186,17 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchAptosRevenue,
       start: "2025-06-02", 
       meta: { methodology },
+
     },
     [CHAIN.POLYGON]: {
       fetch: fetchPolygonRevenue,
       start: "2025-06-23",
-      meta: { methodology },
     },
   },
 };

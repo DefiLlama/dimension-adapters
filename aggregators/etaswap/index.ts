@@ -12,18 +12,13 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: any = {
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch,
-      start: '2024-03-02',
-      meta: {
-        methodology: {
-          Volume: 'Total token swap volume',
-          Fees: 'Total swap fees paid by users',
-        }
-      }
-    },
-  },
+  start: '2024-03-02',
+  fetch,
+  chains: [CHAIN.HEDERA],
+  methodology: {
+    Volume: 'Total token swap volume',
+    Fees: 'Total swap fees paid by users',
+  }
 };
 
 export default adapter;

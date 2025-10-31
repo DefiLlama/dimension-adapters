@@ -17,7 +17,6 @@ const fetch = async (options: FetchOptions) => {
   const endRFC3339 = toRFC3339(endTimestamp);
   const baseURL = `https://mainnet-idx.4160.nodely.dev/v2/transactions`;
   let nextToken: string | undefined = undefined;
-  console.log(`Fetching transactions from ${startRFC3339} to ${endRFC3339}`);
 
   do {
     let url = `${baseURL}?min-round=1&max-round=999999999&after-time=${startRFC3339}&before-time=${endRFC3339}`;
@@ -39,7 +38,6 @@ const fetch = async (options: FetchOptions) => {
           const innerTxn = txn['inner-txns']?.[0];
           const assetTransfer = innerTxn?.['asset-transfer-transaction'];
           if (assetTransfer && assetTransfer.amount) {
-            // console.log("Amount: ", assetTransfer.amount, "   Transaction Id: ", txn.id);
             dailyVolume += assetTransfer.amount;
           }
       } else if (
@@ -49,7 +47,6 @@ const fetch = async (options: FetchOptions) => {
         for (const innerTxn of txn['inner-txns'] || []) {
           const assetTransfer = innerTxn['asset-transfer-transaction'];
           const amount = assetTransfer?.amount || 0;
-          // console.log("Amount: ", amount, "   Transaction Id: ", txn.id);
           dailyVolume += amount;
         }
       }
@@ -95,7 +92,6 @@ function getInnerTxnAmountForAppCall(txn: any, targetArgBase64: string): number 
             nestedTxn["tx-type"] === "axfer" &&
             nestedTxn["asset-transfer-transaction"]?.amount
           ) {
-            // console.log("Amount: ", nestedTxn["asset-transfer-transaction"].amount, "   Transaction id: ", txn.id);
             totalAmount += nestedTxn["asset-transfer-transaction"].amount;
           }
       }

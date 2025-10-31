@@ -72,14 +72,9 @@ interface ApiResponse {
   };
 }
 
-async function sleep(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time * 1000));
-}
-
-const fetch = (chain: number) => async (options: FetchOptions) => {
-  await sleep(2);
+const fetch = async (options: FetchOptions) => {
   const data: ApiResponse = await fetchURL(
-    `${CHAIN_VOLUME_API}?chainId=${chain}`
+    `${CHAIN_VOLUME_API}?chainId=${options.api.chainId ?? chains[options.chain]}`
   );
 
   let dailyVolume = data.swap.last24Hours;
@@ -90,31 +85,20 @@ const fetch = (chain: number) => async (options: FetchOptions) => {
   }
 
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    ...Object.entries(chains).reduce((acc, chain) => {
-      const [key, value] = chain;
-      return {
-        ...acc,
-        [key]: {
-          runAtCurrTime: true,
-          fetch: fetch(value),
-          start: "2023-01-01",
-          meta: {
-            methodology: {
-              Volume:
-                "Volume data is retrieved from DZap's chain volume API endpoint.",
-            },
-          },
-        },
-      };
-    }, {}),
+  methodology: {
+    Volume:
+      "Volume data is retrieved from DZap's chain volume API endpoint.",
   },
+  runAtCurrTime: true,
+  chains: Object.keys(chains),
+  start: "2023-01-01",
+  fetch,
 };
 
 export default adapter;

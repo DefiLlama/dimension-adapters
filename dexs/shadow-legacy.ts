@@ -39,15 +39,10 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SONIC]: {
-      fetch,
-      start: startTimeV2[CHAIN.SONIC],
-      meta: {
-        methodology: methodology,
-      },
-    },
-  },
+  methodology,
+  fetch,
+  chains: [CHAIN.SONIC],
+  start: startTimeV2[CHAIN.SONIC],
 };
 
 export default adapter;

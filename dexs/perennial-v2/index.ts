@@ -65,20 +65,9 @@ const getFetch =
             ).toString(),
           '0'
         )
-        const totalVolume = volumeData.total.reduce(
-          (sum, el) =>
-            (
-              BigInt(sum) +
-              BigInt(el.longNotional) +
-              BigInt(el.shortNotional)
-            ).toString(),
-          '0'
-        )
-
         return {
           timestamp: dayTimestamp,
           dailyVolume: (Number(totalDailyVolume) * 10 ** -6).toString(),
-          totalVolume: (Number(totalVolume) * 10 ** -6).toString(),
         }
       }
 

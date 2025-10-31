@@ -14,5 +14,5 @@ const adapter = uniV2Exports({
   [CHAIN.LINEA]: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57', revenueRatio: 0.8, userFeesRatio: 1, protocolRevenueRatio: 0.05, holdersRevenueRatio: 0.75 },
 })
 
-adapter.adapter[CHAIN.LINEA].meta = { methodology }
+adapter.methodology = methodology;
 export default adapter;

@@ -46,9 +46,9 @@ const adapter: Adapter = {
         [CHAIN.APTOS]: {
             fetch,
             start: '2025-05-14',
-            meta: { methodology}
         },
-    }
+    },
+    methodology,
 }
 
 export default adapter;

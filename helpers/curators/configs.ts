@@ -68,6 +68,54 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.UNICHAIN]: {
+    vaultFactories: [
+      {
+        address: '0xe9EdE3929F43a7062a007C3e8652e4ACa610Bdc0',
+        fromBlock: 9316789,
+      },
+    ],
+  },
+  [CHAIN.KATANA]: {
+    vaultFactories: [
+      {
+        address: '0x1c8De6889acee12257899BFeAa2b7e534de32E16',
+        fromBlock: 2741420,
+      },
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    vaultFactories: [
+      {
+        address: '0x878988f5f561081deEa117717052164ea1Ef0c82',
+        fromBlock: 296447195,
+      },
+    ],
+  },
+  [CHAIN.OPTIMISM]: {
+    vaultFactories: [
+      {
+        address: '0x3Bb6A6A0Bc85b367EFE0A5bAc81c5E52C892839a',
+        fromBlock: 130770189,
+      },
+    ],
+  },
+  [CHAIN.HEMI]: {
+    vaultFactories: [
+      {
+        address: '0x8e52179BeB18E882040b01632440d8Ca0f01da82',
+        fromBlock: 1188885,
+      },
+    ],
+  },
+  [CHAIN.HYPERLIQUID]: {
+    vaultFactories: [
+      {
+        address: '0xec051b19d654C48c357dC974376DeB6272f24e53',
+        fromBlock: 1988677,
+      },
+    ],
+  },
 }
 
 export const EulerConfigs: any = {
@@ -114,6 +162,26 @@ export const EulerConfigs: any = {
   [CHAIN.BSC]: {
     vaultFactories: [
       '0x7f53e2755eb3c43824e162f7f6f087832b9c9df6',
+    ],
+  },
+  [CHAIN.TAC]: {
+    vaultFactories: [
+      '0x2b21621b8Ef1406699a99071ce04ec14cCd50677',
+    ],
+  },
+  [CHAIN.LINEA]: {
+    vaultFactories: [
+      '0x84711986fd3bf0bfe4a8e6d7f4e22e67f7f27f04',
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    vaultFactories: [
+      '0x78df1cf5bf06a7f27f2acc580b934238c1b80d50',
+    ],
+  },
+  [CHAIN.PLASMA]: {
+    vaultFactories: [
+      '0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3',
     ],
   },
 }

@@ -1,4 +1,3 @@
-
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions } from '../adapters/types'
 
@@ -7,6 +6,12 @@ const abi = {
   "EthPurchase": "event EthPurchase(address indexed buyer, uint256 indexed tokens_sold, uint256 indexed eth_bought)",
   "NewExchange": 'event NewExchange (address indexed token, address indexed exchange)',
 }
+
+const blacklists = [
+  '0xa539baaa3aca455c986bb1e25301cef936ce1b65', // bad data on 2020-1014
+  '0xd1d038818b0c4d7841e464c806db1fcdb6d6ac5d',
+  '0xb86f736a0c50583123c44fc43bf56d9aeee040f8',
+]
 
 export default {
   version: 2,
@@ -21,31 +26,30 @@ export default {
 
         tokenLogs.forEach(log => {
           if (!pairs.has(log.source.toLowerCase())) return;
-          if (log.source.toLowerCase() === '0xa539baaa3aca455c986bb1e25301cef936ce1b65') return;  // bad data on 2020-1014
+          if (blacklists.includes(log.source.toLowerCase())) return;
+          // console.log(log.source.toLowerCase(), Number(log.parsedLog.args.eth_sold) / 1e18)
           dailyVolume.addGasToken(log.parsedLog.args.eth_sold)
         })
 
         ethLogs.forEach(log => {
           if (!pairs.has(log.source.toLowerCase())) return;
-          if (log.source.toLowerCase() === '0xa539baaa3aca455c986bb1e25301cef936ce1b65') return;  // bad data on 2020-1014
+          if (blacklists.includes(log.source.toLowerCase())) return;
 
           dailyVolume.addGasToken(log.parsedLog.args.eth_bought)
         })
 
-        const dailyFees = dailyVolume.clone(0.3/100)
+        const dailyFees = dailyVolume.clone(0.3 / 100)
 
         return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0 }
       },
-      meta: {
-        methodology: {
-          Fees: "User pays 0.3% fees on each swap.",
-          UserFees: "User pays 0.3% fees on each swap.",
-          Revenue: "Protocol have no revenue.",
-          ProtocolRevenue: "Protocol have no revenue.",
-          SupplySideRevenue: "All user fees are distributed among LPs.",
-          HoldersRevenue: "Holders have no revenue."
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: "User pays 0.3% fees on each swap.",
+    UserFees: "User pays 0.3% fees on each swap.",
+    Revenue: 'Protocol make no revenue.',
+    ProtocolRevenue: 'Protocol make no revenue.',
+    SupplySideRevenue: 'All fees are distributed to LPs.',
+    HoldersRevenue: 'No revenue for UNI holders.',
   },
 }

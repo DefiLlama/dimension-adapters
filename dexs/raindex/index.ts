@@ -20,7 +20,7 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0x2aee87d75cd000583daec7a28db103b1c0c18b76", start: '2024-03-16' },
     ],
     v4: [
-      { address: "0xd2938e7c9fe3597f78832ce780feb61945c377d7", start: '2024-08-28' }, 
+      { address: "0xd2938e7c9fe3597f78832ce780feb61945c377d7", start: '2024-08-28' },
       { address: "0xa2f56f8f74b7d04d61f281be6576b6155581dcba", start: '2024-07-02' },
       { address: "0x32aCbdF51abe567C91b7a5cd5E52024a5Ca56844", start: '2024-08-24' },
       { address: "0x80DE00e3cA96AE0569426A1bb1Ae22CD4181dE6F", start: '2024-08-20' },
@@ -142,9 +142,9 @@ async function fetchV3Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
           alice: { validOutputs },
           clearConfig: { aliceOutputIOIndex }
         } = abi_v3.decodeEventLog("Clear", clearLog.data)
-  
+
         const token1 = validOutputs[Number(aliceOutputIOIndex)]
-  
+
         dailyVolume.add(token1.token, aliceOutput.toString())
         dailyVolume.add(token1.token, bobInput.toString())
       }
@@ -197,9 +197,9 @@ async function fetchV4Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
           alice: { validOutputs },
           clearConfig: { aliceOutputIOIndex }
         } = abi_v4.decodeEventLog("ClearV2", clearLog.data)
-  
+
         const token1 = validOutputs[Number(aliceOutputIOIndex)]
-  
+
         dailyVolume.add(token1.token, aliceOutput.toString())
         dailyVolume.add(token1.token, bobInput.toString())
       }
@@ -234,17 +234,15 @@ Object.keys(orderbooks).forEach(chain => {
       .flat()
       .reduce((a, b) => a.start < b.start ? a : b)
       .start,
-    meta: {
-      methodology: {
-        Volume: "Volume of trades"
-      }
-    }
   }
 })
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: volAdapter
+  adapter: volAdapter,
+  methodology: {
+    Volume: "Volume of trades"
+  }
 }
 
 export default adapter

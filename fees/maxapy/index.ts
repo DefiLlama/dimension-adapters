@@ -35,7 +35,6 @@ Object.keys(config).forEach(chain => {
   const { start, tokens, targets } = config[chain];
   adapter[chain] = {
     start,
-    meta: { methodology },
     fetch: async (options: FetchOptions) => {
       const dailyRevenue = await addTokensReceived({ options, tokens, targets });
       const dailyFees = dailyRevenue.clone(totalFee / revenueFee);
@@ -53,4 +52,5 @@ Object.keys(config).forEach(chain => {
 export default {
   version: 2,
   adapter,
+  methodology,
 }

@@ -12,6 +12,8 @@ const methodology = {
 const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) => {
   let dailyVolume = 0
   let dailyFees = 0
+  let dailyRevenue = 0
+  let dailySupplySideRevenue = 0
 
   // get know pools list
   const pools: Array<any> = (await httpGet('https://server.saucerswap.finance/api/public/v2/pools', {
@@ -37,14 +39,16 @@ const fetch = async (__: number , _: ChainBlocks, { startOfDay }: FetchOptions) 
     // v2 fees goes to LP
     dailyVolume += volume
     dailyFees += volume * Number(pool.fee) / 1000000
+    dailyRevenue += dailyFees * 1 / 6
+    dailySupplySideRevenue += dailyFees * 5 / 6
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     timestamp: startOfDay,
   };
 };
@@ -54,11 +58,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
-      meta: {
-        methodology,
-      },
     },
-  }
+  },
+  methodology,
 };
 
 export default adapter;

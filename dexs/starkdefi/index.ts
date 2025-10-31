@@ -10,16 +10,11 @@ const fetch = async (timestamp: number) => {
   const historicalVolume: TVolume = (
     await fetchURL("https://api.starkdefi.com/v1/analytics/daily-volume")
   );
-  const totalVolume = Object.values(historicalVolume).reduce(
-    (acc, volume) => acc + volume,
-    0
-  );
   const dailyVolume = Object.entries(historicalVolume).find(
     ([date]) => new Date(date).getTime() / 1000 === dayTimestamp
   )?.[1];
   return {
     timestamp: dayTimestamp,
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
   };
 };

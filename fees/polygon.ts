@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { Adapter, ProtocolType, FetchOptions } from "../adapters/types";
+import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 
 
@@ -45,21 +45,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.POLYGON]: {
-            fetch,
-            start: '2020-05-30',
-            meta: {
-                methodology: {
-                    Fees: 'Total transaction fees paid by users',
-                    Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
-                }
-            }
-        },
-    },
+    fetch,
+    chains: [CHAIN.POLYGON],
+    start: '2020-05-30',
+    dependencies: [Dependencies.DUNE],
     protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true,
     allowNegativeValue: true, // L1 Costs
+    methodology: {
+        Fees: 'Total transaction fees paid by users',
+        Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
+    }
 }
 
 export default adapter;

@@ -41,11 +41,9 @@ const fetch = (chain: Chain) => {
     ])
  
     const dailyFees = (afterRes.protocol.totalTradeFee - beforeRes.protocol.totalTradeFee) / 10 ** 18;
-    const totalFees = afterRes.protocol.totalTradeFee / 10 ** 18;
 
     return {
       dailyFees,
-      totalFees,
     };
   };
 };

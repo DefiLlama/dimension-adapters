@@ -3,7 +3,6 @@ import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 
 
-
 const v2Endpoints: { [s: string]: string } = {
   [CHAIN.INK]: "https://graph-node.reservoir.tools/subgraphs/name/ink/v2-subgraph",
   [CHAIN.ZERO]: "https://graph-node.reservoir.tools/subgraphs/name/zero/v2-subgraph",
@@ -13,6 +12,10 @@ const v2Endpoints: { [s: string]: string } = {
 
 const v2Graph = getGraphDimensions2({
   graphUrls: v2Endpoints,
+  totalFees: {
+    factory: "uniswapFactories",
+    field: "totalVolumeUSD",
+  },
   feesPercent: {
     type: "volume",
     UserFees: 0.3,
@@ -24,32 +27,29 @@ const v2Graph = getGraphDimensions2({
   }
 });
 
+const fetch = async (options: FetchOptions) => {
+  const res = await v2Graph(options);
+  res['dailyFees'] = res['dailyUserFees']
+  return res;
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.INK]: {
-      fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
-      },
+      fetch,
       start: '2025-01-07',
     },
     [CHAIN.ZERO]: {
-      fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
-      },
+      fetch,
       start: '2025-01-07',
     },
     [CHAIN.SHAPE]: {
-      fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
-      },
+      fetch,
       start: '2025-01-07',
     },
     [CHAIN.ABSTRACT]: {
-      fetch: (options: FetchOptions) =>  {
-        return v2Graph(options.chain)(options)
-      },
+      fetch,
       start: '2025-01-07',
     },
   }

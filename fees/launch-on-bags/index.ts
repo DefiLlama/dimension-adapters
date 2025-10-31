@@ -1,5 +1,4 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -40,20 +39,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-05-11',
-            meta: {
-                methodology: {
-                    Fees: "Trading fees paid by users.",
-                    Revenue: "Fees collected by Bags App protocol.",
-                    ProtocolRevenue: "Fees collected by Bags App protocol."
-                }
-            }
-        }
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2025-05-11',
+    isExpensiveAdapter: true,
+    methodology: {
+        Fees: "Trading fees paid by users.",
+        Revenue: "Fees collected by Bags App protocol.",
+        ProtocolRevenue: "Fees collected by Bags App protocol."
     },
-    isExpensiveAdapter: true
 }
 
 export default adapter

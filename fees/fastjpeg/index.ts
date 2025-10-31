@@ -12,25 +12,25 @@ const GRADUATION_FEE = parseEther('0.5'); // 0.5 ETH
 const CREATOR_FEE = parseEther('0.1'); // 0.1 ETH
 
 export function calculatePriceForTokens(coinAmount: bigint, currentSupply: bigint): bigint {
-	// For a quadratic curve: E = (GRADUATE_ETH * ((currentSupply + T)² - currentSupply²)) / UNDERGRADUATE_SUPPLY²
+    // For a quadratic curve: E = (GRADUATE_ETH * ((currentSupply + T)² - currentSupply²)) / UNDERGRADUATE_SUPPLY²
 
-	const newSupply = currentSupply + coinAmount;
+    const newSupply = currentSupply + coinAmount;
 
-	// Calculate: (currentSupply + T)² - currentSupply²
-	const newSupplySquared = newSupply ** 2n;
-	const currentSupplySquared = currentSupply ** 2n;
-	const supplyDeltaSquared = newSupplySquared - currentSupplySquared;
+    // Calculate: (currentSupply + T)² - currentSupply²
+    const newSupplySquared = newSupply ** 2n;
+    const currentSupplySquared = currentSupply ** 2n;
+    const supplyDeltaSquared = newSupplySquared - currentSupplySquared;
 
-	// Calculate: (GRADUATE_ETH * supplyDeltaSquared) / UNDERGRADUATE_SUPPLY²
-	const numerator = GRADUATE_ETH * supplyDeltaSquared;
-	const denominator = UNDERGRADUATE_SUPPLY ** 2n;
+    // Calculate: (GRADUATE_ETH * supplyDeltaSquared) / UNDERGRADUATE_SUPPLY²
+    const numerator = GRADUATE_ETH * supplyDeltaSquared;
+    const denominator = UNDERGRADUATE_SUPPLY ** 2n;
 
-	return numerator / denominator;
+    return numerator / denominator;
 }
 
 function calculateSaleReturn(coinAmount: bigint, currentSupply: bigint): bigint {
-	// Uses the same formula as calculatePriceForTokens but in reverse
-	return calculatePriceForTokens(coinAmount, currentSupply - coinAmount);
+    // Uses the same formula as calculatePriceForTokens but in reverse
+    return calculatePriceForTokens(coinAmount, currentSupply - coinAmount);
 }
 
 const calculateGweiFees = (side: string, volume: bigint, amountCoinA: bigint) => {
@@ -60,7 +60,7 @@ const fetch = async (options: FetchOptions) => {
         const side = log.side;
 
         const ethFees = calculateGweiFees(side, volume, amountA);
-        
+
         protocolFees.addGasToken(ethFees);
         dailyFees.addGasToken(ethFees);
     });
@@ -73,28 +73,26 @@ const fetch = async (options: FetchOptions) => {
     graduateCoinLogs.forEach((log: any) => {
         protocolFees.addGasToken(GRADUATION_FEE);
         userFees.addGasToken(CREATOR_FEE);
-        
+
         dailyFees.addGasToken(GRADUATION_FEE + CREATOR_FEE);
     });
 
-    
+
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: protocolFees, dailyUserFees: userFees };
 };
 
 const adapter: SimpleAdapter = {
     version: 2,
-    adapter:{
-      [CHAIN.BASE]: {
-          fetch,
-          start: '2025-04-09',
-          meta: {
-                methodology: {
-                    Fees: "Token trading and launching fees paid by users.",
-                    Revenue: "All fees are revenue.",
-                    ProtocolRevenue: "Revenue portion collected by FastJPEG.",
-                }
-            }
-      }
+    adapter: {
+        [CHAIN.BASE]: {
+            fetch,
+            start: '2025-04-09',
+        }
+    },
+    methodology: {
+        Fees: "Token trading and launching fees paid by users.",
+        Revenue: "All fees are revenue.",
+        ProtocolRevenue: "Revenue portion collected by FastJPEG.",
     }
 };
 

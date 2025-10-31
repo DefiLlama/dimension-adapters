@@ -44,11 +44,9 @@ const graphs = (chain: Chain) => {
 
     const response: IResponse = await graphQLClient.request(query);
     const dailyVolume = (Number(response.today[0].totalVolume) - Number(response.yesterday[0].totalVolume)) / 10 ** 6;
-    const totalVolume = Number(response.today[0].totalVolume) / 10 ** 6;
 
       return {
         timestamp,
-        totalVolume: totalVolume.toString(),
         dailyVolume: dailyVolume.toString(),
       };
   };

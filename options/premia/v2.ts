@@ -44,9 +44,7 @@ const chainDataQuery = gql`
 `;
 
 interface ChainData {
-  totalPremiumVolume: number;
   dailyPremiumVolume: number;
-  totalNotionalVolume: number;
   dailyNotionalVolume: number;
   timestamp: string;
 }
@@ -68,28 +66,22 @@ async function getChainData(
   url: string,
   timestamp: string
 ): Promise<ChainData> {
-  const { totalPremiumsDailies, totalVolumeDailies, totalVolumes }: GqlResult =
+  const { totalPremiumsDailies, totalVolumeDailies }: GqlResult =
     await request(url, chainDataQuery, {
       timestamp: timestamp,
     });
 
-  const totalPremiumVolume = toNumber(
-    totalPremiumsDailies[0].totalPremiumsInUsd
-  );
   const dailyPremiumVolume = calcLast24hrsVolume(
     get2Days(totalPremiumsDailies, "totalPremiumsInUsd")
   );
 
-  const totalNotionalVolume = toNumber(totalVolumes[0].totalVolumeInUsd);
   const dailyNotionalVolume = calcLast24hrsVolume(
     get2Days(totalVolumeDailies, "totalVolumeInUsd")
   );
 
   return {
     timestamp,
-    totalNotionalVolume,
     dailyNotionalVolume,
-    totalPremiumVolume,
     dailyPremiumVolume,
   };
 }

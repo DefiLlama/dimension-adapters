@@ -12,16 +12,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: 'All fees paid by users for buy/sell and launch tokens.',
-          Revenue: 'All fees paid by users.',
-          ProtocolRevenue: 'All fees paid by users.',
-        }
-      }
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'All fees paid by users for buy/sell and launch tokens.',
+    Revenue: 'All fees paid by users.',
+    ProtocolRevenue: 'All fees paid by users.',
+  }
 };
 
 export default adapter;

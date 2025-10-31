@@ -98,14 +98,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
         return {
           dailyFees: dailyFee.toString(),
-          totalFees: totalFee.toString(),
         };
       }
 
-      return {
-        dailyFees: "0",
-        totalFees: "0",
-      };
     };
 };
 

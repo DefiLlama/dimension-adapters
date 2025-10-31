@@ -14,30 +14,18 @@ const fetchSui = async (timestamp: number): Promise<FetchResultFees> => {
     fundingFee: dailyFundingFee,
     poolFee: dailyPoolFee,
   } = await fetchURL(`${sudoApi}/fee?timestamp=${timestamp}`);
-  const { totalFee, totalTradingFee, totalFundingFee, totalPoolFee } =
-    await fetchURL(`${sudoApi}/totalFee`);
 
   const dailyProtocolRevenue =
     (Number(dailyTradingFee) || 0) * TREASURY_FEE_PERCENTAGE;
-  const totalProtocolRevenue =
-    (Number(totalTradingFee) || 0) * TREASURY_FEE_PERCENTAGE;
   const dailySupplySideRevenue =
     Number(dailyTradingFee || 0) * (1 - TREASURY_FEE_PERCENTAGE) +
     Number(dailyPoolFee || 0) +
     Number(dailyFundingFee);
-  const totalSupplySideRevenue =
-    Number(totalTradingFee || 0) * (1 - TREASURY_FEE_PERCENTAGE) +
-    Number(totalPoolFee || 0) +
-    Number(totalFundingFee);
   return {
     dailyFees: dailyFee,
-    totalFees: totalFee,
     dailyUserFees: dailyFee,
-    totalUserFees: totalFee,
     dailySupplySideRevenue: dailySupplySideRevenue,
-    totalSupplySideRevenue: totalSupplySideRevenue,
     dailyRevenue: dailyProtocolRevenue,
-    totalRevenue: totalProtocolRevenue,
     timestamp: dayTimestamp,
   };
 };

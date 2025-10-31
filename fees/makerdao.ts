@@ -45,7 +45,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   if (stakingRewardsDayData) {
     dhr.addCGToken('usds', Number(staking_reward_amount))
   }
-  
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -62,15 +62,13 @@ const adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2019-11-13',
-      meta: {
-        methodology: {
-          Fees: "Stability fees charged on DAI loans, liquidation income from collateral auctions, and PSM (Peg Stability Module) fees from USDC/DAI conversions",
-          Revenue: "Fees collected minus savings rate paid to DSR depositors and operational expenses",
-          HoldersRevenue: "SKY token buybacks + staking rewards for sky stakers",
-          ProtocolRevenue: "Net protocol revenue after subtracting SKY token buybacks"
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: "Stability fees charged on DAI loans, liquidation income from collateral auctions, and PSM (Peg Stability Module) fees from USDC/DAI conversions",
+    Revenue: "Fees collected minus savings rate paid to DSR depositors and operational expenses",
+    HoldersRevenue: "SKY token buybacks + staking rewards for sky stakers",
+    ProtocolRevenue: "Net protocol revenue after subtracting SKY token buybacks"
   },
   allowNegativeValue: true, // Expenses can be higher than Daily Fees
 }

@@ -84,18 +84,16 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        meta: {
-          methodology: {
-            Fees: 'Total interest paid to users by borrowing FRAX.',
-            Revenue: 'Total interest paid to users by borrowing FRAX.',
-            ProtocolRevenue: 'Amount of interest collected by Frax Finance.',
-            SupplySideRevenue: 'Amount of interest paid to lenders.',
-          }
-        }
       },
     };
   }, {}),
   version: 1,
+  methodology: {
+    Fees: 'Total interest paid to users by borrowing FRAX.',
+    Revenue: 'Total interest paid to users by borrowing FRAX.',
+    ProtocolRevenue: 'Amount of interest collected by Frax Finance.',
+    SupplySideRevenue: 'Amount of interest paid to lenders.',
+  }
 };
 
 export default adapter;

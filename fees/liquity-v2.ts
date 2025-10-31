@@ -5,7 +5,7 @@ async function fetch(options: FetchOptions) {
   const v0DeploymentRes = await getLiquityV2LogAdapter({ collateralRegistry: '0xd99dE73b95236F69A559117ECD6F519Af780F3f7' })(options)
   const dailyFees = v0DeploymentRes.dailyFees.clone()
   let v1DeploymentRes = null
-  if (options.startTimestamp >= 1747526400){
+  if (options.startTimestamp >= 1747526400) {
     v1DeploymentRes = await getLiquityV2LogAdapter({ collateralRegistry: '0xf949982b91c8c61e952b3ba942cbbfaef5386684' })(options)
     dailyFees.addBalances(v1DeploymentRes.dailyFees);
   }
@@ -17,12 +17,21 @@ export default {
   adapter: {
     ethereum: {
       fetch,
-      meta: {
-        methodology: {
-          Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-          Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-        }
-      }
     }
-  }
+  },
+  methodology: {
+    Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+    Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest': 'borrow interests paid by borrowers.',
+      'Redemption Fees': 'Redemption fees paid by borrowers.',
+      'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+    },
+    Revenue: {
+      'Borrow Interest': 'borrow interests paid by borrowers.',
+      'Redemption Fees': 'Redemption fees paid by borrowers.',
+    },
+  },
 }

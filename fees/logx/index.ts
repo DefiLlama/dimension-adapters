@@ -3,8 +3,6 @@ import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 
-const DASHBOARD_API =
-    'https://mainnetapiserver.logx.network/api/v1/stats/dashboard';
 const DAILY_FEES_API =
     'https://mainnetapiserver.logx.network/api/v1/stats/charts/dailyFees';
 
@@ -24,20 +22,12 @@ const adapter: Adapter = {
         [CHAIN.LOGX]: {
             start: '2024-09-11',
             fetch: async (_timestamp: number, _: any, { startOfDay }) => {
-                const [dashboardResponse, dailyFeesResponse] =
+                const [dailyFeesResponse] =
                     await Promise.all([
-                        fetchURL(
-                            DASHBOARD_API
-                        ) as Promise<LogXDashboardResponse>,
                         fetchURL(
                             DAILY_FEES_API
                         ) as Promise<LogXDailyFeesResponse>,
                     ]);
-                const totalFees = BigInt(
-                    Math.round(
-                        parseFloat(dashboardResponse.cumulativeTotalFees)
-                    )
-                ).toString();
                 const t = getUniqStartOfTodayTimestamp(
                     new Date(startOfDay * 1000)
                 );
@@ -59,7 +49,6 @@ const adapter: Adapter = {
                         : undefined;
 
                 return {
-                    totalFees,
                     dailyFees,
                     timestamp: t,
                 };

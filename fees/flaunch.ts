@@ -25,15 +25,13 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.BASE]: {
             fetch: fetchFees,
-            meta: {
-                methodology: {
-                    Fees: "Tokens trading and launching fees paid by users.",
-                    Revenue: "Tokens trading and launching fees paid by users.",
-                    ProtocolRevenue: "Tokens trading and launching fees paid by users.",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "Tokens trading and launching fees paid by users.",
+        Revenue: "Tokens trading and launching fees paid by users.",
+        ProtocolRevenue: "Tokens trading and launching fees paid by users.",
+    }
 };
 
 export default adapter;

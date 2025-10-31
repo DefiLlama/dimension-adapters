@@ -10,26 +10,20 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
+  fetch: fetchFeeV1(),
   adapter: {
     [CHAIN.BSC]: {
-      fetch: fetchFeeV1(),
       start: maverickV1Factories[CHAIN.BSC].startTimestamp,
-      meta: { methodology },
     },
     [CHAIN.BASE]: {
-      fetch: fetchFeeV1(),
       start: maverickV1Factories[CHAIN.BASE].startTimestamp,
-      meta: { methodology },
     },
     [CHAIN.ERA]: {
-      fetch: fetchFeeV1(),
       start: maverickV1Factories[CHAIN.ERA].startTimestamp,
-      meta: { methodology },
     },
     [CHAIN.ETHEREUM]: {
-      fetch: fetchFeeV1(),
       start: maverickV1Factories[CHAIN.ETHEREUM].startTimestamp,
-      meta: { methodology },
     },
   },
 };

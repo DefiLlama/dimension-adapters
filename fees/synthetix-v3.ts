@@ -55,17 +55,12 @@ const adapters: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-01-13',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
       start: '2024-08-15',
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology,
 }
 export default adapters

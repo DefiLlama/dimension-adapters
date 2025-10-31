@@ -1,15 +1,7 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, BaseAdapter, FetchOptions } from "../adapters/types";
 import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
 import { getSolanaReceived } from '../helpers/token';
 import { CHAIN } from "../helpers/chains";
-
-const meta = {
-  methodology: {
-    Fees: 'All fees paid by users for token profile listing.',
-    Revenue: 'All fees collected by Dexscreener.',
-    ProtocolRevenue: 'All fees collected by Dexscreener.',
-  }
-}
 
 // TODO: check whether 5qR17nnyyBjoHPiGiAD4ZHFCSJixebJCYymArGgZiDnh was an older address where they received payments
 const sol = async (options: FetchOptions) => {
@@ -18,19 +10,22 @@ const sol = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
+    methodology: {
+        Fees: 'All fees paid by users for token profile listing.',
+        Revenue: 'All fees collected by Dexscreener.',
+        ProtocolRevenue: 'All fees collected by Dexscreener.',
+    },
     version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            meta,
         }
     }
 }
 
 for (const [chain, item] of Object.entries(generateCBCommerceExports('0xbf07aFF5114BAd83720A8b9Fc7585aFd2ef9E4C2'))) {
-    adapter.adapter[chain] = {
+    (adapter.adapter as BaseAdapter)[chain] = {
         fetch: (item as any).fetch,
-        meta,
     }
 }
 

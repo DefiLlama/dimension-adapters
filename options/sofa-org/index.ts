@@ -11,34 +11,6 @@ const eventABIs = {
   dual:       "event Minted(address minter, address maker, address referral, uint256 totalCollateral,               uint256 expiry, uint256 anchorPrice, uint256 makerCollateral, uint256 premiumPercentage)",
 }
 
-const tokens = {
-  [CHAIN.ETHEREUM]: {
-    usdt: ADDRESSES.ethereum.USDT,
-    rch: "0x57B96D4aF698605563A4653D882635da59Bf11AF",
-    scrvusd: "0x0655977FEb2f289A4aB78af67BAB0d17aAb84367",
-    ausdt: "0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a",
-    zrch: "0x57B96D4aF698605563A4653D882635da59Bf11AF", //rch, because no zRCH price
-    steth: ADDRESSES.ethereum.STETH,
-    crvusd: ADDRESSES.ethereum.CRVUSD,
-    crv: ADDRESSES.ethereum.CRV,
-  },
-  [CHAIN.ARBITRUM]: {
-    usdt: ADDRESSES.arbitrum.USDT,
-    usdc: ADDRESSES.arbitrum.USDC_CIRCLE,
-    ausdt: "0x6ab707Aca953eDAeFBc4fD23bA73294241490620",
-  },
-  [CHAIN.BSC]: {
-    usdt: ADDRESSES.bsc.USDT,
-  },
-  [CHAIN.POLYGON]: {
-    usdt: ADDRESSES.polygon.USDT,
-  },
-  [CHAIN.SEI]: {
-    susda: "0x6aB5d5E96aC59f66baB57450275cc16961219796",
-    usdc: ADDRESSES.sei.USDC,
-  },
-}
-
 const startTimestamp = {
   [CHAIN.ETHEREUM]: 1717679579,
   [CHAIN.ARBITRUM]: 1717665701,
@@ -47,13 +19,14 @@ const startTimestamp = {
   [CHAIN.SEI]: 1739963336,
 }
 
-const contractsJsonFile = 'https://raw.githubusercontent.com/sofa-org/sofa-gitbook/main/static/contracts_for_defillama_premium.json';
+const contractsJsonFile = 'https://raw.githubusercontent.com/sofa-org/sofa-gitbook/main/static/contracts_tokens_for_defillama_premium.json';
 
 let allContracts: any;
 const fetch = async (options: FetchOptions) => {
   if (!allContracts) {
     allContracts = await getConfig('sofa-org/premium', contractsJsonFile);
   }
+  const tokens = allContracts.tokens;
   const dailyPremiumVolume = options.createBalances();
   const chain = options.chain;
   for (const product in allContracts[chain]) {
@@ -73,7 +46,6 @@ const fetch = async (options: FetchOptions) => {
       } else {
         data.forEach((log: any) => dailyPremiumVolume.add(token, log.totalCollateral - log.makerCollateral));
       }
-      //console.log("dailyPremiumVolume:", dailyPremiumVolume);
     }
   }
   return { dailyPremiumVolume };
@@ -98,10 +70,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: startTimestamp[CHAIN.POLYGON],
     },
-    [CHAIN.SEI]: {
-      fetch,
-      start: startTimestamp[CHAIN.SEI],
-    },
+    // [CHAIN.SEI]: {
+    //   fetch,
+    //   start: startTimestamp[CHAIN.SEI],
+    // },
   }
 }
 

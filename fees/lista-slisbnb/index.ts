@@ -21,22 +21,42 @@ const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const logs_reward = await options.getLogs({
-    target: ListaStakeManagerAddress,
-    eventAbi: "event RewardsCompounded(uint256 _amount)",
+  const slilsBnbSupplyBefore = await options.fromApi.call({
+    target: slisBNB,
+    abi: 'uint256:totalSupply',
   });
 
-  logs_reward.forEach((log) => {
-    const amount = log._amount;
-    dailyFees.add(slisBNB, amount);
+  const slisBnbSupplyAfter = await options.toApi.call({
+    target: slisBNB,
+    abi: 'uint256:totalSupply',
   });
+
+  const pooledBnbBefore = await options.fromApi.call({
+    target: ListaStakeManagerAddress,
+    abi: 'uint256:getTotalPooledBnb',
+  });
+
+  const pooledBnbAfter = await options.toApi.call({
+    target: ListaStakeManagerAddress,
+    abi: 'uint256:getTotalPooledBnb',
+  });
+
+  const dailySlisbnbHoldersYield = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
+ 
+  dailyFees.addCGToken("binancecoin", dailySlisbnbHoldersYield/0.95);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue: dailyFees.clone(0.05),
+    dailyProtocolRevenue: dailyFees.clone(0.05),
   };
 };
+const methodology = {
+  Fees: 'Total yields from staked BNB.',
+  Revenue: '5 % of the total yields are charged by Lista DAO.',
+  ProtocolRevenue: 'All revenue goes to the protocol'
 
+}
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -45,6 +65,7 @@ const adapter: SimpleAdapter = {
       start: '2023-08-30',
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -8,7 +8,7 @@ const URL = "https://backend.swop.fi/pools"
 
 const methodology = {
   Fees: "A minor fee is collected on each swap, functioning as trading fees.\n" +
-      "The fees are set at 0.6% for CPMM pools (with volatile coins) and 0.15% for stablecoin pools. A fee discount of 5-35% is granted to governance token stakers.",
+    "The fees are set at 0.6% for CPMM pools (with volatile coins) and 0.15% for stablecoin pools. A fee discount of 5-35% is granted to governance token stakers.",
   Revenue: "Revenue is 35% of all collected fees",
   ProtocolRevenue: "10% of all collected fees go to the Team Fund. 21% of fees are spent for the governance token buyout and burning. ",
   HoldersRevenue: "Revenue for stakers is 14% of all collected fees",
@@ -52,9 +52,9 @@ const endpoints = {
 
 };
 
-const fetchUnit0 = async (timestamp: number, _:any, options: FetchOptions) => {
+const fetchUnit0 = async (timestamp: number, _: any, options: FetchOptions) => {
   const dayId = Math.floor(options.startOfDay / 86400)
-  const query =`
+  const query = `
     {
       swopfiDayData(id: ${dayId})
       {
@@ -75,15 +75,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.WAVES]: {
       fetch,
       runAtCurrTime: true,
-            meta: {
-        methodology
-      }
     },
     [CHAIN.UNIT0]: {
       fetch: fetchUnit0,
       start: '2023-11-08',
     },
-  }
+  },
+        methodology,
 };
 
 export default adapter;

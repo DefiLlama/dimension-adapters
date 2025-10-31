@@ -34,13 +34,11 @@ const adapter: Adapter = {
     [CHAIN.NEAR]: {
       fetch,
       start: '2020-07-21',
-      meta: {
-        methodology: {
-          Fees: "We fetch daily transaction fees from NearBlocks API. The data is aggregated daily and includes all transaction fees paid on the NEAR blockchain. 70% of transaction fees are burned, while 30% can optionally be allocated to smart contract developers as rewards if they specify a fee percentage for their contracts (otherwise 100% is burned). Note that validators do not earn transaction fees - their rewards come from protocol-level inflation.",
-          Revenue: "All fees paid by users while using Near blockchain.",
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: "We fetch daily transaction fees from NearBlocks API. The data is aggregated daily and includes all transaction fees paid on the NEAR blockchain. 70% of transaction fees are burned, while 30% can optionally be allocated to smart contract developers as rewards if they specify a fee percentage for their contracts (otherwise 100% is burned). Note that validators do not earn transaction fees - their rewards come from protocol-level inflation.",
+    Revenue: "All fees paid by users while using Near blockchain.",
   },
   protocolType: ProtocolType.CHAIN
 };

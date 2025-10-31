@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -94,39 +94,53 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyCoinCreatorRevenue = options.createBalances();
 
     for (const item of data) {
-        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
-        dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
-        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0)
+        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee, 'ProtocolFees')
+        dailySupplySideRevenue.add(item.quoteMint, item.lpFee, 'DexLPFees')
+        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0, 'DexCreatorFees');
     }
-    dailyFees.addBalances(dailyProtocolRevenue);
-    dailyFees.addBalances(dailySupplySideRevenue);
-    dailyFees.addBalances(dailyCoinCreatorRevenue);
+    dailyFees.addBalances(dailyProtocolRevenue, 'ProtocolFees');
+    dailyFees.addBalances(dailySupplySideRevenue, 'DexLPFees');
+    dailyFees.addBalances(dailyCoinCreatorRevenue, 'DexCreatorFees');
+    dailySupplySideRevenue.addBalances(dailyCoinCreatorRevenue, 'DexCreatorFees');
 
     return {
         dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyUserFees: dailyFees,
         dailyProtocolRevenue,
-        dailySupplySideRevenue
+        dailySupplySideRevenue,
+        dailyHoldersRevenue: 0, // buybacks are tracked in pump fun launchpad
     }
 };
 
-const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-03-15',
-            meta: {
-                methodology: {
-                    Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
-                    Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
-                    SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
-                    Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
-                }
-            }
-        }
+const breakdownMethodology = {
+    Fees: {
+        'ProtocolFees': 'Trade fees from PumpFun AMM that goes to the protocol',
+        'DexLPFees': 'Trade fees from PumpFun AMM that goes to liquidity providers',
+        'DexCreatorFees': 'Trade fees from PumpFun AMM that goes to coin creators',
     },
+    Revenue: {
+        'ProtocolFees': 'Trade fees from PumpFun AMM that goes to the protocol',
+    },
+    SupplySideRevenue: {
+        'DexLPFees': 'Trade fees from PumpFun AMM that goes to liquidity providers',
+        'DexCreatorFees': 'Trade fees from PumpFun AMM that goes to coin creators',
+    },
+}
+
+const adapter: SimpleAdapter = {
     version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2025-02-20',
+    breakdownMethodology,
+    methodology: {
+        Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
+        Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
+        SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
+        Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
+    },
     isExpensiveAdapter: true
 }
 

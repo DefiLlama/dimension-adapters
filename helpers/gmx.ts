@@ -124,12 +124,12 @@ export const gmxV1Exports = (config: IJSON<{
     methodology?: any,
 } >) => {
   const exportObject: BaseAdapter = {}
+  const methodology =  Object.values(config).find((c) => c.methodology)?.methodology 
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getGmxV1LogAdapter(chainConfig),
       start: chainConfig.start,
-      meta: { methodology: chainConfig.methodology },
     }
   })
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return { adapter: exportObject, version: 2, methodology } as SimpleAdapter
 }

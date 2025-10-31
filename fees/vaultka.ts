@@ -23,13 +23,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
       start: '2023-08-09',
-      meta: {
-        methodology: {
-          UserFees: "15% of management fee and 0.08%-0.2% withdrawal fee across all the strategies, for details, check our official documentation",
-          Fees: "15% of management fee and 0.08%-0.2% withdrawal fee across all the strategies, for details, check our official documentation",
-        },
-      },
     },
+  },
+  methodology: {
+    UserFees: "15% of management fee and 0.08%-0.2% withdrawal fee across all the strategies, for details, check our official documentation",
+    Fees: "15% of management fee and 0.08%-0.2% withdrawal fee across all the strategies, for details, check our official documentation",
   },
 };
 export default adapter;

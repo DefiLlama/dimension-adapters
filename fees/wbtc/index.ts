@@ -23,13 +23,11 @@ export default {
 
       },
       start: '2018-11-24',
-      meta: {
-        methodology: {
-          Fees: "Minting and buring fees paid by users.",
-          Revenue: "All fees are revenue.",
-          ProtocolRevenue: "All revenue collected by protocol.",
-        }
-      }
     }
   },
+  methodology: {
+    Fees: "Minting and buring fees paid by users.",
+    Revenue: "All fees are revenue.",
+    ProtocolRevenue: "All revenue collected by protocol.",
+  }
 }

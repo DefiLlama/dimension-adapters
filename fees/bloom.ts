@@ -1,15 +1,13 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/queries/4966713/8220253
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: "All trading fees paid by users while using Bloom Trading bot.",
     Revenue: "Trading fees are collected by Bloom protocol.",
-  }
 }
 
 const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
@@ -119,20 +117,19 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
       start: '2024-10-01',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetchEVM,
       start: '2024-12-12',
-      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetchEVM,
       start: '2024-12-12',
-      meta,
     }
   },
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
+  methodology,
 }
 
 export default adapter;

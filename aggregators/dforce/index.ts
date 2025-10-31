@@ -1,9 +1,8 @@
 import fetchURL from "../../utils/fetchURL"
-import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const endpoints: { [chain: string]: string } = {
+const endpoints: Record<string, string> = {
   [CHAIN.ETHEREUM]: "https://app.dforce.network/dashboard/lsr/DayTokenInfo?network=mainnet",
   [CHAIN.POLYGON]: "https://app.dforce.network/dashboard/lsr/DayTokenInfo?network=Polygon",
   [CHAIN.ARBITRUM]: "https://app.dforce.network/dashboard/lsr/DayTokenInfo?network=ArbitrumOne",
@@ -21,22 +20,22 @@ interface IAPIResponse {
   }
 };
 
-const fetch = (chain: string) => async (timestamp: number) => {
-  const response: IAPIResponse = (await fetchURL(endpoints[chain]));
-  const totalDailyVolume = response.data.preChain.reduce((acc,cur) => {return acc + parseInt(cur.volume)/10**18}, 0)
-  const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const response: IAPIResponse = (await fetchURL(endpoints[options.chain]));
+  const dailyVolume = response.data.preChain.reduce((acc,cur) => {return acc + parseInt(cur.volume)/10**18}, 0)
+
   return {
-    dailyVolume: totalDailyVolume,
-    timestamp: t,
+    dailyVolume
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-07-24', // rebranded to usx finance
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
-        fetch: fetch(chain),
+        fetch,
         start: '2023-03-18',
         runAtCurrTime: true
       }

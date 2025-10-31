@@ -46,16 +46,14 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Total Fee user pays for the trades",
+    Revenue: "Revenue is calculated as 0.2% of the daily fees",
+  },
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
       start: "2025-02-04",
-      meta: {
-        methodology: {
-          Fees: "Total Fee user pays for the trades",
-          Revenue: "Revenue is calculated as 0.2% of the daily fees",
-        }
-      }
     },
   },
 };

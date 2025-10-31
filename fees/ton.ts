@@ -5,9 +5,14 @@ import { ProtocolType } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: 'Transaction fees paid by users',
+    Revenue: 'Amount of 50% TON transaction fees that were burned',
+    HoldersRevenue: 'Amount of 50% TON transaction fees that were burned',
+  },
   adapter: {
     [CHAIN.TON]: {
-      fetch: async (_:any, _1:any, options: FetchOptions) => {
+      fetch: async (_: any, _1: any, options: FetchOptions) => {
         const query = `
             SELECT 
             SUM(total_fees) AS tx_fees
@@ -19,18 +24,11 @@ const adapter: SimpleAdapter = {
         dailyFees.addGasToken(res[0].tx_fees);
         const dailyRevenue = dailyFees.clone(0.5) // burn 50% of fees
         return {
-            dailyFees,
-            dailyRevenue,
-            dailyHoldersRevenue: dailyRevenue
+          dailyFees,
+          dailyRevenue,
+          dailyHoldersRevenue: dailyRevenue
         }
       },
-      meta: {
-        methodology: {
-          Fees: 'Transaction fees paid by users',
-          Revenue: 'Amount of 50% TON transaction fees that were burned',
-          HoldersRevenue: 'Amount of 50% TON transaction fees that were burned',
-        }
-      }
     },
   },
   version: 1,

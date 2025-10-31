@@ -34,16 +34,14 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   adapter: {
     [CHAIN.WC]: {
-      fetch,
       start: "2025-06-01",
-      meta: {
-        methodology: {
-          Volume: "Sum of bets (GameCreated) in WLD across X3X contracts",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume: "Sum of bets (GameCreated) in WLD across X3X contracts",
   },
 };
 

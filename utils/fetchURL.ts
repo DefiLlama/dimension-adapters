@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios"
+import { sleep } from "./utils"
 
 export default async function fetchURL(url: string, retries = 3) {
   try {
@@ -52,5 +53,19 @@ export async function httpPost(url: string, data: any, options?: AxiosRequestCon
   } catch (error) {
     if (withMetadata) throw error
     throw formAxiosError(url, error, { method: 'POST' })
+  }
+}
+
+export async function fetchURLAutoHandleRateLimit(url: string, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await httpGet(url)
+    } catch (error) {
+      if (i < retries - 1) {
+        await sleep(5000)
+      } else {
+        throw error
+      }
+    }
   }
 }

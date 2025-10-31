@@ -1,6 +1,10 @@
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
+import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
+import { queryDuneSql } from "../helpers/dune";
 
+// Curator config for EVM chains
 const curatorConfig: CuratorConfig = {
   vaults: {
     ethereum: {
@@ -20,11 +24,202 @@ const curatorConfig: CuratorConfig = {
       ],
     },
   }
+};
+
+// Solana constants
+const MANAGER_ADDRESS = 'G6L1NE8tLYYzvMHYHbkHZqPFvfEsiRAsHSvyNQ2hut3o';
+
+// Correct vault addresses from the Python code (not PDAs)
+const VAULT_ADDRESSES = [
+  "CoHd9JpwfcA76XQGA4AYfnjvAtWKoBQ6eWBkFzR1A2ui", // hJLP 1x (USDC)
+  "JCigGWJJRCPas7B9eUe2JgkyqQjGxMKkvZcJ7VQaNBqx", // hJLP 2x (USDC)
+  "J6hcyp5rAsb1h7Qwgk763X6e2WnHgZa489VCE5VXgHLT", // Gauntlet Basis Alpha (USDC)
+  "AocrjhFd2oxyVccz1vdnZc9Hd9bnW9ejuWWH73PedykU", // hJLP 1x (JLP)
+  "4r3HvmEMqWFc5jgwfNQvzDnk7xb8JdhQ6AtcqQVLNXgP", // SOL Plus
+  "5LVLbAddNbAiKscWqYV8GHwv6STb3xmqhhc6W5HoHVVg", // cbBTC Plus
+  "6aowo7AoE6rw8CS6knd746XiRysuiEjs9YpZyHRAMnor", // dSOL Plus
+  "4F7c7v9cZHatcZLy9TZFv1jrRrReACLBxciMkbDqVkfQ", // jitoSOL Plus
+  "8ziYC1onrdfq2KhRQamz392Ykx8So48uWzd3f8tXJpVz", // DRIFT Plus
+  "5M13RDhVWSGiuUPU3ewnxLWdMjcYx5zCzBLgvMjVuZ2K", // JTO Plus
+  "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ", // Carrot hJLP
+  "An26iG1Cx5W8tsxa8cHg8zjt7G15rBBj6swextzwMGCG", // wETH Plus
+  "12HURxP9axx1FRKKHEWMiPcS6ixuekZ6pzfTbp3YQ1EH"  // dfdvSOL Plus
+];
+
+// async function calculateGrossReturns(options: FetchOptions): Promise<number> {
+//   let totalGrossReturns = 0;
+
+//   // Extract snapshot timestamp (supports 'ts' in seconds, or 'timestamp'/'createdAt')
+//   const getSnapshotMs = (snapshot: any): number => {
+//     const rawTs = snapshot?.ts ?? snapshot?.timestamp ?? snapshot?.createdAt ?? 0;
+//     const numericTs = Number(rawTs);
+//     if (!Number.isFinite(numericTs) || numericTs <= 0) return 0;
+//     // If looks like seconds, convert to ms
+//     return numericTs < 1e12 ? numericTs * 1000 : numericTs;
+//   };
+
+//   for (const vaultAddress of VAULT_ADDRESSES) {
+//     const data = await fetchURL(`https://app.drift.trade/api/vaults/vault-snapshots?vault=${vaultAddress}`);
+
+//     if (data && Array.isArray(data) && data.length > 0) {
+//       const startTime = options.startTimestamp * 1000;
+//       const endTime = options.endTimestamp * 1000;
+
+//       const sortedData = data.sort((a, b) => getSnapshotMs(a) - getSnapshotMs(b));
+
+//       const periodSnapshots = sortedData.filter(snapshot => {
+//         const snapshotTime = getSnapshotMs(snapshot);
+//         return snapshotTime >= startTime && snapshotTime <= endTime;
+//       });
+
+//       const TOLERANCE_MS = 36 * 60 * 60 * 1000; // 36h
+//       let startSnapshot: any;
+//       let endSnapshot: any;
+
+//       if (periodSnapshots.length >= 2) {
+//         const periodSorted = periodSnapshots.sort((a, b) => getSnapshotMs(a) - getSnapshotMs(b));
+//         startSnapshot = periodSorted[0];
+//         endSnapshot = periodSorted[periodSorted.length - 1];
+//       } else {
+//         // latest <= startTime
+//         for (let i = sortedData.length - 1; i >= 0; i--) {
+//           const t = getSnapshotMs(sortedData[i]);
+//           if (t <= startTime) { startSnapshot = sortedData[i]; break; }
+//         }
+//         // latest <= endTime
+//         for (let i = sortedData.length - 1; i >= 0; i--) {
+//           const t = getSnapshotMs(sortedData[i]);
+//           if (t <= endTime) { endSnapshot = sortedData[i]; break; }
+//         }
+//         // try after end within tolerance
+//         if (endSnapshot && startSnapshot && getSnapshotMs(startSnapshot) === getSnapshotMs(endSnapshot)) {
+//           const afterEnd = sortedData.find(s => getSnapshotMs(s) > endTime && (getSnapshotMs(s) - endTime) <= TOLERANCE_MS);
+//           if (afterEnd) endSnapshot = afterEnd;
+//         }
+//         // try before start within tolerance
+//         if (!startSnapshot || (endSnapshot && getSnapshotMs(startSnapshot) === getSnapshotMs(endSnapshot))) {
+//           const beforeStart = [...sortedData].reverse().find(s => getSnapshotMs(s) < startTime && (startTime - getSnapshotMs(s)) <= TOLERANCE_MS);
+//           if (beforeStart) startSnapshot = beforeStart;
+//         }
+//       }
+
+//       if (startSnapshot && endSnapshot && getSnapshotMs(endSnapshot) !== getSnapshotMs(startSnapshot)) {
+//         const startValue = (startSnapshot.totalAccountQuoteValue || 0) / 1e6;
+//         const endValue = (endSnapshot.totalAccountQuoteValue || 0) / 1e6;
+//         const startNetDeposits = ((startSnapshot.totalDeposits || 0) - (startSnapshot.totalWithdraws || 0)) / 1e6;
+//         const endNetDeposits = ((endSnapshot.totalDeposits || 0) - (endSnapshot.totalWithdraws || 0)) / 1e6;
+//         const startManagerFees = (startSnapshot.managerTotalFee || 0) / 1e6;
+//         const endManagerFees = (endSnapshot.managerTotalFee || 0) / 1e6;
+//         const startNetValue = startValue - startNetDeposits;
+//         const endNetValue = endValue - endNetDeposits;
+//         const periodReturns = endNetValue - startNetValue;
+//         const periodManagerFees = endManagerFees - startManagerFees;
+        
+//         // Only add period returns to avoid double-counting manager fees
+//         // Manager fees are tracked separately in dailyRevenue
+//         const periodValueGenerated = periodReturns;
+
+//         totalGrossReturns += periodValueGenerated;
+//       }
+//     }
+//   }
+
+//   return totalGrossReturns;
+// }
+
+// Solana fetch function
+const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
+  const dailyRevenue = options.createBalances();
+
+  // Get manager fees from Dune SQL
+  const vaultAddressesList = VAULT_ADDRESSES.map(addr => `'${addr}'`).join(', ');
+  const managerFeesQuery = `
+    SELECT 
+      SUM(amount_display) as total_amount,
+      token_mint_address,
+      symbol
+    FROM tokens_solana.transfers 
+    WHERE from_owner IN (${vaultAddressesList})
+      AND to_owner = '${MANAGER_ADDRESS}'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+      AND amount_display IS NOT NULL
+      AND amount_display != 0
+    GROUP BY token_mint_address, symbol
+    HAVING SUM(amount_display) != 0
+    ORDER BY total_amount DESC
+  `;
+  const managerFeesData = await queryDuneSql(options, managerFeesQuery);
+
+  if (managerFeesData && managerFeesData.length > 0) {
+    managerFeesData.forEach((fee: any) => {
+      if (fee.total_amount && fee.token_mint_address && fee.total_amount !== 0) {
+        dailyRevenue.add(fee.token_mint_address, fee.total_amount, METRIC.MANAGEMENT_FEES);
+      }
+    });
+  }
+
+  // For Drift vaults, fees should equal revenue (only manager fees)
+  // Remove gross returns calculation as it was causing double-counting
+  const dailyFees = dailyRevenue.clone(1, METRIC.MANAGEMENT_FEES);
+  const dailySupplySideRevenue = options.createBalances();
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  };
+};
+
+// Get curator export for EVM chains and combine with Solana
+const curatorExport = getCuratorExport(curatorConfig);
+
+// need to convert adapter v2 to adapter v1
+for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
+  (curatorExport.adapter as any)[chain] = {
+    fetch: async (_t: any, _a: any, options: FetchOptions) => {
+      return await (adapter as any).fetch(options);
+    }
+  }
+}
+
+const methodology = {
+  Fees: "Daily management fees claimed by the Gauntlet manager during the specified time period (fees now equal revenue for Drift vaults)",
+  Revenue: "Daily management fees claimed by the Gauntlet manager during the specified time period",
+  ProtocolRevenue: "Daily management fees claimed by the Gauntlet manager during the specified time period",
+  SupplySideRevenue: "Amount of yields distributed to supply-side depositors (currently zero as fees equal revenue).",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: "Amount of yields distributed to supply-side depositors (currently zero).",
+  },
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: getCuratorExport(curatorConfig),
-}
+  version: 1,
+  breakdownMethodology,
+  methodology,
+  adapter: {
+    ...curatorExport.adapter,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: '2024-01-01'
+    },
+  },
+  // allowNegativeValue: true,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true
+};
 
-export default adapter
+export default adapter;

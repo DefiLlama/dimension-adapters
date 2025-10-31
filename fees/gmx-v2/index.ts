@@ -2,8 +2,9 @@
 // https://dune.com/queries/4959575/9826428
 // https://dune.com/queries/5234847/8604606 - for refill
 
-import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
@@ -11,7 +12,9 @@ import request, { gql } from "graphql-request";
 
 interface IFee {
     time: string;
-    v2_fees: number;
+    margin_fees_usd: number;
+    swap_fees_usd: number;
+    liquidation_fee_usd: number;
 }
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
@@ -21,21 +24,37 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
     {
        feesRecordDailies(where: {timestamp_eq: "${targetDate}"}) {
         tradeFees
+        swapFees
       }
     }
   `
     const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
     const res = await request(url, query)
-    const fees = res.feesRecordDailies
-        .reduce((acc: number, record: { tradeFees: string }) => acc + Number(record.tradeFees), 0)
-    if (fees === 0) throw new Error('Not found daily data!.')
-    const dailyFees = fees / (10 ** 20)
+
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+    for (const record of res.feesRecordDailies) {
+        dailyFees.addUSDValue(record.tradeFees / 1e20, METRIC.MARGIN_FEES)
+        dailyFees.addUSDValue(record.swapFees / 1e20, METRIC.SWAP_FEES)
+
+        dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.MARGIN_FEES)
+        dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
+
+        dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.1, METRIC.MARGIN_FEES)
+        dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.1, METRIC.SWAP_FEES)
+
+        dailyHoldersRevenue.addUSDValue(record.tradeFees / 1e20 * 0.27, METRIC.MARGIN_FEES)
+        dailyHoldersRevenue.addUSDValue(record.swapFees / 1e20 * 0.27, METRIC.SWAP_FEES)
+    }
+
     return {
         timestamp: options.startOfDay,
-        dailyFees: dailyFees,
-        dailyRevenue: dailyFees * 0.37,
-        dailyProtocolRevenue: dailyFees * 0.1,
-        dailyHoldersRevenue: dailyFees * 0.27,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
     }
 }
 
@@ -58,13 +77,9 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
               CASE WHEN blockchain = 'avalanche_c' THEN 'Avalanche' ELSE INITCAP(blockchain) END AS chain,
               block_time, block_date, trader, market, collateral_token,
               (collateral_token_price_min + collateral_token_price_max) / 2 AS collateral_token_price,
-              trade_size_usd, referral_total_rebate_amount, referral_trader_discount_amount,
-              referral_adjusted_affiliate_reward_factor, referral_affiliate_reward_amount,
-              pro_trader_discount_amount, funding_fee_amount, borrowing_fee_usd,
-              protocol_fee_amount, fee_receiver_amount, fee_amount_for_pool,
-              position_fee_amount_for_pool, position_fee_amount, total_cost_amount,
-              ((collateral_token_price_max + collateral_token_price_min) / 2) * liquidation_fee_amount AS liquidation_fee_usd,
-              order_key, tx_hash
+              trade_size_usd, borrowing_fee_usd, fee_receiver_amount, fee_amount_for_pool,
+              position_fee_amount, order_key, tx_hash,
+              ((collateral_token_price_max + collateral_token_price_min) / 2) * liquidation_fee_amount AS liquidation_fee_usd
           FROM gmx_v2.position_fees_collected
       ),
 
@@ -88,24 +103,10 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
                   block_time, block_date, account AS address, size_delta_usd AS volume,
                   tx_hash, order_key
               FROM gmx_v2.position_decrease
-              WHERE order_type <> 'Liquidation'
           ) AS trades
           INNER JOIN v2_trade_fees AS fees ON trades.order_key = fees.order_key
-      ),
-
-      gmx_v2_liquidations AS (
-          SELECT 
-              t1.blockchain,
-              CASE WHEN t1.blockchain = 'avalanche_c' THEN 'Avalanche' ELSE INITCAP(t1.blockchain) END AS chain,
-              t1.block_time, t1.block_date, t1.account AS address, t1.size_delta_usd AS size,
-              t2.position_fee_amount * t2.collateral_token_price + t2.borrowing_fee_usd AS fees,
-              t2.liquidation_fee_usd
-          FROM gmx_v2.position_decrease AS t1
-          INNER JOIN v2_trade_fees AS t2 ON t1.order_key = t2.order_key
-          WHERE t1.order_type = 'Liquidation'
-      ),
-
-      created_swap_keys AS (
+      )
+      , created_swap_keys AS (
           SELECT 
               blockchain,
               CASE WHEN blockchain = 'avalanche_c' THEN 'Avalanche' ELSE INITCAP(blockchain) END AS chain,
@@ -203,22 +204,15 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
 
       v2_fees AS (
           SELECT 
-              block_time, block_date, volume, fees, liquidation_fee_usd, chain
+              block_time, block_date, volume, fees as margin_fees_usd, 0 as swap_fees_usd, liquidation_fee_usd, chain
           FROM gmx_v2_trades
           UNION ALL
           SELECT
-              block_time, block_date, volume, fees, 0 AS liquidation_fee_usd, chain
+              block_time, block_date, volume, fees as swap_fees_usd, 0 AS margin_fees_usd, 0 AS liquidation_fee_usd, chain
           FROM gmx_v2_swaps
-          UNION ALL
-          SELECT 
-              block_time, block_date, size AS volume, fees, liquidation_fee_usd, chain
-          FROM gmx_v2_liquidations
       )
 
-      SELECT 
-          SUM(volume) AS volume,
-          SUM(fees + liquidation_fee_usd) AS v2_fees
-      FROM v2_fees
+      SELECT margin_fees_usd, swap_fees_usd, liquidation_fee_usd FROM v2_fees
       WHERE (
           CASE '${chainName}'
               WHEN 'ALL' THEN 1=1
@@ -227,20 +221,44 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
           END
       )
       AND TIME_RANGE
+
+      
     `);
 
-    let dailyFees = fees.reduce((acc: number, item: IFee) => acc + item.v2_fees, 0);
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+
+    for (const item of fees) {
+        dailyFees.addUSDValue(item.margin_fees_usd, METRIC.MARGIN_FEES)
+        dailyFees.addUSDValue(item.swap_fees_usd, METRIC.SWAP_FEES)
+        dailyFees.addUSDValue(item.liquidation_fee_usd, METRIC.LIQUIDATION_FEES)
+
+        dailyRevenue.addUSDValue(item.margin_fees_usd * 0.37, METRIC.MARGIN_FEES)
+        dailyRevenue.addUSDValue(item.swap_fees_usd * 0.37, METRIC.SWAP_FEES)
+        dailyRevenue.addUSDValue(item.liquidation_fee_usd * 0.37, METRIC.LIQUIDATION_FEES)
+
+        dailyProtocolRevenue.addUSDValue(item.margin_fees_usd * 0.1, METRIC.MARGIN_FEES)
+        dailyProtocolRevenue.addUSDValue(item.swap_fees_usd * 0.1, METRIC.SWAP_FEES)
+        dailyProtocolRevenue.addUSDValue(item.liquidation_fee_usd * 0.1, METRIC.LIQUIDATION_FEES)
+
+        dailyHoldersRevenue.addUSDValue(item.margin_fees_usd * 0.27, METRIC.MARGIN_FEES)
+        dailyHoldersRevenue.addUSDValue(item.swap_fees_usd * 0.27, METRIC.SWAP_FEES)
+        dailyHoldersRevenue.addUSDValue(item.liquidation_fee_usd * 0.27, METRIC.LIQUIDATION_FEES)
+    }
 
     return {
         dailyFees,
-        dailyRevenue: `${dailyFees * 0.37}`,
-        dailyProtocolRevenue: `${dailyFees * 0.1}`,
-        dailyHoldersRevenue: `${dailyFees * 0.27}`,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
     };
 };
 
 const adapter: Adapter = {
     version: 1,
+    dependencies: [Dependencies.DUNE],
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
@@ -252,7 +270,7 @@ const adapter: Adapter = {
         },
         [CHAIN.SOLANA]: {
             fetch: fetchSolana,
-            start: '2025-02-12'
+            start: '2025-02-12',
         },
     },
     isExpensiveAdapter: true,

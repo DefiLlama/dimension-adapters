@@ -1,12 +1,10 @@
 require('dotenv').config()
 import { execSync } from 'child_process';
 import * as path from 'path';
-import { Adapter, AdapterType, ChainBlocks, } from '../adapters/types';
-import getChainsFromDexAdapter from '../adapters/utils/getChainsFromDexAdapter';
+import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types';
 import runAdapter from '../adapters/utils/runAdapter';
-import { canGetBlock, getBlock } from '../helpers/getBlock';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import { checkArguments, printVolumes } from './utils';
+import { checkArguments, printVolumes2, timestampLast } from './utils';
 
 function checkIfFileExistsInMasterBranch(_filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
@@ -33,9 +31,9 @@ function getTimestamp30MinutesAgo() {
 }
 
 
-function toTimestamp(timeArg:string){
-  if(Number.isNaN(Number(timeArg))){
-    return Math.round(new Date(timeArg).getTime()/1e3)
+function toTimestamp(timeArg: string) {
+  if (Number.isNaN(Number(timeArg))) {
+    return Math.round(new Date(timeArg).getTime() / 1e3)
   } else {
     return Number(timeArg)
   }
@@ -53,7 +51,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
   console.info(`---------------------------------------------------`)
   // Import module to test
-  let module: Adapter = (await import(passedFile)).default
+  let module: SimpleAdapter = (await import(passedFile)).default
   const adapterVersion = module.version
   let endTimestamp = endCleanDayTimestamp
   if (adapterVersion === 2) {
@@ -62,45 +60,14 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     checkIfFileExistsInMasterBranch(file)
   }
 
-  console.info(`Start Date:\t${new Date((endTimestamp - 3600*24)*1e3).toUTCString()}`)
-  console.info(`End Date:\t${new Date(endTimestamp*1e3).toUTCString()}`)
+  console.info(`Start Date:\t${new Date((endTimestamp - 3600 * 24) * 1e3).toUTCString()}`)
+  console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
   console.info(`---------------------------------------------------\n`)
 
-  // Get closest block to clean day. Only for EVM compatible ones.
-  const allChains = getChainsFromDexAdapter(module).filter(canGetBlock)
-
-  const chainBlocks: ChainBlocks = {};
-  await Promise.all(allChains.map(async (chain) => {
-    try {
-      const latestBlock = await getBlock(endTimestamp, chain, chainBlocks).catch((e: any) => console.error(`${e.message}; ${endTimestamp}, ${chain}`))
-      if (latestBlock)
-        chainBlocks[chain] = latestBlock
-    } catch (e) { console.log(e) }
-  }))
-
-  if ("adapter" in module) {
-    const adapter = module.adapter
-    // Get adapter
-    const volumes: any = await runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
-      adapterVersion,
-      _module: module,
-    })
-    printVolumes(volumes, adapter)
-    console.info("\n")
-  } else if ("breakdown" in module) {
-    const breakdownAdapter = module.breakdown
-    const allVolumes = await Promise.all(Object.entries(breakdownAdapter).map(([version, adapter]) =>
-      runAdapter(adapter, endTimestamp, chainBlocks, undefined, undefined, {
-        adapterVersion,
-        _module: module,
-        isTest: true,
-      }).then(res => ({ version, res }))
-    ))
-    allVolumes.forEach(({ version, res }) => {
-      console.info("Version ->", version.toUpperCase())
-      console.info("---------")
-      printVolumes(res as any, breakdownAdapter[version])
-    })
-  } else throw new Error("No compatible adapter found")
+  if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
+  // Get adapter
+  const volumes: any = await runAdapter({ module, endTimestamp })
+  printVolumes2(volumes.map((volume: any) => timestampLast(volume)))
+  console.info("\n")
   process.exit(0)
 })()

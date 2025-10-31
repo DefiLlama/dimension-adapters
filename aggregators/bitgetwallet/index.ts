@@ -1,9 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st/getOrderDayList"
+const historicalVolumeEndpoint = "https://api-3rd.bitkeep.com/swap-go/open/getOrderDayVolume"
 
 interface IVolumeall {
     volume: string;
@@ -11,16 +10,16 @@ interface IVolumeall {
 }
 
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const chain = options.chain;
-    if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {}} // skip HECO for now
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+    if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {} } // skip HECO for now
+    const startOfDay = options.startOfDay;
     const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
 
-    const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+    const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === startOfDay)?.volume
 
     return {
-        dailyVolume: dailyVolume
+        dailyVolume
     };
 }
 
@@ -63,7 +62,7 @@ const adapter: SimpleAdapter = {
             return {
                 [chain]: {
                     fetch,
-                    start: '2022-10-31'
+                    start: '2025-04-01'
                 }
             }
         }).reduce((acc, item) => {

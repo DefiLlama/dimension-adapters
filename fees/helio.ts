@@ -24,17 +24,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: 'Total fees paid by users.',
-          Revenue: 'Total fees paid by users.',
-          ProtocolRevenue: '90% fees paid are collected by Helio.',
-          HoldersRevenue: '10% fees paid are distributed to holders.',
-        }
-      }
     },
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Total fees paid by users.',
+    Revenue: 'Total fees paid by users.',
+    ProtocolRevenue: '90% fees paid are collected by Helio.',
+    HoldersRevenue: '10% fees paid are distributed to holders.',
+  }
 };
 
 export default adapter;

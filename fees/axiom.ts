@@ -3,7 +3,7 @@ import { CHAIN } from '../helpers/chains';
 import { getSolanaReceived } from '../helpers/token';
 
 // https://dune.com/adam_tehc/axiom
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     '7LCZckF6XXGQ1hDY6HFXBKWAtiUgL9QY5vj1C4Bn1Qjj',
     '4V65jvcDG9DSQioUVqVPiUcUY9v6sb6HKtMnsxSKEz5S',
@@ -27,31 +27,32 @@ const fetch: any = async (options: FetchOptions) => {
     '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg'
   ];
 
+  const blacklist_mints: Array<string> = [
+    'MeTwNz4RedLKs4cZHuRqXR8mW7xxCsLD8rKwHkNpump',
+  ];
 
   const dailyFees = await getSolanaReceived({
     blacklists: targets,
     options,
     targets,
+    blacklist_mints,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
+
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: 'User pays 0.75%-1% fee on each trade',
-          Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-          UserFees: 'User pays 0.75%-1% fee on each trade',
-          HoldersRevenue: 'Fees distributed to token holders',
-          ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
-        }
-      }
-    },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-01-21',
+  methodology: {
+    Fees: 'User pays 0.75%-1% fee on each trade',
+    Revenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
+    UserFees: 'User pays 0.75%-1% fee on each trade',
+    HoldersRevenue: 'No token holder revenue',
+    ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
   },
   isExpensiveAdapter: true,
 };

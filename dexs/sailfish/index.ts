@@ -27,9 +27,7 @@ const adapters: SimpleAdapter = {
   version: 2,
   adapter: {
     occ: {
-      fetch: (options: FetchOptions) =>  {
-        return v3Graphs(options.chain)(options)
-      }
+      fetch: v3Graphs
     },
   }
 }

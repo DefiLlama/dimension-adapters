@@ -58,20 +58,15 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs,
       start: '2023-09-10',
-      meta: {
-        methodology,
-      },
     },
     [CHAIN.MODE]: {
       fetch: graphs,
       start: '2024-07-10',
-      meta: {
-        methodology,
-      },
     },
   },
 };

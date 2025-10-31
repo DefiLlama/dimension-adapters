@@ -52,14 +52,15 @@ const chains: Record<string, string> = {
   [CHAIN.KROMA]: 'kroma',
   [CHAIN.XLAYER]: 'xlayer',
   [CHAIN.SEI]: 'sei',
-  [CHAIN.EON]: 'horizen-eon',
+  // [CHAIN.EON]: 'horizen-eon',   // chain is dead
   [CHAIN.BAHAMUT]: 'bahamut',
   [CHAIN.KLAYTN]: 'klaytn',
   // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
   [CHAIN.VELAS]: 'velas',
   [CHAIN.SYSCOIN]: 'syscoin',
   [CHAIN.BOBA_BNB]: 'boba-bsc',
-  [CHAIN.FLARE]: 'flare'
+  [CHAIN.FLARE]: 'flare',
+  [CHAIN.HEMI]: 'hemi'
 };
 
 interface ApiResponse {

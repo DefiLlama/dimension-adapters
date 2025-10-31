@@ -23,7 +23,6 @@ const fetch = () => {
     const fee: IFee = response.data;
     return {
       dailyFees: `${fee?.daily_fee || undefined}`,
-      totalFees: `${fee?.total_fee || undefined}`,
       timestamp: dayTimestamp,
     };
   };

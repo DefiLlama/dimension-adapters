@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { BaseAdapter, Chain, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 
@@ -50,13 +50,20 @@ const v3Graphs = getGraphDimensions2({
   }
 });
 
+const uniLogAdapterConfig = {
+  userFeesRatio: 1,
+  revenueRatio: 0,
+  protocolRevenueRatio: 0,
+  holdersRevenueRatio: 0,
+}
+
 interface IOkuResponse {
   volume: number;
   fees: number;
 }
 const fetchFromOku = async (options: FetchOptions) => {
   try {
-    const url = `https://omni.icarus.tools/${mappingChain(options.chain === 'era' ? 'zksync' : options.chain)}/cush/analyticsProtocolHistoric`;
+    const url = `https://omni.icarus.tools/${mappingChain(options.chain)}/cush/analyticsProtocolHistoric`;
     const body = {
       "params": [
         options.startTimestamp * 1000, //start
@@ -90,46 +97,58 @@ const mappingChain = (chain: string) => {
   return chain
 }
 
-const meta = {
-  methodology: {
-    Fees: "Swap fees from paid by users.",
-    UserFees: "User pays fees on each swap.",
-    Revenue: "Protocol have no revenue.",
-    ProtocolRevenue: "Protocol have no revenue.",
-    SupplySideRevenue: "All user fees are distributed among LPs.",
-    HoldersRevenue: "Holders have no revenue."
-  }
+const methodology = {
+  Fees: "Swap fees from paid by users.",
+  UserFees: "User pays fees on each swap.",
+  Revenue: 'Protocol make no revenue.',
+  ProtocolRevenue: 'Protocol make no revenue.',
+  SupplySideRevenue: 'All fees are distributed to LPs.',
+  HoldersRevenue: 'No revenue for UNI holders.',
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
   adapter: Object.keys(v3Endpoints).reduce((acc, chain) => {
     acc[chain] = {
-      fetch: async (_t:any, _tb: any , options: FetchOptions) => v3Graphs(chain as Chain)(options),
+      fetch: async (_t: any, _tb: any, options: FetchOptions) => v3Graphs(options),
       start: startTimeV3[chain],
-      meta,
     }
     return acc
   }, {} as BaseAdapter)
-}
+};
 
-adapter.adapter[CHAIN.AVAX] = {
-  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 })
+(adapter.adapter as BaseAdapter)[CHAIN.AVAX] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
   },
-  meta,
-}
+};
 
-adapter.adapter[CHAIN.WC] = {
-  fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-    const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 })
+(adapter.adapter as BaseAdapter)[CHAIN.WC] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x7a5028BDa40e7B173C278C5342087826455ea25a", ...uniLogAdapterConfig })
     const response = await adapter(options)
     return response;
   },
-  meta,
-}
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
+// (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
+//   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+//     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
+//     const response = await adapter(options)
+//     return response;
+//   },
+// };
 
 const okuChains = [
   CHAIN.ETHEREUM,
@@ -144,8 +163,6 @@ const okuChains = [
   CHAIN.ROOTSTOCK,
   CHAIN.FILECOIN,
   CHAIN.BOBA,
-  CHAIN.MOONBEAM,
-  CHAIN.MANTA,
   CHAIN.MANTLE,
   CHAIN.LINEA,
   CHAIN.POLYGON_ZKEVM,
@@ -157,22 +174,22 @@ const okuChains = [
   CHAIN.GOAT,
   CHAIN.BSC,
   CHAIN.HEMI,
-  // CHAIN.SAGA,
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
-  // CHAIN.ARBITRUM,
   CHAIN.LENS,
   CHAIN.TELOS,
   CHAIN.CELO,
+  CHAIN.NIBIRU,
+  
+  // CHAIN.SAGA,
 ]
 
 
 
 okuChains.forEach(chain => {
-  adapter.adapter[chain] = {
-    fetch: async (_t:any, _tb: any , options: FetchOptions) => fetchFromOku(options),
-    meta,
+  (adapter.adapter as BaseAdapter)[chain] = {
+    fetch: async (_t: any, _tb: any, options: FetchOptions) => fetchFromOku(options),
   }
-})
+});
 
 export default adapter;

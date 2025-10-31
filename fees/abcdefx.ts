@@ -20,8 +20,5 @@ const adapters: SimpleAdapter = uniV2Exports({
   [CHAIN.KAVA]: { factory: FACTORY_ADDRESS, },
 })
 
-
-Object.keys(adapters.adapter).forEach((chain: any) => {
-  adapters.adapter[chain].meta = { methodology }
-})
+adapters.methodology = methodology;
 export default adapters;

@@ -37,47 +37,40 @@ const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances
   return { dailyFees }
 }
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: "Sum of all fees from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
     Revenue: "Sum of all revenue from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
     ProtocolRevenue: "Sum of all revenue from Chainlink Requests,Chainlink Keepers,Chainlink VRF V1,Chainlink VRF V2,Chainlink CCIP",
-  }
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-02-03',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch,
       start: '2023-02-03',
-      meta,
     },
     [CHAIN.POLYGON]: {
       fetch,
       start: '2023-02-03',
-      meta,
     },
     [CHAIN.OPTIMISM]: {
       fetch,
       start: '2023-02-03',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2023-02-03',
-      meta,
     },
     [CHAIN.AVAX]: {
       fetch,
       start: '2023-02-03',
       // runAtCurrTime: true,
-      meta,
     },
   },
   isExpensiveAdapter: true,

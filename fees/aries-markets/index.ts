@@ -45,15 +45,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.APTOS]: {
       fetch,
       start: "2025-06-15",
-      meta: {
-        methodology: {
-          Fees: "Interest earned by the protocol.",
-          Revenue: "Amount of fees go to Aries Markets treasury.",
-          SupplySideRevenue: "Amount of fees distributed to suppliers.",
-          ProtocolRevenue: "Amount of fees go to Aries Markets treasury.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Interest earned by the protocol.",
+    Revenue: "Amount of fees go to Aries Markets treasury.",
+    SupplySideRevenue: "Amount of fees distributed to suppliers.",
+    ProtocolRevenue: "Amount of fees go to Aries Markets treasury.",
   },
 };
 

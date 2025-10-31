@@ -1,8 +1,6 @@
 
 import { CHAIN } from '../helpers/chains'
 import { getGraphDimensions2 } from '../helpers/getUniSubgraph'
-import adapter from './hydradex'
-const { breakdown, ...rest } = adapter
 
 const methodology = {
   ProtocolRevenue: 'Protocol have no revenue.',
@@ -27,11 +25,8 @@ const graphs = getGraphDimensions2({
 })
 export default {
   version: 2,
-  adapter: {
-    [CHAIN.HYDRAGON]: {
-      fetch: graphs(CHAIN.HYDRAGON),
-      meta: { methodology },
-      start: '2025-05-20', // Start date for the adapter
-    }
-  }
+  methodology,
+  chains: [CHAIN.HYDRAGON],
+  fetch: graphs,
+  start: '2025-05-20', // Start date for the adapter
 }

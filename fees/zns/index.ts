@@ -42,7 +42,7 @@ const methodology = {
 const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const address = addresses[options.chain];
   const dailyFees = options.createBalances();
-  if (options.chain === CHAIN.PLUME_LEGACY){
+  if (options.chain === CHAIN.PLUME_LEGACY) {
     return { dailyFees, dailyRevenue: dailyFees };
   }
 
@@ -98,30 +98,30 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
-const meta = { methodology }
-
 const adapter: Adapter = {
+  fetch,
+  methodology,
   version: 1,
   adapter: {
-    [CHAIN.BSC]: { fetch, meta, start: '2024-04-30', },
-    [CHAIN.SCROLL]: { fetch, meta, start: '2024-05-04', },
-    [CHAIN.BLAST]: { fetch, meta, start: '2024-05-31', },
-    [CHAIN.POLYGON]: { fetch, meta, start: '2024-06-01', },
-    [CHAIN.TAIKO]: { fetch, meta, start: '2024-05-30', },
-    // [CHAIN.XLAYER]: {fetch,start: '2024-04-17',meta },
-    [CHAIN.ZORA]: { fetch, meta, start: '2024-06-24', },
-    // [CHAIN.BOBA]: {fetch,start: '2024-06-29',meta },
-    // [CHAIN.ZKLINK]: {fetch,start: '2024-06-29',meta },
-    [CHAIN.SONIC]: { fetch, meta, start: '2024-05-30', },
-    [CHAIN.BASE]: { fetch, meta, start: '2024-05-30', },
-    [CHAIN.SONEIUM]: { fetch, meta, start: '2024-06-24', },
-    [CHAIN.INK]: { fetch, meta, start: '2024-05-30', },
-    [CHAIN.ABSTRACT]: { fetch, meta, start: '2025-01-27', },
-    [CHAIN.PLUME]: { fetch, meta, start: '2025-01-27', },
-    [CHAIN.PLUME_LEGACY]: {fetch, meta, start: '2025-01-20', },
-    [CHAIN.BERACHAIN]: { fetch, meta, start: '2024-05-30', },
-    [CHAIN.UNICHAIN]: { fetch, meta, start: '2024-06-24', },
-    [CHAIN.HEMI]: { fetch, meta, start: '2024-06-24', }
+    [CHAIN.BSC]: { start: '2024-04-30', },
+    [CHAIN.SCROLL]: { start: '2024-05-04', },
+    [CHAIN.BLAST]: { start: '2024-05-31', },
+    [CHAIN.POLYGON]: { start: '2024-06-01', },
+    [CHAIN.TAIKO]: { start: '2024-05-30', },
+    // [CHAIN.XLAYER]: {start: '2024-04-17' },
+    [CHAIN.ZORA]: { start: '2024-06-24', },
+    // [CHAIN.BOBA]: {start: '2024-06-29' },
+    // [CHAIN.ZKLINK]: {start: '2024-06-29' },
+    [CHAIN.SONIC]: { start: '2024-05-30', },
+    [CHAIN.BASE]: { start: '2024-05-30', },
+    [CHAIN.SONEIUM]: { start: '2024-06-24', },
+    [CHAIN.INK]: { start: '2024-05-30', },
+    [CHAIN.ABSTRACT]: { start: '2025-01-27', },
+    [CHAIN.PLUME]: { start: '2025-01-27', },
+    [CHAIN.PLUME_LEGACY]: { start: '2025-01-20', },
+    [CHAIN.BERACHAIN]: { start: '2024-05-30', },
+    [CHAIN.UNICHAIN]: { start: '2024-06-24', },
+    [CHAIN.HEMI]: { start: '2024-06-24', }
   },
 };
 

@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -9,26 +9,26 @@ interface IData {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, `
-        WITH boop_txs AS (
+        WITH buy_volume AS (
             SELECT
-                CASE
-                    WHEN VARBINARY_STARTS_WITH (data, 0x8a7f0e5b26577369) THEN BYTEARRAY_TO_UINT256 (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 9, 8)))
-                    WHEN VARBINARY_STARTS_WITH (data, 0x6d3d28bbe6b087ae) THEN BYTEARRAY_TO_UINT256 (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 17, 8)))
-                END AS amount
+                SUM(buy_amount) / 1e9 AS volume
             FROM
-                solana.instruction_calls
+                boopdotfun_solana.boop_call_buy_token
             WHERE
-                tx_success = TRUE
-                AND inner_executing_account = 'boop8hVGQGqehUK2iVEMEnMrL5RbjywRzHKBmBE7ry4'
-                AND (
-                    VARBINARY_STARTS_WITH (data, 0x8a7f0e5b26577369)
-                    OR VARBINARY_STARTS_WITH (data, 0x6d3d28bbe6b087ae)
-                )
-                AND TIME_RANGE
+                call_block_time >= from_unixtime(${options.startTimestamp})
+                and call_block_time <= from_unixtime(${options.endTimestamp})
+        ),
+        sell_volume AS (
+            SELECT
+                SUM(amount_out_min) / 1e9 AS volume
+            FROM
+                boopdotfun_solana.boop_call_sell_token
+            WHERE
+                call_block_time >= from_unixtime(${options.startTimestamp})
+                and call_block_time <= from_unixtime(${options.endTimestamp})
         )
         SELECT
-            SUM(amount) / 1e9 AS total_volume
-        FROM boop_txs
+            COALESCE((SELECT volume FROM buy_volume), 0) + COALESCE((SELECT volume FROM sell_volume), 0) AS total_volume
     `)
     const dailyVolume = options.createBalances();
     dailyVolume.addCGToken('solana', data[0].total_volume);
@@ -40,13 +40,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-05-01'
-        }
-    },
-    version: 1,
+    fetch,
+    dependencies: [Dependencies.DUNE],
+    chains: [CHAIN.SOLANA],
+    start: '2025-05-01',
     isExpensiveAdapter: true
 }
 

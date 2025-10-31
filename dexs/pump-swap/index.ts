@@ -6,13 +6,13 @@ import { FetchOptions } from "../../adapters/types";
 // const queryId = "4900425"; // removed direct query so changes in query don't affect the data, and better visibility
 
 interface IData {
-    clean_volume: number;
-    total_volume: number;
+  clean_volume: number;
+  total_volume: number;
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const data: IData[] = await queryAllium(
-        `WITH volume_data AS (
+  const data: IData[] = await queryAllium(
+    `WITH volume_data AS (
             SELECT 
               pool,
               SUM(usd_amount) as volume_usd
@@ -55,29 +55,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           LEFT JOIN pool_tvl pt ON vd.pool = pt.liquidity_pool_address
           WHERE pt.liquidity_pool_address IS NOT NULL
     `)
-    console.log(data)
-    const dailyVolume = options.createBalances()
-    dailyVolume.addCGToken('tether', data[0].clean_volume);
+  const dailyVolume = options.createBalances()
+  dailyVolume.addCGToken('tether', data[0].clean_volume);
 
-    return { 
-        dailyVolume,
-    }
+  return {
+    dailyVolume,
+  }
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-03-15',
-            meta: {
-                methodology: {
-                    Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with a TVL less than $5,000.",
-                }
-            }
-        }
-    },
-    version: 1,
-    isExpensiveAdapter: true
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      start: '2025-02-20',
+    }
+  },
+  version: 1,
+  isExpensiveAdapter: true,
+  methodology: {
+    Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with a TVL less than $5,000.",
+  }
 }
 
 export default adapter

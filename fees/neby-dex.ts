@@ -29,12 +29,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.SAPPHIRE]: {
-      fetch: v3Graphs(CHAIN.SAPPHIRE),
-      meta: {
-        methodology,
-      },
+      fetch: v3Graphs,
     },
   },
+  methodology,
 };
 
 export default adapter;

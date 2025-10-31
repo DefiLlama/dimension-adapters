@@ -55,11 +55,9 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch,
       start: startTimestamp,
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.TARA]: {
-      fetch: v3Graphs(CHAIN.TARA),
+      fetch: v3Graphs,
       start: "2023-11-25",
     },
   },
