@@ -18,7 +18,7 @@ const chainv2mapping: any = {
   [CHAIN.ETHEREUM]: "ETHEREUM",
   [CHAIN.POLYGON]: "POLYGON",
   [CHAIN.BASE]: "BASE",
-  [CHAIN.BSC]: "BNB",
+  // [CHAIN.BSC]: "BNB",
   [CHAIN.OPTIMISM]: "OPTIMISM",
   [CHAIN.UNICHAIN]: "UNI",
 }
@@ -62,12 +62,12 @@ const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   adapter: {
-    // [CHAIN.UNICHAIN]: {
-    //   fetch: async (_t:any, _tb: any , options: FetchOptions) => {
-    //     const fetchFunction = getUniV2LogAdapter({ factory: '0x1f98400000000000000000000000000000000002', ...getLogAdapterConfig})
-    //     return await fetchFunction(options);
-    //   },
-    // },
+    [CHAIN.BSC]: {
+      fetch: async (_t:any, _tb: any , options: FetchOptions) => {
+        const fetchFunction = getUniV2LogAdapter({ factory: '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6', ...getLogAdapterConfig})
+        return await fetchFunction(options);
+      },
+    },
     ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
       acc[chain] = {
         fetch: fetchV2Volume,
