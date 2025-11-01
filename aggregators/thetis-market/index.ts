@@ -21,6 +21,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: Adapter = {
   version: 1,
   fetch,
+  deadFrom: '2025-09-09',
   chains: [CHAIN.APTOS],
   start: "2024-08-09",
 };
