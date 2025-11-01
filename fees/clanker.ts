@@ -126,7 +126,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyProtocolRevenue = dailyFees.clone(0.2) // 20% of fees to protocol
 
     const dailyHoldersRevenue = options.createBalances();
-    addTokensReceived({
+    await addTokensReceived({
         options,
         balances: dailyHoldersRevenue,
         targets: BUY_BACK_WALLETS,
