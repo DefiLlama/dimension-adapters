@@ -1,36 +1,27 @@
-import axios from 'axios';
-
 import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { getETHReceived } from '../helpers/token';
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const startBlock = await options.getStartBlock();
-  const endBlock = await options.getEndBlock();
-  const url = `https://api.kensei.one/fees/by-block?startBlock=${startBlock}&endBlock=${endBlock}`;
+const FEE_WALLETS = [
+  '0x79e298e86ddcca138fccc4687d0a4168a6f2dce6',
+];
 
-  const res = await axios.get<any>(url);
-  if (res.status !== 200) {
-    throw new Error('Failed to fetch fees');
-  }
-
-  const dailyFees = res.data;
-  const dailyRevenue = res.data;
-  const dailyProtocolRevenue = res.data;
-
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyFees = await getETHReceived({ options, targets: FEE_WALLETS });
+  
   return {
     dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
-    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
   methodology: {
-    Fees: 'Tokens trading and launching fees paid by users.',
-    Revenue: 'Tokens trading and launching fees paid by users.',
-    ProtocolRevenue: 'Tokens trading and launching fees paid by users.',
+    Fees: 'Tokens launching fees paid by users.',
+    Revenue: 'Tokens launching fees paid by users.',
+    ProtocolRevenue: 'Tokens launching fees paid by users.',
   },
-  version: 2,
   adapter: {
     [CHAIN.KATANA]: {
       fetch,
