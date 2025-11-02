@@ -12,8 +12,8 @@ const CONFIG = {
 const methodology = {
   Fees: "Total borrow interest paid by borrowers + liquidation bonuses earned by liquidators.",
   SupplySideRevenue: "Total interests are distributed to suppliers/lenders + liquidation bonuses to liquidators.",
-  Revenue: "Total fees paid by borrowers from all markets and part of performance fee retained from all vaults.",
-  ProtocolRevenue: "No revenue for Bend protocol.",
+  Revenue: "Total interest paid by borrowers and part of performance fees share for Bend protocol.",
+  ProtocolRevenue: "Total interest paid by borrowers and part of performance fees share for Bend protocol.",
 }
 
 const abi = {
@@ -249,6 +249,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   }
 
   for (const performanceFee of performanceFees) {
+    dailyFees.add(performanceFee.token, performanceFee.amount, METRIC.PERFORMANCE_FEES)
     dailyRevenue.add(performanceFee.token, performanceFee.amount, METRIC.PERFORMANCE_FEES)
   }
 
@@ -266,6 +267,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all markets.',
+      [METRIC.PERFORMANCE_FEES]: 'Share of interest for Bend protocol paid by Vault curator.',
       [METRIC.LIQUIDATION_FEES]: 'All bonuses earned by liquidators from liquidations.',
     },
     Revenue: {
@@ -275,6 +277,10 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: {
       [METRIC.BORROW_INTEREST]: 'All interests paid are distributedd to vaults suppliers, lenders.',
       [METRIC.LIQUIDATION_FEES]: 'All bonuses earned by liquidators from liquidations.',
+    },
+    ProtocolRevenue: {
+      [METRIC.BORROW_INTEREST]: 'Share of interest for Bend protocol.',
+      [METRIC.PERFORMANCE_FEES]: 'Share of interest for Bend protocol paid by Vault curator.',
     },
   },
   fetch: fetch,
