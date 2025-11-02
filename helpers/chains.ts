@@ -273,9 +273,6 @@ export enum CHAIN {
   SATORI = "satori",
   SHIBARIUM = "shibarium",
   AILAYER = 'ailayer',
-  BRC20 = 'brc20',
-  LORENZO = 'lorenzo',
   MEZO = 'mezo',
-  RUNES = 'runes',
   ETHEREAL = "ethereal",
 }
