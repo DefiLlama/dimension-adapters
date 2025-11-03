@@ -19,42 +19,28 @@ const UNLOCK_CONTRACTS: { [chain: string]: string } = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { chain, createBalances, fromApi, toApi } = options;
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  const unlockContract = UNLOCK_CONTRACTS[chain];
-  if (!unlockContract) {
-    throw new Error(`No Unlock contract configured for chain: ${chain}`);
+  const gnpStart = await options.fromApi.call({ target: UNLOCK_CONTRACTS[options.chain], abi: "uint256:grossNetworkProduct", permitFailure: true});
+  const gnpEnd = await options.toApi.call({ target: UNLOCK_CONTRACTS[options.chain], abi: "uint256:grossNetworkProduct", permitFailure: true});
+
+  if (gnpEnd && gnpStart) {
+    const dailyGNP = gnpEnd - gnpStart;
+  
+    // Only add positive daily changes (handles resets/errors)
+    if (dailyGNP > 0) {
+      dailyFees.addGasToken(dailyGNP);
+      dailyRevenue.addGasToken(dailyGNP * 0.01); // 1% to protocol
+      dailySupplySideRevenue.addGasToken(dailyGNP * 0.99); // 99% to creators
+    }
   }
-
-  const dailyFees = createBalances();
-
-  const gnpStart = await fromApi.call({
-    target: unlockContract,
-    abi: "uint256:grossNetworkProduct",
-    permitFailure: true,
-  }) || 0;
-
-  const gnpEnd = await toApi.call({
-    target: unlockContract,
-    abi: "uint256:grossNetworkProduct",
-    permitFailure: true,
-  }) || 0;
-
-  const dailyGNP = gnpEnd - gnpStart;
-
-  // Only add positive daily changes (handles resets/errors)
-  if (dailyGNP > 0) {
-    dailyFees.addGasToken(dailyGNP);
-  }
-
-  // Split: 1% protocol fee, 99% to lock creators
-  const dailyProtocolRevenue = dailyFees.clone(0.01);
-  const dailySupplySideRevenue = dailyFees.clone(0.99);
 
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -68,19 +54,19 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "Remaining 99% of the gross network product flows to individual lock creators.",
   },
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: 1590969600 },
-    [CHAIN.OPTIMISM]: { fetch, start: 1636588800 },
-    [CHAIN.BSC]: { fetch, start: 1631145600 },
-    [CHAIN.XDAI]: { fetch, start: 1631145600 },
-    [CHAIN.POLYGON]: { fetch, start: 1631145600 },
-    [CHAIN.BASE]: { fetch, start: 1690848000 },
-    [CHAIN.ARBITRUM]: { fetch, start: 1667260800 },
-    [CHAIN.CELO]: { fetch, start: 1641945600 },
-    [CHAIN.AVAX]: { fetch, start: 1645401600 },
-    [CHAIN.LINEA]: { fetch, start: 1689897600 },
-    [CHAIN.ERA]: { fetch, start: 1685577600 },
-    [CHAIN.POLYGON_ZKEVM]: { fetch, start: 1685577600 },
-    [CHAIN.SCROLL]: { fetch, start: 1697414400 },
+    [CHAIN.ETHEREUM]: { fetch, start: '2020-06-01' },
+    [CHAIN.OPTIMISM]: { fetch, start: '2021-11-11' },
+    [CHAIN.BSC]: { fetch, start: '2021-09-09' },
+    [CHAIN.XDAI]: { fetch, start: '2021-09-09' },
+    [CHAIN.POLYGON]: { fetch, start: '2021-09-09' },
+    [CHAIN.BASE]: { fetch, start: '2023-08-01' },
+    [CHAIN.ARBITRUM]: { fetch, start: '2022-11-01' },
+    [CHAIN.CELO]: { fetch, start: '2022-01-12' },
+    [CHAIN.AVAX]: { fetch, start: '2022-02-21' },
+    [CHAIN.LINEA]: { fetch, start: '2023-07-21' },
+    [CHAIN.ERA]: { fetch, start: '2023-06-01' },
+    [CHAIN.POLYGON_ZKEVM]: { fetch, start: '2023-06-01' },
+    [CHAIN.SCROLL]: { fetch, start: '2023-10-16' },
   },
 };
 
