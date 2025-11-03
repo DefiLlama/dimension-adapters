@@ -19,17 +19,6 @@ const chainsMap: Record<string, string> = {
 	"tron": CHAIN.TRON,
 };
 
-const ExcludeTxns: Array<string> = [
-	'0x028cb1c81b8fefd8b9746e76e8e62ed3cfd7ad91e0bb3ef913f155299f562491',
-	'0x1ac7c39d9f9772e7e318e08057d69d71281caf2f837d7aacc9a7c848146d8b3a',
-	'0xbd76d7c9dbad2eaf565ee9140c118ad6182bf3fdb56ab3b00c4bb90426abded0',
-	'0xa51d62e0372ce52b73366efeda99473f4f57d8cb45bc27d4898ca41e1a933b79',
-	'0xf469df5649084d5028dce9037a055ab784e94ec2cb2f0f80c22b8e0101612194',
-	'0x6f8253da458212d0f2924a24df969561c7fdb134df310687ec200b720e769658',
-	'0x6ca69c2e57e67c07106c3f95700d8dfad9260f0c61ac19423a149f8f3ab471cd',
-	'0xe1d89b68828097d506e9dded1cc2e06742c42688ad51d99395aee640831bad4b',
-]
-
 const prefetch = async (options: FetchOptions): Promise<any> => {
 	// must exclude all blacklisted tokens
 	const ethereumBlacklistedTokens = getDefaultDexTokensBlacklisted(CHAIN.ETHEREUM)
@@ -48,7 +37,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 			AND evt_block_time < from_unixtime(${options.endTimestamp})
 			AND fromToken NOT IN (${allBlacklistedTokens.toString()})
 			AND toToken NOT IN (${allBlacklistedTokens.toString()})
-			AND evt_tx_hash NOT IN (${ExcludeTxns.toString()})
+			AND fromAmount < UINT256 '115792089237316195423570985008687907853269984665640564039457584007913129639935'
 		GROUP BY chain, fromToken
 	`)
 

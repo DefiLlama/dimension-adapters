@@ -22,15 +22,23 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
         AND address = 'noVakKQGTTjpHARvecAUbVnc85AatCLm3ijDFk8JXZB'
         AND tx_success
         AND balance_change > 0 
+    ),
+    botTrades AS (
+      SELECT
+        trades.tx_id,
+        MAX(fee_token_amount) AS fee
+      FROM
+        dex_solana.trades AS trades
+        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+      WHERE
+        TIME_RANGE
+        AND trades.trader_id != 'noVakKQGTTjpHARvecAUbVnc85AatCLm3ijDFk8JXZB'
+      GROUP BY trades.tx_id
     )
     SELECT
-      SUM(fee_token_amount) AS fee
+      SUM(fee) AS fee
     FROM
-      dex_solana.trades AS trades
-      JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-    WHERE
-      TIME_RANGE
-      AND trades.trader_id != 'noVakKQGTTjpHARvecAUbVnc85AatCLm3ijDFk8JXZB'
+      botTrades
   `;
 
   const fees = await queryDuneSql(options, query);
