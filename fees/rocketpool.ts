@@ -1,6 +1,8 @@
+import * as sdk from "@defillama/sdk";
 import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from '../helpers/metrics';
 
 /**
  * 
@@ -24,12 +26,6 @@ import { CHAIN } from "../helpers/chains";
  * As descrive above, total fees on Rocketpool are distributed to supply side stakers and minipools operators.
  * The Rocket Pool protocol matches liquid stakers with node operators. It does not take a fee for providing this service.
  */
-
-const methodology = {
-  Fees: 'Total ETH staking rewards from Rocketpool active validators',
-  Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
-  SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
-}
 
 const rETH = ADDRESSES.ethereum.RETH;
 
@@ -128,19 +124,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     // calculate total rewards were collected by minipool (including minipool commission)
     const rewardFromBeacon = rewardToStakersAndOperators / (1 - nodeFeeRate)
 
-
-    dailyFees.addGasToken(rewardFromBeacon)
+    dailyFees.addGasToken(rewardFromBeacon, METRIC.STAKING_REWARDS)
   }
-
-  const etherWithdrawnEvents: Array<any> = (await options.getLogs({
-    target: smoothingPool,
-    eventAbi: RocketPoolContractAbis.smoothingPoolEtherWithdrawn,
-  }))
-  etherWithdrawnEvents.forEach((log: any) => {
-    if (log.to.toLowerCase() === rETH.toLowerCase()) {
-      dailyFees.addGasToken(log.amount)
-    }
+  
+  // MEV and execution rewards
+  const transactions = await sdk.indexer.getTransactions({
+    chain: options.chain,
+    transactionType: 'to',
+    addresses: [smoothingPool],
+    from_block: Number(options.fromApi.block),
+    to_block: Number(options.toApi.block),
   })
+  for (const tx of transactions) {
+    dailyFees.addGasToken(tx.value, METRIC.MEV_REWARDS)
+  }
 
   return {
     dailyFees,
@@ -157,7 +154,21 @@ const adapter: Adapter = {
       start: '2021-09-31',
     },
   },
-  methodology,
+  methodology: {
+    Fees: 'Total ETH staking rewards from Rocketpool active validators',
+    Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
+    SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'ETH rewards from running Beacon chain validators.',
+      [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to rETH stakers and minipool depositors.',
+      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to rETH stakers and minipool depositors.',
+    },
+  }
 };
 
 export default adapter;
