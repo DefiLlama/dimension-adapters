@@ -43,8 +43,10 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
     from_block: Number(options.fromApi.block),
     to_block: Number(options.toApi.block),
   })
-  for (const tx of transactions) {
-    mevFeesETH.addGasToken(tx.value)
+  if (transactions) {
+    for (const tx of transactions) {
+      mevFeesETH.addGasToken(tx.value)
+    }
   }
 
   const totalMevFees = await mevFeesETH.getUSDValue()
