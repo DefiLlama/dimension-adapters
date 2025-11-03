@@ -43,8 +43,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     from_block: Number(options.fromApi.block),
     to_block: Number(options.toApi.block),
   })
-  for (const tx of transactions) {
-    mevRewards += Number(tx.value)
+  if (transactions) {
+    for (const tx of transactions) {
+      mevRewards += Number(tx.value)
+    }
   }
   
   const dfExcludeMev = df - mevRewards;

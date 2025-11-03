@@ -135,8 +135,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     from_block: Number(options.fromApi.block),
     to_block: Number(options.toApi.block),
   })
-  for (const tx of transactions) {
-    dailyFees.addGasToken(tx.value, METRIC.MEV_REWARDS)
+  if (transactions) {
+    for (const tx of transactions) {
+      dailyFees.addGasToken(tx.value, METRIC.MEV_REWARDS)
+    }
   }
 
   return {
