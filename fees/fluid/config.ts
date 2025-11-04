@@ -45,6 +45,13 @@ export const CONFIG_FLUID: IConfig = {
     vaultResolverExistAfterTimestamp: 1741205235,
     vaultResolverExistAfterBlock: 68688825,
   },
+  [CHAIN.PLASMA]: {
+    dataStartTimestamp: 1757571400, // ~ before any activity started (block 643135)
+    revenueResolverExistAfterBlock: 644820,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1757573257,
+    vaultResolverExistAfterBlock: 644992,
+  }
 };
 
 export const ABI: any = {

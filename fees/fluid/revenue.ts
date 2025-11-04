@@ -30,6 +30,9 @@ const liquidityResolver = async (api: ChainApi) => {
     case CHAIN.POLYGON:
       address = "0x98d900e25AAf345A4B23f454751EC5083443Fa83";
       break;
+    case CHAIN.PLASMA:
+      address = "0x4b6Bb77196A7B6D0722059033a600BdCD6C12DB7";
+      break;
   }
 
   return {
@@ -61,6 +64,9 @@ const revenueResolver = async (api: ChainApi) => {
       break;
     case CHAIN.POLYGON:
       address = "0x493493f73692Ca94219D3406CE0d2bd08D686BcF";
+      break;
+    case CHAIN.PLASMA:
+      address = "0x03171f3Cf6026148B7dc9450d9CdEe6F0d48BF56";
       break;
   }
 
