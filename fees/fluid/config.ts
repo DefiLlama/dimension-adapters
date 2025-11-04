@@ -46,7 +46,7 @@ export const CONFIG_FLUID: IConfig = {
     vaultResolverExistAfterBlock: 68688825,
   },
   [CHAIN.PLASMA]: {
-    dataStartTimestamp: 1757571400, // ~ before any activity started (block 643135)
+    dataStartTimestamp: 1758273257, // ~ before any activity started (block 643135)
     revenueResolverExistAfterBlock: 1344397,
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1758273257,
