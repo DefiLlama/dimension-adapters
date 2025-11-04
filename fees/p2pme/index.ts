@@ -90,9 +90,10 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const results = options.preFetchedResults || [];
   const chainData = results.find(item => item.chain === options.chain);
-
-  const revenue = chainData.revenue || 0;
-  dailyFees.addUSDValue(revenue);
+  if (chainData){
+    const revenue = chainData.revenue || 0;
+    dailyFees.addUSDValue(revenue);
+  }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
