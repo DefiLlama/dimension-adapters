@@ -3,9 +3,14 @@ import { CHAIN } from "../../helpers/chains";
 import { getBuilderExports } from "../../helpers/orderly";
 import { httpGet } from "../../utils/fetchURL";
 
+const VOLUME_ENDPOINT_MAP = {
+  [CHAIN.OFF_CHAIN]: 'https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy',
+  [CHAIN.GATE]: 'https://mock-server-beta-nine.vercel.app/list',
+}
+
 let asterBuilderData: any = null
-async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
-  const asterVolumeEndpoint = "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy";
+async function commonFetch(type: keyof typeof VOLUME_ENDPOINT_MAP, _: any, _1: any, { dateString }: FetchOptions) {
+  const asterVolumeEndpoint = VOLUME_ENDPOINT_MAP[type];
   if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ perps: data }) => {
     const dateDataMap: any = {}
     data.forEach((i: any) => {
@@ -37,7 +42,8 @@ const adapter = getBuilderExports({ broker_id: 'aden', start: '2025-07-14', meth
 
 adapter.adapter = {
   [CHAIN.ORDERLY]: { start: '2025-07-14', fetch: async function(_: any, _1: any, options: FetchOptions) { return { ...(await (adapter.fetch as any)(_, _1, options)), dailyHoldersRevenue: 0 } }, },
-  [CHAIN.OFF_CHAIN]: { start: '2025-07-19', fetch: asterFetch },
+  [CHAIN.OFF_CHAIN]: { start: '2025-07-19', fetch: (_: any, _1: any, options: FetchOptions) => commonFetch(CHAIN.OFF_CHAIN, _, _1, options) },
+  [CHAIN.GATE]: { start: '2025-07-19', fetch: (_: any, _1: any, options: FetchOptions) => commonFetch(CHAIN.GATE, _, _1, options) },
 }
-
+  
 export default adapter
