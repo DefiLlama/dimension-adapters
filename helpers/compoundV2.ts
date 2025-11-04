@@ -105,12 +105,12 @@ export function getFeesExport(market: string) {
   }) as Fetch
 }
 
-export function compoundV2Export(config: IJSON<string>, useExchangeRate?: boolean) {
+export function compoundV2Export(config: IJSON<string>, exportOptions?: any) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, market]) => {
     exportObject[chain] = {
       fetch: (async (options: FetchOptions) => {
-        const { dailyFees, dailyRevenue } = useExchangeRate ? await getFeesUseExchangeRates(market, options, {}) : await getFees(market, options, {})
+        const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate ? await getFeesUseExchangeRates(market, options, {}) : await getFees(market, options, {})
         const dailyHoldersRevenue = dailyRevenue
         const dailySupplySideRevenue = options.createBalances()
         dailySupplySideRevenue.addBalances(dailyFees)
