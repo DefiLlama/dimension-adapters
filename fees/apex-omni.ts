@@ -18,6 +18,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResul
   if (typeof feesData?.feeOfDate !== "string") throw new Error("No fee data");
   return {
     dailyFees: feesData?.feeOfDate,
+    dailyRevenue: (Number(feesData.feeOfDate) ?? 0) / 2,
   }
 }
 
