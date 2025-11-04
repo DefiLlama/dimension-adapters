@@ -91,10 +91,8 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const results = options.preFetchedResults || [];
   const chainData = results.find(item => item.chain === options.chain);
 
-  if (chainData) {
-    const revenue = chainData.revenue || 0;
-    dailyFees.addUSDValue(revenue);
-  }
+  const revenue = chainData.revenue || 0;
+  dailyFees.addUSDValue(revenue);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
@@ -104,7 +102,7 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   adapter: {
-    [CHAIN.BASE]: { start: "2025-04-23" },
+    [CHAIN.BASE]: { start: "2025-02-23" },
     [CHAIN.POLYGON]: { start: "2023-07-01" },
   },
   dependencies: [Dependencies.DUNE],
