@@ -1,5 +1,9 @@
 import { CHAIN } from "../../helpers/chains";
-import { Dependencies, FetchOptions } from "../../adapters/types";
+import {
+  Dependencies,
+  FetchOptions,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
 // DFlow Aggregator v1 (until July 3, 2024)
@@ -31,7 +35,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const adapter: any = {
+const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   start: "2024-01-01",
