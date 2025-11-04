@@ -5,7 +5,7 @@ const URL = "https://core.carina.finance/v1/orders/volume";
 
 const fetch = async ({ fromTimestamp, toTimestamp }) => {
   const response = await fetchURL(`${URL}?startTimestamp=${fromTimestamp}&endTimestamp=${toTimestamp}`);
-  return { dailyVolume: response.volume };
+  return { dailyVolume: response.data.volume };
 };
 
 export default {
