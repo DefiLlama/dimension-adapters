@@ -11,9 +11,7 @@ const openinterest_subgraphs: Record<string, string> = {
 const fetchOpenInterest = async (options: FetchOptions) => {
   const query = gql`
     query MyQuery {
-      marketInfos {
-        id
-        isDisabled
+      marketInfos(limit: 5000, where: {isDisabled_eq:false}, orderBy:longOpenInterestUsd_DESC) {
         longOpenInterestUsd
         shortOpenInterestUsd
       }
