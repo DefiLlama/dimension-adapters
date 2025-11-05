@@ -2,14 +2,13 @@ import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL"
 import { METRIC } from "../helpers/metrics";
-import ADDRESSES from '../helpers/coreAssets.json'
-import { addTokensReceived } from "../helpers/token";
-
-const BUYBACK_VAULT_ADDR = '0x18A45C46840CF830e43049C8fe205CA05B43527B';
-const TOKEN_APEX = ADDRESSES.arbitrum.APEX;
 
 interface IFees {
   feeOfDate: string;
+}
+
+interface IRevenue {
+  revenueOfDate: string;
 }
 
 const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
@@ -23,14 +22,17 @@ const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResul
 
 // tracks APEX token buybacks
 const fetchRevenue = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
-  // Buybacks are not automated, so we have to track this address for any inflows
-  const dailyHoldersRevenue = await addTokensReceived({ options, token: TOKEN_APEX, target: BUYBACK_VAULT_ADDR})
+  const url = `https://omni.apex.exchange/api/v3/data/revenue?time=${options.startOfDay * 1000}`;
+  const revenueData: IRevenue = (await httpGet(url)).data;
+
+  if (typeof revenueData?.revenueOfDate !== "string") {
+    throw new Error("No revenue data");
+  }
 
   return {
-    dailyRevenue: dailyHoldersRevenue,
-    dailyHoldersRevenue
-  }
-}
+    dailyRevenue: revenueData.revenueOfDate,
+  };
+};
 
 const info = {
   methodology: {
