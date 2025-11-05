@@ -1,4 +1,3 @@
-import { CallsParams } from "@defillama/sdk/build/types";
 import { FetchOptions } from "../../adapters/types";
 import { formatAddress } from "../../utils/utils";
 
@@ -154,7 +153,7 @@ export async function getAllPools(options: FetchOptions, config: ICurveDexConfig
 export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<string>, config: ICurveDexConfig): Promise<{[key: string]: IDexPool}> {
   const pools: {[key: string]: IDexPool} = {}
 
-  const coinsCalls: Array<CallsParams> = []
+  const coinsCalls: Array<any> = []
   for (const poolAddress of poolAddresses) {
     for (let i = 0; i < MAX_TOKENS_COUNT; i++) {
       coinsCalls.push({

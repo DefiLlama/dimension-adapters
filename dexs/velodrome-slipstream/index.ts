@@ -1,5 +1,4 @@
 import * as sdk from "@defillama/sdk";
-import { sliceIntoChunks } from "@defillama/sdk/build/util";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -89,7 +88,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
   sdk.log('velodrome pairs', pairs.length, 'all pairs', pairs.length, chain)
   const targetChunkSize = 10;
-  const pairChunks = sliceIntoChunks(pairs, targetChunkSize);
+  const pairChunks = sdk.util.sliceIntoChunks(pairs, targetChunkSize);
 
   for (let chunkIndex = 0; chunkIndex < pairChunks.length; chunkIndex++) {
     const targets = pairChunks[chunkIndex];
