@@ -8,6 +8,9 @@ const CONTRACTS: Record<string, string> = {
   [CHAIN.POLYGON]: "0x03f490ae5b59e428e6692059d0dca1b87ed42ae1",
 };
 
+const ProtoolFees = 'Protocol Fees'
+const KeepersFees = 'Keepers Fees'
+
 const fetch = async (options: FetchOptions) => {
   const contract = CONTRACTS[options.chain];
   const dailyFees = options.createBalances();
@@ -33,17 +36,20 @@ const fetch = async (options: FetchOptions) => {
     const serviceFee = BigInt(log.serviceFeePaid || log[2] || 0);
     if (serviceFee === 0n) return;
 
-    // Split: monitor gets base share, protocol gets remainder  
-    const monitorShare = serviceFee * PROTOCOL_FEE_BASE / (PROTOCOL_FEE_BASE + protocolFee);
-    const protocolShare = serviceFee - monitorShare;
+    // Split: keepers gets base share, protocol gets remainder  
+    const keepersShare = serviceFee * PROTOCOL_FEE_BASE / (PROTOCOL_FEE_BASE + protocolFee);
+    const protocolShare = serviceFee - keepersShare;
 
-    dailyFees.add(kromToken, serviceFee.toString());
-    dailySupplySideRevenue.add(kromToken, monitorShare.toString());
-    dailyProtocolRevenue.add(kromToken, protocolShare.toString());
+    dailyFees.add(kromToken, protocolShare, ProtoolFees)
+    dailyFees.add(kromToken, keepersShare, KeepersFees)
+
+    dailyProtocolRevenue.add(kromToken, protocolShare, ProtoolFees)
+    dailySupplySideRevenue.add(kromToken, keepersShare, KeepersFees)
   });
 
   return {
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
@@ -71,11 +77,32 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
+    Volume: "Trading volume for limit orders processed by Kromatika.",
     Fees: "Sum of KROM service fees emitted by LimitOrderManager when limit orders execute (LimitOrderProcessed events).",
+    UserFees: 'Users pay fees for limit order while trading on Kromatika.',
     Revenue: "Portion of fees forwarded to the protocol fee address.",
     ProtocolRevenue: "Service fees minus the monitor reimbursement share.",
     SupplySideRevenue: "Share of service fees paid to execution monitors for covering gas costs.",
-  }
+  },
+  breakdownMethodology:{
+    Fees: {
+      [ProtoolFees]: 'Service fees share to Kromatika,',
+      [KeepersFees]: 'Service fees share to Chainlink Keepers,',
+    },
+    UserFees: {
+      [ProtoolFees]: 'Service fees share to Kromatika,',
+      [KeepersFees]: 'Service fees share to Chainlink Keepers,',
+    },
+    SupplySideRevenue: {
+      [KeepersFees]: 'Service fees share to Chainlink Keepers,',
+    },
+    Revenue: {
+      [ProtoolFees]: 'Service fees share to Kromatika,',
+    },
+    ProtocolRevenue: {
+      [ProtoolFees]: 'Service fees share to Kromatika,',
+    },
+  },
 };
 
 export default adapter;
