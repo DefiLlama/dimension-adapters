@@ -276,10 +276,10 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.SONIC),
       start: '2025-02-14',
     },
-    // [CHAIN.BERACHAIN]: {
-    //   fetch: fetch(CHAIN.BERACHAIN),
-    //   start: '2025-02-07',
-    // }
+    [CHAIN.BERACHAIN]: {
+      fetch: fetch(CHAIN.BERACHAIN),
+      start: '2025-02-07',
+    }
   },
 };
 
