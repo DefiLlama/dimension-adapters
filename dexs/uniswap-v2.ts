@@ -54,7 +54,7 @@ async function fetchV2Volume(_t:any, _tb: any , options: FetchOptions) {
 const getLogAdapterConfig = {
   userFeesRatio: 1,
   revenueRatio: 0,
-  protocolRevenueRaio: 0,
+  protocolRevenueRatio: 0,
   holdersRevenueRatio: 0,
 }
 
@@ -68,12 +68,12 @@ const adapter: SimpleAdapter = {
         return await fetchFunction(options);
       },
     },
-    ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
-      acc[chain] = {
-        fetch: fetchV2Volume,
-      }
-      return acc
-    }, {})
+    // ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
+    //   acc[chain] = {
+    //     fetch: fetchV2Volume,
+    //   }
+    //   return acc
+    // }, {})
   }
 }
 
