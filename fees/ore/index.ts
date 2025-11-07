@@ -4,7 +4,7 @@ import { queryDuneSql } from '../../helpers/dune';
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  
+
   // Query for ORE protocol revenue
   const duneQueryString = `
     WITH wallet_activity AS (
@@ -39,7 +39,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.addUSDValue(revenue);
   }
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
