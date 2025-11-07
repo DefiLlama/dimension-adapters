@@ -178,7 +178,7 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
       // it mean that vault fees were added from vault token shares
 
       // interest earned and distributed to vault deposited including fees
-      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**vaultInfo[i].assetDecimals)
       
       // interest earned by vault curator
       const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
