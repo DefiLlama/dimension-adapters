@@ -1,8 +1,10 @@
-import {Adapter, Dependencies, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
+import {Adapter, Dependencies, FetchOptions, FetchResultFees } from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {Balances} from "@defillama/sdk";
 import {getSolanaReceived} from "../../helpers/token";
 import {queryDuneSql} from "../../helpers/dune";
+import {queryEvents as querySuiEvents} from "../../helpers/sui";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const evmFeeEvents = {
   standardRelayer: 'event SendEvent(uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue)',
@@ -184,6 +186,26 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
     dailyRevenue: 0,
   }
 };
+const fetchSui: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const SUI_EXECUTOR_EVENT = "0xdb0fe8bb1e2b5be628adbea0636063325073e1070ee11e4281457dfd7f158235::executor::RequestForExecution";
+  // Sui message fees are currently set at 0, it can be adjusted with gov in the future.
+  // source: https://suiscan.xyz/mainnet/object/0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c/fields
+  const dailyFees = options.createBalances()
+  dailyFees.add(ADDRESSES.sui.SUI,1e9);
+
+  const events = await querySuiEvents({
+    eventType:
+    SUI_EXECUTOR_EVENT,
+    options,
+  });
+  events.forEach((e => dailyFees.add(ADDRESSES.sui.SUI,e.amt_paid) ))
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
+  }
+};
 
 interface IData {
   pda: string;
@@ -267,8 +289,12 @@ const adapters: Adapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2022-07-08',
+    },
+    [CHAIN.SUI]: {
+      fetch: fetchSui,
+      start: '2025-05-08',
     }
-    // TODO: Track Sui & Aptos
+    // TODO: Track Aptos
   }),
   methodology: {
     Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers, Executions, CCTP and Cross chain message fees.',
@@ -276,5 +302,4 @@ const adapters: Adapter = {
     SupplySideRevenue: 'All execution fees are collected by Relayers.',
   }
 };
-
 export default adapters;
