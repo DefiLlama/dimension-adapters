@@ -38,8 +38,10 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const revenue = results[0].total_revenue_usd || 0;
     dailyFees.addUSDValue(revenue);
   }
+  const dailyProtocolRevenue = dailyFees.clone(0.01);
+  const dailyHoldersRevenue = dailyFees.clone(0.99);
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyProtocolRevenue, dailyHoldersRevenue: dailyHoldersRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -51,7 +53,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Count ORE tokens collected from 10% of total SOL deployed on ORE boards by protocol wallet 45db2FSR4mcXdSVVZbKbwojU6uYDpMyhpEi7cC8nHaWG.',
     Revenue: 'All ORE fees are revenue.',
-    ProtocolRevenue: 'All ORE fees are revenue collected by protocol.',
+    ProtocolRevenue: '1% of ORE revenue goes to the protocol treasury.',
+    HoldersRevenue: '99% of ORE fees are used to buyback and burn ORE and distributed to ORE stakers.',
   },
 };
 
