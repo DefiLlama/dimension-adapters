@@ -104,6 +104,12 @@ const adapter: Adapter = {
   prefetch: prefetch,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Trading fees paid by users.',
+    Revenue: 'Share of trading fees to protocol and token holders.',
+    SupplySideRevenue: 'Share of trading fees to LPs.',
+    HoldersRevenue: 'Share of revenue to buy back and burn GNS tokens.',
+  },
 };
 
 export default adapter;
