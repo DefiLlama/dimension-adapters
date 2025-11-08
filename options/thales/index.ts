@@ -1,9 +1,9 @@
 /**
  * Thales Options Adapter
- * 
- * Fee Calculation: Fee = Revenue + LP Performance Fee
- * - Revenue: SafeBoxFeePaid events from AMM contracts (uses safeBoxAmount field)
- * - LP Performance Fee: SafeBoxSharePaid events from LP contracts (uses safeBoxAmount field)  
+ *
+ * Fee/Revenue/HoldersRevenue Calculation (all equal):
+ * - SafeBoxFeePaid events from AMM contracts (AMM fees)
+ * - SafeBoxSharePaid events from LP contracts (LP performance fees)
  * - Volume: Tracked from various market creation and trading events
  */
 
@@ -87,7 +87,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       })
   ]);
 
-  // Fee = Revenue + LP Performance Fee  
+  // Fee = Revenue + LP Performance Fee
   const dailyFees = options.createBalances();
   dailyFees.addBalances(dailyRevenue);
   dailyFees.addBalances(dailyLPPerformanceFee);
@@ -96,8 +96,8 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyNotionalVolume,
     dailyPremiumVolume,
     dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
     dailyProtocolRevenue: 0,
   };
 }
@@ -112,10 +112,10 @@ const adapter: Adapter = {
     [CHAIN.POLYGON]: { start: '2025-04-01' },
   },
   methodology: {
-    Fees: "Fees are collected from users for each trade and LP performance fees",
-    Revenue: "Revenue is distributed to $OVER token holders",
+    Fees: "Fees collected from AMM trades and LP performance fees",
+    Revenue: "Total revenue from AMM fees and LP performance fees, all distributed to $OVER token holders",
     ProtocolRevenue: "Protocol doesn't keep any revenue",
-    HoldersRevenue: "100% of revenue goes to $OVER token buybacks",
+    HoldersRevenue: "100% of revenue (AMM fees + LP fees) goes to $OVER token buybacks",
   },
 };
 
