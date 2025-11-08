@@ -7,7 +7,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const startTime = new Date(options.startTimestamp * 1000).toISOString().split("T")[0]
   if (!res)
     res = fetchURL('https://dapi.bifrost.io/api/dapp/stats/overview')
-  const v = (await res).find(v => v.date === startTime)
+  const v = (await res).find((v: { date: string }) => v.date === startTime)
 
   return { dailyFees: +v.txFee };
 };
