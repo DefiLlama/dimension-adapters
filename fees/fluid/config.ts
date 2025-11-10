@@ -102,6 +102,7 @@ export const METHODOLOGY_FLUID = {
   Fees: "Interest paid by borrowers",
   Revenue: "Percentage of interest going to treasury",
   ProtocolRevenue: "Percentage of interest going to treasury",
+  HoldersRevenue: "Token buyback from the treasury",
 };
 
 export const BREAKDOWN_METHODOLOGY_FLUID = {
@@ -113,6 +114,9 @@ export const BREAKDOWN_METHODOLOGY_FLUID = {
   },
   ProtocolRevenue: {
     [METRIC.BORROW_INTEREST]: "Percentage of interest going to treasury",
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "Fluid token buyback from the treasury",
   },
 };
 

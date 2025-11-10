@@ -1,22 +1,17 @@
 import { Balances } from "@defillama/sdk";
 import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
 import { BREAKDOWN_METHODOLOGY_FLUID, CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
-import { getFluidDailyFees } from "./fees";
-import { getFluidDailyRevenue } from "./revenue";
-import { getFluidDailyHoldersRevenue } from "./holders-revenue";
+import { getDailyFees } from "./fees";
+import { getDailyRevenue, getDailyHoldersRevenue } from "./revenue";
 
 const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
   const [dailyFees, dailyRevenue, dailyHoldersRevenue] = await Promise.all([
-    getFluidDailyFees(options),
-    getFluidDailyRevenue(options),
-    getFluidDailyHoldersRevenue(options)
+    getDailyFees(options),
+    getDailyRevenue(options),
+    getDailyHoldersRevenue(options)
   ])
 
   const fees = await (dailyFees as Balances).getUSDValue();
-
-  if (fees > 500_000) {
-    throw new Error(`Fluid fees are too high: ${JSON.stringify(await (dailyFees as Balances).getUSDJSONs())}`);
-  }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, timestamp: options.startOfDay, dailyHoldersRevenue }
 }
