@@ -133,7 +133,7 @@ adapter.adapter = {
       commonFetch(CHAIN.OFF_CHAIN, _, _1, options),
   },
   [CHAIN.GATE]: {
-    start: "2025-11-01",
+    start: "2025-10-15",
     fetch: (_: any, _1: any, options: FetchOptions) =>
       commonFetch(CHAIN.GATE, _, _1, options),
   },
