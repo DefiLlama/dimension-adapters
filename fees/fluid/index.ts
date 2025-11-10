@@ -3,11 +3,13 @@ import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
 import { BREAKDOWN_METHODOLOGY_FLUID, CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
 import { getFluidDailyFees } from "./fees";
 import { getFluidDailyRevenue } from "./revenue";
+import { getFluidDailyHoldersRevenue } from "./holders-revenue";
 
 const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
-  const [dailyFees, dailyRevenue] = await Promise.all([
+  const [dailyFees, dailyRevenue, dailyHoldersRevenue] = await Promise.all([
     getFluidDailyFees(options),
-    getFluidDailyRevenue(options)
+    getFluidDailyRevenue(options),
+    getFluidDailyHoldersRevenue(options)
   ])
 
   const fees = await (dailyFees as Balances).getUSDValue();
@@ -16,7 +18,7 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
     throw new Error(`Fluid fees are too high: ${JSON.stringify(await (dailyFees as Balances).getUSDJSONs())}`);
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, timestamp: options.startOfDay }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, timestamp: options.startOfDay, dailyHoldersRevenue }
 }
 
 const adapter: Adapter = {
