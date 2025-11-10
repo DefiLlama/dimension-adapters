@@ -68,12 +68,12 @@ const adapter: SimpleAdapter = {
         return await fetchFunction(options);
       },
     },
-    // ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
-    //   acc[chain] = {
-    //     fetch: fetchV2Volume,
-    //   }
-    //   return acc
-    // }, {})
+    ...Object.keys(chainv2mapping).reduce((acc: any, chain) => {
+      acc[chain] = {
+        fetch: fetchV2Volume,
+      }
+      return acc
+    }, {})
   }
 }
 
