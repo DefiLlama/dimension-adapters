@@ -6,14 +6,14 @@ import { httpGet } from "../../utils/fetchURL";
 const VOLUME_ENDPOINT_MAP = {
   [CHAIN.OFF_CHAIN]:
     "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy",
-  [CHAIN.GATE]:
+  [CHAIN.GATE_LAYER]:
     "https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama",
 };
 
 const asterBuilderDataMap: Map<string, Promise<any>> = new Map();
 
 /**
- * Fetch data for CHAIN.GATE
+ * Fetch data for CHAIN.GATE_LAYER
  * This endpoint requires a date parameter to request data for a single date
  */
 async function fetchGateData(
@@ -21,16 +21,9 @@ async function fetchGateData(
   dateString: string
 ): Promise<any> {
   const endpointWithDate = `${endpoint}?date=${dateString}`;
-  const cacheKey = `${endpoint}_${dateString}`;
 
-  if (!asterBuilderDataMap.has(cacheKey)) {
-    asterBuilderDataMap.set(
-      cacheKey,
-      httpGet(endpointWithDate).then((res: any) => res)
-    );
-  }
+  const data = await httpGet(endpointWithDate);
 
-  const data = await asterBuilderDataMap.get(cacheKey)!;
   if (!data) {
     throw new Error("Data missing for date: " + dateString);
   }
@@ -94,7 +87,7 @@ async function commonFetch(
 ) {
   const endpoint = VOLUME_ENDPOINT_MAP[type];
 
-  if (type === CHAIN.GATE) {
+  if (type === CHAIN.GATE_LAYER) {
     return fetchGateData(endpoint, dateString);
   }
 
@@ -132,10 +125,10 @@ adapter.adapter = {
     fetch: (_: any, _1: any, options: FetchOptions) =>
       commonFetch(CHAIN.OFF_CHAIN, _, _1, options),
   },
-  [CHAIN.GATE]: {
+  [CHAIN.GATE_LAYER]: {
     start: "2025-10-15",
     fetch: (_: any, _1: any, options: FetchOptions) =>
-      commonFetch(CHAIN.GATE, _, _1, options),
+      commonFetch(CHAIN.GATE_LAYER, _, _1, options),
   },
 };
 
