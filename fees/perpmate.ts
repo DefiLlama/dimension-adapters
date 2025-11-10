@@ -2,10 +2,10 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
 
-const BASED_APP_BUILDER_ADD = "0xE4FEa748ECa48F44b1e042775F0C2363be1A2d80";
+const BUILDER_CODE_ADDRESS = "0xE4FEa748ECa48F44b1e042775F0C2363be1A2d80";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: BASED_APP_BUILDER_ADD });
+  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: BUILDER_CODE_ADDRESS });
 
   return {
     dailyVolume,
