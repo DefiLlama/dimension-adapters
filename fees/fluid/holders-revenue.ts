@@ -2,6 +2,7 @@ import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from '../../utils/fetchURL';
+import { CHAIN } from "../../helpers/chains";
 
 interface BuybackData {
   amount: string;
@@ -23,6 +24,13 @@ async function fetchFromApi(options: FetchOptions): Promise<BuybackData[]> {
 
 export async function getFluidDailyHoldersRevenue(options: FetchOptions): Promise<Balances> {
   const dailyHoldersRevenue = options.createBalances();
+
+  // Return early if not Ethereum, buyback only done in Ethereum mainnet as of now
+  if (options.chain !== CHAIN.ETHEREUM) {
+    return dailyHoldersRevenue;
+  }
+
+  // Only fetch buyback data for Ethereum
   const buybackData: BuybackData[] = await fetchFromApi(options);
 
   // If no buyback for the day, return empty balances
