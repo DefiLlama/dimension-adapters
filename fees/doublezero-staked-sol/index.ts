@@ -3,11 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const STAKE_POOL_RESERVE_ACCOUNT = "FMAWbzuxsgbgndArunedwxXPA6sweaVUGGgadCpSxau2";
-const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQDNw";
-// const LST_FEE_TOKEN_ACCOUNT = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD"; // old
-const LST_FEE_TOKEN_ACCOUNT = "GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g";
-const LST_MINT = ADDRESSES.solana.JupSOL;
+const STAKE_POOL_RESERVE_ACCOUNT = "FFtERWBSCkScg8spA2mNB9zN5SdH16NqQywXw3bbB1aJ";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "4cpnpiwgBfUgELVwNYiecwGti45YHSH3R72CPkFTiwJt";
+const LST_FEE_TOKEN_ACCOUNT = "GhN6PpyP6Ln4ycWcyvqsNcowLfYjpUcA9uWKAcFBjj2D";
+const LST_MINT = ADDRESSES.solana.DZSOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
@@ -29,7 +28,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("jupiter-staked-sol", row.amount || 0);
+      dailyRevenue.addCGToken("doublezero-staked-sol", row.amount || 0);
     }
   });
 
@@ -41,7 +40,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on jupiter staked solana',
+  Fees: 'Staking rewards from staked SOL on doublezero staked solana',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
@@ -52,7 +51,7 @@ const adapter: SimpleAdapter = {
   fetch,
   dependencies: [Dependencies.DUNE],
   chains: [CHAIN.SOLANA],
-  start: "2024-06-09",
+  start: "2025-07-25",
   isExpensiveAdapter: true
 };
 

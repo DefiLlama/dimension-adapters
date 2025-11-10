@@ -10,26 +10,28 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
-    with initialize_deposit_account as (
-        select
-            account_arguments[1] as deposit_account
-        from solana.instruction_calls
-            left join dune.the_flyingfish_glide.result_validators_app_details
-                on account_arguments[2] = validator_account
-        where executing_account = 'dzrevZC94tBLwuHw1dyynZxaXTWyp7yocsinyEVPtt4'
-            and bytearray_substring(data, 1, 8) = 0x09af49b1ebce3065
-            and block_date >= date '2025-10-02'
-            and tx_success
+    WITH initialize_deposit_account AS (
+      SELECT
+        account_arguments[1] AS deposit_account
+      FROM solana.instruction_calls
+      WHERE
+        executing_account = 'dzrevZC94tBLwuHw1dyynZxaXTWyp7yocsinyEVPtt4'
+        AND BYTEARRAY_SUBSTRING(data, 1, 8) = 0x09af49b1ebce3065
+        AND block_date >= TRY_CAST('2025-10-02' AS DATE)
+        AND tx_success
     )
-    select
-        sum(bytearray_to_bigint(bytearray_reverse(bytearray_substring(data,1+8,8))) / 1e9) as fee
-    from solana.instruction_calls
-        left join initialize_deposit_account
-            on deposit_account = account_arguments[3]
-    where executing_account = 'dzrevZC94tBLwuHw1dyynZxaXTWyp7yocsinyEVPtt4'
-        and bytearray_substring(data, 1, 8) = 0xf1858bc4f612713b
-        and tx_success
-        and TIME_RANGE
+    SELECT
+      SUM(
+        BYTEARRAY_TO_BIGINT(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 1 + 8, 8))) / 1e9
+      ) AS fee
+    FROM solana.instruction_calls
+    LEFT JOIN initialize_deposit_account
+      ON deposit_account = account_arguments[3]
+    WHERE
+      executing_account = 'dzrevZC94tBLwuHw1dyynZxaXTWyp7yocsinyEVPtt4'
+      AND BYTEARRAY_SUBSTRING(data, 1, 8) = 0xf1858bc4f612713b
+      AND tx_success
+      AND TIME_RANGE
   `;
 
   const fees = await queryDuneSql(options, query);

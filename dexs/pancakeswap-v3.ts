@@ -77,6 +77,21 @@ export const PANCAKESWAP_V3_QUERY = (fromTime: number, toTime: number, blacklist
   `;
 }
 
+export const PANCAKESWAP_V3_QUERY_SOLANA = (fromTime: number, toTime: number) => {
+  return `
+    SELECT
+      project_program_id AS pool
+      , SUM(amount_usd) AS volume_usd
+    FROM dex_solana.trades
+    WHERE project = 'pancakeswap'
+      AND version = 3
+      AND block_time >= FROM_UNIXTIME(${fromTime})
+      AND block_time <= FROM_UNIXTIME(${toTime})
+    GROUP BY
+      project_program_id
+  `;
+}
+
 // Source: https://docs.pancakeswap.finance/trade/trading-faq/swap-faq#what-will-be-the-trading-fee-breakdown-for-v3-exchange
 function getProtocolRevenueRatio(fee: number): number {
   if (fee === 0.0001) return 0.18; // 18% swap fee
@@ -182,7 +197,7 @@ const blacklistPools = [
   'EbkGwrT4zf7Hczrn23zyoPJHThd2NHguJnyWiJe9wf9D',
 ];
 
-const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
+const fetchSolanaV3 = async (_a: any, _b: any, options: FetchOptions) => {
   let dailyVolume = 0;
   let dailyFees = 0;
   let dailyProtocolRevenue = 0;
@@ -201,20 +216,43 @@ const fetchSolanaV3 = async (_a: any, _b: any, _: FetchOptions) => {
 
     page += 1;
   } while(true)
-
+  
+  // ONLY use Dune query for solana when refill history data
+  let poolsAndVolumes: any = null;
+  const todayTimestamp = Math.floor(new Date().getTime() / 1000);
+  if (options.startOfDay < todayTimestamp - 48 * 3600) {
+    poolsAndVolumes = await queryDune('3996608', {
+      fullQuery: PANCAKESWAP_V3_QUERY_SOLANA(options.fromTimestamp, options.toTimestamp),
+    }, options);
+  }
+  
   for (const pool of allPools.filter(pool => !blacklistPools.includes(pool.id))) {
-    dailyVolume += Number(pool.day.volume);
-    dailyFees += Number(pool.day.volumeFee);
-
     const feeRate = pool.feeRate ? Number(pool.feeRate) : 0
+
+    let volume = 0
+    let fee = 0
+    if (options.startOfDay < todayTimestamp - 48 * 3600) {
+      const item = poolsAndVolumes.find((i: any) => i.pool === pool.id)
+      if (item) {
+        volume = Number(item.volume_usd)
+        fee = volume * feeRate
+      }
+    } else {
+      volume = Number(pool.day.volume)
+      fee = Number(pool.day.volumeFee)
+    }
+
+    dailyVolume += volume;
+    dailyFees += fee;
+    
     const protocolRevenueRatio = getProtocolRevenueRatio(feeRate);
     const holdersRevenueRatio = getHolderRevenueRatio(feeRate);
     const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
     const supplySideRevenueRatio = 1 - revenueRatio;
 
-    dailyProtocolRevenue += Number(pool.day.volumeFee) * protocolRevenueRatio
-    dailyHoldersRevenue += Number(pool.day.volumeFee) * holdersRevenueRatio
-    dailySupplySideRevenue += Number(pool.day.volumeFee) * supplySideRevenueRatio
+    dailyProtocolRevenue += Number(fee) * protocolRevenueRatio
+    dailyHoldersRevenue += Number(fee) * holdersRevenueRatio
+    dailySupplySideRevenue += Number(fee) * supplySideRevenueRatio
   }
 
   return {
@@ -244,8 +282,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchSolanaV3,
-      runAtCurrTime: true,
-    }
+      start: '2025-07-11',
+    },
   },
 };
 

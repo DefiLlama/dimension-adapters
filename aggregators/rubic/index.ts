@@ -36,10 +36,10 @@ const chains: Record<string, string> = {
   [CHAIN.MODE]: 'mode',
   [CHAIN.MERLIN]: 'merlin',
   [CHAIN.CORE]: 'core',
-  [CHAIN.TAIKO]: 'taiko',
+  // [CHAIN.TAIKO]: 'taiko',
   [CHAIN.ZKLINK]: 'zklink',
   [CHAIN.BITLAYER]: 'bitlayer',
-  [CHAIN.BERACHAIN]: 'berachain',
+  // [CHAIN.BERACHAIN]: 'berachain',
   [CHAIN.TON]: 'ton',
   [CHAIN.SUI]: 'sui',
   [CHAIN.UNICHAIN]: 'unichain',
@@ -49,7 +49,7 @@ const chains: Record<string, string> = {
   [CHAIN.SONEIUM]: 'soneium',
   [CHAIN.GRAVITY]: 'gravity',
   [CHAIN.ROOTSTOCK]: 'rootstock',
-  [CHAIN.KROMA]: 'kroma',
+  // [CHAIN.KROMA]: 'kroma',
   [CHAIN.XLAYER]: 'xlayer',
   [CHAIN.SEI]: 'sei',
   // [CHAIN.EON]: 'horizen-eon',   // chain is dead
@@ -58,7 +58,7 @@ const chains: Record<string, string> = {
   // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
   [CHAIN.VELAS]: 'velas',
   [CHAIN.SYSCOIN]: 'syscoin',
-  [CHAIN.BOBA_BNB]: 'boba-bsc',
+  // [CHAIN.BOBA_BNB]: 'boba-bsc',
   [CHAIN.FLARE]: 'flare',
   [CHAIN.HEMI]: 'hemi'
 };

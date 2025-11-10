@@ -8,6 +8,7 @@ export enum CHAIN {
   ZK_LIGHTER = 'zklighter',
   GALA = "gala",
   TARA = "tara",
+  PROTON = "xpr",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",

@@ -32,6 +32,11 @@ export const getDexResolver = async (api: ChainApi) => {
       if (block < 68688825) break;
       address = "0xa17798d03bB563c618b9C44cAd937340Bad99138";
       break;
+
+    case CHAIN.PLASMA:
+      if (block < 643135) break;
+      address = "0x851ab045dFD8f3297a11401110d31Fa9191b0E04";
+      break;
   }
 
   return {
@@ -66,6 +71,10 @@ export const getVaultsResolver = async (api: ChainApi) => {
     case CHAIN.POLYGON:
       if (block < 68688825) break;
       address = "0x3c64Ec468D7f0998cB6dea05d4D8AB847573fE4D";
+      break;
+    case CHAIN.PLASMA:
+      if (block < 643135) break;
+      address = "0x5471195328cB443c85097A7A7fF0A74eaB3Cb497";
       break;
   }
 
@@ -112,6 +121,11 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
 
     case CHAIN.POLYGON:
       if (block >= 68688825) address = "0x9edb8D8b6db9A869c3bd913E44fa416Ca7490aCA";
+      break;
+
+    case CHAIN.PLASMA:
+      if (block < 643135) break;
+      address = "0x704625f79c83c3e1828fbb732642d30eBc8663e6";
       break;
   }
 
@@ -281,7 +295,7 @@ const getFluidDexesDailyBorrowFees = async ({ fromApi, api, createBalances }: Fe
   return dailyFees
 }
 
-export const getFluidDailyFees = async (options: FetchOptions): Promise<Balances> => {
+export const getDailyFees = async (options: FetchOptions): Promise<Balances> => {
   const dailyFees = options.createBalances()
 
   // fetch all operate logs at liquidity layer at once
