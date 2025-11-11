@@ -31,7 +31,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     blacklist_signers: partnerAddresses.concat(blacklists).concat(targets),
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 
@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: '2025-01-21',
+  start: '2024-03-20',
   methodology: {
     Fees: 'User pays 0.5%-1% fee on each trade. Lender pays 30% of the interest they receive.',
     Revenue: 'Partners receive up to 75% of the trading fees, so revenue is lower than fees.',
