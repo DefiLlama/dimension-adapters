@@ -20,15 +20,15 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        // dailyRevenue: dailyFees,
+        // dailyProtocolRevenue: dailyFees,
     }
 }
 
 const methodology = {
     Fees: "Protocol fees, org fees and api fees collected by Near Intents platform.",
-    Revenue: "All fees are revenue.",
-    ProtocolRevenue: "All revenue is protocol revenue.",
+    // Revenue: "All fees are revenue.",
+    // ProtocolRevenue: "All revenue is protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {
