@@ -15,18 +15,6 @@ const chainv2mapping: any = {
   [CHAIN.UNICHAIN]: "UNI",
 }
 
-const prefetch = async (options: FetchOptions) => {
-  const query = `
-    select d.blockchain
-      , sum(d.amount_usd) as volume
-    from dex.trades d
-    where project = 'uniswap' and version = '2'
-      and TIME_RANGE
-    group by 1
-  `
-  return await queryDuneSql(options, query);
-}
-
 const chainConfig: Record<string, { factory: string, source: string, start: string, duneId?: string }> = {
   [CHAIN.ETHEREUM]: {
     factory: '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
@@ -89,6 +77,36 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
     duneId: 'zora',
   }
 }
+
+const prefetch = async (options: FetchOptions) => {
+  const query = `
+    with tvl_pairs as (
+      select distinct
+        blockchain,
+        id as project_contract_address
+      from uniswap.tvl_daily
+      where project = 'uniswap' 
+        and version = '2'
+        and block_date >= from_unixtime(${options.startTimestamp})
+        and block_date <= from_unixtime(${options.endTimestamp})
+        and coalesce(token0_balance_usd, 0) > 10000
+        and coalesce(token1_balance_usd, 0) > 10000
+    )
+    select 
+      d.blockchain,
+      sum(d.amount_usd) as volume
+    from dex.trades d
+    where d.project = 'uniswap' 
+      and d.version = '2'
+      and TIME_RANGE
+      and (d.blockchain, d.project_contract_address) in (
+        select blockchain, project_contract_address from tvl_pairs
+      )
+    group by 1
+  `
+  return await queryDuneSql(options, query);
+}
+
 
 async function fetchV2Volume(_t:any, _tb: any , options: FetchOptions) {
   const { api } = options
