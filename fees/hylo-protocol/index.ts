@@ -5,6 +5,8 @@ import { queryDuneSql } from "../../helpers/dune";
 // Hylo Protocol fee accounts
 const HYUSD_FEE_ACCOUNT = "3HT6dD6APJh89XJs9rkn3BmsvkXE9jPG9dWJmUjWu6TS";
 const JITOSOL_FEE_ACCOUNT = "FpLaqELxKRm6S3bjfNSknwZu43TL89VYkwuMDwsRMj59";
+const HYLOSOL_FEE_ACCOUNT = "CZbazc6YTRC9QyvxqPJpmerChyuzEHAdX854CB7PbQGb";
+
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
@@ -25,6 +27,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         (to_owner = '${HYUSD_FEE_ACCOUNT}' AND token_mint_address = '5YMkXAYccHSGnHn9nob9xEvv6Pvka9DZWH7nTbotTu9E') 
         OR 
         (to_owner = '${JITOSOL_FEE_ACCOUNT}' AND token_mint_address = 'J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn')
+        OR 
+        (to_owner = '${HYLOSOL_FEE_ACCOUNT}' AND token_mint_address = 'hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT')
+        
       )
     GROUP BY
       token_mint_address
@@ -115,8 +120,8 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "hyUSD <-> xSOL swap fees and stability pool yields (in hyUSD) distributed to users.",
-    Revenue: "Swap fees, and part of jtoSOL yield",
+    Fees: "Stability pool yields (in hyUSD) distributed to users.",
+    Revenue: "Swap fees, and part of reserve LSTs yield",
     SupplySideRevenue: "Stability pool yields (in hyUSD) distributed to users.",
   },
 };
