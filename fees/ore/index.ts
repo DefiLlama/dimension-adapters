@@ -7,7 +7,6 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   // Query for ORE protocol revenue
   const duneQueryString = `
-    WITH wallet_activity AS (
       SELECT
         SUM(CASE WHEN post_balance > pre_balance THEN (post_balance - pre_balance) / 1e9 ELSE 0 END) AS total_sol_inbound
       FROM solana.account_activity
@@ -16,27 +15,13 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
         AND block_time >= from_unixtime(${options.startTimestamp})
         AND block_time < from_unixtime(${options.endTimestamp})
         AND tx_success = true
-    ),
-    sol_price AS (
-      SELECT
-        COALESCE(AVG(price), 150) AS avg_sol_price_usd
-      FROM prices.usd
-      WHERE
-        minute >= from_unixtime(${options.startTimestamp})
-        AND minute < from_unixtime(${options.endTimestamp})
-        AND symbol = 'SOL'
-        AND blockchain = 'solana'
-    )
-    SELECT
-      COALESCE(total_sol_inbound * avg_sol_price_usd, 0) AS total_revenue_usd
-    FROM wallet_activity, sol_price;
   `;
 
   const results = await queryDuneSql(options, duneQueryString);
 
   if (results.length > 0) {
-    const revenue = results[0].total_revenue_usd || 0;
-    dailyFees.addUSDValue(revenue);
+    const revenue = results[0].total_sol_inbound || 0;
+    dailyFees.addCGToken("solana",revenue);
   }
   const dailyProtocolRevenue = dailyFees.clone(0.01);
   const dailyHoldersRevenue = dailyFees.clone(0.99);

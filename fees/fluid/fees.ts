@@ -295,7 +295,7 @@ const getFluidDexesDailyBorrowFees = async ({ fromApi, api, createBalances }: Fe
   return dailyFees
 }
 
-export const getFluidDailyFees = async (options: FetchOptions): Promise<Balances> => {
+export const getDailyFees = async (options: FetchOptions): Promise<Balances> => {
   const dailyFees = options.createBalances()
 
   // fetch all operate logs at liquidity layer at once
