@@ -24,7 +24,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      start: '2025-11-08',
+      start: '2024-11-07',
     },
   }
 };
