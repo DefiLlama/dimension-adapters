@@ -23,36 +23,33 @@ async function calculateLSTYield(
   totalPooledMethod: string,
   decimals: number = 18
 ): Promise<number> {
-  try {
-    const supplyBefore = await options.fromApi.call({
-      target: tokenAddress,
-      abi: 'uint256:totalSupply',
-    });
-    const supplyAfter = await options.toApi.call({
-      target: tokenAddress,
-      abi: 'uint256:totalSupply',
-    });
+  const supplyBefore = await options.fromApi.call({
+    target: tokenAddress,
+    abi: 'uint256:totalSupply',
+    permitFailure: true,
+  });
+  const supplyAfter = await options.toApi.call({
+    target: tokenAddress,
+    abi: 'uint256:totalSupply',
+    permitFailure: true,
+  });
 
-    if (!supplyBefore || !supplyAfter || supplyBefore == 0 || supplyAfter == 0) {
-      return 0;
-    }
-
-    const pooledBefore = await options.fromApi.call({
-      target: tokenAddress,
-      abi: `uint256:${totalPooledMethod}`,
-    });
-    const pooledAfter = await options.toApi.call({
-      target: tokenAddress,
-      abi: `uint256:${totalPooledMethod}`,
-    });
-
-    // Calculate yield: (change in exchange rate) * current supply
-    const stakingYield = (pooledAfter / supplyAfter - pooledBefore / supplyBefore) * (supplyAfter / 10 ** decimals);
-    return stakingYield > 0 ? stakingYield : 0;
-  } catch (e) {
-    // Token doesn't exist yet or contract call failed
+  if (!supplyBefore || !supplyAfter || supplyBefore == 0 || supplyAfter == 0) {
     return 0;
   }
+
+  const pooledBefore = await options.fromApi.call({
+    target: tokenAddress,
+    abi: `uint256:${totalPooledMethod}`,
+  });
+  const pooledAfter = await options.toApi.call({
+    target: tokenAddress,
+    abi: `uint256:${totalPooledMethod}`,
+  });
+
+  // Calculate yield: (change in exchange rate) * current supply
+  const stakingYield = (pooledAfter / supplyAfter - pooledBefore / supplyBefore) * (supplyAfter / 10 ** decimals);
+  return stakingYield > 0 ? stakingYield : 0;
 }
 
 const fetchCronosFees = async (options: FetchOptions) => {
@@ -72,10 +69,14 @@ const fetchCronosFees = async (options: FetchOptions) => {
 
   const dailyRevenue = dailyFees.clone(CRONOS_FEE_RATE);
   
+  const dailySupplySideRevenue = dailyFees.clone(1)
+  dailySupplySideRevenue.subtract(dailyRevenue)
+  
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -91,17 +92,22 @@ const fetchZkSyncFees = async (options: FetchOptions) => {
   // 12% total fee: 50% to Reservoir (protocol), 50% to Kiln (service provider)
   const dailyRevenue = dailyFees.clone(ZKSYNC_PROTOCOL_SHARE);
   
+  const dailySupplySideRevenue = dailyFees.clone(1)
+  dailySupplySideRevenue.subtract(dailyRevenue)
+  
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Total staking rewards earned from delegated CRO, ATOM, TIA, and ETH",
+  Fees: "Total staking rewards earned from delegated CRO, ATOM, TIA, and ETH.",
   Revenue: "Veno charges a 10% fee on staking rewards on Cronos (includes validator commission) and a 12% fee on zkSync Era (split 50/50 between protocol and Kiln). Additionally, a 0.2% withdrawal fee is charged when users unstake.",
-  ProtocolRevenue: "On Cronos: 10% of staking rewards. On zkSync Era: 6% of staking rewards (50% of the 12% fee, with the other 50% going to Kiln)"
+  ProtocolRevenue: "On Cronos: 10% of staking rewards. On zkSync Era: 6% of staking rewards (50% of the 12% fee, with the other 50% going to Kiln).",
+  SupplySideRevenue: "On Cronos: 90% of staking rewards. On zkSync Era: 94% of staking rewards to stakers."
 }
 
 const adapter: SimpleAdapter = {
