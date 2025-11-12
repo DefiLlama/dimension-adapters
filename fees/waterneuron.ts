@@ -50,11 +50,11 @@ export default {
         },
     },
     methodology: {
-        UserFees: "WaterNeuron takes 10% fee on users staking rewards",
-        Fees: "Staking rewards earned by all staked ICP",
-        Revenue: "Staking rewards",
-        HoldersRevenue: "Staking rewards earned by nICP holders",
-        ProtocolRevenue: "WaterNeuron applies a 10% fee on staking rewards that are directed towards WTN (the DAO token) stakers.",
-        SupplySideRevenue: "Staking rewards earned by nICP holders"
+        UserFees: "WaterNeuron DAO takes a 10% fee on users staking rewards",
+        Fees: "Staking rewards earned by all staked ICP in the protocol",
+        Revenue: "10% fee taken on total protocol staking rewards",
+        HoldersRevenue: "Staking rewards earned by WTN stakers pro-rata voting power",
+        ProtocolRevenue: "WaterNeuron DAO applies a 10% fee on staking rewards that are directed towards WTN (the DAO token) stakers.",
+        SupplySideRevenue: "Staking rewards earned by WTN stakers pro-rata voting power",
     }
 };
