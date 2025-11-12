@@ -146,16 +146,16 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
   for (let i = 0; i < vaults.length; i++) {
     const asset = assets[i]
     if (asset) {
-      const assetDecimals = Number(decimals[i]);
-      const decimalAdjustment = BigInt(10 ** (18 - assetDecimals));
+      // const assetDecimals = Number(decimals[i]);
+      // const decimalAdjustment = BigInt(10 ** (18 - assetDecimals));
 
       vaultInfo.push({
         vault: vaults[i],
         asset,
         assetDecimals: Number(decimals[i]),
         balance: BigInt(balances[i] ? balances[i] : 0),
-        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0) * decimalAdjustment,
-        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0) * decimalAdjustment,
+        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0),
+        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0),
       })
     }
   }
