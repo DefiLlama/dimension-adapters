@@ -27,10 +27,15 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg'
   ];
 
+  const blacklist_mints: Array<string> = [
+    'MeTwNz4RedLKs4cZHuRqXR8mW7xxCsLD8rKwHkNpump',
+  ];
+
   const dailyFees = await getSolanaReceived({
     blacklists: targets,
     options,
     targets,
+    blacklist_mints,
   });
 
   return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };

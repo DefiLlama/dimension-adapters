@@ -72,11 +72,31 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     '0x3352154E5EDf4DE15304775BBb96d4c2D33C0D10',
     '0x4103e891D0dD3CE3500EFbcC03da4877713728ca',
     '0x33ca9596999f6608Fa3F765aacD98c266207D62E',
+    '0x7ed4C778f763f5D68FE688f65499f02FB940745f',
+    '0x08a55CF4ad5B770624BD8e087CeDeD413A59dC4F',
+    '0x722af8C0A93232e7E2eA3F9eD52a7d8746b95a44',
+    '0x3Dd972B41C22794670e17545Ec603F5923FF52d1',
+    '0x56649f320fC686143eCcD6f15D3bCE784a968748',
+    '0x9D66901b3F8AAEf2CF2AB26Cd51792f6785A159e',
+    '0x5f16282E8C95E15667eE6473622517F4E571952e',
+    '0xD2D039811384a1A3e13DB498e711DAe3f2BfA542',
+    '0xa39052Dbd640e7ad9e8537860C13134D0f432880',
+    '0xb8499dbF176de8eCed16c478CFf51997A529F1bE',
   ],
 }
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
   return DefaultDexTokensBlacklisted[chain] ? DefaultDexTokensBlacklisted[chain].map(item => formatAddress(item)) : [];
+}
+
+export function getAllDexTokensBlacklisted(): Array<string> {
+  let bl: Array<string> = [];
+  
+  for (const tokens of Object.values(DefaultDexTokensBlacklisted)) {
+    bl = bl.concat(tokens.map(item => formatAddress(item)))
+  }
+  
+  return bl;
 }
 
 interface ChainTokenConfig {

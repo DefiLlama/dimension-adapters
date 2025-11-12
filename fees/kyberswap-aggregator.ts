@@ -23,6 +23,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.BERACHAIN]: { id: 80094, start: '2025-02-06' },
   [CHAIN.UNICHAIN]: { id: 130, start: '2025-02-11' },
   [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-07-09' },
+  [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
   // [CHAIN.CRONOS]: { id: 25, start: '2021-06-01' },
   // [CHAIN.MANTLE]: { id: 5000, start: '2023-07-17' },
   // [CHAIN.BLAST]: {id: 81457, start: '2024-02-29'},

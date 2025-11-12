@@ -15,7 +15,7 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.BSC]: { deployedAt: 1726531200 },
   [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
   [CHAIN.MANTLE]: { deployedAt: 1726531200 },
-  [CHAIN.MERLIN]: { deployedAt: 1726531200 },
+  // [CHAIN.MERLIN]: { deployedAt: 1726531200 },
   [CHAIN.CORE]: { deployedAt: 1726531200 },
   [CHAIN.SCROLL]: { deployedAt: 1726531200 },
   [CHAIN.SOLANA]: { deployedAt: 1726531200 },

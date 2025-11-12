@@ -10,7 +10,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 interface IPoolData {
   id: number;
   feesUSD: string;
-}
+} 
 
 type IURL = {
   [l: string | Chain]: string;
