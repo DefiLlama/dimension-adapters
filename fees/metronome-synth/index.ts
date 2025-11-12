@@ -81,14 +81,14 @@ const VAULTS = {
 const MET_TOKEN = "0x2Ebd53d035150f328bd754D6DC66B99B0eDB89aa";
 const DISTRIBUTOR = "0x33f081a0f0240d0ed7e45c36848c01d7ad8038e9";
 
-const fetch = (chain: string) => async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
-    tokens: SYNTHS[chain],
-    targets: [TREASURY[chain]],
+    tokens: SYNTHS[options.chain],
+    targets: [TREASURY[options.chain]],
   });
 
-  for (const group of (EXTRA_INFLOWS[chain] ?? [])) {
+  for (const group of (EXTRA_INFLOWS[options.chain] ?? [])) {
     const res = await addTokensReceived({
       options,
       tokens: group.tokens,
@@ -97,7 +97,7 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
     dailyFees.addBalances(res);
   }
 
-  const vaults = VAULTS[chain] ?? [];
+  const vaults = VAULTS[options.chain] ?? [];
   for (const v of vaults) {
     const [pps0, pps1, sharesRaw] = await Promise.all([
       options.fromApi.call({ abi: "uint256:pricePerShare", target: v.vault }),
@@ -116,7 +116,7 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
   }
 
   const dailyHoldersRevenue = options.createBalances();
-  if (chain === CHAIN.ETHEREUM) {
+  if (options.chain === CHAIN.ETHEREUM) {
     const metTransfers = await addTokensReceived({
       options,
       tokens: [MET_TOKEN],
@@ -133,23 +133,21 @@ const fetch = (chain: string) => async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   methodology: {
     Fees: "Inflows to the main treasury.",
     Revenue: "Same as Fees.",
     HoldersRevenue: "MET inflows to the distributor contract.",
   },
-  version: 2,
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-05-11',
     },
     [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
       start: '2023-05-11',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
       start: '2023-05-11',
     },
   },
