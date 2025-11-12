@@ -276,4 +276,5 @@ export enum CHAIN {
   AILAYER = 'ailayer',
   MEZO = 'mezo',
   ETHEREAL = "ethereal",
+  FLUENCE = "fluence",
 }

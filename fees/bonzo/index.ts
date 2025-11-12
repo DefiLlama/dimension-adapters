@@ -2,7 +2,7 @@ import BigNumber from "bignumber.js";
 import { httpGet } from "../../utils/fetchURL";
 
 const fetch = async () => {
-    const res = await httpGet("https://data.bonzo.finance/stats");
+    const res = await httpGet("https://mainnet-data.bonzo.finance/stats");
     const timestamp = parseFloat(res.timestamp_end);
     // Portion of intrest payments sent to the protocol over the 24hr period.
     const total_protocol_fees = new BigNumber(res.total_protocol_fees.usd_wad);
