@@ -45,11 +45,17 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const dailyFees = cryptoPerpFees + forexPerpFees + stockPerpFees
 
-    return { dailyFees }
+    return {
+        dailyFees,
+        dailyRevenue: 0,
+        dailySupplySideRevenue: dailyFees
+    }
 }
 
 const methodology = {
     Fees: "Trading Fees paid by perp market traders",
+    Revenue: "No Revenue",
+    SupplySideRevenue: "All the fees goes to liquidity providers",
 };
 
 const adapter: SimpleAdapter = {
