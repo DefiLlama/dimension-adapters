@@ -20,7 +20,6 @@ const fetch = async (options: FetchOptions) => {
             target: poolAddress,
             eventAbi: PlatformFeeClaimEvent,
         });
-        console.log(poolAddress);
         for (const feeLog of feeLogs) {
             dailyFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
         }
