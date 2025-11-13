@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, Dependencies, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -44,18 +44,19 @@ const fetchApechain: any = async (timestamp: number, _: ChainBlocks, { getLogs }
 
   const volumeLimitsAndMarkets = limitLogs
     .concat(marketLogs)
-    .map((e: any) => Number((e.t.collateralAmount * e.t.leverage * e.collateralPriceUsd) / BI_1e18 / BI_1e3 / BI_1e8))
+    .map((e: any) => Number((e.t.collateralAmount * e.t.leverage * e.collateralPriceUsd) / Number(BI_1e18) / Number(BI_1e3) / Number(BI_1e8)))
     .reduce((a: number, b: number) => a + b, 0);
 
   const volumePartials = partialIncreaseLogs
     .concat(partialDecreaseLogs)
-    .map((e: any) => Number((e.vals.positionSizeCollateralDelta * e.collateralPriceUsd) / BI_1e18 / BI_1e8))
+    .map((e: any) => Number((e.vals.positionSizeCollateralDelta * e.collateralPriceUsd) / Number(BI_1e18) / Number(BI_1e8)))
     .reduce((a: number, b: number) => a + b, 0);
 
   return { dailyVolume: volumeLimitsAndMarkets + volumePartials, timestamp };
 };
 
 const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: "2023-05-25" },
     [CHAIN.POLYGON]: { fetch, start: "2023-05-25" },
@@ -65,7 +66,7 @@ const adapter: SimpleAdapter = {
       start: "2024-11-19",
     },
   },
-  prefetch: prefetch,
+  prefetch,
   isExpensiveAdapter: true,
 };
 

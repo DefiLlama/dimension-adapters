@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { getETHReceived } from "../helpers/token";
@@ -83,9 +83,6 @@ const fetchBSC: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  methodology: {
-    Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
-  },
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
@@ -95,7 +92,11 @@ const adapter: SimpleAdapter = {
       start: '2024-04-15',
     }
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
+  methodology: {
+    Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+  }
 };
 
 export default adapter;

@@ -65,7 +65,7 @@ const chains: Record<string, string> = {
     [CHAIN.KROMA]: 'kroma',
     [CHAIN.XLAYER]: 'xlayer',
     [CHAIN.SEI]: 'sei',
-    [CHAIN.EON]: 'horizen-eon',
+    // [CHAIN.EON]: 'horizen-eon',  // chain is dead
     [CHAIN.BAHAMUT]: 'bahamut',
     [CHAIN.KLAYTN]: 'klaytn',
     [CHAIN.VELAS]: 'velas',
@@ -94,13 +94,21 @@ interface ApiResponse {
   total_transaction_count: string;
 }
 
+const BadDataDays = [1758931200, 1759190400]
+
 const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
   const response: ApiResponse = (
     await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chains[options.chain]}`, 3)
   );
 
+  let dailyBridgeVolume = response?.daily_volume_in_usd || '0'
+  if (BadDataDays.includes(options.startOfDay) && options.chain === CHAIN.ARBITRUM) {
+    // bad data
+    dailyBridgeVolume = '0';
+  }response?.daily_volume_in_usd || '0'
+
   return {
-    dailyBridgeVolume: response?.daily_volume_in_usd || '0'
+    dailyBridgeVolume,
   };
 };
 

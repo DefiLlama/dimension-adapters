@@ -72,62 +72,28 @@ const silo: IAddress = {
       },
     },
   ],
-  [CHAIN.SONIC]: [
-    {
-      lens: "0x9e286a90Dcb47cA24d6dC50842839a1a61B8Dc38",
-      factory: {
-        address: "0xa42001D6d2237d2c74108FE360403C4b796B7170",
-        block:
-          2672166,
-      },
-    },
-  ]
 };
 
 async function getSilos(
   silos: ISilo[],
-  { getLogs, chain }: FetchOptions
+  { getLogs }: FetchOptions
 ): Promise<ISilo[]> {
   const logs: any = [];
 
   const fetchLogsFromFactory = async (address: string, block: number) => {
-    const sonicSilos: { silo: string; assets: string[] }[] = [];
-    if (chain === "sonic") {
-      const logChunk = await getLogs({
-        target: address,
-        fromBlock: block,
-        eventAbi: "event NewSilo(address indexed implementation, address indexed token0, address indexed token1, address silo0, address silo1, address siloConfig)",
-      });
+    const logChunk = await getLogs({
+      target: address,
+      fromBlock: block,
+      eventAbi:
+        "event NewSiloCreated(address indexed silo, address indexed asset, uint128 version)",
+    });
 
-      //we just need to get silo0 and silo1 addresses without having to check the assets in the silo, store token0 and token1 for future use
-      for (const result of logChunk) {
-        const token0 = result[1];
-        const token1 = result[2];
-        const silo0 = result[3];
-        const silo1 = result[4];
-        sonicSilos.push({
-          silo: silo0,
-          assets: [token0]
-        });
-        sonicSilos.push({
-          silo: silo1,
-          assets: [token1]
-        });
-      }
-
-      logs.push(sonicSilos);
-    } else {
-      const logChunk = await getLogs({
-        target: address,
-        fromBlock: block,
-        eventAbi: "event NewSiloCreated(address indexed silo, address indexed asset, uint128 version)",
-      });
-
-      logs.push(logChunk.map((result) => ({
+    logs.push(
+      logChunk.map((result) => ({
         silo: result[0],
-        assets: [] 
-      })));
-    }
+        assets: [],
+      }))
+    );
   };
 
   for (const { factory } of silos) {
@@ -143,7 +109,7 @@ async function getSilos(
 
   return silos.map((silo, index) => ({
     ...silo,
-    silos: logs[index] || []
+    silos: logs[index] || [],
   }));
 }
 
@@ -181,73 +147,37 @@ async function getSilosFeesStorage(
   const totalFeesResults: FeeResult[] = [];
   const dailyFeesResults: FeeResult[] = [];
 
-  if (chain === "sonic") {
-    const calls = rawSilos.flatMap((silo) =>
-      (silo.silos || []).map(({ silo: siloAddress, assets }) => ({
+  const calls = rawSilos.flatMap((silo) =>
+    (silo.silos || []).flatMap(({ silo: siloAddress, assets }) =>
+      assets.map((asset) => ({
         target: silo.lens,
-        params: [siloAddress],
-        siloAddress,
-        asset: assets[0]
+        params: [siloAddress, asset],
       }))
-    );
+    )
+  );
 
-    const [prevFeesInSilosRes, currFeesInSilosRes] = await Promise.all([
-      fromApi.multiCall({
-        calls: calls,
-        abi: "function protocolFees(address _silo) view returns (uint256)",
-        permitFailure: true,
-      }),
-      toApi.multiCall({
-        calls: calls,
-        abi: "function protocolFees(address _silo) view returns (uint256)",
-        permitFailure: true,
-      }),
-    ]);
-    calls.forEach((call, index) => {
-      const prevFee = prevFeesInSilosRes[index];
-      const currFee = currFeesInSilosRes[index];
-      const asset = call.asset;
+  const [prevFeesInSilosRes, currFeesInSilosRes] = await Promise.all([
+    fromApi.multiCall({
+      calls: calls,
+      abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
+      permitFailure: true,
+    }),
+    toApi.multiCall({
+      calls: calls,
+      abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
+      permitFailure: true,
+    }),
+  ]);
 
-      if (!prevFee || !currFee) return;
+  calls.forEach((call, index) => {
+    const [_siloAddress, asset] = call.params;
+    const prevFee = prevFeesInSilosRes[index];
+    const currFee = currFeesInSilosRes[index];
 
-      totalFeesResults.push({ asset, fee: currFee });
-      dailyFeesResults.push({ asset, fee: BigInt(currFee - prevFee) });
-    });
-    
-  } else {
-
-    const calls = rawSilos.flatMap((silo) =>
-      (silo.silos || []).flatMap(({ silo: siloAddress, assets }) =>
-        assets.map((asset) => ({
-          target: silo.lens,
-          params: [siloAddress, asset],
-        }))
-      )
-    );
-
-    const [prevFeesInSilosRes, currFeesInSilosRes] = await Promise.all([
-      fromApi.multiCall({
-        calls: calls,
-        abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
-        permitFailure: true,
-      }),
-      toApi.multiCall({
-        calls: calls,
-        abi: "function protocolFees(address _silo, address _asset) view returns (uint256)",
-        permitFailure: true,
-      }),
-    ]);
-
-    calls.forEach((call, index) => {
-      const [_siloAddress, asset] = call.params;
-      const prevFee = prevFeesInSilosRes[index];
-      const currFee = currFeesInSilosRes[index];
-
-      if (!prevFee || !currFee) return;
-      totalFeesResults.push({ asset, fee: currFee });
-      dailyFeesResults.push({ asset, fee: BigInt(currFee - prevFee) });
-    });
-  }
+    if (!prevFee || !currFee) return;
+    totalFeesResults.push({ asset, fee: currFee });
+    dailyFeesResults.push({ asset, fee: BigInt(currFee - prevFee) });
+  });
 
   return { totalFeesResults, dailyFeesResults };
 }
@@ -259,9 +189,7 @@ async function fetch(
   const dailyFees = options.createBalances();
 
   const rawSiloWithAddresses = await getSilos(rawSilos, options);
-  const siloWithAssets = options.chain === "sonic"
-    ? rawSiloWithAddresses
-    : await getSilosAssets(rawSiloWithAddresses, options);
+  const siloWithAssets = await getSilosAssets(rawSiloWithAddresses, options);
   const { dailyFeesResults } = await getSilosFeesStorage(
     siloWithAssets,
     options
@@ -278,23 +206,19 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.ETHEREUM]),
-      start: '2022-08-10',
+      start: "2022-08-10",
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.ARBITRUM]),
-      start: '2023-05-02',
+      start: "2023-05-02",
     },
     [CHAIN.OPTIMISM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.OPTIMISM]),
-      start: '2024-05-25',
+      start: "2024-05-25",
     },
     [CHAIN.BASE]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.BASE]),
-      start: '2024-06-26',
-    },
-    [CHAIN.SONIC]: {
-      fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.SONIC]),
-      start: '2025-01-06',
+      start: "2024-06-26",
     },
   },
   version: 2,

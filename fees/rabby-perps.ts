@@ -2,10 +2,10 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
 
-const INSILICO_BUILDER_ADDRESS = '0xad9be64fd7a35d99a138b87cb212baefbcdcf045'
+const RABBY_BUILDER_ADDRESS = '0xad9be64fd7a35d99a138b87cb212baefbcdcf045'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: INSILICO_BUILDER_ADDRESS });
+  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: RABBY_BUILDER_ADDRESS });
 
   return {
     dailyVolume,
@@ -27,7 +27,7 @@ const adapter: SimpleAdapter = {
   start: '2025-08-28',
   methodology,
   doublecounted: true,
-  isExpensiveAdapter: true,
+  // isExpensiveAdapter: true,
 }
 
 export default adapter;

@@ -59,8 +59,8 @@ async function fetchHyperliquidInfo<T>(input: any, path: string): Promise<T> {
     return data;
 }
 
-export async function getHwhlpFees(options: FetchOptions) : Promise<Balances> {
-    const dailyFees = options.createBalances()
+export async function getHwhlpFees(options: FetchOptions): Promise<Balances> {
+    const dailyFees = options.createBalances();
 
     let JMES_TO_PNL = "[0][1].pnlHistory";
     const DELAY = 200; // ms
@@ -98,7 +98,9 @@ export async function getHwhlpFees(options: FetchOptions) : Promise<Balances> {
 
     for (const pnlHistory of allPnlHistories) {
         // Sort by timestamp to ensure correct order
-        const sortedHistory = pnlHistory.sort((a, b) => Number(a[0]) - Number(b[0]));
+        const sortedHistory = pnlHistory.sort(
+            (a, b) => Number(a[0]) - Number(b[0])
+        );
 
         // Calculate differences between adjacent PnL values
         for (let i = 1; i < sortedHistory.length; i++) {
@@ -107,7 +109,10 @@ export async function getHwhlpFees(options: FetchOptions) : Promise<Balances> {
             const currentPnl = Number(sortedHistory[i][1]);
 
             // Only include differences for timestamps within our range
-            if (currentTimestamp >= START_TIMESTAMP && currentTimestamp <= END_TIMESTAMP) {
+            if (
+                currentTimestamp >= START_TIMESTAMP &&
+                currentTimestamp <= END_TIMESTAMP
+            ) {
                 const pnlDiff = currentPnl - prevPnl;
                 totalPnlDiff += pnlDiff;
             }
@@ -115,5 +120,5 @@ export async function getHwhlpFees(options: FetchOptions) : Promise<Balances> {
     }
 
     dailyFees.addCGToken("usd-coin", totalPnlDiff);
-    return dailyFees
-};
+    return dailyFees;
+}

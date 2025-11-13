@@ -2,12 +2,12 @@ import PromisePool from "@supercharge/promise-pool";
 import { FetchV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
-const config = {
+const config: any = {
   scroll: { endpoint: 'https://ambindexer.net/scroll-gcgo/', chainId: '0x82750', poolIdx: '420', start: '2023-11-12', },
   blast: { endpoint: 'https://ambindexer.net/blast-gcgo/', chainId: '0x13e31', poolIdx: '420', start: '2024-03-02', },
   ethereum: { endpoint: 'https://ambindexer.net/gcgo/', chainId: '0x1', poolIdx: '420' },
   // canto: { endpoint: 'https://ambient-graphcache.fly.dev/gcgo/', chainId: '0x1e14', poolIdx: '420' },
-  plume_mainnet: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18232', poolIdx: '420', start: '2025-05-14', },
+  // plume_mainnet: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18232', poolIdx: '420', start: '2025-05-14', }, // wrong data reported from api
   swellchain: { endpoint: 'https://ambindexer.net/swell-gcgo/', chainId: '0x783', poolIdx: '420', start: '2024-12-24', },
   // plume: { endpoint: 'https://ambindexer.net/plume-gcgo/', chainId: '0x18231', poolIdx: '420', start: '2025-05-14', },
 }

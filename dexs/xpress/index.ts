@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const ENDPOINTS = {
-  [CHAIN.SONIC]: "https://api.studio.thegraph.com/query/61208/onchain-lob-graph/version/latest"
+  [CHAIN.SONIC]: "https://api.studio.thegraph.com/query/61208/onchain-clob-sonic/version/latest"
 }
 
 interface IData {

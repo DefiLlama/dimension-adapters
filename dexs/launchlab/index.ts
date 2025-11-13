@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -26,6 +26,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2025-04-15',
+    dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true
 }
 

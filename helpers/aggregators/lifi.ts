@@ -123,7 +123,7 @@ export const LifiDiamonds: IContract = {
   },
   [CHAIN.BSC]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-    startTime: '2023-07-21'
+    startTime: '2023-07-21',
   },
   [CHAIN.LINEA]: {
     id: '0xDE1E598b81620773454588B85D6b5D4eEC32573e',

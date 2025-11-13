@@ -1,5 +1,5 @@
 import { Adapter } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import type { ChainEndpoints } from "../../adapters/types";
@@ -67,9 +67,9 @@ const adapter: Adapter = {
   version: 1,
   methodology,
   adapter: {
-    [ARBITRUM]: {
-      fetch: graphOptions(endpoints)(ARBITRUM),
-      start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[ARBITRUM],
+    [CHAIN.ARBITRUM]: {
+      fetch: graphOptions(endpoints)(CHAIN.ARBITRUM),
+      start: OSE_DEPLOY_TIMESTAMP_BY_CHAIN[CHAIN.ARBITRUM],
     },
   },
 };

@@ -17,6 +17,12 @@ export const brownfiV2Factories: { [key: string]: any } = {
   [CHAIN.HYPERLIQUID]: {
     factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55"
   },
+  [CHAIN.LINEA]: {
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+  },
+  [CHAIN.BSC]: {
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+  },
 };
 
 const brownfiV2SwapEvent = "event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, uint price0, uint price1, address indexed to)"
@@ -96,7 +102,7 @@ const methodology = {
 
 const adapters: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.BERACHAIN, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.HYPERLIQUID],
+  chains: [CHAIN.BERACHAIN, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.HYPERLIQUID, CHAIN.LINEA, CHAIN.BSC],
   methodology,
 };
 

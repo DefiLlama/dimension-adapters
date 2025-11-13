@@ -372,6 +372,79 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     ],
     customPools: {},
   },
+  [CHAIN.PLASMA]: {
+    start: '2025-09-25',
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    customPools: {},
+  },
+  [CHAIN.CELO]: {
+    start: '2023-10-25',
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_stable_ng: [
+      '0x1764ee18e8B3ccA4787249Ceb249356192594585',
+    ],
+    customPools: {},
+  },
+  [CHAIN.INK]: {
+    start: '2025-02-01',
+    factory_twocrypto: [
+      '0xd125E7a0cEddF89c6473412d85835450897be6Dc',
+    ],
+    factory_stable_ng: [
+      '0x046207cB759F527b6c10C2D61DBaca45513685CC',
+    ],
+    factory_tricrypto: [
+      '0x5Ea9DD3b6f042A34Df818C6c1324BC5A7c61427a',
+    ],
+    customPools: {},
+  },
+  [CHAIN.MANTLE]: {
+    start: '2023-12-13',
+    factory_stable_ng: [
+      '0x5eeE3091f747E60a045a2E715a4c71e600e31F6E',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    customPools: {},
+  },
+  [CHAIN.UNICHAIN]: {
+    start: '2025-11-06',
+    factory_stable_ng: [
+      '0x604388Bb1159AFd21eB5191cE22b4DeCdEE2Ae22',
+    ],
+    factory_twocrypto: [
+      '0xc9Fe0C63Af9A39402e8a5514f9c43Af0322b665F',
+    ],
+    factory_tricrypto: [
+      '0x5702BDB1Ec244704E3cBBaAE11a0275aE5b07499',
+    ],
+    customPools: {},
+  },
+
+  // [CHAIN.TAC]: {
+  //   start: '2025-06-25',
+  //   factory_stable_ng: [
+  //     '0x5aEa9aaDd0974e8914229a23699bB6b343c97B09',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0xa17b39BF1c2FE776Af38a999bE7Bb7bEa737a6EC',
+  //   ],
+  //   factory_tricrypto: [
+  //     '0x729c764aE95e7a9DEA9F950B5AEdbF1A9F3D7c03',
+  //   ],
+  //   customPools: {},
+  // },
 }
 
 // https://resources.curve.finance/pools/overview/#pool-fees

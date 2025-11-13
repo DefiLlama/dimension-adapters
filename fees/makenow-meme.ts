@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryDuneSql } from "../helpers/dune"
 
@@ -8,7 +8,7 @@ import { queryDuneSql } from "../helpers/dune"
 // https://solscan.io/account/AEBoqzQU3fDYzhVmaRedcNeVcQQSMEqCAuQ2A7pYNEd7
 
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     // Swap fee receivers
     '8tA49tvPiTCkeVfuTms1F2nwVg6FWpQsQ8eNZ4g9vVQF',
@@ -18,7 +18,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
     // Token transfer fee receivers
     '76Mk7UH3nSjJXKLi7CVaKurUSywo6xXqhu1k1tJMFUSi',
-    '2ViaoccYRm7gRewuPyW4Rp5WvxVJzNoKxxAMBUiii4rp'
+    '2ViaoccYRm7gRewuPyW4Rp5WvxVJzNoKxxAMBUiii4rp',
+
+    // Launchlab fee receiver
+    'HAxWvuuwXnPZDHk2FTwXW7VA8pGJKszQFMuJz1Ej65xk'
   ]
 
   const blacklists = [
@@ -71,12 +74,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: '2022-09-14',
-    }
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2022-09-14',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Tokens trading and launching fees paid by users.",

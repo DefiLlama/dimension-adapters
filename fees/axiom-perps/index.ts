@@ -22,7 +22,7 @@ const adapter: SimpleAdapter = {
   methodology,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-06-08',
-  isExpensiveAdapter: true
+  // isExpensiveAdapter: true
 };
 
 export default adapter;

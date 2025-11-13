@@ -4,12 +4,14 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
+import { handleBribeToken } from "../aerodrome/utils";
 
 const CONFIG = {
   factory: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
   voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5',
   GaugeFactory: '0xd30677bd8dd15132f251cb54cbda552d2a05fb08'
 }
+
 
 const eventAbis = {
   event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)',
@@ -23,8 +25,9 @@ const abis = {
   fee: 'uint256:fee'
 }
 
+
 const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
-  const { createBalances, getLogs } = fetchOptions
+  const { createBalances, getLogs, startTimestamp } = fetchOptions
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
@@ -41,7 +44,11 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
     const parsedLog = iface.parseLog(log)
-    dailyBribesRevenue.add(parsedLog!.args.reward, parsedLog!.args.amount)
+    const token = parsedLog!.args.reward.toLowerCase()
+    const amount = parsedLog!.args.amount
+    
+    // Try to handle pre-launch token conversion
+    handleBribeToken(token, amount, startTimestamp, dailyBribesRevenue)
   })
   return { dailyBribesRevenue }
 }

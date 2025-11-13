@@ -75,6 +75,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 }
 
 type AdapterRunOptions = {
+  deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -95,7 +96,11 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
   else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey]
+  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
+
+  function clone(obj: any) {
+    return JSON.parse(JSON.stringify(obj))
+  }
 }
 
 function getRunKey(options: AdapterRunOptions) {
@@ -103,11 +108,21 @@ function getRunKey(options: AdapterRunOptions) {
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
 }
 
+const startOfDayIdCache: { [key: string]: string } = {}
+
+function getStartOfDayId(timestamp: number): string {
+  if (!startOfDayIdCache[timestamp]) {
+    startOfDayIdCache[timestamp] =  '' + Math.floor(timestamp / 86400)
+  }
+  return startOfDayIdCache[timestamp]
+}
+
 
 async function _runAdapter({
   module, endTimestamp, name,
   isTest = false,
   withMetadata = false,
+  deadChains = new Set(),
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
@@ -160,7 +175,7 @@ async function _runAdapter({
   const response = await Promise.all(chains.filter(chain => {
     const res = validStart[chain]?.canRun
     if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
-    return validStart[chain]?.canRun
+    return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
   Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
@@ -227,6 +242,7 @@ async function _runAdapter({
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
           const { labelBreakdown, usdTvl, usdTokenBalances, rawTokenBalances } = await value.getUSDJSONs()
+          // if (usdTvl > 1e6) value.debug()
           result[recordType] = usdTvl
           breakdownByToken[chain] = breakdownByToken[chain] || {}
           breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
@@ -299,7 +315,13 @@ async function _runAdapter({
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
+    const problematicChains = new Set(['sei', 'xlayer'])
+
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
+
+
+      if (problematicChains.has(chain)) throw new Error(`getLogs is disabled for ${chain} chain due to frequent timeouts`)
+
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
@@ -343,6 +365,7 @@ async function _runAdapter({
       getEndBlock,
       dateString: getDateString(startOfDay),
       moduleUID,
+      startOfDayId: getStartOfDayId(startOfDay),
     }
   }
 
@@ -431,7 +454,7 @@ function addMissingMetrics(chain: string, result: any) {
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
 
     // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
-    if (result.dailySupplySideRevenue && !result.dailyrevenue) {
+    if (result.dailySupplySideRevenue && !result.dailyRevenue) {
       result.dailyRevenue = createBalanceFrom({ chain, timestamp: result.timestamp, amount: result.dailyFees })
       subtractBalance({ balance: result.dailyRevenue, amount: result.dailySupplySideRevenue })
     }

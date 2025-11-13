@@ -9,8 +9,27 @@ jobs:
         with:
           output: 'json'
           fileOutput: 'json'
-      - name: Check out repository code
-        uses: actions/checkout@v2
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 10
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
       - name: Run changes files through test script
         run: |
           # Store the current commit hash in a variable
@@ -32,8 +51,6 @@ jobs:
             echo "No adapter files were modified"
             exit 0
           fi
-
-          npm ci
 
           list=$(echo $RUN_FILES | tr  -d '"[]' | tr "," "\n")
 
