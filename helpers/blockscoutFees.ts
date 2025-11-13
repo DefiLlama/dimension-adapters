@@ -71,6 +71,7 @@ export const chainConfigMap: any = {
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
   [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', },
+  [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
 }
 
 function getTimeString(timestamp: number) {
