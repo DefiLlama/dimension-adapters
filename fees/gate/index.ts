@@ -17,16 +17,10 @@ async function fetchGateData(dateString: string): Promise<any> {
 
   return {
     dailyVolume: data.volume,
-    dailyRevenue: data.fees,
-    dailyProtocolRevenue: data.fees,
-    dailyHoldersRevenue: 0,
   };
 }
 
-const methodology = {
-  Revenue: "All the fees collected",
-  ProtocolRevenue: "All the revenue go to the protocol",
-};
+const methodology = {};
 
 const adapter: SimpleAdapter = {
   version: 2,
