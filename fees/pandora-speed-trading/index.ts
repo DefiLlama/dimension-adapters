@@ -3,7 +3,7 @@ import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const usdcAddress = '0x858f0a7454462de49a135d9b63da941eea6f5899'
+const usdcAddress = '0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1'
 const OpenEvent = "event TradeOpened(uint256 tradeId, address trader, uint256 entryPrice, int256 positionSize, uint256 openFee, uint256 executionFee)";
 const CloseEvent = "event TradeClosed(uint256 tradeId, address trader, uint256 exitPrice, int256 pnl, uint256 closeFee, uint256 executionFee)";
 
