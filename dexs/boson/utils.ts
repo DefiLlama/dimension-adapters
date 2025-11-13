@@ -75,11 +75,14 @@ export async function getReservedRanges(
     const quantityAvailable = endExchangeId - startExchangeId + 1n;
 
     // get offer details
+    const blockNumber = api.block;
+    api.block = "latest"; // to get the most recent offer data
     const [, offer] = await api.call({
       target: protocolDiamondAddress,
       abi: getOffer_v2_5_0,
       params: [offerId.toString()],
     });
+    api.block = blockNumber; // restore original block number
 
     if (offer.quantityAvailable !== MaxUint256) continue; // skip limited offers
 
