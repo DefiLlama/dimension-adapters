@@ -94,12 +94,24 @@ const fetchLiquidityHub = async (_a: any) => {
   };
 };
 
-const fetchPolygonV3 = async (_a:any, _b:any, options:FetchOptions) => {
+const QuickswapV3Factories: Record<string, string> = {
+  [CHAIN.POLYGON]: '0x411b0fAcC3489691f28ad58c47006AF5E3Ab3A28',
+  [CHAIN.POLYGON_ZKEVM]: '0x4B9f4d2435Ef65559567e5DbFC1BbB37abC43B57',
+  [CHAIN.SONEIUM]: '0x8Ff309F68F6Caf77a78E9C20d2Af7Ed4bE2D7093',
+}
+
+async function getFetchUniV3LogAdapter(_a: any, _b: any, options: FetchOptions) {
   const adapter = getUniV3LogAdapter({ 
-    factory: "0x411b0fAcC3489691f28ad58c47006AF5E3Ab3A28", 
+    factory: QuickswapV3Factories[options.chain], 
     poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)',
     swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)',
+    isAlgebraV2: true,
+    userFeesRatio: 1,
+    revenueRatio: 0,
+    protocolRevenueRatio: 0,
+    holdersRevenueRatio: 0,
   });
+  
   return await adapter(options);
 }
 
@@ -118,7 +130,7 @@ const adapter: BreakdownAdapter = {
     },
     v3: {
       [CHAIN.POLYGON]: {
-        fetch: fetchPolygonV3,
+        fetch: getFetchUniV3LogAdapter,
         start: '2022-09-06',
       },
       // [CHAIN.DOGECHAIN]: {
@@ -126,7 +138,7 @@ const adapter: BreakdownAdapter = {
       //   start: '2022-08-17'
       // },
       [CHAIN.POLYGON_ZKEVM]: {
-        fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
+        fetch: getFetchUniV3LogAdapter,
         start: '2023-03-27',
       },
       [CHAIN.MANTA]: {
@@ -138,7 +150,7 @@ const adapter: BreakdownAdapter = {
         start: '2023-12-19',
       },
       [CHAIN.SONEIUM]: {
-        fetch: graphsAlgebraV3(CHAIN.SONEIUM),
+        fetch: getFetchUniV3LogAdapter,
         start: '2025-01-10',
       },
     },

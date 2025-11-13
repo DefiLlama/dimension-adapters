@@ -1,8 +1,10 @@
 import axios from "axios";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { GraphQLClient } from "graphql-request";
+import { getEnv } from "./env";
 
-export const APTOS_RPC = 'https://aptos-mainnet.pontem.network';
+// export const APTOS_RPC = 'https://aptos-mainnet.pontem.network';
+export const APTOS_RPC = getEnv('APTOS_RPC');
 
 // Number of decimals for the APT token.
 const APT_DECIMALS = 8;

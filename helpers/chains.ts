@@ -7,6 +7,7 @@ export enum CHAIN {
   ZK_LIGHTER = 'zklighter',
   GALA = "gala",
   TARA = "tara",
+  PROTON = "xpr",
   ARBITRUM = "arbitrum",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
@@ -272,5 +273,8 @@ export enum CHAIN {
   HIBACHI = "hibachi",
   SATORI = "satori",
   SHIBARIUM = "shibarium",
+  AILAYER = 'ailayer',
+  MEZO = 'mezo',
   ETHEREAL = "ethereal",
+  FLUENCE = "fluence",
 }

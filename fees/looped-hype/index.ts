@@ -11,7 +11,7 @@ const LHYPE = {
 
 const BASE_COINGECKO_ID = "hyperliquid";
 
-const FEE_SWITCH_TS = Math.floor(new Date('2025-09-17').getTime() / 1000)
+const FEE_SWITCH_TS = Math.floor(new Date('2025-10-17').getTime() / 1000)
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -47,13 +47,13 @@ const adapter: Adapter = {
   version: 2,
   methodology: {
     Fees: "Staking rewards and fees accumulated on the strategy pools and vaults.",
-    Revenue: "The share of staking rewards and fees for Looping Collective, it was 20% from 2025-09-17.",
-    ProtocolRevenue: "The share of staking rewards and fees for Looping Collective, it was 20% from 2025-09-17",
-    SupplySideRevenue: "The share of yield distributed to LHYPE depositors, 100% before 2025-09-17 and 80% after.",
+    Revenue: "20% of staking rewards and fees for loyalty program (user rebates).",
+    ProtocolRevenue: "20% of staking rewards and fees for loyalty program (user rebates).",
+    SupplySideRevenue: "80% of yield distributed to LHYPE depositors after fee switch(100% before 17th october 2025).",
   },
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: "2025-03-01",
+  start: "2025-02-18",
 };
 
 export default adapter;

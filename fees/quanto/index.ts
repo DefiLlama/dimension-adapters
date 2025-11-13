@@ -37,14 +37,14 @@ const fetch = async (timestamp: number, _chain: any, options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: "0",
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };
 };
 
 const methodology = {
-  Fees: "trading fees paid by users",
-  Revenue: "70% of fees are burned and 30% is distributed to token holders.",
+  Fees: "All Trading fees paid by users",
+  Revenue: "All fees are revenue, 70% are burned and 30% is distributed to token holders.",
   HoldersRevenue: "70% of fees are burned and 30% of trading fees distributed to QTO stakers.",
 };
 

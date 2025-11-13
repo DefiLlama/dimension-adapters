@@ -18,6 +18,14 @@ const contract_open_term_loan_manager_eth = '0xe3aac29001c769fafcef0df072ca396e3
 
 const CLAIMED_FUNDS_DISTRIBUTED_EVENT = 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)';
 
+function getHoldersRevenueShare(date: number): number {
+  if (date < 1761955200) { // 2025-11-01
+    return 0 
+  } else {
+    return 0.25;
+  }
+}
+
 const fetchFees = async (options: FetchOptions) => {
   const { getLogs } = options
   const dailyFees = options.createBalances();
@@ -91,13 +99,18 @@ const fetchFees = async (options: FetchOptions) => {
       dailyRevenue.add(b.contract_address, b.value)
     }
   });
+  
+  const holdersShare = getHoldersRevenueShare(options.startOfDay);
+  const dailyHoldersRevenue = dailyRevenue.clone(holdersShare);
+  const dailyProtocolRevenue = dailyRevenue.clone(1 - holdersShare);
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue, 
   }
 }
 
@@ -115,6 +128,7 @@ const adapters: SimpleAdapter = {
     Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
     ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
     SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
+    HoldersRevenue: "Maple use 25% from protocol revenue to buy back SYRUP tokens from MIP-019.",
   }
 }
 export default adapters;

@@ -91,12 +91,10 @@ const adapter: SimpleAdapter = {
 		},
 		[CHAIN.WC]: {
 			fetch,
-			runAtCurrTime: true,
 			start: "2025-06-04",
 		},
 		[CHAIN.BSC]: {
 			fetch,
-			runAtCurrTime: true,
 			start: "2025-09-03",
 		},
 	},
