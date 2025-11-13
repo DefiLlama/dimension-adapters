@@ -66,8 +66,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
     Fees: 'All fees paid by users for each pool in USDT via Rain Protocol Markets.',
-    Revenue: 'Fees are used to buy back and burn RAIN Token.',
-    ProtocolRevenue: 'Fees are used to buy back and burn RAIN Token.',
+    HolderRevenue: 'All Platform Fees are used to buy back and burn RAIN Token.',
 }
 
 const adapter: SimpleAdapter = {
