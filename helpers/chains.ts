@@ -3,13 +3,8 @@ export enum CHAIN {
   PACASWAP = "pacaswap",
   PEAQ = "peaq",
   CHROMIA = "chromia",
-<<<<<<< HEAD
-  OFF_CHAIN = "off_chain",
-  GATE_LAYER = "gatelayer",
-=======
   GATE_LAYER = "gate_layer",
   GATE = "gate",
->>>>>>> e2589f9e (feat: Add Gate)
   ZK_LIGHTER = "zklighter",
   GALA = "gala",
   TARA = "tara",
