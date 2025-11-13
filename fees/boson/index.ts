@@ -17,14 +17,14 @@ async function getProtocolFees(options: FetchOptions): Promise<FetchResultV2> {
     eventAbi: ProtocolFeeCollectedEvent,
   });
 
-  const encumberedByToken: Record<string, bigint> = {};
+  const collectedByToken: Record<string, bigint> = {};
   for (const log of logs) {
     const token = log.exchangeToken;
     const amount = BigInt(log.amount);
-    encumberedByToken[token] = (encumberedByToken[token] || 0n) + amount;
+    collectedByToken[token] = (collectedByToken[token] || 0n) + amount;
   }
 
-  for (const [token, amount] of Object.entries(encumberedByToken)) {
+  for (const [token, amount] of Object.entries(collectedByToken)) {
     dailyFees.add(token, amount);
   }
 
