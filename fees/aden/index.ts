@@ -28,7 +28,7 @@ async function fetchGateData(dateString: string): Promise<any> {
 }
 
 const methodology = {
-  Fees: "Builder Fees collected from Gate Layer Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)",
+  Fees: "Builder Fees collected from Gate Layer Network(0.4 bps on taker volume)",
   Revenue: "All the fees collected",
   ProtocolRevenue: "All the revenue go to the protocol",
 };
