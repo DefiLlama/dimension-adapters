@@ -35,7 +35,7 @@ const adapter: Adapter = {
   version: 2,
   methodology: {
     Volume:
-      "Sum of funds encumbered in exchanges and total value of newly created offers on the Boson Protocol.",
+      "Sum of funds encumbered in exchanges, total value of newly created offers, and newly reserved ranges for unlimited offers on the Boson Protocol.",
   },
 };
 

@@ -42,9 +42,9 @@ export async function getNewOffers(
     OfferCreatedEvent_v2_5_0,
   ]);
 
-  const offerLogs = response.map((log) => {
-    return iface.parseLog(log)?.args;
-  });
+  const offerLogs = response
+    .map((log) => iface.parseLog(log)?.args)
+    .filter((args) => args != null);
 
   for (const offer of offerLogs) {
     const quantityAvailable = BigInt(offer.offer.quantityAvailable);
@@ -84,7 +84,7 @@ export async function getReservedRanges(
     });
     api.block = blockNumber; // restore original block number
 
-    if (offer.quantityAvailable !== MaxUint256) continue; // skip limited offers
+    if (BigInt(offer.quantityAvailable) !== MaxUint256) continue; // skip limited offers
 
     const price = BigInt(offer.price);
     const amount = quantityAvailable * price;
