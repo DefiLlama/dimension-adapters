@@ -4,7 +4,7 @@ export enum CHAIN {
   PEAQ = "peaq",
   CHROMIA = "chromia",
   OFF_CHAIN = "off_chain",
-  GATE_LAYER = "gate_layer",
+  GATE_LAYER = "gatelayer",
   ZK_LIGHTER = "zklighter",
   GALA = "gala",
   TARA = "tara",
