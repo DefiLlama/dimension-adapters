@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-
 const RAIN_PROTOCOL_FACTORY = "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1";
 const RAIN_PROTOCOL_USDT = "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"; // USDT token address on Arbitrum
 
@@ -9,6 +8,7 @@ const PlatformFeeClaimEvent = "event PlatformClaim(address indexed wallet, uint2
 const CreatorFeeClaimEvent = "event CreatorClaim(address indexed wallet, uint256 amount)"; // USDT paid to pool creators
 const ReferrerFeeClaimEvent = "event RefererClaim(address indexed wallet, uint256 amount)"; // USDT paid to referer
 const ResolverFeeClaimEvent = "event ResolverClaim(address indexed wallet, uint256 amount)"; // USDT paid to resolver
+const ClaimEvent = "event Claim(address indexed wallet, uint256 winnerOption, uint256 liquidityReward, uint256 reward, uint256 totalReward)"; // USDT claimed by users (also includes pool liquidity incentive rewards)
 const PoolCreatedEvent = "event PoolCreated(address indexed poolAddress, address indexed poolCreator, string uri)";
 
 const fetch = async (options: FetchOptions) => {
@@ -39,19 +39,20 @@ const fetch = async (options: FetchOptions) => {
             target: poolAddress,
             eventAbi: ResolverFeeClaimEvent,
         });
-
+        const claimLogs: any[] = await options.getLogs({
+            target: poolAddress,
+            eventAbi: ClaimEvent,
+        });
         for (const feeLog of platformFeeLogs) {
             dailyFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
             dailyUserFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
             dailyRevenue.add(RAIN_PROTOCOL_USDT, feeLog.amount);
             dailyHoldersRevenue.add(RAIN_PROTOCOL_USDT, feeLog.amount);
         }
-
         for (const feeLog of creatorFeeLogs) {
             dailyFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
             dailyUserFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
         }
-        
         for (const feeLog of referrerFeeLogs) {
             dailyFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
             dailyUserFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
@@ -59,6 +60,10 @@ const fetch = async (options: FetchOptions) => {
         for (const feeLog of resolverFeeLogs) {
             dailyFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
             dailyUserFees.add(RAIN_PROTOCOL_USDT, feeLog.amount);
+        }
+        for (const claimLog of claimLogs) {
+            dailyFees.add(RAIN_PROTOCOL_USDT, claimLog.liquidityReward);
+            dailyUserFees.add(RAIN_PROTOCOL_USDT, claimLog.liquidityReward);
         }
     }
     return { dailyFees: dailyFees, dailyUserFees: dailyUserFees, dailyRevenue: dailyRevenue, dailyHoldersRevenue: dailyHoldersRevenue };
