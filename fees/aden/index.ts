@@ -1,18 +1,45 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
-/**
- * Fetch data for CHAIN.GATE_LAYER
- * This endpoint requires a date parameter to request data for a single date
- */
-async function fetchGateData(dateString: string): Promise<any> {
-  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${dateString}`;
+// // Previously it was Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)
 
-  const data = await httpGet(endpointWithDate);
+// let asterBuilderData: any = null
+// async function asterFetch(_: any, _1: any, { dateString }: FetchOptions) {
+//   const asterVolumeEndpoint = "https://fapi.asterdex.com/fapi/v1/statisticsData/adenTradingInfo?period=DAILy";
+//   if (!asterBuilderData) asterBuilderData = httpGet(asterVolumeEndpoint).then(({ perps: data }) => {
+//     const dateDataMap: any = {}
+//     data.forEach((i: any) => {
+//       dateDataMap[i.dateString] = i
+//     })
+//     return dateDataMap
+//   })
+//   const data = (await asterBuilderData)[dateString]
+//   if (!data)
+//     throw new Error('Data missing for date: ' + dateString)
+//   const dailyVolume = +data.takerVolume + +data.makerVolume
+//   const dailyFees = +data.builderFee
+//   const response: any = { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
+//   return response
+// }
+
+async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
+  if (options.chain !== CHAIN.GATE_LAYER) {
+    return {
+      dailyVolume: 0,
+      dailyFees: 0,
+      dailyRevenue: 0,
+      dailyProtocolRevenue: 0,
+      dailyHoldersRevenue: 0,
+    };
+  }
+
+  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}`;
+
+  const data = await fetchURL(endpointWithDate);
 
   if (!data) {
-    throw new Error("Data missing for date: " + dateString);
+    throw new Error("Data missing for date: " + options.dateString);
   }
 
   return {
@@ -32,14 +59,9 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.GATE_LAYER]: {
-      start: "2025-10-15",
-      fetch: async (_: any, _1: any, { dateString }: FetchOptions) => {
-        return fetchGateData(dateString);
-      },
-    },
-  },
+  fetch,
+  chains: [CHAIN.GATE_LAYER, CHAIN.ORDERLY, CHAIN.OFF_CHAIN],
+  start: '2025-07-19',
   methodology,
 };
 
