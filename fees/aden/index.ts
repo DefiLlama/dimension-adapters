@@ -61,6 +61,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.GATE_LAYER, CHAIN.ORDERLY, CHAIN.OFF_CHAIN],
+  doublecounted: true,
   start: '2025-07-19',
   methodology,
 };
