@@ -68,6 +68,7 @@ const adapter: Adapter = {
     [CHAIN.SONIC]: { fetch, start: '2025-10-07', },
     [CHAIN.UNICHAIN]: { fetch, start: '2025-08-08', },
     [CHAIN.ERA]: { fetch, start: '2023-11-20', },
+    [CHAIN.CELO]: { fetch, start: '2025-08-14', },
     
     // [CHAIN.FLARE]: { fetch, start: '2025-09-05', },
     // [CHAIN.SOMNIA]: { fetch, start: '2025-09-01', },
@@ -75,7 +76,6 @@ const adapter: Adapter = {
     // [CHAIN.TAIKO]: { fetch, start: '2024-05-27', },
     // [CHAIN.TAC]: { fetch, start: '2025-08-20', },
     // [CHAIN.SHAPE]: { fetch, start: '2025-08-08', },
-    // [CHAIN.CELO]: { fetch, start: '2025-08-14', },
     // [CHAIN.CORN]: { fetch, start: '2025-09-03', },
     // [CHAIN.FLOW]: { fetch, start: '2025-09-11', },
     // [CHAIN.HEMI]: { fetch, start: '2025-08-08', },
