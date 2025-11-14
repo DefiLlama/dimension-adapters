@@ -27,6 +27,7 @@ const adapter: Adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.APTOS],
+  deadFrom: '2025-09-09',
   start: "2024-11-26",
   methodology: {
     Fees: "All fees for adding/removing liquidity, margin, liquidation, and swaps are collected",

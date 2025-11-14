@@ -2,12 +2,11 @@ import {FetchOptions, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {getSolanaReceived} from "../../helpers/token";
 
-const feeWallets = [
-    '5Lu3fmsYEJs4g6g1pgspjkXWKRMAgwNB5m389bSoNxek',
-]
-
 const fetch = async(_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances()
+
+    const feeWallets = options.endTimestamp < 1757030400 ? ['5Lu3fmsYEJs4g6g1pgspjkXWKRMAgwNB5m389bSoNxek'] : ['3TJTfpUCHSfTX1yqk7pcCg2UrkLT9KkeuyVEm2u6p5JA'];
+
     await getSolanaReceived({
         options,
         balances: dailyFees,

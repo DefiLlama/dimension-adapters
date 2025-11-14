@@ -227,3 +227,5 @@ export const accumulativeKeySet = new Set([
 export interface IJSON<T> {
   [key: string]: T
 }
+
+export const ADAPTER_TYPES = Object.values(AdapterType).filter((adapterType: any) => adapterType !== AdapterType.PROTOCOLS)

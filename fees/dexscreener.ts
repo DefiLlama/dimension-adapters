@@ -5,7 +5,11 @@ import { CHAIN } from "../helpers/chains";
 
 // TODO: check whether 5qR17nnyyBjoHPiGiAD4ZHFCSJixebJCYymArGgZiDnh was an older address where they received payments
 const sol = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({ options, targets: ['23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft', 'AJENSD55ZJBwipZnEf7UzW2pjxex1cV2jSKPz7aMwJo5'] })
+    const dailyFees = await getSolanaReceived({ options, targets: [
+      '23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft',
+      'AJENSD55ZJBwipZnEf7UzW2pjxex1cV2jSKPz7aMwJo5',
+      '21wG4F3ZR8gwGC47CkpD6ySBUgH9AABtYMBWFiYdTTgv',
+    ] })
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 

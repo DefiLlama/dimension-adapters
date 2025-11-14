@@ -2,12 +2,17 @@ import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const endpoint = "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-083/latest/gn";
+const endpoint =
+  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-083/latest/gn";
 
 const query = gql`
   query stats($from: String!, $to: String!) {
     dailyHistories(
-      where: { timestamp_gte: $from, timestamp_lte: $to, accountSource: "0x8Ab178C07184ffD44F0ADfF4eA2ce6cFc33F3b86" }
+      where: {
+        timestamp_gte: $from
+        timestamp_lte: $to
+        accountSource: "0x39EcC772f6073242d6FD1646d81FA2D87fe95314"
+      }
     ) {
       platformFee
     }
@@ -42,7 +47,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
   Fees: "Trading fee paid by the user.",
   Revenue: "Trading fees collected from the users.",
-}
+};
 
 const adapter: SimpleAdapter = {
   version: 1,

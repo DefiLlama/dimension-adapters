@@ -18,7 +18,7 @@ export default uniV2Exports({
   },
   [CHAIN.PLASMA]: {
     factory: '0xA9F2c3E18E22F19E6c2ceF49A88c79bcE5b482Ac',
-    start: 1871833,
+    start: '2025-09-27',
     fees: 0.003,  // 0.30%
     userFeesRatio: 1,
     revenueRatio: 0, // no protocol fee

@@ -48,21 +48,17 @@ async function fetch(options: FetchOptions) {
   }
 
   if (config.source === 'LOGS') {
-    const events = await sdk.getEventLogs({
-      chain: options.chain,
+    const events = await options.getLogs({
       target: config.poolManager,
       eventAbi: SwapEvent,
-      fromBlock: Number(options.fromApi.block),
-      toBlock: Number(options.toApi.block),
-      onlyArgs: true,
     });
 
     // query pools info
     const poolKeys = await options.api.multiCall({
       abi: FunctionPoolKeys,
+      target: config.positionManager,
       calls: config.poolIds.map(poolId => {
         return {
-          target: config.positionManager,
           params: [getPoolKey(poolId)],
         }
       }),
