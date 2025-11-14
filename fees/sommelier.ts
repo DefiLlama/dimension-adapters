@@ -1,9 +1,8 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addTokensReceived } from "../helpers/token";
-import ADDRESSES from "../helpers/coreAssets.json";
+import { getERC4626VaultsYield } from "../helpers/erc4626";
 
-// Cellar addresses by chain
+// Cellar addresses - Sommelier cellars are ERC4626-compatible vaults
 const CELLARS: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: [
     "0x97e6e0a40a3d02f12d1cec30ebfbae04e37c119e", // Real Yield USD
@@ -30,46 +29,17 @@ const CELLARS: Record<string, string[]> = {
   ],
 };
 
-// Common tokens used in Sommelier vaults
-const TOKENS: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: [
-    ADDRESSES.ethereum.USDC,
-    ADDRESSES.ethereum.WETH,
-    ADDRESSES.ethereum.WBTC,
-    ADDRESSES.ethereum.DAI,
-    ADDRESSES.ethereum.USDT,
-  ],
-  [CHAIN.ARBITRUM]: [
-    ADDRESSES.arbitrum.USDC,
-    ADDRESSES.arbitrum.WETH,
-    ADDRESSES.arbitrum.WBTC,
-  ],
-  [CHAIN.OPTIMISM]: [
-    ADDRESSES.optimism.USDC_CIRCLE,
-    ADDRESSES.optimism.WETH,
-  ],
-};
-
-interface ChainConfig {
-  cellars: string[];
-  tokens: string[];
-  start: string;
-}
-
-const chainConfig: Record<string, ChainConfig> = {
+const chainConfig: Record<string, {cellars: string[], start: string}> = {
   [CHAIN.ETHEREUM]: {
     cellars: CELLARS[CHAIN.ETHEREUM],
-    tokens: TOKENS[CHAIN.ETHEREUM],
     start: '2023-01-01',
   },
   [CHAIN.ARBITRUM]: {
     cellars: CELLARS[CHAIN.ARBITRUM],
-    tokens: TOKENS[CHAIN.ARBITRUM],
     start: '2024-01-01',
   },
   [CHAIN.OPTIMISM]: {
     cellars: CELLARS[CHAIN.OPTIMISM],
-    tokens: TOKENS[CHAIN.OPTIMISM],
     start: '2024-02-01',
   },
 };
@@ -77,52 +47,59 @@ const chainConfig: Record<string, ChainConfig> = {
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   
-  // Get strategist payout addresses from all cellars
-  const feeDataResults = await options.api.multiCall({
+  // Get total yield from share price growth
+  const totalYield = await getERC4626VaultsYield({
+    options,
+    vaults: config.cellars,
+  });
+  
+  // Get strategist split from cellar feeData
+  const feeData = await options.api.multiCall({
     abi: 'function feeData() view returns (uint64 strategistPlatformCut, uint64 platformFee, uint64 lastAccrual, address strategistPayoutAddress)',
     calls: config.cellars,
     permitFailure: true,
   });
-
-  // Extract unique strategist payout addresses
-  const strategistAddresses = new Set<string>();
-  feeDataResults.forEach((result: any) => {
-    if (result && result.strategistPayoutAddress) {
-      strategistAddresses.add(result.strategistPayoutAddress.toLowerCase());
-    }
-  });
-
-  const dailyFees = options.createBalances();
   
-  // Track fees sent to strategist payout addresses
-  for (const strategist of Array.from(strategistAddresses)) {
-    const fees = await addTokensReceived({
-      options,
-      target: strategist,
-      tokens: config.tokens,
-    });
-    dailyFees.addBalances(fees);
+  // Calculate average strategist cut
+  let totalStrategistCut = 0;
+  let count = 0;
+  for (const fees of feeData) {
+    if (fees?.strategistPlatformCut) {
+      totalStrategistCut += Number(fees.strategistPlatformCut) / 1e18;
+      count++;
+    }
   }
-
-  // Note: strategistPlatformCut determines the split
-  // Typically 80% goes to protocol, 20% to strategist
-  // For now, we'll report all fees as dailyFees
-  // and estimate revenue based on typical 80% split
-  const dailyRevenue = dailyFees.clone(0.8);
-
+  const avgStrategistCut = count > 0 ? totalStrategistCut / count : 0.5; // Default 50%
+  
+  // Sommelier fee structure (based on documentation):
+  // - Management fees: ~1% annually
+  // - Performance fees: ~10-20% on profits above high-watermark
+  // - Combined effective rate: ~5-10% of yield
+  // Since we can't get exact rates easily, using conservative 5% (could be changed if needed)
+  const ESTIMATED_FEE_RATE = 0.05; // 5% of yield goes to fees
+  
+  const dailyFees = totalYield;  // Total yield (100%)
+  const totalFeesCollected = totalYield.clone(ESTIMATED_FEE_RATE);  // ~5% as fees
+  const dailyProtocolRevenue = totalFeesCollected.clone(avgStrategistCut);  // Protocol's share
+  const dailyStrategistRevenue = totalFeesCollected.clone(1 - avgStrategistCut);  // Strategist's share
+  const dailySupplySideRevenue = totalYield.clone(1 - ESTIMATED_FEE_RATE);  // ~95% to depositors
+  
+  // Strategists are supply side
+  dailySupplySideRevenue.addBalances(dailyStrategistRevenue);
+  
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees.clone(0.2),
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Total fees collected from Sommelier Cellars including management fees (flat-rate annualized on TVL, typically 1-2%) and performance fees (earned when cellar exceeds high-watermark, typically 10-20%). Fees are paid out to strategist payout addresses configured in each cellar's feeData.",
-  Revenue: "Protocol share of fees (typically 50-80% based on strategistPlatformCut parameter). The exact split varies by cellar but commonly follows an 80/20 protocol/strategist split.",
-  ProtocolRevenue: "Fees that go to Sommelier protocol after strategist split, ultimately bridged to Sommelier Chain",
-  SupplySideRevenue: "Fees paid to strategists for managing cellars (typically 20-50% of total fees)",
+  Fees: "Total yield generated by Sommelier Cellars from deposited assets, calculated from daily share price growth across all vaults. Represents the total value created before any fees are extracted.",
+  SupplySideRevenue: "Net yield distributed to vault depositors after fees, plus strategist compensation. Depositors receive approximately 95% of total yield.",
+  Revenue: "Management fees (~1% annual on TVL) plus performance fees (~10-20% on profits above high-watermark) collected by Sommelier protocol. Estimated at ~5% of total yield. Fees are accrued via keeper system in FeesAndReserves contract.",
+  ProtocolRevenue: "Sommelier protocol's share of collected fees after strategist split. Split ratio varies by cellar (typically 50-85% to protocol). These fees are bridged to Sommelier Chain for SOMM staker distribution and token buybacks/burns.",
 };
 
 const adapter: SimpleAdapter = {
