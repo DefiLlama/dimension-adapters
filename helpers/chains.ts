@@ -176,7 +176,7 @@ export enum CHAIN {
   PLANQ = "planq",
   BOB = "bob",
   TAIKO = "taiko",
-  SKALE_EUROPA = "skale_europa",
+  SKALE_EUROPA = "europa",
   IOTAEVM = "iotaevm",
   ZKLINK = "zklink",
   DEXALOT = "dexalot",
