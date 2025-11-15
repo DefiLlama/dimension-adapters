@@ -75,19 +75,21 @@ const fetchEvm = async (options: FetchOptions) => {
     if (tokens[options.chain].length > 0) {
         await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
     }
+    const dailyHoldersRevenue = dailyFees.clone();
     await getETHReceived({ options, balances: dailyFees, targets: target_even[options.chain] })
-    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue }
 }
 
 const methodology = {
         Fees: 'All fees paid by users for token profile listing.',
         Revenue: 'All fees collected by DexTools.',
         ProtocolRevenue: 'All fees collected by DexTools.',
+        HoldersRevenue: 'All the social update fees paid in DEXT are burnt',
 }
 
 const adapter: Adapter = {
     methodology,
-    version: 2,
+    version: 1,
     isExpensiveAdapter: true,
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
