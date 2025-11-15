@@ -46,7 +46,9 @@ const tokens = {
         "0xe91a8d2c584ca93c7405f15c22cdfe53c29896e3", // DEXT
     ],
     base: []
-} as any
+} as any;
+
+const DEXT = "0xfb7b4564402e5500db5bb6d63ae671302777c75a";
 
 const target_even: any = {
     [CHAIN.ETHEREUM]: [
@@ -75,7 +77,9 @@ const fetchEvm = async (_a:any,_b:any,options: FetchOptions) => {
     if (tokens[options.chain].length > 0) {
         await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
     }
-    const dailyHoldersRevenue = dailyFees.clone();
+    const dailyHoldersRevenue =options.createBalances();
+    if (options.chain === CHAIN.ETHEREUM)
+        await addTokensReceived({ options, token: DEXT, targets: target_even[options.chain], balances: dailyHoldersRevenue })
     await getETHReceived({ options, balances: dailyFees, targets: target_even[options.chain] })
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue }
 }
