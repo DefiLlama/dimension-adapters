@@ -279,4 +279,5 @@ export enum CHAIN {
   ETHEREAL = "ethereal",
   FLUENCE = "fluence",
   MONAD = "monad",
+  SKALE = "skale",
 }
