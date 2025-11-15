@@ -7,9 +7,23 @@ import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
 
 const CONFIG = {
-  factory: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
+  factories: [
+    {
+      address: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
+      fromBlock: 13843704,
+      skipIndexer: true,
+    },
+    {
+      address: '0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a',
+      fromBlock: 36953918,
+      skipIndexer: false,
+    },
+  ],
   voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5',
-  GaugeFactory: '0xd30677bd8dd15132f251cb54cbda552d2a05fb08'
+  gaugeFactories: [
+    '0xd30677bd8dd15132f251cb54cbda552d2a05fb08',
+    '0xB630227a79707D517320b6c0f885806389dFcbB3',
+  ].map(f => f.toLowerCase()),
 }
 
 
@@ -35,7 +49,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
 
   const bribes_contract: string[] = logs_gauge_created
-    .filter((log) => log[2].toLowerCase() === CONFIG.GaugeFactory.toLowerCase())
+    .filter((log) => CONFIG.gaugeFactories.includes(log[2].toLowerCase()))
     .map((log) => log[4].toLowerCase())
   const bribeSet = new Set(bribes_contract)
 
@@ -59,7 +73,11 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const dailyFees = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
 
-  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 13843704, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: true, })
+  let rawPools: Array<any> = []
+  for (const factory of CONFIG.factories) {
+    rawPools = await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer })
+  }
+
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
   const fees = await api.multiCall({ abi: abis.fee, calls: _pools })
   const aeroPoolSet = new Set()
