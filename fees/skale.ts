@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.SKALE_EUROPA]: {
+    [CHAIN.SKALE]: {
       fetch,
       start: '2024-04-01',
     },
