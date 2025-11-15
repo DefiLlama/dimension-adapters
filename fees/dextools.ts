@@ -35,7 +35,7 @@ For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { addTokensReceived, evmReceivedGasAndTokens, getETHReceived, getSolanaReceived } from '../helpers/token';
+import { addTokensReceived,getETHReceived, getSolanaReceived } from '../helpers/token';
 
 const tokens = {
     ethereum: [
@@ -59,7 +59,7 @@ const target_even: any = {
     [CHAIN.BASE]: ['0x997Cc123cF292F46E55E6E63e806CD77714DB70f'],
 }
 
-const sol = async (options: FetchOptions) => {
+const sol = async (_a:any,_b:any,options: FetchOptions) => {
     const dailyFees = await getSolanaReceived({
         options, targets: [
             '4sdKYA9NLD1XHThXGPTmFE973mNs1UeVkCH4dFL3Wgho',
@@ -70,7 +70,7 @@ const sol = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
-const fetchEvm = async (options: FetchOptions) => {
+const fetchEvm = async (_a:any,_b:any,options: FetchOptions) => {
     const dailyFees = options.createBalances();
     if (tokens[options.chain].length > 0) {
         await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
