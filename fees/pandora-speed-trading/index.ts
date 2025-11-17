@@ -1,5 +1,4 @@
 
-import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -30,14 +29,21 @@ const fetch = async (options: FetchOptions) => {
   closeData.forEach((log: any) => {
     dailyFees.add(usdcAddress, log.closeFee);
   });
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
+
+const methodology = {
+  Fees: "Fees from open/close position",
+  Revenue: "100% of fees from open/close position goes to the treasury",
+  ProtocolRevenue: "100% of revenue from open/close position goes to the treasury",
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ABSTRACT],
   start: '2025-11-01',
+  methodology,
 }
 
 export default adapter;

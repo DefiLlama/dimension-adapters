@@ -1,5 +1,4 @@
 
-import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
