@@ -12,6 +12,9 @@ const pools = [
     "Community.2",
     "Trump.1",
     "Ore.1",
+    
+    // keep historical pools
+    "Community.3",
 ]
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
