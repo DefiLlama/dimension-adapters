@@ -21,7 +21,7 @@ async function fetchStatistics(startOfDay: number) {
 
 const getItems: Record<string, (items: Array<any>) => Array<any>> = {
   [CHAIN.ARBITRUM]: (items: Array<any>): Array<any> => {
-    return items.filter(item => item.protocol === 'ostium' || (['gmx', 'gains', 'synfutures', 'aster'].includes(item.protocol) && item.network === 'arbitrum'))
+    return items.filter(item => ['ostium', 'aster'].includes(item.protocol) || (['gmx', 'gains', 'synfutures'].includes(item.protocol) && item.network === 'arbitrum'))
   },
   [CHAIN.OPTIMISM]: (items: Array<any>): Array<any> => {
     return items.filter(item => item.protocol === 'orderly')
