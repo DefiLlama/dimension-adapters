@@ -21,14 +21,18 @@ async function fetch(_: any, _2: any, _3: FetchOptions) {
   return {
     dailyVolume: data.volume,
     dailyFees: data.fees,
-    dailySupplySideRevenue: data.fees
+    dailyRevenue:0,
+    dailySupplySideRevenue: data.fees,
+    dailyProtocolRevenue: 0,
   }
 }
 
 const methodology = {
   Fees: "Swap fees paid by users",
+  Revenue: "No revenue",
   Volume: "Galaswap trade volume",
-  SupplySideRevenue: "All the fees goes to liquidity providers"
+  SupplySideRevenue: "All the fees goes to liquidity providers",
+  ProtocolRevenue: "No protocol revenue",
 };
 
 export default {
