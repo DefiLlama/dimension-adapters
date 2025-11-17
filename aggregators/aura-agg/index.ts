@@ -6,23 +6,25 @@ const TransformedERC20Event =
 
 const AURA_AGGREGATOR_CONTRACT = "0xEc46A87ba4d423BaF59aeD8e16AE3E91800581Ef"
 
+const FLAT_FEE_RATE = 0.0005 // 0.05%
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
   const logs: any[] = await options.getLogs({
-    targets: [AURA_AGGREGATOR_CONTRACT],
+    target: AURA_AGGREGATOR_CONTRACT,
     eventAbi: TransformedERC20Event,
-    flatten: true,
   });
 
   for (const log of logs) {
     let token = log.inputToken;
-    if (log.inputToken === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") { // price for native token not supported
-        token = "0x6100E367285b01F48D07953803A2d8dCA5D19873" // WXPL
-    };
+    if (log.inputToken === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
+      // price for native token not supported - WXPL
+      token = "0x6100E367285b01F48D07953803A2d8dCA5D19873";
+    }
     dailyVolume.add(token, log.inputTokenAmount);
-    dailyFees.add(token, Number(log.inputTokenAmount) * 0.0005); // 0.05%
+    dailyFees.add(token, Number(log.inputTokenAmount) * FLAT_FEE_RATE);
   }
 
   return {
