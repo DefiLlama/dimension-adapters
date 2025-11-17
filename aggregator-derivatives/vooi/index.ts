@@ -21,9 +21,9 @@ async function fetchStatistics(startOfDay: number) {
 
 const getItems: Record<string, (items: Array<any>) => Array<any>> = {
   [CHAIN.ARBITRUM]: (items: Array<any>): Array<any> => {
-    return items.filter(item => ['ostium', 'aster'].includes(item.protocol) || (['gmx', 'gains', 'synfutures'].includes(item.protocol) && item.network === 'arbitrum'))
+    return items.filter(item => ['ostium'].includes(item.protocol) || (['gmx', 'gains', 'synfutures'].includes(item.protocol) && item.network === 'arbitrum'))
   },
-  [CHAIN.OPTIMISM]: (items: Array<any>): Array<any> => {
+  [CHAIN.ORDERLY]: (items: Array<any>): Array<any> => {
     return items.filter(item => item.protocol === 'orderly')
   },
   [CHAIN.HYPERLIQUID]: (items: Array<any>): Array<any> => {
@@ -47,6 +47,9 @@ const getItems: Record<string, (items: Array<any>) => Array<any>> = {
   [CHAIN.OP_BNB]: (items: Array<any>): Array<any> => {
     return items.filter(item => item.protocol == 'kiloex' && item.network === 'opbnb')
   },
+  [CHAIN.OFF_CHAIN]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'aster')
+  },
 }
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
@@ -54,9 +57,9 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 }
 
 const fetch = async (_a: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
-  const prefetch = options.preFetchedResults;
+  const results = options.preFetchedResults;
 
-  const items = getItems[options.chain](prefetch)
+  const items = getItems[options.chain](results)
 
   let dailyVolume = 0;
   for (const item of items) {
@@ -74,7 +77,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       start: "2024-05-02",
     },
-    [CHAIN.OPTIMISM]: {
+    [CHAIN.ORDERLY]: {
       start: "2024-05-02",
     },
     [CHAIN.BSC]: {
@@ -98,6 +101,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.OP_BNB]: {
       start: "2025-10-20",
     },
+    [CHAIN.OFF_CHAIN]: {
+      start: '2025-11-01'
+    }
   },
   doublecounted: true,
 };
