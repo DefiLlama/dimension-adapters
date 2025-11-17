@@ -278,7 +278,6 @@ export enum CHAIN {
   MEZO = "mezo",
   ETHEREAL = "ethereal",
   FLUENCE = "fluence",
-  GATELAYER = "gatelayer",
   MONAD = "monad",
   SKALE = "skale",
 }

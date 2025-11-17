@@ -8,7 +8,7 @@ const adapter: SimpleAdapter = {
 		Volume: 'Total swap volume collected from factory 0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2',
 	},
 	start: '2025-09-27',
-	chains: [CHAIN.GATELAYER],
+	chains: [CHAIN.GATE_LAYER],
 	fetch: getUniV2LogAdapter({ 
         factory: '0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2', 
         fees: 0, 

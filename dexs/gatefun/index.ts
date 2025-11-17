@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 
 
 const CONTRACTS: Record<string, string> = {
-  [CHAIN.GATELAYER]: "0x7C8FbD15E4c8B722920C1570A4704622D5391113",
+  [CHAIN.GATE_LAYER]: "0x7C8FbD15E4c8B722920C1570A4704622D5391113",
 };
 
 const EVENT_TRADE =
@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
 	Volume: 'Total swap volume collected from gatefun contract 0x7C8FbD15E4c8B722920C1570A4704622D5391113',
   },
   start: '2025-09-27',
-  chains: [CHAIN.GATELAYER],
+  chains: [CHAIN.GATE_LAYER],
   fetch,
 }
 
