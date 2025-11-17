@@ -1,80 +1,11 @@
 import ADDRESSES from './coreAssets.json'
 
 import { Balances, ChainApi, cache } from "@defillama/sdk";
-import { BaseAdapter, FetchGetLogsOptions, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "./prices";
 import { ethers } from "ethers";
-import pLimit from "p-limit";
 
 const ZERO_ADDRESS = ADDRESSES.null;
-
-type LogsRateLimitConfig = {
-  batchSize?: number,
-  maxConcurrentRequests?: number,
-  sleepMsBetweenBatches?: number,
-  maxRetries?: number,
-  retryDelayMs?: number,
-  retryBackoffMultiplier?: number,
-}
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function getLogsWithRateLimit({
-  getLogs,
-  targets,
-  rateLimit,
-  logParams,
-}: {
-  getLogs: FetchOptions['getLogs'],
-  targets: string[],
-  rateLimit: LogsRateLimitConfig,
-  logParams: FetchGetLogsOptions,
-}) {
-  if (!targets?.length) return [] as any[]
-
-  const {
-    batchSize = 10,
-    maxConcurrentRequests = 1,
-    sleepMsBetweenBatches = 0,
-    maxRetries = 3,
-    retryDelayMs = 1_000,
-    retryBackoffMultiplier = 2,
-  } = rateLimit
-
-  const limiter = pLimit(Math.max(1, maxConcurrentRequests))
-  const batches: { start: number, items: string[] }[] = []
-  for (let i = 0; i < targets.length; i += batchSize) {
-    batches.push({ start: i, items: targets.slice(i, i + batchSize) })
-  }
-
-  const responses: any[] = Array(targets.length).fill(null)
-
-  await Promise.all(batches.map(({ start, items }, batchIndex) => limiter(async () => {
-    const logs = await fetchChunkWithRetry(items)
-    logs.forEach((entry: any, offset: number) => {
-      responses[start + offset] = entry ?? []
-    })
-    if (sleepMsBetweenBatches > 0 && batchIndex !== batches.length - 1)
-      await sleep(sleepMsBetweenBatches)
-  })))
-
-  return responses
-
-  async function fetchChunkWithRetry(chunkTargets: string[]) {
-    let attempt = 0
-    let delay = retryDelayMs
-    while (true) {
-      try {
-        return await getLogs({ ...logParams, targets: chunkTargets, flatten: false })
-      } catch (error) {
-        attempt += 1
-        if (attempt >= maxRetries) throw error
-        await sleep(delay)
-        delay *= retryBackoffMultiplier
-      }
-    }
-  }
-}
 
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
@@ -110,7 +41,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, logsRateLimit, } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -148,10 +79,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     }
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
-    const logFetchParams: FetchGetLogsOptions = { eventAbi: swapEvent, flatten: false }
-    const allLogs = logsRateLimit
-      ? await getLogsWithRateLimit({ getLogs, targets: pairIds, rateLimit: logsRateLimit, logParams: logFetchParams })
-      : await getLogs({ ...logFetchParams, targets: pairIds })
+    const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
       const pair = pairIds[index]
@@ -309,7 +237,6 @@ type UniV2Config = {
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
   blacklistPools?: Array<string>,
-  logsRateLimit?: LogsRateLimitConfig,
 }
 
 type UniV3Config = {

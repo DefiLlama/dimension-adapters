@@ -12,14 +12,6 @@ const adapter: SimpleAdapter = {
 	fetch: getUniV2LogAdapter({ 
         factory: '0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2', 
         fees: 0, 
-        logsRateLimit: {
-            batchSize: 4,
-            maxConcurrentRequests: 1,
-            sleepMsBetweenBatches: 800,
-            maxRetries: 5,
-            retryDelayMs: 1_000,
-            retryBackoffMultiplier: 2,
-        },
     }),
 }
 
