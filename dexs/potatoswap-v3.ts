@@ -1,7 +1,7 @@
 import { FetchOptions } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { httpGet } from '../utils/fetchURL';
-import BigNumber from 'bignumber.js'; // This is a standard dependency in the repo
+import BigNumber from 'bignumber.js';
 
 const methodology = {
   Fees: "Total fees paid by users on every swap, determined by the pool's fee tier (e.g., 0.01%, 0.05%, 0.30%, 1.00%).",
@@ -18,8 +18,7 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
   // Initialize all accumulators as BigNumber objects
   let dailyVolume = new BigNumber(0);
   let dailyFees = new BigNumber(0);
-  let dailyProtocolRevenue = new BigNumber(0);
-  let dailySupplySideRevenue = new BigNumber(0);
+  let dailyRevenue = new BigNumber(0);
 
   const poolsResponse: any = await httpGet('https://v3.potatoswap.finance/api/pool/list-all');
   
@@ -29,14 +28,9 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
 
   const pools = poolsResponse.data;
 
-  // 1. Prepare multicall to fetch slot0 for all pools
-  const slot0Calls = pools.map((pool: any) => ({
-    target: pool.address,
-  }));
-
   const slot0Results = await options.api.multiCall({
     abi: SLOT0_ABI,
-    calls: slot0Calls,
+    calls: pools.map((p: any) => ({ target: p.address })),
     chain: CHAIN.XLAYER,
     requery: true,
   });
@@ -58,23 +52,20 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
     if (protocolFeeShare > 0) {
       // Use .div() and .minus() for accurate calculations
       const poolProtocolRevenue = poolFees24h.div(protocolFeeShare);
-      const poolLpRevenue = poolFees24h.minus(poolProtocolRevenue);
       
-      dailyProtocolRevenue = dailyProtocolRevenue.plus(poolProtocolRevenue);
-      dailySupplySideRevenue = dailySupplySideRevenue.plus(poolLpRevenue);
-    } else {
-      // 100% goes to LPs
-      dailySupplySideRevenue = dailySupplySideRevenue.plus(poolFees24h);
+      dailyRevenue = dailyRevenue.plus(poolProtocolRevenue);
     }
   }
+  
+  const dailySupplySideRevenue = dailyFees.minus(dailyRevenue)
   
   // Return the final values as strings
   return {
     dailyVolume: dailyVolume.toString(),
     dailyFees: dailyFees.toString(),
     dailyUserFees: dailyFees.toString(),
-    dailyRevenue: dailyProtocolRevenue.toString(),
-    dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+    dailyRevenue: dailyRevenue.toString(),
+    dailyProtocolRevenue: dailyRevenue.toString(),
     dailySupplySideRevenue: dailySupplySideRevenue.toString(),
   };
 }
