@@ -3,7 +3,7 @@ import { METRIC } from "../../helpers/metrics";
 import { findClosest } from "../../helpers/utils/findClosest"
 import { httpGet } from "../../utils/fetchURL";
 
-export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestations:number, attestations: {
+export function buildStablecoinAdapter(chain: string, stablecoinId: string, daysBetweenAttestations:number, attestations: {
     time: string, // time of report
     circulation: number, // billions of USDC in circulation
     allocated: number, // billions in tbills + repos + money market funds (DON'T INCLUDE CASH!)
@@ -12,7 +12,7 @@ export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestat
     const adapter: Adapter = {
         version: 2,
         adapter: {
-            ethereum: {
+            [chain]: {
                 fetch: async ({ fromTimestamp, createBalances }: FetchOptions) => {
                     const dailyFees = createBalances()
 
@@ -27,8 +27,7 @@ export function buildStablecoinAdapter(stablecoinId: string, daysBetweenAttestat
 
                     const tbills = supply * closestAttestation.allocated / closestAttestation.circulation
                     const annualYield = tbills * closestAttestation.tbillRate / 100 // yield in repos (SOFR) and yield in tbills is almost the same
-                    const decimals = 1e6 // assuming 6 decimals
-                    dailyFees.add(stablecoinData.address, decimals * annualYield / 365, METRIC.ASSETS_YIELDS)
+                    dailyFees.addUSDValue(annualYield / 365, METRIC.ASSETS_YIELDS)
 
                     return {
                         dailyFees,

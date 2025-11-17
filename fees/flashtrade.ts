@@ -40,10 +40,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   
   for (const pool of pools) {
     const url = `https://api.prod.flash.trade/pnl-info/cumulative-pnl-per-day?poolName=${pool}&startDate=2023-01-01%2000:00:00&endDate=${targetDate}%2023:59:59`;
-    const res = await fetchURL(url);
-    const poolFees = (res[targetDate]?.totalFees / 1e6) || 0;
-    poolFeesData[pool] = poolFees;
-    dailyFees += poolFees; 
+    try {
+      const res = await fetchURL(url);
+      const poolFees = (res[targetDate]?.totalFees / 1e6) || 0;
+      poolFeesData[pool] = poolFees;
+      dailyFees += poolFees; 
+    } catch(e: any) {
+      if (e.axiosError !== 'Pool not found') {
+        throw e;
+      }
+    }
   }
 
   const dailyRevStatsResponse = await fetchURL(urlRevStats);
