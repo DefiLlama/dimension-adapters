@@ -1,98 +1,103 @@
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getERC4626VaultsYield } from "../helpers/erc4626";
-
-// Cellar addresses - Sommelier cellars are ERC4626-compatible vaults
-const CELLARS: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: [
-    "0x97e6e0a40a3d02f12d1cec30ebfbae04e37c119e", // Real Yield USD
-    "0xb5b29320d2dde5ba5bafa1ebcd270052070483ec", // Real Yield ETH
-    "0x0274a704a6d9129f90a62ddc6f6024b33ecdad36", // Real Yield BTC
-    "0x03df2a53cbed19b824347d6a45d09016c2d1676a", // DeFi Stars
-    "0x6c51041a91c91c86f3f08a72cb4d3f67f1208897", // ETH Growth
-    "0x0c190ded9be5f512bd72827bdad4003e9cc7975c", // Turbo GHO
-    "0xfd6db5011b171b05e1ea3b92f9eacaeeb055e971", // Turbo stETH
-    "0xc7372Ab5dd315606dB799246E8aA112405abAeFf", // Turbo stETH Deposit
-    "0xcf4b531b4cde95bd35d71926e09b2b54c564f5b6", // Morpho Maximizer
-    "0x6c1edce139291Af5b84fB1e496c9747F83E876c9", // Turbo divETH
-    "0x19B8D8FC682fC56FbB42653F68c7d48Dd3fe597E", // Turbo ETHX
-    "0xdAdC82e26b3739750E036dFd9dEfd3eD459b877A", // Turbo eETH V2
-    "0x1dffb366b5c5A37A12af2C127F31e8e0ED86BDbe", // Turbo rsETH
-    "0x27500De405a3212D57177A789E30bb88b0AdbeC5", // Turbo ezETH
-  ],
-  [CHAIN.ARBITRUM]: [
-    "0xC47bB288178Ea40bF520a91826a3DEE9e0DbFA4C", // Real Yield ETH ARB
-    "0x392B1E6905bb8449d26af701Cdea6Ff47bF6e5A8", // Real Yield USD ARB
-  ],
-  [CHAIN.OPTIMISM]: [
-    "0xC47bB288178Ea40bF520a91826a3DEE9e0DbFA4C", // Real Yield ETH OPT
-  ],
-};
+import { METRIC } from "../helpers/metrics";
 
 const chainConfig: Record<string, {cellars: string[], start: string}> = {
   [CHAIN.ETHEREUM]: {
-    cellars: CELLARS[CHAIN.ETHEREUM],
-    start: '2023-01-01',
+    cellars: [
+      "0x97e6e0a40a3d02f12d1cec30ebfbae04e37c119e", // Real Yield USD
+      "0xb5b29320d2dde5ba5bafa1ebcd270052070483ec", // Real Yield ETH
+      "0x0274a704a6d9129f90a62ddc6f6024b33ecdad36", // Real Yield BTC
+      "0x03df2a53cbed19b824347d6a45d09016c2d1676a", // DeFi Stars
+      "0x6c51041a91c91c86f3f08a72cb4d3f67f1208897", // ETH Growth
+      "0xcf4b531b4cde95bd35d71926e09b2b54c564f5b6", // Morpho Maximizer
+      "0x6c1edce139291Af5b84fB1e496c9747F83E876c9", // Turbo divETH
+      "0x19B8D8FC682fC56FbB42653F68c7d48Dd3fe597E", // Turbo ETHX
+      "0xdAdC82e26b3739750E036dFd9dEfd3eD459b877A", // Turbo eETH V2
+      "0x1dffb366b5c5A37A12af2C127F31e8e0ED86BDbe", // Turbo rsETH
+      "0x27500De405a3212D57177A789E30bb88b0AdbeC5", // Turbo ezETH
+      "0x0c190ded9be5f512bd72827bdad4003e9cc7975c", // Turbo GHO
+      "0xfd6db5011b171b05e1ea3b92f9eacaeeb055e971", // Turbo stETH
+      "0xc7372Ab5dd315606dB799246E8aA112405abAeFf", // Turbo stETH Deposit
+    ],
+    start: '2023-01-18',
   },
   [CHAIN.ARBITRUM]: {
-    cellars: CELLARS[CHAIN.ARBITRUM],
-    start: '2024-01-01',
+    cellars: [
+      "0xC47bB288178Ea40bF520a91826a3DEE9e0DbFA4C", // Real Yield ETH ARB
+      "0x392B1E6905bb8449d26af701Cdea6Ff47bF6e5A8", // Real Yield USD ARB
+    ],
+    start: '2024-02-07',
   },
   [CHAIN.OPTIMISM]: {
-    cellars: CELLARS[CHAIN.OPTIMISM],
-    start: '2024-02-01',
+    cellars: [
+      "0xC47bB288178Ea40bF520a91826a3DEE9e0DbFA4C", // Real Yield ETH OPT
+    ],
+    start: '2024-02-25',
   },
 };
 
 const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  
   const config = chainConfig[options.chain];
   
-  // Get total yield from share price growth
-  const totalYield = await getERC4626VaultsYield({
-    options,
-    vaults: config.cellars,
-  });
-  
-  // Get strategist split from cellar feeData
+  const vaults = config.cellars.map(c => String(c).toLowerCase())
+  const assets = await options.api.multiCall({ abi: 'address:asset', calls: vaults, permitFailure: true, })
+  const values = await options.api.multiCall({ abi: 'uint256:totalAssets', calls: vaults, permitFailure: true, })
+  const decimals = await options.api.multiCall({ abi: 'uint8:decimals', calls: vaults, permitFailure: true, })
+  const convertCalls = vaults.map((vault, index) => {
+    return {
+      target: vault,
+      params: [String(10 ** Number(decimals[index]))],
+    }
+  })
+  const cumulativeIndexBefore = await options.fromApi.multiCall({ abi: 'function convertToAssets(uint256) view returns (uint256)', calls: convertCalls, permitFailure: true, })
+  const cumulativeIndexAfter = await options.toApi.multiCall({ abi: 'function convertToAssets(uint256) view returns (uint256)', calls: convertCalls, permitFailure: true, })
   const feeData = await options.api.multiCall({
     abi: 'function feeData() view returns (uint64 strategistPlatformCut, uint64 platformFee, uint64 lastAccrual, address strategistPayoutAddress)',
-    calls: config.cellars,
+    calls: vaults,
     permitFailure: true,
   });
   
-  // Calculate average strategist cut
-  let totalStrategistCut = 0;
-  let count = 0;
-  for (const fees of feeData) {
-    if (fees?.strategistPlatformCut) {
-      totalStrategistCut += Number(fees.strategistPlatformCut) / 1e18;
-      count++;
+  for (let i = 0; i < vaults.length; i++) {
+    const rateBefore = cumulativeIndexBefore[i]
+    const rateAfter = cumulativeIndexAfter[i]
+  
+    if (rateBefore && rateAfter) {
+      const rateGrowth = Number(rateAfter) - Number(rateBefore) 
+      const yieldGrowth = Number(values[i]) * rateGrowth / (10**(decimals[i]))
+      
+      if (yieldGrowth > 0) {
+        const performanceFees = feeData[i] ? yieldGrowth * Number(feeData[i].strategistPlatformCut) / 1e18 : 0
+        
+        const managementFeesRate = feeData[i] ? Number(feeData[i].platformFee) / 1e18 : 0
+        const YEAR = 365 * 24 * 3600
+        const timespan = options.toTimestamp - options.fromTimestamp
+        const managementFees = Number(values[i]) * managementFeesRate * timespan / YEAR
+        
+        const supplySideRevenue = yieldGrowth - performanceFees;
+        
+        dailyFees.add(assets[i], supplySideRevenue, METRIC.ASSETS_YIELDS)
+        dailyFees.add(assets[i], performanceFees, METRIC.PERFORMANCE_FEES)
+        dailyFees.add(assets[i], managementFees, METRIC.MANAGEMENT_FEES)
+        
+        dailySupplySideRevenue.add(assets[i], supplySideRevenue, METRIC.ASSETS_YIELDS)
+        
+        dailyRevenue.add(assets[i], performanceFees, METRIC.PERFORMANCE_FEES)
+        dailyRevenue.add(assets[i], managementFees, METRIC.MANAGEMENT_FEES)
+      }
     }
   }
-  const avgStrategistCut = count > 0 ? totalStrategistCut / count : 0.5; // Default 50%
-  
-  // Sommelier fee structure (based on documentation):
-  // - Management fees: ~1% annually
-  // - Performance fees: ~10-20% on profits above high-watermark
-  // - Combined effective rate: ~5-10% of yield
-  // Since we can't get exact rates easily, using conservative 5% (could be changed if needed)
-  const ESTIMATED_FEE_RATE = 0.05; // 5% of yield goes to fees
-  
-  const dailyFees = totalYield;  // Total yield (100%)
-  const totalFeesCollected = totalYield.clone(ESTIMATED_FEE_RATE);  // ~5% as fees
-  const dailyProtocolRevenue = totalFeesCollected.clone(avgStrategistCut);  // Protocol's share
-  const dailyStrategistRevenue = totalFeesCollected.clone(1 - avgStrategistCut);  // Strategist's share
-  const dailySupplySideRevenue = totalYield.clone(1 - ESTIMATED_FEE_RATE);  // ~95% to depositors
-  
-  // Strategists are supply side
-  dailySupplySideRevenue.addBalances(dailyStrategistRevenue);
   
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue,
     dailySupplySideRevenue,
-  };
+    dailyProtocolRevenue: dailyRevenue,
+  }
 };
 
 const methodology = {
@@ -101,6 +106,25 @@ const methodology = {
   Revenue: "Management fees (~1% annual on TVL) plus performance fees (~10-20% on profits above high-watermark) collected by Sommelier protocol. Estimated at ~5% of total yield. Fees are accrued via keeper system in FeesAndReserves contract.",
   ProtocolRevenue: "Sommelier protocol's share of collected fees after strategist split. Split ratio varies by cellar (typically 50-85% to protocol). These fees are bridged to Sommelier Chain for SOMM staker distribution and token buybacks/burns.",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Total assets yield collected from vaults deposited.',
+    [METRIC.MANAGEMENT_FEES]: 'Management fees (~1% annual on TVL) collected by Sommelier protocol',
+    [METRIC.PERFORMANCE_FEES]: 'Performance fees (~10-20% on profits above high-watermark) collected by Sommelier protocol',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Total assets yield collected distributed to suppliers.',
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Management fees (~1% annual on TVL) collected by Sommelier protocol',
+    [METRIC.PERFORMANCE_FEES]: 'Performance fees (~10-20% on profits above high-watermark) collected by Sommelier protocol',
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Management fees (~1% annual on TVL) collected by Sommelier protocol',
+    [METRIC.PERFORMANCE_FEES]: 'Performance fees (~10-20% on profits above high-watermark) collected by Sommelier protocol',
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -112,6 +136,7 @@ const adapter: SimpleAdapter = {
     }
   }), {}),
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
