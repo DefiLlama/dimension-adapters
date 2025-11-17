@@ -366,11 +366,12 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
  * @param blacklist_signers - Optional array of transaction signers to exclude
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers, blacklist_mints }: {
+export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_mints }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
   targets?: string[];
+  mints?: string[];
   blacklists?: string[];
   blacklist_signers?: string[];
   blacklist_mints?: string[];
@@ -382,6 +383,14 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
 
+  // Build SQL condition to inlcude only mints tokens
+  let mintsCondition = '';
+
+  if (mints && mints.length > 0) {
+    const formattedMints = mints.map(addr => `'${addr}'`).join(', ');
+    mintsCondition = `AND mint IN (${formattedMints})`;
+  }
+  
   // Build SQL condition to exclude blacklisted sender addresses
   let blacklistCondition = '';
 
@@ -415,6 +424,7 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
     FROM solana.assets.transfers
     WHERE to_address IN (${formattedAddresses})
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ${mintsCondition}
     ${blacklistCondition}
     ${blacklist_signersCondition}
     ${blacklist_mintsCondition}
@@ -570,7 +580,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     arbitrum: 'arbitrum',
     avax: 'avalanche',
     polygon: 'polygon',
-    celo: 'celo',
+    // celo: 'celo',
     tron: 'tron',
     unichain: 'unichain',
     zora: 'zora',
