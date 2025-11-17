@@ -5,6 +5,7 @@ import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
+import { concat } from 'ethers';
 
 const CONFIG = {
   factories: [
@@ -75,7 +76,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
   let rawPools: Array<any> = []
   for (const factory of CONFIG.factories) {
-    rawPools = await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer })
+    rawPools = rawPools.concat(await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer }))
   }
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
