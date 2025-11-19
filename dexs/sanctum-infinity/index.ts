@@ -78,7 +78,7 @@ const fetch = async (
       )
     )[0].trading_volume;
   const dailyVolume = options.createBalances();
-  dailyVolume.addCGToken("solana", volume);
+  dailyVolume.addCGToken("solana", volume ? volume : 0);
 
   return { dailyVolume };
 };
