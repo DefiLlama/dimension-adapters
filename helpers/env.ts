@@ -24,6 +24,7 @@ const DEFAULTS: any = {
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
+  ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
 }
 
 export const ENV_KEYS = new Set([
@@ -64,6 +65,7 @@ export const ENV_KEYS = new Set([
   'DUNE_BULK_MODE_BATCH_TIME',
   'LLAMA_HL_INDEXER',
   'SAUCERSWAP_API_KEY',
+  'ASTROS_PERP_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

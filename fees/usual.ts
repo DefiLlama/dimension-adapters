@@ -8,18 +8,24 @@ import { getEulerVaultFee } from "../helpers/curators/index";
  * Usual takes RWA stablecoins from users and issue USD0 stablecoins
  * Users can stake USD0, receive USD0++ and earn USUAL tokens
  * Users can stake USUAL, receive USUALx and earn USUAL tokens
+ * Users can stake USD0, reveive sUSD0 and earn USD0 tokens
+ * Users can stake USD0, receive USD0a and earn USD0 tokens
+ * Users can lock USUALx and earn USD0 tokens
  * 
- * There are four places where Usual takes fees:
+ * Here are the places where Usual takes fees:
  * 1. Usual earns fees from locked RWA assets
  * 2. When users redeem USD0 stablecoins, Usual takes an amount of redemption fees in USD0 tokens
  * 3. When users early unstake USD0++ at floor price
  * 4. When users early unstake USD0++, users must commit an amount of USUAL tokens
  *    these USUAL tokens then are burnt and distributed to USUALx stakers
  * 5. Usual deployed Euler vaults for borrowing and takes borrow interest
+ * 6. Usual deployed vaults to deposit USD0++ and distribute USUAL to depositors when user withdraws, a fee is applied and a management fee is harvested on the vault.
+ * 7. When users stake USD0, they receive sUSD0 or USD0a, or when they lock USUALx, they get rewarded USD0 tokens 
+ * 
  * 
  * So:
- * We count 1, 2, 3, 5 as protocol revenue
- * We count 4 as holder revenue
+ * We count 1, 2, 3, 5, 6 as protocol revenue
+ * We count 4, 7 as holder revenue
  * 
  * There is no source of revenue for supply side users - USD0 minters.
  * Rewarded USUAL tokens to USD0++ and USUALx stakers are incentive from Usual, not from RWA assets yield.
@@ -32,10 +38,19 @@ const methodology = {
   ProtocolRevenue: 'Total fees are distributed to protocol treasury.',
   HoldersRevenue: 'Total fees are distributed to token holders, token burns',
 }
-
+const RDMUSD0 = '0x6ec631c19372d5a9345Ec4aeED93BA9eb0A45F77'
 const DaoCollateral = '0xde6e1F680C4816446C8D515989E2358636A38b04'
 const Treasury = '0xdd82875f0840AAD58a455A70B88eEd9F59ceC7c7'
+const Eur0Treasury = '0x11D75bC93aE69350231D8fF0F5832A697678183E'
+const ETH0Treasury = '0xc912B5684a1dF198294D8b931B3926a14d700F64'
 const USD0 = ADDRESSES.ethereum.USD0
+const SUSDS = ADDRESSES.ethereum.sUSDS
+const WSTETH = ADDRESSES.ethereum.WSTETH
+const EUTBL =  '0xa0769f7A8fC65e47dE93797b4e21C073c117Fc80'
+const EUTBLOracle = '0xfD628af590c4150A9651C1f4ddD0b4f532B703ae'
+const EURUSDOracle = '0xb49f677943BC038e9857d61E7d053CaA2C1734C1'
+const ETHUSDOracle = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
+
 const USUAL = '0xc4441c2be5d8fa8126822b9929ca0b81ea0de38e'
 const USD0PP = '0x35d8949372d46b7a3d5a56006ae77b215fc69bc0'
 const USUALX = '0x06B964d96f5dCF7Eae9d7C559B09EDCe244d4B8E'
@@ -45,8 +60,16 @@ const USYCOracle = '0x4c48bcb2160F8e0aDbf9D4F3B034f1e36d1f8b3e'
 const wM = '0x437cc33344a0B27A429f795ff6B469C72698B291'
 const USUAL_wM = '0x4Cbc25559DbBD1272EC5B64c7b5F48a2405e6470'
 const EULER_VAULTS = ['0xd001f0a15D272542687b2677BA627f48A4333b5d']
-
+const USUAL_VAULTS = ['0x67ec31a47a4126A66C7bb2fE017308cf5832A4Db']
+ 
 const ContractAbis = {
+ 
+  // Oracle
+  chainlinkOraclePrice: 'function latestRoundData() view returns(uint80 roundId, int256 answer, uint256 startAt, uint256 updatedAt, uint80 answeredInRound)',
+
+  // wstETH
+  stEthPerToken: 'function stEthPerToken() view returns (uint256)',
+
   // USYC
   balanceOf: 'function balanceOf(address) view returns (uint256 balance)',
   usycOraclePrice: 'function latestRoundData() view returns(uint80 roundId, int256 answer, uint256 startAt, uint256 updatedAt, uint80 answeredInRound)',
@@ -59,9 +82,19 @@ const ContractAbis = {
 
   // collect USUAL paid by early unstake USD0++ users
   FeeSweptEvent: 'event FeeSwept(address indexed caller, address indexed collector, uint256 amount)',
+
+  // harvest management fee from vaults
+  HarvestManagementFeeEvent: 'event Harvested(address indexed caller, uint256 sharesMinted)',
   
   // collect USD0 fees to treasury
   Usd0ppUnlockedFloorPriceEvent: 'event Usd0ppUnlockedFloorPrice(address indexed user, uint256 usd0ppAmount, uint256 usd0Amount)',
+
+  // distribute USD0 to sUSD0 stakers
+  accruingDTDistributed: 'event AccruingDTDistributed(uint256 amount, uint256 timestamp)',
+  // distribute USD0 to USD0a stakers
+  rebasingDTDistributed: 'event RebasingDTDistributed(uint256 amount, uint256 timestamp)',
+  // distribute USD0 to Usualx lockers
+  revenueSwitchDistributed: 'event RevenueSwitchDistributed(uint256 amount, uint256 timestamp)',
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -78,15 +111,33 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     targets: [USD0PP,USUALX],
     eventAbi: ContractAbis.FeeSweptEvent,
   })
+  const harvestManagementFeeEvents: Array<any> = await options.getLogs({
+    targets: USUAL_VAULTS,
+    eventAbi: ContractAbis.HarvestManagementFeeEvent,
+  })
   const usd0ppUnlockedFloorPriceEvents: Array<any> = await options.getLogs({
     target: USD0PP,
     eventAbi: ContractAbis.Usd0ppUnlockedFloorPriceEvent,
+  })
+
+  const sUsd0DistributedEvents: Array<any> = await options.getLogs({
+    target: RDMUSD0,
+    eventAbi: ContractAbis.accruingDTDistributed,
+  })
+  const usd0aDistributedEvents: Array<any> = await options.getLogs({
+    target: RDMUSD0,
+    eventAbi: ContractAbis.rebasingDTDistributed,
+  })
+  const UsualxDistributedEvents: Array<any> = await options.getLogs({
+    target: RDMUSD0,
+    eventAbi: ContractAbis.revenueSwitchDistributed,
   })
 
   for (const event of redeemEvents) {
     dailyFees.add(USD0, Number(event.stableFeeAmount))
     dailyProtocolRevenue.add(USD0, Number(event.stableFeeAmount))
   }
+  
   for (const event of feeSweptEvents) {
     dailyFees.add(USUAL, Number(event.amount))
 
@@ -95,11 +146,32 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     //33% of the fees are burnt
     dailyHoldersRevenue.add(USUAL, Number(event.amount))
   }
+
+  for (const event of harvestManagementFeeEvents) {
+    dailyFees.add(SUSDS, Number(event.sharesMinted))
+    dailyProtocolRevenue.add(SUSDS, Number(event.sharesMinted))
+  } 
+
   for (const event of usd0ppUnlockedFloorPriceEvents) {
     const feeAmount = Number(event.usd0ppAmount) - Number(event.usd0Amount)
 
     dailyFees.add(USD0, feeAmount)
     dailyProtocolRevenue.add(USD0, feeAmount)
+  }
+
+  for (const event of sUsd0DistributedEvents) {
+    // not added to dailyFees because USD0 is minted from RWA yield
+    dailyHoldersRevenue.add(USD0, Number(event.amount))
+  }
+
+  for (const event of usd0aDistributedEvents) {
+    // not added to dailyFees because USD0 is minted from RWA yield
+    dailyHoldersRevenue.add(USD0, Number(event.amount))
+  }
+
+  for (const event of UsualxDistributedEvents) {
+    // not added to dailyFees because USD0 is minted from RWA yield
+    dailyHoldersRevenue.add(USD0, Number(event.amount))
   }
 
   // get fees earned by USYC
@@ -119,6 +191,56 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // price decimals: 8, USYC decimals: 6
   const usycYield = (Number(newPrice) - Number(oldPrice)) * usycBalance / 1e14
 
+  // get fees earned by eutbl
+  const eutblBalance = await options.api.call({
+    abi: ContractAbis.balanceOf,
+    target: EUTBL,
+    params: [Eur0Treasury],
+  })
+  const [, oldEutblPrice, , ,] = await options.fromApi.call({
+    abi: ContractAbis.chainlinkOraclePrice,
+    target: EUTBLOracle,
+  })
+
+
+  const [, newEutblPrice, , ,] = await options.toApi.call({
+    abi: ContractAbis.chainlinkOraclePrice,
+    target: EUTBLOracle,
+  })
+
+  const [, eurUsdPrice, , ,] = await options.api.call({
+    abi: ContractAbis.chainlinkOraclePrice,
+    target: EURUSDOracle,
+  })
+
+  // price decimals: 6, eutbl decimals: 5
+  const eutblYieldInEur  = ((Number(newEutblPrice) - Number(oldEutblPrice)) * Number(eutblBalance) )/ 1e11
+  // price decimals: 8 
+  const eutblYieldInUsd = (eutblYieldInEur * Number(eurUsdPrice)) / 1e8
+
+  // get fees earned by wstETH
+  const wstEthBalance = await options.api.call({
+    abi: ContractAbis.balanceOf,
+    target: WSTETH,
+    params: [ETH0Treasury],
+  })
+  const oldWstEthPrice = await options.fromApi.call({
+    abi: ContractAbis.stEthPerToken,
+    target: WSTETH,
+  })
+  const newWstEthPrice = await options.toApi.call({
+    abi: ContractAbis.stEthPerToken,
+    target: WSTETH,
+  })
+  const [, ethUsdPrice, , ,] = await options.api.call({
+    abi: ContractAbis.chainlinkOraclePrice,
+    target: ETHUSDOracle,
+  })
+  // price decimals: 18, wstETH decimals: 18
+  const wstEthYieldInEth = ((Number(newWstEthPrice) - Number(oldWstEthPrice)) * Number(wstEthBalance)) / 1e36
+  // price decimals: 8
+  const wstEthYieldInUsd = (wstEthYieldInEth * Number(ethUsdPrice)) / 1e8
+
   // get fees earned by wM
   const wMBalance = await options.api.call({
     abi: ContractAbis.balanceOf,
@@ -136,12 +258,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // index decimals: 12, wM decimals: 6
   const mYield = (Number(newIndex) - Number(oldIndex)) * wMBalance / 1e18
 
-  const totalRwaYield = usycYield + mYield
+  const totalRwaYield = usycYield + mYield + eutblYieldInUsd + wstEthYieldInUsd
   
   dailyFees.addUSDValue(totalRwaYield)
   dailyProtocolRevenue.addUSDValue(totalRwaYield)
   await getEulerVaultFee(options, { dailyFees, dailyRevenue }, EULER_VAULTS)
-
   dailyRevenue.add(dailyProtocolRevenue)
   dailyRevenue.add(dailyHoldersRevenue)
 
