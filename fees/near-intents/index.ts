@@ -25,39 +25,30 @@ const fetch = async (options: FetchOptions) => {
 
     const dailyFees = createBalances();
 
-    try {
-        // Convert Unix timestamp to UTC date string (YYYY-MM-DD)
-        const startDate = new Date(startTimestamp * 1000).toISOString().split('T')[0];
-        const endDate = new Date(endTimestamp * 1000).toISOString().split('T')[0];
+    // Convert Unix timestamp to UTC date string (YYYY-MM-DD)
+    const startDate = new Date(startTimestamp * 1000).toISOString().split('T')[0];
+    const endDate = new Date(endTimestamp * 1000).toISOString().split('T')[0];
 
-        // Fetch fee data for the specific period using query parameters
-        const response: APIResponse = await fetchURL(
-            `https://platform.data.defuse.org/api/public/fees?start=${startDate}&end=${endDate}`
-        );
+    // Fetch fee data for the specific period using query parameters
+    const response: APIResponse = await fetchURL(
+        `https://platform.data.defuse.org/api/public/fees?start=${startDate}&end=${endDate}`
+    );
 
-        if (!response || !response.fees || !Array.isArray(response.fees)) {
-            throw new Error("Invalid API response format");
-        }
-
-        // Find the fee data
-        const dayData = response.fees.find((item: FeeData) => item.date_at === dateString);
-
-        if (dayData && dayData.fee > 0) {
-            // Add fees in USD (using USDC as representation)
-            dailyFees.addCGToken("usd-coin", dayData.fee);
-        }
-        // Note: If no data found, we return empty balances (0 values)
-        // This is normal for dates where data hasn't been aggregated yet
-        return {
-            dailyFees,
-        };
-    } catch (error) {
-        console.error(`Error fetching NEAR Intents fees for date ${dateString}:`, error);
-        // Return empty balances on error
-        return {
-            dailyFees,
-        };
+    if (!response || !response.fees || !Array.isArray(response.fees)) {
+        throw new Error("Invalid API response format");
     }
+
+    // Find the fee data
+    const dayData = response.fees.find((item: FeeData) => item.date_at === dateString);
+
+    if (dayData && dayData.fee > 0) {
+        dailyFees.addUSDValue(dayData.fee);
+    }
+    // Note: If no data found, we return empty balances (0 values)
+    // This is normal for dates where data hasn't been aggregated yet
+    return {
+        dailyFees,
+    };
 };
 
 const adapter: SimpleAdapter = {
