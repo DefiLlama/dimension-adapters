@@ -5,7 +5,7 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const TREASURY_PDA = '6pZERJjcMpNjPZ6ovnXWC6LzwkXLAYgAR1URAEs63cWC';
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b:any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
@@ -16,16 +16,16 @@ const fetch = async (options: FetchOptions) => {
       FROM solana.instruction_calls
       WHERE executing_account = 'WSTKhDg9nQ8h2ZmnmNdR6heSGU6uYJSwdUNpzSYXBSe'
         AND substr(data, 1, 1) = 0x0b
-        AND block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
+        AND block_time >= from_unixtime(${options.fromTimestamp})
+        AND block_time < from_unixtime(${options.toTimestamp})
     )
     SELECT
       t.to_owner,
       t.amount
     FROM tokens_solana.transfers t
     JOIN calls c ON t.tx_id = c.tx_id
-    WHERE t.block_time >= from_unixtime(${options.startTimestamp})
-      AND t.block_time < from_unixtime(${options.endTimestamp})
+    WHERE t.block_time >= from_unixtime(${options.fromTimestamp})
+      AND t.block_time < from_unixtime(${options.toTimestamp})
       AND t.token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
     ORDER BY t.block_slot DESC
   `;
@@ -59,7 +59,6 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2025-11-13',
