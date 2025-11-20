@@ -4,7 +4,7 @@ import { FetchResult } from "../../adapters/types";
 import { SimpleAdapter } from '../../adapters/types';
 
 const adapterData = {
-  start: '2025-04-01',
+  runAtCurrTime: true,
   fetch: async (timestamp: number): Promise<FetchResult> => {
       const response = await fetchURL(`https://api.upscale.trade/stats?timestamp=${timestamp}`)
 
@@ -13,7 +13,7 @@ const adapterData = {
       }
 
       return {
-          totalVolume: Number(response.totalFundedTradingVolume),
+          dailyVolume: Number(response.fundedTradingVolumeLastDay),
           timestamp: timestamp,
       }
   },
