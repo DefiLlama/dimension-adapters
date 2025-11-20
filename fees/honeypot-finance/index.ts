@@ -18,12 +18,7 @@ adapter.adapter = {
   [CHAIN.ORDERLY]: {
     start: "2025-11-01",
     fetch: async function (_: any, _1: any, options: FetchOptions) {
-      const data = await (adapter.fetch as any)(_, _1, options);
-
-      const { dailyFees, dailyRevenue, dailyProtocolRevenue, ...cleaned } =
-        data;
-
-      return cleaned;
+      return await (adapter.fetch as any)(_, _1, options);
     },
   },
 };
