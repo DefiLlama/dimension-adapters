@@ -1,8 +1,3 @@
+import adapter from '../dexs/balancer-v2';
 
-import adapter from './balancer'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
-  adapter: breakdown['v2'],
-}
+export default adapter;

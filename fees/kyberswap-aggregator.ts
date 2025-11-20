@@ -23,6 +23,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.BERACHAIN]: { id: 80094, start: '2025-02-06' },
   [CHAIN.UNICHAIN]: { id: 130, start: '2025-02-11' },
   [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-07-09' },
+  [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
   // [CHAIN.CRONOS]: { id: 25, start: '2021-06-01' },
   // [CHAIN.MANTLE]: { id: 5000, start: '2023-07-17' },
   // [CHAIN.BLAST]: {id: 81457, start: '2024-02-29'},
@@ -39,6 +40,7 @@ const blacklistedTokens = [
   '0x560363bda52bc6a44ca6c8c9b4a5fadbda32fa60',
   '0xb02f37a282c028958de65711158422199a61e9ae',
   '0x633e254585ade6e9d40d2a4b8cc2f3769b94cb48',
+  '0x677db5a751fbd0b130ddc02715223d9da4a98f8f',
 
   // MAGA
   '0xda2e903b0b67f30bf26bd3464f9ee1a383bbbe5f',

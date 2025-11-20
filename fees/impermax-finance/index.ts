@@ -31,7 +31,6 @@ const config = {
     'https://api.studio.thegraph.com/query/46041/impermax-base-solv2/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-base-solv2-stable/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-base-v2/v0.0.3',
-    'https://api.studio.thegraph.com/query/46041/impermax-v-3-base/v0.0.3',
   ],
   [CHAIN.SCROLL]: [
     'https://api.studio.thegraph.com/query/46041/impermax-scroll-solv2/v0.0.2',
@@ -57,9 +56,6 @@ const config = {
   [CHAIN.ZKSYNC]: [
     'https://api.studio.thegraph.com/query/46041/impermax-zksync-era-solv2/v0.0.2',
   ],
-  [CHAIN.UNICHAIN]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-v-3-unichain/v0.0.2',
-  ]
 };
 
 interface IBorrowable {
@@ -145,7 +141,6 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: { start: '2023-10-23', },
     [CHAIN.LINEA]: { start: '2023-10-23', },
     [CHAIN.ZKSYNC]: { start: '2023-10-23', },
-    [CHAIN.UNICHAIN]: { start: '2023-10-23', },
   },
 };
 
