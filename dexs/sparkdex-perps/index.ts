@@ -74,10 +74,23 @@ const fetch = async (timestamp: number): Promise<FetchResultV2> => {
   const dailyFees = (Number(dailyFeeUSD) + Number(dailyFundingFeeUSD)) / 1e18
   const dailyUserFees = Number(dailyFeeUSD) / 1e18
 
+  // Revenue calculations
+  // Revenue = total fees
+  const dailyRevenue = dailyFees;
+  
+  // Protocol revenue = 60% of revenue
+  const dailyProtocolRevenue = dailyRevenue * 0.6;
+  
+  // Supply side revenue = 40% of revenue
+  const dailySupplySideRevenue = dailyRevenue * 0.4;
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -85,6 +98,9 @@ const methodology = {
   Volume: "Total daily trading volume from all perpetual markets on SparkDEX.",
   Fees: 'Fees collected from user trading fees and funding fees on SparkDEX perpetual markets.',
   UserFees: 'Fees collected from user trading fees on SparkDEX perpetual markets.',
+  Revenue: "Total revenue equals total fees collected",
+  ProtocolRevenue: "60% of total revenue goes to the protocol",
+  SupplySideRevenue: "40% of total revenue goes to liquidity providers",
 };
 
 const adapter: SimpleAdapter = {
