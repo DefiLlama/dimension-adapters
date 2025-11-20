@@ -158,11 +158,8 @@ const fetchMoneyFi = async (chain: string, options: FetchOptions) => {
 
 
   return {
-    dailyRevenue: totalRevenue,
-    dailyProtocolRevenue: dailyProtocolRevenue,
-    dailySupplySideRevenue: userRev,
-    dailyUserFees: userRev,
-
+    dailyFees: totalRevenue,
+    dailyRevenue: dailyProtocolRevenue,
   };
 };
 
@@ -172,11 +169,8 @@ const fetchAptos = async () => {
   const daily = res?.fees?.daily ?? 0;
 
   return {
-    dailyRevenue: daily * 5,
-    dailyProtocolRevenue: daily,
-    dailySupplySideRevenue: daily * 4,
-    dailyUserFees: daily * 4,
-
+    dailyFees: daily * 5,
+    dailyRevenue: daily,
   };
 };
 
