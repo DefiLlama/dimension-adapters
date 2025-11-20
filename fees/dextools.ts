@@ -41,6 +41,7 @@ const tokens = {
     ethereum: [
         "0xfb7b4564402e5500db5bb6d63ae671302777c75a", // DEXT
         ADDRESSES.ethereum.USDC,
+        ADDRESSES.ethereum.USDT,
     ],
     bsc: [
         "0xe91a8d2c584ca93c7405f15c22cdfe53c29896e3", // DEXT
