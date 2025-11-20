@@ -16,26 +16,26 @@ const fetch = async (options: FetchOptions) => {
 
   const balancesKeyERC20 = `bsc:${TOKEN_ADDRESS.toLowerCase()}`
   const balancesKeyBNB = `bsc:${nullAddress.toLowerCase()}`
-  // const tokensReceivedDaily = await addTokensReceived({
-  //   options,
-  //   tokens: [TOKEN_ADDRESS],
-  //   targets: [WALLET_ADDRESS],
-  // })
-  // const nativeReceivedDaily = await addGasTokensReceived({
-  //   options,
-  //   multisig: WALLET_ADDRESS,
-  // })
+  const tokensReceivedDaily = await addTokensReceived({
+    options,
+    tokens: [TOKEN_ADDRESS],
+    targets: [WALLET_ADDRESS],
+  })
+  const nativeReceivedDaily = await getETHReceived({
+    options,
+    target: WALLET_ADDRESS,
+  })
 
-  // const dailyIncomeERC20 = tokensReceivedDaily.getBalances()[balancesKeyERC20]
-  // const dailyIncomeBNB = nativeReceivedDaily.getBalances()[balancesKeyBNB]
+  const dailyIncomeERC20 = tokensReceivedDaily.getBalances()[balancesKeyERC20]
+  const dailyIncomeBNB = nativeReceivedDaily.getBalances()[balancesKeyBNB]
 
-  // // ERC20 fees
-  // dailyFees.add(TOKEN_ADDRESS, dailyIncomeERC20)
-  // dailyRevenue.add(TOKEN_ADDRESS, dailyIncomeBNB)
+  // ERC20 fees
+  dailyFees.add(TOKEN_ADDRESS, dailyIncomeERC20)
+  dailyRevenue.add(TOKEN_ADDRESS, dailyIncomeBNB)
 
-  // // BNB fees
-  // dailyFees.add(nullAddress, dailyIncomeERC20)
-  // dailyRevenue.add(nullAddress, dailyIncomeBNB)
+  // BNB fees
+  dailyFees.add(nullAddress, dailyIncomeERC20)
+  dailyRevenue.add(nullAddress, dailyIncomeBNB)
 
   const volumeResponse = await fetchURL(apiBaseURL + volumeMethod)
   const dailyVolume = options.createBalances()
