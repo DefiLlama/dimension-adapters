@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getEncumberedFunds, getNewOffers, getReservedRanges } from "./utils";
+import { getEncumberedFunds, getNewOffers } from "./utils";
 
 async function getProtocolVolume(
   options: FetchOptions
@@ -8,15 +8,8 @@ async function getProtocolVolume(
   const { createBalances } = options;
   const dailyVolume = createBalances();
 
-  const volumeByToken: Record<string, bigint> = {};
-
-  await getEncumberedFunds(options, volumeByToken);
-  await getNewOffers(options, volumeByToken);
-  await getReservedRanges(options, volumeByToken);
-
-  for (const [token, amount] of Object.entries(volumeByToken)) {
-    dailyVolume.add(token, amount);
-  }
+  await getEncumberedFunds(options, dailyVolume);
+  await getNewOffers(options, dailyVolume);
 
   return {
     dailyVolume,

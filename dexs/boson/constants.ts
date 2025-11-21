@@ -2,6 +2,8 @@ export const protocolDiamondAddress =
   "0x59A4C19b55193D5a2EAD0065c54af4d516E18Cb5";
 
 /** Event topics **/
+export const fundsDepositedTopic =
+  "0x862dfcd9710943e66ad8f1f01a99cc98ab5612a09e62ecc68f63fe2e0f86cb0e";
 export const fundsEncumberedTopic =
   "0x8080d30eb13935d67dfdc606fa5e4170aa03ffdfaf40136ef3fa4355c88b19f9";
 export const offerCreatedTopic_v2_0_0 =
@@ -29,9 +31,7 @@ export const OfferCreatedEvent_v2_5_0 =
   "event OfferCreated(uint256 indexed offerId, uint256 indexed sellerId, (uint256 id, uint256 sellerId, uint256 price, uint256 sellerDeposit, uint256 buyerCancelPenalty, uint256 quantityAvailable, address exchangeToken, uint8 priceType, uint8 creator, string metadataUri, string metadataHash, bool voided, uint256 collectionIndex, (address[] recipients, uint256[] bps)[] royaltyInfo, uint256 buyerId) offer, (uint256 validFrom, uint256 validUntil, uint256 voucherRedeemableFrom, uint256 voucherRedeemableUntil) offerDates, (uint256 disputePeriod, uint256 voucherValid, uint256 resolutionPeriod) offerDurations, (uint256 disputeResolverId, uint256 escalationResponsePeriod, uint256 feeAmount, uint256 buyerEscalationDeposit, address mutualizerAddress) disputeResolutionTerms, (uint256 protocolFee, uint256 agentFee) offerFees, uint256 indexed agentId, address executedBy)";
 export const RangeReservedEvent =
   "event RangeReserved(uint256 indexed offerId, uint256 indexed sellerId, uint256 startExchangeId, uint256 endExchangeId, address owner, address indexed executedBy)";
+export const FundsDepositedEvent =
+  "event FundsDeposited(uint256 indexed entityId, address indexed executedBy, address indexed tokenAddress, uint256 amount)";
 export const FundsEncumberedEvent =
   "event FundsEncumbered(uint256 indexed entityId, address indexed exchangeToken, uint256 amount, address indexed executedBy)";
-
-/** Contract Methods */
-export const getOffer_v2_5_0 =
-  "function getOffer(uint256 _offerId) view returns (bool exists, (uint256 id, uint256 sellerId, uint256 price, uint256 sellerDeposit, uint256 buyerCancelPenalty, uint256 quantityAvailable, address exchangeToken, uint8 priceType, uint8 creator, string metadataUri, string metadataHash, bool voided, uint256 collectionIndex, (address[] recipients, uint256[] bps)[] royaltyInfo, uint256 buyerId) offer, (uint256 validFrom, uint256 validUntil, uint256 voucherRedeemableFrom, uint256 voucherRedeemableUntil) offerDates, (uint256 disputePeriod, uint256 voucherValid, uint256 resolutionPeriod) offerDurations, (uint256 disputeResolverId, uint256 escalationResponsePeriod, uint256 feeAmount, uint256 buyerEscalationDeposit, address mutualizerAddress) disputeResolutionTerms, (uint256 protocolFee, uint256 agentFee) offerFees)";
