@@ -1,34 +1,26 @@
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
-import { FetchResult } from "../../adapters/types";
+import { FetchOptions, FetchResult } from "../../adapters/types";
 import { SimpleAdapter } from '../../adapters/types';
 
-const adapterData = {
-  runAtCurrTime: true,
-  fetch: async (timestamp: number): Promise<FetchResult> => {
-      const response = await fetchURL(`https://api.upscale.trade/stats?timestamp=${timestamp}`)
+async function fetch(_a: any, b_: any, options: FetchOptions): Promise<FetchResult> {
+  const response = await fetchURL(`https://api.upscale.trade/stats?timestamp=${options.startOfDay}`)
 
-      if (!response) {
-          throw new Error('Error during API call')
-      }
-
-      return {
-          dailyVolume: Number(response.fundedTradingVolumeLastDay),
-          timestamp: timestamp,
-      }
-  },
+  return {
+    dailyVolume: Number(response.fundedTradingVolumeLastDay),
+  }
 }
 
 const adapter: SimpleAdapter = {
-    methodology: {
-        TotalVolume: 'Trading volume for funded accounts only (in USD)',
-        DataSource: 'Public API provided by upscale'
+  methodology: {
+    Volume: 'Trading volume for funded accounts only (in USD) from UpScale API service.',
+  },
+  adapter: {
+    [CHAIN.OFF_CHAIN]: {
+      runAtCurrTime: true,
+      fetch,
     },
-    adapter: {
-        [CHAIN.BSC]: adapterData,
-        [CHAIN.BASE]: adapterData,
-        // ['0g']: adapterData, TODO: add 0g
-    },
+  },
 }
 
 export default adapter;
