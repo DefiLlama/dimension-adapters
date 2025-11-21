@@ -36,7 +36,9 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
   })
 
   return {
-    dailyFees, dailyRevenue,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 
 }
@@ -44,7 +46,7 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
 const methodology = {
   Fees: 'All fees paid by users for NFT on Spaace',
   Revenue: 'Fees are distributed to Spaace',
-  ProtocolRevenue: 'Fees are distributed to Spaace',
+  ProtocolRevenue: 'Fees are distributed to Spaace protocol',
 }
 
 const adapter: SimpleAdapter = {
