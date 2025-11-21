@@ -31,9 +31,11 @@ const fetch = async (options: FetchOptions) => {
     }
     const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
 
-    for (const tokenInfo of tokenVolumeInfo.data) {
-        dailyVolume.add(tokenInfo.token, tokenInfo.volume);
-        dailyFees.add(tokenInfo.token, tokenInfo.fees);
+    if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
+      for (const tokenInfo of tokenVolumeInfo.data) {
+          dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+          dailyFees.add(tokenInfo.token, tokenInfo.fees);
+      }
     }
 
     return {
@@ -53,7 +55,7 @@ const adapter: SimpleAdapter = {
     fetch,
     adapter: {
         [CHAIN.ETHEREUM]: { start: '2025-03-24', },
-        // [CHAIN.BSC]: { start: '2025-04-07', },
+        [CHAIN.BSC]: { start: '2025-04-07', },
         [CHAIN.BASE]: { start: '2025-03-17', },
         [CHAIN.ARBITRUM]: { start: '2025-03-17', },
         [CHAIN.SOLANA]: { start: '2025-04-01', },

@@ -39,7 +39,10 @@ async function fetch(_a: any, _b: any, { chain, createBalances, getLogs, }: Fetc
         dailySupplySideRevenue.add(token, log.amount, METRIC.ASSETS_YIELDS);
         dailyProtocolRevenue.add(token, log.fees, METRIC.PERFORMANCE_FEES);
     });
-    standardRedemptionLogs.forEach(log => dailyProtocolRevenue.add(token, log.fee, METRIC.MINT_REDEEM_FEES));
+    
+    // no revenue on standard redemption
+    standardRedemptionLogs.forEach(log => dailySupplySideRevenue.add(token, log.fee, METRIC.MINT_REDEEM_FEES));
+
     fastlaneRedemptionLogs.forEach(log => dailyProtocolRevenue.add(stakedToken, log.fee, METRIC.MINT_REDEEM_FEES));
 
     const dailyFees = dailySupplySideRevenue.clone();
@@ -64,10 +67,11 @@ const methodology = {
 
 const breakdownMethodology = {
     Revenue: {
-        [METRIC.MINT_REDEEM_FEES]: 'Standard and fastlane redemption fees',
+        [METRIC.MINT_REDEEM_FEES]: 'Fastlane redemption fees',
         [METRIC.PERFORMANCE_FEES]: '20% perfomance fees on MEY only when MEY is positive'
     },
     SupplySideRevenue: {
+        [METRIC.MINT_REDEEM_FEES]: 'Standard redemption fees',
         [METRIC.ASSETS_YIELDS]: 'Market effective yields post performance fees',
     },
 };

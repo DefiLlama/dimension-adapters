@@ -8,7 +8,7 @@ const comptrollerABI = {
   getAllMarkets: "address[]:getAllMarkets",
   accrueInterest: "event AccrueInterest(uint256 cashPrior,uint256 interestAccumulated,uint256 borrowIndex,uint256 totalBorrows)",
   reserveFactor: "uint256:reserveFactorMantissa",
-  exchangeRateCurrent: "uint256:exchangeRateCurrent",
+  exchangeRateStored: "uint256:exchangeRateStored",
   totalSupply: "uint256:totalSupply",
 };
 
@@ -55,28 +55,34 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
   dailyFees,
   dailyRevenue,
   abis = {},
+  blacklists = [],
 }: {
   dailyFees?: sdk.Balances,
   dailyRevenue?: sdk.Balances,
-  abis?: any
+  abis?: any,
+  blacklists?: Array<string>,
 }) {
   if (!dailyFees) dailyFees = createBalances()
   if (!dailyRevenue) dailyRevenue = createBalances()
-  const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+  
+  // filter out blacklists markets - cTokens
+  let markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+  markets = markets.filter((m: string) => (!blacklists || !blacklists.includes(String(m).toLowerCase())))
+  
   const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
   underlyings.forEach((underlying, index) => {
     if (!underlying) underlyings[index] = ADDRESSES.null
   })
   const reserveFactors = await api.multiCall({ calls: markets, abi: abis.reserveFactor ?? comptrollerABI.reserveFactor, });
   
-  const marketExchangeRatesBefore = await fromApi.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateCurrent, });
-  const marketExchangeRatesAfter = await toApi.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateCurrent, });
+  const marketExchangeRatesBefore = await fromApi.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateStored, });
+  const marketExchangeRatesAfter = await toApi.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateStored, });
   const totalSupplies = await toApi.multiCall({ calls: markets, abi: comptrollerABI.totalSupply, });
-  const underlyingDecimals = await toApi.multiCall({ calls: underlyings, abi: 'uint8:decimals', });
+  const underlyingDecimals = await toApi.multiCall({ calls: underlyings, abi: 'uint8:decimals', permitFailure: true });
   
   for (let i = 0; i < markets.length; i++) {
     const underlying = underlyings[i];
-    const underlyingDecimal = Number(underlyingDecimals[i]);
+    const underlyingDecimal = Number(underlyingDecimals[i] ? underlyingDecimals[i] : 18);
     const reserveFactor = reserveFactors[i];
     const rateGrowth = Number(marketExchangeRatesAfter[i]) - Number(marketExchangeRatesBefore[i])
     if (rateGrowth > 0) {
@@ -110,7 +116,11 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: any) {
   Object.entries(config).map(([chain, market]) => {
     exportObject[chain] = {
       fetch: (async (options: FetchOptions) => {
-        const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate ? await getFeesUseExchangeRates(market, options, {}) : await getFees(market, options, {})
+        const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate 
+          ? await getFeesUseExchangeRates(market, options, {
+            blacklists: exportOptions.blacklists,
+          }) 
+          : await getFees(market, options, {})
         const dailyHoldersRevenue = dailyRevenue
         const dailySupplySideRevenue = options.createBalances()
         dailySupplySideRevenue.addBalances(dailyFees)
