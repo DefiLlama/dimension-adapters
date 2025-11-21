@@ -2,7 +2,9 @@ import { Interface, ZeroAddress } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import BigNumber from "bignumber.js";
-import { normalizeAddress } from "@defillama/sdk/build/util";
+import * as sdk from '@defillama/sdk'
+
+const normalizeAddress = sdk.util.normalizeAddress;
 
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
