@@ -7,9 +7,9 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
   
   return {
     dailyVolume: result.dailyPerpVolume,
-    dailyFees: result.dailyPerpFee.clone(2),
-    dailyRevenue: result.dailyPerpFee,
-    dailyProtocolRevenue: result.dailyPerpFee,
+    dailyFees: result.dailyPerpFee,
+    dailyRevenue: result.dailyPerpFee.clone(0.5),
+    dailyProtocolRevenue: result.dailyPerpFee.clone(0.5),
   }
 }
 
