@@ -31,6 +31,9 @@ const fetch = async (options: FetchOptions) => {
     options,
     targets: configs[options.chain].mintRedeemFeesWallets,
   })
+  
+  // remove received USDO
+  dailyMintRedeemFees.removeTokenBalance(configs[options.chain].USDO)
 
   const dailyFees = dailyMintRedeemFees.clone(1, METRIC.MINT_REDEEM_FEES)
   const dailyUserFees = dailyMintRedeemFees.clone(1, METRIC.MINT_REDEEM_FEES)
