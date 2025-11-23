@@ -78,6 +78,7 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
   [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral));
   stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
   gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
