@@ -1,5 +1,3 @@
-// pnpm test dexs futarchy-amm
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
