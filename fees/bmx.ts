@@ -36,6 +36,16 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
 
   const graphRes = await request(endpoints[chain], graphQuery);
 
+  if (!graphRes.feeStat) {
+    return {
+      dailyFees: 0,
+      dailyUserFees: 0,
+      dailyRevenue: 0,
+      dailyHoldersRevenue: 0,
+      dailySupplySideRevenue: 0,
+    }
+  }
+  
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
     parseInt(graphRes.feeStat.burn) +
