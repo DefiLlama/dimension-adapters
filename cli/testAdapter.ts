@@ -6,14 +6,14 @@ import runAdapter from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, printVolumes2, timestampLast } from './utils';
 
-function checkIfFileExistsInMasterBranch(_filePath: any) {
+function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
 
-  // const resString = res.toString()
-  // if (!resString.includes(filePath)) {
-  //   console.log("\n\n\nERROR: Use Adapter v2 format for new adapters\n\n\n")
-  //   process.exit(1)
-  // }
+  const resString = res.toString()
+  if (!resString.includes(filePath)) {
+    console.log("\n\n\nERROR: Use Adapter v2 format for new adapters\n\n\n")
+    process.exit(1)
+  }
 }
 
 // tmp
@@ -46,6 +46,14 @@ const file = `${adapterType}/${process.argv[3]}`
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
 
+
+  const moduleArg = process.argv[3]
+
+  // throw error if module doesnt start with lowercase letters
+  if (!/^[a-z]/.test(moduleArg)) {
+    throw new Error("Module name should start with a lowercase letter: " + moduleArg);
+  }
+
   const cleanDayTimestamp = process.argv[4] ? toTimestamp(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
@@ -57,7 +65,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   if (adapterVersion === 2) {
     endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
   } else {
-    checkIfFileExistsInMasterBranch(file)
+    // checkIfFileExistsInMasterBranch(file)
   }
 
   console.info(`Start Date:\t${new Date((endTimestamp - 3600 * 24) * 1e3).toUTCString()}`)
