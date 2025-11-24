@@ -26,7 +26,7 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
     const biggestValue = recipients.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
 
     recipients.forEach((consideration: any) => {
-      if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, rest are fees     
+      if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, rest are fees  
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
         dailyRevenue.add(consideration.token, consideration.amount)
       }
@@ -34,6 +34,7 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
   })
 
   return {
+    dailyFees : dailyRevenue,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
   }
