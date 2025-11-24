@@ -4,7 +4,7 @@ import * as path from 'path';
 import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types';
 import runAdapter from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
-import { checkArguments, printVolumes2, timestampLast } from './utils';
+import { checkArguments, ERROR_STRING, printVolumes2, timestampLast } from './utils';
 
 function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
@@ -78,4 +78,9 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   printVolumes2(volumes.map((volume: any) => timestampLast(volume)))
   console.info("\n")
   process.exit(0)
-})()
+})().catch((e) => {
+  console.log(ERROR_STRING, '\nError running adapter test script:', file)
+
+  console.log(e.message)
+  process.exit(1)
+})
