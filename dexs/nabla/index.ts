@@ -124,7 +124,10 @@ async function getAddresses(chain, api) {
 }
 
 const fetch = async (options: FetchOptions) => {
-    const { routers, pools, assets } = await getAddresses(options.chain, options.api);
+    const { routers, pools, assets } = await getAddresses(
+        options.chain,
+        options.api
+    );
 
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
@@ -153,24 +156,19 @@ const fetch = async (options: FetchOptions) => {
             })
         )
     );
-    chargedSwapFeesLogsOfPools.forEach(
-        (chargedSwapFeesLogsOfPool, i) => {
-            chargedSwapFeesLogsOfPool.forEach((log: any) => {
-                dailyFees.add(
-                    assets[i],
-                    log.lpFees + log.backstopFees + log.protocolFees
-                );
-                dailyUserFees.add(
-                    assets[i],
-                    log.lpFees + log.backstopFees + log.protocolFees
-                );
-                dailyProtocolRevenue.add(
-                    assets[i],
-                    log.protocolFees
-                );
-            });
-        }
-    );
+    chargedSwapFeesLogsOfPools.forEach((chargedSwapFeesLogsOfPool, i) => {
+        chargedSwapFeesLogsOfPool.forEach((log: any) => {
+            dailyFees.add(
+                assets[i],
+                log.lpFees + log.backstopFees + log.protocolFees
+            );
+            dailyUserFees.add(
+                assets[i],
+                log.lpFees + log.backstopFees + log.protocolFees
+            );
+            dailyProtocolRevenue.add(assets[i], log.protocolFees);
+        });
+    });
 
     return {
         dailyFees,
@@ -179,13 +177,13 @@ const fetch = async (options: FetchOptions) => {
         dailyProtocolRevenue,
         dailyVolume,
     };
-}
+};
 
 const methodology = {
-    Fees: 'Users pay between 0.01% and 0.1% fees on each swap.',
+    Fees: "Users pay between 0.01% and 0.1% fees on each swap.",
     UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
-    Revenue: "Protocol fees (if enabled) will be allocated to the Nabla DAO Treasury.",
-    ProtocolRevenue: "Protocol fees (if enabled) will be allocated to the Nabla DAO Treasury.",
+    Revenue: "Protocol fees will be allocated to the Nabla DAO Treasury.",
+    ProtocolRevenue: "Protocol fees will be allocated to the Nabla DAO Treasury.",
     Volume: "Swap Volume on Nabla AMM.",
 };
 
