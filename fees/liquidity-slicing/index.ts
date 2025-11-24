@@ -1,5 +1,5 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { httpPost } from "../../utils/fetchURL";
 
@@ -31,8 +31,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 
 const adapter: Adapter = {
+    runAtCurrTime: true,
     adapter: {
-        [ARBITRUM]: {
+        [CHAIN.ARBITRUM]: {
             fetch,
             start: '2024-11-18',
         },

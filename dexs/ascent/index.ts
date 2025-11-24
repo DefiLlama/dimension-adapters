@@ -28,6 +28,7 @@ const graphsV3 = getChainVolume2({
 
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-05-05',  // EON chain is deprecated
   version: 2,
   breakdown: {
     v2: {

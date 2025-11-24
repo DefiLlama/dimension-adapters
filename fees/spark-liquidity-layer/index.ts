@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultFees, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { METRIC } from '../../helpers/metrics'
 import { getSqlFromFile, queryDuneSql } from '../../helpers/dune'
@@ -47,12 +47,14 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2025-07-01',
+  dependencies: [Dependencies.DUNE],
   methodology,
   breakdownMethodology,
-  fetch,
   allowNegativeValue: true,
-  start: '2025-07-01',
-  chains: [CHAIN.ETHEREUM],
 }
 
 export default adapter

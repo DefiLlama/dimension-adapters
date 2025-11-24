@@ -18,6 +18,7 @@ const fetch = async (timestamp: number, _b:any, options: FetchOptions): Promise<
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-10-01', // Rage Trade is sunnted
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,

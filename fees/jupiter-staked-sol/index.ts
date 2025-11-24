@@ -1,11 +1,12 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "FMAWbzuxsgbgndArunedwxXPA6sweaVUGGgadCpSxau2";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQDNw";
-const LST_FEE_TOKEN_ACCOUNT = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD";
+// const LST_FEE_TOKEN_ACCOUNT = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD"; // old
+const LST_FEE_TOKEN_ACCOUNT = "GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g";
 const LST_MINT = ADDRESSES.solana.JupSOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -45,11 +46,14 @@ const methodology = {
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
-export default {
+const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   fetch,
+  dependencies: [Dependencies.DUNE],
   chains: [CHAIN.SOLANA],
   start: "2024-06-09",
   isExpensiveAdapter: true
 };
+
+export default adapter;

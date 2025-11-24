@@ -1,38 +1,43 @@
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
-const baseCGMap: any = {
-  "GALA": 'gala',
-  "GUSDC": 'usd-coin', "GUSDT": 'tether', "GSOL": 'solana', "$GMUSIC": 'gala-music', "GFARTCOIN": 'fartcoin',
+const GALA_SWAP_API = "https://dex-backend-prod1.defi.gala.com/explore/pools?limit=20";
+
+async function fetch(_: any, _2: any, _3: FetchOptions) {
+  const { count } = (await fetchURL(`${GALA_SWAP_API}&page=1`)).data;
+  const totalPages = Math.ceil(count / 20);
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const poolData = (await Promise.all(pages.map((page: number) =>
+    fetchURL(`${GALA_SWAP_API}&page=${page}`)
+  )));
+
+  const data = poolData.flatMap(pages => pages.data.pools).reduce((acc: { volume: number, fees: number }, { fee24h, volume1d }: { fee24h: number, volume1d: number }) => {
+    acc.fees += fee24h;
+    acc.volume += volume1d;
+    return acc;
+  }, { volume: 0, fees: 0 });
+
+  return {
+    dailyVolume: data.volume,
+    dailyFees: data.fees,
+    dailyRevenue:0,
+    dailySupplySideRevenue: data.fees,
+    dailyProtocolRevenue: 0,
+  }
 }
 
-async function fetch({ createBalances }: FetchOptions) {
-  const dailyVolume = createBalances();
-  const dailyFees = createBalances();
-  const data = await httpGet('https://dex-backend-prod1.defi.gala.com/coin-gecko/tickers')
-  data.forEach((item: any) => {
-    if (!item.base_volume) return;
-
-    const cgToken = baseCGMap[item.base_currency]
-    if (!cgToken) {
-      console.log('No CG mapping for', item.base_currency);
-      return;
-    }
-
-    const fee = item.ticker_id.split('/')[2] / 1e6
-
-    dailyVolume.addCGToken(cgToken, item.base_volume)
-    dailyFees.addCGToken(cgToken, item.base_volume * fee)
-  })
-
-  return { dailyVolume, dailyFees }
-}
+const methodology = {
+  Fees: "Swap fees paid by users",
+  Revenue: "No revenue",
+  Volume: "Galaswap trade volume",
+  SupplySideRevenue: "All the fees goes to liquidity providers",
+  ProtocolRevenue: "No protocol revenue",
+};
 
 export default {
-  version: 2,
-  runAtCurrTime: true,
   fetch,
   start: '2025-09-03',
   chains: [CHAIN.GALA],
+  methodology,
 }

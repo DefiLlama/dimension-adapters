@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -65,6 +65,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    dependencies: [Dependencies.DUNE],
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,

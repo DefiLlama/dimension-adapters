@@ -2,7 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://dune.com/adam_tehc/moonshotmoney
 // https://dune.com/queries/3939570/6625988
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -63,12 +63,10 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: '2024-05-14',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2024-05-14',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'All buy/sell fees paid by users for using Moonshot App.',

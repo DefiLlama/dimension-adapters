@@ -14,8 +14,8 @@ const onChainAdapter: any = uniV2Exports({
     start: '2020-10-08',
     userFeesRatio: 1,
     revenueRatio: 0.05 / 0.3,
-    protocolRevenueRatio: 0.05 / 0.3,
-    holdersRevenueRatio: 0,
+    protocolRevenueRatio: 0.01 / 0.3,
+    holdersRevenueRatio: 0.04 / 0.3,
 
   },
 }, { runAsV1: true })
@@ -30,8 +30,9 @@ async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
     dailyVolume: dailyVolumeUSD,
     dailyFees,
     dailyRevenue: dailyFees * 0.05 / 0.3,
-    dailyProtocolRevenue: dailyFees * 0.05 / 0.3,
-    dailyHoldersRevenue: 0,
+    dailyProtocolRevenue: dailyFees * 0.01 / 0.3,
+    dailyHoldersRevenue: dailyFees * 0.04 / 0.3,
+    dailySupplySideRevenue: dailyFees * 0.25 / 0.3,
     dailyUserFees: dailyFees,
   }
 }

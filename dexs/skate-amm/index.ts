@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const skateChainIds = {
+const skateChainIds: Record<string, number> = {
     [CHAIN.ETHEREUM]: 1,
     [CHAIN.BSC]: 56,
     [CHAIN.BASE]: 8453,
@@ -31,9 +31,11 @@ const fetch = async (options: FetchOptions) => {
     }
     const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
 
-    for (const tokenInfo of tokenVolumeInfo.data) {
-        dailyVolume.add(tokenInfo.token, tokenInfo.volume);
-        dailyFees.add(tokenInfo.token, tokenInfo.fees);
+    if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
+      for (const tokenInfo of tokenVolumeInfo.data) {
+          dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+          dailyFees.add(tokenInfo.token, tokenInfo.fees);
+      }
     }
 
     return {

@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
 import JAM_ABI from "./jamAbi";
 import {queryDuneSql} from "../../helpers/dune"
@@ -38,7 +38,7 @@ const abis = {
 const contract_interface = new ethers.Interface(Object.values(abis));
 
 const JamContract = new ethers.Contract('0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b', JAM_ABI)
-const jamAddress = {
+const jamAddress: any = {
   era:'0x574d1fcF950eb48b11de5DF22A007703cbD2b129',
   default: '0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b'
 }
@@ -91,6 +91,7 @@ const fetch = async (_:any, _1:any, { createBalances, getLogs, chain, api }: Fet
 
   const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
   for (const d of jamData) {
+    if (!d) continue;
     const decoded = JamContract.interface.parseTransaction(d)
     if (!decoded) {
       api.log('jam no decoded', d.hash, d.input.slice(0, 10), d.to, chain)
@@ -123,7 +124,7 @@ const prefetch = async (options: FetchOptions) => {
 
 async function fetchDune(_:any, _1:any, options: FetchOptions){
   const results = options.preFetchedResults || [];
-  const chainData = results.find(item => item.blockchain.toLowerCase() === options.chain.toLowerCase());
+  const chainData = results.find((item: any) => item.blockchain.toLowerCase() === options.chain.toLowerCase());
   // volume can be null
   let dailyVolume = 0
   if (chainData) {
@@ -136,6 +137,7 @@ async function fetchDune(_:any, _1:any, options: FetchOptions){
 const adapter: Adapter = {
   version: 1,
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     arbitrum: { fetch: fetchDune, start: '2023-05-31', },
     ethereum: { fetch: fetchDune, start: '2023-05-31', },

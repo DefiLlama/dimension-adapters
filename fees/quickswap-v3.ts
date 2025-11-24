@@ -1,5 +1,5 @@
 
-import adapter from './quickswap'
+import adapter from '../dexs/quickswap'
 const { breakdown,  ...rest } = adapter
 
 const methodologyV3 = {
@@ -10,7 +10,6 @@ const methodologyV3 = {
   SupplySideRevenue: "85% of collected fees go to liquidity providers (90% on uni forks like IMX).",
   HoldersRevenue: "Community receives 10% of collected fees for buybacks (current). Historical: 6.8% before March 2025, 7% on uni forks.",
 };
-
 
 export default {
   ...rest,

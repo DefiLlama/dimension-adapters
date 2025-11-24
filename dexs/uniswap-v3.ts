@@ -84,7 +84,7 @@ const fetchFromOku = async (options: FetchOptions) => {
       dailyHoldersRevenue: 0,
     }
   } catch (e) {
-    console.error(e)
+    console.error(options.chain, e)
     return {}
   }
 }
@@ -134,6 +134,22 @@ const adapter: SimpleAdapter = {
   },
 };
 
+(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
 // (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
 //   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
 //     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
@@ -157,22 +173,22 @@ const okuChains = [
   CHAIN.BOBA,
   CHAIN.MANTLE,
   CHAIN.LINEA,
-  CHAIN.POLYGON_ZKEVM,
-  CHAIN.BLAST,
   CHAIN.XDAI,
   CHAIN.BOB,
-  CHAIN.LISK,
   CHAIN.CORN,
   CHAIN.GOAT,
   CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
-  CHAIN.LENS,
   CHAIN.TELOS,
   CHAIN.CELO,
   CHAIN.NIBIRU,
   
+  // CHAIN.BLAST,
+  // CHAIN.LENS,
+  // CHAIN.LISK,
+  // CHAIN.POLYGON_ZKEVM,
   // CHAIN.SAGA,
 ]
 

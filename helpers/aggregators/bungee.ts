@@ -3,6 +3,8 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as ethers from "ethers";
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from '../lists';
+import { formatAddress } from '../../utils/utils';
 
 const SocketGatewayAbis = {
   SocketBridge: 'event SocketBridge(uint256 amount, address token, uint256 toChainId, bytes32 bridgeName, address sender, address receiver, bytes32 metadata)',
@@ -185,13 +187,20 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
     }
   }
 
+  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
   if (params.swapVolume) {
     // manual swap
     if (SocketGatewayContracts[options.chain]) {
-      const swapEvents: Array<any> = await options.getLogs({
+      let swapEvents: Array<any> = await options.getLogs({
         target: SocketGatewayContracts[options.chain],
         eventAbi: SocketGatewayAbis.SocketSwapTokens,
       })
+
+      // count volune only from whitelisted tokens
+      const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
+      if (whitelistedTokens.length > 0) {
+        swapEvents = swapEvents.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+      }
       for (const event of swapEvents) {
         dailyVolume.add(formatToken(event.fromToken), event.sellAmount)
       }

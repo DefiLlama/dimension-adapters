@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { Adapter, ProtocolType, FetchOptions } from "../adapters/types";
+import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
 import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 
 const ethereumWallets = [
@@ -15,12 +15,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2020-08-29',
-    },
-  },
+  fetch,
+  chains: [CHAIN.OPTIMISM],
+  start: '2020-08-29',
+  dependencies: [Dependencies.DUNE],
   protocolType: ProtocolType.CHAIN,
   isExpensiveAdapter: true,
   allowNegativeValue: true, // calldata and blob costs

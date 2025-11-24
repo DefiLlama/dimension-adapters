@@ -13,7 +13,7 @@ Total revenue is what goes to Sanctum: 10% of total fees
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -21,19 +21,19 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
-        SELECT
-            cast(sum(token_balance_change) * 10 as BIGINT) as daily_fees
-        FROM
-            solana.account_activity
-        WHERE
-            address IN (
-                select
-                    fee_account
-                from
-                    dune.sanctumso.result_infinity_fee_accounts
-            )
-            AND block_time >= from_unixtime(${options.startTimestamp})
-            AND block_time <= from_unixtime(${options.endTimestamp})
+      SELECT
+          cast(sum(token_balance_change) * 10 as BIGINT) as daily_fees
+      FROM
+          solana.account_activity
+      WHERE
+          address IN (
+              select
+                  fee_account
+              from
+                  dune.sanctumso.result_infinity_fee_accounts
+          )
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time <= from_unixtime(${options.endTimestamp})
     `
   );
 
@@ -50,12 +50,10 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2024-01-01", // First unstake transaction
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2024-01-01", // First unstake transaction
   methodology,
   isExpensiveAdapter: true,
 };

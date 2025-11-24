@@ -14,6 +14,7 @@ const topics = {
 const fetch = async ({createBalances, getLogs}: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
   const dailyVolume = createBalances();
 
   const tradeLogs = await getLogs({
@@ -31,6 +32,7 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
   function addLogData(log: any) {
     dailyVolume.addGasToken(log.amount);
     dailyRevenue.addGasToken(log.protocolAmount);
+    dailySupplySideRevenue.addGasToken(log.referralAmount);
     dailyFees.addGasToken(log.protocolAmount + log.subjectAmount + log.referralAmount);
   }
 
@@ -40,7 +42,8 @@ const fetch = async ({createBalances, getLogs}: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue
+    dailyRevenue,
+    dailySupplySideRevenue,
   }
 }
 

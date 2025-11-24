@@ -40,10 +40,19 @@ export default {
         },
       ]
     },
+    [CHAIN.MONAD]: {
+      factories: [
+        {
+          factory: '0xe32D45C2B1c17a0fE0De76f1ebFA7c44B7810034',
+          version: 2.1,
+          fromBlock: 32248561,
+        },
+      ]
+    },
   }, {
     holdersRevenueFromRevenue: 1, // 100% revenue
   }),
-  methodologyy: {
+  methodology: {
     Fees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
     UserFees: 'Total swap fees typically range from 0.01% up to 0.8% of the total amount paid by users.',
     Revenue: 'Share of amount of swap fees.',
