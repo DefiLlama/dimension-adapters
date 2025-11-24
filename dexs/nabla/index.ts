@@ -239,5 +239,13 @@ export default {
             fetch,
             start: "2025-05-14",
         },
+        [CHAIN.HYPERLIQUID]: {
+            fetch,
+            start: "2025-11-19",
+        },
+        [CHAIN.MONAD]: {
+            fetch,
+            start: "2025-11-24",
+        },
     },
 } as Adapter;
