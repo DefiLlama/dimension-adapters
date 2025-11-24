@@ -55,6 +55,24 @@ const config = {
             ],
         },
     },
+    [CHAIN.HYPERLIQUID]: {
+        registry: "0x45a2C9FBc307A13c2737Cef9e00C1555c2F8C948",
+        backfill: {
+            routers: ["0xe62b7C96F9b804742d2Cbd57613F19Bda82D426F"],
+            pools: [
+                "0x5C542cE2e3dC25B4EF197b79B239261AAE27b3Dd", // UETH
+                "0xB5E4C3Ca3D1D804DA0c1808cF60ddED6FF3b65e5", // UBTC
+                "0x8426d3de775f77c7226f89eed6839b288639ad73", // USDT
+                "0x5c235275583048BF99C14C1e20DE35Eeb23AADd7", // WHYPE
+            ],
+            assets: [
+                "0xBe6727B535545C67d5cAa73dEa54865B92CF7907",
+                "0x9FDBdA0A5e284c32744D2f17Ee5c74B284993463",
+                ADDRESSES.hyperliquid.USDT0,
+                ADDRESSES.hyperliquid.WHYPE,
+            ],
+        },
+    },
 };
 
 const abis = {
