@@ -6,8 +6,7 @@ const abi = {
   take: 'event Take(uint192 indexed bookId, address indexed user, int24 tick, uint64 unit)'
 }
 const bookManagerContract = {
-  [CHAIN.BASE]: '0x382CCccbD3b142D7DA063bF68cd0c89634767F76',
-  [CHAIN.ERA]: '0xAaA0e933e1EcC812fc075A81c116Aa0a82A5bbb8',
+  [CHAIN.MONAD]: '0x6657d192273731C3cAc646cc82D5F28D0CBE8CCC',
 }
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<FetchResultV2> => {
@@ -27,13 +26,9 @@ const adapter: SimpleAdapter = {
   methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
   version: 2,
   adapter: {
-    [CHAIN.BASE]: {
+    [CHAIN.MONAD]: {
       fetch,
-      start: '2024-06-12',
-    },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2024-06-12',
+      start: '2025-11-24',
     },
   }
 };
