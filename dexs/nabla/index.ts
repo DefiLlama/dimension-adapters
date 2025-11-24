@@ -73,6 +73,24 @@ const config = {
             ],
         },
     },
+    [CHAIN.MONAD]: {
+        registry: "0x11B06EF8Adc5ea73841023CB39Be614f471213cc",
+        backfill: {
+            routers: ["0x610748f49774C062467c7AE1eC9E4729FFE94577"],
+            pools: [
+                "0xd7B645e5027A010899A95bE464e880d58eCf6d76", // WETH
+                "0xAe0cC253F27f0e80556e911E56FC4806Ac6a1508", // USDC
+                "0xC1EB061De61f3B23D17cF61d1E890D53070dee62", // WBTC
+                "0x12243c1cdb211813776d58DdBC1B59237b447919", // WMON
+            ],
+            assets: [
+                "0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242", // WETH
+                "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", // USDC
+                "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c", // WBTC
+                "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A", // WMON
+            ],
+        },
+    },
 };
 
 const abis = {
