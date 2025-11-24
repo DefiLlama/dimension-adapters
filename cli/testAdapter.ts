@@ -79,8 +79,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   console.info("\n")
   process.exit(0)
 })().catch((e) => {
-  console.log(ERROR_STRING, '\nError running adapter test script:', file)
-
-  console.log(e.message)
+  console.log(ERROR_STRING)
+  console.log(e.message ?? e)
   process.exit(1)
 })
