@@ -19,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
     const entryPrice = Number(log.entryPrice) / 1e8;
     const size = Math.abs(Number(log.positionSize)) / (1e10);
     const openVolume = entryPrice * size;
-    positionSize.set(log.moonIndex, size);
+    positionSize.set(log.tradeId, size);
     dailyVolume.addUSDValue(openVolume);
   });
 
@@ -30,8 +30,8 @@ const fetch = async (options: FetchOptions) => {
   closeData.forEach((log: any) => {
     if (positionSize.has(log.tradeId)) {
       const size = positionSize.get(log.tradeId)!;
-      const indexPrice = Number(log.indexPrice) / 1e8;
-      const closeVolume = indexPrice * size;
+      const exitPrice = Number(log.exitPrice) / 1e8;
+      const closeVolume = exitPrice * size;
       dailyVolume.addUSDValue(closeVolume);
       positionSize.delete(log.tradeId);
     }
