@@ -3,19 +3,19 @@ import { CHAIN } from "../../helpers/chains";
 
 const abis = {
   "KuruFlowSwap": "event KuruFlowSwap(address indexed user,address indexed referrer,address tokenIn,address tokenOut,bool isFeeInInput,uint256 amountIn,uint256 amountOut,uint256 referrerFeeBps,uint256 totalFeeBps)",
-  "FeeCollected": "FeeCollected(address feeCollector, uint256 amount, address referrer, uint256 referrerAmount, address user, address token)",
+  "FeeCollected": "event FeeCollected(address feeCollector, uint256 amount, address referrer, uint256 referrerAmount, address user, address token)",
 }
 
 const KuruFlowEntrypoint = '0xb3e6778480b2E488385E8205eA05E20060B813cb'
   
-const fetch = async (_:any, _1: any, { createBalances, getLogs, }: FetchOptions) => {
-  const dailyVolume = createBalances()
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-  const dailySupplySideRevenue = createBalances()
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   // Get swap events for volume
-  const swapLogs = await getLogs({ 
+  const swapLogs = await options.getLogs({ 
     target: KuruFlowEntrypoint, 
     eventAbi: abis.KuruFlowSwap, 
   })
@@ -25,7 +25,7 @@ const fetch = async (_:any, _1: any, { createBalances, getLogs, }: FetchOptions)
   })
 
   // Get fee collection events
-  const feeLogs = await getLogs({ 
+  const feeLogs = await options.getLogs({ 
     target: KuruFlowEntrypoint, 
     eventAbi: abis.FeeCollected, 
   })
@@ -50,6 +50,7 @@ const fetch = async (_:any, _1: any, { createBalances, getLogs, }: FetchOptions)
 };
 
 const adapter: any = {
+  version: 2,
   fetch,
   adapter: {
     [CHAIN.MONAD]: { start: '2025-11-17' },
