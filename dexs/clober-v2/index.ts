@@ -54,7 +54,13 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
 };
 
 const adapter: SimpleAdapter = {
-  methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
+  methodology: {
+    Volume: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
+    Fees: 'fees include the portion captured by the meta aggregator from the spread between the best quote and the second best quote',
+    Revenue: "All fees are revenue.",
+    ProtocolRevenue: "All fees are protocol revenue.",
+    HoldersRevenue: "No Holders Revenue",
+  },
   version: 2,
   adapter: {
     [CHAIN.BASE]: {
