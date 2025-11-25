@@ -2,11 +2,12 @@ import fetchURL from "../../utils/fetchURL";
 import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+// import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 type IUrl = {
   [s: string]: {
     histogramUrl: string;
+    poolsStatsUrl: string;
   };
 };
 
@@ -14,6 +15,7 @@ const url: IUrl = {
   [CHAIN.SUI]: {
     histogramUrl:
       "https://app.magmafinance.io/api/sui/histogram?date_type=day&typ=vol&limit=40",
+    poolsStatsUrl: 'https://app.magmafinance.io/api/sui/stats_pools?providers=all',
   },
 };
 
@@ -23,28 +25,43 @@ interface IVolumeData {
 }
 
 
-async function fetchHistoricalVolume(chain: Chain): Promise<IVolumeData[]> {
-  const response = await fetchURL(url[chain].histogramUrl);
-  return response.data.list;
-}
+// async function fetchHistoricalVolume(chain: Chain): Promise<IVolumeData[]> {
+//   const response = await fetchURL(url[chain].histogramUrl);
+//   return response.data.list;
+// }
 
-function calculateDailyVolume(historicalVolume: IVolumeData[], dateStr: string): string | undefined {
-  return historicalVolume.find(
-    (dayItem) => dayItem.date.split('T')[0] === dateStr
-  )?.num;
-}
+// function calculateDailyVolume(historicalVolume: IVolumeData[], dateStr: string): string | undefined {
+//   return historicalVolume.find(
+//     (dayItem) => dayItem.date.split('T')[0] === dateStr
+//   )?.num;
+// }
+
+const blPools = [
+  '0xe31dbd5637fc3a104a5bcad2a28d7942198271ed4503d4949f81467494fd582e',
+  '0xfbc6374ae9533fc9f24a4ca705edfb58021cab24870c024bd6d0caec1c64cf36',
+  '0xfa54f1de53af9135aea64d31e8e4b543fc0b073a6c218f520f5b015d28951a0a',
+]
 
 const fetch = (chain: Chain) => {
-  return async (_tt: any,_t: any, options: FetchOptions): Promise<FetchResult> => {
-    const date = new Date(options.startOfDay * 1000);
-    const dateStr = date.toISOString().split('T')[0];  // Format: YYYY-MM-DD
-    const dayTimestamp = getUniqStartOfTodayTimestamp(date);
+  return async (_tt: any,_t: any, _: FetchOptions): Promise<FetchResult> => {
+    // const date = new Date(options.startOfDay * 1000);
+    // const dateStr = date.toISOString().split('T')[0];  // Format: YYYY-MM-DD
+    // const dayTimestamp = getUniqStartOfTodayTimestamp(date);
 
-    const historicalVolume = await fetchHistoricalVolume(chain);
-    const dailyVolume = calculateDailyVolume(historicalVolume, dateStr);
+    // const historicalVolume = await fetchHistoricalVolume(chain);
+    // const dailyVolume = calculateDailyVolume(historicalVolume, dateStr);
+    
+    const data = await fetchURL(url[chain].poolsStatsUrl);
+    const pools = data.data.lp_list;
+    
+    let dailyVolume = 0
+    for (const pool of pools) {
+      if (!blPools.includes(pool.address)) {
+        dailyVolume += Number(pool.vol_in_usd_24h)
+      }
+    }
 
     return {
-      timestamp: dayTimestamp,
       dailyVolume,
     };
   };
@@ -56,6 +73,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch: fetch(CHAIN.SUI),
       start: "2025-02-12",
+      runAtCurrTime: true,
     },
   },
 };
