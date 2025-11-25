@@ -11,11 +11,15 @@ const bookManagerContract = {
   [CHAIN.BASE]: '0x382CCccbD3b142D7DA063bF68cd0c89634767F76',
   [CHAIN.ERA]: '0xAaA0e933e1EcC812fc075A81c116Aa0a82A5bbb8',
   [CHAIN.MONAD]: '0x6657d192273731C3cAc646cc82D5F28D0CBE8CCC',
-}
+} as const
 
 const routerGatewayContract = {
+  [CHAIN.BASE]: '',
+  [CHAIN.ERA]: '',
   [CHAIN.MONAD]: '0x7B58A24C5628881a141D630f101Db433D419B372',
-}
+} as const
+
+type SupportedChains = keyof typeof bookManagerContract
 
 const parseFeeInfo = (value: bigint) => {
   return {
@@ -25,19 +29,21 @@ const parseFeeInfo = (value: bigint) => {
 }
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<FetchResultV2> => {
+  const typedChain = chain as SupportedChains
+
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
 
-  const takeEvents = await getLogs({ target: bookManagerContract[chain], eventAbi: abi.take, })
+  const takeEvents = await getLogs({ target: bookManagerContract[typedChain], eventAbi: abi.take, })
   let swapEvents = []
   let feeCollectedEvents = []
-  if(routerGatewayContract[chain]) {
-    swapEvents = await getLogs({ target: routerGatewayContract[chain], eventAbi: abi.swap, })
-    feeCollectedEvents = await getLogs({ target: routerGatewayContract[chain], eventAbi: abi.feeCollected, })
+  if(routerGatewayContract[typedChain].length > 0) {
+    swapEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.swap, })
+    feeCollectedEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.feeCollected, })
   }
 
   const bookKeys = takeEvents.map(i => i.bookId.toString())
-  const books = await api.multiCall({ abi: abi.getBookKey, calls: bookKeys, target: bookManagerContract[chain] })
+  const books = await api.multiCall({ abi: abi.getBookKey, calls: bookKeys, target: bookManagerContract[typedChain] })
   takeEvents.forEach((i, idx) => {
     const quoteAmount = Number(i.unit) * Number(books[idx].unitSize)
     dailyVolume.add(books[idx].quote, quoteAmount)
@@ -47,7 +53,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
     }
   })
 
-  swapEvents.forEach((i, idx) => dailyVolume.add(i.outToken, Number(i.amountOut)))
+  swapEvents.forEach((i) => dailyVolume.add(i.outToken, Number(i.amountOut)))
   feeCollectedEvents.forEach((i) => dailyFees.add(i.token, Number(i.amount)))
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: '0' };
