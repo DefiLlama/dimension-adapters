@@ -7,7 +7,7 @@ import { CHAIN } from "../../helpers/chains";
 import { oreHelperCountSolBalanceDiff } from "../ore";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = await oreHelperCountSolBalanceDiff(options, '5epGzdW6veQwLQiQs1L45uUQ8jdSLQHWL8RbC7uTWVY3')
+  const dailyFees = await oreHelperCountSolBalanceDiff(options, '6aAGoVq9jKywWXyvWwoUtZFxbjR5aLBtfjhQXP1xezA')
 
   const dailyProtocolRevenue = dailyFees.clone(0.01);
   const dailyHoldersRevenue = dailyFees.clone(0.99);
@@ -24,13 +24,13 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2025-11-18",
+  start: "2025-11-16",
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: "Calculate the GODL tokens gathered from 10% of the total SOL allocated to GODL boards and sent to the protocol wallet 5epGzdW6veQwLQiQs1L45uUQ8jdSLQHWL8RbC7uTWVY3.",
-    Revenue: "All collected GODL fees count as revenue.",
-    ProtocolRevenue: "1% of all GODL revenue is allocated to the protocol treasury.",
-    HoldersRevenue: "The remaining 99% of GODL fees are used for GODL buybacks and burns, with value distributed to GODL stakers.",
+    Fees: "Calculate the ore.blue tokens gathered from 10% of the total SOL allocated to ore.blue boards and sent to the protocol wallet 6aAGoVq9jKywWXyvWwoUtZFxbjR5aLBtfjhQXP1xezA.",
+    Revenue: "All collected ore.blue fees count as revenue.",
+    ProtocolRevenue: "1% of all ore.blue revenue is allocated to the protocol treasury.",
+    HoldersRevenue: "The remaining 99% of ore.blue fees are used for ore.blue buybacks and burns, with value distributed to ore.blue stakers.",
   },
 };
 
