@@ -5,7 +5,7 @@ const ARBITRUM = "arbitrum" as const;
 type SupportedChain = typeof ARBITRUM;
 
 const chains: Record<SupportedChain, { duneChain: string; start: string }> = {
-  [ARBITRUM]: { duneChain: "arbitrum", start: "2025-08-12" },
+  [ARBITRUM]: { duneChain: "arbitrum", start: "2025-12-08" },
 };
 
 // ---------------- PREFETCH ----------------
