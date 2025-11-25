@@ -10,23 +10,47 @@ interface IGraph {
 	id: string;
 }
 
-const URL = sdk.graph.modifyEndpoint('9btrLusatbsmZPPkhH8aKc3xypbD7i4xsprS22SFwNxF');
-const assets = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
-
-const fetch = async (timestamp: number, _: any, { createBalances }: FetchOptions): Promise<FetchResult> => {
+const ARBITRUM_URL = 'https://api.studio.thegraph.com/query/75208/pingu-arb-2/0.0.1/';
+const ARBITRUM_ASSETS = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
+const fetch_arbitrum = async (timestamp: number, _: any, { createBalances }: FetchOptions): Promise<FetchResult> => {
 	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
 	const dailyVolume = createBalances()
-	for (const asset of assets) {
+	for (const asset of ARBITRUM_ASSETS) {
 		const query = gql`
-    		{
+    	{
 				dayAssetData(id: "${dayTimestamp * 1000}-${asset.toLowerCase()}") {
 					volume
 				}
 			}`;
-		const response: IGraph = (await request(URL, query)).dayAssetData;
-		if (response){
-			const element = response;
-			dailyVolume.add(asset, element.volume);	
+		const response: IGraph = (await request(ARBITRUM_URL, query)).dayAssetData;
+		const element = response;
+		if (element && element.volume) {
+			dailyVolume.add(asset, element.volume);
+		}
+	}
+	return {
+		dailyVolume,
+		timestamp: dayTimestamp,
+	};
+}
+
+const MONAD_URL = 'https://api.studio.thegraph.com/query/75208/pingu-mon/0.0.2/';
+const MONAD_USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
+const MONAD_ASSETS = [MONAD_USDC, ADDRESSES.null];
+const fetch_monad = async (timestamp: number, _: any, { createBalances }: FetchOptions): Promise<FetchResult> => {
+	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+	const dailyVolume = createBalances()
+	for (const asset of MONAD_ASSETS) {
+		const query = gql`
+			{
+				dayAssetData(id: "${dayTimestamp * 1000}-${asset.toLowerCase()}") {
+					volume
+				}
+			}`;
+		const response: IGraph = (await request(MONAD_URL, query)).dayAssetData;
+		const element = response;
+		if (element && element.volume) {
+			dailyVolume.add(asset, element.volume);
 		}
 	}
 	return {
@@ -38,8 +62,12 @@ const fetch = async (timestamp: number, _: any, { createBalances }: FetchOptions
 const adapter: SimpleAdapter = {
 	adapter: {
 		[CHAIN.ARBITRUM]: {
-			fetch: fetch,
+			fetch: fetch_arbitrum,
 			start: '2024-01-10',
+		},
+		[CHAIN.MONAD]: {
+			fetch: fetch_monad,
+			start: '2025-11-24',
 		},
 	},
 };
