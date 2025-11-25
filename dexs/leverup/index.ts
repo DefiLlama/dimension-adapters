@@ -149,7 +149,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.MONAD],
-  start: '2025-11-23', // Placeholder, update with actual launch date
+  start: '2025-11-23',
   methodology: {
     Volume: 'Volume is calculated by summing the notional value (qty * entryPrice) of all OpenMarketTrade events.',
     OpenInterest: 'Open Interest is calculated by summing the long and short open interest of all pairs.',

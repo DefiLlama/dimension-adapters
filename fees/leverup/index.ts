@@ -57,7 +57,6 @@ const fetch = async (options: FetchOptions) => {
     const lvToken = log.ot.lvToken;
     const openFee = BigInt(log.ot.lvOpenFee);
     const execFee = BigInt(log.ot.lvExecutionFee);
-	console.log('openFee', openFee);
     addFee(lvToken, openFee + execFee);
   });
 
@@ -92,7 +91,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.MONAD],
-  start: '2025-11-22',
+  start: '2025-11-23',
 };
 
 export default adapter;
