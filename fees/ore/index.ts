@@ -1,28 +1,35 @@
+import { Balances } from '@defillama/sdk';
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
+export async function oreHelperCountSolBalanceDiff(options: FetchOptions, target: string): Promise<Balances> {
   // Query for ORE protocol revenue
   const duneQueryString = `
       SELECT
         SUM(CASE WHEN post_balance > pre_balance THEN (post_balance - pre_balance) / 1e9 ELSE 0 END) AS total_sol_inbound
       FROM solana.account_activity
       WHERE
-        address = '45db2FSR4mcXdSVVZbKbwojU6uYDpMyhpEi7cC8nHaWG'
+        address = '${target}'
         AND block_time >= from_unixtime(${options.startTimestamp})
         AND block_time < from_unixtime(${options.endTimestamp})
         AND tx_success = true
   `;
 
   const results = await queryDuneSql(options, duneQueryString);
-
+  
+  const dailyFees = options.createBalances();
   if (results.length > 0) {
     const revenue = results[0].total_sol_inbound || 0;
     dailyFees.addCGToken("solana",revenue);
   }
+  
+  return dailyFees;
+}
+
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = await oreHelperCountSolBalanceDiff(options, '45db2FSR4mcXdSVVZbKbwojU6uYDpMyhpEi7cC8nHaWG')
+
   const dailyProtocolRevenue = dailyFees.clone(0.01);
   const dailyHoldersRevenue = dailyFees.clone(0.99);
 
