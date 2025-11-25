@@ -37,13 +37,13 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   }
 
   const bookKeys = takeEvents.map(i => i.bookId.toString())
-  const tokens = await api.multiCall({ abi: abi.getBookKey, calls: bookKeys, target: bookManagerContract[chain] })
+  const books = await api.multiCall({ abi: abi.getBookKey, calls: bookKeys, target: bookManagerContract[chain] })
   takeEvents.forEach((i, idx) => {
-    const quoteAmount = Number(i.unit) * Number(tokens[idx].unitSize)
-    dailyVolume.add(tokens[idx].quote, quoteAmount)
-    const { bps, usesQuote } = parseFeeInfo(BigInt(i.takerPolicy))
+    const quoteAmount = Number(i.unit) * Number(books[idx].unitSize)
+    dailyVolume.add(books[idx].quote, quoteAmount)
+    const { bps, usesQuote } = parseFeeInfo(BigInt(books[idx].takerPolicy))
     if (usesQuote) {
-      dailyFees.add(tokens[idx].quote, (quoteAmount * bps) / 10000)
+      dailyFees.add(books[idx].quote, (quoteAmount * bps) / 10000)
     }
   })
 
