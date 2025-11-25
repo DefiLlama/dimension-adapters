@@ -65,6 +65,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2024-06-12',
     },
+    [CHAIN.MONAD]: {
+      fetch,
+      start: '2025-11-24',
+    },
   }
 };
 
