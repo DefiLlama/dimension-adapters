@@ -23,5 +23,5 @@ export default {
       fetch,
     }
   },
-  start: '2025-11-06'
+  start: '2025-11-14'
 }
