@@ -55,7 +55,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const result = await queryDuneSql(options, query);
-
+  
   const dayString = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const dayItem = result.find((i: any) => i.day.split(' ')[0] === dayString)
   if (dayItem) {
@@ -76,7 +76,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: '2024-10-09',
+      start: '2025-10-09',
     },
   },
   dependencies: [Dependencies.DUNE],
