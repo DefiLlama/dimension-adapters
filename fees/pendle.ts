@@ -285,6 +285,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: {
       fetch: fetch(CHAIN.BERACHAIN),
       start: '2025-02-07',
+    }, 
+    [CHAIN.PLASMA]: {
+      fetch: fetch(CHAIN.PLASMA),
+      start: '2025-09-24',
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetch(CHAIN.HYPERLIQUID),
+      start: '2025-07-09',
     }
   },
 };
