@@ -1,10 +1,10 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
 
   const query = `
     WITH futswap AS (
@@ -56,37 +56,34 @@ const fetch = async (options: FetchOptions) => {
 
   const result = await queryDuneSql(options, query);
 
-  if (result && result[0]) {
-    const volume = result[0].volume || 0;
-    const rev = result[0].rev || 0;
-
-    // USDC mint
-    const usdc = "solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-
-    dailyVolume.addToken(usdc, volume);
-    dailyRevenue.addToken(usdc, rev);
+  const dayString = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
+  const dayItem = result.find((i: any) => i.day.split(' ')[0] === dayString)
+  if (dayItem) {
+    dailyVolume.addUSDValue(dayItem.volume);
+    dailyFees.addUSDValue(dayItem.rev);
+  } else {
+    throw Error(`can not found data for date ${dayString}`)
   }
 
   return {
     dailyVolume,
-    dailyRevenue,
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: 1728432060, // October 9, 2024 00:01 UTC
+      start: '2024-10-09',
     },
   },
-
+  dependencies: [Dependencies.DUNE],
   methodology: {
-    Volume:
-      "Volume represents total USDC-equivalent value swapped via Futarchy AMM SpotSwap events. For buys, volume = input_amount; for sells, volume = output_amount.",
-    Revenue:
-      "Revenue is calculated as 0.25% of each swap's USDC-equivalent value (volume * 0.0025).",
+    Volume: "Volume represents total USDC-equivalent value swapped via Futarchy AMM SpotSwap events. For buys, volume = input_amount; for sells, volume = output_amount.",
+    Fees: "Fees is calculated as 0.25% of each swap's USDC-equivalent value (volume * 0.0025).",
+    Revenue: "Revenue is calculated as 0.25% of each swap's USDC-equivalent value (volume * 0.0025).",
   },
 };
 
