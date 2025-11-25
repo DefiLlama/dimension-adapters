@@ -1,9 +1,11 @@
-import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
-const chains: Record<string, { duneChain: string; start: string }> = {
-  [CHAIN.ARBITRUM]: { duneChain: "arbitrum", start: "2025-08-12" },
+const ARBITRUM = "arbitrum" as const;
+type SupportedChain = typeof ARBITRUM;
+
+const chains: Record<SupportedChain, { duneChain: string; start: string }> = {
+  [ARBITRUM]: { duneChain: "arbitrum", start: "2025-08-12" },
 };
 
 // ---------------- PREFETCH ----------------
@@ -41,7 +43,7 @@ const prefetch = async (options: FetchOptions) => {
 const fetchTxCount = async (_: any, _1: any, options: FetchOptions) => {
   const { endTimestamp, chain } = options;
 
-  const cfg = chains[chain];
+  const cfg = chains[chain as SupportedChain];
   if (!cfg) throw new Error(`Chain config missing for ${chain}`);
 
   const rows = options.preFetchedResults || [];
@@ -60,8 +62,8 @@ const adapter: any = {
   dependencies: [Dependencies.DUNE],
   prefetch: prefetch,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      start: chains[CHAIN.ARBITRUM].start,
+    [ARBITRUM]: {
+      start: chains[ARBITRUM].start,
       fetch: fetchTxCount,
     },
   },
