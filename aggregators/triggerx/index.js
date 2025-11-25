@@ -2,16 +2,17 @@ import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
-// Only Arbitrum
 const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.ARBITRUM]: { duneChain: "arbitrum", start: "2025-08-12" },
 };
 
-// ---------------------- PREFETCH ----------------------
+// ---------------- PREFETCH ----------------
 const prefetch = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
 
-  return queryDuneSql(options, `
+  return queryDuneSql(
+    options,
+    `
     WITH txs AS (
       SELECT 
         'arbitrum' AS chain,
@@ -32,38 +33,38 @@ const prefetch = async (options: FetchOptions) => {
     WHERE block_time >= from_unixtime(${startTimestamp})
       AND block_time < from_unixtime(${endTimestamp})
     GROUP BY chain
-  `);
+  `
+  );
 };
 
-// ---------------------- FETCH ----------------------
+// ---------------- FETCH ----------------
 const fetchTxCount = async (_: any, _1: any, options: FetchOptions) => {
   const { endTimestamp, chain } = options;
-  const chainConfig = chains[chain];
 
-  if (!chainConfig) throw new Error(`Chain configuration not found: ${chain}`);
+  const cfg = chains[chain];
+  if (!cfg) throw new Error(`Chain config missing for ${chain}`);
 
-  const results = options.preFetchedResults || [];
-  const row = results.find(r => r.blockchain === chainConfig.duneChain);
+  const rows = options.preFetchedResults || [];
+  const matched = rows.find((r: any) => r.blockchain === cfg.duneChain);
 
   return {
-    dailyTransactionCount: row?.tx_count ?? 0,
+    dailyTransactionCount: matched?.tx_count ?? 0,
     timestamp: endTimestamp,
   };
 };
 
-// ---------------------- EXPORT ----------------------
+// ---------------- EXPORT ----------------
 const adapter: any = {
   version: 1,
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
-  prefetch,
-
-  adapter: Object.fromEntries(
-    Object.entries(chains).map(([chain, { start }]) => [
-      chain,
-      { fetch: fetchTxCount, start },
-    ])
-  ),
+  prefetch: prefetch,
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      start: chains[CHAIN.ARBITRUM].start,
+      fetch: fetchTxCount,
+    },
+  },
 };
 
 export default adapter;
