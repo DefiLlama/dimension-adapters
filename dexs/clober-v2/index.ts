@@ -7,17 +7,15 @@ const abi = {
   swap: 'event Swap(address indexed user, address indexed inToken, address indexed outToken, uint256 amountIn, uint256 amountOut, address router, bytes4 method)',
   feeCollected: 'event FeeCollected(address indexed recipient, address indexed token, uint256 amount)'
 }
-const bookManagerContract = {
+const bookManagerContract: Record<string, string> = {
   [CHAIN.BASE]: '0x382CCccbD3b142D7DA063bF68cd0c89634767F76',
   [CHAIN.ERA]: '0xAaA0e933e1EcC812fc075A81c116Aa0a82A5bbb8',
   [CHAIN.MONAD]: '0x6657d192273731C3cAc646cc82D5F28D0CBE8CCC',
-} as const
+}
 
-const routerGatewayContract = {
-  [CHAIN.BASE]: '',
-  [CHAIN.ERA]: '',
+const routerGatewayContract: Record<string, string> = {
   [CHAIN.MONAD]: '0x7B58A24C5628881a141D630f101Db433D419B372',
-} as const
+}
 
 type SupportedChains = keyof typeof bookManagerContract
 
@@ -37,7 +35,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   const takeEvents = await getLogs({ target: bookManagerContract[typedChain], eventAbi: abi.take, })
   let swapEvents = []
   let feeCollectedEvents = []
-  if(routerGatewayContract[typedChain].length > 0) {
+  if(routerGatewayContract[typedChain]) {
     swapEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.swap, })
     feeCollectedEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.feeCollected, })
   }
