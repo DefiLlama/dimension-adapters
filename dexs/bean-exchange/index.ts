@@ -54,67 +54,62 @@ function getAmountsFromBytesString(bytes: string): { amountX: number; amountY: n
   };
 }
 const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
-  try {
-    const poolsAddresses = await api.fetchList({
-      lengthAbi: ABIs.getNumberOfLBPairs,
-      itemAbi: ABIs.getLBPairAtIndex,
-      target: dlmmFactory,
-    });
+  const poolsAddresses = await api.fetchList({
+    lengthAbi: ABIs.getNumberOfLBPairs,
+    itemAbi: ABIs.getLBPairAtIndex,
+    target: dlmmFactory,
+  });
 
-    const tokens0 = await api.multiCall({
-      abi: "function getTokenX() view returns (address)",
-      calls: poolsAddresses.map((pool: any) => ({ target: pool })),
-    });
-    const tokens1 = await api.multiCall({
-      abi: "function getTokenY() view returns (address)",
-      calls: poolsAddresses.map((pool: any) => ({ target: pool })),
-    });
+  const tokens0 = await api.multiCall({
+    abi: "function getTokenX() view returns (address)",
+    calls: poolsAddresses.map((pool: any) => ({ target: pool })),
+  });
+  const tokens1 = await api.multiCall({
+    abi: "function getTokenY() view returns (address)",
+    calls: poolsAddresses.map((pool: any) => ({ target: pool })),
+  });
 
-    const pools: Pool[] = poolsAddresses.map((address: any, index: number) => ({
-      address: address,
-      tokenX: tokens0[index],
-      tokenY: tokens1[index],
-    }));
+  const pools: Pool[] = poolsAddresses.map((address: any, index: number) => ({
+    address: address,
+    tokenX: tokens0[index],
+    tokenY: tokens1[index],
+  }));
 
-    const dailyVolume = createBalances();
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-    const dailySupplySideRevenue = createBalances();
+  const dailyVolume = createBalances();
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
 
-    await Promise.all(
-      pools.map(async (pool: any, index: number) => {
-        const logsResult = await getLogs({
-          target: pool.address,
-          eventAbi: swapEvent,
-        });
-        logsResult.forEach((log: any) => {
-          const amountInd = getAmountsFromBytesString(log.amountsIn);
-          dailyVolume.add(pool.tokenX, amountInd.amountX);
-          dailyVolume.add(pool.tokenY, amountInd.amountY);
-          const totalFees = getAmountsFromBytesString(log.totalFees);
-          dailyFees.add(pool.tokenX, totalFees.amountX);
-          dailyFees.add(pool.tokenY, totalFees.amountY);
-          const protocolFees = getAmountsFromBytesString(log.protocolFees);
-          dailyRevenue.add(pool.tokenY, protocolFees.amountY);
-          dailyRevenue.add(pool.tokenX, protocolFees.amountX);
-          dailySupplySideRevenue.add(pool.tokenX, totalFees.amountX - protocolFees.amountX);
-          dailySupplySideRevenue.add(pool.tokenY, totalFees.amountY - protocolFees.amountY);
-        });
-      })
-    );
+  await Promise.all(
+    pools.map(async (pool: any, index: number) => {
+      const logsResult = await getLogs({
+        target: pool.address,
+        eventAbi: swapEvent,
+      });
+      logsResult.forEach((log: any) => {
+        const amountInd = getAmountsFromBytesString(log.amountsIn);
+        dailyVolume.add(pool.tokenX, amountInd.amountX);
+        dailyVolume.add(pool.tokenY, amountInd.amountY);
+        const totalFees = getAmountsFromBytesString(log.totalFees);
+        dailyFees.add(pool.tokenX, totalFees.amountX);
+        dailyFees.add(pool.tokenY, totalFees.amountY);
+        const protocolFees = getAmountsFromBytesString(log.protocolFees);
+        dailyRevenue.add(pool.tokenY, protocolFees.amountY);
+        dailyRevenue.add(pool.tokenX, protocolFees.amountX);
+      });
+    })
+  );
+  
+  const dailySupplySideRevenue = dailyFees.clone(1)
+  dailySupplySideRevenue.subtract(dailyRevenue)
 
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue,
-    };
-  } catch (error) {
-    console.error(error);
-    throw error;
-  }
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
@@ -129,7 +124,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MONAD]: {
       fetch,
-      start: "2025-11-24",
+      start: "2025-11-23",
     },
   },
   methodology,
