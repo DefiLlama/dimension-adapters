@@ -20,43 +20,31 @@ interface APIResponse {
     fees: FeeData[];
 }
 
-const fetch = async (options: FetchOptions) => {
-    const { startTimestamp, endTimestamp, dateString, createBalances } = options;
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
+    const { dateString, createBalances } = options;
 
     const dailyFees = createBalances();
 
-    // Convert Unix timestamp to UTC date string (YYYY-MM-DD)
-    const startDate = new Date(startTimestamp * 1000).toISOString().split('T')[0];
-    const endDate = new Date(endTimestamp * 1000).toISOString().split('T')[0];
-
     // Fetch fee data for the specific period using query parameters
     const response: APIResponse = await fetchURL(
-        `https://platform.data.defuse.org/api/public/fees?start=${startDate}&end=${endDate}`
+        `https://platform.data.defuse.org/api/public/fees?start=${dateString}&end=${dateString}`
     );
 
-    if (!response || !response.fees || !Array.isArray(response.fees)) {
+    if (!response || !response.fees || !Array.isArray(response.fees) || response.fees.length !== 1)
         throw new Error("Invalid API response format");
-    }
 
-    // Find the fee data
-    const dayData = response.fees.find((item: FeeData) => item.date_at === dateString);
-
-    if (dayData && dayData.fee > 0) {
-        dailyFees.addUSDValue(dayData.fee);
-    }
-    // Note: If no data found, we return empty balances (0 values)
-    // This is normal for dates where data hasn't been aggregated yet
+    dailyFees.addUSDValue(response.fees[0].fee);
     return {
         dailyFees,
     };
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
+    start: '2025-05-06', // First date with data in the API
     adapter: {
         [CHAIN.NEAR]: {
             fetch: fetch,
-            start: '2025-05-06', // First date with data in the API
         },
     },
     methodology: {
