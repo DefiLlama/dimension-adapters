@@ -1,66 +1,140 @@
-import request, { gql } from "graphql-request";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-
+import { FetchOptions, SimpleAdapter } from "./../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const SUBGRAPH_URL = "https://subgraphspot2.bean.exchange/subgraphs/name/bean-spot-premainnet-v01";
+const dlmmFactory = "0x8Bb9727Ca742C146563DccBAFb9308A234e1d242";
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+type TABI = {
+  [k: string]: object;
+};
+const ABIs: TABI = {
+  getNumberOfLBPairs: {
+    inputs: [],
+    name: "getNumberOfLBPairs",
+    outputs: [{ internalType: "uint256", name: "lbPairNumber", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  getLBPairAtIndex: {
+    inputs: [{ internalType: "uint256", name: "index", type: "uint256" }],
+    name: "getLBPairAtIndex",
+    outputs: [{ internalType: "contract ILBPair", name: "lbPair", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
 
-  const query = gql`
-    {
-      lbpairHourDatas(
-        where: {
-          date_gte: ${options.startTimestamp}
-          date_lte: ${options.endTimestamp}
-        }
-      ) {
-        volumeUSD
-        feesUSD
-      }
-    }
-  `;
+  getTokenX: {
+    inputs: [],
+    name: "getTokenX",
+    outputs: [{ internalType: "address", name: "tokenX", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  getTokenY: {
+    inputs: [],
+    name: "getTokenY",
+    outputs: [{ internalType: "address", name: "tokenY", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+};
 
-  interface DayData {
-    volumeUSD: string;
-    feesUSD: string;
-  }
+const swapEvent =
+  "event Swap(address indexed sender, address indexed to, uint24 id, bytes32 amountsIn, bytes32 amountsOut, uint24 volatilityAccumulator, bytes32 totalFees, bytes32 protocolFees, (uint256 nativePriceUSD, uint256 tokenXPriceNative, uint256 tokenYPriceNative) priceData)";
 
-  const { lbpairHourDatas } = await request<{ lbpairHourDatas: DayData[] }>(SUBGRAPH_URL, query);
+type Pool = {
+  address: string;
+  tokenX: string;
+  tokenY: string;
+};
 
-  let totalVolumeUSD = 0;
-  let totalFeesUSD = 0;
-
-  lbpairHourDatas.forEach((day) => {
-    const vol = Number(day.volumeUSD || 0);
-    const fee = Number(day.feesUSD || 0);
-    totalVolumeUSD += vol;
-    totalFeesUSD += fee;
-  });
-
-  dailyVolume.addUSDValue(totalVolumeUSD);
-
+function getAmountsFromBytesString(bytes: string): { amountX: number; amountY: number } {
   return {
-    dailyVolume,
-    dailyFees: totalFeesUSD > 0 ? totalFeesUSD : undefined,
-    dailyRevenue: totalFeesUSD > 0 ? totalFeesUSD * 0.2 : undefined,
-    dailyProtocolRevenue: totalFeesUSD > 0 ? totalFeesUSD * 0.2 : undefined,
-    dailySupplySideRevenue: totalFeesUSD > 0 ? totalFeesUSD * 0.8 : undefined,
+    amountX: parseInt(`0x${bytes.replace("0x", "").slice(32, 64)}`, 16),
+    amountY: parseInt(`0x${bytes.replace("0x", "").slice(0, 32)}`, 16),
   };
+}
+const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
+  try {
+    const poolsAddresses = await api.fetchList({
+      lengthAbi: ABIs.getNumberOfLBPairs,
+      itemAbi: ABIs.getLBPairAtIndex,
+      target: dlmmFactory,
+    });
+
+    const tokens0 = await api.multiCall({
+      abi: "function getTokenX() view returns (address)",
+      calls: poolsAddresses.map((pool: any) => ({ target: pool })),
+    });
+    const tokens1 = await api.multiCall({
+      abi: "function getTokenY() view returns (address)",
+      calls: poolsAddresses.map((pool: any) => ({ target: pool })),
+    });
+
+    const pools: Pool[] = poolsAddresses.map((address: any, index: number) => ({
+      address: address,
+      tokenX: tokens0[index],
+      tokenY: tokens1[index],
+    }));
+
+    const dailyVolume = createBalances();
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
+    const dailySupplySideRevenue = createBalances();
+
+    await Promise.all(
+      pools.map(async (pool: any, index: number) => {
+        const logsResult = await getLogs({
+          target: pool.address,
+          eventAbi: swapEvent,
+        });
+        logsResult.forEach((log: any) => {
+          const amountInd = getAmountsFromBytesString(log.amountsIn);
+          dailyVolume.add(pool.tokenX, amountInd.amountX);
+          dailyVolume.add(pool.tokenY, amountInd.amountY);
+          const totalFees = getAmountsFromBytesString(log.totalFees);
+          dailyFees.add(pool.tokenX, totalFees.amountX);
+          dailyFees.add(pool.tokenY, totalFees.amountY);
+          const protocolFees = getAmountsFromBytesString(log.protocolFees);
+          dailyRevenue.add(pool.tokenY, protocolFees.amountY);
+          dailyRevenue.add(pool.tokenX, protocolFees.amountX);
+          dailySupplySideRevenue.add(pool.tokenX, totalFees.amountX - protocolFees.amountX);
+          dailySupplySideRevenue.add(pool.tokenY, totalFees.amountY - protocolFees.amountY);
+        });
+      })
+    );
+
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue,
+    };
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+const methodology = {
+  UserFees: "EⅢ users pay a Trading fee on each swap. Includes Flash Loan Fees.",
+  Fees: "Net Trading fees paid is the Sum of fees sent to LP & Protocol Fees",
+  Revenue: "A variable % of the trading fee is collected as Protocol Fees.",
+  ProtocolRevenue: "All Revenue goes to buyback ELITE.",
+  HoldersRevenue: "100% of Revenue is used to buyback ELITE.",
+  SupplySideRevenue: "The portion of trading fees paid to liquidity providers.",
 };
 
 const adapter: SimpleAdapter = {
-  fetch,
-  version: 1,
-  start: 1763942400,
-  chains: [CHAIN.MONAD],
-  methodology: {
-    Fees: "LP fees generated by the swap transactions on Bean Exchange.",
-    Revenue: "20% percent of fees to Bean Exchange.",
-    ProtocolRevenue: "20% percent of fees to Bean Exchange.",
-    SupplySideRevenue: "80% percent of the fees to LPs.",
+  version: 2,
+  adapter: {
+    [CHAIN.MONAD]: {
+      fetch,
+      start: "2025-11-24",
+    },
   },
+  methodology,
 };
 
 export default adapter;
