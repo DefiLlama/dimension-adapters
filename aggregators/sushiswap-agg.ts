@@ -373,6 +373,7 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.HYPERLIQUID]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.BERACHAIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.PLASMA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.MONAD]: '0xd2b37aDE14708bf18904047b1E31F8166d39612b',
 }
 
 const WNATIVE_ADDRESS: any = {
@@ -421,7 +422,8 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
   [CHAIN.HYPERLIQUID]: ADDRESSES.hyperliquid.WHYPE,
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
-  [CHAIN.PLASMA]: '0x6100e367285b01f48d07953803a2d8dca5d19873',
+  [CHAIN.PLASMA]: ADDRESSES.plasma.WXPL,
+  [CHAIN.MONAD]: ADDRESSES.monad.WMON,
 }
 
 const useSushiAPIPrice = (chain: any) => [
@@ -679,6 +681,10 @@ const adapters = {
   [CHAIN.PLASMA]: {
     fetch,
     start: '2025-09-25'
+  },
+  [CHAIN.MONAD]: {
+    fetch,
+    start: '2025-11-23'
   }
 }
 
