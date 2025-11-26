@@ -1,4 +1,3 @@
-
 import { Adapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -18,10 +17,8 @@ const PROTOCOL_REVENUE_RATIO = 1;
 const START = "2025-11-01";
 
 export function hpotAdaptorBuilder(): Adapter {
-  const url = `https://api.orderly.org/md/volume/builder/daily_stats?broker_id=${BROKER_ID}`;
-  console.log("hpotAdaptor");
+  const url = `https://perp-dex-api.vercel.app/api/v1/broker/daily-stats`;
   async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
-    console.log(dateString);
     if (!statsCache[BROKER_ID])
       statsCache[BROKER_ID] = httpGet(url).then((data) => {
         const dateDataMap: any = {};
