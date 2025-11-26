@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceivedDune } from "../../helpers/token";
 
@@ -11,12 +11,9 @@ const methodology = {
   SupplySideRevenue: "80% of lending interest is distributed to depositors"
 };
 
-const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  
-  await getSolanaReceivedDune({
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = await getSolanaReceivedDune({
     options,
-    balances: dailyFees,
     target: APRICOT_MAIN_POOL,
   });
 
@@ -33,14 +30,14 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  methodology,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2021-08-25',
     },
   },
-  methodology,
 };
 
 export default adapter;
