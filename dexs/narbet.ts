@@ -19,7 +19,7 @@ type Stats = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
   const start = formatDate(options.startTimestamp * 1000);
   const end = formatDate(options.endTimestamp * 1000);
@@ -31,12 +31,14 @@ const fetch = async (options: FetchOptions) => {
     console.error("Server responded error", stats);
     throw new Error("Could not fetch data");
   }
-  const volume = Number(stats.data.wager);
+  const wager = Number(stats.data.wager);
+  // Hard-coded 0.1% in smart contract
+  const fees = wager * (0.1 / 100);
 
-  dailyVolume.addCGToken("monad", volume);
+  dailyFees.addCGToken("monad", fees);
 
   return {
-    dailyVolume,
+    dailyFees: dailyFees,
   };
 };
 
