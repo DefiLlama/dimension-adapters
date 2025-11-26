@@ -23,12 +23,13 @@ type MynthApiResponse = {
 
 const prefetch = async (options: FetchOptions) => {
   const baseUrl = "https://www.mynth.ai/api/liquidity/transfers";
-  const end = options.endTimestamp * 1000;
+  const end = options.toTimestamp * 1000;
+  const start = options.fromTimestamp * 1000;
+
   const fetched: string[] = [];
-  const limit = 1000;
-  const start = options.startTimestamp * 1000;
   const transfers: Transfer[] = [];
 
+  const limit = 1000;
   for (let page = 1; ; page++) {
     const url = `${baseUrl}?start=${start}&end=${end}&limit=${limit}&page=${page}`;
     const response: MynthApiResponse = await fetchURL(url);
@@ -53,7 +54,7 @@ const prefetch = async (options: FetchOptions) => {
 
 type PrefetchResults = Awaited<ReturnType<typeof prefetch>>;
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const fetched = options.preFetchedResults as PrefetchResults;
   const dailyBridgeVolume = options.createBalances();
 
@@ -67,7 +68,6 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   chains: [
     CHAIN.BASE,
     CHAIN.CARDANO,
