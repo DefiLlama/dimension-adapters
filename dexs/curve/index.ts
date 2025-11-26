@@ -1,5 +1,6 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ICurveDexConfig, ContractVersion, getCurveExport } from "../../helpers/curve";
+import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -460,14 +461,42 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
+export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
+  const adapter: SimpleAdapter = {
+    version: 2,
+    adapter: Object.keys(configs).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: async function(options: FetchOptions) {
+            const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
+            
+            return {
+              dailyVolume,
+              dailyFees: swapFees,
+              dailyUserFees: swapFees,
+              dailyRevenue: adminFees,
+              dailyProtocolRevenue: 0,
+              dailyHoldersRevenue: adminFees,
+            }
+          },
+          start: configs[chain].start,
+        }
+      }
+    }, {})
+  };
+
+  return adapter;
+}
+
 // https://resources.curve.finance/pools/overview/#pool-fees
-const adapter = getCurveExport(CurveDexConfigs, { userFeesRatio: 1, revenueRatio: 0.5, holdersRevenueRatio: 0.5 })
+const adapter = getCurveExport(CurveDexConfigs)
 
 adapter.methodology = {
   Fees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
   UserFees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
   Revenue: "A 50% of the trading fee is collected by veCRV holders",
-  ProtocolRevenue: "Admin fees collected from every swap to Curve treasury",
+  ProtocolRevenue: "No revenue share for Curve protocol.",
   HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
   SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
 }
