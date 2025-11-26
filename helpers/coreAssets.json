@@ -2642,5 +2642,11 @@
   },
   "bitci": {
     "WBITCI": "0xe0d0f25b5fcfa4d3edd9c2186451d9e04c4b9f11"
+  },
+  "plasma": {
+    "WXPL": "0x6100e367285b01f48d07953803a2d8dca5d19873"
+  },
+  "monad": {
+    "WMON": "0x3bd359c1119da7da1d913d1c4d2b7c461115433a"
   }
 }

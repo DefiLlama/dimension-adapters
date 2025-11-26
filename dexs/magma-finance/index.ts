@@ -36,6 +36,7 @@ interface IVolumeData {
 //   )?.num;
 // }
 
+// wash trading, sample tx https://suivision.xyz/txblock/DY3oSw6KHjwuVtQCYvG1S4YoqNZwRtnWcfwWdX77L1T1
 const blPools = [
   '0xe31dbd5637fc3a104a5bcad2a28d7942198271ed4503d4949f81467494fd582e',
   '0xfbc6374ae9533fc9f24a4ca705edfb58021cab24870c024bd6d0caec1c64cf36',
