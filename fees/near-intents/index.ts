@@ -20,23 +20,26 @@ interface APIResponse {
     fees: FeeData[];
 }
 
+let data: any
+
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
     const { dateString, createBalances } = options;
 
     const dailyFees = createBalances();
 
+    if (!data)
+        data = fetchURL("https://platform.data.defuse.org/api/public/fees")
     // Fetch fee data for the specific period using query parameters
-    const response: APIResponse = await fetchURL(
-        `https://platform.data.defuse.org/api/public/fees?start=${dateString}&end=${dateString}`
-    );
+    const response: APIResponse = await data
 
-    if (!response || !response.fees || !Array.isArray(response.fees) || response.fees.length !== 1)
+    if (!response || !response.fees || !Array.isArray(response.fees))
         throw new Error("Invalid API response format");
+    const item = response.fees.find(feeEntry => feeEntry.date_at === dateString);
+    if (!item)
+        throw new Error(`No fee data found for date: ${dateString}`);
 
-    dailyFees.addUSDValue(response.fees[0].fee);
-    return {
-        dailyFees,
-    };
+    dailyFees.addUSDValue(item.fee);
+    return { dailyFees, };
 };
 
 const adapter: SimpleAdapter = {
