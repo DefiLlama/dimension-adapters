@@ -9,18 +9,13 @@ import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
 const fetch: any = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, target: 'FudPMePeNqmnjMX19zEKDfGXpbp6HAdW6ZGprB5gYRTZ' })
-  dailyFees.resizeBy(1.11)
+  const dailyFees = await getSolanaReceived({ options, target: 'FudPMePeNqmnjMX19zEKDfGXpbp6HAdW6ZGprB5gYRTZ' });
 
-  const protocolRevenue = dailyFees.clone()
-  const dailyHoldersRevenue = dailyFees.clone(0.1)
-  protocolRevenue.subtract(dailyHoldersRevenue)
-
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: protocolRevenue, dailyHoldersRevenue: dailyHoldersRevenue }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
@@ -30,8 +25,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Total fees paid by users.',
     Revenue: 'Total fees paid by users.',
-    ProtocolRevenue: '90% fees paid are collected by Helio.',
-    HoldersRevenue: '10% fees paid are distributed to holders.',
+    ProtocolRevenue: 'All the fees paid are collected by Helio.',
   }
 };
 
