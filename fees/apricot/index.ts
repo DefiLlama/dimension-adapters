@@ -12,6 +12,8 @@ const methodology = {
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  throw Error('WIP')
+  
   const dailyFees = await getSolanaReceivedDune({
     options,
     target: APRICOT_MAIN_POOL,
