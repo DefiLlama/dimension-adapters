@@ -1,5 +1,5 @@
 import { FetchOptions } from "../adapters/types"
-import { getLiquityV2LogAdapter } from "../helpers/liquity"
+import { defaultV2BreakdownMethodology, defaultV2methodology, getLiquityV2LogAdapter } from "../helpers/liquity"
 
 async function fetch(options: FetchOptions) {
   const v0DeploymentRes = await getLiquityV2LogAdapter({ collateralRegistry: '0xd99dE73b95236F69A559117ECD6F519Af780F3f7' })(options)
@@ -19,19 +19,6 @@ export default {
       fetch,
     }
   },
-  methodology: {
-    Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-    Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-  },
-  breakdownMethodology: {
-    Fees: {
-      'Borrow Interest': 'borrow interests paid by borrowers.',
-      'Redemption Fees': 'Redemption fees paid by borrowers.',
-      'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
-    },
-    Revenue: {
-      'Borrow Interest': 'borrow interests paid by borrowers.',
-      'Redemption Fees': 'Redemption fees paid by borrowers.',
-    },
-  },
+  methodology: defaultV2methodology,
+  breakdownMethodology: defaultV2BreakdownMethodology,
 }
