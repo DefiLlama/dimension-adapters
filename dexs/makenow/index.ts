@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const apiBaseURL = "https://baby-makenow-backend-backend-dev.dev.babyparrot.xyz/trades/volume";
+const apiBaseURL = "https://api.makenow.meme/trades/volume";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -21,6 +21,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  start: 1735689600, // 2025-01-01 00:00:00 UTC
   version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
