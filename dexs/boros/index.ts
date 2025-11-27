@@ -7,6 +7,7 @@ const BOROS_ABIS = {
     MARKET_ORDERS_FILLED_EVENT: 'event MarketOrdersFilled (bytes26 user, uint256 totalTrade, uint256 totalFees)',
     OTC_SWAP_EVENT: 'event OtcSwap (bytes26 user, bytes26 counterParty, uint256 trade, int256 cashToCounter, uint256 otcFee)',
     PAYMENT_FROM_SETTLEMENT_EVENT: 'event PaymentFromSettlement (bytes26 user, uint256 lastFTime, uint256 latestFTime, int256 payment, uint256 fees)',
+    LIQUIDATION_EVENT: 'event Liquidate (bytes26 liq, bytes26 vio, uint256 liqTrade, uint256 liqFee)',
 }
 
 const BOROS_FACTORY = '0x3080808080Ee6a795c1a6Ff388195Aa5F11ECeE0';
@@ -120,6 +121,16 @@ const fetch = async (options: FetchOptions) => {
             dailyFees.addCGToken(market.coinGeckoId, Number(settlement.fees) / 1e18, METRIC.TRADING_FEES);
             dailyRevenue.addCGToken(market.coinGeckoId, Number(settlement.fees) / 1e18, METRIC.TRADING_FEES);
         });
+
+        const liquidationLogs = await options.getLogs({
+            target:market.address,
+            eventAbi:BOROS_ABIS.LIQUIDATION_EVENT
+        });
+
+        liquidationLogs.forEach((liquidation:any)=>{
+            dailyFees.addCGToken(market.coinGeckoId, Number(liquidation.liqFee)/1e18,METRIC.LIQUIDATION_FEES);
+            dailyRevenue.addCGToken(market.coinGeckoId, Number(liquidation.liqFee) / 1e18, METRIC.LIQUIDATION_FEES);
+        });
     }));
 
     return {
@@ -132,7 +143,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-    Fees: "Includes open/close trades fees, swap fees and settlement fees.",
+    Fees: "Includes open/close trades fees, swap fees, liquidation and settlement fees.",
     Revenue: "Include open/close fees and settlement fees going to the protocol.",
     SupplySideRevenue: "Swap fees paid to vault liquidity providers.",
     ProtocolRevenue: "Include open/close fees and settlement fees going to the protocol.",
@@ -143,10 +154,12 @@ const breakdownMethodology = {
         [METRIC.SWAP_FEES]: "Total fees from token swaps.",
         [METRIC.OPEN_CLOSE_FEES]: "Total fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "Total fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     },
     Revenue: {
         [METRIC.OPEN_CLOSE_FEES]: "All fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "All fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     },
     SupplySideRevenue: {
         [METRIC.SWAP_FEES]: "Total fees from token swaps distributed to liquidity providers.",
@@ -154,6 +167,7 @@ const breakdownMethodology = {
     ProtocolRevenue: {
         [METRIC.OPEN_CLOSE_FEES]: "All fees from trading open/close fees.",
         [METRIC.TRADING_FEES]: "All fees from settlements.",
+        [METRIC.LIQUIDATION_FEES]: "Total fees from liquidation events",
     }
 };
 

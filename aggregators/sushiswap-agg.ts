@@ -373,6 +373,7 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.HYPERLIQUID]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.BERACHAIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.PLASMA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.MONAD]: '0xd2b37aDE14708bf18904047b1E31F8166d39612b',
 }
 
 const WNATIVE_ADDRESS: any = {
@@ -421,7 +422,8 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
   [CHAIN.HYPERLIQUID]: ADDRESSES.hyperliquid.WHYPE,
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
-  [CHAIN.PLASMA]: '0x6100e367285b01f48d07953803a2d8dca5d19873',
+  [CHAIN.PLASMA]: ADDRESSES.plasma.WXPL,
+  [CHAIN.MONAD]: ADDRESSES.monad.WMON,
 }
 
 const useSushiAPIPrice = (chain: any) => [
@@ -439,33 +441,16 @@ interface Log {
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
   const dailyVolume = createBalances()
 
-  const logsPromises: Promise<Log[]>[] = []
-  if (RP4_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
-  }
-  if (RP5_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
-  }
-  if (RP6_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
-  }
-  if (RP7_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP7_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
-  }
-  if (RP8_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP8_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
-  }
-  if (RP9_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  }
-  if (RP9_1_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  }
-  if (RP9_2_ADDRESS[chain]) {
-    logsPromises.push(getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  }
+  let logs: Array<Log> = [];
 
-  let logs = (await Promise.all(logsPromises)).flat()
+  if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  if (RP5_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP5_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
+  if (RP6_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP6_ADDRESS[chain], eventAbi: ROUTE_RP6_EVENT }))
+  if (RP7_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP7_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
+  if (RP8_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP8_ADDRESS[chain], eventAbi: ROUTE_RP7_EVENT }))
+  if (RP9_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP9_1_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   
   // count volune only from whitelisted tokens
   const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
@@ -495,7 +480,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
       return tokens
     }, {});
 
-    logs.forEach((log) => {
+    for (const log of logs) {
       const token = tokens[log.tokenIn.toLowerCase()]
       if (token && log.tokenIn.toLowerCase() !== ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
         const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
@@ -505,16 +490,16 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
         if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
         dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
       }
-    })
+    }
   } else {
-    logs.forEach((log) => {
+    for (const log of logs) {
       if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
       if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
         dailyVolume.addGasToken(log.amountIn)
       else {
         dailyVolume.add(log.tokenIn, log.amountIn)
       }
-    })
+    }
   }
 
   return { dailyVolume }
@@ -696,6 +681,10 @@ const adapters = {
   [CHAIN.PLASMA]: {
     fetch,
     start: '2025-09-25'
+  },
+  [CHAIN.MONAD]: {
+    fetch,
+    start: '2025-11-23'
   }
 }
 

@@ -159,6 +159,12 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0x7a4a5c919ae2541aed11041a1aeee68f1287f95b',
     start: '2025-01-24',
   },
+  [CHAIN.MONAD]: {
+    poolManager: '0x188d586ddcf52439676ca21a244753fa19f9ea8e',
+    source: 'LOGS',
+    positionManager: '0x5b7eC4a94fF9beDb700fb82aB09d5846972F4016',
+    start: '2025-11-23',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {

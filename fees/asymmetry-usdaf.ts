@@ -1,6 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
-import { getLiquityV2LogAdapter } from "../helpers/liquity";
+import { defaultV2BreakdownMethodology, defaultV2methodology, getLiquityV2LogAdapter } from "../helpers/liquity";
 
 async function fetch(options: FetchOptions) {
   const v0DeploymentRes = await getLiquityV2LogAdapter({
@@ -19,10 +19,8 @@ async function fetch(options: FetchOptions) {
 
 export default {
   version: 2,
-  methodology: {
-    Fees: "Total interest, redemption fees paid by borrowers and liquidation profit",
-    Revenue: "Total interest, redemption fees paid by borrowers and liquidation profit",
-  },
+  methodology: defaultV2methodology,
+  breakdownMethodology: defaultV2BreakdownMethodology,
   fetch,
   chains: [CHAIN.ETHEREUM],
 };

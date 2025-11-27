@@ -33,9 +33,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.MODE]: {
       fetch: getUniV2LogAdapter({ factory: '0x757cd583004400ee67e5cc3c7a60c6a62e3f6d30', ...getUniV2LogAdapterConfig }),
     },
-    [CHAIN.XLAYER]: {
-      fetch: getUniV2LogAdapter({ factory: '0x757cd583004400ee67e5cc3c7a60c6a62e3f6d30', ...getUniV2LogAdapterConfig }),
-    },
+    // [CHAIN.XLAYER]: {
+    //   fetch: getUniV2LogAdapter({ factory: '0x757cd583004400ee67e5cc3c7a60c6a62e3f6d30', ...getUniV2LogAdapterConfig }),
+    // },
     [CHAIN.LINEA]: {
       fetch: getUniV2LogAdapter({ factory: '0x9790713770039cefcf4faaf076e2846c9b7a4630', ...getUniV2LogAdapterConfig }),
     },
