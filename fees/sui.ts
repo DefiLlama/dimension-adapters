@@ -22,6 +22,7 @@ const adapter: SimpleAdapter = {
         dailyFees.addCGToken('sui', res[0].tx_fees/10**9)
         return {
             dailyFees,
+            dailyRevenue: dailyFees
         }
       },
     },
