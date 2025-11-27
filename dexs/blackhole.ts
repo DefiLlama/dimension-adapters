@@ -41,12 +41,8 @@ const fetch: FetchV2 = async (fetchOptions) => {
   });
   const fees = await api.multiCall({
     abi: 'function getFee(address,bool) view returns (uint256)',
-    calls: pairIds.map((pairId, i) => {
-      return {
-        target: Factory,
-        params: [pairId, stable[i]],
-      }
-    }),
+    target: Factory,
+    calls: pairIds.map((pairId, i) => ({ params: [pairId, stable[i]] })),
     permitFailure: false,
   });
   const lpSupplies = await api.multiCall({
@@ -56,12 +52,8 @@ const fetch: FetchV2 = async (fetchOptions) => {
   });
   const gauges = await api.multiCall({
     abi: 'function gauges(address) view returns (address)',
-    calls: pairIds.map(pairid => {
-      return {
-        target: GaugeManager,
-        params: [pairid],
-      }
-    }),
+    target: GaugeManager,
+    calls: pairIds.map(pairid => ({ params: [pairid] })),
     permitFailure: true,
   });
   const gaugeSupplies = await api.multiCall({
