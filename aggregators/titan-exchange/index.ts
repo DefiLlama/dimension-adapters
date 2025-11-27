@@ -2,26 +2,18 @@ import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
-const API_URL = "https://titan.exchange/public/daily-volume";
+const API_URL = "https://titan.exchange/public/hourly-volume";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  
-  // Convert timestamps to YYYY-MM-DD format
-  const startDate = new Date(options.startTimestamp * 1000).toISOString().split('T')[0];
-  const endDate = new Date(options.endTimestamp * 1000).toISOString().split('T')[0];
-  
-  const url = `${API_URL}?start_date=${startDate}&end_date=${endDate}`;
-  
+  const url = `${API_URL}?start_timestamp=${options.startTimestamp}&end_timestamp=${options.endTimestamp}`;
   const result = await fetchURL(url);
   
-  // Sum up volume for the date range
-  const totalVolume = result.data.reduce((sum: number, day: any) => {
-    return sum + Number(day.volume_usd);
+  // Sum hourly volumes for the exact timestamp range
+  const totalVolume = result.data.reduce((sum: number, hour: any) => {
+    return sum + Number(hour.volume_usd);
   }, 0);
   
-  return {
-    dailyVolume: totalVolume
-  };
+  return { dailyVolume: totalVolume };
 };
 
 const adapter: any = {

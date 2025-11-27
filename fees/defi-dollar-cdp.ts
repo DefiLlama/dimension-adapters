@@ -2,5 +2,5 @@ import { CHAIN } from "../helpers/chains"
 import { liquityV2Exports } from "../helpers/liquity"
 
 export default liquityV2Exports({
-  [CHAIN.ARBITRUM]: { collateralRegistry: '0x7f7fbc2711c0d6e8ef757dbb82038032dd168e68', }
+  [CHAIN.ETHEREUM]: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', },
 })

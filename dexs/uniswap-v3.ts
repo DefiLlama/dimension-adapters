@@ -184,6 +184,7 @@ const okuChains = [
   CHAIN.TELOS,
   CHAIN.CELO,
   CHAIN.NIBIRU,
+  CHAIN.MONAD,
   
   // CHAIN.BLAST,
   // CHAIN.LENS,

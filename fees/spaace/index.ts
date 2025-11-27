@@ -51,7 +51,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ETHEREUM],
-  start: '2023-07-27',
+  start: '2025-09-01',
   methodology
 }
 
