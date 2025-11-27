@@ -182,12 +182,14 @@ const getFluidVaultsDailyBorrowFees = async ({ fromApi, api, createBalances }: F
         : vaultDataFrom.constantVariables?.borrowToken;
     if (!borrowToken) continue;
 
-    const initialBalance = new BigNumber(vaultDataFrom.totalSupplyAndBorrow?.totalBorrowVault || "0");
+    let borrowBalances = new BigNumber(vaultDataFrom.totalSupplyAndBorrow?.totalBorrowVault || "0");
     const borrowBalanceTo = new BigNumber(vaultDataTo.totalSupplyAndBorrow?.totalBorrowVault || "0");
-    if (initialBalance.isZero() || borrowBalanceTo.isZero()) continue;
+    if (borrowBalances.isZero() || borrowBalanceTo.isZero()) continue;
 
     const liquidityLogs = logOperates.filter((log: any) => log[0] == vault && log[1] == borrowToken && log[5] !== reserveContract);
-    const borrowBalances = liquidityLogs.reduce((balance: BigNumber, [, , , amount]) => balance.plus(new BigNumber(amount || "0")),initialBalance);
+    for (const log of liquidityLogs) {
+      borrowBalances = borrowBalances.plus(log.borrowAmount)
+    }
     const fees = borrowBalanceTo.minus(borrowBalances);
     const safeFees = fees.isPositive() ? fees : new BigNumber(0);
     dailyFees.add(borrowToken, safeFees);
@@ -237,8 +239,8 @@ const getFluidDexesDailyBorrowFees = async ({ fromApi, api, createBalances }: Fe
     const dexLogs0 = dexLogs.filter((log) => log[1] == token0 && log[5] !== reserveContract);
     const dexLogs1 = dexLogs.filter((log) => log[1] == token1 && log[5] !== reserveContract);
 
-    const borrowBalance0 = dexLogs0.reduce((balance, [, , , amount]) => balance.plus(new BigNumber(amount || "0")), initialBalance0);
-    const borrowBalance1 = dexLogs1.reduce((balance, [, , , amount]) => balance.plus(new BigNumber(amount || "0")), initialBalance1);
+    const borrowBalance0 = dexLogs0.reduce((balance, log) => balance.plus(new BigNumber(log.borrowAmount || "0")), initialBalance0);
+    const borrowBalance1 = dexLogs1.reduce((balance, log) => balance.plus(new BigNumber(log.borrowAmount || "0")), initialBalance1);
 
     const fees0 = finalBalance0.minus(borrowBalance0);
     const fees1 = finalBalance1.minus(borrowBalance1);

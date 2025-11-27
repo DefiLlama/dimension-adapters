@@ -20,43 +20,34 @@ interface APIResponse {
     fees: FeeData[];
 }
 
-const fetch = async (options: FetchOptions) => {
-    const { startTimestamp, endTimestamp, dateString, createBalances } = options;
+let data: any
+
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
+    const { dateString, createBalances } = options;
 
     const dailyFees = createBalances();
 
-    // Convert Unix timestamp to UTC date string (YYYY-MM-DD)
-    const startDate = new Date(startTimestamp * 1000).toISOString().split('T')[0];
-    const endDate = new Date(endTimestamp * 1000).toISOString().split('T')[0];
-
+    if (!data)
+        data = fetchURL("https://platform.data.defuse.org/api/public/fees")
     // Fetch fee data for the specific period using query parameters
-    const response: APIResponse = await fetchURL(
-        `https://platform.data.defuse.org/api/public/fees?start=${startDate}&end=${endDate}`
-    );
+    const response: APIResponse = await data
 
-    if (!response || !response.fees || !Array.isArray(response.fees)) {
+    if (!response || !response.fees || !Array.isArray(response.fees))
         throw new Error("Invalid API response format");
-    }
+    const item = response.fees.find(feeEntry => feeEntry.date_at === dateString);
+    if (!item)
+        throw new Error(`No fee data found for date: ${dateString}`);
 
-    // Find the fee data
-    const dayData = response.fees.find((item: FeeData) => item.date_at === dateString);
-
-    if (dayData && dayData.fee > 0) {
-        dailyFees.addUSDValue(dayData.fee);
-    }
-    // Note: If no data found, we return empty balances (0 values)
-    // This is normal for dates where data hasn't been aggregated yet
-    return {
-        dailyFees,
-    };
+    dailyFees.addUSDValue(item.fee);
+    return { dailyFees, };
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
+    start: '2025-05-06', // First date with data in the API
     adapter: {
         [CHAIN.NEAR]: {
             fetch: fetch,
-            start: '2025-05-06', // First date with data in the API
         },
     },
     methodology: {
