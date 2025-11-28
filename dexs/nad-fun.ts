@@ -27,6 +27,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   dailyFees.addGasToken(10 * creationLogs.length * 1e18, 'Creation Fees')  // 10 MON per token created
   dailyFees.addGasToken(3_000 * graduateLogs.length * 1e18, "Graduation Fees") // 3_000 MON per token graduated
+  dailyRevenue.addGasToken(10 * creationLogs.length * 1e18, 'Creation Revenue')  // 10 MON per token created
+  dailyRevenue.addGasToken(3_000 * graduateLogs.length * 1e18, "Graduation Revenue") // 3_000 MON per token graduated
   
   lpManagerCollectLogs.forEach((log) => {
     const collectFee = Number(log.monAmount);
@@ -37,16 +39,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   buyLogs.forEach(log => {
     const fee = Number(log.amountIn) * 1 / 100  // 1% fee on buys
     dailyFees.addGasToken(fee, 'Buy Fees')
+    dailyRevenue.addGasToken(fee, 'Buy Revenue')
     dailyVolume.addGasToken(Number(log.amountIn))
   })
 
   sellLogs.forEach(log => {
     const fee = Number(log.amountOut) * 1 / 100  // 1% fee on sells
     dailyFees.addGasToken(fee, 'Sell Fees')
+    dailyRevenue.addGasToken(fee, 'Sell Revenue')
     dailyVolume.addGasToken(log.amountOut)
   })
-
-  dailyRevenue.add(dailyFees)
 
 
   return { dailyFees, dailyRevenue, dailyVolume, };
