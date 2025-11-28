@@ -13,7 +13,7 @@ const chainsMap: Record<string, string> = {
   [CHAIN.BASE]: 'base',
   [CHAIN.LINEA]: 'linea',
   [CHAIN.SONIC]: 'sonic',
-  [CHAIN.ERA]: 'zksync',
+  // [CHAIN.ERA]: 'zksync',
   [CHAIN.SOLANA]: 'solana',
   [CHAIN.PLASMA]: 'plasma'
 };

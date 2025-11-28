@@ -2,7 +2,8 @@ import * as sdk from "@defillama/sdk";
 import { Chain, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions } from "../adapters/types";
-import { sleep } from "../utils/utils";
+import { formatAddress, sleep } from "../utils/utils";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
 type IConfig = {
   [s: string | Chain]: {
@@ -66,6 +67,8 @@ async function retry(chain: string, fromBlock: number, toBlock: number, address:
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
 
+  const blacklistTokens: Array<string> = getDefaultDexTokensBlacklisted(options.chain)
+  
   const limit = configs[options.chain].getTrasnactionLimit
   let blockNumber = Number(options.fromApi.block);
 
@@ -78,7 +81,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const address = data.slice(64, 128);
       const amount = Number('0x' + data.slice(128, 192));
       const tokenAddress = '0x' + address.slice(24, address.length);
-      dailyVolume.add(tokenAddress, amount);
+      
+      if (!blacklistTokens.includes(formatAddress(tokenAddress))) {
+        dailyVolume.add(tokenAddress, amount);
+      }
     }
   }
 
