@@ -10,8 +10,8 @@ const config = {
   [CHAIN.ARBITRUM]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
   [CHAIN.XDAI]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4'],
   [CHAIN.OPTIMISM]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4'],
-  [CHAIN.SEI]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
   
+  // [CHAIN.SEI]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',], -- not supported by Llama indexer as is
   // [CHAIN.POLYGON]: [],
 }
 async function fetch(options: FetchOptions) {
@@ -51,6 +51,7 @@ async function fetch(options: FetchOptions) {
   api.log(balancesObject)
   api.log(await dailyFees.getUSDJSONs())
 */
+  
   return {
     dailyFees
   };
