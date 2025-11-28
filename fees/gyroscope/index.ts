@@ -2,15 +2,17 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from '../../helpers/token';
 
-// wrong config free wallet is balancer team not gyroscope
+// As per: https://docs.gyro.finance/deployed-contracts/pools.html#fees-receiver
 const config = {
   [CHAIN.BASE]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
   [CHAIN.ETHEREUM]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
   [CHAIN.AVAX]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
   [CHAIN.ARBITRUM]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
-  // [CHAIN.XDAI]: [],
+  [CHAIN.XDAI]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4'],
+  [CHAIN.OPTIMISM]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4'],
+  [CHAIN.SEI]: ['0xA01ba17778A860EC92053325d0de4022240ceeA4',],
+  
   // [CHAIN.POLYGON]: [],
-  // [CHAIN.SEI]: ['0xDcC628c4C9f3840EA70f95798Ec4C16B0DA23ef9',],
 }
 async function fetch(options: FetchOptions) {
   const { chain, api } = options;
