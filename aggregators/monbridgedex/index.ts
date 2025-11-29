@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
 const CONTRACTS: Record<string, string> = {
-  [CHAIN.MONAD]: "0x7dd7fc9380e3107028a158f49bd25a8a8d48b225",
+  [CHAIN.MONAD]: "0x7dD7FC9380e3107028a158f49Bd25A8A8D48b225",
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -22,7 +22,6 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.add(tokenIn, amountIn);
   }
 
-  // Optional: log result for testing
   console.log("Daily volume result:", dailyVolume);
 
   return {
