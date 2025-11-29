@@ -3,12 +3,19 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
-    const query = `select sum(value/1e9) as ton_received from ton.messages
-    where direction = 'in'
-    and destination = UPPER('0:852443f8599fe6a5da34fe43049ac4e0beb3071bb2bfb56635ea9421287c283a')
-    and block_time>=from_unixtime(${options.fromTimestamp}) and block_time<from_unixtime(${options.toTimestamp})`;
+    const query = `
+      select sum(value/1e9) as ton_received from ton.messages
+      where direction = 'in'
+      and destination = UPPER('0:852443f8599fe6a5da34fe43049ac4e0beb3071bb2bfb56635ea9421287c283a')
+      and block_time>=from_unixtime(${options.fromTimestamp}) and block_time<from_unixtime(${options.toTimestamp})
+    `;
 
     const queryResults = await queryDuneSql(options, query);
+    
+    if (!queryResults[0] || !queryResults[0].ton_received) {
+      throw Error('query Dune return null result');
+    }
+    
     const dailyFees = options.createBalances();
     dailyFees.addCGToken("the-open-network", queryResults[0].ton_received);
 
@@ -28,7 +35,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.TON],
-    start: '2022-10-26',
+    start: '2024-10-01',
     methodology,
     isExpensiveAdapter: true,
     dependencies: [Dependencies.DUNE]
