@@ -32,7 +32,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 }
 
 const methodology = {
-    Fees: "Includes NFT marketplace fees, fees to buy telegram ads , premium , stars, usernames, numbers etc ",
+    Fees: "Includes NFT marketplace fees(auction fees of usernames and numbers, telegram premium), fees to buy telegram ads ,stars etc ",
     Revenue: "All fees are revenue",
     ProtocolRevenue: "All the fees goes to protocol"
 };
