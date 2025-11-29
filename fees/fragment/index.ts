@@ -3,6 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+    throw Error('WIP')
+  
     const query = `
       select sum(value/1e9) as ton_received from ton.messages
       where direction = 'in'
