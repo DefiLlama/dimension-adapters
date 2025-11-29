@@ -16,24 +16,10 @@ const fetch = async (options: FetchOptions) => {
   });
 
   for (const log of swapLogs) {
-    if (!log.args) continue; // skip if undefined
+    if (!log.args) continue;
     const { tokenIn, amountIn } = log.args;
     if (!tokenIn || !amountIn) continue;
     dailyVolume.add(tokenIn, amountIn);
-  }
-
-  // SplitSwapExecuted logs
-  const splitSwapLogs = await options.getLogs({
-    target: CONTRACTS[options.chain],
-    eventAbi:
-      "event SplitSwapExecuted(address indexed user, address tokenIn, address tokenOut, uint256 totalAmountIn, uint256 totalAmountOut, uint256 splitCount, uint256 totalFee)",
-  });
-
-  for (const log of splitSwapLogs) {
-    if (!log.args) continue;
-    const { tokenIn, totalAmountIn } = log.args;
-    if (!tokenIn || !totalAmountIn) continue;
-    dailyVolume.add(tokenIn, totalAmountIn);
   }
 
   // Optional: log result for testing
