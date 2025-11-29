@@ -3,115 +3,369 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL = 'https://volume-tracking.icecreamswap.dev';
+const CHAINS_API = 'https://api.nordstern.finance/chains';
+
+enum CHAIN_BACKUP {
+    PACASWAP = "pacaswap",
+    PEAQ = "peaq",
+    CHROMIA = "chromia",
+    OFF_CHAIN = "off_chain",
+    ZK_LIGHTER = 'zklighter',
+    GALA = "gala",
+    TARA = "tara",
+    ARBITRUM = "arbitrum",
+    ASSETCHAIN = "assetchain",
+    AVAX = "avax",
+    BLAST = "blast",
+    BAHAMUT = "ftn",
+    BOBA = "boba",
+    BOBA_BNB = "boba_bnb",
+    BSC = "bsc",
+    BIFROST = "bifrost",
+    BOTANIX = "btnx",
+    CELO = "celo",
+    ETHEREUM = "ethereum",
+    FANTOM = "fantom",
+    HARMONY = "harmony",
+    HAQQ = "islm",
+    HECO = "heco",
+    OKEXCHAIN = "okexchain",
+    OPTIMISM = "optimism",
+    POLYGON = "polygon",
+    POLYNOMIAL = "polynomial",
+    RIPPLE = "ripple",
+    RONIN = "ronin",
+    ROOTSTOCK = "rsk",
+    XDAI = "xdai",
+    AURORA = "aurora",
+    MOONRIVER = "moonriver",
+    TRON = "tron",
+    KLAYTN = "klaytn",
+    JUNO = "juno",
+    KCC = "kcc",
+    WAN = "wan",
+    CARDANO = "cardano",
+    LITECOIN = "litecoin",
+    BITCOIN = "bitcoin",
+    BITCOIN_CASH = "bitcoincash",
+    DOGECHAIN = "dogechain",
+    ENERGI = "energi",
+    VELAS = "velas",
+    ELASTOS = "elastos",
+    TEZOS = "tezos",
+    METIS = "metis",
+    SOLANA = "solana",
+    IOTEX = "iotex",
+    KARDIA = "kardia",
+    TOMBCHAIN = "tombchain",
+    CONFLUX = "conflux",
+    TERRA = "terra",
+    METER = "meter",
+    GODWOKEN = "godwoken",
+    GODWOKEN_V1 = "godwoken_v1",
+    FUSE = "fuse",
+    SX = "sx",
+    SXR = "sxr",
+    ELROND = "elrond",
+    DEFICHAIN = "defichain",
+    CUBE = "cube",
+    STACKS = "stacks",
+    STEP = "step",
+    SYSCOIN = "syscoin",
+    CRONOS = "cronos",
+    VISION = "vision",
+    KARURA = "karura",
+    SMARTBCH = "smartbch",
+    KAVA = "kava",
+    HEDERA = "hedera",
+    CALLISTO = "callisto",
+    EOS = "eos",
+    BITTORRENT = "bittorrent",
+    ONTOLOGY_EVM = "ontology_evm",
+    ICON = "icon",
+    CLV = "clv",
+    ULTRON = "ultron",
+    STELLAR = "stellar",
+    ALGORAND = "algorand",
+    TELOS = "telos",
+    TOMOCHAIN = "tomochain",
+    BITGERT = "bitgert",
+    FINDORA = "findora",
+    FUNCTIONX = "functionx",
+    ENERGYWEB = "energyweb",
+    MIXIN = "mixin",
+    THORCHAIN = "thorchain",
+    MILKOMEDA = "milkomeda",
+    FLOW = "flow",
+    FUSION = "fusion",
+    CANTO = "canto",
+    APTOS = "aptos",
+    NEO = "neo",
+    PHANTASMA = "phantasma",
+    XDC = "xdc",
+    STARKNET = "starknet",
+    MOONBEAM = "moonbeam",
+    WAVES = "waves",
+    CARBON = "carbon",
+    THUNDERCORE = "thundercore",
+    VECHAIN = "vechain",
+    WAX = "wax",
+    MAP = "map",
+    ARBITRUM_NOVA = "arbitrum_nova",
+    INJECTIVE = "injective",
+    ORAI = "orai",
+    TON = "ton",
+    OBYTE = "obyte",
+    CORE = "core",
+    RPG = "rpg",
+    WEMIX = "wemix",
+    ZKSYNC = "zksync",
+    ERA = "era",
+    DFK = "dfk",
+    POLYGON_ZKEVM = "polygon_zkevm",
+    ACALA = "acala",
+    SORA = "sora",
+    COSMOS = "cosmos",
+    OAS = "oas",
+    HYDRA = "hydra",
+    ENULS = "enuls",
+    SUI = "sui",
+    EVMOS = "evmos",
+    PULSECHAIN = "pulse",
+    ONUS = "onus",
+    OASIS = "oasis",
+    MANTLE = "mantle",
+    ICP = "icp",
+    LINEA = "linea",
+    BASE = "base",
+    NEON = "neon_evm",
+    OP_BNB = "op_bnb",
+    HYDRADX = "hydradx",
+    OSMOSIS = "osmosis",
+    SEI = "sei",
+    ERGO = "ergo",
+    SHIMMER_EVM = "shimmer_evm",
+    MEER = "meer",
+    SCROLL = "scroll",
+    RADIXDLT = "radixdlt",
+    LIGHTLINK_PHOENIX = "lightlink_phoenix",
+    ETHERLINK = "etlk",
+    ETHEREUM_CLASSIC = "ethereumclassic",
+    NULS = "nuls",
+    EON = "eon",
+    MANTA = "manta",
+    NEAR = "near",
+    EOS_EVM = "eos_evm",
+    ROLLUX = "rollux",
+    MODE = "mode",
+    PERSISTENCE = "persistence",
+    POLKADEX = "polkadex",
+    JBC = "jbc",
+    ZKFAIR = "zkfair",
+    ZETA = "zeta",
+    ASTAR = "astar",
+    ASTAR_ZKEVM = "astrzk",
+    FILECOIN = "filecoin",
+    FRAXTAL = "fraxtal",
+    IMX = "imx",
+    KROMA = "kroma",
+    ZORA = "zora",
+    SVM = "svm",
+    ASTRZK = "astrzk",
+    LYRA = "lyra",
+    BITLAYER = "btr",
+    XLAYER = "xlayer",
+    MERLIN = "merlin",
+    CHILIZ = "chz",
+    PLANQ = "planq",
+    BOB = "bob",
+    TAIKO = "taiko",
+    SKALE_EUROPA = "skale_europa",
+    IOTAEVM = "iotaevm",
+    ZKLINK = "zklink",
+    DEXALOT = "dexalot",
+    IMMUTABLEX = "imx",
+    CHAINFLIP = "chainflip",
+    CRONOS_ZKEVM = "cronos_zkevm",
+    LOGX = "logx_network",
+    FLARE = "flare",
+    NUMBERS = "numbers",
+    BSQUARED = "bsquared",
+    LISK = "lisk",
+    MINT = "mint",
+    HELA = "hela",
+    FUEL = "fuel",
+    REAL = "real",
+    CELESTIA = "celestia",
+    MORPH = "morph",
+    APECHAIN = "apechain",
+    DCHAIN = "dchainmainnet",
+    DUCKCHAIN = "duckchain",
+    GRAVITY = "gravity",
+    RARI = "rari",
+    REYA = "reya",
+    SANKO = "sanko",
+    ECLIPSE = "eclipse",
+    UNIT0 = "unit0",
+    SHIDO = "shido",
+    ACE = "ace",
+    BOUNCE_BIT = "bouncebit",
+    ZIRCUIT = "zircuit",
+    WC = "wc",
+    ARCHWAY = "archway",
+    VINUCHAIN = "vinu",
+    NEUTRON = "neutron",
+    CORN = "corn",
+    SAGA = "saga",
+    SAPPHIRE = "sapphire",
+    VANA = "vana",
+    SONIC = "sonic",
+    HYPERLIQUID = "hyperliquid",
+    SONEIUM = "soneium",
+    INK = "ink",
+    ZERO = "zero_network",
+    SHAPE = "shape",
+    ABSTRACT = "abstract",
+    REDSTONE = "redstone",
+    PLUME = "plume_mainnet",
+    PLUME_LEGACY = "plume",
+    PENUMBRA = "penumbra",
+    BERACHAIN = "berachain",
+    UNICHAIN = "unichain",
+    STORY = 'sty',
+    LUMIA = 'lumia',
+    FORMNETWORK = "formnetwork",
+    HEMI = "hemi",
+    MOVE = "move",
+    SUPERPOSITION = "spn",
+    SWELLCHAIN = "swellchain",
+    ANCIENT8 = "ancient8",
+    ARWEAVE = "arweave",
+    WINR = "winr",
+    SOPHON = "sophon",
+    KARAK = "karak",
+    VERUS = "verus",
+    PERENNIAL = "perennial",
+    GOAT = "goat",
+    HASHKEY = "hsk",
+    NOBLE = "noble",
+    ELYS = "elys",
+    BITKUB = "bitkub",
+    INITIA = "initia",
+    COTI = "coti",
+    LENS = "lens",
+    SSEED = "sseed",
+    AO = 'ao',
+    XRPL_EVM = 'xrplevm',
+    KATANA = 'katana',
+    SOON = 'soon',
+    SOON_BSC = 'soon_bsc',
+    SOON_BASE = 'soon_base',
+    HYDRAGON = 'hydragon',
+    TAC = "tac",
+    NIBIRU = "nibiru",
+    HAVEN1 = "haven1",
+    GRVT = "grvt",
+    SOMNIA = "somnia",
+    ORDERLY = "orderly",
+    CAMP = "camp",
+    PARADEX = "paradex",
+    EDGEX = "edgex",
+    AKASH = "akash",
+    DOGE = "doge",
+    PLASMA = "plasma",
+    QUBIC = "qubic",
+    HIBACHI = "hibachi",
+    SATORI = "satori",
+    SHIBARIUM = "shibarium",
+    ETHEREAL = "ethereal",
+    MEZO = "mezo",
+}
 
 interface IAPIResponse {
     dailyVolume: string;
 }
 
-const commonStartTime = '2025-08-01'
+type ChainApiEntry = {
+    ChainID: string | number;
+    ChainName: string;
+    DefillamaName: string;
+}
 
-const chainConfig: Record<string, { id: number, start: string }> = {
-    [CHAIN.ETHEREUM]: { id: 1, start: commonStartTime },
-    [CHAIN.HEMI]: { id: 43111, start: commonStartTime },
-    [CHAIN.ARBITRUM]: { id: 42161, start: commonStartTime },
-    [CHAIN.CELO]: { id: 42220, start: commonStartTime },
-    [CHAIN.ROOTSTOCK]: { id: 30, start: commonStartTime },
-    [CHAIN.XDC]: { id: 50, start: commonStartTime },
-    [CHAIN.TELOS]: { id: 40, start: commonStartTime },
-    [CHAIN.AVAX]: { id: 43114, start: commonStartTime },
-    [CHAIN.SONIC]: { id: 146, start: commonStartTime },
-    [CHAIN.SCROLL]: { id: 534352, start: commonStartTime },
-    [CHAIN.TAIKO]: { id: 167000, start: commonStartTime },
-    [CHAIN.CORE]: { id: 1116, start: commonStartTime },
-    [CHAIN.IMMUTABLEX]: { id: 13371, start: commonStartTime },
-    [CHAIN.MORPH]: { id: 2818, start: commonStartTime },
-    [CHAIN.OPTIMISM]: { id: 10, start: commonStartTime },
-    [CHAIN.LINEA]: { id: 59144, start: commonStartTime },
-    [CHAIN.ZIRCUIT]: { id: 48900, start: commonStartTime },
-    [CHAIN.BOB]: { id: 60808, start: commonStartTime },
-    [CHAIN.BOBA]: { id: 288, start: commonStartTime },
-    [CHAIN.BASE]: { id: 8453, start: commonStartTime },
-    [CHAIN.MANTLE]: { id: 5000, start: commonStartTime },
-    [CHAIN.BSC]: { id: 56, start: commonStartTime },
-    [CHAIN.POLYGON]: { id: 137, start: commonStartTime },
-    [CHAIN.CRONOS]: { id: 25, start: commonStartTime },
-    [CHAIN.BLAST]: { id: 81457, start: commonStartTime },
-    [CHAIN.POLYGON_ZKEVM]: { id: 1101, start: commonStartTime },
-    [CHAIN.BITTORRENT]: { id: 199, start: commonStartTime },
-    [CHAIN.BERACHAIN]: { id: 80094, start: commonStartTime },
-    [CHAIN.UNICHAIN]: { id: 130, start: commonStartTime },
-    [CHAIN.HYPERLIQUID]: { id: 999, start: commonStartTime },
-    [CHAIN.SEI]: { id: 1329, start: commonStartTime },
-    [CHAIN.BITGERT]: { id: 32520, start: commonStartTime },
-    [CHAIN.ULTRON]: { id: 1231, start: commonStartTime },
-    [CHAIN.EOS]: { id: 17777, start: commonStartTime },
-    [CHAIN.KAVA]: { id: 2222, start: commonStartTime },
-    [CHAIN.MOONRIVER]: { id: 1285, start: commonStartTime },
-    [CHAIN.XLAYER]: { id: 196, start: commonStartTime },
-    [CHAIN.METIS]: { id: 1088, start: commonStartTime },
-    [CHAIN.LIGHTLINK_PHOENIX]: { id: 1890, start: commonStartTime },
-    [CHAIN.MINT]: { id: 185, start: commonStartTime },
-    [CHAIN.GRAVITY]: { id: 1625, start: commonStartTime },
-    [CHAIN.OKEXCHAIN]: { id: 66, start: commonStartTime },
-    [CHAIN.AURORA]: { id: 1313161554, start: commonStartTime },
-    [CHAIN.ZORA]: { id: 7777777, start: commonStartTime },
-    [CHAIN.DUCKCHAIN]: { id: 5545, start: commonStartTime },
-    [CHAIN.MANTA]: { id: 169, start: commonStartTime },
-    [CHAIN.PULSECHAIN]: { id: 369, start: commonStartTime },
-    [CHAIN.EOS_EVM]: { id: 17777, start: commonStartTime },
-    [CHAIN.THUNDERCORE]: { id: 108, start: commonStartTime },
-    [CHAIN.ASTAR]: { id: 592, start: commonStartTime },
-    [CHAIN.METER]: { id: 82, start: commonStartTime },
-    [CHAIN.SONEIUM]: { id: 1868, start: commonStartTime },
-    [CHAIN.SHIMMER_EVM]: { id: 148, start: commonStartTime },
-    [CHAIN.SANKO]: { id: 1996, start: commonStartTime },
-    [CHAIN.BITLAYER]: { id: 200901, start: commonStartTime },
-    [CHAIN.ZETA]: { id: 7000, start: commonStartTime },
-    [CHAIN.RONIN]: { id: 2020, start: commonStartTime },
-    [CHAIN.BSQUARED]: { id: 223, start: commonStartTime },
-    [CHAIN.ETHERLINK]: { id: 42793, start: commonStartTime },
-    [CHAIN.FLARE]: { id: 14, start: commonStartTime },
-    [CHAIN.INK]: { id: 57073, start: commonStartTime },
-    [CHAIN.FRAXTAL]: { id: 252, start: commonStartTime },
-    [CHAIN.IOTAEVM]: { id: 8822, start: commonStartTime },
-    [CHAIN.STORY]: { id: 1514, start: commonStartTime },
-    [CHAIN.BOUNCE_BIT]: { id: 6001, start: commonStartTime },
-    [CHAIN.SWELLCHAIN]: { id: 1923, start: commonStartTime },
-    [CHAIN.VANA]: { id: 1480, start: commonStartTime },
-    [CHAIN.CORN]: { id: 21000000, start: commonStartTime },
-    [CHAIN.FLOW]: { id: 747, start: commonStartTime },
-    [CHAIN.CONFLUX]: { id: 1030, start: commonStartTime },
-    [CHAIN.CHILIZ]: { id: 88888, start: commonStartTime },
-    [CHAIN.OP_BNB]: { id: 204, start: commonStartTime },
-    [CHAIN.WAN]: { id: 888, start: commonStartTime },
-    [CHAIN.MERLIN]: { id: 4200, start: commonStartTime },
-    [CHAIN.LISK]: { id: 1135, start: commonStartTime },
-    [CHAIN.TARA]: { id: 841, start: commonStartTime },
-    [CHAIN.DOGECHAIN]: { id: 2000, start: commonStartTime },
-    [CHAIN.APECHAIN]: { id: 33139, start: commonStartTime },
-    [CHAIN.RARI]: { id: 1380012617, start: commonStartTime },
-    [CHAIN.FILECOIN]: { id: 314, start: commonStartTime },
-    [CHAIN.SUPERPOSITION]: { id: 55244, start: commonStartTime },
-    [CHAIN.FUSE]: { id: 122, start: commonStartTime },
-    [CHAIN.MEER]: { id: 813, start: commonStartTime },
-    [CHAIN.KROMA]: { id: 255, start: commonStartTime },
-    [CHAIN.MODE]: { id: 34443, start: commonStartTime },
+type ChainApiResponse = Record<string, ChainApiEntry>;
+
+const commonStartTime = '2025-08-01';
+
+const MERGED_CHAINS: Set<string> = new Set<string>([
+    ...Object.values(CHAIN_BACKUP),
+    ...Object.values(CHAIN),
+] as unknown as string[]);
+
+const buildChainConfig = async (): Promise<Record<string, { id: number, start: string }>> => {
+    const response = await fetchURL(CHAINS_API) as ChainApiResponse;
+    const dynamicChainConfig: Record<string, { id: number, start: string }> = {};
+
+    for (const entry of Object.values(response)) {
+        const id = Number(entry.ChainID);
+        const chainName = entry.ChainName;
+        const defillamaName = entry.DefillamaName;
+
+        // Determine which name to use as the key, checking against merged chains
+        let chainKey: string | null = null;
+        if (defillamaName && MERGED_CHAINS.has(defillamaName)) {
+            chainKey = defillamaName;
+        } else if (chainName && MERGED_CHAINS.has(chainName)) {
+            chainKey = chainName;
+        }
+
+        if (chainKey) {
+            dynamicChainConfig[chainKey] = { id, start: commonStartTime };
+        } else {
+            console.log("chain not supported, skipping: " + chainName);
+        }
+    }
+    console.log("chains Length: " + Object.keys(dynamicChainConfig).length);
+    return dynamicChainConfig;
+};
+
+let chainConfigPromise: Promise<Record<string, { id: number, start: string }>> | null = null;
+const getChainConfig = () => {
+    if (!chainConfigPromise) chainConfigPromise = buildChainConfig();
+    return chainConfigPromise;
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
-    const chainId = chainConfig[options.chain].id;
+    const config = await getChainConfig();
+    const chainId = config[options.chain]?.id;
+    if (!chainId) {
+        // Chain not supported
+        return { dailyVolume: "0" };
+    }
 
     const endpoint = `/api/v1/statistics/${chainId}/${options.dateString}`;
     const response: IAPIResponse = await fetchURL(`${URL}${endpoint}`);
 
     return {
-        dailyVolume: response.dailyVolume
+        dailyVolume: response.dailyVolume || 0
     };
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
     fetch,
-    adapter: chainConfig
+    adapter: Object.fromEntries(
+        Array.from(MERGED_CHAINS).map((chain) => [
+            chain,
+            {
+                start: async () => {
+                    const cfg = await getChainConfig();
+                    const entry = cfg[chain];
+                    // If chain is supported, use commonStartTime; otherwise set far future to skip
+                    return entry ? new Date(commonStartTime).getTime() / 1000 : Math.trunc(Date.now() / 1000) + 10 ** 9;
+                }
+            }
+        ])
+    ),
 };
 
 export default adapter;
