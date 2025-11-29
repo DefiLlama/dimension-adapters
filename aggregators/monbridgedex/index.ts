@@ -7,30 +7,32 @@ const CONTRACTS: Record<string, string> = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
   // SwapExecuted logs
   const swapLogs = await options.getLogs({
     target: CONTRACTS[options.chain],
-    eventAbi:
-      "event SwapExecuted(address indexed user, address indexed router, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, uint256 actualSlippage, uint8 swapType)",
+    eventAbi: "event SwapExecuted(address indexed user, address indexed router, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, uint256 actualSlippage, uint8 swapType)",
   });
 
   for (const log of swapLogs) {
-    if (!log.args) continue;
-    const { tokenIn, amountIn } = log.args;
-    if (!tokenIn || !amountIn) continue;
-    dailyVolume.add(tokenIn, amountIn);
+    dailyVolume.add(log.tokenIn, log.amountIn);
+    dailyFees.add(log.tokenIn, log.fee);
   }
-
-  console.log("Daily volume result:", dailyVolume);
 
   return {
     dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
   };
 };
 
 const adapter: any = {
   version: 2,
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    UserFees: 'Users pay fees per swap.',
+  },
   adapter: {
     [CHAIN.MONAD]: {
       fetch,
