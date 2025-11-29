@@ -6,6 +6,7 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
     '0x044fe33895Cb7c6e4566DA8E24420C1110933a63',
     '0x888888aE2c4A298EFd66D162fFC53b3F2a869888',
+    '0xb4357054c3da8d46ed642383f03139ac7f090343', // PORT3 - hacked
   ],
   [CHAIN.BSC]: [
     '0xc71b5f631354be6853efe9c3ab6b9590f8302e81',
