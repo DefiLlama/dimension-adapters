@@ -1,7 +1,6 @@
-import { lookupBlock } from "@defillama/sdk/build/util";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addGasTokensReceived, addTokensReceived, getETHReceived, nullAddress } from '../../helpers/token';
+import { addTokensReceived, getETHReceived, nullAddress } from '../../helpers/token';
 import fetchURL from "../../utils/fetchURL";
 
 const TOKEN_ADDRESS = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
