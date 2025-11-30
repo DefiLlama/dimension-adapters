@@ -1,20 +1,21 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
-import ADDRESSES from '../../helpers/coreAssets.json'
 
 const feeCollector = ['0xfF16fd3D147220E6CC002a8e4a1f942ac41DBD23'];
-const ADDRESS = {
-  [CHAIN.BASE]: '0x87f18b377e625b62c708D5f6EA96EC193558EFD0',
-  [CHAIN.OPTIMISM]: '0xf132bD888897254521D13e2c401e109caABa06A7',
-  [CHAIN.AVAX]: '0xf6a044c3b2a3373ef2909e2474f3229f23279b5f'
+const LOAN_ADDRESS: any = {
+  [CHAIN.BASE]: ['0x87f18b377e625b62c708D5f6EA96EC193558EFD0'],
+  [CHAIN.OPTIMISM]: ['0xf132bD888897254521D13e2c401e109caABa06A7'],
+  [CHAIN.AVAX]: ['0x6Bf2Fe80D245b06f6900848ec52544FBdE6c8d2C',
+    '0x5122f5154DF20E5F29df53E633cE1ac5b6623558'
+  ]
 };
 
 const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   const logs = await options.getLogs({
-    target: ADDRESS[options.chain],
+    targets: LOAN_ADDRESS[options.chain],
     eventAbi: 'event RewardsReceived(uint256 epoch, uint256 amount, address borrower, uint256 tokenId)', 
   });
 
@@ -24,8 +25,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyRevenue = await addTokensReceived({
+    fromAdddesses: LOAN_ADDRESS[options.chain],
     options,
-    tokens: [ADDRESSES[options.chain].USDC],
     targets: feeCollector
   });
 

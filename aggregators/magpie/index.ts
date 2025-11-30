@@ -105,6 +105,18 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2025-07-01',
     },
+    [CHAIN.HYPERLIQUID]: {
+      fetch,
+      start: '2025-10-01',
+    },
+    [CHAIN.PLASMA]: {
+      fetch,
+      start: '2025-10-01',
+    },
+    [CHAIN.SOLANA]: {
+      fetch,
+      start: '2025-11-15',
+    },
   },
 };
 

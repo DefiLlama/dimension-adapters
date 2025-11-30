@@ -71,6 +71,7 @@ export const chainConfigMap: any = {
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
   [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', },
+  [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
 }
 
 function getTimeString(timestamp: number) {
@@ -154,6 +155,16 @@ export function blockscoutFeeAdapter2(chain: string) {
           if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
           else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
           else dailyFees.addGasToken(fees.result)
+
+          if (chain == CHAIN.SOMNIA) {
+            const dailyRevenue = dailyFees.clone(0.5);
+            return  {
+              timestamp: startOfDay,
+              dailyFees,
+              dailyRevenue,
+              dailyHoldersRevenue: dailyRevenue
+            }
+          }
 
           return {
             timestamp: startOfDay, dailyFees,

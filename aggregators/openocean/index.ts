@@ -1,6 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
+import { formatAddress } from "../../utils/utils";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 
 const URL = "https://open-api.openocean.finance/v3";
 const EVM_CHAIN_ADDRESSES: Record<string, string> = {
@@ -25,7 +27,7 @@ const EVM_CHAIN_ADDRESSES: Record<string, string> = {
   [CHAIN.BLAST]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.MODE]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   // [CHAIN.ROOTSTOCK]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
-  [CHAIN.SEI]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
+  // [CHAIN.SEI]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.GRAVITY]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.KAVA]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.METIS]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
@@ -57,6 +59,7 @@ const fetch = async (options: FetchOptions) => {
     return { dailyVolume };
   }
   const dailyVolume = options.createBalances();
+  const blacklistTokens: Array<string> = getDefaultDexTokensBlacklisted(options.chain)
   const logs = await options.getLogs({
     target: EVM_CHAIN_ADDRESSES[options.chain],
     eventAbi:
@@ -64,7 +67,9 @@ const fetch = async (options: FetchOptions) => {
   });
 
   logs.forEach((log) => {
-    dailyVolume.add(log.dstToken, log.returnAmount);
+    if (!blacklistTokens.includes(formatAddress(log.dstToken))) {
+      dailyVolume.add(log.dstToken, log.returnAmount);
+    }
   });
 
   return {

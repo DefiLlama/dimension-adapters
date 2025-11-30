@@ -29,7 +29,10 @@ const superchainConfig = {
   },
   [CHAIN.SWELLCHAIN]: {
     sugar: '0xF179eD1FBbDC975C45AB35111E6Bf7430cCca14F',
-  }
+  },
+  [CHAIN.CELO]: {
+    sugar: '0x9972174fcE4bdDFFff14bf2e18A287FDfE62c45E',
+  },
 }
 
 interface IForSwap {
@@ -148,6 +151,10 @@ const adapters: SimpleAdapter = {
     [CHAIN.SWELLCHAIN]: {
       fetch,
       start: '2025-02-25',
+    },
+    [CHAIN.CELO]: {
+      fetch,
+      start: '2025-04-02',
     },
   }
 }

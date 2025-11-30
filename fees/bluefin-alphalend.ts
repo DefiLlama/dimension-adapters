@@ -1,9 +1,16 @@
 import fetchURL from "../utils/fetchURL";
-import { SimpleAdapter } from "../adapters/types";
+import {
+  FetchOptions,
+  FetchResultFees,
+  SimpleAdapter,
+} from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_: any) => {
-  const data = await fetchURL("https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily");
+const fetch = async (_: number,_b: any, options: FetchOptions): Promise<FetchResultFees> => {
+
+  const data = await fetchURL(
+    `https://lend.api.sui-prod.bluefin.io/api/v1/fees/daily?startTime=${options.startTimestamp}&endTime=${options.endTimestamp}`
+  );
   const dailyFees = Number(data.fees || 0);
   const dailyRevenue = Number(data.revenue || 0);
   const dailySupplySideRevenue = Number(dailyFees - dailyRevenue);
@@ -12,9 +19,9 @@ const fetch = async (_: any) => {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue: '0',
+    dailyHoldersRevenue: "0",
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue
+    dailySupplySideRevenue,
   };
 };
 
@@ -27,11 +34,11 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   methodology,
   chains: [CHAIN.SUI],
-  start: '2025-06-17',
+  start: "2025-06-17",
   runAtCurrTime: true,
 };
 

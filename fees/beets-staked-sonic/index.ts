@@ -18,7 +18,7 @@ export default {
         })
         return { dailyFees, dailyRevenue, }
       }) as FetchV2,
-      start: 454495,
+      start: '2024-12-16',
     },
   },
   version: 2,

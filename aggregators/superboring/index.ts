@@ -91,6 +91,12 @@ async function getSuperTokenMetadata(superTokenAddress: string, options: FetchOp
     let underlyingDecimals = 18 // Default for SuperTokens
     let isNativeAssetSuperToken = false
     
+    const NATIVE_ASSET_ADDRESSES: Record<string, string> = {
+      'base': '0x46fd5cfb4c12d87acd3a13e92baa53240c661d93',
+      'optimism': '0x4ac8bd1bdae47beef2d1c6aa62229509b962aa0d',
+      'arbitrum': '0xe6c8d111337d0052b9d88bf5d7d55b7f8385acd3'
+    }
+    
     try {
       underlyingToken = await options.api.call({
         target: superTokenAddress,
@@ -98,7 +104,7 @@ async function getSuperTokenMetadata(superTokenAddress: string, options: FetchOp
       })
       
       if (underlyingToken === ZERO_ADDRESS) {
-        isNativeAssetSuperToken = true
+        isNativeAssetSuperToken = superTokenAddress.toLowerCase() === NATIVE_ASSET_ADDRESSES[options.chain].toLowerCase()
         underlyingToken = null
       } else {
         underlyingDecimals = await options.api.call({

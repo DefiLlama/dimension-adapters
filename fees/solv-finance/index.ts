@@ -15,7 +15,7 @@ const chains: { [chain: Chain]: { deployedAt: number } } = {
   [CHAIN.BSC]: { deployedAt: 1726531200 },
   [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
   [CHAIN.MANTLE]: { deployedAt: 1726531200 },
-  [CHAIN.MERLIN]: { deployedAt: 1726531200 },
+  // [CHAIN.MERLIN]: { deployedAt: 1726531200 },
   [CHAIN.CORE]: { deployedAt: 1726531200 },
   [CHAIN.SCROLL]: { deployedAt: 1726531200 },
   [CHAIN.SOLANA]: { deployedAt: 1726531200 },
@@ -237,7 +237,7 @@ function parseSubscribeEvent(data: string): BigNumber {
 
 async function concrete(pools: any[], options: FetchOptions): Promise<any> {
   var contracts: any[] = [];
-  var only = {};
+  var only: any = {};
   for (var i = 0; i < pools.length; i++) {
     if (!only[pools[i].openFundShareAddress]) {
       contracts.push(pools[i]);
@@ -250,7 +250,7 @@ async function concrete(pools: any[], options: FetchOptions): Promise<any> {
     abi: "address:concrete",
   });
 
-  let concretes = {};
+  let concretes: any = {};
   for (var k = 0; k < concreteLists.length; k++) {
     concretes[contracts[k].openFundShareAddress] = concreteLists[k];
   }

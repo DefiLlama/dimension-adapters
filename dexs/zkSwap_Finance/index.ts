@@ -16,6 +16,13 @@ export default {
       revenueRatio: 0.067 / 0.2,
       protocolRevenueRatio: 1,
     },
+    monad: {
+      factory: '0x0ff16867BcaC3C5fdc2dc73558e3F8e2ed89EEA2',
+      fees: 0.002,
+      userFeesRatio: 1,
+      revenueRatio: 0.067 / 0.2,
+      protocolRevenueRatio: 1,
+    },
   }),
   methodology: {
     Fees: "A 0.2% trading fee is collected",

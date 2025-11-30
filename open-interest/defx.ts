@@ -1,22 +1,14 @@
-import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const fetch = async (options: FetchOptions) => {
-  const response = await fetchURL(
-    "https://api.defx.com/v1/open/analytics/market/overview"
-  );
+const fetch = async () => {
+  const { data } = await fetchURL("https://api.defx.com/v1/open/analytics/market/overview");
 
-  const openInterest = Number(response.data.openInterest || 0);
+  return { openInterestAtEnd: data.openInterest, dailyFees: data.dayFees, dailyVolume: data.dayVol };
+}
 
-  return { openInterestAtEnd: openInterest };
-};
-
-const adapter: SimpleAdapter = {
+export default {
   chains: [CHAIN.OFF_CHAIN],
   fetch,
   runAtCurrTime: true,
-  start: "2025-10-01",
-};
-
-export default adapter;
+}

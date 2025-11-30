@@ -113,13 +113,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
   return { dailyVolume, swapFees, adminFees }
 }
 
-interface FeeSplitConfigs {
-  userFeesRatio: number; // how many percentage from swap fees, 0.5 -> 50%
-  revenueRatio: number; // how many percentage of swap fees, 0.5 -> 50%
-  holdersRevenueRatio: number; // how many percentage of swap fees, 0.5 -> 50%
-}
-
-export function getCurveExport(configs: {[key: string]: ICurveDexConfig}, feeSplitConfig: FeeSplitConfigs | undefined = undefined) {
+export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
   const adapter: SimpleAdapter = {
     version: 2,
     adapter: Object.keys(configs).reduce((acc, chain) => {
@@ -128,21 +122,7 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}, feeSpl
         [chain]: {
           fetch: async function(options: FetchOptions) {
             const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
-            const swapFeesExcludeAdminFees = swapFees.clone()
-            swapFeesExcludeAdminFees.subtract(adminFees)
-            if (feeSplitConfig) {
-              return {
-                dailyVolume,
-                dailyFees: swapFees,
-                dailyUserFees: swapFees.clone(feeSplitConfig.userFeesRatio),
-                dailyRevenue: swapFeesExcludeAdminFees.clone(feeSplitConfig.revenueRatio),
-                dailyProtocolRevenue: adminFees,
-                dailySupplySideRevenue: swapFeesExcludeAdminFees.clone(1 - feeSplitConfig.revenueRatio),
-                dailyHoldersRevenue: swapFeesExcludeAdminFees.clone(feeSplitConfig.holdersRevenueRatio),
-              }
-            } else {
-              return { dailyVolume, dailyFees: swapFees, dailyRevenue: adminFees, dailyProtocolRevenue: adminFees };
-            }
+            return { dailyVolume, dailyFees: swapFees, dailyRevenue: adminFees, dailyProtocolRevenue: adminFees };
           },
           start: configs[chain].start,
         }

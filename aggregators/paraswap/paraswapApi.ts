@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions } from "../../adapters/types";
+import { sleep } from "../../utils/utils";
 
 interface IResponse {
   daily: any[];
@@ -32,7 +33,21 @@ const prefetch = async (_: any) => {
     "upgrade-insecure-requests": "1",
     "referrerPolicy": "strict-origin-when-cross-origin",
   };
-  return await httpGet(feesMMURL, { headers });
+
+  // sometime paraswap api return unknown 500 error
+  // need to retry if it failed
+  for (let i = 0; i < 5; i++) {
+    try {
+      return await httpGet(feesMMURL, { headers });
+    } catch(e: any) {
+      if (i === 4) {
+        throw e;
+      }
+    }
+
+    await sleep(5000); // sleep 5 secs for next try
+  }
+
 }
 
 const fetchFees = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {

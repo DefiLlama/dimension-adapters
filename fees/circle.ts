@@ -1,8 +1,8 @@
-import { BaseAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { buildStablecoinAdapter} from "./tether/attestations-stablecoins";
 
-const adapter = buildStablecoinAdapter('2', 30,
+const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '2', 30,
 // Based on https://www.circle.com/en/transparency
 [
     {
