@@ -13,11 +13,20 @@ const abi = {
 }
 
 
+const metrics = {
+  CreationFees: 'Creation Fees',
+  GraduationFees: 'Graduation Fees',
+  LpManagerCollect: 'LP Manager Collect',
+  BuyFees: 'Buy Fees',
+  SellFees: 'Sell Fees',
+}
+
 // https://github.com/Naddotfun/contract-v3-abi
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
   const dailyVolume = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   const creationLogs = await options.getLogs({ target: bondingCurve, eventAbi: abi.CurveCreate })
   const buyLogs = await options.getLogs({ target: bondingCurve, eventAbi: abi.CurveBuy })
@@ -25,33 +34,34 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const graduateLogs = await options.getLogs({ target: bondingCurve, eventAbi: abi.CurveGraduate })
   const lpManagerCollectLogs = await options.getLogs({ target: lpManager, eventAbi: abi.LpManagerCollect })
 
-  dailyFees.addGasToken(10 * creationLogs.length * 1e18, 'Creation Fees')  // 10 MON per token created
-  dailyFees.addGasToken(3_000 * graduateLogs.length * 1e18, "Graduation Fees") // 3_000 MON per token graduated
-  dailyRevenue.addGasToken(10 * creationLogs.length * 1e18, 'Creation Revenue')  // 10 MON per token created
-  dailyRevenue.addGasToken(3_000 * graduateLogs.length * 1e18, "Graduation Revenue") // 3_000 MON per token graduated
+  dailyFees.addGasToken(10 * creationLogs.length * 1e18, metrics.CreationFees)  // 10 MON per token created
+  dailyFees.addGasToken(3_000 * graduateLogs.length * 1e18, metrics.GraduationFees) // 3_000 MON per token graduated
+  dailyRevenue.addGasToken(10 * creationLogs.length * 1e18, metrics.CreationFees)  // 10 MON per token created
+  dailyRevenue.addGasToken(3_000 * graduateLogs.length * 1e18, metrics.GraduationFees) // 3_000 MON per token graduated
   
   lpManagerCollectLogs.forEach((log) => {
     const collectFee = Number(log.monAmount);
-    dailyFees.addGasToken(collectFee, "LpManager Collect"); // 40% goes to Foundation, 30% goes to Community, 30% goes to Creator
-    dailyRevenue.addGasToken(collectFee * 0.4, "LpManager Collect"); // 40% of collected Fees goes to Foundation Treasury
+    dailyFees.addGasToken(collectFee, metrics.LpManagerCollect); // 40% goes to Foundation, 30% goes to Community, 30% goes to Creator
+    dailyRevenue.addGasToken(collectFee * 0.4, metrics.LpManagerCollect); // 40% of collected Fees goes to Foundation Treasury
+    dailySupplySideRevenue.addGasToken(collectFee * 0.6, metrics.LpManagerCollect); // 30% goes to Community, 30% goes to Creator
   });
 
   buyLogs.forEach(log => {
     const fee = Number(log.amountIn) * 1 / 100  // 1% fee on buys
-    dailyFees.addGasToken(fee, 'Buy Fees')
-    dailyRevenue.addGasToken(fee, 'Buy Revenue')
+    dailyFees.addGasToken(fee, metrics.BuyFees)
+    dailyRevenue.addGasToken(fee, metrics.BuyFees)
     dailyVolume.addGasToken(Number(log.amountIn))
   })
 
   sellLogs.forEach(log => {
     const fee = Number(log.amountOut) * 1 / 100  // 1% fee on sells
-    dailyFees.addGasToken(fee, 'Sell Fees')
-    dailyRevenue.addGasToken(fee, 'Sell Revenue')
+    dailyFees.addGasToken(fee, metrics.SellFees)
+    dailyRevenue.addGasToken(fee, metrics.SellFees)
     dailyVolume.addGasToken(log.amountOut)
   })
 
 
-  return { dailyFees, dailyRevenue, dailyVolume, };
+  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, };
 };
 
 const adapter: Adapter = {
@@ -67,16 +77,21 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Creation Fees":
-        "10 MON fee charged when a new token is created on the Bonding Curve.",
-      "Graduation Fees":
-        "Flat 3,000 MON fee charged when a token graduates from the Bonding Curve to the DEX pool.",
-      "Buy Fees":
-        "1% fee charged on the MON input amount for Bonding Curve buy trades.",
-      "Sell Fees":
-        "1% fee charged on the token output amount for Bonding Curve sell trades.",
-      "LpManager Collect":
-        "Fees collected by the LP Manager on graduated pools.",
+      [metrics.CreationFees]: '10 MON fee charged when a new token is created on the Bonding Curve.',
+      [metrics.GraduationFees]: 'Flat 3,000 MON fee charged when a token graduates from the Bonding Curve to the DEX pool.',
+      [metrics.BuyFees]: "1% fee charged on the MON input amount for Bonding Curve buy trades.",
+      [metrics.SellFees]: "1% fee charged on the token output amount for Bonding Curve sell trades.",
+      [metrics.LpManagerCollect]: "Fees collected by the LP Manager on graduated pools.",
+    },
+    Revenue: {
+      [metrics.CreationFees]: '10 MON fee charged when a new token is created on the Bonding Curve.',
+      [metrics.GraduationFees]: 'Flat 3,000 MON fee charged when a token graduates from the Bonding Curve to the DEX pool.',
+      [metrics.BuyFees]: "1% fee charged on the MON input amount for Bonding Curve buy trades.",
+      [metrics.SellFees]: "1% fee charged on the token output amount for Bonding Curve sell trades.",
+      [metrics.LpManagerCollect]: "40% of fees collected by the LP Manager on graduated pools.",
+    },
+    SupplySideRevenue: {
+      [metrics.LpManagerCollect]: "40% of fees collected by the LP Manager on graduated pools to community and creators.",
     },
   }
 };
