@@ -59,11 +59,12 @@ const pairs = [
     eventAbi: "event Limbo_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, uint256[] limboOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
   },
 ];
-const TEN_POW_18 = new BigNumber("1000000000000000000");
+
 // Hard-coded rate in smart contract
 const FEE_RATE = 0.1 / 100;
 
 const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
   const logs: any[] = [];
@@ -75,7 +76,6 @@ const fetch = async (options: FetchOptions) => {
     logs.push(...gameLogs);
   }
 
-  let total = BigNumber(0);
   for (const log of logs) {
     let wagerRaw;
     if ('wager' in log && !('totalWager' in log)) {
@@ -89,14 +89,14 @@ const fetch = async (options: FetchOptions) => {
       console.warn("Unreachable code for log", log)
       continue;
     }
-    const wagerStandardized = wagerRaw.dividedBy(TEN_POW_18);
-    const fees = wagerStandardized.multipliedBy(FEE_RATE);
-    total = total.plus(fees);
+    const wagerStandardized = wagerRaw.dividedBy(1e18).toNumber();
+    dailyVolume.addCGToken('monad', wagerStandardized)
+    dailyFees.addCGToken('monad', wagerStandardized * FEE_RATE);
   }
 
-  dailyFees.addCGToken("monad", Number(total));
   return {
-    dailyFees: dailyFees,
+    dailyVolume,
+    dailyFees,
   };
 };
 
@@ -105,6 +105,10 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.MONAD],
   start: '2025-10-24',
+  methodology: {
+    Volume: 'Total wager from all betting contracts.',
+    Fees: 'There is amount of 0.1% wager collected as fees.',
+  }
 }
 
 export default adapter;
