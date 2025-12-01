@@ -114,7 +114,12 @@ export const PROTOCOL_CONFIG: Record<string, Record<string, ChainConfig>> = {
     [CHAIN.APTOS]: {
       start: '2023-11-09',
       dataSource: DataSource.CUSTOM
-    }
+    },
+    [CHAIN.MONAD]: {
+      start: '2025-11-23',
+      dataSource: DataSource.LOGS,
+      factory: '0x02a84c1b3BBD7401a5f7fa98a384EBC70bB5749E'
+    },
   },
   v3: {
     [CHAIN.BSC]: {

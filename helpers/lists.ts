@@ -6,6 +6,7 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
     '0x044fe33895Cb7c6e4566DA8E24420C1110933a63',
     '0x888888aE2c4A298EFd66D162fFC53b3F2a869888',
+    '0xb4357054c3da8d46ed642383f03139ac7f090343', // PORT3 - hacked
   ],
   [CHAIN.BSC]: [
     '0xc71b5f631354be6853efe9c3ab6b9590f8302e81',
@@ -42,6 +43,7 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     '0x302dfaf2cdbe51a18d97186a7384e87cf599877d',
     '0xa3cfb853339b77f385b994799b015cb04b208fe6',
     '0x76e9b54b49739837be8ad10c3687fc6b543de852',
+    '0xb4357054c3da8d46ed642383f03139ac7f090343',
   ],
   [CHAIN.ARBITRUM]: [
     '0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501',

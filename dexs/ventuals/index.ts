@@ -8,7 +8,8 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
   return {
     dailyVolume: result.dailyPerpVolume,
     dailyFees: result.dailyPerpFee,
-    dailyRevenue: result.dailyPerpFee,
+    dailyRevenue: result.dailyPerpFee.clone(0.5),
+    dailyProtocolRevenue: result.dailyPerpFee.clone(0.5),
   }
 }
 
@@ -22,7 +23,8 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     Fees: 'Trading fees paid by users on Hyperliquid markets deployed by Ventuals.',
-    Revenue: 'Trading fees paid by users on Hyperliquid markets deployed by Ventuals.',
+    Revenue: 'Half of the fees goes to the protocol and rest to hyperliquid',
+    ProtocolRevenue: 'All the revenue goes to the protocol.',
   }
 };
 
