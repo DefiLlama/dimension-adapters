@@ -78,7 +78,6 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         dailyRevenue: dailyFees,
         dailyUserFees: dailyFees,
         dailyProtocolRevenue: dailyFees,
-        dailyHoldersRevenue: '0',
     }
 }
 
@@ -96,6 +95,7 @@ const adapter: SimpleAdapter = {
     start: '2025-06-04',
     dependencies: [Dependencies.DUNE],
     methodology,
+    allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
 }
 
 export default adapter;
