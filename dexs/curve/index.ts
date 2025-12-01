@@ -444,6 +444,9 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       '0x6E28493348446503db04A49621d8e6C9A40015FB',
     ],
     customPools: {},
+    blacklistedPools: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
   },
 
   // [CHAIN.TAC]: {
