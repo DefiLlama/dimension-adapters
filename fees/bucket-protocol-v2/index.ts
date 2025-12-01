@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const bucketApiURL = "https://backend.bucketprotocol.io/api";
+
 interface DailyStats {
   date: string;
   dailyFee: string;
@@ -11,24 +12,16 @@ interface DailyStats {
 }
 
 const methodology = {
-  dailyFees:
-    "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest",
-  dailyRevenue:
-    "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest earned by Bucket",
+  Fees: "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest",
+  Revenue: "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest earned by Bucket",
 };
 
-const fetchBucketStats = async (
-  _: any,
-  _1: any,
-  { startTimestamp }: FetchOptions
-) => {
-  const url = `${bucketApiURL}/fee/dailystatus?timestamp_ms=${
-    startTimestamp * 1000
-  }`;
+const fetch = async (_a: any, _b: any, { startTimestamp }: FetchOptions) => {
+  const url = `${bucketApiURL}/fee/dailystatus?timestamp_ms=${ startTimestamp * 1000 }`;
   const stats: DailyStats = (await fetchURL(url)).data;
 
-  const dailyFees = stats.dailyFee;
-  const dailyRevenue = stats.dailyFee;
+  const dailyFees = Number(stats.dailyFee);
+  const dailyRevenue = Number(stats.dailyFee);
 
   return {
     dailyFees,
@@ -39,13 +32,11 @@ const fetchBucketStats = async (
 };
 
 const adapter: Adapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.SUI],
   methodology,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch: fetchBucketStats,
-      start: "2025-09-01",
-    },
-  },
+  start: "2025-09-01",
 };
 
 export default adapter;
