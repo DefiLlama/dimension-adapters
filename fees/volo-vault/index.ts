@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpPost, httpGet } from "../../utils/fetchURL";
+import { httpPost, } from "../../utils/fetchURL";
 import { getEnv } from "../../helpers/env";
 
 const SENTIO_API_URL =
@@ -30,58 +30,60 @@ const methodology = {
   ProtocolRevenue: "Performance fees retained by protocol.",
 };
 
-const fetch = async ({ endTimestamp }: FetchOptions) => {
-  const dateString = new Date(endTimestamp * 1000).toISOString().split("T")[0];
+let data: any
 
-  const response: any = await httpPost(
-    SENTIO_API_URL,
-    {
-      version: 85,
-      sqlQuery: { sql: DAILY_FEE_SQL, size: 10000 },
-      cachePolicy: {
-        noCache: false,
-        cacheTtlSecs: 1036800,
-        cacheRefreshTtlSecs: 43200,
-      },
-      engine: "DEFAULT",
-    },
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": getEnv("VOLO_VAULT_API_KEY"),
-      },
-    }
-  );
+const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptions) => {
+  const dailyFees = createBalances()
 
-  const fees: Record<string, number> = {};
+  if (!data)
+    data = httpPost(
+      SENTIO_API_URL,
+      {
+        version: 85,
+        sqlQuery: { sql: DAILY_FEE_SQL, size: 10000 },
+        cachePolicy: {
+          noCache: false,
+          cacheTtlSecs: 1036800,
+          cacheRefreshTtlSecs: 43200,
+        },
+        engine: "DEFAULT",
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": getEnv("VOLO_VAULT_API_KEY"),
+        },
+      }
+    );
+
+  const response: any = await data
+
   for (const row of response.result.rows) {
     if (row.day.split("T")[0] === dateString && COIN_MAP[row.coin_symbol]) {
-      fees[row.coin_symbol] = parseFloat(row.daily_fee) || 0;
+      if (COIN_MAP[row.coin_symbol] === undefined) {
+        console.log("[Volo-vault] Unknown coin:", row.coin_symbol);
+        continue; // skip unknown coins
+      }
+
+      dailyFees.addCGToken(COIN_MAP[row.coin_symbol], parseFloat(row.daily_fee) || 0);
     }
   }
 
-  const cgIds = [...new Set(Object.keys(fees).map((c) => COIN_MAP[c]))].join(
-    ","
-  );
-  const priceRes = await httpGet(
-    `https://coins.llama.fi/prices/historical/${endTimestamp}/coingecko:${cgIds}`
-  );
+  const dailyRevenue = dailyFees.clone(0.2); // 20% performance fees are revenue
+  const dailySupplySideRevenue = dailyRevenue.clone(0.8); // 80% of revenue goes to the depositors
 
-  let dailyFees = 0;
-  for (const [coin, fee] of Object.entries(fees)) {
-    dailyFees +=
-      fee * (priceRes.coins[`coingecko:${COIN_MAP[coin]}`]?.price || 0);
-  }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees * 5,
-    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // because we get daily data not hourly
   adapter: {
     [CHAIN.SUI]: {
       fetch,
