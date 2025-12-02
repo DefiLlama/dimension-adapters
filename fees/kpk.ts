@@ -2,13 +2,14 @@ import type { Balances } from "@defillama/sdk";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
+import { CHAIN } from "../helpers/chains";
 
 // -------------------------
 // KPK's Morpho vaults
 // -------------------------
 const curatorConfig: CuratorConfig = {
   vaults: {
-    ethereum: {
+    [CHAIN.ETHEREUM]: {
       morpho: [
         "0xe108fbc04852B5df72f9E44d7C29F47e7A993aDd",
         "0x0c6aec603d48eBf1cECc7B247a2c3DA08b398DC1",
@@ -18,7 +19,7 @@ const curatorConfig: CuratorConfig = {
         "0xbb50a5341368751024ddf33385ba8cf61fe65ff9",
       ],
     },
-    arbitrum: {
+    [CHAIN.ARBITRUM]: {
       morpho: [
         "0x2C609d9CfC9dda2dB5C128B2a665D921ec53579d",
       ],
@@ -92,6 +93,7 @@ for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
     return {
       dailyFees,
       dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
       dailySupplySideRevenue,
     };
   }) as any;
@@ -99,12 +101,10 @@ for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
 
 // Methodology
 baseAdapter.methodology = {
-  Fees:
-    "Total fee = Morpho/Euler vault fees + all ERC20 transfers of specified Gearbox tokens into TreasurySplitter.",
-  Revenue:
-    "Total revenue = 50% of Gearbox TreasurySplitter inflows (Morpho fees excluded).",
-  SupplySideRevenue:
-    "Only from Morpho/Euler. Gearbox does not contribute supply-side revenue.",
+  Fees: "Total fee = Morpho/Euler vault fees + all ERC20 transfers of specified Gearbox tokens into TreasurySplitter.",
+  Revenue: "Total revenue = 50% of Gearbox TreasurySplitter inflows (Morpho fees excluded).",
+  ProtocolRevenue: "Total revenue = 50% of Gearbox TreasurySplitter inflows (Morpho fees excluded).",
+  SupplySideRevenue: "Only from Morpho/Euler. Gearbox does not contribute supply-side revenue.",
 };
 
 export default baseAdapter;
