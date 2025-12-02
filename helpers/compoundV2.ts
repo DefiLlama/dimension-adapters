@@ -121,13 +121,13 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: any) {
             blacklists: exportOptions.blacklists,
           }) 
           : await getFees(market, options, {})
-        const dailyHoldersRevenue = dailyRevenue
+        const dailyProtocolRevenue = dailyRevenue.clone()
         const dailySupplySideRevenue = options.createBalances()
         dailySupplySideRevenue.addBalances(dailyFees)
         Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
           dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
         })
-        return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
+        return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue:0,dailyProtocolRevenue }
       }),
     }
   })
@@ -136,7 +136,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: any) {
     version: 2,
     methodology: {
       Fees: "Total interest paid by borrowers",
-      Revenue: "Protocol's share of interest treasury",
+      Revenue: "Protocol and holders share of interest",
       ProtocolRevenue: "Protocol's share of interest into treasury",
       HoldersRevenue: "Share of interest into protocol governance token holders.",
       SupplySideRevenue: "Interest paid to lenders in liquidity pools"

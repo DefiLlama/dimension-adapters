@@ -13,16 +13,14 @@ const comptrollers: any = {
 async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     await Promise.all(comptrollers[options.chain].map(async (comptroller: string) => {
         const { adapter } = compoundV2Export({ [options.chain]: comptroller });
         const data = await (adapter!.cronos.fetch! as any)(options);
-        
+
         dailyFees.add(data.dailyFees);
         dailyRevenue.add(data.dailyRevenue);
-        dailyHoldersRevenue.add(data.dailyHoldersRevenue);
         dailySupplySideRevenue.add(data.dailySupplySideRevenue);
     }));
 
@@ -30,15 +28,16 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees,
         dailyRevenue,
         dailySupplySideRevenue,
-        dailyHoldersRevenue
+        dailyHoldersRevenue:dailyRevenue.clone(0.5),
+        dailyProtocolRevenue:dailyRevenue.clone(0.5),
     }
 }
 
 const methodology = {
     Fees: "Total interest paid by borrowers",
-    Revenue: "Protocol's share of interest treasury",
-    ProtocolRevenue: "Protocol's share of interest into treasury",
-    HoldersRevenue: "Share of interest into protocol governance token holders.",
+    Revenue: "Protocol and holders share of interest",
+    ProtocolRevenue: "50% of the revenue goes to treasury",
+    HoldersRevenue: "50% of the revenue goes to TONIC stakers",
     SupplySideRevenue: "Interest paid to lenders in liquidity pools",
 };
 
