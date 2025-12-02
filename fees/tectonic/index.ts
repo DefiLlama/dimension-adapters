@@ -47,7 +47,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.CRONOS],
     methodology,
-    start: '2025-01-01'
+    start: '2021-12-22'
 }
 
 export default adapter;
