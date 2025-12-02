@@ -8,7 +8,7 @@ const adapter = compoundV2Export({
   [CHAIN.ROOTSTOCK]: '0x2eea8fbA494d5008ba72f80E0091Cc74dB5f9926',
   [CHAIN.CORE]: '0xaba65b87eBEdB2D753b37AeCECD1E168341eE0DD',
   [CHAIN.BSQUARED]: '0x69a6B3B96b26a15A588081Df17F46d61f625741c',
-});
+}, { protocolRevenueRatio: 1 });
 
 (adapter.adapter as any)[CHAIN.OP_BNB].start = '2024-03-21';
 (adapter.adapter as any)[CHAIN.BSC].start = '2024-01-07';
