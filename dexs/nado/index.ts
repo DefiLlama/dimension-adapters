@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 
@@ -59,93 +59,108 @@ const computeVolume = async (
   productIds: number[],
   fetchOptions: FetchOptions
 ) => {
-  if (productIds.length > 0) {
-    const snapshots = (
-      await httpPost(url[fetchOptions.chain].archive, {
-        market_snapshots: {
-          interval: {
-            count: 2,
-            granularity: 86400,
-            max_time: timestamp,
-          },
-          product_ids: productIds,
-        },
-      })
-    ).snapshots;
-    const lastCumulativeVolumes: Record<string, string> =
-      snapshots[0].cumulative_volumes;
-    const prevCumulativeVolumes: Record<string, string> =
-      snapshots[1].cumulative_volumes;
-    const totalVolume = Number(
-      Object.values(lastCumulativeVolumes).reduce(
-        (acc, current) => acc + BigInt(current),
-        BigInt(0)
-      ) / BigInt(10 ** 18)
-    );
-    const totalVolumeOneDayAgo = Number(
-      Object.values(prevCumulativeVolumes).reduce(
-        (acc, current) => acc + BigInt(current),
-        BigInt(0)
-      ) / BigInt(10 ** 18)
-    );
-    const dailyVolume = totalVolume - totalVolumeOneDayAgo;
-    return {
-      totalVolume: totalVolume ? `${totalVolume}` : undefined,
-      dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-      timestamp: timestamp,
-    };
-  } else {
+  if (!productIds.length) {
     return {
       totalVolume: undefined,
       dailyVolume: undefined,
-      timestamp: timestamp,
     };
   }
-  
-};
 
-const fetchSpots = async (
-  timeStamp: number,
-  _: any,
-  fetchOptions: FetchOptions
-) => {
-  const spotProductIds = (await fetchProducts(fetchOptions)).spot_products;
-  return computeVolume(timeStamp, spotProductIds, fetchOptions);
-};
+  const response = await httpPost(url[fetchOptions.chain].archive, {
+    market_snapshots: {
+      interval: {
+        count: 2,
+        granularity: 86400,
+        max_time: timestamp,
+      },
+      product_ids: productIds,
+    },
+  });
 
-const fetchPerps = async (
-  timeStamp: number,
-  _: any,
-  fetchOptions: FetchOptions
-) => {
-  const perpProductIds = (await fetchProducts(fetchOptions)).perp_products;
-  const marginedProductIds = (await fetchProducts(fetchOptions))
-    .margined_products;
-  return await computeVolume(
-    timeStamp,
-    perpProductIds.concat(marginedProductIds),
-    fetchOptions
+  const snapshots = response?.snapshots;
+  if (!Array.isArray(snapshots) || snapshots.length < 2) {
+    return {
+      totalVolume: undefined,
+      dailyVolume: undefined,
+    };
+  }
+
+  const lastCumulativeVolumes: Record<string, string> =
+    snapshots[0].cumulative_volumes;
+  const prevCumulativeVolumes: Record<string, string> =
+    snapshots[1].cumulative_volumes;
+  const totalVolume = Number(
+    Object.values(lastCumulativeVolumes).reduce(
+      (acc, current) => acc + BigInt(current),
+      BigInt(0)
+    ) / BigInt(10 ** 18)
   );
+  const totalVolumeOneDayAgo = Number(
+    Object.values(prevCumulativeVolumes).reduce(
+      (acc, current) => acc + BigInt(current),
+      BigInt(0)
+    ) / BigInt(10 ** 18)
+  );
+  const dailyVolume = totalVolume - totalVolumeOneDayAgo;
+
+  return {
+    totalVolume,
+    dailyVolume,
+  };
 };
 
 // Start time for Nado on Ink Mainnet - November 16, 2025
 const inkStartTime = 1763251200;
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    swap: {
-      [CHAIN.INK]: {
-        fetch: fetchSpots,
-        start: inkStartTime,
-      },
-    },
-    derivatives: {
-      [CHAIN.INK]: {
-        fetch: fetchPerps,
-        start: inkStartTime,
-      },
+const fetch = async (
+  timestamp: number,
+  _: any,
+  fetchOptions: FetchOptions
+) => {
+  const products = await fetchProducts(fetchOptions);
+  const perpAndMarginedProducts = products.perp_products.concat(
+    products.margined_products
+  );
+
+  const [spotVolumes, derivativeVolumes] = await Promise.all([
+    computeVolume(timestamp, products.spot_products, fetchOptions),
+    computeVolume(timestamp, perpAndMarginedProducts, fetchOptions),
+  ]);
+
+  const dailyVolume =
+    (spotVolumes.dailyVolume ?? 0) + (derivativeVolumes.dailyVolume ?? 0);
+  const totalVolume =
+    (spotVolumes.totalVolume ?? 0) + (derivativeVolumes.totalVolume ?? 0);
+
+  return {
+    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    totalVolume: totalVolume ? `${totalVolume}` : undefined,
+    timestamp,
+  };
+};
+
+const methodology = {
+  Volume:
+    "Sums spot, perp, and margined product volume from Nado's Archive market_snapshots on Ink Mainnet.",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    swap: "Spot product trading volume (product_ids > 0) filtered to valid symbols.",
+    derivatives:
+      "Perpetual and margined product trading volume filtered to valid symbols.",
+  },
+};
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.INK]: {
+      fetch,
+      start: inkStartTime,
     },
   },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
