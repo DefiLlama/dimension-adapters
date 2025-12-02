@@ -4,4 +4,4 @@ const comptrollers = {
   sonic: "0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730",
 };
 
-export default compoundV2Export(comptrollers);
+export default compoundV2Export(comptrollers, { protocolRevenueRatio: 1 });

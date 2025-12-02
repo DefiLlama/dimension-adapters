@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { BaseAdapter, FetchOptions } from "../../adapters/types";
 import { compoundV2Export } from "../../helpers/compoundV2";
 
 const comptrollers = {
@@ -8,7 +8,7 @@ const comptrollers = {
 
 const adapter =  compoundV2Export(comptrollers);
 
-adapter.adapter['ethereum'] = {
+(adapter.adapter as BaseAdapter)['ethereum'] = {
   fetch: (async (options: FetchOptions) => {
     // ethereum: "0xAB1c342C7bf5Ec5F02ADEA1c2270670bCa144CbB", // all interest from bad debt which never can be withdrawn
     return { dailyFees: 0, dailyRevenue: 0, dailySupplySideRevenue: 0, dailyHoldersRevenue: 0 }

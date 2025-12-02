@@ -5,4 +5,4 @@ const comptrollers = {
   iotaevm: "0xee07121d97FDEA35675e02017837a7a43aeDa48F",
 };
 
-export default compoundV2Export(comptrollers);
+export default compoundV2Export(comptrollers, { holdersRevenueRatio: 1 });
