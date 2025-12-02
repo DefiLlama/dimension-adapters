@@ -47,11 +47,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.addBalances(pkstrTokenTreasuryRevenue);
   dailyFees.resizeBy(1.2); // to adjust for 80% fee receieved in contract address
 
-  // PKSTR: 20% of tax goes to token-works treasury (protocol revenue)
-  const dailyRevenue = await pkstrTokenTreasuryRevenue.clone(0.2);
+  // PKSTR: 10% of tax goes to token-works treasury (protocol revenue)
+  // PKSTR: another 10% of tax goes to token-works investors counted as supply side revenue
+  const dailyRevenue = await pkstrTokenTreasuryRevenue.clone(0.1);
 
   // royalty fees(10% of token tax)
   const dailySupplySideRevenue = await commonTokenTreasuryRevenue.clone(0.1);
+  dailySupplySideRevenue.addBalances(dailyRevenue);
 
   return {
     dailyFees,
@@ -67,10 +69,10 @@ export default {
   fetch,
   chains: [CHAIN.ETHEREUM],
   methodology: {
-    Fees: 'buy/sell tax collected from strategy tokens trading (not including swap fees on dexes).',
-    Revenue: '20% of PKSTR token tax goes to token-works team.',
-    ProtocolRevenue: '20% of PKSTR token tax goes to token-works team.',
-    SupplySideRevenue: '10% of token tax will be distributed to NFT creators as royalty.',
+    Fees: '10% buy/sell tax collected from strategy tokens trading from main uni-v4 pools',
+    Revenue: '10% of PKSTR token tax goes to token-works team.',
+    ProtocolRevenue: '10% of PKSTR token tax goes to token-works team.',
+    SupplySideRevenue: '10% of token tax will be distributed to NFT creators as royalty(10% of token tax from PNKSTR Pool goes to token-works investors).',
     HoldersRevenue: 'No holders revenue at the moment.',
   },
   breakdownMethodology: {
