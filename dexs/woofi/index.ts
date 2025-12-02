@@ -22,6 +22,7 @@ const endpoints: Record<Chain, string> = {
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
   [CHAIN.BERACHAIN]: sdk.graph.modifyEndpoint('FGF5X13mGLYu2GN7pK4LYuMeS95WENHAgPDP8JDCJyTy'),
   [CHAIN.HYPERLIQUID]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-hyperevm",
+  [CHAIN.MONAD]: sdk.graph.modifyEndpoint('B5oecz9PHofaQmUMP8ws2iYsNTxXhEtcghsA2jMSsJAP'),
 };
 
 type TStartTime = {
@@ -43,6 +44,7 @@ const startTime: TStartTime = {
   [CHAIN.BERACHAIN]: 1742256000,
   [CHAIN.SOLANA]: 1740528000,
   [CHAIN.HYPERLIQUID]: 1751328000,
+  [CHAIN.MONAD]: 1764201600,
 };
 
 interface FetchResult {
