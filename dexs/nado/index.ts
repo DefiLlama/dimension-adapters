@@ -129,7 +129,7 @@ const fetchPerps = async (
 };
 
 // Start time for Nado on Ink Mainnet - November 16, 2025
-const inkStartTime = 1731715200;
+const inkStartTime = 1763251200;
 
 const adapter: BreakdownAdapter = {
   breakdown: {
