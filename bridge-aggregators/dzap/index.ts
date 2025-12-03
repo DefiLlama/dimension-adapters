@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const CHAIN_VOLUME_API = "https://api.dzap.io/v1/volume/chain";
@@ -72,16 +72,19 @@ interface ApiResponse {
   };
 }
 
-async function sleep(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time * 1000));
+const prefetch = async (options: FetchOptions) => {
+  const data = {} 
+  for (const chain of Object.keys(chains)) {
+    await new Promise(resolve => setTimeout(resolve, 13000));
+    data[chain] = await httpGet(
+      `${CHAIN_VOLUME_API}?chainId=${chains[chain as keyof typeof chains]}`
+    );
+  }
+  return data
 }
 
 const fetch = async (options: FetchOptions) => {
-  await sleep(Math.floor(Math.random() * 5) + 1);
-
-  const data: ApiResponse = await fetchURL(
-    `${CHAIN_VOLUME_API}?chainId=${chains[options.chain]}`
-  );
+  const data: ApiResponse = options.preFetchedResults[options.chain]
 
   return {
     dailyBridgeVolume: data.bridge.last24Hours,
@@ -90,19 +93,11 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    ...Object.entries(chains).reduce((acc, chain) => {
-      const [key, value] = chain;
-      return {
-        ...acc,
-        [key]: {
-          runAtCurrTime: true,
-          fetch,
-          start: "2023-01-01",
-        },
-      };
-    }, {}),
-  },
+  fetch,
+  chains: Object.keys(chains),
+  start: '2023-01-01',
+  prefetch,
+  runAtCurrTime: true
 };
 
 export default adapter;

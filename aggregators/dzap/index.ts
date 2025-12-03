@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const CHAIN_VOLUME_API = "https://api.dzap.io/v1/volume/chain";
@@ -72,10 +72,19 @@ interface ApiResponse {
   };
 }
 
+const prefetch = async (options: FetchOptions) => {
+  const data = {} 
+  for (const chain of Object.keys(chains)) {
+    await new Promise(resolve => setTimeout(resolve, 13000));
+    data[chain] = await httpGet(
+      `${CHAIN_VOLUME_API}?chainId=${chains[chain as keyof typeof chains]}`
+    );
+  }
+  return data
+}
+
 const fetch = async (options: FetchOptions) => {
-  const data: ApiResponse = await fetchURL(
-    `${CHAIN_VOLUME_API}?chainId=${options.api.chainId ?? chains[options.chain]}`
-  );
+  const data: ApiResponse = options.preFetchedResults[options.chain]
 
   let dailyVolume = data.swap.last24Hours;
 
@@ -91,14 +100,11 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology: {
-    Volume:
-      "Volume data is retrieved from DZap's chain volume API endpoint.",
-  },
-  runAtCurrTime: true,
+  fetch,
   chains: Object.keys(chains),
   start: "2023-01-01",
-  fetch,
+  runAtCurrTime: true,
+  prefetch,
 };
 
 export default adapter;
