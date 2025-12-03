@@ -80,7 +80,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   process.exit(0)
 })().catch((e) => {
   console.log(ERROR_STRING)
-  console.error(e.stack.split('\n').slice(0, 3).join('\n'))
+  console.error(e.stack?.split('\n')?.slice(0, 3)?.join('\n'))
   console.log(e.message ?? e)
   process.exit(1)
 })
