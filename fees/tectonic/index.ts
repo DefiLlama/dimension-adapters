@@ -14,22 +14,26 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
 
     await Promise.all(comptrollers[options.chain].map(async (comptroller: string) => {
-        const { adapter } = compoundV2Export({ [options.chain]: comptroller });
+        const { adapter } = compoundV2Export({ [options.chain]: comptroller },{holdersRevenueRatio:0.5, protocolRevenueRatio:0.5});
         const data = await (adapter!.cronos.fetch! as any)(options);
 
         dailyFees.add(data.dailyFees);
         dailyRevenue.add(data.dailyRevenue);
         dailySupplySideRevenue.add(data.dailySupplySideRevenue);
+        dailyHoldersRevenue.add(data.dailyHoldersRevenue);
+        dailyProtocolRevenue.add(data.dailyProtocolRevenue);
     }));
 
     return {
         dailyFees,
         dailyRevenue,
         dailySupplySideRevenue,
-        dailyHoldersRevenue:dailyRevenue.clone(0.5),
-        dailyProtocolRevenue:dailyRevenue.clone(0.5),
+        dailyHoldersRevenue,
+        dailyProtocolRevenue,
     }
 }
 
