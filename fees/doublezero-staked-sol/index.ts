@@ -34,7 +34,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -42,6 +43,7 @@ const methodology = {
   Fees: 'Staking rewards from staked SOL on doublezero staked solana',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
+  HoldersRevenue: 'No revenue share to 2Z token holers.',
 }
 
 const adapter: SimpleAdapter = {
