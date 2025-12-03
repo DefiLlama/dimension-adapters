@@ -41,7 +41,6 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: dailySupplySideRevenue,
   };
 };
 
@@ -58,7 +57,6 @@ const adapter: SimpleAdapter = {
     Revenue: "5% of yield goes to protocol, deducted before distributing to shMON holders.",
     ProtocolRevenue: "5% performance fee collected by the protocol.",
     SupplySideRevenue: "95% of yield increases shMON value for holders.",
-    HoldersRevenue: "Yield accrues to holders through higher MON per shMON token.",
   },
 };
 
