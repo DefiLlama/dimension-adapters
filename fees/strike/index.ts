@@ -12,5 +12,6 @@ export default compoundV2Export(
       '0xc13fdf3af7ec87dca256d9c11ff96405d360f522',
       '0x1ebfd36223079dc79fefc62260db9e25f3f5e2c7',
     ],
+    protocolRevenueRatio: 1,
   }
 );
