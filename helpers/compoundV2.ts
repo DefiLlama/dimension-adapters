@@ -111,7 +111,16 @@ export function getFeesExport(market: string) {
   }) as Fetch
 }
 
-export function compoundV2Export(config: IJSON<string>, exportOptions?: any) {
+interface CompoundV2ExportOptions {
+  blacklists?: Array<string>;
+  useExchangeRate?: boolean;
+  protocolRevenueRatio?: number;
+  holdersRevenueRatio?: number;
+  methodology?: string | IJSON<string>;
+  breakdownMethodology?: Record<string, string | IJSON<string>>;
+}
+
+export function compoundV2Export(config: IJSON<string>, exportOptions?: CompoundV2ExportOptions) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, market]) => {
     exportObject[chain] = {
@@ -121,27 +130,28 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: any) {
             blacklists: exportOptions.blacklists,
           }) 
           : await getFees(market, options, {})
-        const dailyProtocolRevenue = dailyRevenue.clone()
+        const dailyProtocolRevenue = exportOptions && exportOptions.protocolRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.protocolRevenueRatio) : undefined
+        const dailyHoldersRevenue = exportOptions && exportOptions.holdersRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.holdersRevenueRatio) : undefined
         const dailySupplySideRevenue = options.createBalances()
         dailySupplySideRevenue.addBalances(dailyFees)
         Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
           dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
         })
-        return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue:0,dailyProtocolRevenue }
+        return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
       }),
     }
   })
   return {
     adapter: exportObject,
     version: 2,
-    methodology: {
+    methodology: exportOptions && exportOptions.methodology ? exportOptions.methodology : {
       Fees: "Total interest paid by borrowers",
       Revenue: "Protocol and holders share of interest",
       ProtocolRevenue: "Protocol's share of interest into treasury",
       HoldersRevenue: "Share of interest into protocol governance token holders.",
       SupplySideRevenue: "Interest paid to lenders in liquidity pools"
     },
-    breakdownMethodology: {
+    breakdownMethodology: exportOptions && exportOptions.breakdownMethodology ? exportOptions.breakdownMethodology : {
       Fees: {
         [METRIC.BORROW_INTEREST]: 'Total interest paid by borrowers',
       },
