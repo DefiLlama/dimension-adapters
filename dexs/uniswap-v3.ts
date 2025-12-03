@@ -94,7 +94,6 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
   if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
-  if (chain === CHAIN.MANTA) return "manta"
   if (chain === CHAIN.SONIC) return "sonic"
   if (chain === CHAIN.ETHERLINK) return "etherlink"
   if (chain === CHAIN.NIBIRU) return "nibiru"
@@ -189,7 +188,6 @@ const okuChains = [
   CHAIN.CELO,
   CHAIN.NIBIRU,
   CHAIN.MONAD,
-  CHAIN.MANTA,
   CHAIN.SONIC,
   CHAIN.ETHERLINK,
   
@@ -199,6 +197,7 @@ const okuChains = [
   // CHAIN.LENS,
   // CHAIN.POLYGON_ZKEVM,
   // CHAIN.SAGA,
+  // CHAIN.MANTA
 ]
 
 
