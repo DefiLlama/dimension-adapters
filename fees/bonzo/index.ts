@@ -41,7 +41,6 @@ const adapter = {
   fetch,
   chains: [CHAIN.HEDERA],
   start: '2024-08-01',
-  runAtCurrTime: true,
   methodology: {
     Fees: 'Interest and Flash Loan fees plus liquidation bonuses in USD',
     UserFees: 'Interest and Flash Loan fees plus liquidation bonuses in USD',
