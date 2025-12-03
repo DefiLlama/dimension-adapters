@@ -3,9 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const toBlock = await options.getToBlock()
   const fromBlock = await options.getFromBlock()
+
   const monadTx: any = await queryDuneSql(options,`
     SELECT
       SUM(
@@ -22,6 +23,7 @@ const fetch = async (options: FetchOptions) => {
       monad.transactions t
       LEFT JOIN monad.blocks b ON block_number = number
       WHERE TIME_RANGE`);
+
   const monadTxBurn: any = await queryDuneSql(options, `
     SELECT
       SUM(CAST(eb.base_fee_per_gas as uint256) * CAST(eb.gas_used as uint256)/1e18) AS daily_mon_burned
@@ -37,10 +39,10 @@ const fetch = async (options: FetchOptions) => {
   const baseFees = Number(monadTxBurn[0]['daily_mon_burned'])
   const priorityFees = totalFees - baseFees
 
-  dailyFees.addGasToken(baseFees * 10 ** 18, METRIC.TRANSACTION_BASE_FEES)
-  dailyFees.addGasToken(priorityFees * 10 ** 18, METRIC.TRANSACTION_PRIORITY_FEES)
+  dailyFees.addGasToken(baseFees * 1e18, METRIC.TRANSACTION_BASE_FEES)
+  dailyFees.addGasToken(priorityFees * 1e18, METRIC.TRANSACTION_PRIORITY_FEES)
 
-  dailyRevenue.addGasToken(baseFees * 10 ** 18, METRIC.TRANSACTION_BASE_FEES)
+  dailyRevenue.addGasToken(baseFees * 1e18, METRIC.TRANSACTION_BASE_FEES)
   
   return {
     dailyFees,
@@ -50,13 +52,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.MONAD]: {
-      fetch,
-      start: '2025-11-24',
-    },
-  },
+  fetch,
+  chains: [CHAIN.MONAD],
+  start: '2025-11-24',
   protocolType: ProtocolType.CHAIN,
   methodology: {
     Fees: 'Total MON gas fees (including base fees and priority fees) paid by users',
