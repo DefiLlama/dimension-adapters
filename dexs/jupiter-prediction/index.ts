@@ -6,17 +6,15 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const query = `with trade_data as (
     select
-        coalesce(
-                BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 24, 8))) / 1e6
-        , 0) as fees,
+                BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 24, 8))) / 1e6 as fees,
         case
             when bytearray_substring (data, 1, 1) = from_hex('b3') --buy
-            then coalesce(
-                    BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 16, 8))) / 1e6, 0) + coalesce(
-                    BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 24, 8))) / 1e6, 0)
+            then 
+                    BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 16, 8))) / 1e6 + 
+                    BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 24, 8))) / 1e6
             when bytearray_substring (data, 1, 1) = from_hex('fb') --sell
-            then coalesce(
-                    BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 16, 8))) / 1e6, 0 )
+            then 
+                    BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 16, 8))) / 1e6
             end as volume
         from solana.instruction_calls
         where block_time >= from_unixtime(${options.fromTimestamp})
