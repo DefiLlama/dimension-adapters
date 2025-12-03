@@ -28,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
   // Compute exchange rate
   const rateBefore = (assetsBefore * 1e18) / supplyBefore;
   const rateAfter = (assetsAfter * 1e18) / supplyAfter;
-  const netRewards = ((rateAfter - rateBefore) * supplyBefore) / 1e18; 
+  const netRewards = ((rateAfter - rateBefore) * assetsBefore) / 1e18; 
 
   const grossRewards = netRewards / (1 - PROTOCOL_FEE); 
   
