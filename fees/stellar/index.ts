@@ -17,13 +17,13 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     return {
         dailyFees,
-        dailyRevenue: 0
+        dailyRevenue: dailyFees
     }
 }
 
 const methodology = {
     Fees: "Transaction fee paid by users",
-    Revenue: "No revenue"
+    Revenue: "All the fee goes to fee pool"
 };
 
 const adapter: SimpleAdapter = {
