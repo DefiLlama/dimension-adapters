@@ -1,9 +1,12 @@
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-async function historicFetch(options: FetchOptions) {
-  const data = await fetchURL(`https://kalshi-public-docs.s3.amazonaws.com/reporting/market_data_${options.dateString}.json`)
+async function fetch(_a:number, _b:any, options: FetchOptions) {
+  const startDate = options.startOfDay - (24 * 3600);
+  const dateString = new Date(startDate * 1000).toISOString().split('T')[0]
+  const url = `https://kalshi-public-docs.s3.amazonaws.com/reporting/market_data_${dateString}.json`
+  const data = await fetchURL(url)
 
   let dailyVolume = 0
   let openInterestAtEnd = 0
@@ -17,10 +20,10 @@ async function historicFetch(options: FetchOptions) {
   return { dailyVolume, openInterestAtEnd }
 }
 
-export default {
-  start: '2021-06-30',
+const adapter: SimpleAdapter = {
+  fetch,
   chains: [CHAIN.OFF_CHAIN],
-  fetch: async (_: any, _1: any, options: FetchOptions) => {
-    return historicFetch(options)
-  }
+  start: '2021-06-30',
 }
+
+export default adapter;
