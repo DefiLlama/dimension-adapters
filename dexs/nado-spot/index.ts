@@ -4,7 +4,6 @@ import { httpGet, httpPost } from "../../utils/fetchURL";
 
 interface IProducts {
   spot_products: number[];
-  perp_products: number[];
   margined_products: number[];
 }
 
@@ -45,13 +44,11 @@ const fetchProducts = async (
     spot_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
       .filter((id: number) => validSymbols.includes(id) && id > 0),
-    perp_products: allProducts.perp_products
-      .map((product: { product_id: number }) => product.product_id)
-      .filter((id: number) => validSymbols.includes(id)),
     margined_products: allProducts.spot_products
       .map((product: { product_id: number }) => product.product_id)
       .filter((id: number) => validSymbols.includes(id) && id > 0),
-  };
+
+    };
 };
 
 const computeVolume = async (
@@ -61,7 +58,6 @@ const computeVolume = async (
 ) => {
   if (!productIds.length) {
     return {
-      totalVolume: undefined,
       dailyVolume: undefined,
     };
   }
@@ -80,7 +76,6 @@ const computeVolume = async (
   const snapshots = response?.snapshots;
   if (!Array.isArray(snapshots) || snapshots.length < 2) {
     return {
-      totalVolume: undefined,
       dailyVolume: undefined,
     };
   }
@@ -103,64 +98,27 @@ const computeVolume = async (
   );
   const dailyVolume = totalVolume - totalVolumeOneDayAgo;
 
-  return {
-    totalVolume,
-    dailyVolume,
-  };
+  return { dailyVolume };
 };
 
-// Start time for Nado on Ink Mainnet - November 16, 2025
-const inkStartTime = 1763251200;
 
-const fetch = async (
-  timestamp: number,
-  _: any,
-  fetchOptions: FetchOptions
-) => {
+const fetch = async (timestamp: number, _: any, fetchOptions: FetchOptions) => {
   const products = await fetchProducts(fetchOptions);
-  const perpAndMarginedProducts = products.perp_products.concat(
-    products.margined_products
-  );
 
-  const [spotVolumes, derivativeVolumes] = await Promise.all([
+  const [spotVolumes, marginedVolumes] = await Promise.all([
     computeVolume(timestamp, products.spot_products, fetchOptions),
-    computeVolume(timestamp, perpAndMarginedProducts, fetchOptions),
+    computeVolume(timestamp, products.margined_products, fetchOptions),
   ]);
-
-  const dailyVolume =
-    (spotVolumes.dailyVolume ?? 0) + (derivativeVolumes.dailyVolume ?? 0);
-  const totalVolume =
-    (spotVolumes.totalVolume ?? 0) + (derivativeVolumes.totalVolume ?? 0);
-
-  return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    totalVolume: totalVolume ? `${totalVolume}` : undefined,
-    timestamp,
-  };
+  const dailyVolume = (spotVolumes.dailyVolume ?? 0) + (marginedVolumes.dailyVolume ?? 0);
+  return { dailyVolume };
 };
 
-const methodology = {
-  Volume:
-    "Sums spot, perp, and margined product volume from Nado's Archive market_snapshots on Ink Mainnet.",
-};
-
-const breakdownMethodology = {
-  Volume: {
-    swap: "Spot product trading volume (product_ids > 0) filtered to valid symbols.",
-    derivatives:
-      "Perpetual and margined product trading volume filtered to valid symbols.",
-  },
-};
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.INK]: {
-      fetch,
-      start: inkStartTime,
-    },
-  },
-  methodology,
-  breakdownMethodology,
+  version: 1,
+  fetch,
+  chains: [CHAIN.INK],
+  start: '2025-11-15',
 };
 
 export default adapter;

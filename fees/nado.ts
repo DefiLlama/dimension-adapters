@@ -77,46 +77,6 @@ const get24hrStat = async (
   );
 };
 
-const getCumulativeStat = async (
-  field: string,
-  max_time: number,
-  fetchOptions: FetchOptions
-): Promise<number> => {
-  const response = await query(max_time, fetchOptions);
-  const cur_res = response.snapshots[0];
-  return sumAllProductStats(cur_res[field]);
-};
-
-const getCumulativeFees = async (
-  max_time: number,
-  fetchOptions: FetchOptions
-): Promise<number> => {
-  const fees = await getCumulativeStat(
-    "cumulative_taker_fees",
-    max_time,
-    fetchOptions
-  );
-  const sequencer_fees = await getCumulativeStat(
-    "cumulative_sequencer_fees",
-    max_time,
-    fetchOptions
-  );
-  return fees - sequencer_fees;
-};
-
-const getCumulativeRevenue = async (
-  max_time: number,
-  fetchOptions: FetchOptions
-): Promise<number> => {
-  const fees = await getCumulativeFees(max_time, fetchOptions);
-  const rebates = await getCumulativeStat(
-    "cumulative_maker_fees",
-    max_time,
-    fetchOptions
-  );
-  return fees + rebates;
-};
-
 const get24hrFees = async (
   max_time: number,
   fetchOptions: FetchOptions
@@ -154,25 +114,15 @@ const fetch = async (
 ): Promise<FetchResultFees> => {
   const dailyFees = await get24hrFees(timestamp, fetchOptions);
   const dailyRevenue = await get24hrRevenue(timestamp, fetchOptions);
-  const totalFees = await getCumulativeFees(timestamp, fetchOptions);
-  const totalRev = await getCumulativeRevenue(timestamp, fetchOptions);
-  return {
-    dailyFees: `${dailyFees}`,
-    dailyRevenue: `${dailyRevenue}`,
-    totalRevenue: `${totalRev}`,
-    totalFees: `${totalFees}`,
-    timestamp,
-  };
+
+  return { dailyFees, dailyRevenue };
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.INK]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: "2025-11-16",
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.INK],
+  start: '2025-11-15',
 };
 
 export default adapter;
