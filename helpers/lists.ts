@@ -85,7 +85,6 @@ const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xa39052Dbd640e7ad9e8537860C13134D0f432880",
     "0xb8499dbF176de8eCed16c478CFf51997A529F1bE",
   ],
-  [CHAIN.SOLANA]: ["2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F"],
 };
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
