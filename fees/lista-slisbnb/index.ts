@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const treasury = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
+// const treasury = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
 
 /**
  * Fetches data from Lista DAO
@@ -19,8 +19,6 @@ const ListaStakeManagerAddress = "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6";
 const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
   const slilsBnbSupplyBefore = await options.fromApi.call({
     target: slisBNB,
     abi: 'uint256:totalSupply',
@@ -41,20 +39,33 @@ const fetch = async (options: FetchOptions) => {
     abi: 'uint256:getTotalPooledBnb',
   });
 
-  const dailySlisbnbHoldersYield = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
+  // staking rewards distributed post revenue cut
+  const supplySideRewards = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
  
-  dailyFees.addCGToken("binancecoin", dailySlisbnbHoldersYield/0.95);
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  
+  dailyFees.addCGToken("binancecoin", supplySideRewards / 0.95);
+  dailySupplySideRevenue.addCGToken("binancecoin", supplySideRewards);
+
+  const dailyRevenue = dailyFees.clone(0.05); // 5%
+  const dailyProtocolRevenue = dailyRevenue.clone(0.5); // 50%
+  const dailyHoldersRevenue = dailyRevenue.clone(0.5); // 50%
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees.clone(0.05),
-    dailyProtocolRevenue: dailyFees.clone(0.05),
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
 const methodology = {
   Fees: 'Total yields from staked BNB.',
   Revenue: '5 % of the total yields are charged by Lista DAO.',
-  ProtocolRevenue: 'All revenue goes to the protocol'
+  ProtocolRevenue: 'There are 50% revenue goes to the protocol',
+  HoldersRevenue: 'There are 50% revenue goes to veLISTA holders.',
+  SupplySideRevenue: 'Stakers earn 95% staking rewards.',
 
 }
 const adapter: SimpleAdapter = {

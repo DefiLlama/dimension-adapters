@@ -64,6 +64,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   }
 }
 
@@ -80,6 +81,7 @@ const adapter: Adapter = {
     Revenue: '10% staking rewards are charged by mETH Protocol Treasury.',
     SupplySideRevenue: '90% staking rewards are distributed to mETH holders.',
     ProtocolRevenue: '10% staking rewards are charged by mETH Protocol Treasury.',
+    HoldersRevenue: 'No revenue share to COOK token holders.',
   },
   breakdownMethodology: {
     Fees: {
