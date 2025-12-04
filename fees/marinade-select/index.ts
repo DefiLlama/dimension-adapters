@@ -10,7 +10,7 @@ interface MarinadeAmounts {
   dailySupplySideRevenue: string;
 }
 
-const fetch = async ({ createBalances }: FetchOptions) => {
+const fetch = async (_a: any, _b: any, { createBalances }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).select
   const coin = 'So11111111111111111111111111111111111111112'
@@ -32,11 +32,12 @@ const fetch = async ({ createBalances }: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
@@ -50,7 +51,8 @@ const adapter: SimpleAdapter = {
     Fees: 'Staking rewards from Solana validators.',
     Revenue: 'Staking rewards collected by Marinade.',
     ProtocolRevenue: 'Staking rewards collected by Marinade.',
-    SupplySideRevenue: 'Staking rewards ditributed to stakers.'
+    SupplySideRevenue: 'Staking rewards ditributed to stakers.',
+    HoldersRevenue: 'No revenue share to MNDE token holders.',
   }
 }
 export default adapter

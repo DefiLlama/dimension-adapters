@@ -282,4 +282,5 @@ export enum CHAIN {
   MONAD = "monad",
   SKALE = "skale",
   DEGEN = "degen",
+  SUPRA = "supra",
 }
