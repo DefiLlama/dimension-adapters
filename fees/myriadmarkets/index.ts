@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 const MARKETS = {
   [CHAIN.ABSTRACT]: '0x3e0F5F8F5Fb043aBFA475C0308417Bf72c463289',
   [CHAIN.LINEA]: '0x39e66ee6b2ddaf4defded3038e0162180dbef340',
+  [CHAIN.BSC]: '0x39e66ee6b2ddaf4defded3038e0162180dbef340',
 }
 
 const abi = {
@@ -94,6 +95,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ABSTRACT]: { start: '2025-07-06', },
     [CHAIN.LINEA]: { start: '2025-08-01', },
+    [CHAIN.BSC]: { start: '2025-10-29', }
   },
   methodology
 };
