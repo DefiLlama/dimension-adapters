@@ -2,10 +2,9 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
 const ADDRESS_TRADING_USDC = '0x3556d16519e3407AD43d5d7b3011bB095553d77a';
-const ADDRESS_USDC_MONAD = '0x754704Bc059F8C67012fEd69BC8A327a5aafb603'; // Monad USDC
 
 // Constants from contract
-const LEV_DENOMINATOR = 10; // Leverage is stored as x10 (10x leverage = 100)
+const DENOMINATOR = BigInt(10 ** 18);
 
 // Event definitions based on the contract
 // OpenTrade struct: { base: TradeBase, openPrice, lastUpdateTime }
@@ -16,10 +15,7 @@ const closeEventAbi = 'event Close(uint256 orderId, uint256 closePrice, uint256 
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  let dailyVolume = 0;
-
-  // Map to store leverage by orderId for Close event processing
-  const leverageByOrder = new Map<string, number>();
+  const dailyVolume = options.createBalances();
 
   const [openLogs, closeLogs] = await Promise.all([
     options.getLogs({
@@ -32,25 +28,21 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
+  const leverageByOrder = new Map();
+
   // Process Open Events
   openLogs.forEach((log: any) => {
     const orderId = log.orderId.toString();
     const margin = BigInt(log.t.base.margin);
     const leverage = BigInt(log.t.base.leverage);
+    leverageByOrder.set(orderId, leverage);
+
     const fee = BigInt(log.fee);
+    const size = margin * leverage / DENOMINATOR;
 
-    // Store leverage for this order (will be used in Close events)
-    leverageByOrder.set(orderId, Number(leverage));
-
-    // Volume calculation: position = (margin * leverage) / LEV_DENOMINATOR
-    // Contract: position = (base.margin * base.leverage) / LEV_DENOMINATOR
-    // Result is in USDC (6 decimals), so we convert to USD
-    const position = margin * leverage / BigInt(LEV_DENOMINATOR);
-    const volumeUSD = Number(position) / 1e6;
-    dailyVolume += volumeUSD;
-
-    // Fee is in USDC (6 decimals)
-    dailyFees.add(ADDRESS_USDC_MONAD, fee);
+    dailyVolume.addUSDValue(size);
+    // Fee is in USD already
+    dailyFees.addUSDValue(fee);
   });
 
   // Process Close Events
@@ -64,30 +56,19 @@ const fetch = async (options: FetchOptions) => {
     const leverage = leverageByOrder.get(orderId);
 
     if (leverage) {
-      // Calculate close position: closePosition = (closeMargin * leverage) / LEV_DENOMINATOR
-      const closePosition = closeMargin * BigInt(leverage) / BigInt(LEV_DENOMINATOR);
-      const volumeUSD = Number(closePosition) / 1e6;
-      dailyVolume += volumeUSD;
+      const size = closeMargin * BigInt(leverage) / BigInt(DENOMINATOR);
+      dailyVolume.addUSDValue(size);
     } else {
-      // Fallback: estimate with 10x average leverage if we don't have the data
-      // This can happen if the position was opened before our tracking started
-      const estimatedLeverage = 100; // 10x in contract terms
-      const closePosition = closeMargin * BigInt(estimatedLeverage) / BigInt(LEV_DENOMINATOR);
-      const volumeUSD = Number(closePosition) / 1e6;
-      dailyVolume += volumeUSD;
+      console.warn("unknown orderId for event Close", orderId);
     }
 
-    // Close fee and rollover fee are always collected
-    let totalCloseFees = rolloverFee + closeFee;
-
-    // Add fees in USDC (6 decimals)
-    dailyFees.add(ADDRESS_USDC_MONAD, totalCloseFees);
+    const totalCloseFees = rolloverFee + closeFee;
+    dailyFees.addUSDValue(totalCloseFees);
   });
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
     timestamp: options.startOfDay,
   };
 };
@@ -101,9 +82,8 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Volume: 'Volume is calculated by summing the notional position sizes: (margin * leverage) / 10 for both Open and Close events. Leverage is stored as x10 in the contract (e.g., 10x leverage = 100).',
+    Volume: 'Volume is calculated by summing the notional position sizes: (margin * leverage) for both Open and Close events',
     Fees: 'Fees include: (1) Open fees from Open events, (2) Close fees, rollover fees, and positive funding fees from Close events. All fees are in USDC.',
-    UserFees: 'All fees are paid by users/traders.',
   },
 };
 
