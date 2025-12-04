@@ -78,7 +78,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MONAD]: {
       fetch,
-      start: '2025-12-01',
+      start: '2025-11-11',
     },
   },
   methodology: {
