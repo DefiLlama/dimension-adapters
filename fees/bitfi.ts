@@ -101,25 +101,64 @@ async function fetchBfUSD(options: FetchOptions): Promise<FetchResultV2> {
   }
 }
 
+async function fetchEthereum(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyFees = options.createBalances()
+
+  const bfBTCToken = bfBTCConfigs[CHAIN.ETHEREUM].token
+  const feeCollectedLogs = await options.getLogs({
+    target: bfBTCToken,
+    eventAbi: 'event FeeCollected(address indexed user, uint8 indexed feeType, uint256 id, uint256 amount, uint256 percentageFee, uint256 fixedFee)',
+  })
+
+  for (const log of feeCollectedLogs) {
+    dailyFees.add(bfBTCToken, log.amount, METRIC.DEPOSIT_WITHDRAW_FEES)
+  }
+
+  const bfUSDToken = bfUSDConfig[CHAIN.ETHEREUM].token
+  const instantRedeemer = bfUSDConfig[CHAIN.ETHEREUM].instantRedeemer
+
+  const crossChainFeeLogs = await options.getLogs({
+    target: bfUSDToken,
+    eventAbi: 'event CrossChainFeeCollected(address indexed user, uint256 amount, uint256 fee)',
+  })
+
+  for (const log of crossChainFeeLogs) {
+    dailyFees.add(bfUSDToken, log.fee, METRIC.DEPOSIT_WITHDRAW_FEES)
+  }
+
+  const instantRedemptionLogs = await options.getLogs({
+    target: instantRedeemer,
+    eventAbi: 'event InstantRedemption(address indexed user, address indexed to, uint256 bfUSDAmount, uint256 underlyingAmount, uint256 feeAmount)',
+  })
+
+  for (const log of instantRedemptionLogs) {
+    dailyFees.add(bfUSDToken, log.feeAmount, METRIC.MINT_REDEEM_FEES)
+  }
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  }
+}
+
 const adapter: Adapter = {
   adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch: fetchEthereum,
+      start: '2025-02-06',
+    },
     ...Object.fromEntries(
-      Object.entries(bfBTCConfigs).map(([chain, config]) => [
-        chain,
-        {
-          fetch: fetchBfBTC,
-          start: config.start,
-        },
-      ])
-    ),
-    ...Object.fromEntries(
-      Object.entries(bfUSDConfig).map(([chain, config]) => [
-        chain,
-        {
-          fetch: fetchBfUSD,
-          start: config.start,
-        },
-      ])
+      Object.entries(bfBTCConfigs)
+        .filter(([chain]) => chain !== CHAIN.ETHEREUM)
+        .map(([chain, config]) => [
+          chain,
+          {
+            fetch: fetchBfBTC,
+            start: config.start,
+          },
+        ])
     ),
   },
   version: 2,
