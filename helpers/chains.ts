@@ -281,4 +281,5 @@ export enum CHAIN {
   FLUENCE = "fluence",
   MONAD = "monad",
   SKALE = "skale",
+  DEGEN = "degen",
 }
