@@ -193,7 +193,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   await processV2Services(options, { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }, config.services.filter(service => service.version === 2))
   await processV3Services(options, { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }, config.services.filter(service => service.version === 3))
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue: 0 }
 }
 
 const methodology = {
@@ -201,6 +201,7 @@ const methodology = {
   Revenue: 'Amount of fees go to Gearbox treasury.',
   SupplySideRevenue: 'Amount of fees distributed to passive lenders.',
   ProtocolRevenue: 'Amount of fees go to Gearbox treasury.',
+  HoldersRevenue: 'No revenue share to GEAR token holders.',
 }
 
 const breakdownMethodology = {
