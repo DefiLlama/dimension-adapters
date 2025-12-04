@@ -14,37 +14,34 @@ export const config: any = {
 }
 
 export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
-  const dailyRevenue = createBalances()
+  const dailyFees = createBalances()
+
   const { seaports = defaultSeaports, fees_collectors = defaltFeeCollectors } = config[chain]
   const feeCollectorSet = new Set(fees_collectors.map((i: any) => i.toLowerCase()));
 
-  const logs = await getLogs({ targets: seaports, eventAbi: event_order_fulfilled, })
+  const logs = await getLogs({ targets: seaports, eventAbi: event_order_fulfilled })
 
   logs.forEach(log => {
-    const recipients = log.consideration.filter((i: any) => +i.itemType.toString() < 2) // exclude NFTs (ERC721 and ERC1155)
-    if (recipients.length < 2) return;
-    const biggestValue = recipients.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
-
-    recipients.forEach((consideration: any) => {
-      if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, rest are fees  
+    const considerations = log.consideration.filter((i: any) => Number(i.itemType) < 2) // exclude NFTs (ERC721 and ERC1155)
+    
+    for (const consideration of considerations) {
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
-        dailyRevenue.add(consideration.token, consideration.amount)
+        dailyFees.add(consideration.token, consideration.amount)
       }
-    })
+    }
   })
 
   return {
-    dailyFees : dailyRevenue,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyFees : dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
-
 }
 
 const methodology = {
-  Fees: 'All fees paid by users for NFT on Spaace',
-  Revenue: 'Fees are distributed to Spaace',
-  ProtocolRevenue: 'Fees are distributed to Spaace protocol',
+  Fees: 'All fees paid by users for NFT on Spaace.',
+  Revenue: 'Fees are distributed to Spaace.',
+  ProtocolRevenue: 'Fees are distributed to Spaace protocol.',
 }
 
 const adapter: SimpleAdapter = {

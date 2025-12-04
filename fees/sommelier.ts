@@ -97,6 +97,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   }
 };
 
@@ -105,6 +106,7 @@ const methodology = {
   SupplySideRevenue: "Net yield distributed to vault depositors after fees, plus strategist compensation. Depositors receive approximately 95% of total yield.",
   Revenue: "Management fees (~1% annual on TVL) plus performance fees (~10-20% on profits above high-watermark) collected by Sommelier protocol. Estimated at ~5% of total yield. Fees are accrued via keeper system in FeesAndReserves contract.",
   ProtocolRevenue: "Sommelier protocol's share of collected fees after strategist split. Split ratio varies by cellar (typically 50-85% to protocol). These fees are bridged to Sommelier Chain for SOMM staker distribution and token buybacks/burns.",
+  HoldersRevenue: 'No revenue share to SOMM token holders.',
 };
 
 const breakdownMethodology = {
