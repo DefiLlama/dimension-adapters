@@ -13,4 +13,4 @@ const comptrollers = {
   hemi: "0xB2fF02eEF85DC4eaE95Ab32AA887E0cC69DF8d8E",
 };
 
-export default compoundV2Export(comptrollers);
+export default compoundV2Export(comptrollers, { protocolRevenueratio: 1 });
