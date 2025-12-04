@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "./../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
 const dlmmFactory = "0x8Bb9727Ca742C146563DccBAFb9308A234e1d242";
 
@@ -53,7 +54,7 @@ function getAmountsFromBytesString(bytes: string): { amountX: number; amountY: n
     amountY: parseInt(`0x${bytes.replace("0x", "").slice(0, 32)}`, 16),
   };
 }
-const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, api, chain }: FetchOptions) => {
   const poolsAddresses = await api.fetchList({
     lengthAbi: ABIs.getNumberOfLBPairs,
     itemAbi: ABIs.getLBPairAtIndex,
@@ -87,8 +88,16 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
       });
       logsResult.forEach((log: any) => {
         const amountInd = getAmountsFromBytesString(log.amountsIn);
-        dailyVolume.add(pool.tokenX, amountInd.amountX);
-        dailyVolume.add(pool.tokenY, amountInd.amountY);
+        const amountOut = getAmountsFromBytesString(log.amountsOut);
+        addOneToken({
+          chain,
+          balances: dailyVolume,
+          token0: pool.tokenX,
+          token1: pool.tokenY,
+          amount0: amountInd.amountX + amountOut.amountX,
+          amount1: amountInd.amountY + amountOut.amountY,
+        });
+
         const totalFees = getAmountsFromBytesString(log.totalFees);
         dailyFees.add(pool.tokenX, totalFees.amountX);
         dailyFees.add(pool.tokenY, totalFees.amountY);
@@ -98,9 +107,9 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
       });
     })
   );
-  
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
+
+  const dailySupplySideRevenue = dailyFees.clone(1);
+  dailySupplySideRevenue.subtract(dailyRevenue);
 
   return {
     dailyVolume,
