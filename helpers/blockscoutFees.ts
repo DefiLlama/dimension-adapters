@@ -72,7 +72,7 @@ export const chainConfigMap: any = {
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
   [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
-  [CHAIN.DEGEN]: { CGToken: 'degen', explorer: 'https://explorer.degen.tips/', start: '2024-03-10', },
+  [CHAIN.DEGEN]: { CGToken: 'degen', explorer: 'https://explorer.degen.tips', start: '2024-03-10', },
 
 }
 
