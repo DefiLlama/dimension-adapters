@@ -5,7 +5,7 @@ import axios from "axios";
 
 const ApiBaseUrl = "https://api.o2.app";
 const FeeRecipient =
-  "0xdcc963dfc7dd7773af66e9777b9c67262649066ab136eec98ef32d868c1517e9";
+  "0x18af30EfA58A70042013192bBDdF8A21221004b44cC1cbA1A0038cE524aAa2EE";
 
 const fetch = async (options: FetchOptions) => {
   const markets = await axios.get(ApiBaseUrl.concat("/v1/markets"));
