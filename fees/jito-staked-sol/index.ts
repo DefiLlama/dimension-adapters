@@ -1,3 +1,5 @@
+// Jito staked SOL revenue is already included in the jito-dao adapter
+
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
