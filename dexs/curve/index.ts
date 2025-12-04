@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
+import bancorV2_1 from "../bancor-v2_1";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -444,6 +445,9 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       '0x6E28493348446503db04A49621d8e6C9A40015FB',
     ],
     customPools: {},
+    blacklistedPools: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
   },
 
   // [CHAIN.TAC]: {
@@ -471,12 +475,16 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
           fetch: async function(options: FetchOptions) {
             const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
             
+            const dailySupplySideRevenue = swapFees.clone(1)
+            dailySupplySideRevenue.subtract(adminFees)
+            
             return {
               dailyVolume,
               dailyFees: swapFees,
               dailyUserFees: swapFees,
               dailyRevenue: adminFees,
               dailyProtocolRevenue: 0,
+              dailySupplySideRevenue,
               dailyHoldersRevenue: adminFees,
             }
           },

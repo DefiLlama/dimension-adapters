@@ -32,7 +32,7 @@ const fetch = async (options: FetchOptions) => {
   const feeWallet = FEE_WALLETS[options.chain];
   const dailyFees = await getETHReceived({ options, targets: feeWallet, });
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0, };
 };
 
 const adapter: SimpleAdapter = {
@@ -41,6 +41,7 @@ const adapter: SimpleAdapter = {
     Fees: "All fees paid by users by using PinkSale services.",
     Revenue: "All fees are collected by PinkSale protocol.",
     ProtocolRevenue: "Trading fees are collected by PinkSale protocol.",
+    HoldersRevenue: "No revenue share to PINK token holders.",
   },
   fetch,
   adapter: {
