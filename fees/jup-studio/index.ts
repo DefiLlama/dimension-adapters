@@ -75,6 +75,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, query)
 
     const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
     const accepted_quote_mints = [
@@ -86,6 +87,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         if (!accepted_quote_mints.includes(row.quote_mint)) return;
         const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees);
         dailyFees.add(row.quote_mint, Number(totalFees));
+        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees));
         dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees));
     });
 
@@ -94,6 +96,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         dailyUserFees: dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
+        dailySupplySideRevenue,
     };
 };
 
@@ -107,7 +110,8 @@ const adapter: SimpleAdapter = {
     methodology: {
         Fees: "Trading fees paid by users.",
         Revenue: "Fees collected by Jup Studio.",
-        ProtocolRevenue: "Fees collected by Jup Studio."
+        ProtocolRevenue: "Fees collected by Jup Studio.",
+        SupplySideRevenue: "Fees collected by referrals.",
     }
 }
 

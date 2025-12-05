@@ -190,6 +190,7 @@ export enum CHAIN {
   LISK = "lisk",
   MINT = "mint",
   HELA = "hela",
+  KASPLEX = "kasplex",
   FUEL = "fuel",
   REAL = "real",
   CELESTIA = "celestia",
@@ -280,4 +281,5 @@ export enum CHAIN {
   FLUENCE = "fluence",
   MONAD = "monad",
   SKALE = "skale",
+  SUPRA = "supra",
 }

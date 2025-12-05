@@ -101,6 +101,11 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xA902A365Fe10B4a94339B5A2Dc64F60c1486a5c8",
     start: "2025-06-07",
   },
+  [CHAIN.MONAD]: {
+    fromBlock: 31907457,
+    blue: "0xD5D960E8C380B724a48AC59E2DfF1b2CB4a1eAee",
+    start: "2025-11-23",
+  },
   // [CHAIN.TAC]: {
   //   fromBlock: 853025,
   //   blue: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c",

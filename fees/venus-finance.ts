@@ -9,4 +9,5 @@ export default compoundV2Export({
     base: '0x0C7973F9598AA62f9e03B94E92C967fD5437426C',
     optimism: '0x5593FF68bE84C966821eEf5F0a988C285D5B7CeC',
     unichain: '0xe22af1e6b78318e1Fe1053Edbd7209b8Fc62c4Fe'
-});
+}, { protocolRevenueRatio: 0.6, holdersRevenueRatio: 0.4 });
+// https://docs-v4.venus.io/governance/tokenomics#revenue-distribution-from-protocol-reserves

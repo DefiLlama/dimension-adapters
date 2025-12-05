@@ -1,12 +1,11 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
-import ADDRESSES from "../../helpers/coreAssets.json";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "FFtERWBSCkScg8spA2mNB9zN5SdH16NqQywXw3bbB1aJ";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "4cpnpiwgBfUgELVwNYiecwGti45YHSH3R72CPkFTiwJt";
 const LST_FEE_TOKEN_ACCOUNT = "GhN6PpyP6Ln4ycWcyvqsNcowLfYjpUcA9uWKAcFBjj2D";
-const LST_MINT = ADDRESSES.solana.DZSOL;
+const LST_MINT = "Gekfj7SL2fVpTDxJZmeC46cTYxinjB6gkAnb6EGT6mnn"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
@@ -35,7 +34,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -43,6 +43,7 @@ const methodology = {
   Fees: 'Staking rewards from staked SOL on doublezero staked solana',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
+  HoldersRevenue: 'No revenue share to 2Z token holers.',
 }
 
 const adapter: SimpleAdapter = {

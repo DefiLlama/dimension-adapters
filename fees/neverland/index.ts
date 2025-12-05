@@ -23,7 +23,7 @@ const adapter: SimpleAdapter = {
   adapter: aaveExport({
     [CHAIN.MONAD]: {
       pools,
-      start: '2025-11-24',
+      start: '2025-11-23',
     }
   })
 }

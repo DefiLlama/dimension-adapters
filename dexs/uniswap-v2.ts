@@ -75,6 +75,12 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
     source: 'DUNE',
     start: '2024-02-27',
     duneId: 'zora',
+  },
+  [CHAIN.MONAD]: {
+    factory: '0x182a927119d56008d921126764bf884221b10f59',
+    source: 'LOGS',
+    start: '2025-11-24',
+    duneId: 'monad',
   }
 }
 
