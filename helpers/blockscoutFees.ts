@@ -74,6 +74,8 @@ export const chainConfigMap: any = {
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18'},
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
+  [CHAIN.DEGEN]: { CGToken: 'degen', explorer: 'https://explorer.degen.tips/', start:'2024-10-03'},
+
 }
 
 function getTimeString(timestamp: number) {
