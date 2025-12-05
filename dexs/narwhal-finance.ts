@@ -12,7 +12,6 @@ const USDC_DECIMALS = BigNumber(1e6);
 // OpenTrade struct: { base: TradeBase, openPrice, lastUpdateTime }
 // TradeBase struct: { trader, pairIndex, margin, long, leverage, tp, sl }
 const openEventAbi = 'event Open(uint256 orderId, ((address trader, uint256 pairIndex, uint256 margin, bool long, uint256 leverage, uint256 tp, uint256 sl) base, uint256 openPrice, uint256 lastUpdateTime) t, uint256 fee)';
-
 const closeEventAbi = 'event Close(uint256 orderId, uint256 closePrice, uint256 _closeMargin, int256 fundingFee, uint256 rolloverFee, uint256 closeFee, uint256 afterFee, uint8 s)';
 
 const fetch = async (options: FetchOptions) => {
