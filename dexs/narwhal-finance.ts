@@ -1,10 +1,12 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import BigNumber from 'bignumber.js';
 
 const ADDRESS_TRADING_USDC = '0x3556d16519e3407AD43d5d7b3011bB095553d77a';
 
 // Constants from contract
-const DENOMINATOR = BigInt(10 ** 18);
+const DENOMINATOR = BigNumber(10 ** 18);
+const USDC_DECIMALS = BigNumber(1e6);
 
 // Event definitions based on the contract
 // OpenTrade struct: { base: TradeBase, openPrice, lastUpdateTime }
@@ -33,37 +35,41 @@ const fetch = async (options: FetchOptions) => {
   // Process Open Events
   openLogs.forEach((log: any) => {
     const orderId = log.orderId.toString();
-    const margin = BigInt(log.t.base.margin);
-    const leverage = BigInt(log.t.base.leverage);
+    const margin = BigNumber(log.t.base.margin);
+    const leverage = BigNumber(log.t.base.leverage);
     leverageByOrder.set(orderId, leverage);
 
-    const fee = BigInt(log.fee);
-    const size = margin * leverage / DENOMINATOR;
+    const fee = BigNumber(log.fee);
+    const feeUSD = fee.dividedBy(USDC_DECIMALS);
+    const size = margin.multipliedBy(leverage).dividedBy(DENOMINATOR);
+    const sizeUSD = size.dividedBy(USDC_DECIMALS);
 
-    dailyVolume.addUSDValue(size);
+    dailyVolume.addUSDValue(sizeUSD.toNumber());
     // Fee is in USD already
-    dailyFees.addUSDValue(fee);
+    dailyFees.addUSDValue(feeUSD.toNumber());
   });
 
   // Process Close Events
   closeLogs.forEach((log: any) => {
     const orderId = log.orderId.toString();
-    const closeMargin = BigInt(log._closeMargin);
-    const rolloverFee = BigInt(log.rolloverFee);
-    const closeFee = BigInt(log.closeFee);
+    const closeMargin = BigNumber(log._closeMargin);
+    const rolloverFee = BigNumber(log.rolloverFee);
+    const closeFee = BigNumber(log.closeFee);
 
     // Get leverage from Open event (if available)
     const leverage = leverageByOrder.get(orderId);
 
     if (leverage) {
-      const size = closeMargin * BigInt(leverage) / BigInt(DENOMINATOR);
-      dailyVolume.addUSDValue(size);
+      const size = closeMargin.multipliedBy(leverage).dividedBy(DENOMINATOR);
+      const sizeUSD = size.dividedBy(USDC_DECIMALS);
+      dailyVolume.addUSDValue(sizeUSD.toNumber());
     } else {
       console.warn("unknown orderId for event Close", orderId);
     }
 
-    const totalCloseFees = rolloverFee + closeFee;
-    dailyFees.addUSDValue(totalCloseFees);
+    const totalCloseFees = rolloverFee.plus(closeFee);
+    const totalCloseFeeUSD = totalCloseFees.dividedBy(USDC_DECIMALS);
+    dailyFees.addUSDValue(totalCloseFeeUSD.toNumber());
   });
 
   return {
