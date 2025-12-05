@@ -2,6 +2,7 @@ import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/ty
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
+import https from 'https';
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
@@ -24,6 +25,7 @@ export const chainConfigMap: any = {
   // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
   [CHAIN.ETHEREUM_CLASSIC]: { explorer: 'https://etc.blockscout.com', CGToken: 'ethereum-classic', },
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },
+  
   // [CHAIN.Z]: { explorer: 'https://zyxscan.com', CGToken: ''},
   [CHAIN.VELAS]: { explorer: 'https://evmexplorer.velas.com', CGToken: 'velas' },
   [CHAIN.NULS]: { explorer: 'https://evmscan.nuls.io', CGToken: 'nuls' },
@@ -52,7 +54,6 @@ export const chainConfigMap: any = {
   [CHAIN.THUNDERCORE]: { explorer: 'https://explorer-mainnet.thundercore.com', CGToken: 'thunder-token' },
   [CHAIN.CHILIZ]: { explorer: 'https://scan.chiliz.com', CGToken: 'chiliz' },
   [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so', CGToken: 'ethereum', allStatsApi: 'https://explorer-superposition-1v9rjalnat.t.conduit.xyz', },
-
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
   [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
   [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.swellnetwork.io/', CGToken: 'ethereum', allStatsApi: 'https://explorer.swellnetwork.io' },
@@ -74,6 +75,12 @@ export const chainConfigMap: any = {
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18'},
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
+  [CHAIN.SX_NETWORK]: { CGToken: 'SX', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
+  [CHAIN.ALEPH_ZERO_EVM]: {
+    CGToken: 'aleph-zero',
+    explorer: "https://evm-explorer.alephzero.org",
+    start: '2024-07-30',
+  },  
 }
 
 function getTimeString(timestamp: number) {
@@ -87,7 +94,7 @@ async function sleep(time: number) {
 export function blockscoutFeeAdapter2(chain: string) {
   let config = chainConfigMap[chain]
   if (!config) throw new Error(`No blockscout config for chain ${chain}`)
-  let { url, CGToken, explorer, start, allStatsApi } = config
+  let { url, CGToken, explorer, start, allStatsApi, requestConfig } = config
   if (explorer && explorer.endsWith('/')) explorer = explorer.slice(0, -1)
   if (!url && explorer) url = `${explorer}/api?module=stats&action=totalfees`
   const adapter: Adapter = {
@@ -105,7 +112,7 @@ export function blockscoutFeeAdapter2(chain: string) {
           if (getEnv('BLOCKSCOUT_BULK_MODE')) {
             if (allStatsApi && !gasData[chain]) {
               console.log('pulling chain data for', chain)
-              const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`)
+              const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`, requestConfig)
               gasData[chain] = {}
               for (const { date, value } of chart) {
                 gasData[chain][date] = +value
@@ -132,7 +139,7 @@ export function blockscoutFeeAdapter2(chain: string) {
             todayData = gasData[chain]?.[dateString]
             todayPrice = bulkStoreCGData[CGToken][dateString]
             if (todayData === undefined) {
-              const fees = await httpGet(`${url}&date=${dateString}`)
+              const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
               todayData = fees.result / 1e18
             }
 
@@ -149,7 +156,17 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          const fees = await httpGet(`${url}&date=${dateString}`)
+          let fees: any
+          try {
+            fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
+          } catch (error: any) {
+            if (chain === CHAIN.ALEPH_ZERO_EVM) {
+              // The public Blockscout endpoint occasionally serves 503/default backend responses.
+              console.warn('Aleph Zero EVM fees endpoint unavailable, returning 0 for the day')
+              return { timestamp: startOfDay, dailyFees }
+            }
+            throw error
+          }
           if (!fees || fees.result === undefined || fees.result === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
