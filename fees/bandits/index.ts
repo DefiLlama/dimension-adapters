@@ -15,13 +15,12 @@ const skimmingEvent =
 const liquidationEvent =
 	"event Liquidated(address indexed user, uint256 goldSeized, uint256 collateralSeized)";
 
-// TODO: update contract info later
-const PAIR_CONTRACT = "";
-const STABLE_TOKEN = "";
-const GOLD_TOKEN = "";
-const STAKING_CONTRACT = "";
-const LEDGER_CONTRACT = "";
-const LIQUIDATOR_CONTRACT = "";
+const PAIR_CONTRACT = "0x8BE489CaF675c008269Befd5933D7BF6c660Ee53";
+const STABLE_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
+const GOLD_TOKEN = "0x00063C1a847e2Cc628984b8fFaBE91459461e15d";
+const STAKING_CONTRACT = "0x4123951dE085a8b5624393a8ffe3B3aB20042Ab6";
+const LEDGER_CONTRACT = "0xa585F42c7a7673e980C2AF2CA934de848bb87420";
+const LIQUIDATOR_CONTRACT = "0xc46eAf01111421B999Aa794644ca950EcbBaAe40";
 
 const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
 	const dailyVolume = createBalances();
