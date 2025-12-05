@@ -2,7 +2,6 @@ import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/ty
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
-import https from 'https';
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
@@ -75,12 +74,8 @@ export const chainConfigMap: any = {
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18'},
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
-  [CHAIN.SX_NETWORK]: { CGToken: 'SX', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
-  [CHAIN.ALEPH_ZERO_EVM]: {
-    CGToken: 'aleph-zero',
-    explorer: "https://evm-explorer.alephzero.org",
-    start: '2024-07-30',
-  },  
+  [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
+  [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },  
 }
 
 function getTimeString(timestamp: number) {
@@ -156,17 +151,7 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          let fees: any
-          try {
-            fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
-          } catch (error: any) {
-            if (chain === CHAIN.ALEPH_ZERO_EVM) {
-              // The public Blockscout endpoint occasionally serves 503/default backend responses.
-              console.warn('Aleph Zero EVM fees endpoint unavailable, returning 0 for the day')
-              return { timestamp: startOfDay, dailyFees }
-            }
-            throw error
-          }
+          const fees = await httpGet(`${url}&date=${dateString}`)
           if (!fees || fees.result === undefined || fees.result === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
