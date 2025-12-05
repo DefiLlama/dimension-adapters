@@ -32,7 +32,6 @@ const fetch = async (options: FetchOptions) => {
 
   const leverageByOrder = new Map();
 
-  // Process Open Events
   openLogs.forEach((log: any) => {
     const orderId = log.orderId.toString();
     const margin = BigNumber(log.t.base.margin);
@@ -45,18 +44,15 @@ const fetch = async (options: FetchOptions) => {
     const sizeUSD = size.dividedBy(USDC_DECIMALS);
 
     dailyVolume.addUSDValue(sizeUSD.toNumber());
-    // Fee is in USD already
     dailyFees.addUSDValue(feeUSD.toNumber());
   });
 
-  // Process Close Events
   closeLogs.forEach((log: any) => {
     const orderId = log.orderId.toString();
     const closeMargin = BigNumber(log._closeMargin);
     const rolloverFee = BigNumber(log.rolloverFee);
     const closeFee = BigNumber(log.closeFee);
 
-    // Get leverage from Open event (if available)
     const leverage = leverageByOrder.get(orderId);
 
     if (leverage) {
