@@ -76,6 +76,10 @@ export const chainConfigMap: any = {
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
   [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },  
+  [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
+  // THORCHAIN: runescan.io does not support Blockscout API - use fees/thorchain/index.ts instead (uses Midgard API)
+  // [CHAIN.THORCHAIN]: { CGToken: 'RUNE', explorer: 'https://runescan.io/' },
+
 }
 
 function getTimeString(timestamp: number) {
@@ -151,7 +155,21 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          const fees = await httpGet(`${url}&date=${dateString}`)
+          // For THORCHAIN, runescan.io may not support Blockscout API - handle gracefully
+          let fees
+          try {
+            fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
+          } catch (error: any) {
+            if (chain === CHAIN.THORCHAIN && error?.message?.includes('403')) {
+              console.log(chain, ' Blockscout API not available, runescan.io may not support this endpoint')
+              // Return zero fees for now - user should use fees/thorchain/index.ts which uses Midgard API
+              return {
+                timestamp: startOfDay,
+                dailyFees: createBalances(),
+              }
+            }
+            throw error
+          }
           if (!fees || fees.result === undefined || fees.result === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
