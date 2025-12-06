@@ -14,31 +14,31 @@ interface BfUSDConfig extends ChainConfig {
 const bfBTCConfigs: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: {
     token: '0xCdFb58c8C859Cb3F62ebe9Cf2767F9e036C7fb15',
-    start: '2025-02-06',
+    start: '2024-09-17',
   },
   [CHAIN.BSC]: {
     token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
-    start: '2025-02-06',
+    start: '2024-12-26',
   },
   [CHAIN.BASE]: {
     token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
-    start: '2025-02-06',
+    start: '2025-05-21',
   },
   [CHAIN.BITLAYER]: {
     token: '0xcdfb58c8c859cb3f62ebe9cf2767f9e036c7fb15',
-    start: '2025-02-06',
+    start: '2025-01-03',
   },
   [CHAIN.HEMI]: {
     token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
-    start: '2025-02-06',
+    start: '2025-03-14',
   },
   [CHAIN.CORE]: {
     token: '0xCdFb58c8C859Cb3F62ebe9Cf2767F9e036C7fb15',
-    start: '2025-02-06',
+    start: '2025-06-18',
   },
   [CHAIN.GOAT]: {
     token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
-    start: '2025-02-06',
+    start: '2025-06-24',
   },
 }
 
@@ -46,7 +46,7 @@ const bfUSDConfig: Record<string, BfUSDConfig> = {
   [CHAIN.ETHEREUM]: {
     token: '0xa3eB7A9e57FCa4e40b79E394eD5eB37fEd205A24',
     instantRedeemer: '0x0971cB672b4eF3E19284Aa64717aFb154A6fbeDF',
-    start: '2025-02-06',
+    start: '2025-11-03',
   },
 }
 
@@ -147,7 +147,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEthereum,
-      start: '2025-02-06',
+      start: '2024-09-17',
     },
     ...Object.fromEntries(
       Object.entries(bfBTCConfigs)
