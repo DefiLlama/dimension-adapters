@@ -115,14 +115,21 @@ const fetch = async (
   const dailyFees = await get24hrFees(timestamp, fetchOptions);
   const dailyRevenue = await get24hrRevenue(timestamp, fetchOptions);
 
-  return { dailyFees, dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
+
+const methodology = {
+  Fees: 'spot and perp trading fees paid by users',
+  Revenue: 'trading fees - maker rebates goes to the protocol treasury',
+  ProtocolRevenue: 'net trading fees goes to the protocol treasury',
+}
 
 const adapter: Adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.INK],
   start: '2025-11-15',
+  methodology,
 };
 
 export default adapter;
