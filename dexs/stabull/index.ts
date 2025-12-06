@@ -29,7 +29,7 @@ const configs: Record<string, any> = {
   },
 };
 
-// This method dynamically fetches pool addresses, so newly created pools will be counted automatically in the future
+// This method dynamically fetches pool addresses, this way newly created pools will be counted automatically in the future
 const getPools = async (options: FetchOptions): Promise<string[]> => {
   const {address, fromBlock} = configs[options.chain].factory
   const logs = await options.getLogs({
@@ -58,12 +58,10 @@ const fetchRevenue = async (options: FetchOptions, fromAdddesses: string[], dail
     balances: dailyFees,
     targets: [configs[options.chain].treasury], // Treasury address
     fromAdddesses,
-    skipIndexer: true, // TODO: REMOVE THIS BEFORE PR!
-
   })
 }
 
-const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch: any = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyRevenue = options.createBalances()
 
@@ -76,6 +74,8 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultV2> => {
   return {
     dailyVolume,
     dailyRevenue,
+    // Protocol collects 30% of total fees as revenue, so to derive the full 100% fees:
+    // dailyFees = dailyRevenue / 0.3, equivalently dailyRevenue * (10 / 3)
     dailyFees: dailyRevenue.clone(10/3),
   }
 };
@@ -86,7 +86,7 @@ const adapters: Adapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: fetchEvm,
+        fetch,
         start: configs[chain].startDate,
       }
     }
@@ -94,6 +94,6 @@ const adapters: Adapter = {
   methodology: {
     Fees: 'Stabull charges a flat rate of 0.15% per swap per pool',
     Revenue: '30% of all fees goes to the protocol treasury',
-  }
+  },
 };
 export default adapters;
