@@ -1,3 +1,5 @@
+// Jito staked SOL revenue is already included in the jito-dao adapter
+
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
@@ -21,21 +23,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const results = await queryDuneSql(options, query);
 
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  // const dailyRevenue = options.createBalances();
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
-    } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("jito-staked-sol", row.amount || 0);
+    // } else if (row.metric_type === 'dailyRevenue') {
+    //   dailyRevenue.addCGToken("jito-staked-sol", row.amount || 0);
     }
   });
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
+    // dailyRevenue,
+    // dailyProtocolRevenue: dailyRevenue,
+    // dailyHoldersRevenue: 0,
   };
 };
 
