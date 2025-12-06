@@ -76,6 +76,9 @@ export const chainConfigMap: any = {
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
   [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },  
+  [CHAIN.ALIENX]: { CGToken: 'aix', explorer: "https://explorer.alienxchain.io/", start: '2024-06-05' },
+  [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
+
 }
 
 function getTimeString(timestamp: number) {
