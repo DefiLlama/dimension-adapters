@@ -284,4 +284,7 @@ export enum CHAIN {
   SUPRA = "supra",
   SX_NETWORK = "sx_network",
   ALEPH_ZERO_EVM = "aleph_zero_evm",
+  ALIENX = "alienx",
+  DEGEN = "degen",
+  APPCHAIN = "appchain",
 }
