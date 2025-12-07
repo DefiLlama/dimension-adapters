@@ -27,7 +27,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dataToday = data.result.data.data.find((entry: [number, number]) => entry[0] === today) ?? [0, 0];
     const dataYesterday = data.result.data.data.find((entry: [number, number | string]) => entry[0] === yesterday) ?? [0, 0];
 
-    const result = dataFrequencyInDays === 1 ? (dataToday[1]) - (dataYesterday[1]) : +(dataToday[1] || dataYesterday[1]);
+    const result = dataFrequencyInDays === 1 ? dataToday[1] - dataYesterday[1] : +(dataToday[1] || dataYesterday[1]);
     return result;
   };
 
