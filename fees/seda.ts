@@ -23,17 +23,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const today = options.startOfDay * 1000;
   const yesterday = options.startOfDay * 1000 - 86400000;
 
-  const extractResult = (data: any, dataFrequency: string = 'oneDay') => {
+  const extractResult = (data: any, dataFrequencyInDays: number = 1) => {
     const dataToday = data.result.data.data.find((entry: [number, number]) => {
       return entry[0] === today
     }) ?? [0, 0];
     const dataYesterday = data.result.data.data.find((entry: [number, number | string]) => entry[0] === yesterday) ?? [0, 0];
 
-    const result = dataFrequency === 'oneDay' ? (dataToday[1]) - (dataYesterday[1]) : +(dataToday[1] || dataYesterday[1]);
+    const result = dataFrequencyInDays === 1 ? (dataToday[1]) - (dataYesterday[1]) : +(dataToday[1] || dataYesterday[1]);
     return result;
   };
 
-  const requestsCount = extractResult(data[0]), sedaBurned = extractResult(data[1]) / 1e18, averageRequestCost = extractResult(data[2], 'twoDays') / 1e18;
+  const requestsCount = extractResult(data[0]), sedaBurned = extractResult(data[1]) / 1e18, averageRequestCost = extractResult(data[2], 2) / 1e18;
 
   if (requestsCount > 0 && sedaBurned > 0 && averageRequestCost) {
     dailyFees.addCGToken('seda-2', requestsCount * averageRequestCost);
