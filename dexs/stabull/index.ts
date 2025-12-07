@@ -2,6 +2,7 @@ import {Adapter, FetchOptions, FetchResultV2} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import { addTokensReceived } from '../../helpers/token';
 import {Balances} from "@defillama/sdk";
+import {addOneToken} from "../../helpers/prices";
 
 
 const events = {
@@ -36,6 +37,7 @@ const getPools = async (options: FetchOptions): Promise<string[]> => {
     target: address,
     eventAbi: events.newCurve,
     onlyArgs: true,
+    cacheInCloud: true,
     fromBlock,
   });
   return logs.map(log => log.curve);
@@ -48,7 +50,7 @@ const fetchVolume = async (options: FetchOptions, targets: string[], dailyVolume
   })
 
   for (const event of tradeEvents) {
-    dailyVolume.addToken(event.origin, event.originAmount)
+    addOneToken({balances: dailyVolume, chain: options.chain, token0: event.origin, amount0: event.originAmount, token1: event.target, amount1: event.targetAmount})
   }
 }
 
