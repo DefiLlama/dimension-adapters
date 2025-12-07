@@ -4,9 +4,9 @@ import { httpGet } from "../utils/fetchURL";
 
 const input = encodeURIComponent(
   JSON.stringify({
-    "0": { startDate: "2025-07-01T00:30:00.000Z" },
-    "1": { startDate: "2025-07-01T00:30:00.000Z" },
-    "2": { startDate: "2025-07-01T00:30:00.000Z" },
+    "0": { startDate: "2025-07-01T00:00:00.000Z" },
+    "1": { startDate: "2025-07-01T00:00:00.000Z" },
+    "2": { startDate: "2025-07-01T00:00:00.000Z" },
   })
 );
 
