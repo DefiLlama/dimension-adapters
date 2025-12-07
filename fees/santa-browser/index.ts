@@ -1,16 +1,10 @@
-import {
-  Dependencies,
-  FetchOptions,
-  FetchResult,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const SANTA_BROWSER_ADDRESS =
-  "0xa9bb3bd182a7b4d632c24299cbd0435450aca66a2180c1617ee823a66ec37266";
+const SANTA_BROWSER_ADDRESS = "0xa9bb3bd182a7b4d632c24299cbd0435450aca66a2180c1617ee823a66ec37266";
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const sql = `
@@ -19,21 +13,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     FROM aptos.events
     WHERE guid_account_address = ${SANTA_BROWSER_ADDRESS}
       AND CAST(JSON_EXTRACT_SCALAR(data, '$.event_type') AS DOUBLE) = 2
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
+      AND TIME_RANGE
   `;
   const result = await queryDuneSql(options, sql);
+  dailyFees.addUSDValue(Number(result[0].total_amount_usd));
 
-  if (result && result.length > 0 && result[0].total_amount_usd) {
-    const usdAmount = result[0].total_amount_usd;
-    dailyFees.addCGToken("usd-coin", usdAmount);
-  }
-  const dailyRevenue = dailyFees.clone();
-  const dailyProtocolRevenue = dailyFees.clone();
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -45,16 +33,13 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: "2025-01-01",
+  methodology,
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: "2025-01-01",
-    },
-  },
-  methodology,
 };
 
 export default adapter;
