@@ -50,7 +50,12 @@ const subgraphMapping: SubgraphMapping = {
 // so we will filter out these silos from the data
 const badDebtSiloMapping: BadDebtSiloMapping = {
   [CHAIN.ETHEREUM]: [],
-  [CHAIN.ARBITRUM]: [],
+  [CHAIN.ARBITRUM]: [
+    {
+      silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
+      timestamp: 1765152000, // 2025-12-09
+    }
+  ],
   [CHAIN.AVAX]: [],
   [CHAIN.SONIC]: [
     {
