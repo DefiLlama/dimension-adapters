@@ -2,6 +2,7 @@ import { Adapter, FetchResultFees } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
+import { formatEther } from "ethers";
 
 const MINER_ADDRESS = "0xF69614F4Ee8D4D3879dd53d5A039eB3114C794F6";
 
@@ -55,10 +56,10 @@ const fetch = async (
 
   return {
     timestamp,
-    dailyFees: totalFees.toString(),
-    dailyRevenue: totalTreasury.toString(),
-    dailyProtocolRevenue: totalTreasury.toString(),
-    dailySupplySideRevenue: supplySide.toString(),
+    dailyFees: formatEther(totalFees),
+    dailyRevenue: formatEther(totalTreasury),
+    dailyProtocolRevenue: formatEther(totalTreasury),
+    dailySupplySideRevenue: formatEther(supplySide),
   };
 };
 
