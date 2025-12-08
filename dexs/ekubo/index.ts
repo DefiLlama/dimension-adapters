@@ -13,10 +13,10 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
 
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
 
-  const responseVolumes = ((await fetchURL("https://mainnet-api.ekubo.org/overview/volume")).volumeByTokenByDate as any[])
+  const responseVolumes = ((await fetchURL("https://starknet-mainnet-api.ekubo.org/overview/volume")).volumeByTokenByDate as any[])
     .filter((t) => t.date.split('T')[0] === dateStr)
     .map(t => ({ token: toki(t.token), vol: t.volume, fees: t.fees }))
-  const responseRevenue = ((await fetchURL("https://mainnet-api.ekubo.org/overview/revenue")).revenueByTokenByDate as any[])
+  const responseRevenue = ((await fetchURL("https://starknet-mainnet-api.ekubo.org/overview/revenue")).revenueByTokenByDate as any[])
     .filter((t) => t.date_trunc.split('T')[0] === dateStr)
     .map(t => ({ token: toki(t.token), revenue: t.revenue }))
   
