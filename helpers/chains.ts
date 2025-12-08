@@ -287,4 +287,5 @@ export enum CHAIN {
   ALIENX = "alienx",
   DEGEN = "degen",
   APPCHAIN = "appchain",
+  SEDA = "seda",
 }
