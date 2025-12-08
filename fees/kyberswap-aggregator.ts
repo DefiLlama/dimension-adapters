@@ -2,10 +2,6 @@ import { CHAIN } from "../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
 
-const chains = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.ERA, CHAIN.POLYGON, CHAIN.BASE, CHAIN.BSC, CHAIN.LINEA, CHAIN.SCROLL, CHAIN.AVAX, CHAIN.FANTOM, CHAIN.PLASMA
-  // disabled chains: CHAIN.MANTLE, CHAIN.BLAST, CHAIN.CRONOS, CHAIN.POLYGON_ZKEVM,
-]
-
 const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.ETHEREUM]: { id: 1, start: '2021-06-01' },
   [CHAIN.ARBITRUM]: { id: 42161, start: '2021-09-22' },
@@ -24,6 +20,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.UNICHAIN]: { id: 130, start: '2025-02-11' },
   [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-07-09' },
   [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
+  [CHAIN.MONAD]: { id: 143, start: '2025-11-23' },
   // [CHAIN.CRONOS]: { id: 25, start: '2021-06-01' },
   // [CHAIN.MANTLE]: { id: 5000, start: '2023-07-17' },
   // [CHAIN.BLAST]: {id: 81457, start: '2024-02-29'},
