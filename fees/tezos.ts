@@ -29,7 +29,8 @@ const fetch = async (_a: any, _b: any, { dateString }: FetchOptions) => {
 
   return {
     dailyFees: dayData.dailyFees,
-    dailyRevenue: dayData.dailyRevenue,
+    // dailyRevenue: dayData.dailyRevenue,
+    dailyRevenue: 0, //Tezos fees go to validator only -> not counted as revenue 
   };
 };
 
