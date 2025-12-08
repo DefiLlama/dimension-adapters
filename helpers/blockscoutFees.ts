@@ -155,42 +155,50 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          // For THORCHAIN, runescan.io may not support Blockscout API - handle gracefully
-          let fees
-          try {
-            fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
-          } catch (error: any) {
-            if (chain === CHAIN.THORCHAIN && error?.message?.includes('403')) {
-              console.log(chain, ' Blockscout API not available, runescan.io may not support this endpoint')
-              // Return zero fees for now - user should use fees/thorchain/index.ts which uses Midgard API
-              return {
-                timestamp: startOfDay,
-                dailyFees: createBalances(),
-              }
+
+          // Direct request, no try/catch allowed
+          const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
+          
+          // Handle THORCHAIN special case (Blockscout endpoint unavailable)
+          if (
+            chain === CHAIN.THORCHAIN &&
+            (!fees || fees.result === undefined || fees.result === null)
+          ) {
+            console.log(chain, ' Blockscout API not available, runescan.io may not support this endpoint')
+            return {
+              timestamp: startOfDay,
+              dailyFees: createBalances(),
             }
-            throw error
           }
+          
+          // Standard validation
           if (!fees || fees.result === undefined || fees.result === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
           }
-          if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
-          else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
-          else dailyFees.addGasToken(fees.result)
-
+          
+          if (chain == CHAIN.CANTO && CGToken)
+            dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
+          else if (CGToken)
+            dailyFees.addCGToken(CGToken, fees.result / 1e18)
+          else
+            dailyFees.addGasToken(fees.result)
+          
           if (chain == CHAIN.SOMNIA) {
             const dailyRevenue = dailyFees.clone(0.5);
-            return  {
+            return {
               timestamp: startOfDay,
               dailyFees,
               dailyRevenue,
               dailyHoldersRevenue: dailyRevenue
             }
           }
-
+          
           return {
-            timestamp: startOfDay, dailyFees,
+            timestamp: startOfDay,
+            dailyFees,
           };
+          
         },
         start,
       },
