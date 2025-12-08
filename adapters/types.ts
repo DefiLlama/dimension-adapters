@@ -167,6 +167,8 @@ export type FetchResultFees = FetchResultBase & {
   totalOperatingIncome?: FetchResponseValue;
   dailyNetIncome?: FetchResponseValue;
   totalNetIncome?: FetchResponseValue;
+  dailyGasUsed?: FetchResponseValue;
+  dailyTxns?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -216,6 +218,7 @@ export const whitelistedDimensionKeys = new Set([
   'tokenIncentives',
   'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+  'dailyGasUsed', 'dailyTxns',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
