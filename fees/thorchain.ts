@@ -2,13 +2,6 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-/**
- * THORCHAIN Chain Fees Adapter
- * Fetches chain-level transaction fees (gas fees) for THORCHAIN blockchain
- * Uses Numia API which provides chain fees and revenue data for Cosmos SDK chains
- * Note: This is different from protocol fees (swap fees, liquidity fees, etc.)
- */
-
 interface IChartItem {
   timestamp: string;
   dailyFees: number;
@@ -19,10 +12,10 @@ const fetch = async (_a: any, _b: any, { dateString }: FetchOptions) => {
   const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue?chain=thorchain`;
   const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
-  const dayData = historicalFees.find((feeItem) => 
-    feeItem.timestamp.split(' ')[0] === dateString
+  const dayData = historicalFees.find((feeItem) =>
+    feeItem.timestamp.split(" ")[0] === dateString
   );
-  
+
   if (!dayData) {
     throw new Error(`No chain fees data found for ${dateString}`);
   }
@@ -38,7 +31,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.THORCHAIN]: {
       fetch,
-      start: '2021-04-01', // Approximate THORCHAIN mainnet launch
+      start: "2021-04-01",
     },
   },
   protocolType: "chain" as any,
