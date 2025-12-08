@@ -14,7 +14,6 @@ const PROTOCOL_FEE_RATIO = 0.1;
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -34,22 +33,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     
     // Track total fees (fees are in the output token)
     dailyFees.add(log.tokenOut, log.fee);
-    dailyUserFees.add(log.tokenOut, log.fee);
-    
+  
     // Calculate protocol and LP fee splits
     const protocolFee = BigInt(log.fee) * BigInt(Math.floor(PROTOCOL_FEE_RATIO * 10000)) / BigInt(10000);
     const lpFee = BigInt(log.fee) - protocolFee;
     
     // Track revenue splits
-    dailyRevenue.add(log.tokenOut, log.fee); // Total revenue = all fees
-    dailyProtocolRevenue.add(log.tokenOut, protocolFee.toString());
-    dailySupplySideRevenue.add(log.tokenOut, lpFee.toString());
+    dailyRevenue.add(log.tokenOut, protocolFee);
+    dailyProtocolRevenue.add(log.tokenOut, protocolFee);
+    dailySupplySideRevenue.add(log.tokenOut, lpFee);
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
