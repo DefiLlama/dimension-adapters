@@ -383,7 +383,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
 
-  // Build SQL condition to inlcude only mints tokens
+  // Build SQL condition to include only mints tokens
   let mintsCondition = '';
 
   if (mints && mints.length > 0) {
