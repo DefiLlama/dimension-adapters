@@ -1,55 +1,45 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResult, ProtocolType } from "../adapters/types";
-import { IDate } from "../helpers/bitqueryFees";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-import { httpPost } from "../utils/fetchURL";
-import { getEnv } from "../helpers/env";
+import { httpGet, httpPost } from "../utils/fetchURL";
+
+const KOIOS_URL = 'https://api.koios.rest/api/v1';
 
 
-interface ITxAda {
-  date: IDate;
-  feeValue: number;
-}
+const fetch = async (_t: any, _b: any, { createBalances, startTimestamp, endTimestamp }: FetchOptions) => {
+  const dailyFees = createBalances();
+  
+  // 1. Get blocks for the day
+  // Koios uses block_time in seconds
+  const blocksUrl = `${KOIOS_URL}/blocks?_block_time=gte.${startTimestamp}&_block_time=lt.${endTimestamp}&select=hash`;
+  const blocks: { hash: string }[] = await httpGet(blocksUrl);
 
-const adapterQuery = async (form: string, till: string, network: string): Promise<ITxAda[]> => {
-  const queryTemplate = `query ($network: CardanoNetwork!, $dateFormat: String!, $from: ISO8601DateTime, $till: ISO8601DateTime) {
-    cardano(network: $network) {
-      transactions(options: {asc: "date.date"}, date: {since: $from, till: $till}) {
-        date: date {
-          date(format: $dateFormat)
-        }
-        feeValue
-      }
+  if (!blocks || blocks.length === 0) {
+    return { dailyFees };
+  }
+
+  const blockHashes = blocks.map(b => b.hash);
+  const BATCH_SIZE = 1000; // Koios limit
+  let totalFees = 0;
+
+  // 2. Get block info in batches
+  for (let i = 0; i < blockHashes.length; i += BATCH_SIZE) {
+    const batch = blockHashes.slice(i, i + BATCH_SIZE);
+    const infoUrl = `${KOIOS_URL}/block_info`;
+    const blockInfos: { total_fees: string }[] = await httpPost(infoUrl, { _block_hashes: batch });
+    
+    for (const info of blockInfos) {
+      totalFees += Number(info.total_fees);
     }
-  }`
+  }
 
-  const value = { limit: 1000, offset: 0, network: network, from: form, till: till, dateFormat: "%Y-%m-%d" };
-  const body = JSON.stringify({
-    query: queryTemplate,
-    variables: value
-  });
-
-  const headers =  {"Authorization": `Bearer ${getEnv('BIT_QUERY_API_KEY')}`, "Content-Type": "application/json"};
-  const result: ITxAda[] = (await httpPost("https://graphql.bitquery.io", body, { headers: headers }))?.data.cardano.transactions;
-
-  return result;
-}
-
-const startTime = 1577836800;
-
-const fetch = async (timestamp: number , _: ChainBlocks, { createBalances }: FetchOptions): Promise<FetchResult> => {
-  const dailyFees = createBalances()
-  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const startTimestamp = getTimestampAtStartOfDayUTC(startTime);
-  const tillTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
-  const form = new Date(startTimestamp * 1000).toISOString().split('T')[0];
-  const till = new Date((tillTimestamp - 1) * 1000).toISOString();
-  const result: ITxAda[] = await adapterQuery(form, till, "cardano");
-  const _dailyFees = result.find((a: ITxAda) => (getTimestampAtStartOfDayUTC(new Date(a.date.date).getTime()) /1000) === getTimestampAtStartOfDayUTC(new Date(dayTimestamp).getTime()))?.feeValue
-  dailyFees.addCGToken('cardano', _dailyFees)
+  // totalFees is in Lovelace (1e-6 ADA)
+  dailyFees.addCGToken('cardano', totalFees / 1e6);
+  const dailyRevenue = createBalances();
+  dailyRevenue.addCGToken('cardano', (totalFees * 0.2) / 1e6);
 
   return {
     dailyFees,
+    dailyRevenue,
   };
 };
 
