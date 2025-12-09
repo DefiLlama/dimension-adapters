@@ -26,6 +26,7 @@ const DEFAULTS: any = {
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
+  HYDRADX_BLOCK_LOW: '10336666',
 }
 
 export const ENV_KEYS = new Set([
