@@ -12,7 +12,6 @@ enum providers {
 // date format: YYYY-MM-DD
 const fetch = async (provider: providers, startDate: string) => {
   try {
-    console.log("Fetching Thorswap volume for", provider, "from", startDate);
     const VOLUME_ENDPOINT = `https://backend.thorswap.net/stats/dimensions/volume/${provider}?date=${startDate}`;
 
     const dailyVolume = await httpGet(VOLUME_ENDPOINT);
@@ -56,11 +55,11 @@ const adapter: SimpleAdapter = {
       fetch: fetchThorchainThorswapVolume,
       start: "2021-04-30",
     },
-    near_intents: {
+    [CHAIN.NEAR]: {
       fetch: fetchNearThorswapVolume,
       start: "2025-06-12",
     },
-    mayachain: {
+    [CHAIN.MAYA]: {
       fetch: fetchMayachainThorswapVolume,
       start: "2024-04-01",
     },
