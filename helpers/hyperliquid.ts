@@ -106,6 +106,8 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
     const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}&builder=${formatAddress(builder_address)}`);
     for (const item of response.data) {
       dailyFees.addCGToken('usd-coin', item.feeByTokens.USDC || 0)
+      dailyFees.addCGToken('ethena-usde', item.feeByTokens.USDE || 0)
+      dailyFees.addCGToken('usdh-2', item.feeByTokens.USDH || 0)
       dailyVolume.addCGToken('usd-coin', item.volumeUsd)
     }
 
