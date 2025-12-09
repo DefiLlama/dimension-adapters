@@ -3,10 +3,16 @@ import { CHAIN } from "../helpers/chains";
 import { queryHyperliquidIndexer } from "../helpers/hyperliquid";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const currentDay = Math.floor(Date.now() / 1000 / 86400) * 86400;
+const fetch = async (options: FetchOptions) => {
+  const todayStartUTC = Math.floor(Date.now() / 1000 / 86400) * 86400;
 
-  if (options.endTimestamp < currentDay) {
+  if (options.startOfDay >= todayStartUTC) {
+    const result = await queryHyperliquidIndexer(options);
+
+    return {
+      openInterestAtEnd: result.currentPerpOpenInterest,
+    }
+  } else {
     let openInterestAtEnd = 0;
     const full_date_string = new Date(options.startOfDay * 1000).toISOString().split('.000Z')[0];
 
@@ -21,16 +27,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     return {
       openInterestAtEnd,
     }
-  } else {
-    const result = await queryHyperliquidIndexer(options);
-
-    return {
-      openInterestAtEnd: result.currentPerpOpenInterest,
-    }
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2023-06-12',
