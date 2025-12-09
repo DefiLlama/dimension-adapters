@@ -253,6 +253,7 @@ export enum CHAIN {
   LENS = "lens",
   SSEED = "sseed",
   AO = "ao",
+  XRPL = "xrpl",
   XRPL_EVM = "xrplevm",
   KATANA = "katana",
   SOON = "soon",
