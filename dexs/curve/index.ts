@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
-import bancorV2_1 from "../bancor-v2_1";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -447,6 +446,21 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     customPools: {},
     blacklistedPools: [
       '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+  },
+  [CHAIN.STABLE]: {
+    start: '2025-12-08',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
     ],
   },
 
