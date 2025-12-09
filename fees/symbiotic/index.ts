@@ -2,11 +2,15 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
+    const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
     const addEntityLogs = await options.getLogs({
         topic: "0xb919910dcefbf753bfd926ab3b1d3f85d877190c3d01ba1bd585047b99b99f0b",
         fromBlock: 20011312,
         noTarget: true,
     });
+    
     const entities = addEntityLogs.map(log => "0x" + log.topics[1].slice(-40));
 
     const rewardDistributionLogs = await options.getLogs({
@@ -14,8 +18,10 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         noTarget: true,
     });
 
-    const dailyFees = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
+    const tassiRewardDistributionLogs = await options.getLogs({
+        topic: "0x6a4b9b1f4e6e9369e7cc09dfda8ca9def764110609845dca69c2ae408ad4dcac",
+        noTarget: true
+    });
 
     rewardDistributionLogs.forEach(log => {
         if (!entities.includes(log.address)) return;
@@ -25,11 +31,6 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         dailySupplySideRevenue.add(token, distributeAmount);
         dailyFees.add(token, adminFeeAmount);
-    });
-
-    const tassiRewardDistributionLogs = await options.getLogs({
-        topic: "0x6a4b9b1f4e6e9369e7cc09dfda8ca9def764110609845dca69c2ae408ad4dcac",
-        noTarget: true
     });
 
     tassiRewardDistributionLogs.forEach(log => {
