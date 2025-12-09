@@ -6,7 +6,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 const STAKE_POOL_RESERVE_ACCOUNT = "pRERruHknFdCVq4vU21TR7NWPmxh3CB7kNJoEtH8ew5";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "2zeXA69dFoMLFLdzCfcff35aL7Y7uBZnjKBGWtESgVfS";
 const LST_FEE_TOKEN_ACCOUNT = "4DT8ffnyaaYxeDD9nyQFpfc213TjL2xeMiFZeCyhKeXQ";
-const LST_MINT = ADDRESSES.solana.pSOL;
+const LST_MINT = ADDRESSES.solana.PSOL;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
