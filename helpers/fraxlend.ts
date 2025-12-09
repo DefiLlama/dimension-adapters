@@ -4,7 +4,7 @@ import { BaseAdapterChainConfig, FetchOptions, FetchV2, SimpleAdapter } from "..
 interface FraxlenExportConfigs {
   protocolRevenueRatioFromRevenue: number;
 
-  // chain => regitry address
+  // chain => registry address
   registries: {
     [key: string]: string;
   }

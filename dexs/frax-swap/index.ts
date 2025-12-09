@@ -22,6 +22,7 @@ const chains: TChains = {
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
   [CHAIN.FRAXTAL]: 'Fraxtal',
+  [CHAIN.OPTIMISM]: 'Optimism',
 };
 
 interface IVolumeall {
