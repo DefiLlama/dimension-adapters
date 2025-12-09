@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryHyperliquidIndexer } from "../helpers/hyperliquid";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const currentDay = Math.floor(Date.now() / 1000 / 86400) * 86400;
 
   if (options.endTimestamp < currentDay) {
@@ -31,6 +31,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2023-06-12',
