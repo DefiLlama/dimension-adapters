@@ -1,9 +1,8 @@
-import { getLatestBlock } from "@defillama/sdk/build/util";
 import { SimpleAdapter, whitelistedDimensionKeys, } from "../adapters/types";
-import { humanizeNumber } from "@defillama/sdk/build/computeTVL/humanizeNumber";
+import * as sdk from "@defillama/sdk"
 
-import * as sdk from "@defillama/sdk" 
-
+const humanizeNumber = sdk.util.humanizeNumber;
+const getLatestBlock = sdk.blocks.getLatestBlock;
 export const ERROR_STRING = '------ ERROR ------'
 
 export function checkArguments(argv: string[]) {

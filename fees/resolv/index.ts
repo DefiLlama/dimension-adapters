@@ -1,7 +1,8 @@
-import { getTokenTransfers } from "@defillama/sdk/build/util/indexer";
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import * as sdk from '@defillama/sdk'
 
 const USR = '0x66a1e37c9b0eaddca17d3662d6c05f4decf3e110';
 const ST_USR = '0x6c8984bc7DBBeDAf4F6b2FD766f16eBB7d10AAb4';
@@ -38,7 +39,7 @@ const breakdownMethodology = {
 const getOtherRevenues = async (options: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([options.getStartBlock(), options.api.getBlock()])
 
-  return getTokenTransfers({
+  return sdk.indexer.getTokenTransfers({
     chain: options.chain,
     target: FEE_COLLECTOR,
     fromAddressFilter: ADDRESSES_FROM,
