@@ -50,7 +50,7 @@ export const chainConfigMap: any = {
   // [CHAIN.ZKFAIR]: { explorer: 'https://scan.zkfair.io', CGToken: 'ethereum' },
   [CHAIN.HARMONY]: { explorer: 'https://explorer.harmony.one', CGToken: 'harmony' },
   [CHAIN.KCC]: { explorer: 'https://scan.kcc.io', CGToken: 'kucoin-shares' },
-  [CHAIN.THUNDERCORE]: { explorer: 'https://explorer-mainnet.thundercore.com', CGToken: 'thunder-token' }, 
+  [CHAIN.THUNDERCORE]: { explorer: 'https://explorer-mainnet.thundercore.com', CGToken: 'thunder-token' },
   [CHAIN.CHILIZ]: { explorer: 'https://scan.chiliz.com', CGToken: 'chiliz' },
   [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so', CGToken: 'ethereum', allStatsApi: 'https://explorer-superposition-1v9rjalnat.t.conduit.xyz', },
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
@@ -76,10 +76,7 @@ export const chainConfigMap: any = {
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
   [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },  
-  [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
-  // THORCHAIN: runescan.io does not support Blockscout API - use fees/thorchain/index.ts instead (uses Midgard API)
-  // [CHAIN.THORCHAIN]: { CGToken: 'RUNE', explorer: 'https://runescan.io/' },
-
+  [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' }
 }
 
 function getTimeString(timestamp: number) {
@@ -155,50 +152,28 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-
-          // Direct request, no try/catch allowed
-          const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
-          
-          // Handle THORCHAIN special case (Blockscout endpoint unavailable)
-          if (
-            chain === CHAIN.THORCHAIN &&
-            (!fees || fees.result === undefined || fees.result === null)
-          ) {
-            console.log(chain, ' Blockscout API not available, runescan.io may not support this endpoint')
-            return {
-              timestamp: startOfDay,
-              dailyFees: createBalances(),
-            }
-          }
-          
-          // Standard validation
+          const fees = await httpGet(`${url}&date=${dateString}`)
           if (!fees || fees.result === undefined || fees.result === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
           }
-          
-          if (chain == CHAIN.CANTO && CGToken)
-            dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
-          else if (CGToken)
-            dailyFees.addCGToken(CGToken, fees.result / 1e18)
-          else
-            dailyFees.addGasToken(fees.result)
-          
+          if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
+          else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
+          else dailyFees.addGasToken(fees.result)
+
           if (chain == CHAIN.SOMNIA) {
             const dailyRevenue = dailyFees.clone(0.5);
-            return {
+            return  {
               timestamp: startOfDay,
               dailyFees,
               dailyRevenue,
               dailyHoldersRevenue: dailyRevenue
             }
           }
-          
+
           return {
-            timestamp: startOfDay,
-            dailyFees,
+            timestamp: startOfDay, dailyFees,
           };
-          
         },
         start,
       },

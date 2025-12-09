@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -28,13 +28,10 @@ const fetch = async (_a: any, _b: any, { dateString }: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.THORCHAIN]: {
-      fetch,
-      start: "2021-04-01",
-    },
-  },
-  protocolType: "chain" as any,
+  fetch,
+  chains: [CHAIN.THORCHAIN],
+  start: "2021-04-01",
+  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
