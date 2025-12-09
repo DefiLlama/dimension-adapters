@@ -249,10 +249,10 @@ const adapters: Adapter = {
             fetch,
             start: '2025-09-22',
         },
-        // [CHAIN.MONAD]: {
-        //     fetch,
-        //     start: '2025-11-23',
-        // },
+        [CHAIN.MONAD]: {
+            fetch,
+            start: '2025-11-23',
+        },
         // [CHAIN.MANTLE]: {
         //     fetch,
         //     start: '2025-08-11', // no vaults created
