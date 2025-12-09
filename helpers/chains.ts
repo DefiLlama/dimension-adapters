@@ -285,4 +285,5 @@ export enum CHAIN {
   SX_NETWORK = "sx_network",
   ALEPH_ZERO_EVM = "aleph_zero_evm",
   SEDA = "seda",
+  MULTIVERSX = "multiversx",
 }
