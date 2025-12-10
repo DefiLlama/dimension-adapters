@@ -3,33 +3,26 @@ import { CHAIN } from '../helpers/chains'
 import { queryDuneSql } from '../helpers/dune'
 
 // Macaron protocol wallet addresses
-const STAKING_POOL_WALLET = '7jirHCE99LM5LKDknU9d3zxpXcxGLEXrh7AkwX9AGqtY'
+// const STAKING_POOL_WALLET = '7jirHCE99LM5LKDknU9d3zxpXcxGLEXrh7AkwX9AGqtY'
 const DEV_PLATFORM_WALLET = 'FeeRmkRwtAhsoNkKgHHYAp5RL2gC9pfdXp7WCEvVFAZC'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
    // Query SOL received by staking pool (13%) and dev wallet (2%)
    const query = `
     SELECT
-      address,
+      -- address,
       SUM(balance_change/1e9) AS total_received
     FROM solana.account_activity
-    WHERE address IN ('${STAKING_POOL_WALLET}', '${DEV_PLATFORM_WALLET}')
+    WHERE address = '${DEV_PLATFORM_WALLET}'
       AND balance_change > 0
       AND tx_success = true
       AND TIME_RANGE
-    GROUP BY address
+    -- GROUP BY address
   `
 
    const res = await queryDuneSql(options, query)
-
-   // Extract amounts for each wallet
-   const walletAmounts: { [key: string]: number } = {}
-   res.forEach((row: any) => {
-      walletAmounts[row.address] = row.total_received || 0
-   })
-
-   const stakingWalletAmount = walletAmounts[STAKING_POOL_WALLET] || 0 // 13% (10% buyback + 3% staking)
-   const devAmount = walletAmounts[DEV_PLATFORM_WALLET] || 0 // 2%
+   
+   const devAmount = res[0].total_received || 0 // 2%
 
    // Calculate total auction fees from dev wallet (2%)
    const totalFees = devAmount / 0.02
