@@ -1,10 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const abis = {
-    burnEventAbi: "event Burn(address sender,bytes32 txid,uint256 vout,bytes32 predecessorTxid,uint256 predecessorVout,uint256 brokerAmount,uint256 brokerFee,bytes32 targetScriptHash)"
-};
-
+const burnEventAbi = "event Burn(address sender,bytes32 txid,uint256 vout,bytes32 predecessorTxid,uint256 predecessorVout,uint256 brokerAmount,uint256 brokerFee,bytes32 targetScriptHash)";
 const bridgeContract = "0x4b012E8980ed331a626bA2d2E510B20cB54886de";
 const yBTCbContract = "0x2cd3CdB3bd68Eea0d3BE81DA707bC0c8743D7335";
 
@@ -13,7 +10,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const burnEvents = await options.getLogs({
         target: bridgeContract,
-        eventAbi: abis.burnEventAbi
+        eventAbi: burnEventAbi
     })
 
     for (const event of burnEvents) {
