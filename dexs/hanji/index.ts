@@ -13,12 +13,7 @@ const getConfigAbi = "function getConfig() view returns (uint256 _scaling_factor
 const config: any = {
   [CHAIN.BASE]: { clobFactoryV1: [], clobFactoryV2: ['0xC7264dB7c78Dd418632B73A415595c7930A9EEA4'], fromBlock: 37860153 },
   [CHAIN.ETHERLINK]: { clobFactoryV1: ['0xfb2Ab9f52804DB8Ed602B95Adf0996aeC55ad6Df', '0x8f9949CF3B79bBc35842110892242737Ae11488F'], clobFactoryV2: [], fromBlock: 6610800 },
-  // [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390 },
-}
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {}
+  [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390 },
 }
 
 const getScalingFactorExponent = (scalingFactor: bigint): number => {
@@ -31,19 +26,17 @@ const getScalingFactorExponent = (scalingFactor: bigint): number => {
 };
 
 async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: FetchOptions) {
-  const { clobFactoryV1, clobFactoryV2, fromBlock } = config[chain]
-  const getFromBlock = Number(fromApi.block)
-  const getToBlock = Number(toApi.block)
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailyUserFees = createBalances()
 
+  const { clobFactoryV1, clobFactoryV2, fromBlock } = config[chain]
+
   const factories = [...clobFactoryV1, ...clobFactoryV2]
   const lobCreatedLogs = await getLogs({
     targets: factories,
     fromBlock,
-    skipIndexer: true,
     eventAbi: createdLOBEventAbi,
     onlyArgs: false,
   })
@@ -59,38 +52,44 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     adminCommissionRate: number
   }> = {}
 
-  for (const log of lobCreatedLogs) {
-    const { OnchainCLOB, tokenXAddress, scaling_token_x, tokenYAddress, scaling_token_y } = log.args
-
-    const lobConfig = await api.call({
-      abi: getConfigAbi,
-      target: OnchainCLOB,
-      permitFailure: true,
-    })
-
-    const [tokenXDecimals, tokenYDecimals] = await api.multiCall({
-      abi: 'erc20:decimals',
-      calls: [tokenXAddress, tokenYAddress],
-      permitFailure: true,
-    })
+  const lobConfigs = await api.multiCall({
+    abi: getConfigAbi,
+    calls: lobCreatedLogs.map((i: any) => i.args.OnchainCLOB),
+    permitFailure: true,
+  });
+  const tokenXDecimals = await api.multiCall({
+    abi: 'uint8:decimals',
+    calls: lobCreatedLogs.map((i: any) => i.args.tokenXAddress),
+    permitFailure: true,
+  });
+  const tokenYDecimals = await api.multiCall({
+    abi: 'uint8:decimals',
+    calls: lobCreatedLogs.map((i: any) => i.args.tokenYAddress),
+    permitFailure: true,
+  });
+  
+  for (let i = 0; i < lobCreatedLogs.length; i++) {
+    const lobConfig = lobConfigs[i];
+    const tokenXDecimal = Number(tokenXDecimals[i])
+    const tokenYDecimal = Number(tokenYDecimals[i])
+    
+    const { OnchainCLOB, tokenXAddress, scaling_token_x, tokenYAddress, scaling_token_y } = lobCreatedLogs[i].args
 
     lobMap[OnchainCLOB.toLowerCase()] = { 
-      isV2: clobFactoryV2.map(address => address.toLowerCase()).includes(log.address.toLowerCase()),
+      isV2: clobFactoryV2.map((address: string) => address.toLowerCase()).includes(lobCreatedLogs[i].address.toLowerCase()),
       tokenXAddress, 
-      tokenXDecimals: Number(tokenXDecimals),
-      tokenXScalingFactor: Number(tokenXDecimals) - getScalingFactorExponent(scaling_token_x),
+      tokenXDecimals: Number(tokenXDecimal),
+      tokenXScalingFactor: Number(tokenXDecimal) - getScalingFactorExponent(scaling_token_x),
       tokenYAddress,
-      tokenYDecimals: Number(tokenYDecimals),
-      tokenYScalingFactor: Number(tokenYDecimals) - getScalingFactorExponent(scaling_token_y),
+      tokenYDecimals: Number(tokenYDecimal),
+      tokenYScalingFactor: Number(tokenYDecimal) - getScalingFactorExponent(scaling_token_y),
       adminCommissionRate: Number(formatUnits(lobConfig._admin_commission_rate))
     }
   }
-
-  console.log(lobMap)
-
+  
   const v1LobAddresses = Object.entries(lobMap)
-  .filter(([_, info]) => !info.isV2)
-  .map(([address]) => address)
+    .filter(([_, info]) => !info.isV2)
+    .map(([address]) => address)
 
   const v2LobAddresses = Object.entries(lobMap)
     .filter(([_, info]) => info.isV2)
@@ -100,19 +99,13 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     v1LobAddresses.length > 0 ? getLogs({
       targets: v1LobAddresses,
       eventAbi: placedOrderV1Abi,
-      fromBlock: getFromBlock,
-      toBlock: getToBlock,
       onlyArgs: false,
-      skipIndexer: true,
       flatten: true,
     }) : [],
     v2LobAddresses.length > 0 ? getLogs({
       targets: v2LobAddresses,
       eventAbi: placedOrderV2Abi,
-      fromBlock: getFromBlock,
-      toBlock: getToBlock,
       onlyArgs: false,
-      skipIndexer: true,
       flatten: true,
     }) : []
   ])
@@ -139,6 +132,11 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
   })
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyUserFees }
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {}
 }
 
 Object.keys(config).forEach(chain => {
