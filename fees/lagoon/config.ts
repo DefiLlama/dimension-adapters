@@ -10,6 +10,7 @@ interface InfraConfig {
     start: string;
 
     factories: Array<FactoryConfig>;
+    feeRegistry: string;
 
     // custom vaults
     vaults: Array<string>;
@@ -29,6 +30,7 @@ export const InfraConfigs: InfraConfig = {
         fromBlock: 22218451,
       },
     ],
+    feeRegistry: '0x6dA4D1859bA1d02D095D2246142CdAd52233e27C',
     vaults: [
       '0x07ed467acD4ffd13023046968b0859781cb90D9B', // 9Summits Flagship ETH
       '0x03D1eC0D01b659b89a87eAbb56e4AF5Cb6e14BFc', // 9Summits Flagship USDC
@@ -53,6 +55,7 @@ export const InfraConfigs: InfraConfig = {
         fromBlock: 324144504,
       },
     ],
+    feeRegistry: '0x6dA4D1859bA1d02D095D2246142CdAd52233e27C',
     vaults: [
       '0x99CD0b8b32B15922f0754Fddc21323b5278c5261',
     ],
@@ -69,6 +72,7 @@ export const InfraConfigs: InfraConfig = {
         fromBlock: 62519141,
       },
     ],
+    feeRegistry: '0xD7F69ba99c6981Eab5579Aa16871Ae94c509d578',
     vaults: [],
   },
   [CHAIN.BASE]: {
@@ -83,6 +87,7 @@ export const InfraConfigs: InfraConfig = {
         fromBlock: 29100401,
       },
     ],
+    feeRegistry: '0x6dA4D1859bA1d02D095D2246142CdAd52233e27C',
     vaults: [
       "0xFCE2064B4221C54651B21c868064a23695E78f09", // 722Capital-ETH
       "0x8092cA384D44260ea4feaf7457B629B8DC6f88F0", // DeTrade Core USDC
@@ -97,6 +102,7 @@ export const InfraConfigs: InfraConfig = {
         fromBlock: 23119208,
       },
     ],
+    feeRegistry: '0xC81Dd51239119Db80D5a6E1B7347F3C3BC8674d9',
     vaults: [],
   },
   [CHAIN.MONAD]: {
@@ -107,6 +113,7 @@ export const InfraConfigs: InfraConfig = {
         fromBlock: 36249718,
       },
     ],
+    feeRegistry: '0xBf994c358f939011595AB4216AC005147863f9D6',
     vaults: [],
   },
   //  [CHAIN.BERACHAIN]: {

@@ -30,17 +30,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     });
     vaults = vaults.concat(events.map((e: any) => e.proxy))
   }
-  if (vaults.length === 0) {
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
-  }
+  if (vaults.length === 0) return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
 
-  const rolesStorage = await options.api.call({
-    target: vaults[0],
-    abi: Abis.getRolesStorage
-  })
   const protocolRates = await options.api.multiCall({
     abi: Abis.protocolRate,
-    calls: vaults.map(vault => ({ target: rolesStorage.feeRegistry, params: [vault] })),
+    calls: vaults.map(vault => ({ target: InfraConfigs[options.chain].feeRegistry, params: [vault] })),
     permitFailure: true
   })
   const assets = await options.api.multiCall({ abi: 'address:asset', calls: vaults, permitFailure: true })
