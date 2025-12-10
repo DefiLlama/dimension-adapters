@@ -17,7 +17,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyFees.addToken(yBTCbContract, event.brokerFee);
     }
 
-    return { dailyFees, dailyRevenue: options.createBalances(), dailySupplySideRevenue: dailyFees }
+    return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
