@@ -2,7 +2,6 @@ import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 import { getSolanaReceived } from '../../helpers/token';
 import { FetchOptions } from '../../adapters/types';
-import CoreAddresses from '../../helpers/coreAssets.json';
 
 const meteoraStatsEndpoint = 'https://amm-v2.meteora.ag/pools/v2';
 const BUYBACK_WALLET = 'FzULv8pR9Rd7cyVKjVkzmJ1eqEmgwDnzjYyNUcEJtoG9';
@@ -32,7 +31,7 @@ async function fetch(options: FetchOptions) {
   const dailyHoldersRevenue = await getSolanaReceived({
     options,
     target: BUYBACK_WALLET,
-    mints: [CoreAddresses.solana.MET],
+    mints: ["METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL"],  // MET token
   })
 
   return {
