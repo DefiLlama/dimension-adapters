@@ -8,7 +8,7 @@ interface FactoryConfig {
 interface InfraConfig {
   [key: string]: {
     start: string;
-    
+
     factories: Array<FactoryConfig>;
 
     // custom vaults
@@ -89,20 +89,6 @@ export const InfraConfigs: InfraConfig = {
       "0xB09F761Cb13baCa8eC087Ac476647361b6314F98", // 722Capital-USDC
     ],
   },
-  [CHAIN.BERACHAIN]: {
-    start: '2025-04-23',
-    factories: [
-      {
-        address: '0x245d1C095a0fFa6f1Af0f7Df81818DeFc9Cfc69D',
-        fromBlock: 7858746,
-      },
-      {
-        address: '0x7CF8cF276450BD568187fDC0b0959D30eC599853',
-        fromBlock: 4061769,
-      },
-    ],
-    vaults: [],
-  },
   [CHAIN.LINEA]: {
     start: '2025-09-10',
     factories: [
@@ -123,6 +109,20 @@ export const InfraConfigs: InfraConfig = {
     ],
     vaults: [],
   },
+  //  [CHAIN.BERACHAIN]: {
+  //   start: '2025-04-23',
+  //   factories: [
+  //     {
+  //       address: '0x245d1C095a0fFa6f1Af0f7Df81818DeFc9Cfc69D',
+  //       fromBlock: 7858746,
+  //     },
+  //     {
+  //       address: '0x7CF8cF276450BD568187fDC0b0959D30eC599853',
+  //       fromBlock: 4061769,
+  //     },
+  //   ],
+  //   vaults: [],
+  // },
   // [CHAIN.PLASMA]: {
   //   start: '2025-10-01',
   //   factories: [
