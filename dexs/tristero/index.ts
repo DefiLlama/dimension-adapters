@@ -1,5 +1,6 @@
 import { Fetch, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 /**
  * Tristero DEX Adapter
@@ -15,7 +16,7 @@ import { CHAIN } from "../../helpers/chains";
 const event_order_filled = 'event OrderFilled(bytes32 indexed orderUUID,string orderType,address target,address filler,address srcAsset,address dstAsset,uint256 srcQuantity,uint256 dstQuantity)';
 
 // v2_order_router contract address (same across all chains)
-const V2_ORDER_ROUTER_ADDRESS = '0x98888821812DfEcD4deA8077682Ce2F3A7F39b25';
+const V2_ORDER_ROUTER_ADDRESS = '0x98888e2e040944cee3d7c8da22368aef18f5a3f4';
 
 type TAddress = {
   [c: string]: string;
@@ -24,29 +25,57 @@ type TAddress = {
 const address: TAddress = {
   [CHAIN.ETHEREUM]: V2_ORDER_ROUTER_ADDRESS,
   [CHAIN.ARBITRUM]: V2_ORDER_ROUTER_ADDRESS,
-  [CHAIN.OPTIMISM]: V2_ORDER_ROUTER_ADDRESS,
-  [CHAIN.BASE]: V2_ORDER_ROUTER_ADDRESS,
-  [CHAIN.POLYGON]: V2_ORDER_ROUTER_ADDRESS,
   [CHAIN.AVAX]: V2_ORDER_ROUTER_ADDRESS,
+  [CHAIN.BASE]: V2_ORDER_ROUTER_ADDRESS,
+  [CHAIN.OPTIMISM]: V2_ORDER_ROUTER_ADDRESS,
+  [CHAIN.POLYGON]: V2_ORDER_ROUTER_ADDRESS,
   [CHAIN.LINEA]: V2_ORDER_ROUTER_ADDRESS,
 }
 
-const fetch = (async (timestamp: number, _: any, { getLogs, createBalances, chain }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = (async (timestamp: number, _: any, { getLogs, createBalances, chain, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = createBalances();
 
+  // Get explicit block range for the day
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
+
+  // Query OrderFilled events from the order router contract
   const logs = await getLogs({
     target: address[chain],
     eventAbi: event_order_filled,
+    fromBlock,
+    toBlock,
+    onlyArgs: true,
   });
 
-  // Track volume from both srcQuantity and dstQuantity
-  // This captures the full trading volume (both sides of the swap)
+  // Debug: Log number of events found
+  if (logs.length > 0) {
+    console.log(`[Tristero ${chain}] Found ${logs.length} OrderFilled events`);
+  }
+
+  // Track volume from srcQuantity only (one side of the swap)
+  // This is the standard DEX volume calculation method
+  let processedCount = 0;
   logs.forEach((log: any) => {
-    // Add source asset quantity
-    dailyVolume.add(log.srcAsset, log.srcQuantity);
-    // Add destination asset quantity
-    dailyVolume.add(log.dstAsset, log.dstQuantity);
+    // Add source asset quantity only
+    if (log.srcAsset && log.srcQuantity) {
+      let tokenAddress = log.srcAsset.toLowerCase();
+      // Handle native tokens - use wrapped token address
+      if (tokenAddress === '0x0000000000000000000000000000000000000000' || tokenAddress === 'native') {
+        const wrappedToken = ADDRESSES[chain as keyof typeof ADDRESSES]?.WETH || ADDRESSES[chain as keyof typeof ADDRESSES]?.WAVAX;
+        if (wrappedToken) {
+          tokenAddress = wrappedToken.toLowerCase();
+        } else {
+          return; // Skip if no wrapped token available
+        }
+      }
+      dailyVolume.add(tokenAddress, log.srcQuantity);
+      processedCount++;
+    }
   });
+
+  if (logs.length > 0) {
+    console.log(`[Tristero ${chain}] Processed ${processedCount} events`);
+  }
 
   return { 
     dailyVolume, 
@@ -55,7 +84,7 @@ const fetch = (async (timestamp: number, _: any, { getLogs, createBalances, chai
 }) as Fetch;
 
 const methodology = {
-  Volume: "Trading volume is calculated from OrderFilled events emitted by the v2_order_router contract. Volume includes both srcQuantity and dstQuantity from each filled order, representing the full trading volume across both sides of the swap. Tristero fills swaps through its own smart contracts, sourcing liquidity from DEX aggregators.",
+  Volume: "Trading volume is calculated from OrderFilled events emitted by the v2_order_router contract. Volume is measured as the USD value of the source token quantity (srcQuantity) in each filled swap. This follows standard DEX volume calculation methodology by counting one side of each swap. Tristero fills swaps through its own smart contracts, sourcing liquidity from DEX aggregators.",
 };
 
 const adapter: SimpleAdapter = {
