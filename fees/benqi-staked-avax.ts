@@ -31,13 +31,23 @@ const fetchFees = async (options: FetchOptions) => {
   dailyFees.addCGToken("avalanche-2", dailysAvaxHoldersYield/0.9);
 
   const dailyRevenue = dailyFees.clone(0.1)
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
+  const dailySupplySideRevenue = dailyFees.clone(0.9)
+  
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
+  }
 }
 
 const methodology = {
   Fees: 'Total yields from staked Avax.',
   Revenue: '10 % of the total yields are charged by Benqi.',
-  ProtocolRevenue: 'All revenue goes to the protocol'
+  ProtocolRevenue: 'All revenue goes to the protocol.',
+  HoldersRevneue: 'No revenue share to QI token holders.',
+  SupplySideRevneue: 'Stakers earn 90% AVAX staking rewards.',
 }
 const adapters: SimpleAdapter = {
   version: 2,
@@ -49,4 +59,5 @@ const adapters: SimpleAdapter = {
     }
   }
 }
+
 export default adapters;

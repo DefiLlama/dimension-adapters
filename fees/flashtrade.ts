@@ -29,7 +29,7 @@ const pools = [
   "Community.2",
   "Trump.1",
   "Ore.1",
-  
+  "Remora.1",
   // keep historical pools
   "Community.3",
 ]
@@ -86,6 +86,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
       "Community.3": 0.05,
       "Trump.1": 0.05,
       "Ore.1": 0.10,
+      "Remora.1": 0.20,
     };
 
     for (const pool of pools) {
