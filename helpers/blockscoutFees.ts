@@ -21,23 +21,18 @@ export const chainConfigMap: any = {
   [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain' },
   [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.TELOS]: { explorer: 'https://telostx.com', CGToken: 'telos' },
-  // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
   [CHAIN.ETHEREUM_CLASSIC]: { explorer: 'https://etc.blockscout.com', CGToken: 'ethereum-classic', },
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },
   
-  // [CHAIN.Z]: { explorer: 'https://zyxscan.com', CGToken: ''},
   [CHAIN.VELAS]: { explorer: 'https://evmexplorer.velas.com', CGToken: 'velas' },
   [CHAIN.NULS]: { explorer: 'https://evmscan.nuls.io', CGToken: 'nuls' },
   [CHAIN.FUSE]: { explorer: 'https://explorer.fuse.io', CGToken: 'fuse-network-token', allStatsApi: 'https://stats-fuse-mainnet.k8s-prod-1.blockscout.com' },
   [CHAIN.POLYGON]: { explorer: 'https://polygon.blockscout.com', CGToken: 'matic-network', allStatsApi: 'https://stats-polygon-mainnet.k8s-prod-3.blockscout.com' },
-  // [CHAIN.MANTA]: { explorer: 'https://pacific-explorer.manta.network', CGToken: 'ethereum' },
   [CHAIN.MINT]: { explorer: 'https://explorer.mintchain.io', CGToken: 'ethereum', allStatsApi: 'https://explorer-mint-mainnet-0.t.conduit.xyz' },
   [CHAIN.OAS]: { explorer: 'https://explorer.oasys.games', CGToken: 'oasys' },
   [CHAIN.KROMA]: { explorer: 'https://blockscout.kroma.network', CGToken: 'ethereum', allStatsApi: 'https://blockscout.kroma.network' },
-  // [CHAIN.DER]: { explorer: 'https://explorer.derive.xyz', CGToken: ''},
   [CHAIN.METIS]: { explorer: 'https://andromeda-explorer.metis.io', CGToken: 'metis-token' },
   [CHAIN.BLAST]: { explorer: 'https://blast.blockscout.com', CGToken: 'ethereum', allStatsApi: 'https://stats-blast-mainnet.k8s-prod-1.blockscout.com' },
-  // [CHAIN.LINEA]: { explorer: 'https://explorer.linea.build', CGToken: 'ethereum' },
   [CHAIN.MANTLE]: { explorer: 'https://explorer.mantle.xyz', CGToken: 'mantle', allStatsApi: 'https://mantle-blockscout-stats.mantle.xyz' },
   [CHAIN.MODE]: { explorer: 'https://explorer.mode.network', CGToken: 'ethereum', allStatsApi: 'https://explorer-mode-mainnet-0.t.conduit.xyz', },
   [CHAIN.SCROLL]: { explorer: 'https://scroll.blockscout.com', CGToken: 'ethereum' },
@@ -47,10 +42,9 @@ export const chainConfigMap: any = {
   [CHAIN.STORY]: { explorer: 'https://www.storyscan.io', CGToken: 'story-2', allStatsApi: 'https://stats-story-mainnet.k8s-prod-3.blockscout.com', },
   [CHAIN.APECHAIN]: { explorer: 'https://apechain.calderaexplorer.xyz', CGToken: 'apecoin' },
   [CHAIN.HEMI]: { explorer: 'https://explorer.hemi.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer.hemi.xyz' },
-  // [CHAIN.ZKFAIR]: { explorer: 'https://scan.zkfair.io', CGToken: 'ethereum' },
   [CHAIN.HARMONY]: { explorer: 'https://explorer.harmony.one', CGToken: 'harmony' },
   [CHAIN.KCC]: { explorer: 'https://scan.kcc.io', CGToken: 'kucoin-shares' },
-  [CHAIN.THUNDERCORE]: { explorer: 'https://explorer-mainnet.thundercore.com', CGToken: 'thunder-token' },
+  [CHAIN.THUNDERCORE]: { explorer: 'https://explorer-mainnet.thundercore.com', CGToken: 'thunder-token' }, 
   [CHAIN.CHILIZ]: { explorer: 'https://scan.chiliz.com', CGToken: 'chiliz' },
   [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so', CGToken: 'ethereum', allStatsApi: 'https://explorer-superposition-1v9rjalnat.t.conduit.xyz', },
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
@@ -58,12 +52,10 @@ export const chainConfigMap: any = {
   [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.swellnetwork.io/', CGToken: 'ethereum', allStatsApi: 'https://explorer.swellnetwork.io' },
   [CHAIN.ZORA]: { explorer: 'https://explorer.zora.co', CGToken: 'ethereum', allStatsApi: 'https://explorer.zora.co' },
   [CHAIN.WC]: { explorer: 'https://worldchain-mainnet.explorer.alchemy.com', CGToken: 'ethereum', allStatsApi: 'https://stats-alchemy-worldchain-mainnet.k8s.blockscout.com' },
-  // [CHAIN.ASSETCHAIN]: { explorer: 'https://scan.assetchain.org', CGToken: 'ethereum', allStatsApi: 'https://stats.assetchain.org' },
   [CHAIN.ANCIENT8]: { explorer: 'https://scan.ancient8.gg', CGToken: 'ethereum', allStatsApi: 'https://explorer-ancient8-mainnet-0.t.conduit.xyz' },
 
   [CHAIN.GRAVITY]: { explorer: 'https://explorer.gravity.xyz', CGToken: 'g-token', allStatsApi: 'https://explorer-gravity-mainnet-0.t.conduit.xyz' },
   [CHAIN.CORN]: { explorer: 'https://maizenet-explorer.usecorn.com', CGToken: 'wrapped-bitcoin', allStatsApi: 'https://explorer-corn-maizenet.t.conduit.xyz' },
-  // [CHAIN.LUKSO]: {    explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: 'lukso-token-2', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network'  },
   [CHAIN.LIGHTLINK_PHOENIX]: { explorer: 'https://phoenix.lightlink.io', CGToken: 'lightlink', allStatsApi: 'https://stats-lightlink-phoenix.k8s.blockscout.com' },
   [CHAIN.IOTAEVM]: { CGToken: 'iota', explorer: 'https://explorer.evm.iota.org', allStatsApi: 'https://stats-iota-evm.k8s.blockscout.com' },
   [CHAIN.FILECOIN]: { CGToken: 'filecoin', explorer: 'https://filecoin.blockscout.com/', allStatsApi: 'https://stats-filecoin.k8s-prod-1.blockscout.com' },
@@ -76,7 +68,8 @@ export const chainConfigMap: any = {
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
   [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },  
-  [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' }
+  [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
+
 }
 
 function getTimeString(timestamp: number) {
@@ -129,7 +122,6 @@ export function blockscoutFeeAdapter2(chain: string) {
               for (const [date, value] of prices) {
                 bulkStoreCGData[CGToken][getTimeString(date / 1000)] = +value
               }
-              // console.log(bulkStoreCGData[CGToken], gasData[chain])
             }
 
             todayData = gasData[chain]?.[dateString]
@@ -152,28 +144,47 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          const fees = await httpGet(`${url}&date=${dateString}`)
+
+          const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
+          
+          if (
+            chain === CHAIN.THORCHAIN &&
+            (!fees || fees.result === undefined || fees.result === null)
+          ) {
+            console.log(chain, ' Blockscout API not available, runescan.io may not support this endpoint')
+            return {
+              timestamp: startOfDay,
+              dailyFees: createBalances(),
+            }
+          }
+          
           if (!fees || fees.result === undefined || fees.result === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
           }
-          if (chain == CHAIN.CANTO && CGToken) dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
-          else if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
-          else dailyFees.addGasToken(fees.result)
-
+          
+          if (chain == CHAIN.CANTO && CGToken)
+            dailyFees.addCGToken(CGToken, fees.gas_used_today * fees.gas_prices.average / 1e18)
+          else if (CGToken)
+            dailyFees.addCGToken(CGToken, fees.result / 1e18)
+          else
+            dailyFees.addGasToken(fees.result)
+          
           if (chain == CHAIN.SOMNIA) {
             const dailyRevenue = dailyFees.clone(0.5);
-            return  {
+            return {
               timestamp: startOfDay,
               dailyFees,
               dailyRevenue,
               dailyHoldersRevenue: dailyRevenue
             }
           }
-
+          
           return {
-            timestamp: startOfDay, dailyFees,
+            timestamp: startOfDay,
+            dailyFees,
           };
+          
         },
         start,
       },
