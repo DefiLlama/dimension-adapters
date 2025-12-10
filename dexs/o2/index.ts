@@ -4,11 +4,13 @@ import { queryDuneSql } from "../../helpers/dune";
 import axios from "axios";
 
 const ApiBaseUrl = "https://api.o2.app";
+const IndexerUrl = "http://157.245.207.118:3003";
 const FeeRecipient =
   "0x18af30EfA58A70042013192bBDdF8A21221004b44cC1cbA1A0038cE524aAa2EE";
 
 const fetch = async (options: FetchOptions) => {
   const markets = await axios.get(ApiBaseUrl.concat("/v1/markets"));
+
   const orderbookContractIds = markets.data.markets.map(
     (market) => market.contract_id,
   );
@@ -19,20 +21,7 @@ const fetch = async (options: FetchOptions) => {
   const combinedQuery = `
     SELECT
       SUM(CAST(amount AS DECIMAL(38,0))) as amount,
-      asset_id,
-      'volume' as metric_type
-    FROM fuel.receipts
-    WHERE to IN (${orderbookContractIds})
-      AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-      AND block_time < FROM_UNIXTIME(${options.endTimestamp})
-    GROUP BY asset_id
-
-    UNION ALL
-
-    SELECT
-      SUM(CAST(amount AS DECIMAL(38,0))) as amount,
-      asset_id,
-      'fee' as metric_type
+      asset_id
     FROM fuel.receipts
     WHERE contract_id IN (${orderbookContractIds})
       AND to = ${FeeRecipient}
@@ -41,23 +30,32 @@ const fetch = async (options: FetchOptions) => {
     GROUP BY asset_id
   `;
 
-  const results = await queryDuneSql(options, combinedQuery);
+  const [duneResults, volumeResults] = await Promise.all([
+    queryDuneSql(options, combinedQuery),
+    axios
+      .get(
+        `${IndexerUrl}/volumes?from=${options.startTimestamp}&to=${options.endTimestamp}`,
+      )
+      .then((res) => res.data)
+      .catch(() => []),
+  ]);
 
-  if (results && results.length > 0) {
-    results.forEach((row) => {
-      if (row.metric_type === "volume") {
-        dailyVolume.add(row.asset_id, row.amount);
-      } else if (row.metric_type === "fee") {
-        dailyFees.add(row.asset_id, row.amount);
-      }
+  if (duneResults?.length > 0) {
+    duneResults.forEach((row) => {
+      dailyFees.add(row.asset_id, row.amount);
     });
   }
 
-  // we don't track revenue as a percentage of the fees yet
-  const dailyRevenue = dailyFees;
-  const dailyProtocolRevenue = dailyFees;
+  volumeResults.forEach((result) => {
+    dailyVolume.add(result.base_asset_id, result.base_volume);
+  });
 
-  return { dailyVolume, dailyFees, dailyProtocolRevenue, dailyRevenue };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyRevenue: dailyFees,
+  };
 };
 
 const methodology = {
