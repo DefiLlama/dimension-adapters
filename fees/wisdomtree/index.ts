@@ -47,7 +47,8 @@ const headers = {
 
 async function prefetch(options: FetchOptions): Promise<any> {
     for (const [fund, fundDetails] of offChainData) {
-        if (options.startOfDay <= 1765152000) {
+        //For backfilling , the day before which adapter was created
+        if (options.startOfDay <= 1765218600) {
             const fetchHistoricNav = async (ticker: string, assetClass: string) => {
                 const result = await httpGet(`${NASDAQ_API_URL}/${ticker}/historical?assetclass=${assetClass}&fromdate=${options.dateString}&limit=1`, { headers });
                 if (!result || !result.data.tradesTable.rows || result.data.tradesTable.rows.length !== 1) {
@@ -56,8 +57,8 @@ async function prefetch(options: FetchOptions): Promise<any> {
                 return +result.data.tradesTable.rows[0].close;
             }
             switch (fund) {
-                //2023-11-07
                 case "WTGXX":
+                    //fund started on 7th Nov 2023, so we assume 0 yield before
                     if (options.startOfDay < 1699315200) {
                         fundDetails.netYield = 0;
                         fundDetails.expenseRatio = 0;
@@ -75,8 +76,8 @@ async function prefetch(options: FetchOptions): Promise<any> {
                     const techxLatestNav = await fetchHistoricNav(fund, fundDetails.assetClass);
                     fundDetails.nav = techxLatestNav;
                     break;
-                //2024-01-11
                 case "BTCW":
+                    //fund started on 11th Jan 2024, so we assume 0 aum and expense before
                     if (options.startOfDay < 1704931200) {
                         fundDetails.expenseRatio = 0;
                         fundDetails.aum = 0;
@@ -97,17 +98,17 @@ async function prefetch(options: FetchOptions): Promise<any> {
         else {
             if (!fundDetails.nav && fundDetails.type !== "crypto") {
                 const result = await httpGet(`${NASDAQ_API_URL}/${fund}/info?assetclass=${fundDetails.assetClass}`, { headers });
-                fundDetails.nav = +(result?.data?.primaryData?.lastSalePrice.slice(1) || 0);
+                fundDetails.nav = +(result.data.primaryData.lastSalePrice.slice(1));
             }
 
             if (fundDetails.type === "yield") {
                 const result = await httpGet(`${NASDAQ_API_URL}/${fund}/summary?assetclass=${fundDetails.assetClass}`, { headers });
-                fundDetails.netYield = + (result?.data?.summaryData?.SevenDayYield?.value || 0);
+                fundDetails.netYield = + (result.data.summaryData.SevenDayYield.value);
             }
 
             if (fundDetails.type === "crypto") {
                 const result = await httpGet(`${NASDAQ_API_URL}/${fund}/summary?assetclass=${fundDetails.assetClass}`, { headers });
-                fundDetails.aum = + (result?.data?.summaryData?.MarketCap?.value?.replaceAll(',', '') || 0);
+                fundDetails.aum = + (result.data.summaryData.MarketCap.value.replaceAll(',', ''));
             }
         }
     }
