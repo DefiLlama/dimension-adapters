@@ -65,6 +65,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 	const ROLLUP_ECONOMICS_NAME_MAP: any = {
 		// EVM
 		[CHAIN.ARBITRUM]: 'arbitrum',
+		[CHAIN.ABSTRACT]: 'abstract',
 		[CHAIN.BASE]: 'base',
 		[CHAIN.BLAST]: 'blast',
 		[CHAIN.LINEA]: 'linea',

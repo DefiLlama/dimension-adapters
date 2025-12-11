@@ -79,6 +79,7 @@ export const chainConfigMap: any = {
   [CHAIN.RARI] : { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' }, 
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
+  [CHAIN.CAPX] : { CGToken: 'ethereum', explorer: "https://www.capxscan.com/"},
   [CHAIN.SANKO]: { CGToken: 'ethereum', explorer: 'https://explorer.sanko.xyz/' },
 
   
