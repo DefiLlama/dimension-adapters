@@ -46,10 +46,10 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: '2025-11-07',
   methodology: {
-    Fees: 'Fees collected from the miner',
-    Revenue: 'Revenue collected from the treasury',
-    ProtocolRevenue: 'Protocol revenue',
-    SupplySideRevenue: 'Supply side revenue',
+    Fees: 'mining 5% frontend fee',
+    Revenue: 'Fees going to the treasury',
+    ProtocolRevenue: 'Mining fees going to the protocol',
+    SupplySideRevenue: 'fees earned by miners',
   }
 };
 
