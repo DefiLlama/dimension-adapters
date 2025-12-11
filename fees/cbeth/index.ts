@@ -6,8 +6,7 @@ import { METRIC } from "../../helpers/metrics";
 const cbETH = "0xbe9895146f7af43049ca1c1ae358b0541ea49704";
 const MevFeeRecipient = "0x4675c7e5baafbffbca748158becba61ef3b0a263";
 
-// fees data from source: https://research.llamarisk.com/research/risk-collateral-risk-assessment-coinbase-wrapped-staked-eth-cbeth
-const PROTOCOL_FEE = 0.25; // 25%
+const PROTOCOL_FEE = 0.10; // 10%
 
 const ABIS = {
   exchangeRate: "uint256:exchangeRate",
@@ -70,9 +69,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const methodology = {
   Fees: "Total validators fees and rewards from staked ETH.",
-  SupplySideRevenue: "75% of rewards accrue to cbETH holders via exchange rate.",
-  ProtocolRevenue: "25% staking commission kept by Coinbase on all rewards.",
-  Revenue: "Coinbase takes a 25% staking service fee for ETH",
+  SupplySideRevenue: "90% of rewards accrue to cbETH holders via exchange rate.",
+  ProtocolRevenue: "10% staking commission kept by Coinbase on all rewards.",
+  Revenue: "Coinbase takes a 10% staking service fee for ETH",
 };
 
 const adapter: Adapter = {
@@ -90,16 +89,16 @@ const adapter: Adapter = {
       [METRIC.MEV_REWARDS]: "Execution-layer MEV tips sent to Coinbase validator fee recipient.",
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: "25% commission on staking rewards kept by Coinbase.",
-      [METRIC.MEV_REWARDS]: "25% commission on MEV tips kept by Coinbase.",
+      [METRIC.STAKING_REWARDS]: "10% commission on staking rewards kept by Coinbase.",
+      [METRIC.MEV_REWARDS]: "10% commission on MEV tips kept by Coinbase.",
     },
     ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: "25% commission on staking rewards kept by Coinbase.",
-      [METRIC.MEV_REWARDS]: "25% commission on MEV tips kept by Coinbase.",
+      [METRIC.STAKING_REWARDS]: "10% commission on staking rewards kept by Coinbase.",
+      [METRIC.MEV_REWARDS]: "10% commission on MEV tips kept by Coinbase.",
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: "75% of staking rewards accrue to cbETH holders.",
-      [METRIC.MEV_REWARDS]: "75% of MEV tips accrue to cbETH holders.",
+      [METRIC.STAKING_REWARDS]: "90% of staking rewards accrue to cbETH holders.",
+      [METRIC.MEV_REWARDS]: "90% of MEV tips accrue to cbETH holders.",
     },
   },
 };
