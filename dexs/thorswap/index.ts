@@ -14,10 +14,10 @@ const fetch = async (provider: providers, startDate: string) => {
   try {
     const VOLUME_ENDPOINT = `https://backend.thorswap.net/stats/dimensions/volume/${provider}?date=${startDate}`;
 
-    const dailyVolume = await httpGet(VOLUME_ENDPOINT);
-
+    const data = await httpGet(VOLUME_ENDPOINT);
+    
     return {
-      ...dailyVolume,
+      dailyVolume: data.dailyVolume,
     };
   } catch (error) {
     console.error("Error fetching Thorswap volume for", provider, ":", error);
@@ -69,13 +69,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Volume: `Thorswap volume is sourced from Thorswap's internal analytics which aggregates swap data across multiple providers including Thorchain, Near, Mayachain, and Chainflip. Sources for each data are as follows:
-      - Thorchain: xscanner.org's API https://xscanner.org/api/stats/interfaces/timeseries?interfaceName=t.
-      - Mayachain: Data is fetched from xscanner.org's API https://xscanner.org/api/stats/interfaces/timeseries?interfaceName=ts.
-      - Near: Data is fetched from Thorswap's Near intents analytics API, which is protected by API key, so we rely on Thorswap's internal cache.
-      - Chainflip: Data is fetched from Chainflip GraphQL API. Chainflip recommends caching before distributing, so we rely on Thorswap's internal cache here as well.`,
-    DataQuality:
-      "Volume data accuracy depends on upstream provider APIs. Thorswap maintains internal caching and validation to ensure data consistency and handle API rate limits.",
+    Volume: `Thorswap volume is sourced from Thorswap's internal analytics which aggregates swap data across multiple providers including Thorchain, Near, Mayachain, and Chainflip.`,
   },
 };
 
