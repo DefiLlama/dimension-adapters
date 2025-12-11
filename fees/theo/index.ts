@@ -25,7 +25,7 @@ async function prefetch(options: FetchOptions): Promise<any> {
     return (priceToday - priceYesterday) / 1e6;
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const dailyPriceChange = options.preFetchedResults;
 
