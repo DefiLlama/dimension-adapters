@@ -1,59 +1,41 @@
-import { Adapter, FetchResult } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
+import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
 
-interface DailyFeeResponse {
-  fees: {
-    dailyFees: number;
-    dailyRevenue: number;
-  };
+interface IChartItem {
+  timestamp: string;
+  dailyFees: number;
+  dailyRevenue: number;
 }
 
-const chainOverrides: { [key: string]: string } = {
-  terra: "terra2",
-};
+const fetch = async (_a: any, _b: any, { dateString }: FetchOptions) => {
+  const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue?chain=stride`;
+  const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
-const fetch = (chain: string) => {
-  return async (timestamp: number): Promise<FetchResult> => {
-    const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
-    const response: DailyFeeResponse = await httpGet(
-      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
-    );
+  const dayData = historicalFees.find(feeItem =>
+    feeItem.timestamp.split(' ')[0] === dateString
+  );
+  if (!dayData) {
+    throw new Error(`No data found for ${dateString}`);
+  }
 
-    return {
-      timestamp: timestamp,
-      dailyFees: String(response.fees.dailyFees),
-      dailyRevenue: String(response.fees.dailyRevenue),
-    };
+  return {
+    dailyFees: dayData.dailyFees,
+    dailyRevenue: dayData.dailyRevenue,
   };
-};
-
-const info = {
-  methodology: {
-    Fees: "Fees are staking rewards earned by tokens staked with Stride. They are measured across Stride's LSD tokens' yields and converted to USD terms.",
-    Revenue:
-      "Stride collects 10% of liquid staked assets's staking rewards. These fees are measured across Stride's LSD tokens' yields and converted to USD terms.",
-  },
 };
 
 const adapter: Adapter = {
-  runAtCurrTime: true,
-  methodology: info.methodology,
+  version: 1,
   adapter: {
-    [CHAIN.COSMOS]: { fetch: fetch("cosmos"), },
-    celestia: { fetch: fetch("celestia"), },
-    osmosis: { fetch: fetch("osmosis"), },
-    dydx: { fetch: fetch("dydx"), },
-    dymension: { fetch: fetch("dymension"), },
-    juno: { fetch: fetch("juno"), },
-    stargaze: { fetch: fetch("stargaze"), },
-    terra: { fetch: fetch("terra"), },
-    evmos: { fetch: fetch("evmos"), },
-    injective: { fetch: fetch("injective"), },
-    umee: { fetch: fetch("umee"), },
-    comdex: { fetch: fetch("comdex"), },
-    islm: { fetch: fetch("haqq"), },
-    band: { fetch: fetch("band"), },
+    [CHAIN.COSMOS]: {
+      fetch,
+      start: '2023-09-01',
+    },
+  },
+  methodology: {
+    Fees: "Fees are staking rewards earned by tokens staked with Stride. They are measured across Stride's LSD tokens' yields and converted to USD terms.",
+    Revenue: "Stride collects 10% of liquid staked assets's staking rewards. These fees are measured across Stride's LSD tokens' yields and converted to USD terms.",
   },
 };
 
