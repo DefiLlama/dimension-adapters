@@ -289,5 +289,6 @@ export enum CHAIN {
   APPCHAIN = "appchain",
   SEDA = "seda",
   STABLE = "stable",
-  CAPX = "capx"
+  CAPX = "capx",
+  ADVENTURE_LAYER = "adventure_layer"
 }
