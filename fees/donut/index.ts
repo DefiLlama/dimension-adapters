@@ -1,75 +1,56 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getBlock } from "../../helpers/getBlock";
-import { formatEther } from "ethers";
 
 const MINER_ADDRESS = "0xF69614F4Ee8D4D3879dd53d5A039eB3114C794F6";
+const MINER_MINED_TOPIC = "0xc7df6706a5d0329f817217dcb0736bff7e6a29909dc28819c1fd4fe198127236";
+const TREASURY_FEE_TOPIC = "0x37cc5ab17812d0e5a106defe33d607121c48f562ab71a54d25421e1571b401aa";
 
-const MINER_MINED_TOPIC =
-  "0xc7df6706a5d0329f817217dcb0736bff7e6a29909dc28819c1fd4fe198127236";
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-const TREASURY_FEE_TOPIC =
-  "0x37cc5ab17812d0e5a106defe33d607121c48f562ab71a54d25421e1571b401aa";
-
-const fetch = async (
-  timestamp: number,
-  _: any,
-  { api }: any
-): Promise<FetchResultFees> => {
-  // Calculate start + end of the UTC day
-  const fromTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-  const toTimestamp = fromTimestamp + 24 * 3600;
-
-  // Query logs ONLY for this day
-  const dailyFeesLogs = await api.getLogs({
+  const dailyFeesLogs = await options.getLogs({
     target: MINER_ADDRESS,
     topic: MINER_MINED_TOPIC,
-    eventAbi:
-      "event Miner__Mined(address indexed sender, address indexed miner, uint256 price, string uri)",
+    eventAbi: "event Miner__Mined(address indexed sender, address indexed miner, uint256 price, string uri)",
     onlyArgs: true,
-    fromBlock: await getBlock(fromTimestamp, "base" as CHAIN, {}),
-    toBlock: await getBlock(toTimestamp, "base" as CHAIN, {}),
   });
 
-  const dailyTreasuryLogs = await api.getLogs({
+  const dailyTreasuryLogs = await options.getLogs({
     target: MINER_ADDRESS,
     topic: TREASURY_FEE_TOPIC,
-    eventAbi:
-      "event Miner__TreasuryFee(address indexed treasury, uint256 amount)",
+    eventAbi: "event Miner__TreasuryFee(address indexed treasury, uint256 amount)",
     onlyArgs: true,
-    fromBlock: await getBlock(fromTimestamp, "base" as CHAIN, {}),
-    toBlock: await getBlock(toTimestamp, "base" as CHAIN, {}),
   });
 
-  const totalFees = dailyFeesLogs.reduce(
-    (acc: bigint, log: any) => acc + BigInt(log.price),
-    0n
-  );
+  const totalFees = dailyFeesLogs.reduce((acc: Number, log: any) => Number(acc) + Number(log.price), 0);
+  const totalTreasury = dailyTreasuryLogs.reduce((acc: Number, log: any) => Number(acc) + Number(log.amount), 0);
 
-  const totalTreasury = dailyTreasuryLogs.reduce(
-    (acc: bigint, log: any) => acc + BigInt(log.amount),
-    0n
-  );
+  dailyFees.addUSDValue(Number(totalFees) / 1e18);
+  dailyRevenue.addUSDValue(Number(totalTreasury) / 1e18);
 
-  const supplySide = totalFees - totalTreasury;
+  const dailySupplySideRevenue = dailyFees.subtract(dailyRevenue);
 
   return {
-    timestamp,
-    dailyFees: formatEther(totalFees),
-    dailyRevenue: formatEther(totalTreasury),
-    dailyProtocolRevenue: formatEther(totalTreasury),
-    dailySupplySideRevenue: formatEther(supplySide),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue
   };
 };
 
-const adapter: Adapter = {
-  adapter: {
-    base: {
-      fetch,
-      start: 1731017887, // Block 37882270 (Nov-07-2025 10:18:07 PM +UTC)
-    },
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2025-11-07',
+  methodology: {
+    Fees: 'Fees collected from the miner',
+    Revenue: 'Revenue collected from the treasury',
+    ProtocolRevenue: 'Protocol revenue',
+    SupplySideRevenue: 'Supply side revenue',
+  }
 };
 
 export default adapter;
