@@ -65,7 +65,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
     prefetch,
     fetch,
     methodology,
