@@ -18,6 +18,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyRevenue: 0
   };
 };
 
