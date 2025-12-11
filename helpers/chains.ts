@@ -288,6 +288,7 @@ export enum CHAIN {
   ALEPH_ZERO_EVM = "aleph_zero_evm",
   APPCHAIN = "appchain",
   SEDA = "seda",
+  MULTIVERSX = "multiversx",
   STABLE = "stable",
   CAPX = "capx"
 }
