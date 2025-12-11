@@ -1,49 +1,44 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import { httpGet } from "../utils/fetchURL";
 
-/**
- * TEZOS Chain Fees Adapter
- * Fetches chain-level transaction fees (gas fees) for TEZOS blockchain
- * Uses Numia API which provides chain fees and revenue data for various chains
- * Note: This is different from protocol fees (DEX fees, DeFi fees, etc.)
- */
 
-interface IChartItem {
-  timestamp: string;
-  dailyFees: number;
-  dailyRevenue: number;
-}
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const timestamp = options.startOfDay * 1000;
 
-const fetch = async (_a: any, _b: any, { dateString }: FetchOptions) => {
-  const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue?chain=tezos`;
-  const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
+  const myHeaders: Record<string, string> = {
+    "Accept": "*/*",
+    "x-api-key": "N73XLD3QT7WJ5E14MHP41MOH8D6MWSN"
+  };
 
-  const dayData = historicalFees.find((feeItem) => 
-    feeItem.timestamp.split(' ')[0] === dateString
+  const transaction_counts = await httpGet("https://emu.mainnet.prod.tzstats.trili.tech/series/block?columns=time,fee,burned_supply&end_date=now&fill=none&collapse=1d&limit=365", { headers: myHeaders })
+
+  const daily_transactions = transaction_counts.find((txs: any) =>
+    txs[0] === timestamp
   );
-  
-  if (!dayData) {
-    throw new Error(`No chain fees data found for ${dateString}`);
-  }
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  dailyFees.addCGToken('tezos', daily_transactions[1] + daily_transactions[2]);
+  dailyRevenue.addCGToken('tezos', daily_transactions[2]);
 
   return {
-    dailyFees: dayData.dailyFees,
-    // dailyRevenue: dayData.dailyRevenue,
-    dailyRevenue: 0, //Tezos fees go to validator only -> not counted as revenue 
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
   };
 };
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.TEZOS]: {
-      fetch,
-      start: '2018-06-30', // Tezos mainnet launch date
-    },
-  },
-  protocolType: "chain" as any,
+  fetch,
+  chains: [CHAIN.TEZOS],
+  start: '2018-06-30', // Tezos mainnet launch date
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Total transaction fees paid by users for gas + storage fees',
+    Revenue: 'Amount of tez burned, including storage fees, allocation fees, double baking/attestation punishments, etc.'
+  }
 };
 
 export default adapter;
-
