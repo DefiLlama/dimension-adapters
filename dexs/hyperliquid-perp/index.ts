@@ -84,20 +84,17 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
       dailyHoldersRevenue,
       dailySupplySideRevenue,
       dailyProtocolRevenue: 0,
-      openInterestAtEnd: result.currentPerpOpenInterest,
+      // openInterestAtEnd: result.currentPerpOpenInterest,
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: '2023-06-12',
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2024-12-23',
-    },
-  },
 };
 
 export default adapter;

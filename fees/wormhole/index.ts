@@ -128,6 +128,11 @@ const evmContracts: Record<string, any> = {
     executor: '0x8345E90Dcd92f5Cf2FAb0C8E2A56A5bc2c30d896',
     startDate: '2025-08-22'
   },
+  [CHAIN.MONAD]: {
+    standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
+    executor: '0xC04dE634982cAdF2A677310b73630B7Ac56A3f65',
+    startDate: '2025-11-24'
+  }
   
   // [CHAIN.CREDIT_COIN]: { // not available in defillama yet
   //   standardRelayer: null,
