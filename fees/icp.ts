@@ -1,12 +1,10 @@
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const E8S = 100_000_000;
-const TRILLION = 1_000_000_000_000;
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-async function fetchMetrics(_a: any, _b: any, options: FetchOptions) {
+async function fetch(_a: any, _b: any, options: FetchOptions) {
 
   const baseUrl = "https://ic-api.internetcomputer.org/api/v3/daily-stats?";
   const currentDay = await httpGet(`${baseUrl}start=${options.startOfDay}&end=${options.endTimestamp - 1}`);
@@ -16,19 +14,18 @@ async function fetchMetrics(_a: any, _b: any, options: FetchOptions) {
   const previous = previousDay.daily_stats[0];
 
   const cyclesBurned = parseFloat(current.total_cycle_burn_till_date) - parseFloat(previous.total_cycle_burn_till_date);
-  const xdrBurned = cyclesBurned / TRILLION;
+  const xdrBurned = cyclesBurned / 1e12;
 
   const rateUrl = `https://ic-api.internetcomputer.org/api/v3/avg-icp-xdr-conversion-rates?start=${options.startOfDay}&end=${options.endTimestamp - 1}&step=86400`;
 
   const rateResponse = await httpGet(rateUrl);
 
-
   const ratePermyriad = Number(rateResponse.avg_icp_xdr_conversion_rates[0][1]);
-  const xdrPerIcp = ratePermyriad / 10_000;
+  const xdrPerIcp = ratePermyriad / 1e4;
 
   const feesInIcp = xdrBurned / xdrPerIcp;
 
-  const revenueInIcp = (BigInt(current.icp_burned_total) - BigInt(previous.icp_burned_total)) / BigInt(E8S);
+  const revenueInIcp = (Number(current.icp_burned_total) - Number(previous.icp_burned_total)) / 1e8;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -43,16 +40,17 @@ async function fetchMetrics(_a: any, _b: any, options: FetchOptions) {
   };
 }
 
-export default {
-  adapter: {
-    [CHAIN.ICP]: {
-      fetch: fetchMetrics,
-      start: '2021-05-10',
-    },
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.ICP],
+  start: '2021-05-10',
+  protocolType: ProtocolType.CHAIN,
   methodology: {
     Fees: "Cycles consumed on the network converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
     Revenue: "ICP tokens burned to mint cycles and for transaction fees.",
     HoldersRevenue: "Same as revenue, as burns are deflationary benefiting holders.",
   }
 };
+
+export default adapter;
