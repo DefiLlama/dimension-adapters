@@ -22,7 +22,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         abi: 'function convertToAssets(uint256 shares) view returns (uint256)',
         params: [totalNftFees.toString()],
     })
-    dailyFees.add("0xfa2b947eec368f42195f24f36d2af29f7c24cec2", assetValue);
+    dailyFees.add(usdfToken, assetValue);
 
     // FF Staking contract rewards
     const rewardEvents = await options.getLogs({
