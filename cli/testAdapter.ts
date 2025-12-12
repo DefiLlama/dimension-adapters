@@ -46,7 +46,6 @@ const file = `${adapterType}/${process.argv[3]}`
 const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
 (async () => {
 
-
   const moduleArg = process.argv[3]
 
   // throw error if module doesnt start with lowercase letters
@@ -54,21 +53,142 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
     throw new Error("Module name should start with a lowercase letter: " + moduleArg);
   }
 
-  const cleanDayTimestamp = process.argv[4] ? toTimestamp(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
+  const rawTimeArg = process.argv[4]
+  const cleanDayTimestamp = rawTimeArg ? toTimestamp(rawTimeArg) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
   console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
   console.info(`---------------------------------------------------`)
   // Import module to test
   let module: SimpleAdapter = (await import(passedFile)).default
   const adapterVersion = module.version
+  const isHourly = adapterVersion === 2 && (module as any).pullHourly === true
+  const isPlainDate = !!rawTimeArg && /^\d{4}-\d{2}-\d{2}$/.test(rawTimeArg)
+
+  function mergeAggregated(target: any, source: any) {
+    if (!source) return
+    for (const [metric, data] of Object.entries(source)) {
+      const src = data as any
+      if (!target[metric]) target[metric] = { value: 0, chains: {} as any }
+      const dst = target[metric]
+      dst.value += src.value || 0
+      if (src.chains) {
+        for (const [chain, val] of Object.entries(src.chains)) {
+          if (val === undefined || val === null) continue
+          dst.chains[chain] = (dst.chains[chain] || 0) + (val as number)
+        }
+      }
+    }
+  }
+
+  async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
+
+    if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
+
+    const dailyByChain: Record<string, Record<string, number>> = {}
+    const aggregatedDaily: any = {}
+    const jobs: { hour: number, startTimestamp: number, endTimestamp: number }[] = []
+
+    for (let hour = 0; hour <= lastHour; hour++) {
+      const endTimestamp = dayStart + (hour + 1) * 3600
+      const startTimestamp = endTimestamp - 3600
+      jobs.push({ hour, startTimestamp, endTimestamp })
+    }
+
+    const MAX_PARALLEL = 6
+
+    for (let i = 0; i < jobs.length; i += MAX_PARALLEL) {
+      const batch = jobs.slice(i, i + MAX_PARALLEL)
+
+      const results = await Promise.all(
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true }))
+      )
+
+      results.forEach((res: any, idx) => {
+        const job = batch[idx]
+        const { startTimestamp, endTimestamp, hour } = job
+
+        const volumes = res.response
+        const adaptorRecordV2JSON = res.adaptorRecordV2JSON
+        const aggHour = adaptorRecordV2JSON?.aggregated
+
+        console.info(`Slice ${hour}:`)
+        console.info(`Start Date:\t${new Date(startTimestamp * 1e3).toUTCString()}`)
+        console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
+        console.info(`---------------------------------------------------\n`)
+
+        const lastPerChain = volumes.map((volume: any) => timestampLast(volume))
+
+        printVolumes2(lastPerChain)
+        if (process.env.CLI_DEBUG) {
+          printAggregated(lastPerChain)
+        }
+
+        for (const row of lastPerChain) {
+          const chain = (row as any).chain
+          if (!chain) continue
+
+          if (!dailyByChain[chain]) dailyByChain[chain] = {}
+          const agg = dailyByChain[chain]
+
+          for (const [key, value] of Object.entries(row as any)) {
+            if (key === 'chain' || key === 'timestamp' || key === 'startTimestamp') continue
+            if (typeof value !== 'number') continue
+            agg[key] = (agg[key] ?? 0) + value
+          }
+        }
+
+        mergeAggregated(aggregatedDaily, aggHour)
+      })
+    }
+
+    const dailyRows = Object.entries(dailyByChain).map(([chain, metrics]) => ({
+      chain,
+      timestamp: dayStart + (lastHour + 1) * 3600 - 1,
+      ...metrics,
+    }))
+
+    console.info(`\n====== TOTAL DAILY AGGREGATED (sum of slots per chain) ======\n`)
+    printVolumes2(dailyRows)
+  }
+
+  if (isHourly && !rawTimeArg) {
+    const rollingEnd = getTimestamp30MinutesAgo()
+    const rollingEndSafe = rollingEnd - (rollingEnd % (60 * 60))
+    const rollingStart = rollingEndSafe - 24 * 60 * 60
+
+    console.info(`Start Date:\t${new Date(rollingStart * 1e3).toUTCString()}`)
+    console.info(`End Date:\t${new Date(rollingEndSafe * 1e3).toUTCString()}`)
+    console.info(`---------------------------------------------------\n`)
+
+    const dayStart = rollingStart
+    const lastHour = 23
+
+    await runHourlyMultiSlot(dayStart, lastHour)
+    process.exit(0)
+  }
+
+  if (isHourly && isPlainDate) {
+    const endOfWindow = toTimestamp(rawTimeArg)       // 2025-12-09 00:00:00
+    const dayStart = endOfWindow - 24 * 60 * 60       // 2025-12-08 00:00:00
+
+    console.info(`Start Date:\t${new Date(dayStart * 1e3).toUTCString()}`)
+    console.info(`End Date:\t${new Date(endOfWindow * 1e3).toUTCString()}`)
+    console.info(`---------------------------------------------------\n`)
+
+    await runHourlyMultiSlot(dayStart, 23)
+    process.exit(0)
+  }
+
   let endTimestamp = endCleanDayTimestamp
   if (adapterVersion === 2) {
-    endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
+    endTimestamp = (rawTimeArg ? toTimestamp(rawTimeArg) : getTimestamp30MinutesAgo()) // 1 day;
   } else {
     // checkIfFileExistsInMasterBranch(file)
   }
 
-  console.info(`Start Date:\t${new Date((endTimestamp - 3600 * 24) * 1e3).toUTCString()}`)
+  const windowSeconds = isHourly ? 60 * 60 : 3600 * 24
+
+  console.info(`Start Date:\t${new Date((endTimestamp - windowSeconds) * 1e3).toUTCString()}`)
   console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
   console.info(`---------------------------------------------------\n`)
 
