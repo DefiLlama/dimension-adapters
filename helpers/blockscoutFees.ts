@@ -82,6 +82,8 @@ export const chainConfigMap: any = {
   [CHAIN.CAPX] : { CGToken: 'ethereum', explorer: "https://www.capxscan.com/"},
   [CHAIN.SANKO]: { CGToken: 'ethereum', explorer: 'https://explorer.sanko.xyz/' },
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
+  [CHAIN.ADVENTURE_LAYER]: { CGToken: 'ethereum', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
+
 }
 
 function getTimeString(timestamp: number) {
