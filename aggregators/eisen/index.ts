@@ -27,6 +27,7 @@ const chainConfig: Record<string, { start: string, fee: string }> = {
   [CHAIN.KATANA]: { start: "2025-07-20", fee: '0x11145aA7EeF8A3c61fFEf3F74981755e3148D358' },
   [CHAIN.BITLAYER]: { start: "2025-08-03", fee: '0x5722c0B501e7B9880F9bB13A14217851e45C454f' },
   [CHAIN.CRONOS]: { start: "2025-08-03", fee: '0x0C15c845C4A970b284c0dd61Bcf01c4DC1117d0F' },
+  [CHAIN.MONAD]: { start: "2025-11-23", fee: '0x787C474B8A86354d0F5f19FB599a5FC7662A265f' },
 }
 
 async function fetch(options: FetchOptions) {

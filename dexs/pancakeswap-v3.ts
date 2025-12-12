@@ -51,6 +51,10 @@ const factories: {[key: string]: Ifactory} = {
     start: '2023-08-31',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
   },
+  [CHAIN.MONAD]: {
+    start: '2025-11-23',
+    address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865'
+  }
 }
 
 export const PANCAKESWAP_V3_QUERY = (fromTime: number, toTime: number, blacklistTokens: Array<string>) => {

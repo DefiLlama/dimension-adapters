@@ -62,30 +62,30 @@ const adapter: Adapter = {
       fetch: fetch,
       start: '2023-03-31',
     },
-    [CHAIN.APECHAIN]: {
-      fetch: fetch,
-      start: '2022-11-11',
-    },
-    [CHAIN.GRAVITY]: {
-      fetch: fetch,
-      start: '2022-11-11',
-    },
-    [CHAIN.RARI]: {
-      fetch: fetch,
-      start: '2022-11-11',
-    },
-    [CHAIN.REYA]: {
-      fetch: fetch,
-      start: '2022-11-11',
-    },
-    [CHAIN.XDAI]: {
-      fetch: fetch,
-      start: '2022-11-11',
-    },
-    [CHAIN.SANKO]: {
-      fetch: fetch,
-      start: '2022-11-11',
-    },
+    // [CHAIN.APECHAIN]: {
+    //   fetch: fetch,
+    //   start: '2022-11-11',
+    // },
+    // [CHAIN.GRAVITY]: {
+    //   fetch: fetch,
+    //   start: '2022-11-11',
+    // },
+    // [CHAIN.RARI]: {
+    //   fetch: fetch,
+    //   start: '2022-11-11',
+    // },
+    // [CHAIN.REYA]: {
+    //   fetch: fetch,
+    //   start: '2022-11-11',
+    // },
+    // [CHAIN.XDAI]: {
+    //   fetch: fetch,
+    //   start: '2022-11-11',
+    // },
+    // [CHAIN.SANKO]: {
+    //   fetch: fetch,
+    //   start: '2022-11-11',
+    // },
   },
 };
 

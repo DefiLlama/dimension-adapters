@@ -18,6 +18,7 @@ interface LogXDailyFeesResponse {
 }
 
 const adapter: Adapter = {
+  deadFrom: '2025-09-10',
     adapter: {
         [CHAIN.LOGX]: {
             start: '2024-09-11',

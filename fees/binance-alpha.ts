@@ -1,5 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { formatAddress } from "../utils/utils";
 
 interface IRouter {
   eventFeeCollected: string;
@@ -78,13 +80,17 @@ const routers: Record<string, IRouter> = {
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
+  const blacklistTokens: Array<string> = getDefaultDexTokensBlacklisted(options.chain)
+  
   const events: Array<any> = await options.getLogs({
     eventAbi: 'event FeeCollected(address recipient, address indexed token, uint256 amount)',
     targets: routers[options.chain].addresses,
     flatten: true,
   })
   for (const event of events) {
-    dailyFees.add(event.token, event.amount)
+    if (!blacklistTokens.includes(formatAddress(event.token))) {
+      dailyFees.add(event.token, event.amount)
+    }
   }
 
   return {

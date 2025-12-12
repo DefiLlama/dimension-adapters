@@ -84,7 +84,7 @@ const fetchFromOku = async (options: FetchOptions) => {
       dailyHoldersRevenue: 0,
     }
   } catch (e) {
-    console.error(e)
+    console.error(options.chain, e)
     return {}
   }
 }
@@ -94,6 +94,10 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
   if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
+  if (chain === CHAIN.SONIC) return "sonic"
+  if (chain === CHAIN.ETHERLINK) return "etherlink"
+  if (chain === CHAIN.NIBIRU) return "nibiru"
+  if (chain === CHAIN.MONAD) return "monad"
   return chain
 }
 
@@ -142,6 +146,14 @@ const adapter: SimpleAdapter = {
   },
 };
 
+(adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
 // (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
 //   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
 //     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
@@ -157,7 +169,6 @@ const okuChains = [
   CHAIN.ERA,
   CHAIN.SEI,
   CHAIN.UNICHAIN,
-  CHAIN.SEI,
   CHAIN.TAIKO,
   CHAIN.SCROLL,
   CHAIN.ROOTSTOCK,
@@ -165,23 +176,28 @@ const okuChains = [
   CHAIN.BOBA,
   CHAIN.MANTLE,
   CHAIN.LINEA,
-  CHAIN.POLYGON_ZKEVM,
-  CHAIN.BLAST,
   CHAIN.XDAI,
   CHAIN.BOB,
-  CHAIN.LISK,
   CHAIN.CORN,
   CHAIN.GOAT,
   CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
-  CHAIN.LENS,
   CHAIN.TELOS,
   CHAIN.CELO,
   CHAIN.NIBIRU,
-  
-  // CHAIN.SAGA,
+  CHAIN.MONAD,
+  CHAIN.SONIC,
+  CHAIN.ETHERLINK,
+  CHAIN.SAGA,
+  CHAIN.LENS,
+
+  // CHAIN.BLAST,
+  // CHAIN.LISK,
+  // CHAIN.MOONBEAM,
+  // CHAIN.POLYGON_ZKEVM,
+  // CHAIN.MANTA,
 ]
 
 

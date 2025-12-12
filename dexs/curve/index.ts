@@ -1,5 +1,6 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ICurveDexConfig, ContractVersion, getCurveExport } from "../../helpers/curve";
+import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -431,6 +432,37 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     ],
     customPools: {},
   },
+  [CHAIN.MONAD]: {
+    start: '2025-11-23',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+  },
+  [CHAIN.STABLE]: {
+    start: '2025-12-08',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
+    ],
+  },
 
   // [CHAIN.TAC]: {
   //   start: '2025-06-25',
@@ -447,14 +479,46 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
+export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
+  const adapter: SimpleAdapter = {
+    version: 2,
+    adapter: Object.keys(configs).reduce((acc, chain) => {
+      return {
+        ...acc,
+        [chain]: {
+          fetch: async function(options: FetchOptions) {
+            const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
+            
+            const dailySupplySideRevenue = swapFees.clone(1)
+            dailySupplySideRevenue.subtract(adminFees)
+            
+            return {
+              dailyVolume,
+              dailyFees: swapFees,
+              dailyUserFees: swapFees,
+              dailyRevenue: adminFees,
+              dailyProtocolRevenue: 0,
+              dailySupplySideRevenue,
+              dailyHoldersRevenue: adminFees,
+            }
+          },
+          start: configs[chain].start,
+        }
+      }
+    }, {})
+  };
+
+  return adapter;
+}
+
 // https://resources.curve.finance/pools/overview/#pool-fees
-const adapter = getCurveExport(CurveDexConfigs, { userFeesRatio: 1, revenueRatio: 0.5, holdersRevenueRatio: 0.5 })
+const adapter = getCurveExport(CurveDexConfigs)
 
 adapter.methodology = {
   Fees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
   UserFees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
   Revenue: "A 50% of the trading fee is collected by veCRV holders",
-  ProtocolRevenue: "Admin fees collected from every swap to Curve treasury",
+  ProtocolRevenue: "No revenue share for Curve protocol.",
   HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
   SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
 }

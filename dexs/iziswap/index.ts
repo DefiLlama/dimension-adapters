@@ -20,6 +20,7 @@ const chainConfig: Record<Chain, { id: number, start: string }> = {
   [CHAIN.ZETA]: { id: 7000, start: '2023-07-17' },
   [CHAIN.MODE]: { id: 34443, start: '2023-07-17' },
   [CHAIN.IOTEX]: { id: 4689, start: '2023-07-17' },
+  [CHAIN.MONAD]: { id: 143, start: '2025-11-24' },
   // [CHAIN.HEMI]: { id: 43111, start: '2023-07-17' },
 };
 
