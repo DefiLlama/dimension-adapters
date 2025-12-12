@@ -81,8 +81,7 @@ export const chainConfigMap: any = {
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
   [CHAIN.CAPX] : { CGToken: 'ethereum', explorer: "https://www.capxscan.com/"},
   [CHAIN.SANKO]: { CGToken: 'ethereum', explorer: 'https://explorer.sanko.xyz/' },
-
-  
+  [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
 }
 
 function getTimeString(timestamp: number) {
