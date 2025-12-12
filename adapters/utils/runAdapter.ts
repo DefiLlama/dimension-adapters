@@ -74,6 +74,15 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 }
 
+export function isHourlyAdapter(module: SimpleAdapter) {
+  const adapterVersion = module.version
+  return adapterVersion === 2 && (module as any).pullHourly === true
+}
+
+export function isPlainDateArg(rawTimeArg?: string) {
+  return !!rawTimeArg && /^\d{4}-\d{2}-\d{2}$/.test(rawTimeArg)
+}
+
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
@@ -104,8 +113,10 @@ export default async function runAdapter(options: AdapterRunOptions) {
 }
 
 function getRunKey(options: AdapterRunOptions) {
-  let randomUID = options.module._randomUID ?? genUID(10)
-  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
+  const randomUID = options.module._randomUID ?? genUID(10)
+  const isHourly = isHourlyAdapter(options.module)
+  const windowSeconds = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
+  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}-${windowSeconds}`
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
@@ -127,7 +138,7 @@ async function _runAdapter({
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
   const moduleUID = module._randomUID
-  const isHourly = adapterVersion === 2 && (module as any).pullHourly === true
+  const isHourly = isHourlyAdapter(module)
   const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters

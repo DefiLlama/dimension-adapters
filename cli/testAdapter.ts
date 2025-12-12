@@ -2,7 +2,7 @@ require('dotenv').config()
 import { execSync } from 'child_process';
 import * as path from 'path';
 import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types';
-import runAdapter from '../adapters/utils/runAdapter';
+import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, ERROR_STRING, printAggregated, printVolumes2, timestampLast } from './utils';
 
@@ -61,8 +61,8 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
   // Import module to test
   let module: SimpleAdapter = (await import(passedFile)).default
   const adapterVersion = module.version
-  const isHourly = adapterVersion === 2 && (module as any).pullHourly === true
-  const isPlainDate = !!rawTimeArg && /^\d{4}-\d{2}-\d{2}$/.test(rawTimeArg)
+  const isHourly = isHourlyAdapter(module)
+  const isPlainDate = isPlainDateArg(rawTimeArg)
 
   function mergeAggregated(target: any, source: any) {
     if (!source) return
