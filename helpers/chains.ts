@@ -290,5 +290,6 @@ export enum CHAIN {
   SEDA = "seda",
   STABLE = "stable",
   CAPX = "capx",
+  ALIENX = "alienx",
   ADVENTURE_LAYER = "adventure_layer"
 }
