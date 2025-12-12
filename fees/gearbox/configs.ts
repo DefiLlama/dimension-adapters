@@ -203,4 +203,21 @@ export const GearboxConfigs: {[key: string]: IGearboxChainConfig} = {
       },
     ],
   },
+  [CHAIN.MONAD]: {
+    start: '2025-11-24',
+    services: [
+      {
+        version: 3,
+        pool: '0x6b343f7b797f1488aa48c49d540690f2b2c89751',
+      },
+      {
+        version: 3,
+        pool: '0xc4173359087ce643235420b7bc610d9b0cf2b82d',
+      },
+      {
+        version: 3,
+        pool: '0x09ca6b76276ec0682adb896418b99cb7e44a58a0',
+      },
+    ],
+  },
 }
