@@ -29,10 +29,6 @@ const fetch = async (options: FetchOptions) => {
     GROUP BY asset_id
   `;
 
-  console.log(
-    `${ApiBaseUrl}/defillama/v1/volumes?from=${options.startTimestamp}&to=${options.endTimestamp}`,
-  );
-
   const [duneResults, volumeResults] = await Promise.all([
     queryDuneSql(options, combinedQuery),
     axios
