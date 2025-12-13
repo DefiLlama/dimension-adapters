@@ -18,7 +18,12 @@ const fetch = async (options: FetchOptions) => {
         WHEN TYPE = 2
           AND base_fee_per_gas + max_priority_fee_per_gas > max_fee_per_gas THEN
           ((max_fee_per_gas) * (t.gas_used)) / 1e18
-        END) AS txn_fees
+        END) AS txn_fees,
+      SUM(
+        CASE WHEN TYPE = 3 THEN
+          COALESCE(blob_gas_used * blob_gas_price / 1e18, 0)
+        ELSE 0
+        END) AS blob_fees
     FROM
       ethereum.transactions t
       LEFT JOIN ethereum.blocks b ON block_number = number
@@ -37,12 +42,15 @@ const fetch = async (options: FetchOptions) => {
 
   const totalFees = Number(eth_txs[0].txn_fees)
   const baseFees = Number(eth_txs_burn[0]['daily_eth_burned'])
+  const blobFees = Number(eth_txs[0].blob_fees)
   const priorityFees =  totalFees - baseFees
 
   dailyFees.addGasToken(baseFees * 10 ** 18, METRIC.TRANSACTION_BASE_FEES)
   dailyFees.addGasToken(priorityFees * 10 ** 18, METRIC.TRANSACTION_PRIORITY_FEES)
+  dailyFees.addGasToken(blobFees * 10 ** 18, METRIC.TRANSACTION_BLOB_FEES)
 
   dailyRevenue.addGasToken(baseFees * 10 ** 18, METRIC.TRANSACTION_BASE_FEES)
+  dailyRevenue.addGasToken(blobFees * 10 ** 18, METRIC.TRANSACTION_BLOB_FEES)
   
   return {
     dailyFees,
@@ -61,20 +69,23 @@ const adapter: Adapter = {
   },
   protocolType: ProtocolType.CHAIN,
   methodology: {
-    Fees: 'Total ETH gas fees (including base fees and priority fees) paid by users',
-    Revenue: 'Amount of ETH base fees that were burned',
-    HoldersRevenue: 'Amount of ETH base fees that were burned',
+    Fees: 'Total ETH gas fees (including base fees, priority fees, and blob fees) paid by users',
+    Revenue: 'Amount of ETH base fees and blob fees that were burned',
+    HoldersRevenue: 'Amount of ETH base fees and blob fees that were burned',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees paid by users',
       [METRIC.TRANSACTION_PRIORITY_FEES]: 'Total ETH priority fees paid by users',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees paid by users for blob transactions (EIP-4844)',
     },
     Revenue: {
       [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees will be burned',
     },
     HoldersRevenue: {
       [METRIC.TRANSACTION_BASE_FEES]: 'Total ETH base fees will be burned',
+      [METRIC.TRANSACTION_BLOB_FEES]: 'Total ETH blob fees will be burned',
     },
   }
 }

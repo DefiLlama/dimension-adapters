@@ -16,6 +16,7 @@ export enum METRIC {
   TRANSACTION_GAS_FEES = 'Transaction Gas Fees', // Blockchain transactions gas fees paid by users
   TRANSACTION_BASE_FEES = 'Transaction Base Fees', // Blockchain transactions base fees paid by users
   TRANSACTION_PRIORITY_FEES = 'Transaction Priority Fees', // Blockchain transactions priority fees paid by users
+  TRANSACTION_BLOB_FEES = 'Transaction Blob Fees', // Blockchain blob transaction fees paid by users (EIP-4844)
   TRADING_FEES = 'Trading Fees', // apps, bots, frontend, wallets charge users fees by using trading
   MARGIN_FEES = 'Margin Fees', // perpetual, derivatives margin fees
   OPEN_CLOSE_FEES = 'Open/Close Fees', // trading open/close fees
