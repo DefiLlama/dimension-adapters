@@ -4,13 +4,6 @@ import { getERC4626VaultsInfo } from "../helpers/erc4626";
 import { getConfig } from "../helpers/cache";
 import { METRIC } from "../helpers/metrics";
 
-const methodology = {
-  Fees: "Fees generated from staking assets in LRT vaults.",
-  Revenue: "Protocol fees charged on Core vaults",
-  ProtocolRevenue: "All the revenue goes to protocol",
-  SupplySideRevenue: "Yields distributed to supply side depositors",
-};
-
 const MellowAbis: any = {
   oracle: 'address:oracle',
   totalSupply: 'uint256:totalSupply',
@@ -119,10 +112,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 }
 
+const methodology = {
+  Fees: "Fees generated from staking assets in LRT vaults.",
+  Revenue: "Protocol fees charged on Core vaults",
+  ProtocolRevenue: "All the revenue goes to protocol",
+  SupplySideRevenue: "Yields distributed to supply side depositors",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: chainConfig,
   fetch,
+  adapter: chainConfig,
   methodology,
 };
 
