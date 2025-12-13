@@ -139,8 +139,7 @@ const customLogic = async ({ pairObject, dailyVolume, allLogs, fetchOptions }: a
 	const defaultFees: {[pool: string]: number} = {};
 	tickSpacings.forEach((tickSpacing: any, i: number) => {
 		if (tickSpacing !== null) {
-			const pool 
-			= poolAddresses[i];
+			const pool = poolAddresses[i];
 			const absTickSpacing = Math.abs(tickSpacing);
 			defaultFees[pool] = TICK_SPACING_TO_FEE[absTickSpacing] || 0.003; // Default to 0.3%
 		}
@@ -184,9 +183,10 @@ const customLogic = async ({ pairObject, dailyVolume, allLogs, fetchOptions }: a
 		dailyVolume,
 		dailyFees,
 		dailyUserFees: dailyFees,
-		dailyRevenue: dailyFees.clone(0.25),
-		dailyProtocolRevenue: dailyFees.clone(0.25),
-		dailySupplySideRevenue: dailyFees.clone(0.75),
+		dailyRevenue: dailyFees,
+		dailyProtocolRevenue: 0,
+		dailySupplySideRevenue: 0,
+		dailyHoldersRevenue: dailyFees,
 	};
 };
 
@@ -194,11 +194,12 @@ const adapter: SimpleAdapter = {
 	version: 2,
 	methodology: {
 		Volume: `Total swap volume collected from factory ${FACTORY}`,
-		Fees: 'Users paid dynamic fees per swap.',
-		UserFees: 'Users paid dynamic fees per swap.',
-		Revenue: '25% swap fees collected by protocol Treasury.',
-		ProtocolRevenue: '25% swap fees collected by protocol Treasury.',
-		SupplySideRevenue: '75% swap fees distributed to LPs.',
+		Fees: 'All swap fees paid by users.',
+		UserFees: 'All swap fees paid by users.',
+		Revenue: 'All swap fees are revenue.',
+		ProtocolRevenue: 'Protocol makes no revenue.',
+		SupplySideRevenue: 'No fees distributed to LPs.',
+		HoldersRevenue: 'All revenue distributed to veHYBRA holders.',
 	},
 	start: '2025-10-17',
 	chains: [CHAIN.HYPERLIQUID],
