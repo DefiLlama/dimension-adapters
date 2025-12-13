@@ -297,4 +297,5 @@ export enum CHAIN {
   BABYLON = "babylon",
   DUCK_CHAIN = "duckchain",
   ALPHASEC = "alphasec",
+  SPACE_AND_TIME = "space_and_time",
 }
