@@ -178,16 +178,29 @@ const customLogic = async ({ pairObject, dailyVolume, allLogs, fetchOptions }: a
 			});
 		});
 	});
-
-	return {
-		dailyVolume,
-		dailyFees,
-		dailyUserFees: dailyFees,
-		dailyRevenue: dailyFees,
-		dailyProtocolRevenue: 0,
-		dailySupplySideRevenue: 0,
-		dailyHoldersRevenue: dailyFees,
-	};
+	
+	// fees change from Thu Nov 20 2025 00:00:00 GMT+0000
+	if (fetchOptions.startOfDay < 1763596800) {
+	  return {
+  		dailyVolume,
+  		dailyFees,
+  		dailyUserFees: dailyFees,
+  		dailyRevenue: dailyFees.clone(0.25),
+  		dailyProtocolRevenue: dailyFees.clone(0.25),
+  		dailySupplySideRevenue: dailyFees.clone(0.75),
+  		dailyHoldersRevenue: 0,
+  	};
+	} else {
+  	return {
+  		dailyVolume,
+  		dailyFees,
+  		dailyUserFees: dailyFees,
+  		dailyRevenue: dailyFees,
+  		dailyProtocolRevenue: 0,
+  		dailySupplySideRevenue: 0,
+  		dailyHoldersRevenue: dailyFees,
+  	};
+	}
 };
 
 const adapter: SimpleAdapter = {
