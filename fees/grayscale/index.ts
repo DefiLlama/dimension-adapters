@@ -57,6 +57,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.OFF_CHAIN],
     methodology,
+    runAtCurrTime: true,
     start: "2025-12-10", //Though its easy to get historic nav, its pretty hard to get historic aum, so starts from adapter listing date
 };
 
