@@ -1,5 +1,5 @@
 import request, { gql } from 'graphql-request';
-import { FetchOptions, FetchResultV2, SimpleAdapter } from '../../adapters/types';
+import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 
 const ENDPOINTS: { [key: string]: string } = {
@@ -9,26 +9,16 @@ const ENDPOINTS: { [key: string]: string } = {
 const getVolumeAndFee = gql`
   query QueryChartAccumulativeData($dayAgo: BigInt!) {
     marketHourDatas(startTime_gt: $dayAgo, orderBy: startTime, orderDirection: desc) {
-      startTime 
-      totalFee 
-      tradeVolume 
-      } 
+      startTime
+      totalFee
+      tradeVolume
     }
-  `;
+  }
+`;
 
-const getOpenInterest = gql`
-    query FetchMarketData { market(id: \"1\") { 
-      OpenInterestLong OpenInterestShort 
-      } 
-    }
-  `
-
-
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
-  const longOpenInterestAtEnd = options.createBalances();
-  const shortOpenInterestAtEnd = options.createBalances();
 
   const { startTimestamp, endTimestamp } = options;
 
@@ -46,19 +36,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyFees.addCGToken("lair-staked-kaia", fees);
   dailyVolume.addCGToken("lair-staked-kaia", volume);
 
-  const {market} = await request(ENDPOINTS[options.chain],getOpenInterest);
-  longOpenInterestAtEnd.addCGToken("lair-staked-kaia", +market.OpenInterestLong/1e18);
-  shortOpenInterestAtEnd.addCGToken("lair-staked-kaia", +market.OpenInterestShort/1e18);
-
-  const openInterestAtEnd = longOpenInterestAtEnd.clone();
-  openInterestAtEnd.add(shortOpenInterestAtEnd);
-
   return {
     dailyVolume,
-    dailyFees, //Fees gets divided among Protcol and supply side but exact ratio couldnt be found
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
-    openInterestAtEnd,
+    dailyFees, // Fees gets divided among Protcol and supply side but exact ratio couldn't be found
   }
 };
 
@@ -69,12 +49,9 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.KLAYTN]: {
-      fetch,
-      start: '2024-09-29',
-    },
-  },
+  chains: [CHAIN.KLAYTN],
+  fetch,
+  start: '2024-09-29',
   methodology,
 };
 
