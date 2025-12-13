@@ -8,7 +8,8 @@ const ENDPOINTS: { [key: string]: string } = {
 
 const getOpenInterest = gql`
   query FetchMarketData { market(id: \"1\") {
-    OpenInterestLong OpenInterestShort
+      OpenInterestLong
+      OpenInterestShort
     }
   }
 `
