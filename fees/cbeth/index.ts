@@ -18,20 +18,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [rateBefore, supplyBefore] = await Promise.all([
+  const [rateBefore, rateAfter] = await Promise.all([
     options.fromApi.call({ target: cbETH, abi: ABIS.exchangeRate }),
-    options.fromApi.call({ target: cbETH, abi: ABIS.totalSupply }),
-  ]);
-
-  const [rateAfter, supplyAfter] = await Promise.all([
     options.toApi.call({ target: cbETH, abi: ABIS.exchangeRate }),
-    options.toApi.call({ target: cbETH, abi: ABIS.totalSupply }),
   ]);
 
-  const assetsBefore = supplyBefore * rateBefore / 1e18;
-  const assetsAfter = supplyAfter * rateAfter / 1e18;
+  const totalSupply = await options.fromApi.call({
+    target: cbETH,
+    abi:  ABIS.totalSupply,
+  })
 
-  const netRewards = assetsAfter - assetsBefore;
+  const netRewards = totalSupply * (rateAfter - rateBefore) / 1e18;
   const grossRewards = netRewards / (1 - PROTOCOL_FEE);
 
   // MEV rewards
@@ -104,4 +101,3 @@ const adapter: Adapter = {
 };
 
 export default adapter;
-
