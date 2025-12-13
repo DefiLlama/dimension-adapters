@@ -71,6 +71,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 	const dailyVolume = options.createBalances()
 
+  const blacklistTokens = ['2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F']
+	
 	const tokensAndAmounts: Array<IData> = await queryDuneSql(options, `
 		SELECT
 			'solana' AS chain,
@@ -90,6 +92,10 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 		dailyVolume.add(item.token, item.amount);
 	}
 
+	for (const t of blacklistTokens) {
+	  dailyVolume.removeTokenBalance(t)
+	}
+	
 	return {
 		dailyVolume,
 	};

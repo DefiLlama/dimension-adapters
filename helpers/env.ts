@@ -19,13 +19,14 @@ const DEFAULTS: any = {
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
-  SAGA_ARCHIVAL_RPC: 'https://sagaevm-5464-1.sagaexplorer.io/api/eth-rpc',
+  SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
+  HYDRADX_BLOCK_LOW: '7036666',
 }
 
 export const ENV_KEYS = new Set([
@@ -67,6 +68,7 @@ export const ENV_KEYS = new Set([
   'LLAMA_HL_INDEXER',
   'SAUCERSWAP_API_KEY',
   'ASTROS_PERP_API_KEY',
+  'VOLO_VAULT_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

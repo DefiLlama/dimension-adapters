@@ -253,6 +253,7 @@ export enum CHAIN {
   LENS = "lens",
   SSEED = "sseed",
   AO = "ao",
+  XRPL = "xrpl",
   XRPL_EVM = "xrplevm",
   KATANA = "katana",
   SOON = "soon",
@@ -281,4 +282,14 @@ export enum CHAIN {
   FLUENCE = "fluence",
   MONAD = "monad",
   SKALE = "skale",
+  SUPRA = "supra",
+  MAYA = "mayachain",
+  SX_NETWORK = "sx_network",
+  ALEPH_ZERO_EVM = "aleph_zero_evm",
+  APPCHAIN = "appchain",
+  SEDA = "seda",
+  STABLE = "stable",
+  CAPX = "capx",
+  ALIENX = "alienx",
+  ADVENTURE_LAYER = "adventure_layer"
 }
