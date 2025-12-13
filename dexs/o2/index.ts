@@ -4,7 +4,6 @@ import { queryDuneSql } from "../../helpers/dune";
 import axios from "axios";
 
 const ApiBaseUrl = "https://api.o2.app";
-const IndexerBaseUrl = "http://157.245.207.118:3003/v1/defillama";
 const FeeRecipient =
   "0x18af30EfA58A70042013192bBDdF8A21221004b44cC1cbA1A0038cE524aAa2EE";
 
@@ -30,11 +29,15 @@ const fetch = async (options: FetchOptions) => {
     GROUP BY asset_id
   `;
 
+  console.log(
+    `${ApiBaseUrl}/defillama/v1/volumes?from=${options.startTimestamp}&to=${options.endTimestamp}`,
+  );
+
   const [duneResults, volumeResults] = await Promise.all([
     queryDuneSql(options, combinedQuery),
     axios
       .get(
-        `${IndexerBaseUrl}/volumes?from=${options.startTimestamp}&to=${options.endTimestamp}`,
+        `${ApiBaseUrl}/defillama/v1/volumes?from=${options.startTimestamp}&to=${options.endTimestamp}`,
       )
       .then((res) => res.data)
       .catch(() => []),
