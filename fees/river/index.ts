@@ -140,9 +140,9 @@ export default {
     },
     methodology: {
         Fees: 'One-time borrow fees, redemption fees paid by borrowers, and liquidation gas compensations.',
-        Revenue: 'Borrow fees, redemption fees are distibuted to satUSD stability pool and satUSD+ holders.',
-        HoldersRevenue: 'Borrow fees and redemption fees are distibuted to the satUSD stability pool and satUSD+ holders.',
-        SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+        Revenue: 'Borrow fees and redemption fees distributed to satUSD stability pool and satUSD+ holders.',
+        HoldersRevenue: 'Borrow fees and redemption fees distributed to the satUSD stability pool and satUSD+ holders.',
+        SupplySideRevenue: 'Liquidation gas compensations distributed supply-side.',
     },
     breakdownMethodology: {
         Fees: {
@@ -159,7 +159,7 @@ export default {
             [METRICS.RedemptionFee]: 'Redemption fees distributed to satUSD stability pool and satUSD+ holders.',
         },
         SupplySideRevenue: {
-            [METRICS.GasCompensation]: 'Gas compensations paid to liquidators.',
+            [METRICS.GasCompensation]: 'Gas compensations distributed to liquidators.',
         },
     },
 }
