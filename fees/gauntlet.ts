@@ -7,22 +7,33 @@ import { queryDuneSql } from "../helpers/dune";
 // Curator config for EVM chains
 const curatorConfig: CuratorConfig = {
   vaults: {
-    ethereum: {
+    [CHAIN.ETHEREUM]: {
       morphoVaultOwners: [
         '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
       ],
+      morphoVaultV2Owners: [
+        '0xd79766D2FeC43886e995EA415a2Bf406280B2e2C',
+      ],
     },
-    base: {
+    [CHAIN.BASE]: {
       morphoVaultOwners: [
         '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
         '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
       ],
+      morphoVaultV2Owners: [
+        '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
+      ],
     },
-    polygon: {
+    [CHAIN.POLYGON]: {
       morphoVaultOwners: [
         '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
       ],
     },
+    // [CHAIN.KATANA]: {
+    //   morphoVaultOwners: [
+    //     '0x5D8C96b76A342c640d9605187daB780f8365F69f',
+    //   ],
+    // },
   }
 };
 
