@@ -7,7 +7,7 @@ const CONCRETE_API_URL = "https://apy.api.concrete.xyz/v1";
 
 const CHAIN_CONFIG: Record<string, Record<string, string>> = {
     [CHAIN.ETHEREUM]: { chainId: '1', startDate: '2025-10-22' },
-    [CHAIN.STABLE]: { chainId: '988', startDate: '2025-11-19' },
+    [CHAIN.STABLE]: { chainId: '988', startDate: '2025-12-08' },
     [CHAIN.ARBITRUM]: { chainId: '42161', startDate: '2025-11-06' },
 }
 
@@ -25,24 +25,6 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailySupplySideRevenue = options.createBalances();
 
     const vaultsResponse = await getConfig('concrete', `${CONCRETE_API_URL}/vault:tvl/all`);
-
-    const getPreviousValues = (abi: string, target: string[], params: string[] = []) => {
-        const calls = params.length === 0 ? target : target.map((address, index) => ({ target: address, params: params[index] }));
-        return options.fromApi.multiCall({
-            abi,
-            calls,
-            permitFailure: true
-        })
-    };
-
-    const getCurrentValues = (abi: string, target: string[], params: string[] = []) => {
-        const calls = params.length === 0 ? target : target.map((address, index) => ({ target: address, params: params[index] }));
-        return options.toApi.multiCall({
-            abi,
-            calls,
-            permitFailure: true
-        })
-    };
 
     const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 2 && +vault.peak_tvl > 0).map((v2Vault: any) => v2Vault.address));
 
@@ -62,9 +44,23 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true,
     });
 
-    const priceBefore = await getPreviousValues('function convertToAssets(uint256 shares) view returns (uint256)', vaultDetails.map(vault => vault.address), vaultDetails.map(vault => '1' + '0'.repeat(vault.vaultDecimals)));
+    const priceBefore = await options.fromApi.multiCall({
+        abi: CONCRETE_ABIs.convertToAssets,
+        calls: vaultDetails.map(vault => ({
+            target: vault.address,
+            params: ['1' + '0'.repeat(vault.vaultDecimals)]
+        })),
+        permitFailure: true
+    });
 
-    const priceAfter = await getCurrentValues('function convertToAssets(uint256 shares) view returns (uint256)', vaultDetails.map(vault => vault.address), vaultDetails.map(vault => '1' + '0'.repeat(vault.vaultDecimals)));
+    const priceAfter = await options.toApi.multiCall({
+        abi: CONCRETE_ABIs.convertToAssets,
+        calls: vaultDetails.map(vault => ({
+            target: vault.address,
+            params: ['1' + '0'.repeat(vault.vaultDecimals)]
+        })),
+        permitFailure: true
+    });
 
     const managementFeeLogs = await options.getLogs({
         eventAbi: CONCRETE_ABIs.managementFeeEvent,

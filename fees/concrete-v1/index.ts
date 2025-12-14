@@ -28,24 +28,6 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const vaultsResponse = await getConfig('concrete', `${CONCRETE_API_URL}/vault:tvl/all`);
 
-    const getPreviousValues = (abi: string, target: string[], params: string[] = []) => {
-        const calls = params.length === 0 ? target : target.map((address, index) => ({ target: address, params: params[index] }));
-        return options.fromApi.multiCall({
-            abi,
-            calls,
-            permitFailure: true
-        })
-    };
-
-    const getCurrentValues = (abi: string, target: string[], params: string[] = []) => {
-        const calls = params.length === 0 ? target : target.map((address, index) => ({ target: address, params: params[index] }));
-        return options.toApi.multiCall({
-            abi,
-            calls,
-            permitFailure: true
-        })
-    };
-
     const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 1 && +vault.peak_tvl > 0).map((v1Vault: any) => v1Vault.address));
 
     const vaultsAdditionalInfo = await getConfig('concrete-additional', `${CONCRETE_API_URL}/vault:performance/all`);
@@ -63,9 +45,23 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true,
     });
 
-    const priceBefore = await getPreviousValues(CONCRETE_ABIs.convertToAssets, vaultsList, vaultDetails.map(vault => '1' + '0'.repeat(vault.vaultDecimals)));
+    const priceBefore = await options.fromApi.multiCall({
+        abi: CONCRETE_ABIs.convertToAssets,
+        calls: vaultDetails.map(vault => ({
+            target: vault.address,
+            params: ['1' + '0'.repeat(vault.vaultDecimals)]
+        })),
+        permitFailure: true
+    });
 
-    const priceAfter = await getCurrentValues(CONCRETE_ABIs.convertToAssets, vaultsList, vaultDetails.map(vault => '1' + '0'.repeat(vault.vaultDecimals)));
+    const priceAfter = await options.toApi.multiCall({
+        abi: CONCRETE_ABIs.convertToAssets,
+        calls: vaultDetails.map(vault => ({
+            target: vault.address,
+            params: ['1' + '0'.repeat(vault.vaultDecimals)]
+        })),
+        permitFailure: true
+    });
 
     const feeRecipients = await options.api.multiCall({
         calls: vaultsList,
@@ -95,7 +91,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         const feeInAssets = (feeInVaultUnits / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
         dailyFees.add(underlyingAsset, feeInAssets);
-        dailyRevenue.add(underlyingAsset.feeInAssets);
+        dailyRevenue.add(underlyingAsset, feeInAssets);
     }
 
     return {
