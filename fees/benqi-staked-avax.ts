@@ -44,11 +44,12 @@ const fetchFees = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Total yields from staked Avax.',
-  Revenue: '10 % of the total yields are charged by Benqi.',
+  Revenue: '10% of the total yields are charged by Benqi.',
   ProtocolRevenue: 'All revenue goes to the protocol.',
   HoldersRevenue: 'No revenue share to QI token holders.',
   SupplySideRevenue: 'Stakers earn 90% AVAX staking rewards.',
 }
+
 const adapters: SimpleAdapter = {
   version: 2,
   methodology,
