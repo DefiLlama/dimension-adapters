@@ -25,6 +25,7 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const ABI = {
   Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
   getSharePrice: "function getSharePrice() view returns (uint256)",
+  decimals: "uint8:decimals",
 };
 
 type MachineConfig = {
@@ -78,8 +79,6 @@ async function getOraclePrice(
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
   for (const machine of MACHINES) {
     const logs: any[] = await options.getLogs({
@@ -106,28 +105,28 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       if (value > 0n) feeShares += value;
     }
 
-    // Get oracle price
+    // Get oracle price and accounting token decimals
     const oracle = await getOraclePrice(options, machine.sharePriceOracle);
+    const accountingTokenDecimals = await options.api.call({
+      target: machine.accountingToken,
+      abi: ABI.decimals,
+    });
 
     // Convert fee shares to accounting token amount
     // oracle.price is in 1e18 units per share
     // feeShares is in 10^18 units (18 decimals)
-    // feesInAccountingToken = (feeShares / 10^18) * (oracle.price / 1e18)
-    const feesInAccountingToken = (feeShares * oracle.price) / 1e18 / 1e18;
+    // Result converted to accounting token's decimals
+    const feesInAccountingToken = (feeShares * oracle.price) / 1e18 / 1e18 * (10 ** accountingTokenDecimals);
 
     dailyFees.add(machine.accountingToken, feesInAccountingToken);
     dailyRevenue.add(machine.accountingToken, feesInAccountingToken);
-    dailyProtocolRevenue.add(
-      machine.accountingToken,
-      feesInAccountingToken
-    );
   }
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: 0,
   };
 }
 
@@ -145,7 +144,7 @@ const adapter: Adapter = {
     Revenue:
       "All minted fees are treated as revenue captured by Makina ecosystem recipients (Operator, Security Module, and Makina DAO).",
     ProtocolRevenue:
-      "Same as Revenue (all fees accrue to Makina-controlled addresses).",
+      "Same as Revenue - all fees accrue to Makina-controlled addresses (Operator, Security Module, and DAO).",
     SupplySideRevenue:
       "0 (fees are paid via share dilution rather than distributed to depositors).",
   },
