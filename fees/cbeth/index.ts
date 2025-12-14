@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 const cbETH = "0xbe9895146f7af43049ca1c1ae358b0541ea49704";
-const MevFeeRecipient = "0xeBec795c9c8bBD61FFc14A6662944748F299cAcf";
+const MevFeeRecipient = "0x4675c7e5baafbffbca748158becba61ef3b0a263";
 
 const PROTOCOL_FEE = 0.10; // 10%
 
