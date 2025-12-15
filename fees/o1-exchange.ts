@@ -29,14 +29,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         solana AS (
         SELECT DAY, SUM("Trading Fees") as "Trading Fees", SUM("Trading Volume") as "Trading Volume" FROM (
         SELECT date_trunc('day', block_time) as day, SUM(amount_usd) as "Trading Fees", SUM(amount_usd)*100 as "Trading Volume" FROM tokens_solana.transfers
-        WHERE to_owner = 'FUzZ2SPwLPAKaHubxQzRsk9K8dXb4YBMR6hTrYEMFFZc'
+        WHERE to_owner = '${O1_EXCHANGE_SOLANA_FEE_COLLECTOR}'
         AND block_slot >= 345561824
-        AND token_mint_address = 'So11111111111111111111111111111111111111111'
+        AND token_mint_address = '${ADDRESSES.solana.SOL}'
         AND token_version = 'native'
         GROUP BY 1
         UNION ALL 
         SELECT date_trunc('day', block_time) as day, SUM(amount_usd) as "Trading Fees", 0 as "Trading Volume" FROM tokens_solana.transfers
-        WHERE to_owner = 'HG73jy6opRQwgTaynUeT6MxX6h3mshNWLPGHme4HdiYy'
+        WHERE to_owner = '${O1_EXCHANGE_SOLANA_FEE_COLLECTOR_2}'
         AND block_slot >= 345561824
         AND token_mint_address = 'So11111111111111111111111111111111111111111'
         AND token_version = 'native'
