@@ -1,8 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../../helpers/token";
-import { queryDuneSql } from "../../helpers/dune";
-import { queryAllium } from "../../helpers/allium";
 
 /**
  * Lombard LBTC Fee Adapter
@@ -23,7 +21,7 @@ const LBTC_CONTRACTS = {
   [CHAIN.SONIC]: "0xecAc9C5F704e954931349Da37F60E39f515c11c1"
 };
 
-// Chain-specific addresses
+// SOLANA_TREASURY
 const SOLANA_TREASURY = "4qKkExZ4T5yyVumc4qoTzoa8fwmhpDy2Zg9ZUoNwzSP9";
 
 const ABIS = {
@@ -71,43 +69,37 @@ const fetchSolana = async (options: FetchOptions): Promise<FetchResultV2> => {
   
 const adapter: SimpleAdapter = {
   version: 2,
-  // dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEVM,
-      start: "2024-01-01",
+      start: "2024-05-16",
     },
     [CHAIN.BASE]: {
       fetch: fetchEVM,
-      start: "2024-06-01",
-    },
-    [CHAIN.BSC]: {
-      fetch: fetchEVM,
-      start: "2024-06-01",
+      start: "2024-11-11",
     },
     [CHAIN.KATANA]: {
       fetch: fetchEVM,
-      start: "2024-10-01",
+      start: "2025-06-27",
     },
     [CHAIN.SONIC]: {
       fetch: fetchEVM,
-      start: "2024-10-01",
+      start: "2024-12-23",
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: "2024-10-01",
+      start: "2025-04-02",
     },
   },
   methodology: {
     Fees:
-      "Fixed 0.0001 LBTC Network Security Fee per redemption, tracked via treasury inflows across chains with native BTC staking support.",
+      "Fixed 0.0001 LBTC Network Security Fee per redemption, tracked via LBTC inflows to Lombard treasury addresses across supported chains.",
     Revenue:
-      "All fees transferred to treasury are captured as protocol revenue from native BTC staking/unstaking operations.",
+      "All redemption fees transferred to the Lombard treasury are counted as protocol revenue.",
     ProtocolRevenue:
       "Same as Revenue.",
-    SupplySideRevenue:
-      "0 — staking yield accrues to LBTC holders; 8% commission goes to Finality Providers.",
-  },
+    SupplySideRevenue: "0 — BTC staking yield accrues to LBTC holders"
+  },  
 };
 
 export default adapter;
