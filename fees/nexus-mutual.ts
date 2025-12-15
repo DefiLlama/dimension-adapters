@@ -2,12 +2,14 @@ import {Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import {CHAIN} from "../helpers/chains";
 import {queryDuneSql} from "../helpers/dune";
 
-interface IData {
+interface ICoversData {
   premium_usd: number;
 }
-
+interface IClaimsData {
+  claim_total: number;
+}
 const fetch = async ( options: FetchOptions) => {
-  const query = `
+  const queryCoversData = `
       WITH daily_avg_prices AS (
           SELECT
               block_date,
@@ -46,14 +48,46 @@ const fetch = async ( options: FetchOptions) => {
       WHERE cover_start_date >= FROM_UNIXTIME(${options.startTimestamp})
         AND cover_start_date < FROM_UNIXTIME(${options.endTimestamp});
   `
-  const res: IData[] = await queryDuneSql(options, query);
+
+  const queryClaimsData = `
+  with
+
+claims_paid as (
+  select
+    version,
+    cover_id,
+    claim_id,
+    claim_date,
+    claim_payout_date,
+    eth_usd_claim_amount,
+    dai_usd_claim_amount,
+    usdc_usd_claim_amount,
+    cbbtc_usd_claim_amount
+  from query_5785588 -- claims paid - base root
+)
+
+select
+sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount) as claim_total
+from claims_paid
+where claim_date >= FROM_UNIXTIME(${options.startTimestamp})
+  and claim_date < FROM_UNIXTIME(${options.endTimestamp});
+  `
+
+  const coversPromise: Promise<ICoversData[]> = queryDuneSql(options, queryCoversData);
+  const claimsPromise: Promise<IClaimsData[]> = queryDuneSql(options, queryClaimsData);
+
+  const [coversData,claimsData] : [ICoversData[], IClaimsData[]] = await Promise.all([coversPromise,claimsPromise]);
+
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(res[0].premium_usd)
+  dailyFees.addUSDValue(coversData[0].premium_usd - claimsData[0].claim_total)
+  const dailyRevenue = dailyFees.clone(0.5)
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees.clone(0.5),
     dailySupplySideRevenue: dailyFees.clone(0.5),
+    dailyRevenue: dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0
   };
 };
 
@@ -67,10 +101,13 @@ const adapter: Adapter = {
     },
   },
   methodology: {
-    Fees: "All premiums paid by members to buy cover insurance",
+    Fees: "All premiums paid by members to buy cover insurance minus paid claims. could be negative on some days",
     Revenue: "50% of premiums retained in the capital pool",
-    SupplySideRevenue: "50% of premiums distributed as NXM rewards to stakers",
-  }
+    SupplySideRevenue: "50% of premiums retained in the capital pool, benefiting all NXM Holders",
+    HoldersRevenue: "50% of premiums distributed as NXM rewards to specific pools stakers",
+    ProtocolRevenue: "Protocol takes nothing from paid premiums"
+  },
+  allowNegativeValue: true
 };
 
 export default adapter;
