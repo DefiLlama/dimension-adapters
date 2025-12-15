@@ -18,9 +18,8 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyFees,
+    dailyRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
 
   };
 };
@@ -29,9 +28,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
     Fees: 'Yield generated from MakerDAO DSR on bridged assets',
-    Revenue: 'Total yield is distributed to sDAI holders',
-    ProtocolRevenue: 'Protocol share is zero',
-    HoldersRevenue: 'Full yield accrued to sDAI token holders',
+    SupplySideRevenue: 'Total yield is distributed to sDAI holders',
   },
   fetch,
   adapter: {
