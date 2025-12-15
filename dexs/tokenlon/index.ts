@@ -33,7 +33,6 @@ const config: any = {
 const endpoints: TEndpoint = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5JhweAV1Y3k3GbbEssfetBaoyDNWz1Y72zscRrYsAgVT'),
 };
-const rfqV2Endpoint = "https://subgraph.satsuma-prod.com/61c3dea518e9/imtoken-labs--349710/rfq-v2-subgraph/version/v0.0.1-test-version/api"
 
 const fetchVolume = (chain: Chain) => {
   return async (
@@ -58,20 +57,6 @@ const fetchVolume = (chain: Chain) => {
     const historicalData: IGraph[] = [...response.fillOrders, ...response.swappeds];
     historicalData.map((e: IGraph) => {
       dailyVolume.add(e.makerAssetAddr, e.makerAssetAmount);
-    });
-
-    const rfqv2Query = `{
-      filledRFQs(
-      first: 1000
-      where: {blockTimestamp_gte: ${fromTimestamp}, blockTimestamp_lte: ${toTimestamp}}
-    ) {
-      makerToken
-      makerTokenAmount
-    }}`
-    const rfqV2Response = await request(rfqV2Endpoint, rfqv2Query)
-    const rfqv2Record: IGraph[] = [...rfqV2Response.filledRFQs]
-    rfqv2Record.map((e: IGraph) => {
-      dailyVolume.add(e.makerToken, e.makerTokenAmount);
     });
 
     return { dailyVolume, timestamp: toTimestamp };
