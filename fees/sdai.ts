@@ -28,6 +28,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
     Fees: 'Yield generated from MakerDAO DSR on bridged assets',
+    Revenue: 'No revenue',
     SupplySideRevenue: 'Total yield is distributed to sDAI holders',
   },
   fetch,
