@@ -95,27 +95,27 @@ const adapter: BreakdownAdapter = {
       },
       [CHAIN.POLYGON]: {
         fetch: fetchL2,
-        start: '2021-07-01',
+        start: '2023-11-06',
       },
       [CHAIN.ARBITRUM]: {
         fetch: fetchL2,
-        start: '2021-09-01',
+        start: '2023-11-22',
       },
       [CHAIN.BASE]: {
         fetch: fetchL2,
-        start: '2023-08-01',
+        start: '2024-03-13',
       },
       [CHAIN.BSC]: {
         fetch: fetchL2,
-        start: '2021-05-01',
+        start: '2024-03-13',
       },
       [CHAIN.OPTIMISM]: {
         fetch: fetchL2,
-        start: '2021-11-01',
+        start: '2023-11-22',
       },
       [CHAIN.ERA]: {
         fetch: fetchL2,
-        start: '2023-03-01',
+        start: '2024-04-16',
       },
     },
   },
