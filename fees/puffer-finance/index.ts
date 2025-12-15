@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // https://github.com/PufferFinance/Deployments-and-ACL/blob/main/docs/deployments/mainnet.md
 // PufferVault contract address
@@ -7,6 +8,10 @@ const PUFFER_VAULT = "0xD9A442856C234a39a81a089C06451EBAa4306a72";
 
 // ValidatorTicket contract - stores fee rates for VT minting
 const VALIDATOR_TICKET = "0x7D26AD6F6BA9D6bA1de0218Ae5e20CD3a273a55A";
+
+// Custom metrics for fee breakdown
+const PROTOCOL_FEE_METRIC = 'Protocol Fee'; // Fee collected by Puffer protocol treasury
+const GUARDIANS_FEE_METRIC = 'Guardians Fee'; // Fee collected by Puffer guardians
 
 // ABIs for fetching contract data
 const ABIS = {
@@ -60,9 +65,15 @@ const fetch = async (options: FetchOptions) => {
   // https://docs.puffer.fi/yield/protocol/rewards
   const grossRewards = netRewards / (1 - PROTOCOL_FEE - GUARDIANS_FEE);
 
-  dailyFees.addGasToken(grossRewards);
-  dailyProtocolRevenue.addGasToken(grossRewards * PROTOCOL_FEE); // Protocol treasury fee
-  dailySupplySideRevenue.addGasToken(grossRewards * (1 - PROTOCOL_FEE - GUARDIANS_FEE)); // Rewards to stakers
+  const protocolFees = grossRewards * PROTOCOL_FEE;
+  const guardiansFees = grossRewards * GUARDIANS_FEE;
+  const supplySideRewards = grossRewards * (1 - PROTOCOL_FEE - GUARDIANS_FEE);
+
+  // Track fees with breakdown by metric
+  dailyFees.addGasToken(grossRewards, METRIC.STAKING_REWARDS);
+  dailyProtocolRevenue.addGasToken(protocolFees, PROTOCOL_FEE_METRIC);
+  dailyProtocolRevenue.addGasToken(guardiansFees, GUARDIANS_FEE_METRIC);
+  dailySupplySideRevenue.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,
@@ -82,9 +93,25 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: "Total yield from restaking rewards (AVS fees) and validator ticket sales, reflected in pufETH exchange rate appreciation",
-    Revenue: "Protocol fee taken from yield distributed to pufETH holders.",
-    ProtocolRevenue: "Protocol fee collected by Puffer protocol via validator ticket minting.",
+    Revenue: "Protocol fee and guardians fee collected from yield distributed to pufETH holders.",
+    ProtocolRevenue: "Protocol fee and guardians fee collected from yield distributed to pufETH holders.",
     SupplySideRevenue: "Yield accruing to pufETH holders via exchange rate appreciation from restaking and validator tickets, minus protocol and guardians fees.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: "Total yield from restaking rewards (AVS fees) and validator ticket sales, reflected in pufETH exchange rate appreciation",
+    },
+    Revenue: {
+      [PROTOCOL_FEE_METRIC]: "Protocol fee collected by Puffer protocol treasury from validator ticket minting.",
+      [GUARDIANS_FEE_METRIC]: "Guardians fee collected by Puffer guardians from validator ticket minting.",
+    },
+    ProtocolRevenue: {
+      [PROTOCOL_FEE_METRIC]: "Protocol fee collected by Puffer protocol treasury from validator ticket minting.",
+      [GUARDIANS_FEE_METRIC]: "Guardians fee collected by Puffer guardians from validator ticket minting.",
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: "Yield accruing to pufETH holders via exchange rate appreciation from restaking and validator tickets, minus protocol and guardians fees.",
+    },
   },
 };
 
