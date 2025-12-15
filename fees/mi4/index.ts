@@ -1,32 +1,31 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import CoreAssets from "../../helpers/coreAssets.json";
-import abi from "./abi.json"
 import { METRIC } from "../../helpers/metrics"
 
 // https://securitize.io/primary-market/mantle-index-four-fund
 
-const usdc = CoreAssets.mantle.USDC
 const MI4_ADDRESSES = {
     token: '0x671642Ac281C760e34251d51bC9eEF27026F3B7a',
     priceFeed: '0x24c8964338Deb5204B096039147B8e8C3AEa42Cc'
 };
+const ABIs = {
+  "latestRoundData": "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
+  "priceDecimals": "function decimals() view returns (uint8)"
+}
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
-
-  try {
     const [totalSupply, priceData, priceDecimals, tokenDecimals] = await Promise.all([
         options.api.call({
             abi: 'erc20:totalSupply',
             target: MI4_ADDRESSES.token,
         }),
         options.api.call({
-            abi: abi.latestRoundData,
+            abi: ABIs.latestRoundData,
             target: MI4_ADDRESSES.priceFeed,
         }),
         options.api.call({
-            abi: abi.priceDecimals,
+            abi: ABIs.priceDecimals,
             target: MI4_ADDRESSES.priceFeed,
         }),
         options.api.call({
@@ -42,13 +41,10 @@ const fetch = async (options: FetchOptions) => {
     const tokenSupplyFloat = Number(totalSupply) / (10 ** Number(tokenDecimals));
     
     // Calculate TVL in USDC
-    const tvlUSDC = (tokenSupplyFloat * pricePerTokenUsd) * 1e6;
+    const tvlUSD = (tokenSupplyFloat * pricePerTokenUsd);
 
-    const anualFees = tvlUSDC * 0.01
-    dailyFees.add(usdc, anualFees / 365, METRIC.MANAGEMENT_FEES)
-  } catch (error) {
-    console.error(`Error calculating TVL:`, error.message);
-  }
+    const anualFees = tvlUSD * 0.01
+    dailyFees.addUSDValue(anualFees / 365, METRIC.MANAGEMENT_FEES)
     return {
         dailyFees,
         dailyRevenue: dailyFees,
@@ -56,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
     }
 }
 const adapters : SimpleAdapter = {
-    version: 2,
+    version: 1,
     fetch,
     chains: [CHAIN.MANTLE],
     start: '2025-10-24',
