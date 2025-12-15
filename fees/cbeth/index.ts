@@ -65,10 +65,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-  Fees: "Total validators fees and rewards from staked ETH.",
+  Fees: "Total validators and MEV rewards from staked ETH.",
   SupplySideRevenue: "90% of rewards accrue to cbETH holders via exchange rate.",
-  ProtocolRevenue: "10% staking commission kept by Coinbase on all rewards.",
-  Revenue: "Coinbase takes a 10% staking service fee for ETH",
+  ProtocolRevenue: "Coinbase takes a 10% staking service fee for ETH.",
+  Revenue: "Coinbase takes a 10% staking service fee for ETH.",
 };
 
 const adapter: Adapter = {
