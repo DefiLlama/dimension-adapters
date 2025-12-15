@@ -293,5 +293,5 @@ export enum CHAIN {
   ALIENX = "alienx",
   ADVENTURE_LAYER = "adventure_layer",
   DERI_CHAIN = "deri_chain",
-  DUCK_CHAIN = "duck_chain",
+  DUCK_CHAIN = "duckchain",
 }
