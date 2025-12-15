@@ -51,8 +51,15 @@ const fetch = (endpoint) => {
 };
 
 const adapter: Adapter = {
-  methodology: "Fees collected from user trading fees",
   version: 1,
+  methodology: {
+    Fees: "Each pool charges between 0.01% to 1% fee",
+    UserFees: "Users pay between 0.01% to 1% fee",
+    Revenue: "0 to 1/4 of the fee goes to treasury",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue:
+      "Liquidity providers get most of the fees of all trades in their pools",
+  },
   adapter: {
     // [CHAIN.KAVA]: {
     //   fetch: fetch(endpoints[CHAIN.KAVA]),
@@ -60,7 +67,7 @@ const adapter: Adapter = {
     // },
     [CHAIN.BASE]: {
       fetch: fetch(endpoints[CHAIN.BASE]),
-      start: '2024-05-08', //  Wednesday, May 8, 2024 12:00:00 AM
+      start: "2024-05-08", //  Wednesday, May 8, 2024 12:00:00 AM
     },
   },
 };
