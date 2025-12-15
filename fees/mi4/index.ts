@@ -49,7 +49,6 @@ const fetch = async (options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue: dailyFees,
-        dailyUserFees: dailyFees,
     }
 }
 const adapters : SimpleAdapter = {
@@ -58,9 +57,8 @@ const adapters : SimpleAdapter = {
     chains: [CHAIN.MANTLE],
     start: '2025-10-24',
     methodology: {
-        Fees: "1% management fee",
-        Revenue: "Management fee paid by users",
-        UserFees: "Management fee paid by users",
+        Fees: "1% total deposited assets charged as management fees annually.",
+        Revenue: "Management fees are revenue.",
     }
 };
 export default adapters;
