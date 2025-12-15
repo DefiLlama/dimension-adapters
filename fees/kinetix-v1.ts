@@ -1,17 +1,12 @@
 import { CHAIN } from "../helpers/chains";
-import { Adapter } from "../adapters/types";
+import { gmxV1Exports } from "../helpers/gmx";
 
-// Original used gmxV1Exports with vault: "0xa721f9f61CECf902B2BCBDDbd83E71c191dEcd8b"
-
-const adapter: Adapter = {
-  version: 2,
-  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
-  adapter: {
+export default {
+  ...gmxV1Exports({
     [CHAIN.KAVA]: {
-      fetch: async () => ({}),
+      vault: "0xa721f9f61CECf902B2BCBDDbd83E71c191dEcd8b",
       start: "2023-12-12",
     },
-  },
+  }),
+  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
 };
-
-export default adapter;
