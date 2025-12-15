@@ -50,29 +50,17 @@ const fetch = async ( options: FetchOptions) => {
   `
 
   const queryClaimsData = `
-  with
-
-claims_paid as (
-  select
-    version,
-    cover_id,
-    claim_id,
-    claim_date,
-    claim_payout_date,
-    eth_usd_claim_amount,
-    dai_usd_claim_amount,
-    usdc_usd_claim_amount,
-    cbbtc_usd_claim_amount
-  from query_5785588 -- claims paid - base root
-)
-
-select
-sum(eth_usd_claim_amount + dai_usd_claim_amount + usdc_usd_claim_amount + cbbtc_usd_claim_amount) as claim_total
-from claims_paid
-where claim_date >= FROM_UNIXTIME(${options.startTimestamp})
-  and claim_date < FROM_UNIXTIME(${options.endTimestamp});
-  `
-
+      SELECT
+          SUM(
+               eth_usd_claim_amount +
+               dai_usd_claim_amount +
+               usdc_usd_claim_amount +
+               cbbtc_usd_claim_amount
+          ) AS claim_total
+      FROM query_5785588  -- claims paid - base root
+      WHERE claim_date >= FROM_UNIXTIME(${options.startTimestamp})
+        AND claim_date < FROM_UNIXTIME(${options.endTimestamp});
+  `;
   const coversPromise: Promise<ICoversData[]> = queryDuneSql(options, queryCoversData);
   const claimsPromise: Promise<IClaimsData[]> = queryDuneSql(options, queryClaimsData);
 
