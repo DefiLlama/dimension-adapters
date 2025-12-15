@@ -40,10 +40,14 @@ const methodology = {
 }
 const RDMUSD0 = '0x6ec631c19372d5a9345Ec4aeED93BA9eb0A45F77'
 const DaoCollateral = '0xde6e1F680C4816446C8D515989E2358636A38b04'
+const USD0aDaoCollateral = '0xecD854A1a0ddd5f35F2F24eC3605D8BAebF77039'
+const EUR0DaoCollateral = '0xB9677b45BffBE3d586D2AE2cbCD1775577B166D1'
+const ETH0DaoCollateral = '0xAAD0a80fB8F0DA4799E457b5Ae8EA70Fa61a45fc'
 const Treasury = '0xdd82875f0840AAD58a455A70B88eEd9F59ceC7c7'
 const Eur0Treasury = '0x11D75bC93aE69350231D8fF0F5832A697678183E'
 const ETH0Treasury = '0xc912B5684a1dF198294D8b931B3926a14d700F64'
 const USD0 = ADDRESSES.ethereum.USD0
+const USD0a = '0x2e7fC02bE94BC7f0cD69DcAB572F64bcC173cd81'
 const SUSDS = ADDRESSES.ethereum.sUSDS
 const WSTETH = ADDRESSES.ethereum.WSTETH
 const EUTBL =  '0xa0769f7A8fC65e47dE93797b4e21C073c117Fc80'
@@ -61,6 +65,10 @@ const wM = '0x437cc33344a0B27A429f795ff6B469C72698B291'
 const USUAL_wM = '0x4Cbc25559DbBD1272EC5B64c7b5F48a2405e6470'
 const EULER_VAULTS = ['0xd001f0a15D272542687b2677BA627f48A4333b5d']
 const USUAL_VAULTS = ['0x67ec31a47a4126A66C7bb2fE017308cf5832A4Db']
+
+// Uniswap V3 pool and treasury 
+const UNISWAP_V3_TREASURY = '0xc32e2a2F03d41768095e67b62C9c739f2C2Bc4aA'
+const UNISWAP_V3_POSITION_MANAGER = '0xC36442b4a4522E871399CD717aBDD847Ab11FE88' // Ethereum mainnet
  
 const ContractAbis = {
  
@@ -80,11 +88,14 @@ const ContractAbis = {
   // users redeem USD0 to RWA stablecoins
   RedeemEvent: 'event Redeem(address indexed redeemer, address indexed rwaToken, uint256 amountRedeemed, uint256 returnedRwaAmount, uint256 stableFeeAmount)',
 
-  // collect USUAL paid by early unstake USD0++ users
+  // collect USUAL paid by early unstake bUSD0 users
   FeeSweptEvent: 'event FeeSwept(address indexed caller, address indexed collector, uint256 amount)',
 
   // harvest management fee from vaults
   HarvestManagementFeeEvent: 'event Harvested(address indexed caller, uint256 sharesMinted)',
+
+  // harvest USD0a fees 
+  HarvestUSD0aEvent: 'event Harvest(uint256 amount)',
   
   // collect USD0 fees to treasury
   Usd0ppUnlockedFloorPriceEvent: 'event Usd0ppUnlockedFloorPrice(address indexed user, uint256 usd0ppAmount, uint256 usd0Amount)',
@@ -95,6 +106,10 @@ const ContractAbis = {
   rebasingDTDistributed: 'event RebasingDTDistributed(uint256 amount, uint256 timestamp)',
   // distribute USD0 to Usualx lockers
   revenueSwitchDistributed: 'event RevenueSwitchDistributed(uint256 amount, uint256 timestamp)',
+  
+  // Uniswap V3 NonfungiblePositionManager
+  positions: 'function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)',
+  CollectEvent: 'event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)',
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -104,7 +119,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyRevenue = options.createBalances()
 
   const redeemEvents: Array<any> = await options.getLogs({
-    target: DaoCollateral,
+    targets: [DaoCollateral,USD0aDaoCollateral, EUR0DaoCollateral, ETH0DaoCollateral],
     eventAbi: ContractAbis.RedeemEvent,
   })
   const feeSweptEvents: Array<any> = await options.getLogs({
@@ -114,6 +129,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const harvestManagementFeeEvents: Array<any> = await options.getLogs({
     targets: USUAL_VAULTS,
     eventAbi: ContractAbis.HarvestManagementFeeEvent,
+  })
+  const harvestUSD0aEvents: Array<any> = await options.getLogs({
+    target: USD0a,
+    eventAbi: ContractAbis.HarvestUSD0aEvent,
   })
   const usd0ppUnlockedFloorPriceEvents: Array<any> = await options.getLogs({
     target: USD0PP,
@@ -151,6 +170,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.add(SUSDS, Number(event.sharesMinted))
     dailyProtocolRevenue.add(SUSDS, Number(event.sharesMinted))
   } 
+
+  for (const event of harvestUSD0aEvents) {
+    dailyFees.add(USD0a, Number(event.amount))
+    dailyProtocolRevenue.add(USD0a, Number(event.amount))
+  }
 
   for (const event of usd0ppUnlockedFloorPriceEvents) {
     const feeAmount = Number(event.usd0ppAmount) - Number(event.usd0Amount)
@@ -262,6 +286,38 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   
   dailyFees.addUSDValue(totalRwaYield)
   dailyProtocolRevenue.addUSDValue(totalRwaYield)
+
+
+  // Uniswap Fee earned through liquidity deployment
+  // Track Collect events from NonfungiblePositionManager where recipient is the treasury
+  const collectEvents: Array<any> = await options.getLogs({
+    target: UNISWAP_V3_POSITION_MANAGER,
+    eventAbi: ContractAbis.CollectEvent,
+  })
+  // Filter for events where recipient is the treasury and verify the position is in our pool
+  const treasuryCollectEvents = collectEvents.filter((event: any) => 
+    event.recipient?.toLowerCase() === UNISWAP_V3_TREASURY.toLowerCase()
+  ) 
+  // Verify each position belongs to our pool and sum fees
+  for (const event of treasuryCollectEvents) {
+  
+      const position = await options.api.call({
+        abi: ContractAbis.positions,
+        target: UNISWAP_V3_POSITION_MANAGER,
+        params: [event.tokenId],
+      })
+      if (
+        position.token0 &&
+        position.token1
+      ) {
+        dailyFees.add( position.token0, Number(event.amount0))
+        dailyFees.add( position.token1, Number(event.amount1))
+        dailyProtocolRevenue.add( position.token0, Number(event.amount0))
+        dailyProtocolRevenue.add( position.token1, Number(event.amount1))
+      }
+ 
+  }
+
   await getEulerVaultFee(options, { dailyFees, dailyRevenue }, EULER_VAULTS)
   dailyRevenue.add(dailyProtocolRevenue)
   dailyRevenue.add(dailyHoldersRevenue)
