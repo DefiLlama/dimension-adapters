@@ -2,7 +2,6 @@ import { FetchOptions, FetchResultV2, SimpleAdapter, Dependencies } from "../../
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../../helpers/token";
 import { queryDuneSql } from "../../helpers/dune";
-import { queryAllium } from "../../helpers/allium";
 
 /**
  * Lombard LBTC Fee Adapter
@@ -77,19 +76,25 @@ const fetchStarknet = async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyFees = options.createBalances();
     const date = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
   
-    const res: { total_daily_fee: string }[] = await queryDuneSql(options,
+    const res: { day: string; daily_protocol_fees: number }[] = await queryDuneSql(options,
       `SELECT
-        SUM(actual_fee_amount) / POW(10, 18) AS total_daily_fee
+        DATE_TRUNC('day', block_date) AS day,
+        SUM(actual_fee_amount) / POW(10, 18) AS daily_protocol_fees
       FROM starknet.transactions
       WHERE DATE_TRUNC('day', block_date) = DATE_TRUNC('day', DATE '${date}')
         AND (
           contract_address = 0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4
           OR sender_address = 0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4
-        )`
+        )
+      GROUP BY 1`
     );
   
-    if (res.length > 0 && res[0].total_daily_fee) {
-      dailyFees.addCGToken('ethereum', Number(res[0].total_daily_fee));
+    const feeItem = res.find(item => 
+      String(item.day).split(' ')[0] === date
+    );
+    
+    if (feeItem && feeItem.daily_protocol_fees) {
+      dailyFees.addUSDValue(feeItem.daily_protocol_fees);
     }
   
     return {
@@ -98,7 +103,7 @@ const fetchStarknet = async (options: FetchOptions): Promise<FetchResultV2> => {
       dailyProtocolRevenue: dailyFees,
       dailySupplySideRevenue: 0,
     };
-};
+  };
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -124,18 +129,14 @@ const adapter: SimpleAdapter = {
       fetch: fetchEVM,
       start: "2024-10-01",
     },
-    //[CHAIN.SOLANA]: {
-    //  fetch: fetchSolana,
-    //  start: "2024-10-01",
-    //},
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: "2024-10-01",
+    },
     [CHAIN.STARKNET]: {
       fetch: fetchStarknet,
       start: "2024-10-01",
     },
-    //[CHAIN.SUI]: {
-    //  fetch: fetchSui,
-    //  start: "2024-10-01",
-    //},
   },
   methodology: {
     Fees:
