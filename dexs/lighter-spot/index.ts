@@ -14,9 +14,9 @@ const fetch = async (_1: any, _2: any, options: FetchOptions) => {
   const markets = await httpGet(`${API}/orderBooks?market_id=255`);
   options.api.log('Lighter markets #', markets?.order_books?.length || 0);
 
-  // Filter markets to only include those with market_id < 2048
-  const filteredMarkets = markets.order_books.filter(({ market_id }: any) => market_id < 2048);
-  options.api.log('Filtered markets (market_id < 2048) #', filteredMarkets?.length || 0);
+  // Filter markets to only include those with market_id > 2047
+  const filteredMarkets = markets.order_books.filter(({ market_id }: any) => market_id > 2047);
+  options.api.log('Filtered markets (market_id > 2047) #', filteredMarkets?.length || 0);
 
   await PromisePool.withConcurrency(5)
     .for(filteredMarkets)
@@ -47,7 +47,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ZK_LIGHTER],
-  start: "2025-01-17",       // earliest candlestick data available
+  start: "2025-12-06",       // earliest candlestick data available
   methodology,
 };
 
