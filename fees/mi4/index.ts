@@ -12,8 +12,9 @@ const ABIs = {
   "latestRoundData": "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)",
   "priceDecimals": "function decimals() view returns (uint8)"
 }
+const MANAGEMENT_FEES_RATE = 0.01
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const [totalSupply, priceData, priceDecimals, tokenDecimals] = await Promise.all([
         options.api.call({
@@ -40,11 +41,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     // Calculate actual token supply
     const tokenSupplyFloat = Number(totalSupply) / (10 ** Number(tokenDecimals));
     
-    // Calculate TVL in USDC
     const tvlUSD = (tokenSupplyFloat * pricePerTokenUsd);
+    const currentPeriod = options.toTimestamp - options.fromTimestamp
+    const managementFees = tvlUSD * MANAGEMENT_FEES_RATE * currentPeriod / (365 * 24 * 3600)
 
-    const anualFees = tvlUSD * 0.01
-    dailyFees.addUSDValue(anualFees / 365, METRIC.MANAGEMENT_FEES)
+    dailyFees.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES)
     return {
         dailyFees,
         dailyRevenue: dailyFees,
@@ -52,7 +53,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
 }
 const adapters : SimpleAdapter = {
-    version: 1,
+    version: 2,
     fetch,
     chains: [CHAIN.MANTLE],
     start: '2025-10-24',
