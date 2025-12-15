@@ -113,7 +113,7 @@ async function getEventData(
 }
 
 const fetchAptosRevenue: FetchV2 = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const totalRevenue = options.createBalances();
 
   for (const contractAddress of aptosConfig.contracts) {
     const resources = await getResources(contractAddress);
@@ -131,25 +131,31 @@ const fetchAptosRevenue: FetchV2 = async (options: FetchOptions) => {
     );
     for (const event of eventArrays.flat()) {
       if (event.token) {
-        dailyFees.add(event.token, event.amount);
+        totalRevenue.add(event.token, event.amount);
       } else if (event.type = "0x61b28909165252d7d21dbcb16572eaf13a660ad3d6d9884358894e0ea88d1e1f::order_management_v1::OrderPlacedEvent") {
-        dailyFees.addUSDValue(Number(event.amount) / USDC_DECIMALS);
+        totalRevenue.addUSDValue(Number(event.amount) / USDC_DECIMALS);
       }
       else {
-        dailyFees.addCGToken("aptos", Number(event.amount) / APT_DECIMALS);
+        totalRevenue.addCGToken("aptos", Number(event.amount) / APT_DECIMALS);
       }
     }
   }
 
+  const totalUSD = await totalRevenue.getUSDValue();
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(totalUSD);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(totalUSD * 0.005);
+
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const fetchPolygonRevenue: FetchV2 = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const totalRevenue = options.createBalances();
 
   for (const contract of polygonConfig.contracts) {
     for (const event of contract.events) {
@@ -166,15 +172,20 @@ const fetchPolygonRevenue: FetchV2 = async (options: FetchOptions) => {
           amount = Number(log.amount);
         }
         if (!isNaN(amount)) {
-          dailyFees.add(POLYGON_USDT_ADDRESS, amount);
+          totalRevenue.add(POLYGON_USDT_ADDRESS, amount);
         }
       }
     }
   }
+  const totalUSD = await totalRevenue.getUSDValue();
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(totalUSD);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(totalUSD * 0.005);
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
