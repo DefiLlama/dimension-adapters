@@ -294,4 +294,5 @@ export enum CHAIN {
   ADVENTURE_LAYER = "adventure_layer",
   DERI_CHAIN = "deri_chain",
   DUCK_CHAIN = "duck_chain",
+  BABYLON_GENESIS = "babylon_genesis",
 }
