@@ -11,7 +11,7 @@ const limit = pLimit(10);
 const WEEKEND_FOREX_FEE_RATE = 0.025 / 100;
 const OVERNIGHT_STOCK_FEE_RATE = 0.05 / 100;
 const CRYPTO_FEE_RATE = 0.01 / 100;
-const WEEKEND_STOCK_FEE_RATE = 1 / 100;
+const WEEKEND_STOCK_FEE_RATE = 0.1 / 100;
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const today = new Date(options.startOfDay * 1000).getDay();
