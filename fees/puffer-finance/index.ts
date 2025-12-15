@@ -70,7 +70,9 @@ const fetch = async (options: FetchOptions) => {
   const supplySideRewards = grossRewards * (1 - PROTOCOL_FEE - GUARDIANS_FEE);
 
   // Track fees with breakdown by metric
-  dailyFees.addGasToken(grossRewards, METRIC.STAKING_REWARDS);
+  dailyFees.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
+  dailyFees.addGasToken(protocolFees, PROTOCOL_FEE_METRIC);
+  dailyFees.addGasToken(guardiansFees, GUARDIANS_FEE_METRIC);
   dailyProtocolRevenue.addGasToken(protocolFees, PROTOCOL_FEE_METRIC);
   dailyProtocolRevenue.addGasToken(guardiansFees, GUARDIANS_FEE_METRIC);
   dailySupplySideRevenue.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
@@ -88,7 +90,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: "2024-02-01",
+      start: "2024-05-01",
     },
   },
   methodology: {
@@ -99,7 +101,9 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.STAKING_REWARDS]: "Total yield from restaking rewards (AVS fees) and validator ticket sales, reflected in pufETH exchange rate appreciation",
+      [METRIC.STAKING_REWARDS]: "Yield accruing to pufETH holders via exchange rate appreciation from restaking and validator tickets, minus protocol and guardians fees.",
+      [PROTOCOL_FEE_METRIC]: "Protocol fee collected by Puffer protocol treasury from validator ticket minting.",
+      [GUARDIANS_FEE_METRIC]: "Guardians fee collected by Puffer guardians from validator ticket minting.",
     },
     Revenue: {
       [PROTOCOL_FEE_METRIC]: "Protocol fee collected by Puffer protocol treasury from validator ticket minting.",
