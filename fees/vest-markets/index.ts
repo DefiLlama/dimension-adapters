@@ -27,7 +27,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const fetchInChunks = async (category: string) => {
         const symbols = symbolsByCategory[category];
-        const MAX_SYMBOLS_PER_REQUEST = 150;
+        const MAX_SYMBOLS_PER_REQUEST = 100;
         const chunks = []
         for (let i = 0; i < symbols.length; i += MAX_SYMBOLS_PER_REQUEST)
             chunks.push(symbols.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
