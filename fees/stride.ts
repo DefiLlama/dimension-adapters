@@ -184,6 +184,7 @@ const adapter: Adapter = {
     celestia: { fetch: createFetch("celestia") },
     osmosis: { fetch: createFetch("osmosis") },
     dydx: { fetch: createFetch("dydx") },
+    // dymension: { fetch: fetch("dymension"), },
     juno: { fetch: createFetch("juno") },
     stargaze: { fetch: createFetch("stargaze") },
     terra: { fetch: createFetch("terra") },
