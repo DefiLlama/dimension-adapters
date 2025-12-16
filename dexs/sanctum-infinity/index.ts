@@ -68,6 +68,7 @@ const fetch = async (
                 executing_account = 'f1tUoNEKrDp1oeGn4zxr7bh41eN6VcfHjfrL3ZqQday'
                 AND block_time >= from_unixtime(${options.startTimestamp})
                 AND block_time <= from_unixtime(${options.endTimestamp})
+                AND tx_success = true
         )
         SELECT
             sum(sol_value) as trading_volume
