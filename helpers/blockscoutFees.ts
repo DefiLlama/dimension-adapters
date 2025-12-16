@@ -84,6 +84,7 @@ export const chainConfigMap: any = {
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
   [CHAIN.ADVENTURE_LAYER]: { CGToken: 'ethereum', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
   [CHAIN.DERI_CHAIN]: { CGToken: 'ethereum', explorer: 'https://explorer-dchain.deri.io/' },
+  [CHAIN.EARNM]: { CGToken: 'ethereum', explorer: 'https://earnm-mainnet.explorer.alchemy.com/' },
   [CHAIN.DUCK_CHAIN]: { CGToken: 'ethereum', explorer: 'https://scan.duckchain.io/' },
 
 }
