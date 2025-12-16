@@ -1,5 +1,7 @@
-import {Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
+import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
+import {queryDuneSql} from "../../helpers/dune";
+import {gql, GraphQLClient} from "graphql-request";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -9,7 +11,7 @@ const YIELD_DISTRIBUTION_HOUR_UTC = 15
 
 const EVM_CONTRACTS: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
-    contracts : [
+    contracts: [
       {
         address: '0x7712c34205737192402172409a8f7ccef8aa2aec',
         start: '2024-03-01',
@@ -22,7 +24,7 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 50,
   },
   [CHAIN.POLYGON]: {
-    contracts : [
+    contracts: [
       {
         address: '0x2893ef551b6dd69f661ac00f11d93e5dc5dc0e99',
         start: '2024-11-04',
@@ -31,7 +33,7 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 20
   },
   [CHAIN.AVAX]: {
-    contracts : [
+    contracts: [
       {
         address: '0x53fc82f14f009009b440a706e31c9021e1196a2f',
         start: '2024-11-04',
@@ -40,7 +42,7 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 20
   },
   [CHAIN.OPTIMISM]: {
-    contracts : [
+    contracts: [
       {
         address: '0xa1cdab15bba75a80df4089cafba013e376957cf5',
         start: '2024-11-04',
@@ -49,7 +51,7 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 50
   },
   [CHAIN.ARBITRUM]: {
-    contracts : [
+    contracts: [
       {
         address: '0xa6525ae43edcd03dc08e775774dcabd3bb925872',
         start: '2024-11-04',
@@ -58,7 +60,7 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 50
   },
   [CHAIN.BSC]: {
-    contracts : [
+    contracts: [
       {
         address: '0x2d5bdc96d9c8aabbdb38c9a27398513e7e5ef84f',
         start: '2025-10-08',
@@ -67,34 +69,101 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 18
   },
 }
-
-const estimateDailyManagementFee = (totalSupply: number, bps: number) => {
-  return ((totalSupply / 1e6) * bps * 0.0001) / 365
+const estimateDailyManagementFee = (totalSupply: bigint, bps: number) => {
+  return ((totalSupply / BigInt(1e6)) * BigInt(bps)) / 10_000n / 365n;
 }
+const isWeekend = (timestampSeconds: number) =>
+  [0, 6].includes(
+    new Date(timestampSeconds * 1000).getUTCDay()
+  );
+
 
 const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
   for (const contract of EVM_CONTRACTS[options.chain].contracts) {
+
+
+    // estimate management fee
+    const totalSupply = await options.fromApi.call({
+      target: contract.address,
+      abi: EVM_ABI.totalSupply,
+    })
+    const mngmtFee = estimateDailyManagementFee(BigInt(totalSupply), EVM_CONTRACTS[options.chain].bps);
+    dailyRevenue.addUSDValue(mngmtFee)
+
+    // Yield is only distributed on working days
+    if (isWeekend(options.endTimestamp)) {
+      continue
+    }
+
     const issueEvents: Array<any> = await options.getLogs({
       target: contract.address,
       eventAbi: EVM_ABI.issue,
       entireLog: true,
 
     })
-    issueEvents.filter(e => new Date(parseInt(e.blockTimestamp,16) * 1000).getUTCHours() === YIELD_DISTRIBUTION_HOUR_UTC).forEach(e => {
+    issueEvents.filter(e => new Date(parseInt(e.blockTimestamp, 16) * 1000).getUTCHours() === YIELD_DISTRIBUTION_HOUR_UTC).forEach(e => {
       dailySupplySideRevenue.addToken(contract.address, e.parsedLog.args.value)
     })
 
-    // estimate management fee
-    const totalSupply = await options.fromApi.call({
-      target: contract.address,
-      abi:  EVM_ABI.totalSupply,
-    })
-    const mngmtFee = estimateDailyManagementFee(totalSupply, EVM_CONTRACTS[options.chain].bps);
-    dailyRevenue.addUSDValue(mngmtFee)
   }
+
+  const dailyFees = dailyRevenue.clone();
+  dailyFees.addBalances(dailySupplySideRevenue);
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+  }
+};
+
+interface IAptosData {
+  total_yield: number;
+}
+
+const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
+  const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
+  const APTOS_BUIDL_CONTRACT = '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'
+  const APTOS_GRAPHQL_ENDPOINT = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
+  const APTOS_BPS = 20
+  const sql = `
+      SELECT SUM(CAST(json_value(data, 'lax $.value') AS DOUBLE)) AS total_yield
+      FROM aptos.events
+      WHERE event_type = '0x4de5876d8a8e2be7af6af9f3ca94d9e4fafb24b5f4a5848078d8eb08f08e808a::ds_token::Issue'
+        AND block_time BETWEEN FROM_UNIXTIME(${startTs}) AND FROM_UNIXTIME(${endTs})
+  `
+
+  // Yield is only distributed on working days
+  if (!isWeekend(options.endTimestamp)) {
+    const yiedData: IAptosData[] = await queryDuneSql(options, sql)
+    if (yiedData[0].total_yield) {
+      dailySupplySideRevenue.addToken(APTOS_BUIDL_CONTRACT, yiedData[0].total_yield)
+    }
+  }
+
+
+  const graphQuery = gql`query BUIDLTotalSupply {
+  total_supply: current_fungible_asset_balances_aggregate(
+    where: { asset_type: { _eq: "${APTOS_BUIDL_CONTRACT}" } }
+  ) {
+    amount: aggregate {
+      sum {
+        value: amount
+      }
+    }
+  }
+}`
+  const totalSupplyData = await new GraphQLClient(APTOS_GRAPHQL_ENDPOINT).request(graphQuery);
+  const totalSupply = BigInt(totalSupplyData.total_supply.amount.sum.value);
+  const mngmtFee = estimateDailyManagementFee(totalSupply, APTOS_BPS);
+  dailyRevenue.addUSDValue(mngmtFee)
 
   const dailyFees = dailyRevenue.clone();
   dailyFees.addBalances(dailySupplySideRevenue);
@@ -117,6 +186,10 @@ const adapters: Adapter = {
       }
     }
   }, {
+    [CHAIN.APTOS]: {
+      fetch: fetchAptos,
+      start: '2024-12-17'
+    }
   }),
   methodology: {
     Fees: 'Total Yields + management fees',
