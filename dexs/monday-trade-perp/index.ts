@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
     fetch,
     adapter: chainConfig,
     methodology: {
-        Volume: 'Volume is calculated by summing the notional value (qty * entryPrice) of all OpenMarketTrade events.',
+        Volume: 'Volume is calculated by summing the trade value.',
         OpenInterest: 'Open Interest is calculated by summing the long and short open interest of all pairs.',
         Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
     },
