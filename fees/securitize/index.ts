@@ -1,14 +1,14 @@
-import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
+import {FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {queryDuneSql} from "../../helpers/dune";
 import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
+import {getBlock} from "../../helpers/getBlock";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
   totalSupply: "uint256:totalSupply",
 }
-const YIELD_DISTRIBUTION_HOUR_UTC = 15
 
 const EVM_CONTRACTS: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
@@ -79,7 +79,7 @@ const isWeekend = (timestampSeconds: number) =>
   );
 
 
-const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
@@ -98,14 +98,18 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
     if (isWeekend(options.endTimestamp)) {
       continue
     }
-
+    const [startTs, endTs]= getYieldDistributionHours(options)
+    const getFromBlock = await getBlock(startTs, options.chain)
+    const getToBlock =  await getBlock(endTs, options.chain)
     const issueEvents: Array<any> = await options.getLogs({
       target: contract.address,
       eventAbi: EVM_ABI.issue,
       entireLog: true,
+      fromBlock: getFromBlock,
+      toBlock: getToBlock,
 
     })
-    issueEvents.filter(e => new Date(parseInt(e.blockTimestamp, 16) * 1000).getUTCHours() === YIELD_DISTRIBUTION_HOUR_UTC).forEach(e => {
+    issueEvents.forEach(e => {
       dailySupplySideRevenue.addToken(contract.address, e.parsedLog.args.value)
     })
 
@@ -125,12 +129,16 @@ interface IData {
   total_yield: number;
 }
 
-const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+const getYieldDistributionHours = (options: FetchOptions)=> {
+  const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
+  const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
+  return [startTs, endTs]
+}
+const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
-  const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
+  const [startTs, endTs]= getYieldDistributionHours(options)
   const APTOS_BUIDL_CONTRACT = '0x50038be55be5b964cfa32cf128b5cf05f123959f286b4cc02b86cafd48945f89'
   const APTOS_GRAPHQL_ENDPOINT = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
   const APTOS_BPS = 20
@@ -176,12 +184,12 @@ const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> 
   }
 };
 
-const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
-  const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
+  const [startTs, endTs]= getYieldDistributionHours(options)
+
   const SOLANA_BUIDL_CONTRACT = 'GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr'
   const SOLANA_BPS = 20
   const sql = `
@@ -205,7 +213,6 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
   const totalSupply = Math.round(totalSupplyUiAmount) * 1e6
   const mngmtFee = estimateDailyManagementFee(BigInt(Math.round(totalSupply)), SOLANA_BPS);
   dailyRevenue.addUSDValue(mngmtFee)
-
   const dailyFees = dailyRevenue.clone();
   dailyFees.addBalances(dailySupplySideRevenue);
 
@@ -216,8 +223,8 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
   }
 };
 
-const adapters: Adapter = {
-  version: 2,
+const adapters: SimpleAdapter = {
+  version: 1,
   adapter: Object.keys(EVM_CONTRACTS).reduce((acc, chain) => {
     return {
       ...acc,
