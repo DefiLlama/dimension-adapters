@@ -25,7 +25,9 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  adapter: chainConfig
+  chains: [CHAIN.MONAD],
+  start: '2025-11-25',
+  runAtCurrTime: true,
 };
 
 export default adapter;
