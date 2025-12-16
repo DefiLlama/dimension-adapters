@@ -1,10 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import {
-  addTokensReceived,
-  getETHReceived,
-  nullAddress,
-} from '../../helpers/token';
+import { addTokensReceived, getETHReceived } from '../../helpers/token';
 
 const CURRENCY_ADDRESSES = {
   [CHAIN.BSC]: [
@@ -19,45 +15,21 @@ const FEE_WALLETS: Record<string, string> = {
   [CHAIN.BSC]: '0xEa99f38fC47bD683E328c8ff013244032bca9961',
 };
 
-const CHAIN_TO_KEY = {
-  [CHAIN.BSC]: 'bsc',
-};
 
-/**
- * Fetch the daily fees for the Cheesepad protocol, which consists of ERC20 token fees and native fees.
- */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const feeWallet = FEE_WALLETS[options.chain];
-
-  // Track ERC20 token fees
-  const tokensReceivedDaily = await addTokensReceived({
+  await addTokensReceived({
     options,
     tokens: CURRENCY_ADDRESSES[options.chain],
-    target: feeWallet,
+    target: FEE_WALLETS[options.chain],
+    balances: dailyFees,
   });
-
-  for (const token of CURRENCY_ADDRESSES[options.chain]) {
-    const balancesKeyERC20 = `${
-      CHAIN_TO_KEY[options.chain]
-    }:${token.toLowerCase()}`;
-    const dailyIncomeERC20 =
-      tokensReceivedDaily.getBalances()[balancesKeyERC20];
-    dailyFees.add(token, dailyIncomeERC20);
-  }
-
-  // Track native fees
-  const nativeReceivedDaily = await getETHReceived({
+  await getETHReceived({
     options,
-    target: feeWallet,
+    target: FEE_WALLETS[options.chain],
+    balances: dailyFees,
   });
-  const balancesKeyNative = `${
-    CHAIN_TO_KEY[options.chain]
-  }:${nullAddress.toLowerCase()}`;
-  const dailyIncomeNative =
-    nativeReceivedDaily.getBalances()[balancesKeyNative];
-  dailyFees.add(nullAddress, dailyIncomeNative);
 
   return {
     dailyFees,
@@ -68,14 +40,13 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology: {
-    Fees: 'All fees paid by users by using Cheesepad services.',
-    Revenue: 'All fees are revenue.',
-    ProtocolRevenue: 'All fees are protocol revenue.',
-  },
   fetch,
-  adapter: {
-    [CHAIN.BSC]: { start: '2025-11-18' },
+  chains: [CHAIN.BSC],
+  start: '2025-11-18',
+  methodology: {
+    Fees: 'fees users paid for using Cheesepad services.',
+    Revenue: 'fees users paid for using Cheesepad services.',
+    ProtocolRevenue: 'fees users paid for using Cheesepad services.',
   },
 };
 
