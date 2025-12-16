@@ -6,7 +6,6 @@ const baseUrl = (s: string): string => `https://tools.multiversx.com/growth-api/
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
     const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
 
     const feesUrl = baseUrl('fees-captured');
     const feeResponse = await fetchURL(feesUrl);
@@ -17,10 +16,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         return (options.fromTimestamp <= entry.timestamp) && (entry.timestamp < options.toTimestamp);
     });
 
-    dailyFees.addGasToken(feeResponse?.data[feesDataIndex].value || 0);
-    dailyRevenue.addGasToken((feeResponse?.data[feesDataIndex].value - devRewardsResponse?.data[feesDataIndex].value) || 0);
 
-    return { dailyFees, dailyRevenue };
+    dailyFees.addGasToken((feeResponse?.data[feesDataIndex].value - devRewardsResponse?.data[feesDataIndex].value) || 0, 'Validator Rewards');
+    dailyFees.addGasToken(feeResponse?.data[feesDataIndex].value || 0, 'Developer Rewards');
+
+    return { dailyFees, dailyRevenue: 0 };
 }
 
 
@@ -34,7 +34,16 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "Total fees collected on the MultiversX network.",
-        Revenue: "Total fees subtracting the portion earned by developers for smart contract calls.",
+        Revenue: "Total fees that are burned.", // new burn mechanics: https://github.com/multiversx/multiversx-improvement-documents/blob/main/extended/economicsV2.md#c-the-value-accrual-flywheel-fee-market-and-reinvestments
+    },
+    breakdownMethodology: {
+        Fees: {
+            'Developer Rewards': 'Fees paid to smart contract creators',
+            'Validator Rewards': 'Fees paid to validators for securing the network',
+        },
+        Revenue: {
+            'Revenue': 'Total fees that are burned.',
+        },
     },
     protocolType: ProtocolType.CHAIN,
 }
