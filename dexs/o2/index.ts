@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const url = `https://api.o2.app/defillama/v1/volumes?from=${options.startTimestamp}&to=${options.endTimestamp}`;
@@ -14,7 +14,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.FUEL],
   start: "2025-12-01",
