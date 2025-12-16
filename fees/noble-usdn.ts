@@ -30,11 +30,9 @@ const adapter: SimpleAdapter = {
       fetch,
       start: "2024-04-01",
       runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;
