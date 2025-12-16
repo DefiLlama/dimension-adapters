@@ -25,6 +25,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             WHERE
                 varbinary_starts_with (data, 0xe445a52e51cb9a1db1310cd2a076a774)
                 AND executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
+                AND tx_success = true
         ),
         decoded_swap AS (
             SELECT

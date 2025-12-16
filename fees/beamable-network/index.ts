@@ -15,6 +15,7 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
       SELECT tx_id, block_slot, block_time
       FROM solana.instruction_calls
       WHERE executing_account = 'WSTKhDg9nQ8h2ZmnmNdR6heSGU6uYJSwdUNpzSYXBSe'
+        AND tx_success = true
         AND substr(data, 1, 1) = 0x0b
         AND block_time >= from_unixtime(${options.fromTimestamp})
         AND block_time < from_unixtime(${options.toTimestamp})

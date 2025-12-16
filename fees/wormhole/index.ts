@@ -244,10 +244,11 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
                   ELSE NULL
                   END AS pda
           FROM solana.instruction_calls
-          WHERE
-              executing_account = 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth'
+          WHERE 
+            tx_success = true
+            AND executing_account = 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth'
             AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-            AND block_time < FROM_UNIXTIME(${options.endTimestamp})
+            AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
             AND length(data) >= 1
             AND (
               bytearray_substring(data, 1, 1) = 0x01
