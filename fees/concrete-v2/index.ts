@@ -14,8 +14,7 @@ const CHAIN_CONFIG: Record<string, Record<string, string>> = {
 const CONCRETE_ABIs = {
     totalSupply: 'uint256:totalSupply',
     convertToAssets: 'function convertToAssets(uint256 shares) view returns (uint256)',
-    managementFeeEvent: 'event ManagementFeeAccrued(address indexed recipient, uint256 shares, uint256 feeAmount)',
-    performanceFeeEvent: 'event PerformanceFeeAccrued(address indexed recipient, uint256 shares, uint256 feeAmount)'
+    feeConfig: 'function getFeeConfig() view returns(uint16 currentManagementFee,address currentManagementFeeRecipient, uint32 currentLastManagementFeeAccrual, uint16 currentPerformanceFee, address currentPerformanceFeeRecipient)'
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -39,7 +38,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const vaultsList = vaultDetails.map(vault => vault.address);
 
     const totalSupplies = await options.api.multiCall({
-        calls: vaultDetails.map(vault => vault.address),
+        calls: vaultsList,
         abi: 'uint256:totalSupply',
         permitFailure: true,
     });
@@ -62,16 +61,10 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true
     });
 
-    const managementFeeLogs = await options.getLogs({
-        eventAbi: CONCRETE_ABIs.managementFeeEvent,
-        targets: vaultsList,
-        flatten: false
-    });
-
-    const performanceFeeLogs = await options.getLogs({
-        eventAbi: CONCRETE_ABIs.performanceFeeEvent,
-        targets: vaultsList,
-        flatten: false
+    const feeConfigs = await options.api.multiCall({
+        calls: vaultsList,
+        abi: CONCRETE_ABIs.feeConfig,
+        permitFailure: true
     });
 
     for (const [index, { vaultDecimals, underlyingAsset }] of vaultDetails.entries()) {
@@ -83,17 +76,17 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
 
-        const managementFeeInShares = managementFeeLogs[index].reduce((acc: bigint, { shares }: { shares: bigint }) => acc + shares, 0n);
-        const performanceFeeInShares = performanceFeeLogs[index].reduce((acc: bigint, { shares }: { shares: bigint }) => acc + shares, 0n);
+        const managementFeeInBps = feeConfigs[index].currentManagementFee;
+        const managementFees = (BigInt(managementFeeInBps) / (100n * 100n)) * (BigInt(totalSupplies[index]) / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
 
-        const managementFeeInAssets = (managementFeeInShares / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
-        const performanceFeeInAssets = (performanceFeeInShares / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
+        dailyFees.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
 
-        dailyFees.add(underlyingAsset, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(underlyingAsset, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
+        const performanceFeeInBps = feeConfigs[index].currentPerformanceFee;
+        const performanceFees = (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n);
 
-        dailyFees.add(underlyingAsset, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
-        dailyRevenue.add(underlyingAsset, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
+        dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+        dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
     }
 
     return {
@@ -119,7 +112,7 @@ const breakdownMethodology = {
         [METRIC.MANAGEMENT_FEES]: "The management fee is calculated as a percentage of the total assets, prorated over time since the last fee update.",
     },
     Revenue: {
-        [METRIC.PERFORMANCE_FEES]: 'The performance fee is calculated as a percentage of the profit (asset value increase) since the last high water mark update.',
+        [METRIC.PERFORMANCE_FEES]: 'The performance fee is calculated as a percentage of the profit.',
         [METRIC.MANAGEMENT_FEES]: "The management fee is calculated as a percentage of the total assets, prorated over time since the last fee update.",
     },
     SupplySideRevenue: {

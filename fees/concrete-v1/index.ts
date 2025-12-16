@@ -2,7 +2,6 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getConfig } from "../../helpers/cache";
 import { METRIC } from "../../helpers/metrics";
-import { nullAddress } from "../../helpers/token";
 
 const CONCRETE_API_URL = "https://apy.api.concrete.xyz/v1";
 
@@ -16,8 +15,8 @@ const CHAIN_CONFIG: Record<string, Record<string, string>> = {
 const CONCRETE_ABIs = {
     totalSupply: 'uint256:totalSupply',
     convertToAssets: 'function convertToAssets(uint256 shares) view returns (uint256)',
-    feeRecipient: 'address:feeRecipient',
-    transfer: 'event Transfer (address indexed from,address indexed to, uint256 value)'
+    highWaterMark: 'uint256:highWaterMark',
+    vaultFee: 'function getVaultFees() view returns (tuple(uint64 depositFee,uint64 withdrawalFee,uint64 protocolFee,tuple(uint256 lowerBound,uint256 upperBound,uint64 fee)[] performanceFee))'
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -63,16 +62,16 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true
     });
 
-    const feeRecipients = await options.api.multiCall({
+    const highWaterMarks = await options.api.multiCall({
+        abi: CONCRETE_ABIs.highWaterMark,
         calls: vaultsList,
-        abi: CONCRETE_ABIs.feeRecipient,
         permitFailure: true
     });
 
-    const vaultTransferLogs = await options.getLogs({
-        targets: vaultsList,
-        eventAbi: CONCRETE_ABIs.transfer,
-        flatten: false
+    const vaultFee = await options.api.multiCall({
+        abi: CONCRETE_ABIs.vaultFee,
+        calls: vaultsList,
+        permitFailure: true
     });
 
     for (const [index, { underlyingAsset, vaultDecimals }] of vaultDetails.entries()) {
@@ -84,14 +83,27 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
 
-        const feeInVaultUnits = vaultTransferLogs[index].reduce((acc: bigint, { from, to, value }: { from: string, to: string, value: bigint }) => {
-            if (from === nullAddress && to === feeRecipients[index]) acc += value;
-            return acc
-        }, 0n);
+        const managementFeeInBps = vaultFee[index].protocolFee;
+        const managementFees = (BigInt(managementFeeInBps) / (100n * 100n)) * (BigInt(totalSupplies[index]) / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
 
-        const feeInAssets = (feeInVaultUnits / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
-        dailyFees.add(underlyingAsset, feeInAssets);
-        dailyRevenue.add(underlyingAsset, feeInAssets);
+        dailyFees.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
+
+        const priceInAssets = BigInt(priceAfter[index]) / (BigInt(10) ** BigInt(9));
+
+        if (priceInAssets <= highWaterMarks[index] || vaultFee[index].performanceFee.length === 0) continue;
+        const performanceInBps = ((priceInAssets - BigInt(highWaterMarks[index])) / BigInt(highWaterMarks[index])) * 100n;
+
+        let performanceFeeInBps = 0;
+        for (const entry of vaultFee[index].performanceFee) {
+            if (entry.lowerBound <= performanceInBps && entry.upperBound > performanceInBps) {
+                performanceFeeInBps = entry.fee;
+                break;
+            }
+        }
+        const performanceFees = (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n);
+        dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+        dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
     }
 
     return {
@@ -109,10 +121,26 @@ const methodology = {
     ProtocolRevenue: "All the revenue goes to the protocol"
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.ASSETS_YIELDS]: 'Vault yields recieved by vault depositors',
+        [METRIC.PERFORMANCE_FEES]: 'The performance fee is calculated as a percentage of the profit (asset value increase) since the last high water mark update.',
+        [METRIC.MANAGEMENT_FEES]: "The management fee is calculated as a percentage of the total assets, prorated over time since the last fee update.",
+    },
+    Revenue: {
+        [METRIC.PERFORMANCE_FEES]: 'The performance fee is calculated as a percentage of the profit (asset value increase) since the last high water mark update.',
+        [METRIC.MANAGEMENT_FEES]: "The management fee is calculated as a percentage of the total assets, prorated over time since the last fee update.",
+    },
+    SupplySideRevenue: {
+        [METRIC.ASSETS_YIELDS]: 'Vault yields recieved by vault depositors',
+    },
+}
+
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     methodology,
+    breakdownMethodology,
     adapter: CHAIN_CONFIG,
 };
 
