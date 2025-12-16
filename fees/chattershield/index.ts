@@ -7,7 +7,7 @@ const FEE_RECEIVER_MULTISIG = "0xEF5EAB85EDCb1Cad33491C1f576Dd356dB7d63b9";
 const SHIELD_TOKEN = "0xd8B90D2e680ea535eAcCe1b025c998B347892f68";
 const HOLDERS_SHARE_MULIPLE = 0.4;
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = await addTokensReceived({
         tokens: [ADDRESSES.ethereum.USDC, SHIELD_TOKEN],
         target: FEE_RECEIVER_MULTISIG,
