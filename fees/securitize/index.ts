@@ -2,6 +2,7 @@ import {Adapter, FetchOptions, FetchResultFees} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {queryDuneSql} from "../../helpers/dune";
 import {gql, GraphQLClient} from "graphql-request";
+import {getTokenSupply} from "../../helpers/solana";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -120,7 +121,7 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
   }
 };
 
-interface IAptosData {
+interface IData {
   total_yield: number;
 }
 
@@ -142,8 +143,8 @@ const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> 
 
   // Yield is only distributed on working days
   if (!isWeekend(options.endTimestamp)) {
-    const yiedData: IAptosData[] = await queryDuneSql(options, sql)
-    if (yiedData[0].total_yield) {
+    const yiedData: IData[] = await queryDuneSql(options, sql)
+    if (yiedData[0]?.total_yield) {
       dailySupplySideRevenue.addToken(APTOS_BUIDL_CONTRACT, yiedData[0].total_yield)
     }
   }
@@ -175,6 +176,46 @@ const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> 
   }
 };
 
+const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
+  const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
+  const SOLANA_BUIDL_CONTRACT = 'GyWgeqpy5GueU2YbkE8xqUeVEokCMMCEeUrfbtMw6phr'
+  const SOLANA_BPS = 20
+  const sql = `
+      SELECT SUM(amount) AS total_yield
+      FROM tokens_solana.transfers
+      WHERE token_mint_address = '${SOLANA_BUIDL_CONTRACT}'
+        AND action = 'mint'
+        AND block_time BETWEEN FROM_UNIXTIME(${startTs}) AND FROM_UNIXTIME(${endTs})
+  `
+  // Yield is only distributed on working days
+  if (!isWeekend(options.endTimestamp)) {
+    const yieldData: IData[] = await queryDuneSql(options, sql)
+    if (yieldData[0]?.total_yield) {
+      dailySupplySideRevenue.addToken(SOLANA_BUIDL_CONTRACT, yieldData[0].total_yield)
+    }
+  }
+
+
+  const totalSupplyUiAmount = await getTokenSupply(SOLANA_BUIDL_CONTRACT);
+  // the getTokenSupply helper function returns value in UI amount, we first turn it back with decimals to be consistent with other networks
+  const totalSupply = Math.round(totalSupplyUiAmount) * 1e6
+  const mngmtFee = estimateDailyManagementFee(BigInt(Math.round(totalSupply)), SOLANA_BPS);
+  dailyRevenue.addUSDValue(mngmtFee)
+
+  const dailyFees = dailyRevenue.clone();
+  dailyFees.addBalances(dailySupplySideRevenue);
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+  }
+};
+
 const adapters: Adapter = {
   version: 2,
   adapter: Object.keys(EVM_CONTRACTS).reduce((acc, chain) => {
@@ -189,12 +230,16 @@ const adapters: Adapter = {
     [CHAIN.APTOS]: {
       fetch: fetchAptos,
       start: '2024-12-17'
-    }
+    },
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: '2025-03-24'
+    },
   }),
   methodology: {
-    Fees: 'Total Yields + management fees',
-    Revenue: 'management fees',
-    SupplySideRevenue: 'All yields go to BUIDL token holders.',
+    Fees: "Total yields generated from the fund's underlying assets (U.S. Treasuries and repo agreements) plus the management fees charged by BlackRock",
+    Revenue: "Management fees (20-50 bps depending on the blockchain)",
+    SupplySideRevenue: "All yields distributed on-chain to BUIDL token holders after management fees",
   }
 };
 export default adapters;
