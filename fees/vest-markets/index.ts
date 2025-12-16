@@ -6,7 +6,7 @@ import pLimit from "p-limit";
 const VEST_MARKETS_API = 'https://server-prod.hz.vestmarkets.com/v2';
 const limit = pLimit(10);
 
-//https://docs.vestmarkets.com/trading/fees
+//https://docs.vestmarkets.com/trading/fees 
 
 const WEEKEND_FOREX_FEE_RATE = 0.025 / 100;
 const OVERNIGHT_STOCK_FEE_RATE = 0.05 / 100;
