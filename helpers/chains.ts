@@ -295,4 +295,9 @@ export enum CHAIN {
   DERI_CHAIN = "deri_chain",
   BABYLON = "babylon",
   DUCK_CHAIN = "duckchain",
+  EDU_CHAIN = "edu_chain",
+  ETHEREAL_MAINNET = "ethereal_mainnet",
+  EVENTUM = "eventum",
+  EVERCLEAR = "everclear",
+  FLYNET = "flynet",
 }
