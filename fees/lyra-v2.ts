@@ -15,7 +15,7 @@ type DailyFeesRow = {
 
 const FEES_ENDPOINT = "https://stats-api.derive.xyz/fees";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const durationSeconds = Math.max(0, options.endTimestamp - options.startTimestamp);
   const endTimeIso = new Date(options.endTimestamp * 1000).toISOString();
 
@@ -28,6 +28,10 @@ const fetch = async (options: FetchOptions) => {
     `&endTime=${encodeURIComponent(endTimeIso)}`;
 
   const rows = (await httpGet(url)) as DailyFeesRow[];
+
+  if (!rows || rows.length === 0)
+    throw new Error(`No data returned from Derive fees endpoint for url: ${url}`);
+
 
   let grossFeesUsd = 0;
 
@@ -57,7 +61,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.LYRA],
   start: "2023-11-01",
