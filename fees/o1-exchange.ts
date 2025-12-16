@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: 'No token holder revenue',
   },
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
 };
 
 export default adapter;
