@@ -24,9 +24,29 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         return acc;
     }, { stock: [], crypto: [], forex: [] });
 
-    const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchURL(`${VEST_MARKETS_API}/ticker/24hr?symbols=${symbolsByCategory[category].join(',')}`)));
 
-    const getQuoteTotalVolume = (tradeData: any) => tradeData.tickers.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
+    const fetchInChunks = async (category: string) => {
+        const symbols = symbolsByCategory[category];
+        const MAX_SYMBOLS_PER_REQUEST = 150;
+        const chunks = []
+        for (let i = 0; i < symbols.length; i += MAX_SYMBOLS_PER_REQUEST)
+            chunks.push(symbols.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
+
+        const results = [];
+
+        for (const chunk of chunks) {
+            const url = `${VEST_MARKETS_API}/ticker/24hr?symbols=${chunk.join(",")}`;
+
+            const { tickers } = await fetchURL(url);
+            results.push(...tickers);
+        }
+
+        return results;
+    }
+
+    const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchInChunks(category)));
+
+    const getQuoteTotalVolume = (tradeData: any) => tradeData.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
 
     const cryptoPerpFees = getQuoteTotalVolume(cryptoTradeData) * CRYPTO_FEE_RATE;
 
