@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
@@ -15,14 +15,14 @@ type DailyFeesRow = {
 
 const FEES_ENDPOINT = "https://stats-api.derive.xyz/fees";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = (instrument: string) => async (_: any, _1: any, options: FetchOptions) => {
   const durationSeconds = Math.max(0, options.endTimestamp - options.startTimestamp);
   const endTimeIso = new Date(options.endTimestamp * 1000).toISOString();
 
   const url =
     `${FEES_ENDPOINT}` +
     `?market=all` +
-    `&instrument=all` +
+    `&instrument=${instrument}` +
     `&view=daily` +
     `&duration=${durationSeconds}` +
     `&endTime=${encodeURIComponent(endTimeIso)}`;
@@ -34,38 +34,41 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
 
   let grossFeesUsd = 0;
+  let grossRevenueUsd = 0;
 
   for (const r of rows) {
     grossFeesUsd += (Number(r.makerFees) || 0) + (Number(r.takerFees) || 0);
+    grossRevenueUsd += (Number(r.makerFees) || 0) + (Number(r.takerFees) || 0) - (Number(r.makerRebates) || 0) - (Number(r.takerRebates) || 0);
   }
 
   // All metrics are equal to gross fees (no rebates subtracted)
   const dailyFees = grossFeesUsd;
-  const dailyRevenue = grossFeesUsd;
+  const dailyRevenue = grossRevenueUsd;
   const dailyUserFees = grossFeesUsd;
-  const dailyProtocolRevenue = grossFeesUsd;
+  const dailyProtocolRevenue = grossRevenueUsd;
 
   return {
     dailyFees,
     dailyRevenue,
     dailyUserFees,
     dailyProtocolRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
   Fees: "Gross trading fees charged to users across Derive markets (makerFees + takerFees) from stats-api.derive.xyz/fees over the requested period.",
-  Revenue: "Equal to Fees (gross trading fees without subtracting rebates).",
+  Revenue: "Equal to Fees (gross trading fees subtracting rebates).",
   UserFees: "Equal to Fees (fees paid by traders).",
-  ProtocolRevenue: "Equal to Fees (gross trading fees without subtracting rebates).",
+  ProtocolRevenue: "Equal to Fees (gross trading fees subtracting rebates).",
 };
 
-const adapter: SimpleAdapter = {
+export const getLyraAdapter = (instrument: string): any => ({
   version: 1,
-  fetch,
+  fetch: fetch(instrument),
   chains: [CHAIN.LYRA],
   start: "2023-11-01",
   methodology,
-};
+})
 
-export default adapter;
+export default getLyraAdapter('perp')
