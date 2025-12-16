@@ -45,6 +45,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     }
 
     const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchInChunks(category)));
+    console.log(" ");
 
     const getQuoteTotalVolume = (tradeData: any) => tradeData.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
 
