@@ -15,6 +15,7 @@ const CRYPTO_FEE_RATE = 0.01 / 100;
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const today = new Date(options.startOfDay * 1000).getDay();
     const isWeekend = today === 6 || today === 0;
+    console.log(0);
     const { symbols } = await fetchURL(`${VEST_MARKETS_API}/exchangeInfo`);
 
     const WEEKEND_STOCK_FEE_RATE = (options.startOfDay >= 1764374400 ? 0.1 : 1) / 100;
@@ -43,8 +44,10 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
         return results;
     }
+    console.log(1)
 
     const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchInChunks(category)));
+    console.log(2)
 
     const getQuoteTotalVolume = (tradeData: any) => tradeData.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
 
