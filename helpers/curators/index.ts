@@ -15,6 +15,7 @@ export interface CuratorConfig {
 
       // initial owner of morpho vaults
       morphoVaultOwners?: Array<string>;
+      morphoVaultV2Owners?: Array<string>;
 
       // creators of euler vaults
       eulerVaultOwners?: Array<string>;
@@ -53,15 +54,31 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
       const logs = await options.getLogs({
         eventAbi: ABI.morpho.CreateMetaMorphoEvent,
         target: factory.address,
-        skipCache: true,
         fromBlock: factory.fromBlock,
-        toBlock: options.toApi.block ? Number(options.toApi.block) : undefined,
       })
-      const vaultOfOwners =logs.filter(log => isOwner(log.initialOwner, owners)).map((log) => log.metaMorpho)
+      const vaultOfOwners = logs.filter(log => isOwner(log.initialOwner, owners)).map((log) => log.metaMorpho)
       morphoVaults = morphoVaults.concat(vaultOfOwners)
     }
   }
 
+  return morphoVaults
+}
+
+async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | undefined): Promise<Array<string>> {
+  let morphoVaults: Array<string> = []
+
+  if (owners && owners.length > 0) {
+    for (const factory of MorphoConfigs[options.chain].vaultV2Factories) {
+      const logs = await options.getLogs({
+        eventAbi: ABI.morpho.CreateVaultV2,
+        target: factory.address,
+        fromBlock: factory.fromBlock,
+      })
+      const vaultOfOwners = logs.filter(log => isOwner(log.owner, owners)).map((log) => log.newVaultV2)
+      morphoVaults = morphoVaults.concat(vaultOfOwners)
+    }
+  }
+  
   return morphoVaults
 }
 
@@ -242,7 +259,11 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailyFees = options.createBalances()
         let dailyRevenue = options.createBalances()
 
-        const morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+        // morpho meta vaults
+        let morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+        // morpho v2 vaults
+        morphoVaults = morphoVaults.concat(await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners));
+        
         const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
         if (morphoVaults.length > 0) {
           await getMorphoVaultFee(options, { dailyFees, dailyRevenue }, morphoVaults)
