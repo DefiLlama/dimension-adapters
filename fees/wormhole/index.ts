@@ -1,8 +1,10 @@
-import {Adapter, Dependencies, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
+import {Adapter, Dependencies, FetchOptions, FetchResultFees } from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {Balances} from "@defillama/sdk";
 import {getSolanaReceived} from "../../helpers/token";
 import {queryDuneSql} from "../../helpers/dune";
+import {queryEvents as querySuiEvents} from "../../helpers/sui";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const evmFeeEvents = {
   standardRelayer: 'event SendEvent(uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue)',
@@ -126,6 +128,11 @@ const evmContracts: Record<string, any> = {
     executor: '0x8345E90Dcd92f5Cf2FAb0C8E2A56A5bc2c30d896',
     startDate: '2025-08-22'
   },
+  [CHAIN.MONAD]: {
+    standardRelayer: '0x27428DD2d3DD32A4D7f7C497eAaa23130d894911',
+    executor: '0xC04dE634982cAdF2A677310b73630B7Ac56A3f65',
+    startDate: '2025-11-24'
+  }
   
   // [CHAIN.CREDIT_COIN]: { // not available in defillama yet
   //   standardRelayer: null,
@@ -177,6 +184,26 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
   if (evmContracts[options.chain]['executor'] != null) {
     await fetchExecutorFees(options, dailyFees);
   }
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
+  }
+};
+const fetchSui: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const SUI_EXECUTOR_EVENT = "0xdb0fe8bb1e2b5be628adbea0636063325073e1070ee11e4281457dfd7f158235::executor::RequestForExecution";
+  // Sui message fees are currently set at 0, it can be adjusted with gov in the future.
+  // source: https://suiscan.xyz/mainnet/object/0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c/fields
+  const dailyFees = options.createBalances()
+  dailyFees.add(ADDRESSES.sui.SUI,1e9);
+
+  const events = await querySuiEvents({
+    eventType:
+    SUI_EXECUTOR_EVENT,
+    options,
+  });
+  events.forEach((e => dailyFees.add(ADDRESSES.sui.SUI,e.amt_paid) ))
 
   return {
     dailyFees,
@@ -267,8 +294,12 @@ const adapters: Adapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2022-07-08',
+    },
+    [CHAIN.SUI]: {
+      fetch: fetchSui,
+      start: '2025-05-08',
     }
-    // TODO: Track Sui & Aptos
+    // TODO: Track Aptos
   }),
   methodology: {
     Fees: 'Total fees paid by users or Protocols for using Wormhole Relayers, Executions, CCTP and Cross chain message fees.',
@@ -276,5 +307,4 @@ const adapters: Adapter = {
     SupplySideRevenue: 'All execution fees are collected by Relayers.',
   }
 };
-
 export default adapters;

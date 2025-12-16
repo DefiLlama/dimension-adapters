@@ -33,8 +33,16 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const feePerRequest = await options.api.call({
         target: pythEntropyContract,
-        abi: 'uint128:getFeeV2'
+        abi: 'uint128:getFeeV2',
+        permitFailure: true,
     });
+    if (!feePerRequest) {
+      return {
+        dailyFees: 0,
+        dailyRevenue: 0,
+        dailySupplySideRevenue: 0,
+      }
+    }
 
     const requestLogs = await options.getLogs({
         target: pythEntropyContract,

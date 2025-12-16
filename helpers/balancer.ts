@@ -22,11 +22,11 @@ export async function getFees(vault: string, { createBalances, api, getLogs, }: 
   logs_flash_bot.forEach((log: any) => dailyFees.add(log.token, log.feeAmount))
   const poolIds = [...new Set(logs_swap.map((a: any) => a.poolId))]
   const pools = (await api.multiCall({ abi: abis.getPool, calls: poolIds, target: vault })).map(i => i[0])
-  const swapFees = await api.multiCall({ abi: abis.getSwapFeePercentage, calls: pools })
+  const swapFees = await api.multiCall({ abi: abis.getSwapFeePercentage, calls: pools, permitFailure: true })
   logs_swap.forEach((log: any) => {
     const index = poolIds.indexOf(log.poolId)
     if (index === -1) return;
-    const fee = swapFees[index] / 1e18
+    const fee = swapFees[index] ? swapFees[index] / 1e18 : 0
     dailyFees.add(log.tokenOut, Number(log.amountOut) * fee)
     addOneToken({ chain: api.chain, balances: dailyVolume, token0: log.tokenIn, token1: log.tokenOut, amount0: log.amountIn, amount1: log.amountOut })
   })

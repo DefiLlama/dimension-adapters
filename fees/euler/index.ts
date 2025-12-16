@@ -20,6 +20,7 @@ const eVaultFactories: Record<string, string> = {
     [CHAIN.LINEA]: "0x84711986Fd3BF0bFe4a8e6d7f4E22E67f7f27F04",
     [CHAIN.PLASMA]: "0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3",
     [CHAIN.MANTLE]: "0x47Aaf2f062aa1D55AFa602f5C9597588f71E2d76",
+    [CHAIN.MONAD]: "0xba4Dd672062dE8FeeDb665DD4410658864483f1E",
 };
 
 const feeFlowControllers: Record<string, string> = {
@@ -37,6 +38,7 @@ const feeFlowControllers: Record<string, string> = {
     [CHAIN.LINEA]: "0xbF939812A673CB088f466d610c4b120b13eA5fAB",
     [CHAIN.BOB]: "0xcb3c0D131C64265099868F847face425499785A8",
     [CHAIN.BERACHAIN]: "0x5EAe58dc72E4E374F32eCA2751cC38b573dd82c9",
+    [CHAIN.MONAD]: "0x9527062A472666410DC7193A966709105dF2f147",
 };
 
 const tokenEUL: Record<string, string> = {
@@ -54,6 +56,7 @@ const tokenEUL: Record<string, string> = {
     [CHAIN.LINEA]: "0x3eBd0148BADAb9388936E4472C4415D5700478A5",
     [CHAIN.BOB]: "0xDe1763aFA5eB658CfFFfD16835AfeB47e7aC0B8D",
     [CHAIN.BERACHAIN]: "0xEb9b5f4EB023aE754fF59A04c9C038D58606DAC6",
+    [CHAIN.MONAD]: "0xDef72Af3fc69E1Dd5a094f7DDa08Ba203CD0438B",
 }
 
 const eulerFactoryABI = {
@@ -245,6 +248,10 @@ const adapters: Adapter = {
         [CHAIN.PLASMA]: {
             fetch,
             start: '2025-09-22',
+        },
+        [CHAIN.MONAD]: {
+            fetch,
+            start: '2025-11-23',
         },
         // [CHAIN.MANTLE]: {
         //     fetch,

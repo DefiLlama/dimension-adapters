@@ -6,6 +6,15 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { ABI, CONFIG_FLUID, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 import { getVaultsT1Resolver } from "./fees";
+import { httpGet } from '../../utils/fetchURL';
+
+interface BuybackData {
+  amount: string;
+  amountUsd: string;
+  blocknumber: number;
+  createdAt: string;
+  transactionHash: string;
+}
 
 type CreateBalances = () => sdk.Balances;
 
@@ -29,6 +38,9 @@ const liquidityResolver = async (api: ChainApi) => {
       break;
     case CHAIN.POLYGON:
       address = "0x98d900e25AAf345A4B23f454751EC5083443Fa83";
+      break;
+    case CHAIN.PLASMA:
+      address = "0x4b6Bb77196A7B6D0722059033a600BdCD6C12DB7";
       break;
   }
 
@@ -61,6 +73,9 @@ const revenueResolver = async (api: ChainApi) => {
       break;
     case CHAIN.POLYGON:
       address = "0x493493f73692Ca94219D3406CE0d2bd08D686BcF";
+      break;
+    case CHAIN.PLASMA:
+      address = "0x03171f3Cf6026148B7dc9450d9CdEe6F0d48BF56";
       break;
   }
 
@@ -119,7 +134,6 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
   return dailyValues
 };
 
-
 const getVaultT1UncollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, vaults: string[]): Promise<Balances> => {
   const dailyRevenue = createBalances();
   const vaultDatas = await (await getVaultsT1Resolver(api)).getVaultEntireData(vaults);
@@ -150,7 +164,6 @@ const getVaultT1UncollectedRevenues = async (api: ChainApi, createBalances: Crea
   return dailyRevenue;
 };
 
-
 const getVaultT1CollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, getLogs: Function, vaults: string[]): Promise<Balances> => {
   const dailyRevenue = createBalances();
   const rebalanceEventLogs: any[] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance, skipCacheRead: true });
@@ -180,7 +193,6 @@ const getVaultT1CollectedRevenues = async (api: ChainApi, createBalances: Create
   return dailyRevenue;
 };
 
-
 const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: FetchOptions): Promise<Balances> => {
   const dailyRevenue = createBalances()
   const block = await api.getBlock()
@@ -203,7 +215,7 @@ const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: Fe
   return dailyRevenue
 };
 
-export const getFluidDailyRevenue = async (options: FetchOptions): Promise<Balances> => {
+export const getDailyRevenue = async (options: FetchOptions): Promise<Balances> => {
   const dailyRevenue = options.createBalances()
   const [liquidityRevenues, vaultRevenues] = await Promise.all([
     getLiquidityRevenues(options),
@@ -214,3 +226,33 @@ export const getFluidDailyRevenue = async (options: FetchOptions): Promise<Balan
   dailyRevenue.addBalances(vaultRevenues, METRIC.BORROW_INTEREST)
   return dailyRevenue
 };
+
+async function fetchHolderRevenue(options: FetchOptions): Promise<BuybackData[]> {
+    const params: Record<string, string> = {
+      start: new Date(options.fromTimestamp * 1000).toISOString(),
+      end: new Date(options.toTimestamp * 1000).toISOString(),
+    }
+
+    const buybackApiUrl = `https://api.fluid.instadapp.io/v2/fluid-token/buybacks/charts`;
+    return await httpGet(buybackApiUrl, { params });
+}
+
+export async function getDailyHoldersRevenue(options: FetchOptions): Promise<Balances> {
+  const dailyHoldersRevenue = options.createBalances();
+
+  // Return early if not Ethereum, buyback only done in Ethereum mainnet as of now
+  if (options.chain !== CHAIN.ETHEREUM) {
+    return dailyHoldersRevenue;
+  }
+
+  const buybackData: BuybackData[] = await fetchHolderRevenue(options);
+  if (!buybackData.length) {
+    return dailyHoldersRevenue;
+  }
+
+  for (const item of buybackData) {
+    dailyHoldersRevenue.addUSDValue(Number(item.amountUsd), METRIC.TOKEN_BUY_BACK);
+  }
+
+  return dailyHoldersRevenue;
+}

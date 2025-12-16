@@ -55,6 +55,42 @@ const config = {
             ],
         },
     },
+    [CHAIN.HYPERLIQUID]: {
+        registry: "0x45a2C9FBc307A13c2737Cef9e00C1555c2F8C948",
+        backfill: {
+            routers: ["0xe62b7C96F9b804742d2Cbd57613F19Bda82D426F"],
+            pools: [
+                "0x5C542cE2e3dC25B4EF197b79B239261AAE27b3Dd", // UETH
+                "0xB5E4C3Ca3D1D804DA0c1808cF60ddED6FF3b65e5", // UBTC
+                "0x8426d3de775f77c7226f89eed6839b288639ad73", // USDT
+                "0x5c235275583048BF99C14C1e20DE35Eeb23AADd7", // WHYPE
+            ],
+            assets: [
+                "0xBe6727B535545C67d5cAa73dEa54865B92CF7907",
+                "0x9FDBdA0A5e284c32744D2f17Ee5c74B284993463",
+                ADDRESSES.hyperliquid.USDT0,
+                ADDRESSES.hyperliquid.WHYPE,
+            ],
+        },
+    },
+    [CHAIN.MONAD]: {
+        registry: "0x11B06EF8Adc5ea73841023CB39Be614f471213cc",
+        backfill: {
+            routers: ["0x610748f49774C062467c7AE1eC9E4729FFE94577"],
+            pools: [
+                "0xd7B645e5027A010899A95bE464e880d58eCf6d76", // WETH
+                "0xAe0cC253F27f0e80556e911E56FC4806Ac6a1508", // USDC
+                "0xC1EB061De61f3B23D17cF61d1E890D53070dee62", // WBTC
+                "0x12243c1cdb211813776d58DdBC1B59237b447919", // WMON
+            ],
+            assets: [
+                "0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242", // WETH
+                "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", // USDC
+                "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c", // WBTC
+                "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A", // WMON
+            ],
+        },
+    },
 };
 
 const abis = {
@@ -124,7 +160,10 @@ async function getAddresses(chain, api) {
 }
 
 const fetch = async (options: FetchOptions) => {
-    const { routers, pools, assets } = await getAddresses(options.chain, options.api);
+    const { routers, pools, assets } = await getAddresses(
+        options.chain,
+        options.api
+    );
 
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
@@ -153,24 +192,19 @@ const fetch = async (options: FetchOptions) => {
             })
         )
     );
-    chargedSwapFeesLogsOfPools.forEach(
-        (chargedSwapFeesLogsOfPool, i) => {
-            chargedSwapFeesLogsOfPool.forEach((log: any) => {
-                dailyFees.add(
-                    assets[i],
-                    log.lpFees + log.backstopFees + log.protocolFees
-                );
-                dailyUserFees.add(
-                    assets[i],
-                    log.lpFees + log.backstopFees + log.protocolFees
-                );
-                dailyProtocolRevenue.add(
-                    assets[i],
-                    log.protocolFees
-                );
-            });
-        }
-    );
+    chargedSwapFeesLogsOfPools.forEach((chargedSwapFeesLogsOfPool, i) => {
+        chargedSwapFeesLogsOfPool.forEach((log: any) => {
+            dailyFees.add(
+                assets[i],
+                log.lpFees + log.backstopFees + log.protocolFees
+            );
+            dailyUserFees.add(
+                assets[i],
+                log.lpFees + log.backstopFees + log.protocolFees
+            );
+            dailyProtocolRevenue.add(assets[i], log.protocolFees);
+        });
+    });
 
     return {
         dailyFees,
@@ -179,13 +213,13 @@ const fetch = async (options: FetchOptions) => {
         dailyProtocolRevenue,
         dailyVolume,
     };
-}
+};
 
 const methodology = {
-    Fees: 'Users pay between 0.01% and 0.1% fees on each swap.',
+    Fees: "Users pay between 0.01% and 0.1% fees on each swap.",
     UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
-    Revenue: "The protocol does not currently charge any fees.",
-    ProtocolRevenue: "The protocol does not currently charge any fees.",
+    Revenue: "Protocol fees will be allocated to the Nabla DAO Treasury.",
+    ProtocolRevenue: "Protocol fees will be allocated to the Nabla DAO Treasury.",
     Volume: "Swap Volume on Nabla AMM.",
 };
 
@@ -204,6 +238,14 @@ export default {
         [CHAIN.BERACHAIN]: {
             fetch,
             start: "2025-05-14",
+        },
+        [CHAIN.HYPERLIQUID]: {
+            fetch,
+            start: "2025-11-19",
+        },
+        [CHAIN.MONAD]: {
+            fetch,
+            start: "2025-11-24",
         },
     },
 } as Adapter;

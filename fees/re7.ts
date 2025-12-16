@@ -17,6 +17,9 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0xD8B0F4e54a8dac04E0A57392f5A630cEdb99C940',
       ],
+      morphoVaultV2Owners: [
+        '0xE5EAE3770750dC9E9eA5FB1B1d81A0f9C6c3369c',
+      ],
     },
     [CHAIN.SONIC]: {
       eulerVaultOwners: [
@@ -66,6 +69,11 @@ const curatorConfig: CuratorConfig = {
         '0xE5EAE3770750dC9E9eA5FB1B1d81A0f9C6c3369c',
       ],
     },
+    // [CHAIN.KATANA]:{
+    //   morphoVaultOwners: [
+    //     '0xdcaea03d1B19CcaFd9D0bdd8f670Be6150b2635f',
+    //   ],
+    // },
   }
 }
 

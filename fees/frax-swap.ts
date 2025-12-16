@@ -13,9 +13,11 @@ const chains: Record<string, string> = {
   [CHAIN.BSC]: 'BSC',
   [CHAIN.ETHEREUM]: 'Ethereum',
   [CHAIN.FANTOM]: 'Fantom',
+  [CHAIN.FRAXTAL]: 'Fraxtal',
   [CHAIN.HARMONY]: 'Harmony',
   [CHAIN.MOONBEAM]: 'Moonbeam',
   [CHAIN.MOONRIVER]: 'Moonriver',
+  [CHAIN.OPTIMISM]: 'Optimism',
   [CHAIN.POLYGON]: 'Polygon',
 };
 
@@ -49,7 +51,7 @@ const methodology = {
 const adapter: Adapter = {
   version: 1,
   methodology,
-  chains: [CHAIN.ARBITRUM, CHAIN.AURORA, CHAIN.AVAX, CHAIN.BOBA, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.FANTOM, CHAIN.HARMONY, CHAIN.MOONBEAM, CHAIN.MOONRIVER, CHAIN.POLYGON],
+  chains: [CHAIN.ARBITRUM, CHAIN.AURORA, CHAIN.AVAX, CHAIN.BOBA, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.FANTOM, CHAIN.FRAXTAL, CHAIN.HARMONY, CHAIN.MOONBEAM, CHAIN.MOONRIVER, CHAIN.OPTIMISM, CHAIN.POLYGON],
   fetch,
   adapter: {}
 }

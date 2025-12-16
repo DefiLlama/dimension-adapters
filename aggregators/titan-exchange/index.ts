@@ -1,28 +1,26 @@
+import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { Dependencies, FetchOptions } from "../../adapters/types";
-import { queryDuneSql } from "../../helpers/dune";
+import { FetchOptions } from "../../adapters/types";
+
+const API_URL = "https://titan.exchange/public/hourly-volume";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-
-  const data = await queryDuneSql(options, `
-    SELECT 
-      SUM(amount_usd) AS volume
-    FROM dex_solana.trades
-    WHERE trade_source = 'T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT'
-    AND block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
-  `);
-
-  return {
-    dailyVolume: data[0].volume
-  };
+  const url = `${API_URL}?start_timestamp=${options.startTimestamp}&end_timestamp=${options.endTimestamp}`;
+  const result = await fetchURL(url);
+  
+  // Sum hourly volumes for the exact timestamp range
+  const totalVolume = result.data.reduce((sum: number, hour: any) => {
+    return sum + Number(hour.volume_usd);
+  }, 0);
+  
+  return { dailyVolume: totalVolume };
 };
 
 const adapter: any = {
   version: 1,
   fetch,
-  start: '2024-11-06',
+  start: '2025-09-18',
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
 };
 
 export default adapter;
