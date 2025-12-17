@@ -3,27 +3,31 @@ import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 interface IChartItem {
-  timestamp: string;
-  dailyFees: number;
-  dailyRevenue: number;
+  startTime: string;
+  endTime: string;
+  gasFeeOutBound: string;
+  gasReimbursement: string;
+  networkFee: string;
 }
 
-const fetch = async (_a: any, _b: any, { dateString }: FetchOptions) => {
-  const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue?chain=thorchain`;
-  const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const feeEndpoint = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=100`;
+  // const feeEndpoint = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&start=${options.startTimestamp}&to=${options.endTimestamp}&count=10`;
+  console.log(feeEndpoint, options.startOfDay, options.endTimestamp);
+  const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint)).intervals;
 
-  const dayData = historicalFees.find((feeItem) =>
-    feeItem.timestamp.split(" ")[0] === dateString
+  const dayData = historicalFees.find((feeItem: IChartItem) =>
+    feeItem.startTime === String(options.startOfDay) && feeItem.endTime === String(options.endTimestamp)
   );
 
   if (!dayData) {
-    throw new Error(`No chain fees data found for ${dateString}`);
+    throw new Error(`No chain fees data found for ${options.dateString}`);
   }
+  const dailyFees = options.createBalances();
 
-  return {
-    dailyFees: dayData.dailyFees,
-    dailyRevenue: dayData.dailyRevenue,
-  };
+  dailyFees.addCGToken('thorchain', Number(dayData.networkFee) / 1e8);
+
+  return { dailyFees };
 };
 
 const adapter: Adapter = {
