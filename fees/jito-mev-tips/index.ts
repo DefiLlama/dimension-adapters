@@ -4,7 +4,7 @@
     Collected from transfers to Jito MEV-related program addresses.
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSolanaReceived } from "../../helpers/token"
 
@@ -30,6 +30,7 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
