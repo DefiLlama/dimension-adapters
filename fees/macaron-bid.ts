@@ -7,7 +7,7 @@ import { queryDuneSql } from '../helpers/dune'
 const DEV_PLATFORM_WALLET = 'FeeRmkRwtAhsoNkKgHHYAp5RL2gC9pfdXp7WCEvVFAZC'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-   // Query SOL received by dev wallet (3% = 2% liquidity + 1% protocol)
+   // Query SOL received by dev wallet (1% protocol fee)
    const query = `
     SELECT
       -- address,
@@ -22,10 +22,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
    const res = await queryDuneSql(options, query)
 
-   const devAmount = res[0].total_received || 0 // 3% (2% liquidity + 1% protocol)
+   const devAmount = res[0].total_received || 0 // 1% protocol fee
 
-   // Calculate total auction fees from dev wallet (3%)
-   const totalFees = devAmount / 0.03
+   // Calculate total auction fees from dev wallet (1%)
+   const totalFees = devAmount / 0.01
 
    // Calculate all components based on total fees
    const dailyFeesValue = totalFees // 100%
