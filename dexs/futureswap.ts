@@ -19,7 +19,6 @@ const config: any = {
 };
 
 const abis = {
-  // PositionChanged event is emitted when a trader's position changes
   // Source: https://docs.futureswap.com/protocol/developer/events
   PositionChanged:
     'event PositionChanged(address indexed trader, uint256 tradeFee, uint256 traderPayout, int256 previousAsset, int256 previousStable, int256 newAsset, int256 newStable)',
