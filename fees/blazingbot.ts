@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
@@ -123,6 +123,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2024-03-01', },
     [CHAIN.BSC]: { fetch, start: '2024-03-01', },

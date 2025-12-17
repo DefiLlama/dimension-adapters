@@ -1,10 +1,10 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 
 const FEE_WALLET = "Bkfx4XwD9VuztHyimbKyte2zkv78eBRHyeq4CvG6RFdB";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   await getSolanaReceived({
     options,
@@ -21,7 +21,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

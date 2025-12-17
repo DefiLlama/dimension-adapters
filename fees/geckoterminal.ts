@@ -1,15 +1,16 @@
-import { Adapter, BaseAdapter, FetchOptions } from "../adapters/types";
+import { Adapter, BaseAdapter, Dependencies, FetchOptions } from "../adapters/types";
 import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
 import { getSolanaReceived } from '../helpers/token';
 import { CHAIN } from "../helpers/chains";
 
-const sol = async (options: FetchOptions) => {
+const sol = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: ['3h5SPEzotUQDznpgCQev8jpDnBCtLkRj4PH997517C5j'] })
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
+    dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'All fees paid by users for token profile listing.',
     Revenue: 'All fees collected by GeckoTerminal.',

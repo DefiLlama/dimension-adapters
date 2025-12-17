@@ -33,7 +33,7 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 */
 
 import { CHAIN } from '../../helpers/chains'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getSolanaReceived } from '../../helpers/token'
 
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
@@ -76,6 +76,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    dependencies: [Dependencies.ALLIUM],
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,

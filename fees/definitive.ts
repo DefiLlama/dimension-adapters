@@ -112,7 +112,7 @@ const adapter: Adapter = {
   fetch,
   adapter: chainConfig,
   prefetch,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   methodology,
   isExpensiveAdapter: true,
 };

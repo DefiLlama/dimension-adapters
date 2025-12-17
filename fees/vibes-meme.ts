@@ -1,17 +1,16 @@
-import { FetchResult, SimpleAdapter, ProtocolType } from '../adapters/types'
+import { FetchResult, SimpleAdapter, ProtocolType, FetchOptions, Dependencies } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { getSolanaReceived } from '../helpers/token'
 
 const VIBES_FEE_ADDRESS = '8w1TF5feq55khx19Hxnem6hyLsK8tK7AjbyNTu3cuR7Q'
 
-const fetch = async (options: any): Promise<FetchResult> => {
+const fetch = async (_: any, _1: any, options: FetchOptions) : Promise<FetchResult> => {
   const dailyFees = await getSolanaReceived({
     target: VIBES_FEE_ADDRESS,
     options,
   })
 
   return {
-    timestamp: options.startTimestamp,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
@@ -19,7 +18,8 @@ const fetch = async (options: any): Promise<FetchResult> => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

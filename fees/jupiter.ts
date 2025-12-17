@@ -101,7 +101,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   start: '2023-06-01',
   isExpensiveAdapter: true,
   methodology: {

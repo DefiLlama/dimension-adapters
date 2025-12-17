@@ -4,7 +4,7 @@
 // fantom 0xE85a3c0B4cad610975e337f6309AAF49c4a224c3
 // base 0xe111b0c3605adc45cfb0cd75e5543f63cc3ec425
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
 
@@ -17,7 +17,7 @@ const contract: any = {
 }
 
 
-const fetchFees = async (options: FetchOptions) => {
+const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   if (options.chain === CHAIN.SOLANA) {
     await getSolanaReceived({ options, target: contract[options.chain], balances: dailyFees })
@@ -29,14 +29,15 @@ const fetchFees = async (options: FetchOptions) => {
 }
 
 const methodology = {
-    Fees: "All trading fees paid by users while using Looter bot.",
-    Revenue: "Trading fees are collected by Looter protocol.",
-    ProtocolRevenue: "Trading fees are collected by Looter protocol.",
+  Fees: "All trading fees paid by users while using Looter bot.",
+  Revenue: "Trading fees are collected by Looter protocol.",
+  ProtocolRevenue: "Trading fees are collected by Looter protocol.",
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   methodology,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
