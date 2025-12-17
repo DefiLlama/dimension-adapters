@@ -8,7 +8,7 @@ interface ICoversData {
 interface IClaimsData {
   claim_total: number;
 }
-const fetch = async ( options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const queryCoversData = `
       WITH daily_avg_prices AS (
           SELECT
@@ -80,7 +80,7 @@ const fetch = async ( options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ETHEREUM]: {
@@ -91,11 +91,11 @@ const adapter: Adapter = {
   methodology: {
     Fees: "All premiums paid by members to buy cover insurance minus paid claims. could be negative on some days",
     Revenue: "50% of premiums retained in the capital pool",
-    SupplySideRevenue: "50% of premiums retained in the capital pool, benefiting all NXM Holders",
-    HoldersRevenue: "50% of premiums distributed as NXM rewards to specific pools stakers",
+    HoldersRevenue: "50% of premiums retained in the capital pool, benefiting all NXM Holders",
+    SupplySideRevenue: "50% of premiums distributed as NXM rewards to specific pools stakers",
     ProtocolRevenue: "Protocol takes nothing from paid premiums"
   },
-  allowNegativeValue: true
+  allowNegativeValue: true // On days with claim payouts, the payout amounts can exceed the fees paid, which results in negative values.
 };
 
 export default adapter;
