@@ -6,9 +6,9 @@ import { METRIC } from "../../helpers/metrics";
 const CONCRETE_API_URL = "https://apy.api.concrete.xyz/v1";
 
 const CHAIN_CONFIG: Record<string, Record<string, string>> = {
-    [CHAIN.ETHEREUM]: { chainId: '1', startDate: '2025-10-22' },
-    [CHAIN.STABLE]: { chainId: '988', startDate: '2025-12-08' },
-    [CHAIN.ARBITRUM]: { chainId: '42161', startDate: '2025-11-06' },
+    [CHAIN.ETHEREUM]: { chainId: '1', start: '2025-10-22' },
+    [CHAIN.STABLE]: { chainId: '988', start: '2025-12-08' },
+    [CHAIN.ARBITRUM]: { chainId: '42161', start: '2025-11-06' },
 }
 
 const CONCRETE_ABIs = {
