@@ -21,20 +21,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `
 
    const res = await queryDuneSql(options, query)
-   
-   const devAmount = res[0].total_received || 0 // 2%
 
-   // Calculate total auction fees from dev wallet (2%)
-   const totalFees = devAmount / 0.02
+   const devAmount = res[0].total_received || 0 // 1% protocol fee
+
+   // Calculate total auction fees from dev wallet (1%)
+   const totalFees = devAmount / 0.01
 
    // Calculate all components based on total fees
    const dailyFeesValue = totalFees // 100%
-   const supplySideRevenue = totalFees * 0.85 // 85% to previous miners
+   const supplySideRevenue = totalFees * 0.84 // 84% to previous miners (sellers)
 
    // Protocol revenue breakdown
-   const buybackAmount = totalFees * 0.1 // 10% buyback
-   const actualStakingAmount = totalFees * 0.03 // 3% staking
-   const totalProtocolRevenue = buybackAmount + actualStakingAmount + devAmount // 10% + 3% + 2% = 15%
+   const buybackAmount = totalFees * 0.1 // 10% buyback & burn
+   const actualStakingAmount = totalFees * 0.03 // 3% stake
+   const liquidityAmount = totalFees * 0.02 // 2% liquidity
+   const totalProtocolRevenue = buybackAmount + actualStakingAmount + liquidityAmount + devAmount // 10% + 3% + 2% + 1% = 16%
 
    // Create balances
    const dailyFees = options.createBalances()
@@ -46,7 +47,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
    // Add SOL amounts using Coingecko ID
    dailyFees.addCGToken('solana', dailyFeesValue)
    dailyRevenue.addCGToken('solana', totalProtocolRevenue)
-   dailyProtocolRevenue.addCGToken('solana', buybackAmount + devAmount) // 10% + 2%
+   dailyProtocolRevenue.addCGToken('solana', buybackAmount + liquidityAmount + devAmount) // 10% + 2% + 1% = 13%
    dailySupplySideRevenue.addCGToken('solana', supplySideRevenue)
    dailyHoldersRevenue.addCGToken('solana', actualStakingAmount) // 3%
 
@@ -69,13 +70,12 @@ const adapter: SimpleAdapter = {
    methodology: {
       Fees: 'Total auction fees collected when users seize mining positions. Uses Dutch auction mechanism where price doubles after each successful bid then decreases to 0 over 1 hour.',
       Revenue:
-         '15% of total auction fees distributed to protocol: 10% for buyback and burn, 3% for staking pool, 2% for dev and platform maintenance.',
+         '16% of total auction fees distributed to protocol: 10% for buyback and burn, 3% for staking pool, 2% for liquidity, 1% for protocol fee.',
       ProtocolRevenue:
-         '12% of auction fees: 10% for buyback/burn (routed through staking wallet) + 2% for dev and platform maintenance.',
+         '13% of auction fees: 10% for buyback/burn + 2% for liquidity + 1% for protocol fee.',
       SupplySideRevenue:
-         '85% of auction fees returned to previous position owner as compensation for losing their mining position.',
-      HoldersRevenue:
-         '3% of auction fees allocated to staking pool for $MACARON token holders. Note: 13% total flows through staking wallet (10% buyback + 3% staking).'
+         '84% of auction fees returned to previous position owner (seller) as compensation for losing their mining position.',
+      HoldersRevenue: '3% of auction fees allocated to staking pool for $MACARON token holders.'
    }
 }
 
