@@ -140,7 +140,7 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
       });
     } catch (error: any) {
       if (error.response?.status === 403) {
-        throw new Error(`Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`);
+        throw new Error(`Builder fee data is not available for ${dateStr}. HyperLiquid's CSV endpoint typically has a 1-2 day delay. Try testing with an older date (e.g., 2-3 days ago).`);
       }
       throw new Error(`Failed to download builder fee data: ${error.message}`);
     }
