@@ -33,7 +33,7 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 */
 
 import { CHAIN } from '../../helpers/chains'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getSolanaReceived } from '../../helpers/token'
 
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
@@ -67,7 +67,7 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 
     const dailyFees = options.createBalances()
     const dailySupplySideRevenue = creatorFees
-    
+
     dailyFees.addBalances(platformFees)
     dailyFees.addBalances(creatorFees)
 
@@ -94,6 +94,7 @@ const adapter: SimpleAdapter = {
         HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
     },
     version: 1,
+    dependencies: [Dependencies.ALLIUM],
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,

@@ -1,11 +1,11 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
 
 const rainHistoricalFeesUrl = 'https://api-v3.rain.fi/api/dirty/historical-apys?days=30';
 
-const fethcFeesSolana = async (options: FetchOptions) => {
+const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
   const dailyRevenue = await getSolanaReceived({ options, target: 'H3RFN3GbDfwGhZc5QPqzW6U4cwhuk9vgPhEfFbcPDrm5' })
   const stats: any = (await fetchURL(rainHistoricalFeesUrl));
 
@@ -28,7 +28,8 @@ const fethcFeesSolana = async (options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'Interest paid by borrowers.',
