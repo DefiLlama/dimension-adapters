@@ -17,7 +17,7 @@ const fetch = (chain: string) => {
   return async (timestamp: number): Promise<FetchResult> => {
     const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
     const response: DailyFeeResponse = await httpGet(
-      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
+      `https://stride-fees-production.up.railway.app/api/${overriddenChain}/stats/fees`
     );
 
     return {
@@ -40,20 +40,20 @@ const adapter: Adapter = {
   runAtCurrTime: true,
   methodology: info.methodology,
   adapter: {
-    [CHAIN.COSMOS]: { fetch: fetch("cosmos"), },
-    celestia: { fetch: fetch("celestia"), },
-    osmosis: { fetch: fetch("osmosis"), },
-    dydx: { fetch: fetch("dydx"), },
-    dymension: { fetch: fetch("dymension"), },
-    juno: { fetch: fetch("juno"), },
-    stargaze: { fetch: fetch("stargaze"), },
-    terra: { fetch: fetch("terra"), },
-    evmos: { fetch: fetch("evmos"), },
-    injective: { fetch: fetch("injective"), },
-    umee: { fetch: fetch("umee"), },
-    comdex: { fetch: fetch("comdex"), },
-    islm: { fetch: fetch("haqq"), },
-    band: { fetch: fetch("band"), },
+    [CHAIN.COSMOS]: { fetch: fetch("cosmos") },
+    celestia: { fetch: fetch("celestia") },
+    osmosis: { fetch: fetch("osmosis") },
+    dydx: { fetch: fetch("dydx") },
+    // dymension: { fetch: fetch("dymension") },
+    juno: { fetch: fetch("juno") },
+    stargaze: { fetch: fetch("stargaze") },
+    terra: { fetch: fetch("terra") },
+    evmos: { fetch: fetch("evmos") },
+    injective: { fetch: fetch("injective") },
+    umee: { fetch: fetch("umee") },
+    comdex: { fetch: fetch("comdex") },
+    islm: { fetch: fetch("haqq") },
+    band: { fetch: fetch("band") },
   },
 };
 
