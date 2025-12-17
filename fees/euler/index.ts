@@ -70,7 +70,8 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(vaultAssets[i], curatorsFees, METRIC.CURATORS_FEES);
 
     // fees to Euler protocol is revenue
-    dailyRevenue.add(vaultAssets[i], protocolFees, METRIC.BORROW_INTEREST)
+    dailyFees.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
+    dailyRevenue.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
     dailyProtocolRevenue.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
   }
 
