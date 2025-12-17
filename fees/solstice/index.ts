@@ -75,6 +75,7 @@ const adapters: SimpleAdapter = {
       start: '2025-10-01'
     },
   },
+  allowNegativeValue: true, // Yield strategies aren't risk-free
   methodology: {
     Fees: 'Yield generated from Solstice various strategies',
     Revenue: 'No protocol revenue (yield fully passed to eUSX holders)',
