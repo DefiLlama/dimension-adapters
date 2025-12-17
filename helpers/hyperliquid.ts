@@ -32,7 +32,7 @@ export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }
   // for the given timerange. If count is zero, we throw an error indicating data is not yet available.
 
   // WITH builder_fills_check AS (
-  //   SELECT 
+  //   SELECT
   //     COUNT(*) as fills_count
   //   FROM hyperliquid.raw.builder_fills
   //   WHERE timestamp >= TO_TIMESTAMP_NTZ('${startTimestamp}')
@@ -82,19 +82,28 @@ export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }
 
 /**
  * Fetches builder code revenue directly from HyperLiquid's LZ4 compressed CSV files
- * 
+ *
  * NOTE: This function requires the 'lz4-napi' dependency to be installed.
  * Run: npm install lz4-napi@^2.9.0
- * 
+ *
  * This uses the fastest LZ4 library for Node.js, powered by Rust and napi-rs.
- * 
+ *
  * @param options - FetchOptions containing startOfDay timestamp and other utilities
  * @param builder_address - The builder address to fetch data for
+ * @param builder_name - Optional human-readable name for the builder (e.g., "Rainbow")
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
 export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400
-export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
+export const fetchBuilderCodeRevenue = async ({
+  options,
+  builder_address,
+  builder_name,
+}: {
+  options: FetchOptions;
+  builder_address: string;
+  builder_name?: string;
+}) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
@@ -139,10 +148,15 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
         timeout: 30000, // 30 second timeout
       });
     } catch (error: any) {
+      const builderIdentifier = builder_name || builder_address;
       if (error.response?.status === 403) {
-        throw new Error(`Builder fee data is not available for ${dateStr}. HyperLiquid's CSV endpoint typically has a 1-2 day delay. Try testing with an older date (e.g., 2-3 days ago).`);
+        throw new Error(
+          `Builder fee data for ${builderIdentifier} is not available for ${dateStr}. HyperLiquid's CSV endpoint typically has a 1-2 day delay. Try testing with an older date (e.g., 2-3 days ago).`
+        );
       }
-      throw new Error(`Failed to download builder fee data: ${error.message}`);
+      throw new Error(
+        `Failed to download builder fee data for ${builderIdentifier}: ${error.message}`
+      );
     }
 
     const writer = fs.createWriteStream(lz4FilePath);
