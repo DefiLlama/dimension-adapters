@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import fetchURL, { httpPost } from "../../utils/fetchURL";
@@ -74,7 +74,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
@@ -86,6 +86,7 @@ const adapter: SimpleAdapter = {
         Revenue: "5.5% performance fee on vault yields and 35% of AMM trading fees.",
         SupplySideRevenue: "65% of AMM trading fees distributed to liquidity providers.",
     },
+    dependencies: [Dependencies.ALLIUM]
 };
 
 export default adapter;
