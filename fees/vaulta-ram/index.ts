@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -20,7 +20,7 @@ interface VaultaResponse {
     actions: VaultaAction[];
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
     const startTime = options.startTimestamp;
     const endTime = options.endTimestamp;
@@ -49,13 +49,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     return {
         dailyFees: dailyVolume.clone(0.005), // 0.5% of trade volume as fees
-        dailyRevenue: dailyVolume.clone(0.005),
+        dailyRevenue: 0,
         dailyVolume
     };
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.EOS]: {
             fetch,
@@ -64,7 +64,7 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "0.5% fee charged on all RAM trading (buys and sells) collected in eosio.ramfee",
-        Revenue: "All RAM trading fees are revenue",
+        Revenue: "Ram fees are sent to eosio.bpay to pay block producers",
         Volume: "Total value of RAM bought and sold on the Vaulta RAM market"
     },
 };
