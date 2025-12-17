@@ -53,7 +53,7 @@ const fetch = async (
                 call_block_time >= from_unixtime(${options.startTimestamp})
                 AND call_block_time <= from_unixtime(${options.endTimestamp})
         ),
-        flt_calls AS (
+        flatfee_calls AS (
             SELECT
                 tx_id,
                 bytearray_to_bigint (
@@ -69,12 +69,40 @@ const fetch = async (
                 AND block_time >= from_unixtime(${options.startTimestamp})
                 AND block_time <= from_unixtime(${options.endTimestamp})
                 AND tx_success = true
+        ),
+        flatslab_calls AS (
+            SELECT
+                tx_id,
+                bytearray_to_bigint (
+                    bytearray_reverse (bytearray_substring (data, 2, 8))
+                ) AS amount,
+                bytearray_to_bigint (
+                    bytearray_reverse (bytearray_substring (data, 9, 8))
+                ) * power(256, -1) / 1e9 AS sol_value 
+            FROM
+                solana.instruction_calls
+            WHERE
+                executing_account = 's1b6NRXj6ygNu1QMKXh2H9LUR2aPApAAm1UQ2DjdhNV'
+                AND block_time >= from_unixtime(${options.startTimestamp})
+                AND block_time <= from_unixtime(${options.endTimestamp})
+                AND tx_success = true
+                AND bytearray_to_bigint (
+                    bytearray_reverse (bytearray_substring (data, 0, 8))
+                ) = 0
+        ),
+        joined_txns AS (
+          SELECT
+              it.call_tx_id,
+              COALESCE(ff.sol_value, fs.sol_value) AS sol_amount
+          FROM
+              infinity_txns it
+              LEFT JOIN flatfee_calls ff ON it.call_tx_id = ff.tx_id
+              LEFT JOIN flatslab_calls fs ON it.call_tx_id = fs.tx_id
         )
         SELECT
-            sum(sol_value) as trading_volume
+            SUM(sol_amount) AS trading_volume
         FROM
-            infinity_txns it
-            INNER JOIN flt_calls fc ON it.call_tx_id = fc.tx_id
+            joined_txns
         `
       )
     )[0].trading_volume;
