@@ -86,6 +86,7 @@ export const chainConfigMap: any = {
   [CHAIN.DERI_CHAIN]: { CGToken: 'ethereum', explorer: 'https://explorer-dchain.deri.io/' },
   [CHAIN.EARNM]: { CGToken: 'ethereum', explorer: 'https://earnm-mainnet.explorer.alchemy.com/' },
   [CHAIN.DUCK_CHAIN]: { CGToken: 'ethereum', explorer: 'https://scan.duckchain.io/' },
+
 }
 
 function getTimeString(timestamp: number) {
