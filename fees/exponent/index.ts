@@ -1,4 +1,4 @@
-import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import fetchURL, { httpPost } from "../../utils/fetchURL";
@@ -15,7 +15,7 @@ function extractPubkey(base64Data: string, offset: number): string {
     return encodeBase58(pubkeyBytes);
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
