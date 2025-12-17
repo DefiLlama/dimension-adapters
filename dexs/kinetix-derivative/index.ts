@@ -62,6 +62,7 @@ const startTimestamps: { [chain: string]: number } = {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,

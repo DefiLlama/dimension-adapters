@@ -1,12 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryHyperliquidIndexer } from "../helpers/hyperliquid";
+import { LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer } from "../helpers/hyperliquid";
 import { httpGet } from "../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
-  const todayStartUTC = Math.floor(Date.now() / 1000 / 86400) * 86400;
+  // const todayStartUTC = Math.floor(Date.now() / 1000 / 86400) * 86400;
 
-  if (options.startOfDay >= todayStartUTC) {
+  if (options.startOfDay >= LLAMA_HL_INDEXER_FROM_TIME) {
     const result = await queryHyperliquidIndexer(options);
 
     return {

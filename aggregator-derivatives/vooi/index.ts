@@ -48,7 +48,7 @@ const getItems: Record<string, (items: Array<any>) => Array<any>> = {
     return items.filter(item => item.protocol == 'kiloex' && item.network === 'opbnb')
   },
   [CHAIN.OFF_CHAIN]: (items: Array<any>): Array<any> => {
-    return items.filter(item => item.protocol == 'aster')
+    return items.filter(item => ['aster', 'lighter'].includes(item.protocol))
   },
 }
 

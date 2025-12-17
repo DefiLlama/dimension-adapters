@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getSolanaReceived } from '../helpers/token';
 
@@ -14,9 +14,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0};
-};
-
+  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 }; 
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -29,6 +28,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: 'No token holder revenue',
   },
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
 };
 
 export default adapter;
