@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -39,6 +39,7 @@ const adapter: Adapter = {
       start: "2025-03-24",
     },
   },
+  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
