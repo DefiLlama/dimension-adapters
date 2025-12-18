@@ -34,6 +34,9 @@ async function prefetch(_a: any): Promise<any> {
     const tvlData = await fetchURL("https://api.llama.fi/protocol/multipli.fi");
     const yieldsData = await fetchURL("https://api.multipli.fi/multipli/v1/get-historical-yield-rate/?currencies=usdc%2Cusdt%2Cbtc&period=max");
 
+    if(!tvlData || !yieldsData)
+        throw new Error("Tvl data or yields data not found");
+
     return {
         tvlData,
         yieldsData
@@ -79,7 +82,7 @@ const adapter: SimpleAdapter = {
     prefetch,
     fetch,
     adapter: chainConfig,
-    start: '2025-01-01',
+    start: '2025-03-15',
     methodology,
 }
 
