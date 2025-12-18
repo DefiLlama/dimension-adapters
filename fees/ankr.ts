@@ -18,7 +18,8 @@ import fetchURL from '../utils/fetchURL'
  * - ETH, BNB, AVAX: 10% of staking rewards
  * - FTM: 15% of staking rewards
  * - POL: 5% of staking rewards
- * - FLOW,SUI, IOTA: 10% assumed (not documented)
+ * - FLOW: 10% assumed
+ * - SUI, IOTA: Partner staking (Volo/Swirl) - 10%, revenue split with partners unclear
  *
  * Data Sources:
  * - ETH: Trustless ratio API (calculates true ratio from validator balances)
