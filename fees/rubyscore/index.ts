@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getETHReceived } from "../../helpers/token";
 
@@ -48,39 +48,41 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  methodology,
+  version: 1,
+  fetch,
+  dependencies: [Dependencies.ALLIUM],  
   adapter: {
-    [CHAIN.ABSTRACT]: { fetch, start: '2025-10-07', },
-    [CHAIN.APECHAIN]: { fetch, start: '2025-08-14', },
-    [CHAIN.ARBITRUM]: { fetch, start: '2025-08-08', },
-    [CHAIN.AVAX]: { fetch, start: '2025-09-03', },
-    [CHAIN.BASE]: { fetch, start: '2023-11-19', },
-    [CHAIN.BERACHAIN]: { fetch, start: '2025-08-28', },
-    [CHAIN.BSC]: { fetch, start: '2025-10-07', },
-    [CHAIN.INK]: { fetch, start: '2025-08-08', },
-    [CHAIN.KATANA]: { fetch, start: '2025-08-29', },
-    [CHAIN.LINEA]: { fetch, start: '2023-11-20', },
-    [CHAIN.MODE]: { fetch, start: '2025-08-27', },
-    [CHAIN.OPTIMISM]: { fetch, start: '2023-11-27', },
-    [CHAIN.PLASMA]: { fetch, start: '2025-10-01', },
-    [CHAIN.POLYGON]: { fetch, start: '2025-08-18', },
-    [CHAIN.SCROLL]: { fetch, start: '2023-11-19', },
-    [CHAIN.SONIC]: { fetch, start: '2025-10-07', },
-    [CHAIN.UNICHAIN]: { fetch, start: '2025-08-08', },
-    [CHAIN.ERA]: { fetch, start: '2023-11-20', },
-    [CHAIN.CELO]: { fetch, start: '2025-08-14', },
-    
-    // [CHAIN.FLARE]: { fetch, start: '2025-09-05', },
-    // [CHAIN.SOMNIA]: { fetch, start: '2025-09-01', },
-    // [CHAIN.BOBA]: { fetch, start: '2025-08-21', },
-    // [CHAIN.TAIKO]: { fetch, start: '2024-05-27', },
-    // [CHAIN.TAC]: { fetch, start: '2025-08-20', },
-    // [CHAIN.SHAPE]: { fetch, start: '2025-08-08', },
-    // [CHAIN.CORN]: { fetch, start: '2025-09-03', },
-    // [CHAIN.FLOW]: { fetch, start: '2025-09-11', },
-    // [CHAIN.HEMI]: { fetch, start: '2025-08-08', },
-    // [CHAIN.BOB]: { fetch, start: '2025-08-27', },
+    [CHAIN.ABSTRACT]: { start: '2025-10-07', },
+    [CHAIN.APECHAIN]: { start: '2025-08-14', },
+    [CHAIN.ARBITRUM]: { start: '2025-08-08', },
+    [CHAIN.AVAX]: { start: '2025-09-03', },
+    [CHAIN.BASE]: { start: '2023-11-19', },
+    [CHAIN.BERACHAIN]: { start: '2025-08-28', },
+    [CHAIN.BSC]: { start: '2025-10-07', },
+    [CHAIN.INK]: { start: '2025-08-08', },
+    [CHAIN.KATANA]: { start: '2025-08-29', },
+    [CHAIN.LINEA]: { start: '2023-11-20', },
+    [CHAIN.MODE]: { start: '2025-08-27', },
+    [CHAIN.OPTIMISM]: { start: '2023-11-27', },
+    [CHAIN.PLASMA]: { start: '2025-10-01', },
+    [CHAIN.POLYGON]: { start: '2025-08-18', },
+    [CHAIN.SCROLL]: { start: '2023-11-19', },
+    [CHAIN.SONIC]: { start: '2025-10-07', },
+    [CHAIN.UNICHAIN]: { start: '2025-08-08', },
+    [CHAIN.ERA]: { start: '2023-11-20', },
+    [CHAIN.CELO]: { start: '2025-08-14', },
+    // [CHAIN.FLARE]: { start: '2025-09-05', },
+    // [CHAIN.SOMNIA]: { start: '2025-09-01', },
+    // [CHAIN.BOBA]: { start: '2025-08-21', },
+    // [CHAIN.TAIKO]: { start: '2024-05-27', },
+    // [CHAIN.TAC]: { start: '2025-08-20', },
+    // [CHAIN.SHAPE]: { start: '2025-08-08', },
+    // [CHAIN.CORN]: { start: '2025-09-03', },
+    // [CHAIN.FLOW]: { start: '2025-09-11', },
+    // [CHAIN.HEMI]: { start: '2025-08-08', },
+    // [CHAIN.BOB]: { start: '2025-08-27', },
   },
+  methodology,
 };
 
 export default adapter;

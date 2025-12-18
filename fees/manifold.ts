@@ -1,19 +1,19 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
+import { CHAIN } from "../helpers/chains";
 import { nullAddress } from "../helpers/token";
 
 // Found by looking at contracts deployed by 0xa8863bf1c8933f649e7b03eb72109e5e187505ea
 // Yes, i manually checked hundreds of txs T_T
 
 const CREATE2_CONTRACTS = ["0x1eb73fee2090fb1c20105d5ba887e3c3ba14a17e", "0x04ba6cf3c5aa6d4946f5b7f7adf111012a9fac65", "0x23aa05a271debffaa3d75739af5581f744b326e4", "0x26bbea7803dcac346d5f5f135b57cf2c752a02be", "0xfc29813beeb3c7395c7a5f8dfc3352491d5ea0e2"]
-const contracts = {
-    ethereum: ["0x3b8c2feb0f4953870f825df64322ec967aa26b8c", "0xDb8d79C775452a3929b86ac5DEaB3e9d38e1c006", ...CREATE2_CONTRACTS], // missing old burn redeem and erc721 burn redeem
-    optimism: CREATE2_CONTRACTS,
-    base: CREATE2_CONTRACTS,
-} as any
+const contracts: Record<string, string[]> = {
+    [CHAIN.ETHEREUM]: ["0x3b8c2feb0f4953870f825df64322ec967aa26b8c", "0xDb8d79C775452a3929b86ac5DEaB3e9d38e1c006", ...CREATE2_CONTRACTS], // missing old burn redeem and erc721 burn redeem
+    [CHAIN.OPTIMISM]: CREATE2_CONTRACTS,
+    [CHAIN.BASE]: CREATE2_CONTRACTS,
+}
 
-
-const evm = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const pre = await options.fromApi.sumTokens({
         token: nullAddress,
         owners: contracts[options.chain]
@@ -59,19 +59,16 @@ const evm = async (_a: any, _b: any, options: FetchOptions) => {
     }
 }
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
     version: 1,
+    fetch,
+    chains: Object.keys(contracts),
+    dependencies: [Dependencies.ALLIUM],
+    allowNegativeValue: true, // allow as there is specific case, from fetch function comment
     methodology: {
         Fees: 'Fees paid by users for creating and publishing NFT.',
         Revenue: 'All fees collected by Manifold protocol.',
     },
-    adapter: Object.keys(contracts).reduce((all, chain) => ({
-        ...all,
-        [chain]: {
-            fetch: evm,
-        }
-    }), {}),
-    allowNegativeValue: true, // allow as there is specific case, from fetch function comment
 }
 
 export default adapter;

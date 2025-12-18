@@ -86,6 +86,11 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
+    fetch,
+    start: '2025-04-27',
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.ALLIUM],
     methodology: {
         Fees: "Fees are collected from users and distributed to holders and protocol.",
         Revenue: "Total Letsbonk Protocol Revenue and Holders Revenue",
@@ -93,14 +98,6 @@ const adapter: SimpleAdapter = {
         ProtocolRevenue: "2% of total fees for marketing.",
         HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
     },
-    version: 1,
-    dependencies: [Dependencies.ALLIUM],
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-04-27',
-        }
-    }
 };
 
 export default adapter;

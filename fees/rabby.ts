@@ -1,10 +1,10 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 
 const feeWallet = "0x39041f1b366fe33f9a5a79de5120f2aee2577ebc"
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances()
     await addTokensReceived({
         options,
@@ -46,11 +46,11 @@ const chains = [
 ]
 
 const adapter: SimpleAdapter = {
-    fetch: fetchFees,
-    chains,
     version: 2,
-    adapter: {},
+    fetch,
+    chains,
     isExpensiveAdapter: true,
+    dependencies: [Dependencies.ALLIUM],
     methodology: {
         Fees: 'All fees paid by users for swapping, bridging in Rabby wallet.',
         Revenue: 'Fees collected by Rabby.',

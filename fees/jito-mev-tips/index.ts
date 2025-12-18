@@ -8,8 +8,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSolanaReceived } from "../../helpers/token"
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
-
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
     'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
@@ -20,23 +19,16 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
     'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
     '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
   ]
-
   const dailyFees = await getSolanaReceived({ options, targets, })
-
-  return {
-    dailyFees
-  }
+  return { dailyFees }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2022-11-01',
   dependencies: [Dependencies.ALLIUM],
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: '2022-11-01',
-    }
-  },
   isExpensiveAdapter: true,
   methodology: {
     fees: 'MEV/tips paid by users/searchers',

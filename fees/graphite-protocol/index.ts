@@ -77,12 +77,9 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
     version: 1,
     dependencies: [Dependencies.ALLIUM],
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-04-27',
-        }
-    },
+    fetch,
+    start: '2025-04-27',
+    chains: [CHAIN.SOLANA],
     methodology: {
         Fees: "Graphite Protocol's portion of joint venture fees with Letsbonk. Before 10th jun 2025: 57.68% of total fees. After 10th jun 2025: 40% of total fees.",
         Revenue: "Total Graphite Protocol Revenue and Holders Revenue",

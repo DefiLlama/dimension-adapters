@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryIndexer } from "../../helpers/indexer";
 import { getETHReceived } from "../../helpers/token";
 import { METRIC } from "../../helpers/metrics";
@@ -62,6 +62,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2023-07-23',
+  dependencies: [Dependencies.ALLIUM],
   methodology,
 }
 

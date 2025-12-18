@@ -1,5 +1,5 @@
 
-import { FetchOptions } from "../adapters/types";
+import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { SimpleAdapter } from "../adapters/types";
 import { getETHReceived } from "../helpers/token";
@@ -16,12 +16,10 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2025-02-15',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONIC],
+  start: '2025-02-15',
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'Total fees paid by users.',
   }

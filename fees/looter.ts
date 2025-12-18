@@ -17,7 +17,7 @@ const contract: any = {
 }
 
 
-const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   if (options.chain === CHAIN.SOLANA) {
     await getSolanaReceived({ options, target: contract[options.chain], balances: dailyFees })
@@ -38,27 +38,13 @@ const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   dependencies: [Dependencies.ALLIUM],
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2023-06-01',
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetchFees,
-      start: '2023-06-01',
-    },
-    // [CHAIN.AVAX]: {
-    //   fetch: fetchFees,
-    //   start: '2023-06-01',
-    // },
-    // [CHAIN.FANTOM]: {
-    //   fetch: fetchFees,
-    //   start: '2023-06-01',
-    // },
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: '2023-06-01',
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-06-01', },
+    [CHAIN.SOLANA]: { start: '2023-06-01', },
+    // [CHAIN.AVAX]: { start: '2023-06-01', },
+    // [CHAIN.FANTOM]: { start: '2023-06-01', },
+    [CHAIN.BASE]: { start: '2023-06-01', },
   },
   isExpensiveAdapter: true,
 };

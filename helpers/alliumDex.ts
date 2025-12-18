@@ -1,4 +1,4 @@
-import { FetchOptions } from "../adapters/types"
+import { Dependencies, FetchOptions } from "../adapters/types"
 import { queryAllium } from "./allium"
 import { CHAIN } from "./chains"
 
@@ -21,11 +21,9 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
   }
 
   return {
-    adapter: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        start,
-      }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start,
+    dependencies: [Dependencies.ALLIUM],
   }
 }

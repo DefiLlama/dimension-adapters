@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getETHReceived } from "../../helpers/token";
 
@@ -29,14 +29,15 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2025-08-16',
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'All fees paid by users for launching, trading tokens.',
     Revenue: 'All fees collected by bullbit.ai protocol.',
     ProtocolRevenue: 'All fees collected by bullbit.ai protocol.',
-  },
-  fetch,
-  chains: [CHAIN.BSC],
-  start: '2025-08-16',
+  }
 }
 
 export default adapter

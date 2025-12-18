@@ -2,7 +2,7 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from
 import { httpGet } from '../utils/fetchURL';
 import { queryAllium } from '../helpers/allium';
 import { Balances } from '@defillama/sdk';
-import { FetchOptions, ProtocolType, SimpleAdapter } from '../adapters/types';
+import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from './chains';
 import { METRIC } from './metrics';
 
@@ -58,7 +58,7 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
   return {
     adapter: {
       [chain]: {
-        fetch: async (_: any, _1: any, options: FetchOptions) => {
+        fetch: async (_a: any, _b: any, options: FetchOptions) => {
           const transactionFees = await fetchTransactionFees(options)
           return {
             dailyFees: transactionFees,
@@ -69,8 +69,9 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
       },
     },
     version: 1,
-    isExpensiveAdapter: true,
+    dependencies: [Dependencies.ALLIUM],
     protocolType: ProtocolType.CHAIN,
+    isExpensiveAdapter: true,
   }
 }
 

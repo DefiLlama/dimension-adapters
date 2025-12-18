@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2 } from '../../adapters/types';
+import { Dependencies, FetchOptions, FetchResultV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { METRIC } from '../../helpers/metrics';
 import { getETHReceived } from '../../helpers/token';
@@ -68,6 +68,7 @@ export default {
   version: 2,
   fetch,
   chains: [CHAIN.ETHEREUM],
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: '10% buy/sell tax collected from strategy tokens trading from main uni-v4 pools',
     Revenue: '10% of PKSTR token tax goes to token-works team.',

@@ -14,7 +14,7 @@ const fethcFeesSolana = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-    dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fethcFeesSolana,

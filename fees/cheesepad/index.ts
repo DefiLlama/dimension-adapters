@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { addTokensReceived, getETHReceived } from '../../helpers/token';
 
@@ -43,6 +43,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.BSC],
   start: '2025-11-18',
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'fees users paid for using Cheesepad services.',
     Revenue: 'fees users paid for using Cheesepad services.',

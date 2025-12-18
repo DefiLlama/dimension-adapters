@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 
@@ -36,6 +36,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
+  dependencies: [Dependencies.ALLIUM],
   chains: [CHAIN.POLYGON, CHAIN.SOLANA],
   start: '2025-06-28',
   methodology: {

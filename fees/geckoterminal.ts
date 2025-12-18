@@ -10,7 +10,7 @@ const sol = async (_: any, _1: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-    dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'All fees paid by users for token profile listing.',
     Revenue: 'All fees collected by GeckoTerminal.',

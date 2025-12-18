@@ -38,12 +38,6 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.ALLIUM],
-  methodology: {
-    Fees: "All fees paid by users by using PinkSale services.",
-    Revenue: "All fees are collected by PinkSale protocol.",
-    ProtocolRevenue: "Trading fees are collected by PinkSale protocol.",
-    HoldersRevenue: "No revenue share to PINK token holders.",
-  },
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2021-10-30', },
@@ -57,6 +51,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {start: '2024-04-05', },
     [CHAIN.UNICHAIN]: {start: '2025-02-21', },
     [CHAIN.SOLANA]: { fetch: fetchSolanaFees, start: '2024-02-04', },
+  },
+  methodology: {
+    Fees: "All fees paid by users by using PinkSale services.",
+    Revenue: "All fees are collected by PinkSale protocol.",
+    ProtocolRevenue: "Trading fees are collected by PinkSale protocol.",
+    HoldersRevenue: "No revenue share to PINK token holders.",
   },
 };
 
