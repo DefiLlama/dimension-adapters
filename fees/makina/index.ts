@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const ABI = {
-  Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
+  FeesMinted: "event FeesMinted(uint256 amount)",
   getSharePrice: "function getSharePrice() view returns (uint256)",
   decimals: "uint8:decimals",
   mgmtFeeReceivers: "function mgmtFeeReceivers() view returns (address[])",
@@ -17,6 +17,7 @@ type MachineConfig = {
   preDepositVault?: string;
   sharePriceOracle: string;
   feeManager: string;
+  machine: string;
 };
 
 const MACHINES: MachineConfig[] = [
@@ -27,6 +28,7 @@ const MACHINES: MachineConfig[] = [
     preDepositVault: "0x5df4cb0aaae0fcc9de3f41e72348609e30a49c44",
     sharePriceOracle: "0xFFCBc7A7eEF2796C277095C66067aC749f4cA078",
     feeManager: "0xa7f0121375dc52028e333f02715183a1d1a690a7",
+    machine: "0x6b006870c83b1cd49e766ac9209f8d68763df721",
   },
   {
     shareToken: "0x871ab8e36cae9af35c6a3488b049965233deb7ed",
@@ -35,6 +37,7 @@ const MACHINES: MachineConfig[] = [
     preDepositVault: "0xefc8e0fce12c164eafcb588915c6f0ca7ca41a53",
     sharePriceOracle: "0x49fba73738461835fefB19351b161Bde4BcD6b5A",
     feeManager: "0xa28a77ed5b51f232c2658b28c4f7998559174e7c",
+    machine: "0x0447d0ad7fd6a3409b48ecbb9ddb075c1e11d735",
   },
   {
     shareToken: "0x972966bcc17f7d818de4f27dc146ef539c231bdf",
@@ -43,6 +46,7 @@ const MACHINES: MachineConfig[] = [
     preDepositVault: "0x49af2649eefbc7e3847b41100fddcf91134a549e",
     sharePriceOracle: "0x8B04bf6A374C40887F03B1928871c96f006Bb2fc",
     feeManager: "0x98072b0c7b0a618b277e62a0d2f52da249819c13",
+    machine: "0xfcbe132452b6caa32addd4768db8fa02af73d841",
   },
 ];
 
@@ -56,12 +60,25 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyProtocolRevenue = options.createBalances();
 
   for (const machine of MACHINES) {
-    const logs: any[] = await options.getLogs({
-      target: machine.shareToken,
-      eventAbi: ABI.Transfer,
+    const feeLogsRaw: any[] = await options.getLogs({
+      target: machine.machine,
+      eventAbi: ABI.FeesMinted,
       onlyArgs: true,
-      topic: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
     });
+      
+      // Sum total fees
+      let totalFeeShares = 0;
+      for (const log of feeLogsRaw) {
+        totalFeeShares += Number(log.amount);
+      }      
+
+    const oraclePrice = await getOraclePrice(options, machine.sharePriceOracle);
+    const accountingTokenDecimals = await options.api.call({
+      target: machine.accountingToken,
+      abi: ABI.decimals,
+    });
+
+    const totalFees = totalFeeShares * oraclePrice / 1e18 / 1e18 * (10 ** accountingTokenDecimals);
 
     const [receivers, splitBpsRaw] = await Promise.all([
       options.api.call({ target: machine.feeManager, abi: ABI.mgmtFeeReceivers }),
@@ -69,33 +86,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     ]);
 
     const splitBps = splitBpsRaw.map(Number);
-
-    const feeReceivers = new Set(
-      receivers.map((a: string) => a.toLowerCase())
-    );
-
-    feeReceivers.delete(machine.depositor.toLowerCase());
-    if (machine.preDepositVault) {
-      feeReceivers.delete(machine.preDepositVault.toLowerCase());
-    }
-
-    let totalFeeShares = 0n;
-
-    for (const log of logs) {
-      const from = (log.from ?? "").toLowerCase();
-      // Count only if the transfer is FROM a fee receiver
-      if (!feeReceivers.has(from)) continue;
-      totalFeeShares += BigInt(log.value);
-    }
-    
-    const oraclePrice = await getOraclePrice(options, machine.sharePriceOracle);
-    const accountingTokenDecimals = await options.api.call({
-      target: machine.accountingToken,
-      abi: ABI.decimals,
-    });
-
-    const totalFees =
-      Number(totalFeeShares) * oraclePrice / 1e18 / 1e18 * (10 ** accountingTokenDecimals);
 
     const operatorRevenue = (totalFees * splitBps[0]) / 10_000;
     const protocolRevenue = (totalFees * splitBps[1]) / 10_000;
