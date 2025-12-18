@@ -48,7 +48,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     });
 
     for (const [index, { underlyingToken }] of poolDetails.entries()) {
-        if (!exchangeRatesBefore[index]) continue;
+        if (!exchangeRatesBefore[index] || !exchangeRatesAfter[index] ||!totalSupply[index]) continue;
         const yieldForPeriod = (exchangeRatesAfter[index] - exchangeRatesBefore[index]) * totalSupply[index]/1e18;
         dailyFees.add(underlyingToken, yieldForPeriod, METRIC.ASSETS_YIELDS);
     }
