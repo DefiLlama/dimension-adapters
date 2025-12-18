@@ -21,7 +21,7 @@ const PERFORMANCE_FEE_METRIC = 'Performance Fee'
 const chainConfig: Record<string, config> = {
   [CHAIN.ETHEREUM]: {
     token: '0x8236a87084f8B84306f72007F36F2618A5634494',
-    start: '2024-05-16',
+    start: '2025-11-21',
   },
 }
 
@@ -41,7 +41,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       'event UnstakeRequest(address indexed user, bytes scriptPubkey, uint256 amount)',
   })
 
-  const redeemFee = options.fromApi.call({
+  const redeemFee = await options.fromApi.call({
     target: token,
     abi: 'uint256:getRedeemFee',
   })
