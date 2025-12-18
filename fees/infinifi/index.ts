@@ -93,7 +93,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyFees.add(receiptToken, performanceFees, METRIC.PERFORMANCE_FEES);
   dailyFees.add(receiptToken, safetyBufferAmount, SAFETY_BUFFER_METRIC);
   dailyRevenue.add(receiptToken, performanceFees, METRIC.PERFORMANCE_FEES);
-  dailyRevenue.add(receiptToken, safetyBufferAmount, SAFETY_BUFFER_METRIC);
   dailySupplySideRevenue.add(receiptToken, supplySideRevenue, METRIC.STAKING_REWARDS);
 
   return {
@@ -109,10 +108,10 @@ const methodology = {
     "All fees charged by InfiniFi, including performance fees on YieldAccrued events. Performance fees are calculated using the on-chain performanceFee parameter and sent to the performanceFeeRecipient.",
 
   Revenue:
-    "Protocol revenue consists of performance fees and any increase in the safety buffer. Performance fees are sent to the performanceFeeRecipient. Safety buffer contributions are protocol-owned funds retained to absorb minor losses.",
+    "Protocol revenue consists of performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
 
   ProtocolRevenue:
-    "Same as Revenue. Includes performance fees and safety buffer increases.",
+    "Same as Revenue. Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
 
   SupplySideRevenue:
     "Net yield distributed to users after protocol-owned value is deducted. Includes yield distributed to siUSD holders (liquid) and iUSD lockers (illiquid)",
@@ -126,11 +125,9 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
-    [SAFETY_BUFFER_METRIC]: "iUSD set aside to absorb minor yield losses. This is a protocol-owned reserve fund retained to absorb minor losses.",
   },
   ProtocolRevenue: {
     [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
-    [SAFETY_BUFFER_METRIC]: "iUSD set aside to absorb minor yield losses. This is a protocol-owned reserve fund retained to absorb minor losses.",
   },
   SupplySideRevenue: {
     [METRIC.STAKING_REWARDS]: "Yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
