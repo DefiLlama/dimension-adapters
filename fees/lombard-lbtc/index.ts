@@ -1,105 +1,128 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter, Dependencies } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived, getSolanaReceived } from "../../helpers/token";
+import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
+import { METRIC } from '../../helpers/metrics'
+
+interface config {
+  token: string
+  start: string
+}
 
 /**
- * Lombard LBTC Fee Adapter
- *
- * Fees:
- * - Fixed 0.0001 LBTC Network Security Fee per redemption (tracked via treasury inflows)
- *
- * Methodology:
- * - EVM chains: Track all token inflows to treasury addresses using addTokensReceived
- * - Solana: Track treasury inflows using getSolanaReceived
+ * Performance Fee: Finality Providers take 8% commission on all staking rewards
+ * Fixed Network Security Fee: using getRedeemFee
+ * https://docs.lombard.finance/lbtc-liquid-bitcoin/lbtc-yield-bearing-btc/fees
  */
+const PERFORMANCE_FEE_RATE = 0.08 // 8%
+const SUPPLY_SIDE_RATE = 1 - PERFORMANCE_FEE_RATE // 92%
 
-const LBTC_CONTRACTS = {
-  [CHAIN.ETHEREUM]: "0x8236a87084f8B84306f72007F36F2618A5634494",
-  [CHAIN.BASE]: "0xecAc9C5F704e954931349Da37F60E39f515c11c1",
-  [CHAIN.BSC]: "0xecAc9C5F704e954931349Da37F60E39f515c11c1",
-  [CHAIN.KATANA]: "0xecAc9C5F704e954931349Da37F60E39f515c11c1",
-  [CHAIN.SONIC]: "0xecAc9C5F704e954931349Da37F60E39f515c11c1"
-};
+// Custom metrics for fee breakdown
+const PERFORMANCE_FEE_METRIC = 'Performance Fee'
 
-// SOLANA_TREASURY
-const SOLANA_TREASURY = "4qKkExZ4T5yyVumc4qoTzoa8fwmhpDy2Zg9ZUoNwzSP9";
+const chainConfig: Record<string, config> = {
+  [CHAIN.ETHEREUM]: {
+    token: '0x8236a87084f8B84306f72007F36F2618A5634494',
+    start: '2024-05-16',
+  },
+}
 
-const ABIS = {
-  getTreasury: "address:getTreasury"
-};
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const config = chainConfig[options.chain]
+  if (!config) return { dailyFees }
 
-const fetchEVM = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const chain = options.chain;
-  const lbtcContract = LBTC_CONTRACTS[chain];
+  const { token } = config
 
-    // Get treasury address (where fees are sent)
-    const treasury = await options.api.call({
-      target: lbtcContract,
-      abi: ABIS.getTreasury,
-    });
+  // Fetch all UnstakeRequest events
+  const unstakeLogs = await options.getLogs({
+    target: token,
+    eventAbi:
+      'event UnstakeRequest(address indexed user, bytes scriptPubkey, uint256 amount)',
+  })
 
-    // Track all token inflows to treasury using addTokensReceived helper
-    const dailyFees = await addTokensReceived({
-      options,
-      tokens: [lbtcContract], // Track LBTC inflows to treasury
-      targets: [treasury],
-    });
+  const redeemFee = options.fromApi.call({
+    target: token,
+    abi: 'uint256:getRedeemFee',
+  })
 
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-      dailySupplySideRevenue: 0,
-    };
-};
+  // Apply fixed fee for each unstake
+  for (const _ of unstakeLogs) {
+    dailyFees.add(token, redeemFee, METRIC.MINT_REDEEM_FEES)
+    dailyProtocolRevenue.add(token, redeemFee, METRIC.MINT_REDEEM_FEES)
+  }
 
-const fetchSolana = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyFees = await getSolanaReceived({
-    options,
-    targets: [SOLANA_TREASURY],
-  });
+  const [exchangeRateBefore, exchangeRateAfter, totalSupply] = await Promise.all([
+    options.fromApi.call({
+      target: token,
+      abi: 'uint256:getRate',
+    }),
+    options.toApi.call({
+      target: token,
+      abi: 'uint256:getRate',
+    }),
+    options.fromApi.call({
+      target: token,
+      abi: 'uint256:totalSupply',
+    }),
+  ])
+
+  const totalDeposited = (BigInt(totalSupply) * BigInt(exchangeRateBefore)) / BigInt(1e18)
+    
+  const df = (Number(totalDeposited) * (Number(exchangeRateAfter) - Number(exchangeRateBefore))) / SUPPLY_SIDE_RATE / 1e18
+
+  // Split: 92% to supply-side (LBTC holders), 8% to protocol (Finality Providers)
+  const performanceFees = df * PERFORMANCE_FEE_RATE
+  const supplySideRewards = df * SUPPLY_SIDE_RATE
+
+  // Track fees with breakdown by metric
+  dailyFees.add(token, supplySideRewards, METRIC.STAKING_REWARDS)
+  dailyFees.add(token, performanceFees, PERFORMANCE_FEE_METRIC)
+  dailyProtocolRevenue.add(token, performanceFees, PERFORMANCE_FEE_METRIC)
+  dailySupplySideRevenue.add(token, supplySideRewards, METRIC.STAKING_REWARDS)
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailySupplySideRevenue: 0,
-  };
-};
-  
-const adapter: SimpleAdapter = {
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  }
+}
+
+const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchEVM,
-      start: "2024-05-16",
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchEVM,
-      start: "2024-11-11",
-    },
-    [CHAIN.KATANA]: {
-      fetch: fetchEVM,
-      start: "2025-06-27",
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetchEVM,
-      start: "2024-12-23",
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: "2025-04-02",
-    },
-  },
+  fetch,
+  adapter: chainConfig,
   methodology: {
     Fees:
-      "Fixed 0.0001 LBTC Network Security Fee per redemption, tracked via LBTC inflows to Lombard treasury addresses across supported chains.",
+      'A fixed LBTC Network Security Fee (0.0001 LBTC) is charged for each BTC withdrawal. Additionally, staking rewards accrue from Bitcoin staking via Babylon protocol, reflected in LBTC exchange rate appreciation.',
+    UserFees:
+      'Users pay a fixed LBTC Network Security Fee per BTC withdrawal.',
     Revenue:
-      "All redemption fees transferred to the Lombard treasury are counted as protocol revenue.",
+      'Network Security Fees plus 8% performance fee on staking rewards (Finality Providers commission).',
     ProtocolRevenue:
-      "Same as Revenue.",
-    SupplySideRevenue: "0 — BTC staking yield accrues to LBTC holders"
-  },  
-};
+      'Network Security Fees plus 8% performance fee on staking rewards (Finality Providers commission).',
+    SupplySideRevenue:
+      '92% of staking rewards are distributed to LBTC holders through exchange rate appreciation. Yield accrues automatically as LBTC grows in BTC terms.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'Yield accruing to LBTC holders via exchange rate appreciation from Bitcoin staking via Babylon protocol, minus performance fee.',
+      [PERFORMANCE_FEE_METRIC]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fixed Network Security Fee (0.0001 LBTC) charged for each BTC withdrawal/unstaking.',
+    },
+    Revenue: {
+      [PERFORMANCE_FEE_METRIC]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fixed Network Security Fee (0.0001 LBTC) charged for each BTC withdrawal/unstaking.',
+    },
+    ProtocolRevenue: {
+      [PERFORMANCE_FEE_METRIC]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fixed Network Security Fee (0.0001 LBTC) charged for each BTC withdrawal/unstaking.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: 'Yield accruing to LBTC holders via exchange rate appreciation from Bitcoin staking via Babylon protocol, minus performance fee.',
+    },
+  },
+}
 
-export default adapter;
+export default adapter
