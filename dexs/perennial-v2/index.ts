@@ -6,7 +6,7 @@ import { getEnv } from '../../helpers/env'
 
 const apiKey = getEnv('PERENNIAL_V2_SUBGRAPH_API_KEY')
 const graphUrls: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum-new/api`,
+  // [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum-new/api`,
   [CHAIN.PERENNIAL]: 'https://api.perennial.foundation/subgraphs/perennial',
 }
 
