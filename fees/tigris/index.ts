@@ -18,10 +18,6 @@ const adapter: Adapter = {
       fetch,
       start: '2022-09-13',
     },
-    // [CHAIN.POLYGON]: {
-    //   fetch: fetch(CHAIN.POLYGON),
-    //   start: '2022-09-13',
-    // }
   }
 }
 
