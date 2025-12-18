@@ -60,6 +60,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       target: machine.shareToken,
       eventAbi: ABI.Transfer,
       onlyArgs: true,
+      topic: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
     });
 
     const [receivers, splitBpsRaw] = await Promise.all([
@@ -82,14 +83,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     for (const log of logs) {
       const from = (log.from ?? "").toLowerCase();
-      
       // Count only if the transfer is FROM a fee receiver
       if (!feeReceivers.has(from)) continue;
-    
       totalFeeShares += BigInt(log.value);
     }
     
-
     const oraclePrice = await getOraclePrice(options, machine.sharePriceOracle);
     const accountingTokenDecimals = await options.api.call({
       target: machine.accountingToken,
