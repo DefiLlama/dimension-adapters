@@ -187,6 +187,14 @@ export const MorphoConfigs: any = {
       },
     ],
   },
+  [CHAIN.PLUME]: {
+    vaultFactories: [
+      {
+        address: '0x2525D453D9BA13921D5aB5D8c12F9202b0e19456',
+        fromBlock: 766079,
+      },
+    ],
+  },
 }
 
 export const EulerConfigs: any = {
