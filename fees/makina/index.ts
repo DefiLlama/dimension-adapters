@@ -84,11 +84,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     for (const log of logs) {
       const from = (log.from ?? "").toLowerCase();
-      const to = (log.to ?? "").toLowerCase();
-      if (from !== ZERO_ADDRESS) continue;
-      if (!feeReceivers.has(to)) continue;
+      
+      // Count only if the transfer is FROM a fee receiver
+      if (!feeReceivers.has(from)) continue;
+    
       totalFeeShares += BigInt(log.value);
     }
+    
 
     const oraclePrice = await getOraclePrice(options, machine.sharePriceOracle);
     const accountingTokenDecimals = await options.api.call({
