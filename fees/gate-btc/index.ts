@@ -19,8 +19,8 @@ const fetch = async (options: FetchOptions) => {
     let growthRate = 0
     const evmSupplies = await Promise.all([
         options.toApi.call({ target: gtBTC, abi: "uint256:totalSupply"}),
-        new ChainApi({ chain: CHAIN.BSC, timestamp: options.toTimestamp}).call({ target: gtBTC, abi: "uint256:totalSupply"}),
-        new ChainApi({ chain: CHAIN.BASE, timestamp: options.toTimestamp}).call({ target: gtBTC, abi: "uint256:totalSupply"})
+        new ChainApi({ chain: CHAIN.BSC, timestamp: options.fromTimestamp}).call({ target: gtBTC, abi: "uint256:totalSupply"}),
+        new ChainApi({ chain: CHAIN.BASE, timestamp: options.fromTimestamp}).call({ target: gtBTC, abi: "uint256:totalSupply"})
     ])
     const solanaQuery =`
         SELECT amount AS supply
