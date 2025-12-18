@@ -1,30 +1,87 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
-import { SimpleAdapter } from "../../adapters/types";
-import { getEnv } from "../../helpers/env";
+import { SimpleAdapter } from '../../adapters/types';
+import { CHAIN } from '../../helpers/chains';
+import { uniV3Exports } from '../../helpers/uniswap';
 
-const chainConfig: Record<string, string> = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('8zagLSufxk5cVhzkzai3tyABwJh53zxn9tmUYJcJxijG'),
-  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv2-apechain/api`,
-  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv2-gravity/api`,
-  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv2-rari/api`,
-  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv2-reya/api`,
-  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv2-xai/api`,
-  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv2-sanko/api`,
-}
+const algebraV3SwapEvent =
+  'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)';
 
-const fetch = univ2Adapter2({
-  endpoints: chainConfig,
-  factoriesName: 'uniswapFactories',
-  totalVolume: 'totalVolumeUSD',
-})
+// Fee breakdown: 60% LPs, 22.5% xGRAIL holders, 17.5% protocol (5% operating + 12.5% buyback/burn)
+// Source: https://docs.camelot.exchange/tokenomics/protocol-earnings
+const REVENUE_RATIO = 0.4; // 40% protocol revenue (17.5% protocol + 22.5% holders)
+const PROTOCOL_REVENUE_RATIO = 0.175; // 17.5% (5% operating + 12.5% buyback/burn)
+const HOLDERS_REVENUE_RATIO = 0.225; // 22.5% xGRAIL holders
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  fetch,
-  chains: Object.keys(chainConfig),
-  start: '2022-11-11'
-}
+const adapter: SimpleAdapter = uniV3Exports({
+  [CHAIN.APECHAIN]: {
+    factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-10-15',
+  },
+  [CHAIN.ARBITRUM]: {
+    factory: '0x1a3c9B1d2F0529D97f2afC5136Cc23e58f1FD35B',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2023-06-14',
+  },
+  [CHAIN.GRAVITY]: {
+    factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-01-01',
+  },
+  [CHAIN.RARI]: {
+    factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-01-01',
+  },
+  [CHAIN.REYA]: {
+    factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-01-01',
+  },
+  [CHAIN.SANKO]: {
+    factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-01-01',
+  },
+  [CHAIN.XDAI]: {
+    factory: '0xD8676fBdfa5b56BB2298D452c9768f51e80e34AE',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-01-01',
+  },
+});
 
 export default adapter;
