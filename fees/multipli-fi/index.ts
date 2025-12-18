@@ -50,11 +50,7 @@ async function prefetch(_a: any): Promise<any> {
     };
 }
 
-async function fetch(
-    _a: any,
-    _b: any,
-    options: FetchOptions
-): Promise<FetchResult> {
+async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const formattedChainName = chainConfig[options.chain].formattedName;
     const periodWrtYear =
         (options.toTimestamp - options.fromTimestamp) / (365 * 24 * 60 * 60);
