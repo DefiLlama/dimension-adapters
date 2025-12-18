@@ -92,9 +92,9 @@ const getFetchForChain = (chainShortName: string) => {
     await sleep(2000);
     
     // Only fetch affiliate earnings for THOR chain
-    let affiliateEarnings: any[] | null = null;
+    let affiliateEarnings: any | null = null;
     if (chainShortName === 'THOR') {
-      const affiliateUrl = `https://midgard.ninerealms.com/v2/history/affiliate/earnings?from=${options.startTimestamp}&to=${options.endTimestamp}`;
+      const affiliateUrl = `https://midgard.ninerealms.com/v2/history/affiliate?from=${options.startTimestamp}&to=${options.endTimestamp}`;
       affiliateEarnings = await fetchCacheURL(affiliateUrl);
       await sleep(2000);
     }
@@ -124,8 +124,8 @@ const getFetchForChain = (chainShortName: string) => {
     }, BigNumber(0));
 
     // Add affiliate earnings to dailyFees only for THOR chain
-    const affiliateTotalEarningsUSD = (chainShortName === 'THOR' && affiliateEarnings && affiliateEarnings.length > 0) 
-      ? BigNumber(affiliateEarnings[0].totalEarningsUSD || 0)
+    const affiliateTotalEarningsUSD = (chainShortName === 'THOR' && affiliateEarnings && affiliateEarnings.intervals && affiliateEarnings.intervals.length > 0) 
+      ? BigNumber(affiliateEarnings.intervals[0].volumeUSD).div(1e2) 
       : BigNumber(0);
     const dailyFeesWithAffiliates = dailyFees.plus(affiliateTotalEarningsUSD);
 
