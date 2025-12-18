@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types';
+import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getETHReceived } from '../helpers/token';
 
@@ -17,16 +17,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.KATANA],
+  dependencies: [Dependencies.ALLIUM],
+  start: '2025-10-16',
   methodology: {
     Fees: 'Tokens launching fees paid by users.',
     Revenue: 'Tokens launching fees paid by users.',
     ProtocolRevenue: 'Tokens launching fees paid by users.',
-  },
-  adapter: {
-    [CHAIN.KATANA]: {
-      fetch,
-      start: '2025-10-16',
-    },
   },
 };
 
