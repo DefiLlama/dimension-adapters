@@ -3,19 +3,18 @@ import {CHAIN} from "../../helpers/chains";
 import axios from "axios";
 import {getEnv} from "../../helpers/env";
 import {queryAllium} from "../../helpers/allium";
+import {getPrices} from "../../utils/prices";
 
 const PRICES_URL = 'https://api.allium.so/api/v1/developer/prices/at-timestamp';
 const EUSX_MINT = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
 
-const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyFees = options.createBalances();
-
-
-  const yesterdayIso = new Date(options.fromTimestamp * 1000).toISOString();
-  const todayIso = new Date(options.toTimestamp * 1000).toISOString();
-
+const fetchEusxPrice = async (timestamp: number): Promise<number> => {
+  const res = await getPrices([`solana:${EUSX_MINT}`], timestamp)
+  const price = res[`solana:${EUSX_MINT}`]?.price
+  if (price) {
+    return price
+  }
+  // missing price on defillama api, use Allium as backup
   const headers = {
     'Content-Type': 'application/json',
     'X-API-KEY': getEnv('ALLIUM_API_KEY')
@@ -23,20 +22,27 @@ const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise
   if (!headers["X-API-KEY"]) {
     throw new Error("Allium API Key is required[Ignore this error for github bot]")
   }
-
-  // Fetch prices via realtime Developer API
   const priceBody = {
     addresses: [{chain: 'solana', token_address: EUSX_MINT}],
     time_granularity: '1d'
   };
 
-  const priceYesterdayRes = await axios.post(PRICES_URL, {...priceBody, timestamp: yesterdayIso}, {headers})
-  const priceTodayRes = await axios.post(PRICES_URL, {...priceBody, timestamp: todayIso}, {headers})
+  const timeIso = new Date(timestamp * 1000).toISOString();
+  const resAllium = await axios.post(PRICES_URL, {...priceBody, timestamp: timeIso}, {headers})
+  const priceAllium = resAllium.data.items[0]?.price;
+  if (priceAllium) {
+    return priceAllium
+  }
+  throw new Error(`Could not fetch price for token ${EUSX_MINT} on timestamp ${timestamp}`)
+}
 
 
-  const priceYesterday = priceYesterdayRes.data.items[0]?.price || 1;
-  const priceToday = priceTodayRes.data.items[0]?.price || 1;
+const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
 
+  const [priceYesterday, priceToday] = await Promise.all([fetchEusxPrice(options.fromTimestamp), fetchEusxPrice(options.toTimestamp)])
 
   // Fetch supply_yesterday via Query API SQL
   const supplySql = `
@@ -72,7 +78,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: '2025-10-01'
+      start: '2025-10-04'
     },
   },
   allowNegativeValue: true, // Yield strategies aren't risk-free
