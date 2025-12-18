@@ -51,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
 
     const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i])
     
-    if (growthAssets) {
+    if (growthAssets > 0) {
       const interestEarned = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
   
       let interestEarnedBeforeFees = interestEarned
