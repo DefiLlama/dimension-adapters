@@ -1,63 +1,133 @@
-// Reservoir Swap service is no longer available.
-// GraphQL endpoints return 503 errors. Support has been handed over to Protofire.
-// The white-labeled products (Sakura Swap, Whitelabel) should be tracked separately.
+// Reservoir Tools AMM (Uniswap V2) - Migrated to event logs
+// Reservoir deploys canonical Uniswap V2 contracts across chains
+// Docs: https://web.archive.org/web/20250613225922/https://nft.reservoir.tools/docs/reservoir-swap
+// Contract Deployments: https://web.archive.org/web/20250613231517/https://nft.reservoir.tools/docs/uniswap-contract-deployments
+// GitHub: https://github.com/reservoirprotocol
 // See issue: https://github.com/DefiLlama/dimension-adapters/issues/5063
 
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { getGraphDimensions2 } from '../helpers/getUniSubgraph';
+import { addOneToken } from '../helpers/prices';
 
-const v2Endpoints: { [s: string]: string } = {
-  [CHAIN.INK]:
-    'https://graph-node.reservoir.tools/subgraphs/name/ink/v2-subgraph',
-  [CHAIN.ZERO]:
-    'https://graph-node.reservoir.tools/subgraphs/name/zero/v2-subgraph',
-  [CHAIN.SHAPE]:
-    'https://graph-node.reservoir.tools/subgraphs/name/shape/v2-subgraph',
-  [CHAIN.ABSTRACT]:
-    'https://graph-node.reservoir.tools/subgraphs/name/abstract/v2-subgraph',
+const factories: { [chain: string]: string } = {
+  [CHAIN.ABSTRACT]: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E',
+  [CHAIN.INK]: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04',
+  [CHAIN.ZERO]: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559',
 };
 
-const v2Graph = getGraphDimensions2({
-  graphUrls: v2Endpoints,
-  totalFees: {
-    factory: 'uniswapFactories',
-    field: 'totalVolumeUSD',
-  },
-  feesPercent: {
-    type: 'volume',
-    UserFees: 0.3,
-    ProtocolRevenue: 0,
-    SupplySideRevenue: 0.3,
-    HoldersRevenue: 0,
-    Revenue: 0,
-    Fees: 0.3,
-  },
-});
+const abis = {
+  pairCreated:
+    'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)',
+  swap: 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)',
+};
 
 const fetch = async (options: FetchOptions) => {
-  const res = await v2Graph(options);
-  res['dailyFees'] = res['dailyUserFees'];
-  return res;
+  const { createBalances, getLogs, chain } = options;
+  const dailyVolume = createBalances();
+  const dailyFees = createBalances();
+
+  const factory = factories[chain];
+
+  if (!factory) {
+    return { dailyVolume, dailyFees };
+  }
+
+  // Get all pairs from PairCreated events (from start date)
+  const pairCreatedLogs = await getLogs({
+    target: factory,
+    eventAbi: abis.pairCreated,
+    cacheInCloud: true,
+  });
+
+  const pairs: { [pair: string]: { token0: string; token1: string } } = {};
+
+  pairCreatedLogs.forEach((log: any) => {
+    pairs[log.pair.toLowerCase()] = {
+      token0: log.token0,
+      token1: log.token1,
+    };
+  });
+
+  const pairAddresses = Object.keys(pairs);
+
+  if (pairAddresses.length === 0) {
+    return { dailyVolume, dailyFees };
+  }
+
+  // Get swap events from all pairs for today
+  const swapLogs = await getLogs({
+    targets: pairAddresses,
+    eventAbi: abis.swap,
+    flatten: false,
+  });
+
+  const fees = 0.003; // 0.3% fee
+
+  swapLogs.forEach((logs: any, index: number) => {
+    if (!logs.length) {
+      return;
+    }
+
+    const pairAddress = pairAddresses[index];
+    const { token0, token1 } = pairs[pairAddress];
+
+    logs.forEach((log: any) => {
+      addOneToken({
+        chain,
+        balances: dailyVolume,
+        token0,
+        token1,
+        amount0: log.amount0In,
+        amount1: log.amount1In,
+      });
+      addOneToken({
+        chain,
+        balances: dailyVolume,
+        token0,
+        token1,
+        amount0: log.amount0Out,
+        amount1: log.amount1Out,
+      });
+      addOneToken({
+        chain,
+        balances: dailyFees,
+        token0,
+        token1,
+        amount0: Number(log.amount0In) * fees,
+        amount1: Number(log.amount1In) * fees,
+      });
+      addOneToken({
+        chain,
+        balances: dailyFees,
+        token0,
+        token1,
+        amount0: Number(log.amount0Out) * fees,
+        amount1: Number(log.amount1Out) * fees,
+      });
+    });
+  });
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees.clone(0), // 0% protocol revenue
+    dailySupplySideRevenue: dailyFees, // 100% to LPs
+  };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  deadFrom: '2025-12-14',
   adapter: {
+    [CHAIN.ABSTRACT]: {
+      fetch,
+      start: '2025-01-07',
+    },
     [CHAIN.INK]: {
       fetch,
       start: '2025-01-07',
     },
     [CHAIN.ZERO]: {
-      fetch,
-      start: '2025-01-07',
-    },
-    [CHAIN.SHAPE]: {
-      fetch,
-      start: '2025-01-07',
-    },
-    [CHAIN.ABSTRACT]: {
       fetch,
       start: '2025-01-07',
     },
