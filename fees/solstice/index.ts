@@ -1,9 +1,9 @@
-import {FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
+import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import axios from "axios";
-import {getEnv} from "../../helpers/env";
-import {queryAllium} from "../../helpers/allium";
-import {getPrices} from "../../utils/prices";
+import { getEnv } from "../../helpers/env";
+import { queryAllium } from "../../helpers/allium";
+import { getPrices } from "../../utils/prices";
 
 const PRICES_URL = 'https://api.allium.so/api/v1/developer/prices/at-timestamp';
 const EUSX_MINT = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
@@ -23,12 +23,12 @@ const fetchEusxPrice = async (timestamp: number): Promise<number> => {
     throw new Error("Allium API Key is required[Ignore this error for github bot]")
   }
   const priceBody = {
-    addresses: [{chain: 'solana', token_address: EUSX_MINT}],
+    addresses: [{ chain: 'solana', token_address: EUSX_MINT }],
     time_granularity: '1d'
   };
 
   const timeIso = new Date(timestamp * 1000).toISOString();
-  const resAllium = await axios.post(PRICES_URL, {...priceBody, timestamp: timeIso}, {headers})
+  const resAllium = await axios.post(PRICES_URL, { ...priceBody, timestamp: timeIso }, { headers })
   const priceAllium = resAllium.data.items[0]?.price;
   if (priceAllium) {
     return priceAllium
@@ -37,7 +37,7 @@ const fetchEusxPrice = async (timestamp: number): Promise<number> => {
 }
 
 
-const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyFees = options.createBalances();
@@ -46,19 +46,22 @@ const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise
 
   // Fetch supply_yesterday via Query API SQL
   const supplySql = `
-      SELECT amount AS supply
-      FROM solana.raw.spl_token_total_supply
-      WHERE mint = '${EUSX_MINT}'
-        AND snapshot_block_timestamp <= TO_TIMESTAMP_NTZ('${options.fromTimestamp}')
-      ORDER BY snapshot_block_timestamp DESC LIMIT 1
+    SELECT amount AS supply
+    FROM solana.raw.spl_token_total_supply
+    WHERE mint = '${EUSX_MINT}'
+      AND snapshot_block_timestamp <= TO_TIMESTAMP_NTZ('${options.fromTimestamp}')
+    ORDER BY snapshot_block_timestamp DESC LIMIT 1
   `;
 
   const supplyRes = await queryAllium(supplySql);
 
   const supplyYesterday = supplyRes[0]?.supply || 0;
+  console.log('supplyYesterday', supplyYesterday);
+  console.log('priceYesterday', priceYesterday);
+  console.log('priceToday', priceToday);
 
   if (supplyYesterday <= 0 || priceYesterday <= 0) {
-    return {dailyFees, dailySupplySideRevenue, dailyRevenue};
+    return { dailyFees, dailySupplySideRevenue, dailyRevenue };
   }
 
   const dailyYieldUsd = (priceToday - priceYesterday) * supplyYesterday;
@@ -68,19 +71,17 @@ const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise
 
   return {
     dailyFees,
-    dailySupplySideRevenue,
     dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2025-10-04'
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-10-04',
+  dependencies: [Dependencies.ALLIUM],
   allowNegativeValue: true, // Yield strategies aren't risk-free
   methodology: {
     Fees: 'Yield generated from Solstice various strategies',
@@ -88,4 +89,5 @@ const adapters: SimpleAdapter = {
     SupplySideRevenue: 'Total yield accrued through eUSX price appreciation, distributed to holders',
   }
 };
+
 export default adapters;
