@@ -124,7 +124,7 @@ const getFetchForChain = (chainShortName: string) => {
     }, BigNumber(0));
 
     // Add affiliate earnings to dailyFees only for THOR chain
-    const affiliateTotalEarningsUSD = (chainShortName === 'THOR' && affiliateEarnings && affiliateEarnings.intervals.length > 0) 
+    const affiliateTotalEarningsUSD = (chainShortName === 'THOR' && affiliateEarnings && affiliateEarnings.intervals && affiliateEarnings.intervals.length > 0) 
       ? BigNumber(affiliateEarnings.intervals[0].volumeUSD).div(1e2) 
       : BigNumber(0);
     const dailyFeesWithAffiliates = dailyFees.plus(affiliateTotalEarningsUSD);
