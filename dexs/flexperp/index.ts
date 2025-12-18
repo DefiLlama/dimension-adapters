@@ -7,7 +7,7 @@ import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
 
 const endpoints = {
   [CHAIN.BASE]:
-    "https://subgraph.satsuma-prod.com/04ae1114b7fd/flex-trade/base-mainnet-stats/api",
+    "https://api.goldsky.com/api/public/project_cmgz6cyvn000i2bp2fv9nefon/subgraphs/base-mainnet-stats/prod/gn",
 };
 
 type MarketStat = {

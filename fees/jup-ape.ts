@@ -1,8 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
-// import { queryAllium } from "../helpers/allium";
 import { queryDuneSql } from "../helpers/dune";
 import { CHAIN } from "../helpers/chains";
-// import { getSolanaReceived } from "../helpers/token";
 
 const JUP_FEE_RECEIVER = '5YET3YapxD6to6rqPqTWB3R9pSbURy6yduuUtoZkzoPX';
 

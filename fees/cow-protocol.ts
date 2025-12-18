@@ -19,7 +19,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data = preFetchedResults.find((result: any) => result.chain === dune_chain);
 
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   if (data) {
     // All values are now in ETH from the new dune query
@@ -50,9 +51,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
     dailyFees.addCGToken('ethereum', mevBlockerFee * 2, 'MEV Blocker Fees');
 
-    dailyProtocolRevenue.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
-    dailyProtocolRevenue.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
-    dailyProtocolRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees');
+    dailySupplySideRevenue.addCGToken('ethereum', partnerFeePartner, 'Partner Fees for Partners');
+    dailySupplySideRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees');
+
+    dailyRevenue.addCGToken('ethereum', mevBlockerFee, 'MEV Blocker Fees');
+    dailyRevenue.addCGToken('ethereum', protocolFee, 'CoW Protocol Fees');
+    dailyRevenue.addCGToken('ethereum', partnerFeeCow, 'Partner Fees for CoW');
   } else {
     if (options.chain === CHAIN.LENS) return {}
     throw new Error(`No data found for chain ${options.chain} on ${options.startOfDay}`);
@@ -61,16 +65,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   }
 }
 
 const methodology = {
   UserFees: "All trading fees including protocol fees, partner fees, and MEV blocker fees",
   Fees: "All trading fees including protocol fees, partner fees, and MEV blocker fees",
-  Revenue: "Trading fees (protocol fees + cow's MEV blocker fees + partner fee share)",
-  ProtocolRevenue: "Trading fees (protocol fees + cow's MEV blocker fees + partner fee share)",
+  Revenue: "Trading fees (protocol fees + 1/2 cow's MEV blocker fees + partner fee share)",
+  ProtocolRevenue: "Trading fees (protocol fees + 1/2 cow's MEV blocker fees + partner fee share)",
+  SupplySideRevenue: "Partner fee share + 1/2 MEV blocker fees for block builders",
+  HoldersRevenue: "No revenue share to COW token holders",
 }
 
 const breakdownMethodology = {
@@ -79,7 +87,7 @@ const breakdownMethodology = {
     'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
     'Partner Fees for Partners': 'Share of partner fees for partners.',
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol and block builders.',
-  }, 
+  },
   UserFees: {
     'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
     'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
@@ -95,6 +103,10 @@ const breakdownMethodology = {
     'CoW Protocol Fees': 'Swap fees share for CoW protocol.',
     'Partner Fees for CoW': 'Share of partner fees for CoW protocol.',
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol.',
+  },
+  SupplySideRevenue: {
+    'Partner Fees for CoW': 'Share of partner fees for partners.',
+    'MEV Blocker Fees': 'MEV blockers fee for block builders.',
   },
 }
 

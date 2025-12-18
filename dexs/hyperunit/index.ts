@@ -1,5 +1,5 @@
 import { CHAIN } from '../../helpers/chains'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { queryAllium } from '../../helpers/allium';
 
 // const HYPERUNIT_DEPLOYER_ADDRESS = '0xf036a5261406a394bd63eb4df49c464634a66155'
@@ -39,6 +39,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-02-13',
+  dependencies: [Dependencies.ALLIUM],
   doublecounted: true,
   isExpensiveAdapter: true,
 }

@@ -1,112 +1,39 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Chain, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const config: Record<string, { chainId: number, start: string }> = {
-  [CHAIN.SOLANA]: {
-    chainId: 7565164,
-    start: '2023-03-31',
-  },
-  [CHAIN.ETHEREUM]: {
-    chainId: 1,
-    start: '2023-03-31',
-  },
-  [CHAIN.ARBITRUM]: {
-    chainId: 42161,
-    start: '2023-03-31',
-  },
-  [CHAIN.AVAX]: {
-    chainId: 43114,
-    start: '2023-03-31',
-  },
-  [CHAIN.BSC]: {
-    chainId: 56,
-    start: '2023-03-31',
-  },
-  [CHAIN.POLYGON]: {
-    chainId: 137,
-    start: '2023-03-31',
-  },
-  [CHAIN.LINEA]: {
-    chainId: 59144,
-    start: '2023-03-31',
-  },
-  [CHAIN.BASE]: {
-    chainId: 8453,
-    start: '2023-03-31',
-  },
-  [CHAIN.OPTIMISM]: {
-    chainId: 10,
-    start: '2023-03-31',
-  },
-  [CHAIN.FANTOM]: {
-    chainId: 250,
-    start: '2023-03-31',
-  },
-  [CHAIN.NEON]: {
-    chainId: 100000001,
-    start: '2023-03-31',
-  },
-  [CHAIN.XDAI]: {
-    chainId: 100000002,
-    start: '2023-03-31',
-  },
-  [CHAIN.METIS]: {
-    chainId: 100000004,
-    start: '2024-06-05',
-  },
-  [CHAIN.SONIC]: {
-    chainId: 100000014,
-    start: '2024-12-26',
-  },
-  [CHAIN.CRONOS_ZKEVM]: {
-    chainId: 100000010,
-    start: '2025-01-21',
-  },
-  [CHAIN.ABSTRACT]: {
-    chainId: 100000017,
-    start: '2025-01-27',
-  },
-  [CHAIN.BERACHAIN]: {
-    chainId: 100000020,
-    start: '2025-02-06',
-  },
-  [CHAIN.STORY]: {
-    chainId: 100000013,
-    start: '2025-02-13',
-  },
-  [CHAIN.HYPERLIQUID]: {
-    chainId: 100000022,
-    start: '2025-02-20',
-  },
-  [CHAIN.ZIRCUIT]: {
-    chainId: 100000015,
-    start: '2025-03-07',
-  },
-  [CHAIN.FLOW]: {
-    chainId: 100000009,
-    start: '2025-03-26',
-  },
-  [CHAIN.BOB]: {
-    chainId: 100000021,
-    start: '2025-04-03',
-  },
-  [CHAIN.MANTLE]: {
-    chainId: 100000023,
-    start: '2025-04-17',
-  },
-  [CHAIN.PLUME]: {
-    chainId: 100000024,
-    start: '2025-06-05',
-  },
-  [CHAIN.SEI]: {
-    chainId: 100000027,
-    start: '2025-07-01',
-  },
-  [CHAIN.SOPHON]: {
-    chainId: 100000025,
-    start: '2025-06-06',
-  },
+const chainConfig: Record<Chain, { chainId: number, start: string }> = {
+  [CHAIN.SOLANA]: { chainId: 7565164, start: '2023-03-31' },
+  [CHAIN.ETHEREUM]: { chainId: 1, start: '2023-03-31' },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2023-03-31' },
+  [CHAIN.AVAX]: { chainId: 43114, start: '2023-03-31' },
+  [CHAIN.BSC]: { chainId: 56, start: '2023-03-31' },
+  [CHAIN.POLYGON]: { chainId: 137, start: '2023-03-31' },
+  [CHAIN.LINEA]: { chainId: 59144, start: '2023-03-31' },
+  [CHAIN.BASE]: { chainId: 8453, start: '2023-03-31' },
+  [CHAIN.OPTIMISM]: { chainId: 10, start: '2023-03-31' },
+  [CHAIN.FANTOM]: { chainId: 250, start: '2023-03-31' },
+  [CHAIN.NEON]: { chainId: 100000001, start: '2023-03-31' },
+  [CHAIN.XDAI]: { chainId: 100000002, start: '2023-03-31' },
+  [CHAIN.METIS]: { chainId: 100000004, start: '2024-06-05' },
+  [CHAIN.SONIC]: { chainId: 100000014, start: '2024-12-26' },
+  [CHAIN.CRONOS_ZKEVM]: { chainId: 100000010, start: '2025-01-21' },
+  [CHAIN.ABSTRACT]: { chainId: 100000017, start: '2025-01-27' },
+  [CHAIN.BERACHAIN]: { chainId: 100000020, start: '2025-02-06' },
+  [CHAIN.STORY]: { chainId: 100000013, start: '2025-02-13' },
+  [CHAIN.HYPERLIQUID]: { chainId: 100000022, start: '2025-02-20' },
+  [CHAIN.ZIRCUIT]: { chainId: 100000015, start: '2025-03-07' },
+  [CHAIN.FLOW]: { chainId: 100000009, start: '2025-03-26' },
+  [CHAIN.BOB]: { chainId: 100000021, start: '2025-04-03' },
+  [CHAIN.MANTLE]: { chainId: 100000023, start: '2025-04-17' },
+  [CHAIN.PLUME]: { chainId: 100000024, start: '2025-06-05' },
+  [CHAIN.SOPHON]: { chainId: 100000025, start: '2025-06-06' },
+  [CHAIN.SEI]: { chainId: 100000027, start: '2025-07-01' },
+  [CHAIN.TRON]: { chainId: 100000026, start: '2025-08-26' },
+  [CHAIN.PLASMA]: { chainId: 100000028, start: '2025-09-25' },
+  [CHAIN.INJECTIVE]: { chainId: 100000029, start: '2025-11-11' },
+  [CHAIN.MONAD]: { chainId: 100000030, start: '2025-11-24' },
+  [CHAIN.CRONOS]: { chainId: 100000019, start: '2025-12-17' }
 }
 
 function pad(s: number) {
@@ -127,7 +54,7 @@ const prefetch = async (options: FetchOptions) => {
 }
 
 const fetchHoldersRevenue = async (options: FetchOptions) => {
-  if (options.chain !== CHAIN.SOLANA){
+  if (options.chain !== CHAIN.SOLANA) {
     return '0'
   }
   const dateFrom = formatTimestampAsDate(options.startOfDay);
@@ -149,7 +76,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyDatas = options.preFetchedResults || [];
 
   let dailyFees = 0;
-  const chainId = config[options.chain].chainId;
+  const chainId = chainConfig[options.chain].chainId;
   for (const dailyData of dailyDatas) {
     if (dailyData.giveChainId.bigIntegerValue === chainId) {
       dailyFees += Number(dailyData.totalProtocolFeeUsd);
@@ -169,25 +96,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 
-const info = {
-  methodology: {
-    Fees: 'All fees paid by users for swap and bridge tokens via deBridge.',
-    Revenue: 'Fees are distributed to deBridge protocol.',
-    ProtocolRevenue: 'Fee goes to protocol treasury from 20th june 2025.',
-    HoldersRevenue: 'Protocol revenue is used for buyback(started from 20th june 2025).',
-  }
+const methodology = {
+  Fees: 'All fees paid by users for swap and bridge tokens via deBridge.',
+  Revenue: 'Fees are distributed to deBridge protocol.',
+  ProtocolRevenue: 'Fee goes to protocol treasury from 20th june 2025.',
+  HoldersRevenue: 'Protocol revenue is used for buyback(started from 20th june 2025).',
 }
 
 const adapter: Adapter = {
-  methodology: info.methodology,
   version: 1,
-  adapter: Object.keys(config).reduce((acc, chain) => {
-    (acc as any)[chain] = {
-      fetch,
-      start: config[chain].start,
-    }
-    return acc;
-  }, {}),
+  fetch,
+  adapter: chainConfig,
+  methodology,
   prefetch
 };
 

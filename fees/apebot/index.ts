@@ -23,12 +23,9 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   dependencies: [Dependencies.ALLIUM],
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2025-07-08',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-07-08',
   methodology: {
     Fees: "Fees collected from the swaps.",
     Revenue: "All collected fees are protocol revenue.",

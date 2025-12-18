@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 import { FetchOptions } from "../../adapters/types";
@@ -64,14 +64,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2025-02-20',
-    }
-  },
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-02-20',
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with a TVL less than $5,000.",
   }
