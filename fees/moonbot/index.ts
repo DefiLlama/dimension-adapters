@@ -1,8 +1,8 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getETHReceived } from "../../helpers/token";
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   await getETHReceived({
     options,
@@ -20,12 +20,10 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: "2023-09-16", // Block number from which data can be fetched
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: "2023-09-16", // Block number from which data can be fetched
+  dependencies: [Dependencies.ALLIUM],
 };
 
 export default adapter;
