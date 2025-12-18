@@ -50,29 +50,32 @@ const fetch = async (options: FetchOptions) => {
     const protocolFeeRate = vaultProtocolFeeShares[i] ? vaultProtocolFeeShares[i] : 0
 
     const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i])
-    const interestEarned = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
-
-    let interestEarnedBeforeFees = interestEarned
-    if (interestFeeRate < BigInt(1e4)) {
-      interestEarnedBeforeFees = interestEarned * BigInt(1e4) / (BigInt(1e4) - BigInt(interestFeeRate))
+    
+    if (growthAssets) {
+      const interestEarned = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
+  
+      let interestEarnedBeforeFees = interestEarned
+      if (interestFeeRate < BigInt(1e4)) {
+        interestEarnedBeforeFees = interestEarned * BigInt(1e4) / (BigInt(1e4) - BigInt(interestFeeRate))
+      }
+      
+      // performanceFees = Euler fees + curators fees
+      const performanceFees = interestEarnedBeforeFees - interestEarned
+      const protocolFees = performanceFees * BigInt(protocolFeeRate) / BigInt(1e4)
+      const curatorsFees = performanceFees - protocolFees
+  
+      dailyFees.add(vaultAssets[i], interestEarned, METRIC.BORROW_INTEREST);
+      dailySupplySideRevenue.add(vaultAssets[i], interestEarned, METRIC.BORROW_INTEREST);
+      
+      // add curators fees to supply side revenue
+      dailyFees.add(vaultAssets[i], curatorsFees, METRIC.CURATORS_FEES);
+      dailySupplySideRevenue.add(vaultAssets[i], curatorsFees, METRIC.CURATORS_FEES);
+  
+      // fees to Euler protocol is revenue
+      dailyFees.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
+      dailyRevenue.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
+      dailyProtocolRevenue.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
     }
-    
-    // performanceFees = Euler fees + curators fees
-    const performanceFees = interestEarnedBeforeFees - interestEarned
-    const protocolFees = performanceFees * BigInt(protocolFeeRate) / BigInt(1e4)
-    const curatorsFees = performanceFees - protocolFees
-
-    dailyFees.add(vaultAssets[i], interestEarned, METRIC.BORROW_INTEREST);
-    dailySupplySideRevenue.add(vaultAssets[i], interestEarned, METRIC.BORROW_INTEREST);
-    
-    // add curators fees to supply side revenue
-    dailyFees.add(vaultAssets[i], curatorsFees, METRIC.CURATORS_FEES);
-    dailySupplySideRevenue.add(vaultAssets[i], curatorsFees, METRIC.CURATORS_FEES);
-
-    // fees to Euler protocol is revenue
-    dailyFees.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
-    dailyRevenue.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
-    dailyProtocolRevenue.add(vaultAssets[i], protocolFees, METRIC.PROTOCOL_FEES)
   }
 
   // buy back EUL
