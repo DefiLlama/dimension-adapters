@@ -2,8 +2,6 @@ import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-
 const ABI = {
   Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
   getSharePrice: "function getSharePrice() view returns (uint256)",
