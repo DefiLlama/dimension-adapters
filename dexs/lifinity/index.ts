@@ -37,6 +37,7 @@ const adapter: SimpleAdapter = {
       start: getStartTimestamp,
     },
   },
+  deadFrom:'2025-11-21',
 };
 
 export default adapter;

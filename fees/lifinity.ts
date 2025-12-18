@@ -52,6 +52,7 @@ const adapter: Adapter = {
       start: getStartTimestamp,
     },
   },
-  methodology
+  methodology,
+  deadFrom:'2025-11-21',
 }
 export default adapter;
