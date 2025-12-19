@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = uniV3Exports({
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-    start: '2024-01-01',
+    start: '2024-07-04',
   },
   [CHAIN.RARI]: {
     factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = uniV3Exports({
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-    start: '2024-01-01',
+    start: '2024-06-05',
   },
   [CHAIN.REYA]: {
     factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc',
@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = uniV3Exports({
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-    start: '2024-01-01',
+    start: '2024-06-20',
   },
   [CHAIN.SANKO]: {
     factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = uniV3Exports({
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-    start: '2024-01-01',
+    start: '2024-04-17',
   },
   [CHAIN.XDAI]: {
     factory: '0xD8676fBdfa5b56BB2298D452c9768f51e80e34AE',
@@ -80,7 +80,7 @@ const adapter: SimpleAdapter = uniV3Exports({
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-    start: '2024-01-01',
+    start: '2024-03-11',
   },
 });
 
