@@ -4,6 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 interface FaithStats {
   current: {
+    volumeUsd24h?: string; // optional
     feesUsd24h: string;
   };
 }
@@ -42,7 +43,7 @@ const adapter: Adapter = {
     ProtocolRevenue:
       "All fees are routed into protocol-controlled vaults (treasury + ops + other routing); counted as protocol revenue.",
     HoldersRevenue:
-      "Portion of fees used for FAITH buyback/burn (8% of volume = 80% of fees).",
+      "Portion of fees used for FAITH buyback/burn/staking (8% of volume = 80% of fees).",
   },
 };
 
