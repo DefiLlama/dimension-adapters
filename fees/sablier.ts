@@ -2,18 +2,23 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request } from "graphql-request";
 
-const ENVIO_ENDPOINTS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
-  [CHAIN.OPTIMISM]: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
-  [CHAIN.ARBITRUM]: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
-  [CHAIN.BASE]: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
-};
-
-const CHAIN_IDS: Record<string, number> = {
-  [CHAIN.ETHEREUM]: 1,
-  [CHAIN.OPTIMISM]: 10,
-  [CHAIN.ARBITRUM]: 42161,
-  [CHAIN.BASE]: 8453,
+const chainConfig: Record<string, { endpoint: string; chainId: number }> = {
+  [CHAIN.ETHEREUM]: {
+    endpoint: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
+    chainId: 1,
+  },
+  [CHAIN.OPTIMISM]: {
+    endpoint: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
+    chainId: 10,
+  },
+  [CHAIN.ARBITRUM]: {
+    endpoint: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
+    chainId: 42161,
+  },
+  [CHAIN.BASE]: {
+    endpoint: "https://indexer.hyperindex.xyz/53b7e25/v1/graphql",
+    chainId: 8453,
+  },
 };
 
 // Fetch only fee-enabled contracts (exclude legacy)
@@ -30,8 +35,8 @@ query getContracts($chainId: numeric!) {
 `;
 
 async function getFeeContracts(chain: string) {
-  const endpoint = ENVIO_ENDPOINTS[chain];
-  const chainId = CHAIN_IDS[chain];
+  const endpoint = chainConfig[chain].endpoint;
+  const chainId = chainConfig[chain].chainId;
   if (!endpoint || !chainId) return [];
 
   const res = await request(endpoint, CONTRACT_QUERY, { chainId });
@@ -75,13 +80,8 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE].reduce(
-    (acc, chain) => ({
-      ...acc,
-      [chain]: { fetch },
-    }),
-    {}
-  ),
+  fetch,
+  adapter: chainConfig as any,
   methodology: {
     Fees: "Interface and contract fees paid by users for Lockup, Flow, and Airdrop products.",
     Revenue: "Portion of collected fees attributed to Sablier.",
