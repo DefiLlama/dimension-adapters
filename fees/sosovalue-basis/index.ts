@@ -1,0 +1,56 @@
+import { FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getPrices } from "@defillama/sdk/build/util/coins";
+
+const USSI_CONTRACT = '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18';
+
+const fetch = async (_ : any, _2: any, options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    const totalSupplyBeforeRaw = await options.fromApi.call({
+        abi: "erc20:totalSupply",
+        target: USSI_CONTRACT,
+        permitFailure: false,
+    })
+    const totalSupplyYesterday = Number(totalSupplyBeforeRaw as string) / 1e8
+
+    const priceTodayRes = await getPrices([`base:${USSI_CONTRACT}`], options.toTimestamp)
+    const priceYesterdayRes = await getPrices([`base:${USSI_CONTRACT}`], options.fromTimestamp)
+
+    const priceToday = priceTodayRes[`base:${USSI_CONTRACT}`]?.price
+    const priceYesterday = priceYesterdayRes[`base:${USSI_CONTRACT}`]?.price
+
+    const yieldAmount = (priceToday - priceYesterday) * totalSupplyYesterday
+    const serviceFee = (priceYesterday * totalSupplyYesterday) * 0.0001
+    dailyFees.addUSDValue(yieldAmount + serviceFee);
+    dailyRevenue.addUSDValue(serviceFee);
+    dailySupplySideRevenue.addUSDValue(yieldAmount);
+
+    return {
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailyHoldersRevenue: 0,
+        dailySupplySideRevenue,
+    };
+};
+
+export default {
+    version: 1,
+    allowNegativeValue: true, // Yield strategies aren't risk-free
+    adapter: {
+        [CHAIN.BASE]: {
+            fetch,
+            start: '2024-12-27',
+        }
+    },
+    methodology: {
+        Fees: 'Yield generated from delta hedging strategies plus daily service fee of 0.01% based on the value of the underlying assets.',
+        Revenue: 'All services fees paid by users.',
+        ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
+        HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
+        SupplySideRevenue: 'Total yield accrued through USSI price appreciation, distributed to USSI holders',
+    },
+};
