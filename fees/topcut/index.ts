@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getETHReceived } from "../../helpers/token";
 
 const TOPCUT_VAULT = "0x3cfc3CBA1B4aAF969057F590D23efe46848F4270";
@@ -29,14 +29,12 @@ const methodology = {
 
 
 const adapter: SimpleAdapter = {
-  methodology,
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2025-06-16',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2025-06-16',
+  dependencies: [Dependencies.ALLIUM],
+  methodology,
 };
 
 export default adapter;

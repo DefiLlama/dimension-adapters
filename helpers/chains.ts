@@ -293,5 +293,8 @@ export enum CHAIN {
   ALIENX = "alienx",
   ADVENTURE_LAYER = "adventure_layer",
   DERI_CHAIN = "deri_chain",
+  EARNM = "earnm",
+  BABYLON = "babylon",
   DUCK_CHAIN = "duckchain",
+  ALPHASEC = "alphasec",
 }
