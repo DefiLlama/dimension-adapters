@@ -95,24 +95,26 @@ async function getMachineYield({
   return balances;
 }
 
+const TREASURY_ADDRESS = "0x68825BAfF4CaEDf6fAcc658269Cf1a0491F1Ba9f";
+
 const MACHINES: MachineConfig[] = [
   {
     shareToken: "0x1e33e98af620f1d563fcd3cfd3c75ace841204ef",
     accountingToken: ADDRESSES.ethereum.USDC,
     machine: "0x6b006870c83b1cd49e766ac9209f8d68763df721",
-    protocolReceiver: "0x68825BAfF4CaEDf6fAcc658269Cf1a0491F1Ba9f",
+    protocolReceiver: TREASURY_ADDRESS,
   },
   {
     shareToken: "0x871ab8e36cae9af35c6a3488b049965233deb7ed",
     accountingToken: ADDRESSES.ethereum.WETH,
     machine: "0x0447d0ad7fd6a3409b48ecbb9ddb075c1e11d735",
-    protocolReceiver: "0x68825BAfF4CaEDf6fAcc658269Cf1a0491F1Ba9f",
+    protocolReceiver: TREASURY_ADDRESS,
   },
   {
     shareToken: "0x972966bcc17f7d818de4f27dc146ef539c231bdf",
     accountingToken: ADDRESSES.ethereum.WBTC,
     machine: "0xfcbe132452b6caa32addd4768db8fa02af73d841",
-    protocolReceiver: "0x68825BAfF4CaEDf6fAcc658269Cf1a0491F1Ba9f",
+    protocolReceiver: TREASURY_ADDRESS,
   },
 ];
 
