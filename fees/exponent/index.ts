@@ -1,10 +1,11 @@
 import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
-import fetchURL, { httpPost } from "../../utils/fetchURL";
+import { httpPost } from "../../utils/fetchURL";
 import { encodeBase58 } from "ethers";
+import { getEnv } from "../../helpers/env";
+import { getConfig } from "../../helpers/cache";
 
-const SOLANA_RPC = "https://api.mainnet-beta.solana.com";
 const MARKET_TREASURY_OFFSET = 264;
 const VAULT_TREASURY_OFFSET = 473;
 
@@ -22,13 +23,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     // get markets and vaults
     const marketsUrl = "https://web-api.exponent.finance/api/markets";
-    const marketsResponse = await fetchURL(marketsUrl);
+    const marketsResponse = await getConfig('exponent/markets', marketsUrl);
     const vaultsUrl = "https://web-api.exponent.finance/api/vaults";
-    const vaultsResponse = await fetchURL(vaultsUrl);
+    const vaultsResponse = await getConfig('exponent/vaults', vaultsUrl);
 
     // get market treasury accounts
     const marketIds = marketsResponse.data.map((m: any) => m.id);
-    const marketResponse = await httpPost(SOLANA_RPC, {
+    const marketResponse = await httpPost(getEnv("SOLANA_RPC"), {
         jsonrpc: "2.0",
         id: 1,
         method: "getMultipleAccounts",
@@ -45,7 +46,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     // get vault treasury accounts
     const vaultIds = vaultsResponse.data.map((v: any) => v.id);
-    const rpcResponse = await httpPost(SOLANA_RPC, {
+    const rpcResponse = await httpPost(getEnv("SOLANA_RPC"), {
         jsonrpc: "2.0",
         id: 1,
         method: "getMultipleAccounts",
@@ -70,11 +71,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     dailyFees.addBalances(dailyVaultFees);
     dailyRevenue.addBalances(dailyVaultFees);
 
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
@@ -84,6 +84,7 @@ const adapter: SimpleAdapter = {
     methodology: {
         Fees: "Trading fees from AMM swaps and 5.5% performance fee on vault yields.",
         Revenue: "5.5% performance fee on vault yields and 35% of AMM trading fees.",
+        ProtocolRevenue: "5.5% performance fee on vault yields and 35% of AMM trading fees.",
         SupplySideRevenue: "65% of AMM trading fees distributed to liquidity providers.",
     },
     dependencies: [Dependencies.ALLIUM]
