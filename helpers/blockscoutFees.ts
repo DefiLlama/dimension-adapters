@@ -85,11 +85,11 @@ export const chainConfigMap: any = {
   [CHAIN.ADVENTURE_LAYER]: { CGToken: 'ethereum', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
   [CHAIN.DERI_CHAIN]: { CGToken: 'ethereum', explorer: 'https://explorer-dchain.deri.io/' },
   [CHAIN.DUCK_CHAIN]: { CGToken: 'ethereum', explorer: 'https://scan.duckchain.io/' },
-  [CHAIN.EDU_CHAIN]: { CGToken: 'ethereum', explorer: 'https://educhain.blockscout.com/' },
-  [CHAIN.ETHEREAL_MAINNET]: { CGToken: 'ethereum', explorer: 'https://explorer.ethereal.trade/' },
+  [CHAIN.EDU_CHAIN]: { CGToken: 'EDU', explorer: 'https://educhain.blockscout.com/' },
+  [CHAIN.ETHEREAL]: { CGToken: 'ethereum', explorer: 'https://explorer.ethereal.trade/' },
   [CHAIN.EVENTUM]: { CGToken: 'ethereum', explorer: 'https://explorer.evedex.com/' },
   [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/' },
-  [CHAIN.FLYNET]: { CGToken: 'ethereum', explorer: 'https://explorer.flynet.org/' },
+  [CHAIN.FLYNET]: { CGToken: 'F2', explorer: 'https://explorer.flynet.org/' },
 }
 
 function getTimeString(timestamp: number) {
