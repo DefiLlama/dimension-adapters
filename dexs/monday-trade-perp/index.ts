@@ -10,6 +10,7 @@ const chainConfig: { [key: string]: any } = {
 
 const fetch = async (_t: number, _: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
   const chainInfo = chainConfig[options.chain]
 
   const resData = await httpGet(url, {
@@ -22,15 +23,19 @@ const fetch = async (_t: number, _: any, options: FetchOptions) => {
 
   resData.data.forEach((item: any) => {
     dailyVolume.addToken(item.tokenAddress, Number(item.volume));
+    dailyFees.addToken(item.tokenAddress, Number(item.fee));
   })
 
-  return { dailyVolume };
+  return { dailyVolume, dailyFees };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   adapter: chainConfig,
+  methodology: {
+    Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
+  }
 };
 
 export default adapter;

@@ -173,7 +173,7 @@ const fetchStandardRelayersFees = async (options: FetchOptions, dailyFees: Balan
   }
 };
 
-const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetchEvm: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   // EVM fees are currently set at 0, it can be adjusted with gov in the future.
 
   const dailyFees = options.createBalances()
@@ -191,7 +191,7 @@ const fetchEvm: any = async (options: FetchOptions): Promise<FetchResultFees> =>
     dailyRevenue: 0,
   }
 };
-const fetchSui: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetchSui: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   const SUI_EXECUTOR_EVENT = "0xdb0fe8bb1e2b5be628adbea0636063325073e1070ee11e4281457dfd7f158235::executor::RequestForExecution";
   // Sui message fees are currently set at 0, it can be adjusted with gov in the future.
   // source: https://suiscan.xyz/mainnet/object/0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c/fields
@@ -215,7 +215,7 @@ const fetchSui: any = async (options: FetchOptions): Promise<FetchResultFees> =>
 interface IData {
   pda: string;
 }
-const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetchSolana: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   const SOLANA_MSG_FEE_COLLECTOR = '9bFNrXNb2WTx8fMHXCheaZqkLZ3YCCaiqTftHxeintHy' // all type of wormhole messages fees goes here
   const SOLANA_EXECUTOR_FEE_COLLECTOR = 'HpGb3q9cpDmWP2HaFWM8uFGR96sGEUY5e2jDb4Kh6DPA' // NTN,WTT,CCTP executions
 
@@ -244,10 +244,11 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
                   ELSE NULL
                   END AS pda
           FROM solana.instruction_calls
-          WHERE
-              executing_account = 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth'
+          WHERE 
+            tx_success = true
+            AND executing_account = 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth'
             AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-            AND block_time < FROM_UNIXTIME(${options.endTimestamp})
+            AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
             AND length(data) >= 1
             AND (
               bytearray_substring(data, 1, 1) = 0x01
@@ -279,8 +280,8 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
 
 
 const adapters: Adapter = {
-  version: 2,
-  dependencies: [Dependencies.DUNE],
+  version: 1,
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   adapter: Object.keys(evmContracts).reduce((acc, chain) => {
     return {
