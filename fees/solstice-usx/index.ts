@@ -55,9 +55,6 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<Fetch
   const supplyRes = await queryAllium(supplySql);
 
   const supplyYesterday = supplyRes[0]?.supply || 0;
-  console.log('supplyYesterday', supplyYesterday);
-  console.log('priceYesterday', priceYesterday);
-  console.log('priceToday', priceToday);
 
   if (supplyYesterday <= 0 || priceYesterday <= 0) {
     return { dailyFees, dailySupplySideRevenue, dailyRevenue };
