@@ -3,18 +3,20 @@ import { CHAIN } from '../helpers/chains';
 
 // Exchange contracts for Futureswap
 // Source: https://docs.futureswap.com/protocol/developer/addresses-abis-and-links
-const config: any = {
+export const config: any = {
   [CHAIN.ARBITRUM]: {
     exchanges: [
       '0xF7CA7384cc6619866749955065f17beDD3ED80bC', // ETH/USDC
       '0x85DDE4A11cF366Fb56e05cafE2579E7119D5bC2f', // WBTC/ETH
     ],
+    usdc: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
   },
   [CHAIN.AVAX]: {
     exchanges: [
       '0xE9c2D66A1e23Db21D2c40552EC7fA3dFb91d0123', // JOE/USDC
       '0xb2698B90BE455D617c0C5c1Bbc8Bc21Aa33F2Bbb', // WAVAX/USDC
     ],
+    usdc: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
   },
 };
 
@@ -31,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
   const exchanges = config[chain]?.exchanges;
 
   if (!exchanges) {
-    return { dailyVolume };
+    throw new Error('No exchanges found for chain: ' + chain);
   }
 
   const logs = await Promise.all(
@@ -50,12 +52,7 @@ const fetch = async (options: FetchOptions) => {
       Number(log.newStable) - Number(log.previousStable)
     );
 
-    const USDC =
-      chain === CHAIN.ARBITRUM
-        ? '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum USDC
-        : '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'; // Avalanche USDC
-
-    dailyVolume.add(USDC, volumeChange);
+    dailyVolume.add(config[chain].usdc, volumeChange);
   });
 
   return { dailyVolume };

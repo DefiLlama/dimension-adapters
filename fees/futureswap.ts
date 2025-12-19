@@ -1,22 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-
-// Exchange contracts for Futureswap
-// Source: https://docs.futureswap.com/protocol/developer/addresses-abis-and-links
-const config: any = {
-  [CHAIN.ARBITRUM]: {
-    exchanges: [
-      '0xF7CA7384cc6619866749955065f17beDD3ED80bC', // ETH/USDC
-      '0x85DDE4A11cF366Fb56e05cafE2579E7119D5bC2f', // WBTC/ETH
-    ],
-  },
-  [CHAIN.AVAX]: {
-    exchanges: [
-      '0xE9c2D66A1e23Db21D2c40552EC7fA3dFb91d0123', // JOE/USDC
-      '0xb2698B90BE455D617c0C5c1Bbc8Bc21Aa33F2Bbb', // WAVAX/USDC
-    ],
-  },
-};
+import { config } from '../dexs/futureswap';
 
 const abis = {
   // Source: https://docs.futureswap.com/protocol/developer/events
@@ -37,13 +21,8 @@ const fetch = async (options: FetchOptions) => {
   const exchanges = config[chain]?.exchanges;
 
   if (!exchanges) {
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+    throw new Error('No exchanges found for chain: ' + chain);
   }
-
-  const USDC =
-    chain === CHAIN.ARBITRUM
-      ? '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum USDC
-      : '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'; // Avalanche USDC
 
   // Fetch PositionChanged events from all exchanges
   const logs = await Promise.all(
@@ -63,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
     const tradeFee = log.tradeFee;
 
     // Total fees collected from traders
-    dailyFees.add(USDC, tradeFee);
+    dailyFees.add(config[chain].usdc, tradeFee);
 
     // Fee distribution:
     // - LPs receive the majority of fees (supply side)
@@ -72,8 +51,8 @@ const fetch = async (options: FetchOptions) => {
     const protocolShare = (BigInt(tradeFee) * BigInt(20)) / BigInt(100);
     const lpShare = BigInt(tradeFee) - protocolShare;
 
-    dailyRevenue.add(USDC, protocolShare);
-    dailySupplySideRevenue.add(USDC, lpShare);
+    dailyRevenue.add(config[chain].usdc, protocolShare);
+    dailySupplySideRevenue.add(config[chain].usdc, lpShare);
   });
 
   return {
