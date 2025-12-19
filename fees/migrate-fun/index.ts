@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { queryAllium } from "../../helpers/allium";
@@ -35,6 +35,7 @@ const adapter: SimpleAdapter = {
   fetch,
   start: '2025-09-19',
   chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.ALLIUM],
   methodology
 }
 

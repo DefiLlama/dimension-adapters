@@ -1,7 +1,7 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 import { getSolanaReceived } from '../../helpers/token';
-import { FetchOptions } from '../../adapters/types';
+import { Dependencies, FetchOptions } from '../../adapters/types';
 
 const meteoraStatsEndpoint = 'https://amm-v2.meteora.ag/pools/v2';
 const BUYBACK_WALLET = 'FzULv8pR9Rd7cyVKjVkzmJ1eqEmgwDnzjYyNUcEJtoG9';
@@ -43,6 +43,7 @@ async function fetch(options: FetchOptions) {
 
 export default {
   version: 2,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

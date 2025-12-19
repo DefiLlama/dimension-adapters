@@ -1,10 +1,10 @@
 // source: https://dune.com/o1_exchange/o1exchange-data
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from '../../helpers/token';
 
-const chainConfig = {
+const chainConfig: any = {
   [CHAIN.SOLANA]: {
     start: '2025-07-01',
     treasuryAddress: 'FUzZ2SPwLPAKaHubxQzRsk9K8dXb4YBMR6hTrYEMFFZc',
@@ -23,7 +23,6 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
       blacklists: [],
     });
     const dailyVolume = solanaFees.clone(100);
-    console.log(solanaFees)
     return { dailyFees: solanaFees, dailyUserFees: solanaFees, dailyRevenue: solanaFees, dailyProtocolRevenue: solanaFees, dailyVolume }
   }
   const baseFees = await addTokensReceived({
@@ -47,6 +46,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology,
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true
 };
 
