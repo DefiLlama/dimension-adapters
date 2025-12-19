@@ -6,8 +6,10 @@ const ABI = {
   FeesMinted: "event FeesMinted(uint256 amount)",
   getSharePrice: "function getSharePrice() view returns (uint256)",
   decimals: "uint8:decimals",
-  mgmtFeeReceivers: "function mgmtFeeReceivers() view returns (address[])",
-  mgmtFeeSplitBps: "function mgmtFeeSplitBps() view returns (uint256[])",
+  perfFeeRate: "function perfFeeRate() view returns (uint256)",
+  perfFeeSplitBps: "function perfFeeSplitBps() view returns (uint256[])",
+  sharePriceWatermark: "function sharePriceWatermark() view returns (uint256)",
+  totalSupply: "function totalSupply() view returns (uint256)",
 };
 
 type MachineConfig = {
@@ -50,45 +52,90 @@ const MACHINES: MachineConfig[] = [
   },
 ];
 
-async function getOraclePrice(options: FetchOptions, oracle: string) {
-  return Number(await options.api.call({ target: oracle, abi: ABI.getSharePrice }));
-}
-
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   for (const machine of MACHINES) {
-    const feeLogsRaw: any[] = await options.getLogs({
+    // Fetch all fees minted logs
+    const feeLogs: any[] = await options.getLogs({
       target: machine.machine,
       eventAbi: ABI.FeesMinted,
       onlyArgs: true,
     });
-      
-      // Sum total fees
-      let totalFeeShares = 0;
-      for (const log of feeLogsRaw) {
-        totalFeeShares += Number(log.amount);
-      }      
 
-    const oraclePrice = await getOraclePrice(options, machine.sharePriceOracle);
-    const accountingTokenDecimals = await options.api.call({
-      target: machine.accountingToken,
-      abi: ABI.decimals,
-    });
+    // Sum minted shares
+    let totalFeeShares = 0;
+    for (const log of feeLogs) {
+      totalFeeShares += Number(log.amount);
+    }
 
-    const totalFees = totalFeeShares * oraclePrice / 1e18 / 1e18 * (10 ** accountingTokenDecimals);
-
-    const [receivers, splitBpsRaw] = await Promise.all([
-      options.api.call({ target: machine.feeManager, abi: ABI.mgmtFeeReceivers }),
-      options.api.call({ target: machine.feeManager, abi: ABI.mgmtFeeSplitBps }),
+    const [
+      accountingTokenDecimals,
+      perfFeeRate,
+      perfFeeSplitBps,
+      watermark,
+    ] = await Promise.all([
+      options.api.call({
+        target: machine.accountingToken,
+        abi: ABI.decimals,
+      }),
+      options.api.call({
+        target: machine.feeManager,
+        abi: ABI.perfFeeRate,
+      }),
+      options.api.call({
+        target: machine.feeManager,
+        abi: ABI.perfFeeSplitBps,
+      }),
+      options.api.call({
+        target: machine.feeManager,
+        abi: ABI.sharePriceWatermark,
+      }),
     ]);
 
-    const splitBps = splitBpsRaw.map(Number);
+    // Fetch previous and new share price
+    const prevTokenPrice = await options.fromApi.call({
+      target: machine.sharePriceOracle,
+      abi: ABI.getSharePrice,
+    });
 
-    const operatorRevenue = (totalFees * splitBps[0]) / 10_000;
-    const protocolRevenue = (totalFees * splitBps[1]) / 10_000;
+    const newTokenPrice = await options.toApi.call({
+      target: machine.sharePriceOracle,
+      abi: ABI.getSharePrice,
+    });
+
+    // Fetch share token supply
+    const totalSupply = await options.api.call({
+      target: machine.shareToken,
+      abi: ABI.totalSupply,
+    });
+
+    const totalFees = totalFeeShares * newTokenPrice / 1e18 / 1e18 * 10 ** Number(accountingTokenDecimals) 
+
+    // https://docs.makina.finance/concepts/machine/fee-managers
+    // The WatermarkFeeManager implementation supports a high watermark mechanism 
+    // ensures performance fee are charged only when the new share price exceeds the stored watermark.
+    const totalSupplyScaled = Number(totalSupply) / 1e18;
+    const newTokenPriceScaled = Number(newTokenPrice) / 1e18;
+    const prevTokenPriceScaled = Number(prevTokenPrice) / 1e18;
+    const perfFeeRateScaled = Number(perfFeeRate) / 1e18;
+    const watermarkScaled = Number(watermark)/1e18
+
+    const priceDiff = Math.max(newTokenPriceScaled - prevTokenPriceScaled, 0);
+
+    const performanceFees =
+      newTokenPriceScaled > watermarkScaled
+        ? (totalSupplyScaled * priceDiff * perfFeeRateScaled) / newTokenPriceScaled
+        : 0;
+
+    // convert to token decimals
+    const performanceFeesTokenDecimal = performanceFees * 10 ** Number(accountingTokenDecimals)
+
+    const split = perfFeeSplitBps.map(Number);
+    const operatorRevenue = (performanceFeesTokenDecimal * split[0]) / 10_000;
+    const protocolRevenue = (performanceFeesTokenDecimal * split[1]) / 10_000;
 
     dailyFees.add(machine.accountingToken, totalFees);
     dailyRevenue.add(machine.accountingToken, operatorRevenue);
@@ -114,34 +161,28 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees:
-      "Fees are calculated from Machine Token shares minted to Fee Manager receivers. These shares represent the combined management and performance fees.",
+      "Fees are derived from total Machine Token shares minted.",
     Revenue:
-      "Revenue is split between the Operator and Makina Protocol using basis point splits defined in the Fee Manager contracts.",
+      "Revenue represents the operator and protocol share of performance fees.",
     ProtocolRevenue:
-      "Protocol revenue is the portion of fees allocated to Makina-controlled addresses.",
+      "Protocol revenue is the Makina-controlled portion of performance fees.",
     SupplySideRevenue:
-      "0 — fees are paid via share dilution rather than direct transfers from user balances.",
+      "0 — fees are paid via share dilution rather than direct transfers.",
   },
   breakdownMethodology: {
     Fees: {
-      Operator:
-        "Operator portion of fees as defined by the Fee Manager basis point split.",
-      Protocol:
-        "Makina Protocol portion of fees as defined by the Fee Manager basis point split.",
+      "Performance Fees":
+        "Fees accrued from Machine token share price increase above the watermark, the performance fee is then split two ways between the Operator and the Makina DAO.",
     },
     Revenue: {
-      Operator:
-        "Operator portion of management and performance fees.",
-      Protocol:
-        "Makina Protocol portion of management and performance fees.",
+      "Operator Revenue": "Operator's portion of performance fees.",
+      "Protocol Revenue": "Makina-controlled portion of performance fees.",
     },
     ProtocolRevenue: {
-      Protocol:
-        "Makina Protocol portion of fees received via fee share minting.",
+      "Protocol Revenue": "Makina-controlled portion of performance fees.",
     },
     SupplySideRevenue: {
-      Shares:
-        "Fee shares minted via dilution; no direct revenue transfer to depositors.",
+      "Supply Side": "0 — no direct fees to supply side; any yield is reflected in share price appreciation.",
     },
   },
 };
