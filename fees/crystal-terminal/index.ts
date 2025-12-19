@@ -1,36 +1,32 @@
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types"
+import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getETHReceived } from "../../helpers/token"
 
 const TREASURY_ADDRESS = "0x565e9c68fc827958551ede5757461959206ab0bd"
 const ROUTER_ADDRESS = "0xc2d3689cf6ce2859a3ffbc8fe09ab4c8623766b8"
 
-const fetch = async (options: FetchOptions) => {
-  const balances = options.createBalances();
-  await getETHReceived({
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+
+  const dailyFees = await getETHReceived({
     options,
-    balances,
     targets: [TREASURY_ADDRESS] // Treasury address
   });
 
-  return { dailyFees: balances, dailyRevenue: balances };
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
 const adapter: Adapter = {
-  version: 2,
+  fetch,
+  chains: [CHAIN.MONAD],
+  start: "2025-11-24",
   isExpensiveAdapter: true,
-  adapter: {
-    [CHAIN.MONAD]: {
-      fetch,
-      start: "2025-11-24",
-    },
-  },
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Fees: `MON inflows to ${TREASURY_ADDRESS} coming from router ${ROUTER_ADDRESS}.`,
+    Fees: `Trading Fees paid by users.`,
+    UserFees: `Trading Fees paid by users.`,
     Revenue: "All such MON transfers are treated as protocol revenue.",
     ProtocolRevenue: "Equal to total MON routed from router to treasury.",
   },
 }
-
 
 export default adapter
