@@ -148,14 +148,19 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       shareTokens: [machine.shareToken],
       machines: [machine.machine],
     });
+    
+    dailyFees.add(dailyNetYield, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.add(dailyNetYield, METRIC.ASSETS_YIELDS);
 
-    dailyRevenue.add(machine.shareToken, totalFeeShares);
-    dailyProtocolRevenue.add(totalProtocolRevenueShares);
-    dailySupplySideRevenue.add(dailyNetYield);
+    dailyFees.add(totalProtocolRevenueShares, METRIC.PROTOCOL_FEES);
+    dailyRevenue.add(totalProtocolRevenueShares, METRIC.PROTOCOL_FEES);
+    dailyProtocolRevenue.add(totalProtocolRevenueShares, METRIC.PROTOCOL_FEES);
 
-    //Daily fees are net yield + total fees minted
-    dailyFees.add(dailyNetYield);
-    dailyFees.add(machine.shareToken, totalFeeShares);
+    const operatorsRevenue = dailyRevenue.clone(1)
+    operatorsRevenue.subtract(dailyProtocolRevenue)
+    
+    dailyFees.addBalances(operatorsRevenue, METRIC.OPERATORS_FEES);
+    dailySupplySideRevenue.addBalances(operatorsRevenue, METRIC.OPERATORS_FEES);
   }
 
   return {
@@ -176,29 +181,25 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: "Includes yields earned by Makina machines, performance fee and management fee",
-    Revenue:
-      "Revenue represents the operator and protocol share of performance and management fees.",
-    ProtocolRevenue:
-      "Protocol revenue is the Makina-controlled portion of performance and management fees.",
-    SupplySideRevenue: "Yields earned by Makina machine depositors post fee",
+    Revenue: "Revenue represents protocol share of performance and management fees.",
+    ProtocolRevenue: "Protocol revenue is the Makina-controlled portion of performance and management fees.",
+    SupplySideRevenue: "Yields earned by Makina machine depositors post fee and opeators share of performance and management fees.",
   },
   breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: "Includes yields earned by Makina machines excluding protocol and operators fees.",
+      [METRIC.PROTOCOL_FEES]: "Share of management fees and protocol fees to protocol.",
+      [METRIC.OPERATORS_FEES]: "Share of management fees and protocol fees to operators.",
+    },
     Revenue: {
-      [METRIC.MANAGEMENT_FEES]: "Fixed management fees",
-      [METRIC.PERFORMANCE_FEES]:
-        "Performance fees on yields generated above a highwater mark",
-      "Operator Revenue":
-        "Operator's portion of performance and management fees.",
-      "Protocol Revenue":
-        "Makina-controlled portion of performance and management fees.",
+      [METRIC.PROTOCOL_FEES]: "Share of  management fees and protocol fees to protocol.",
     },
     ProtocolRevenue: {
-      "Protocol Revenue":
-        "Makina-controlled portion of performance and management fees.",
+      [METRIC.PROTOCOL_FEES]: "Share of  management fees and protocol fees to protocol.",
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]:
-        "Yields earned by Makina machine depositors post fee",
+      [METRIC.ASSETS_YIELDS]: "Yields earned by Makina machine depositors post fee.",
+      [METRIC.OPERATORS_FEES]: "Share of management fees and protocol fees to operators.",
     },
   },
 };
