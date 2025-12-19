@@ -36,11 +36,10 @@ const fetchEusxPrice = async (timestamp: number): Promise<number> => {
   throw new Error(`Could not fetch price for token ${EUSX_MINT} on timestamp ${timestamp}`)
 }
 
-
 const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyFees = options.createBalances();
 
   const [priceYesterday, priceToday] = await Promise.all([fetchEusxPrice(options.fromTimestamp), fetchEusxPrice(options.toTimestamp)])
 
