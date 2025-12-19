@@ -2,8 +2,6 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const FAITH_STATS_URL = "https://faith.gg/api/stats/protocol";
-
 interface FaithStats {
   current: {
     volumeUsd24h: string;
@@ -11,36 +9,48 @@ interface FaithStats {
   };
 }
 
-const methodology = {
-  Volume: "Total USD value of SUI deployed into Tests of Faith over the requested day window.",
-  Fees: "10% protocol fee taken from deployed SUI during Tests of Faith over the requested day window.",
-  Revenue: "All protocol fees collected by FAITH count as protocol revenue.",
-};
-
-const fetchFaithStats = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-  // DeFiLlama passes unix timestamps (seconds). Your API now accepts these params.
-  const url = `${FAITH_STATS_URL}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
+const fetch = async (options: FetchOptions) => {
+  const url = `https://faith.gg/api/stats/protocol?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
   const stats: FaithStats = await fetchURL(url);
 
-  const dailyVolume = Number(stats.current.volumeUsd24h || 0);
   const dailyFees = Number(stats.current.feesUsd24h || 0);
+  const dailyRevenue = Number(dailyFees * 0.1);
+  const dailyProtocolRevenue = Number(dailyFees * 0.009) // 0.9% — Ops Vault (gas, infra, seasons, maintenance)
+  const dailyHoldersRevenue = Number(dailyFees * 0.08); // 80% of revenue goes to burn and buybacks
 
   return {
-    dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
+};
+
+/*
+
+Every Test of Faith routes 10% of the total SUI pot into four on-chain vaults:
+
+8% — FAITH Treasury (used for FAITH buybacks → 90% burn, 10% stakers)
+1% — MANIFEST Treasury (MANIFEST buybacks)
+0.1% — Pilgrimage Vault (SUI drips during Miracle droughts)
+0.9% — Ops Vault (gas, infra, seasons, maintenance)
+
+The remaining 90% of the pot always goes back to players — either to winners, or into protocol-controlled vaults when there are no winners. There is no hidden house edge beyond this explicit 10% routing.
+
+*/
+
+const methodology = {
+  Fees: "10% protocol fee taken from deployed SUI during Tests of Faith over the requested day window.",
+  Revenue: "All protocol fees collected by FAITH count as protocol revenue.",
+  ProtocolRevenue: "0.9% — Ops Vault (gas, infra, seasons, maintenance)",
+  HoldersRevenue: "80% of revenue goes to burn and FAITH buybacks",
 };
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch: fetchFaithStats,
-      start: "2025-11-24",
-    },
-  },
+  chains: [CHAIN.SUI],
+  fetch,
+  start: "2025-11-24",
   methodology,
 };
 
