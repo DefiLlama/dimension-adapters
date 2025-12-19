@@ -245,13 +245,14 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data = await options.preFetchedResults || [];
-  const chainRevenue = data.filter((chain: any) => chain.chain === options.chain);
-  const dailyFees = chainRevenue?.[0]?.revenue || 0;
+  const chainRevenue = data.filter((row: any) => row.chain === options.chain);
+  const totalRevenue = chainRevenue?.revenue || 0;
+  const dailyFees = totalRevenue * 0.005; 
 
   return {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyFees,                    
+    dailyRevenue: totalRevenue,   
+    dailyProtocolRevenue: totalRevenue, 
   };
 };
 
