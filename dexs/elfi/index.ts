@@ -60,6 +60,10 @@ const adapter: SimpleAdapter = {
       start: '2024-10-01',
     },
   },
+  methodology: {
+    Volume:
+      'Sum of all filled order notional values (position size including leverage) from on-chain events.',
+  },
 }
 
 export default adapter
