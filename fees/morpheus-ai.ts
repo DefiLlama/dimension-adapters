@@ -1,8 +1,12 @@
+import * as sdk from '@defillama/sdk'
+import { request, gql } from 'graphql-request'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
 import ADDRESSES from '../helpers/coreAssets.json'
 import AaveAbis from '../helpers/aave/abi'
+import { getTimestampAtStartOfDayUTC } from '../utils/date'
+import { getPrices } from '../utils/prices'
 
 /**
  * Morpheus AI
@@ -27,11 +31,19 @@ const L1_SENDER_V2 = '0x2Efd4430489e1a05A89c2F51811aC661B7E5FF84'
 // Distributor contract - holds assets and has Aave integration
 const DISTRIBUTOR = '0xDf1AC1AC255d91F5f4B1E3B4Aef57c5350F64C7A'
 
-// MOR coingecko ID for pricing supply side emissions
 const MOR_COINGECKO_ID = 'morpheusai'
 
-// Aave ray precision (1e27 = 100% APY)
+const LIDO_SUBGRAPH_ENDPOINT = sdk.graph.modifyEndpoint(
+  'F7qb71hWab6SuRL5sf6LQLTpNahmqMsBnnweYHzLGUyG'
+)
+
+// Aave ray precision (1e27)
 const RAY = BigInt(1e27)
+
+// Buyback executor on Arbitrum - receives wstETH from L2TokenReceiver and executes MOR swaps
+const BUYBACK_EXECUTOR = '0x151c2b49cdec10b150b2763df3d1c00d70c90956'
+
+const MOR_ARB = '0x092bAaDB7DEf4C3981454dD9c0A0D7FF07bCFc86'
 
 // Deposit pool contracts
 const DEPOSIT_POOLS = {
@@ -62,52 +74,61 @@ const DEPOSIT_POOLS = {
   },
 }
 
+const USD_SCALE = 1e6
+const STETH_DECIMALS = 10n ** 18n
+
+const getLidoDailySupplySideRevenueUsd = async (timestamp: number) => {
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+  const graphQuery = gql`
+    {
+      financialsDailySnapshot(id: ${dateId}) {
+        dailySupplySideRevenueUSD
+      }
+    }
+  `
+
+  const graphRes = await request(LIDO_SUBGRAPH_ENDPOINT, graphQuery)
+  const dailySupplySideRevenueUSD = graphRes?.financialsDailySnapshot?.dailySupplySideRevenueUSD
+  return dailySupplySideRevenueUSD ? Number(dailySupplySideRevenueUSD) : 0
+}
+
 /**
- * Calculate stETH yield from the TokenRebased event
- * stETH rebases daily when Lido reports validator rewards
+ * Calculate stETH yield using Lido daily supply-side revenue
+ * and pro-rate by Morpheus stETH share (same method as Lido adapter).
  */
 const getStethDailyYield = async (options: FetchOptions, totalSteth: bigint) => {
-  // Get the TokenRebased event from stETH contract
-  const rebaseLogs = await options.getLogs({
-    target: STETH,
-    eventAbi:
-      'event TokenRebased(uint256 indexed reportTimestamp, uint256 timeElapsed, uint256 preTotalShares, uint256 preTotalEther, uint256 postTotalShares, uint256 postTotalEther, uint256 sharesMintedAsFees)',
-  })
+  if (totalSteth === 0n) return 0n
 
-  if (rebaseLogs.length === 0) {
-    return BigInt(0)
-  }
+  const [dailySupplySideRevenueUSD, totalStethSupply, prices] = await Promise.all([
+    getLidoDailySupplySideRevenueUsd(options.startOfDay),
+    options.fromApi.call({
+      target: STETH,
+      abi: 'function totalSupply() view returns (uint256)',
+    }),
+    getPrices([`ethereum:${STETH}`], options.startOfDay),
+  ])
 
-  // Use the most recent rebase event
-  const lastRebase = rebaseLogs[rebaseLogs.length - 1]
+  const priceInfo = prices[`ethereum:${STETH}`]
+  if (!dailySupplySideRevenueUSD || !priceInfo?.price) return 0n
 
-  // Calculate exchange rate change
-  const preTotalEther = BigInt(lastRebase.preTotalEther)
-  const preTotalShares = BigInt(lastRebase.preTotalShares)
-  const postTotalEther = BigInt(lastRebase.postTotalEther)
-  const postTotalShares = BigInt(lastRebase.postTotalShares)
+  const totalSupply = BigInt(totalStethSupply)
+  if (totalSupply === 0n) return 0n
 
-  // Exchange rate = totalEther / totalShares
-  // We use high precision to avoid rounding errors
-  const PRECISION = BigInt(1e18)
-  const exchangeRateBefore = (preTotalEther * PRECISION) / preTotalShares
-  const exchangeRateAfter = (postTotalEther * PRECISION) / postTotalShares
+  const dailyRevenueUsdScaled = BigInt(Math.round(dailySupplySideRevenueUSD * USD_SCALE))
+  const stethShareUsdScaled = (dailyRevenueUsdScaled * totalSteth) / totalSupply
+  const priceScaled = BigInt(Math.round(priceInfo.price * USD_SCALE))
 
-  // Calculate shares for the total stETH holdings
-  const stethShares = (totalSteth * preTotalShares) / preTotalEther
+  if (priceScaled === 0n) return 0n
 
-  // Calculate yield: shares × (newRate - oldRate)
-  const yieldAmount = (stethShares * (exchangeRateAfter - exchangeRateBefore)) / PRECISION
-
-  return yieldAmount
+  return (stethShareUsdScaled * STETH_DECIMALS) / priceScaled
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
 
-  // Calculate stETH yield from rebasing
-  const totalStethDeposited = await options.api.call({
+  // Calculate stETH yield from Lido daily supply-side revenue
+  const totalStethDeposited = await options.fromApi.call({
     target: DEPOSIT_POOLS.stETH.address,
     abi: 'function totalDepositedInPublicPools() view returns (uint256)',
   })
@@ -129,13 +150,19 @@ const fetch = async (options: FetchOptions) => {
   const aaveTokens = aavePools.map(([, pool]) => pool.token)
   const aavePoolAddresses = aavePools.map(([, pool]) => pool.address)
 
-  const [totalDeposits, reserveDataList] = await Promise.all([
-    options.api.multiCall({
+  const [totalDeposits, reserveDataBeforeList, reserveDataAfterList] = await Promise.all([
+    options.fromApi.multiCall({
       abi: 'function totalDepositedInPublicPools() view returns (uint256)',
       calls: aavePoolAddresses,
       permitFailure: true,
     }),
-    options.api.multiCall({
+    options.fromApi.multiCall({
+      abi: AaveAbis.getReserveDataV3,
+      target: aaveDataProvider,
+      calls: aaveTokens,
+      permitFailure: true,
+    }),
+    options.toApi.multiCall({
       abi: AaveAbis.getReserveDataV3,
       target: aaveDataProvider,
       calls: aaveTokens,
@@ -145,15 +172,26 @@ const fetch = async (options: FetchOptions) => {
 
   for (let i = 0; i < aavePools.length; i++) {
     const totalDeposited = totalDeposits[i]
-    const reserveData = reserveDataList[i]
+    const reserveDataBefore = reserveDataBeforeList[i]
+    const reserveDataAfter = reserveDataAfterList[i]
     const token = aaveTokens[i]
 
-    if (!totalDeposited || !reserveData || BigInt(totalDeposited) === BigInt(0)) continue
+    if (
+      !totalDeposited ||
+      !reserveDataBefore ||
+      !reserveDataAfter ||
+      BigInt(totalDeposited) === BigInt(0)
+    )
+      continue
 
-    // liquidityRate is in ray (1e27 = 100% APY)
-    const liquidityRate = BigInt(reserveData.liquidityRate)
-    // Calculate daily yield: principal × (liquidityRate / RAY / 365)
-    const dailyYield = (BigInt(totalDeposited) * liquidityRate) / RAY / BigInt(365)
+    // Aave interest via liquidity index growth (same method as helpers/aave)
+    const liquidityIndexBefore = BigInt(reserveDataBefore.liquidityIndex)
+    const liquidityIndexAfter = BigInt(reserveDataAfter.liquidityIndex)
+    const growthLiquidityIndex = liquidityIndexAfter - liquidityIndexBefore
+
+    if (growthLiquidityIndex <= 0n) continue
+
+    const dailyYield = (BigInt(totalDeposited) * growthLiquidityIndex) / RAY
 
     if (dailyYield > 0) {
       dailyFees.add(token, dailyYield, METRIC.ASSETS_YIELDS)
@@ -178,12 +216,34 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees: options.createBalances(), // Users don't pay direct fees - they forgo yield instead
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: options.createBalances(), // MOR token holders don't receive captured yield
+    dailyProtocolRevenue: dailyRevenue.clone(0.25), // 25% to Protocol-Owned Liquidity (wETH)
     dailySupplySideRevenue, // MOR token emissions to depositors (separate from captured yield)
   }
+}
+
+const fetchBuybacks = async (options: FetchOptions) => {
+  const dailyHoldersRevenue = options.createBalances()
+
+  // Track MOR tokens received by BUYBACK_EXECUTOR via Transfer events
+  const transferLogs = await options.getLogs({
+    target: MOR_ARB,
+    eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
+    topics: [
+      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', // Transfer signature
+      '',
+      '0x000000000000000000000000' + BUYBACK_EXECUTOR.slice(2).toLowerCase(), // to = BUYBACK_EXECUTOR
+    ],
+  })
+
+  for (const log of transferLogs) {
+    const amount = BigInt(log.value)
+    if (amount > 0n) {
+      dailyHoldersRevenue.add(MOR_ARB, amount, METRIC.TOKEN_BUY_BACK)
+    }
+  }
+
+  return { dailyHoldersRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -193,17 +253,18 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2024-02-08',
     },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchBuybacks,
+      start: '2024-05-08', // AMM initiation date - when buybacks began
+    },
   },
   methodology: {
-    Fees: 'Yield captured from user deposits: stETH rebasing (Lido) + Aave V3 interest on wETH, USDC, USDT, wBTC. Protocol captures 100% of yield.',
-    UserFees: 'Zero. Users forgo yield in exchange for MOR token emissions.',
-    Revenue: 'Equal to Fees - 100% of captured yield.',
-    ProtocolRevenue:
-      'All captured yield. Used for Protocol-Owned Liquidity, MOR buybacks, burns, and Epoch 2 reserves.',
-    HoldersRevenue:
-      'Zero. Value accrues to MOR holders via buybacks and burns, not direct distributions.',
+    Fees: 'Yield captured from deposits: stETH rebasing (Lido) + Aave V3 interest on wETH, USDC, USDT, wBTC.',
+    Revenue: 'All captured yield (100%).',
+    ProtocolRevenue: 'Yield used for Protocol-Owned Liquidity (25% of yield).',
+    HoldersRevenue: 'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL.',
     SupplySideRevenue:
-      'MOR token emissions to depositors (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040).',
+      'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
   },
 }
 
