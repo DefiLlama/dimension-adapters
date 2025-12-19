@@ -79,13 +79,13 @@ export const chainConfigMap: any = {
   [CHAIN.RARI] : { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' }, 
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
-  [CHAIN.CAPX] : { CGToken: 'CAPX', explorer: "https://www.capxscan.com/"},
-  [CHAIN.SANKO]: { CGToken: 'DMT', explorer: 'https://explorer.sanko.xyz/' },
+  [CHAIN.CAPX] : { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/"},
+  [CHAIN.SANKO]: { CGToken: 'dream-machine-token', explorer: 'https://explorer.sanko.xyz/' },
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
-  [CHAIN.ADVENTURE_LAYER]: { CGToken: 'AGLD', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
+  [CHAIN.ADVENTURE_LAYER]: { CGToken: 'adventure-gold', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
   [CHAIN.DERI_CHAIN]: { CGToken: 'ethereum', explorer: 'https://explorer-dchain.deri.io/' },
-  [CHAIN.EARNM]: { CGToken: 'EARNM', explorer: 'https://earnm-mainnet.explorer.alchemy.com/' },
-  [CHAIN.DUCK_CHAIN]: { CGToken: 'TON', explorer: 'https://scan.duckchain.io/' },
+  [CHAIN.EARNM]: { CGToken: 'earnm', explorer: 'https://earnm-mainnet.explorer.alchemy.com/' },
+  [CHAIN.DUCK_CHAIN]: { CGToken: 'the-open-network', explorer: 'https://scan.duckchain.io/' },
 
 }
 
