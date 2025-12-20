@@ -27,6 +27,7 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0x84ae7f8eb667b391a5ae2f69bd5a0e4b5b77c999',
       ],
+      start: '2025-04-30',
     },
     [CHAIN.MONAD]: {
       morphoVaultOwners: [
@@ -35,6 +36,7 @@ const curatorConfig: CuratorConfig = {
       morphoVaultV2Owners: [
         '0xD546Dc0dB55c28860176147b2D0FEFcc533eCf08',
       ],
+      start: '2025-12-15',
     },
     // [CHAIN.KATANA]: {
     //   morphoVaultOwners: [

@@ -22,6 +22,7 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0x30988479C2E6a03E7fB65138b94762D41a733458',
       ],
+      start: '2025-10-01',
     },
     // [CHAIN.KATANA]: {
     //   morphoVaultOwners: [
@@ -40,6 +41,7 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0x30988479C2E6a03E7fB65138b94762D41a733458'
       ],
+      start: '2025-10-01',
     },
   }
 }
