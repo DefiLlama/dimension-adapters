@@ -58,6 +58,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
   }
 }
 
@@ -70,6 +71,7 @@ const adapter: Adapter = {
     UserFees: 'Withdrawal fees from bfBTC (on EVM chains and Bitcoin network) paid by users.',
     Revenue: 'All fees collected are sent to BitFi protocol fee receiver address.',
     ProtocolRevenue: 'All fees collected are sent to BitFi protocol fee receiver address.',
+    SupplySideRevenue: 'No withdrawal fees go to supply side. bfBTC holders earn yield through exchange rate appreciation from strategies.'
   },
 }
 
