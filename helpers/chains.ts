@@ -296,5 +296,9 @@ export enum CHAIN {
   EARNM = "earnm",
   BABYLON = "babylon",
   DUCK_CHAIN = "duckchain",
+  EDU_CHAIN = "edu_chain",
+  EVENTUM = "eventum",
+  EVERCLEAR = "everclear",
+  FLYNET = "flynet",
   ALPHASEC = "alphasec",
 }
