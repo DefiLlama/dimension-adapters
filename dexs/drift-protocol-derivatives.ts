@@ -1,8 +1,7 @@
-import adapter from "./drift-protocol";
-const { breakdown, ...rest } = adapter;
+import adapter from './drift-protocol'
+const { breakdown, ...rest } = adapter
 
 export default {
   ...rest,
-  adapter: breakdown["derivatives"],
-  deadFrom: "2025-12-04",
-};
+  adapter: breakdown['derivatives'],
+}
