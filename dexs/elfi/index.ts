@@ -1,46 +1,50 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
+import { ethers } from 'ethers'
 
 const contracts: Record<string, string> = {
   [CHAIN.ARBITRUM]: '0x153c613D572c050104086c7113d00B76Fbaa5d55',
   [CHAIN.BASE]: '0x957e0C2Ea128b0307B5730ff83e0bA508b729d50',
 }
 
-// OrderFilled-like event with OrderInfo + fillQty + fillTime + fillPrice (topic0)
+// OrderFilled event topic
 const ORDER_FILLED_TOPIC = '0x27cd10c59ec617eb0cc015b5900117fef098349140a09083205d2a32afe025bb'
 
-const fetch = async ({
-  getLogs,
-  chain,
-  createBalances,
-  getFromBlock,
-  getToBlock,
-}: FetchOptions) => {
+// ABI types for decoding the data portion (non-indexed params)
+const ORDER_INFO_TYPES = [
+  'tuple(address account, bytes32 symbol, uint8 orderSide, uint8 posSide, uint8 orderType, uint8 stopType, bool isCrossMargin, bool isExecutionFeeFromTradeVault, address marginToken, uint256 qty, uint256 leverage, uint256 orderMargin, uint256 triggerPrice, uint256 acceptablePrice, uint256 placeTime, uint256 executionFee, uint256 lastBlock)',
+  'uint256', // fillQty
+  'uint256', // fillTime
+  'uint256', // fillPrice
+]
+
+const fetch = async ({ getLogs, chain, createBalances }: FetchOptions) => {
   const dailyVolume = createBalances()
-  const fromBlock = await getFromBlock()
-  const toBlock = await getToBlock()
 
   const logs = await getLogs({
     target: contracts[chain],
     topics: [ORDER_FILLED_TOPIC],
-    fromBlock,
-    toBlock,
     entireLog: true,
   })
 
+  const abiCoder = ethers.AbiCoder.defaultAbiCoder()
+
   logs.forEach((log: any) => {
-    const data = (log.data || '').replace('0x', '')
-    if (data.length < 20 * 64) return
+    try {
+      const decoded = abiCoder.decode(ORDER_INFO_TYPES, log.data)
+      const orderInfo = decoded[0]
+      const fillQty = decoded[1]
 
-    // Data layout: OrderInfo (17 words) + fillQty + fillTime + fillPrice
-    const qty = BigInt(`0x${data.slice(9 * 64, 10 * 64)}`) // order.qty in 1e18 USD
-    const fillQty = BigInt(`0x${data.slice(17 * 64, 18 * 64)}`) // fillQty in 1e18 USD
-    const volume = fillQty > 0n ? fillQty : qty
-    if (volume === 0n) return
+      const qty = orderInfo.qty
+      const volume = fillQty > 0n ? fillQty : qty
+      if (volume === 0n) return
 
-    // Convert from 1e18 to USD with bigint-safe scaling (keep 6 decimals)
-    const volumeUsd = Number(volume / 10n ** 12n) / 1e6
-    dailyVolume.addCGToken('tether', volumeUsd)
+      // Convert from 1e18 to USD with bigint-safe scaling (keep 6 decimals)
+      const volumeUsd = Number(volume / 10n ** 12n) / 1e6
+      dailyVolume.addCGToken('tether', volumeUsd)
+    } catch {
+      // Skip logs that fail to decode
+    }
   })
 
   return {
