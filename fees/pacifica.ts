@@ -3,7 +3,7 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async () => {
   const { data } = await fetchURL('https://api.pacifica.fi/api/v1/info/prices');
   const dailyVolume = data.reduce((a: number, b: { volume_24h: string }) => a + Number(b.volume_24h), 0);
   const avgFeeRate = 0.00035; // 0.035%
