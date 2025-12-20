@@ -15,74 +15,80 @@ interface config {
 const PERFORMANCE_FEE_RATE = 0.08 // 8%
 const SUPPLY_SIDE_RATE = 1 - PERFORMANCE_FEE_RATE // 92%
 
-// Custom metrics for fee breakdown
-const PERFORMANCE_FEE_METRIC = 'Performance Fee'
-
 const chainConfig: Record<string, config> = {
   [CHAIN.ETHEREUM]: {
     token: '0x8236a87084f8B84306f72007F36F2618A5634494',
-    start: '2025-11-21',
+    start: '2024-05-18',
   },
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
+  const dailyUserFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
-  const config = chainConfig[options.chain]
-  if (!config) return { dailyFees }
 
-  const { token } = config
+  const config = chainConfig[options.chain]
 
   // Fetch all UnstakeRequest events
   const unstakeLogs = await options.getLogs({
-    target: token,
-    eventAbi:
-      'event UnstakeRequest(address indexed user, bytes scriptPubkey, uint256 amount)',
+    target: config.token,
+    eventAbi: 'event UnstakeRequest(address indexed user, bytes scriptPubkey, uint256 amount)',
   })
 
   const redeemFee = await options.fromApi.call({
-    target: token,
+    target: config.token,
     abi: 'uint256:getRedeemFee',
+    permitFailure: true
   })
+  const fixedRedeemFeeLBTC = redeemFee ? Number(redeemFee) : 10000
 
   // Apply fixed fee for each unstake
   for (const _ of unstakeLogs) {
-    dailyFees.add(token, redeemFee, METRIC.MINT_REDEEM_FEES)
-    dailyProtocolRevenue.add(token, redeemFee, METRIC.MINT_REDEEM_FEES)
+    dailyFees.add(config.token, fixedRedeemFeeLBTC, METRIC.MINT_REDEEM_FEES)
+    dailyUserFees.add(config.token, fixedRedeemFeeLBTC, METRIC.MINT_REDEEM_FEES)
+    dailyProtocolRevenue.add(config.token, fixedRedeemFeeLBTC, METRIC.MINT_REDEEM_FEES)
   }
 
   const [exchangeRateBefore, exchangeRateAfter, totalSupply] = await Promise.all([
     options.fromApi.call({
-      target: token,
+      target: config.token,
       abi: 'uint256:getRate',
+      permitFailure: true,
     }),
     options.toApi.call({
-      target: token,
+      target: config.token,
       abi: 'uint256:getRate',
+      permitFailure: true,
     }),
     options.fromApi.call({
-      target: token,
+      target: config.token,
       abi: 'uint256:totalSupply',
+      permitFailure: true,
     }),
   ])
-
-  const totalDeposited = (BigInt(totalSupply) * BigInt(exchangeRateBefore)) / BigInt(1e18)
-    
-  const df = (Number(totalDeposited) * (Number(exchangeRateAfter) - Number(exchangeRateBefore))) / SUPPLY_SIDE_RATE / 1e18
-
-  // Split: 92% to supply-side (LBTC holders), 8% to protocol (Finality Providers)
-  const performanceFees = df * PERFORMANCE_FEE_RATE
-  const supplySideRewards = df * SUPPLY_SIDE_RATE
-
-  // Track fees with breakdown by metric
-  dailyFees.add(token, supplySideRewards, METRIC.STAKING_REWARDS)
-  dailyFees.add(token, performanceFees, PERFORMANCE_FEE_METRIC)
-  dailyProtocolRevenue.add(token, performanceFees, PERFORMANCE_FEE_METRIC)
-  dailySupplySideRevenue.add(token, supplySideRewards, METRIC.STAKING_REWARDS)
+  
+  if (exchangeRateBefore && exchangeRateAfter && totalSupply) {
+    const totalDeposited = (BigInt(totalSupply) * BigInt(exchangeRateBefore)) / BigInt(1e18)
+      
+    const df = (Number(totalDeposited) * (Number(exchangeRateAfter) - Number(exchangeRateBefore))) / SUPPLY_SIDE_RATE / 1e18
+  
+    // Split: 92% to supply-side (LBTC holders), 8% to protocol (Finality Providers)
+    const performanceFees = df * PERFORMANCE_FEE_RATE
+    const supplySideRewards = df * SUPPLY_SIDE_RATE
+  
+    // staking rewards to suppliers
+    dailyFees.add(config.token, supplySideRewards, METRIC.STAKING_REWARDS)
+    dailySupplySideRevenue.add(config.token, supplySideRewards, METRIC.STAKING_REWARDS)
+  
+    // performance fees to protocol
+    dailyFees.add(config.token, performanceFees, METRIC.PERFORMANCE_FEES)
+    dailyProtocolRevenue.add(config.token, performanceFees, METRIC.PERFORMANCE_FEES)
+  }
 
   return {
     dailyFees,
+    dailyUserFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
@@ -108,15 +114,15 @@ const adapter: Adapter = {
   breakdownMethodology: {
     Fees: {
       [METRIC.STAKING_REWARDS]: 'Yield accruing to LBTC holders via exchange rate appreciation from Bitcoin staking via Babylon protocol, minus performance fee.',
-      [PERFORMANCE_FEE_METRIC]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
+      [METRIC.PERFORMANCE_FEES]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
       [METRIC.MINT_REDEEM_FEES]: 'Fixed Network Security Fee (0.0001 LBTC) charged for each BTC withdrawal/unstaking.',
     },
     Revenue: {
-      [PERFORMANCE_FEE_METRIC]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
+      [METRIC.PERFORMANCE_FEES]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
       [METRIC.MINT_REDEEM_FEES]: 'Fixed Network Security Fee (0.0001 LBTC) charged for each BTC withdrawal/unstaking.',
     },
     ProtocolRevenue: {
-      [PERFORMANCE_FEE_METRIC]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
+      [METRIC.PERFORMANCE_FEES]: 'Performance fee (8%) collected by Finality Providers on staking rewards.',
       [METRIC.MINT_REDEEM_FEES]: 'Fixed Network Security Fee (0.0001 LBTC) charged for each BTC withdrawal/unstaking.',
     },
     SupplySideRevenue: {
