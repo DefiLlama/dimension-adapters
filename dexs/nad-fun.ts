@@ -16,7 +16,9 @@ const abi = {
 const metrics = {
   CreationFees: 'Creation Fees',
   GraduationFees: 'Graduation Fees',
-  LpManagerCollect: 'LP Manager Collect',
+  CommunityFees: 'Community Fees from LPs',
+  CreatorsFees: 'Creators Fees from LPs',
+  FoundationFees: 'Foundation Fees from LPs',
   BuyFees: 'Buy Fees',
   SellFees: 'Sell Fees',
 }
@@ -41,9 +43,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   
   lpManagerCollectLogs.forEach((log) => {
     const collectFee = Number(log.monAmount);
-    dailyFees.addGasToken(collectFee, metrics.LpManagerCollect); // 40% goes to Foundation, 30% goes to Community, 30% goes to Creator
-    dailyRevenue.addGasToken(collectFee * 0.4, metrics.LpManagerCollect); // 40% of collected Fees goes to Foundation Treasury
-    dailySupplySideRevenue.addGasToken(collectFee * 0.6, metrics.LpManagerCollect); // 30% goes to Community, 30% goes to Creator
+
+    // 40% goes to Foundation, 30% goes to Community, 30% goes to Creator
+    dailyFees.addGasToken(collectFee * 0.4, metrics.FoundationFees);
+    dailyFees.addGasToken(collectFee * 0.3, metrics.CommunityFees);
+    dailyFees.addGasToken(collectFee * 0.3, metrics.CreatorsFees);
+    
+    dailyRevenue.addGasToken(collectFee * 0.4, metrics.FoundationFees);
+
+    dailySupplySideRevenue.addGasToken(collectFee * 0.3, metrics.CommunityFees);
+    dailySupplySideRevenue.addGasToken(collectFee * 0.3, metrics.CreatorsFees);
   });
 
   buyLogs.forEach(log => {
@@ -61,7 +70,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   })
 
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, };
+  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue, };
 };
 
 const adapter: Adapter = {
@@ -74,6 +83,8 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Protocol fees are generated from Bonding Curve token actions (create, buy, sell, graduate) and from post-graduation LP manager fee collections.",
     Revenue: "All fees generated on the Bonding Curve itself (create, buy, sell, graduate) are counted as protocol revenue. For post-graduation LP manager collections, only 40% of the collected amount (the Foundation share) is treated as protocol revenue.",
+    ProtocolRevenue: "All revenue goes to Foundation Treasury.",
+    SupplySideRevenue: "40% of fees collected by the LP Manager on graduated pools to community and creators.",
   },
   breakdownMethodology: {
     Fees: {
@@ -81,17 +92,20 @@ const adapter: Adapter = {
       [metrics.GraduationFees]: 'Flat 3,000 MON fee charged when a token graduates from the Bonding Curve to the DEX pool.',
       [metrics.BuyFees]: "1% fee charged on the MON input amount for Bonding Curve buy trades.",
       [metrics.SellFees]: "1% fee charged on the token output amount for Bonding Curve sell trades.",
-      [metrics.LpManagerCollect]: "Fees collected by the LP Manager on graduated pools.",
+      [metrics.FoundationFees]: "40% fees collected by the LP Manager on graduated pools for Foundation.",
+      [metrics.CommunityFees]: "30% fees collected by the LP Manager on graduated pools for Community.",
+      [metrics.CreationFees]: "30% fees collected by the LP Manager on graduated pools for Creators.",
     },
     Revenue: {
       [metrics.CreationFees]: '10 MON fee charged when a new token is created on the Bonding Curve.',
       [metrics.GraduationFees]: 'Flat 3,000 MON fee charged when a token graduates from the Bonding Curve to the DEX pool.',
       [metrics.BuyFees]: "1% fee charged on the MON input amount for Bonding Curve buy trades.",
       [metrics.SellFees]: "1% fee charged on the token output amount for Bonding Curve sell trades.",
-      [metrics.LpManagerCollect]: "40% of fees collected by the LP Manager on graduated pools.",
+      [metrics.FoundationFees]: "40% fees collected by the LP Manager on graduated pools for Foundation.",
     },
     SupplySideRevenue: {
-      [metrics.LpManagerCollect]: "40% of fees collected by the LP Manager on graduated pools to community and creators.",
+      [metrics.CommunityFees]: "30% fees collected by the LP Manager on graduated pools for Community.",
+      [metrics.CreationFees]: "30% fees collected by the LP Manager on graduated pools for Creators.",
     },
   }
 };
