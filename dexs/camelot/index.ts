@@ -24,6 +24,14 @@ const adapterConfig = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    Fees: 'Trading fees charged on swaps. Camelot V2 is a Uniswap V2 fork with 0.3% swap fee.',
+    UserFees: 'Users pay 0.3% fee on each swap.',
+    Revenue: 'Portion of trading fees that goes to the protocol (17.5%) and xGRAIL holders (22.5%), totaling 40% of swap fees.',
+    ProtocolRevenue: '17.5% of trading fees (5% operating expenses + 12.5% GRAIL buyback/burn).',
+    HoldersRevenue: '22.5% of trading fees go to xGRAIL holders via Real Yield Staking.',
+    SupplySideRevenue: '60% of trading fees go to liquidity providers.',
+  },
   adapter: {
     [CHAIN.APECHAIN]: {
       fetch: getUniV2LogAdapter({ factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', ...adapterConfig }),
