@@ -42,6 +42,11 @@ const adapter: SimpleAdapter = uniV3Exports({
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    blacklistPools: [
+      '0xf3527ef8de265eaa3716fb312c12847bfba66cef',
+      '0x7788a3538c5fc7f9c7c8a74eac4c898fc8d87d92',
+      '0x8467f85a834159c26227b21f9898ca0fa606eaa8',
+    ],
     start: '2023-06-14',
   },
   [CHAIN.GRAVITY]: {
@@ -84,15 +89,25 @@ const adapter: SimpleAdapter = uniV3Exports({
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
     start: '2024-04-17',
   },
-  [CHAIN.XDAI]: {
-    factory: '0xD8676fBdfa5b56BB2298D452c9768f51e80e34AE',
+  [CHAIN.SUPERPOSITION]: {
+    factory: '0xCf4062Ee235BbeB4C7c0336ada689ed1c17547b6',
     swapEvent: algebraV3SwapEvent,
     isAlgebraV3: true,
     isAlgebraV2: true,
     revenueRatio: REVENUE_RATIO,
     protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
     holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
-    start: '2024-03-11',
+    start: '2024-09-01',
+  },
+  [CHAIN.WINR]: {
+    factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc',
+    swapEvent: algebraV3SwapEvent,
+    isAlgebraV3: true,
+    isAlgebraV2: true,
+    revenueRatio: REVENUE_RATIO,
+    protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+    holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+    start: '2024-10-01',
   },
 });
 
