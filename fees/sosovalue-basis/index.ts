@@ -4,7 +4,7 @@ import { getPrices } from "@defillama/sdk/build/util/coins";
 
 const USSI_CONTRACT = '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18';
 
-const fetch = async (_ : any, _2: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -14,16 +14,18 @@ const fetch = async (_ : any, _2: any, options: FetchOptions) => {
         target: USSI_CONTRACT,
         permitFailure: false,
     })
-    const totalSupplyYesterday = Number(totalSupplyBeforeRaw as string) / 1e8
+    const totalSupplyStart = Number(totalSupplyBeforeRaw as string) / 1e8
 
-    const priceTodayRes = await getPrices([`base:${USSI_CONTRACT}`], options.toTimestamp)
-    const priceYesterdayRes = await getPrices([`base:${USSI_CONTRACT}`], options.fromTimestamp)
+    const priceEndRes = await getPrices([`base:${USSI_CONTRACT}`], options.toTimestamp)
+    const priceStartRes = await getPrices([`base:${USSI_CONTRACT}`], options.fromTimestamp)
 
-    const priceToday = priceTodayRes[`base:${USSI_CONTRACT}`]?.price
-    const priceYesterday = priceYesterdayRes[`base:${USSI_CONTRACT}`]?.price
+    const priceEnd = priceEndRes[`base:${USSI_CONTRACT}`]?.price
+    const priceStart = priceStartRes[`base:${USSI_CONTRACT}`]?.price
 
-    const yieldAmount = (priceToday - priceYesterday) * totalSupplyYesterday
-    const serviceFee = (priceYesterday * totalSupplyYesterday) * 0.0001
+    const daysFraction = (options.toTimestamp - options.fromTimestamp) / 86400;
+
+    const yieldAmount = (priceEnd - priceStart) * totalSupplyStart
+    const serviceFee = (priceStart * totalSupplyStart) * 0.0001 * daysFraction
     dailyFees.addUSDValue(yieldAmount + serviceFee);
     dailyRevenue.addUSDValue(serviceFee);
     dailySupplySideRevenue.addUSDValue(yieldAmount);
@@ -38,7 +40,7 @@ const fetch = async (_ : any, _2: any, options: FetchOptions) => {
 };
 
 export default {
-    version: 1,
+    version: 2,
     allowNegativeValue: true, // Yield strategies aren't risk-free
     adapter: {
         [CHAIN.BASE]: {
