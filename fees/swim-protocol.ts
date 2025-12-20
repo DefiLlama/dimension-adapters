@@ -9,7 +9,7 @@ const POOLS = [
   "SWiMDJYFUGj6cPrQ6QYYYWZtvXQdRChSVAygDZDsCHC", // 6 token pool
 ];
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
   // Since Swim Protocol is inactive, return 0
   // or try to fetch historical data if needed
   
