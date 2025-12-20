@@ -5,6 +5,8 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+
   const data = await httpGet('https://api-mainnet-stage.cexplorer.io/v1/analytics/rate?display=sum_fee', {
     headers: {
       'content-type': 'application/json',
@@ -18,13 +20,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   ))[0]?.treasury_growth_rate
 
   const df = data.data.data.find((item: any) => item.date === options.dateString)
-  const feeAmount = df.stat.sum_fee / 1e6
+  
+  if (!df) {
+    throw Error(`No cardano fees data found at ${options.dateString}`)
+  }
 
-  const dailyFees = options.createBalances()
-  dailyFees.addCGToken('cardano', feeAmount)
-  const dailyRevenue = options.createBalances()
-  dailyRevenue.addCGToken('cardano', feeAmount * treasuryCut)
+  dailyFees.addCGToken('cardano', df.stat.sum_fee / 1e6)
 
+  // 2022-01-01
+  const dailyRevenue = options.startOfDay >= 1577836800 ? dailyFees.clone(treasuryCut) : 0;
+  
   return {
     dailyFees,
     dailyRevenue,
