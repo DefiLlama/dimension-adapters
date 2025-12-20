@@ -6,7 +6,6 @@ import { METRIC } from '../helpers/metrics'
 import ADDRESSES from '../helpers/coreAssets.json'
 import AaveAbis from '../helpers/aave/abi'
 import { getTimestampAtStartOfDayUTC } from '../utils/date'
-import { getPrices } from '../utils/prices'
 
 /**
  * Morpheus AI
@@ -74,11 +73,14 @@ const DEPOSIT_POOLS = {
   },
 }
 
-const USD_SCALE = 1e6
-const STETH_DECIMALS = 10n ** 18n
+/**
+ * Get stETH yield in USD using Lido subgraph (same method as Lido adapter)
+ * Pro-rates Lido's daily supply-side revenue by Morpheus's share of total stETH
+ */
+const getStethDailyYieldUsd = async (options: FetchOptions, totalSteth: bigint) => {
+  if (totalSteth === 0n) return 0
 
-const getLidoDailySupplySideRevenueUsd = async (timestamp: number) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
+  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400)
   const graphQuery = gql`
     {
       financialsDailySnapshot(id: ${dateId}) {
@@ -87,57 +89,41 @@ const getLidoDailySupplySideRevenueUsd = async (timestamp: number) => {
     }
   `
 
-  const graphRes = await request(LIDO_SUBGRAPH_ENDPOINT, graphQuery)
-  const dailySupplySideRevenueUSD = graphRes?.financialsDailySnapshot?.dailySupplySideRevenueUSD
-  return dailySupplySideRevenueUSD ? Number(dailySupplySideRevenueUSD) : 0
-}
-
-/**
- * Calculate stETH yield using Lido daily supply-side revenue
- * and pro-rate by Morpheus stETH share (same method as Lido adapter).
- */
-const getStethDailyYield = async (options: FetchOptions, totalSteth: bigint) => {
-  if (totalSteth === 0n) return 0n
-
-  const [dailySupplySideRevenueUSD, totalStethSupply, prices] = await Promise.all([
-    getLidoDailySupplySideRevenueUsd(options.startOfDay),
+  const [graphRes, totalStethSupply] = await Promise.all([
+    request(LIDO_SUBGRAPH_ENDPOINT, graphQuery),
     options.fromApi.call({
       target: STETH,
       abi: 'function totalSupply() view returns (uint256)',
     }),
-    getPrices([`ethereum:${STETH}`], options.startOfDay),
   ])
 
-  const priceInfo = prices[`ethereum:${STETH}`]
-  if (!dailySupplySideRevenueUSD || !priceInfo?.price) return 0n
+  const dailySupplySideRevenueUSD = graphRes?.financialsDailySnapshot?.dailySupplySideRevenueUSD
+  if (!dailySupplySideRevenueUSD) return 0
 
   const totalSupply = BigInt(totalStethSupply)
-  if (totalSupply === 0n) return 0n
+  if (totalSupply === 0n) return 0
 
-  const dailyRevenueUsdScaled = BigInt(Math.round(dailySupplySideRevenueUSD * USD_SCALE))
-  const stethShareUsdScaled = (dailyRevenueUsdScaled * totalSteth) / totalSupply
-  const priceScaled = BigInt(Math.round(priceInfo.price * USD_SCALE))
-
-  if (priceScaled === 0n) return 0n
-
-  return (stethShareUsdScaled * STETH_DECIMALS) / priceScaled
+  // Pro-rate by Morpheus's share of total stETH (same as Lido adapter pattern)
+  const morpheusShareUsd =
+    (Number(dailySupplySideRevenueUSD) * Number(totalSteth)) / Number(totalSupply)
+  return morpheusShareUsd
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
 
-  // Calculate stETH yield from Lido daily supply-side revenue
+  // Calculate stETH yield using Lido subgraph (same method as Lido adapter)
   const totalStethDeposited = await options.fromApi.call({
     target: DEPOSIT_POOLS.stETH.address,
     abi: 'function totalDepositedInPublicPools() view returns (uint256)',
   })
 
-  const stethYield = await getStethDailyYield(options, BigInt(totalStethDeposited))
+  const stethYieldUsd = await getStethDailyYieldUsd(options, BigInt(totalStethDeposited))
 
-  if (stethYield > 0) {
-    dailyFees.add(STETH, stethYield, METRIC.STAKING_REWARDS)
-    dailyRevenue.add(STETH, stethYield, METRIC.STAKING_REWARDS)
+  if (stethYieldUsd > 0) {
+    dailyFees.addUSDValue(stethYieldUsd, METRIC.STAKING_REWARDS)
+    dailyRevenue.addUSDValue(stethYieldUsd, METRIC.STAKING_REWARDS)
   }
 
   // Calculate Aave yield for other assets (wETH, USDC, USDT, wBTC)
