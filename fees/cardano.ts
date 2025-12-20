@@ -12,13 +12,22 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },
   })
+
+  const treasuryCut = (await httpGet(
+    `https://api.koios.rest/api/v1/epoch_params?order=epoch_no.desc&limit=1&select=epoch_no,treasury_growth_rate`
+  ))[0]?.treasury_growth_rate
+
   const df = data.data.data.find((item: any) => item.date === options.dateString)
+  const feeAmount = df.stat.sum_fee / 1e6
+
   const dailyFees = options.createBalances()
-  dailyFees.addCGToken('cardano', df.stat.sum_fee / 1e6)
+  dailyFees.addCGToken('cardano', feeAmount)
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.addCGToken('cardano', feeAmount * treasuryCut)
 
   return {
     dailyFees,
-    dailyRevenue: 0
+    dailyRevenue,
   };
 };
 
