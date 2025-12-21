@@ -141,6 +141,11 @@ const fetch = async (
   return { dailyFees: dailyPayment, dailyRevenue };
 };
 
+const methodology = {
+  Fees: 'LINK tokens paid by users for automated smart contract executions.',
+  Revenue: 'LINK payments minus gas costs paid to node operators.',
+}
+
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
@@ -190,5 +195,6 @@ const adapter: SimpleAdapter = {
       start: "2024-11-12",
     },
   },
+  methodology,
 };
 export default adapter;
