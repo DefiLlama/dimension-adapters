@@ -25,7 +25,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const vaultsResponse = await getConfig('concrete', `${CONCRETE_API_URL}/vault:tvl/all`);
 
-    const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 2 && +vault.peak_tvl > 0).map((v2Vault: any) => v2Vault.address));
+    const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 2 && +vault.peak_tvl > 10000).map((v2Vault: any) => v2Vault.address));
 
     const vaultsAdditionalInfo = await getConfig('concrete-additional', `${CONCRETE_API_URL}/vault:performance/all`);
 
@@ -70,20 +70,20 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     for (const [index, { vaultDecimals, underlyingAsset }] of vaultDetails.entries()) {
         if (priceAfter[index] === null || priceBefore[index] === null) continue;
         //Decimals are upto 27, so using BigInt
-        const priceDiff = BigInt(priceAfter[index]) - BigInt(priceBefore[index]) > 0n ? BigInt(priceAfter[index]) - BigInt(priceBefore[index]) : 0n;
+        const priceDiff = BigInt(priceAfter[index]) - BigInt(priceBefore[index]);
         const yieldForPeriod = (priceDiff * BigInt(totalSupplies[index])) / (BigInt(10) ** BigInt(vaultDecimals));
 
         dailyFees.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
 
         const managementFeeInBps = feeConfigs[index].currentManagementFee;
-        const managementFees = (BigInt(managementFeeInBps) / (100n * 100n)) * (BigInt(totalSupplies[index]) / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
+        const managementFees = (BigInt(managementFeeInBps)) * (BigInt(totalSupplies[index])) * BigInt(priceAfter[index]) * BigInt(options.toTimestamp - options.fromTimestamp) / (365n * 24n * 60n * 60n * 100n * 100n * (BigInt(10) ** BigInt(vaultDecimals)));
 
-        dailyFees.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
+        dailyFees.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
 
         const performanceFeeInBps = feeConfigs[index].currentPerformanceFee;
-        const performanceFees = (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n);
+        const performanceFees = priceDiff > 0n ? (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n) : 0n;
 
         dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
         dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
@@ -125,7 +125,8 @@ const adapter: SimpleAdapter = {
     fetch,
     methodology,
     adapter: CHAIN_CONFIG,
-    breakdownMethodology
+    breakdownMethodology,
+    allowNegativeValue: true,
 };
 
 export default adapter;

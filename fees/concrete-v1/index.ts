@@ -27,7 +27,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const vaultsResponse = await getConfig('concrete', `${CONCRETE_API_URL}/vault:tvl/all`);
 
-    const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 1 && +vault.peak_tvl > 0).map((v1Vault: any) => v1Vault.address));
+    const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 1 && +vault.peak_tvl > 10000).map((v1Vault: any) => v1Vault.address));
 
     const vaultsAdditionalInfo = await getConfig('concrete-additional', `${CONCRETE_API_URL}/vault:performance/all`);
 
@@ -36,6 +36,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         underlyingAsset: vault.underlying_token_address,
         vaultDecimals: vault.decimals
     }));
+    
     const vaultsList = vaultDetails.map(vault => vault.address);
 
     const totalSupplies = await options.api.multiCall({
@@ -77,25 +78,26 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     for (const [index, { underlyingAsset, vaultDecimals }] of vaultDetails.entries()) {
         if (priceAfter[index] === null || priceBefore[index] === null) continue;
         //Decimals are upto 27 so using BigInt
-        const priceDiff = BigInt(priceAfter[index]) - BigInt(priceBefore[index]) > 0n ? BigInt(priceAfter[index]) - BigInt(priceBefore[index]) : 0n;
+        const priceDiff = BigInt(priceAfter[index]) - BigInt(priceBefore[index]);
         const yieldForPeriod = (priceDiff * BigInt(totalSupplies[index])) / (BigInt(10) ** BigInt(vaultDecimals));
 
         dailyFees.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
 
         const managementFeeInBps = vaultFee[index].protocolFee;
-        const managementFees = (BigInt(managementFeeInBps) / (100n * 100n)) * (BigInt(totalSupplies[index]) / (BigInt(10) ** BigInt(vaultDecimals))) * BigInt(priceAfter[index]);
+        const managementFees = (BigInt(managementFeeInBps)) * (BigInt(totalSupplies[index])) * BigInt(priceAfter[index]) * BigInt(options.toTimestamp - options.fromTimestamp) / (365n * 24n * 60n * 60n * 100n * 100n * (BigInt(10) ** BigInt(vaultDecimals)));
 
-        dailyFees.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(underlyingAsset[index], managementFees, METRIC.MANAGEMENT_FEES);
+        dailyFees.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
 
-        const priceInAssets = BigInt(priceAfter[index]) / (BigInt(10) ** BigInt(9));
+        const priceInAssets = BigInt(priceAfter[index]) / (BigInt(10) ** BigInt(9));//decimal difference bw vault and asset is always 9
 
         if (priceInAssets <= highWaterMarks[index] || vaultFee[index].performanceFee.length === 0) continue;
-        const performanceInBps = ((priceInAssets - BigInt(highWaterMarks[index])) / BigInt(highWaterMarks[index])) * 100n;
+        const performanceInBps = ((priceInAssets - BigInt(highWaterMarks[index]) * 100n) / BigInt(highWaterMarks[index]));
 
         let performanceFeeInBps = 0;
         for (const entry of vaultFee[index].performanceFee) {
+            if (performanceInBps <= 0) continue;
             if (entry.lowerBound <= performanceInBps && entry.upperBound > performanceInBps) {
                 performanceFeeInBps = entry.fee;
                 break;
@@ -142,6 +144,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     adapter: CHAIN_CONFIG,
+    allowNegativeValue: true,
 };
 
 export default adapter;
