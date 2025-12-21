@@ -1,6 +1,7 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { nullAddress } from "../../helpers/token";
 
 const chainConfig: Record<string, Record<string, any>> = {
     [CHAIN.ETHEREUM]: {
@@ -154,25 +155,25 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const seniorVaultDecimals = await options.api.multiCall({
         abi: IDLE_ABIs.decimals,
-        calls: seniorVaults,
+        calls: seniorVaults.map(vault => vault || nullAddress),
         permitFailure: true,
     });
 
     const juniorVaultDecimals = await options.api.multiCall({
         abi: IDLE_ABIs.decimals,
-        calls: juniorVaults,
+        calls: juniorVaults.map(vault => vault || nullAddress),
         permitFailure: true,
     });
 
     const seniorVaultTotalSupply = await options.api.multiCall({
         abi: IDLE_ABIs.totalSupply,
-        calls: seniorVaults,
+        calls: seniorVaults.map(vault => vault || nullAddress),
         permitFailure: true,
     });
 
     const juniorVaultTotalSupply = await options.api.multiCall({
         abi: IDLE_ABIs.totalSupply,
-        calls: juniorVaults,
+        calls: juniorVaults.map(vault => vault || nullAddress),
         permitFailure: true,
     });
 
