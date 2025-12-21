@@ -1,63 +1,18 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const SUBGRAPH_URL = "https://gateway.thegraph.com/api/subgraphs/id/57W3a3unYSE8BqH694JjW96PHVeVgZLTgrZY15q4zKvd";
+const BUYBACK_CONTRACT = "0x55836bD72800b23c64D384E8734330B8363e62Fa";
 const NICKEL_TOKEN_ADDRESS = "0xE3F0CDCfC6e154a60b1712147BdC7Be9203dEabA";
 
-const buybacksQuery = `
-  query getBuybacks($startTimestamp: String!, $endTimestamp: String!) {
-    buybacks(
-      where: {
-        timestamp_gte: $startTimestamp
-        timestamp_lte: $endTimestamp
-      }
-      orderBy: timestamp
-      orderDirection: desc
-    ) {
-      ethSpent
-      amountToTreasury
-      amountBurned
-      nickelBought
-      timestamp
-    }
-  }
-`;
-
-interface Buyback {
-  ethSpent: string;
-  amountToTreasury: string;
-  amountBurned: string;
-  nickelBought: string;
-  timestamp: string;
-}
-
-interface GraphQLResponse {
-  buybacks: Buyback[];
-}
+// Event signature: SwapExecuted(address indexed user, uint256 nativeAmount, uint256 nickelAmount, uint256 burnedAmount, uint256 treasuryAmount, uint256 timestamp)
+const SWAP_EXECUTED_EVENT = "event SwapExecuted(address indexed user, uint256 nativeAmount, uint256 nickelAmount, uint256 burnedAmount, uint256 treasuryAmount, uint256 timestamp)";
 
 const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
-  const variables = {
-    startTimestamp: String(options.startTimestamp),
-    endTimestamp: String(options.endTimestamp),
-  };
-
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  const res = await fetch(SUBGRAPH_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query: buybacksQuery, variables }),
+  // Get all SwapExecuted events from the buyback contract
+  const logs = await options.getLogs({
+    target: BUYBACK_CONTRACT,
+    eventAbi: SWAP_EXECUTED_EVENT,
   });
-
-  const response = await res.json();
-  
-  if (response.errors) {
-    throw new Error(`GraphQL errors: ${JSON.stringify(response.errors)}`);
-  }
-  
-  const data: GraphQLResponse = response.data;
 
   // Initialize balances for each metric
   const dailyRevenue = options.createBalances();
@@ -66,21 +21,24 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   
   // Sum all values from buybacks in the time period
+  // getLogs automatically filters by block timestamp, but we also filter by event timestamp parameter
   let totalEthSpent = BigInt(0);
   let totalAmountBurned = BigInt(0);
   let totalNickelBought = BigInt(0);
   let totalAmountToTreasury = BigInt(0);
   
-  if (data.buybacks && data.buybacks.length > 0) {
-    for (const buyback of data.buybacks) {
-      totalEthSpent += BigInt(buyback.ethSpent || "0");
-      totalAmountBurned += BigInt(buyback.amountBurned || "0");
-      totalNickelBought += BigInt(buyback.nickelBought || "0");
-      totalAmountToTreasury += BigInt(buyback.amountToTreasury || "0");
+  for (const log of logs) {
+    // Filter by event timestamp parameter if it's within the time range
+    const eventTimestamp = Number(log.timestamp);
+    if (eventTimestamp >= options.startTimestamp && eventTimestamp < options.endTimestamp) {
+      totalEthSpent += BigInt(log.nativeAmount || "0");
+      totalAmountBurned += BigInt(log.burnedAmount || "0");
+      totalNickelBought += BigInt(log.nickelAmount || "0");
+      totalAmountToTreasury += BigInt(log.treasuryAmount || "0");
     }
   }
 
-  // ethSpent is in ETH value (BigInt), convert to wei by multiplying by 1e18
+  // nativeAmount is in ETH value (BigInt), convert to wei by multiplying by 1e18
   const ethSpentWei = totalEthSpent * BigInt(1e18);
   dailyRevenue.addGasToken(ethSpentWei);
   
