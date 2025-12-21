@@ -19,24 +19,26 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   
   // Sum all values from buybacks in the time period
-  // getLogs automatically filters by block timestamp, but we also filter by event timestamp parameter
+  // getLogs automatically filters by block timestamp, so we use all logs returned
+  // Mapping from subgraph:
+  // - dailyRevenue = ethSpent = nativeAmount (ETH spent on buybacks)
+  // - dailyHoldersRevenue = amountToTreasury = treasuryAmount (tokens sent to staking contract)
   let totalEthSpent = BigInt(0);
   let totalAmountToTreasury = BigInt(0);
   
   for (const log of logs) {
-    // Filter by event timestamp parameter if it's within the time range
-    const eventTimestamp = Number(log.timestamp);
-    if (eventTimestamp >= options.startTimestamp && eventTimestamp < options.endTimestamp) {
-      totalEthSpent += BigInt(log.nativeAmount || "0");
-      totalAmountToTreasury += BigInt(log.treasuryAmount || "0");
-    }
+    // nativeAmount = ETH spent (in wei)
+    totalEthSpent += BigInt(log.nativeAmount || "0");
+    // treasuryAmount = tokens sent to treasury/staking contract (in token units)
+    totalAmountToTreasury += BigInt(log.treasuryAmount || "0");
   }
 
-  // nativeAmount from contract event is already in wei (smallest unit)
+  // dailyRevenue = total ETH spent (nativeAmount is already in wei)
   dailyRevenue.addGasToken(totalEthSpent);
   
-  // amountToTreasury is in token units (BigInt)
-  dailyHoldersRevenue.add(`${CHAIN.BASE}:${NICKEL_TOKEN_ADDRESS}`, totalAmountToTreasury);
+  // dailyHoldersRevenue = total tokens sent to treasury/staking contract (treasuryAmount in token units)
+  // Use token address directly (the chain context is already set by options)
+  dailyHoldersRevenue.add(NICKEL_TOKEN_ADDRESS, totalAmountToTreasury);
 
   return {
     dailyRevenue,
