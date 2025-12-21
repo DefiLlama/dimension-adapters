@@ -52,7 +52,8 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   console.log(`[NICKEL] Total ETH spent: ${totalEthSpent.toString()} wei (${totalEth.toFixed(6)} ETH)`);
 
   // dailyRevenue = total ETH spent (nativeAmount is already in wei)
-  console.log(`[NICKEL] Adding to dailyRevenue: ${totalEthSpent.toString()} wei`);
+  // addGasToken accepts BigInt directly
+  console.log(`[NICKEL] Adding to dailyRevenue: ${totalEthSpent.toString()} wei (type: ${typeof totalEthSpent})`);
   dailyRevenue.addGasToken(totalEthSpent);
   
   // Check what's in dailyRevenue after adding
@@ -64,6 +65,12 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   dailyHoldersRevenue.addBalances(dailyHoldersRevenueAmount.getBalances());
   
   console.log(`[NICKEL] dailyHoldersRevenue (10%):`, JSON.stringify(dailyHoldersRevenue.getBalances(), null, 2));
+  
+  // Final verification - get USD value to see what the system will display
+  const revenueUSD = dailyRevenue.getUSDValue();
+  console.log(`[NICKEL] dailyRevenue USD value: ${revenueUSD}`);
+  const holdersUSD = dailyHoldersRevenue.getUSDValue();
+  console.log(`[NICKEL] dailyHoldersRevenue USD value: ${holdersUSD}`);
 
   return {
     dailyRevenue,
