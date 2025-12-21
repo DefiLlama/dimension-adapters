@@ -1,91 +1,92 @@
-import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
-import BigNumber from "bignumber.js";
-import request, { gql } from "graphql-request";
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-import { getEnv } from "../helpers/env";
+import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { CHAIN } from '../helpers/chains';
+import { getUniV3LogAdapter } from '../helpers/uniswap';
 
-interface IPoolData {
-  id: number;
-  feesUSD: string;
-}
+// Camelot V3 uses Algebra (Uniswap V3-style concentrated liquidity)
+// Fees are pool-specific and read on-chain from the Algebra pool configuration
+// Fee distribution (V3):
+// - ~80% to Liquidity Providers
+// - ~20% to protocol-controlled revenue (xGRAIL + treasury)
+// Source: https://docs.camelot.exchange/tokenomics/protocol-earnings
+// Architecture: https://docs.camelot.exchange/protocol/amm-v3
 
-type IURL = {
-  [l: string | Chain]: string;
-}
+const methodology = {
+  Fees: 'Trading fees charged on swaps. Camelot V3 uses Algebra with dynamic fees.',
+  UserFees: 'Users pay dynamic fees on each swap (typically 0.05% to 1%).',
+  Revenue: 'Portion of trading fees that goes to the protocol (3%) and xGRAIL holders (17%), totaling 20% of swap fees.',
+  ProtocolRevenue: '3% of trading fees go to the protocol.',
+  HoldersRevenue: '17% of trading fees go to xGRAIL holders via Real Yield Staking.',
+  SupplySideRevenue: '80% of trading fees go to liquidity providers.',
+};
 
-const endpoints: IURL = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7mPnp1UqmefcCycB8umy4uUkTkFxMoHn1Y7ncBUscePp'),
-  [CHAIN.APECHAIN]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-apechain/api`,
-  [CHAIN.GRAVITY]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-gravity/api`,
-  [CHAIN.RARI]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-rari/api`,
-  [CHAIN.REYA]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-reya/api`,
-  [CHAIN.XDAI]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-xai/api`,
-  [CHAIN.SANKO]: `https://subgraph.satsuma-prod.com/${getEnv('CAMELOT_API_KEY')}/camelot/camelot-ammv3-sanko/api`,
-}
+// Fee split ratios
+const REVENUE_RATIO = 0.2; // 20% total protocol-controlled
+const PROTOCOL_REVENUE_RATIO = 0.03; // 3% protocol
+const HOLDERS_REVENUE_RATIO = 0.17; // 17% xGRAIL holders
 
-const fetch =  async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
-    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-    const graphQuery = gql
-      `
-      {
-        algebraDayData(id: ${dateId}) {
-          id
-          feesUSD
-        }
-      }
-    `;
+const adapterConfig = {
+  revenueRatio: REVENUE_RATIO,
+  protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
+  holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
+  isAlgebraV3: true,
+};
 
-    const graphRes: IPoolData = (await request(endpoints[options.chain], graphQuery)).algebraDayData;
-    const dailyFeeUSD = graphRes;
-    const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
-    if (dailyFee === undefined) return { timestamp }
-    return {
-      timestamp,
-      dailyFees: dailyFee.toString(),
-      dailyUserFees: dailyFee.toString(),
-      dailyRevenue: dailyFee.multipliedBy(0.2).toString(),
-      dailyProtocolRevenue: dailyFee.multipliedBy(0.03).toString(),
-      dailyHoldersRevenue: dailyFee.multipliedBy(0.17).toString(),
-      dailySupplySideRevenue: dailyFee.multipliedBy(0.80).toString(),
-    };
-}
-
-const adapter: Adapter = {
-  version: 1,
+const adapter: SimpleAdapter = {
+  version: 2,
+  methodology,
   adapter: {
+    [CHAIN.APECHAIN]: {
+      fetch: getUniV3LogAdapter({ factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc', ...adapterConfig }),
+      start: '2024-10-15',
+    },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
+      fetch: async (options: FetchOptions) => {
+        // Arbitrum has two factories that need to be combined
+        const adapter1 = getUniV3LogAdapter({
+          factory: '0x1a3c9B1d2F0529D97f2afC5136Cc23e58f1FD35B',
+          ...adapterConfig,
+          blacklistPools: [
+            '0xf3527ef8de265eaa3716fb312c12847bfba66cef',
+            '0x7788a3538c5fc7f9c7c8a74eac4c898fc8d87d92',
+            '0x8467f85a834159c26227b21f9898ca0fa606eaa8'
+          ],
+        });
+        const adapter2 = getUniV3LogAdapter({
+          factory: '0xd490f2f6990c0291597fd1247651b4e0dcf684dd',
+          ...adapterConfig,
+        });
+
+        const [res1, res2] = await Promise.all([adapter1(options), adapter2(options)]);
+
+        // Combine results from both factories
+        if (res2.dailyFees) res1.dailyFees.addBalances(res2.dailyFees);
+        if (res2.dailyVolume) res1.dailyVolume.addBalances(res2.dailyVolume);
+        if (res2.dailyRevenue) res1.dailyRevenue.addBalances(res2.dailyRevenue);
+        if (res2.dailyProtocolRevenue) res1.dailyProtocolRevenue.addBalances(res2.dailyProtocolRevenue);
+        if (res2.dailyHoldersRevenue) res1.dailyHoldersRevenue.addBalances(res2.dailyHoldersRevenue);
+        if (res2.dailySupplySideRevenue) res1.dailySupplySideRevenue.addBalances(res2.dailySupplySideRevenue);
+        if (res2.dailyUserFees) res1.dailyUserFees.addBalances(res2.dailyUserFees);
+
+        return res1;
+      },
       start: '2023-03-31',
     },
-    // [CHAIN.APECHAIN]: {
-    //   fetch: fetch,
-    //   start: '2022-11-11',
-    // },
-    // [CHAIN.GRAVITY]: {
-    //   fetch: fetch,
-    //   start: '2022-11-11',
-    // },
-    // [CHAIN.RARI]: {
-    //   fetch: fetch,
-    //   start: '2022-11-11',
-    // },
-    // [CHAIN.REYA]: {
-    //   fetch: fetch,
-    //   start: '2022-11-11',
-    // },
-    // [CHAIN.XDAI]: {
-    //   fetch: fetch,
-    //   start: '2022-11-11',
-    // },
-    // [CHAIN.SANKO]: {
-    //   fetch: fetch,
-    //   start: '2022-11-11',
-    // },
+    [CHAIN.GRAVITY]: {
+      fetch: getUniV3LogAdapter({ factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc', ...adapterConfig }),
+      start: '2024-07-04',
+    },
+    [CHAIN.RARI]: {
+      fetch: getUniV3LogAdapter({ factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa', ...adapterConfig }),
+      start: '2024-06-05',
+    },
+    [CHAIN.REYA]: {
+      fetch: getUniV3LogAdapter({ factory: '0x10aA510d94E094Bd643677bd2964c3EE085Daffc', ...adapterConfig }),
+      start: '2024-06-20',
+    },
+    [CHAIN.SANKO]: {
+      fetch: getUniV3LogAdapter({ factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa', ...adapterConfig }),
+      start: '2024-04-17',
+    },
   },
 };
 
