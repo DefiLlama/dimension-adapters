@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -12,7 +12,7 @@ interface YieldDistributionsResponse {
   data: YieldDistribution[];
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
 
   // Fetch all yield distributions
@@ -35,30 +35,22 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(totalYield);
 
-  // All yield goes to stakers (sUSDv holders)
-  const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.addUSDValue(totalYield);
+  // All yield goes to sUSDv holders (supply side)
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(totalYield);
 
   return {
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyHoldersRevenue,
+    dailyRevenue: dailySupplySideRevenue,
+    dailySupplySideRevenue,
   };
 };
 
-const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2025-06-04', // First yield distribution
-    },
-  },
-  methodology: {
-    Fees: 'Yield generated from basis trading strategies (funding rates on perpetual futures).',
-    Revenue: 'All yield is distributed to sUSDv holders (staked USDv).',
-    HoldersRevenue: 'Yield earned by sUSDv token holders from the protocol\'s delta-neutral basis trading strategy.',
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-06-04',
 };
 
 export default adapter;
