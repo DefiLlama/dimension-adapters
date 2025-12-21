@@ -39,6 +39,9 @@ const LIDO_SUBGRAPH_ENDPOINT = sdk.graph.modifyEndpoint(
 // Aave ray precision (1e27)
 const RAY = BigInt(1e27)
 
+// Aave V3 Pool Data Provider on Ethereum mainnet (global Aave contract for reserve data)
+const AAVE_V3_POOL_DATA_PROVIDER = '0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3'
+
 // Buyback executor on Arbitrum - receives wstETH from L2TokenReceiver and executes MOR swaps
 const BUYBACK_EXECUTOR = '0x151c2b49cdec10b150b2763df3d1c00d70c90956'
 
@@ -135,11 +138,6 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Calculate Aave yield for other assets (wETH, USDC, USDT, wBTC)
-  const aaveDataProvider = await options.api.call({
-    target: DISTRIBUTOR,
-    abi: 'function aavePoolDataProvider() view returns (address)',
-  })
-
   const aavePools = Object.entries(DEPOSIT_POOLS).filter(([, pool]) => pool.isAave)
   const aaveTokens = aavePools.map(([, pool]) => pool.token)
   const aavePoolAddresses = aavePools.map(([, pool]) => pool.address)
@@ -152,13 +150,13 @@ const fetch = async (options: FetchOptions) => {
     }),
     options.fromApi.multiCall({
       abi: AaveAbis.getReserveDataV3,
-      target: aaveDataProvider,
+      target: AAVE_V3_POOL_DATA_PROVIDER,
       calls: aaveTokens,
       permitFailure: true,
     }),
     options.toApi.multiCall({
       abi: AaveAbis.getReserveDataV3,
-      target: aaveDataProvider,
+      target: AAVE_V3_POOL_DATA_PROVIDER,
       calls: aaveTokens,
       permitFailure: true,
     }),
@@ -212,7 +210,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue, // MOR token emissions to depositors (separate from captured yield)
-    
+
     // buy back on arbitrum
     dailyHoldersRevenue: 0,
   }
@@ -227,7 +225,7 @@ const fetchBuybacks = async (options: FetchOptions) => {
     eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', // Transfer signature
-      '',
+      null as any,
       '0x000000000000000000000000' + BUYBACK_EXECUTOR.slice(2).toLowerCase(), // to = BUYBACK_EXECUTOR
     ],
   })
@@ -258,31 +256,36 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchBuybacks,
-      start: '2024-05-08', // AMM initiation date - when buybacks began
+      start: '2024-05-08',
     },
   },
   methodology: {
     Fees: 'Yield captured from deposits: stETH rebasing (Lido) + Aave V3 interest on wETH, USDC, USDT, wBTC.',
     Revenue: 'All captured yield (100%).',
     HoldersRevenue: 'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL.',
-    SupplySideRevenue: 'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
+    SupplySideRevenue:
+      'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
   },
   breakdownMethodology: {
     Fees: {
       [MetricLabels.LIDO_STAKING]: 'Yield captured from stETH rebasing (Lido)',
       [MetricLabels.AAVE_LENDING]: 'Yield captured from Aave V3 interest on wETH, USDC, USDT, wBTC',
-      [MetricLabels.MOR_EMISSION]: 'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
-      [MetricLabels.TOKEN_BUY_BACK]: 'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL',
+      [MetricLabels.MOR_EMISSION]:
+        'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
+      [MetricLabels.TOKEN_BUY_BACK]:
+        'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL',
     },
     Revenue: {
       [MetricLabels.LIDO_STAKING]: 'Yield captured from stETH rebasing (Lido)',
       [MetricLabels.AAVE_LENDING]: 'Yield captured from Aave V3 interest on wETH, USDC, USDT, wBTC',
     },
     SupplySideRevenue: {
-      [MetricLabels.MOR_EMISSION]: 'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
+      [MetricLabels.MOR_EMISSION]:
+        'MOR token emissions to depositors. (24% of daily supply, ~3,456 MOR/day at launch, declining until 2040)',
     },
     HoldersRevenue: {
-      [MetricLabels.TOKEN_BUY_BACK]: 'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL.',
+      [MetricLabels.TOKEN_BUY_BACK]:
+        'MOR buybacks funded by yield (75%): buy & burn, buy & lock, buy & add to PoL.',
     },
   },
 }
