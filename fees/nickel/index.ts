@@ -38,9 +38,8 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
     }
   }
 
-  // nativeAmount is in ETH value (BigInt), convert to wei by multiplying by 1e18
-  const ethSpentWei = totalEthSpent * BigInt(1e18);
-  dailyRevenue.addGasToken(ethSpentWei);
+  // nativeAmount from contract event is already in wei (smallest unit)
+  dailyRevenue.addGasToken(totalEthSpent);
   
   // amountBurned, nickelBought, and amountToTreasury are in token units (BigInt)
   dailyBurn.add(`${CHAIN.BASE}:${NICKEL_TOKEN_ADDRESS}`, totalAmountBurned);
