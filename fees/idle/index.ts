@@ -1,7 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import ADDRESSES from '../../helpers/coreAssets.json'
 
 const chainConfig: Record<string, Record<string, any>> = {
     [CHAIN.ETHEREUM]: {
@@ -63,7 +62,7 @@ const chainConfig: Record<string, Record<string, any>> = {
         ]
     },
     [CHAIN.POLYGON]: {
-        start: '2025-01-01',
+        start: '2021-05-31',
         YIELD_TRANCHES: [
             "0xF9E2AE779a7d25cDe46FccC41a27B8A4381d4e52", //Bastion CV
         ],
@@ -74,13 +73,13 @@ const chainConfig: Record<string, Record<string, any>> = {
         ]
     },
     [CHAIN.POLYGON_ZKEVM]: {
-        start: "2025-01-01",
+        start: "2023-07-20",
         YIELD_TRANCHES: [
             "0x6b8A1e78Ac707F9b0b5eB4f34B02D9af84D2b689", // IdleCDO_clearpool_portofino_USDT
         ]
     },
     [CHAIN.ARBITRUM]: {
-        start: "2025-01-01",
+        start: "2024-11-29",
         YIELD_TRANCHES: [
             "0x3919396Cd445b03E6Bb62995A7a4CB2AC544245D", //bastion CV
         ]
@@ -97,7 +96,7 @@ const IDLE_ABIs = {
     performanceFeeInThousandMultiple: "uint256:fee",
     decimals: "uint8:decimals",
     tokenPrice: "uint256:tokenPrice",
-    token:"address:token",
+    token: "address:token",
 }
 
 const BUYBACK_PAUSE_TIMESTAMP = 1685577600;
@@ -244,24 +243,24 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
             });
 
             const underlyingTokens = await options.api.multiCall({
-                calls:remainingVaults,
+                calls: remainingVaults,
                 abi: IDLE_ABIs.token,
-                permitFailure:true,
+                permitFailure: true,
             });
 
             const performanceFeeInThousandBpsMultiple = await options.api.multiCall({
-                calls:remainingVaults,
+                calls: remainingVaults,
                 abi: IDLE_ABIs.performanceFeeInThousandMultiple,
                 permitFailure: true,
-            });             
+            });
 
             for (const [index, _vault] of remainingVaults.entries()) {
 
                 const totalYieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index]) / (10 ** 18);
 
                 if (totalYieldForPeriod > 0) {
-                    const performaceFeesMultiple = performanceFeeInThousandBpsMultiple[index]/(1000*100);
-                    calculateAllFees(underlyingTokens[index], totalYieldForPeriod , performaceFeesMultiple);
+                    const performaceFeesMultiple = performanceFeeInThousandBpsMultiple[index] / (1000 * 100);
+                    calculateAllFees(underlyingTokens[index], totalYieldForPeriod, performaceFeesMultiple);
                 }
             }
         }
