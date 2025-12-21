@@ -8,7 +8,9 @@ const ABI = {
     pricePerShare: 'uint256:pricePerShare',
     totalSupply: 'uint256:totalSupply',
     balanceOf: 'function balanceOf(address) view returns(uint256)',
-    withdrawAdminFees: 'event WithdrawAdminFees (address receiver, uint256 amount)'
+    withdrawAdminFees: 'event WithdrawAdminFees (address receiver, uint256 amount)',
+    assetToken: 'address:ASSET_TOKEN',
+    decimals: 'uint8:decimals',
 }
 
 const ADDRESSES = {
@@ -54,16 +56,36 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         flatten: false
     });
 
+    const assetTokens = await options.api.multiCall({
+        calls: ltContracts,
+        abi: ABI.assetToken,
+        permitFailure: true,
+    });
+
+    const assetTokenDecimals = await options.api.multiCall({
+        calls: assetTokens,
+        abi: ABI.decimals,
+        permitFailure: true,
+    });
+
+    const ltDecimals = await options.api.multiCall({
+        calls: ltContracts,
+        abi: ABI.decimals,
+        permitFailure: true,
+    });
+
     for (const [index, _market] of markets.entries()) {
         if (!pricesBefore[index] || !pricesAfter[index] || !stakedSupplies[index] || !totalSupplies[index]) continue;
 
+        const ltAndAssetDecimalDifference = ltDecimals[index] - assetTokenDecimals[index];
+
         const yieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index] - stakedSupplies[index]) / 1e18;
 
-        dailyFees.addCGToken("bitcoin", yieldForPeriod / 1e18);
-        dailySupplySideRevenue.addCGToken("bitcoin", yieldForPeriod / 1e18);
+        dailyFees.addToken(assetTokens[index], yieldForPeriod / (10 ** ltAndAssetDecimalDifference));
+        dailySupplySideRevenue.addToken(assetTokens[index], yieldForPeriod / (10 ** ltAndAssetDecimalDifference));
 
         adminFeesWithdrawnLogs[index].forEach((log: any) => {
-            dailyHoldersRevenue.addCGToken("bitcoin", (pricesAfter[index] / 1e18) * (Number(log.amount) / 1e18));
+            dailyHoldersRevenue.addCGToken(assetTokens[index], (pricesAfter[index] / 1e18) * (Number(log.amount) / (10 ** ltAndAssetDecimalDifference)));
         })
     }
 
@@ -78,7 +100,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 }
 
 const methodology = {
-    Fees: "Trading fees on BTC pairs paid by users",
+    Fees: "Trading fees paid by users",
     Revenue: "Part of trading fees (Admin fees)",
     HoldersRevenue: "All the admin fees goes to YB stakers",
     SupplySideRevenue: "Trading fees post admin fee deduction goes to liquidity providers"
@@ -90,7 +112,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.ETHEREUM],
     start: '2025-09-24',
     methodology,
-    doublecounted: true, //Curve DEX
+    allowNegativeValue: true,
 }
 
 export default adapter;
