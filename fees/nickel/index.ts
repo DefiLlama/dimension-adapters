@@ -16,14 +16,12 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   // Initialize balances for each metric
   const dailyRevenue = options.createBalances();
-  const dailyBurn = options.createBalances();
   const dailyTokensBought = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   
   // Sum all values from buybacks in the time period
   // getLogs automatically filters by block timestamp, but we also filter by event timestamp parameter
   let totalEthSpent = BigInt(0);
-  let totalAmountBurned = BigInt(0);
   let totalNickelBought = BigInt(0);
   let totalAmountToTreasury = BigInt(0);
   
@@ -32,7 +30,6 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
     const eventTimestamp = Number(log.timestamp);
     if (eventTimestamp >= options.startTimestamp && eventTimestamp < options.endTimestamp) {
       totalEthSpent += BigInt(log.nativeAmount || "0");
-      totalAmountBurned += BigInt(log.burnedAmount || "0");
       totalNickelBought += BigInt(log.nickelAmount || "0");
       totalAmountToTreasury += BigInt(log.treasuryAmount || "0");
     }
@@ -41,14 +38,12 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   // nativeAmount from contract event is already in wei (smallest unit)
   dailyRevenue.addGasToken(totalEthSpent);
   
-  // amountBurned, nickelBought, and amountToTreasury are in token units (BigInt)
-  dailyBurn.add(`${CHAIN.BASE}:${NICKEL_TOKEN_ADDRESS}`, totalAmountBurned);
+  // nickelBought and amountToTreasury are in token units (BigInt)
   dailyTokensBought.add(`${CHAIN.BASE}:${NICKEL_TOKEN_ADDRESS}`, totalNickelBought);
   dailyHoldersRevenue.add(`${CHAIN.BASE}:${NICKEL_TOKEN_ADDRESS}`, totalAmountToTreasury);
 
   return {
     dailyRevenue,
-    dailyBurn,
     dailyTokensBought,
     dailyHoldersRevenue,
   };
@@ -61,7 +56,6 @@ const adapter: SimpleAdapter = {
   start: "2024-01-01", // Update this with the actual start date
   methodology: {
     Revenue: "Total ETH spent on buybacks.",
-    Burn: "Total amount of tokens burned.",
     TokensBought: "Total nickel tokens bought.",
     HoldersRevenue: "Total amount sent to Staking contract.",
   },
