@@ -1,4 +1,4 @@
-import {FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
+import {Dependencies, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {queryDuneSql} from "../../helpers/dune";
 import {gql, GraphQLClient} from "graphql-request";
@@ -225,6 +225,7 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
 
 const adapters: SimpleAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   adapter: Object.keys(EVM_CONTRACTS).reduce((acc, chain) => {
     return {
       ...acc,
