@@ -115,7 +115,7 @@ const ABI = {
 
 }
 
-export const fetchAjna = async (options: FetchOptions, factoryAddress : string, poolUtilsAddress: string, reserveInfoIndex: number) => {
+export const fetchAjna = async (options: FetchOptions, factoryAddress : string, poolUtilsAddress: string,  reserveInfoIndex: number, reserveInfoABI: object = ABI.reserveInfo) => {
   const AJNA_TOKEN = '0x9a96ec9B57Fb64FbC60B423d1f4da7691Bd35079'
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -124,8 +124,8 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress : string, 
   const pools: string[] = await options.api.call({  abi: 'address[]:getDeployedPoolsList', target: factoryAddress})
   const quoteToken = await options.api.multiCall({  abi: 'address:quoteTokenAddress', calls: pools})
   const quoteTokenScale = await options.api.multiCall({  abi: 'uint:quoteTokenScale', calls: pools})
-  const reserveInfoStart = await options.fromApi.multiCall({  abi: ABI.reserveInfo, calls: pools, permitFailure: true})
-  const reserveInfoEnd = await options.toApi.multiCall({  abi: ABI.reserveInfo, calls: pools, permitFailure: true})
+  const reserveInfoStart = await options.fromApi.multiCall({  abi: reserveInfoABI, calls: pools, permitFailure: true})
+  const reserveInfoEnd = await options.toApi.multiCall({  abi: reserveInfoABI, calls: pools, permitFailure: true})
   const poolReserveInfoStart = await options.fromApi.multiCall({  abi: ABI.poolReservesInfo, calls: pools, target: poolUtilsAddress , permitFailure: true})
   const poolReserveInfoEnd = await options.toApi.multiCall({  abi: ABI.poolReservesInfo, calls: pools, target: poolUtilsAddress, permitFailure: true})
 
@@ -198,10 +198,10 @@ export default {
     }
   },
   methodology: {
-  Fees: "Fees collected from borrowers, lenders, and penalties",
-  Revenue: "~10-15% net interest margin + origination fees and penalties are used to burn AJNA token",
-  ProtocolRevenue: "Protocol takes no direct fees",
-  HoldersRevenue: "Accumulated fees in reserves are used for token burns by utilizing auctions",
-  dailySupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
+    Fees: "Fees collected from borrowers, lenders, and penalties",
+    Revenue: "~10-15% net interest margin + origination fees and penalties are used to burn AJNA token",
+    ProtocolRevenue: "Protocol takes no direct fees",
+    HoldersRevenue: "Accumulated fees in reserves are used for token burns by utilizing auctions",
+    dailySupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
   },
 };
