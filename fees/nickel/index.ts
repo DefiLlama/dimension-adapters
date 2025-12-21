@@ -52,11 +52,18 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   console.log(`[NICKEL] Total ETH spent: ${totalEthSpent.toString()} wei (${totalEth.toFixed(6)} ETH)`);
 
   // dailyRevenue = total ETH spent (nativeAmount is already in wei)
+  console.log(`[NICKEL] Adding to dailyRevenue: ${totalEthSpent.toString()} wei`);
   dailyRevenue.addGasToken(totalEthSpent);
+  
+  // Check what's in dailyRevenue after adding
+  const revenueBalances = dailyRevenue.getBalances();
+  console.log(`[NICKEL] dailyRevenue balances after addGasToken:`, JSON.stringify(revenueBalances, null, 2));
   
   // dailyHoldersRevenue = 10% of dailyRevenue
   const dailyHoldersRevenueAmount = dailyRevenue.clone(0.10);
   dailyHoldersRevenue.addBalances(dailyHoldersRevenueAmount.getBalances());
+  
+  console.log(`[NICKEL] dailyHoldersRevenue (10%):`, JSON.stringify(dailyHoldersRevenue.getBalances(), null, 2));
 
   return {
     dailyRevenue,
