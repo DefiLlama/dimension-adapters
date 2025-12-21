@@ -8,10 +8,16 @@ const NICKEL_TOKEN_ADDRESS = "0xE3F0CDCfC6e154a60b1712147BdC7Be9203dEabA";
 const SWAP_EXECUTED_EVENT = "event SwapExecuted(address indexed user, uint256 nativeAmount, uint256 nickelAmount, uint256 burnedAmount, uint256 treasuryAmount, uint256 timestamp)";
 
 const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
-  // Get all SwapExecuted events from the buyback contract
+  // Get block range for the target day
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  
+  // Get all SwapExecuted events from the buyback contract for the specific day
   const logs = await options.getLogs({
     target: BUYBACK_CONTRACT,
     eventAbi: SWAP_EXECUTED_EVENT,
+    fromBlock,
+    toBlock,
   });
 
   // Initialize balances for each metric
@@ -19,20 +25,16 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   
   // Sum all values from buybacks in the time period
-  // Filter by event timestamp parameter to ensure we only count events from the target day
+  // getLogs already filters by block timestamp (fromBlock/toBlock), so we use all logs returned
   // Mapping:
   // - dailyRevenue = nativeAmount (ETH spent on buybacks)
   // - dailyHoldersRevenue = 10% of dailyRevenue
   let totalEthSpent = BigInt(0);
   
+  // Process all logs - getLogs already filtered by block range for the target day
   for (const log of logs) {
-    // Filter by event timestamp parameter to ensure we only count events from the target day
-    // Use fromTimestamp and toTimestamp which represent the exact day range
-    const eventTimestamp = Number(log.timestamp);
-    if (eventTimestamp >= options.fromTimestamp && eventTimestamp < options.toTimestamp) {
-      // nativeAmount = ETH spent (in wei)
-      totalEthSpent += BigInt(log.nativeAmount || "0");
-    }
+    // nativeAmount = ETH spent (in wei)
+    totalEthSpent += BigInt(log.nativeAmount || "0");
   }
 
   // dailyRevenue = total ETH spent (nativeAmount is already in wei)
