@@ -79,13 +79,13 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         const ltAndAssetDecimalDifference = ltDecimals[index] - assetTokenDecimals[index];
 
-        const yieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index] - stakedSupplies[index]) / 1e18;
+        const yieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index] - stakedSupplies[index]) / (10 ** ltDecimals[index]);
 
         dailyFees.addToken(assetTokens[index], yieldForPeriod / (10 ** ltAndAssetDecimalDifference));
         dailySupplySideRevenue.addToken(assetTokens[index], yieldForPeriod / (10 ** ltAndAssetDecimalDifference));
 
         adminFeesWithdrawnLogs[index].forEach((log: any) => {
-            dailyHoldersRevenue.addCGToken(assetTokens[index], (pricesAfter[index] / 1e18) * (Number(log.amount) / (10 ** ltAndAssetDecimalDifference)));
+            dailyHoldersRevenue.addCGToken(assetTokens[index], (pricesAfter[index] / (10 ** ltDecimals[index])) * (Number(log.amount) / (10 ** ltAndAssetDecimalDifference)));
         })
     }
 
