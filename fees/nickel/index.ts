@@ -19,15 +19,19 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   
   // Sum all values from buybacks in the time period
-  // getLogs automatically filters by block timestamp, so we use all logs returned
+  // Filter by event timestamp parameter to ensure we only count events from the target day
   // Mapping:
   // - dailyRevenue = nativeAmount (ETH spent on buybacks)
   // - dailyHoldersRevenue = 10% of dailyRevenue
   let totalEthSpent = BigInt(0);
   
   for (const log of logs) {
-    // nativeAmount = ETH spent (in wei)
-    totalEthSpent += BigInt(log.nativeAmount || "0");
+    // Filter by event timestamp parameter to ensure we only count events from the target day
+    const eventTimestamp = Number(log.timestamp);
+    if (eventTimestamp >= options.startTimestamp && eventTimestamp < options.endTimestamp) {
+      // nativeAmount = ETH spent (in wei)
+      totalEthSpent += BigInt(log.nativeAmount || "0");
+    }
   }
 
   // dailyRevenue = total ETH spent (nativeAmount is already in wei)
