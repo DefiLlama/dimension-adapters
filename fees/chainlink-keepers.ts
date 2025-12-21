@@ -60,7 +60,7 @@ const getTransactions = async (
 
   for (const e of logs) {
     const { transactionHash, args } = e;
-    if (args.totalPayment) totalPayment += Number(args.totalPayment);
+    if (args?.totalPayment) totalPayment += Number(args.totalPayment);
     if (transactionHash) seenHashes.add(transactionHash);
   }
 
