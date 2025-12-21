@@ -27,8 +27,9 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   
   for (const log of logs) {
     // Filter by event timestamp parameter to ensure we only count events from the target day
+    // Use fromTimestamp and toTimestamp which represent the exact day range
     const eventTimestamp = Number(log.timestamp);
-    if (eventTimestamp >= options.startTimestamp && eventTimestamp < options.endTimestamp) {
+    if (eventTimestamp >= options.fromTimestamp && eventTimestamp < options.toTimestamp) {
       // nativeAmount = ETH spent (in wei)
       totalEthSpent += BigInt(log.nativeAmount || "0");
     }
