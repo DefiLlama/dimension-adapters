@@ -26,7 +26,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addToken(LST_MINT, row.amount || 0);
+      dailyRevenue.addToken(LST_MINT, Number(row.amount) * 1e9 || 0);
     }
   });
   return {
