@@ -20,25 +20,22 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   
   // Sum all values from buybacks in the time period
   // getLogs automatically filters by block timestamp, so we use all logs returned
-  // Mapping from subgraph:
-  // - dailyRevenue = ethSpent = nativeAmount (ETH spent on buybacks)
-  // - dailyHoldersRevenue = amountToTreasury = treasuryAmount (tokens sent to staking contract)
+  // Mapping:
+  // - dailyRevenue = nativeAmount (ETH spent on buybacks)
+  // - dailyHoldersRevenue = 10% of dailyRevenue
   let totalEthSpent = BigInt(0);
-  let totalAmountToTreasury = BigInt(0);
   
   for (const log of logs) {
     // nativeAmount = ETH spent (in wei)
     totalEthSpent += BigInt(log.nativeAmount || "0");
-    // treasuryAmount = tokens sent to treasury/staking contract (in token units)
-    totalAmountToTreasury += BigInt(log.treasuryAmount || "0");
   }
 
   // dailyRevenue = total ETH spent (nativeAmount is already in wei)
   dailyRevenue.addGasToken(totalEthSpent);
   
-  // dailyHoldersRevenue = total tokens sent to treasury/staking contract (treasuryAmount in token units)
-  // Use token address directly (the chain context is already set by options)
-  dailyHoldersRevenue.add(NICKEL_TOKEN_ADDRESS, totalAmountToTreasury);
+  // dailyHoldersRevenue = 10% of dailyRevenue
+  const dailyHoldersRevenueAmount = dailyRevenue.clone(0.10);
+  dailyHoldersRevenue.addBalances(dailyHoldersRevenueAmount.getBalances());
 
   return {
     dailyRevenue,
