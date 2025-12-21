@@ -12,6 +12,9 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
   
+  console.log(`[NICKEL] Fetching logs from block ${fromBlock} to ${toBlock}`);
+  console.log(`[NICKEL] Timestamp range: ${options.fromTimestamp} to ${options.toTimestamp}`);
+  
   // Get all SwapExecuted events from the buyback contract for the specific day
   const logs = await options.getLogs({
     target: BUYBACK_CONTRACT,
@@ -19,6 +22,8 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
     fromBlock,
     toBlock,
   });
+
+  console.log(`[NICKEL] Found ${logs.length} SwapExecuted events`);
 
   // Initialize balances for each metric
   const dailyRevenue = options.createBalances();
@@ -33,9 +38,18 @@ const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
   
   // Process all logs - getLogs already filtered by block range for the target day
   for (const log of logs) {
+    const nativeAmount = BigInt(log.nativeAmount || "0");
+    const eventTimestamp = Number(log.timestamp);
+    const ethAmount = Number(nativeAmount) / 1e18;
+    
+    console.log(`[NICKEL] Event - nativeAmount: ${nativeAmount.toString()} (${ethAmount.toFixed(6)} ETH), timestamp: ${eventTimestamp}`);
+    
     // nativeAmount = ETH spent (in wei)
-    totalEthSpent += BigInt(log.nativeAmount || "0");
+    totalEthSpent += nativeAmount;
   }
+  
+  const totalEth = Number(totalEthSpent) / 1e18;
+  console.log(`[NICKEL] Total ETH spent: ${totalEthSpent.toString()} wei (${totalEth.toFixed(6)} ETH)`);
 
   // dailyRevenue = total ETH spent (nativeAmount is already in wei)
   dailyRevenue.addGasToken(totalEthSpent);
