@@ -11,6 +11,8 @@ const EVM_ABI = {
   totalSupply: "uint256:totalSupply",
 }
 
+// bps Source : https://securitize.io/blackrock/buidl
+// Contracts: https://www.blackrock.com/corporate/compliance/scams-and-fraud/resources?referrer=grok.com#blackrock-token-addresses
 const EVM_CONTRACTS: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     contracts: [
