@@ -100,6 +100,7 @@ const IDLE_ABIs = {
     token: "address:token",
 }
 
+//In June 2023, the DAO decided to pause the IDLE buyback and distribution to stakers.
 const BUYBACK_PAUSE_TIMESTAMP = 1685577600;
 const HOLDERS_REVENUE_SHARE = 0.5;
 
@@ -108,6 +109,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
 
     const isolatedVaults = chainConfig[options.chain].YIELD_TRANCHES;
 
@@ -122,6 +124,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         calls: isolatedVaults,
         permitFailure: true
     });
+    const totalIsolatedVaults = isolatedVaults.length;
+    const combinedVaults = [...seniorVaults, ...juniorVaults];
 
     const underlyingTokens = await options.api.multiCall({
         abi: IDLE_ABIs.underlyingToken,
@@ -153,27 +157,15 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true
     });
 
-    const seniorVaultDecimals = await options.api.multiCall({
+    const vaultDecimals = await options.api.multiCall({
         abi: IDLE_ABIs.decimals,
-        calls: seniorVaults.map(vault => vault || nullAddress),
+        calls: combinedVaults.map(vault => vault || nullAddress),
         permitFailure: true,
     });
 
-    const juniorVaultDecimals = await options.api.multiCall({
-        abi: IDLE_ABIs.decimals,
-        calls: juniorVaults.map(vault => vault || nullAddress),
-        permitFailure: true,
-    });
-
-    const seniorVaultTotalSupply = await options.api.multiCall({
+    const vaultTotalSupply = await options.api.multiCall({
         abi: IDLE_ABIs.totalSupply,
-        calls: seniorVaults.map(vault => vault || nullAddress),
-        permitFailure: true,
-    });
-
-    const juniorVaultTotalSupply = await options.api.multiCall({
-        abi: IDLE_ABIs.totalSupply,
-        calls: juniorVaults.map(vault => vault || nullAddress),
+        calls: combinedVaults.map(vault => vault || nullAddress),
         permitFailure: true,
     });
 
@@ -183,6 +175,12 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true,
     });
 
+    const seniorVaultDecimals = vaultDecimals.slice(0, totalIsolatedVaults);
+    const juniorVaultDecimals = vaultDecimals.slice(totalIsolatedVaults);
+
+    const seniorVaultTotalSupply = vaultTotalSupply.slice(0, totalIsolatedVaults);
+    const juniorVaultTotalSupply = vaultTotalSupply.slice(totalIsolatedVaults);
+
     const calculateAllFees = (underlyingToken: string, totalYields: number, performaceFeesMultiple: number) => {
         dailyFees.add(underlyingToken, totalYields, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlyingToken, totalYields, METRIC.ASSETS_YIELDS);
@@ -191,11 +189,12 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         if (options.fromTimestamp < BUYBACK_PAUSE_TIMESTAMP) {
             dailyHoldersRevenue.add(underlyingToken, totalYields * performaceFeesMultiple * HOLDERS_REVENUE_SHARE, METRIC.PERFORMANCE_FEES);
-            dailyRevenue.add(underlyingToken, totalYields * performaceFeesMultiple * (1 - HOLDERS_REVENUE_SHARE), METRIC.PERFORMANCE_FEES);
+            dailyProtocolRevenue.add(underlyingToken, totalYields * performaceFeesMultiple * (1 - HOLDERS_REVENUE_SHARE), METRIC.PERFORMANCE_FEES);
         }
         else {
-            dailyRevenue.add(underlyingToken, totalYields * performaceFeesMultiple, METRIC.PERFORMANCE_FEES);
+            dailyProtocolRevenue.add(underlyingToken, totalYields * performaceFeesMultiple, METRIC.PERFORMANCE_FEES);
         }
+        dailyRevenue.add(underlyingToken, totalYields * performaceFeesMultiple, METRIC.PERFORMANCE_FEES);
     }
 
     for (const [index, _isolatedVault] of isolatedVaults.entries()) {
@@ -271,7 +270,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyRevenue,
         dailyHoldersRevenue,
         dailySupplySideRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue,
     }
 }
 
