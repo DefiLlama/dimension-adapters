@@ -16,57 +16,44 @@ import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { httpGet } from '../../utils/fetchURL';
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+    let dayValue = 0;
     try {
-        const FeesData = await httpGet('https://possumlabs.wtf/api/volume?dayFees=true')
-        const dayValue = FeesData.dayFees;
-
-        const dailyFees = options.createBalances()
-        const dailyUserFees = options.createBalances()
-        const dailyRevenue = options.createBalances()
-        const dailyProtocolRevenue = options.createBalances()
-        const dailyHoldersRevenue = options.createBalances()
-        const dailySupplySideRevenue = options.createBalances()
-
-        const calculatedDailyFees = dayValue * (1.3 / 0.7);
-        const calculatedDailyRevenue = dayValue;
-        const calculatedDailyProtocolRevenue = dayValue * (0.4 / 0.7);
-        const calculatedDailyHoldersRevenue = dayValue * (0.15 / 0.7);
-        const calculatedDailySupplySideRevenue = calculatedDailyFees * (0.6 / 1.3);
-
-        dailyFees.addUSDValue(calculatedDailyFees);
-        dailyUserFees.addUSDValue(calculatedDailyFees);
-        dailyRevenue.addUSDValue(calculatedDailyRevenue);
-        dailyProtocolRevenue.addUSDValue(calculatedDailyProtocolRevenue);
-        dailyHoldersRevenue.addUSDValue(calculatedDailyHoldersRevenue);
-        dailySupplySideRevenue.addUSDValue(calculatedDailySupplySideRevenue);
-
-        return {
-            dailyFees,
-            dailyUserFees,
-            dailyRevenue,
-            dailyProtocolRevenue,
-            dailyHoldersRevenue,
-            dailySupplySideRevenue,
-        };
+    const FeesData = await httpGet('https://possumlabs.wtf/api/volume?dayFees=true')
+    dayValue = FeesData.dayFees;
     } catch (error) {
-        console.error('Error fetching PossumLabs data:', error);
-        const dailyFees = options.createBalances()
-        const dailyUserFees = options.createBalances()
-        const dailyRevenue = options.createBalances()
-        const dailyProtocolRevenue = options.createBalances()
-        const dailyHoldersRevenue = options.createBalances()
-        const dailySupplySideRevenue = options.createBalances()
-
-        return {
-            dailyFees,
-            dailyUserFees,
-            dailyRevenue,
-            dailyProtocolRevenue,
-            dailyHoldersRevenue,
-            dailySupplySideRevenue,
-        };
+        console.error('Error fetching PossumLabs data:', error);    
     }
+
+    const dailyFees = options.createBalances()
+    const dailyUserFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailyHoldersRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+
+    const calculatedDailyFees = dayValue * (1.3 / 0.7);
+    const calculatedDailyRevenue = dayValue;
+    const calculatedDailyProtocolRevenue = dayValue * (0.4 / 0.7);
+    const calculatedDailyHoldersRevenue = dayValue * (0.15 / 0.7);
+    const calculatedDailySupplySideRevenue = calculatedDailyFees * (0.6 / 1.3);
+
+    dailyFees.addUSDValue(calculatedDailyFees);
+    dailyUserFees.addUSDValue(calculatedDailyFees);
+    dailyRevenue.addUSDValue(calculatedDailyRevenue);
+    dailyProtocolRevenue.addUSDValue(calculatedDailyProtocolRevenue);
+    dailyHoldersRevenue.addUSDValue(calculatedDailyHoldersRevenue);
+    dailySupplySideRevenue.addUSDValue(calculatedDailySupplySideRevenue);
+
+    return {
+        dailyFees,
+        dailyUserFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
+        dailySupplySideRevenue,
+    };
+
 };
 
 const adapter: SimpleAdapter = {
