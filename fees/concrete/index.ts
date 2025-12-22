@@ -10,13 +10,15 @@ const CHAIN_CONFIG: Record<string, Record<string, string>> = {
     [CHAIN.ARBITRUM]: { chainId: '42161', start: '2025-08-15' },
     [CHAIN.BERACHAIN]: { chainId: '80094', start: '2025-04-22' },
     [CHAIN.KATANA]: { chainId: '747474', start: '2025-07-29' },
+    [CHAIN.STABLE]: { chainId: '988', start: '2025-12-08' },
 };
 
 const CONCRETE_ABIs = {
     totalSupply: 'uint256:totalSupply',
     convertToAssets: 'function convertToAssets(uint256 shares) view returns (uint256)',
     highWaterMark: 'uint256:highWaterMark',
-    vaultFee: 'function getVaultFees() view returns (tuple(uint64 depositFee,uint64 withdrawalFee,uint64 protocolFee,tuple(uint256 lowerBound,uint256 upperBound,uint64 fee)[] performanceFee))'
+    vaultFee: 'function getVaultFees() view returns (tuple(uint64 depositFee,uint64 withdrawalFee,uint64 protocolFee,tuple(uint256 lowerBound,uint256 upperBound,uint64 fee)[] performanceFee))',
+    feeConfig: 'function getFeeConfig() view returns(uint16 currentManagementFee,address currentManagementFeeRecipient, uint32 currentLastManagementFeeAccrual, uint16 currentPerformanceFee, address currentPerformanceFeeRecipient)'
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -27,17 +29,21 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const vaultsResponse = await getConfig('concrete', `${CONCRETE_API_URL}/vault:tvl/all`);
 
-    const vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 1 && +vault.peak_tvl > 10000).map((v1Vault: any) => v1Vault.address));
+    const v1Vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 1 && +vault.peak_tvl > 10000).map((v1Vault: any) => v1Vault.address));
+
+    const v2Vaults = new Set(Object.values(vaultsResponse[currentChainId]).filter((vault: any) => vault.version === 2 && +vault.peak_tvl > 10000).map((v1Vault: any) => v1Vault.address));
+
+    const vaultsList = [...v1Vaults, ...v2Vaults];
 
     const vaultsAdditionalInfo = await getConfig('concrete-additional', `${CONCRETE_API_URL}/vault:performance/all`);
 
-    const vaultDetails = Object.values(vaultsAdditionalInfo[currentChainId]).filter((vault: any) => vaults.has(vault.address)).map((vault: any) => ({
+    const vaultDetails = Object.values(vaultsAdditionalInfo[currentChainId]).filter((vault: any) => vaultsList.includes(vault.address)).map((vault: any) => ({
         address: vault.address,
         underlyingAsset: vault.underlying_token_address,
         vaultDecimals: vault.decimals
     }));
-    
-    const vaultsList = vaultDetails.map(vault => vault.address);
+
+    const vaultDecimalsMap = new Map(vaultDetails.map(vault=>[vault.address,vault.vaultDecimals]));
 
     const totalSupplies = await options.api.multiCall({
         calls: vaultsList,
@@ -47,36 +53,47 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const priceBefore = await options.fromApi.multiCall({
         abi: CONCRETE_ABIs.convertToAssets,
-        calls: vaultDetails.map(vault => ({
-            target: vault.address,
-            params: ['1' + '0'.repeat(vault.vaultDecimals)]
+        calls: vaultsList.map(vault => ({
+            target: vault,
+            params: ['1' + '0'.repeat(vaultDecimalsMap.get(vault))]
         })),
         permitFailure: true
     });
 
     const priceAfter = await options.toApi.multiCall({
         abi: CONCRETE_ABIs.convertToAssets,
-        calls: vaultDetails.map(vault => ({
-            target: vault.address,
-            params: ['1' + '0'.repeat(vault.vaultDecimals)]
+        calls: vaultsList.map(vault => ({
+            target: vault,
+            params: ['1' + '0'.repeat(vaultDecimalsMap.get(vault))]
         })),
         permitFailure: true
     });
 
     const highWaterMarks = await options.api.multiCall({
         abi: CONCRETE_ABIs.highWaterMark,
-        calls: vaultsList,
+        calls: [...v1Vaults],
         permitFailure: true
     });
 
     const vaultFee = await options.api.multiCall({
         abi: CONCRETE_ABIs.vaultFee,
-        calls: vaultsList,
+        calls: [...v1Vaults],
         permitFailure: true
     });
 
-    for (const [index, { underlyingAsset, vaultDecimals }] of vaultDetails.entries()) {
+    const feeConfigs = await options.api.multiCall({
+        calls: [...v2Vaults],
+        abi: CONCRETE_ABIs.feeConfig,
+        permitFailure: true
+    });
+
+    for (const [index, vaultAddress] of vaultsList.entries()) {
         if (priceAfter[index] === null || priceBefore[index] === null) continue;
+        const { underlyingAsset, vaultDecimals } = vaultDetails.find(vault=>vault.address===vaultAddress)!;
+        const v2Index = index - v1Vaults.size;
+
+        const vaultVersion = v1Vaults.has(vaultsList[index]) ? 1 : 2;
+
         //Decimals are upto 27 so using BigInt
         const priceDiff = BigInt(priceAfter[index]) - BigInt(priceBefore[index]);
         const yieldForPeriod = (priceDiff * BigInt(totalSupplies[index])) / (BigInt(10) ** BigInt(vaultDecimals));
@@ -84,28 +101,36 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(underlyingAsset, yieldForPeriod, METRIC.ASSETS_YIELDS);
 
-        const managementFeeInBps = vaultFee[index].protocolFee;
+        const managementFeeInBps = vaultVersion === 1 ? vaultFee[index].protocolFee : feeConfigs[v2Index].currentManagementFee;
         const managementFees = (BigInt(managementFeeInBps)) * (BigInt(totalSupplies[index])) * BigInt(priceAfter[index]) * BigInt(options.toTimestamp - options.fromTimestamp) / (365n * 24n * 60n * 60n * 100n * 100n * (BigInt(10) ** BigInt(vaultDecimals)));
 
         dailyFees.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
         dailyRevenue.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
+        if (vaultVersion === 1) {
+            const priceInAssets = BigInt(priceAfter[index]) / (BigInt(10) ** BigInt(9));//decimal difference bw vault and asset is always 9
 
-        const priceInAssets = BigInt(priceAfter[index]) / (BigInt(10) ** BigInt(9));//decimal difference bw vault and asset is always 9
+            if (priceInAssets <= highWaterMarks[index] || vaultFee[index].performanceFee.length === 0) continue;
+            const performanceInBps = ((priceInAssets - BigInt(highWaterMarks[index]) * 100n) / BigInt(highWaterMarks[index]));
 
-        if (priceInAssets <= highWaterMarks[index] || vaultFee[index].performanceFee.length === 0) continue;
-        const performanceInBps = ((priceInAssets - BigInt(highWaterMarks[index]) * 100n) / BigInt(highWaterMarks[index]));
-
-        let performanceFeeInBps = 0;
-        for (const entry of vaultFee[index].performanceFee) {
-            if (performanceInBps <= 0) continue;
-            if (entry.lowerBound <= performanceInBps && entry.upperBound > performanceInBps) {
-                performanceFeeInBps = entry.fee;
-                break;
+            let performanceFeeInBps = 0;
+            for (const entry of vaultFee[index].performanceFee) {
+                if (performanceInBps <= 0) continue;
+                if (entry.lowerBound <= performanceInBps && entry.upperBound > performanceInBps) {
+                    performanceFeeInBps = entry.fee;
+                    break;
+                }
             }
+            const performanceFees = (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n);
+            dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+            dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
         }
-        const performanceFees = (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n);
-        dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
-        dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+        else {
+            const performanceFeeInBps = feeConfigs[v2Index].currentPerformanceFee;
+            const performanceFees = priceDiff > 0n ? (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n) : 0n;
+
+            dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+            dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+        }
     }
 
     return {
