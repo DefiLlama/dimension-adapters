@@ -30,7 +30,8 @@ const fetchFees = async (options: FetchOptions) => {
   if (!chainConfig) throw new Error(`Chain ${chain} not supported`);
 
   const dailyFees = createBalances();
-  const dailySupplySideRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
   const fromBlock = await getFromBlock();
   const toBlock = await getToBlock();
@@ -79,9 +80,10 @@ const fetchFees = async (options: FetchOptions) => {
         if (log.to.toLowerCase() === chainConfig.daoFeeCollector.toLowerCase()) {
           // After June 2025: 10% goes to treasury, 90% to veCRV holders
           if (toBlock >= chainConfig.feeAllocatorStartBlock) {
-            dailySupplySideRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n);
+            dailyProtocolRevenue.add(chainConfig.crvusd, BigInt(log.value) * 1n / 10n);
+            dailyHoldersRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n);
           } else {
-            dailySupplySideRevenue.add(chainConfig.crvusd, log.value);
+            dailyHoldersRevenue.add(chainConfig.crvusd, log.value);
           }
 
         }
@@ -106,17 +108,21 @@ const fetchFees = async (options: FetchOptions) => {
     }));
 
     // Before FeeSplitter, all fees went to token holders
-    dailySupplySideRevenue.addBalances(dailyFees);
+    dailyHoldersRevenue.addBalances(dailyFees);
   }
   
-  const dailyRevenue = dailyFees.clone(1)
-  dailyRevenue.subtract(dailySupplySideRevenue)
+  const dailyRevenue = dailyProtocolRevenue.clone(1)
+  dailyRevenue.addBalances(dailyHoldersRevenue)
+  
+  const dailySupplySideRevenue = dailyFees.clone(1)
+  dailySupplySideRevenue.subtract(dailyRevenue)
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -130,8 +136,9 @@ const adapters: SimpleAdapter = {
   },
   methodology: {
     Fees: 'All borrow interest paid by borrowers.',
-    Revenue: 'All borrow interest are revenue.',
+    Revenue: 'All borrow interest go to protocol treasury + veCRV holders.',
     ProtocolRevenue: 'Revenue share to protocol treasury.',
+    HoldersRevenue: 'Revenue share to veCRV holders.',
     SupplySideRevenue: 'Revenue share to scrvUSD stakers.',
   }
 };
