@@ -7,7 +7,6 @@ const fetch = async (
   _2: any,
   options: FetchOptions
 ): Promise<FetchResult> => {
-
   const query = `
     WITH flowx_swaps AS (
       SELECT
@@ -23,8 +22,8 @@ const fetch = async (
       FROM sui.events
       WHERE
         package IN (
-          0x25929e7f29e0a30eb4e692952ba1b5b65a3a4d65ab5f2a32e1ba3edcb587f26d,
-          0xba153169476e8c3114962261d1edc70de5ad9781b83cc617ecc8c1923191cae0
+         0x25929e7f29e0a30eb4e692952ba1b5b65a3a4d65ab5f2a32e1ba3edcb587f26d,
+         0xba153169476e8c3114962261d1edc70de5ad9781b83cc617ecc8c1923191cae0
         )
         AND event_type LIKE '%Swap%'
         AND timestamp_ms >= ${options.startTimestamp * 1000}
@@ -53,7 +52,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SUI],
-  start: "2024-01-01",
+  start: "2025-01-01",
   methodology: {
     Volume:
       "Daily trading volume calculated from FlowX swap events on Sui. Volume is derived from the input token amount (amount_x or amount_y) depending on swap direction, normalized by 1e9 decimals.",
