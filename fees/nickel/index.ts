@@ -2,76 +2,45 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const BUYBACK_CONTRACT = "0x55836bD72800b23c64D384E8734330B8363e62Fa";
-const NICKEL_TOKEN_ADDRESS = "0xE3F0CDCfC6e154a60b1712147BdC7Be9203dEabA";
 
-// Event signature: SwapExecuted(address indexed user, uint256 nativeAmount, uint256 nickelAmount, uint256 burnedAmount, uint256 treasuryAmount, uint256 timestamp)
 const SWAP_EXECUTED_EVENT = "event SwapExecuted(address indexed user, uint256 nativeAmount, uint256 nickelAmount, uint256 burnedAmount, uint256 treasuryAmount, uint256 timestamp)";
 
-const fetchData: any = async (_a: any, _b: any, options: FetchOptions) => {
-  // Get block range for the target day
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
-  // Get all SwapExecuted events from the buyback contract for the specific day
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
   const logs = await options.getLogs({
     target: BUYBACK_CONTRACT,
     eventAbi: SWAP_EXECUTED_EVENT,
-    fromBlock,
-    toBlock,
   });
 
-  // Initialize balances for each metric
-  const dailyRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  
-  // Sum all values from buybacks in the time period
-  // getLogs already filters by block timestamp (fromBlock/toBlock), so we use all logs returned
-  // Mapping:
-  // - dailyRevenue = nativeAmount (ETH spent on buybacks)
-  // - dailyHoldersRevenue = 10% of dailyRevenue
   let totalEthSpent = BigInt(0);
-  
-  // Process all logs - getLogs already filtered by block range for the target day
+
   for (const log of logs) {
     const nativeAmount = BigInt(log.nativeAmount || "0");
-    const eventTimestamp = Number(log.timestamp);
-    const ethAmount = Number(nativeAmount) / 1e18;
-        
-    // nativeAmount = ETH spent (in wei)
     totalEthSpent += nativeAmount;
   }
-  
-  const totalEth = Number(totalEthSpent) / 1e18;
 
-  // dailyRevenue = total ETH spent (nativeAmount is already in wei)
-  // addGasToken accepts BigInt directly
-  dailyRevenue.addGasToken(totalEthSpent);
-  
-  // Check what's in dailyRevenue after adding
-  const revenueBalances = dailyRevenue.getBalances();  
-  // dailyHoldersRevenue = 10% of dailyRevenue
-  const dailyHoldersRevenueAmount = dailyRevenue.clone(0.10);
-  dailyHoldersRevenue.addBalances(dailyHoldersRevenueAmount.getBalances());
-  
-  // Final verification - get USD value to see what the system will display
-  const revenueUSD = await dailyRevenue.getUSDValue();
-  const holdersUSD = await dailyHoldersRevenue.getUSDValue();
-  
+  dailyFees.addGasToken(totalEthSpent);
+
   return {
-    dailyRevenue,
-    dailyHoldersRevenue,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  fetch: fetchData,
+  fetch,
   chains: [CHAIN.BASE],
-  start: "2024-01-01", // Update this with the actual start date
+  start: "2025-12-15",
   methodology: {
-    Revenue: "Total ETH spent on buybacks.",
-    HoldersRevenue: "Total amount sent to Staking contract.",
+    Fees: "10% of all mining fees collected from users",
+    Revenue: "100% of the fees collected are used to buyback the nickel token.",
+    ProtocolRevenue: "Protocol takes no direct fees",
+    HoldersRevenue: "10% of the revenue shared with stakers and 90% of nickel token from revenue are burned.",
   },
 };
 
 export default adapter;
-
