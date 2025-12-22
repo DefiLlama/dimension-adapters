@@ -33,7 +33,7 @@ export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: s
   const dailyBribesRevenue = createBalances()
   const logs_gauge_created = await getLogs({ target: voter, fromBlock: firstBlock, eventAbi: gaugeCreatedEvent, skipIndexer: true, entireLog: true })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
-  const bribes_contract: string[] = logs_gauge_created
+  const bribes_contract = logs_gauge_created
     .filter((log) => (log.address || log.source).toLowerCase() === voter.toLowerCase())
   const pools = bribes_contract.map(log => log.args.pool.toLowerCase())
   const poolsFactories = (await fetchOptions.api.multiCall({ abi:'address:factory', calls: pools}))
@@ -125,7 +125,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
           }
         })
       } catch (e) {
-        errorFound = e
+        errorFound = true
         throw e
       }
     })
