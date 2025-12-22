@@ -90,9 +90,9 @@ async function fetch(options: FetchOptions) {
   
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailySupplySideRevenue,
+    //dailyFees,
+    //dailyRevenue,
+    //dailySupplySideRevenue,
   }
 }
 
