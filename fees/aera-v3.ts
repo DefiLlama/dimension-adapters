@@ -26,9 +26,9 @@ const config: any = {
 };
 
 const abis = {
-  MultiDepositorVaultCreated:
+  multiDepositorVaultCreated:
     'event VaultCreated(address indexed vault, address indexed owner, address hooks, (string name, string symbol) erc20Params, (address feeCalculator, address feeToken, address feeRecipient) feeVaultParams, address beforeTransferHook, string description)',
-  SingleDepositorVaultCreated:
+  singleDepositorVaultCreated:
     'event VaultCreated(address indexed vault, address indexed owner, address submitHooks, address feeToken, address feeCalculator, address feeRecipient, string description)',
   totalSupply: 'function totalSupply() view returns (uint256)',
   decimals: 'function decimals() view returns (uint8)',
@@ -52,13 +52,13 @@ const fetch = async (options: FetchOptions) => {
     [
       getLogs({
         target: chainConfig.multiDepositorVaultFactory.address,
-        eventAbi: abis.MultiDepositorVaultCreated,
+        eventAbi: abis.multiDepositorVaultCreated,
         fromBlock: chainConfig.multiDepositorVaultFactory.fromBlock,
         cacheInCloud: true,
       }),
       getLogs({
         target: chainConfig.singleDepositorVaultFactory.address,
-        eventAbi: abis.SingleDepositorVaultCreated,
+        eventAbi: abis.singleDepositorVaultCreated,
         fromBlock: chainConfig.singleDepositorVaultFactory.fromBlock,
         cacheInCloud: true,
       }),
@@ -159,7 +159,10 @@ const fetch = async (options: FetchOptions) => {
       (BigInt(totalSupplyEnd) * unitPriceEnd) / BigInt(10 ** decimals);
 
     const dailyDelta = vaultValueEnd - vaultValueStart;
-    if (dailyDelta <= 0n) continue;
+
+    if (dailyDelta <= 0n) {
+      continue;
+    }
 
     dailyFees.add(numeraireToken, dailyDelta);
 
@@ -208,7 +211,7 @@ const breakdownMethodology = {
 };
 
 const methodology = {
-  Fees: 'Fees accrue implicitly via vault unitPrice growth and are computed as the daily change in vault value (totalSupply × unitPrice).',
+  Fees: 'Fees accrue implicitly via vault unitPrice growth and are computed as the daily change in vault value (totalSupply x unitPrice).',
   Revenue:
     'Protocol management fees (approximately 20% of accrued fees) collected by Aera.',
   ProtocolRevenue:
