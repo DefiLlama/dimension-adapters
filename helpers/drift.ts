@@ -4,6 +4,8 @@ import fetchURL from "../utils/fetchURL";
 
 // Drift Protocol helpers
 // Both v2 and v3 use the same program address: dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH
+// v3 launched on 2025-12-04 - same contract, same event structure, no code changes required
+// https://www.drift.trade/updates/introducing-drift-v3-built-to-outperform
 
 export type DimensionResult = {
   dailyVolume?: number;
