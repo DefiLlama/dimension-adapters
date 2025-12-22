@@ -53,8 +53,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SUI],
-  start: "2025-01-01",
-  isExpensiveAdapter: true,
+  start: "2024-01-01",
   methodology: {
     Volume:
       "Daily trading volume calculated from FlowX swap events on Sui. Volume is derived from the input token amount (amount_x or amount_y) depending on swap direction, normalized by 1e9 decimals.",
