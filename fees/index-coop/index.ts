@@ -15,14 +15,11 @@ const DEBT_ISSUANCE_MODULES: { [chain: string]: string } = {
 };
 
 // Ethereum v2 modules
-const ETHEREUM_V2_STREAMING_FEE_MODULE =
-  "0x08f866c74205617b6f3903ef481798eced10cdec";
+const ETHEREUM_V2_STREAMING_FEE_MODULE = "0x08f866c74205617b6f3903ef481798eced10cdec";
 
-const ETHEREUM_V2_DEBT_MODULE_MAIN =
-  "0xd8EF3cACe8b4907117a45B0b125c68560532F94D"; // DPI / BED / MVI
+const ETHEREUM_V2_DEBT_MODULE_MAIN = "0xd8EF3cACe8b4907117a45B0b125c68560532F94D"; // DPI / BED / MVI
 
-const ETHEREUM_V2_DEBT_MODULE_ICETH =
-  "0x69a592d2129415a4a1d1b1e309c17051b7f28d57"; // icETH
+const ETHEREUM_V2_DEBT_MODULE_ICETH = "0x69a592d2129415a4a1d1b1e309c17051b7f28d57"; // icETH
 
 const ETHEREUM_SET_TOKENS = [
   // v1
@@ -85,12 +82,9 @@ const INDEX_COOP_SET_TOKENS: { [chain: string]: string[] } = {
 };
 
 const ABI = {
-  FeeActualized:
-    "event FeeActualized(address indexed _setToken, uint256 _managerFee, uint256 _protocolFee)",
-  SetTokenIssued:
-    "event SetTokenIssued(address indexed _setToken, address indexed _issuer, address indexed _to, address _hookContract, uint256 _quantity, uint256 _managerFee, uint256 _protocolFee)",
-  SetTokenRedeemed:
-    "event SetTokenRedeemed(address indexed _setToken, address indexed _redeemer, address indexed _to, uint256 _quantity, uint256 _managerFee, uint256 _protocolFee)",
+  FeeActualized: "event FeeActualized(address indexed _setToken, uint256 _managerFee, uint256 _protocolFee)",
+  SetTokenIssued: "event SetTokenIssued(address indexed _setToken, address indexed _issuer, address indexed _to, address _hookContract, uint256 _quantity, uint256 _managerFee, uint256 _protocolFee)",
+  SetTokenRedeemed: "event SetTokenRedeemed(address indexed _setToken, address indexed _redeemer, address indexed _to, uint256 _quantity, uint256 _managerFee, uint256 _protocolFee)",
 };
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -165,6 +159,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
+  adapter: {
+    [CHAIN.ETHEREUM]: { start: "2022-09-30" },
+    [CHAIN.ARBITRUM]: { start: "2024-05-22" },
+    [CHAIN.BASE]: { start: "2023-08-22" },
+  },
   methodology: {
     Fees: "Streaming fees and issuance/redemption fees paid by users.",
     Revenue: "Fees retained by the Index Coop protocol, including manager and protocol portions.",
@@ -189,13 +189,7 @@ const adapter: Adapter = {
       [METRIC.MANAGEMENT_FEES]:
         "Manager fees collected by Index Coop and allocated to approved managers.",
     },
-  },
-  
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2022-09-30" }, 
-    [CHAIN.ARBITRUM]: { fetch, start: "2024-05-22" },
-    [CHAIN.BASE]: { fetch, start: "2023-08-22" },
-  },
+  }
 };
 
 export default adapter;
