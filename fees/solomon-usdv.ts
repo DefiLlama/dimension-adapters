@@ -15,6 +15,8 @@ interface YieldDistributionsResponse {
 const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
 
+  const dailyFees = options.createBalances();
+
   // Fetch all yield distributions
   const response: YieldDistributionsResponse = await fetchURL(
     "https://data.solomonlabs.io/api/solomon-protocol/staking/yield-distributions?limit=1000"
@@ -32,17 +34,12 @@ const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOption
     0
   );
 
-  const dailyFees = options.createBalances();
   dailyFees.addUSDValue(totalYield);
-
-  // All yield goes to sUSDv holders (supply side)
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(totalYield);
 
   return {
     dailyFees,
-    dailyRevenue: dailySupplySideRevenue,
-    dailySupplySideRevenue,
+    dailyRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
   };
 };
 
@@ -51,6 +48,11 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-06-04',
+  methodology: {
+    Fees: 'All yield from backing assets.',
+    Revenue: 'No revenue share from fees.',
+    SupplySideRevenue: 'All fees are distributed to sUSDv stakers.',
+  }
 };
 
 export default adapter;
