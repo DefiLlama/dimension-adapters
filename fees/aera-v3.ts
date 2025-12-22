@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const config: any = {
   [CHAIN.ETHEREUM]: {
@@ -40,11 +41,6 @@ const fetch = async (options: FetchOptions) => {
 
   const chainConfig = config[chain];
 
-  if (!chainConfig) {
-    throw new Error('No configuration found for chain: ' + chain);
-  }
-
-  // Get all vaults created from both factories
   const [multiDepositorVaultLogs, singleDepositorVaultLogs] = await Promise.all([
     getLogs({
       target: chainConfig.multiDepositorVaultFactory.address,
@@ -58,10 +54,8 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
-  // Extract vault addresses and their fee tokens
   const vaultInfo: { vault: string; feeToken: string; feeRecipient: string }[] = [];
 
-  // Process multi-depositor vaults
   multiDepositorVaultLogs.forEach((log: any) => {
     vaultInfo.push({
       vault: log.vault,
@@ -117,17 +111,17 @@ const fetch = async (options: FetchOptions) => {
   // Process guardian fees (FeesClaimed) - goes to vault guardians/operators
   feesClaimedLogs.flat().forEach((claim) => {
     if (claim.amount && claim.feeToken) {
-      dailyFees.add(claim.feeToken, claim.amount);
-      dailySupplySideRevenue.add(claim.feeToken, claim.amount);
+      dailyFees.add(claim.feeToken, claim.amount, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(claim.feeToken, claim.amount, METRIC.ASSETS_YIELDS);
     }
   });
 
   // Process protocol fees (ProtocolFeesClaimed) - goes to Aera protocol
   protocolFeesClaimedLogs.flat().forEach((claim) => {
     if (claim.amount && claim.feeToken) {
-      dailyFees.add(claim.feeToken, claim.amount);
-      dailyRevenue.add(claim.feeToken, claim.amount);
-      dailyProtocolRevenue.add(claim.feeToken, claim.amount);
+      dailyFees.add(claim.feeToken, claim.amount, METRIC.MANAGEMENT_FEES);
+      dailyRevenue.add(claim.feeToken, claim.amount, METRIC.MANAGEMENT_FEES);
+      dailyProtocolRevenue.add(claim.feeToken, claim.amount, METRIC.MANAGEMENT_FEES);
     }
   });
 
@@ -139,25 +133,38 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
+    [METRIC.MANAGEMENT_FEES]: "Management fees occured on fee enabled vaults",
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees occured on fee enabled vaults",
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees occured on fee enabled vaults",
+  }
+}
+
+const methodology = {
+  Fees: "Total fees from vault operations, including both guardian fees and protocol fees. Fees include TVL fees and performance fees, capped at approximately 3.1536% annually.",
+  Revenue: "Protocol fees collected by Aera platform from vault operations.",
+  ProtocolRevenue: "Protocol fees collected by Aera platform from vault operations.",
+  SupplySideRevenue: "Guardian fees paid to vault operators/guardians who manage the vaults and execute strategies.",
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2025-05-28',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2025-05-28',
-    },
+    [CHAIN.ETHEREUM]: { start: '2025-05-28' },
+    [CHAIN.BASE]: { start: '2025-05-28' },
   },
-  methodology: {
-    Fees: "Total fees from vault operations, including both guardian fees and protocol fees. Fees include TVL fees and performance fees, capped at approximately 3.1536% annually.",
-    Revenue: "Protocol fees collected by Aera platform from vault operations.",
-    ProtocolRevenue: "Protocol fees collected by Aera platform from vault operations.",
-    SupplySideRevenue: "Guardian fees paid to vault operators/guardians who manage the vaults and execute strategies.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
-
