@@ -43,7 +43,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         vaultDecimals: vault.decimals
     }));
 
-    const vaultDecimalsMap = new Map(vaultDetails.map(vault=>[vault.address,vault.vaultDecimals]));
+    const vaultDecimalsMap = new Map(vaultDetails.map(vault => [vault.address, vault.vaultDecimals]));
 
     const totalSupplies = await options.api.multiCall({
         calls: vaultsList,
@@ -89,7 +89,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     for (const [index, vaultAddress] of vaultsList.entries()) {
         if (priceAfter[index] === null || priceBefore[index] === null) continue;
-        const { underlyingAsset, vaultDecimals } = vaultDetails.find(vault=>vault.address===vaultAddress)!;
+        const { underlyingAsset, vaultDecimals } = vaultDetails.find(vault => vault.address === vaultAddress)!;
         const v2Index = index - v1Vaults.size;
 
         const vaultVersion = v1Vaults.has(vaultsList[index]) ? 1 : 2;
@@ -106,13 +106,14 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         dailyFees.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
         dailyRevenue.add(underlyingAsset, managementFees, METRIC.MANAGEMENT_FEES);
+
+        let performanceFeeInBps = 0;
         if (vaultVersion === 1) {
             const priceInAssets = BigInt(priceAfter[index]) / (BigInt(10) ** BigInt(9));//decimal difference bw vault and asset is always 9
 
             if (priceInAssets <= highWaterMarks[index] || vaultFee[index].performanceFee.length === 0) continue;
             const performanceInBps = ((priceInAssets - BigInt(highWaterMarks[index]) * 100n) / BigInt(highWaterMarks[index]));
 
-            let performanceFeeInBps = 0;
             for (const entry of vaultFee[index].performanceFee) {
                 if (performanceInBps <= 0) continue;
                 if (entry.lowerBound <= performanceInBps && entry.upperBound > performanceInBps) {
@@ -120,17 +121,14 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
                     break;
                 }
             }
-            const performanceFees = (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n);
-            dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
-            dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
         }
         else {
-            const performanceFeeInBps = feeConfigs[v2Index].currentPerformanceFee;
-            const performanceFees = priceDiff > 0n ? (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n) : 0n;
-
-            dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
-            dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+            performanceFeeInBps = feeConfigs[v2Index].currentPerformanceFee;
         }
+        const performanceFees = priceDiff > 0n ? (BigInt(performanceFeeInBps) * (priceDiff)) / (100n * 100n) : 0n;
+
+        dailyFees.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
+        dailyRevenue.add(underlyingAsset, performanceFees, METRIC.PERFORMANCE_FEES);
     }
 
     return {
