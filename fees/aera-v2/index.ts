@@ -2,6 +2,7 @@ import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import pLimit from "p-limit";
 import fetchURL, { postURL } from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 const CHAIN_CONFIG: Record<string, any> = {
     [CHAIN.ETHEREUM]: {
@@ -99,11 +100,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         const totalFeesForPeriod = ((totalFeesAfter[index] - totalFeesBefore[index]) / 1e18) * (feeTokenPrice[index] / 1e18);
         const totalYieldForPeriod = +currentTvlInUsd * currentApy * periodWrtYear;
 
-        dailyFees.addUSDValue(totalFeesForPeriod);
-        dailyRevenue.addUSDValue(totalFeesForPeriod);
+        dailyFees.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
 
-        dailyFees.addUSDValue(totalYieldForPeriod);
-        dailySupplySideRevenue.addUSDValue(totalYieldForPeriod);
+        dailyFees.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
     }
 
     return {
@@ -121,11 +122,28 @@ const methodology = {
     ProtocolRevenue: "All the revenue goes to the protocol"
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
+        [METRIC.MANAGEMENT_FEES]: "Management fees occured on fee enabled vaults",
+    },
+    Revenue: {
+        [METRIC.MANAGEMENT_FEES]: "Management fees occured on fee enabled vaults",
+    },
+    SupplySideRevenue: {
+        [METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
+    },
+    ProtocolRevenue: {
+        [METRIC.MANAGEMENT_FEES]: "Management fees occured on fee enabled vaults",
+    }
+}
+
 const adapter: SimpleAdapter = {
     prefetch,
     fetch,
-    methodology,
     adapter: CHAIN_CONFIG,
+    methodology,
+    breakdownMethodology,
     runAtCurrTime: true,
 }
 
