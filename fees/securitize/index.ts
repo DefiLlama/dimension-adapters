@@ -4,6 +4,7 @@ import {queryDuneSql} from "../../helpers/dune";
 import {gql, GraphQLClient} from "graphql-request";
 import {getTokenSupply} from "../../helpers/solana";
 import {getBlock} from "../../helpers/getBlock";
+import {METRIC} from "../../helpers/metrics";
 
 const EVM_ABI = {
   issue: 'event Issue(address indexed to, uint256 value, uint256 valueLocked)',
@@ -94,7 +95,7 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
     const mngmtFee = estimateDailyManagementFee(BigInt(totalSupply), EVM_CONTRACTS[options.chain].bps);
     dailyRevenue.addUSDValue(mngmtFee)
 
-    // Yield is only distributed on working days
+    // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
     if (isWeekend(options.endTimestamp)) {
       continue
     }
@@ -128,7 +129,10 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
 interface IData {
   total_yield: number;
 }
-
+// Limited official docs; based on third-party sources and on-chain patterns:
+// Accrual: Daily at 8:00 PM UTC (off-chain) - https://kitchen.steakhouse.financial/p/blackrock-buidl
+// Distribution: Next business day ~3:00 PM UTC (on-chain) - https://www.marketsmedia.com/securitize-adds-features-for-blackrock-tokenized-treasury-fund/
+// Older sources mentioning the distribution happens monthly. but it has changed to daily -  https://x.com/Securitize/status/1940064769320382487
 const getYieldDistributionHours = (options: FetchOptions)=> {
   const startTs = options.endTimestamp - 32399; // 15:00:00 UTC
   const endTs = options.endTimestamp - 28799; // 16:00:00 UTC
@@ -149,7 +153,7 @@ const fetchAptos: any = async (_:any, _1:any, options: FetchOptions): Promise<Fe
         AND block_time BETWEEN FROM_UNIXTIME(${startTs}) AND FROM_UNIXTIME(${endTs})
   `
 
-  // Yield is only distributed on working days
+  // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
   if (!isWeekend(options.endTimestamp)) {
     const yiedData: IData[] = await queryDuneSql(options, sql)
     if (yiedData[0]?.total_yield) {
@@ -199,7 +203,7 @@ const fetchSolana: any = async (_:any, _1:any, options: FetchOptions): Promise<F
         AND action = 'mint'
         AND block_time BETWEEN FROM_UNIXTIME(${startTs}) AND FROM_UNIXTIME(${endTs})
   `
-  // Yield is only distributed on working days
+  // Yields are distributed only on business days; skip weekends to avoid unnecessary queries
   if (!isWeekend(options.endTimestamp)) {
     const yieldData: IData[] = await queryDuneSql(options, sql)
     if (yieldData[0]?.total_yield) {
@@ -248,6 +252,20 @@ const adapters: SimpleAdapter = {
     Fees: "Total yields generated from the fund's underlying assets (U.S. Treasuries and repo agreements) plus the management fees charged by BlackRock",
     Revenue: "Management fees (20-50 bps depending on the blockchain)",
     SupplySideRevenue: "All yields distributed on-chain to BUIDL token holders after management fees",
+  },
+
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: "Gross yields generated from the fund's underlying assets",
+      [METRIC.MANAGEMENT_FEES]: "20-50 bps Management fees depending on the blockchain",
+    },
+    Revenue: {
+      [METRIC.MANAGEMENT_FEES]: "20-50 bps Management fees depending on the blockchain",
+    },
+    SupplySideRevenue: {
+      [METRIC.ASSETS_YIELDS]: "Net yields distributed after deducting management fees",
+    },
   }
 };
+
 export default adapters;
