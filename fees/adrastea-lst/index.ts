@@ -1,11 +1,11 @@
-import { Dependencies, FetchOptions } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { Dependencies, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
-const STAKE_POOL_RESERVE_ACCOUNT = "rz5G8P4tMbUS9NjwJbbbWMZqrCWEZGV3VmkNdNSn7s9";
-const STAKE_POOL_WITHDRAW_AUTHORITY = "2C9aTiNL6VyrPhFKspZC8BY9JeL3j4RtkPP2e4PrVAwP";
-const LST_FEE_TOKEN_ACCOUNT = "9mh4Y84YRaaT3EWdoEpkjZ2EVGycYmxvjuJ9krvGzAQx";
-const LST_MINT = 'hy1oXYgrBW6PVcJ4s6s2FKavRdwgWTXdfE69AxT7kPT';
+const STAKE_POOL_RESERVE_ACCOUNT = "GqRNB5aREYNkijweeqUhoCKNWWUgbBpEqfDJL6ixvjng";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "DJ5zc5UhPCAbFhudnw1RqrgcQimUzh5th6WEGtTN12NS";
+const LST_FEE_TOKEN_ACCOUNT = "HYHn839DPwEoYoroGNxKq1uU3XXV77tfKdV8nmpRWv7g";
+const LST_MINT = 'sctmY8fJucsJatwHz6P48RuWBBkdBMNmSMuBYrWFdrw';
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
@@ -26,29 +26,28 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+      dailyRevenue.addToken(LST_MINT, Number(row.amount) * 1e9 || 0);
     }
   });
-
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on Hylo staked solana',
-  Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-  ProtocolRevenue: 'Revenue going to treasury/team',
+  Fees: 'Staking rewards from staked SOL on Adrastea staked solana',
+  Revenue: 'Includes withdrawal fees and management fees collected by fee collector.',
+  ProtocolRevenue: 'Revenue going to treasury/team'
 }
 
 export default {
   version: 1,
+  methodology,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2025-07-25",
+  start: "2025-03-08",
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
-  methodology,
+  isExpensiveAdapter: true
 };

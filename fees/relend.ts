@@ -17,6 +17,7 @@ const curatorConfig: CuratorConfig = {
       euler: [
         '0xc5976e0356f0A3Ce8307fF08C88bB05933F88761',
       ],
+      start: '2025-04-28',
     },
   }
 }
