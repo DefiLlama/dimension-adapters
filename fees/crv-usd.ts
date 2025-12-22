@@ -30,7 +30,7 @@ const fetchFees = async (options: FetchOptions) => {
   if (!chainConfig) throw new Error(`Chain ${chain} not supported`);
 
   const dailyFees = createBalances();
-  const dailyHoldersRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
   const fromBlock = await getFromBlock();
   const toBlock = await getToBlock();
@@ -79,9 +79,9 @@ const fetchFees = async (options: FetchOptions) => {
         if (log.to.toLowerCase() === chainConfig.daoFeeCollector.toLowerCase()) {
           // After June 2025: 10% goes to treasury, 90% to veCRV holders
           if (toBlock >= chainConfig.feeAllocatorStartBlock) {
-            dailyHoldersRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n);
+            dailySupplySideRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n);
           } else {
-            dailyHoldersRevenue.add(chainConfig.crvusd, log.value);
+            dailySupplySideRevenue.add(chainConfig.crvusd, log.value);
           }
 
         }
@@ -106,24 +106,34 @@ const fetchFees = async (options: FetchOptions) => {
     }));
 
     // Before FeeSplitter, all fees went to token holders
-    dailyHoldersRevenue.addBalances(dailyFees);
+    dailySupplySideRevenue.addBalances(dailyFees);
   }
+  
+  const dailyRevenue = dailyFees.clone(1)
+  dailyRevenue.subtract(dailySupplySideRevenue)
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
       start: '2023-05-14',
     },
   },
-  version: 2,
+  methodology: {
+    Fees: 'All borrow interest paid by borrowers.',
+    Revenue: 'All borrow interest are revenue.',
+    ProtocolRevenue: 'Revenue share to protocol treasury.',
+    SupplySideRevenue: 'Revenue share to scrvUSD stakers.',
+  }
 };
 
 export default adapters;
