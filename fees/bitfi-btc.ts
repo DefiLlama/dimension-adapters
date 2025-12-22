@@ -47,8 +47,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     eventAbi: 'event FeeCollected(address indexed user, uint8 indexed feeType, uint256 id, uint256 amount, uint256 percentageFee, uint256 fixedFee)',
   })
 
+  // https://bitfi-2.gitbook.io/bitfi/developer/using-contract/bfbtc-fees#fee-parameters
   for (const log of feeCollectedLogs) {
-    dailyFees.add(token, log.amount, METRIC.DEPOSIT_WITHDRAW_FEES)
+    const totalFee = log.percentageFee + log.fixedFee
+    dailyFees.add(token, totalFee, METRIC.DEPOSIT_WITHDRAW_FEES)
   }
 
   return {
@@ -56,6 +58,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
   }
 }
 
@@ -68,6 +71,7 @@ const adapter: Adapter = {
     UserFees: 'Withdrawal fees from bfBTC (on EVM chains and Bitcoin network) paid by users.',
     Revenue: 'All fees collected are sent to BitFi protocol fee receiver address.',
     ProtocolRevenue: 'All fees collected are sent to BitFi protocol fee receiver address.',
+    SupplySideRevenue: 'No withdrawal fees go to supply side. bfBTC holders earn yield through exchange rate appreciation from strategies.'
   },
 }
 
