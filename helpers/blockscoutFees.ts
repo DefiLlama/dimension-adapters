@@ -91,6 +91,12 @@ export const chainConfigMap: any = {
   [CHAIN.EVENTUM]: { CGToken: 'ethereum', explorer: 'https://explorer.evedex.com/' },
   [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/' },
   [CHAIN.FLYNET]: { CGToken: 'F2', explorer: 'https://explorer.flynet.org/' },
+  [CHAIN.HPP]: { CGToken: 'ethereum', explorer: 'https://explorer.hpp.io/' },
+  [CHAIN.MIND_NETWORK]: { CGToken: 'ethereum', explorer: 'https://explorer.mindnetwork.xyz/' },
+  [CHAIN.MOLTEN_NETWORK]: { CGToken: 'molten-2', explorer: 'https://molten.calderaexplorer.xyz/' },
+  [CHAIN.SYNDICATE]: { CGToken: 'syndicate-3', explorer: 'https://explorer.syndicate.io/' },
+  [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.idex.io/' },
+ 
 }
 
 function getTimeString(timestamp: number) {
