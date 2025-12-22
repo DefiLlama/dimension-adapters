@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SUI],
-  start: "2024-01-01",
+  start: "2025-01-01",
   isExpensiveAdapter: true,
   methodology: {
     Volume:
