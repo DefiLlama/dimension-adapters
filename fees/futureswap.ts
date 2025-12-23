@@ -57,12 +57,13 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    'Trading fees emitted via PositionChanged events. Futureswap is a leveraged derivatives protocol, so volume is intentionally excluded.',
-  UserFees:
-    'Fees paid by traders when opening, closing, or modifying leveraged positions.',
+    'Trading fees as reported by the tradeFee field in PositionChanged events. Futureswap is a leveraged derivatives protocol and does not emit explicit fee settlement events.',
   Revenue:
-    'All collected trading fees are treated as protocol revenue due to lack of explicit on-chain fee distribution.',
-  ProtocolRevenue: 'Same as Revenue.',
+    'All reported trade fees are treated as protocol revenue due to lack of on-chain fee distribution data.',
+  ProtocolRevenue:
+    'Same as Revenue.',
+  Limitations:
+    'PositionChanged events reflect leveraged position accounting and may overestimate realized fees. Volume and LP revenue are intentionally not reported.',
 }
 
 const adapter: SimpleAdapter = {
