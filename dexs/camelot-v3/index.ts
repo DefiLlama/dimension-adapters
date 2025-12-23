@@ -23,10 +23,12 @@ const methodology = {
 
 // Fee split ratios
 const REVENUE_RATIO = 0.2; // 20% total protocol-controlled
+const USER_FEES_RATIO = 1; // Users pay 100% of fees
 const PROTOCOL_REVENUE_RATIO = 0.03; // 3% protocol
 const HOLDERS_REVENUE_RATIO = 0.17; // 17% xGRAIL holders
 
 const adapterConfig = {
+  userFeesRatio: USER_FEES_RATIO,
   revenueRatio: REVENUE_RATIO,
   protocolRevenueRatio: PROTOCOL_REVENUE_RATIO,
   holdersRevenueRatio: HOLDERS_REVENUE_RATIO,
