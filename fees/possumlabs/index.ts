@@ -37,6 +37,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-09-02',
+  runAtCurrTime: true,
   methodology: {
     Fees: "Trading fees paid by users on bonding curve(0.7% of volume as possumlabs share).",
     Revenue: "protocol earns 0.7% of volume as revenue",
