@@ -52,10 +52,11 @@ export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: s
   return { dailyBribesRevenue }
 }
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
   const dailyHoldersRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
   const dailyProtocolRevenue = createBalances() 
@@ -115,7 +116,6 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
           const fee0 = amount0 * fee
           const fee1 = amount1 * fee
           addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
           if (hasGauge) {
             addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
           }
@@ -133,8 +133,21 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   if (errorFound) throw errorFound
 
   const { dailyBribesRevenue } = await getBribes(fetchOptions, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
+  dailyRevenue.addBalances(dailyProtocolRevenue)
+  dailyRevenue.addBalances(dailyHoldersRevenue)
+  dailyFees.addBalances(dailyRevenue)
+  dailyFees.addBalances(dailySupplySideRevenue)
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyBribesRevenue }
+  return { 
+    dailyVolume, 
+    dailyFees,
+    dailyUserFees: dailyFees, 
+    dailyRevenue: dailyRevenue, 
+    dailyHoldersRevenue, 
+    dailySupplySideRevenue,
+    dailyProtocolRevenue, 
+    dailyBribesRevenue 
+  }
 }
 const methodology = {
   UserFees: "User pays fees on each swap.",
@@ -145,7 +158,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   methodology,
   chains: [CHAIN.SONIC],

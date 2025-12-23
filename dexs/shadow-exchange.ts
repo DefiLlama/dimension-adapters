@@ -24,9 +24,10 @@ const abis = {
   fee: 'uint256:fee'
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = options
   const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
   const dailyVolume = createBalances();
   const dailyHoldersRevenue = createBalances()
   const dailyProtocolRevenue = createBalances()
@@ -104,7 +105,6 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
           const fee0 = amount0 * fee
           const fee1 = amount1 * fee
           addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-          addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1 })
           if (hasGauge) {
             addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
           }
@@ -121,8 +121,21 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
   if (errorFound) throw errorFound
   const { dailyBribesRevenue } = await getBribes(options, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
+  dailyRevenue.addBalances(dailyProtocolRevenue)
+  dailyRevenue.addBalances(dailyHoldersRevenue)
+  dailyFees.addBalances(dailyRevenue)
+  dailyFees.addBalances(dailySupplySideRevenue)
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyBribesRevenue }
+  return { 
+    dailyVolume, 
+    dailyFees,
+    dailyUserFees: dailyFees, 
+    dailyRevenue: dailyRevenue, 
+    dailyHoldersRevenue, 
+    dailySupplySideRevenue,
+    dailyProtocolRevenue, 
+    dailyBribesRevenue 
+  }
 };
 
 const methodology = {
@@ -135,7 +148,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   methodology,
   fetch,
   chains: [CHAIN.SONIC],
