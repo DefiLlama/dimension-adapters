@@ -301,4 +301,5 @@ export enum CHAIN {
   EVERCLEAR = "everclear",
   FLYNET = "flynet",
   ALPHASEC = "alphasec",
+  SPACE_AND_TIME = "space_and_time",
 }
