@@ -93,7 +93,12 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
     const totalSupply = await options.fromApi.call({
       target: contract.address,
       abi: EVM_ABI.totalSupply,
+      permitFailure: true,
     })
+    
+    // contract was not deployed yet
+    if (!totalSupply) continue;
+    
     const mngmtFee = estimateDailyManagementFee(BigInt(totalSupply), EVM_CONTRACTS[options.chain].bps);
     dailyRevenue.addUSDValue(mngmtFee)
 
@@ -107,13 +112,11 @@ const fetchEvm: any = async (_:any, _1:any, options: FetchOptions): Promise<Fetc
     const issueEvents: Array<any> = await options.getLogs({
       target: contract.address,
       eventAbi: EVM_ABI.issue,
-      entireLog: true,
       fromBlock: getFromBlock,
       toBlock: getToBlock,
-
     })
     issueEvents.forEach(e => {
-      dailySupplySideRevenue.addToken(contract.address, e.parsedLog.args.value)
+      dailySupplySideRevenue.addToken(contract.address, e.value)
     })
 
   }
