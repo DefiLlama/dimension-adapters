@@ -10,7 +10,6 @@ const vaults = {
 
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
@@ -43,7 +42,6 @@ async function fetch(options: FetchOptions) {
       const growthCumulativeIndex = Number(cumulativeIndexAfterValue) - Number(cumulativeIndexBeforeValue)
       const growthInterest = growthCumulativeIndex * totalTokenBalance / (10 ** Number(decimal))
       dailyFees.add(token, growthInterest, METRIC.ASSETS_YIELDS)
-      dailyRevenue.add(token, growthInterest, METRIC.ASSETS_YIELDS)
       const performanceFee = vaultFees[i].performanceFee
       dailyProtocolRevenue.add(token, growthInterest * performanceFee, METRIC.PERFORMANCE_FEES)
       dailySupplySideRevenue.add(token, growthInterest - (growthInterest * performanceFee), METRIC.ASSETS_YIELDS)
@@ -55,10 +53,10 @@ async function fetch(options: FetchOptions) {
   }
 
   return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
-    dailyProtocolRevenue: dailyProtocolRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   }
 }
 
