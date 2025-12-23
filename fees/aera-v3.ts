@@ -38,6 +38,8 @@ const abis = {
     'function getVaultState(address vault) external view returns ((bool paused, uint8 maxPriceAge, uint16 minUpdateIntervalMinutes, uint16 maxPriceToleranceRatio, uint16 minPriceToleranceRatio, uint8 maxUpdateDelayDays, uint32 timestamp, uint24 accrualLag, uint128 unitPrice, uint128 highestPrice, uint128 lastTotalSupply))',
 };
 
+const PROTOCOL_FEE_RATIO = 0.2; // 20% of positive yield
+
 const fetch = async (options: FetchOptions) => {
   const { chain, createBalances, getLogs, fromApi, toApi } = options;
   const dailyFees = createBalances();
@@ -47,7 +49,6 @@ const fetch = async (options: FetchOptions) => {
 
   const chainConfig = config[chain];
 
-  // Discover vaults via factory VaultCreated events
   const [multiDepositorVaultLogs, singleDepositorVaultLogs] = await Promise.all(
     [
       getLogs({
@@ -78,34 +79,27 @@ const fetch = async (options: FetchOptions) => {
     };
   }
 
-  // Fees accrue via unitPrice growth (no claim events)
-  const [totalSuppliesStart, totalSuppliesEnd, decimalsArray, feeCalculators] =
-    await Promise.all([
-      fromApi.multiCall({
-        abi: abis.totalSupply,
-        calls: vaults,
-        permitFailure: true,
-      }),
-      toApi.multiCall({
-        abi: abis.totalSupply,
-        calls: vaults,
-        permitFailure: true,
-      }),
-      toApi.multiCall({
-        abi: abis.decimals,
-        calls: vaults,
-        permitFailure: true,
-      }),
-      toApi.multiCall({
-        abi: abis.feeCalculator,
-        calls: vaults,
-        permitFailure: true,
-      }),
-    ]);
+  const [totalSupplies, decimalsArray, feeCalculators] = await Promise.all([
+    fromApi.multiCall({
+      abi: abis.totalSupply,
+      calls: vaults,
+      permitFailure: true,
+    }),
+    fromApi.multiCall({
+      abi: abis.decimals,
+      calls: vaults,
+      permitFailure: true,
+    }),
+    fromApi.multiCall({
+      abi: abis.feeCalculator,
+      calls: vaults,
+      permitFailure: true,
+    }),
+  ]);
 
   const [numeraireTokens, vaultStatesStart, vaultStatesEnd] = await Promise.all(
     [
-      toApi.multiCall({
+      fromApi.multiCall({
         abi: abis.numeraire,
         calls: feeCalculators.map((fc) => ({ target: fc })),
         permitFailure: true,
@@ -129,19 +123,15 @@ const fetch = async (options: FetchOptions) => {
     ]
   );
 
-  const PROTOCOL_FEE_RATIO = 0.2;
-
   for (let i = 0; i < vaults.length; i++) {
-    const totalSupplyStart = totalSuppliesStart[i];
-    const totalSupplyEnd = totalSuppliesEnd[i];
+    const totalSupply = totalSupplies[i];
     const decimals = decimalsArray[i];
     const numeraireToken = numeraireTokens[i];
     const vaultStateStart = vaultStatesStart[i];
     const vaultStateEnd = vaultStatesEnd[i];
 
     if (
-      !totalSupplyStart ||
-      !totalSupplyEnd ||
+      !totalSupply ||
       !decimals ||
       !numeraireToken ||
       !vaultStateStart ||
@@ -153,24 +143,21 @@ const fetch = async (options: FetchOptions) => {
     const unitPriceStart = BigInt(vaultStateStart[8]);
     const unitPriceEnd = BigInt(vaultStateEnd[8]);
 
-    const vaultValueStart =
-      (BigInt(totalSupplyStart) * unitPriceStart) / BigInt(10 ** decimals);
-    const vaultValueEnd =
-      (BigInt(totalSupplyEnd) * unitPriceEnd) / BigInt(10 ** decimals);
+    const unitPriceDelta = unitPriceEnd - unitPriceStart;
+    const yieldAmount =
+      (BigInt(totalSupply) * unitPriceDelta) / BigInt(10 ** decimals);
 
-    const dailyDelta = vaultValueEnd - vaultValueStart;
-
-    if (dailyDelta <= 0n) {
+    // Only track positive yield (negative yield/losses are not reported)
+    if (yieldAmount <= 0n) {
       continue;
     }
 
-    dailyFees.add(numeraireToken, dailyDelta);
+    dailyFees.add(numeraireToken, yieldAmount);
 
-    // Split between protocol (management) and guardian fees
     const protocolFee =
-      (dailyDelta * BigInt(Math.floor(PROTOCOL_FEE_RATIO * 1e18))) /
+      (yieldAmount * BigInt(Math.floor(PROTOCOL_FEE_RATIO * 1e18))) /
       BigInt(1e18);
-    const guardianFee = dailyDelta - protocolFee;
+    const guardianFee = yieldAmount - protocolFee;
 
     dailyProtocolRevenue.add(
       numeraireToken,
@@ -211,13 +198,13 @@ const breakdownMethodology = {
 };
 
 const methodology = {
-  Fees: 'Fees accrue implicitly via vault unitPrice growth and are computed as the daily change in vault value (totalSupply x unitPrice).',
+  Fees: 'Fees are derived from unitPrice changes only: yield = totalSupply × (unitPriceEnd - unitPriceStart). Deposits and withdrawals do not affect fees. Only positive yield is counted; losses are not reported.',
   Revenue:
-    'Protocol management fees (approximately 20% of accrued fees) collected by Aera.',
+    'Protocol management fees (~20% of positive yield) collected by Aera.',
   ProtocolRevenue:
     'Same as Revenue — protocol management fees from vault operations.',
   SupplySideRevenue:
-    'Guardian/operator fees (approximately 80% of accrued fees) paid to vault managers.',
+    'Guardian/operator fees (~80% of positive yield) paid to vault managers.',
 };
 
 const adapter: SimpleAdapter = {
