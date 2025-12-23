@@ -223,7 +223,6 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     ];
 
     if (remainingVaults.length > 0) {
-        if (options.chain === CHAIN.ETHEREUM) {
             const totalSupplies = await options.api.multiCall({
                 calls: remainingVaults,
                 abi: IDLE_ABIs.totalSupply,
@@ -263,7 +262,6 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
                     calculateAllFees(underlyingTokens[index], totalYieldForPeriod, performaceFeesMultiple);
                 }
             }
-        }
     }
     return {
         dailyFees,
