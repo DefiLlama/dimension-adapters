@@ -1,9 +1,9 @@
 import fetchURL from "../utils/fetchURL"
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_: any) => {
   const allPools: any[] = [];
   let page = 1;
   let hasMore = true;
