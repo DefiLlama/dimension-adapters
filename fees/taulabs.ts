@@ -18,27 +18,44 @@ import { METRIC } from '../helpers/metrics'
  * but per-vault to apply different performance fee rates.
  */
 
-const vaultConfig: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: [
-    '0xb0f56bb0bf13ee05fef8cd2d8df5ffdfcac7a74f', // TAU infiniFi Pointsmax
-    '0x6f66b845604dad6e80b2a1472e6cacbbe66a8c40', // TAU Reservoir Pointsmax
-    '0x43a32d4f6c582f281c52393f8f9e5ace1d4a1e68', // TAU Yield Bond ETF
-    '0xe48cdd5ecec5aa53e630a7b4df12f79067b68dac', // TAU InfiniFi BTC Carry
-    '0x63103375659d0aa94e9f35df15be01a3dd1ae9c0', // TAU Lending Optimizer
-    '0xc50b2d51fd1e2ac67a9c09eaf63c24ea2465c64b', // TAU InfiniFi ETH Carry
-    '0xc2a119ea6de75e4b1451330321cb2474eb8d82d4',
-  ],
+const factoryConfig: Record<string, { factory: string; startBlock: number }> = {
+  [CHAIN.ETHEREUM]: {
+    factory: '0x7c9119fbb87eb1a08224ad225362bdec213007e2',
+    startBlock: 21831587,
+  },
+}
+
+const manualVaultConfig: Record<string, string[]> = {
   [CHAIN.FLOW]: ['0xc52E820d2D6207D18667a97e2c6Ac22eB26E803c'],
 }
+
+const PlasmaVaultCreatedEvent =
+  'event PlasmaVaultCreated(uint256 index, address plasmaVault, string assetName, string assetSymbol, address underlyingToken)'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const vaults = vaultConfig[options.chain]
-  if (!vaults) {
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue }
+  // Get vaults from factory (Ethereum) or manual config (other chains)
+  let vaults: string[] = []
+  const factoryCfg = factoryConfig[options.chain]
+
+  if (factoryCfg) {
+    // Fetch vaults from factory via PlasmaVaultCreated events
+    const vaultCreatedLogs = await options.getLogs({
+      target: factoryCfg.factory,
+      eventAbi: PlasmaVaultCreatedEvent,
+      fromBlock: factoryCfg.startBlock,
+    })
+    vaults = vaultCreatedLogs.map((log: any) => log.plasmaVault)
+  } else if (manualVaultConfig[options.chain]) {
+    // Fallback to manual config for chains without factory
+    vaults = manualVaultConfig[options.chain]
+  }
+
+  if (vaults.length === 0) {
+    return {}
   }
 
   // Get performance fee data from each vault (in basis points)
@@ -68,13 +85,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     targets: vaults,
     eventAbi:
       'event ManagementFeeRealized(uint256 unrealizedFeeInUnderlying, uint256 unrealizedFeeInShares)',
+    onlyArgs: false,
   })
 
   for (const log of managementFeeLogs) {
-    const vaultAddress = (log.address || '').toLowerCase()
+    const vaultAddress = log.address.toLowerCase()
     const asset = vaultToAsset[vaultAddress]
-    if (asset && log.unrealizedFeeInUnderlying) {
-      const feeAmount = BigInt(log.unrealizedFeeInUnderlying)
+    if (asset && log.args.unrealizedFeeInUnderlying) {
+      const feeAmount = BigInt(log.args.unrealizedFeeInUnderlying)
       dailyFees.add(asset, feeAmount, METRIC.MANAGEMENT_FEES)
       dailyRevenue.add(asset, feeAmount, METRIC.MANAGEMENT_FEES)
     }
@@ -170,6 +188,9 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.MANAGEMENT_FEES]: 'Management fees collected by the protocol.',
     [METRIC.PERFORMANCE_FEES]: 'Performance fees collected by the protocol.',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Yield distributed to vault depositors after performance fees.',
   },
 }
 
