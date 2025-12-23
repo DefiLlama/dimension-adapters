@@ -2435,13 +2435,13 @@ export default (
       },
     },
     {
-        id: "7139",
-        name: "Anome",
-        addresses: {
-            bsc: [
-                "0x210d75B7C94aDf9FC1a2bCd047D76890479234e3"
-            ],
-        },
+      id: "7139",
+      name: "Anome",
+      addresses: {
+        bsc: [
+          "0x210d75B7C94aDf9FC1a2bCd047D76890479234e3"
+        ],
+      },
     },
 
   ] as ProtocolAddresses[]
