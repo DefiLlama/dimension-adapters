@@ -92,90 +92,92 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     
     const vaultRateBase = Number(10 ** Number(decimals))
 
-      // get vaults rate updated events
-      const poolContract: Interface = new Interface([
-        BoringVaultAbis.exchangeRateUpdated,
-      ])
-      const events: Array<ExchangeRateUpdatedEvent> = (await options.getLogs({
-        eventAbi: BoringVaultAbis.exchangeRateUpdated,
-        entireLog: true,
-        target: accountant,
-      }))
-      .map(log => {
-        const decodeLog: any = poolContract.parseLog(log)
+    // get vaults rate updated events
+    const poolContract: Interface = new Interface([
+      BoringVaultAbis.exchangeRateUpdated,
+    ])
+    const events: Array<ExchangeRateUpdatedEvent> = (await options.getLogs({
+      eventAbi: BoringVaultAbis.exchangeRateUpdated,
+      entireLog: true,
+      target: accountant,
+    }))
+    .map(log => {
+      const decodeLog: any = poolContract.parseLog(log)
 
-        const event: any = {
-          blockNumber: Number(log.blockNumber),
-          oldRate: decodeLog.args[0],
-          newRate: decodeLog.args[1],
-        }
-
-        return event
-      })
-
-      for (const event of events) {
-        // newRate - oldRate
-        const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
-
-        if (growthRate > 0) {
-          
-          // get total staked in vault at the given block
-          // it's safe for performance because ExchangeRateUpdated events
-          // occur daily once
-          const totalSupplyAtUpdated = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.totalSupply,
-            target: vault.vault,
-            block: event.blockNumber,
-          })
-          const getAccountantState = await sdk.api2.abi.call({
-            abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
-            target: accountant,
-            block: event.blockNumber,
-          })
-
-          let exchangeRate = vaultRateBase
-          let performanceFeeRate = 0
-          if (vault.accountantAbiVersion === 2) {
-            exchangeRate = Number(getAccountantState[4])
-            // only version 2 vaults have performance fee config
-            performanceFeeRate = Number(getAccountantState[11]) / AccountantFeeRateBase
-          } else {
-            exchangeRate = Number(getAccountantState[3])
-          }
-          
-          // rate is always greater than or equal 1
-          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
-
-          const supplySideYield = totalDeposited * growthRate / vaultRateBase
-          const totalYield = supplySideYield / (1 - performanceFeeRate)
-          const protocolFee = totalYield - supplySideYield
-
-          dailyFees.add(token, totalYield)
-          dailySupplySideRevenue.add(token, supplySideYield)
-          dailyProtocolRevenue.add(token, protocolFee)
-        }
+      const event: any = {
+        blockNumber: Number(log.blockNumber),
+        oldRate: decodeLog.args[0],
+        newRate: decodeLog.args[1],
       }
 
-      // get total asset are deposited in vault
-      const totalSupply = await options.api.call({
-        abi: BoringVaultAbis.totalSupply,
-        target: vault.vault,
-      })
-      const getAccountantState = await options.api.call({
-        abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
-        target: accountant,
-      })
+      return event
+    })
+    .sort((a, b) => a.blockNumber - b.blockNumber)
 
-      const exchangeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[3]) : Number(getAccountantState[4])
-      const platformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
+    if (events.length > 0) {
+      const firstEvent = events[0]
+      const lastEvent = events[events.length - 1]
+ 
+      // Calculate growth rate from start to end of period
+      const startRate = firstEvent.oldRate
+      const endRate = lastEvent.newRate
+      const growthRate = endRate > startRate ? Number(endRate - startRate) : 0
 
-      const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase
+      if (growthRate > 0) {
+        const totalSupplyAtUpdated = await sdk.api2.abi.call({
+          abi: BoringVaultAbis.totalSupply,
+          target: vault.vault,
+          block: firstEvent.blockNumber,
+        })
+        const getAccountantState = await sdk.api2.abi.call({
+          abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
+          target: accountant,
+          block: firstEvent.blockNumber,
+        })
 
-      // platform fees charged per year of total assets in vault
-      // 365 * 24 * 60 * 60 = seconds in a year (used to convert annual fee rate to time period)
-      const yearInSecs = 365 * 24 * 60 * 60
-      const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
-      const platformFee = totalDeposited * (platformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
+        let exchangeRate = vaultRateBase
+        let performanceFeeRate = 0
+        if (vault.accountantAbiVersion === 2) {
+          exchangeRate = Number(getAccountantState[4])
+          // only version 2 vaults have performance fee config
+          performanceFeeRate = Number(getAccountantState[11]) / AccountantFeeRateBase
+        } else {
+          exchangeRate = Number(getAccountantState[3])
+        }
+        
+        // rate is always greater than or equal 1
+        const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
+
+        const supplySideYield = totalDeposited * growthRate / vaultRateBase
+        const totalYield = supplySideYield / (1 - performanceFeeRate)
+        const protocolFee = totalYield - supplySideYield
+
+        dailyFees.add(token, totalYield)
+        dailySupplySideRevenue.add(token, supplySideYield)
+        dailyProtocolRevenue.add(token, protocolFee)
+      }
+    }
+
+    // get total asset are deposited in vault
+    const totalSupply = await options.api.call({
+      abi: BoringVaultAbis.totalSupply,
+      target: vault.vault,
+    })
+    const getAccountantState = await options.api.call({
+      abi: BoringVaultAbis.accountantState[vault.accountantAbiVersion],
+      target: accountant,
+    })
+
+    const exchangeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[3]) : Number(getAccountantState[4])
+    const platformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
+
+    const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase
+
+    // platform fees charged per year of total assets in vault
+    // 365 * 24 * 60 * 60 = seconds in a year (used to convert annual fee rate to time period)
+    const yearInSecs = 365 * 24 * 60 * 60
+    const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
+    const platformFee = totalDeposited * (platformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
     dailyFees.add(token, platformFee)
     dailyProtocolRevenue.add(token, platformFee)
