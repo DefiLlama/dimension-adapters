@@ -57,11 +57,11 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
     contract: beefyRevenueBridgeAddress,
     stables: [ADDRESSES.hyperliquid.USDT0],
   },
-  [CHAIN.SAGA]: {
-    start: '2025-04-16',
-    contract: beefyRevenueBridgeAddress,
-    stables: [ADDRESSES.saga.USDC],
-  },
+  // [CHAIN.SAGA]: {
+  //   start: '2025-04-16',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [ADDRESSES.saga.USDC],
+  // },
   // [CHAIN.REAL]: {
   //   start: '2024-07-17',
   //   contract: beefyRevenueBridgeAddress,
