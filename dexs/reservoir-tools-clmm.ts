@@ -30,6 +30,16 @@ const feeConfigs = {
 }
 
 async function fetch(options: FetchOptions) {
+  if (options.chain === CHAIN.ZERO){
+    return {
+      dailyVolume: 0,
+      dailyFees: 0,
+      dailyRevenue: 0,
+      dailyProtocolRevenue: 0,
+      dailySupplySideRevenue: 0,
+      dailyHoldersRevenue: 0,
+    }
+  }
   const adapter = getUniV3LogAdapter({ factory: factories[options.chain], ...feeConfigs })
   const response = await adapter(options)
   return response;
@@ -37,14 +47,13 @@ async function fetch(options: FetchOptions) {
 
 const adapters: SimpleAdapter = {
   version: 2,
-  deadFrom: '2025-12-14',
-  methodology,
   fetch,
   adapter: {
     [CHAIN.ABSTRACT]: { start: '2025-01-07' },
-    // [CHAIN.ZERO]: { start: '2025-12-21' },
+    [CHAIN.ZERO]: { start: '2025-12-21' },
     [CHAIN.INK]: { start: '2025-01-07' },
   },
+  methodology,
 };
 
 export default adapters;
