@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const rEthVault = "0x936faCdf10c8c36294e7b9d28345255539d81bc7";
 const rEthToken = "0xae78736Cd615f374D3085123A210448E74Fc6393";
@@ -40,15 +41,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const timeframe = options.toTimestamp - options.fromTimestamp;
     const managementFees = Number(balance) * managementFeeRate * timeframe / oneYear;
 
-    const totalFees = performanceFees + managementFees;
-    const protocolRevenue = totalFees * protocolFeeRate;
-
     const supplySideYield = Number(cumulativeYield) - performanceFees;
-    dailySupplySideRevenue.add(rEthToken, supplySideYield);
 
-    dailyFees.add(rEthToken, supplySideYield + totalFees);
-    dailyRevenue.add(rEthToken, totalFees);
-    dailyProtocolRevenue.add(rEthToken, protocolRevenue);
+    dailyFees.add(rEthToken, supplySideYield, METRIC.ASSETS_YIELDS);
+    dailyFees.add(rEthToken, performanceFees, METRIC.PERFORMANCE_FEES);
+    dailyFees.add(rEthToken, managementFees, METRIC.MANAGEMENT_FEES);
+    dailyRevenue.add(rEthToken, performanceFees, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(rEthToken, managementFees, METRIC.MANAGEMENT_FEES);
+    dailyProtocolRevenue.add(rEthToken, performanceFees * protocolFeeRate, METRIC.PERFORMANCE_FEES);
+    dailyProtocolRevenue.add(rEthToken, managementFees * protocolFeeRate, METRIC.MANAGEMENT_FEES);
+    dailySupplySideRevenue.add(rEthToken, supplySideYield, METRIC.ASSETS_YIELDS);
 
     return {
         dailyFees,
@@ -71,6 +73,24 @@ const adapter: SimpleAdapter = {
         Revenue: "10% performance fee and 1% annual management fee.",
         ProtocolRevenue: "Portion of total fees distributed to the protocol.",
         SupplySideRevenue: "Vault yield distributed to suppliers.",
+    },
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.ASSETS_YIELDS]: "Yield generated from supplied assets in the rock.rETH vault.",
+            [METRIC.PERFORMANCE_FEES]: "All fees collected from performance of the vault strategies.",
+            [METRIC.MANAGEMENT_FEES]: "All management fees collected in the vault.",
+        },
+        Revenue: {
+            [METRIC.PERFORMANCE_FEES]: "All fees collected from the 10% performance fee in the vault strategies.",
+            [METRIC.MANAGEMENT_FEES]: "All fees collected from the 1% annual management fee in the vaults.",
+        },
+        ProtocolRevenue: {
+            [METRIC.PERFORMANCE_FEES]: 'Protocol share of performance fees.',
+            [METRIC.MANAGEMENT_FEES]: 'Protocol share of management fees.',
+        },
+        SupplySideRevenue: {
+            [METRIC.ASSETS_YIELDS]: "Vault yield distributed to suppliers.",
+        }
     }
 }
 
