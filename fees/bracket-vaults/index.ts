@@ -49,6 +49,7 @@ async function fetch(options: FetchOptions) {
       dailySupplySideRevenue.add(token, growthInterest - (growthInterest * performanceFee), METRIC.ASSETS_YIELDS)
       const currentPeriod = options.toTimestamp - options.fromTimestamp
       const managementFees = value * vaultFees[i].managementFee * currentPeriod / (365 * 24 * 3600)
+      dailyFees.add(token, managementFees, METRIC.MANAGEMENT_FEES)
       dailyProtocolRevenue.add(token, managementFees, METRIC.MANAGEMENT_FEES)
     }
   }
