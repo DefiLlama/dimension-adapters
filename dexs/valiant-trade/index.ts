@@ -17,7 +17,7 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
     const endTimestamp = currentTimestamp;
     const url = `${baseUrl}?start=${startTimestamp}&end=${endTimestamp}`;
     const response = await httpGet(url);
-    const data = response.data;
+    const data = response;
     const dailyVolume = data.totalSwapVolume;
     const dailyFees = data.totalFees;
     const dailyUserFees = data.totalFees;
