@@ -175,7 +175,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
 
-    logs = logs.map((log: any) => iface.parseLog(log)?.args).filter((log: any) => log !== null && log !== undefined)
+    logs = logs.map((log: any) => iface.parseLog(log)?.args)
 
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
