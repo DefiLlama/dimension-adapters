@@ -2,39 +2,56 @@ import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
 import { FetchOptions } from '../../adapters/types';
 
-const CONFIG: Record<string, { url: string, start: string }> = {
-  [CHAIN.FOGO]: {
-    url: 'https://mainnet-pro-api.valiant.trade/dex/analytics/swapStat',
-    start: '2025-12-20',
-  },
+const statsApiEndpoint = "https://mainnet-pro-api.valiant.trade/dex/analytics/swapStat";
+
+const CONFIG = {
+    [CHAIN.FOGO]: {
+        url: statsApiEndpoint,
+    },
 }
 
-async function fetch(_a: number, _b: any, options: FetchOptions) {
-  const url = CONFIG[options.chain].url;
-  const data = await httpGet(url);
+async function fetch(timestamp: number, _b: any, options: FetchOptions) {
+    const baseUrl = CONFIG[options.chain].url;
+    const startTimestamp = timestamp - 86400;
+    const endTimestamp = timestamp;
+    const url = `${baseUrl}?start=${startTimestamp}&end=${endTimestamp}`;
+    const response = await httpGet(url);
+    const data = response;
+    const dailyVolume = data.totalSwapVolume;
+    const dailyFees = data.totalFees;
+    const dailyUserFees = data.totalFees;
+    const dailyRevenue = data.totalProtocolFees;
+    const dailyProtocolRevenue = data.totalProtocolFees;
+    const dailyHoldersRevenue = 0.;
 
-  return {
-    dailyVolume: data.totalSwapVolume,
-    dailyFees: data.totalFees,
-    dailyUserFees: data.totalFees,
-    dailyRevenue: data.totalProtocolFees,
-    dailyProtocolRevenue: data.totalProtocolFees,
-    dailySupplySideRevenue: data.totalFees - data.totalProtocolFees,
-  }
+    return {
+        dailyVolume,
+        dailyFees,
+        dailyUserFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
+    }
 }
 
 const methodology = {
-  Fees: "All fees paid by users",
-  Revenue: "Revenue going to protocol treasury",
-  ProtocolRevenue: "Revenue going to protocol treasury",
-  SupplySideRevenue: "Revenue earned by LPs",
+    Fees: "All fees paid by users",
+    Revenue: "Revenue going to protocol treasury",
+    ProtocolRevenue: "Revenue going to protocol treasury",
+    UserFees: "All fees paid by users",
+    SupplySideRevenue: "Revenue earned by LPs (87% of total fees)",
+    HoldersRevenue: "20% of protocol fees allocated for xORCA holder buybacks and burns."
 }
 
 export default {
-  version: 1,
-  fetch,
-  chains: [CHAIN.FOGO],
-  start: '2025-12-20',
-  runAtCurrTime: true,
-  methodology,
+    methodology,
+    version: 1,
+    runAtCurrTime: true,
+    adapter: {
+        [CHAIN.FOGO]: {
+            fetch,
+            start: '2025-12-20',
+        },
+    },
+    isExpensiveAdapter: true,
 }

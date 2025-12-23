@@ -301,6 +301,7 @@ export enum CHAIN {
   EVERCLEAR = "everclear",
   FLYNET = "flynet",
   ALPHASEC = "alphasec",
+<<<<<<< HEAD
   HPP = "hpp",
   MIND_NETWORK = "mind_network",
   MOLTEN_NETWORK = "molten_network",
@@ -335,4 +336,7 @@ export enum CHAIN {
   Q_PROTOCOL = "q",
   IOTA = "iota",
   MEGAETH = "megaeth",
+=======
+  FOGO = "fogo",
+>>>>>>> add valiant-trade volume+fee adapter
 }
