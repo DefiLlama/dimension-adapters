@@ -16,59 +16,34 @@ import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { httpGet } from '../../utils/fetchURL';
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
-    let dayValue = 0;
-    try {
-    const FeesData = await httpGet('https://possumlabs.wtf/api/volume?dayFees=true')
-    dayValue = FeesData.dayFees;
-    } catch (error) {
-        console.error('Error fetching PossumLabs data:', error);    
-    }
+const fetch = async (options: FetchOptions) => {
+  const FeesData = await httpGet('https://possumlabs.wtf/api/volume?dayFees=true')
+  const dailyFees = FeesData.dayFees;
+  const dailyProtocolRevenue = dailyFees * (0.3 / 0.7)
+  const dailyHoldersRevenue = dailyFees * (0.4 / 0.7)
 
-    const dailyFees = options.createBalances()
-    const dailyUserFees = options.createBalances()
-    const dailyRevenue = options.createBalances()
-    const dailyProtocolRevenue = options.createBalances()
-    const dailyHoldersRevenue = options.createBalances()
-    const dailySupplySideRevenue = options.createBalances()
-
-    const calculatedDailyFees = dayValue * (1.3 / 0.7);
-    const calculatedDailyRevenue = dayValue;
-    const calculatedDailyProtocolRevenue = dayValue * (0.4 / 0.7);
-    const calculatedDailyHoldersRevenue = dayValue * (0.15 / 0.7);
-    const calculatedDailySupplySideRevenue = calculatedDailyFees * (0.6 / 1.3);
-
-    dailyFees.addUSDValue(calculatedDailyFees);
-    dailyUserFees.addUSDValue(calculatedDailyFees);
-    dailyRevenue.addUSDValue(calculatedDailyRevenue);
-    dailyProtocolRevenue.addUSDValue(calculatedDailyProtocolRevenue);
-    dailyHoldersRevenue.addUSDValue(calculatedDailyHoldersRevenue);
-    dailySupplySideRevenue.addUSDValue(calculatedDailySupplySideRevenue);
-
-    return {
-        dailyFees,
-        dailyUserFees,
-        dailyRevenue,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue,
-        dailySupplySideRevenue,
-    };
-
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue: 0,
+  };
 };
 
 const adapter: SimpleAdapter = {
-    methodology: {
-        Fees: "Fees are collected from users and distributed to creators and protocol.",
-        Revenue: "Total PossumLabs Protocol Revenue and Creators Revenue",
-        HoldersRevenue: "40% of total fees for Revenue Share."
-    },
-    version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-09-02',
-        }
-    }
+  version: 2,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-09-02',
+  methodology: {
+    Fees: "Trading fees paid by users on bonding curve(0.7% of volume as possumlabs share).",
+    Revenue: "protocol earns 0.7% of volume as revenue",
+    HoldersRevenue: "0.3% of volume is used for token buyback(0.15% of tokens are burned and 0.15% are shared with holders).",
+    ProtocolRevenue: "0.2% of volume for development and 0.2% for marketing buybacks",
+    SupplySideRevenue: "0.1% of volume is used for liquidity providers"
+  },
 };
 
 export default adapter;
