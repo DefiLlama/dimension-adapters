@@ -1,6 +1,7 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "@defillama/sdk/build/util/coins";
+import {METRIC} from "../../helpers/metrics";
 
 const USSI_CONTRACT = '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18';
 
@@ -55,4 +56,19 @@ export default {
         HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
         SupplySideRevenue: 'Total yield accrued through USSI price appreciation, distributed to USSI holders',
     },
+    breakdownMethodology : {
+        Fees: {
+            [METRIC.ASSETS_YIELDS]: "Yields generated from delta hedging strategies",
+            [METRIC.MANAGEMENT_FEES]: "Management fees applied on TVL",
+        },
+        Revenue: {
+            [METRIC.MANAGEMENT_FEES]: "Management fees applied on TVL",
+        },
+        SupplySideRevenue: {
+            [METRIC.ASSETS_YIELDS]: "Yields generated from delta hedging strategies",
+        },
+        ProtocolRevenue: {
+            [METRIC.MANAGEMENT_FEES]: "Management fees applied on TVL",
+        }
+    }
 };
