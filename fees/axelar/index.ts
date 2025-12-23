@@ -28,10 +28,12 @@ const ABI = [
   "event GasPaidForExpressCall(address indexed sourceAddress, string destinationChain, string destinationAddress, bytes32 indexed payloadHash, address gasToken, uint256 gasFeeAmount, address refundAddress)",
   "event NativeGasPaidForExpressCall(address indexed sourceAddress, string destinationChain, string destinationAddress, bytes32 indexed payloadHash, uint256 nativeGasAmount, address refundAddress)",
   "event GasAdded(bytes32 indexed txHash, uint256 indexed logIndex, address gasToken, uint256 gasFeeAmount, address refundAddress)",
-  "event NativeGasAdded(bytes32 indexed txHash, uint256 indexed logIndex, uint256 gasFeeAmount, address refundAddress)"
+  "event NativeGasAdded(bytes32 indexed txHash, uint256 indexed logIndex, uint256 gasFeeAmount, address refundAddress)",
+  "event Refunded(address indexed sourceAddress, bytes32 indexed transactionHash, address token, uint256 amount, address refundAddress)"
 ];
 
 const iface = new ethers.Interface(ABI);
+
 const TOPICS = {
   GasPaidForContractCall: iface.getEvent("GasPaidForContractCall")!.topicHash,
   GasPaidForContractCallWithToken: iface.getEvent("GasPaidForContractCallWithToken")!.topicHash,
@@ -40,13 +42,14 @@ const TOPICS = {
   NativeGasPaidForExpressCall: iface.getEvent("NativeGasPaidForExpressCall")!.topicHash,
   GasAdded: iface.getEvent("GasAdded")!.topicHash,
   NativeGasAdded: iface.getEvent("NativeGasAdded")!.topicHash,
+  Refunded: iface.getEvent("Refunded")!.topicHash,
 };
 
 function extractFeeWei(log: any): BigNumber {
   try {
     const parsed = iface.parseLog(log);
     if (!parsed) return new BigNumber(0);
-    
+
     if (parsed.name.includes("Native")) {
       return new BigNumber(parsed.args.nativeGasAmount || parsed.args.gasFeeAmount || 0);
     }
@@ -57,11 +60,12 @@ function extractFeeWei(log: any): BigNumber {
 }
 
 const fetchChain = async (options: FetchOptions) => {
-  const { chain, getLogs, api } = options;
+  const { chain, getLogs } = options;
   const target = GAS_SERVICE[chain];
 
   if (!target) return { dailyFees: "0", dailyUserFees: "0", dailyRevenue: "0" };
 
+  // Fetch all fee-related logs
   const logs = await getLogs({
     target,
     topics: [[
@@ -77,22 +81,43 @@ const fetchChain = async (options: FetchOptions) => {
   });
 
   let totalWei = new BigNumber(0);
+  const balances = options.createBalances();
+
   for (const log of logs) {
     totalWei = totalWei.plus(extractFeeWei(log));
-  }
 
-  const balances = options.createBalances();
-  for (const log of logs) {
     try {
       const parsed = iface.parseLog(log);
       if (!parsed) continue;
       const amount = parsed.args.gasFeeAmount || parsed.args.nativeGasAmount;
       if (!amount) continue;
-      
       const gasToken = parsed.args.gasToken || "0x0000000000000000000000000000000000000000";
       balances.add(gasToken, amount.toString());
-    } catch (e) {}
+    } catch {}
   }
+
+  // Fetch refund logs
+  const refundLogs = await getLogs({
+    target,
+    topics: [[TOPICS.Refunded]] as any,
+    onlyArgs: false,
+  });
+
+  let totalRefunded = new BigNumber(0);
+  for (const log of refundLogs) {
+    try {
+      const parsed = iface.parseLog(log);
+      if (!parsed) continue;
+      const refundedAmount = new BigNumber(parsed.args.amount || 0);
+      totalRefunded = totalRefunded.plus(refundedAmount);
+
+      const token = parsed?.args.token || "0x0000000000000000000000000000000000000000";
+      balances.add(token, `-${refundedAmount.toString()}`);
+    } catch {}
+  }
+
+  // Subtract refunded total from totalWei
+  totalWei = totalWei.minus(totalRefunded);
 
   return {
     dailyFees: balances,
