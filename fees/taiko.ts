@@ -7,7 +7,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   dailyFees.addCGToken('ethereum', amount / 1e18)
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees };
 }
 
 const adapter: SimpleAdapter = {
