@@ -1,5 +1,5 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types'
-import { CHAIN } from '../helpers/chains'
+import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { CHAIN } from '../helpers/chains';
 
 const config: any = {
   [CHAIN.ARBITRUM]: {
@@ -16,55 +16,51 @@ const config: any = {
     ],
     USDC: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
   },
-}
+};
 
 const abis = {
   positionChanged:
     'event PositionChanged(address indexed trader, uint256 tradeFee, uint256 traderPayout, int256 previousAsset, int256 previousStable, int256 newAsset, int256 newStable)',
-}
+};
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances()
+  const dailyFees = options.createBalances();
 
-  const chainConfig = config[options.chain]
+  const chainConfig = config[options.chain];
 
   if (!chainConfig) {
-    throw new Error(`No chain config found for chain: ${options.chain}`)
+    throw new Error(`No chain config found for chain: ${options.chain}`);
   }
 
   const logs = await options.getLogs({
     targets: chainConfig.exchanges,
     eventAbi: abis.positionChanged,
     flatten: true,
-  })
+  });
 
   logs.forEach((log: any) => {
-    const tradeFee = log.tradeFee
+    const tradeFee = log.tradeFee;
 
     if (!tradeFee) {
-      return
+      return;
     }
 
-    dailyFees.add(chainConfig.USDC, tradeFee)
-  })
+    dailyFees.add(chainConfig.USDC, tradeFee);
+  });
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-  }
-}
+  };
+};
 
 const methodology = {
-  Fees:
-    'Trading fees as reported by the tradeFee field in PositionChanged events. Futureswap is a leveraged derivatives protocol and does not emit explicit fee settlement events.',
+  Fees: 'Trading fees as reported by the tradeFee field in PositionChanged events. Futureswap is a leveraged derivatives protocol and does not emit explicit fee settlement events.',
   Revenue:
     'All reported trade fees are treated as protocol revenue due to lack of on-chain fee distribution data.',
-  ProtocolRevenue:
-    'Same as Revenue.',
-  Limitations:
-    'PositionChanged events reflect leveraged position accounting and may overestimate realized fees. Volume and LP revenue are intentionally not reported.',
-}
+  ProtocolRevenue: 'Same as Revenue.',
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -74,6 +70,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: { start: '2022-04-22' },
   },
   methodology,
-}
+};
 
-export default adapter
+export default adapter;
