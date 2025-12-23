@@ -1,9 +1,11 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBribes } from "./shadow-legacy";
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { addOneToken } from '../helpers/prices';
+import { filterPools } from '../helpers/uniswap';
+import * as sdk from '@defillama/sdk';
 
 // Fee Split source: https://docs.shadow.so/pages/x-33#fee-split
 
@@ -51,19 +53,40 @@ const fetch = async (options: FetchOptions) => {
   dailyTokenTaxes.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
   dailyFees.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
 
-
-  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: firstBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: true})
-  const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
-  const fees = await api.multiCall({ abi: abis.fee,  calls: _pools })
-  const aeroPoolSet = new Set()
-  const poolInfoMap = {} as any
-  rawPools.forEach(({ token0, token1, pool }, index) => {
-    pool = pool.toLowerCase()
-    const fee = fees[index] / 1e6
-    const hasGauge = poolsWithGaugesSet.has(pool)
-    poolInfoMap[pool] = { token0, token1, fee, hasGauge }
-    aeroPoolSet.add(pool)
-  })
+    let allPools = []
+    let allToken0s = []
+    let allToken1s = []
+    const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${CONFIG.factory.toLowerCase()}.json`
+    const { pairs, token0s, token1s } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true })
+    if (pairs) {
+      allPools = pairs
+      allToken0s = token0s
+      allToken1s = token1s
+    }
+    else {
+        const poolCreatedLogs = await getLogs({ target: CONFIG.factory, fromBlock: firstBlock, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true})
+        poolCreatedLogs.forEach((i: any) => {
+          allPools.push(i.pool)
+          allToken0s.push(i.token0)
+          allToken1s.push(i.token1)
+        })
+    }
+    const pairObject: IJSON<string[]> = {}
+    allPools.forEach((pair: string, i: number) => {
+      pairObject[pair] = [allToken0s[i], allToken1s[i]]
+    })
+    const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+    const poolAddresses = Object.keys(filteredPools)
+    const fees = await api.multiCall({ abi: abis.fee,  calls: poolAddresses })
+    const aeroPoolSet = new Set()
+    const poolInfoMap = {} as any
+    poolAddresses.forEach((pair, index) => {
+      const pool = pair.toLowerCase()
+      const fee = fees[index] / 1e6
+      const hasGauge = poolsWithGaugesSet.has(pool)
+      poolInfoMap[pool] = { tokens: pairObject[pair], fee, hasGauge }
+      aeroPoolSet.add(pool)
+    })
 
   const blockStep = 1000;
   let i = 0;
@@ -98,7 +121,8 @@ const fetch = async (options: FetchOptions) => {
         logs.forEach((log: any) => {
           const pool = (log.address || log.source).toLowerCase()
           if (!aeroPoolSet.has(pool)) return;
-          const { token0, token1, fee, hasGauge } = poolInfoMap[pool]
+          const { tokens, fee, hasGauge } = poolInfoMap[pool]
+          const [token0, token1] = tokens
           const parsedLog = iface.parseLog(log)
           const amount0 = Number(parsedLog!.args.amount0)
           const amount1 = Number(parsedLog!.args.amount1)

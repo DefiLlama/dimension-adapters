@@ -1,9 +1,10 @@
 import * as sdk from '@defillama/sdk';
-import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResult, IJSON, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addOneToken } from '../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
+import { filterPools } from '../helpers/uniswap';
 
 // Fee split source: https://docs.shadow.so/pages/x-33#fee-split
 
@@ -12,26 +13,22 @@ const CONFIG = {
   voter: '0x9f59398d0a397b2eeb8a6123a6c7295cb0b0062d',
   treasury: '0xE25E95F75432A79D31256CC3026E24AAA5540882'
 }
-
-
 const eventAbis = {
   event_poolCreated: 'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)',
   event_swap: 'event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)',
   event_gaugeCreated: 'event GaugeCreated(address indexed gauge, address creator, address feeDistributor, address indexed pool)',
   event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 amount, uint256 period)',
 }
-
 const abis = {
   fee: 'uint256:fee'
 }
 const firstBlock = 4028276
 
-
 export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: string, voter: string, factory: string): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
   const { createBalances, getLogs } = fetchOptions
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await getLogs({ target: voter, fromBlock: firstBlock, eventAbi: gaugeCreatedEvent, skipIndexer: true, entireLog: true })
+  const logs_gauge_created = await getLogs({ target: voter, fromBlock: firstBlock, eventAbi: gaugeCreatedEvent, entireLog: true, cacheInCloud: true })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
   const bribes_contract = logs_gauge_created
     .filter((log) => (log.address || log.source).toLowerCase() === voter.toLowerCase())
@@ -62,17 +59,39 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyProtocolRevenue = createBalances() 
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
 
-  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: firstBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: true})
-  const _pools = rawPools.map((i: any) => i.pair.toLowerCase())
-  const fees = await api.multiCall({ abi: abis.fee,  calls: _pools })
-  const feeRecipients = await api.multiCall({ abi: 'address:feeRecipient', calls: _pools })
+  let allPools = []
+  let allToken0s = []
+  let allToken1s = []
+  const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${CONFIG.factory.toLowerCase()}-${chain}.json`
+  const { pairs, token0s, token1s } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true })
+  if (pairs) {
+    allPools = pairs
+    allToken0s = token0s
+    allToken1s = token1s
+  }
+  else {
+      const poolCreatedLogs = await getLogs({ target: CONFIG.factory, fromBlock: firstBlock, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true})
+      poolCreatedLogs.forEach((i: any) => {
+        allPools.push(i.pair)
+        allToken0s.push(i.token0)
+        allToken1s.push(i.token1)
+      })
+  }
+  const pairObject: IJSON<string[]> = {}
+  allPools.forEach((pair: string, i: number) => {
+    pairObject[pair] = [allToken0s[i], allToken1s[i]]
+  })
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const poolAddresses = Object.keys(filteredPools)
+  const fees = await api.multiCall({ abi: abis.fee,  calls: poolAddresses })
+  const feeRecipients = await api.multiCall({ abi: 'address:feeRecipient', calls: poolAddresses })
   const aeroPoolSet = new Set()
   const poolInfoMap = {} as any
-  rawPools.forEach(({ token0, token1, pair }, index) => {
-    let pool = pair.toLowerCase()
+  poolAddresses.forEach((pair, index) => {
+    const pool = pair.toLowerCase()
     const fee = fees[index] / 1e6
     const hasGauge = feeRecipients[index] !== CONFIG.treasury
-    poolInfoMap[pool] = { token0, token1, fee, hasGauge }
+    poolInfoMap[pool] = { tokens: pairObject[pair], fee, hasGauge }
     aeroPoolSet.add(pool)
   })
 
@@ -104,12 +123,12 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
           toBlock: endBlock,
           eventAbi: eventAbis.event_swap,
           entireLog: true,
-          skipCache: true,
         })
         logs.forEach((log: any) => {
           const pool = (log.address || log.source).toLowerCase()
           if (!aeroPoolSet.has(pool)) return;
-          const { token0, token1, fee, hasGauge } = poolInfoMap[pool]
+          const { tokens, fee, hasGauge } = poolInfoMap[pool]
+          const [token0, token1] = tokens
           const parsedLog = iface.parseLog(log)
           const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
           const amount1 = Number(parsedLog!.args.amount1In) + Number(parsedLog!.args.amount1Out)
