@@ -2,12 +2,11 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
 // Origami ERC4626 vaults on Ethereum (primary source of protocol yield)
-const VAULT_ADDRESSES: { [chain: string]: string[] } = {
+const config: any = {
   [CHAIN.ETHEREUM]: [
-    '0x39Abb9D6487c5Fc17fC23BDAE2C5D01DeCD7f9db', // ovUSDC
-    '0x44caae625f3C2C15c5c4B1e8C0429f54F6C1fD4e', // ovUSDT
-    '0x824DCd7b044D60df2e89B1bB888e66D8BCf41491', // ovDAI
-    '0x9e7Cd89aCC4Edc7f4C3F33876DF7BaaC7D76A0d2', // ovETH
+    '0x07c5500359161b81eb0dfff83097d5025d3cf5a2',
+    '0x0f90a6962e86b5587b4c11ba2b9697dc3ba84800',
+    '0xb50201998b92d2e685432b90331bb5825415926e'
   ],
 };
 
@@ -17,11 +16,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const vaults = VAULT_ADDRESSES[options.chain];
-
-  if (!vaults || vaults.length === 0) {
-    throw new Error('No vaults found for chain ' + options.chain);
-  }
+  const vaults = config[options.chain];
 
   const [totalAssetsBefore, totalAssetsAfter, assetTokens] = await Promise.all([
     options.fromApi.multiCall({
@@ -83,8 +78,6 @@ const methodology = {
     'Performance fees minted as new vault shares to the protocol treasury.',
   SupplySideRevenue:
     'Remaining vault yield (after performance fees) that accrues to existing vault shareholders. This represents the net return earned by depositors.',
-  Limitations:
-    'Uses a fixed 5% performance fee assumption (actual fees vary by vault), relies on a hard-coded ERC4626 vault list, excludes deposit/exit fees (which accrue to vault holders), and ignores days with zero or negative net yield.',
 };
 
 const adapter: SimpleAdapter = {
