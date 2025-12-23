@@ -188,7 +188,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees.add(underlyingToken, totalYields * performaceFeesMultiple, METRIC.PERFORMANCE_FEES);
 
         if (options.fromTimestamp < BUYBACK_PAUSE_TIMESTAMP) {
-            dailyHoldersRevenue.add(underlyingToken, totalYields * performaceFeesMultiple * HOLDERS_REVENUE_SHARE, METRIC.PERFORMANCE_FEES);
+            dailyHoldersRevenue.add(underlyingToken, totalYields * performaceFeesMultiple * HOLDERS_REVENUE_SHARE, METRIC.TOKEN_BUY_BACK);
             dailyProtocolRevenue.add(underlyingToken, totalYields * performaceFeesMultiple * (1 - HOLDERS_REVENUE_SHARE), METRIC.PERFORMANCE_FEES);
         }
         else {
@@ -297,7 +297,7 @@ const breakdownMethodology = {
         [METRIC.PERFORMANCE_FEES]: '50% of the performance fees before Jun 2023 and 100% of the performance fees post'
     },
     HoldersRevenue: {
-        [METRIC.PERFORMANCE_FEES]: '50% of the performance fees distributed through buyback to IDLE stakers before Jun 2023'
+        [METRIC.TOKEN_BUY_BACK]: '50% of the performance fees distributed through buyback to IDLE stakers before Jun 2023'
     }
 }
 
