@@ -1,6 +1,8 @@
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// dailyFees = treasury + provider fees (20% of price) - excludes the 80% miner fee (0-sum transfer between old miner/it's counted as cost)
+
 const MINER_ADDRESS = "0xF69614F4Ee8D4D3879dd53d5A039eB3114C794F6";
 const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH on Base
 
