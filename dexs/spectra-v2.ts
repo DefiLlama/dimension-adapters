@@ -65,62 +65,70 @@ const chains: {
     id: 1,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-mainnet/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-mainnet/prod/gn",
+    limit: 1000,
   },
   [CHAIN.ARBITRUM]: {
     id: 42161,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-arbitrum/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-arbitrum/prod/gn",
+    limit: 1000,
   },
   [CHAIN.OPTIMISM]: {
     id: 10,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-optimism/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-optimism/prod/gn",
+    limit: 1000,
   },
   [CHAIN.BASE]: {
     id: 8453,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-base/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-base/prod/gn",
     blacklistPools: ["0x447d24edf78b20a4cf748a7cee273510edf87df1"],
+    limit: 1000,
   },
   [CHAIN.SONIC]: {
     id: 146,
     start: "2024-12-27",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-sonic/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-sonic/prod/gn",
+    limit: 1000,
   },
   [CHAIN.HEMI]: {
     id: 43111,
     start: "2025-03-06",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-hemi/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hemi/prod/gn",
+    limit: 1000,
   },
   [CHAIN.AVAX]: {
     id: 43114,
     start: "2025-05-26",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-avalanche/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-avalanche/prod/gn",
+    limit: 1000,
   },
   [CHAIN.BSC]: {
     id: 56,
     start: "2025-05-26",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-bsc/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-bsc/prod/gn",
+    limit: 1000,
   },
   [CHAIN.HYPERLIQUID]: {
     id: 999,
     start: "2025-06-01",
     protocolSubgraphUrl:
-      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/1.2.1/gn",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/prod/gn",
     limit: 1000,
   },
   [CHAIN.KATANA]: {
     id: 747474,
     start: "2025-07-02",
-    protocolSubgraphUrl: sdk.graph.modifyEndpoint("EM1PDEWqo1BWaLEW5FotmHtVK1HX8z7eFnLVfDRLjfQh"),
+    protocolSubgraphUrl: 'https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-katana/prod/gn',
     limit: 1000,
   },
 };
@@ -149,8 +157,8 @@ type VotingReward = {
   };
 };
 
-const GOVERNANCE_SUBGRAPH_URL =
-  "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/governance/api";
+// const GOVERNANCE_SUBGRAPH_URL =
+//   "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/governance/api";
 
 const fetchDailyFeesAndVolume = async ({
   chain,
@@ -200,27 +208,27 @@ const fetchDailyHoldersRevenue = async ({
   dailyVotingFeesRevenue.chain = CHAIN.BASE; // revenue is generated on all chains, but redistributed to holders exclusively on Base
   const dailyVotingIncentivesRevenue = dailyVotingFeesRevenue.clone();
 
-  const graphQLClient = new GraphQLClient(GOVERNANCE_SUBGRAPH_URL);
-  const dailyData = (
-    await graphQLClient.request(
-      GQL_QUERIES.DAILY_VOTING_REWARDS(startTimestamp, endTimestamp)
-    )
-  ).votingRewards as VotingReward[];
+  // const graphQLClient = new GraphQLClient(GOVERNANCE_SUBGRAPH_URL);
+  // const dailyData = (
+  //   await graphQLClient.request(
+  //     GQL_QUERIES.DAILY_VOTING_REWARDS(startTimestamp, endTimestamp)
+  //   )
+  // ).votingRewards as VotingReward[];
 
   // Count both reward types (voting incentives + fees) separately
-  dailyData.forEach((reward) => {
-    // Only count rewards for pools on the current chain
-    if (reward.distributor.governancePool.chainId === chains[chain].id.toString()) {
-      if (reward.distributor.type === "FEE") {
-        dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
-      } else {
-        dailyVotingIncentivesRevenue.add(
-          reward.address,
-          reward.amount.toString()
-        );
-      }
-    }
-  });
+  // dailyData.forEach((reward) => {
+  //   // Only count rewards for pools on the current chain
+  //   if (reward.distributor.governancePool.chainId === chains[chain].id.toString()) {
+  //     if (reward.distributor.type === "FEE") {
+  //       dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
+  //     } else {
+  //       dailyVotingIncentivesRevenue.add(
+  //         reward.address,
+  //         reward.amount.toString()
+  //       );
+  //     }
+  //   }
+  // });
 
   return [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue];
 };
