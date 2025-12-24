@@ -1,11 +1,11 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types';
+import { ZeroAddress } from 'ethers';
+import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
 
 const SEAMLESS_GOVERNOR_SHORT_TIMELOCK =
   '0x639d2dD24304aC2e6A691d8c1cFf4a2665925fee';
 const MORPHO_VAULTS_FACTORY_v1_1 = '0xFf62A7c278C62eD665133147129245053Bbf5918';
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const abis = {
   createMetaMorpho:
@@ -80,7 +80,9 @@ const fetch = async (options: FetchOptions) => {
     const feeRecipient = feeRecipients[i];
     const underlyingAsset = underlyingAssets[i];
 
-    if (!feeRecipient || !underlyingAsset) continue;
+    if (!feeRecipient || !underlyingAsset) {
+      continue;
+    }
 
     const transferLogs = await options.getLogs({
       target: vault,
@@ -90,7 +92,7 @@ const fetch = async (options: FetchOptions) => {
     const feeSharesMinted = transferLogs
       .filter(
         (log: any) =>
-          log.from.toLowerCase() === ZERO_ADDRESS.toLowerCase() &&
+          log.from.toLowerCase() === ZeroAddress &&
           log.to.toLowerCase() === feeRecipient.toLowerCase()
       )
       .reduce((total: bigint, log: any) => total + BigInt(log.value), 0n);
