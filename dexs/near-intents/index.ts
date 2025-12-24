@@ -13,32 +13,27 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   const res = await fetchURL(api);
   const data: ApiResponse[] = Array.isArray(res) ? res : res?.data || [];
 
-  const normalizedDate = options.dateString; // YYYY-MM-DD format
-  
-  // Find matching record for the date
+  const normalizedDate = options.dateString; // YYYY-MM-DD
+
   const record = data.find((t: ApiResponse) => {
     const recordDate = new Date(t.DATE).toISOString().split("T")[0];
     return recordDate === normalizedDate;
   });
 
-  // Optionally get total volume (if the API returns cumulative data)
-  const totalVolume = data.reduce((acc, t) => acc + (t.GROSS_AMOUNT_USD || 0), 0);
+  if (!record) {
+    throw new Error(`Near Intents: No volume data found for ${normalizedDate}`);
+  }
 
   return {
-    dailyVolume: record?.GROSS_AMOUNT_USD ?? 0,
-    totalVolume,
-    timestamp: options.toTimestamp,
+    dailyVolume: record.GROSS_AMOUNT_USD,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.NEAR]: {
-      fetch,
-      start: 1730764800, // 2024-11-05 UTC
-    },
-  },
+  fetch,
+  chains: [CHAIN.NEAR],
+  start: "2024-11-05",
 };
 
 export default adapter;
