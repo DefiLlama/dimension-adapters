@@ -1,8 +1,9 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import pLimit from "p-limit";
-import fetchURL, { postURL } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
+import { configPost } from "../../helpers/cache";
 
 const CHAIN_CONFIG: Record<string, any> = {
     [CHAIN.ETHEREUM]: {
@@ -43,15 +44,11 @@ const ABIs = {
 
 const limit = pLimit(5);
 
-async function prefetch() {
-    return await postURL("https://app.aera.finance/api/metric/v1", {
-        "metric_identifier": "aera-vaults-current-tvl-by-vault-usd", "aggregation": "last"
-    })
-}
-
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const { chainId } = CHAIN_CONFIG[options.chain];
-    const allVaultDetails = options.preFetchedResults;
+    const allVaultDetails = await configPost("aera-v2","https://app.aera.finance/api/metric/v1", {
+        "metric_identifier": "aera-vaults-current-tvl-by-vault-usd", "aggregation": "last"
+    });
     const periodWrtYear = (options.toTimestamp - options.fromTimestamp) / (365 * 24 * 60 * 60);
 
     const vaultsOfCurrentChain = allVaultDetails.data.filter((vaultDetails: any) => vaultDetails.label.chain == chainId);
@@ -66,6 +63,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         eventAbi: ABIs.vaultCreated,
         targets: CHAIN_CONFIG[options.chain].factoryAddresses,
         fromBlock: CHAIN_CONFIG[options.chain].startBlock,
+        cacheInCloud: true,
     });
 
     const vaults = [];
@@ -139,7 +137,6 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-    prefetch,
     fetch,
     adapter: CHAIN_CONFIG,
     methodology,
