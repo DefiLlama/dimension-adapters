@@ -19,6 +19,8 @@ const abis = {
   base: 'address:base',
 };
 
+const PERFORMANCE_FEE_RATIO = 0.1;
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -65,20 +67,33 @@ const fetch = async (options: FetchOptions) => {
       continue;
     }
 
-    const denominatorStart = BigInt(Math.pow(10, String(rateStart).length - 1));
-    const denominatorEnd = BigInt(Math.pow(10, String(rateEnd).length - 1));
+    // Yield derived purely from exchange rate change
+    const rateDiff = BigInt(rateEnd) - BigInt(rateStart);
 
-    const tvlStart = (BigInt(supplyStart) * BigInt(rateStart)) / denominatorStart;
-    const tvlEnd = (BigInt(supplyEnd) * BigInt(rateEnd)) / denominatorEnd;
-
-    const totalRewards = tvlEnd - tvlStart;
-
-    if (totalRewards > 0n) {
-      dailyFees.add(base, totalRewards);
-
-      const protocolRevenue = (totalRewards * 10n) / 100n;
-      dailyRevenue.add(base, protocolRevenue);
+    if (rateDiff <= 0n) {
+      continue;
     }
+
+    // Use average supply to reduce deposit/withdraw noise
+    const avgSupply = (BigInt(supplyStart) + BigInt(supplyEnd)) / 2n;
+
+    const denominator = BigInt(Math.pow(10, String(rateEnd).length - 1));
+
+    const totalYield = (avgSupply * rateDiff) / denominator;
+
+    if (totalYield <= 0n) {
+      continue;
+    }
+
+    // Fees = total rewards earned by the vault
+    dailyFees.add(base, totalYield);
+
+    // Protocol revenue = 10% performance fee
+    const protocolRevenue =
+      (totalYield * BigInt(Math.floor(PERFORMANCE_FEE_RATIO * 1e18))) /
+      BigInt(1e18);
+
+    dailyRevenue.add(base, protocolRevenue);
   }
 
   return {
@@ -89,12 +104,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees:
-    'Fees are derived as the daily change in vault TVL, calculated using the same totalSupply × getRate methodology as the TVL adapter. This ensures fees are reported in raw base-token units.',
+  Fees: 'Fees are derived from changes in the vault exchange rate multiplied by the average vault supply. This isolates rewards from deposits and withdrawals and avoids using TVL deltas.',
   Revenue:
     'Protocol revenue consists of a 10% performance fee on restaking rewards.',
   ProtocolRevenue:
-    'Same as Revenue. Rewards are synchronized on-chain periodically, so daily values may appear lumpy.',
+    'Same as Revenue. Rewards are synchronized on-chain in discrete updates, so daily values may appear lumpy rather than continuous.',
 };
 
 const adapter: SimpleAdapter = {
