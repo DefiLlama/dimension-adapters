@@ -47,15 +47,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       target: factoryCfg.factory,
       eventAbi: PlasmaVaultCreatedEvent,
       fromBlock: factoryCfg.startBlock,
+      cacheInCloud: true,
     })
     vaults = vaultCreatedLogs.map((log: any) => log.plasmaVault)
   } else if (manualVaultConfig[options.chain]) {
     // Fallback to manual config for chains without factory
     vaults = manualVaultConfig[options.chain]
-  }
-
-  if (vaults.length === 0) {
-    return {}
   }
 
   // Get performance fee data from each vault (in basis points)
