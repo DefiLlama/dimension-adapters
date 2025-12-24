@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: CHAINS,
-  start: '2025-09-01',
+  start: '2025-04-01',
 };
 
 export default adapter;
