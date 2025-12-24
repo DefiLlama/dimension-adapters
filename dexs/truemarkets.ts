@@ -116,7 +116,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2024-12-19',
+      start: '2025-03-07',
     },
   },
   methodology,
