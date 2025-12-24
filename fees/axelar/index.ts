@@ -1,4 +1,3 @@
-// fees/axelar/index.ts
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import BigNumber from "bignumber.js";
@@ -46,104 +45,102 @@ const TOPICS = {
 };
 
 function extractFeeWei(log: any): BigNumber {
-  try {
-    const parsed = iface.parseLog(log);
-    if (!parsed) return new BigNumber(0);
+  const parsed = iface.parseLog(log);
+  if (!parsed) return new BigNumber(0);
 
-    if (parsed.name.includes("Native")) {
-      return new BigNumber(parsed.args.nativeGasAmount || parsed.args.gasFeeAmount || 0);
-    }
-    return new BigNumber(parsed.args.gasFeeAmount || 0);
-  } catch (e) {
-    return new BigNumber(0);
+  if (parsed.name.includes("Native")) {
+    return new BigNumber(parsed.args.nativeGasAmount || parsed.args.gasFeeAmount || 0);
   }
+  return new BigNumber(parsed.args.gasFeeAmount || 0);
 }
 
-const fetchChain = async (options: FetchOptions) => {
-  const { chain, getLogs } = options;
-  const target = GAS_SERVICE[chain];
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const target = GAS_SERVICE[options.chain];
 
-  if (!target) return { dailyFees: "0", dailyUserFees: "0", dailyRevenue: "0" };
-
-  // Fetch all fee-related logs
-  const logs = await getLogs({
-    target,
-    topics: [[
-      TOPICS.GasPaidForContractCall,
-      TOPICS.GasPaidForContractCallWithToken,
-      TOPICS.NativeGasPaidForContractCall,
-      TOPICS.GasPaidForExpressCall,
-      TOPICS.NativeGasPaidForExpressCall,
-      TOPICS.GasAdded,
-      TOPICS.NativeGasAdded,
-    ]] as any,
-    onlyArgs: false,
+  const gaspaidforcontractcalllogs = await options.getLogs({
+    target, topics: [TOPICS.GasPaidForContractCall] as any, onlyArgs: false
+  });
+  const gaspaidforcontractcallwithtokenlogs = await options.getLogs({
+    target, topics: [TOPICS.GasPaidForContractCallWithToken] as any, onlyArgs: false,
+  });
+  const nativegaspaidforcontractcalllogs = await options.getLogs({
+    target, topics: [TOPICS.NativeGasPaidForContractCall] as any, onlyArgs: false,
+  })
+  const gaspaidforexpresscalllogs = await options.getLogs({
+    target, topics: [TOPICS.GasPaidForExpressCall] as any, onlyArgs: false,
+  });
+  const nativegaspaidforexpresscalllogs = await options.getLogs({
+    target, topics: [TOPICS.NativeGasPaidForExpressCall] as any, onlyArgs: false,
+  });
+  const gasaddedlogs = await options.getLogs({
+    target, topics: [TOPICS.GasAdded] as any, onlyArgs: false,
+  });
+  const nativegasaddedlogs = await options.getLogs({
+    target, topics: [TOPICS.NativeGasAdded] as any, onlyArgs: false,
+  });
+  const refundLogs = await options.getLogs({
+    target, topics: [TOPICS.Refunded] as any, onlyArgs: false,
   });
 
   let totalWei = new BigNumber(0);
-  const balances = options.createBalances();
+  const allLogs = [ ...gaspaidforcontractcalllogs, ...gaspaidforcontractcallwithtokenlogs, ...nativegaspaidforcontractcalllogs, ...gaspaidforexpresscalllogs, ...nativegaspaidforexpresscalllogs, ...gasaddedlogs, ...nativegasaddedlogs ];
 
-  for (const log of logs) {
+  for (const log of allLogs) {
     totalWei = totalWei.plus(extractFeeWei(log));
 
-    try {
-      const parsed = iface.parseLog(log);
-      if (!parsed) continue;
-      const amount = parsed.args.gasFeeAmount || parsed.args.nativeGasAmount;
-      if (!amount) continue;
-      const gasToken = parsed.args.gasToken || "0x0000000000000000000000000000000000000000";
-      balances.add(gasToken, amount.toString());
-    } catch {}
+    const parsed = iface.parseLog(log);
+    if (!parsed) continue;
+    const amount = parsed.args.gasFeeAmount || parsed.args.nativeGasAmount;
+    if (!amount) continue;
+    const gasToken = parsed.args.gasToken || "0x0000000000000000000000000000000000000000";
+    dailyFees.add(gasToken, amount.toString());
   }
-
-  // Fetch refund logs
-  const refundLogs = await getLogs({
-    target,
-    topics: [[TOPICS.Refunded]] as any,
-    onlyArgs: false,
-  });
 
   let totalRefunded = new BigNumber(0);
   for (const log of refundLogs) {
-    try {
-      const parsed = iface.parseLog(log);
-      if (!parsed) continue;
-      const refundedAmount = new BigNumber(parsed.args.amount || 0);
-      totalRefunded = totalRefunded.plus(refundedAmount);
+    const parsed = iface.parseLog(log);
+    if (!parsed) continue;
+    const refundedAmount = new BigNumber(parsed.args.amount || 0);
+    totalRefunded = totalRefunded.plus(refundedAmount);
 
-      const token = parsed?.args.token || "0x0000000000000000000000000000000000000000";
-      balances.add(token, `-${refundedAmount.toString()}`);
-    } catch {}
+    const token = parsed?.args.token || "0x0000000000000000000000000000000000000000";
+    dailyFees.add(token, `-${refundedAmount.toString()}`);
   }
 
-  // Subtract refunded total from totalWei
   totalWei = totalWei.minus(totalRefunded);
 
   return {
-    dailyFees: balances,
-    dailyUserFees: balances,
-    dailyRevenue: "0",
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: options.createBalances(),
+    dailyProtocolRevenue: options.createBalances(),
   };
 };
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: fetchChain, start: "2022-02-01" },
-    [CHAIN.ARBITRUM]: { fetch: fetchChain, start: "2022-04-10" },
-    [CHAIN.OPTIMISM]: { fetch: fetchChain, start: "2022-05-20" },
-    [CHAIN.POLYGON]: { fetch: fetchChain, start: "2022-03-15" },
-    [CHAIN.AVAX]: { fetch: fetchChain, start: "2022-03-15" },
-    [CHAIN.BSC]: { fetch: fetchChain, start: "2022-03-15" },
-    [CHAIN.BASE]: { fetch: fetchChain, start: "2023-07-15" },
-    [CHAIN.FANTOM]: { fetch: fetchChain, start: "2022-03-15" },
-    [CHAIN.LINEA]: { fetch: fetchChain, start: "2023-07-15" },
-    [CHAIN.CELO]: { fetch: fetchChain, start: "2022-03-15" },
-    [CHAIN.MANTLE]: { fetch: fetchChain, start: "2023-07-15" },
-    [CHAIN.BLAST]: { fetch: fetchChain, start: "2024-02-20" },
-    [CHAIN.MODE]: { fetch: fetchChain, start: "2024-01-20" },
-    [CHAIN.SCROLL]: { fetch: fetchChain, start: "2023-10-10" },
+    [CHAIN.ETHEREUM]: { start: "2022-02-01" },
+    [CHAIN.ARBITRUM]: { start: "2022-04-10" },
+    [CHAIN.OPTIMISM]: { start: "2022-05-20" },
+    [CHAIN.POLYGON]: { start: "2022-03-15" },
+    [CHAIN.AVAX]: { start: "2022-03-15" },
+    [CHAIN.BSC]: { start: "2022-03-15" },
+    [CHAIN.BASE]: { start: "2023-07-15" },
+    [CHAIN.FANTOM]: { start: "2022-03-15" },
+    [CHAIN.LINEA]: { start: "2023-07-15" },
+    [CHAIN.CELO]: { start: "2022-03-15" },
+    [CHAIN.MANTLE]: { start: "2023-07-15" },
+    [CHAIN.BLAST]: { start: "2024-02-20" },
+    [CHAIN.MODE]: { start: "2024-01-20" },
+    [CHAIN.SCROLL]: { start: "2023-10-10" },
   },
+  methodology: {
+    Fees: 'Total gas fees paid by users(excluding gas refunds)',
+    Revenue: 'Axelar doesnt collect any fee'
+  }
 };
 
 export default adapter;
