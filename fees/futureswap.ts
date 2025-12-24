@@ -28,10 +28,6 @@ const fetch = async (options: FetchOptions) => {
 
   const chainConfig = config[options.chain];
 
-  if (!chainConfig) {
-    throw new Error(`No chain config found for chain: ${options.chain}`);
-  }
-
   const logs = await options.getLogs({
     targets: chainConfig.exchanges,
     eventAbi: abis.positionChanged,
