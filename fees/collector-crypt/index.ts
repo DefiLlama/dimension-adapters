@@ -27,7 +27,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
 'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
 'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8'
 )
-                AND amount / power(10, 6) IN (50, 250)
+                AND amount / power(10, 6) IN (50, 100, 250)
                 AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
                 AND TIME_RANGE
         ),

@@ -306,4 +306,5 @@ export enum CHAIN {
   MOLTEN_NETWORK = "molten_network",
   SYNDICATE = "syndicate",
   XCHAIN = "xchain",
+  OG = "0g",
 }

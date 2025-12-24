@@ -43,10 +43,10 @@ const adapter: SimpleAdapter = {
   start: '2025-10-19',
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: "Calculate the zorb.supply tokens gathered from 10% of the total SOL allocated to zorb.supply boards and sent to the protocol wallet 6aAGoVq9jKywWXyvWwoUtZFxbjR5aLBtfjhQXP1xezA.",
-    Revenue: "All collected zorb.supply fees count as revenue.",
-    ProtocolRevenue: "1% of all zorb.supply revenue is allocated to the protocol treasury.",
-    HoldersRevenue: "The remaining 99% of zorb.supply fees are used for zorb.supply buybacks and burns, with value distributed to zorb.supply stakers.",
+    Fees: 'Count ORE tokens collected from 10% of total SOL deployed on ORE boards by protocol wallet 45db2FSR4mcXdSVVZbKbwojU6uYDpMyhpEi7cC8nHaWG.',
+    Revenue: 'All ORE fees are revenue.',
+    ProtocolRevenue: '1% of ORE revenue goes to the protocol treasury.',
+    HoldersRevenue: '99% of ORE fees are used to buyback and burn ORE and distributed to ORE stakers.',
   },
 };
 
