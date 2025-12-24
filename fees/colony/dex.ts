@@ -39,15 +39,9 @@ export async function dexFees(
     },
   });
 
-  let results;
-  try {
-    results = await v2Graph(options);
-  } catch (e) {
-    console.error(e);
-  }
-
-  const resultsDailyFees = new BigNumber(results?.dailyFees?.toString() ?? 0).multipliedBy(1e6)
-  const resultsDailyVolume = new BigNumber(results?.dailyVolume?.toString() ?? 0).multipliedBy(1e6)
+  const results = await v2Graph(options)
+  const resultsDailyFees = new BigNumber(results.dailyFees?.toString() ?? 0).multipliedBy(1e6)
+  const resultsDailyVolume = new BigNumber(results.dailyVolume?.toString() ?? 0).multipliedBy(1e6)
 
   dailySupplySideRevenue.add(usdcToken, resultsDailyFees.multipliedBy(5).div(6).toFixed(0))
 
