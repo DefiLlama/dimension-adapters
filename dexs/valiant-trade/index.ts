@@ -27,7 +27,7 @@ const methodology = {
   Fees: "All fees paid by users",
   Revenue: "Revenue going to protocol treasury",
   ProtocolRevenue: "Revenue going to protocol treasury",
-  SupplySideRevenue: "Revenue earned by LPs (87% of total fees)",
+  SupplySideRevenue: "Revenue earned by LPs",
 }
 
 export default {
