@@ -21,7 +21,7 @@ import { METRIC } from '../helpers/metrics'
 const factoryConfig: Record<string, { factory: string; startBlock: number }> = {
   [CHAIN.ETHEREUM]: {
     factory: '0x7c9119fbb87eb1a08224ad225362bdec213007e2',
-    startBlock: 21831587,
+    startBlock: 23120188, // first vault created
   },
 }
 
@@ -194,8 +194,8 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2025-04-09' },
-    [CHAIN.FLOW]: { fetch, start: '2025-06-19' },
+    [CHAIN.ETHEREUM]: { fetch, start: '2025-08-12' },
+    [CHAIN.FLOW]: { fetch, start: '2025-06-20' },
   },
   methodology,
   breakdownMethodology,
