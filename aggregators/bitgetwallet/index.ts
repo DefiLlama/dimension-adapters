@@ -12,12 +12,9 @@ interface IVolumeall {
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const chain = options.chain;
-    if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {} } // skip HECO for now
     const startOfDay = options.startOfDay;
     const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
-
     const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === startOfDay)?.volume
-
     return {
         dailyVolume
     };
@@ -25,32 +22,39 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const CHAINS: Array<CHAIN> = [
     CHAIN.APTOS,
-    CHAIN.ARBITRUM,
-    // CHAIN.AVAX,
-    CHAIN.BASE,
-    CHAIN.BLAST,
-    CHAIN.BSC,
-    CHAIN.BITCOIN,
-    CHAIN.CELO,
-    CHAIN.CORE,
-    CHAIN.ETHEREUM,
-    CHAIN.FANTOM,
-    CHAIN.HECO,
-    // CHAIN.KLAYTN,
-    CHAIN.LINEA,
-    CHAIN.MANTA,
-    CHAIN.POLYGON,
-    CHAIN.MANTLE,
-    CHAIN.MORPH,
-    CHAIN.NEAR,
-    CHAIN.OP_BNB,
-    CHAIN.OPTIMISM,
+    CHAIN.HYPERLIQUID,
     CHAIN.SOLANA,
+    CHAIN.BLAST,
+    CHAIN.BITCOIN,
+    CHAIN.ARBITRUM,
+    CHAIN.KLAYTN,
+    CHAIN.SONIC,
+    CHAIN.MANTLE,
+    CHAIN.RIPPLE,
+    CHAIN.AVAX,
+    CHAIN.LINEA,
     CHAIN.SUI,
+    CHAIN.SCROLL,
+    CHAIN.BASE,
+    CHAIN.POLYGON,
     CHAIN.TON,
+    CHAIN.CRONOS,
+    CHAIN.DOGECHAIN,
+    CHAIN.BERACHAIN,
+    CHAIN.MONAD,
     CHAIN.TRON,
-    CHAIN.ZKFAIR,
-    CHAIN.ZKSYNC
+    CHAIN.CELO,
+    CHAIN.BSC,
+    CHAIN.MORPH,
+    CHAIN.XLAYER,
+    CHAIN.CORE,
+    CHAIN.OP_BNB,
+    CHAIN.ZKSYNC,
+    CHAIN.ETHEREUM,
+    CHAIN.OPTIMISM,
+    CHAIN.FANTOM,
+    CHAIN.PLASMA,
+    CHAIN.SEI
 ];
 
 
@@ -62,7 +66,7 @@ const adapter: SimpleAdapter = {
             return {
                 [chain]: {
                     fetch,
-                    start: '2025-04-01'
+                    start: '2025-09-01'
                 }
             }
         }).reduce((acc, item) => {
