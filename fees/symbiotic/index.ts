@@ -1,24 +1,29 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+const SYMBIOTIC_ABIs = {
+    addEntity: "event AddEntity(address indexed entity)",
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
     const addEntityLogs = await options.getLogs({
-        topic: "0xb919910dcefbf753bfd926ab3b1d3f85d877190c3d01ba1bd585047b99b99f0b",
+        eventAbi: SYMBIOTIC_ABIs.addEntity,
         fromBlock: 20011312,
         noTarget: true,
+        cacheInCloud: true,
     });
-    
-    const entities = addEntityLogs.map(log => "0x" + log.topics[1].slice(-40));
+
+    const entities = addEntityLogs.map(log => log.entity.toLowerCase());
 
     const rewardDistributionLogs = await options.getLogs({
         topic: "0x52c39ebed294659631d22a2341c526a86ab683888dccb1429ac42c6e413d4b7b",
         noTarget: true,
     });
 
-    const tassiRewardDistributionLogs = await options.getLogs({
+    const tanssiRewardDistributionLogs = await options.getLogs({
         topic: "0x6a4b9b1f4e6e9369e7cc09dfda8ca9def764110609845dca69c2ae408ad4dcac",
         noTarget: true
     });
@@ -33,7 +38,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyFees.add(token, adminFeeAmount);
     });
 
-    tassiRewardDistributionLogs.forEach(log => {
+    tanssiRewardDistributionLogs.forEach(log => {
         if (!entities.includes(log.address)) return;
         const token = "0x" + log.topics[1].slice(-40);
         const amount = BigInt("0x" + log.data.slice(66, 130));
