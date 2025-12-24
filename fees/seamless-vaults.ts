@@ -3,9 +3,11 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
 
-const SEAMLESS_GOVERNOR_SHORT_TIMELOCK =
-  '0x639d2dD24304aC2e6A691d8c1cFf4a2665925fee';
-const MORPHO_VAULTS_FACTORY_v1_1 = '0xFf62A7c278C62eD665133147129245053Bbf5918';
+const config = {
+  seamlessGovernor: '0x639d2dD24304aC2e6A691d8c1cFf4a2665925fee',
+  morphoVaultsFactory: '0xFf62A7c278C62eD665133147129245053Bbf5918',
+  fromBlock: 24831748,
+};
 
 const abis = {
   createMetaMorpho:
@@ -25,9 +27,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   const allVaultLogs = await options.getLogs({
-    target: MORPHO_VAULTS_FACTORY_v1_1,
+    target: config.morphoVaultsFactory,
     eventAbi: abis.createMetaMorpho,
-    fromBlock: 24831748,
+    fromBlock: config.fromBlock,
     flatten: false,
   });
 
@@ -50,8 +52,7 @@ const fetch = async (options: FetchOptions) => {
   const seamlessVaults = allVaults.filter(
     (_: string, i: number) =>
       allVaultOwners[i] &&
-      allVaultOwners[i].toLowerCase() ===
-        SEAMLESS_GOVERNOR_SHORT_TIMELOCK.toLowerCase()
+      allVaultOwners[i].toLowerCase() === config.seamlessGovernor.toLowerCase()
   );
 
   if (!seamlessVaults.length) {
@@ -122,7 +123,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'Performance fees collected by Seamless protocol from Morpho vault yields. Fees are tracked via vault share mints (Transfer events from 0x0) to protocol-controlled fee recipient addresses. Fee shares are converted to underlying assets using on-chain conversion functions.',
+  Fees: 'Performance fees collected by Seamless protocol from Morpho vault yields. Fees are tracked via vault share mints to protocol-controlled fee recipient addresses. Fee shares are converted to underlying assets using on-chain conversion functions.',
   Revenue:
     'All performance fees collected by Seamless protocol. Fees accrue when vault shares are minted to the fee recipient address.',
   ProtocolRevenue:
@@ -134,7 +135,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2023-12-07',
+      start: '2025-01-21',
     },
   },
   methodology,
