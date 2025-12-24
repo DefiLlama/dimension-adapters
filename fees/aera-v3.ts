@@ -38,7 +38,7 @@ const abis = {
     'function getVaultState(address vault) external view returns ((bool paused, uint8 maxPriceAge, uint16 minUpdateIntervalMinutes, uint16 maxPriceToleranceRatio, uint16 minPriceToleranceRatio, uint8 maxUpdateDelayDays, uint32 timestamp, uint24 accrualLag, uint128 unitPrice, uint128 highestPrice, uint128 lastTotalSupply))',
 };
 
-const PROTOCOL_FEE_RATIO = 0.2; // 20% of positive yield
+const PROTOCOL_FEE_RATIO = 0.2;
 
 const fetch = async (options: FetchOptions) => {
   const { chain, createBalances, getLogs, fromApi, toApi } = options;
@@ -144,33 +144,45 @@ const fetch = async (options: FetchOptions) => {
     const unitPriceEnd = BigInt(vaultStateEnd[8]);
 
     const unitPriceDelta = unitPriceEnd - unitPriceStart;
+
+    // Yield is computed purely from unitPrice changes:
+    // yield = totalSupply × (unitPriceEnd - unitPriceStart)
+    // This isolates performance from deposits/withdrawals
     const yieldAmount =
       (BigInt(totalSupply) * unitPriceDelta) / BigInt(10 ** decimals);
 
-    // Only track positive yield (negative yield/losses are not reported)
-    if (yieldAmount <= 0n) {
-      continue;
-    }
-
+    // dailyFees represents net vault yield (can be positive or negative)
     dailyFees.add(numeraireToken, yieldAmount);
 
-    const protocolFee =
-      (yieldAmount * BigInt(Math.floor(PROTOCOL_FEE_RATIO * 1e18))) /
-      BigInt(1e18);
-    const guardianFee = yieldAmount - protocolFee;
+    // Protocol fees apply only on positive yield
+    // Protocol does not earn management fees on losses
+    if (yieldAmount > 0n) {
+      const protocolFee =
+        (yieldAmount * BigInt(Math.floor(PROTOCOL_FEE_RATIO * 1e18))) /
+        BigInt(1e18);
+      const guardianFee = yieldAmount - protocolFee;
 
-    dailyProtocolRevenue.add(
-      numeraireToken,
-      protocolFee,
-      METRIC.MANAGEMENT_FEES
-    );
-    dailyRevenue.add(numeraireToken, protocolFee, METRIC.MANAGEMENT_FEES);
+      dailyProtocolRevenue.add(
+        numeraireToken,
+        protocolFee,
+        METRIC.MANAGEMENT_FEES
+      );
+      dailyRevenue.add(numeraireToken, protocolFee, METRIC.MANAGEMENT_FEES);
 
-    dailySupplySideRevenue.add(
-      numeraireToken,
-      guardianFee,
-      METRIC.ASSETS_YIELDS
-    );
+      dailySupplySideRevenue.add(
+        numeraireToken,
+        guardianFee,
+        METRIC.ASSETS_YIELDS
+      );
+    } else {
+      // On negative yield (losses), all losses are attributed to supply-side
+      // Guardians/users bear 100% of losses
+      dailySupplySideRevenue.add(
+        numeraireToken,
+        yieldAmount,
+        METRIC.ASSETS_YIELDS
+      );
+    }
   }
 
   return {
@@ -198,13 +210,13 @@ const breakdownMethodology = {
 };
 
 const methodology = {
-  Fees: 'Fees are derived from unitPrice changes only: yield = totalSupply × (unitPriceEnd - unitPriceStart). Deposits and withdrawals do not affect fees. Only positive yield is counted; losses are not reported.',
+  Fees: 'Fees are derived from unitPrice changes only. Deposits and withdrawals do not affect fees. Both positive yield (gains) and negative yield (losses) are reported to provide a complete picture of vault performance.',
   Revenue:
-    'Protocol management fees (~20% of positive yield) collected by Aera.',
+    'Protocol management fees (~20% of positive yield) collected by Aera. Protocol does not earn fees on loss days (negative yield).',
   ProtocolRevenue:
-    'Same as Revenue — protocol management fees from vault operations.',
+    'Same as Revenue — protocol management fees from vault operations. Zero on days with losses.',
   SupplySideRevenue:
-    'Guardian/operator fees (~80% of positive yield) paid to vault managers.',
+    'Guardian/operator fees (~80% of positive yield) paid to vault managers. On loss days, 100% of losses are attributed to supply-side (guardians/users bear all losses).',
 };
 
 const adapter: SimpleAdapter = {
@@ -214,6 +226,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { start: '2025-05-28' },
     [CHAIN.BASE]: { start: '2025-05-28' },
   },
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
 };
