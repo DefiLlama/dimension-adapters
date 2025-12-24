@@ -3,24 +3,40 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
 const CHAINS: Array<CHAIN> = [
-    // CHAIN.ETHEREUM,
-    CHAIN.POLYGON,
-    // CHAIN.SOLANA,
-    CHAIN.BSC,
-    CHAIN.OPTIMISM,
-    CHAIN.BASE,
-    CHAIN.TON,
-    CHAIN.TRON,
+    CHAIN.APTOS,
+    CHAIN.HYPERLIQUID,
+    CHAIN.SOLANA,
+    CHAIN.BLAST,
     CHAIN.BITCOIN,
-    CHAIN.MANTA,
+    CHAIN.ARBITRUM,
+    CHAIN.KLAYTN,
+    CHAIN.SONIC,
+    CHAIN.MANTLE,
+    CHAIN.RIPPLE,
+    CHAIN.AVAX,
     CHAIN.LINEA,
     CHAIN.SUI,
     CHAIN.SCROLL,
-    CHAIN.ARBITRUM,
+    CHAIN.BASE,
+    CHAIN.POLYGON,
+    CHAIN.TON,
+    CHAIN.CRONOS,
+    CHAIN.DOGECHAIN,
+    CHAIN.BERACHAIN,
+    CHAIN.MONAD,
+    CHAIN.TRON,
+    CHAIN.CELO,
+    CHAIN.BSC,
+    CHAIN.MORPH,
+    CHAIN.XLAYER,
     CHAIN.CORE,
-    CHAIN.MERLIN,
-    CHAIN.BLAST,
-    CHAIN.APTOS
+    CHAIN.OP_BNB,
+    CHAIN.ZKSYNC,
+    CHAIN.ETHEREUM,
+    CHAIN.OPTIMISM,
+    CHAIN.FANTOM,
+    CHAIN.PLASMA,
+    CHAIN.SEI
 ];
 
 interface IVolumeBridge {
@@ -54,7 +70,7 @@ const adapter: SimpleAdapter = {
             return {
                 [chain]: {
                     fetch,
-                    start: '2025-04-01'
+                    start: '2025-08-01'
                 }
             }
         }).reduce((acc, item) => {
