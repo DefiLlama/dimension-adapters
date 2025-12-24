@@ -2,12 +2,14 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const MINER_ADDRESS = "0xF69614F4Ee8D4D3879dd53d5A039eB3114C794F6";
+const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH on Base
 const MINER_MINED_TOPIC = "0xc7df6706a5d0329f817217dcb0736bff7e6a29909dc28819c1fd4fe198127236";
 const TREASURY_FEE_TOPIC = "0x37cc5ab17812d0e5a106defe33d607121c48f562ab71a54d25421e1571b401aa";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const dailyFeesLogs = await options.getLogs({
     target: MINER_ADDRESS,
@@ -23,13 +25,23 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     onlyArgs: true,
   });
 
-  const totalFees = dailyFeesLogs.reduce((acc: Number, log: any) => Number(acc) + Number(log.price), 0);
-  const totalTreasury = dailyTreasuryLogs.reduce((acc: Number, log: any) => Number(acc) + Number(log.amount), 0);
+  // Sum fees in wei (BigInt for precision)
+  let totalFeesWei = BigInt(0);
+  for (const log of dailyFeesLogs) {
+    totalFeesWei += BigInt(log.price);
+  }
 
-  dailyFees.addUSDValue(Number(totalFees) / 1e18);
-  dailyRevenue.addUSDValue(Number(totalTreasury) / 1e18);
+  let totalTreasuryWei = BigInt(0);
+  for (const log of dailyTreasuryLogs) {
+    totalTreasuryWei += BigInt(log.amount);
+  }
 
-  const dailySupplySideRevenue = dailyFees.subtract(dailyRevenue);
+  const supplySideWei = totalFeesWei - totalTreasuryWei;
+
+  // Add as WETH so DefiLlama prices it correctly in USD
+  dailyFees.add(WETH_ADDRESS, totalFeesWei);
+  dailyRevenue.add(WETH_ADDRESS, totalTreasuryWei);
+  dailySupplySideRevenue.add(WETH_ADDRESS, supplySideWei);
 
   return {
     dailyFees,
@@ -46,10 +58,10 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: '2025-11-07',
   methodology: {
-    Fees: 'mining 5% frontend fee',
-    Revenue: 'Fees going to the treasury',
-    ProtocolRevenue: 'Mining fees going to the protocol',
-    SupplySideRevenue: 'fees earned by miners',
+    Fees: 'Total WETH payments for mining donuts',
+    Revenue: 'Treasury fees (15% of payments)',
+    ProtocolRevenue: 'Treasury fees (15% of payments)',
+    SupplySideRevenue: 'Fees to miners (80%) and frontend providers (5%)',
   }
 };
 
