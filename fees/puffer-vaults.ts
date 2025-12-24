@@ -1,8 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
-// PufferVault contracts and accountants
-// Source: https://docs.puffer.fi/yield/deployments/deployed-contracts
 const vaults = [
   '0x196ead472583bc1e9af7a05f860d9857e1bd3dcc',
   '0x82c40e07277eBb92935f79cE92268F80dDc7caB4',
@@ -25,36 +23,36 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  // Get data at start of day (permitFailure: vaults deployed at different times)
-  const suppliesStart = await options.fromApi.multiCall({
-    abi: abis.totalSupply,
-    calls: vaults,
-    permitFailure: true,
-  });
-  const ratesStart = await options.fromApi.multiCall({
-    abi: abis.getRate,
-    calls: accountants,
-    permitFailure: true,
-  });
+  const [suppliesStart, ratesStart] = await Promise.all([
+    options.fromApi.multiCall({
+      abi: abis.totalSupply,
+      calls: vaults,
+      permitFailure: true,
+    }),
+    options.fromApi.multiCall({
+      abi: abis.getRate,
+      calls: accountants,
+      permitFailure: true,
+    }),
+  ]);
 
-  // Get data at end of day
-  const suppliesEnd = await options.toApi.multiCall({
-    abi: abis.totalSupply,
-    calls: vaults,
-    permitFailure: true,
-  });
-  const ratesEnd = await options.toApi.multiCall({
-    abi: abis.getRate,
-    calls: accountants,
-    permitFailure: true,
-  });
-
-  // Get base tokens
-  const bases = await options.toApi.multiCall({
-    abi: abis.base,
-    calls: accountants,
-    permitFailure: true,
-  });
+  const [suppliesEnd, ratesEnd, bases] = await Promise.all([
+    options.toApi.multiCall({
+      abi: abis.totalSupply,
+      calls: vaults,
+      permitFailure: true,
+    }),
+    options.toApi.multiCall({
+      abi: abis.getRate,
+      calls: accountants,
+      permitFailure: true,
+    }),
+    options.toApi.multiCall({
+      abi: abis.base,
+      calls: accountants,
+      permitFailure: true,
+    }),
+  ]);
 
   for (let i = 0; i < vaults.length; i++) {
     const supplyStart = suppliesStart[i];
@@ -63,24 +61,23 @@ const fetch = async (options: FetchOptions) => {
     const rateEnd = ratesEnd[i];
     const base = bases[i];
 
-    // Skip if vault doesn't exist yet
     if (!supplyStart || !supplyEnd || !rateStart || !rateEnd || !base) {
       continue;
     }
 
-    // Calculate yield from exchange rate increase (isolates actual yield from deposits/withdrawals)
-    const avgSupply = (BigInt(supplyStart) + BigInt(supplyEnd)) / 2n;
-    const rateDiff = BigInt(rateEnd) - BigInt(rateStart);
-    const denominator = BigInt(Math.pow(10, String(rateEnd).length - 1));
+    const denominatorStart = BigInt(Math.pow(10, String(rateStart).length - 1));
+    const denominatorEnd = BigInt(Math.pow(10, String(rateEnd).length - 1));
 
-    const totalYield = (avgSupply * rateDiff) / denominator;
+    const tvlStart = (BigInt(supplyStart) * BigInt(rateStart)) / denominatorStart;
+    const tvlEnd = (BigInt(supplyEnd) * BigInt(rateEnd)) / denominatorEnd;
 
-    if (totalYield > 0n) {
-      dailyFees.add(base, totalYield);
+    const totalRewards = tvlEnd - tvlStart;
 
-      // Protocol revenue: 10% performance fee on restaking rewards + 1% instant withdrawal fees
-      const estimatedRevenue = (totalYield * 10n) / 100n;
-      dailyRevenue.add(base, estimatedRevenue);
+    if (totalRewards > 0n) {
+      dailyFees.add(base, totalRewards);
+
+      const protocolRevenue = (totalRewards * 10n) / 100n;
+      dailyRevenue.add(base, protocolRevenue);
     }
   }
 
@@ -91,16 +88,13 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-// Fee structure sources:
-// - 1% instant withdrawal fee (goes to protocol treasury): https://docs.puffer.fi/yield/stakers/withdraw
-// - 10% performance fee on restaking rewards: https://github.com/PufferFinance/puffer-contracts
-// - 0% fee on standard withdrawals (2-step, takes up to 14 days): https://docs.puffer.fi/yield/stakers/withdraw
 const methodology = {
-  Fees: 'Total yields generated from staking rewards and restaking rewards. Calculated from exchange rate increases in Puffer Vaults (tracks getRate() changes, not totalAssets to avoid counting deposits as yield).',
+  Fees:
+    'Fees are derived as the daily change in vault TVL, calculated using the same totalSupply × getRate methodology as the TVL adapter. This ensures fees are reported in raw base-token units.',
   Revenue:
-    'Protocol revenue from performance fees (10% on restaking rewards) and instant withdrawal fees (1%).',
+    'Protocol revenue consists of a 10% performance fee on restaking rewards.',
   ProtocolRevenue:
-    'Same as Revenue - protocol captures performance fees and instant withdrawal fees directed to treasury.',
+    'Same as Revenue. Rewards are synchronized on-chain periodically, so daily values may appear lumpy.',
 };
 
 const adapter: SimpleAdapter = {
