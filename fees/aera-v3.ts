@@ -140,6 +140,14 @@ const fetch = async (options: FetchOptions) => {
       continue;
     }
 
+    // Skip paused vaults — pricing can be frozen or invalid
+    const isPausedStart = vaultStateStart[0];
+    const isPausedEnd = vaultStateEnd[0];
+
+    if (isPausedStart || isPausedEnd) {
+      continue;
+    }
+
     const unitPriceStart = BigInt(vaultStateStart[8]);
     const unitPriceEnd = BigInt(vaultStateEnd[8]);
 
