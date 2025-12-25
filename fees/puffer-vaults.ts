@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { METRIC } from '../helpers/metrics';
 
 const vaults = [
   '0x196ead472583bc1e9af7a05f860d9857e1bd3dcc',
@@ -24,6 +25,7 @@ const PERFORMANCE_FEE_RATIO = 0.1;
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const [suppliesStart, ratesStart] = await Promise.all([
     options.fromApi.multiCall({
@@ -67,59 +69,51 @@ const fetch = async (options: FetchOptions) => {
       continue;
     }
 
-    // Yield derived purely from exchange rate change
     const rateDiff = BigInt(rateEnd) - BigInt(rateStart);
-
-    if (rateDiff <= 0n) {
-      continue;
-    }
-
-    // Use average supply to reduce deposit/withdraw noise
     const avgSupply = (BigInt(supplyStart) + BigInt(supplyEnd)) / 2n;
-
     const denominator = BigInt(Math.pow(10, String(rateEnd).length - 1));
-
     const totalYield = (avgSupply * rateDiff) / denominator;
+    dailyFees.add(base, totalYield, METRIC.STAKING_REWARDS);
+    dailySupplySideRevenue.add(base, totalYield, METRIC.STAKING_REWARDS);
 
-    if (totalYield <= 0n) {
-      continue;
-    }
-
-    // Fees = total rewards earned by the vault
-    dailyFees.add(base, totalYield);
-
-    // Protocol revenue = 10% performance fee
-    const protocolRevenue =
-      (totalYield * BigInt(Math.floor(PERFORMANCE_FEE_RATIO * 1e18))) /
-      BigInt(1e18);
-
-    dailyRevenue.add(base, protocolRevenue);
+    const protocolRevenue = (totalYield * BigInt(Math.floor(PERFORMANCE_FEE_RATIO * 1e18))) / BigInt(1e18);
+    dailyRevenue.add(base, protocolRevenue, METRIC.PERFORMANCE_FEES);
+    dailySupplySideRevenue.add(base, -1 * Number(protocolRevenue));
   }
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: 'Fees are derived from changes in the vault exchange rate multiplied by the average vault supply. This isolates rewards from deposits and withdrawals and avoids using TVL deltas.',
-  Revenue:
-    'Protocol revenue consists of a 10% performance fee on restaking rewards.',
-  ProtocolRevenue:
-    'Same as Revenue. Rewards are synchronized on-chain in discrete updates, so daily values may appear lumpy rather than continuous.',
+  Fees: 'Vault strategy staking rewards.',
+  Revenue: '10% performance fee on restaking rewards.',
+  ProtocolRevenue: '10% of performance fees collected by the protocol.',
+  SupplySideRevenue: 'fees earned by the supply side (restakers).',
 };
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Vault Strategy Staking Rewards',
+    [METRIC.PERFORMANCE_FEES]: '10% performance fee collected by the protocol'
+  },
+  Revenue: {
+    [METRIC.PERFORMANCE_FEES]: '10% performance fee collected by the protocol'
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2024-01-31',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2024-01-31',
+  allowNegativeValue: true, // Allow negative value as vault token price can fluctuate
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
