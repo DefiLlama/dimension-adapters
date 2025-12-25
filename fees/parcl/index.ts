@@ -18,6 +18,7 @@ const AUTHORIZED_KEEPERS = [
 // Potential treasury/fee collection addresses
 const TREASURY_ADDRESSES = [
   '82dGS7Jt4Km8ZgwZVRsJ2V6vPXEhVdgDaMP7cqPGG1TW', // Exchange address
+  'G8KfhGHqQ2nHKGH7tJUvUR2bX7YK6B8XTRN6twBAQS1', // Additional treasury address
   // Add more treasury addresses as they become available
 ];
 
@@ -35,28 +36,17 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     ...PROGRAM_ADDRESSES
   ];
 
-  try {
-    // Use getSolanaReceivedDune to track all inflows to fee addresses
-    const dailyFees = await getSolanaReceivedDune({
-      options,
-      targets: allFeeAddresses,
-    });
+  // Use getSolanaReceivedDune to track all inflows to fee addresses
+  const dailyFees = await getSolanaReceivedDune({
+    options,
+    targets: allFeeAddresses,
+  });
 
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees, // All revenue goes to protocol
-    };
-  } catch (error) {
-    // In test environments without Dune access, return empty results
-    console.log('Dune API not available, returning empty fees');
-    const dailyFees = options.createBalances();
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
-  }
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees, // All revenue goes to protocol
+  };
 };
 
 const adapter: SimpleAdapter = {
