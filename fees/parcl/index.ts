@@ -56,6 +56,7 @@ const adapter: SimpleAdapter = {
       start: '2024-06-01', // Parcl launched in June 2024
     },
   },
+  isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: "Trading fees, liquidation fees, and settlement fees collected by Parcl protocol",
