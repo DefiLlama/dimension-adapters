@@ -49,6 +49,15 @@ interface IGraphResponse {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const config = chainConfig[options.chain];
+  if (config.deadFrom) {
+    const deadFromTimestamp = Date.parse(config.deadFrom) / 1000;
+    if (options.startOfDay > deadFromTimestamp) {
+      return {
+        dailyVolume: 0,
+      }
+    }
+  }
   const dailyData: IGraphResponse = await request(chainConfig[options.chain].graphUrl, volumeDataQuery, {
     period: String(options.startOfDay),
     periodEnd: String(options.startOfDay + 86400),
