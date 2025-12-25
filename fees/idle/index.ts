@@ -207,7 +207,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         }
 
         if (totalJuniorYieldForPeriod > 0) {
-            const performanceFeesMultiple = (totalJuniorYieldForPeriod * performanceFeeInThousandMultiples[index]) / (1000 * 100);
+            const performanceFeesMultiple = performanceFeeInThousandMultiples[index] / (1000 * 100);
             calculateAllFees(underlyingTokens[index], totalJuniorYieldForPeriod, performanceFeesMultiple);
         }
     }
