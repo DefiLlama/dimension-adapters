@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceivedDune } from "../../helpers/token";
+import { getSolanaReceived, getSolanaReceivedDune } from "../../helpers/token";
 
 // Parcl fees adapter
 // Based on addresses from https://docs.parcl.co/addresses
@@ -36,11 +36,22 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     ...PROGRAM_ADDRESSES
   ];
 
-  // Use getSolanaReceivedDune to track all inflows to fee addresses
-  const dailyFees = await getSolanaReceivedDune({
-    options,
-    targets: allFeeAddresses,
-  });
+  let dailyFees;
+
+  try {
+    // Try getSolanaReceivedDune first (uses Dune - more comprehensive data)
+    dailyFees = await getSolanaReceivedDune({
+      options,
+      targets: allFeeAddresses,
+    });
+  } catch (error) {
+    // Fallback to getSolanaReceived (uses Allium - works in CI)
+    console.log('Dune API not available, falling back to Allium:', error.message);
+    dailyFees = await getSolanaReceived({
+      options,
+      targets: allFeeAddresses,
+    });
+  }
 
   return {
     dailyFees,
@@ -58,7 +69,7 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   methodology: {
     Fees: "Trading fees, liquidation fees, and settlement fees collected by Parcl protocol",
     Revenue: "Fees collected by authorized keepers and protocol treasury addresses",
