@@ -33,8 +33,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
 
   yieldAccuredLogs.forEach(log => {
-    const performanceFee = Number(log.yield) * performanceFeeRaw / 1e18;
-    const yieldsPostFee = Number(log.yield) - performanceFee;
+    const currentYield = Number(log.yield);
+    const performanceFee = (currentYield > 0) ? currentYield * performanceFeeRaw / 1e18 : 0;
+    const yieldsPostFee = currentYield - performanceFee;
 
     dailyFees.add(receiptToken, performanceFee, METRIC.PERFORMANCE_FEES);
     dailyRevenue.add(receiptToken, performanceFee, METRIC.PERFORMANCE_FEES);
