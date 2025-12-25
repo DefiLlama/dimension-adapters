@@ -2,17 +2,9 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived, getSolanaReceivedDune } from "../../helpers/token";
 
-/*
- * Sentinel Trader Bot Fee Adapter
- *
- * STATUS: Adapter working correctly - tracks small fee amounts
- * - Address receives ~27.77 SOL total since June 2024 (1,609 transactions)
- * - Average transaction: ~0.017 SOL (can track fees as small as 0.000001 SOL)
- * - 0 fees on test dates means no activity on those specific days
- *
- * Configuration based on Sentinel Trader Bot's TVL adapter
- * Fee collection wallet found from: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/sentinel-trader-bot/index.js
- */
+
+//  Fee collection wallet found from: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/sentinel-trader-bot/index.js
+ 
 
 const FEE_COLLECTION_ADDRESS = 'FiPhWKk6o16WP9Doe5mPBTxaBFXxdxRAW9BmodPyo9UK'; // From Sentinel Trader Bot TVL adapter
 
