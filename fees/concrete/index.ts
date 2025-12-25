@@ -10,7 +10,7 @@ const CHAIN_CONFIG: Record<string, Record<string, string>> = {
     [CHAIN.ARBITRUM]: { chainId: '42161', start: '2025-08-15' },
     [CHAIN.BERACHAIN]: { chainId: '80094', start: '2025-04-22' },
     [CHAIN.KATANA]: { chainId: '747474', start: '2025-07-29' },
-    [CHAIN.STABLE]: { chainId: '988', start: '2025-12-08' },
+    [CHAIN.STABLE]: { chainId: '988', start: '2025-12-09' },
 };
 
 const CONCRETE_ABIs = {
@@ -18,7 +18,8 @@ const CONCRETE_ABIs = {
     convertToAssets: 'function convertToAssets(uint256 shares) view returns (uint256)',
     highWaterMark: 'uint256:highWaterMark',
     vaultFee: 'function getVaultFees() view returns (tuple(uint64 depositFee,uint64 withdrawalFee,uint64 protocolFee,tuple(uint256 lowerBound,uint256 upperBound,uint64 fee)[] performanceFee))',
-    feeConfig: 'function getFeeConfig() view returns(uint16 currentManagementFee,address currentManagementFeeRecipient, uint32 currentLastManagementFeeAccrual, uint16 currentPerformanceFee, address currentPerformanceFeeRecipient)'
+    feeConfig: 'function getFeeConfig() view returns(uint16 currentManagementFee,address currentManagementFeeRecipient, uint32 currentLastManagementFeeAccrual, uint16 currentPerformanceFee, address currentPerformanceFeeRecipient)',
+    paused: 'bool:paused',
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -87,12 +88,19 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true
     });
 
-    for (const [index, vaultAddress] of vaultsList.entries()) {
-        if (priceAfter[index] === null || priceBefore[index] === null) continue;
-        const { underlyingAsset, vaultDecimals } = vaultDetails.find(vault => vault.address === vaultAddress)!;
-        const v2Index = index - v1Vaults.size;
+    const isPaused = await options.api.multiCall({
+        calls: [...v1Vaults],
+        abi: CONCRETE_ABIs.paused,
+        permitFailure: true
+    });
 
+    for (const [index, vaultAddress] of vaultsList.entries()) {
         const vaultVersion = v1Vaults.has(vaultsList[index]) ? 1 : 2;
+
+        if (priceAfter[index] === null || priceBefore[index] === null || (vaultVersion === 1 && isPaused[index])) continue;
+        const { underlyingAsset, vaultDecimals } = vaultDetails.find(vault => vault.address === vaultAddress)!;
+
+        const v2Index = index - v1Vaults.size;
 
         //Decimals are upto 27 so using BigInt
         const priceDiff = BigInt(priceAfter[index]) - BigInt(priceBefore[index]);
