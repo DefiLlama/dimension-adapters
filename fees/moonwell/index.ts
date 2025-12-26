@@ -42,56 +42,41 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
         if (!underlying) underlyings[index] = ADDRESSES.null
     })
     const reserveFactors = await api.multiCall({ calls: markets, abi: abis.reserveFactor ?? comptrollerABI.reserveFactor, });
-    let logs: any[] = []
-    try {
-        logs = (await getLogs({
-            targets: markets,
-            flatten: false,
-            eventAbi: comptrollerABI.accrueInterest,
-        })).map((log: any, index: number) => {
-            return log.map((i: any) => ({
-                ...i,
-                interestAccumulated: Number(i.interestAccumulated),
-                marketIndex: index,
-            }));
-        }).flat()
-    } catch (error) {
-        console.error('Failed to get accrueInterest logs:', error)
-    }
+    const logs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.accrueInterest,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            interestAccumulated: Number(i.interestAccumulated),
+            marketIndex: index,
+        }));
+    }).flat()
 
-    let reservesAddedLogs: any[] = []
-    try {
-        reservesAddedLogs = (await getLogs({
-            targets: markets,
-            flatten: false,
-            eventAbi: comptrollerABI.reservesAdded,
-        })).map((log: any, index: number) => {
-            return log.map((i: any) => ({
-                ...i,
-                addAmount: Number(i.addAmount),
-                marketIndex: index,
-            }));
-        }).flat()
-    } catch (error) {
-        console.error('Failed to get reservesAdded logs:', error)
-    }
+    const reservesAddedLogs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.reservesAdded,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            addAmount: Number(i.addAmount),
+            marketIndex: index,
+        }));
+    }).flat()
 
-    let liquidateBorrowLogs: any[] = []
-    try {
-        liquidateBorrowLogs = (await getLogs({
-            targets: markets,
-            flatten: false,
-            eventAbi: comptrollerABI.liquidateBorrow,
-        })).map((log: any, index: number) => {
-            return log.map((i: any) => ({
-                ...i,
-                seizeTokens: Number(i.seizeTokens),
-                marketIndex: markets.indexOf(i.mTokenCollateral),
-            }));
-        }).flat()
-    } catch (error) {
-        console.error('Failed to get liquidateBorrow logs:', error)
-    }
+    const liquidateBorrowLogs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.liquidateBorrow,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            seizeTokens: Number(i.seizeTokens),
+            marketIndex: markets.indexOf(i.mTokenCollateral),
+        }));
+    }).flat()
 
     logs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
