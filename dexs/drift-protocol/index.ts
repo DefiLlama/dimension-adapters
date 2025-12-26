@@ -3,6 +3,11 @@ import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { BreakdownAdapter, Dependencies, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
+// Both v2 and v3 use the same program address: dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH
+// v3 launched on 2025-12-04 - same contract, same event structure, no code changes required for now
+// Potential changes Q1 2026 when DLP pools launch
+// https://www.drift.trade/updates/introducing-drift-v3-built-to-outperform
+
 // const DUNE_QUERY_ID = "3756979"; // https://dune.com/queries/3756979/6318568
 // const DUNE_QUERY_ID = "4057938"; // Should be faster than the above - https://dune.com/queries/3782153/6359334
 
