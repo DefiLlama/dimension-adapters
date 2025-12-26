@@ -21,10 +21,6 @@ const CONFIG = {
   factory: '0xcD2d0637c94fe77C2896BbCBB174cefFb08DE6d7',
   voter: '0x9f59398d0a397b2eeb8a6123a6c7295cb0b0062d',
 }
-const firstBlock = 1705781
-const abis = {
-  fee: 'uint256:fee'
-}
 
 const fetch = async (options: FetchOptions) => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = options
@@ -53,46 +49,32 @@ const fetch = async (options: FetchOptions) => {
   dailyTokenTaxes.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
   dailyFees.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
 
-    let allPools = []
-    let allToken0s = []
-    let allToken1s = []
-    const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${CONFIG.factory.toLowerCase()}.json`
-    const { pairs, token0s, token1s } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true })
-    if (pairs) {
-      allPools = pairs
-      allToken0s = token0s
-      allToken1s = token1s
-    }
-    else {
-        const poolCreatedLogs = await getLogs({ target: CONFIG.factory, fromBlock: firstBlock, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true})
-        poolCreatedLogs.forEach((i: any) => {
-          allPools.push(i.pool)
-          allToken0s.push(i.token0)
-          allToken1s.push(i.token1)
-        })
-    }
-    const pairObject: IJSON<string[]> = {}
-    allPools.forEach((pair: string, i: number) => {
-      pairObject[pair] = [allToken0s[i], allToken1s[i]]
-    })
-    const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
-    const poolAddresses = Object.keys(filteredPools)
-    const fees = await api.multiCall({ abi: abis.fee,  calls: poolAddresses })
-    const aeroPoolSet = new Set()
-    const poolInfoMap = {} as any
-    poolAddresses.forEach((pair, index) => {
-      const pool = pair.toLowerCase()
-      const fee = fees[index] / 1e6
-      const hasGauge = poolsWithGaugesSet.has(pool)
-      poolInfoMap[pool] = { tokens: pairObject[pair], fee, hasGauge }
-      aeroPoolSet.add(pool)
-    })
+  const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
+
+  const pairObject: IJSON<string[]> = {}
+  const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${CONFIG.factory.toLowerCase()}.json`
+  let { logs } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true })
+  logs = logs.map((log: any) => iface.parseLog(log)?.args)
+  logs.forEach((log: any) => {
+    pairObject[log.pool] = [log.token0, log.token1]
+  })
+
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const poolAddresses = Object.keys(filteredPools)
+  const fees = await api.multiCall({ abi: 'uint256:fee',  calls: poolAddresses })
+  const aeroPoolSet = new Set()
+  const poolInfoMap = {} as any
+  poolAddresses.forEach((pair, index) => {
+    const pool = pair.toLowerCase()
+    const fee = fees[index] / 1e6
+    const hasGauge = poolsWithGaugesSet.has(pool)
+    poolInfoMap[pool] = { tokens: pairObject[pair], fee, hasGauge }
+    aeroPoolSet.add(pool)
+  })
 
   const blockStep = 1000;
-  let i = 0;
   let startBlock = fromBlock;
   let ranges: any = []
-  const iface = new ethers.Interface([eventAbis.event_swap]);
 
 
   while (startBlock < toBlock) {
@@ -154,7 +136,7 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume, 
     dailyFees,
     dailyUserFees: dailyFees, 
-    dailyRevenue: dailyRevenue, 
+    dailyRevenue, 
     dailyHoldersRevenue, 
     dailySupplySideRevenue,
     dailyProtocolRevenue, 
@@ -163,6 +145,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
+  Fees: "User pays fees on each swap.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",

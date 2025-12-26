@@ -28,7 +28,7 @@ export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: s
   const { createBalances, getLogs } = fetchOptions
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await getLogs({ target: voter, fromBlock: firstBlock, eventAbi: gaugeCreatedEvent, entireLog: true, cacheInCloud: true })
+  const logs_gauge_created = await getLogs({ target: voter, fromBlock: firstBlock, eventAbi: gaugeCreatedEvent, onlyArgs: false, cacheInCloud: true })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
   const bribes_contract = logs_gauge_created
     .filter((log) => (log.address || log.source).toLowerCase() === voter.toLowerCase())
@@ -59,27 +59,11 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyProtocolRevenue = createBalances() 
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
 
-  let allPools = []
-  let allToken0s = []
-  let allToken1s = []
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${CONFIG.factory.toLowerCase()}-${chain}.json`
   const { pairs, token0s, token1s } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true })
-  if (pairs) {
-    allPools = pairs
-    allToken0s = token0s
-    allToken1s = token1s
-  }
-  else {
-      const poolCreatedLogs = await getLogs({ target: CONFIG.factory, fromBlock: firstBlock, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true})
-      poolCreatedLogs.forEach((i: any) => {
-        allPools.push(i.pair)
-        allToken0s.push(i.token0)
-        allToken1s.push(i.token1)
-      })
-  }
   const pairObject: IJSON<string[]> = {}
-  allPools.forEach((pair: string, i: number) => {
-    pairObject[pair] = [allToken0s[i], allToken1s[i]]
+  pairs.forEach((pair: string, i: number) => {
+    pairObject[pair] = [token0s[i], token1s[i]]
   })
   const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
   const poolAddresses = Object.keys(filteredPools)
@@ -161,7 +145,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     dailyVolume, 
     dailyFees,
     dailyUserFees: dailyFees, 
-    dailyRevenue: dailyRevenue, 
+    dailyRevenue, 
     dailyHoldersRevenue, 
     dailySupplySideRevenue,
     dailyProtocolRevenue, 
@@ -169,6 +153,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   }
 }
 const methodology = {
+  Fees: "User pays fees on each swap.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
