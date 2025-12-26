@@ -16,7 +16,8 @@ const ADDRESSES: any = {
         fastlaneRedemption: "0x829525417Cd78CBa0f99A8736426fC299506C0d6",
         stakedToken: "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0", // Lido wstEth
         excludeWallets: [
-          '0xf37856a029d87dbc53cf751c4864edab919b4702'
+          '0xf37856a029d87dbc53cf751c4864edab919b4702',
+          '0x2aB1a0477504d243fD9801c94dB5181104BDa38A',
         ],
     },
     [CHAIN.AVAX]: {
@@ -26,7 +27,8 @@ const ADDRESSES: any = {
         fastlaneRedemption: "0x3D00a639183B07e35EFEF044eE6cC14e8598A01c",
         stakedToken: "0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be", //benqi sAvax
         excludeWallets: [
-          '0xf37856a029d87dbc53cf751c4864edab919b4702'
+          '0xf37856a029d87dbc53cf751c4864edab919b4702',
+          '0x2aB1a0477504d243fD9801c94dB5181104BDa38A',
         ],
     }
 };
