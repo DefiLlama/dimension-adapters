@@ -1,74 +1,47 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDune } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 
-interface IDuneResult {
-  timestamp: number;
-  daily_revenue: number;
-}
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const query = `
+    WITH fees_tx AS (
+      SELECT
+        DATE_TRUNC('day', a.block_time) AS day,
+        SUM(a.balance_change) / 1e9 AS sol_balance,
+        SUM(a.balance_change / 1e9 * p.price) AS usdc_balance
+      FROM solana.account_activity AS a
+      LEFT JOIN prices.usd AS p
+        ON p.minute = DATE_TRUNC('minute', a.block_time)
+        AND p.blockchain = 'solana'
+        AND p.symbol = 'SOL'
+      WHERE       
+        a.address = 'feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV'
+        AND a.tx_success
+        AND a.balance_change > 0
+        AND a.block_time >= from_unixtime(${options.startTimestamp})
+        AND a.block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1
+    )
+    SELECT
+      SUM(usdc_balance) AS daily_revenue
+    FROM fees_tx
+  `;
 
-/**
- * Dune Query ID: 6421240
- * URL: https://dune.com/queries/6421240
- * 
- * Query:
- * WITH fees_tx AS (
- *   SELECT
- *     DATE_TRUNC('day', a.block_time) AS day,
- *     SUM(a.balance_change) / 1e9 AS sol_balance,
- *     SUM(a.balance_change / 1e9 * p.price) AS usdc_balance
- *   FROM solana.account_activity AS a
- *   LEFT JOIN prices.usd AS p
- *     ON p.minute = DATE_TRUNC('minute', a.block_time)
- *     AND p.blockchain = 'solana'
- *     AND p.symbol = 'SOL'
- *   WHERE       
- *     a.address = 'feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV'
- *     AND a.tx_success
- *     AND a.balance_change > 0
- *   GROUP BY 1
- * )
- * SELECT
- *   TRY_CAST(TO_UNIXTIME(day) AS INTEGER) AS timestamp,
- *   SUM(usdc_balance) AS daily_revenue
- * FROM fees_tx
- * GROUP BY day
- * ORDER BY day DESC
- */
-
-const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, endTimestamp } = options;
-  const duneData: IDuneResult[] = await queryDune("6421240");
-
-  const dailyFees = options.createBalances();
+  const data = await queryDuneSql(options, query);
   
-  // Filter for the specific day being queried
-  // startTimestamp and endTimestamp define the 24-hour period
-  duneData.forEach((item: IDuneResult) => {
-    // Only include data within the requested time range
-    if (item.timestamp >= startTimestamp && item.timestamp < endTimestamp && item.daily_revenue) {
-      dailyFees.addUSDValue(item.daily_revenue);
-    }
-  });
-
   return {
-    dailyFees,
-    dailyRevenue: dailyFees,
+    dailyFees: Number(data[0].daily_revenue) || 0,
+    dailyRevenue: Number(data[0].daily_revenue) || 0,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: 1704067200, // January 1, 2024
-    },
-  },
-  methodology: {
-    Fees: "Tracks SOL balance changes to the protocol fee address (feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV) and converts to USD using historical SOL prices",
-    Revenue: "All fees collected are considered protocol revenue",
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  start: '2024-01-01',
 };
 
 export default adapter;
