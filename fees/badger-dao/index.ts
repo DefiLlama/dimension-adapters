@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const vaults = [
     "0x4b92d19c11435614CD49Af1b589001b7c08cD4D5", // WBTC yearn vault wrapper (SimpleWrapperGatedUpgradeable)
@@ -26,8 +27,8 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: "event FeeRecipientClaimableCollSharesIncreased(uint256 _coll, uint256 _fee)"
     })
     for (const log of activePoolFeeLogs) {
-        dailyUserFees.add(stETH, log._fee);
-        dailyRevenue.add(stETH, log._fee);
+        dailyUserFees.add(stETH, log._fee, METRIC.MINT_REDEEM_FEES);
+        dailyRevenue.add(stETH, log._fee, METRIC.MINT_REDEEM_FEES);
     }
 
     const [controllers, tokens, totalSupplies] = await Promise.all([
@@ -66,22 +67,27 @@ const fetch = async (options: FetchOptions) => {
     for (let i = 0; i < vaults.length; i++) {
         if (!tokens[i] || !totalSupplies[i] || !fromPrices[i] || !toPrices[i]) continue;
         const priceShareGrowth = BigInt(toPrices[i]) - BigInt(fromPrices[i]);
-        if (priceShareGrowth <= 0n) continue;
 
         const totalYield = (BigInt(totalSupplies[i]) * priceShareGrowth) / BigInt(1e18);
+        if (totalYield <= 0) {
+            dailyFees.add(tokens[i], Number(totalYield), METRIC.ASSETS_YIELDS);
+            dailySupplySideRevenue.add(tokens[i], Number(totalYield), METRIC.ASSETS_YIELDS);
+            continue;
+        }
 
         const performanceFeeRate = (Number(performanceFeesGov[i] || 0) + Number(performanceFeesStrat[i] || 0)) / 10000;
         const withdrawalFeeRate = Number(withdrawalFees[i] || 0) / 10000;
 
         const performanceFees = Number(totalYield) * performanceFeeRate;
         const withdrawalFeesAmount = Number(totalYield) * withdrawalFeeRate;
-        const totalVaultFees = performanceFees + withdrawalFeesAmount;
-        const supplySideYield = Number(totalYield) - totalVaultFees;
+        const supplySideYield = Number(totalYield) - performanceFees - withdrawalFeesAmount;
 
-        dailyFees.add(tokens[i], Number(totalYield))
-        dailyRevenue.add(tokens[i], totalVaultFees);
-        dailyUserFees.add(tokens[i], totalVaultFees);
-        dailySupplySideRevenue.add(tokens[i], supplySideYield);
+        dailyFees.add(tokens[i], Number(totalYield), METRIC.ASSETS_YIELDS);
+        dailyRevenue.add(tokens[i], performanceFees, METRIC.PERFORMANCE_FEES);
+        dailyRevenue.add(tokens[i], withdrawalFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
+        dailyUserFees.add(tokens[i], performanceFees, METRIC.PERFORMANCE_FEES);
+        dailyUserFees.add(tokens[i], withdrawalFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
+        dailySupplySideRevenue.add(tokens[i], supplySideYield, METRIC.ASSETS_YIELDS);
     }
 
     return {
@@ -101,11 +107,30 @@ const adapter: SimpleAdapter = {
         }
     },
     methodology: {
-        Fees: "Yield generated from vault strategies.",
-        UserFees: "Fees paid by users for borrowing and vault operations.",
-        Revenue: "Fees collected paid by users.",
+        Fees: "Yield generated from supplied assets in the Badger DAO vaults.",
+        UserFees: "Fees paid by users when interacting with BadgerDAO contracts.",
+        Revenue: "All fees paid by users.",
         SupplySideRevenue: "Yield earned by vault depositors.",
-    }
+    },
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.ASSETS_YIELDS]: "Yield generated from supplied assets in the Badger DAO vaults.",
+        },
+        UserFees: {
+            [METRIC.MINT_REDEEM_FEES]: "Fees charged on eBTC redemptions.",
+            [METRIC.PERFORMANCE_FEES]: "Performance fees on generated yield in the vault strategies.",
+            [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees charged on vault withdrawals.",
+        },
+        Revenue: {
+            [METRIC.MINT_REDEEM_FEES]: "Fees collected from eBTC redemptions.",
+            [METRIC.PERFORMANCE_FEES]: "Fees collected from performance fees in the vault strategies.",
+            [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees collected from vault withdrawal fees.",
+        },
+        SupplySideRevenue: {
+            [METRIC.ASSETS_YIELDS]: "Yield earned by vault depositors.",
+        }
+    },
+    allowNegativeValue: true,
 }
 
 export default adapter;
