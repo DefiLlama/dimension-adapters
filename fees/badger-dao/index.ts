@@ -108,7 +108,7 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "Yield generated from supplied assets in the Badger DAO vaults.",
-        UserFees: "Fees paid by users when interacting with BadgerDAO contracts.",
+        UserFees: "Fees paid by users when interacting with Badger DAO contracts.",
         Revenue: "All fees paid by users.",
         SupplySideRevenue: "Yield earned by vault depositors.",
     },
@@ -124,7 +124,7 @@ const adapter: SimpleAdapter = {
         Revenue: {
             [METRIC.MINT_REDEEM_FEES]: "Fees collected from eBTC redemptions.",
             [METRIC.PERFORMANCE_FEES]: "Fees collected from performance fees in the vault strategies.",
-            [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees collected from vault withdrawal fees.",
+            [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees collected from vault withdrawals.",
         },
         SupplySideRevenue: {
             [METRIC.ASSETS_YIELDS]: "Yield earned by vault depositors.",
