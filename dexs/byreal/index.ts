@@ -1,12 +1,12 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from "../../utils/fetchURL"
 import { Agent } from "https"
 
 const agent = new Agent({ family: 4 });
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const response = await httpGet(`https://api2.byreal.io/byreal/api/dex/v1/overview/global?timestamp=${options.startOfDay * 1000}`, { httpsAgent: agent })
+const fetch = async (): Promise<FetchResultV2> => {
+  const response = await httpGet(`https://api2.byreal.io/byreal/api/dex/v2/overview/global`, { httpsAgent: agent })
   const data = response.result.data
 
   return {
@@ -20,7 +20,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
