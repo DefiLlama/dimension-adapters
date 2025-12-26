@@ -48,7 +48,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolumeBigInt = response.dailyHistories.reduce((sum, data) => sum + BigInt(data.tradeVolume), BigInt(0));
   const dailyFeesBigInt = response.dailyHistories.reduce((sum, data) => sum + BigInt(data.platformFee), BigInt(0));
   const dailyFees = formatEther(dailyFeesBigInt);
-  const dailyVolume = formatEther(dailyVolumeBigInt * 2n);
+  const dailyVolume = formatEther(dailyVolumeBigInt);
   
   // const dataDay = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   // const dataItems = await httpGet(API)
