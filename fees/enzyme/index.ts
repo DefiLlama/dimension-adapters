@@ -8,8 +8,11 @@ const BASE_URL = "https://api.onyx.enzyme.finance";
 const LIST_URL = "https://api.enzyme.finance/enzyme.enzyme.v1.EnzymeService/GetVaultList";
 
 // 🚨 Required: API key from .env
-const API_KEY = process.env.ENZYME_API_KEY;
-if (!API_KEY) throw new Error("❌ ENZYME_API_KEY missing in .env");
+const API_KEY = process.env.ENZYME_API_KEY || "9b9b20f6-4108-444f-b69b-b5183e435ad5";
+
+if (!process.env.ENZYME_API_KEY) {
+  console.log("⚠️ ENZYME_API_KEY missing in .env → using public key");
+}
 
 
 const getVaultList = async () => {
@@ -89,13 +92,13 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1640995200, // 2022-01-01 (valid historical)
+      start: 1640995200, // 2022-01-01 
     },
   },
   methodology: {
-    Fees: "Total settled performance + management fees from Enzyme fee handler trackers.",
-    Revenue: "Uses totalFeesSettled from fee-tracker components on-chain.",
-    Notes: "Daily outputs may be 0 because Enzyme settles fees irregularly, not every day.",
+   Fees: "Reads settled performance + management fees from Enzyme fee handler trackers.",
+    Revenue: "Uses totalFeesSettled as realized revenue.",
+    Notes: "Enzyme settles fees irregularly, so many days may return zero.",
   },
 };
 
