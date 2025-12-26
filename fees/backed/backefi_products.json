@@ -1,0 +1,1192 @@
+[
+  {
+    "name": "Home Depot xStock",
+    "ticker": "HDx",
+    "chains": {
+      "ethereum": "0x766b0cd6ed6d90b5d49d2c36a3761e9728501ba9",
+      "solana": "XszjVtyhowGjSC5odCqBpW1CtXXwXjYokymrk7fGKD3"
+    }
+  },
+  {
+    "name": "Procter & Gamble xStock",
+    "ticker": "PGx",
+    "chains": {
+      "ethereum": "0xa90424d5d3e770e8644103ab503ed775dd1318fd",
+      "solana": "XsYdjDjNUygZ7yGKfQaB6TxLh2gC6RRjzLtLAGJrhzV"
+    }
+  },
+  {
+    "name": "Mastercard xStock",
+    "ticker": "MAx",
+    "chains": {
+      "ethereum": "0xb365cd2588065f522d379ad19e903304f6b622c6",
+      "solana": "XsApJFV9MAktqnAc6jqzsHVujxkGm9xcSUffaBoYLKC"
+    }
+  },
+  {
+    "name": "Eli Lilly xStock",
+    "ticker": "LLYx",
+    "chains": {
+      "ethereum": "0x19c41ea77b34bbdee61c3a87a75d1abda2ed0be4",
+      "solana": "Xsnuv4omNoHozR6EEW5mXkw8Nrny5rB3jVfLqi6gKMH"
+    }
+  },
+  {
+    "name": "Visa xStock",
+    "ticker": "Vx",
+    "chains": {
+      "ethereum": "0x2363fd1235c1b6d3a5088ddf8df3a0b3a30c5293",
+      "solana": "XsqgsbXwWogGJsNcVZ3TyVouy2MbTkfCFhCGGGcQZ2p"
+    }
+  },
+  {
+    "name": "JPMorgan Chase xStock",
+    "ticker": "JPMx",
+    "chains": {
+      "ethereum": "0xd9fc3e075d45254a1d834fea18af8041207dea0a",
+      "solana": "XsMAqkcKsUewDrzVkait4e5u4y8REgtyS7jWgCpLV2C"
+    }
+  },
+  {
+    "name": "Johnson & Johnson xStock",
+    "ticker": "JNJx",
+    "chains": {
+      "ethereum": "0xdb0482cfad4789798623e64b15eeba01b16e917c",
+      "solana": "XsGVi5eo1Dh2zUpic4qACcjuWGjNv8GCt3dm5XcX6Dn"
+    }
+  },
+  {
+    "name": "Exxon Mobil xStock",
+    "ticker": "XOMx",
+    "chains": {
+      "ethereum": "0xeedb0273c5af792745180e9ff568cd01550ffa13",
+      "solana": "XsaHND8sHyfMfsWPj6kSdd5VwvCayZvjYgKmmcNL5qh"
+    }
+  },
+  {
+    "name": "UnitedHealth xStock",
+    "ticker": "UNHx",
+    "chains": {
+      "ethereum": "0x167a6375da1efc4a5be0f470e73ecefd66245048",
+      "solana": "XszvaiXGPwvk2nwb3o9C1CX4K6zH8sez11E6uyup6fe"
+    }
+  },
+  {
+    "name": "Berkshire Hathaway xStock",
+    "ticker": "BRK.Bx",
+    "chains": {
+      "ethereum": "0x12992613fdd35abe95dec5a4964331b1ee23b50d",
+      "solana": "Xs6B6zawENwAbWVi7w92rjazLuAr5Az59qgWKcNb45x"
+    }
+  },
+  {
+    "name": "Tesla xStock",
+    "ticker": "TSLAx",
+    "chains": {
+      "ethereum": "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+      "solana": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB"
+    }
+  },
+  {
+    "name": "Broadcom xStock",
+    "ticker": "AVGOx",
+    "chains": {
+      "ethereum": "0x38bac69cbbd28156796e4163b2b6dcb81e336565",
+      "solana": "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo"
+    }
+  },
+  {
+    "name": "Alphabet xStock",
+    "ticker": "GOOGLx",
+    "chains": {
+      "ethereum": "0xe92f673ca36c5e2efd2de7628f815f84807e803f",
+      "solana": "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN"
+    }
+  },
+  {
+    "name": "Meta xStock",
+    "ticker": "METAx",
+    "chains": {
+      "ethereum": "0x96702be57cd9777f835117a809c7124fe4ec989a",
+      "solana": "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu"
+    }
+  },
+  {
+    "name": "Amazon xStock",
+    "ticker": "AMZNx",
+    "chains": {
+      "ethereum": "0x3557ba345b01efa20a1bddc61f573bfd87195081",
+      "solana": "Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg"
+    }
+  },
+  {
+    "name": "Microsoft xStock",
+    "ticker": "MSFTx",
+    "chains": {
+      "ethereum": "0x5621737f42dae558b81269fcb9e9e70c19aa6b35",
+      "solana": "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX"
+    }
+  },
+  {
+    "name": "NVIDIA xStock",
+    "ticker": "NVDAx",
+    "chains": {
+      "ethereum": "0xc845b2894dbddd03858fd2d643b4ef725fe0849d",
+      "solana": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh"
+    }
+  },
+  {
+    "name": "Apple xStock",
+    "ticker": "AAPLx",
+    "chains": {
+      "ethereum": "0x9d275685dc284c8eb1c79f6aba7a63dc75ec890a",
+      "solana": "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp"
+    }
+  },
+  {
+    "name": "Backed Swiss Domestic Government Bond 0-3 (bCSBGC3)",
+    "ticker": "bCSBGC3",
+    "chains": {
+      "ethereum": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "xdai": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "polygon": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "arbitrum": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "avax": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "fantom": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "bsc": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2",
+      "base": "0xd8B95B1987741849cA7e71e976aEB535fd2e55a2"
+    }
+  },
+  {
+    "name": "Backed Tesla (bTSLA)",
+    "ticker": "bTSLA",
+    "chains": {
+      "ethereum": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "xdai": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "polygon": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "arbitrum": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "avax": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "fantom": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "bsc": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038",
+      "base": "0x14A5f2872396802C3Cc8942A39Ab3E4118EE5038"
+    }
+  },
+  {
+    "name": "Backed MicroStrategy (bMSTR)",
+    "ticker": "bMSTR",
+    "chains": {
+      "ethereum": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "xdai": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "polygon": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "arbitrum": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "avax": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "fantom": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "bsc": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422",
+      "base": "0xaC28C9178ACc8BA4A11A29E013a3A2627086e422"
+    }
+  },
+  {
+    "name": "Backed Alphabet Class A (bGOOGL)",
+    "ticker": "bGOOGL",
+    "chains": {
+      "ethereum": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "xdai": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "polygon": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "arbitrum": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "avax": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "fantom": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "bsc": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32",
+      "base": "0xEbee37Aaf2905b7BdA7E3b928043862e982E8F32"
+    }
+  },
+  {
+    "name": "Backed Microsoft (bMSFT)",
+    "ticker": "bMSFT",
+    "chains": {
+      "ethereum": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "xdai": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "polygon": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "arbitrum": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "avax": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "fantom": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "bsc": "0x374A457967Ba24FD3Ae66294cAb08244185574b0",
+      "base": "0x374A457967Ba24FD3Ae66294cAb08244185574b0"
+    }
+  },
+  {
+    "name": "Backed GameStop (bGME)",
+    "ticker": "bGME",
+    "chains": {
+      "ethereum": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "xdai": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "polygon": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "arbitrum": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "avax": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "fantom": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "bsc": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323",
+      "base": "0x7212088A11b4d8f6FC90fbB3dfE793B45dd72323"
+    }
+  },
+  {
+    "name": "Backed NVIDIA (bNVDA)",
+    "ticker": "bNVDA",
+    "chains": {
+      "ethereum": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "xdai": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "polygon": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "arbitrum": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "avax": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "fantom": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "bsc": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495",
+      "base": "0xA34C5e0AbE843E10461E2C9586Ea03E55Dbcc495"
+    }
+  },
+  {
+    "name": "Backed ZPR1 $ 1-3 Month T-Bill (bZPR1)",
+    "ticker": "bZPR1",
+    "chains": {
+      "ethereum": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "xdai": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "polygon": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "arbitrum": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "avax": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "fantom": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "bsc": "0xade6057fcafa57d6d51ffa341c64ce4814995995",
+      "base": "0xade6057fcafa57d6d51ffa341c64ce4814995995"
+    }
+  },
+  {
+    "name": "Backed ERNX € Ultrashort Bond (bERNX)",
+    "ticker": "bERNX",
+    "chains": {
+      "ethereum": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "xdai": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "polygon": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "arbitrum": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "avax": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "fantom": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "bsc": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9",
+      "base": "0x3f95aa88ddbb7d9d484aa3d482bf0a80009c52c9"
+    }
+  },
+  {
+    "name": "Backed ERNA $ Ultrashort Bond (bERNA)",
+    "ticker": "bERNA",
+    "chains": {
+      "ethereum": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "xdai": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "polygon": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "arbitrum": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "avax": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "fantom": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "bsc": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245",
+      "base": "0x0f76d32cdccdcbd602a55af23eaf58fd1ee17245"
+    }
+  },
+  {
+    "name": "Backed GOVIES 0-6 Months Euro Investment Grade (bC3M)",
+    "ticker": "bC3M",
+    "chains": {
+      "ethereum": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "xdai": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "polygon": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "arbitrum": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "avax": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "fantom": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "bsc": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7",
+      "base": "0x2f123cf3f37ce3328cc9b5b8415f9ec5109b45e7"
+    }
+  },
+  {
+    "name": "Backed HIGH € High Yield Corp Bond (bHIGH)",
+    "ticker": "bHIGH",
+    "chains": {
+      "ethereum": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "xdai": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "polygon": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "arbitrum": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "avax": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "fantom": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "bsc": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a",
+      "base": "0x20c64dee8fda5269a78f2d5bdba861ca1d83df7a"
+    }
+  },
+  {
+    "name": "Backed IB01 $ Treasury Bond 0-1yr (bIB01)",
+    "ticker": "bIB01",
+    "chains": {
+      "ethereum": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "xdai": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "polygon": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "arbitrum": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "avax": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "fantom": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "bsc": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5",
+      "base": "0xca30c93b02514f86d5c86a6e375e3a330b435fb5"
+    }
+  },
+  {
+    "name": "Backed IBTA $ Treasury Bond 1-3yr (bIBTA)",
+    "ticker": "bIBTA",
+    "chains": {
+      "ethereum": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "xdai": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "polygon": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "arbitrum": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "avax": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "fantom": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "bsc": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4",
+      "base": "0x52d134c6db5889fad3542a09eaf7aa90c0fdf9e4"
+    }
+  },
+  {
+    "name": "Backed Niu Technologies (bNIU)",
+    "ticker": "bNIU",
+    "chains": {
+      "ethereum": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "xdai": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "polygon": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "arbitrum": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "avax": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "fantom": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "bsc": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86",
+      "base": "0x2f11eeee0bf21e7661a22dbbbb9068f4ad191b86"
+    }
+  },
+  {
+    "name": "Backed Coinbase Global (bCOIN)",
+    "ticker": "bCOIN",
+    "chains": {
+      "ethereum": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "xdai": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "polygon": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "arbitrum": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "avax": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "fantom": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "bsc": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9",
+      "base": "0xbbcb0356bb9e6b3faa5cbf9e5f36185d53403ac9"
+    }
+  },
+  {
+    "name": "Backed CSPX Core S&P 500 (bCSPX)",
+    "ticker": "bCSPX",
+    "chains": {
+      "ethereum": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "xdai": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "polygon": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "arbitrum": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "avax": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "fantom": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "bsc": "0x1e2c4fb7ede391d116e6b41cd0608260e8801d59",
+      "base": "0xc3ce78b037dda1b966d31ec7979d3f3a38571a8e"
+    }
+  },
+  {
+    "name": "Strategy PP Fixed xStock",
+    "ticker": "STRKx",
+    "chains": {
+      "ethereum": "0x38e0445308e7fcd5230f2df6b52b36dd4ff313b6",
+      "solana": "XsaQGz41BEQkS9xAB44uvUtuXcdLJAXEU1dogEzWMZ8"
+    }
+  },
+  {
+    "name": "Strategy PP Variable xStock",
+    "ticker": "STRCx",
+    "chains": {
+      "ethereum": "0x1aad217b8f78dba5e6693460e8470f8b1a3977f3",
+      "solana": "Xs78JED6PFZxWc2wCEPspZW9kL3Se5J7L5TChKgsidH",
+      "mantle": "0x1aad217b8f78dba5e6693460e8470f8b1a3977f3",
+      "ton": "EQCY_xOUxnGsF91w0w3azMdk1SMdBKNr7kJedDWTZlQ13duK"
+    }
+  },
+  {
+    "name": "Vanguard Total World xStock",
+    "ticker": "VTx",
+    "chains": {
+      "ethereum": "0x6d5edeebbc6a4099eb8bb289eb3b80d799f7b28c",
+      "solana": "XsEdDDTcVGJU6nvdRdVnj53eKTrsCkvtrVfXGmUK68V",
+      "mantle": "0x6d5edeebbc6a4099eb8bb289eb3b80d799f7b28c",
+      "ton": "EQDpGw69jwZzqdt88kwd7dUymmg5W0-yE5IvS5ATsgdl5xcI"
+    }
+  },
+  {
+    "name": "Schwab International Equity xStock",
+    "ticker": "SCHFx",
+    "chains": {
+      "ethereum": "0xf6d87e523512704c29e9b7ca3e9e6226bdce3ea1",
+      "solana": "XsWAnFM77x6YvpdaZoos79R12o4Yj4r7EVkaTWddzhU",
+      "mantle": "0xf6d87e523512704c29e9b7ca3e9e6226bdce3ea1",
+      "ton": "EQAnmAKsa_mCXoefjzecmjXMnt5OqURjT-OFD5hyT1N3hKTy"
+    }
+  },
+  {
+    "name": "Core MSCI Emerging Markets xStock",
+    "ticker": "IEMGx",
+    "chains": {
+      "ethereum": "0x6a668332825450acd2e449372057d31b3de16a1e",
+      "solana": "XsFnZawJdLdXfBSEt5Vw29K5vdBiHotdPLjUPafpfHs",
+      "mantle": "0x6a668332825450acd2e449372057d31b3de16a1e",
+      "ton": "EQAHhPaDyRyXJjwGDXBBngtmCSmHFiqpTLqT3c67ouDmjldK"
+    }
+  },
+  {
+    "name": "S&P Small Cap xStock",
+    "ticker": "IJRx",
+    "chains": {
+      "ethereum": "0xaa28cb97d7f7e172f54dee950743886d2d65447d",
+      "solana": "XsyZcb97BzETAqi9BoP2C9D196MiMNBisGMVNje2Thz"
+    }
+  },
+  {
+    "name": "Russell 2000 xStock",
+    "ticker": "IWMx",
+    "chains": {
+      "ethereum": "0xdadfb355c6110eda0908740d52c834d6c2bcddc7",
+      "solana": "XsbELVbLGBkn7xfMfyYuUipKGt1iRUc2B7pYRvFTFu3"
+    }
+  },
+  {
+    "name": "Figma xStock",
+    "ticker": "FIGx",
+    "chains": {
+      "ethereum": "0x3c313d234d0c6c876f6c21ba2ec1f26823247be2",
+      "solana": "XssfYT48PeXG2EmNdEaVtQcveNhxYnM42KTqdjmiBS9"
+    }
+  },
+  {
+    "name": "S&P Global xStock",
+    "ticker": "SPGIx",
+    "chains": {
+      "ethereum": "0xd3c5af6b2f0f754b2141f368cfc5ea99c3594d3a",
+      "solana": "XsTuW2zaiPbzgrnQ7b4Z99zeULMM7gPxppE61CtpyDj"
+    }
+  },
+  {
+    "name": "Booking xStock",
+    "ticker": "BKNGx",
+    "chains": {
+      "ethereum": "0xa8a25db6cf17fa097f1dbbc9c841892456898ff3",
+      "solana": "XseQvfvuDT3KHKiwPNW1gcjfHbFjEMVTV5NJzDdNQmu"
+    }
+  },
+  {
+    "name": "AT&T xStock",
+    "ticker": "Tx",
+    "chains": {
+      "ethereum": "0x75639ae3a05079873d7189dcbdbc455898cae904",
+      "solana": "XsqML71RLbyUM3CmY4EYN88zE6BJkpvJACnUKBdGD3x"
+    }
+  },
+  {
+    "name": "T-Mobile xStock",
+    "ticker": "TMUSx",
+    "chains": {
+      "ethereum": "0x68f3ddee8bae33691e7cd0372984fd857e842760",
+      "solana": "XswCi2U1G6Ppbw1QhG45yKb8UKuR1FKLJrquv2FZSD4"
+    }
+  },
+  {
+    "name": "Bit Digital xStock",
+    "ticker": "BTBTx",
+    "chains": {
+      "ethereum": "0x22e1991e5f82736a2a990322a46aac0e95826c5b",
+      "solana": "XsPLBFy59Q3hY59KLAJur8QyvziMF4xUxGTxXqXE7cT"
+    }
+  },
+  {
+    "name": "Hut 8 xStock",
+    "ticker": "HUTx",
+    "chains": {
+      "ethereum": "0x560deb3d70ac90064ff809349cdf9ebb4e4f68bb",
+      "solana": "XsG5QyZTQnVSpsXRpD92K5ZGoxXjsmfTyx7fW7r18DV"
+    }
+  },
+  {
+    "name": "Core Scientific xStock",
+    "ticker": "CORZx",
+    "chains": {
+      "ethereum": "0x51ed5b74a05f256dbd9ebb4e4f68bb41ba10160b",
+      "solana": "XsBGEXxbBcuu8Nrokj14G8v4ezT3JYWWLneTzXK8t6Z"
+    }
+  },
+  {
+    "name": "Rocket Lab xStock",
+    "ticker": "RKLBx",
+    "chains": {
+      "ethereum": "0xe17ce7dd2afb6da3488fd9ef2558523d569e17b4",
+      "solana": "XsKSh3QDynp6oms9yHjZXbZo3pKzUBoqUFKPHS2g9Bh"
+    }
+  },
+  {
+    "name": "Planet Labs xStock",
+    "ticker": "PLx",
+    "chains": {
+      "ethereum": "0x536825370f1159cba953055f5c2f16ddc7b5a348",
+      "solana": "XsMJtFbb8BwzQtck3oRXyAfs7SAPRuTXnSEDNd7BAVz"
+    }
+  },
+  {
+    "name": "Virgin Galactic xStock",
+    "ticker": "SPCEx",
+    "chains": {
+      "ethereum": "0x7f8ba411ecbc0a135d669d5eae5d15b0ca0b0ea1",
+      "solana": "Xsgrm4D6VBTfDx5bs7GNdjtmWDgZ8V79r3YpsYwf5py"
+    }
+  },
+  {
+    "name": "Monster xStock",
+    "ticker": "MNSTx",
+    "chains": {
+      "ethereum": "0x8499b26bbfc8c3830a37b92e47df2d7cbc0154e9",
+      "solana": "XsyusqQvb8RDULsY9szwvUv2CxrDKa642w7kecZPdRM"
+    }
+  },
+  {
+    "name": "American Express xStock",
+    "ticker": "AXPx",
+    "chains": {
+      "ethereum": "0xb23767492d0ca6dc7221cbea45689a0410f388c4",
+      "solana": "XstYR6KGqZFchAuhHoEe4mL8W2kL9aqGW1EDBKRrmGB"
+    }
+  },
+  {
+    "name": "Warner Bros. Discovery xStock",
+    "ticker": "WBDx",
+    "chains": {
+      "ethereum": "0xc435b3c41ae56d9bc57b8525f4d522c978f168e8",
+      "solana": "XsZUSqxAXKJkEimvD4CoVvEb4WUC92TFgj5zRtBxFeL"
+    }
+  },
+  {
+    "name": "Micron Technology xStock",
+    "ticker": "MUx",
+    "chains": {
+      "ethereum": "0xf6a873bae4ba1b304e45df52a4b7d176e1c6a8c4",
+      "solana": "XsQLZycSZ7QnBBdBXQaTbQdiUcbRqjNJgyBGAMzhHav"
+    }
+  },
+  {
+    "name": "Roblox xStock",
+    "ticker": "RBLXx",
+    "chains": {
+      "ethereum": "0x5d8da1417e3565eb02c9ca8cc588be5d8f65b1c5",
+      "solana": "Xss5RAku5EH6UViFdvW7ss9xQjwQLsrs2opPMhb3k43"
+    }
+  },
+  {
+    "name": "Palo Alto Networks xStock",
+    "ticker": "PANWx",
+    "chains": {
+      "ethereum": "0xe12bb32d77be4db10ddc82088b230d35d097e9c5",
+      "solana": "XsQ6NfzzLH8nspjrB9X8R2K64Zz7Tnxqu12juDiMPMW"
+    }
+  },
+  {
+    "name": "Vistra xStock",
+    "ticker": "VSTx",
+    "chains": {
+      "ethereum": "0x7ab6c97f65e4227adc5090bd31a376d1f36f39fa",
+      "solana": "Xs936JPaWKEXmpu54DZ149GETV7PmsnTqnMWxgcPNAj"
+    }
+  },
+  {
+    "name": "Tempus AI xStock",
+    "ticker": "TEMx",
+    "chains": {
+      "ethereum": "0x61aee4f4e6b62806c26eaff921e7f41782ca2e03",
+      "solana": "XsBgbNRDujfznQq8P4NLKEkRTbPxUVt4v1xwkDzMMtQ"
+    }
+  },
+  {
+    "name": "lululemon xStock",
+    "ticker": "LULUx",
+    "chains": {
+      "ethereum": "0x847deb9c78fb00319bc7a006dff729c11428e537",
+      "solana": "XsDmtC5EpfzJoCzDN2SJP98xpCsSR2CqdZauJSvHNXT"
+    }
+  },
+  {
+    "name": "ASML xStock",
+    "ticker": "ASMLx",
+    "chains": {
+      "ethereum": "0xc0b417e7f83db438631eb5e096684dd742e5294f",
+      "solana": "XshuHQ6o6SVpUNawvnnTMxsZ4tacZsNgVCLorv7TkFq"
+    }
+  },
+  {
+    "name": "AMD xStock",
+    "ticker": "AMDx",
+    "chains": {
+      "ethereum": "0x3522513e5f146a2006e2901b05f16b2821485e19",
+      "solana": "XsXcJ6GZ9kVnjqGsjBnktRcuwMBmvKWh8S93RefZ1rF"
+    }
+  },
+  {
+    "name": "TSMC xStock",
+    "ticker": "TSMx",
+    "chains": {
+      "ethereum": "0x9e3bf4ecfc44eedd624f26656b6736a3f093b073",
+      "solana": "XsafvsGtzFqqHgTnA3aPC83EAMkacU5mcGtcSayhpVV"
+    }
+  },
+  {
+    "name": "Wendy's xStock",
+    "ticker": "WENx",
+    "chains": {
+      "ethereum": "0xfeee18422f8f1cd6193c12aafad7123dbff15517",
+      "solana": "Xs4uNhvBDAcp2mz3g9XR5q3vzLgmF1ANWxJgWk2d5u3"
+    }
+  },
+  {
+    "name": "Duolingo xStock",
+    "ticker": "DUOLx",
+    "chains": {
+      "ethereum": "0x03d44b9bb0398e2be3c89417d51e615c3d461f5a",
+      "solana": "Xs1CqRVt2mGVfMSHf7M6cDhkjpw8HDF14XbQNzDnGg4"
+    }
+  },
+  {
+    "name": "AST SpaceMobile xStock",
+    "ticker": "ASTSx",
+    "chains": {
+      "ethereum": "0x89b2607878ae19bab8020b8140ed550ef3e953bb",
+      "solana": "XsR4LAtaBgTKTRUhiijY1ba13nx4bepeEcag2Pr4dZ1"
+    }
+  },
+  {
+    "name": "Expedia xStock",
+    "ticker": "EXPEx",
+    "chains": {
+      "ethereum": "0xd1be5ba0c293997c7f69da707d14eb4abcb13ddd",
+      "solana": "XsFj75v4Tw8TWSDaDoVTHF8RAjEEkmUeKgoRjB9DHsf"
+    }
+  },
+  {
+    "name": "Helius Medical Technologies xStock",
+    "ticker": "HSDTx",
+    "chains": {
+      "ethereum": "0xd457b379801433ea5c3a8542b61902023ae39dcd",
+      "solana": "XsicTFC7G68d74FaYDctWggkKDgkMx8LpNoFNr81TrF"
+    }
+  },
+  {
+    "name": "Costco xStock",
+    "ticker": "COSTx",
+    "chains": {
+      "ethereum": "0x4720b5e6421e6879132aed52040d56bb6e5cfeef",
+      "solana": "XsiRaD8qZm1P3KViowDYFS8rZ8BYT2g7ZEeyztthRye"
+    }
+  },
+  {
+    "name": "Target xStock",
+    "ticker": "TGTx",
+    "chains": {
+      "ethereum": "0xab6a44ad34d083f463fa6f64d0619f11eb2cb48d",
+      "solana": "XsjXR5jf4d4GNpJXwLvEBTMwK3ZYro2qZGgvUCzyJrx"
+    }
+  },
+  {
+    "name": "PayPal xStock",
+    "ticker": "PYPLx",
+    "chains": {
+      "ethereum": "0xf706585e7e8900be0267bee3b9a2f70835ec6628",
+      "solana": "XshWQWYVp5ff8CrAEsGmLVKD47nBWi3Ygn5v8wXK27G"
+    }
+  },
+  {
+    "name": "eBay xStock",
+    "ticker": "EBAYx",
+    "chains": {
+      "ethereum": "0x4c7610990cb63cdca174ce61822f7693b49fce93",
+      "solana": "XsDYSbgLh3T7oh59UmRX1F5WjDgJD3nmzACaG5LR1MB"
+    }
+  },
+  {
+    "name": "BitFuFu xStock",
+    "ticker": "FUFUx",
+    "chains": {
+      "ethereum": "0x3ae27479e6e52f6ddb6ea8aa567e6cc92c78d93a",
+      "solana": "XsHt1AVPshZpfFWGGpooJ8tdeGknUQVJ9CwhvKrnZrw"
+    }
+  },
+  {
+    "name": "CleanSpark xStock",
+    "ticker": "CLSKx",
+    "chains": {
+      "ethereum": "0xd0194f0f077968da8ca59811e9407f54ae6c9432",
+      "solana": "Xsn3H7ACEpSF2ULxeiD6kW4jRZXpurh8ZPttyfoS56W"
+    }
+  },
+  {
+    "name": "SharpLink Gaming xStock",
+    "ticker": "SBETx",
+    "chains": {
+      "ethereum": "0x338791c58fded314b81eab139a1a2fb7967d90d6",
+      "solana": "XsEoih2x6nZuUjFwzGoba6MFmtzCkzW2c4YAm6baQbq"
+    }
+  },
+  {
+    "name": "Uber xStock",
+    "ticker": "UBERx",
+    "chains": {
+      "ethereum": "0xdb9783ca04bbd64fe2c6d7b9503a979b3de30729",
+      "solana": "XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB"
+    }
+  },
+  {
+    "name": "BlackRock xStock",
+    "ticker": "BLKx",
+    "chains": {
+      "ethereum": "0x5a6a0742ca689e7e8a91a38f5255589cb2191646",
+      "solana": "Xs5ywCCaayf3TFdxFxuJCr25XMoqY6vdfJKkSHE4D6r"
+    }
+  },
+  {
+    "name": "Adobe xStock",
+    "ticker": "ADBEx",
+    "chains": {
+      "ethereum": "0x16e0b579be45baae54ceddd52e742b6457a7fe12",
+      "solana": "XsDZMGEU8zadWFCkTtPBoPWYcUX3JHVmghnwf2Mve2q"
+    }
+  },
+  {
+    "name": "TeraWulf xStock",
+    "ticker": "WULFx",
+    "chains": {
+      "ethereum": "0xc0c2150cf0870e2d7abc7cde17c20a542fafbb9b",
+      "solana": "XsuwUbQSzCJN2wZabD1Gxf1MER2Ypa7hMzVMYB2WawJ"
+    }
+  },
+  {
+    "name": "Riot Platforms xStock",
+    "ticker": "RIOTx",
+    "chains": {
+      "ethereum": "0x6ac47387f0a2798df4c4ee5bb31ab9517ac97cb8",
+      "solana": "Xs31mE5EiqjSHEaiX9QDKCN6NvSGCqpJ6f1FNq2wri5"
+    }
+  },
+  {
+    "name": "MARA xStock",
+    "ticker": "MARAx",
+    "chains": {
+      "ethereum": "0x9d692bffef6f6bedf4274053ff9998efe3b2539e",
+      "solana": "XsguBZPkM9BDmxspmWe29EmrYZBv21ENcC27Pqh7grB"
+    }
+  },
+  {
+    "name": "Oklo xStock",
+    "ticker": "OKLOx",
+    "chains": {
+      "ethereum": "0x4b0ee7c047d43ca403239f28f42115bedb7c0076",
+      "solana": "XsJb1p4Ks6VFggq68JyMz7S3kdRfkqh4wA6EMyxi4DD"
+    }
+  },
+  {
+    "name": "Galaxy Digital xStock",
+    "ticker": "GLXYx",
+    "chains": {
+      "ethereum": "0xf7f4fac56f012de7dd6adff54c761986b9e0655a",
+      "solana": "Xs3c2aZenyRQwXjki5MDxJEJ2km27ef2rWQMFWx7QKJ"
+    }
+  },
+  {
+    "name": "Bullish xStock",
+    "ticker": "BLSHx",
+    "chains": {
+      "ethereum": "0x38de7b9fc733def81525e65c1bf99722026489e2",
+      "solana": "XsRiRZg9NGkL3WEZZmqnxvxEoyeHG8LhgzMQF2HRE6F"
+    }
+  },
+  {
+    "name": "Tron xStock",
+    "ticker": "TRONx",
+    "chains": {
+      "ethereum": "0xecf59a3fd0224d33429920f8fa6de493abc4efc0",
+      "solana": "XsRrH4fDA27xfyDjpcwefvcBdHCXs34krUuaXGEXzqz"
+    }
+  },
+  {
+    "name": "SUI xStock",
+    "ticker": "SUIGx",
+    "chains": {
+      "ethereum": "0xecf59a3fd0224d33429920f8fa6de493abc4efc0",
+      "solana": "XsRrH4fDA27xfyDjpcwefvcBdHCXs34krUuaXGEXzqz"
+    }
+  },
+  {
+    "name": "Bitmine xStock",
+    "ticker": "BMNRx",
+    "chains": {
+      "ethereum": "0xaeb681b69e5094e04d11bcef51a71358a374c3ed",
+      "solana": "XsrBCwaH8c46xiqXBChzobgufRKxQxAWUWbndgBNzFn"
+    }
+  },
+  {
+    "name": "TON xStock",
+    "ticker": "TONXx",
+    "chains": {
+      "ethereum": "0xe95ab205e333443d7970336d5fd827ef9ed97608",
+      "solana": "XscE4GUcsYhcyZu5ATiGUMmhxYa1D5fwbpJw4K6K4dp"
+    }
+  },
+  {
+    "name": "TBLL xStock",
+    "ticker": "TBLLx",
+    "chains": {
+      "ethereum": "0x4cbf89ed7bb30b8a860fa86d3c96e9c72931299b",
+      "solana": "XsqBC5tcVQLYt8wqGCHRnAUUecbRYXoJCReD6w7QEKp"
+    }
+  },
+  {
+    "name": "OPEN xStock",
+    "ticker": "OPENx",
+    "chains": {
+      "ethereum": "0xbee6b69345f376598fe16abd5592c6f844825e66",
+      "solana": "XsGtpmjhmC8kyjVSWL4VicGu36ceq9u55PTgF8bhGv6"
+    }
+  },
+  {
+    "name": "DFDV xStock",
+    "ticker": "DFDVx",
+    "chains": {
+      "ethereum": "0x521860bb5df5468358875266b89bfe90d990c6e7",
+      "solana": "Xs2yquAgsHByNzx68WJC55WHjHBvG9JsMB7CWjTLyPy"
+    }
+  },
+  {
+    "name": "Circle xStock",
+    "ticker": "CRCLx",
+    "chains": {
+      "ethereum": "0xfebded1b0986a8ee107f5ab1a1c5a813491deceb",
+      "solana": "XsueG8BtpquVJX9LVLLEGuViXUungE6WmK5YZ3p3bd1"
+    }
+  },
+  {
+    "name": "Amber xStock",
+    "ticker": "AMBRx",
+    "chains": {
+      "ethereum": "0x2f9a35ab5ddfbc49927bfdeab98a86c53dc6e763",
+      "solana": "XsaQTCgebC2KPbf27KUhdv5JFvHhQ4GDAPURwrEhAzb"
+    }
+  },
+  {
+    "name": "TQQQ xStock",
+    "ticker": "TQQQx",
+    "chains": {
+      "ethereum": "0xfdddb57878ef9d6f681ec4381dcb626b9e69ac86",
+      "solana": "XsjQP3iMAaQ3kQScQKthQpx9ALRbjKAjQtHg6TFomoc"
+    }
+  },
+  {
+    "name": "Gold xStock",
+    "ticker": "GLDx",
+    "chains": {
+      "ethereum": "0x2380f2673c640fb67e2d6b55b44c62f0e0e69da9",
+      "solana": "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re"
+    }
+  },
+  {
+    "name": "Vanguard xStock",
+    "ticker": "VTIx",
+    "chains": {
+      "ethereum": "0xbd730e618bcd88c82ddee52e10275cf2f88a4777",
+      "solana": "XsssYEQjzxBCFgvYFFNuhJFBeHNdLWYeUSP8F45cDr9"
+    }
+  },
+  {
+    "name": "Nasdaq xStock",
+    "ticker": "QQQx",
+    "chains": {
+      "ethereum": "0xa753a7395cae905cd615da0b82a53e0560f250af",
+      "solana": "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ"
+    }
+  },
+  {
+    "name": "SP500 xStock",
+    "ticker": "SPYx",
+    "chains": {
+      "ethereum": "0x90a2a4c76b5d8c0bc892a69ea28aa775a8f2dd48",
+      "solana": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W"
+    }
+  },
+  {
+    "name": "Coinbase xStock",
+    "ticker": "COINx",
+    "chains": {
+      "ethereum": "0x364f210f430ec2448fc68a49203040f6124096f0",
+      "solana": "Xs7ZdzSHLU9ftNJsii5fCeJhoRWSC32SQGzGQtePxNu"
+    }
+  },
+  {
+    "name": "Gamestop xStock",
+    "ticker": "GMEx",
+    "chains": {
+      "ethereum": "0xe5f6d3b2405abdfe6f660e63202b25d23763160d",
+      "solana": "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc"
+    }
+  },
+  {
+    "name": "Goldman Sachs xStock",
+    "ticker": "GSx",
+    "chains": {
+      "ethereum": "0x3ee7e9b3a992fd23cd1c363b0e296856b04ab149",
+      "solana": "XsgaUyp4jd1fNBCxgtTKkW64xnnhQcvgaxzsbAq5ZD1"
+    }
+  },
+  {
+    "name": "CrowdStrike xStock",
+    "ticker": "CRWDx",
+    "chains": {
+      "ethereum": "0x214151022c2a5e380ab80cdac31f23ae554a7345",
+      "solana": "Xs7xXqkcK7K8urEqGg52SECi79dRp2cEKKuYjUePYDw"
+    }
+  },
+  {
+    "name": "Robinhood xStock",
+    "ticker": "HOODx",
+    "chains": {
+      "ethereum": "0xe1385fdd5ffb10081cd52c56584f25efa9084015",
+      "solana": "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg"
+    }
+  },
+  {
+    "name": "Marvell xStock",
+    "ticker": "MRVLx",
+    "chains": {
+      "ethereum": "0xeaad46f4146ded5a47b55aa7f6c48c191deaec88",
+      "solana": "XsuxRGDzbLjnJ72v74b7p9VY6N66uYgTCyfwwRjVCJA"
+    }
+  },
+  {
+    "name": "AppLovin xStock",
+    "ticker": "APPx",
+    "chains": {
+      "ethereum": "0x50a1291f69d9d3853def8209cfb1af0b46927be1",
+      "solana": "XsPdAVBi8Zc1xvv53k4JcMrQaEDTgkGqKYeh7AYgPHV"
+    }
+  },
+  {
+    "name": "MicroStrategy xStock",
+    "ticker": "MSTRx",
+    "chains": {
+      "ethereum": "0xae2f842ef90c0d5213259ab82639d5bbf649b08e",
+      "solana": "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ"
+    }
+  },
+  {
+    "name": "Palantir xStock",
+    "ticker": "PLTRx",
+    "chains": {
+      "ethereum": "0x6d482cec5f9dd1f05ccee9fd3ff79b246170f8e2",
+      "solana": "XsoBhf2ufR8fTyNSjqfU71DYGaE6Z3SUGAidpzriAA4"
+    }
+  },
+  {
+    "name": "Accenture xStock",
+    "ticker": "ACNx",
+    "chains": {
+      "ethereum": "0x03183ce31b1656b72a55fa6056e287f50c35bbeb",
+      "solana": "Xs5UJzmCRQ8DWZjskExdSQDnbE6iLkRu2jjrRAB1JSU"
+    }
+  },
+  {
+    "name": "Intel xStock",
+    "ticker": "INTCx",
+    "chains": {
+      "ethereum": "0xf8a80d1cb9cfd70d03d655d9df42339846f3b3c8",
+      "solana": "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM"
+    }
+  },
+  {
+    "name": "Philip Morris xStock",
+    "ticker": "PMx",
+    "chains": {
+      "ethereum": "0x02a6c1789c3b4fdb1a7a3dfa39f90e5d3c94f4f9",
+      "solana": "Xsba6tUnSjDae2VcopDB6FGGDaxRrewFCDa5hKn5vT3"
+    }
+  },
+  {
+    "name": "Honeywell xStock",
+    "ticker": "HONx",
+    "chains": {
+      "ethereum": "0x62a48560861b0b451654bfffdb5be6e47aa8ff1b",
+      "solana": "XsRbLZthfABAPAfumWNEJhPyiKDW6TvDVeAeW7oKqA2"
+    }
+  },
+  {
+    "name": "Medtronic xStock",
+    "ticker": "MDTx",
+    "chains": {
+      "ethereum": "0x0588e851ec0418d660bee81230d6c678daf21d46",
+      "solana": "XsDgw22qRLTv5Uwuzn6T63cW69exG41T6gwQhEK22u2"
+    }
+  },
+  {
+    "name": "Comcast xStock",
+    "ticker": "CMCSAx",
+    "chains": {
+      "ethereum": "0xbc7170a1280be28513b4e940c681537eb25e39f4",
+      "solana": "XsvKCaNsxg2GN8jjUmq71qukMJr7Q1c5R2Mk9P8kcS8"
+    }
+  },
+  {
+    "name": "International Business Machines xStock",
+    "ticker": "IBMx",
+    "chains": {
+      "ethereum": "0xd9913208647671fe0f48f7f260076b2c6f310aac",
+      "solana": "XspwhyYPdWVM8XBHZnpS9hgyag9MKjLRyE3tVfmCbSr"
+    }
+  },
+  {
+    "name": "Danaher xStock",
+    "ticker": "DHRx",
+    "chains": {
+      "ethereum": "0xdba228936f4079daf9aa906fd48a87f2300405f4",
+      "solana": "Xseo8tgCZfkHxWS9xbFYeKFyMSbWEvZGFV1Gh53GtCV"
+    }
+  },
+  {
+    "name": "McDonald's xStock",
+    "ticker": "MCDx",
+    "chains": {
+      "ethereum": "0x80a77a372c1e12accda84299492f404902e2da67",
+      "solana": "XsqE9cRRpzxcGKDXj1BJ7Xmg4GRhZoyY1KpmGSxAWT2"
+    }
+  },
+  {
+    "name": "Netflix xStock",
+    "ticker": "NFLXx",
+    "chains": {
+      "ethereum": "0xa6a65ac27e76cd53cb790473e4345c46e5ebf961",
+      "solana": "XsEH7wWfJJu2ZT3UCFeVfALnVA6CP5ur7Ee11KmzVpL"
+    }
+  },
+  {
+    "name": "Abbott xStock",
+    "ticker": "ABTx",
+    "chains": {
+      "ethereum": "0x89233399708c18ac6887f90a2b4cd8ba5fedd06e",
+      "solana": "XsHtf5RpxsQ7jeJ9ivNewouZKJHbPxhPoEy6yYvULr7"
+    }
+  },
+  {
+    "name": "Bank of America xStock",
+    "ticker": "BACx",
+    "chains": {
+      "ethereum": "0x314938c596f5ce31c3f75307d2979338c346d7f2",
+      "solana": "XswsQk4duEQmCbGzfqUUWYmi7pV7xpJ9eEmLHXCaEQP"
+    }
+  },
+  {
+    "name": "Thermo Fisher xStock",
+    "ticker": "TMOx",
+    "chains": {
+      "ethereum": "0xaf072f109a2c173d822a4fe9af311a1b18f83d19",
+      "solana": "Xs8drBWy3Sd5QY3aifG9kt9KFs2K3PGZmx7jWrsrk57"
+    }
+  },
+  {
+    "name": "AstraZeneca xStock",
+    "ticker": "AZNx",
+    "chains": {
+      "ethereum": "0x5d642505fe1a28897eb3baba665f454755d8daa2",
+      "solana": "Xs3ZFkPYT2BN7qBMqf1j1bfTeTm1rFzEFSsQ1z3wAKU"
+    }
+  },
+  {
+    "name": "Salesforce xStock",
+    "ticker": "CRMx",
+    "chains": {
+      "ethereum": "0x4a4073f2eaf299a1be22254dcd2c41727f6f54a2",
+      "solana": "XsczbcQ3zfcgAEt9qHQES8pxKAVG5rujPSHQEXi4kaN"
+    }
+  },
+  {
+    "name": "Linde xStock",
+    "ticker": "LINx",
+    "chains": {
+      "ethereum": "0x15059c599c16fd8f70b633ade165502d6402cd49",
+      "solana": "XsSr8anD1hkvNMu8XQiVcmiaTP7XGvYu7Q58LdmtE8Z"
+    }
+  },
+  {
+    "name": "Oracle xStock",
+    "ticker": "ORCLx",
+    "chains": {
+      "ethereum": "0x548308e91ec9f285c7bff05295badbd56a6e4971",
+      "solana": "XsjFwUPiLofddX5cWFHW35GCbXcSu1BCUGfxoQAQjeL"
+    }
+  },
+  {
+    "name": "Novo Nordisk xStock",
+    "ticker": "NVOx",
+    "chains": {
+      "ethereum": "0xf9523e369c5f55ad72dbaa75b0a9b92b3d8b147e",
+      "solana": "XsfAzPzYrYjd4Dpa9BU3cusBsvWfVB9gBcyGC87S57n"
+    }
+  },
+  {
+    "name": "Cisco xStock",
+    "ticker": "CSCOx",
+    "chains": {
+      "ethereum": "0x053c784cd87b74f42e0c089f98643e79c1a3ff16",
+      "solana": "Xsr3pdLQyXvDJBFgpR5nexCEZwXvigb8wbPYp4YoNFf"
+    }
+  },
+  {
+    "name": "Walmart xStock",
+    "ticker": "WMTx",
+    "chains": {
+      "ethereum": "0x7aefc9965699fbea943e03264d96e50cd4a97b21",
+      "solana": "Xs151QeqTCiuKtinzfRATnUESM2xTU6V9Wy8Vy538ci"
+    }
+  },
+  {
+    "name": "Coca-Cola xStock",
+    "ticker": "KOx",
+    "chains": {
+      "ethereum": "0xdcc1a2699441079da889b1f49e12b69cc791129b",
+      "solana": "XsaBXg8dU5cPM6ehmVctMkVqoiRG2ZjMo1cyBJ3AykQ"
+    }
+  },
+  {
+    "name": "PepsiCo xStock",
+    "ticker": "PEPx",
+    "chains": {
+      "ethereum": "0x36c424a6ec0e264b1616102ad63ed2ad7857413e",
+      "solana": "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF"
+    }
+  },
+  {
+    "name": "AbbVie xStock",
+    "ticker": "ABBVx",
+    "chains": {
+      "ethereum": "0xfbf2398df672cee4afcc2a4a733222331c742a6a",
+      "solana": "XswbinNKyPmzTa5CskMbCPvMW6G5CMnZXZEeQSSQoie"
+    }
+  },
+  {
+    "name": "Merck xStock",
+    "ticker": "MRKx",
+    "chains": {
+      "ethereum": "0x17d8186ed8f68059124190d147174d0f6697dc40",
+      "solana": "XsnQnU7AdbRZYe2akqqpibDdXjkieGFfSkbkjX1Sd1X"
+    }
+  },
+  {
+    "name": "Pfizer xStock",
+    "ticker": "PFEx",
+    "chains": {
+      "ethereum": "0x1ac765b5bea23184802c7d2d497f7c33f1444a9e",
+      "solana": "XsAtbqkAP1HJxy7hFDeq7ok6yM43DQ9mQ1Rh861X8rw"
+    }
+  },
+  {
+    "name": "Chevron xStock",
+    "ticker": "CVXx",
+    "chains": {
+      "ethereum": "0xad5cdc3340904285b8159089974a99a1a09eb4c0",
+      "solana": "XsNNMt7WTNA2sV3jrb1NNfNgapxRF5i4i6GcnTRRHts"
+    }
+  }
+]
