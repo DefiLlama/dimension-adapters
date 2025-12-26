@@ -198,6 +198,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     }
 
     for (const [index, _isolatedVault] of isolatedVaults.entries()) {
+        if (!seniorVaultPricesBefore[index] || !juniorVaultPricesBefore[index] || !seniorVaultPricesAfter[index] || !juniorVaultPricesAfter[index] || !seniorVaultDecimals[index] || !juniorVaultDecimals[index] || !seniorVaultTotalSupply[index] || !juniorVaultTotalSupply[index] || performanceFeeInThousandMultiples === null) continue;
+
         const totalSeniorYieldForPeriod = (seniorVaultPricesAfter[index] - seniorVaultPricesBefore[index]) * seniorVaultTotalSupply[index] / (10 ** seniorVaultDecimals[index]);
         const totalJuniorYieldForPeriod = (juniorVaultPricesAfter[index] - juniorVaultPricesBefore[index]) * juniorVaultTotalSupply[index] / (10 ** juniorVaultDecimals[index]);
 
@@ -223,45 +225,46 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     ];
 
     if (remainingVaults.length > 0) {
-            const totalSupplies = await options.api.multiCall({
-                calls: remainingVaults,
-                abi: IDLE_ABIs.totalSupply,
-                permitFailure: true,
-            });
+        const totalSupplies = await options.api.multiCall({
+            calls: remainingVaults,
+            abi: IDLE_ABIs.totalSupply,
+            permitFailure: true,
+        });
 
-            const pricesBefore = await options.fromApi.multiCall({
-                calls: remainingVaults,
-                abi: IDLE_ABIs.tokenPrice,
-                permitFailure: true,
-            });
+        const pricesBefore = await options.fromApi.multiCall({
+            calls: remainingVaults,
+            abi: IDLE_ABIs.tokenPrice,
+            permitFailure: true,
+        });
 
-            const pricesAfter = await options.toApi.multiCall({
-                calls: remainingVaults,
-                abi: IDLE_ABIs.tokenPrice,
-                permitFailure: true,
-            });
+        const pricesAfter = await options.toApi.multiCall({
+            calls: remainingVaults,
+            abi: IDLE_ABIs.tokenPrice,
+            permitFailure: true,
+        });
 
-            const underlyingTokens = await options.api.multiCall({
-                calls: remainingVaults,
-                abi: IDLE_ABIs.token,
-                permitFailure: true,
-            });
+        const underlyingTokens = await options.api.multiCall({
+            calls: remainingVaults,
+            abi: IDLE_ABIs.token,
+            permitFailure: true,
+        });
 
-            const performanceFeeInThousandBpsMultiple = await options.api.multiCall({
-                calls: remainingVaults,
-                abi: IDLE_ABIs.performanceFeeInThousandMultiple,
-                permitFailure: true,
-            });
+        const performanceFeeInThousandBpsMultiple = await options.api.multiCall({
+            calls: remainingVaults,
+            abi: IDLE_ABIs.performanceFeeInThousandMultiple,
+            permitFailure: true,
+        });
 
-            for (const [index, _vault] of remainingVaults.entries()) {
+        for (const [index, _vault] of remainingVaults.entries()) {
+            if (!totalSupplies[index] || !pricesBefore[index] || !pricesAfter[index] || !underlyingTokens[index] || !performanceFeeInThousandBpsMultiple[index]) continue;
 
-                const totalYieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index]) / (10 ** 18);
+            const totalYieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index]) / (10 ** 18);
 
-                if (totalYieldForPeriod > 0) {
-                    const performaceFeesMultiple = performanceFeeInThousandBpsMultiple[index] / (1000 * 100);
-                    calculateAllFees(underlyingTokens[index], totalYieldForPeriod, performaceFeesMultiple);
-                }
+            if (totalYieldForPeriod > 0) {
+                const performaceFeesMultiple = performanceFeeInThousandBpsMultiple[index] / (1000 * 100);
+                calculateAllFees(underlyingTokens[index], totalYieldForPeriod, performaceFeesMultiple);
             }
+        }
     }
     return {
         dailyFees,
