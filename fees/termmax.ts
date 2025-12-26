@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { addTokensReceived } from '../helpers/token'
 import { getERC4626VaultsYield } from '../helpers/erc4626'
+import { METRIC } from '../helpers/metrics'
 
 /**
  * TermMax Fee Adapter
@@ -40,32 +41,31 @@ const VAULTS: Record<string, string[]> = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  // Get protocol revenue from treasury
   const dailyProtocolRevenue = await addTokensReceived({
     options,
     target: TREASURY,
   })
 
-  // Calculate yield earned by vault depositors (supply-side revenue)
   const vaults = VAULTS[options.chain] || []
   if (vaults.length > 0) {
     const vaultYields = await getERC4626VaultsYield({
       options,
       vaults,
     })
-    dailySupplySideRevenue.addBalances(vaultYields)
+    dailySupplySideRevenue.addBalances(vaultYields, METRIC.ASSETS_YIELDS)
   }
 
-  // Total fees = yield to suppliers + protocol revenue
-  dailyFees.addBalances(dailySupplySideRevenue)
-  dailyFees.addBalances(dailyProtocolRevenue)
+  dailyFees.addBalances(dailySupplySideRevenue, METRIC.ASSETS_YIELDS)
+  dailyFees.addBalances(dailyProtocolRevenue, METRIC.PROTOCOL_FEES)
+  dailyRevenue.addBalances(dailyProtocolRevenue, METRIC.PROTOCOL_FEES)
 
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   }
 }
@@ -79,31 +79,27 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Vault Yields': 'Interest earned by vault depositors from borrower payments.',
-    'Protocol Fees':
-      'Fees from lending (2% of APR), borrowing/leverage (GT minting + 3% of rate), and vault performance (10-20%).',
+    [METRIC.ASSETS_YIELDS]: 'Interest earned by vault depositors from borrower payments.',
+    [METRIC.PROTOCOL_FEES]: 'Fees from lending (2% of APR), borrowing/leverage (GT minting + 3% of rate), and vault performance (10-20%).',
   },
   Revenue: {
-    'Settled Fees':
-      'Fees collected in FT tokens that have matured and converted to actual tokens (e.g. USDC).',
+    [METRIC.PROTOCOL_FEES]: 'Fees collected in FT tokens that have matured and converted to actual tokens (e.g. USDC).',
   },
   ProtocolRevenue: {
-    'Lending Fees': '2% of APR charged to lenders.',
-    'Borrowing/Leverage Fees':
-      'GT minting fee (10% of reference rate) plus 3% of matched borrowing rate.',
-    'Vault Performance Fees': '10-20% of vault profits paid to curators.',
+    [METRIC.PROTOCOL_FEES]: 'Fees from lending (2% of APR), borrowing/leverage (GT minting + 3% of rate), and vault performance (10-20%).',
   },
   SupplySideRevenue: {
-    'Vault Yields': 'Interest distributed to vault depositors who provide liquidity.',
+    [METRIC.ASSETS_YIELDS]: 'Interest distributed to vault depositors who provide liquidity.',
   },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2025-03-27' },
-    [CHAIN.ARBITRUM]: { fetch, start: '2025-03-27' },
-    [CHAIN.BSC]: { fetch, start: '2025-05-28' },
+    [CHAIN.ETHEREUM]: { start: '2025-03-27' },
+    [CHAIN.ARBITRUM]: { start: '2025-03-27' },
+    [CHAIN.BSC]: { start: '2025-05-28' },
   },
   methodology,
   breakdownMethodology,
