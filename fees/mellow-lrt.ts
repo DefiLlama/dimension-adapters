@@ -25,39 +25,52 @@ async function getCoreVaultInfo(options: FetchOptions, vaults: string[]): Promis
   const assets = await options.api.multiCall({
     calls: vaults.map(vault => ({ target: vault, params: 0 })),
     abi: MellowAbis.asset,
+    permitFailure: true,
   });
 
   const shareManagers = await options.api.multiCall({
     calls: vaults,
-    abi: MellowAbis.shareManager
+    abi: MellowAbis.shareManager,
+    permitFailure: true,
   });
 
   const totalSupplies = await options.api.multiCall({
-    calls: shareManagers,
-    abi: MellowAbis.totalSupply
+    calls: shareManagers.map(i => i ? i : ''), // filter null address
+    abi: MellowAbis.totalSupply,
+    permitFailure: true,
   });
 
   const oracles = await options.api.multiCall({
     calls: vaults,
-    abi: MellowAbis.oracle
+    abi: MellowAbis.oracle,
+    permitFailure: true,
   });
 
   const priceConvertionsBefore = await options.fromApi.multiCall({
-    calls: oracles.map((oracle, index) => ({ target: oracle, params: assets[index] })),
-    abi: MellowAbis.priceReport
+    calls: oracles.map((oracle, index) => ({ target: oracle ? oracle : '', params: assets[index] ? assets[index] : '' })),
+    abi: MellowAbis.priceReport,
+    permitFailure: true,
   });
 
   const priceConvertionsAfter = await options.toApi.multiCall({
-    calls: oracles.map((oracle, index) => ({ target: oracle, params: assets[index] })),
-    abi: MellowAbis.priceReport
+    calls: oracles.map((oracle, index) => ({ target: oracle ? oracle : '', params: assets[index] ? assets[index] : '' })),
+    abi: MellowAbis.priceReport,
+    permitFailure: true,
   });
+  
+  const dataItems: Array<any> = [];
+  for (let index = 0; index < vaults.length; index++) {
+    if (assets[index]) {
+      dataItems.push({
+        address: vaults[index],
+        supply: totalSupplies[index],
+        priceChange: +((1 / priceConvertionsAfter[index][0]) - (1 / priceConvertionsBefore[index][0])) * 1e18,
+        underlyingAsset: assets[index],
+      })
+    }
+  }
 
-  return vaults.map((vault, index) => ({
-    address: vault,
-    supply: totalSupplies[index],
-    priceChange: +((1 / priceConvertionsAfter[index][0]) - (1 / priceConvertionsBefore[index][0])) * 1e18,
-    underlyingAsset: assets[index],
-  }))
+  return dataItems;
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -79,8 +92,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const vaultInfoNew = vaultInfosNew[vault]
     if (vaultInfoOld && vaultInfoNew) {
       const vaultRateIncrease = vaultInfoNew.assetsPerShare - vaultInfoOld.assetsPerShare
-      dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18),METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18), METRIC.ASSETS_YIELDS);
+      if (vaultRateIncrease > 0) {
+        dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18),METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18), METRIC.ASSETS_YIELDS);
+      }
     }
   }
 

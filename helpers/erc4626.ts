@@ -39,7 +39,7 @@ export async function getERC4626VaultsInfo(usingApi: ChainApi, vaults: Array<str
   const assetsDecimals: Array<string> = await usingApi.multiCall({
     abi: ERC4626Abis.decimals,
     permitFailure: true,
-    calls: assets,
+    calls: assets.map(asset => asset ? asset : ''), // filter null
   })
   const totalAssets: Array<string> = await usingApi.multiCall({
     abi: ERC4626Abis.totalAssets,
