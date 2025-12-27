@@ -1,67 +1,52 @@
-// Reservoir Swap service is no longer available.
-// GraphQL endpoints return 503 errors. Support has been handed over to Protofire.
-// The white-labeled products (Sakura Swap, Whitelabel) should be tracked separately.
-// See issue: https://github.com/DefiLlama/dimension-adapters/issues/5063
-
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { getGraphDimensions2 } from '../helpers/getUniSubgraph';
+import { getUniV2LogAdapter } from '../helpers/uniswap';
 
-const v2Endpoints: { [s: string]: string } = {
-  [CHAIN.INK]:
-    'https://graph-node.reservoir.tools/subgraphs/name/ink/v2-subgraph',
-  [CHAIN.ZERO]:
-    'https://graph-node.reservoir.tools/subgraphs/name/zero/v2-subgraph',
-  [CHAIN.SHAPE]:
-    'https://graph-node.reservoir.tools/subgraphs/name/shape/v2-subgraph',
-  [CHAIN.ABSTRACT]:
-    'https://graph-node.reservoir.tools/subgraphs/name/abstract/v2-subgraph',
+const factories: { [key: string]: { address: string, start: string } } = {
+  [CHAIN.ABSTRACT]: {
+    address: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E',
+    start: '2025-01-07',
+  },
+  [CHAIN.INK]: {
+    address: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04',
+    start: '2025-01-07',
+  },
+  // [CHAIN.ZERO]: {
+  //   address: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559',
+  //   start: '2025-01-07',
+  // },
 };
 
-const v2Graph = getGraphDimensions2({
-  graphUrls: v2Endpoints,
-  totalFees: {
-    factory: 'uniswapFactories',
-    field: 'totalVolumeUSD',
-  },
-  feesPercent: {
-    type: 'volume',
-    UserFees: 0.3,
-    ProtocolRevenue: 0,
-    SupplySideRevenue: 0.3,
-    HoldersRevenue: 0,
-    Revenue: 0,
-    Fees: 0.3,
-  },
-});
+const feeConfigs = {
+  userFeesRatio: 1,
+  revenueRatio: 0,
+  protocolRevenueRatio: 0,
+  holdersRevenueRatio: 0,
+};
 
-const fetch = async (options: FetchOptions) => {
-  const res = await v2Graph(options);
-  res['dailyFees'] = res['dailyUserFees'];
-  return res;
+async function fetch(options: FetchOptions) {
+  const adapter = getUniV2LogAdapter({
+    factory: factories[options.chain].address,
+    ...feeConfigs,
+  });
+  const response = await adapter(options);
+  return response;
+}
+
+const methodology = {
+  Fees: 'Swap fees from paid by users.',
+  UserFees: 'User pays fees on each swap.',
+  Revenue: 'Protocol have no revenue.',
+  ProtocolRevenue: 'Protocol have no revenue.',
+  SupplySideRevenue: 'All user fees are distributed among LPs.',
+  HoldersRevenue: 'Holders have no revenue.',
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  deadFrom: '2025-12-14',
-  adapter: {
-    [CHAIN.INK]: {
-      fetch,
-      start: '2025-01-07',
-    },
-    [CHAIN.ZERO]: {
-      fetch,
-      start: '2025-01-07',
-    },
-    [CHAIN.SHAPE]: {
-      fetch,
-      start: '2025-01-07',
-    },
-    [CHAIN.ABSTRACT]: {
-      fetch,
-      start: '2025-01-07',
-    },
-  },
+  fetch,
+  adapter: factories,
+  methodology,
 };
 
 export default adapter;
