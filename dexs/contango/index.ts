@@ -10,7 +10,7 @@ const chainMap: Record<string, string> = {
 };
 
 const fetch = async (_a: number, _: any, options: FetchOptions) => {
-  const { chain, fromTimestamp, toTimestamp, createBalances } = options;
+  const { chain, fromTimestamp, toTimestamp } = options;
   const mappedChain = chainMap[chain] ?? chain
   const query = `
     WITH volume AS (
@@ -73,13 +73,9 @@ const fetch = async (_a: number, _: any, options: FetchOptions) => {
 
   const response = await queryDuneSql(options, query);
 
-  if (!response[0] || !response[0].VOL_USD || !response[0].OI_USD) {
-    throw Error(`Failed to query data from Dune for ${options.startOfDay}`)
-  }
-
   return {
-    dailyVolume: Number(response[0].VOL_USD),
-    openInterestAtEnd: Number(response[0].VOL_USD),
+    dailyVolume: Number(response[0].VOL_USD ? response[0].VOL_USD : 0),
+    openInterestAtEnd: Number(response[0].OI_USD ? response[0].OI_USD : 0),
   };
 };
 
