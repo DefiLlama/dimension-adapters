@@ -341,14 +341,14 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
     permitFailure: true,
     abi: 'uint8:decimals',
     calls: tokenList.map((target) => ({ target })),
-	});
+  });
 
   // format the floats to actual token value
   const vols = await api.multiCall({
     permitFailure: true,
     target: floats[api.chain],
-	  abi: ABI_V5.float.toFixedDecimalLossy,
-	  calls: rawVols
+    abi: ABI_V5.float.toFixedDecimalLossy,
+    calls: rawVols
       .filter((rawVol) => {
         const index = tokenList.indexOf(rawVol.token);
         return index > -1 && typeof decimals[index] !== undefined && decimals[index] !== null
@@ -356,7 +356,7 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
       .map((rawVol) => ({
         params: [rawVol.rawFloat, decimals[tokenList.indexOf(rawVol.token)]]
     })),
-	});
+  });
 
   // add vols
   vols.forEach((vol, i) => {
