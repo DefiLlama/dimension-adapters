@@ -2,10 +2,19 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getUniV2LogAdapter } from '../helpers/uniswap';
 
-const factories: { [key: string]: string } = {
-  [CHAIN.ABSTRACT]: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E',
-  [CHAIN.INK]: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04',
-  // [CHAIN.ZERO]: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559',
+const factories: { [key: string]: { address: string, start: string } } = {
+  [CHAIN.ABSTRACT]: {
+    address: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E',
+    start: '2025-01-07',
+  },
+  [CHAIN.INK]: {
+    address: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04',
+    start: '2025-01-07',
+  },
+  // [CHAIN.ZERO]: {
+  //   address: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559',
+  //   start: '2025-01-07',
+  // },
 };
 
 const feeConfigs = {
@@ -16,18 +25,8 @@ const feeConfigs = {
 };
 
 async function fetch(options: FetchOptions) {
-  if (!factories[options.chain]) {
-    return {
-      dailyVolume: 0,
-      dailyFees: 0,
-      dailyRevenue: 0,
-      dailyProtocolRevenue: 0,
-      dailySupplySideRevenue: 0,
-      dailyHoldersRevenue: 0,
-    };
-  }
   const adapter = getUniV2LogAdapter({
-    factory: factories[options.chain],
+    factory: factories[options.chain].address,
     ...feeConfigs,
   });
   const response = await adapter(options);
@@ -46,11 +45,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  adapter: {
-    [CHAIN.ABSTRACT]: { start: '2025-01-07' },
-    [CHAIN.INK]: { start: '2025-01-07' },
-    [CHAIN.ZERO]: { start: '2025-01-07' },
-  },
+  adapter: factories,
   methodology,
 };
 
