@@ -2,7 +2,13 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { METRIC } from "../../helpers/metrics"
 
-const chainContracts = {
+interface chainConfigInterface {
+  rewards: string,
+  yusd: string,
+  mintRedeem: string
+} 
+
+const chainContracts: Record<string, chainConfigInterface> = {
     [CHAIN.ETHEREUM]: {
         rewards: "0x8aDCFAf1B64Cc514524B80565bCc732273dDEafD",
         yusd: "0x4274cD7277C7bb0806Bd5FE84b9aDAE466a8DA0a",
@@ -36,6 +42,7 @@ const fetch = async (options: FetchOptions) => {
     mintLogs.concat(redeemLogs).forEach(log => {
         dailyFees.add(yusd, log.fee, METRIC.MINT_REDEEM_FEES)
         dailyUserFees.add(yusd, log.fee, METRIC.MINT_REDEEM_FEES)
+        dailySupplySideRevenue.add(yusd, log.fee, "Insurance Fund")
     })
   return {
     dailyFees,
@@ -66,6 +73,10 @@ const adapter: SimpleAdapter = {
     Fees: {
         [METRIC.ASSETS_YIELDS]: "The yield generated from funds deposited into YUSD",
         [METRIC.MINT_REDEEM_FEES]: "Fees charged on mint and redemption"
+    },
+    SupplySideRevenue: {
+      [METRIC.ASSETS_YIELDS]: "The yield generated from funds deposited into YUSD",
+      "Insurance Fund": "The mint and redeem fees are sent to the insurance fund",
     }
   }
 }
