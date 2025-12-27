@@ -307,5 +307,6 @@ export enum CHAIN {
   SYNDICATE = "syndicate",
   XCHAIN = "xchain",
   OG = "0g",
-  FOGO = "fogo"
+  FOGO = "fogo",
+  PROVENANCE = "provenance",
 }
