@@ -29,10 +29,10 @@ export function buildStablecoinAdapter(chain: string, stablecoinId: string, days
 
                     const pythResponse = await fetchURL(PYTH_1M_TBILL_YIELD_URL);
                     const latestApy = pythResponse?.parsed[0]?.price?.price;
-                    const tbillRate = latestApy ? latestApy/1e8 : closestAttestation.tbillRate;
+                    const tbillRate = latestApy ? latestApy / 1e8 : closestAttestation.tbillRate;
 
                     const tbills = supply * closestAttestation.allocated / closestAttestation.circulation
-                    const annualYield = tbills * tbillRate/100;
+                    const annualYield = tbills * tbillRate / 100;
                     dailyFees.addUSDValue(annualYield / 365, METRIC.ASSETS_YIELDS)
 
                     return {
