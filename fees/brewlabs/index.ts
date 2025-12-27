@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addTokensReceived } from "../../helpers/token";
 
 /* ============================================================
    CONFIG
@@ -23,7 +24,6 @@ const treasuryAddresses: Record<string, string> = {
    EVENT ABIs
    ============================================================ */
 
-const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const FEES_APPLIED_EVENT = "event FeesApplied(uint8 liquidityFee, uint8 devFee, uint8 buyBackFee, uint8 stakingFee, uint8 holdersFee, uint8 totalFee)";
 
 /* ============================================================
@@ -42,27 +42,18 @@ const fetch = async (options: FetchOptions) => {
     };
   }
 
-  // Pad treasury address to 32 bytes for topic filtering
-  const paddedTreasuryAddress = '0x' + treasuryAddress.slice(2).padStart(64, '0').toLowerCase();
+  // Use helper function to track token transfers to treasury
+  const dailyFees = await addTokensReceived({
+    options,
+    tokens: [tokenAddress],
+    targets: [treasuryAddress],
+  });
 
-  // Get Transfer events TO treasury and FeesApplied events
-  const [transferLogs, feeLogs] = await Promise.all([
-    options.getLogs({
-      target: tokenAddress,
-      topics: [
-        '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', // Transfer signature
-        null, // from (any address)
-        paddedTreasuryAddress, // to (treasury)
-      ],
-    }),
-    options.getLogs({
-      target: tokenAddress,
-      eventAbi: FEES_APPLIED_EVENT,
-    }),
-  ]);
-
-  console.log(`Found ${transferLogs.length} transfers to treasury on ${options.chain}`);
-  console.log(`Found ${feeLogs.length} FeesApplied events on ${options.chain}`);
+  // Get FeesApplied events to calculate actual fee amounts
+  const feeLogs = await options.getLogs({
+    target: tokenAddress,
+    eventAbi: FEES_APPLIED_EVENT,
+  });
 
   // Build a map of transaction hash -> fee percentage
   const feePercentageMap: Record<string, number> = {};
@@ -75,14 +66,26 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  /**
-   * Calculate fees based on the FeesApplied percentage
-   */
-  let totalFees = 0n;
+  // Get the raw transfer logs to apply fee percentage calculation
+  const paddedTreasuryAddress = '0x' + treasuryAddress.slice(2).padStart(64, '0').toLowerCase();
+  
+  const transferLogs = await options.getLogs({
+    target: tokenAddress,
+    topics: [
+      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', // Transfer signature
+      null, // from (any address)
+      paddedTreasuryAddress, // to (treasury)
+    ],
+  });
+
+  console.log(`Found ${transferLogs.length} transfers to treasury on ${options.chain}`);
+  console.log(`Found ${feeLogs.length} FeesApplied events on ${options.chain}`);
+
+  // Calculate adjusted fees based on the FeesApplied percentage
+  let totalAdjustedFees = 0n;
   let processedTransfers = 0;
 
   for (const log of transferLogs) {
-    // Parse the value from the data field (last 32 bytes)
     const value = BigInt(log.data);
     const txHash = log.transactionHash;
     const feePercentage = feePercentageMap[txHash] || 0;
@@ -90,18 +93,16 @@ const fetch = async (options: FetchOptions) => {
     if (feePercentage > 0 && value > 0n) {
       // Calculate the fee portion: (value * feePercentage) / 100
       const fee = (value * BigInt(feePercentage)) / 100n;
-      totalFees += fee;
+      totalAdjustedFees += fee;
       processedTransfers++;
-      
-      console.log(`TX: ${txHash}, Transfer: ${value.toString()}, Fee %: ${feePercentage}, Calculated Fee: ${fee.toString()}`);
     }
   }
 
   console.log(`Processed ${processedTransfers} transfers with fees on ${options.chain}`);
-  console.log(`Total fees (raw): ${totalFees.toString()}`);
+  console.log(`Total adjusted fees (raw): ${totalAdjustedFees.toString()}`);
 
-  // Divide by 10^9
-  const dailyFeesAdjusted = (totalFees / BigInt(1e9)).toString();
+  // Divide by 10^9 to get the proper decimal representation
+  const dailyFeesAdjusted = (totalAdjustedFees / BigInt(1e9)).toString();
 
   return {
     dailyFees: dailyFeesAdjusted,
