@@ -3,8 +3,18 @@ import { CHAIN } from "../../helpers/chains"
 import { Interface, id, EventLog } from "ethers"
 import { BaseAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types"
 
-type Orderbook = { address: string, start: number }
-type Orderbooks = { v3: Orderbook[], v4: Orderbook[] }
+type Orderbook = { address: string, start: string }
+type Orderbooks = { v3: Orderbook[], v4: Orderbook[], v5: Orderbook[] }
+
+const floats: Record<string, string> = {
+  [CHAIN.ARBITRUM]: "0x2265980d35d97F5f65C73e954D2022380bcA4A77",
+  [CHAIN.BASE]: "0x2F665EcE3345bF09197DAd22A50dFB623BD310A7",
+  [CHAIN.BSC]: "0xDbcb964760d021e18A31C9A731d8589c361E0E20",
+  [CHAIN.ETHEREUM]: "0x83e4c7732e715b5E7310796A4A2a21d89f3FB59A",
+  [CHAIN.FLARE]: "0x2F665EcE3345bF09197DAd22A50dFB623BD310A7",
+  [CHAIN.LINEA]: "0x83e4c7732e715b5E7310796A4A2a21d89f3FB59A",
+  [CHAIN.POLYGON]: "0xb92aD1A33930aB64e0A7DC1AcD9EDDf9d4F8bc91",
+}
 
 const orderbooks: Record<string, Orderbooks> = {
   [CHAIN.ARBITRUM]: {
@@ -13,6 +23,9 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v4: [
       { address: "0x550878091b2b1506069f61ae59e3a5484bca9166", start: '2024-09-23' },
+    ],
+    v5: [
+      { address: "0x8df8075e4077dabf1e95f49059e4c1eea33094ab", start: '2025-09-07' },
     ]
   },
   [CHAIN.BASE]: {
@@ -25,7 +38,11 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0x32aCbdF51abe567C91b7a5cd5E52024a5Ca56844", start: '2024-08-24' },
       { address: "0x80DE00e3cA96AE0569426A1bb1Ae22CD4181dE6F", start: '2024-08-20' },
       { address: "0x7A44459893F99b9d9a92d488eb5d16E4090f0545", start: '2024-08-11' },
+      { address: "0x881cf4c0764e733d9c387f3858ee87cca04affe0", start: '2025-08-18' },
     ],
+    v5: [
+      { address: "0x52ceb8ebef648744ffdde89f7bc9c3ac35944775", start: '2025-10-10' },
+    ]
   },
   [CHAIN.BSC]: {
     v3: [
@@ -33,7 +50,8 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v4: [
       { address: "0xd2938e7c9fe3597f78832ce780feb61945c377d7", start: '2024-09-23' },
-    ]
+    ],
+    v5: []
   },
   [CHAIN.ETHEREUM]: {
     v3: [
@@ -41,7 +59,8 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v4: [
       { address: "0x0eA6d458488d1cf51695e1D6e4744e6FB715d37C", start: '2024-10-25' },
-    ]
+    ],
+    v5: []
   },
   [CHAIN.FLARE]: {
     v3: [
@@ -52,14 +71,16 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0xaa3b14Af0e29E3854E4148f43321C4410db002bC", start: '2024-08-19' },
       { address: "0xA2Ac77b982A9c0999472c1De378A81d7363d926F", start: '2024-08-19' },
       { address: "0x582d9e838FE6cD9F8147C66A8f56A3FBE513a6A2", start: '2024-07-11' },
-    ]
+    ],
+    v5: []
   },
   [CHAIN.LINEA]: {
     v3: [],
     v4: [
       { address: "0x22410e2a46261a1b1e3899a072f303022801c764", start: '2024-09-30' },
       { address: "0xF97DE1c2d864d90851aDBcbEe0A38260440B8D90", start: '2024-07-29' },
-    ]
+    ],
+    v5: []
   },
   // not supported?
   // matchain: {
@@ -84,6 +105,9 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0xb8CD71e3b4339c8B718D982358cB32Ed272e4174", start: '2024-08-15' },
       { address: "0x001B302095D66b777C04cd4d64b86CCe16de55A1", start: '2024-08-15' },
       { address: "0xAfD94467d2eC43D9aD39f835BA758b61b2f41A0E", start: '2024-07-23' },
+    ],
+    v5: [
+      { address: "0x8a3c8e610d827093f7437e0c45efa648563c0dda", start: '2025-09-22' },
     ]
   },
 } as const
@@ -103,8 +127,38 @@ const ABI_V4 = {
   ClearV2: `event ClearV2(address sender, (address owner, (address interpreter, address store, bytes bytecode) evaluable, ${IO}[] validInputs, ${IO}[] validOutputs, bytes32 nonce) alice, (address owner, (address interpreter, address store, bytes bytecode) evaluable, ${IO}[] validInputs, ${IO}[] validOutputs, bytes32 nonce) bob, ${ClearConfig} clearConfig)`,
 } as const
 
+// v5 orderbook abi
+export namespace ABI_V5 {
+  // structs
+  export const Float = "bytes32" as const;
+  export const IOV2 = `(address token, bytes32 vaultId)` as const;
+  export const EvaluableV4 = `(address interpreter, address store, bytes bytecode)` as const;
+  export const SignedContextV2 = "(address signer, bytes32[] context, bytes signature)" as const;
+  export const ClearStateChangeV2 =
+      `(${Float} aliceOutput, ${Float} bobOutput, ${Float} aliceInput, ${Float} bobInput)` as const;
+  export const OrderV4 =
+      `(address owner, ${EvaluableV4} evaluable, ${IOV2}[] validInputs, ${IOV2}[] validOutputs, bytes32 nonce)` as const;
+  export const TakeOrderConfigV4 =
+      `(${OrderV4} order, uint256 inputIOIndex, uint256 outputIOIndex, ${SignedContextV2}[] signedContext)` as const;
+  export const ClearConfigV2 =
+      "(uint256 aliceInputIOIndex, uint256 aliceOutputIOIndex, uint256 bobInputIOIndex, uint256 bobOutputIOIndex, bytes32 aliceBountyVaultId, bytes32 bobBountyVaultId)" as const;
+
+  // events
+  export const events = {
+      AfterClearV2: `event AfterClearV2(address sender, ${ClearStateChangeV2} clearStateChange)` as const,
+      ClearV3: `event ClearV3(address sender, ${OrderV4} alice, ${OrderV4} bob, ${ClearConfigV2} clearConfig)` as const,
+      TakeOrderV3: `event TakeOrderV3(address sender, ${TakeOrderConfigV4} config, ${Float} input, ${Float} output)` as const,
+    } as const;
+
+  export const float = {
+    toFixedDecimalLossy: `function toFixedDecimalLossy(${Float} float, uint8 decimals) returns (uint256, bool)` as const,
+    toFixedDecimalsLossless: `function toFixedDecimalLossless(${Float} float, uint8 decimals) returns (uint256)` as const,
+  } as const;
+}
+
 const abi_v3 = new Interface([ABI_V3.Clear, ABI_V3.AfterClear, ABI_V3.TakeOrder])
 const abi_v4 = new Interface([ABI_V4.ClearV2, ABI_V4.AfterClear, ABI_V4.TakeOrderV2])
+const abi_v5 = new Interface([ABI_V5.events.ClearV3, ABI_V5.events.AfterClearV2, ABI_V5.events.TakeOrderV3])
 
 async function fetchV3Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances) {
   const targets = orderbooks[api.chain].v3.map(v => v.address)
@@ -216,11 +270,106 @@ async function fetchV4Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
   })
 }
 
+async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances) {
+  const targets = orderbooks[api.chain].v5.map(v => v.address)
+  if (!targets.length) return
+
+  const [afterClearLogs, clearLogs, takeOrderLogs] = await Promise.all([
+    getLogs({
+      targets,
+      flatten: false,
+      entireLog: true,
+      topic: id(abi_v5.getEvent("AfterClearV2")!.format()),
+    }),
+    getLogs({
+      targets,
+      flatten: false,
+      entireLog: true,
+      topic: id(abi_v5.getEvent("ClearV3")!.format()),
+    }),
+    getLogs({
+      targets,
+      flatten: false,
+      entireLog: true,
+      topic: id(abi_v5.getEvent("TakeOrderV3")!.format()),
+    })
+  ]) as EventLog[][][]
+
+  // use set to avoid dups
+  const tokenSet = new Set<string>();
+
+  // list of raw float values paired with token and float contract addresses
+  const rawVols: { token: string; rawFloat: string }[] = [];
+
+  afterClearLogs.forEach((orderbookLogs, i) => {
+    orderbookLogs.forEach(log => {
+      const clearLog = clearLogs[i].find(v => v.transactionHash === log.transactionHash)
+      if (clearLog) {
+        const {
+          clearStateChange: { aliceOutput, bobInput }
+        } = abi_v5.decodeEventLog("AfterClearV2", log.data)
+        const {
+          alice: { validOutputs },
+          clearConfig: { aliceOutputIOIndex }
+        } = abi_v5.decodeEventLog("ClearV3", clearLog.data)
+
+        const token = validOutputs[Number(aliceOutputIOIndex)].token.toLowerCase()
+        tokenSet.add(token)
+        rawVols.push({ token, rawFloat: aliceOutput.toString() })
+        rawVols.push({ token, rawFloat: bobInput.toString() })
+      }
+    })
+  })
+
+  takeOrderLogs.flat().forEach(log => {
+    const {
+      input,
+      config: { outputIOIndex, order },
+    } = abi_v5.decodeEventLog("TakeOrderV3", log.data)
+
+    const token = order.validOutputs[Number(outputIOIndex)].token.toLowerCase()
+    tokenSet.add(token)
+    rawVols.push({ token, rawFloat: input.toString() })
+  })
+
+  // convert the set to list for indexing
+  const tokenList = Array.from(tokenSet);
+
+  // get decimals of the tokens
+  const decimals = await api.multiCall({
+    permitFailure: true,
+		abi: 'uint8:decimals',
+		calls: tokenList.map((target) => ({ target })),
+	});
+
+  // format the floats to actual token value
+  const vols = await api.multiCall({
+    permitFailure: true,
+    target: orderbooks[api.chain].float,
+		abi: ABI_V5.float.toFixedDecimalLossy,
+		calls: rawVols
+      .filter((rawVol) => {
+        const index = tokenList.indexOf(rawVol.token);
+        return index > -1 && typeof decimals[index] !== undefined && decimals[index] !== null
+      })
+      .map((rawVol) => ({
+        params: [rawVol.rawFloat, decimals[tokenList.indexOf(rawVol.token)]]
+      })),
+	});
+
+  // add vols
+  vols.forEach((vol, i) => {
+    if (!vol) return // skip error results
+    dailyVolume.add(rawVols[i].token, vol[0].toString())
+  })
+}
+
 const fetchVolume: FetchV2 = async function (options: FetchOptions) {
   const dailyVolume = options.createBalances()
   await Promise.allSettled([
     fetchV3Vol(options, dailyVolume),
     fetchV4Vol(options, dailyVolume),
+    fetchV5Vol(options, dailyVolume),
   ])
 
   return { dailyVolume }
