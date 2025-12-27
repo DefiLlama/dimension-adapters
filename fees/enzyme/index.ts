@@ -1,39 +1,41 @@
 import axios from "axios";
-import { FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as dotenv from "dotenv";
-dotenv.config();
+import { getEnv } from "../../helpers/env";
+import { getConfig } from "../../helpers/cache";
 
 const BASE_URL = "https://api.onyx.enzyme.finance";
 const LIST_URL = "https://api.enzyme.finance/enzyme.enzyme.v1.EnzymeService/GetVaultList";
 
-// 🚨 Required: API key from .env
-const API_KEY = process.env.ENZYME_API_KEY || "9b9b20f6-4108-444f-b69b-b5183e435ad5";
-
-if (!process.env.ENZYME_API_KEY) {
-  console.log("⚠️ ENZYME_API_KEY missing in .env → using public key");
-}
-
+const API_KEY = getEnv('ENZYME_API_KEY')
 
 const getVaultList = async () => {
-  const { data } = await axios.post(
-    LIST_URL,
-    {},
-    { headers: { Authorization: `Bearer ${API_KEY}` } }
-  );
+  const data = await getConfig('enzyme-vaults', '', {
+    fetcher: async () => {
+      const response = await axios.post(
+        LIST_URL,
+        {},
+        { headers: { Authorization: `Bearer ${API_KEY}` } }
+      );
+      return response.data;
+    }
+  })
+
   return data.vaults || [];
 };
 
 const getVaultConfig = async (address: string) => {
-  try {
-    const { data } = await axios.get(
-      `${BASE_URL}/vaults/${address}/configuration`,
-      { headers: { Authorization: `Bearer ${API_KEY}` } }
-    );
-    return data;
-  } catch {
-    return null;
-  }
+  const data = await getConfig(`enzyme-vaults-${address}`, '', {
+    fetcher: async () => {
+      const response = await axios.get(
+        `${BASE_URL}/vaults/${address}/configuration`,
+        { headers: { Authorization: `Bearer ${API_KEY}` } }
+      );
+      return response.data;
+    }
+  })
+  
+  return data;
 };
 
 
@@ -50,21 +52,19 @@ const getVaultSettledFees = async (vault: any) => {
   let total = BigInt(0);
 
   for (const t of trackers) {
-    try {
-      const { data } = await axios.get(
-        `${BASE_URL}/vaults/${vault.address}/components/${t}/${handler}`,
-        { headers: { Authorization: `Bearer ${API_KEY}` } }
-      );
-      total += BigInt(data.totalFeesSettled || 0);
-    } catch {}
+    const { data } = await axios.get(
+      `${BASE_URL}/vaults/${vault.address}/components/${t}/${handler}`,
+      { headers: { Authorization: `Bearer ${API_KEY}` } }
+    );
+    total += BigInt(data.totalFeesSettled || 0);
   }
 
   // Return in ETH
-  return Number(total) / 1e18;
+  return Number(total);
 };
 
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
   const vaults = await getVaultList();
 
   let totalEth = 0;
@@ -77,28 +77,29 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
       totalEth += value;
     }
   }
+  
+  const dailyFees = options.createBalances()
+  dailyFees.addGasToken(totalEth)
 
   return {
-    timestamp,
-    dailyFees: totalEth,
-    dailyRevenue: totalEth,
-    dailyProtocolRevenue: totalEth,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1640995200, // 2022-01-01 
+      start: '2022-01-01',
     },
   },
   methodology: {
-   Fees: "Reads settled performance + management fees from Enzyme fee handler trackers.",
+    Fees: "Reads settled performance + management fees from Enzyme fee handler trackers.",
     Revenue: "Uses totalFeesSettled as realized revenue.",
-    Notes: "Enzyme settles fees irregularly, so many days may return zero.",
+    ProtocolRevenue: "Uses totalFeesSettled as realized revenue.",
   },
 };
 
