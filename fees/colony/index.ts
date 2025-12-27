@@ -29,7 +29,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const stakingResult = await stakingFees(
     options,
-    stakingSubgraphEndpoint,
     ColonyGovernanceToken
   );
 
