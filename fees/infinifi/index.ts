@@ -40,8 +40,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees.add(receiptToken, performanceFee, METRIC.PERFORMANCE_FEES);
     dailyRevenue.add(receiptToken, performanceFee, METRIC.PERFORMANCE_FEES);
 
-    dailyFees.add(receiptToken, yieldsPostFee, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.add(receiptToken, yieldsPostFee, METRIC.ASSETS_YIELDS);
+    dailyFees.add(receiptToken, yieldsPostFee, METRIC.STAKING_REWARDS);
+    dailySupplySideRevenue.add(receiptToken, yieldsPostFee, METRIC.STAKING_REWARDS);
   });
 
   return {
@@ -68,7 +68,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: "Net yield distributed to users after protocol-owned value is deducted. Includes yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
+    [METRIC.STAKING_REWARDS]: "Net yield distributed to users after protocol-owned value is deducted. Includes yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
     [METRIC.PERFORMANCE_FEES]: "Performance fees charged by InfiniFi on generated yield. Calculated as a percentage of positive YieldAccrued events using the on-chain performanceFee parameter (max 20%).",
   },
   Revenue: {
@@ -78,7 +78,7 @@ const breakdownMethodology = {
     [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol and sent to the performanceFeeRecipient address.",
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
+    [METRIC.STAKING_REWARDS]: "Yield distributed to siUSD holders (staking/liquid) and iUSD lockers (locking/illiquid).",
   },
 };
 
