@@ -36,8 +36,6 @@ interface LeverageToken {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
 
   const leverageTokenLogs = await options.getLogs({
     target: config[options.chain].leverageManager,
@@ -57,8 +55,8 @@ const fetch = async (options: FetchOptions) => {
   if (!leverageTokens.length) {
     return {
       dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue,
+      dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees,
     };
   }
 
@@ -74,16 +72,6 @@ const fetch = async (options: FetchOptions) => {
 
       if (feeAmount > 0n) {
         dailyFees.add(
-          leverageToken.collateralAsset,
-          feeAmount,
-          METRIC.MINT_REDEEM_FEES
-        );
-        dailyRevenue.add(
-          leverageToken.collateralAsset,
-          feeAmount,
-          METRIC.MINT_REDEEM_FEES
-        );
-        dailyProtocolRevenue.add(
           leverageToken.collateralAsset,
           feeAmount,
           METRIC.MINT_REDEEM_FEES
@@ -106,24 +94,14 @@ const fetch = async (options: FetchOptions) => {
           feeAmount,
           METRIC.MINT_REDEEM_FEES
         );
-        dailyRevenue.add(
-          leverageToken.collateralAsset,
-          feeAmount,
-          METRIC.MINT_REDEEM_FEES
-        );
-        dailyProtocolRevenue.add(
-          leverageToken.collateralAsset,
-          feeAmount,
-          METRIC.MINT_REDEEM_FEES
-        );
       }
     });
   }
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
