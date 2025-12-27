@@ -61,12 +61,15 @@ async function getCoreVaultInfo(options: FetchOptions, vaults: string[]): Promis
   const dataItems: Array<any> = [];
   for (let index = 0; index < vaults.length; index++) {
     if (assets[index]) {
-      dataItems.push({
-        address: vaults[index],
-        supply: totalSupplies[index],
-        priceChange: +((1 / priceConvertionsAfter[index][0]) - (1 / priceConvertionsBefore[index][0])) * 1e18,
-        underlyingAsset: assets[index],
-      })
+      const priceChange = ((1 / priceConvertionsAfter[index][0]) - (1 / priceConvertionsBefore[index][0])) * 1e18
+      if (priceChange > 0) {
+        dataItems.push({
+          address: vaults[index],
+          supply: totalSupplies[index],
+          priceChange: priceChange,
+          underlyingAsset: assets[index],
+        })
+      }
     }
   }
 
