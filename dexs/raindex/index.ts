@@ -145,11 +145,12 @@ export namespace ABI_V5 {
 
   // events
   export const events = {
-      AfterClearV2: `event AfterClearV2(address sender, ${ClearStateChangeV2} clearStateChange)` as const,
-      ClearV3: `event ClearV3(address sender, ${OrderV4} alice, ${OrderV4} bob, ${ClearConfigV2} clearConfig)` as const,
-      TakeOrderV3: `event TakeOrderV3(address sender, ${TakeOrderConfigV4} config, ${Float} input, ${Float} output)` as const,
-    } as const;
+    AfterClearV2: `event AfterClearV2(address sender, ${ClearStateChangeV2} clearStateChange)` as const,
+    ClearV3: `event ClearV3(address sender, ${OrderV4} alice, ${OrderV4} bob, ${ClearConfigV2} clearConfig)` as const,
+    TakeOrderV3: `event TakeOrderV3(address sender, ${TakeOrderConfigV4} config, ${Float} input, ${Float} output)` as const,
+  } as const;
 
+  // float abi
   export const float = {
     toFixedDecimalLossy: `function toFixedDecimalLossy(${Float} float, uint8 decimals) returns (uint256, bool)` as const,
     toFixedDecimalsLossless: `function toFixedDecimalLossless(${Float} float, uint8 decimals) returns (uint256)` as const,
@@ -298,7 +299,7 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
   // use set to avoid dups
   const tokenSet = new Set<string>();
 
-  // list of raw float values paired with token and float contract addresses
+  // list of raw float values paired with token addresses
   const rawVols: { token: string; rawFloat: string }[] = [];
 
   afterClearLogs.forEach((orderbookLogs, i) => {
@@ -338,23 +339,23 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
   // get decimals of the tokens
   const decimals = await api.multiCall({
     permitFailure: true,
-		abi: 'uint8:decimals',
-		calls: tokenList.map((target) => ({ target })),
+    abi: 'uint8:decimals',
+    calls: tokenList.map((target) => ({ target })),
 	});
 
   // format the floats to actual token value
   const vols = await api.multiCall({
     permitFailure: true,
     target: floats[api.chain],
-		abi: ABI_V5.float.toFixedDecimalLossy,
-		calls: rawVols
+	  abi: ABI_V5.float.toFixedDecimalLossy,
+	  calls: rawVols
       .filter((rawVol) => {
         const index = tokenList.indexOf(rawVol.token);
         return index > -1 && typeof decimals[index] !== undefined && decimals[index] !== null
       })
       .map((rawVol) => ({
         params: [rawVol.rawFloat, decimals[tokenList.indexOf(rawVol.token)]]
-      })),
+    })),
 	});
 
   // add vols
