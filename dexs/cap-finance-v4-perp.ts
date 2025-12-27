@@ -1,10 +1,15 @@
+import { Address } from '@defillama/sdk/build/types';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
-// TODO: Replace with actual Trade contract address that emits position events
-const config: Record<string, string> = {
-  [CHAIN.ARBITRUM]: '', // TODO: Find contract emitting PositionIncreased/PositionDecreased
-  [CHAIN.BASE]: '', // TODO: Find Base Trade contract
+const config: Record<string, { trades: Address[] }> = {
+  [CHAIN.ARBITRUM]: {
+    trades: [
+      '0xbE4A45BDdFC9e0647FbA313a2bD96B6De8B65C15',
+      '0x26396Ffd65e2d89Ce853CC4076Df20272Fc69E5A',
+      '0x08b1d6fE01660911b939e9c896Ab53aBa231F101',
+    ],
+  },
 };
 
 const abis = {
@@ -15,28 +20,27 @@ const abis = {
 };
 
 const fetch = async (options: FetchOptions) => {
+  const chainConfig = config[options.chain];
   const dailyVolume = options.createBalances();
 
-  const tradeContract = config[options.chain];
+  const allLogs = await Promise.all(
+    chainConfig.trades.flatMap((tradeContract: Address) => [
+      options.getLogs({
+        target: tradeContract,
+        eventAbi: abis.positionIncreased,
+      }),
+      options.getLogs({
+        target: tradeContract,
+        eventAbi: abis.positionDecreased,
+      }),
+    ])
+  );
 
-  const increaseLogs = await options.getLogs({
-    target: tradeContract,
-    eventAbi: abis.positionIncreased,
-  });
-
-  for (const log of increaseLogs) {
-    const sizeUsd = Number(log.size) / 10 ** 18;
-    dailyVolume.addUSDValue(sizeUsd);
-  }
-
-  const decreaseLogs = await options.getLogs({
-    target: tradeContract,
-    eventAbi: abis.positionDecreased,
-  });
-
-  for (const log of decreaseLogs) {
-    const sizeUsd = Number(log.size) / 10 ** 18;
-    dailyVolume.addUSDValue(sizeUsd);
+  for (const logs of allLogs) {
+    for (const log of logs) {
+      const sizeUsd = Number(log.size.toString()) / 1e8;
+      dailyVolume.addUSDValue(sizeUsd);
+    }
   }
 
   return {
@@ -45,8 +49,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume:
-    'Volume is derived from Trade contract position events using the notional USD `size` field.',
+  Volume: 'Daily volume represents the total USD value traded.',
 };
 
 const adapter: SimpleAdapter = {
@@ -54,11 +57,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2024-01-01', // TODO: Find start date
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-01-01', // TODO: Find start date
+      start: '2023-02-19',
     },
   },
   methodology,
