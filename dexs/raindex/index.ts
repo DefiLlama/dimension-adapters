@@ -345,7 +345,7 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
   // format the floats to actual token value
   const vols = await api.multiCall({
     permitFailure: true,
-    target: orderbooks[api.chain].float,
+    target: floats[api.chain],
 		abi: ABI_V5.float.toFixedDecimalLossy,
 		calls: rawVols
       .filter((rawVol) => {
