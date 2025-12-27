@@ -1,75 +1,66 @@
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import { request, gql } from "graphql-request";
 
-const queryStakingFeesMetrics = gql`
-  query fees($block: Int!) {
-    metrics(block: { number: $block }) {
-      totalStakeFees
-      totalUnstakeFees
-    }
-  }
-`;
+// Colony StakingV3 contract
+const STAKING_CONTRACT =
+  "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
 
-const queryLatestIndexedBlock = gql`
-  query {
-    _meta {
-      block {
-        number
-      }
-    }
-  }
-`;
+// https://docs.colonylab.io/getting-started/start-your-journey/stake-cly-to-access-colony 
+// Event ABIs
+const STAKING_EVENTS = {
+  stakeFee: "event StakeFeeCollected(address indexed user, uint256 fee)",
+  unstakeFee: "event UnstakeFeeCollected(address indexed staker, uint256 value)",
+};
+
+// Event topics
+const STAKING_TOPICS = {
+  stakeFee: "0x776042b4aeec91acee68cf891261a42a23bbfda97b8403c2261fe6b469a1810e",
+  unstakeFee: "0x2e1dd4c6121af8cdd5eef463852430bc328164f1d8124ee4ab17effaaf473e51",
+};
 
 export async function stakingFees(
   options: FetchOptions,
-  stakingSubgraphEndpoint: string,
   ColonyGovernanceToken: string,
 ): Promise<{
   dailyHoldersRevenue: Balances;
 }> {
-  const { createBalances, getStartBlock, getEndBlock } = options;
+  const { getLogs } = options;
+  const dailyHoldersRevenue = options.createBalances();
 
-  const [startBlock, endBlock] = await Promise.all([
-    getStartBlock(),
-    getEndBlock(),
-  ]);
-
-  // Check latest indexed block to ensure data is available
-  const metaRes = await request(stakingSubgraphEndpoint, queryLatestIndexedBlock);
-  const latestIndexedBlock = metaRes._meta.block.number;
-
-  if (startBlock > latestIndexedBlock) {
-    throw new Error(
-      `Subgraph has only indexed up to block ${latestIndexedBlock}, but start block ${startBlock} is required. Data for this time period is not yet available.`
-    );
-  }
-
-  if (endBlock > latestIndexedBlock) {
-    throw new Error(
-      `Subgraph has only indexed up to block ${latestIndexedBlock}, but end block ${endBlock} is required. Data for this time period is not yet available.`
-    );
-  }
-
-  let dailyHoldersRevenue = createBalances();
-
-  const [beforeRes, afterRes] = await Promise.all([
-    request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-      block: startBlock,
+  // Fetch both stake and unstake fee events
+  const [stakeFeeLogs, unstakeFeeLogs] = await Promise.all([
+    getLogs({
+      target: STAKING_CONTRACT,
+      eventAbi: STAKING_EVENTS.stakeFee,
+      topics: [STAKING_TOPICS.stakeFee],
     }),
-    request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-      block: endBlock,
+    getLogs({
+      target: STAKING_CONTRACT,
+      eventAbi: STAKING_EVENTS.unstakeFee,
+      topics: [STAKING_TOPICS.unstakeFee],
     }),
   ]);
 
-  const beforeFees: number =
-    Number(beforeRes.metrics[0].totalStakeFees) +
-    Number(beforeRes.metrics[0].totalUnstakeFees);
-  const afterFees: number =
-    Number(afterRes.metrics[0].totalStakeFees) +
-    Number(afterRes.metrics[0].totalUnstakeFees);
+  let stakeFees = 0;
+  let unstakeFees = 0;
 
-  dailyHoldersRevenue.add(ColonyGovernanceToken, afterFees - beforeFees);
+  // Sum stake fees
+  for (const log of stakeFeeLogs) {
+    stakeFees += Number(log.fee);
+  }
+
+  // Sum unstake fees
+  for (const log of unstakeFeeLogs) {
+    unstakeFees += Number(log.value);
+  }
+
+  const totalFees = stakeFees + unstakeFees;
+
+  // Add total fees to holders revenue
+  dailyHoldersRevenue.add(
+    ColonyGovernanceToken,
+    totalFees
+  );
 
   return {
     dailyHoldersRevenue,
