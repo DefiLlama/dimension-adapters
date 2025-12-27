@@ -66,8 +66,8 @@ export async function getERC4626VaultsInfo(usingApi: ChainApi, vaults: Array<str
         asset: asset,
         decimals: Number(decimals[i]),
         assetDecimals: Number(assetsDecimals[i]),
-        totalAssets: BigInt(totalAssets[i]),
-        assetsPerShare: BigInt(assetsPerShares[i]),
+        totalAssets: BigInt(totalAssets[i] ? totalAssets[i] : 0),
+        assetsPerShare: BigInt(assetsPerShares[i] ? assetsPerShares[i] : 0),
       }
     } else {
       vaultInfos[vault] = null
