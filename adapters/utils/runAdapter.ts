@@ -177,9 +177,9 @@ async function _runAdapter({
     const res = validStart[chain]
     if (isTest && !res.canRun) {
       if (res.endTimestamp)
-        console.log(`Skipping ${chain} because the adapter ended at ${new Date(validStart[chain]?.endTimestamp! * 1e3).toUTCString()} \n\n`)
+        console.log(`Skipping ${chain} because the adapter ended at ${new Date(res.endTimestamp! * 1e3).toUTCString()} \n\n`)
       else
-        console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
+        console.log(`Skipping ${chain} because the configured start time is ${new Date(res.startTimestamp * 1e3).toUTCString()} \n\n`)
     }
     return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
