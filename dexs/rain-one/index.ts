@@ -1,16 +1,26 @@
+import { ethers } from "ethers";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import coreAssets from "../../helpers/coreAssets.json";
-import { queryDuneSql } from "../../helpers/dune";
+import * as sdk from "@defillama/sdk"
 
 const usdt = coreAssets.arbitrum.USDT
+const rainFactory = "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1"
+const enterOptionEvent = "event EnterOption(uint256 option, uint256 baseAmount, uint256 optionAmount,address indexed wallet)"
+const PoolCreatedEvent = "event PoolCreated(address indexed poolAddress, address indexed poolCreator, string uri)"
+
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
-    const query = `
-    SELECT SUM(baseAmount) AS volume FROM rain_protocol_arbitrum.rainpool_evt_enteroption WHERE evt_block_date >= DATE_TRUNC('day', from_unixtime(${options.fromTimestamp})) AND evt_block_date < DATE_TRUNC('day', from_unixtime(${options.toTimestamp}))`
-    const queryResult = await queryDuneSql(options, query)
-    dailyVolume.add(usdt, queryResult[0].volume)
+    const cacheKey = `tvl-adapter-cache/cache/logs/${options.chain}/${rainFactory.toLowerCase()}.json`
+    const { logs } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true})
+    const iface = new ethers.Interface([PoolCreatedEvent])
+    const pools = logs.map((log: any) => iface.parseLog(log)?.args.poolAddress)
+    const enterOptionLogs = await options.getLogs({
+      targets: pools,
+      eventAbi: enterOptionEvent
+    })
+    enterOptionLogs.forEach(log => dailyVolume.add(usdt, log.baseAmount))
 
     return {
         dailyVolume,
@@ -26,8 +36,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: "2025-02-17",
-  methodology,
-  dependencies: [Dependencies.DUNE]
+  methodology
 };
 
 export default adapter;
