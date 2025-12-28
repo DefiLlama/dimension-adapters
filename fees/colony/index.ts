@@ -6,7 +6,7 @@ import { dexFees } from "./dex";
 import { earlyStageFees } from "./earlystage";
 import { caiFees } from "./cai";
 import { validatorProgramFees } from "./validatorProgram";
-//import { airdrops } from "./airdrops";
+import { airdrops } from "./airdrops";
 import { masterChef } from "./masterChef";
 
 const ColonyGovernanceToken = "0xec3492a2508DDf4FDc0cD76F31f340b30d1793e6";
@@ -51,10 +51,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     options
   );
 
-  /*const airdropsResult = await airdrops(
-    options,
-    stakingSubgraphEndpoint
-  );*/
+  const airdropsResult = await airdrops(
+    options
+  );
 
   /*const masterChefResults = await masterChef(
     options,
@@ -73,7 +72,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   //dailyHoldersRevenue.addBalances(earlystageResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(caiResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(validatorProgramResult.dailyHoldersRevenue)
-  // dailyHoldersRevenue.addBalances(airdropsResult.dailyHoldersRevenue)
+  dailyHoldersRevenue.addBalances(airdropsResult.dailyHoldersRevenue)
 
   // --- Protocol Revenue
   //dailyProtocolRevenue.addBalances(earlystageResult.dailyProtocolRevenue)

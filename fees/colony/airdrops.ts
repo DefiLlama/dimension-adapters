@@ -1,57 +1,41 @@
-/*import { Balances } from "@defillama/sdk";
+import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import { request, gql } from "graphql-request";
-import fetchURL from "../../utils/fetchURL";
+
+const STAKING_CONTRACT = "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
+
+const STAKING_EVENTS = {
+  rewardClaimed:
+    "event RewardClaimed(address indexed token, uint8 category, address indexed staker, address indexed receiver, uint256 amount)",
+};
+
+const STAKING_TOPICS = {
+  customRewardClaimed: "0xbe3849fc1d848d4373d062cde883fc3119388f753301a0ba238d4fcc7f75d5f6",
+};
 
 export interface Airdrops {
   dailyHoldersRevenue: Balances;
 }
 
-interface IGraphAirdropsResponse {
-  rewards: {
-    token: {
-      id: string
-    }
-    amount: string
-  }[]
-}
-
-const queryAirdrops = gql
-  `query Airdrops($timestampFrom: BigInt!, $timestampTo: BigInt!) {
-    rewards(
-      where: {createdAt_gte: $timestampFrom, createdAt_lt: $timestampTo, categoryId_in: [3, 4]}
-    ) {
-      token {
-        id
-      }
-      amount
-    }
-  }`;
-
 export async function airdrops(
-  options: FetchOptions,
-  stakingV3SubgraphEndpoint: string,
+  options: FetchOptions
 ): Promise<Airdrops> {
-  const { createBalances, startTimestamp, endTimestamp } = options;
+  const { getLogs, createBalances } = options;
+  const dailyHoldersRevenue = createBalances();
 
-  let dailyHoldersRevenue = createBalances()
+  const rewardLogs = await getLogs({
+    target: STAKING_CONTRACT,
+    eventAbi: STAKING_EVENTS.rewardClaimed,
+    topics: [STAKING_TOPICS.customRewardClaimed],
+  });
 
-  try {
-    const res: IGraphAirdropsResponse = await request(stakingV3SubgraphEndpoint, queryAirdrops, {
-      timestampFrom: startTimestamp,
-      timestampTo: endTimestamp
-    });
-
-    if (res.rewards.length > 0) {
-      for (const airdrop of res.rewards) {
-        dailyHoldersRevenue.add(airdrop.token.id, airdrop.amount)
-      }
+  // Only sum events with category 3 or 4
+  for (const log of rewardLogs) {
+    if (log.category === 3n || log.category === 4n) {
+      dailyHoldersRevenue.add(log.token, log.amount);
     }
-  } catch (e) {
-    console.error(e);
   }
 
   return {
     dailyHoldersRevenue,
-  }
-}*/
+  };
+}
