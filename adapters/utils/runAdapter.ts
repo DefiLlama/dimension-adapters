@@ -112,7 +112,7 @@ const startOfDayIdCache: { [key: string]: string } = {}
 
 function getStartOfDayId(timestamp: number): string {
   if (!startOfDayIdCache[timestamp]) {
-    startOfDayIdCache[timestamp] =  '' + Math.floor(timestamp / 86400)
+    startOfDayIdCache[timestamp] = '' + Math.floor(timestamp / 86400)
   }
   return startOfDayIdCache[timestamp]
 }
@@ -153,6 +153,7 @@ async function _runAdapter({
     [chain: string]: {
       canRun: boolean,
       startTimestamp: number
+      endTimestamp?: number
     }
   }
   await Promise.all(chains.map(setChainValidStart))
@@ -173,8 +174,13 @@ async function _runAdapter({
   let breakdownByLabel: any = {}
 
   const response = await Promise.all(chains.filter(chain => {
-    const res = validStart[chain]?.canRun
-    if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
+    const res = validStart[chain]
+    if (isTest && !res.canRun) {
+      if (res.endTimestamp)
+        console.log(`Skipping ${chain} because the adapter ended at ${new Date(validStart[chain]?.endTimestamp! * 1e3).toUTCString()} \n\n`)
+      else
+        console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
+    }
     return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
@@ -378,8 +384,19 @@ async function _runAdapter({
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
+    let _end = adapterObject![chain]?.deadFrom ?? 0
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
+    if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
+
+    if (typeof _end === 'number' && _end < cleanPreviousDayTimestamp) {
+      validStart[chain] = {
+        canRun: false,
+        startTimestamp: _start as number,
+        endTimestamp: _end as number,
+      }
+      return;
+    }
 
     if (typeof _start === 'number') {
       validStart[chain] = {

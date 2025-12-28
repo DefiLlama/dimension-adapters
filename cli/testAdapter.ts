@@ -74,7 +74,7 @@ const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[
 
   if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   // Get adapter
-  const volumes: any = await runAdapter({ module, endTimestamp })
+  const volumes: any = await runAdapter({ module, endTimestamp, isTest: true })
   printVolumes2(volumes.map((volume: any) => timestampLast(volume)))
 
   console.info("\n")
