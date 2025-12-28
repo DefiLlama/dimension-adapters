@@ -15,6 +15,12 @@ const config = {
       '0x44192215FEd782896BE2CE24E0Bfbf0BF825d15E',
     ]
   },
+
+  [CHAIN.OPTIMISM]: {
+    pools: [
+      '0x44192215FEd782896BE2CE24E0Bfbf0BF825d15E',
+    ]
+  },
 }
 
 

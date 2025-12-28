@@ -28,11 +28,14 @@ const WST_USR_ABI = 'function convertToAssets(uint256 _wstUSRAmount) external vi
 const methodology = {
   Fees: 'Total investment yields from backing assets for RLP and USR',
   Revenue: 'Protocol share of daily yield (profit) which was actived from Aug 2025',
+  ProtocolRevenue: 'Protocol share of daily yield (profit) which was actived from Aug 2025',
+  HoldersRevenue: 'No revenue share to RESOLV token holders',
 };
 
 const breakdownMethodology = {
   Fees: { [METRIC.ASSETS_YIELDS]: 'Total investment yields from backing assets for RLP and USR' },
   Revenue: { [METRIC.ASSETS_YIELDS]: 'Protocol share of daily yield (profit) which was actived from Aug 2025' },
+  ProtocolRevenue: { [METRIC.ASSETS_YIELDS]: 'Protocol share of daily yield (profit) which was actived from Aug 2025' },
 };
 
 const getOtherRevenues = async (options: FetchOptions) => {
@@ -82,9 +85,14 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(token, value, METRIC.ASSETS_YIELDS)
   })
 
+  // 2025-03-19 RESOLV was deployed on Ethereum
+  const dailyHoldersRevenue = options.startOfDay >= 1742342400 ? 0 : undefined
+  
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue,
   };
 };
 

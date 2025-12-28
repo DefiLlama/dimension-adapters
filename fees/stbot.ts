@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
-const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     'F34kcgMgCF7mYWkwLN3WN7KrFprr2NbwxuLvXx4fbztj',
     '96aFQc9qyqpjMfqdUeurZVYRrrwPJG2uPV6pceu4B1yb',
@@ -21,11 +21,8 @@ const fetch: any = async (_: any, _1: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {

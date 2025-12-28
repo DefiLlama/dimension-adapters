@@ -5,7 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const rainHistoricalFeesUrl = 'https://api-v3.rain.fi/api/dirty/historical-apys?days=30';
 
-const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = await getSolanaReceived({ options, target: 'H3RFN3GbDfwGhZc5QPqzW6U4cwhuk9vgPhEfFbcPDrm5' })
   const stats: any = (await fetchURL(rainHistoricalFeesUrl));
 
@@ -29,6 +29,10 @@ const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-01-01',
+  // runAtCurrTime: true,
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {
@@ -36,13 +40,6 @@ const adapter: SimpleAdapter = {
     Revenue: 'Amount of intertest collected by Rain protocol.',
     SupplySideRevenue: 'Amount of intertest distributed to lenders.',
     ProtocolRevenue: 'Amount of intertest collected by Rain protocol.',
-  },
-  adapter: {
-    [CHAIN.SOLANA]: {
-      // runAtCurrTime: true,
-      fetch: fethcFeesSolana,
-      start: '2025-01-01',
-    },
   }
 }
 
