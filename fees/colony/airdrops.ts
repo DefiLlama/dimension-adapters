@@ -1,4 +1,4 @@
-import { Balances } from "@defillama/sdk";
+/*import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import fetchURL from "../../utils/fetchURL";
@@ -54,4 +54,4 @@ export async function airdrops(
   return {
     dailyHoldersRevenue,
   }
-}
+}*/

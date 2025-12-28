@@ -6,7 +6,7 @@ import { dexFees } from "./dex";
 import { earlyStageFees } from "./earlystage";
 import { caiFees } from "./cai";
 import { validatorProgramFees } from "./validatorProgram";
-import { airdrops } from "./airdrops";
+//import { airdrops } from "./airdrops";
 import { masterChef } from "./masterChef";
 
 const ColonyGovernanceToken = "0xec3492a2508DDf4FDc0cD76F31f340b30d1793e6";
@@ -15,6 +15,7 @@ const stakingSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colon
 const dexSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colony-dex/exchange-avalanche-production';
 const earlystageSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colony/earlystage-avalanche-production';
 const masterChefSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colony-dex/masterchef-avalanche-production'
+
 
 const methodology = {
   Fees: 'total fees paid by users from Colony DEX activities.',
@@ -32,35 +33,34 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     ColonyGovernanceToken
   );
 
-  const dexResult = await dexFees(
+  /*const dexResult = await dexFees(
     options,
     dexSubgraphEndpoint
-  );
+  );*/
 
-  const earlystageResult = await earlyStageFees(
+  /*const earlystageResult = await earlyStageFees(
     options,
     earlystageSubgraphEndpoint,
-  );
+  );*/
 
   const caiResult = await caiFees(
     options
   );
 
   const validatorProgramResult = await validatorProgramFees(
-    options,
-    stakingSubgraphEndpoint
+    options
   );
 
-  const airdropsResult = await airdrops(
+  /*const airdropsResult = await airdrops(
     options,
     stakingSubgraphEndpoint
-  );
+  );*/
 
-  const masterChefResults = await masterChef(
+  /*const masterChefResults = await masterChef(
     options,
     masterChefSubgraphEndpoint,
     earlystageSubgraphEndpoint
-  );
+  );*/
 
   let dailyFees = createBalances();
   let dailyRevenue = createBalances();
@@ -70,20 +70,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // --- Holders Revenue
   dailyHoldersRevenue.addBalances(stakingResult.dailyHoldersRevenue)
-  dailyHoldersRevenue.addBalances(earlystageResult.dailyHoldersRevenue)
+  //dailyHoldersRevenue.addBalances(earlystageResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(caiResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(validatorProgramResult.dailyHoldersRevenue)
-  dailyHoldersRevenue.addBalances(airdropsResult.dailyHoldersRevenue)
+  // dailyHoldersRevenue.addBalances(airdropsResult.dailyHoldersRevenue)
 
   // --- Protocol Revenue
-  dailyProtocolRevenue.addBalances(earlystageResult.dailyProtocolRevenue)
+  //dailyProtocolRevenue.addBalances(earlystageResult.dailyProtocolRevenue)
   dailyProtocolRevenue.addBalances(caiResult.dailyProtocolRevenue)
   dailyProtocolRevenue.addBalances(validatorProgramResult.dailyProtocolRevenue)
-  dailyProtocolRevenue.addBalances(dexResult.dailyProtocolRevenue)
+  //dailyProtocolRevenue.addBalances(dexResult.dailyProtocolRevenue)
 
   // --- Supply Side Revenue
-  dailySupplySideRevenue.addBalances(dexResult.dailySupplySideRevenue)
-  dailySupplySideRevenue.addBalances(masterChefResults.dailySupplySideRevenue)
+  //dailySupplySideRevenue.addBalances(dexResult.dailySupplySideRevenue)
+  //dailySupplySideRevenue.addBalances(masterChefResults.dailySupplySideRevenue)
 
   // --- Revenue
   dailyRevenue.addBalances(dailyProtocolRevenue)
@@ -94,7 +94,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.addBalances(dailySupplySideRevenue)
 
   return {
-    dailyVolume: dexResult.dailyVolume,
+    //dailyVolume: dexResult.dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,

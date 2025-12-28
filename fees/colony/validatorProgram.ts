@@ -1,66 +1,62 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from '../../helpers/coreAssets.json';
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import { request, gql } from "graphql-request";
-import BigNumber from "bignumber.js";
+
+// WAVAX token
+const wavaxToken = ADDRESSES.avax.WAVAX;
+
+// StakingV3 contract
+const STAKING_CONTRACT = "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
+
+// Event ABIs for validator rewards
+const STAKING_EVENTS = {
+  rewardClaimed:
+    "event RewardClaimed(address indexed token, uint8 category, address indexed staker, address indexed receiver, uint256 amount)",
+};
+
+// Topic for RewardClaimed
+const STAKING_TOPICS = {
+  rewardClaimed: "0xbe3849fc1d848d4373d062cde883fc3119388f753301a0ba238d4fcc7f75d5f6",
+};
 
 export interface ValidatorProgramFees {
   dailyProtocolRevenue: Balances;
   dailyHoldersRevenue: Balances;
 }
 
-interface IGraphEarlyStageFeesResponse {
-  rewards: {
-    amount: string
-  }[]
-  rewardPerTokenPerCategories: {
-    amountTotal: string
-  }[]
-}
-
-const wavaxToken = ADDRESSES.avax.WAVAX
-
-const queryValidatorProgramFees = gql
-  `query ValidatorProgramFees($timestampFrom: BigInt!, $timestampTo: BigInt!) {
-    rewards(
-      where: {createdAt_gte: $timestampFrom, createdAt_lt: $timestampTo, token: "${wavaxToken}", categoryId: 1}
-    ) {
-      amount
-    }
-    rewardPerTokenPerCategories(
-      where: {token: "${wavaxToken}", categoryId: 1}
-    ) {
-      amountTotal
-    }
-  }`;
-
-
 export async function validatorProgramFees(
   options: FetchOptions,
-  stakingV3SubgraphEndpoint: string,
 ): Promise<ValidatorProgramFees> {
-  const { createBalances, startTimestamp, endTimestamp } = options;
+  const { getLogs, createBalances } = options;
 
-  let dailyProtocolRevenue = createBalances()
-  let dailyHoldersRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
-  try {
-    const res: IGraphEarlyStageFeesResponse = await request(stakingV3SubgraphEndpoint, queryValidatorProgramFees, {
-      timestampFrom: startTimestamp,
-      timestampTo: endTimestamp
-    });
+  // Fetch RewardClaimed events
+  const rewardLogs = await getLogs({
+    target: STAKING_CONTRACT,
+    eventAbi: STAKING_EVENTS.rewardClaimed,
+    topics: [STAKING_TOPICS.rewardClaimed],
+  });
 
-    if (res.rewards[0] !== undefined) {
-      dailyProtocolRevenue.add(wavaxToken, new BigNumber(res.rewards[0].amount).div(0.7).multipliedBy(0.3).toFixed(0))
-      dailyHoldersRevenue.add(wavaxToken, res.rewards[0].amount)
+  let totalReward = 0n;
+
+  // Sum the total reward
+  for (const log of rewardLogs) {
+    if (log.token.toLowerCase() === wavaxToken.toLowerCase() &&
+    Number(log.category) === 1) {
+      totalReward += log.amount;
     }
-
-  } catch (e) {
-    console.error(e);
   }
+
+  const holdersShare = totalReward;
+  const protocolShare = (totalReward * 3n) / 7n;
+
+  dailyProtocolRevenue.add(wavaxToken, protocolShare);
+  dailyHoldersRevenue.add(wavaxToken, holdersShare);
 
   return {
     dailyProtocolRevenue,
     dailyHoldersRevenue,
-  }
+  };
 }
