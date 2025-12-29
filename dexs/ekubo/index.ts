@@ -6,9 +6,9 @@ import BigNumber from "bignumber.js";
 
 const toki = (n: any) => "starknet:0x" + BigInt(n).toString(16).padStart("049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7".length, "0")
 
-const chainConfig: Record<string, { start: string, chainId: number }> = {
-  [CHAIN.STARKNET]: { start: '2023-09-19', chainId: 9004 },
-  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: 1 }
+const chainConfig: Record<string, { start: string, chainId: String }> = {
+  [CHAIN.STARKNET]: { start: '2023-09-19', chainId: "23448594291968334" },
+  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" }
 }
 
 function toAddress(numberString: string): string {
