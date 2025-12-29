@@ -71,12 +71,14 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         const latestApy =
             yieldsData.payload[xToken][0].data[totalYieldEntries - 1].value;
 
-        const yieldForPeriod = (latestTvl * latestApy * periodWrtYear) / 100;
-        dailyFees.addCGToken(
-            tokenDetails.coingeckoId,
-            yieldForPeriod,
-            METRIC.ASSETS_YIELDS
-        );
+        if (latestTvl > 0 && latestApy > 0) {
+          const yieldForPeriod = (latestTvl * latestApy * periodWrtYear) / 100;
+          dailyFees.addCGToken(
+              tokenDetails.coingeckoId,
+              yieldForPeriod,
+              METRIC.ASSETS_YIELDS
+          );
+        }
     }
 
     return {
