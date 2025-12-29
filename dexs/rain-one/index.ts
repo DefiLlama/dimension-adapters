@@ -1,8 +1,6 @@
-import { ethers } from "ethers";
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import coreAssets from "../../helpers/coreAssets.json";
-import * as sdk from "@defillama/sdk"
 
 const usdt = coreAssets.arbitrum.USDT
 const rainFactory = "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1"
@@ -11,17 +9,16 @@ const PoolCreatedEvent = "event PoolCreated(address indexed poolAddress, address
 
 
 const fetch = async (options: FetchOptions) => {
-    const dailyVolume = options.createBalances();
-    const cacheKey = `tvl-adapter-cache/cache/logs/${options.chain}/${rainFactory.toLowerCase()}.json`
-    const { logs } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true})
-    const iface = new ethers.Interface([PoolCreatedEvent])
-    const pools = logs.map((log: any) => iface.parseLog(log)?.args.poolAddress)
+    const dailyVolume = options.createBalances()
+    const poolCreationLogs = await options.api.getLogs({ target: rainFactory, eventAbi: PoolCreatedEvent, fromBlock: 307026817, toTimestamp: options.toTimestamp, cacheInCloud: true})
+    const pools = poolCreationLogs.map(log => log.args.poolAddress)
+    const poolsEndTime = await options.api.multiCall({ abi: "uint256:endTime", calls: pools})
+    const filteredPools = pools.filter((_, i) => poolsEndTime[i] >= options.fromTimestamp)
     const enterOptionLogs = await options.getLogs({
-      targets: pools,
+      targets: filteredPools,
       eventAbi: enterOptionEvent
     })
     enterOptionLogs.forEach(log => dailyVolume.add(usdt, log.baseAmount))
-
     return {
         dailyVolume,
     };
