@@ -46,7 +46,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 13843704, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
+  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 13843704, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, cacheInCloud: true, })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
 
   const bribes_contract: string[] = logs_gauge_created
@@ -76,7 +76,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
   let rawPools: Array<any> = []
   for (const factory of CONFIG.factories) {
-    rawPools = rawPools.concat(await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer }))
+    rawPools = rawPools.concat(await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer, cacheInCloud: true, }))
   }
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())

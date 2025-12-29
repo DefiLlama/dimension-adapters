@@ -26,14 +26,6 @@ const abis = {
     'event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)',
 };
 
-interface LeverageToken {
-  token: string;
-  collateralAsset: string;
-  debtAsset: string;
-  mintTokenFee: bigint;
-  redeemTokenFee: bigint;
-}
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
@@ -41,62 +33,38 @@ const fetch = async (options: FetchOptions) => {
     target: config[options.chain].leverageManager,
     eventAbi: abis.leverageTokenCreated,
     fromBlock: config[options.chain].fromBlock,
-    flatten: false,
+    cacheInCloud: true,
   });
 
-  const leverageTokens: LeverageToken[] = leverageTokenLogs.map((log: any) => ({
+  const leverageTokens: any[] = leverageTokenLogs.map((log: any) => ({
     token: log.token,
     collateralAsset: log.collateralAsset,
     debtAsset: log.debtAsset,
-    mintTokenFee: BigInt(log.config.mintTokenFee),
-    redeemTokenFee: BigInt(log.config.redeemTokenFee),
+    mintTokenFee: log.config.mintTokenFee,
+    redeemTokenFee: log.config.redeemTokenFee,
   }));
 
-  if (!leverageTokens.length) {
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
-  }
+  const tokens = leverageTokens.map((lt) => lt.token);
+  const mintLogs = await options.getLogs({ targets: tokens, eventAbi: abis.mint, flatten: false, });
+  const redeemLogs = await options.getLogs({ targets: tokens, eventAbi: abis.redeem, flatten: false, });
 
-  for (const leverageToken of leverageTokens) {
-    const mintLogs = await options.getLogs({
-      target: leverageToken.token,
-      eventAbi: abis.mint,
+  leverageTokens.forEach((ltConfig, index) => {
+    const mintLogsForToken = mintLogs[index];
+    mintLogsForToken.forEach((log: any) => {
+      const assets = log.assets
+      const feeAmount = (assets * ltConfig.mintTokenFee) / 1e18
+
+      dailyFees.add(ltConfig.collateralAsset, feeAmount, METRIC.MINT_REDEEM_FEES);
     });
 
-    mintLogs.forEach((log: any) => {
-      const assets = BigInt(log.assets);
-      const feeAmount = (assets * leverageToken.mintTokenFee) / BigInt(1e18);
+    const redeemLogsForToken = redeemLogs[index];
+    redeemLogsForToken.forEach((log: any) => {
+      const assets = log.assets
+      const feeAmount = (assets * ltConfig.redeemTokenFee) / 1e18
 
-      if (feeAmount > 0n) {
-        dailyFees.add(
-          leverageToken.collateralAsset,
-          feeAmount,
-          METRIC.MINT_REDEEM_FEES
-        );
-      }
+      dailyFees.add(ltConfig.collateralAsset, feeAmount, METRIC.MINT_REDEEM_FEES);
     });
-
-    const redeemLogs = await options.getLogs({
-      target: leverageToken.token,
-      eventAbi: abis.redeem,
-    });
-
-    redeemLogs.forEach((log: any) => {
-      const assets = BigInt(log.assets);
-      const feeAmount = (assets * leverageToken.redeemTokenFee) / BigInt(1e18);
-
-      if (feeAmount > 0n) {
-        dailyFees.add(
-          leverageToken.collateralAsset,
-          feeAmount,
-          METRIC.MINT_REDEEM_FEES
-        );
-      }
-    });
-  }
+  })
 
   return {
     dailyFees,

@@ -168,7 +168,6 @@ const fetchv3PolygonLogs = async (options: FetchOptions): Promise<{ dailyFees: n
   const FeeEvent = 'event Fee(uint16 fee)'
 
   const fromBlock = config_v3[options.chain]?.startBlock || 0
-  const toBlock = await options.getToBlock()
 
   const adapter = getUniV3LogAdapter({
     factory: factory,
@@ -181,7 +180,7 @@ const fetchv3PolygonLogs = async (options: FetchOptions): Promise<{ dailyFees: n
     target: factory,
     eventAbi: poolCreatedEvent,
     fromBlock: fromBlock,
-    toBlock: toBlock,
+		cacheInCloud: true,
   })
 
   const fee_events = await options.getLogs({

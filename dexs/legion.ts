@@ -60,6 +60,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     target: FACTORY,
     eventAbi: ABIS.NewPreLiquidSaleV2Created,
     fromBlock: FACTORY_FROM_BLOCK,
+    cacheInCloud: true,
   })
   const saleConfigs = await options.api.multiCall({
     abi: ABIS.saleConfiguration,

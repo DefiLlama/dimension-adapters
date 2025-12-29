@@ -192,8 +192,6 @@ async function computeGrossByLogs(opts: FetchOptions, chainSlug: string): Promis
   for (const counter of counters) {
     const logs = (await opts.getLogs({
       target: counter,
-      fromBlock: from_block,
-      toBlock: to_block,
       eventAbi: abis.GMSent,
       entireLog: true,
     }).catch(() => [])) as any[];

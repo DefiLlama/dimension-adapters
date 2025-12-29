@@ -16,6 +16,7 @@ const fetch = async (options: FetchOptions) => {
   let logs = await options.getLogs({
     target: factory,
     eventAbi: poolEvent,
+    cacheInCloud: true,
     fromBlock: fromBlock,
     entireLog: true,
   });

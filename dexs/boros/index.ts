@@ -54,6 +54,7 @@ const fetch = async (options: FetchOptions) => {
     const marketCreationLogs = await options.getLogs({
         target: BOROS_FACTORY,
         eventAbi: BOROS_ABIS.MARKET_CREATION_EVENT,
+        cacheInCloud: true,
         fromBlock: BOROS_FACTORY_CREATION_BLOCK
     });
 

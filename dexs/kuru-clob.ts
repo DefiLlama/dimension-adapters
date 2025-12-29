@@ -38,6 +38,7 @@ async function fetch(options: FetchOptions) {
     target: CONFIGS[options.chain].router,
     eventAbi: ABIS.EventMarketregistered,
     fromBlock: CONFIGS[options.chain].fromBlock,
+    cacheInCloud: true,
   })
   
   for (const log of MarketRegisteredEvents) {

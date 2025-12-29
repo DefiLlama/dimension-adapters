@@ -55,6 +55,7 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
         eventAbi: ABI.morpho.CreateMetaMorphoEvent,
         target: factory.address,
         fromBlock: factory.fromBlock,
+        cacheInCloud: true,
       })
       const vaultOfOwners = logs.filter(log => isOwner(log.initialOwner, owners)).map((log) => log.metaMorpho)
       morphoVaults = morphoVaults.concat(vaultOfOwners)
@@ -73,6 +74,7 @@ async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | 
         eventAbi: ABI.morpho.CreateVaultV2,
         target: factory.address,
         fromBlock: factory.fromBlock,
+        cacheInCloud: true,
       })
       const vaultOfOwners = logs.filter(log => isOwner(log.owner, owners)).map((log) => log.newVaultV2)
       morphoVaults = morphoVaults.concat(vaultOfOwners)

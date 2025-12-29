@@ -54,6 +54,7 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
         target: factory.factory,
         eventAbi: Abis.LBPairCreatedEvent,
         fromBlock: factory.fromBlock,
+        cacheInCloud: true,
       })
 
       const feeParameters = factory.version === 2 ? await options.api.multiCall({

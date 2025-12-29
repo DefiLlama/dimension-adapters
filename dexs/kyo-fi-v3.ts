@@ -19,7 +19,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const dailyFees = createBalances();
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), (await api.getBlock()) - 100]);
 
-  const rawPairs = await getLogs({ target: factory, fromBlock: factory_block, toBlock, eventAbi: eventAbis.event_poolCreated });
+  const rawPairs = await getLogs({ target: factory, fromBlock: factory_block, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, });
   const pairs = rawPairs.map(({ token0, token1, fee, tickSpacing, pool }) => ({ token0, token1, pool_fees: fee, tickSpacing, pool }));
 
   const pairInfoMap: Record<string, any> = {};
