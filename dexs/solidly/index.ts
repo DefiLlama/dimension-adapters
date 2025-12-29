@@ -6,6 +6,10 @@ export default uniV2Exports({
     factory: '0x3fAaB499b519fdC5819e3D7ed0C26111904cbc28',
     fees: 0.002,     
     stableFees: 0.0001, 
-    start: '2022-02-10',            
+    start: '2022-02-10',  
+    revenueRatio: 1,              
+    protocolRevenueRatio: 0,     
+    holdersRevenueRatio: 1,      
+    userFeesRatio: 1,       
   }
 });
