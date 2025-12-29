@@ -226,6 +226,7 @@ const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<Morpho
     target: MorphoBlues[options.chain].blue,
     eventAbi: MorphoBlueAbis.CreateMarket,
     fromBlock: MorphoBlues[options.chain].fromBlock,
+    cacheInCloud: true,
   });
 
   for (const event of events) {

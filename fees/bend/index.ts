@@ -106,6 +106,7 @@ const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<Morpho
     target: CONFIG.blue,
     eventAbi: abi.morphoBlueEvents.CreateMarket,
     fromBlock: CONFIG.fromBlock,
+		cacheInCloud: true,
   });
 
   const marketIds = events.map(event => event.id)
