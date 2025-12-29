@@ -56,19 +56,23 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     const txHash = tx.hash.toLowerCase();
     const input = (tx as any).input;
 
-    if (!input?.startsWith("0x5ae401dc")) continue;
+    const isMulticall = input?.startsWith("0x5ae401dc");
+    const isDirectSwap = input?.startsWith("0x2823d42");
+
+    if (!isMulticall && !isDirectSwap) continue;
 
     let destinationToken: string | undefined;
 
     try {
-      const decoded = multicallInterface.decodeFunctionData("multicall", input);
-      const multicallData = decoded.data;
+      const multicallData = isMulticall
+        ? multicallInterface.decodeFunctionData("multicall", input).data
+        : [input];
 
       if (!multicallData.length) continue;
       for (const callData of multicallData) {
         try {
           const selector = callData.slice(0, 10);
-          if (selector === "0xebfd80e2") {
+          if (selector === "0xebfd80e2" || selector.startsWith("0x2823d42")) {
             const params = callData.slice(10);
             const chunks: string[] = [];
             for (let i = 0; i < params.length; i += 64) {
