@@ -1,28 +1,20 @@
-import ADDRESSES from '../../helpers/coreAssets.json';
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-
-// WAVAX token
-const wavaxToken = ADDRESSES.avax.WAVAX;
-
-// StakingV3 contract
-const STAKING_CONTRACT = "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
-
-// Event ABIs for validator rewards
-const STAKING_EVENTS = {
-  rewardClaimed:
-    "event RewardClaimed(address indexed token, uint8 category, address indexed staker, address indexed receiver, uint256 amount)",
-};
-
-// Topic for RewardClaimed
-const STAKING_TOPICS = {
-  rewardClaimed: "0xbe3849fc1d848d4373d062cde883fc3119388f753301a0ba238d4fcc7f75d5f6",
-};
 
 export interface ValidatorProgramFees {
   dailyProtocolRevenue: Balances;
   dailyHoldersRevenue: Balances;
 }
+
+const STAKING_CONTRACT =
+  "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
+
+const WAVAX = ADDRESSES.avax.WAVAX;
+const VALIDATOR_CATEGORY = 1;
+
+const REWARD_ADDED_EVENT =
+  "event RewardAdded(address indexed token, uint8 category, uint256 amount, uint256 duration)";
 
 export async function validatorProgramFees(
   options: FetchOptions,
@@ -32,28 +24,34 @@ export async function validatorProgramFees(
   const dailyProtocolRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
 
-  // Fetch RewardClaimed events
-  const rewardLogs = await getLogs({
+  // Fetch RewardAdded events
+  const logs = await getLogs({
     target: STAKING_CONTRACT,
-    eventAbi: STAKING_EVENTS.rewardClaimed,
-    topics: [STAKING_TOPICS.rewardClaimed],
+    eventAbi: REWARD_ADDED_EVENT,
+    topic: '0x76f4be3e874cc10b0db82373976a4b261a91b466d6a1f4db6563e5bd25ebba9e'
   });
 
-  let totalReward = 0n;
+  let totalValidatorRewards = 0n;
 
-  // Sum the total reward
-  for (const log of rewardLogs) {
-    if (log.token.toLowerCase() === wavaxToken.toLowerCase() &&
-    Number(log.category) === 1) {
-      totalReward += log.amount;
+  for (const log of logs) {
+    if (
+      log.token.toLowerCase() === WAVAX.toLowerCase() &&
+      Number(log.category) === VALIDATOR_CATEGORY
+    ) {
+      totalValidatorRewards += BigInt(log.amount);
     }
   }
 
-  const holdersShare = totalReward;
-  const protocolShare = (totalReward * 3n) / 7n;
+  if (totalValidatorRewards > 0n) {
+    // 70% to holders
+    const holdersShare = totalValidatorRewards * 70n / 100n;
 
-  dailyProtocolRevenue.add(wavaxToken, protocolShare);
-  dailyHoldersRevenue.add(wavaxToken, holdersShare);
+    // 30% protocol revenue
+    const protocolShare = totalValidatorRewards - holdersShare;
+
+    dailyHoldersRevenue.add(WAVAX, holdersShare);
+    dailyProtocolRevenue.add(WAVAX, protocolShare);
+  }
 
   return {
     dailyProtocolRevenue,
