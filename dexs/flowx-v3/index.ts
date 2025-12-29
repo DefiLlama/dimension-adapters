@@ -6,37 +6,26 @@ const graphQLClient = new GraphQLClient(
   "https://api.flowx.finance/flowx-be/graphql"
 );
 
-const getFees = () => {
+const getPools = () => {
   return gql`
-    query GetClmmExchangeTotalFeesInPeriod(
-      $startTime: Float!
-      $endTime: Float!
-    ) {
-      getClmmExchangeTotalFeesInPeriod(
-        startTime: $startTime
-        endTime: $endTime
-      ) {
-        totalFees
+    query {
+      getClmmPools {
+        id
+        volumeUSD
       }
     }
   `;
 };
 
 const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
-  const feesRes = await graphQLClient.request(getFees(), {
-    startTime: fromTimestamp * 1000,
-    endTime: toTimestamp * 1000,
-  });
+  const poolsRes = await graphQLClient.request(getPools());
 
-  const totalFees = parseFloat(feesRes.getClmmExchangeTotalFeesInPeriod?.totalFees || "0");
-
-  // Assuming the totalFees from API represents total swap fees collected
-  // Using a conservative estimate of 0.05% average fee rate for CLMM
-  // Volume = Total Fees / Fee Rate
-  const estimatedVolume = totalFees / 0.0005;
+  const totalVolume = poolsRes.getClmmPools.reduce((sum: number, pool: any) => {
+    return sum + parseFloat(pool.volumeUSD || "0");
+  }, 0);
 
   return {
-    dailyVolume: estimatedVolume.toString(),
+    dailyVolume: totalVolume.toString(),
   };
 };
 
@@ -49,7 +38,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Volume: "Daily trading volume estimated from FlowX CLMM fees data. Volume = Total Fees / 0.0005 (assuming 0.05% average fee rate).",
+    Volume: "Daily trading volume aggregated from individual FlowX CLMM pool volume data.",
   },
 };
 
