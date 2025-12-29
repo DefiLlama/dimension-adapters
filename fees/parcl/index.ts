@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived, getSolanaReceivedDune } from "../../helpers/token";
+import { getSolanaReceivedDune } from "../../helpers/token";
 
 // Parcl fees adapter
 // Based on addresses from https://docs.parcl.co/addresses
@@ -36,28 +36,10 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     ...PROGRAM_ADDRESSES
   ];
 
-  let dailyFees;
-
-  try {
-    // Try getSolanaReceivedDune first (uses Dune - more comprehensive data)
-    dailyFees = await getSolanaReceivedDune({
-      options,
-      targets: allFeeAddresses,
-    });
-  } catch (error) {
-    console.log('Dune API not available, falling back to Allium:', error.message);
-    try {
-      // Fallback to getSolanaReceived (uses Allium)
-      dailyFees = await getSolanaReceived({
-        options,
-        targets: allFeeAddresses,
-      });
-    } catch (alliumError) {
-      // Both APIs failed - return empty results for CI/testing
-      console.log('Allium API also not available, returning empty fees:', alliumError.message);
-      dailyFees = options.createBalances();
-    }
-  }
+  const dailyFees = await getSolanaReceivedDune({
+    options,
+    targets: allFeeAddresses,
+  });
 
   return {
     dailyFees,
@@ -75,7 +57,7 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
+  dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: "Trading fees, liquidation fees, and settlement fees collected by Parcl protocol",
     Revenue: "Fees collected by authorized keepers and protocol treasury addresses",
