@@ -41,8 +41,7 @@ const fetch = async (options: FetchOptions) => {
   const rateGrowth = BigInt(rateEnd) - BigInt(rateStart);
 
   if (rateGrowth > 0n) {
-    const avgSupply = (BigInt(totalSupplyStart) + BigInt(totalSupplyEnd)) / 2n;
-    const yieldAmount = (rateGrowth * avgSupply) / BigInt(1e18);
+    const yieldAmount = (rateGrowth * BigInt(totalSupplyStart)) / BigInt(1e18);
 
     // Exchange rate growth is treated as system yield, fully distributed to wsrUSD holders
     dailyFees.add(RUSD_CONTRACT, yieldAmount);
