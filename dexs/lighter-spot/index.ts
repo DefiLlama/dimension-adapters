@@ -28,12 +28,12 @@ const fetch = async (_1: any, _2: any, options: FetchOptions) => {
         end_timestamp: start + 1,
         count_back: 1,
       }
-      const data = await httpGet(`${API}/candlesticks`, { params: params, });
+      const data = await httpGet(`${API}/candles`, { params: params, });
 
-      const candle = data?.candlesticks?.[0];
+      const candle = data?.c?.[0];
       if (!candle) return;
 
-      dailyVolume += Number(candle.volume1 || 0); // already in $;
+      dailyVolume += Number(candle.V || 0); // already in $;
     });
 
   return { dailyVolume, };
