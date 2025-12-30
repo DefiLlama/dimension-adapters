@@ -80,6 +80,7 @@ const adapter : SimpleAdapter = {
     version: 2,
     fetch,
     chains: [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE],
+    allowNegativeValue: true,
     methodology: {
         Fees: "The yield generated from deposited assets",
         Revenue: "The redemption fees. The protocol charges a management and performance fee, but the actual percentages are not disclosed",
