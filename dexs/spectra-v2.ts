@@ -157,8 +157,8 @@ type VotingReward = {
   };
 };
 
-// const GOVERNANCE_SUBGRAPH_URL =
-//   "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/governance/api";
+const GOVERNANCE_SUBGRAPH_URL =
+  "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-governance/prod/gn";
 
 const fetchDailyFeesAndVolume = async ({
   chain,
@@ -208,27 +208,27 @@ const fetchDailyHoldersRevenue = async ({
   dailyVotingFeesRevenue.chain = CHAIN.BASE; // revenue is generated on all chains, but redistributed to holders exclusively on Base
   const dailyVotingIncentivesRevenue = dailyVotingFeesRevenue.clone();
 
-  // const graphQLClient = new GraphQLClient(GOVERNANCE_SUBGRAPH_URL);
-  // const dailyData = (
-  //   await graphQLClient.request(
-  //     GQL_QUERIES.DAILY_VOTING_REWARDS(startTimestamp, endTimestamp)
-  //   )
-  // ).votingRewards as VotingReward[];
+  const graphQLClient = new GraphQLClient(GOVERNANCE_SUBGRAPH_URL);
+  const dailyData = (
+    await graphQLClient.request(
+      GQL_QUERIES.DAILY_VOTING_REWARDS(startTimestamp, endTimestamp)
+    )
+  ).votingRewards as VotingReward[];
 
   // Count both reward types (voting incentives + fees) separately
-  // dailyData.forEach((reward) => {
-  //   // Only count rewards for pools on the current chain
-  //   if (reward.distributor.governancePool.chainId === chains[chain].id.toString()) {
-  //     if (reward.distributor.type === "FEE") {
-  //       dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
-  //     } else {
-  //       dailyVotingIncentivesRevenue.add(
-  //         reward.address,
-  //         reward.amount.toString()
-  //       );
-  //     }
-  //   }
-  // });
+  dailyData.forEach((reward) => {
+    // Only count rewards for pools on the current chain
+    if (reward.distributor.governancePool.chainId === chains[chain].id.toString()) {
+      if (reward.distributor.type === "FEE") {
+        dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
+      } else {
+        dailyVotingIncentivesRevenue.add(
+          reward.address,
+          reward.amount.toString()
+        );
+      }
+    }
+  });
 
   return [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue];
 };
