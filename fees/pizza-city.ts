@@ -1,10 +1,10 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const BOSS_BAKER_AUCTION = '0x272cD704E5A90b63E3B595744785262d32997B2f';
 const WETH = '0x4200000000000000000000000000000000000006';
 
-const fetch = async ({ getLogs, createBalances }: any) => {
+const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
   const logs = await getLogs({
     target: BOSS_BAKER_AUCTION,
     eventAbi: 'event RoundClearable(uint256 indexed roundId, uint256 clearingPrice, uint256 totalPot, uint256 bidderCount)',
