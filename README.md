@@ -19,3 +19,13 @@ Create an `.env` file and add custom RPC URLs using the `{CHAIN}_RPC` format (us
 ```
 ETHEREUM_RPC="https://yourcustomrpc.com"
 ```
+
+## Graph API Key Setup
+
+Some adapters use The Graph hosted subgraphs which require API keys for continued access beyond free tier limits. Create an `.env` file and add:
+
+```
+GRAPH_API_KEY="your_graph_api_key_here"
+```
+
+Get your API key from [The Graph Studio](https://thegraph.com/studio/).

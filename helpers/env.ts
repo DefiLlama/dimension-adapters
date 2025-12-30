@@ -46,6 +46,7 @@ export const ENV_KEYS = new Set([
   'ZEROx_API_KEY',
   'ZEROX_API_KEY',
   'AGGREGATOR_0X_API_KEY',
+  'GRAPH_API_KEY',
   'SUI_RPC',
   'OKX_API_KEY',
   'ALCHEMIX_KEY',
