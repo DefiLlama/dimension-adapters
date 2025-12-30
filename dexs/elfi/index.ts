@@ -30,21 +30,17 @@ const fetch = async ({ getLogs, chain, createBalances }: FetchOptions) => {
   const abiCoder = ethers.AbiCoder.defaultAbiCoder()
 
   logs.forEach((log: any) => {
-    try {
-      const decoded = abiCoder.decode(ORDER_INFO_TYPES, log.data)
-      const orderInfo = decoded[0]
-      const fillQty = decoded[1]
+    const decoded = abiCoder.decode(ORDER_INFO_TYPES, log.data)
+    const orderInfo = decoded[0]
+    const fillQty = decoded[1]
 
-      const qty = orderInfo.qty
-      const volume = fillQty > 0n ? fillQty : qty
-      if (volume === 0n) return
+    const qty = orderInfo.qty
+    const volume = fillQty > 0n ? fillQty : qty
+    if (volume === 0n) return
 
-      // Convert from 1e18 to USD with bigint-safe scaling (keep 6 decimals)
-      const volumeUsd = Number(volume / 10n ** 12n) / 1e6
-      dailyVolume.addCGToken('tether', volumeUsd)
-    } catch {
-      // Skip logs that fail to decode
-    }
+    // Convert from 1e18 to USD with bigint-safe scaling (keep 6 decimals)
+    const volumeUsd = Number(volume / 10n ** 12n) / 1e6
+    dailyVolume.addCGToken('tether', volumeUsd)
   })
 
   return {
