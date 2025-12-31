@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { METRIC } from "../helpers/metrics";
 
 /**
  * OpenTrade - Tokenized Money Market Fund & Bond Vaults
@@ -9,12 +10,15 @@ import ADDRESSES from "../helpers/coreAssets.json";
  * - Advisor Fee: 0.10% - covers advising OpenTrade SPC on portfolio management
  * - Platform Fee: 0.20% - covers development and maintenance of the platform
  * - Liquidity Fee: 0.20% - covers providing liquidity for immediate interest payments
- * - Total: 0.50% per annum, deducted from gross yield
+ * - Total: 0.50% per annum, applied to total collateral value (not just yield)
  *
+ * Fees are calculated daily: Collateral Value * (0.50% / 252 trading days)
+ * Deducted from exchange rate rather than paid directly by lenders.
  */
 
-const TOTAL_FEE_BPS = 50n; // 0.50% = 50 bps
-const BPS_DENOMINATOR = 10000n;
+const TOTAL_FEE_BPS = 50; // 0.50% = 50 bps
+const BPS_DENOMINATOR = 10000;
+const TRADING_DAYS_PER_YEAR = 252;
 
 // Underlying assets per chain
 const USDC: Record<string, string> = {
@@ -65,6 +69,11 @@ const config: Record<string, VaultConfig[]> = {
       asset: USDC[CHAIN.AVAX],
       name: "XHYC",
     },
+    {
+      address: "0xbb9360d57f68075e98d022784c12f2fda082316b", //09/20/2024
+      asset: USDC[CHAIN.AVAX],
+      name: "XRV1",
+    },
   ],
   [CHAIN.ETHEREUM]: [
     {
@@ -87,6 +96,26 @@ const config: Record<string, VaultConfig[]> = {
       asset: USDT[CHAIN.ETHEREUM],
       name: "XMMF-USDT",
     },
+    {
+      address: "0x0bbc2be1333575f00ed9db96f013a31fdb12a5eb", //12/08/2023
+      asset: USDC[CHAIN.ETHEREUM],
+      name: "TBV1",
+    },
+    {
+      address: "0x30c3115dca6370c185d5d06407f29d3ddbc4cfc4", //12/08/2023
+      asset: USDC[CHAIN.ETHEREUM],
+      name: "TBV2",
+    },
+    {
+      address: "0x7bfb97fe849172608895fd4c62237cb42a8607d2", //12/08/2023
+      asset: USDC[CHAIN.ETHEREUM],
+      name: "TBV3",
+    },
+    {
+      address: "0xa65446265517a29f7427abb1279165eb61624dd0", //12/08/2023
+      asset: USDC[CHAIN.ETHEREUM],
+      name: "TBV4",
+    },
   ],
   [CHAIN.PLUME]: [
     {
@@ -105,6 +134,7 @@ const config: Record<string, VaultConfig[]> = {
 const abis = {
   exchangeRate: "uint256:exchangeRate",
   totalSupply: "uint256:totalSupply",
+  totalAssets: "uint256:totalAssets",
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -115,50 +145,64 @@ const fetch = async (options: FetchOptions) => {
   const vaults = config[options.chain];
   const vaultAddresses = vaults.map((v) => v.address);
 
-  const [totalSupplies, ratesBefore, ratesAfter] = await Promise.all([
-    options.api.multiCall({
-      abi: abis.totalSupply,
-      calls: vaultAddresses,
-      permitFailure: true,
-    }),
-    options.fromApi.multiCall({
-      abi: abis.exchangeRate,
-      calls: vaultAddresses,
-      permitFailure: true,
-    }),
-    options.toApi.multiCall({
-      abi: abis.exchangeRate,
-      calls: vaultAddresses,
-      permitFailure: true,
-    }),
-  ]);
+  // Calculate period as fraction of year (using 252 trading days)
+  const periodInDays =
+    (options.toTimestamp - options.fromTimestamp) / (24 * 60 * 60);
+  const periodFraction = periodInDays / TRADING_DAYS_PER_YEAR;
+
+  const [totalAssets, totalSupplies, ratesBefore, ratesAfter] =
+    await Promise.all([
+      options.api.multiCall({
+        abi: abis.totalAssets,
+        calls: vaultAddresses,
+        permitFailure: true,
+      }),
+      options.api.multiCall({
+        abi: abis.totalSupply,
+        calls: vaultAddresses,
+        permitFailure: true,
+      }),
+      options.fromApi.multiCall({
+        abi: abis.exchangeRate,
+        calls: vaultAddresses,
+        permitFailure: true,
+      }),
+      options.toApi.multiCall({
+        abi: abis.exchangeRate,
+        calls: vaultAddresses,
+        permitFailure: true,
+      }),
+    ]);
 
   for (let i = 0; i < vaults.length; i++) {
     const vault = vaults[i];
+    const assets = totalAssets[i];
     const supply = totalSupplies[i];
     const rateBefore = ratesBefore[i];
     const rateAfter = ratesAfter[i];
 
-    if (!supply || !rateBefore || !rateAfter) {
+    if (!assets || !supply || !rateBefore || !rateAfter) {
       continue;
     }
 
-    const rateDelta = BigInt(rateAfter) - BigInt(rateBefore);
+    // Management fee: 0.50% p.a. applied to total collateral value
+    // Daily fee = Total Assets * (0.50% / 252)
+    const managementFee =
+      Number(assets) * (TOTAL_FEE_BPS / BPS_DENOMINATOR) * periodFraction;
 
-    if (rateDelta <= 0n) {
-      continue;
+    // Net yield distributed to depositors (after fees already deducted from exchange rate)
+    const rateDelta = Number(rateAfter) - Number(rateBefore);
+    const netYield = rateDelta > 0 ? (rateDelta * Number(supply)) / 1e18 : 0;
+
+    // Total fees = management fees (applied to total collateral)
+    dailyFees.add(vault.asset, managementFee, METRIC.MANAGEMENT_FEES);
+    dailyRevenue.add(vault.asset, managementFee, METRIC.MANAGEMENT_FEES);
+
+    // Yields distributed to depositors
+    if (netYield > 0) {
+      dailyFees.add(vault.asset, netYield, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(vault.asset, netYield, METRIC.ASSETS_YIELDS);
     }
-
-    const netYield = (rateDelta * BigInt(supply)) / BigInt(1e18);
-
-    const grossYield =
-      (netYield * BPS_DENOMINATOR) / (BPS_DENOMINATOR - TOTAL_FEE_BPS);
-
-    const protocolFee = grossYield - netYield;
-
-    dailyFees.add(vault.asset, grossYield);
-    dailyRevenue.add(vault.asset, protocolFee);
-    dailySupplySideRevenue.add(vault.asset, netYield);
   }
 
   return {
@@ -170,12 +214,31 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total gross yield generated by vaults (net yield + protocol fees).",
+  Fees: "Includes yields on all vaults and management fees (0.50% p.a. on total collateral).",
   Revenue:
-    "Protocol fees (0.50% of gross yield): Advisor 0.10% + Platform 0.20% + Liquidity 0.20%.",
-  ProtocolRevenue: "Same as Revenue - fees collected by OpenTrade protocol.",
+    "Management fees (0.50% p.a.): Advisor 0.10% + Platform 0.20% + Liquidity 0.20%, applied to total collateral value.",
+  ProtocolRevenue:
+    "Same as Revenue - management fees collected by OpenTrade protocol.",
   SupplySideRevenue:
     "Net yield distributed to vault depositors after protocol fees.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: "Yields on vaults distributed to depositors.",
+    [METRIC.MANAGEMENT_FEES]:
+      "Management fees (0.50% p.a.) applied to total collateral value.",
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]:
+      "Management fees (0.50% p.a.) applied to total collateral value.",
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: "Yields on vaults distributed to depositors.",
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees going to protocol treasury.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -187,7 +250,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: "2024-02-29",
+      start: "2023-08-12",
     },
     [CHAIN.PLUME]: {
       fetch,
@@ -195,6 +258,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
