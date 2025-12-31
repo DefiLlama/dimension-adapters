@@ -1,47 +1,39 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { getSolanaReceived } from "../../helpers/token";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const query = `
-    WITH fees_tx AS (
-      SELECT
-        DATE_TRUNC('day', a.block_time) AS day,
-        SUM(a.balance_change) / 1e9 AS sol_balance,
-        SUM(a.balance_change / 1e9 * p.price) AS usdc_balance
-      FROM solana.account_activity AS a
-      LEFT JOIN prices.usd AS p
-        ON p.minute = DATE_TRUNC('minute', a.block_time)
-        AND p.blockchain = 'solana'
-        AND p.symbol = 'SOL'
-      WHERE       
-        a.address = 'feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV'
-        AND a.tx_success
-        AND a.balance_change > 0
-        AND a.block_time >= from_unixtime(${options.startTimestamp})
-        AND a.block_time < from_unixtime(${options.endTimestamp})
-      GROUP BY 1
-    )
-    SELECT
-      SUM(usdc_balance) AS daily_revenue
-    FROM fees_tx
-  `;
+/**
+ * Shartky Protocol Fee Wallet Address
+ * Source: https://dune.com/queries/1939620
+ * Official Sharkify Dune dashboard containing the protocol fee collection address
+ */
+const FEE_WALLET = "feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV";
 
-  const data = await queryDuneSql(options, query);
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = await getSolanaReceived({
+    options,
+    target: FEE_WALLET,
+  });
   
   return {
-    dailyFees: Number(data[0].daily_revenue) || 0,
-    dailyRevenue: Number(data[0].daily_revenue) || 0,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
-  start: '2024-01-01',
+  version: 2,
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      start: 1704067200, // January 1, 2024
+    },
+  },
+  methodology: {
+    Fees: "Tracks SOL received by the protocol fee wallet (feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV). Fee wallet source: https://dune.com/queries/1939620",
+    Revenue: "All SOL received is considered protocol revenue",
+  },
 };
 
 export default adapter;
