@@ -92,21 +92,39 @@ type FeesRow = Row & {
   base_burn_wei: string;
 };
 
-export const SQL_BLOCK_RANGE = `
+export const SQL_TOTAL_FEES = `
   SELECT
     CAST(
       sum(toDecimal256(effective_gas_price, 0) * toDecimal256(gas_used, 0))
       AS String
-    ) AS total_fees_wei,
-    CAST(
-      sum(toDecimal256(base_fee_per_gas, 0) * toDecimal256(gas_used, 0))
-      AS String
-    ) AS base_burn_wei
+    ) AS total_fees_wei
   FROM evm_indexer.transactions
   WHERE
     chain = {chain:UInt64}
     AND block_number >= {fromBlock:UInt32}
     AND block_number <  {toBlock:UInt32}
+`;
+
+// because indexer v2 doesn't store block, we can't get block base_fee_per_gas
+// it also doesn't have base_fee_per_gas in transaction records
+// we do a trick here to get base_fee_per_gas from the minimum effective_gas_price from transactions in block
+export const SQL_TOTAL_FEES_BURNED = `
+  SELECT
+    CAST(
+      sum(toDecimal256(base_fee, 0) * toDecimal256(total_gas_used, 0))
+      AS String
+    ) AS base_burn_wei
+  FROM (
+    SELECT
+        min(effective_gas_price) AS base_fee,
+        sum(gas_used) AS total_gas_used
+    FROM transactions
+    WHERE
+      chain = {chain:UInt64}
+      AND block_number >= {fromBlock:UInt32}
+      AND block_number <  {toBlock:UInt32}
+    GROUP BY block_number
+  )
 `;
 
 export const fetch = async (options: FetchOptions) => {
@@ -120,14 +138,11 @@ export const fetch = async (options: FetchOptions) => {
     return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
   }
 
-  const rows = await queryClickhouse<FeesRow>(SQL_BLOCK_RANGE, {
-    chain: chainId,
-    fromBlock,
-    toBlock: safeBlock,
-  });
+  const totalFeesRows = await queryClickhouse<FeesRow>(SQL_TOTAL_FEES, { chain: chainId, fromBlock, toBlock: safeBlock });
+  const totalFeesBurnedRows = await queryClickhouse<FeesRow>(SQL_TOTAL_FEES_BURNED, { chain: chainId, fromBlock, toBlock: safeBlock });
 
-  const totalFeesWei = BigInt(rows?.[0]?.total_fees_wei ?? "0");
-  const baseFeesWei  = BigInt(rows?.[0]?.base_burn_wei  ?? "0");
+  const totalFeesWei = BigInt(totalFeesRows?.[0]?.total_fees_wei ?? "0");
+  const baseFeesWei = BigInt(totalFeesBurnedRows?.[0]?.base_burn_wei ?? "0");
   const priorityWei  = totalFeesWei - baseFeesWei;
 
   const dailyFees = options.createBalances();
