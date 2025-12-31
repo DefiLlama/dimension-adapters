@@ -1,7 +1,6 @@
-import { CHAIN } from '../helpers/chains'
-import { getGraphDimensions2 } from '../helpers/getUniSubgraph'
-import type { FetchOptions } from '../adapters/types'
-import BigNumber from 'bignumber.js'
+import { CHAIN } from "../helpers/chains"
+import { getGraphDimensions2 } from "../helpers/getUniSubgraph"
+import type { FetchOptions } from "../adapters/types"
 
 const methodology = {
   Fees: "Sum of swap fees on PotatoSwap v2 pools.",
@@ -11,115 +10,180 @@ const methodology = {
   SupplySideRevenue: "Fees paid to LPs, computed as Fees minus ProtocolRevenue.",
 }
 
-// Same subgraph ID, multiple gateways/domains.
-// Keep the project domain first, then try public gateways.
-// NOTE: Some gateways may not serve this subgraph. That’s fine — we fail over.
-const SUBGRAPH_ID = 'Qmaeqine8JeSiKV3QCi6JJqzDGryF7D8HCJdqcYxW7nekw'
-const GRAPH_URLS: string[] = [
-  `https://indexer.potatoswap.finance/subgraphs/id/${SUBGRAPH_ID}`,
-  // Public gateways (best-effort; availability depends on hosting)
-  `https://api.thegraph.com/subgraphs/id/${SUBGRAPH_ID}`,
-  `https://gateway.thegraph.com/api/subgraphs/id/${SUBGRAPH_ID}`,
+const FEES_PERCENT = {
+  Fees: 0.25,
+  UserFees: 0.25,
+  ProtocolRevenue: 0,
+  HoldersRevenue: 0.08,
+  SupplySideRevenue: 0.17,
+  Revenue: 0.08,
+} as const
+
+const V2_GRAPH_URLS = [
+  "https://indexer.potatoswap.finance/subgraphs/id/Qmaeqine8JeSiKV3QCi6JJqzDGryF7D8HCJdqcYxW7nekw",
 ]
+
+const graphs = getGraphDimensions2({
+  graphUrls: {
+    [CHAIN.XLAYER]: V2_GRAPH_URLS,
+  },
+  totalVolume: {
+    factory: "pancakeFactories",
+  },
+  feesPercent: {
+    type: "volume" as const,
+    ...FEES_PERCENT,
+  },
+})
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function bn(v: any) {
-  if (v === undefined || v === null) return new BigNumber(0)
-  try {
-    return new BigNumber(v.toString())
-  } catch {
-    return new BigNumber(0)
+function safeZeros() {
+  return {
+    dailyVolume: "0",
+    dailyFees: "0",
+    dailyUserFees: "0",
+    dailyRevenue: "0",
+    dailyProtocolRevenue: "0",
+    dailySupplySideRevenue: "0",
   }
 }
 
-function isRetryable(err: any) {
-  const s = String(err?.message || err)
-  return (
-    s.includes('Code: 530') ||
-    s.includes('Error 1016') ||
-    s.includes('Origin DNS error') ||
-    s.includes('Cloudflare') ||
-    s.includes('ETIMEDOUT') ||
-    s.includes('ECONNRESET') ||
-    s.includes('ECONNREFUSED') ||
-    s.includes('ENOTFOUND') ||
-    s.includes('fetch failed') ||
-    s.includes('NetworkError') ||
-    s.includes('socket hang up')
-  )
+function toNum(v: any): number {
+  if (v === null || v === undefined) return 0
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0
+  if (typeof v === "string") {
+    const cleaned = v.replace(/,/g, "").trim()
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : 0
+  }
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
 }
 
-function makeGraphFetcher(url: string) {
-  return getGraphDimensions2({
-    graphUrls: { [CHAIN.XLAYER]: url },
-    totalVolume: { factory: 'pancakeFactories' },
-    feesPercent: {
-      type: "volume" as const,
-      Fees: 0.25,
-      UserFees: 0.25,
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0.08,
-      SupplySideRevenue: 0.17,
-      Revenue: 0.08,
-    },
+async function fetchJson<T>(url: string): Promise<T> {
+  const httpFetch = globalThis.fetch as any
+  if (typeof httpFetch !== "function") throw new Error("global fetch is not available in this runtime")
+
+  // Create a short-lived dispatcher to avoid hanging handles on Windows when the CLI process.exit()s
+  let dispatcher: any = undefined
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Agent } = require("undici")
+    dispatcher = new Agent({
+      connections: 1,
+      pipelining: 0,
+      keepAliveTimeout: 1,
+      keepAliveMaxTimeout: 1,
+    })
+  } catch {
+    dispatcher = undefined
+  }
+
+  try {
+    const res = await httpFetch(url, {
+      headers: {
+        accept: "application/json",
+        "user-agent": "defillama-dimension-adapter/1.0",
+      },
+      ...(dispatcher ? { dispatcher } : {}),
+    })
+
+    if (!res?.ok) {
+      const text = await res?.text?.().catch(() => "")
+      throw new Error(`HTTP ${res?.status} ${res?.statusText} ${String(text).slice(0, 200)}`)
+    }
+
+    return (await res.json()) as T
+  } finally {
+    // Close dispatcher so Node has no open handles when testAdapter calls process.exit()
+    await dispatcher?.close?.().catch(() => {})
+  }
+}
+
+type PotatoPool = {
+  protocol_version?: string
+  volume_24h_usd?: string | number
+  fee_24h_usd?: string | number
+}
+
+type PotatoApiResp = {
+  code: number
+  msg?: string
+  data?: PotatoPool[]
+}
+
+async function fetchFromPotatoApiV2Only(): Promise<{
+  dailyVolume: string
+  dailyFees: string
+  dailyUserFees: string
+  dailyRevenue: string
+  dailyProtocolRevenue: string
+  dailySupplySideRevenue: string
+}> {
+  const url = "https://v3.potatoswap.finance/api/pool/list-all"
+  const json = await fetchJson<PotatoApiResp>(url)
+
+  if (!json || json.code !== 200 || !Array.isArray(json.data)) {
+    throw new Error(`Unexpected PotatoSwap API response: ${json?.code} ${json?.msg ?? ""}`)
+  }
+
+  const pools = json.data.filter((p) => {
+    const pv = String(p.protocol_version ?? "").toLowerCase().trim()
+    return pv === "v2" || pv === "2"
   })
+
+  let volume24h = 0
+  let fees24h = 0
+  for (const p of pools) {
+    volume24h += toNum(p.volume_24h_usd)
+    fees24h += toNum(p.fee_24h_usd)
+  }
+
+  const dailyFees = fees24h
+  const dailyRevenue = dailyFees * FEES_PERCENT.Revenue
+  const dailyProtocolRevenue = dailyRevenue
+  const dailySupplySideRevenue = dailyFees - dailyProtocolRevenue
+
+  return {
+    dailyVolume: volume24h.toString(),
+    dailyFees: dailyFees.toString(),
+    dailyUserFees: dailyFees.toString(),
+    dailyRevenue: dailyRevenue.toString(),
+    dailyProtocolRevenue: dailyProtocolRevenue.toString(),
+    dailySupplySideRevenue: dailySupplySideRevenue.toString(),
+  }
 }
 
-async function callWithRetry(fn: any, timestamp: number, chainBlocks: any, options: FetchOptions, attempts = 2) {
+async function fetchWithRetry(timestamp: number, chainBlocks: any, options: FetchOptions, attempts = 3) {
   let lastErr: any
   for (let i = 0; i < attempts; i++) {
     try {
-      return await fn(timestamp, chainBlocks, options)
+      return await (graphs as any)(timestamp, chainBlocks, options)
     } catch (e) {
       lastErr = e
-      if (!isRetryable(e) || i === attempts - 1) throw e
-      await sleep(750 * Math.pow(2, i)) // 0.75s, 1.5s
+      await sleep(500 * Math.pow(2, i))
     }
   }
   throw lastErr
 }
 
-function zeroResult() {
-  return {
-    dailyVolume: '0',
-    dailyFees: '0',
-    dailyUserFees: '0',
-    dailyRevenue: '0',
-    dailyProtocolRevenue: '0',
-    dailySupplySideRevenue: '0',
-  }
-}
-
-async function fetch(timestamp: number, chainBlocks: any, options: FetchOptions) {
-  let lastErr: any
-
-  for (const url of GRAPH_URLS) {
-    const fn = makeGraphFetcher(url)
-    try {
-      const res = await callWithRetry(fn as any, timestamp, chainBlocks, options, 2)
-
-      // Be defensive: normalize to strings
-      return {
-        dailyVolume: bn(res?.dailyVolume).toString(),
-        dailyFees: bn(res?.dailyFees).toString(),
-        dailyUserFees: bn(res?.dailyUserFees).toString(),
-        dailyRevenue: bn(res?.dailyRevenue).toString(),
-        dailyProtocolRevenue: bn(res?.dailyProtocolRevenue).toString(),
-        dailySupplySideRevenue: bn(res?.dailySupplySideRevenue).toString(),
-      }
-    } catch (e) {
-      lastErr = e
-      // try next URL
-    }
+async function fetchAdapter(timestamp: number, chainBlocks: any, options: FetchOptions) {
+  // API first (rolling 24h). Subgraph is currently failing with Cloudflare DNS errors.
+  try {
+    return await fetchFromPotatoApiV2Only()
+  } catch {
+    // ignore and fallback
   }
 
-  // If all endpoints fail, return zeros (no hard fail / no crash).
-  // This matches the intent of the reviewer request: adapter should not hard fail when the subgraph is down.
-  // Optional: if you prefer to still throw, replace with `throw lastErr`.
-  return zeroResult()
+  // Fallback to subgraph (historical), if it ever works again
+  try {
+    return await fetchWithRetry(timestamp, chainBlocks, options, 3)
+  } catch {
+    return safeZeros()
+  }
 }
 
 export default {
@@ -127,8 +191,8 @@ export default {
   methodology,
   adapter: {
     [CHAIN.XLAYER]: {
-      fetch,
-      start: '2024-04-23',
+      fetch: fetchAdapter,
+      start: "2024-04-23",
       runAtCurrTime: true,
     },
   },
