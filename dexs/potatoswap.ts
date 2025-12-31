@@ -19,13 +19,12 @@ const FEES_PERCENT = {
   Revenue: 0.08,
 } as const
 
-const V2_GRAPH_URLS = [
-  "https://indexer.potatoswap.finance/subgraphs/id/Qmaeqine8JeSiKV3QCi6JJqzDGryF7D8HCJdqcYxW7nekw",
-]
+const V2_GRAPH_URL =
+  "https://indexer.potatoswap.finance/subgraphs/id/Qmaeqine8JeSiKV3QCi6JJqzDGryF7D8HCJdqcYxW7nekw"
 
 const graphs = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.XLAYER]: V2_GRAPH_URLS,
+    [CHAIN.XLAYER]: V2_GRAPH_URL,
   },
   totalVolume: {
     factory: "pancakeFactories",
@@ -35,6 +34,7 @@ const graphs = getGraphDimensions2({
     ...FEES_PERCENT,
   },
 })
+
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
