@@ -12,9 +12,13 @@
   - TipRouter NCN distributes 0.15% of MEV tips to JitoSOL/JTO vault stakers
 
   Fee Sources:
-  - dailyFees: TipRouter NCN rewards + other restaking rewards distributed to Kyros vaults
-  - dailyRevenue/dailyProtocolRevenue: Management fees collected by Kyros (currently 0%)
-  - dailySupplySideRevenue: Restaking rewards distributed to kySOL/kyJTO/kyKYROS holders
+  - dailyFees: TipRouter NCN rewards + Kyros withdrawal fees
+  - dailyRevenue/dailyProtocolRevenue: Kyros share of withdrawal fees (0.1% of 0.2% total)
+  - dailySupplySideRevenue: TipRouter NCN rewards distributed to kySOL/kyJTO/kyKYROS holders
+
+  Fee Structure:
+  - Deposits: Free
+  - Withdrawals: 0.2% fee (0.1% to Kyros, 0.1% to Jito DAO)
 
   Note: Base JitoSOL staking rewards (inflation + MEV) are tracked by jito-staked-sol adapter.
   This adapter tracks ONLY restaking-specific rewards to avoid double counting.
@@ -66,9 +70,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const { source, mint, amount } = row
 
     if (source === 'protocol') {
-      // Protocol fees go to revenue
-      dailyRevenue.add(mint, amount, METRIC.MANAGEMENT_FEES)
-      dailyFees.add(mint, amount, METRIC.MANAGEMENT_FEES)
+      // Kyros share of withdrawal fees (0.1% of 0.2% total) goes to protocol revenue
+      dailyRevenue.add(mint, amount, METRIC.DEPOSIT_WITHDRAW_FEES)
+      dailyFees.add(mint, amount, METRIC.DEPOSIT_WITHDRAW_FEES)
     } else if (source === 'tip_router') {
       // TipRouter rewards go to supply side
       dailySupplySideRevenue.add(mint, amount, METRIC.MEV_REWARDS)
@@ -89,28 +93,28 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: 'TipRouter NCN rewards and restaking rewards distributed to Kyros vaults. Note: Base JitoSOL staking rewards are tracked separately by jito-staked-sol adapter.',
-  Revenue: 'Management fees collected by Kyros protocol (currently 0%).',
-  ProtocolRevenue: 'Management fees collected by Kyros protocol (currently 0%).',
+  Fees: 'TipRouter NCN rewards distributed to Kyros vaults plus withdrawal fees. Note: Base JitoSOL staking rewards are tracked separately by jito-staked-sol adapter.',
+  Revenue: 'Withdrawal fees (0.1% of 0.2% total) collected when users unstake ky-tokens.',
+  ProtocolRevenue: 'Withdrawal fees (0.1% of 0.2% total) collected when users unstake ky-tokens.',
   SupplySideRevenue:
-    'TipRouter NCN rewards and restaking rewards distributed to kySOL, kyJTO, and kyKYROS holders.',
+    'TipRouter NCN rewards (0.15% of MEV tips) distributed to kySOL, kyJTO, and kyKYROS holders.',
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.MEV_REWARDS]: 'TipRouter NCN rewards (0.15% of MEV tips) distributed to Kyros vaults.',
     [METRIC.STAKING_REWARDS]: 'Other restaking rewards from NCN operators.',
-    [METRIC.MANAGEMENT_FEES]: 'Protocol management fees (currently 0%).',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Kyros share of withdrawal fees (0.1% of 0.2% total fee).',
   },
   SupplySideRevenue: {
     [METRIC.MEV_REWARDS]: 'TipRouter NCN rewards distributed to LRT holders.',
     [METRIC.STAKING_REWARDS]: 'Restaking rewards distributed to LRT holders.',
   },
   Revenue: {
-    [METRIC.MANAGEMENT_FEES]: 'Protocol management fees.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Kyros share of withdrawal fees (0.1% of 0.2% total fee).',
   },
   ProtocolRevenue: {
-    [METRIC.MANAGEMENT_FEES]: 'Protocol management fees.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Kyros share of withdrawal fees (0.1% of 0.2% total fee).',
   },
 }
 
