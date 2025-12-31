@@ -105,9 +105,9 @@ export const SQL_TOTAL_FEES = `
     AND block_number <  {toBlock:UInt32}
 `;
 
-// because indexer v2 doesn't store block, we can't get block base_fee_per_gas
+// because indexer v2 doesn't store blocks, we can't get block base_fee_per_gas
 // it also doesn't have base_fee_per_gas in transaction records
-// we do a trick here to get base_fee_per_gas from the minimum effective_gas_price from transactions in block
+// TODO: we do a trick here, get base_fee_per_gas from the minimum effective_gas_price from transactions in block
 export const SQL_TOTAL_FEES_BURNED = `
   SELECT
     CAST(
@@ -116,8 +116,8 @@ export const SQL_TOTAL_FEES_BURNED = `
     ) AS base_burn_wei
   FROM (
     SELECT
-        min(effective_gas_price) AS base_fee,
-        sum(gas_used) AS total_gas_used
+      min(effective_gas_price) AS base_fee,
+      sum(gas_used) AS total_gas_used
     FROM transactions
     WHERE
       chain = {chain:UInt64}
@@ -130,7 +130,9 @@ export const SQL_TOTAL_FEES_BURNED = `
 export const fetch = async (options: FetchOptions) => {
   const chainId = options.api.chainId
   const fromBlock = Number(options.fromApi.block)
-  const safeBlock = Number(options.toApi.block) - 150
+  
+  // delay 50 blocks is acceptable on ethereum from the indexer
+  const safeBlock = Number(options.toApi.block) - 50
 
   if (safeBlock <= fromBlock) {
     const dailyFees = options.createBalances();
