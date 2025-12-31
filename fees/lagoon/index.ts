@@ -25,6 +25,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const events = await options.getLogs({
       eventAbi: Abis.ProxyDeployedEvent,
       target: factory.address,
+    cacheInCloud: true,
       fromBlock: factory.fromBlock,
     });
     vaults = vaults.concat(events.map((e: any) => e.proxy))

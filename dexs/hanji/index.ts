@@ -38,9 +38,10 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     fromBlock,
     eventAbi: createdLOBEventAbi,
     onlyArgs: false,
+    cacheInCloud: true,
   })
 
-  const lobMap: Record<string, { 
+  const lobMap: Record<string, {
     isV2: boolean,
     tokenXAddress: string,
     tokenXDecimals: number,
@@ -66,17 +67,17 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     calls: lobCreatedLogs.map((i: any) => i.args.tokenYAddress),
     permitFailure: true,
   });
-  
+
   for (let i = 0; i < lobCreatedLogs.length; i++) {
     const lobConfig = lobConfigs[i];
     const tokenXDecimal = Number(tokenXDecimals[i])
     const tokenYDecimal = Number(tokenYDecimals[i])
-    
+
     const { OnchainCLOB, tokenXAddress, scaling_token_x, tokenYAddress, scaling_token_y } = lobCreatedLogs[i].args
 
-    lobMap[OnchainCLOB.toLowerCase()] = { 
+    lobMap[OnchainCLOB.toLowerCase()] = {
       isV2: clobFactoryV2.map((address: string) => address.toLowerCase()).includes(lobCreatedLogs[i].address.toLowerCase()),
-      tokenXAddress, 
+      tokenXAddress,
       tokenXDecimals: Number(tokenXDecimal),
       tokenXScalingFactor: Number(tokenXDecimal) - getScalingFactorExponent(scaling_token_x),
       tokenYAddress,
@@ -85,7 +86,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
       adminCommissionRate: Number(formatUnits(lobConfig._admin_commission_rate))
     }
   }
-  
+
   const v1LobAddresses = Object.entries(lobMap)
     .filter(([_, info]) => !info.isV2)
     .map(([address]) => address)
@@ -123,7 +124,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     const orderFee = formatUnits(aggressive_fee + passive_fee, tokenYScalingFactor)
     const adminFee = BigNumber(orderFee).times(lobInfo.adminCommissionRate).toFixed(tokenYDecimals)
     const userFee = BigNumber(orderFee).minus(adminFee).toFixed(tokenYDecimals)
-    
+
     dailyVolume.add(tokenXAddress, parseUnits(tradeAmount, tokenXDecimals))
     dailyFees.add(tokenYAddress, parseUnits(orderFee.toString(), tokenYDecimals))
     dailyRevenue.add(tokenYAddress, parseUnits(adminFee.toString(), tokenYDecimals))
