@@ -1,80 +1,77 @@
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
+import fetchURL from "../utils/fetchURL";
 
-/**
- * PotatoSwap DEX (X Layer)
- *
- * Documentation:
- * https://potatoswap.gitbook.io/potatoswap
- *
- * Fee model (from docs):
- * - PotatoSwap charges swap fees on trades
- * - Classic pools apply a 0.25% swap fee
- * - "A portion of all trading fees is used to reward our Liquidity Providers,
- *    with the remainder supporting the PotatoSwap ecosystem."
- *
- * The documentation does not specify an explicit on-chain breakdown
- * for all pools in the tracked subgraph. This adapter therefore models
- * fees using a fixed split consistent with historical behavior and
- * the documented LP vs protocol fee structure.
- */
+/*
+  PotatoSwap does not have a reliable public subgraph.
+  We use the official API endpoint instead:
+
+  https://v3.potatoswap.finance/api/pool/list-all
+
+  The API returns rolling 24h metrics per pool.
+  We aggregate ONLY v2 pools.
+
+  Docs reference:
+  "A portion of all trading fees is used to reward our Liquidity Providers,
+   with the remainder supporting the PotatoSwap ecosystem."
+*/
+
+const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
+
+const fetch = async (_t: number) => {
+  const response = await fetchURL(API_URL);
+
+  // ✅ THIS IS THE CRITICAL FIX
+  const pools = response?.data ?? [];
+
+  let dailyVolume = 0;
+  let dailyFees = 0;
+
+  for (const pool of pools) {
+    if (pool.protocol_version !== "v2") continue;
+
+    dailyVolume += Number(pool.volume_24h_usd || 0);
+    dailyFees += Number(pool.fee_24h_usd || 0);
+  }
+
+  // Fee split derived from docs:
+  // Total fee: 0.25%
+  // LPs:       0.21%
+  // Protocol:  0.04%
+  const lpShare = dailyFees * (0.21 / 0.25);
+  const protocolShare = dailyFees * (0.04 / 0.25);
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: lpShare,
+    dailyProtocolRevenue: protocolShare,
+    dailyHoldersRevenue: protocolShare,
+    dailyRevenue: protocolShare,
+  };
+};
 
 const methodology = {
-  Fees:
-    "PotatoSwap charges swap fees on trades. This adapter models an effective 0.25% swap fee on trading volume.",
-  UserFees:
-    "Users pay swap fees as part of each trade.",
+  Fees: "PotatoSwap charges a 0.25% swap fee on v2 pools.",
+  UserFees: "Users pay a 0.25% swap fee per trade.",
   SupplySideRevenue:
-    "A portion of swap fees is distributed to liquidity providers.",
+    "Liquidity providers receive ~0.21% of swap volume as fees.",
   ProtocolRevenue:
-    "The remaining portion of swap fees supports the PotatoSwap ecosystem.",
+    "The remaining ~0.04% of swap volume supports the PotatoSwap ecosystem.",
   HoldersRevenue:
     "Protocol revenue is distributed to vePOT holders.",
 };
 
-const graphs = getGraphDimensions2({
-  graphUrls: {
-    [CHAIN.XLAYER]:
-      "https://indexer.potatoswap.finance/subgraphs/id/Qmaeqine8JeSiKV3QCi6JJqzDGryF7D8HCJdqcYxW7nekw",
-  },
-
-  // Trading volume is sourced from the factory entity in the subgraph
-  totalVolume: {
-    factory: "pancakeFactories",
-  },
-
-  /**
-   * Fee configuration
-   *
-   * Based on documentation stating that trading fees are split between
-   * Liquidity Providers and the PotatoSwap ecosystem, the adapter models:
-   *
-   * - Total fees: 0.25% of volume
-   * - Liquidity Providers: 0.21%
-   * - Protocol (ecosystem): 0.04%
-   *
-   * This preserves historical adapter behavior while aligning with
-   * the documented fee flow.
-   */
-  feesPercent: {
-    type: "volume" as const,
-
-    // Total swap fees paid by users
-    Fees: 0.25,
-    UserFees: 0.25,
-
-    // Fee distribution
-    SupplySideRevenue: 0.21,
-    ProtocolRevenue: 0.04,
-    HoldersRevenue: 0.04,
-    Revenue: 0.04,
-  },
-});
-
-export default {
+const adapter: SimpleAdapter = {
   version: 2,
+  adapter: {
+    [CHAIN.XLAYER]: {
+      fetch,
+      start: "2024-04-23",
+    },
+  },
   methodology,
-  chains: [CHAIN.XLAYER],
-  fetch: graphs,
-  start: "2024-04-23",
 };
+
+export default adapter;
