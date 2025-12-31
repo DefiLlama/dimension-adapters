@@ -26,7 +26,7 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
     throw new Error("Failed to fetch pool data");
   }
 
-  const pools = poolsResponse.data;
+  const pools = (poolsResponse.data).filter((pool:any)=>pool.protocol_version==='v3');
 
   const slot0Results = await options.api.multiCall({
     abi: SLOT0_ABI,
