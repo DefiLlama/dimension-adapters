@@ -18,7 +18,6 @@ import { METRIC } from "../helpers/metrics";
 
 const TOTAL_FEE_BPS = 50; // 0.50% = 50 bps
 const BPS_DENOMINATOR = 10000;
-const TRADING_DAYS_PER_YEAR = 252;
 
 // Underlying assets per chain
 const USDC: Record<string, string> = {
@@ -146,9 +145,7 @@ const fetch = async (options: FetchOptions) => {
   const vaultAddresses = vaults.map((v) => v.address);
 
   // Calculate period as fraction of year (using 252 trading days)
-  const periodInDays =
-    (options.toTimestamp - options.fromTimestamp) / (24 * 60 * 60);
-  const periodFraction = periodInDays / TRADING_DAYS_PER_YEAR;
+  const periodInYears = (options.toTimestamp - options.fromTimestamp) / (365 * 24 * 60 * 60);
 
   const [totalAssets, totalSupplies, ratesBefore, ratesAfter] =
     await Promise.all([
@@ -186,9 +183,9 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // Management fee: 0.50% p.a. applied to total collateral value
-    // Daily fee = Total Assets * (0.50% / 252)
+    // Daily fee = Total Assets * (0.50% / 365)
     const managementFee =
-      Number(assets) * (TOTAL_FEE_BPS / BPS_DENOMINATOR) * periodFraction;
+      Number(assets) * (TOTAL_FEE_BPS / BPS_DENOMINATOR) * periodInYears;
 
     // Net yield distributed to depositors (after fees already deducted from exchange rate)
     const rateDelta = Number(rateAfter) - Number(rateBefore);
@@ -243,17 +240,15 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   adapter: {
     [CHAIN.AVAX]: {
-      fetch,
       start: "2024-09-02",
     },
     [CHAIN.ETHEREUM]: {
-      fetch,
       start: "2023-08-12",
     },
     [CHAIN.PLUME]: {
-      fetch,
       start: "2025-05-15",
     },
   },
