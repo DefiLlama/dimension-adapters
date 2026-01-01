@@ -77,7 +77,8 @@ export type FetchV2 = (
 export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapterChainConfig = {
-    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format -  indicates when the adapter can start fetching data
+    deadFrom?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format - indicates when the adapter should stop fetching data
     fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
   }
@@ -121,7 +122,7 @@ export type SimpleAdapter = AdapterBase & {
   adapter?: BaseAdapter
 }
 
-export type BreakdownAdapter = AdapterBase & {
+export type BreakdownAdapter = AdapterBase & {  // do not use this, this is deprecated
   breakdown: {
     [version: string]: BaseAdapter
   };
