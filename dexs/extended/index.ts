@@ -14,13 +14,14 @@ interface IResponse {
   data: IVolumeall[];
 }
 
-const chainConfig = {
+const chainConfig: any = {
   [CHAIN.ETHEREUM]: {
     start: '2025-03-11',
     endpoints: {
       historicalVolume: historicalVolumeEth,
       markets: 'https://api.extended.exchange/api/v1/info/markets',
     },
+    deadFrom: 1766966400 //2025-12-29
   },
   [CHAIN.STARKNET]: {
     start: '2025-08-10',
@@ -32,10 +33,18 @@ const chainConfig = {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+  const config = chainConfig[options.chain];
+
+  if (config.deadFrom && config.deadFrom <= options.startOfDay)
+    return {
+      dailyVolume: 0,
+      openInterestAtEnd: 0,
+    }
+
   const timestampISO = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
-  const historical: IResponse = await fetchURL(chainConfig[options.chain].endpoints.historicalVolume(timestampISO))
+  const historical: IResponse = await fetchURL(config.endpoints.historicalVolume(timestampISO))
   const dailyVolume = historical.data.reduce((a: number, b: IVolumeall) => a + Number(b.tradingVolume), 0)
-  const res = (await fetchURL(chainConfig[options.chain].endpoints.markets)).data
+  const res = (await fetchURL(config.endpoints.markets)).data
   const openInterestAtEnd = res.reduce((a: number, b: any) => a + Number(b.marketStats.openInterest || 0), 0)
 
   return {
