@@ -27,6 +27,7 @@ const DEFAULTS: any = {
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
   HYDRADX_BLOCK_LOW: '7036666',
+  ENZYME_API_KEY: '0b93d6e3-1448-47e6-9f95-bcbf0415b623',
 }
 
 export const ENV_KEYS = new Set([
