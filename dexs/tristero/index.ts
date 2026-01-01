@@ -13,6 +13,7 @@ const chainConfig = {
   [CHAIN.POLYGON]: { start: "2025-08-30", address: V2_ORDER_ROUTER_ADDRESS },
   [CHAIN.AVAX]: { start: "2025-08-18", address: V2_ORDER_ROUTER_ADDRESS },
   [CHAIN.LINEA]: { start: "2025-09-20", address: V2_ORDER_ROUTER_ADDRESS },
+  [CHAIN.UNICHAIN]: { start: "2025-11-27", address: V2_ORDER_ROUTER_ADDRESS},
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
