@@ -11,7 +11,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   });
 
   const data: any[] = await queryDuneSql(options, sql);
-
+  console.log(data);
   const df = data.reduce((sum, row) => sum + (row.daily_fees_usd || 0), 0);
   const dssr = data.reduce((sum, row) => sum + (row.daily_supply_side_revenue_usd || 0), 0);
   const dr = data.reduce((sum, row) => sum + (row.daily_revenue_usd || 0), 0);
