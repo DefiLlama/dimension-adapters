@@ -1,4 +1,3 @@
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
