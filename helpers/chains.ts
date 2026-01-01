@@ -181,6 +181,7 @@ export enum CHAIN {
   ZKLINK = "zklink",
   DEXALOT = "dexalot",
   IMMUTABLEX = "imx",
+  CHIA = "chia",
   CHAINFLIP = "chainflip",
   CRONOS_ZKEVM = "cronos_zkevm",
   LOGX = "logx_network",
