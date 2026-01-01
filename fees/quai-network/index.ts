@@ -56,7 +56,7 @@ const methodology = {
 const adapter: Adapter = {
   version: 1,
   fetch,
-  chains: [QUAI],
+  chains: [CHAIN.QUAI],
   start: '2025-12-17',
   protocolType: ProtocolType.CHAIN,
   methodology,
