@@ -166,6 +166,7 @@ export enum CHAIN {
   IMX = "imx",
   KROMA = "kroma",
   ZORA = "zora",
+  QUAI = "quai",
   SVM = "svm",
   ASTRZK = "astrzk",
   LYRA = "lyra",
