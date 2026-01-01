@@ -78,6 +78,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   methodology,
+  doublecounted: true,
   adapter: chainConfig
 };
 
