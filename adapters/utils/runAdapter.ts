@@ -384,12 +384,14 @@ async function _runAdapter({
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
-    let _end = adapterObject![chain]?.deadFrom ?? 0
+    // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
     if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
 
-    if (typeof _end === 'number' && _end < cleanPreviousDayTimestamp) {
+    // Only check deadFrom if it's explicitly set (not undefined)
+    if (_end !== undefined && typeof _end === 'number' && _end > 0 && _end < cleanPreviousDayTimestamp) {
       validStart[chain] = {
         canRun: false,
         startTimestamp: _start as number,
