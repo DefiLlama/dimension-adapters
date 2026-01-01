@@ -34,10 +34,6 @@ const breakdownMethodology = {
     [METRIC.PERFORMANCE_FEES]: 'Performance fees collected by Lombard protocol on vault yield.',
     [METRIC.MANAGEMENT_FEES]: 'Platform fee portion collected by protocol.',
   },
-  ProtocolRevenue: {
-    [METRIC.PERFORMANCE_FEES]: 'Performance fees collected by Lombard protocol on vault yield.',
-    [METRIC.MANAGEMENT_FEES]: 'Platform fee portion collected by protocol.',
-  },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Yield portion distributed to LBTCv stakers.',
   },
@@ -48,7 +44,7 @@ interface IBoringVault {
   accountantAbiVersion: 1 | 2;
 }
 
-const BoringVaults: {[key: string]: Array<IBoringVault>} = {
+const BoringVaults: { [key: string]: Array<IBoringVault> } = {
   [CHAIN.ETHEREUM]: [
     {
       vault: '0x5401b8620E5FB570064CA9114fd1e135fd77D57c',
@@ -62,10 +58,10 @@ const BoringVaultAbis = {
   hook: 'address:hook',
   decimals: 'uint8:decimals',
   totalSupply: 'uint256:totalSupply',
-  
+
   // hook
   accountant: 'address:accountant',
-  
+
   // accountant
   base: 'address:base',
   exchangeRateUpdated: 'event ExchangeRateUpdated(uint96 oldRate, uint96 newRate, uint64 currentTime)',
@@ -92,7 +88,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   if (vaults && vaults.length > 0) {
     const vault = vaults[0]
-    
+
     const hook = await options.api.call({
       abi: BoringVaultAbis.hook,
       target: vault.vault,
@@ -109,7 +105,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       abi: BoringVaultAbis.base,
       target: accountant,
     })
-    
+
     const vaultRateBase = Number(10 ** Number(decimals))
 
     // get vaults rate updated events
@@ -121,23 +117,23 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       entireLog: true,
       target: accountant,
     }))
-    .map(log => {
-      const decodeLog: any = poolContract.parseLog(log)
+      .map(log => {
+        const decodeLog: any = poolContract.parseLog(log)
 
-      const event: any = {
-        blockNumber: Number(log.blockNumber),
-        oldRate: decodeLog.args[0],
-        newRate: decodeLog.args[1],
-      }
+        const event: any = {
+          blockNumber: Number(log.blockNumber),
+          oldRate: decodeLog.args[0],
+          newRate: decodeLog.args[1],
+        }
 
-      return event
-    })
-    .sort((a, b) => a.blockNumber - b.blockNumber)
+        return event
+      })
+      .sort((a, b) => a.blockNumber - b.blockNumber)
 
     if (events.length > 0) {
       const firstEvent = events[0]
       const lastEvent = events[events.length - 1]
- 
+
       // Calculate growth rate from start to end of period
       const startRate = firstEvent.oldRate
       const endRate = lastEvent.newRate
@@ -167,7 +163,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         } else {
           exchangeRate = Number(getAccountantState[3])
         }
-        
+
         // rate is always greater than or equal 1
         const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
 
@@ -217,14 +213,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2024-07-22',
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2024-07-22',
-    },
-  }
 }
 
 export default adapter
