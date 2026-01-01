@@ -7,19 +7,19 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
-    SELECT
-      SUM(fee_usd) AS fee_usd
-    FROM dex_solana.trades
-    WHERE
+    select
+      sum(fee_usd) as total_fee_usd
+    from dex_solana.trades
+    where
       project = 'phoenix'
-      AND TIME_RANGE
+      and block_time>=from_unixtime(${options.fromTimestamp}) and block_time<from_unixtime(${options.toTimestamp})
   `;
 
   const res = await queryDuneSql(options, query);
 
-  if (res.length && res[0].fee_usd) {
+  if (res.length && res[0].total_fee_usd) {
     // Dune already returns USD-denominated fees
-    dailyFees.addUSDValue(Number(res[0].fee_usd));
+    dailyFees.addUSDValue(res[0].total_fee_usd);
   }
 
   return {
