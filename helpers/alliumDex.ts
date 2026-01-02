@@ -21,12 +21,9 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
   }
 
   return {
-  dependencies: [Dependencies.ALLIUM],    
-    adapter: {
-      [CHAIN.SOLANA]: {
-        fetch,
-        start,
-      }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start,
+    dependencies: [Dependencies.ALLIUM],
   }
 }

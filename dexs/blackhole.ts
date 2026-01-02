@@ -1,13 +1,16 @@
-import { CHAIN } from "../helpers/chains";
-import { FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
-import { cache } from "@defillama/sdk";
-import { filterPools } from "../helpers/uniswap";
-import { addOneToken } from "../helpers/prices";
+import { CHAIN } from "../helpers/chains"
+import { FetchV2, IJSON, SimpleAdapter } from "../adapters/types"
+import { cache } from "@defillama/sdk"
+import { filterPools } from "../helpers/uniswap"
+import { addOneToken } from "../helpers/prices"
 
-const GaugeManager = '0x59aa177312Ff6Bdf39C8Af6F46dAe217bf76CBf6';
-const Factory = '0xfe926062fb99ca5653080d6c14fe945ad68c265c';
+const GaugeManager = '0x59aa177312Ff6Bdf39C8Af6F46dAe217bf76CBf6'
+const Factory = '0xfe926062fb99ca5653080d6c14fe945ad68c265c'
 const SwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
-const SwapFee = 0.003;
+
+// FeesEvent emits the real fee amounts deducted during each swap.
+// Since fees for Blackhole pairs can change over time, these events are the most accurate method to track fees/revenue.
+const FeesEvent = `event Fees(address indexed sender, uint amount0, uint amount1)`
 
 const fetch: FetchV2 = async (fetchOptions) => {
   const { createBalances, getLogs, chain, api } = fetchOptions
@@ -35,53 +38,85 @@ const fetch: FetchV2 = async (fetchOptions) => {
     dailyHoldersRevenue: 0,
   }
 
-  const lpSupplies = await fetchOptions.api.multiCall({
+  const lpSupplies = await api.multiCall({
     abi: 'uint256:totalSupply',
     calls: pairIds,
     permitFailure: false,
-  });
-  const gauges = await fetchOptions.api.multiCall({
+  })
+  const gauges = await api.multiCall({
     abi: 'function gauges(address) view returns (address)',
-    calls: pairIds.map(pairid => {
-      return {
-        target: GaugeManager,
-        params: [pairid],
-      }
-    }),
+    target: GaugeManager,
+    calls: pairIds.map(pairid => ({ params: [pairid] })),
     permitFailure: true,
-  });
-  const gaugeSupplies = await fetchOptions.api.multiCall({
+  })
+  const gaugeSupplies = await api.multiCall({
     abi: 'uint256:totalSupply',
     calls: gauges,
     permitFailure: true,
-  });
+  })
 
-  // get swap logs
-  const allLogs = await getLogs({ targets: pairIds, eventAbi: SwapEvent, flatten: false })
+  const allSwapLogs = await getLogs({ targets: pairIds, eventAbi: SwapEvent, flatten: false })
+  const allFeesLogs = await getLogs({ targets: pairIds, eventAbi: FeesEvent, flatten: false })
 
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
-  allLogs.map((logs: any, index) => {
-    if (!logs.length) return;
+
+  // Get daily volume from Swap events.
+  allSwapLogs.forEach((logs, index) => {
+    if (!logs.length) return
+
     const pair = pairIds[index]
-    const gaugeSupply = Number(gaugeSupplies[index] ? gaugeSupplies[index] : 0)
-    const lpSupply = Number(lpSupplies[index] ? lpSupplies[index] : 0)
-    const revenueRatio = lpSupply > 0 ? gaugeSupply / lpSupply : 0;
     const [token0, token1] = pairObject[pair]
+
     logs.forEach((log: any) => {
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
       addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0Out, amount1: log.amount1Out })
+    })
+  })
 
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0In) * SwapFee, amount1: Number(log.amount1In) * SwapFee })
-      addOneToken({ chain, balances: dailyFees, token0, token1, amount0: Number(log.amount0Out) * SwapFee, amount1: Number(log.amount1Out) * SwapFee })
+  // Fee / revenue metrics from Fees events.
+  //
+  // Blackhole basic pools distribute swap fees as follows:
+  // - Unstaked LPs receive all fees proportional to their LP token balance.
+  // - Staked LPs deposit LP tokens into a Gauge, and their fee share is routed to veBLACK voters as bribes.
+  //
+  // Each Fees event already includes the exact fee collected for that swap (including any referral/staking-NFT cuts).
+  // To split these fees between supply-side LPs and veBLACK holders, we estimate the share of LP tokens
+  // held by the gauge at the time of execution using the current ratio:
+  //
+  // revenueShare = gaugeSupply / totalLpSupply
+  //
+  // This ratio is an approximation because LP balances can change throughout the day.
+  // Computing precise ratios per swap is far too expensive.
+  allFeesLogs.forEach((logs: any, index) => {
+    if (!logs.length) return
 
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0In) * SwapFee * revenueRatio, amount1: Number(log.amount1In) * SwapFee * revenueRatio })
-      addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: Number(log.amount0Out) * SwapFee * revenueRatio, amount1: Number(log.amount1Out) * SwapFee * revenueRatio })
+    const pair = pairIds[index]
+    const [token0, token1] = pairObject[pair]
+    const gaugeSupply = Number(gaugeSupplies[index] ?? 0)
+    const lpSupply = Number(lpSupplies[index] ?? 0)
 
-      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0In) * SwapFee * (1 - revenueRatio), amount1: Number(log.amount1In) * SwapFee * (1 - revenueRatio) })
-      addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: Number(log.amount0Out) * SwapFee * (1 - revenueRatio), amount1: Number(log.amount1Out) * SwapFee * (1 - revenueRatio) })
+    // revenueShare determines the portion of fees attributed to staked LPs (=> veBLACK holders).
+    // supplySideRevenueShare determines the portion attributed to unstaked LPs.
+    const revenueShare = lpSupply > 0 ? gaugeSupply / lpSupply : 0
+    const supplySideRevenueShare = 1 - revenueShare
+
+    logs.forEach((log: any) => {
+      const amount0 = Number(log.amount0)
+      const amount1 = Number(log.amount1)
+
+      // Exactly one of amount0 / amount1 is non-zero for a FeesEvent.
+      if (amount0 > 0) {
+        dailyFees.add(token0, amount0)
+        dailyRevenue.add(token0, amount0 * revenueShare)
+        dailySupplySideRevenue.add(token0, amount0 * supplySideRevenueShare)
+      } else {
+        dailyFees.add(token1, amount1)
+        dailyRevenue.add(token1, amount1 * revenueShare)
+        dailySupplySideRevenue.add(token1, amount1 * supplySideRevenueShare)
+      }
     })
   })
 
@@ -99,15 +134,15 @@ const fetch: FetchV2 = async (fetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: "All swap fees paid by users.",
-    UserFees: "All swap fees paid by users.",
-    SupplySideRevenue: "Unstake LPs receive 100% fee of each swap.",
-    Revenue: "Fees collected and distributed to staked LPs.",
-    ProtocolRevenue: "No protocol revenue",
-    HoldersRevenue: "Fees collected and distributed to veBlack holders.",
+    Fees: "All swap fees paid by traders.",
+    UserFees: "All swap fees paid by traders.",
+    SupplySideRevenue: "Portion of swap fees paid out to unstaked LPs.",
+    Revenue: "Portion of swap fees attributed to staked LPs, which are routed through the Gauge and distributed to veBLACK voters as bribes.",
+    ProtocolRevenue: "No protocol revenue.",
+    HoldersRevenue: "Portion of swap fees attributed to staked LPs, which are routed through the Gauge and distributed to veBLACK voters as bribes.",
   },
   chains: [CHAIN.AVAX],
   fetch,
-};
+}
 
-export default adapter;
+export default adapter

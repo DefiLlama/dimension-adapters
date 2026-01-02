@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 
-const superchainConfig = {
+const superchainConfig: any = {
   [CHAIN.OPTIMISM]: {
     sugar: '0xdE2aE25FB984dd60C77dcF6489Be9ee6438eC195',
   },
@@ -28,7 +28,10 @@ const superchainConfig = {
   },
   [CHAIN.SWELLCHAIN]: {
     sugar: '0xF179eD1FBbDC975C45AB35111E6Bf7430cCca14F',
-  }
+  },
+  [CHAIN.CELO]: {
+    sugar: '0x9972174fcE4bdDFFff14bf2e18A287FDfE62c45E',
+  },
 }
 
 interface IForSwap {
@@ -62,9 +65,9 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const sugarContract = isOldOptimism ? sugarOld : superchainConfig[chain].sugar;
 
   while (true) {
-    const rawSwaps: IForSwap[] = await api.call({ target: sugarContract, params: [chunkSize, currentOffset], abi: forSwaps });
+    const rawSwaps: IForSwap[] = await api.call({ target: sugarContract, params: [chunkSize, currentOffset], abi: forSwaps, permitFailure: true });
 
-    if (rawSwaps.length === 0) break;
+    if (!rawSwaps || rawSwaps.length === 0) break;
     const seen = new Set<string>();
 
     rawSwaps.forEach((e: any) => {
@@ -96,15 +99,18 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
     logs.forEach((logs: ILog[], idx) => {
       const pool = targets[idx];
-      const { token1, pool_fee } = pairInfoMap[pool];
-
-      logs.forEach((log: any) => {
-        const amount1 = Math.abs(Number(log.amount1));
-        const fee = Math.round((amount1 * Number(pool_fee)) / 1_000_000);
-
-        dailyVolume.add(token1, BigInt(amount1));
-        dailyFees.add(token1, BigInt(fee));
-      });
+      
+      if (pairInfoMap[pool]) {
+        const { token1, pool_fee } = pairInfoMap[pool];
+  
+        logs.forEach((log: any) => {
+          const amount1 = Math.abs(Number(log.amount1));
+          const fee = Math.round((amount1 * Number(pool_fee)) / 1_000_000);
+  
+          dailyVolume.add(token1, BigInt(amount1));
+          dailyFees.add(token1, BigInt(fee));
+        });
+      }
     });
 
     sdk.log(`Velodrome ${chain} chunk ${chunkIndex + 1}/${pairChunks.length} processed`);
@@ -147,6 +153,10 @@ const adapters: SimpleAdapter = {
     [CHAIN.SWELLCHAIN]: {
       fetch,
       start: '2025-02-25',
+    },
+    [CHAIN.CELO]: {
+      fetch,
+      start: '2025-04-02',
     },
   }
 }

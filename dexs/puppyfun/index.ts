@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived, getETHReceived, nullAddress } from '../../helpers/token';
 import fetchURL from "../../utils/fetchURL";
@@ -51,6 +51,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.BSC],
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: "Token trading and launching fees paid by users.",
     Revenue: "All fees are revenue.",

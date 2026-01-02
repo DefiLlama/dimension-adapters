@@ -22,6 +22,15 @@ export default {
         },
       ]
     },
+    [CHAIN.MONAD]: {
+      factories: [
+        {
+          factory: '0xb43120c4745967fa9b93E79C149E66B0f2D6Fe0c',
+          version: 2.2,
+          fromBlock: 32250766,
+        },
+      ]
+    },
   }, {
     holdersRevenueFromRevenue: 1, // 100% revenue
   }),

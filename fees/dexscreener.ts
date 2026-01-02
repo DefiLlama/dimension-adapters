@@ -1,11 +1,22 @@
-import { Adapter, BaseAdapter, FetchOptions } from "../adapters/types";
+import { Adapter, BaseAdapter, Dependencies, FetchOptions } from "../adapters/types";
 import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
 import { getSolanaReceived } from '../helpers/token';
 import { CHAIN } from "../helpers/chains";
+import CoreAssets from "../helpers/coreAssets.json";
 
 // TODO: check whether 5qR17nnyyBjoHPiGiAD4ZHFCSJixebJCYymArGgZiDnh was an older address where they received payments
 const sol = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({ options, targets: ['23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft', 'AJENSD55ZJBwipZnEf7UzW2pjxex1cV2jSKPz7aMwJo5'] })
+    const dailyFees = await getSolanaReceived({
+        options,
+        mints: [
+            CoreAssets.solana.USDC, // track USDC only
+        ],
+        targets: [
+            '23vEM5NAmK68uBHFM52nfNtZn7CgpHDSmAGWebsjg5ft',
+            'AJENSD55ZJBwipZnEf7UzW2pjxex1cV2jSKPz7aMwJo5',
+            '21wG4F3ZR8gwGC47CkpD6ySBUgH9AABtYMBWFiYdTTgv',
+        ],
+    })
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
@@ -16,6 +27,7 @@ const adapter: Adapter = {
         ProtocolRevenue: 'All fees collected by Dexscreener.',
     },
     version: 2,
+    dependencies: [Dependencies.ALLIUM],
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: sol,

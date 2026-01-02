@@ -66,8 +66,10 @@ const methodology = {
 // wash trading, check these two sample addresses
 // 0x3684a24f13d37a4dd72e8dc155fe2454b26cd1fe, 0x8a9801ef63ba76b9598fbf2b263442de2e587b4a
 const blacklistPools: Array<string> = [
-  '0x80fe558c54f1f43263e08f0e1fa3e02d8b897f93',
-  '0x038aac60e1d17ce2229812eca8ee7800214baffc',
+  // '0x80fe558c54f1f43263e08f0e1fa3e02d8b897f93',
+  // '0x038aac60e1d17ce2229812eca8ee7800214baffc',
+  // '0x44b13cd80a9a165a4cea7b6a42952a9a14bd8ff5',
+  // '0x9ca64194ce1f88d11535915dc482ae0383d5f76d',
 ];
 
 const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {
@@ -75,13 +77,13 @@ const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {
   
   let dailyVolume = 0;
   let dailyFees = 0;
-  for (const pool of poolStats) {
+  for (const pool of poolStats.filter((i: any) => Number(i.tvl) > 200)) {
     if (!blacklistPools.includes(String(pool.id).toLowerCase())) {
       dailyVolume += Number(pool.day.volume);
       dailyFees += Number(pool.day.volume) * Number(pool.feeTier) / 1e6;
     }
   }
-  
+
   return {
     dailyVolume,
     dailyFees,

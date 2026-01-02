@@ -41,7 +41,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, allowReadPairs } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -55,8 +55,24 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory}-${chain}.json`
 
-    const { pairs, token0s, token1s } = await cache.readCache(cacheKey, { readFromR2Cache: true })
-    if (!pairs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
+    let { pairs, token0s, token1s } = await cache.readCache(cacheKey, { readFromR2Cache: true })
+    if (!pairs?.length) {
+      if (!allowReadPairs) {
+        throw new Error('No pairs found, is there TVL adapter for this already?')
+      } else {
+        const pairLength = await fetchOptions.api.call({ target: factory, abi: 'uint256:allPairsLength' })
+        if (pairLength && Number(pairLength) > 0) {
+          const calls = []
+          for (let i = 0; i < Number(pairLength); i++) {
+            calls.push({ target: factory, params: [i] })
+          }
+          pairs = await fetchOptions.api.multiCall({ abi: 'function allPairs(uint256) public view returns (address)', calls })
+          token0s = await fetchOptions.api.multiCall({ abi: 'address:token0', calls: pairs })
+          token1s = await fetchOptions.api.multiCall({ abi: 'address:token1', calls: pairs })
+        }
+      }
+    }
+
     const pairObject: IJSON<string[]> = {}
     pairs.forEach((pair: string, i: number) => {
       pairObject[pair] = [token0s[i], token1s[i]]
@@ -140,25 +156,26 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
 
 const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
-const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
-const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent = defaultPoolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools }: UniV3Config): FetchV2 => {
+const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
+
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
 
     if (!chain) throw new Error('Wrong version?')
 
+    // Determine which event to use based on parameters
+    // If poolCreatedEvent is explicitly passed, use it
+    // Otherwise, use algebra default for algebra or standard default for others
+    const eventToUse = poolCreatedEvent ?? (isAlgebraV3 ? defaultAlgebraV3PoolCreatedEvent : defaultPoolCreatedEvent)
+
     factory = factory.toLowerCase()
     const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
-    const iface = new ethers.Interface([poolCreatedEvent])
-    const algebraIface = new ethers.Interface([algebraV3PoolCreatedEvent])
+    const iface = new ethers.Interface([eventToUse])
     let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
     if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
 
-      if (isAlgebraV3)
-      logs = logs.map((log: any) => algebraIface.parseLog(log)?.args)
-    else
-      logs = logs.map((log: any) => iface.parseLog(log)?.args)
+    logs = logs.map((log: any) => iface.parseLog(log)?.args)
 
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
@@ -237,6 +254,7 @@ type UniV2Config = {
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
   blacklistPools?: Array<string>,
+  allowReadPairs?: boolean;
 }
 
 type UniV3Config = {

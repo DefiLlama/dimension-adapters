@@ -1,77 +1,87 @@
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
-
-// Collector Crypt addresses
-const GACHA_ADDRESS = 'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z';
-const FEES_ADDRESS = 'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd';
-
-// Excluded addresses (internal transfers)
-const EXCLUDED_ADDRESSES = [
-    'BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
-    '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
-    'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
-    'HW2HRqN1pXQGH9GfP9xet4XwqtLqFyYGDNRKjUAVgh9u',
-    'HighJBfnAaqH9cKkeMErQFJZ4ATxQJwxqFupX6zaKTns',
-    'LGNDXqcm6U57QQ6Ad7icZ6oizkAVKRWrw97KwZy5nVf',
-    'EpicWWZspT1trKndbDDr29ULViN56rN5vofWSKZp8ePF',
-    'Mid9NeCpPNxP59fAdsLgMLy7BYexxXFw52ZP58Jrney',
-    'Lowq9dkpY43VpjfYeRjtKfGA6JtB7HaMmwQgXkjHLvN'
-];
 
 const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     
     const query = `
-        SELECT 
-            -- Gacha revenue: transfers TO gacha address with specific amounts
-            SUM(CASE 
-                WHEN to_owner = '${GACHA_ADDRESS}' 
-                AND from_owner NOT IN (${EXCLUDED_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-                AND amount / power(10, 6) IN (50, 250)
-                THEN amount / power(10, 6) 
-                ELSE 0 
-            END) as gacha_revenue,
-            
-            -- Fees revenue: transfers TO fees address
-            SUM(CASE 
-                WHEN to_owner = '${FEES_ADDRESS}'
-                THEN amount / power(10, 6) 
-                ELSE 0 
-            END) as fees_revenue,
-            
-            -- Buyback expense: transfers FROM gacha address (excluding internal)
-            SUM(CASE 
-                WHEN from_owner = '${GACHA_ADDRESS}' 
-                AND to_owner NOT IN (${EXCLUDED_ADDRESSES.map(addr => `'${addr}'`).join(', ')})
-                THEN amount / power(10, 6) 
-                ELSE 0 
-            END) as buyback_expense
-        FROM tokens_solana.transfers
-        WHERE 
-            TIME_RANGE
-            AND token_mint_address = '${ADDRESSES.solana.USDC}'
-            AND (
-                (to_owner = '${GACHA_ADDRESS}' AND from_owner NOT IN (${EXCLUDED_ADDRESSES.map(addr => `'${addr}'`).join(', ')})) OR
-                (to_owner = '${FEES_ADDRESS}') OR
-                (from_owner = '${GACHA_ADDRESS}' AND to_owner NOT IN (${EXCLUDED_ADDRESSES.map(addr => `'${addr}'`).join(', ')}))
+        WITH gacha_in AS (
+            SELECT 
+                SUM(amount / POWER(10, 6)) AS inflow
+            FROM tokens_solana.transfers
+            WHERE to_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3','96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s')
+                AND from_owner NOT IN ('BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
+                            '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
+                            'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
+                            'HW2HRqN1pXQGH9GfP9xet4XwqtLqFyYGDNRKjUAVgh9u',
+                        'HighJBfnAaqH9cKkeMErQFJZ4ATxQJwxqFupX6zaKTns',
+                        'LGNDXqcm6U57QQ6Ad7icZ6oizkAVKRWrw97KwZy5nVf',
+                    'EpicWWZspT1trKndbDDr29ULViN56rN5vofWSKZp8ePF',
+                    'Mid9NeCpPNxP59fAdsLgMLy7BYexxXFw52ZP58Jrney',
+                    'Lowq9dkpY43VpjfYeRjtKfGA6JtB7HaMmwQgXkjHLvN',
+                    'Low6UekJP3QrFVMfNRTL8CPK2SiGFhvp57sgF2pkmVu',
+'miDtj3vgdxVykHzRyFwyG8MXpvK8eQqamSLVdBr7WPt',
+'HiGHqwYddP5N2waqUmXPdaASpMpUEvfqPr2fSawctEb',
+'epiC3zkqa1RfcPMMM1Kc8m3GZGDwF2RmjbfA3g1BBjn',
+'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
+'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8'
+)
+                AND amount / power(10, 6) IN (50, 100, 250)
+                AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+                AND TIME_RANGE
+        ),
+        fees AS (
+            SELECT 
+                SUM(amount / POWER(10, 6)) AS inflow
+            FROM tokens_solana.transfers
+            WHERE to_owner = 'DQPERZ9e86pNJ4mhUnCEP8V75yxZofsipoVrRWT5Wdxd'
+                AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+                AND TIME_RANGE
+        ),
+        buyback AS (
+            SELECT 
+                SUM(amount / POWER(10, 6)) AS buyback
+            FROM tokens_solana.transfers
+            WHERE from_owner IN ('GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z','GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3')
+                AND to_owner NOT IN ('BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
+                            '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
+                            'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
+                            'HW2HRqN1pXQGH9GfP9xet4XwqtLqFyYGDNRKjUAVgh9u',
+                        'HighJBfnAaqH9cKkeMErQFJZ4ATxQJwxqFupX6zaKTns',
+                        'LGNDXqcm6U57QQ6Ad7icZ6oizkAVKRWrw97KwZy5nVf',
+                    'EpicWWZspT1trKndbDDr29ULViN56rN5vofWSKZp8ePF',
+                    'Mid9NeCpPNxP59fAdsLgMLy7BYexxXFw52ZP58Jrney',
+                    'Lowq9dkpY43VpjfYeRjtKfGA6JtB7HaMmwQgXkjHLvN',
+                    'Low6UekJP3QrFVMfNRTL8CPK2SiGFhvp57sgF2pkmVu',
+'miDtj3vgdxVykHzRyFwyG8MXpvK8eQqamSLVdBr7WPt',
+'HiGHqwYddP5N2waqUmXPdaASpMpUEvfqPr2fSawctEb',
+'epiC3zkqa1RfcPMMM1Kc8m3GZGDwF2RmjbfA3g1BBjn',
+'LGNDfXQFMiRMz3qqTNAREmRFQutMvazqqRrzn5i98uj',
+'SPrT7eFrCM9UJ4j7Xf9iktKCoBwJjfykFbiNbRsKQm8',
+'Cc4pHGnoaRWL1WnHsV517T3YvQn5gLDBMiuVXkF9rZhK',
+    '8373hLiAEXxaJ3oV7SRzx4KHwurEg9rEG98tUPj1sdtX'
+
+)
+                AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+                AND TIME_RANGE
             )
+        SELECT 
+            COALESCE(g.inflow, 0) AS gacha_spend,
+            COALESCE(f.inflow, 0) AS fees_royalty,
+            COALESCE(b.buyback, 0) AS buyback,
+            COALESCE(g.inflow, 0) + COALESCE(f.inflow, 0) - COALESCE(b.buyback, 0) AS net_revenue
+        FROM gacha_in g
+            CROSS JOIN fees f
+            CROSS JOIN buyback b;
     `;
     
     const data = await queryDuneSql(options, query);
     
     if (data && data.length > 0) {
         const result = data[0];
-        
-        // Calculate total revenue and net revenue
-        const totalRevenue = (result.gacha_revenue || 0) + (result.fees_revenue || 0);
-        const netRevenue = totalRevenue - (result.buyback_expense || 0);
-        
-        // Add total revenue (gacha + marketplace fees)
-        if (netRevenue > 0) {
-            dailyFees.add(ADDRESSES.solana.USDC, netRevenue * 1e6);
-        }
+        const netRevenue = result.net_revenue || 0;        
+        dailyFees.addUSDValue(netRevenue);
     }
 
     return {
@@ -79,7 +89,6 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
         dailyRevenue: dailyFees,
         dailyUserFees: dailyFees,
         dailyProtocolRevenue: dailyFees,
-        dailyHoldersRevenue: '0',
     }
 }
 
@@ -97,6 +106,7 @@ const adapter: SimpleAdapter = {
     start: '2025-06-04',
     dependencies: [Dependencies.DUNE],
     methodology,
+    allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
 }
 
 export default adapter;
