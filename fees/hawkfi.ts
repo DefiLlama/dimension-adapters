@@ -59,8 +59,10 @@ const methodology = {
   Fees: 'Total LP yield generated through HawkFi automated liquidity strategies on Meteora DLMM and Orca Whirlpool. Derived from the 8% performance fee collected (fee_amount / 0.08 = total_yield).',
   UserFees:
     'Total LP yield - users pay an 8% performance fee on yield earned, not on principal deposits.',
-  Revenue: '8% performance fee on LP yield, collected by HawkFi protocol treasury.',
-  ProtocolRevenue: '8% performance fee on LP yield, collected by HawkFi protocol treasury.',
+  Revenue:
+    '8% performance fee on LP yield and rebalance fees, collected by HawkFi protocol treasury.',
+  ProtocolRevenue:
+    '8% performance fee on LP yield and rebalance fees, collected by HawkFi protocol treasury.',
   SupplySideRevenue:
     '92% of LP yield retained by liquidity providers after the HawkFi 8% performance fee.',
 }
