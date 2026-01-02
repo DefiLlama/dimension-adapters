@@ -310,4 +310,5 @@ export enum CHAIN {
   OG = "0g",
   FOGO = "fogo",
   PROVENANCE = "provenance",
+  VAULTA = "vaulta",
 }

@@ -58,18 +58,18 @@ async function getEOSPrice(): Promise<number> {
         }
       }
     );
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: Failed to fetch EOS price`);
     }
-    
+
     const data = await response.json();
     const price = data.eos?.usd;
-    
+
     if (!price || price <= 0) {
       throw new Error("Invalid EOS price received");
     }
-    
+
     return price;
   } catch (error) {
     console.error("Error fetching EOS price:", error);
@@ -88,18 +88,18 @@ async function fetchFromEOS(endpoint: string, body: any): Promise<any> {
       },
       body: JSON.stringify(body),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
-    
+
     const data = await response.json();
-    
+
     if (!data.rows || data.rows.length === 0) {
       throw new Error(`No data returned from ${endpoint}`);
     }
-    
+
     return data;
   } catch (error) {
     console.error(`Error fetching from ${endpoint}:`, error);
@@ -129,7 +129,7 @@ async function getREXPool(): Promise<REXPool | null> {
     table: "rexpool",
     limit: 1,
   });
-  
+
   return data.rows && data.rows.length > 0 ? data.rows[0] : null;
 }
 
@@ -142,7 +142,7 @@ async function getREXReturnPool(): Promise<REXReturnPool | null> {
     table: "rexretpool",
     limit: 1,
   });
-  
+
   return data.rows && data.rows.length > 0 ? data.rows[0] : null;
 }
 
@@ -157,7 +157,7 @@ async function getREXBalance(account: string): Promise<REXFund | null> {
     upper_bound: account,
     limit: 1,
   });
-  
+
   return data.rows && data.rows.length > 0 ? data.rows[0] : null;
 }
 
@@ -166,29 +166,29 @@ function calculateAPR(rexPool: REXPool, rexReturn: REXReturnPool): number {
   const totalRent = eosToNumber(rexPool.total_rent);
   const totalLendable = eosToNumber(rexPool.total_lendable);
   const namebidProceeds = eosToNumber(rexPool.namebid_proceeds);
-  
+
   // Total income to REX holders
   const totalIncome = totalRent + namebidProceeds;
-  
+
   // APR calculation: (annual income / total lendable) * 100
   if (totalLendable > 0) {
     const annualRate = (totalIncome * 365) / totalLendable;
     return annualRate * 100; // Convert to percentage
   }
-  
+
   return 0;
 }
 
 const fetchFees = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp } = options;
-  
+
   try {
     const [rexPool, rexReturn, eosPrice] = await Promise.all([
       getREXPool(),
       getREXReturnPool(),
       getEOSPrice()
     ]);
-    
+
     if (!rexPool) {
       throw new Error("Failed to fetch REX pool data");
     }
@@ -208,16 +208,16 @@ const fetchFees = async (options: FetchOptions) => {
     // dist_interval = 10 minutes (600 seconds)
     // current_rate_of_increase is added every 10 minutes
     // Daily rate = current_rate_of_increase * (24 hours * 6 intervals per hour)
-    
+
     const INTERVALS_PER_DAY = 144; // (24 * 60) / 10 = 144 intervals per day
     const EOS_DECIMALS = 10000; // EOS uses 4 decimal places (10^4)
-    
+
     let dailyFeesEOS = 0;
-    
+
     // Validate current_rate_of_increase exists and is a valid number
     if (rexReturn && rexReturn.current_rate_of_increase) {
       const rateOfIncreaseValue = parseFloat(rexReturn.current_rate_of_increase);
-      
+
       if (rateOfIncreaseValue > 0) {
         // Convert from smallest units to EOS (divide by 10000 for 4 decimals)
         const ratePerInterval = rateOfIncreaseValue / EOS_DECIMALS;
@@ -231,16 +231,16 @@ const fetchFees = async (options: FetchOptions) => {
       console.error("rexretpool data missing or current_rate_of_increase unavailable");
       throw new Error("Cannot calculate accurate daily fees without rexretpool.current_rate_of_increase");
     }
-    
+
     // Convert to USD using current EOS price
     const dailyFeesUSD = dailyFeesEOS * eosPrice;
-    
+
     // Revenue distribution
     // 100% of fees flow to REX token holders
     // No burn, no protocol fee - all fees accrue to REX holders proportionally
     const dailyRevenueUSD = dailyFeesUSD;
     const dailyProtocolRevenueUSD = dailyRevenueUSD;
-    
+
     return {
       dailyFees: dailyFeesUSD.toString(),
       dailyRevenue: dailyRevenueUSD.toString(),
@@ -255,7 +255,7 @@ const fetchFees = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.EOS]: {
+    [CHAIN.VAULTA]: {
       fetch: fetchFees,
       start: 1557964800, // REX launch: May 16, 2019
     },
@@ -268,4 +268,3 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
-
