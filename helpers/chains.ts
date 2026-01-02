@@ -310,4 +310,5 @@ export enum CHAIN {
   OG = "0g",
   FOGO = "fogo",
   PROVENANCE = "provenance",
+  SPACE_AND_TIME = "space_and_time",
 }
