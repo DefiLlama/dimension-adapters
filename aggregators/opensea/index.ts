@@ -20,6 +20,7 @@ const chainConfig: any = {
 	[CHAIN.UNICHAIN]: { dune_chain: 'unichain' },
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
 	[CHAIN.SOLANA]: { dune_chain: 'solana' },
+	[CHAIN.MONAD]: { dune_chain: 'monad' },
 }
 
 const prefetch = async (options: FetchOptions) => {

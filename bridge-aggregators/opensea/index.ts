@@ -18,6 +18,7 @@ const chainConfig = {
 	// [CHAIN.SEI]: {dune_chain: 'sei'},
 	[CHAIN.UNICHAIN]: {dune_chain: 'unichain'},
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
+    [CHAIN.MONAD]: {dune_chain: 'monad'},
 }
 
 const prefetch = async (options: FetchOptions) => {
