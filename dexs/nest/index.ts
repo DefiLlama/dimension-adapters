@@ -134,23 +134,14 @@ const fetch24hVolume = async (
   fromDate: string,
   toDate: string
 ): Promise<number> => {
-  try {
-    const url = `${blazeApiBase}/pools/aggregated-volume-sum?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
-    const response = await httpGetWithRetry(url);
-    
-    if (validateResponse(response, ['Sum', 'sum'])) {
-      const volume = parseUsdValue(response.Sum || response.sum);
-      if (volume > 0) {
-        return volume;
-      }
-    }
-    
-    console.warn('Blaze API returned invalid or zero volume');
-    return 0;
-  } catch (error) {
-    console.warn(`Failed to fetch 24h volume from Blaze API: ${error instanceof Error ? error.message : String(error)}`);
-    return 0;
+  const url = `${blazeApiBase}/pools/aggregated-volume-sum?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
+  const response = await httpGetWithRetry(url);
+  
+  if (validateResponse(response, ['Sum', 'sum'])) {
+    return parseUsdValue(response.Sum || response.sum);
   }
+
+  return 0;
 };
 
 const fetch24hFees = async (
@@ -158,23 +149,14 @@ const fetch24hFees = async (
   fromDate: string,
   toDate: string
 ): Promise<number> => {
-  try {
-    const url = `${blazeApiBase}/pools/aggregated-fees-sum?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
-    const response = await httpGetWithRetry(url);
-    
-    if (validateResponse(response, ['Sum', 'sum'])) {
-      const fees = parseUsdValue(response.Sum || response.sum);
-      if (fees > 0) {
-        return fees;
-      }
-    }
-    
-    console.warn('Blaze API returned invalid or zero fees');
-    return 0;
-  } catch (error) {
-    console.warn(`Failed to fetch 24h fees from Blaze API: ${error instanceof Error ? error.message : String(error)}`);
-    return 0;
+  const url = `${blazeApiBase}/pools/aggregated-fees-sum?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
+  const response = await httpGetWithRetry(url);
+  
+  if (validateResponse(response, ['Sum', 'sum'])) {
+    return parseUsdValue(response.Sum || response.sum);
   }
+  
+  return 0;
 };
 
 const fetch24hMetricsFromV3Pools = async (
@@ -182,34 +164,29 @@ const fetch24hMetricsFromV3Pools = async (
   oneDayAgoTimestamp: number,
   toTimestamp: number
 ): Promise<{ volume: number; fees: number }> => {
-  try {
-    const url = `${fenixApiBase}/graph/v3-pools?from=${oneDayAgoTimestamp}`;
-    const response = await httpGetWithRetry(url);
-    
-    const pools = response?.data?.pools || response?.pools || [];
-    let v3DailyVolume = 0;
-    let v3DailyFees = 0;
-    
-    pools.forEach((pool: any) => {
-      const poolDayData = pool.poolDayData || [];
-      poolDayData.forEach((dayData: any) => {
-        // Check if dayData is within the last 24 hours
-        const dayTimestamp = dayData.date * 86400; // Convert day number to timestamp
-        if (dayTimestamp >= oneDayAgoTimestamp && dayTimestamp <= toTimestamp) {
-          v3DailyVolume += parseUsdValue(dayData.volumeUSD);
-          v3DailyFees += parseUsdValue(dayData.feesUSD);
-        }
-      });
+  const url = `${fenixApiBase}/graph/v3-pools?from=${oneDayAgoTimestamp}`;
+  const response = await httpGetWithRetry(url);
+  
+  const pools = response?.data?.pools || response?.pools || [];
+  let v3DailyVolume = 0;
+  let v3DailyFees = 0;
+  
+  pools.forEach((pool: any) => {
+    const poolDayData = pool.poolDayData || [];
+    poolDayData.forEach((dayData: any) => {
+      // Check if dayData is within the last 24 hours
+      const dayTimestamp = dayData.date * 86400; // Convert day number to timestamp
+      if (dayTimestamp >= oneDayAgoTimestamp && dayTimestamp <= toTimestamp) {
+        v3DailyVolume += parseUsdValue(dayData.volumeUSD);
+        v3DailyFees += parseUsdValue(dayData.feesUSD);
+      }
     });
-    
-    return { volume: v3DailyVolume, fees: v3DailyFees };
-  } catch (error) {
-    console.warn(`Failed to fetch V3 pools day data: ${error instanceof Error ? error.message : String(error)}`);
-    return { volume: 0, fees: 0 };
-  }
+  });
+  
+  return { volume: v3DailyVolume, fees: v3DailyFees };
 };
 
-const chainConfig = {
+const chainConfig: any = {
   [CHAIN.HYPERLIQUID]: {
     start: '2025-11-12', 
     fenixApiBase: API_CONFIG.FENIX_BASE,
@@ -299,4 +276,3 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
-
