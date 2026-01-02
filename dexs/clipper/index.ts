@@ -23,6 +23,7 @@ const configs: ClipperConfig = {
   // https://github.com/sushi-labs/clipper-rfq-subgraph/blob/main/scripts/deploy-codegen/networks/mainnet.ts
   // Using event-based fetching for all chains to avoid subgraph reliability issues
   [CHAIN.ETHEREUM]: {
+    // subgraph: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
     pools: [
       '0x655edce464cc797526600a462a8154650eee4b77',
     ],
@@ -31,6 +32,7 @@ const configs: ClipperConfig = {
     ],
   },
   [CHAIN.ARBITRUM]: {
+    // subgraph: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
     pools: [
       '0x769728b5298445ba2828c0f3f5384227fbf590c5',
     ],
@@ -40,6 +42,7 @@ const configs: ClipperConfig = {
     ],
   },
   [CHAIN.OPTIMISM]: {
+    // subgraph: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
     pools: [
       '0x5130f6ce257b8f9bf7fac0a0b519bd588120ed40',
     ],
@@ -48,6 +51,7 @@ const configs: ClipperConfig = {
     ],
   },
   [CHAIN.POLYGON]: {
+    // subgraph: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
     pools: [
       '0x6bfce69d1df30fd2b2c8e478edec9daa643ae3b8',
     ],
@@ -56,6 +60,7 @@ const configs: ClipperConfig = {
     ],
   },
   [CHAIN.MOONBEAM]: {
+    // subgraph: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
     pools: [],
     coves: [],
   },
