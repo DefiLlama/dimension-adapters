@@ -27,7 +27,7 @@ const getPayPortalFees = async (startTimestamp: number, endTimestamp: number) =>
   return Number(logs.reduce((sum, log) => sum + log.fee, 0n));
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   
@@ -51,7 +51,6 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   fetch,
   protocolType: ProtocolType.CHAIN,
   chains: [CHAIN.SPACE_AND_TIME],
