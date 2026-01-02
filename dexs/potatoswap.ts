@@ -11,9 +11,7 @@ import fetchURL from "../utils/fetchURL";
   The API returns rolling 24h metrics per pool.
   We aggregate ONLY v2 pools.
 
-  Docs reference:
-  "A portion of all trading fees is used to reward our Liquidity Providers,
-   with the remainder supporting the PotatoSwap ecosystem."
+  Fee split follows the same ratios used in the previous adapter version.
 */
 
 const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
@@ -21,7 +19,7 @@ const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
 const fetch = async (_t: number) => {
   const response = await fetchURL(API_URL);
 
-  // ✅ THIS IS THE CRITICAL FIX
+  // API response shape: { code, msg, data }
   const pools = response?.data ?? [];
 
   let dailyVolume = 0;
@@ -34,21 +32,25 @@ const fetch = async (_t: number) => {
     dailyFees += Number(pool.fee_24h_usd || 0);
   }
 
-  // Fee split derived from docs:
-  // Total fee: 0.25%
-  // LPs:       0.21%
-  // Protocol:  0.04%
-  const lpShare = dailyFees * (0.21 / 0.25);
-  const protocolShare = dailyFees * (0.04 / 0.25);
+  /*
+    Fee split (same as previous adapter):
+
+    Total fee: 0.25%
+    LPs:       0.17%
+    Holders:   0.08%
+    Protocol:  0%
+  */
+  const supplySideRevenue = dailyFees * (0.17 / 0.25);
+  const holdersRevenue = dailyFees * (0.08 / 0.25);
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: lpShare,
-    dailyProtocolRevenue: protocolShare,
-    dailyHoldersRevenue: protocolShare,
-    dailyRevenue: protocolShare,
+    dailySupplySideRevenue: supplySideRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: holdersRevenue,
+    dailyRevenue: holdersRevenue,
   };
 };
 
@@ -56,11 +58,11 @@ const methodology = {
   Fees: "PotatoSwap charges a 0.25% swap fee on v2 pools.",
   UserFees: "Users pay a 0.25% swap fee per trade.",
   SupplySideRevenue:
-    "Liquidity providers receive ~0.21% of swap volume as fees.",
-  ProtocolRevenue:
-    "The remaining ~0.04% of swap volume supports the PotatoSwap ecosystem.",
+    "Liquidity providers receive 0.17% of swap volume.",
   HoldersRevenue:
-    "Protocol revenue is distributed to vePOT holders.",
+    "0.08% of swap volume is distributed to vePOT holders.",
+  ProtocolRevenue:
+    "The protocol does not retain a direct fee share.",
 };
 
 const adapter: SimpleAdapter = {
