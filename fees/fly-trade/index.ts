@@ -5,29 +5,22 @@ import { addTokensReceived } from "../../helpers/token";
 const SWAP_FEE_ADDRESS = "0xd39B2A01D4dca42F32Ff52244a1b28811e40045F";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
-  // Fly protocol swap fees collected by router
-  const fees = await addTokensReceived({
+  const dailyFees = await addTokensReceived({
     options,
     targets: [SWAP_FEE_ADDRESS],
   });
 
-  dailyFees.addBalances(fees);
-  dailyRevenue.addBalances(fees);
-
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const methodology = {
   Fees: "Fly charges a conditional protocol-level swap fee (0.01%–0.1%) on selected long-tail assets and specific trading pairs. Fees are enforced at the router level and transferred to a Fly-controlled fee collector address.",
   Revenue: "All Fly swap fees are retained by the protocol.",
-  ProtocolRevenue: "100% of Fly swap fees are protocol revenue.",
+  ProtocolRevenue: "All Fly swap fees are retained by the protocol.",
 };
 
 const adapter: SimpleAdapter = {
@@ -43,14 +36,21 @@ const adapter: SimpleAdapter = {
     CHAIN.AVAX,
     CHAIN.SCROLL,
     CHAIN.MANTA,
-    CHAIN.TAIKO,
     CHAIN.METIS,
     CHAIN.FANTOM,
     CHAIN.LINEA,
-    CHAIN.INK,
-    CHAIN.BERACHAIN,
   ],
-  start: "2024-01-01",
+  adapter: {
+    [CHAIN.BERACHAIN]: {
+      start: "2025-08-20",
+    },
+    [CHAIN.TAIKO]: {
+      start: "2025-08-20",
+    },
+    [CHAIN.INK]: {
+      start: "2025-11-01",
+    },
+  },
   methodology,
 };
 
