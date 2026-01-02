@@ -1,42 +1,44 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPrices } from "@defillama/sdk/build/util/coins";
-import {METRIC} from "../../helpers/metrics";
+import { METRIC } from "../../helpers/metrics";
 
-const USSI_CONTRACT = '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18';
+const USSI_PRICE_ID = 'base:0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18';
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    const totalSupplyBeforeRaw = await options.fromApi.call({
-        abi: "erc20:totalSupply",
-        target: USSI_CONTRACT,
-        permitFailure: false,
-    })
-    const totalSupplyStart = Number(totalSupplyBeforeRaw as string) / 1e8
+    const totalSupply = await options.fromApi.call({ abi: "uint256:totalSupply", target: '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18' })
 
-    const priceEndRes = await getPrices([`base:${USSI_CONTRACT}`], options.toTimestamp)
-    const priceStartRes = await getPrices([`base:${USSI_CONTRACT}`], options.fromTimestamp)
+    const priceEndRes = await getPrices([USSI_PRICE_ID], options.toTimestamp)
+    const priceStartRes = await getPrices([USSI_PRICE_ID], options.fromTimestamp)
 
-    const priceEnd = priceEndRes[`base:${USSI_CONTRACT}`]?.price
-    const priceStart = priceStartRes[`base:${USSI_CONTRACT}`]?.price
+    const priceEnd = priceEndRes[USSI_PRICE_ID].price
+    const priceStart = priceStartRes[USSI_PRICE_ID].price
+    
+    if (!priceEnd || priceStart) {
+      throw Error(`failed to get prices for ${USSI_PRICE_ID} at ${options.fromTimestamp} and ${options.toTimestamp}`)
+    }
 
     const daysFraction = (options.toTimestamp - options.fromTimestamp) / 86400;
 
-    const yieldAmount = (priceEnd - priceStart) * totalSupplyStart
-    const serviceFee = (priceStart * totalSupplyStart) * 0.0001 * daysFraction
-    dailyFees.addUSDValue(yieldAmount + serviceFee);
-    dailyRevenue.addUSDValue(serviceFee);
-    dailySupplySideRevenue.addUSDValue(yieldAmount);
+    const yieldAmount = (priceEnd - priceStart) * totalSupply / 1e18
+    const serviceFee = priceStart * totalSupply * 0.0001 * daysFraction / 1e18
+
+    dailyFees.addUSDValue(yieldAmount, METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(serviceFee, METRIC.MANAGEMENT_FEES);
+
+    dailyRevenue.addUSDValue(serviceFee, METRIC.MANAGEMENT_FEES);
+    dailySupplySideRevenue.addUSDValue(yieldAmount, METRIC.ASSETS_YIELDS);
 
     return {
         dailyFees,
         dailyRevenue,
+        dailySupplySideRevenue,
         dailyProtocolRevenue: dailyRevenue,
         dailyHoldersRevenue: 0,
-        dailySupplySideRevenue,
     };
 };
 
@@ -53,7 +55,7 @@ export default {
         Fees: 'Yield generated from delta hedging strategies plus daily service fee of 0.01% based on the value of the underlying assets.',
         Revenue: 'All services fees paid by users.',
         ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
-        HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
+        HoldersRevenue: 'No revenue share to SOSO token holders.',
         SupplySideRevenue: 'Total yield accrued through USSI price appreciation, distributed to USSI holders',
     },
     breakdownMethodology : {
