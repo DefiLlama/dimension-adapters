@@ -19,22 +19,17 @@ interface QubicBurnData {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data: QubicBurnData[] = await fetchURL(API_ENDPOINT);
-  
-  // Calculate daily fees by grouping by date and summing amounts
-  const dailyMap = new Map<string, number>();
-  
-  data.forEach(item => {
-    // Extract date from timestamp (format: "2025-08-14T17:00:00")
+
+  const dailyQubicBurnt = data.reduce((totalBurnt: number, item: any) => {
     const date = item.timestamp.split('T')[0];
-    const qubicAmount = Number(item.amount);
-    const existingAmount = dailyMap.get(date) || 0;
-    dailyMap.set(date, existingAmount + qubicAmount);
-  });
+    if (date === options.dateString && item.burnFlag)
+      totalBurnt += item.amount;
+    return totalBurnt
+  }, 0);
 
   const dailyFees = options.createBalances()
-  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
-  dailyFees.addCGToken('qubic-network', dailyMap.get(dateString) || 0)
-  
+  dailyFees.addCGToken('qubic-network', dailyQubicBurnt);
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -44,10 +39,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: 'All fees collected from Monero mining rewards.',
-    Revenue: 'All fees collected from Monero mining rewards.',
-    ProtocolRevenue: 'Protocol takes no revenue shares.',
-    HoldersRevenue: 'All fees are used to buy back QUBIC and burn them.',
+  Fees: 'All fees collected from Monero mining rewards.',
+  Revenue: 'All fees collected from Monero mining rewards.',
+  ProtocolRevenue: 'Protocol takes no revenue shares.',
+  HoldersRevenue: 'All fees are used to buy back QUBIC and burn them.',
 };
 
 const adapter: SimpleAdapter = {
