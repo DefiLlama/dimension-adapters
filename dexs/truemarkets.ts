@@ -169,6 +169,7 @@ const methodology = {
     'Volume is calculated from Swap events on TrueMarkets prediction market pools. V1 markets use Uniswap V3 pools (USDC pairs), V2 markets use Uniswap V4 pools (TYD pairs). Only the stablecoin side of swaps is counted.',
   Fees: 'Fees are tracked via PoolFeeTracked events from the FeeCollector contract (V4 pools only).',
   Revenue: 'All collected fees are considered protocol revenue.',
+  ProtocolRevenue: 'All collected fees are considered protocol revenue.',
 }
 
 const adapter: SimpleAdapter = {
