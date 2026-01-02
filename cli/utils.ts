@@ -164,33 +164,3 @@ export function timestampLast(item: any): any {
 
     return newItem
 }
-
-const keyMaps: Record<string, string> = {
-  dailyFees: 'df',
-  dailyUserFees: 'duf',
-  dailyRevenue: 'dr',
-  dailySupplySideRevenue: 'dssr',
-  dailyProtocolRevenue: 'dpr',
-  dailyHoldersRevenue: 'dhr',
-  dailyBribesRevenue: 'dbr',
-}
-
-export function printAggregated(volumes: Array<any>) {
-  const fees: any = {
-    aggregated: {}
-  }
-  
-  for (const item of volumes) {
-    for (const [key, value] of Object.entries(keyMaps)) {
-      if (item[key]) {
-        fees.aggregated[value] = fees.aggregated[value] || { value: 0, chains: {} }
-        
-        fees.aggregated[value].value += item[key];
-        fees.aggregated[value].chains[item.chain] = item[key];
-      }
-    }
-  }
-  
-  console.log('')
-  console.log(JSON.stringify(fees))
-}
