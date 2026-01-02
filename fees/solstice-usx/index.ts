@@ -9,13 +9,14 @@ const PYTH_EUSX_REDEMPTION_PRICE_API = 'https://insights.pyth.network/historical
 const fetch: any = async (_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
 
-  const response = await fetchURL(`${PYTH_EUSX_REDEMPTION_PRICE_API}&from=${options.fromTimestamp}&to=${options.endTimestamp+1}&resolution=1D&cluster=pythnet`);
+  const response = await fetchURL(`${PYTH_EUSX_REDEMPTION_PRICE_API}&from=${options.fromTimestamp}&to=${options.endTimestamp}&resolution=1H&cluster=pythnet`);
 
-  if (!response || response.length !== 2)
+  if (!response || response.length < 2)
     throw new Error("Pyth API returned invalid reposnse");
 
+  const totalResponses = response.length;
   const priceYesterday = response[0].price;
-  const priceToday = response[1].price;
+  const priceToday = response[totalResponses-1].price;
 
   const totalSupply = await getTokenSupply(EUSX)
   dailyFees.addUSDValue((priceToday - priceYesterday) * totalSupply);
