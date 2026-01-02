@@ -2,7 +2,6 @@ import { BaseAdapter, FetchOptions, IStartTimestamp } from "../../adapters/types
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
-import { normalizeAddress } from "@defillama/sdk/build/util";
 import { METRIC } from '../../helpers/metrics';
 
 export interface AaveLendingPoolConfig {
@@ -167,7 +166,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
           protocolFee: number;
         }} = {}
         for (let i = 0; i < reservesList.length; i++) {
-          reserveLiquidationConfigs[normalizeAddress(reservesList[i])] = {
+          reserveLiquidationConfigs[sdk.util.normalizeAddress(reservesList[i])] = {
             bonus: Number(reserveConfigs[i].liquidationBonus),
             protocolFee: liquidationProtocolFees[i],
           }
@@ -198,8 +197,8 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
            */
     
           const e = Number(event.liquidatedCollateralAmount)
-          const x = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
-          const y = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
+          const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
+          const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
   
           // protocol fees from liquidation bonus
           const b = (e - e / x)
