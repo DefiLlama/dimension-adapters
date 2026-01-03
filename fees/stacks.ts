@@ -1,105 +1,94 @@
 import { Adapter, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
-import { sleep } from "../utils/utils";
 
 const endpoint = "https://api.hiro.so";
 const apiKey = "260ff2d24e32b02e69c516779e3ddbf5";
+
+const ADDRESS = "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4";
 
 interface Block {
   height: number;
   burn_block_time: number;
 }
 
-interface Tx {
-  fee_rate: number;
-}
-
 interface BlocksResponse {
   results: Block[];
-  limit: number;
-  offset: number;
 }
 
-interface TxsResponse {
-  results: Tx[];
+interface StxBalanceResponse {
+  total_fees_sent: string; // microSTX
 }
 
 async function fetchJSON<T>(url: string): Promise<T> {
-  try {
-    return await httpGet(url, {
-      headers: { "x-api-key": apiKey },
-    }) as T;
-  } catch (error: any) {
-    const status = error?.response?.status || error?.status || error?.statusCode || "Unknown";
-    const statusText = error?.axiosError || error?.response?.statusText || error?.statusText || error?.message || "Unknown";
-    throw new Error(`HTTP ${status} - ${statusText}`);
-  }
+  return httpGet(url, {
+    headers: { "x-api-key": apiKey },
+  }) as Promise<T>;
 }
 
-async function getLatestBlocksFees(): Promise<number> {
-  const totalBlocksToFetch = 100;
-  const maxLimitPerRequest = 30; // API limit
-  const batchSize = 20; // number of blocks to fetch per batch
-  let totalFees = 0;
-  let allBlocks: Block[] = [];
-  let offset = 0;
+async function getLatestBlockHeight(): Promise<number> {
+  const res = await fetchJSON<BlocksResponse>(
+    `${endpoint}/extended/v1/block?limit=1`
+  );
+  return res.results[0].height;
+}
 
-  // Fetch blocks in batches
-  while (allBlocks.length < totalBlocksToFetch) {
-    const limit = Math.min(maxLimitPerRequest, totalBlocksToFetch - allBlocks.length);
-    const blocksData = await fetchJSON<BlocksResponse>(
-      `${endpoint}/extended/v1/block?limit=${limit}&offset=${offset}`
-    );
+async function getBlockByHeight(height: number): Promise<Block> {
+  return fetchJSON<Block>(
+    `${endpoint}/extended/v1/block/by_height/${height}`
+  );
+}
 
-    if (blocksData.results.length === 0) break;
-    
-    allBlocks = allBlocks.concat(blocksData.results);
-    offset += blocksData.results.length;
+async function getBlockHeightAt(timestamp: number): Promise<number> {
+  let low = 1;
+  let high = await getLatestBlockHeight();
+  let result = 0;
 
-    if (blocksData.results.length < limit) break;
-  }
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const block = await getBlockByHeight(mid);
 
-  const blocks = allBlocks.slice(0, totalBlocksToFetch);
-
-  // Process blocks in batches
-  for (let i = 0; i < blocks.length; i += batchSize) {
-    const batch = blocks.slice(i, i + batchSize);
-
-    // Fetch transactions for all blocks in this batch in parallel
-    const txPromises = batch.map((block) =>
-      fetchJSON<TxsResponse>(`${endpoint}/extended/v1/tx/block_height/${block.height}`)
-    );
-
-    const txResults = await Promise.all(txPromises);
-
-    txResults.forEach((txs) => {
-      totalFees += txs.results.reduce((sum, tx) => sum + Number(tx.fee_rate), 0);
-    });
-
-    // Small delay between batches to avoid rate limits
-    if (i + batchSize < blocks.length) {
-      await sleep(100);
+    if (block.burn_block_time <= timestamp) {
+      result = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
     }
   }
 
-  return totalFees / 1e6; // convert microSTX to STX
+  if (result === 0) {
+    throw new Error(`No block found at or before timestamp ${timestamp}`);
+  }
+
+  return result;
 }
 
-const fetchFees = async (_timestamp: number): Promise<FetchResultFees> => {
-  const dailyFees = await getLatestBlocksFees();
-  const dailyRevenue = dailyFees; // All fees go to miners
+async function getFeesUntilBlock(blockHeight: number): Promise<number> {
+  const res = await fetchJSON<StxBalanceResponse>(
+    `${endpoint}/extended/v1/address/${ADDRESS}/stx?until_block=${blockHeight}`
+  );
+  return Number(res.total_fees_sent);
+}
+
+const fetchFees = async ({
+  startTimestamp,
+  endTimestamp,
+}: {
+  startTimestamp: number;
+  endTimestamp: number;
+}): Promise<FetchResultFees> => {
+  const startBlock = await getBlockHeightAt(startTimestamp);
+  const endBlock = await getBlockHeightAt(endTimestamp);
+
+  const feesStart = await getFeesUntilBlock(startBlock);
+  const feesEnd = await getFeesUntilBlock(endBlock);
+
+  const dailyFees = (feesEnd - feesStart) / 1e6; // microSTX → STX
 
   return {
-    timestamp: Math.floor(Date.now() / 1000),
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
-};
-
-const methodology = {
-  Fees: "Total fees collected from the latest 100 blocks on Stacks.",
-  Revenue: "All collected fees go to miners.",
 };
 
 const adapter: Adapter = {
@@ -107,10 +96,13 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.STACKS]: {
       fetch: fetchFees,
-      start: 1610582400, // Jan 14, 2021
+      start: "2025-01-01",
     },
   },
-  methodology,
+  methodology: {
+    Fees: "Total daily fees paid to execute transactions on Stacks.",
+    Revenue: "Total daily fees collected by miners on Stacks.",
+  },
 };
 
 export default adapter;
