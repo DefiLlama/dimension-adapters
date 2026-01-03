@@ -1,7 +1,7 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "@defillama/sdk/build/util/coins";
 import { METRIC } from "../../helpers/metrics";
+import * as sdk from "@defillama/sdk";
 
 const USSI_PRICE_ID = 'base:0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18';
 
@@ -12,21 +12,21 @@ const fetch = async (options: FetchOptions) => {
 
     const totalSupply = await options.fromApi.call({ abi: "uint256:totalSupply", target: '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18' })
 
-    const priceEndRes = await getPrices([USSI_PRICE_ID], options.toTimestamp)
-    const priceStartRes = await getPrices([USSI_PRICE_ID], options.fromTimestamp)
+    const priceEndRes = await sdk.coins.getPrices([USSI_PRICE_ID], options.toTimestamp)
+    const priceStartRes = await sdk.coins.getPrices([USSI_PRICE_ID], options.fromTimestamp)
 
     const priceEnd = priceEndRes[USSI_PRICE_ID].price
     const priceStart = priceStartRes[USSI_PRICE_ID].price
     
-    if (!priceEnd || priceStart) {
+    if (!priceEnd || !priceStart) {
       throw Error(`failed to get prices for ${USSI_PRICE_ID} at ${options.fromTimestamp} and ${options.toTimestamp}`)
     }
 
-    const daysFraction = (options.toTimestamp - options.fromTimestamp) / 86400;
+    const daysFraction = (options.toTimestamp - options.fromTimestamp);
 
-    const yieldAmount = (priceEnd - priceStart) * totalSupply / 1e18
-    const serviceFee = priceStart * totalSupply * 0.0001 * daysFraction / 1e18
-
+    const yieldAmount = (priceEnd - priceStart) * totalSupply / 1e8
+    const serviceFee = priceStart * Number(totalSupply) * 0.0001 * daysFraction / (24 * 3600) / 1e8
+    
     dailyFees.addUSDValue(yieldAmount, METRIC.ASSETS_YIELDS);
     dailyFees.addUSDValue(serviceFee, METRIC.MANAGEMENT_FEES);
 

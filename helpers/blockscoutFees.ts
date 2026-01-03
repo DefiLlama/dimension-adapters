@@ -24,7 +24,7 @@ export const chainConfigMap: any = {
   // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
   [CHAIN.ETHEREUM_CLASSIC]: { explorer: 'https://etc.blockscout.com', CGToken: 'ethereum-classic', },
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },
-  
+
   // [CHAIN.Z]: { explorer: 'https://zyxscan.com', CGToken: ''},
   [CHAIN.VELAS]: { explorer: 'https://evmexplorer.velas.com', CGToken: 'velas' },
   [CHAIN.NULS]: { explorer: 'https://evmscan.nuls.io', CGToken: 'nuls' },
@@ -75,8 +75,8 @@ export const chainConfigMap: any = {
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18'},
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
   [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
-  [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },  
-  [CHAIN.RARI] : { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' }, 
+  [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },
+  [CHAIN.RARI] : { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' },
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
   [CHAIN.CAPX] : { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/"},
@@ -96,8 +96,9 @@ export const chainConfigMap: any = {
   [CHAIN.MOLTEN_NETWORK]: { CGToken: 'molten-2', explorer: 'https://molten.calderaexplorer.xyz/' },
   [CHAIN.SYNDICATE]: { CGToken: 'syndicate-3', explorer: 'https://explorer.syndicate.io/' },
   [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.kuma.bid/' },
+  [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
+  [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
- 
 }
 
 function getTimeString(timestamp: number) {
