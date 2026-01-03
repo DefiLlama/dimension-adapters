@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
-import { fetchCurveApiData, getChainDataFromApiResponse, isChainSupportedByApi } from "../../helpers/curve/api";
+import { fetchCurveApiData, getChainDataFromApiResponse } from "../../helpers/curve/api";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -524,17 +524,13 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
         ...acc,
         [chain]: {
           fetch: async function(options: FetchOptions) {
-            // Try curve pries API first for supported chains
-            if (isChainSupportedByApi(chain)) {
-              try {
-                return await fetchFromApi(options);
-              } catch (e) {
-                // Fall back to on-chain if API fails
-                console.log(`Curve API failed for ${chain}, falling back to on-chain: ${e}`);
-              }
+            // Try API first, fall back to on-chain if chain not in API or API fails
+            try {
+              return await fetchFromApi(options);
+            } catch (e) {
+              // Fall back to on-chain if API fails or chain not supported
+              return await fetchFromOnChain(options, configs[chain]);
             }
-            // Use on-chain data for unsupported chains or API failures
-            return await fetchFromOnChain(options, configs[chain]);
           },
           start: configs[chain].start,
         }

@@ -39,33 +39,12 @@ export async function fetchCurveApiData(startTimestamp: number, endTimestamp: nu
   return response;
 }
 
-export function getChainDataFromApiResponse(response: CurveFeesResponse, chain: string): CurveChainFees | undefined {
-  // Map chain names (DefiLlama format to Curve API format)
-  const chainMap: Record<string, string> = {
-    'avax': 'avalanche',
-    'xdai': 'xdai', // gnosis
-  };
+// Map DefiLlama chain names to Curve API chain names
+const chainMap: Record<string, string> = {
+  'avax': 'avalanche',
+};
 
+export function getChainDataFromApiResponse(response: CurveFeesResponse, chain: string): CurveChainFees | undefined {
   const apiChainName = chainMap[chain] || chain;
   return response.chains.find(c => c.chain.toLowerCase() === apiChainName.toLowerCase());
-}
-
-// Chains known to be supported by the Curve API
-export const API_SUPPORTED_CHAINS = new Set([
-  'ethereum',
-  'arbitrum',
-  'base',
-  'polygon',
-  'fraxtal',
-  'xdai',
-  'optimism',
-  'hyperliquid',
-  'sonic',
-  'bsc',
-  'taiko',
-  'fantom',
-]);
-
-export function isChainSupportedByApi(chain: string): boolean {
-  return API_SUPPORTED_CHAINS.has(chain.toLowerCase());
 }
