@@ -13,9 +13,9 @@ const fetch = async (options: FetchOptions) => {
 
     const totalSupply = await options.fromApi.call({ abi: "uint256:totalSupply", target: '0x3a46ed8FCeb6eF1ADA2E4600A522AE7e24D2Ed18' })
 
-    await sleep(2)
+    await sleep(1000)
     const priceEndRes = await sdk.coins.getPrices([USSI_PRICE_ID], options.toTimestamp)
-    await sleep(2)
+    await sleep(1000)
     const priceStartRes = await sdk.coins.getPrices([USSI_PRICE_ID], options.fromTimestamp)
 
     const priceEnd = priceEndRes[USSI_PRICE_ID].price
