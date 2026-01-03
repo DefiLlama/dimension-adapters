@@ -99,6 +99,7 @@ export const chainConfigMap: any = {
   [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
+  [CHAIN.KUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
 }
 
 function getTimeString(timestamp: number) {
