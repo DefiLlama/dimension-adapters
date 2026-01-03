@@ -255,7 +255,7 @@ const fetchFees = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.VAULTA]: {
+    [CHAIN.EOS]: {
       fetch: fetchFees,
       start: 1557964800, // REX launch: May 16, 2019
     },
