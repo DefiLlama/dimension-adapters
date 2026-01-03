@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
-import { fetchCurveApiData, getChainDataFromApiResponse } from "../../helpers/curve/api";
+import { fetchCurveApiData, getChainDataFromApiResponse } from "./api";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
