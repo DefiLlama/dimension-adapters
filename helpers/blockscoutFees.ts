@@ -98,6 +98,7 @@ export const chainConfigMap: any = {
   [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.kuma.bid/' },
   [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
+  [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
 }
 
 function getTimeString(timestamp: number) {
