@@ -3,8 +3,10 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 import { getBlock } from "../helpers/getBlock";
+import { sleep } from "../utils/utils";
 
 const getGasBurned = async (startTimestamp: number, endTimestamp: number) => {
+  await sleep(5000); // a void rate limit
   const data = await httpGet(
     "https://metrics.spaceandtime.dev/defillama/gas-burned",
     {
@@ -19,12 +21,12 @@ const getPayPortalFees = async (startTimestamp: number, endTimestamp: number) =>
   const toBlock = await getBlock(endTimestamp, CHAIN.BASE)
   const logs = await sdk.getEventLogs({
     chain: CHAIN.BASE,
-    fromBlock,
-    toBlock,
+    fromBlock: Number(fromBlock),
+    toBlock: Number(toBlock),
     target: "0x84C276C3EC3Dd3F67F51B775a53001c9d5017964",
     eventAbi:"event TransferWithFee(address indexed sender, address indexed recipient, uint256 netAmount, uint256 fee)",
   });
-  return Number(logs.reduce((sum, log) => sum + log.fee, 0n));
+  return Number(logs.reduce((sum, log) => sum + log.fee ? BigInt(log.fee) : 0n, 0n));
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
