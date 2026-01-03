@@ -1,38 +1,45 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const query = `
-    SELECT
-      SUM(volume) as daily_volume
-    FROM (
-      SELECT
-        CASE
-          WHEN CAST(makerAssetId AS VARCHAR) = '0'
-            THEN CAST(makerAmountFilled / 2 AS DOUBLE) / 1e18
-          WHEN CAST(takerAssetId AS VARCHAR) = '0'
-            THEN CAST(takerAmountFilled / 2 AS DOUBLE) / 1e18
-        END AS volume
-      FROM probable_v1_bnb.ctfexchange_evt_orderfilled
-      WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
-        AND evt_block_time <= from_unixtime(${options.endTimestamp})
-    )
-  `;
+const CONTRACT_ADDRESS = "0xf99f5367ce708c66f0860b77b4331301a5597c86";
+const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955"; 
 
-  const result = await queryDuneSql(options, query);
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const logs = await options.getLogs({
+    target: CONTRACT_ADDRESS,
+    eventAbi: 'event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)',
+  });
+
+  logs.forEach((log: any) => {
+    if (log.makerAssetId.toString() === '0') {
+      const volumeInWei = BigInt(log.makerAmountFilled) / 2n;
+      dailyVolume.add(USDT_ADDRESS, volumeInWei);
+    }
+    else if (log.takerAssetId.toString() === '0') {
+      const volumeInWei = BigInt(log.takerAmountFilled) / 2n;
+      dailyVolume.add(USDT_ADDRESS, volumeInWei);
+    }
+  });
 
   return {
-    dailyVolume: result[0]?.daily_volume ?? 0,
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  chains: [CHAIN.BSC],
-  fetch,
-  start: "2024-01-01",
-  dependencies: [Dependencies.DUNE],
+  version: 2,
+  adapter: {
+    [CHAIN.BSC]: {
+      fetch,
+      start: "2025-12-09",
+    },
+  },
 };
 
 export default adapter;
