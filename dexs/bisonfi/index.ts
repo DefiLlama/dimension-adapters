@@ -9,10 +9,10 @@ const BISONFI_PROGRAM = "BiSoNHVpsVZW2F7rx2eQ59yQwKxzU5NvBcmKshCSUypi";
  * - Identify txs that invoke the BisonFi program via solana.instruction_calls
  * - Sum USD swap volume from dex_solana.trades for those txs
  *
- * Note on CI:
- * GitHub PR checks typically do not have access to ALLIUM_API_KEY secrets.
- * If the key is missing, we return 0 to avoid failing CI.
- * Production runners have the key and will return real volume.
+ * Notes:
+ * - Uses Allium Explorer SQL datasets.
+ * - On CI/forks (no key) or when Allium access is restricted, helper returns empty rows,
+ *   and the adapter outputs 0 without failing the test runner.
  */
 const fetchSolana = async (
   _timestamp: number,
@@ -38,16 +38,9 @@ const fetchSolana = async (
       AND t.block_time < from_unixtime(${endTimestamp})
   `;
 
-  try {
-    const rows = await queryAllium(sql);
-    const volumeUsd = Number(rows?.[0]?.volume_usd ?? 0);
-    return { dailyVolume: `${volumeUsd}` };
-  } catch (e: any) {
-    const msg = String(e?.message ?? e);
-    // If PR CI doesn’t have ALLIUM_API_KEY, avoid failing the workflow
-    if (msg.includes("Allium API Key is required")) return { dailyVolume: "0" };
-    throw e;
-  }
+  const rows = await queryAllium(sql);
+  const volumeUsd = Number(rows?.[0]?.volume_usd ?? 0);
+  return { dailyVolume: `${volumeUsd}` };
 };
 
 export default {
