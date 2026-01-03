@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "Fees collected from CDP operations including minting fees for PAI, pBTC, pSOL, interest on debt positions, liquidation fees, and EARN vault profits",
+    Fees: "Fees collected from CDP operations including minting fees for PAI, pBTC, pSOL, interest on debt positions, Interest paid by borrowers, liquidation fees, and EARN vault profits",
     Revenue: "Protocol fees that accrue to Protocol Controlled Reserve and EARN Profits Distributor"
   },
   isExpensiveAdapter: true
