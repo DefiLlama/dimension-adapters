@@ -22,21 +22,25 @@ interface CurveFeesResponse {
   chains: CurveChainFees[];
 }
 
-// Cache for API response (keyed by start-end)
-let cachedResponse: { key: string; data: CurveFeesResponse } | null = null;
+// Cache the in-flight promise so concurrent calls await the same request
+let cachedPromise: { key: string; promise: Promise<CurveFeesResponse> } | null = null;
 
 export async function fetchCurveApiData(startTimestamp: number, endTimestamp: number): Promise<CurveFeesResponse> {
   const cacheKey = `${startTimestamp}-${endTimestamp}`;
 
-  if (cachedResponse && cachedResponse.key === cacheKey) {
-    return cachedResponse.data;
+  if (cachedPromise && cachedPromise.key === cacheKey) {
+    return cachedPromise.promise;
   }
 
   const url = `${CURVE_API_BASE}?start=${startTimestamp}&end=${endTimestamp}`;
-  const response = await httpGet(url);
+  const promise = httpGet(url).catch((err) => {
+    // Clear cache on failure so retries can happen
+    if (cachedPromise?.key === cacheKey) cachedPromise = null;
+    throw err;
+  });
 
-  cachedResponse = { key: cacheKey, data: response };
-  return response;
+  cachedPromise = { key: cacheKey, promise };
+  return promise;
 }
 
 // Map DefiLlama chain names to Curve API chain names
