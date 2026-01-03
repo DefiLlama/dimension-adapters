@@ -21,37 +21,46 @@ type ClipperConfig = {
 
 const configs: ClipperConfig = {
   // https://github.com/sushi-labs/clipper-rfq-subgraph/blob/main/scripts/deploy-codegen/networks/mainnet.ts
+  // Using event-based fetching for all chains to avoid subgraph reliability issues
   [CHAIN.ETHEREUM]: {
-    subgraph: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
-    pools: [],
+    // subgraph: sdk.graph.modifyEndpoint('2BhN8mygHMmRkceMmod7CEEsGkcxh91ExRbEfRVkpVGM'),
+    pools: [
+      '0x655edce464cc797526600a462a8154650eee4b77',
+    ],
     coves: [
       '0x44d097113DBEad613fde74b387081FB3b547C54f',
     ],
   },
   [CHAIN.ARBITRUM]: {
-    subgraph: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
-    pools: [],
+    // subgraph: sdk.graph.modifyEndpoint('ATBQPRjT28GEK6UaBAzXy64x9kFkNk1r64CdgmDJ587W'),
+    pools: [
+      '0x769728b5298445ba2828c0f3f5384227fbf590c5',
+    ],
     coves: [
       '0xB873921b1ADd94ea47Bf983B060CE812e97873df',
       '0x9e233dd6a90678baacd89c05ce5c48f43fcc106e',
     ],
   },
   [CHAIN.OPTIMISM]: {
-    subgraph: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
-    pools: [],
+    // subgraph: sdk.graph.modifyEndpoint('Cu6atAfi6uR9mLMEBBjkhKSUUXHCobbB83ctdooexQ9f'),
+    pools: [
+      '0x5130f6ce257b8f9bf7fac0a0b519bd588120ed40',
+    ],
     coves: [
       '0x93baB043d534FbFDD13B405241be9267D393b827',
     ],
   },
   [CHAIN.POLYGON]: {
-    subgraph: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
-    pools: [],
+    // subgraph: sdk.graph.modifyEndpoint('Brmf2gRdpLFsEF6YjSAMVrXqSfbhsaaWaWzdCYjE7iYY'),
+    pools: [
+      '0x6bfce69d1df30fd2b2c8e478edec9daa643ae3b8',
+    ],
     coves: [
       '0x2370cB1278c948b606f789D2E5Ce0B41E90a756f',
     ],
   },
   [CHAIN.MOONBEAM]: {
-    subgraph: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
+    // subgraph: sdk.graph.modifyEndpoint('8zRk4WV9vUU79is2tYGWq9GKh97f93LsZ8V9wy1jSMvA'),
     pools: [],
     coves: [],
   },
