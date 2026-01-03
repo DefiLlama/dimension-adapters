@@ -47,7 +47,6 @@ const fetch = async (options: FetchOptions) => {
   const balances = createBalances();
   const oiValue = result[0]?.value || 0;
   
-  // Add the OI value in USDT
   balances.add('bsc:0x55d398326f99059fF775485246999027B3197955', oiValue * 1e18);
 
   return {
