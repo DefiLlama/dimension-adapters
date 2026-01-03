@@ -27,7 +27,7 @@ async function currentFetch(_:any, _1: any, options: FetchOptions) {
   const { api, fromTimestamp } = options
   const dayId = Math.floor(fromTimestamp / 86400).toString()
   if (!chainData[api.chain]) {
-    const data = httpGet('https://leaderboard.quickswap.exchange/analytics/chart-data/5/v4?chainId='+api.chainId)
+    const data = httpGet('https://api.quickswap.exchange/analytics/chart-data/5/v4?chainId='+api.chainId)
     chainData[api.chain] = data
     chainData[api.chain] = (await data).data[0]
   }
