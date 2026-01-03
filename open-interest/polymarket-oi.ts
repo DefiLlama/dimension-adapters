@@ -1,42 +1,24 @@
 import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
 
+// idea from https://dune.com/queries/3343122/5601864
 const fetch = async (_: any, _b: any, options: FetchOptions) => {
-  let openInterestAtEnd = 0;
-// https://dune.com/queries/3343122/5601864
-  const query = `
-    SELECT SUM(amount) AS value FROM (      
-      SELECT 
-        balance AS amount
-      FROM tokens_polygon.balances_daily
-      WHERE token_address = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-        AND address IN (
-          0x4D97DCd97eC945f40cF65F87097ACe5EA0476045,
-          0x3A3BD7bb9528E159577F7C2e685CC81A765002E2
-        )
-        AND day >= from_unixtime(${options.startTimestamp})
-        AND day < from_unixtime(${options.endTimestamp})
+  const openInterestAtEnd = options.createBalances();
 
-      UNION ALL
+  // USDC balance in these wallets
+  const token = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC token
+  const wallets: Array<string> = [
+    '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045',
+    '0x3A3BD7bb9528E159577F7C2e685CC81A765002E2',
+  ]
+  const balances = await options.api.multiCall({
+    abi: 'function balanceOf(address) view returns (uint256)',
+    target: token,
+    calls: wallets.map(i => ({ params: [i] }))
+  })
 
-      SELECT 
-        amount AS amount
-      FROM balances_polygon.erc20_day
-      WHERE token_address = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
-        AND wallet_address IN (
-          0x4D97DCd97eC945f40cF65F87097ACe5EA0476045,
-          0x3A3BD7bb9528E159577F7C2e685CC81A765002E2
-        )
-        AND block_day >= from_unixtime(${options.startTimestamp})
-        AND block_day < from_unixtime(${options.endTimestamp})
-    )
-  `;
-
-  const res = await queryDuneSql(options, query);
-
-  if (res.length && res[0].value) {
-    openInterestAtEnd = Math.abs(Number(res[0].value));
+  for (const balance of balances) {
+    openInterestAtEnd.add(token, balance)
   }
 
   return { openInterestAtEnd };
