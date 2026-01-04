@@ -9,6 +9,8 @@ export const ABI = {
   },
   morpho: {
     fee: 'uint256:fee',
+    performanceFee: 'uint256:performanceFee', // rate per assets
+    managementFee: 'uint256:managementFee', // rate per second
     CreateMetaMorphoEvent: 'event CreateMetaMorpho(address indexed metaMorpho, address indexed caller, address initialOwner, uint256 initialTimelock, address indexed asset, string name, string symbol, bytes32 salt)',
     CreateVaultV2: 'event CreateVaultV2 (address indexed owner, address indexed asset, bytes32 salt, address indexed newVaultV2)',
   },
