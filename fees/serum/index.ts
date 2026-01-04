@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, FetchResultVolume } from "../../adapters/types";
+import { FetchOptions, FetchResultFees } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 import { getEnv } from "../../helpers/env";
 
@@ -9,8 +9,10 @@ const fetchSolana = async (
   _timestamp: number,
   _block: any,
   options: FetchOptions
-): Promise<FetchResultVolume> => {
-  if (!getEnv("DUNE_API_KEYS")) return { dailyVolume: "0" };
+): Promise<FetchResultFees> => {
+  // CI note: PR CI runners typically do not have DUNE_API_KEYS.
+  // Return 0 so CI doesn’t fail.
+  if (!getEnv("DUNE_API_KEYS")) return { dailyFees: "0" };
 
   const startTimestamp = options.fromTimestamp;
   const endTimestamp = options.toTimestamp;
@@ -27,7 +29,7 @@ const fetchSolana = async (
           AND block_time <  from_unixtime(${endTimestamp})
       )
       SELECT
-        COALESCE(SUM(t.amount_usd), 0) AS volume_usd
+        COALESCE(SUM(COALESCE(t.fee_usd, 0)), 0) AS fees_usd
       FROM dex_solana.trades t
       INNER JOIN serum_txs s ON s.tx_id = t.tx_id
       WHERE t.block_time >= from_unixtime(${startTimestamp})
@@ -35,9 +37,10 @@ const fetchSolana = async (
       `
     );
 
-    return { dailyVolume: String(Number(rows?.[0]?.volume_usd ?? 0)) };
-  } catch {
-    return { dailyVolume: "0" };
+    const feesUsd = Number(rows?.[0]?.fees_usd ?? 0);
+    return { dailyFees: `${feesUsd}` };
+  } catch (e) {
+    return { dailyFees: "0" };
   }
 };
 
@@ -45,7 +48,7 @@ export default {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: 1627776000, // 2021-08-01
+      start: 1627776000, // Aug 1, 2021
     },
   },
 };
