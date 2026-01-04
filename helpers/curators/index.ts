@@ -7,11 +7,12 @@ export interface CuratorConfig {
   methodology?: any;
 
   vaults: {
-    // chain => 
+    // chain =>
     [key: string]: {
       start?: IStartTimestamp | number | string;
       morpho?: Array<string>;
       euler?: Array<string>;
+      lagoon?: Array<string>;
 
       // initial owner of morpho vaults
       morphoVaultOwners?: Array<string>;
@@ -246,6 +247,63 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
   }
 }
 
+export async function getLagoonVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+  const feeRateAbi = "function feeRates() external view returns(tuple(uint16 managementRate, uint16 performanceRate))";
+  const ONE_YEAR = 365 * 24 * 60 * 60;
+  const { getERC4626VaultsYield } = await import("../erc4626");
+
+  // Get fee details from all vaults
+  const feeDetails = await options.api.multiCall({
+    abi: feeRateAbi,
+    calls: vaults,
+    permitFailure: true
+  });
+
+  const assets = await options.api.multiCall({
+    abi: 'address:asset',
+    calls: vaults,
+    permitFailure: true
+  });
+
+  const totalAssets = await options.api.multiCall({
+    abi: 'uint256:totalAssets',
+    calls: vaults,
+    permitFailure: true
+  });
+
+  for (let i = 0; i < vaults.length; i++) {
+    if (!feeDetails[i] || !assets[i] || !totalAssets[i]) continue;
+
+    const { performanceRate, managementRate } = feeDetails[i];
+
+    const dailyYield = await getERC4626VaultsYield({ options, vaults: [vaults[i]] });
+
+    const dailyManagementFee = (totalAssets[i]) * (managementRate / 10000) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR);
+
+    const dailyYieldUSD = await dailyYield.getUSDValue();
+
+    if (dailyYieldUSD > 0) {
+      // Calculate total yield before performance fee
+      // If performance fee is 10%, and depositors get dailyYield, then dailyYield represents 90% of total
+      // So totalYieldBeforeFee = dailyYield / 0.9
+      const totalYieldBeforeFee = dailyYield.clone(1 / (1 - performanceRate / 10000), METRIC.ASSETS_YIELDS);
+
+      const vaultTotalFees = totalYieldBeforeFee.clone();
+      vaultTotalFees.add(assets[i], dailyManagementFee, METRIC.MANAGEMENT_FEES);
+
+      const performanceFee = totalYieldBeforeFee.clone();
+      performanceFee.subtract(dailyYield, METRIC.ASSETS_YIELDS);
+
+      balances.dailyFees.add(vaultTotalFees);
+      balances.dailyRevenue.add(performanceFee);
+      balances.dailyRevenue.add(assets[i], dailyManagementFee, METRIC.MANAGEMENT_FEES);
+    } else if (dailyManagementFee > 0) {
+      balances.dailyFees.add(assets[i], dailyManagementFee, METRIC.MANAGEMENT_FEES);
+      balances.dailyRevenue.add(assets[i], dailyManagementFee, METRIC.MANAGEMENT_FEES);
+    }
+  }
+}
+
 export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
   const methodology = curatorConfig.methodology ? curatorConfig.methodology :  {
     Fees: 'Total yields from deposited assets in all curated vaults.',
@@ -267,11 +325,16 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         morphoVaults = morphoVaults.concat(await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners));
         
         const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
+        const lagoonVaults = vaults.lagoon || [];
+
         if (morphoVaults.length > 0) {
           await getMorphoVaultFee(options, { dailyFees, dailyRevenue }, morphoVaults)
         }
         if (eulerVaults.length > 0) {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
+        }
+        if (lagoonVaults.length > 0) {
+          await getLagoonVaultFee(options, { dailyFees, dailyRevenue }, lagoonVaults)
         }
 
         const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
