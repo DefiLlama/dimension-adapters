@@ -11,7 +11,7 @@ const leaf_gauge_created = 'event GaugeCreated(address indexed poolFactory,addre
 const leaf_voter = '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123'
 const leaf_pool_factory = '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0'
 
-const config = {
+const config: Record<string, any> = {
   [CHAIN.MODE]: {
     stakingRewards: '0xD2F998a46e4d9Dd57aF1a28EBa8C34E7dD3851D7',
     rewardToken: '0xDfc7C877a950e49D2610114102175A06C2e3167a',
@@ -22,7 +22,7 @@ const config = {
   }
 }
 
-const superchainConfig = {
+const superchainConfig: Record<string, any> = {
   [CHAIN.MODE]: {
     start_block: 15405187,
   },
@@ -75,7 +75,7 @@ const customLogic = async ({ dailyFees, fetchOptions, filteredPairs, }: any) => 
     const gauges = await api.multiCall({ target: stakingRewards, abi: 'function gauges(address) view returns (address)', calls: pairs })
     let logs = await getLogs({ targets: gauges, eventAbi: notifyRewardEvent })
 
-    logs.forEach(log => {
+    logs.forEach((log: any) => {
       dailyBribes.add(rewardToken, log.amount)
     })
   }

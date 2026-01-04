@@ -6,7 +6,7 @@ const comptrollers = {
   optimism: "0xE0B57FEEd45e7D908f2d0DaCd26F113Cf26715BF"
 };
 
-const adapter =  compoundV2Export(comptrollers);
+const adapter =  compoundV2Export(comptrollers, { holdersRevenueRatio: 0 });
 
 (adapter.adapter as BaseAdapter)['ethereum'] = {
   fetch: (async (options: FetchOptions) => {
