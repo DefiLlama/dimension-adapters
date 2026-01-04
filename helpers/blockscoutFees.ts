@@ -100,6 +100,14 @@ export const chainConfigMap: any = {
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
   [CHAIN.KUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
+  [CHAIN.PROM]: { CGToken: 'prometeus', explorer: 'https://promscan.io/' },
+  [CHAIN.UNIT0]: { CGToken: 'unit0', explorer: 'https://explorer.unit0.dev/' },
+  [CHAIN.GRX_CHAIN]: { CGToken: 'grx-chain', explorer: 'https://grxscan.io/' },
+  [CHAIN.ZILLIQA]: { CGToken: 'zilliqa', explorer: 'https://zilliqa.blockscout.com/' },
+  [CHAIN.VICTION]: { CGToken: 'tomochain', explorer: 'https://viction.blockscout.com/' },
+  [CHAIN.SONGBIRD]: { CGToken: 'songbird', explorer: 'https://songbird-explorer.flare.network/' },
+  [CHAIN.ONUS]: { CGToken: 'onus', explorer: 'https://explorer.onuschain.io/' },
+  [CHAIN.SATOSHIVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
 }
 
 function getTimeString(timestamp: number) {

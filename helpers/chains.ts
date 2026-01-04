@@ -313,4 +313,10 @@ export enum CHAIN {
   SPACE_AND_TIME = "space_and_time",
   NEO_X_MAINNET = "neo_x_mainnet",
   KUB = "kub",
+  PROM = "prom",
+  GRX_CHAIN = "grx_chain",
+  ZILLIQA = "zilliqa",
+  VICTION = "viction",
+  SONGBIRD = "songbird",
+  SATOSHIVM = "satoshivm",
 }
