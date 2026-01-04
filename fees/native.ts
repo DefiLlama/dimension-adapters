@@ -65,7 +65,8 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: 0, // no revenue for now
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0, // no revenue
   };
 }
 
@@ -76,6 +77,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Total swap fees are distributed to credit vaults LPs.',
     Revenue: 'Share of swap fees to protocol.',
+    SupplySideRevenue: 'All swap fees are distributed to credit vaults suppliers.',
   }
 };
 
