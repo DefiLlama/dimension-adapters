@@ -59,20 +59,17 @@ const MetricLabels = {
   SSV_STAKING_REWARDS: 'SSV Staking Rewards',
   OBOL_STAKING_REWARDS: 'Obol Staking Rewards',
   ETH_STAKING_REWARDS: 'Core ETH Staking Rewards',
-  BORROW_INTEREST: METRIC.BORROW_INTEREST,
-  CASHBACKS: 'Cashbacks',
-  CASH_TRANSACTION_FEES: 'Cash Transactions Fees',
   TOKEN_BUY_BACK: METRIC.TOKEN_BUY_BACK,
 }
 
-const getTotalSupply = async (options, target) => {
+const getTotalSupply = async (options: FetchOptions, target: string) => {
   return await options.api.call({
     target: target,
     abi: "function totalSupply() external view returns (uint256)",
   });
 };
 
-const getStethFees = async (options, totalSteth) => {
+const getStethFees = async (options: FetchOptions, totalSteth: number) => {
   const stethRebaseLogs = await options.getLogs({
     target: STETH,
     eventAbi: "event TokenRebased(uint256 indexed reportTimestamp,uint256 timeElapsed,uint256 preTotalShares,uint256 preTotalEther,uint256 postTotalShares,uint256 postTotalEther,uint256 sharesMintedAsFees)",
@@ -85,7 +82,7 @@ const getStethFees = async (options, totalSteth) => {
   return changeInSteth;
 };
 
-const getTotalSteth = async (options) => {
+const getTotalSteth = async (options: FetchOptions) => {
   //steth or steth derivative holding
   const WSTETH = ADDRESSES.ethereum.WSTETH
   const STETH = ADDRESSES.ethereum.STETH
@@ -134,12 +131,12 @@ const getTotalSteth = async (options) => {
 
   restakedWstethSymbiotic = restakedWstethSymbiotic || 0
   restakedWstethKarak = restakedWstethKarak || 0
-  
+
   totalSteth = totalSteth + BigInt(restakedWstethSymbiotic * wstethExchangeRate / GWEI + restakedWstethKarak * wstethExchangeRate / GWEI);
   return Number(totalSteth);
 };
 
-const getPayoutDetails = async (options, target) => {
+const getPayoutDetails = async (options: FetchOptions, target: string) => {
   const [asset_eth, rate_eth] = await Promise.all([
     options.api.call({
       target: target,
@@ -227,107 +224,7 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
         and day = date(from_unixtime(${options.startOfDay})) 
         and token_balance_usd > 0
     ),
-    
-    -- ether.fi cash spend events
-    spend_events as (
-        select 
-            bytearray_to_uint256(bytearray_substring(data,33,32))/1e6 as spend_usd
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address in (0x5423885B376eBb4e6104b8Ab1A908D350F6A162e, 0x380B2e96799405be6e3D965f4044099891881acB)
-        and topic0 = 0xe70f33131caa91c15ec116944772ba79bcc4cd6501cdfa178d66f903a796759a
 
-        union all 
-
-        select 
-            bytearray_to_uint256(bytearray_substring(data,33,32))/1e6 as spend_usd
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address = 0x380B2e96799405be6e3D965f4044099891881acB
-        and topic0 = 0xbe1dc90fb3facc4238834ef8da43ef4f286440a3546f49a89ebb82efb37f21cb
-
-        union all 
-
-        select 
-            bytearray_to_uint256(bytearray_substring(data, 321, 32)) / 1e6 as spend_usd
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address = 0x380B2e96799405be6e3D965f4044099891881acB
-        and topic0 = 0x244f4cc0665ad7ee4709aa59b30d3ea581cecde1b0430a3f23a5dc609d4890fc
-    ),
-    
-    -- ether.fi cash spends revenue (1.38% fee)
-    cash_spends_revenue as (
-        select 
-            'cash_spends' as revenue_source,
-            sum(0.0138 * spend_usd) as revenue_usd
-        from 
-        spend_events
-    ),
-    
-    -- ether.fi cash borrows revenue (optimized - direct calculation from queries)
-    cash_borrows_revenue as (
-        select 
-            'cash_borrows' as revenue_source,
-            sum(daily_revenue) as revenue_usd
-        from 
-        query_5535845
-        where day = date(from_unixtime(${options.startOfDay}))
-    ),
-    
-    -- ether.fi cash cashback events
-    cashback_events as (
-        select 
-            bytearray_to_uint256(bytearray_substring(data,65,32))/1e6 as cashback_usd 
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address = 0x5423885B376eBb4e6104b8Ab1A908D350F6A162e
-        and topic0 = 0xc2f328aca2253ffbf4bdb01552106555dbedd5b21bc86578abbbb849d73613a6
-
-        union all 
-
-        select 
-            bytearray_to_uint256(bytearray_substring(data,97,32))/1e6 + bytearray_to_uint256(bytearray_substring(data,161,32))/1e6 as cashback_usd 
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address = 0x380B2e96799405be6e3D965f4044099891881acB
-        and topic0 = 0xeb47a17fe64c36c7ac73cc029dd561d73e8df11215ed25fbb8c30653bf6d3a72
-
-        union all 
-
-        select 
-            bytearray_to_uint256(bytearray_substring(data,97,32))/1e6 as cashback_usd 
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address = 0x380B2e96799405be6e3D965f4044099891881acB
-        and topic0 = 0x0b79a9660f2e7ba216d6c8c6aa4a73dff96833d3c0b14a067da90c3b1f3118dc
-
-        union all 
-
-        select 
-            bytearray_to_uint256(bytearray_substring(data,97,32))/1e6 as cashback_usd 
-        from 
-        scroll.logs 
-        where TIME_RANGE
-        and contract_address = 0x380B2e96799405be6e3D965f4044099891881acB
-        and topic0 = 0x89d3571a498b5d3d68599f5f00c3016f9604aafa7701c52c1b04109cd909a798
-    ),
-    
-         -- ether.fi cashbacks revenue
-     cash_cashbacks_revenue as (
-         select 
-             'cash_cashbacks' as revenue_source,
-             sum(cashback_usd) as revenue_usd
-         from 
-         cashback_events
-     ),
-     
      -- ether.fi buybacks (counted as holders revenue)
      buybacks as (
          select 
@@ -367,44 +264,26 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
      -- Combine all revenue sources
      select revenue_source, revenue_usd from restaking_rewards
      union all
-     select revenue_source, revenue_usd from cash_spends_revenue  
-     union all
-     select revenue_source, revenue_usd from cash_borrows_revenue
-     union all
-     select revenue_source, revenue_usd from cash_cashbacks_revenue
-     union all
      select revenue_source, revenue_usd from buybacks`;
 
   const result = await queryDuneSql(options, query);
-     const revenues = {
-     restakingRewards: 0,
-     cashSpends: 0,
-     cashBorrows: 0,
-     cashCashbacks: 0,
-     buybacks: 0
-   };
+  const revenues = {
+    restakingRewards: 0,
+    buybacks: 0
+  };
 
-   if (result && result.length > 0) {
-     result.forEach(row => {
-       switch (row.revenue_source) {
-         case 'restaking_rewards':
-           revenues.restakingRewards = Number(row.revenue_usd || 0);
-           break;
-         case 'cash_spends':
-           revenues.cashSpends = Number(row.revenue_usd || 0);
-           break;
-         case 'cash_borrows':
-           revenues.cashBorrows = Number(row.revenue_usd || 0);
-           break;
-         case 'cash_cashbacks':
-           revenues.cashCashbacks = Number(row.revenue_usd || 0);
-           break;
-         case 'buybacks':
-           revenues.buybacks = Number(row.revenue_usd || 0);
-           break;
-       }
-     });
-   }
+  if (result && result.length > 0) {
+    result.forEach((row: any) => {
+      switch (row.revenue_source) {
+        case 'restaking_rewards':
+          revenues.restakingRewards = Number(row.revenue_usd || 0);
+          break;
+        case 'buybacks':
+          revenues.buybacks = Number(row.revenue_usd || 0);
+          break;
+      }
+    });
+  }
   return revenues;
 }
 
@@ -421,14 +300,11 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
  * 
  * LIQUID_VAULT_FEES: Management fees from vault products (protocol only)
  * DEPOSIT_WITHDRAW_FEES: Withdrawal fees from vault operations (protocol only)  
- * CASH_TRANSACTION_FEES: 1.38% fees from card transactions (protocol only)
- * BORROW_INTEREST: Interest from lending services (protocol only)
- * CASHBACKS: Rewards paid to users by external providers (supply side only)
  * TOKEN_BUY_BACK: ETHFI buybacks benefiting token holders (holders revenue)
  * 
  * Note: Different revenue streams have different protocol vs supply side splits
  */
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -483,30 +359,12 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   dailyFees.add(EIGEN, eigenRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
 
   const additionalRevenues = await getAdditionalRevenueStreams(options);
-  
+
   // Restaking rewards calculated from stETH holdings in restaker contracts 
   // (separate from L2 Eigen claims above - this is based on actual stETH restaked)
   if (additionalRevenues.restakingRewards > 0) {
     dailyRevenue.addUSDValue(additionalRevenues.restakingRewards, MetricLabels.EIGEN_STAKING_REWARDS);
     dailyFees.addUSDValue(additionalRevenues.restakingRewards, MetricLabels.EIGEN_STAKING_REWARDS);
-  }
-
-  // ether.fi cash spends revenue (1.38% fee)
-  if (additionalRevenues.cashSpends > 0) {
-    dailyRevenue.addUSDValue(additionalRevenues.cashSpends, MetricLabels.CASH_TRANSACTION_FEES);
-    dailyFees.addUSDValue(additionalRevenues.cashSpends, MetricLabels.CASH_TRANSACTION_FEES);
-  }
-
-  // ether.fi cash borrows revenue
-  if (additionalRevenues.cashBorrows > 0) {
-    dailyRevenue.addUSDValue(additionalRevenues.cashBorrows, MetricLabels.BORROW_INTEREST);
-    dailyFees.addUSDValue(additionalRevenues.cashBorrows, MetricLabels.BORROW_INTEREST);
-  }
-
-  // ether.fi cashbacks revenue
-  if (additionalRevenues.cashCashbacks > 0) {
-    dailyFees.addUSDValue(additionalRevenues.cashCashbacks, MetricLabels.CASHBACKS);
-    dailySupplySideRevenue.addUSDValue(additionalRevenues.cashCashbacks, MetricLabels.CASHBACKS);
   }
 
   // ether.fi buybacks (counted as holders revenue)
@@ -528,14 +386,14 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
       target: vault.accountant,
       permitFailure: true
     });
-    
+
     if (vaultState) {
       const vaultFees = vaultState.managementFee / (100 * 100); // as fees are in basis points
-  
+
       const totalSupply_vault = await getTotalSupply(options, vault.target);
       const [asset_vault, rate_vault] = await getPayoutDetails(options, vault.accountant);
-  
-      dailyFees.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees/ YEAR), MetricLabels.MANAGEMENT_FEES);
+
+      dailyFees.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), MetricLabels.MANAGEMENT_FEES);
       dailyRevenue.add(asset_vault, ((totalSupply_vault * rate_vault) / 1e18) * (vaultFees / YEAR), MetricLabels.MANAGEMENT_FEES);
     }
   }
@@ -566,8 +424,8 @@ const adapter: Adapter = {
   dependencies: [Dependencies.DUNE],
   start: '2024-03-13',
   methodology: {
-    Fees: "Total rewards generated from all ether.fi services: ETH staking, Eigenlayer restaking, validator operations, liquid vaults, and ether.fi Cash services.",
-    Revenue: "Protocol's share of fees including management fees from staking/restaking, validator operations rewards, liquid vault management fees, and cash service fees.",
+    Fees: "Total rewards generated from all ether.fi services: ETH staking, Eigenlayer restaking, validator operations, liquid vaults",
+    Revenue: "Protocol's share of fees including management fees from staking/restaking, validator operations rewards, liquid vault management fees",
     ProtocolRevenue: "Same as Revenue - all protocol earnings retained by ether.fi.",
     SupplySideRevenue: "Portion of fees distributed to stakers, users, and liquidity providers.",
     HoldersRevenue: "Token buybacks executed by ether.fi benefiting ETHFI token holders.",
@@ -581,9 +439,6 @@ const adapter: Adapter = {
       [MetricLabels.OBOL_STAKING_REWARDS]: 'All rewards from Obol network staking.',
       [MetricLabels.MANAGEMENT_FEES]: 'Management fees from liquid vault products',
       [MetricLabels.WITHDRAW_FEES]: 'Withdrawal fees from vault operations',
-      [MetricLabels.BORROW_INTEREST]: 'Interest earned from ether.fi Cash lending',
-      [MetricLabels.CASH_TRANSACTION_FEES]: 'Transaction fees from ether.fi Cash card usage (1.38%)',
-      [MetricLabels.CASHBACKS]: 'Cashback rewards paid to card users by external providers',
     },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: 'ETHFI token buybacks executed by ether.fi from protocol revenue',
