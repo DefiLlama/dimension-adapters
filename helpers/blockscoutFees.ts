@@ -100,6 +100,25 @@ export const chainConfigMap: any = {
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
   [CHAIN.KUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
+
+
+
+
+
+
+
+
+  [CHAIN.SUPERSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/' },
+  [CHAIN.NEON]: { CGToken: 'neon', explorer: 'https://neon.blockscout.com/' },
+  [CHAIN.SHAPE]: { CGToken: 'ethereum', explorer: 'https://shapescan.xyz/' },
+  [CHAIN.ASTAR_ZKEVM]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/' },
+  [CHAIN.JOC]: { CGToken: 'japan-open-chain', explorer: 'https://explorer.japanopenchain.org/' },
+  [CHAIN.DOMA]: { CGToken: 'ethereum', explorer: 'https://explorer.doma.xyz/' },
+  [CHAIN.EXSAT]: { CGToken: 'bitcoin', explorer: 'https://scan.exsat.network/' },
+  [CHAIN.CROSS]: { CGToken: 'cross-2', explorer: 'https://www.crossscan.io/' },
+  [CHAIN.NUMBERS]: { CGToken: 'numbers-protocol', explorer: 'https://mainnet.num.network/' },
+  [CHAIN.ORDERLY]: { CGToken: 'ethereum', explorer: 'https://explorer.orderly.network/' },
+  [CHAIN.BITGERT]: { CGToken: 'bitrise-token', explorer: 'https://brisescan.com/' },
 }
 
 function getTimeString(timestamp: number) {
