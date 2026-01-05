@@ -49,7 +49,6 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyProtocolRevenue,
   });
 
-  // Total fees = protocol fees (15%) + supply-side yield (85%)
   const dailyRevenue = dailyHoldersRevenue.clone();
   dailyRevenue.add(dailyProtocolRevenue);
 
