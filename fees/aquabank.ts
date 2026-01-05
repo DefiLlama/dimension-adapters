@@ -3,10 +3,10 @@ import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
 // https://aquabank.gitbook.io/aquabank/english/aquabank/contracts
-const bUSDT = "0x3c594084dc7ab1864ac69dfd01ab77e8f65b83b7"; //08/21/2025
-const bUSDC = "0x038dbe3d967bb8389190446dacdfe7b95b44f73d"; //09/14/2025
-const bAUSD = "0xd211b17dfe8288d4fb0dd8eeff07a6c48fc679d5"; //12/04/2025
-const USDT = "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7"; //
+const bUSDT = "0x3c594084dc7ab1864ac69dfd01ab77e8f65b83b7";
+const bUSDC = "0x038dbe3d967bb8389190446dacdfe7b95b44f73d";
+const bAUSD = "0xd211b17dfe8288d4fb0dd8eeff07a6c48fc679d5";
+const USDT = "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7";
 
 const B_TOKENS = [bUSDT, bUSDC, bAUSD];
 
@@ -81,7 +81,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch,
-      start: "2025-11-05",
+      start: "2025-08-28",
     },
   },
   methodology,
