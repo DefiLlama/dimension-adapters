@@ -44,9 +44,17 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyProtocolRevenue,
   });
 
-  // Total fees = buyback + liquidity + exit fees
-  dailyFees.addBalances(dailyHoldersRevenue);
-  dailyFees.addBalances(dailyProtocolRevenue);
+  // Protocol retains 15% of yield (10% buyback + 5% liquidity)
+  // Derive total yield and calculate 85% for depositors (supply-side)
+  const protocolFees = options.createBalances();
+  protocolFees.addBalances(dailyHoldersRevenue);
+  protocolFees.addBalances(dailyProtocolRevenue);
+
+  const dailySupplySideRevenue = protocolFees.clone(85 / 15);
+
+  // Total fees = protocol fees (15%) + supply-side yield (85%)
+  dailyFees.addBalances(protocolFees);
+  dailyFees.addBalances(dailySupplySideRevenue);
 
   const dailyRevenue = dailyFees.clone();
 
@@ -55,15 +63,17 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Fees collected from withdrawal fees (0.2%), swap fees (0.1%), and yield retention (15%).",
-  Revenue: "All fees go to the protocol for buyback and liquidity purposes.",
+  Fees: "Total yield generated, including 15% protocol retention and 85% distributed to depositors.",
+  Revenue: "All fees are distributed between protocol, token holders, and depositors.",
   HoldersRevenue:
     "10% of protocol yield used for CORAL token buyback and burn.",
-  ProtocolRevenue: "5% of protocol yield reserved for liquidity reinvestment.",
+  ProtocolRevenue: "5% of protocol yield reserved for liquidity reinvestment, plus 0.2% exit fees.",
+  SupplySideRevenue: "85% of yield distributed to depositors (derived from 15% protocol retention rate).",
 };
 
 const adapter: SimpleAdapter = {
