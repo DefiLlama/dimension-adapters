@@ -1,34 +1,34 @@
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
 
-const fetch = async (_a:any,_b:any,_t: number) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const response = await fetchURL(API_URL);
   const pools = response.data;
 
-  let dailyVolume = 0;
-  let dailyFees = 0;
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  for (const pool of pools) {
-    if (pool.protocol_version !== "v2") continue;
+  for (const { protocol_version, volume_24h_usd, fee_24h_usd } of pools) {
+    if (protocol_version !== "v2") continue;
 
-    dailyVolume += Number(pool.volume_24h_usd || 0);
-    dailyFees += Number(pool.fee_24h_usd || 0);
+    dailyVolume.addUSDValue(Number(volume_24h_usd));
+    dailyFees.addUSDValue(Number(fee_24h_usd));
   }
 
-  const supplySideRevenue = dailyFees * (0.17 / 0.25);
-  const holdersRevenue = dailyFees * (0.08 / 0.25);
+  const dailySupplySideRevenue = dailyFees.clone(0.17 / 0.25);
+  const dailyHoldersRevenue = dailyFees.clone(0.08 / 0.25);
 
   return {
     dailyVolume,
     dailyFees,
+    dailyRevenue: dailyHoldersRevenue,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: supplySideRevenue,
+    dailySupplySideRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: holdersRevenue,
-    dailyRevenue: holdersRevenue,
+    dailyHoldersRevenue,
   };
 };
 
