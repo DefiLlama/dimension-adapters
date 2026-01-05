@@ -23,7 +23,7 @@ const FEE_WALLETS: any = {
 
 const fetchSolanaFees: any = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: FEE_WALLETS[CHAIN.SOLANA] })
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0, }
 }
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {

@@ -166,6 +166,7 @@ export enum CHAIN {
   IMX = "imx",
   KROMA = "kroma",
   ZORA = "zora",
+  QUAI = "quai",
   SVM = "svm",
   ASTRZK = "astrzk",
   LYRA = "lyra",
@@ -309,4 +310,7 @@ export enum CHAIN {
   OG = "0g",
   FOGO = "fogo",
   PROVENANCE = "provenance",
+  SPACE_AND_TIME = "space_and_time",
+  NEO_X_MAINNET = "neo_x_mainnet",
+  KUB = "kub",
 }
