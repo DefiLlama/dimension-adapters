@@ -7,20 +7,10 @@ const URL =
 
 const fetch = async (_: any) => {
   const data = await fetchUrl(URL);
-  const listings = data?.listings ?? [];
-  const dailyVolume = Number(data?.total_volume_24h || 0);
-
-  // const openInterestAtEnd = listings.reduce((acc: number, market: any) => {
-  //   const longOI = Number(market?.open_interest?.long_open_interest || 0);
-  //   const shortOI = Number(market?.open_interest?.short_open_interest || 0);
-  //   return acc + longOI + shortOI;
-  // }, 0);
-
-  // const dualSidedOpenInterestAtEnd = openInterestAtEnd * 2;
 
   return {
-    // openInterestAtEnd: dualSidedOpenInterestAtEnd,
-    dailyVolume,
+    openInterestAtEnd: data.open_interest,
+    dailyVolume: data?.total_volume_24h ,
   };
 };
 
