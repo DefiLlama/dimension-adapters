@@ -2,8 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const metaDataEndpoint = "https://perps.standx.com/api/query_symbol_info";
-const marketInfoEndpoint = "https://perps.standx.com/api/query_symbol_market";
+const apiEndpoint = "https://perps.standx.com/api";
 
 interface SymbolInfo {
   symbol: string;
@@ -25,7 +24,9 @@ function parseSymbols(response: SymbolInfo[]): string[] {
 }
 
 const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const symbolsResponse: SymbolInfo[] = await fetchURL(metaDataEndpoint);
+  const symbolsResponse: SymbolInfo[] = await fetchURL(
+    `${apiEndpoint}/query_symbol_info`
+  );
   const symbols: string[] = parseSymbols(symbolsResponse);
 
   let totalVolume = 0;
@@ -33,7 +34,7 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
   for (const symbol of symbols) {
     const marketInfo: MarketInfo = await fetchURL(
-      `${marketInfoEndpoint}?symbol=${symbol}`
+      `${apiEndpoint}/query_symbol_market?symbol=${symbol}`
     );
     totalVolume += marketInfo.volume_quote_24h || 0;
     totalOpenInterest += parseFloat(marketInfo.open_interest_notional) || 0;
