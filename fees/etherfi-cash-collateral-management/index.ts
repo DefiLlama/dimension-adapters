@@ -3,9 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
-const USER_SAFE_EVENT_EMITTER = "0x5423885B376eBb4e6104b8Ab1A908D350F6A162e";
-const CASHBACK_DISPATCHER = "0x7d372C3ca903CA2B6ecd8600D567eb6bAfC5e6c9";
-const SETTLEMENT_DISPATCHER = "0x4Dca5093E0bB450D7f7961b5Df0A9d4c24B24786";
 const MetricLabels = {
   CASH_TRANSACTION_FEES: 'Cash Transaction Fees',
   BORROW_INTEREST: METRIC.BORROW_INTEREST,
@@ -131,7 +128,7 @@ const getCashRevenueStreams = async (options: FetchOptions) => {
   };
 
   if (result && result.length > 0) {
-    result.forEach(row => {
+    result.forEach((row: any) => {
       switch (row.revenue_source) {
         case 'cash_spends':
           revenues.cashSpends = Number(row.revenue_usd || 0);
@@ -187,6 +184,7 @@ const adapter: Adapter = {
   chains: [CHAIN.SCROLL],
   dependencies: [Dependencies.DUNE],
   start: '2024-11-01',
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "Total fees generated from EtherFi Cash services on Scroll including transaction fees, borrow interest, and cashbacks.",
     Revenue: "Protocol's share of fees from EtherFi Cash operations including transaction fees and borrow interest.",
