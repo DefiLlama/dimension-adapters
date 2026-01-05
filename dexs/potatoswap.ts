@@ -4,7 +4,7 @@ import fetchURL from "../utils/fetchURL";
 
 const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
 
-const fetch = async (_t: number) => {
+const fetch = async (_a:any,_b:any,_t: number) => {
   const response = await fetchURL(API_URL);
   const pools = response.data;
 
@@ -44,7 +44,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.XLAYER],
   runAtCurrTime: true,
