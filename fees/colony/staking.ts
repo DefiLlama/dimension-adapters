@@ -26,68 +26,40 @@ export async function stakingFees(
   ]);
   let dailyHoldersRevenue = createBalances();
 
-  try {
-    const [beforeRes, afterRes] = await Promise.all([
-      request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-        block: startBlock,
-      }),
-      request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-        block: endBlock,
-      }),
-    ]);
-
-    const beforeFees: number =
-      Number(beforeRes.metrics[0].totalStakeFees) +
-      Number(beforeRes.metrics[0].totalUnstakeFees);
-    const afterFees: number =
-      Number(afterRes.metrics[0].totalStakeFees) +
-      Number(afterRes.metrics[0].totalUnstakeFees);
-
-    dailyHoldersRevenue.add(ColonyGovernanceToken, afterFees - beforeFees);
-  } catch (error: any) {
-    // If subgraph is behind current blocks, try to get the latest available block
-    if (error?.message?.includes('block number') && error?.message?.includes('not yet available')) {
-      console.log(`Subgraph is behind current blocks. Using latest available data for staking fees.`);
-      try {
-        // Get the subgraph's latest indexed block
-        const latestBlockQuery = gql`
-          query {
-            _meta {
-              block {
-                number
-              }
-            }
-          }
-        `;
-        const latestBlockRes = await request(stakingSubgraphEndpoint, latestBlockQuery);
-        const latestBlock = Number(latestBlockRes._meta.block.number);
-
-        // Use the latest available block instead of endBlock
-        const [beforeRes, afterRes] = await Promise.all([
-          request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-            block: startBlock,
-          }),
-          request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-            block: latestBlock,
-          }),
-        ]);
-
-        const beforeFees: number =
-          Number(beforeRes.metrics[0].totalStakeFees) +
-          Number(beforeRes.metrics[0].totalUnstakeFees);
-        const afterFees: number =
-          Number(afterRes.metrics[0].totalStakeFees) +
-          Number(afterRes.metrics[0].totalUnstakeFees);
-
-        dailyHoldersRevenue.add(ColonyGovernanceToken, afterFees - beforeFees);
-      } catch (fallbackError) {
-        console.log(`Failed to fetch staking fees data: ${fallbackError}`);
-        // Return empty balances if both attempts fail
+  // Get the subgraph's latest indexed block to avoid block availability issues
+  const latestBlockQuery = gql`
+    query {
+      _meta {
+        block {
+          number
+        }
       }
-    } else {
-      console.log(`Failed to fetch staking fees data: ${error}`);
     }
-  }
+  `;
+  const latestBlockRes = await request(stakingSubgraphEndpoint, latestBlockQuery);
+  const subgraphLatestBlock = Number(latestBlockRes._meta.block.number);
+
+  // Ensure both start and end blocks are within subgraph's available range
+  const safeStartBlock = Math.min(startBlock, subgraphLatestBlock);
+  const safeEndBlock = Math.min(endBlock, subgraphLatestBlock);
+
+  const [beforeRes, afterRes] = await Promise.all([
+    request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
+      block: safeStartBlock,
+    }),
+    request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
+      block: safeEndBlock,
+    }),
+  ]);
+
+  const beforeFees: number =
+    Number(beforeRes.metrics[0].totalStakeFees) +
+    Number(beforeRes.metrics[0].totalUnstakeFees);
+  const afterFees: number =
+    Number(afterRes.metrics[0].totalStakeFees) +
+    Number(afterRes.metrics[0].totalUnstakeFees);
+
+  dailyHoldersRevenue.add(ColonyGovernanceToken, afterFees - beforeFees);
 
   return {
     dailyHoldersRevenue,
