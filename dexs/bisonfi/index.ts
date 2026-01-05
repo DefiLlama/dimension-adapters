@@ -37,6 +37,7 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE],
     chains: [CHAIN.SOLANA],
     start: '2025-12-05',
+    isExpensiveAdapter: true,
 };
 
 export default adapter;
