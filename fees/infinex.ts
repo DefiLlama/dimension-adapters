@@ -9,7 +9,7 @@ import {
 const EVM_FEE_COLLECTOR = "0x1dd9eef96646ad40d58da28d1878e7f223d5e8ba";
 const SOLANA_FEE_COLLECTOR = "7BLh5LjJToh81ZZZyYC4aCv7cHzXgdfhHYyqLtdbuYdt";
 
-const fetchEvm = async (options: FetchOptions) => {
+const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   // Collect every ERC-20 token transfer routed to the fee collector
@@ -33,7 +33,7 @@ const fetchEvm = async (options: FetchOptions) => {
   };
 };
 
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
     options,
     target: SOLANA_FEE_COLLECTOR,
@@ -53,7 +53,7 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   dependencies: [Dependencies.ALLIUM],
   methodology,
   isExpensiveAdapter: true,
