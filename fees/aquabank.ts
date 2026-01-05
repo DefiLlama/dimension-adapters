@@ -16,7 +16,6 @@ const LIQUIDITY_WALLET = "0x87e21a66054fb9b335d94082f079d87f8d58d8d8"; // 5% Liq
 const EXIT_FEE_WALLET = "0xd9e464f0e3918a6feb4624d22095969e53815e50"; // 0.2% exit fee (USDT)
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
@@ -36,6 +35,12 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyProtocolRevenue,
   });
 
+  // Protocol retains 15% of yield (10% buyback + 5% liquidity)
+  // Derive total yield and calculate 85% for depositors (supply-side)
+  const feeFromYield = dailyProtocolRevenue.clone();
+  feeFromYield.add(dailyHoldersRevenue);
+  const dailySupplySideRevenue = feeFromYield.clone(85 / 15);
+
   // Track exit fee wallet - 0.2% withdrawal fee in USDT
   await addTokensReceived({
     options,
@@ -44,19 +49,12 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyProtocolRevenue,
   });
 
-  // Protocol retains 15% of yield (10% buyback + 5% liquidity)
-  // Derive total yield and calculate 85% for depositors (supply-side)
-  const protocolFees = options.createBalances();
-  protocolFees.addBalances(dailyHoldersRevenue);
-  protocolFees.addBalances(dailyProtocolRevenue);
-
-  const dailySupplySideRevenue = protocolFees.clone(85 / 15);
-
   // Total fees = protocol fees (15%) + supply-side yield (85%)
-  dailyFees.addBalances(protocolFees);
-  dailyFees.addBalances(dailySupplySideRevenue);
+  const dailyRevenue = dailyHoldersRevenue.clone();
+  dailyRevenue.add(dailyProtocolRevenue);
 
-  const dailyRevenue = dailyFees.clone();
+  const dailyFees = dailyRevenue.clone();
+  dailyFees.add(dailySupplySideRevenue);
 
   return {
     dailyFees,
