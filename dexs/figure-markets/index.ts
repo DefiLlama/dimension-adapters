@@ -11,10 +11,10 @@ interface Market {
   takerFee?: { rate?: number };
 }
 
-async function fetch(_a: any, _b: any, _: FetchOptions) {
+async function fetch(_a: any, _b: any, options: FetchOptions) {
   const locations = ["US", "CAYMAN"];
-  let totalFees = 0;
-  let totalVolume = 0;
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
 
   for (const location of locations) {
     let page = 1;
@@ -36,8 +36,8 @@ async function fetch(_a: any, _b: any, _: FetchOptions) {
         // Both maker and taker fees are charged per trade
         const totalFeeRate = makerFeeRate + takerFeeRate;
 
-        totalFees += volume * totalFeeRate;
-        totalVolume += volume;
+        dailyFees.addUSDValue(volume * totalFeeRate);
+        dailyVolume.addUSDValue(volume);
       }
 
       page++;
@@ -45,10 +45,10 @@ async function fetch(_a: any, _b: any, _: FetchOptions) {
   }
 
   return {
-    dailyVolume: totalVolume,
-    dailyFees: totalFees,
-    dailyRevenue: totalFees,
-    dailyProtocolRevenue: totalFees,
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
