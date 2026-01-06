@@ -314,9 +314,7 @@ export enum CHAIN {
   NEO_X_MAINNET = "neo_x_mainnet",
   KUB = "kub",
   PROM = "prom",
-  GRX_CHAIN = "grx_chain",
+  GRX = "grx",
   ZILLIQA = "zilliqa",
-  VICTION = "viction",
   SONGBIRD = "songbird",
-  SATOSHIVM = "satoshivm",
 }
