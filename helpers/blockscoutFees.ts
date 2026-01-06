@@ -118,6 +118,11 @@ export const chainConfigMap: any = {
   [CHAIN.SONGBIRD]: { CGToken: 'songbird', explorer: 'https://songbird-explorer.flare.network/' },
   [CHAIN.ONUS]: { CGToken: 'onus', explorer: 'https://explorer.onuschain.io/' },
   [CHAIN.SVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
+  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/' },
+  [CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
+  [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
+  [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
+  [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
 }
 
 function getTimeString(timestamp: number) {

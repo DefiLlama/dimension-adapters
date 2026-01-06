@@ -321,4 +321,7 @@ export enum CHAIN {
   GRX = "grx",
   ZILLIQA = "zilliqa",
   SONGBIRD = "songbird",
+  MATCHAIN = "matchain",
+  SAAKURU = "saakuru",
+  GENESYS = "genesys",
 }
