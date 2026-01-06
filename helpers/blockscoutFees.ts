@@ -103,7 +103,6 @@ export const chainConfigMap: any = {
   [CHAIN.SSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/' },
   [CHAIN.NEON]: { CGToken: 'neon', explorer: 'https://neon.blockscout.com/' },
   [CHAIN.SHAPE]: { CGToken: 'ethereum', explorer: 'https://shapescan.xyz/' },
-  [CHAIN.ASTAR_ZKEVM]: { CGToken: 'astar', explorer: 'https://astar-zkevm.explorer.startale.com/' },
   [CHAIN.JOC]: { CGToken: 'japan-open-chain', explorer: 'https://explorer.japanopenchain.org/' },
   [CHAIN.DOMA]: { CGToken: 'ethereum', explorer: 'https://explorer.doma.xyz/' },
   [CHAIN.EXSAT]: { CGToken: 'bitcoin', explorer: 'https://scan.exsat.network/' },
