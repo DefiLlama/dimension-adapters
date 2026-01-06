@@ -63,13 +63,12 @@ const methodology = {
   SupplySideRevenue: "There are 84% swap fees distributed to LPs.",
 };
 
-// wash trading, check these two sample addresses
-// 0x3684a24f13d37a4dd72e8dc155fe2454b26cd1fe, 0x8a9801ef63ba76b9598fbf2b263442de2e587b4a
 const blacklistPools: Array<string> = [
   // '0x80fe558c54f1f43263e08f0e1fa3e02d8b897f93',
   // '0x038aac60e1d17ce2229812eca8ee7800214baffc',
   // '0x44b13cd80a9a165a4cea7b6a42952a9a14bd8ff5',
   // '0x9ca64194ce1f88d11535915dc482ae0383d5f76d',
+  '0xad00786c2ba76f08c92e7847456015728f98ac56', // bad pool - very low liquidity
 ];
 
 const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {

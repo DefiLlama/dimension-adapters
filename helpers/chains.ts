@@ -314,4 +314,12 @@ export enum CHAIN {
   NEO_X_MAINNET = "neo_x_mainnet",
   KUB = "kub",
   STANDX = "standx",
+  JOC = "joc",
+  DOMA = "doma",
+  EXSAT = "xsat",
+  CROSS = "cross",
+  PROM = "prom",
+  GRX = "grx",
+  ZILLIQA = "zilliqa",
+  SONGBIRD = "songbird",
 }
