@@ -22,16 +22,18 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { queryDuneSql } from '../helpers/dune'
 
-const FEE_WALLET = '4K3a2ucXiGvuMJMPNneRDyzmNp6i4RdzXJmBdWwGwPEh'
+const FEE_WALLET = '4K3a2ucXiGvuMJMPNneRDyzmNp6i4RdzXJmBdWwGwPEh';
+const HAWKFI_MEV = 'HAWK3BVnwptKRFYfVoVGhBc2TYxpyG9jmAbkHeW9tyKE'
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a:any,_b:any,options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances()
 
-  // Track all transfers to HawkFi fee wallet (8% performance fee from all DEX sources)
+ // Track all transfers to HawkFi fee wallet (8% performance fee from all DEX sources)
   const query = `
     SELECT token_mint_address AS token, SUM(amount) AS amount
     FROM tokens_solana.transfers
     WHERE to_owner = '${FEE_WALLET}'
+      AND tx_signer = '${HAWKFI_MEV}'
       AND block_time >= from_unixtime(${options.startTimestamp})
       AND block_time < from_unixtime(${options.endTimestamp})
     GROUP BY 1
@@ -62,7 +64,7 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
