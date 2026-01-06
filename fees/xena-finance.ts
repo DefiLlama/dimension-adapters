@@ -92,7 +92,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2023-09-19',
+      start: '2023-10-09',
     },
   },
   dependencies: [Dependencies.DUNE],
