@@ -1,5 +1,6 @@
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from '../helpers/metrics'
 
 const configs: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
@@ -70,15 +71,27 @@ const fetch = async (options: FetchOptions) => {
   };
 }
 
+const methodology = {
+  Fees: 'Fees paid by PMMs while using fund from the Credit Pool to facilitate trades.',
+  Revenue: 'Share of fees to protocol.',
+  SupplySideRevenue: 'All fees are distributed to Credit Pool suppliers.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'All funding fees paid by PMMs while using fund from the Credit Pool to facilitate trades.',
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: 'All fees collected are distributed to Credit Pool suppliers.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   adapter: configs,
-  methodology: {
-    Fees: 'Total swap fees are distributed to credit vaults LPs.',
-    Revenue: 'Share of swap fees to protocol.',
-    SupplySideRevenue: 'All swap fees are distributed to credit vaults suppliers.',
-  }
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
