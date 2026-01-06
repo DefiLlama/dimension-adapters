@@ -96,7 +96,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     for (const [index, vaultAddress] of vaultsList.entries()) {
         const vaultVersion = v1Vaults.has(vaultsList[index]) ? 1 : 2;
-
+        
+        // bad vault data
+        if (options.chain === CHAIN.BERACHAIN && vaultAddress === '0xb6e3c1154e07f8a3dc04a9a28648c7aa30511120') continue;
         if (priceAfter[index] === null || priceBefore[index] === null || (vaultVersion === 1 && isPaused[index])) continue;
         const { underlyingAsset, vaultDecimals } = vaultDetails.find(vault => vault.address === vaultAddress)!;
 
