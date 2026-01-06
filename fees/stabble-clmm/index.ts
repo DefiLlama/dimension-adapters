@@ -11,7 +11,9 @@ interface DailyStats {
 }
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
-  const url = `${feesURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
+  const startDate = new Date(options.startTimestamp * 1000).toISOString().split('T')[0];
+  const endDate = new Date(options.endTimestamp * 1000).toISOString().split('T')[0];
+  const url = `${feesURL}?startTimestamp=${startDate}&endTimestamp=${endDate}`;
   const stats: DailyStats = await fetchURL(url);
 
   return {
@@ -21,7 +23,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
