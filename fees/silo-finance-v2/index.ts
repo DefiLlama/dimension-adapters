@@ -53,7 +53,7 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
   [CHAIN.ARBITRUM]: [
     {
       silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
-      timestamp: 1765152000, // 2025-12-09
+      timestamp: 1762128000, // 2025-11-03
     }
   ],
   [CHAIN.AVAX]: [],
@@ -85,6 +85,10 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     {
       silo: "0xa1627a0e1d0ebca9326d2219b84df0c600bed4b1", //xUsd
       timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xbe0d3c8801206cc9f35a6626f90ef9f4f2983a3d",
+      timestamp: 1767225600 //2026-01-01
     }
   ],
 };
