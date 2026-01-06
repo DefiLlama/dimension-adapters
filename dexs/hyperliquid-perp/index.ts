@@ -13,14 +13,14 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Perp Fees': 'Perp trade fees collected as revenue, excluding spot fees.',
-    'Builders Revenue': 'Perp trade fees share for builders fees, excluding spot fees.',
+    'Perp Fees': 'Perp trade fees collected as revenue, excluding spot fee.',
+    'Builder Code Fees': 'Fees added on top by other platforms building on top of Hyperliquid.',
   },
   Revenue: {
     'Perp Fees': '99% of perp trade fees, excluding spot fees and builders fees.',
   },
   SupplySideRevenue: {
-    'Builders Revenue': 'Perp trade rees share for builders.',
+    'Builder Code Distribution': 'All extra fees added on top by builders are fully passed down to these platforms.',
     'HLP': '1% of the perp trade fees go to HLP vault (used to be 3% before 30 Aug 2025)',
   },
   HoldersRevenue: {
@@ -42,6 +42,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
 
     dailyFees.add(result.dailyPerpFees, 'Perp Fees')
     dailySupplySideRevenue.add(result.dailyPerpFees.clone(hlpShare), 'HLP')
+    dailyRevenue.add(result.dailyPerpFees.clone(holdersShare), 'Perp Fees')
     dailyHoldersRevenue.add(result.dailyPerpFees.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
     return {
@@ -65,16 +66,14 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
 
     // all perp fees
     dailyFees.add(result.dailyPerpRevenue, 'Perp Fees')
-    dailyFees.add(result.dailyBuildersRevenue, 'Builders Revenue')
-
-    // perp fees - builders revenue
-    dailyRevenue.add(result.dailyPerpRevenue, 'Perp Fees')
+    dailyFees.add(result.dailyBuildersRevenue, 'Builder Code Fees')
 
     // builders fees + 1% revenue
     dailySupplySideRevenue.add(result.dailyPerpRevenue.clone(hlpShare), 'HLP')
-    dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builders Revenue')
+    dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builder Code Distribution')
     
     // 99% of revenue
+    dailyRevenue.add(result.dailyPerpRevenue.clone(holdersShare), 'Perp Fees')
     dailyHoldersRevenue.add(result.dailyPerpRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
     return {
