@@ -1,79 +1,137 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTokenBalance } from "../../helpers/solana";
+import { httpGet } from "../../utils/fetchURL";
 
-const FEE_WALLET = "BKVWqzbwXGFqQvnNVfGiM2kSrWiR88fYhFNmJDX5ccyv";
+// -----------------------------
+// Config
+// -----------------------------
 
-const TOKENS = {
-  USDC: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-  USDT: "Es9vMFrzaCERz9rjXezwPqydat9qYjCCj2LRrPaLd4i8",
-  jlUSDC: "9BEcn9aPEmhSPbPQeFGjidRiEKki46fVQDyPpSQXPA2D",
-  jlUSDT: "3Xd1xYhGJCPZc1oHffLaRFCob4u8FvnZDJHWi5hWzw3y",
-};
+// Knightrade Drift Vault
+const VAULT_ADDRESS = "CqLEEKfZwzp9BLp8kYsnPCFFSUPqMx5wRHJn8GRR9eUj";
 
-// Safe wrapper to handle API failures during local testing
-async function getBalanceSafe(token: string, account: string): Promise<number> {
+// Drift vault historical snapshots (public, no API key)
+const DRIFT_S3_BASE =
+  "https://drift-historical-data-v2.s3.eu-west-1.amazonaws.com/program/vAuLTsyrvSfZRuRB3XgvkPwNGgYSs9YRYymVebLKoxR";
+
+// Fee split per maintainer guidance
+const PERFORMANCE_FEE_RATE = 0.20; // protocol revenue
+const SUPPLY_SIDE_RATE = 0.80;     // depositors
+
+// -----------------------------
+// Types
+// -----------------------------
+
+interface VaultSnapshot {
+  ts: number;
+  vault: string;
+  equity: number;
+  totalShares: number;
+}
+
+// -----------------------------
+// Helpers
+// -----------------------------
+
+async function getVaultSnapshots(
+  year: number,
+  month: number
+): Promise<VaultSnapshot[]> {
   try {
-    return await getTokenBalance(token, account);
-  } catch (error) {
-    console.warn(`Failed to fetch balance for ${token.substring(0, 8)}... (this is expected in local testing without API keys)`);
-    return 0;
+    const url = `${DRIFT_S3_BASE}/vault/${year}/${String(month).padStart(2, "0")}`;
+    const csv = await httpGet(url);
+
+    const lines = csv.trim().split("\n");
+    const headers = lines[0].split(",");
+
+    return lines
+      .slice(1)
+      .map((line) => {
+        const values = line.split(",");
+        const row: any = {};
+        headers.forEach((h, i) => (row[h.trim()] = values[i]));
+        return row;
+      })
+      .filter((r) => r.vault === VAULT_ADDRESS)
+      .map((r) => ({
+        ts: Number(r.ts),
+        vault: r.vault,
+        equity: Number(r.equity ?? r.vaultEquity ?? 0),
+        totalShares: Number(r.totalShares ?? 0),
+      }));
+  } catch {
+    return [];
   }
 }
 
-const fetch = async (
-  timestamp: number,
-  _chainBlocks: any,
-  options: FetchOptions
-) => {
-  // Fetch all token balances from the fee wallet
-  const [usdcBalance, usdtBalance, jlUsdcBalance, jlUsdtBalance] = await Promise.all([
-    getBalanceSafe(TOKENS.USDC, FEE_WALLET),
-    getBalanceSafe(TOKENS.USDT, FEE_WALLET),
-    getBalanceSafe(TOKENS.jlUSDC, FEE_WALLET),
-    getBalanceSafe(TOKENS.jlUSDT, FEE_WALLET),
-  ]);
+// -----------------------------
+// Adapter
+// -----------------------------
 
-  // FEES = USDC + USDT only (raw fee inflows)
-  const feesTotal = (usdcBalance || 0) + (usdtBalance || 0);
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  // REVENUE = All tokens (fees + yield from jlUSDC/jlUSDT)
-  const revenueTotal = 
-    (usdcBalance || 0) + 
-    (usdtBalance || 0) + 
-    (jlUsdcBalance || 0) + 
-    (jlUsdtBalance || 0);
+  const endDate = new Date(options.endTimestamp * 1000);
+  const startDate = new Date(options.startTimestamp * 1000);
 
-  console.log("\n💰 Token Balances:");
-  console.log(`   USDC:    ${usdcBalance.toFixed(6)}`);
-  console.log(`   USDT:    ${usdtBalance.toFixed(6)}`);
-  console.log(`   jlUSDC:  ${jlUsdcBalance.toFixed(6)}`);
-  console.log(`   jlUSDT:  ${jlUsdtBalance.toFixed(6)}`);
-  console.log("\n💵 Results:");
-  console.log(`   Fees:    $${feesTotal.toFixed(2)}`);
-  console.log(`   Revenue: $${revenueTotal.toFixed(2)}\n`);
+  const year = endDate.getUTCFullYear();
+  const month = endDate.getUTCMonth() + 1;
 
-  // Return with proper balance objects if createBalances is available
-  if (options && options.createBalances) {
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    
-    dailyFees.addUSDValue(feesTotal);
-    dailyRevenue.addUSDValue(revenueTotal);
+  const snapshots = await getVaultSnapshots(year, month);
 
-    return {
-      dailyFees,
-      dailyRevenue,
-    };
+  // Need at least two snapshots (yesterday & today)
+  if (snapshots.length < 2) {
+    // Fallback: data not available yet
+    dailyFees.addUSDValue(0);
+    dailyRevenue.addUSDValue(0);
+    dailySupplySideRevenue.addUSDValue(0);
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
   }
 
-  // Fallback for local testing without options
+  const todaySnap = snapshots
+    .filter((s) => new Date(s.ts * 1000).toDateString() === endDate.toDateString())
+    .pop();
+
+  const yesterdaySnap = snapshots
+    .filter(
+      (s) => new Date(s.ts * 1000).toDateString() === startDate.toDateString()
+    )
+    .pop();
+
+  if (!todaySnap || !yesterdaySnap || todaySnap.totalShares === 0) {
+    dailyFees.addUSDValue(0);
+    dailyRevenue.addUSDValue(0);
+    dailySupplySideRevenue.addUSDValue(0);
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  }
+
+  const todayPrice = todaySnap.equity / todaySnap.totalShares;
+  const yesterdayPrice = yesterdaySnap.equity / yesterdaySnap.totalShares;
+
+  const dailyPerformance = Math.max(
+    0,
+    (todayPrice - yesterdayPrice) * todaySnap.totalShares
+  );
+
+  const feesUSD = dailyPerformance;
+  const revenueUSD = feesUSD * PERFORMANCE_FEE_RATE;
+  const supplySideUSD = feesUSD * SUPPLY_SIDE_RATE;
+
+  dailyFees.addUSDValue(feesUSD);
+  dailyRevenue.addUSDValue(revenueUSD);
+  dailySupplySideRevenue.addUSDValue(supplySideUSD);
+
   return {
-    timestamp,
-    dailyFees: feesTotal,
-    dailyRevenue: revenueTotal,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
+
+// -----------------------------
+// Export
+// -----------------------------
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -84,8 +142,12 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "USDC and USDT inflows to the Knightrade fee wallet from management fees, performance fees, and platform fees.",
-    Revenue: "Total value in the fee wallet including USDC/USDT (realized fees) plus jlUSDC/jlUSDT (yield tokens from Jupiter Lend). Revenue includes both direct fee collection and yield generated from deployed capital.",
+    Fees:
+      "Fees are derived from Knightrade’s Drift vault daily performance. Daily performance is calculated using Drift’s public vault snapshots as (today share price − yesterday share price) × total shares. All positive vault performance is treated as fees.",
+    Revenue:
+      "Protocol revenue equals 20% of daily vault performance, matching the on-chain performance fee charged by Knightrade.",
+    SupplySideRevenue:
+      "Supply-side revenue equals 80% of daily vault performance and represents yield accruing to vault depositors.",
   },
 };
 
