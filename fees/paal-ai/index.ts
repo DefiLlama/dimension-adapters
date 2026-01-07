@@ -1,6 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { queryIndexer } from "../../helpers/indexer";
 import { getETHReceived } from "../../helpers/token";
 import { METRIC } from "../../helpers/metrics";
 
@@ -12,24 +11,6 @@ const fetch = async (options: FetchOptions) => {
   // any funds on the CONTRACT_ECOSYSTEM_FUND is revenue
   const dailyRevenue = options.createBalances();
   await getETHReceived({ options, balances: dailyRevenue, target: CONTRACT_ECOSYSTEM_FUND })
-
-  const transactions = await queryIndexer(`
-    SELECT
-      block_number,
-      block_time,
-      "value" as eth_value,
-      encode(transaction_hash, 'hex') AS HASH,
-      encode(to_address, 'hex') AS to_address
-    FROM
-      ethereum.traces
-    WHERE
-      block_number > 17539904
-      and to_address = '\\x54821d1B461aa887D37c449F3ace8dddDFCb8C0a'
-      and error is null
-      AND block_time BETWEEN llama_replace_date_range;
-      `, options);
-
-  transactions.map((transaction: any) => dailyRevenue.addGasToken(transaction.eth_value))
 
   const dailyFees = dailyRevenue.clone();
   const dailyHoldersRevenue = options.createBalances();
