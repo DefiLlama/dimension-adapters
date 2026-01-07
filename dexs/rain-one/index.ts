@@ -4,6 +4,7 @@ import coreAssets from "../../helpers/coreAssets.json";
 
 const usdt = coreAssets.arbitrum.USDT;
 const rainFactory = "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1";
+
 const enterOptionEvent =
   "event EnterOption(uint256 option, uint256 baseAmount, uint256 optionAmount,address indexed wallet)";
 const poolCreatedEvent =
@@ -24,14 +25,9 @@ const fetch = async (options: FetchOptions) => {
 
   const pools = poolCreationLogs.map((log) => log.args.poolAddress);
 
-  const poolsEndTime = await options.api.multiCall({
-    abi: "uint256:endTime",
-    calls: pools,
-  });
+  const poolsEndTime = await options.api.multiCall({ abi: "uint256:endTime", calls: pools, });
 
-  const filteredPools = pools.filter(
-    (_, i) => poolsEndTime[i] >= options.fromTimestamp,
-  );
+  const filteredPools = pools.filter((_, i) => poolsEndTime[i] >= options.fromTimestamp,);
 
   const poolTokenSetLogs = await options.api.getLogs({
     target: rainFactory,
@@ -50,21 +46,26 @@ const fetch = async (options: FetchOptions) => {
     };
   });
 
-  const enterOptionLogs = await options.getLogs({
-    targets: filteredPools,
+
+  await options.streamLogs({
+    noTarget: true,
     eventAbi: enterOptionEvent,
     entireLog: true,
-  });
+    targetsFilter: filteredPools,
+    processor: (logs) => {
+      console.log(`Processed ${Array.isArray(logs) ? logs.length : 1} enterOption logs`)
+      logs.forEach((log: any) => {
+        const pool = log.address.toLowerCase();
+        const tokenInfo = poolTokenMap[pool] ?? {
+          token: usdt,
+          decimals: 6,
+        };
+        dailyVolume.addToken(tokenInfo?.token, log.args.baseAmount);
+      })
+    }
+  })
 
-  enterOptionLogs.forEach((log) => {
-    const pool = log.address.toLowerCase();
-    const tokenInfo = poolTokenMap[pool] ?? {
-      token: usdt,
-      decimals: 6,
-    };
-    dailyVolume.addToken(tokenInfo?.token, log.args.baseAmount);
-  });
-  return { dailyVolume };
+  return { dailyVolume, }
 };
 
 const methodology = {
