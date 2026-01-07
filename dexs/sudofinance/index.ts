@@ -9,7 +9,7 @@ type IUrl = {
 }
 
 const url: IUrl = {
-  [CHAIN.SUI]: "https://api.sudofinance.xyz/volume"
+  [CHAIN.SUI]: "https://api.zofinance.io/volume?protocol=sudo"
 }
 
 interface IVolume {

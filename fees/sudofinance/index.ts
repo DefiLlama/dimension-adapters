@@ -3,7 +3,7 @@ import { FetchResultFees, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
-const sudoApi = 'https://api.sudofinance.xyz';
+const sudoApi = 'https://api.zofinance.io';
 const TREASURY_FEE_PERCENTAGE = 0.25;
 
 const fetchSui = async (timestamp: number): Promise<FetchResultFees> => {
@@ -13,7 +13,7 @@ const fetchSui = async (timestamp: number): Promise<FetchResultFees> => {
     tradingFee: dailyTradingFee,
     fundingFee: dailyFundingFee,
     poolFee: dailyPoolFee,
-  } = await fetchURL(`${sudoApi}/fee?timestamp=${timestamp}`);
+  } = await fetchURL(`${sudoApi}/fee?timestamp=${timestamp}&protocol=sudo`);
 
   const dailyProtocolRevenue =
     (Number(dailyTradingFee) || 0) * TREASURY_FEE_PERCENTAGE;
