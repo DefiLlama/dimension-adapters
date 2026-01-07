@@ -137,23 +137,31 @@ export async function connectClickhouse(): Promise<ClickHouseClient> {
   installShutdownHooks();
 
   connectionPromise = (async () => {
-    const cfg = readConfig();
-    const url = buildUrl(cfg);
+    let _client: ClickHouseClient | null = null;
+    try {
+      const cfg = readConfig();
+      const url = buildUrl(cfg);
 
-    const _client = createClient({
-      url,
-      username: cfg.username,
-      password: cfg.password,
-      database: cfg.database,
-      request_timeout: DEFAULT_TIMEOUT,
-      max_open_connections: DEFAULT_MAX_CONN,
-      keep_alive: { enabled: true, idle_socket_ttl: DEFAULT_KEEPALIVE_TTL },
-      compression: { response: true, request: false },
-    });
+      _client = createClient({
+        url,
+        username: cfg.username,
+        password: cfg.password,
+        database: cfg.database,
+        request_timeout: DEFAULT_TIMEOUT,
+        max_open_connections: DEFAULT_MAX_CONN,
+        keep_alive: { enabled: true, idle_socket_ttl: DEFAULT_KEEPALIVE_TTL },
+        compression: { response: true, request: false },
+      });
 
-    await _client.ping();
-    client = _client;
-    return _client;
+      await _client.ping();
+      client = _client;
+      return _client;
+    } catch (e) {
+      connectionPromise = null;
+      client = null;
+      try { await _client?.close(); } catch {}
+      throw e;
+    }
   })();
 
   return connectionPromise;

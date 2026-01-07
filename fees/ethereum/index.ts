@@ -118,7 +118,7 @@ export const SQL_TOTAL_FEES_BURNED = `
     SELECT
       min(effective_gas_price) AS base_fee,
       sum(gas_used) AS total_gas_used
-    FROM transactions
+    FROM evm_indexer.transactions
     WHERE
       chain = {chain:UInt64}
       AND block_number >= {fromBlock:UInt32}
