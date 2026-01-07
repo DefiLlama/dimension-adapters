@@ -37,8 +37,9 @@ const fetch = async ({
   });
 
   if (managerClaims.length === 0) {
+    const dailyFees = createBalances();
     return {
-      dailyFees: dailyRevenue,
+      dailyFees,
       dailyRevenue,
       dailySupplySideRevenue,
     };
@@ -192,8 +193,21 @@ const fetch = async ({
     });
   }
 
+  // ===== CALCULATE TOTAL FEES =====
+  // Fees = Revenue + SupplySideRevenue
+  const dailyFees = dailyRevenue;
+  
+  // Add supply-side revenue to daily fees
+  const supplySideObj = dailySupplySideRevenue as any;
+  if (supplySideObj && typeof supplySideObj.toObject === 'function') {
+    const supplySideTokens = supplySideObj.toObject();
+    for (const [token, amount] of Object.entries(supplySideTokens)) {
+      dailyFees.add(token, amount as string);
+    }
+  }
+
   return {
-    dailyFees: dailyRevenue, // For backward compatibility
+    dailyFees, // Total fees = Revenue + SupplySideRevenue
     dailyRevenue,
     dailySupplySideRevenue,
   };
