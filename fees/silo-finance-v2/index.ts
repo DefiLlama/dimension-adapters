@@ -88,8 +88,12 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     },
     {
       silo: "0xbe0d3c8801206cc9f35a6626f90ef9f4f2983a3d",
-      timestamp: 1767225600 //2026-01-01
-    }
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x172a687c397e315dbe56ed78ab347d7743d0d4fa", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
   ],
 };
 
