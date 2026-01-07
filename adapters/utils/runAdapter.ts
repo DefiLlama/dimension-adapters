@@ -368,19 +368,17 @@ async function _runAdapter({
 
       if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
       if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
-      if (!params.hasOwnProperty('onlyArgs')) params.onlyArgs = true
       if (!params.hasOwnProperty('all')) params.all = true
       if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
       if (!params.hasOwnProperty('collect')) params.collect = false
+      if (!params.hasOwnProperty('onlyArgs') && !params.entireLog) params.onlyArgs = true
 
       if (params.hasOwnProperty('processor')) params.processor = (chunk: any | any[]) => {
         let swapLogs = Array.isArray(chunk) ? chunk : [chunk]
 
-        console.log(swapLogs)
-
         if (targetsFilter)
           swapLogs = swapLogs.filter((log) => targetsFilter!.has(log.address.toLowerCase()))
-        
+
 
         origProcessor!(swapLogs)
       }
