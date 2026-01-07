@@ -70,6 +70,7 @@ export const ENV_KEYS = new Set([
   'SAUCERSWAP_API_KEY',
   'ASTROS_PERP_API_KEY',
   'VOLO_VAULT_API_KEY',
+  'CLICKHOUSE_CONFIG',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
