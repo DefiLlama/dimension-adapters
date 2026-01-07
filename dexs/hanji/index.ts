@@ -38,6 +38,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
     fromBlock,
     eventAbi: createdLOBEventAbi,
     onlyArgs: false,
+    cacheInCloud: true,
   })
 
   const lobMap: Record<string, { 
@@ -136,12 +137,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {}
+  fetch,
+  adapter: config,
 }
-
-Object.keys(config).forEach(chain => {
-  const { start } = config[chain];
-  (adapter.adapter as BaseAdapter)[chain] = { fetch, start }
-})
 
 export default adapter
