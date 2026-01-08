@@ -46,6 +46,7 @@ async function currentFetch(_:any, _1: any, options: FetchOptions) {
   return {
     dailyVolume: dayData.volumeUSD,
     dailyFees: dayData.feesUSD,
+    dailyUserFees: dayData.feesUSD,
     dailyRevenue: 0,
     dailySupplySideRevenue: dayData.feesUSD,
     dailyProtocolRevenue: 0,

@@ -10,9 +10,9 @@ const getConfigAbi = "function getConfig() view returns (uint256 _scaling_factor
 
 
 const config: any = {
-  [CHAIN.BASE]: { clobFactoryV1: [], clobFactoryV2: ['0xC7264dB7c78Dd418632B73A415595c7930A9EEA4'], fromBlock: 37860153, start: '2025-11-08' },
-  [CHAIN.ETHERLINK]: { clobFactoryV1: ['0xfb2Ab9f52804DB8Ed602B95Adf0996aeC55ad6Df', '0x8f9949CF3B79bBc35842110892242737Ae11488F'], clobFactoryV2: [], fromBlock: 6610800, start: '2025-02-21' },
-  [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390, start: '2025-11-28' },
+  [CHAIN.BASE]: { clobFactoryV1: [], clobFactoryV2: ['0xC7264dB7c78Dd418632B73A415595c7930A9EEA4'], fromBlock: 37860153, start: '2025-11-08', adminCommissionRate: 1 },
+  [CHAIN.ETHERLINK]: { clobFactoryV1: ['0xfb2Ab9f52804DB8Ed602B95Adf0996aeC55ad6Df', '0x8f9949CF3B79bBc35842110892242737Ae11488F'], clobFactoryV2: ['0x6d420082D455BAb7B71EE3f00502882C27c77eB7'], fromBlock: 6610800, start: '2025-02-21', adminCommissionRate: 1 },
+  [CHAIN.MONAD]: { clobFactoryV1: [], clobFactoryV2: ['0x5C28a12C8EbAF8524A2Ba1fdc62565571Aec87f1'], fromBlock: 38411390, start: '2025-11-28', adminCommissionRate: 1 },
 }
 
 const getScalingFactorExponent = (scalingFactor: bigint): number => {
@@ -122,7 +122,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
 
     const tradeAmount = formatUnits(aggressive_shares, tokenXScalingFactor)
     const orderFee = formatUnits(aggressive_fee + passive_fee, tokenYScalingFactor)
-    const adminFee = BigNumber(orderFee).times(lobInfo.adminCommissionRate).toFixed(tokenYDecimals)
+    const adminCommissionRate = config[chain].adminCommissionRate ?? lobInfo.adminCommissionRate
+    const adminFee = BigNumber(orderFee).times(adminCommissionRate).toFixed(tokenYDecimals)
     const userFee = BigNumber(orderFee).minus(adminFee).toFixed(tokenYDecimals)
 
     dailyVolume.add(tokenXAddress, parseUnits(tradeAmount, tokenXDecimals))
@@ -136,12 +137,8 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {}
+  fetch,
+  adapter: config,
 }
-
-Object.keys(config).forEach(chain => {
-  const { start } = config[chain];
-  (adapter.adapter as BaseAdapter)[chain] = { fetch, start }
-})
 
 export default adapter
