@@ -22,7 +22,8 @@
 
   Staking Rewards Calculation:
   - Kyros holds JitoSOL in vaults (doesn't have direct stake accounts)
-  - We calculate Kyros's proportional share of JitoSOL staking rewards based on vault holdings
+  - We use RPC to get Kyros's JitoSOL balance and total supply 
+  - We use Dune to get total staking rewards (sol-lst pattern)
   - Formula: (kyros_jitosol_balance / total_jitosol_supply) * daily_jitosol_staking_rewards
 
   Sources:
@@ -34,32 +35,39 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { getSqlFromFile, queryDuneSql } from '../../helpers/dune'
 import { METRIC } from '../../helpers/metrics'
+import { getTokenBalance, getTokenSupply } from '../../helpers/solana'
+import ADDRESSES from '../../helpers/coreAssets.json'
 
-// Kyros Program Addresses
-const ADDRESSES = {
-  // Main Authority (receives protocol fees)
+const KYROS_ADDRESSES = {
   MAIN_AUTHORITY: '42iznAJXXefUPmnYz6N6GCzFvXG42o3oTd2D1ymH4UmX',
 
-  // Kyros Vault addresses
   KYSOL_VAULT: 'CQpvXgoaaawDCLh8FwMZEwQqnPakRUZ5BnzhjnEBPJv',
   KYJTO_VAULT: 'ABsoYTwRPBJEf55G7N8hVw7tQnDKBA6GkZCKBVrjTTcf',
   KYKYROS_VAULT: '8WgP3NgtVWLFuSzCk7aBz7FLuqEpcJwRPhkNJ5PnBTsV',
 
-  // Reward distribution programs
   TIP_ROUTER: 'RouterBmuRBkPUbgEDMtdvTZ75GBdSREZR5uGUxxxpb',
   JITO_RESTAKING: 'RestkWeAVL8fRGgzhfeoqFhsqKRchg6aa1XrcH96z4Q',
 }
 
+const JITOSOL_MINT = ADDRESSES.solana.JitoSOL
+
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const [kyrosJitosolBalance, jitosolTotalSupply] = await Promise.all([
+    getTokenBalance(JITOSOL_MINT, KYROS_ADDRESSES.KYSOL_VAULT),
+    getTokenSupply(JITOSOL_MINT),
+  ])
+
+  const kyrosShare = jitosolTotalSupply > 0 ? kyrosJitosolBalance / jitosolTotalSupply : 0
+
   const sql = getSqlFromFile('helpers/queries/kyros.sql', {
     start: options.startTimestamp,
     end: options.endTimestamp,
-    main_authority: ADDRESSES.MAIN_AUTHORITY,
-    kysol_vault: ADDRESSES.KYSOL_VAULT,
-    kyjto_vault: ADDRESSES.KYJTO_VAULT,
-    kykyros_vault: ADDRESSES.KYKYROS_VAULT,
-    tip_router: ADDRESSES.TIP_ROUTER,
-    jito_restaking: ADDRESSES.JITO_RESTAKING,
+    main_authority: KYROS_ADDRESSES.MAIN_AUTHORITY,
+    kysol_vault: KYROS_ADDRESSES.KYSOL_VAULT,
+    kyjto_vault: KYROS_ADDRESSES.KYJTO_VAULT,
+    kykyros_vault: KYROS_ADDRESSES.KYKYROS_VAULT,
+    tip_router: KYROS_ADDRESSES.TIP_ROUTER,
+    jito_restaking: KYROS_ADDRESSES.JITO_RESTAKING,
   })
 
   const results: any[] = await queryDuneSql(options, sql)
@@ -71,14 +79,18 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   for (const row of results) {
     const { source, mint, amount } = row
 
-    if (source === 'protocol') {
+    if (source === 'staking') {
+      // Total Jito staking rewards - apply Kyros's proportional share
+      // amount is in SOL, kyrosShare is the fraction
+      const kyrosStakingRewards = amount * kyrosShare
+      if (kyrosStakingRewards > 0) {
+        dailySupplySideRevenue.addCGToken('solana', kyrosStakingRewards, METRIC.STAKING_REWARDS)
+        dailyFees.addCGToken('solana', kyrosStakingRewards, METRIC.STAKING_REWARDS)
+      }
+    } else if (source === 'protocol') {
       // Kyros share of withdrawal fees (0.1% of 0.2% total) goes to protocol revenue
       dailyRevenue.add(mint, amount, METRIC.DEPOSIT_WITHDRAW_FEES)
       dailyFees.add(mint, amount, METRIC.DEPOSIT_WITHDRAW_FEES)
-    } else if (source === 'staking') {
-      // Proportional share of JitoSOL staking rewards (inflation + MEV)
-      dailySupplySideRevenue.add(mint, amount, METRIC.STAKING_REWARDS)
-      dailyFees.add(mint, amount, METRIC.STAKING_REWARDS)
     } else if (source === 'tip_router') {
       // TipRouter NCN rewards (restaking rewards)
       dailySupplySideRevenue.add(mint, amount, METRIC.MEV_REWARDS)
