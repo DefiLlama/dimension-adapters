@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, ChainBlocks, Dependencies, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -78,6 +78,7 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
   [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral));
   stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
   gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -102,7 +103,14 @@ const adapter: Adapter = {
     },
   },
   prefetch: prefetch,
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Trading fees paid by users.',
+    Revenue: 'Share of trading fees to protocol and token holders.',
+    SupplySideRevenue: 'Share of trading fees to LPs.',
+    HoldersRevenue: 'Share of revenue to buy back and burn GNS tokens.',
+  },
 };
 
 export default adapter;

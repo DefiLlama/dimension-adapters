@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter, BaseAdapter, FetchOptions } from "../adapters/types";
+import { BreakdownAdapter, BaseAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { queryDuneSql } from "../helpers/dune";
@@ -168,7 +168,6 @@ const fetchv3PolygonLogs = async (options: FetchOptions): Promise<{ dailyFees: n
   const FeeEvent = 'event Fee(uint16 fee)'
 
   const fromBlock = config_v3[options.chain]?.startBlock || 0
-  const toBlock = await options.getToBlock()
 
   const adapter = getUniV3LogAdapter({
     factory: factory,
@@ -181,7 +180,7 @@ const fetchv3PolygonLogs = async (options: FetchOptions): Promise<{ dailyFees: n
     target: factory,
     eventAbi: poolCreatedEvent,
     fromBlock: fromBlock,
-    toBlock: toBlock,
+		cacheInCloud: true,
   })
 
   const fee_events = await options.getLogs({
@@ -271,6 +270,7 @@ const fetchv3Graph = async (_a:any, _b:any, options: FetchOptions) => {
 
 const adapter: BreakdownAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   breakdown: {
     v2: {
       [CHAIN.POLYGON]: {

@@ -1,75 +1,92 @@
-import request, { gql } from "graphql-request";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
+import request, { gql } from 'graphql-request';
+import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { CHAIN } from '../helpers/chains';
+import { getTimestampAtStartOfDayUTC } from '../utils/date';
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-arbitrum-stats/api",
-  [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-avalanche-stats/api",
-  [CHAIN.BOTANIX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-botanix-stats/api",
-}
+  [CHAIN.ARBITRUM]:
+    'https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql',
+  [CHAIN.AVAX]:
+    'https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql',
+  [CHAIN.BOTANIX]:
+    'https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql',
+};
 
 const historicalDataSwap = gql`
-  query get_volume($period: String!, $id: String!) {
-    volumeInfos(where: {period: $period, id: $id}) {
-        swapVolumeUsd
-      }
+  query get_volume($period: String!) {
+    volumeInfos(
+      where: { period_eq: $period }
+      limit: 1
+      orderBy: timestamp_DESC
+    ) {
+      swapVolumeUsd
+    }
   }
-`
+`;
 
 interface IGraphResponse {
   volumeInfos: Array<{
-    marginVolumeUsd: string,
-    swapVolumeUsd: string,
-  }>
+    swapVolumeUsd: string;
+  }>;
 }
 
 const fetch = async (_tt: number, _t: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[options.chain], historicalDataSwap, {
-    id: '1d:' + String(dayTimestamp),
-    period: '1d',
-  })
-  const dailyVolume = dailyData.volumeInfos.length == 1
-    ? Number(Object.values(dailyData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30
-    : 0
+  const dailyData: IGraphResponse = await request(
+    endpoints[options.chain],
+    historicalDataSwap,
+    {
+      period: '1d',
+    }
+  );
+  const dailyVolume =
+    dailyData.volumeInfos.length > 0
+      ? Number(dailyData.volumeInfos[0].swapVolumeUsd) * 10 ** -30
+      : 0;
 
   return {
-    dailyVolume
-  }
-}
+    dailyVolume,
+  };
+};
 
 const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
   const targetDate = new Date(dayTimestamp * 1000).toISOString();
   const query = gql`
     {
       volumeRecordDailies(
         where: {timestamp_lte: "${targetDate}"},
-        orderBy: timestamp_ASC 
+        orderBy: timestamp_ASC
       ) {
           timestamp
-          tradeVolume
+          swapVolume
       }
     }
-  `
+  `;
 
-  const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
-  const res = await request(url , query)
-  
+  const url =
+    'https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql';
+  const res = await request(url, query);
+
   const dailyVolume = res.volumeRecordDailies
-    .filter((record: {timestamp : string}) => record.timestamp.split('T')[0] === targetDate.split('T')[0])
-    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
-  if (dailyVolume === 0) throw new Error('Not found daily data!.')
+    .filter(
+      (record: { timestamp: string }) =>
+        record.timestamp.split('T')[0] === targetDate.split('T')[0]
+    )
+    .reduce(
+      (acc: number, record: { swapVolume: string }) =>
+        acc + Number(record.swapVolume),
+      0
+    );
+  if (dailyVolume === 0) throw new Error('Not found daily data!.');
 
   return {
-    dailyVolume: dailyVolume / (10 ** 20),
-  }
-}
+    dailyVolume: dailyVolume / 10 ** 20,
+  };
+};
 
 const methodology = {
-    Volume: "Sum of daily total volume for all markets on a given day.",
-}
+  Volume: 'Sum of daily total volume for all markets on a given day.',
+};
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -89,7 +106,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchSolana,
       start: '2021-08-31',
     },
-  }
-}
+  },
+};
 
 export default adapter;

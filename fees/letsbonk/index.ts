@@ -32,38 +32,21 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 
 */
 
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from '../../helpers/chains'
-import { getTimestampAtStartOfDayUTC } from '../../utils/date'
-import fetchURL from '../../utils/fetchURL'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { getSolanaReceived } from '../../helpers/token'
 
-const SOL_ADDRESS = ADDRESSES.solana.SOL;
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
+const PLATFORM_FEE_WALLET = '56XVRVAsgWv6ADaxzoNnbL38LMoWKM5WiSAhrAWUbd2p';
+const CREATOR_FEE_WALLET = '9sHpTfmVpCfP2zexRNK6j38NBchMv1RWpdXPK5NEcZan';
+
 const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailyProtocolRevenue = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
+    const platformFees = options.createBalances()
+    const creatorFees = options.createBalances()
 
-    const data = await fetchURL("https://revenue.letsbonk.fun/api/revenue");
-    const targetDate = new Date(getTimestampAtStartOfDayUTC(timestamp) * 1000);
-    const targetDateStr = targetDate.toISOString().split('T')[0];
-    const prevDate = new Date(getTimestampAtStartOfDayUTC(timestamp - 86400) * 1000);
-    const prevDateStr = prevDate.toISOString().split('T')[0];
-
-    const currentEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === targetDateStr);
-    const prevEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === prevDateStr);
-    if (!currentEntry) {
-        throw new Error('No data found for the current date');
-    }
-    if (!prevEntry) {
-        throw new Error('No data found for the previous date');
-    }
-
-    const dailyRevenueSol = currentEntry.solRevenue - (prevEntry?.solRevenue || 0);
-    const totalFeesLamports = dailyRevenueSol * 1e9;
+    await getSolanaReceived({ options, balances: platformFees, target: PLATFORM_FEE_WALLET })
+    await getSolanaReceived({ options, balances: creatorFees, target: CREATOR_FEE_WALLET })
 
     // Determine Letsbonk's share based on timestamp
     let letsbonkHoldersRevenuePercentage: number;
@@ -82,38 +65,39 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
         letsbonkTotalPercentage = 0.45;
     }
 
-    const totalRevenue = totalFeesLamports * letsbonkTotalPercentage;
-    const holdersRevenue = totalFeesLamports * letsbonkHoldersRevenuePercentage;
-    const protocolRevenue = totalFeesLamports * letsbonkProtocolRevenuePercentage;
+    const dailyFees = options.createBalances()
+    const dailySupplySideRevenue = creatorFees
 
-    dailyFees.add(SOL_ADDRESS, totalFeesLamports);
-    dailyRevenue.add(SOL_ADDRESS, totalRevenue);
-    dailyHoldersRevenue.add(SOL_ADDRESS, holdersRevenue);
-    dailyProtocolRevenue.add(SOL_ADDRESS, protocolRevenue);
+    dailyFees.addBalances(platformFees)
+    dailyFees.addBalances(creatorFees)
+
+    const dailyRevenue = platformFees.clone(letsbonkTotalPercentage)
+    const dailyProtocolRevenue = platformFees.clone(letsbonkProtocolRevenuePercentage)
+    const dailyHoldersRevenue = platformFees.clone(letsbonkHoldersRevenuePercentage)
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
-        dailyHoldersRevenue
+        dailyHoldersRevenue,
+        dailySupplySideRevenue,
     };
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
+    fetch,
+    start: '2025-04-27',
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.ALLIUM],
     methodology: {
         Fees: "Fees are collected from users and distributed to holders and protocol.",
         Revenue: "Total Letsbonk Protocol Revenue and Holders Revenue",
+        SupplySideRevenue: "Fees for coin creators.",
         ProtocolRevenue: "2% of total fees for marketing.",
         HoldersRevenue: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%)."
     },
-    version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-04-27',
-        }
-    }
 };
 
 export default adapter;

@@ -1,6 +1,6 @@
 import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, nullAddress } from "./token";
-import { METRIC } from "./metrics"; 
+import { METRIC } from "./metrics";
 
 const METRICS = {
   GasCompensation: 'Gas Compensation',
@@ -71,6 +71,23 @@ type LiquityV2Config = {
 }
 
 
+export const defaultV2methodology = {
+  Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+  Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+}
+
+export const defaultV2BreakdownMethodology = {
+  Fees: {
+    'Borrow Interest': 'borrow interests paid by borrowers.',
+    'Redemption Fees': 'Redemption fees paid by borrowers.',
+    'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+  },
+  Revenue: {
+    'Borrow Interest': 'borrow interests paid by borrowers.',
+    'Redemption Fees': 'Redemption fees paid by borrowers.',
+  },
+}
+
 export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, chainConfig]) => {
@@ -78,7 +95,7 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
       fetch: getLiquityV2LogAdapter(chainConfig),
     }
   })
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return { adapter: exportObject, version: 2, methodology: defaultV2methodology, breakdownMethodology: defaultV2BreakdownMethodology } as SimpleAdapter
 }
 
 const RedemptionEvent = 'event Redemption(uint _attemptedLUSDAmount, uint _actualLUSDAmount, uint _ETHSent, uint _ETHFee)'
@@ -175,10 +192,10 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
 
     return {
       dailyFees,
-      dailyRevenue: revenueratio > 0 ? dailyRevenue:  undefined,
+      dailyRevenue: revenueratio > 0 ? dailyRevenue : undefined,
       dailyProtocolRevenue: config.protocolRevenuePercentage ? dailyProtocolRevenue : undefined,
       dailySupplySideRevenue,
-      dailyHoldersRevenue: config.holderRevenuePercentage ? dailyHoldersRevenue: undefined,
+      dailyHoldersRevenue: config.holderRevenuePercentage ? dailyHoldersRevenue : undefined,
     }
   }
   return fetch

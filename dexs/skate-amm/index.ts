@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const skateChainIds = {
+const skateChainIds: Record<string, number> = {
     [CHAIN.ETHEREUM]: 1,
     [CHAIN.BSC]: 56,
     [CHAIN.BASE]: 8453,
@@ -12,7 +12,8 @@ const skateChainIds = {
     [CHAIN.HYPERLIQUID]: 999,
     [CHAIN.PLUME]: 98866,
     [CHAIN.MANTLE]: 5000,
-    [CHAIN.SUI]: 1001
+    [CHAIN.SUI]: 1001,
+    [CHAIN.MONAD]: 143
 }
 
 const skateDataApi = "https://api.skatechain.org/amm-data/pools/stats";
@@ -31,9 +32,11 @@ const fetch = async (options: FetchOptions) => {
     }
     const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
 
-    for (const tokenInfo of tokenVolumeInfo.data) {
-        dailyVolume.add(tokenInfo.token, tokenInfo.volume);
-        dailyFees.add(tokenInfo.token, tokenInfo.fees);
+    if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
+      for (const tokenInfo of tokenVolumeInfo.data) {
+          dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+          dailyFees.add(tokenInfo.token, tokenInfo.fees);
+      }
     }
 
     return {
@@ -61,7 +64,8 @@ const adapter: SimpleAdapter = {
         [CHAIN.HYPERLIQUID]: { start: '2025-05-28', },
         [CHAIN.PLUME]: { start: '2025-06-02', },
         [CHAIN.MANTLE]: { start: '2025-05-28', },
-        [CHAIN.SUI]: { start: '2025-06-22', }
+        [CHAIN.SUI]: { start: '2025-06-22', },
+        [CHAIN.MONAD]: { start: '2025-11-25', }
     },
 }
 

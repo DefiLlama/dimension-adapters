@@ -1,9 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
-import { getUniV3LogAdapter } from "../helpers/uniswap";
+import { filterPools, getUniV3LogAdapter } from "../helpers/uniswap";
+import { addOneToken } from "../helpers/prices";
 
 const v3Endpoints = {
   // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
@@ -84,7 +85,7 @@ const fetchFromOku = async (options: FetchOptions) => {
       dailyHoldersRevenue: 0,
     }
   } catch (e) {
-    console.error(e)
+    console.error(options.chain, e)
     return {}
   }
 }
@@ -94,16 +95,20 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
   if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
+  if (chain === CHAIN.SONIC) return "sonic"
+  if (chain === CHAIN.ETHERLINK) return "etherlink"
+  if (chain === CHAIN.NIBIRU) return "nibiru"
+  if (chain === CHAIN.MONAD) return "monad"
   return chain
 }
 
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'Protocol make no revenue.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI.',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'All fees are distributed to LPs.',
-  HoldersRevenue: 'No revenue for UNI holders.',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI.',
 }
 
 const adapter: SimpleAdapter = {
@@ -134,6 +139,22 @@ const adapter: SimpleAdapter = {
   },
 };
 
+(adapter.adapter as BaseAdapter)[CHAIN.PLASMA] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
+(adapter.adapter as BaseAdapter)[CHAIN.BLAST] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
+
 // (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
 //   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
 //     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
@@ -149,7 +170,6 @@ const okuChains = [
   CHAIN.ERA,
   CHAIN.SEI,
   CHAIN.UNICHAIN,
-  CHAIN.SEI,
   CHAIN.TAIKO,
   CHAIN.SCROLL,
   CHAIN.ROOTSTOCK,
@@ -157,23 +177,28 @@ const okuChains = [
   CHAIN.BOBA,
   CHAIN.MANTLE,
   CHAIN.LINEA,
-  CHAIN.POLYGON_ZKEVM,
-  CHAIN.BLAST,
   CHAIN.XDAI,
   CHAIN.BOB,
-  CHAIN.LISK,
   CHAIN.CORN,
   CHAIN.GOAT,
   CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
-  CHAIN.LENS,
   CHAIN.TELOS,
   CHAIN.CELO,
   CHAIN.NIBIRU,
-  
-  // CHAIN.SAGA,
+  CHAIN.MONAD,
+  CHAIN.SONIC,
+  CHAIN.ETHERLINK,
+  CHAIN.SAGA,
+  CHAIN.LENS,
+
+  // CHAIN.BLAST,
+  // CHAIN.LISK,
+  // CHAIN.MOONBEAM,
+  // CHAIN.POLYGON_ZKEVM,
+  // CHAIN.MANTA,
 ]
 
 
@@ -183,5 +208,64 @@ okuChains.forEach(chain => {
     fetch: async (_t: any, _tb: any, options: FetchOptions) => fetchFromOku(options),
   }
 });
+
+
+const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
+const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
+(adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    function getRevenueShare(fee: number): number {
+      // https://docs.uniswap.org/contracts/protocol-fee/fee-setting-rational
+      if (fee === 0.0001) return 0.000025;
+      if (fee === 0.0005) return 0.0000125;
+      if (fee === 0.003) return 0.0005;
+      if (fee === 0.01) return 0.001666;
+      return 0;
+    }
+    
+    const poolCreatedLogs = await options.getLogs({
+      target: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+      eventAbi: poolCreatedEvent,
+      fromBlock: 12369621,
+      cacheInCloud: true,
+    })
+
+    const pairObject: IJSON<string[]> = {}
+    const fees: any = {}
+    const revenueShares: any = {}
+  
+    poolCreatedLogs.forEach((log: any) => {
+      pairObject[log.pool] = [log.token0, log.token1]
+      fees[log.pool] = (log.fee?.toString() || 0) / 1e6
+      revenueShares[log.pool] = getRevenueShare(Number(log.fee?.toString() || 0) / 1e6)
+    })
+    
+    const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
+    
+    const dailyVolume = options.createBalances()
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+  
+    if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees }
+  
+    const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
+    allLogs.map((logs: any, index) => {
+      if (!logs.length) return;
+      const pair = Object.keys(filteredPairs)[index]
+      const [token0, token1] = pairObject[pair]
+      const fee = fees[pair]
+      const revenueRatio = revenueShares[pair]
+      logs.forEach((log: any) => {
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
+        addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
+        addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * revenueRatio, amount1: log.amount1.toString() * revenueRatio })
+        addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
+      })
+    })
+  
+    return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue: dailyRevenue, }
+  },
+};
 
 export default adapter;

@@ -4,28 +4,25 @@ import { CHAIN } from "../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const volume_subgraphs: Record<string, string> = {
-  [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-arbitrum-stats/api",
-  [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-avalanche-stats/api",
+  [CHAIN.ARBITRUM]: "https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql",
+  [CHAIN.AVAX]: "https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql",
   [CHAIN.SOLANA]: "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql",
-  [CHAIN.BOTANIX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/synthetics-botanix-stats/api",
+  [CHAIN.BOTANIX]: "https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql",
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
   const query = gql`
-    query get_volume($period: String!, $id: String!) {
-      volumeInfos(where: {period: $period, id: $id}) {
-          marginVolumeUsd
-        }
-    }
+    query get_volume($period: String!){
+    positionsVolume(where: {period: $period}) {
+      volume
+    }}
   `
   const dailyData = await request(volume_subgraphs[options.chain], query, {
-    id: '1d:' + String(dayTimestamp),
     period: '1d',
   })
 
-  const dailyVolume = dailyData.volumeInfos.length == 1
-    ? Number(Object.values(dailyData.volumeInfos[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30
+  const dailyVolume = Object.values(dailyData.positionsVolume).length>0
+    ? Number(Object.values(dailyData.positionsVolume).reduce((sum, element:any) => String(Number(sum) + Number(element.volume)),0)) * 10 ** -30
     : undefined
 
   return {

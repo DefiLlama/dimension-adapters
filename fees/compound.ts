@@ -40,6 +40,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -58,6 +59,7 @@ const adapter: Adapter = {
     Revenue: 'Share of borrow interest to Compound treasury.',
     ProtocolRevenue: 'Share of borrow interest to Compound treasury.',
     SupplySideRevenue: 'Total borrow interest paid to lenders.',
+    HoldersRevenueRatio: 'No revenue share for COMP token holders.',
   },
   breakdownMethodology: {
     Fees: {

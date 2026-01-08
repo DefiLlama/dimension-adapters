@@ -1,175 +1,40 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter, IJSON } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import request, { gql } from "graphql-request";
+import { getBribes } from "./shadow-legacy";
+import { ethers } from "ethers";
+import PromisePool from "@supercharge/promise-pool";
+import { addOneToken } from '../helpers/prices';
+import { filterPools } from '../helpers/uniswap';
+import * as sdk from '@defillama/sdk';
 
-type TStartTime = {
-  [key: string]: number;
-};
+// Fee Split source: https://docs.shadow.so/pages/x-33#fee-split
 
 const SHADOW_TOKEN_CONTRACT = "0x3333b97138d4b086720b5ae8a7844b1345a33333";
 const XSHADOW_TOKEN_CONTRACT = "0x5050bc082FF4A74Fb6B0B04385dEfdDB114b2424";
-
-const startTimeV2: TStartTime = {
-  [CHAIN.SONIC]: 1735129946,
-};
-
-export const subgraphEndpoints: any = {
-  [CHAIN.SONIC]: "https://shadow.kingdomsubgraph.com/subgraphs/name/core-full",
-};
-
-export const envioEndpoints: any = {
-  [CHAIN.SONIC]: "https://indexer.hyperindex.xyz/cf4b043/v1/graphql",
-};
-
-const secondsInADay = 24 * 60 * 60;
-const subgraphQueryLimit = 1000;
-
-interface IGraphRes {
-  clVolumeUSD: number;
-  clFeesUSD: number;
-  legacyVolumeUSD: number;
-  legacyFeesUSD: number;
-  clBribeRevenueUSD: number;
-  legacyBribeRevenueUSD: number;
-  clProtocolRevenueUSD: number;
-  legacyProtocolRevenueUSD: number;
-  clUserFeesRevenueUSD: number;
-  legacyUserFeesRevenueUSD: number;
-  dailyXshadowInstantExitFeeUSD: number;
+const eventAbis = {
+  event_poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+  event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
+  event_gaugeCreated: 'event GaugeCreated(address indexed gauge, address creator, address feeDistributor, address indexed pool)',
+  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 amount, uint256 period)',
+}
+const CONFIG = {
+  factory: '0xcD2d0637c94fe77C2896BbCBB174cefFb08DE6d7',
+  voter: '0x9f59398d0a397b2eeb8a6123a6c7295cb0b0062d',
 }
 
-interface IVoteBribe {
-  id: string;
-  token: { id: string };
-  legacyPool?: { id: string };
-  clPool?: { id: string };
-  amount: string;
-}
-
-interface IToken {
-  id: string;
-  priceUSD: string;
-}
-
-async function paginate<T>(
-  getItems: (first: number, skip: number) => Promise<T[]>,
-  itemsPerPage: number,
-): Promise<T[]> {
-  const items = new Array<T>();
-  let skip = 0;
-  while (true) {
-    const newItems = await getItems(itemsPerPage, skip);
-
-    items.push(...newItems);
-    skip += itemsPerPage;
-
-    if (newItems.length < itemsPerPage) {
-      break;
-    }
-
-    // add delay to avoid rate limiting
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
-  return items;
-}
-
-async function getBribes(options: FetchOptions) {
-  const query = gql`
-    query bribes($from: Int!, $to: Int!, $first: Int!, $skip: Int!) {
-      voteBribes(
-        first: $first
-        skip: $skip
-        where: { timestamp_gte: $from, timestamp_lte: $to }
-      ) {
-        token {
-          id
-        }
-        legacyPool {
-          id
-        }
-        clPool {
-          id
-        }
-        amount
-      }
-    }
-  `;
-
-  const getData = async (first: number, skip: number) =>
-    request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startOfDay,
-      to: options.startOfDay + secondsInADay,
-      first,
-      skip,
-    }).then((data) => data.voteBribes);
-
-  return paginate<IVoteBribe>(getData, subgraphQueryLimit);
-}
-
-async function getTokens(options: FetchOptions, tokens: string[]) {
-  const startBlock = await options.getStartBlock();
-  const tokenIds = tokens.map((e) => `"${e}"`).join(",");
-  const query = gql`
-    query tokens($first: Int!, $skip: Int!) {
-      tokens(block: { number: ${startBlock} }, first: $first, skip: $skip, where: { priceUSD_gt: 0, id_in: [${tokenIds}]}) {
-        id
-        priceUSD
-      }
-    }
-  `;
-
-  const getData = async (first: number, skip: number) =>
-    request<any>(subgraphEndpoints[options.chain], query, {
-      first,
-      skip,
-    }).then((data) => data.tokens);
-
-  return paginate<IToken>(getData, subgraphQueryLimit);
-}
-
-export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
-  const statsQuery = `
-    {
-      ClProtocolDayData(where:{startOfDay: {_eq: ${options.startOfDay}}}) {
-        startOfDay
-        volumeUsd
-        feesUsd
-        voterFeesUsd
-        treasuryFeesUsd
-      }
-      LegacyProtocolDayData(where:{startOfDay: {_eq: ${options.startOfDay}}}) {
-        startOfDay
-        volumeUsd
-        feesUsd
-        voterFeesUsd
-        treasuryFeesUsd
-      }
-    }
-  `;
-
-  const voteBribes = await getBribes(options);
-  const tokenIds = new Set(voteBribes.map((e) => e.token.id));
-  tokenIds.add(SHADOW_TOKEN_CONTRACT.toLowerCase());
-
-  const tokens = await getTokens(options, Array.from(tokenIds));
-  const {
-    ClProtocolDayData: clProtocolDayData,
-    LegacyProtocolDayData: legacyProtocolDayData,
-  } = await request(envioEndpoints[options.chain], statsQuery);
-
-  const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
-  const clVoteBribes = voteBribes.filter((e) => e.clPool);
-
-  const clUserBribeRevenueUSD = clVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
-  }, 0);
-  const legacyUserBribeRevenueUSD = legacyVoteBribes.reduce((acc, bribe) => {
-    const token = tokens.find((t) => t.id === bribe.token.id);
-    return acc + Number(bribe.amount) * Number(token?.priceUSD ?? 0);
-  }, 0);
-
-  const InstantExitLogs = await options.getLogs({
+const fetch = async (options: FetchOptions) => {
+  const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = options
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+  const dailyVolume = createBalances();
+  const dailyHoldersRevenue = createBalances()
+  const dailyProtocolRevenue = createBalances()
+  const dailyTokenTaxes = createBalances()
+  const dailySupplySideRevenue = createBalances()
+  const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
+  const poolsWithGauges = await api.call({ target: CONFIG.voter, abi: "address[]:getAllPools"}).then(contracts => contracts.map((contract: string) => contract.toLowerCase()))
+  const poolsWithGaugesSet = new Set(poolsWithGauges)
+  const InstantExitLogs = await getLogs({
     target: XSHADOW_TOKEN_CONTRACT,
     eventAbi: "event InstantExit(address indexed user, uint256 amount)",
     topic: "0xa8a63b0531e55ae709827fb089d01034e24a200ad14dc710dfa9e962005f629a",
@@ -181,57 +46,106 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   }
 
   // Calculate xSHADOW rebase revenue in USD
-  const shadowToken = tokens.find((t) => t.id === SHADOW_TOKEN_CONTRACT);
-  const shadowPriceUSD = Number(shadowToken?.priceUSD ?? 0);
-  const dailyXshadowInstantExitFeeUSD = shadowPenaltyAmount * shadowPriceUSD; // Voters will get the shadow token as rebase
+  dailyTokenTaxes.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
+  dailyFees.add(SHADOW_TOKEN_CONTRACT, shadowPenaltyAmount)
 
-  return {
-    clVolumeUSD: Number(clProtocolDayData?.[0]?.volumeUsd ?? 0),
-    clFeesUSD: Number(clProtocolDayData?.[0]?.feesUsd ?? 0),
-    legacyVolumeUSD: Number(legacyProtocolDayData?.[0]?.volumeUsd ?? 0),
-    legacyFeesUSD: Number(legacyProtocolDayData?.[0]?.feesUsd ?? 0),
-    clBribeRevenueUSD: clUserBribeRevenueUSD,
-    legacyBribeRevenueUSD: legacyUserBribeRevenueUSD,
-    clUserFeesRevenueUSD: Number(clProtocolDayData?.[0]?.voterFeesUsd ?? 0),
-    legacyUserFeesRevenueUSD: Number(
-      legacyProtocolDayData?.[0]?.voterFeesUsd ?? 0,
-    ),
-    clProtocolRevenueUSD: Number(clProtocolDayData?.[0]?.treasuryFeesUsd ?? 0),
-    legacyProtocolRevenueUSD: Number(
-      legacyProtocolDayData?.[0]?.treasuryFeesUsd ?? 0,
-    ),
-    dailyXshadowInstantExitFeeUSD,
-  };
-}
+  const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
-  const stats = await fetchStats(options);
-  const dailyFees = stats.clFeesUSD + stats.dailyXshadowInstantExitFeeUSD;
-  const dailyVolume = stats.clVolumeUSD;
-  const dailyHoldersRevenue = stats.clUserFeesRevenueUSD;
-  const dailyProtocolRevenue = stats.clProtocolRevenueUSD;
-  const dailyBribesRevenue = stats.clBribeRevenueUSD;
-  const dailyTokenTaxes = stats.dailyXshadowInstantExitFeeUSD;
+  const pairObject: IJSON<string[]> = {}
+  const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${CONFIG.factory.toLowerCase()}.json`
+  let { logs } = await sdk.cache.readCache(cacheKey, { readFromR2Cache: true })
+  logs = logs.map((log: any) => iface.parseLog(log)?.args)
+  logs.forEach((log: any) => {
+    pairObject[log.pool] = [log.token0, log.token1]
+  })
 
-  const clSupplySideRevenue =
-    stats.clFeesUSD - dailyHoldersRevenue - dailyProtocolRevenue;
-  const dailySupplySideRevenue = clSupplySideRevenue;
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
+  const poolAddresses = Object.keys(filteredPools)
+  const fees = await api.multiCall({ abi: 'uint256:fee',  calls: poolAddresses })
+  const aeroPoolSet = new Set()
+  const poolInfoMap = {} as any
+  poolAddresses.forEach((pair, index) => {
+    const pool = pair.toLowerCase()
+    const fee = fees[index] / 1e6
+    const hasGauge = poolsWithGaugesSet.has(pool)
+    poolInfoMap[pool] = { tokens: pairObject[pair], fee, hasGauge }
+    aeroPoolSet.add(pool)
+  })
 
-  return {
-    dailyVolume,
+  const blockStep = 1000;
+  let startBlock = fromBlock;
+  let ranges: any = []
+
+
+  while (startBlock < toBlock) {
+    const endBlock = Math.min(startBlock + blockStep - 1, toBlock)
+    ranges.push([startBlock, endBlock])
+    startBlock += blockStep
+  }
+
+  let errorFound = false
+
+
+  await PromisePool
+    .withConcurrency(5)
+    .for(ranges)
+    .process(async ([startBlock, endBlock]: any) => {
+      if (errorFound) return;
+      try {
+        const logs = await getLogs({
+          noTarget: true,
+          fromBlock: startBlock,
+          toBlock: endBlock,
+          eventAbi: eventAbis.event_swap,
+          entireLog: true,
+          skipCache: true,
+        })
+        logs.forEach((log: any) => {
+          const pool = (log.address || log.source).toLowerCase()
+          if (!aeroPoolSet.has(pool)) return;
+          const { tokens, fee, hasGauge } = poolInfoMap[pool]
+          const [token0, token1] = tokens
+          const parsedLog = iface.parseLog(log)
+          const amount0 = Number(parsedLog!.args.amount0)
+          const amount1 = Number(parsedLog!.args.amount1)
+          const fee0 = amount0 * fee
+          const fee1 = amount1 * fee
+          addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+          if (hasGauge) {
+            addOneToken({ chain, balances: dailyHoldersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
+          }
+          else {
+            addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
+            addOneToken({ chain, balances: dailyProtocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
+          }
+        })
+      } catch (e) {
+        errorFound = true
+        throw e
+      }
+    })
+
+  if (errorFound) throw errorFound
+  const { dailyBribesRevenue } = await getBribes(options, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
+  dailyRevenue.addBalances(dailyProtocolRevenue)
+  dailyRevenue.addBalances(dailyHoldersRevenue)
+  dailyFees.addBalances(dailyRevenue)
+  dailyFees.addBalances(dailySupplySideRevenue)
+
+  return { 
+    dailyVolume, 
     dailyFees,
-    dailyUserFees: dailyFees,
-    dailyHoldersRevenue,
-    dailyProtocolRevenue,
-    dailyRevenue,
+    dailyUserFees: dailyFees, 
+    dailyRevenue, 
+    dailyHoldersRevenue, 
     dailySupplySideRevenue,
-    dailyBribesRevenue,
-    dailyTokenTaxes,
-  };
+    dailyProtocolRevenue, 
+    dailyBribesRevenue 
+  }
 };
 
 const methodology = {
+  Fees: "User pays fees on each swap.",
   UserFees: "User pays fees on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
@@ -241,9 +155,11 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   methodology,
   fetch,
   chains: [CHAIN.SONIC],
+  start: "2024-12-27"
 };
 
 export default adapter;

@@ -1,6 +1,9 @@
-import { FetchOptions, Fetch, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, Fetch, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
+
+// https://staderlabs.notion.site/Introducing-SD-1160c9a4217d477eaafb963e21f90aba
+// stader do buy back using 20% of the revenue generated in the respective quarters
 
 const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   const dailyFees = option.createBalances();
@@ -38,10 +41,19 @@ const fetchEthereum: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   });
   dailyFees.addBalances(dailyMaticXFees);
   dailyRevenue.addBalances(dailyMaticXRev);
+  
+  const dailySupplySideRevenue = dailyFees.clone(1);
+  dailySupplySideRevenue.subtract(dailyRevenue);
+  
+  const dailyProtocolRevenue = dailyRevenue.clone(0.5)
+  const dailyHoldersRevenue = dailyRevenue.clone(0.5)
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -57,14 +69,24 @@ const fetch: Fetch = async (_a: any, _b: any, option: FetchOptions) => {
   });
 
   const dailyRevenue = dailyFees.clone(1 / 9);
+  
+  const dailySupplySideRevenue = dailyFees.clone(1);
+  dailySupplySideRevenue.subtract(dailyRevenue);
+  
+  const dailyProtocolRevenue = dailyRevenue.clone(0.5)
+  const dailyHoldersRevenue = dailyRevenue.clone(0.5)
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEthereum,
@@ -75,8 +97,15 @@ const adapter: SimpleAdapter = {
       start: "2022-07-27",
     },
   },
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  version: 1,
+  methodology: {
+    Fees: 'Staking rewards across all staking pools and blockchains.',
+    Revenue: 'There are 10% staking rewards cut as revenue.',
+    SupplySideRevenue: 'Stakers earn 90% staking rewards.',
+    ProtocolRevenue: 'Staker keeps 80% revenue as protocol revenue.',
+    HoldersRevenue: 'Stader executes quarterly buybacks SD utilizing 20% of the revenue generated in the respective quarters.',
+  }
 };
 
 export default adapter;

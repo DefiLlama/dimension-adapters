@@ -1,5 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -32,19 +32,27 @@ const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
           OR address = '8r2hZoDfk5hDWJ1sDujAi2Qr45ZyZw5EQxAXiMZWLKh2'
         )
         AND balance_change > 0 
+    ),
+    botTrades AS (
+      SELECT 
+        trades.tx_id,
+        MAX(fee_token_amount) as fee
+      FROM
+        dex_solana.trades AS trades
+        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+      WHERE
+        TIME_RANGE
+        AND trades.trader_id NOT IN (
+          '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF',
+          '4BBNEVRgrxVKv9f7pMNE788XM1tt379X9vNjpDH2KCL7',
+          '8r2hZoDfk5hDWJ1sDujAi2Qr45ZyZw5EQxAXiMZWLKh2'
+        )
+      GROUP BY trades.tx_id
     )
     SELECT
-      SUM(fee_token_amount) AS fee
+      SUM(fee) AS fee
     FROM
-      dex_solana.trades AS trades
-      JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-    WHERE
-      TIME_RANGE
-      AND trades.trader_id NOT IN (
-        '47hEzz83VFR23rLTEeVm9A7eFzjJwjvdupPPmX3cePqF',
-        '4BBNEVRgrxVKv9f7pMNE788XM1tt379X9vNjpDH2KCL7',
-        '8r2hZoDfk5hDWJ1sDujAi2Qr45ZyZw5EQxAXiMZWLKh2'
-      )
+      botTrades
   `;
 
   const fees = await queryDuneSql(options, query);
@@ -81,7 +89,6 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  methodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-06-01', },
@@ -95,6 +102,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { start: '2024-03-15', },
     [CHAIN.UNICHAIN]: { start: '2025-02-10', },
   },
+  dependencies: [Dependencies.DUNE],
+  methodology,
   isExpensiveAdapter: true,
 };
 

@@ -12,7 +12,7 @@ Here are the different materialized query you can find in the query below:
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
@@ -113,15 +113,15 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
   Fees: "Staking rewards + withdrawal/deposit fees from Sanctum LSTs",
-  Revenue:
-    "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
-  ProtocolRevenue:
-    "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  Revenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  ProtocolRevenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  HoldersRevenue: "No revenue share to CLOUD token holders",
 };
 
 const breakdownMethodology = {
@@ -141,12 +141,10 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2024-01-01", // First unstake transaction
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2024-01-01", // First unstake transaction
   methodology,
   breakdownMethodology,
   isExpensiveAdapter: true,

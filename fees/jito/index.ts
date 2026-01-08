@@ -12,7 +12,7 @@
   Note: Staking rewards distributed to JitoSOL holders are not included in these metrics.
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune"
 
@@ -44,6 +44,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2022-11-21',
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   breakdownMethodology: {
     Fees: {
       'JITOSOL_FEES': 'Withdrawal Fees (0.1% on unstake) from the JitoSOL stake pool',

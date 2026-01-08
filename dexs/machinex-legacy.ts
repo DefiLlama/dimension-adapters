@@ -1,14 +1,11 @@
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
-let data: any
+async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
+  const data = await fetchURL('https://machinex-api-production.up.railway.app/analytics')
+  const record = data.dayData.find((day: any) => day.timestamp === startOfDay)
 
-async function fetch(_:any, _1: any, { startOfDay, dateString }:FetchOptions) {
-  if (!data) data = httpGet('https://machinex-api-production.up.railway.app/analytics')
-    data = await data
-  const record = data.find((day: any) => day.timestamp === startOfDay)
-  if (!record || !record.legacy) throw new Error(`No data for ${dateString}`)
   return {
     dailyFees: record.legacy.feesUSD,
     dailyVolume: record.legacy.volumeUSD,
@@ -16,6 +13,7 @@ async function fetch(_:any, _1: any, { startOfDay, dateString }:FetchOptions) {
 }
 
 export default {
+  version: 1,
   fetch,
   chains: [CHAIN.PEAQ],
 }

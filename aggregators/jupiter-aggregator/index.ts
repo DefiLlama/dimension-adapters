@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 // 1800 1022 777
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -21,6 +21,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: any = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   fetch,
   start: '2023-04-16',
   methodology: {

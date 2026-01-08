@@ -1,6 +1,6 @@
 // Source: https://solanacompass.com/stake-pools/9mhGNSPArRMHpLDMSmxAvuoizBqtBGqYdT8WGuqgxNdn
 
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -36,7 +36,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue
+        dailyProtocolRevenue: dailyRevenue,
+        dailyHoldersRevenue: 0,
     };
 };
 
@@ -44,13 +45,15 @@ const methodology = {
     Fees: 'Staking rewards from staked SOL on drift staked solana',
     Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
     ProtocolRevenue: 'Revenue going to treasury/team',
+    HoldersRevenue: 'No revenue share to DRIFT token holders',
 }
 
 export default {
     version: 1,
-    methodology,
     fetch,
     chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
     start: "2024-08-26",
+    methodology,
     isExpensiveAdapter: true
 };

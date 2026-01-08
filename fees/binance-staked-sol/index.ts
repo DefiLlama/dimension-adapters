@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -46,9 +46,10 @@ const methodology = {
 
 export default {
   version: 1,
-  methodology,
   fetch,
   chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
   start: "2024-09-12",
+  methodology,
   isExpensiveAdapter: true
 };

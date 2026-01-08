@@ -42,6 +42,7 @@ export type FetchOptions = {
   dateString: string,
   preFetchedResults?: any,
   moduleUID: string,  // randomly generated unique identifier for the module, useful for caching
+  startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
 }
 
 export type FetchGetLogsOptions = {
@@ -76,7 +77,8 @@ export type FetchV2 = (
 export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapterChainConfig = {
-    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format -  indicates when the adapter can start fetching data
+    deadFrom?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format - indicates when the adapter should stop fetching data
     fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
   }
@@ -91,9 +93,16 @@ export enum ProtocolType {
   COLLECTION = 'collection',
 }
 
+export enum Dependencies {
+  DUNE = 'dune',
+  ALLIUM = 'allium'
+}
+
+
 export type AdapterBase = {
   timetravel?: boolean
   isExpensiveAdapter?: boolean,
+  dependencies?: Dependencies[]
   protocolType?: ProtocolType;
   version?: number;
   deadFrom?: string;
@@ -113,7 +122,7 @@ export type SimpleAdapter = AdapterBase & {
   adapter?: BaseAdapter
 }
 
-export type BreakdownAdapter = AdapterBase & {
+export type BreakdownAdapter = AdapterBase & {  // do not use this, this is deprecated
   breakdown: {
     [version: string]: BaseAdapter
   };
@@ -219,3 +228,5 @@ export const accumulativeKeySet = new Set([
 export interface IJSON<T> {
   [key: string]: T
 }
+
+export const ADAPTER_TYPES = Object.values(AdapterType).filter((adapterType: any) => adapterType !== AdapterType.PROTOCOLS)

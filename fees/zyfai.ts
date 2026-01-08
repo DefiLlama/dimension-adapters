@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer, toByteaArray } from "../helpers/indexer";
 import { addTokensReceived } from "../helpers/token";
 
 const REVENUE_RECEIVER_WALLETS = [
@@ -14,6 +13,11 @@ const fetch = async (options: FetchOptions) => {
     balances: dailyFees,
     options,
     targets: REVENUE_RECEIVER_WALLETS,
+
+    // ignore buy back from revenue wallet
+    logFilter: (log: any) => {
+      return log.from_address !== '0xef32a6e5b1d363ded63e35af03fc53a637926de0';
+    }
   })
 
   return {

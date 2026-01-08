@@ -19,12 +19,14 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: poolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   })
   logs = logs.concat(await options.getLogs({
     target: factory,
     eventAbi: customPoolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   }))
   const iface = new ethers.Interface([poolEvent, customPoolEvent])
   logs = logs.map((log: any) => iface.parseLog(log)?.args)

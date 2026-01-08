@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
@@ -9,7 +9,8 @@ const v2_contract_address = {
   [CHAIN.ETHEREUM]: '0xfdb7ef80bd6ab675cd52811bfb9329fbd9b92aba',
   [CHAIN.SONIC]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
   [CHAIN.BERACHAIN]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810',
-  [CHAIN.AVAX]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810'
+  [CHAIN.AVAX]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810',
+  [CHAIN.STORY]: '0x6882912e2580471E5ac7a928a4f52F0bD2701810',
 };
 
 const v3_contract_address = {
@@ -18,7 +19,8 @@ const v3_contract_address = {
   [CHAIN.ETHEREUM]: '0x196f75367A9286E039C6CFEBa5B8686ed84cBa68',
   [CHAIN.SONIC]: '0xB23495f9a4807cD7672f382B9b0c2a3A0ec78649',
   [CHAIN.BERACHAIN]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
-  [CHAIN.AVAX]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d'
+  [CHAIN.AVAX]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
+  [CHAIN.STORY]: '0xE47809790a0cE703c2AC81598c90d5cC1569675d',
 };
 
 const virtual_contract_address = { [CHAIN.BASE]: '0x803A70b24062e429Ce48801a0fAb6B13a994A454' };
@@ -75,16 +77,19 @@ const contractAddresses = {
     v2_contract_address[CHAIN.ETHEREUM],
     v3_contract_address[CHAIN.ETHEREUM],
   ],
+  [CHAIN.STORY]: [
+    v2_contract_address[CHAIN.STORY],
+    v3_contract_address[CHAIN.STORY],
+  ],
 };
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
   const chain = options.chain;
   const addresses = contractAddresses[chain as keyof typeof contractAddresses] || [];
 
   if (addresses.length === 0) {
-    return { dailyFees, dailyRevenue };
+    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
 
   const logPromises = addresses.map((address) =>
@@ -98,36 +103,38 @@ const fetchFees = async (options: FetchOptions) => {
   logs.forEach((logSet) =>
     logSet.forEach((log: any) => {
       dailyFees.addGasToken(Number(log.data));
-      dailyRevenue.addGasToken(Number(log.data));
     })
   );
 
-  return { dailyFees, dailyRevenue, dailyProtocoLRevenue: dailyRevenue };
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchFeesSolana = async (options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: '4TTaKEKLjh1WJZttu1kvDtZt9N4G854C6ZKPAprZFRuy' });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const methodology = {
   Fees: 'All trading fees paid by users.',
-  Revenue: 'All trading fees paid by users.',
-  ProtocolRevenue: 'All trading fees paid by users.',
+  UserFees: 'All trading fees paid by users.',
+  Revenue: 'All trading revenue goes to the protocol.',
+  ProtocolRevenue: 'All trading revenue goes to the protocol.',
 }
 
 const adapter: SimpleAdapter = {
-  methodology,
   version: 2,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: fetchFees, start: '2024-03-01', },
-    [CHAIN.BSC]: { fetch: fetchFees, start: '2024-03-01', },
-    [CHAIN.BASE]: { fetch: fetchFees, start: '2024-03-01', },
-    [CHAIN.SONIC]: { fetch: fetchFees, start: '2024-12-15', },
-    [CHAIN.AVAX]: { fetch: fetchFees, start: '2025-02-26', },
-    [CHAIN.BERACHAIN]: { fetch: fetchFees, start: '2025-02-06', },
-    [CHAIN.SOLANA]: { fetch: fetchFeesSolana, start: '2024-11-23', },
+    [CHAIN.ETHEREUM]: { fetch, start: '2024-03-01', },
+    [CHAIN.BSC]: { fetch, start: '2024-03-01', },
+    [CHAIN.BASE]: { fetch, start: '2024-03-01', },
+    [CHAIN.SONIC]: { fetch, start: '2024-12-15', },
+    [CHAIN.AVAX]: { fetch, start: '2025-02-26', },
+    [CHAIN.BERACHAIN]: { fetch, start: '2025-02-06', },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: '2024-11-23', },
+    [CHAIN.STORY]: { fetch, start: '2025-08-01', },
   },
+  methodology,
   isExpensiveAdapter: true,
 };
 

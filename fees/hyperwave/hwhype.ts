@@ -17,10 +17,36 @@ interface IBoringVault {
 const BoringVaults: { [key: string]: Array<IBoringVault> } = {
     [CHAIN.HYPERLIQUID]: [
         {
+            // hwHYPE
             vault: "0x4DE03cA1F02591B717495cfA19913aD56a2f5858",
             accountant: "0xCf9be8BF79ad26fdD7aA73f3dd5bA73eCDee2a32",
             accountantAbiVersion: 1,
             startTimestamp: 1754073000,
+        },
+        {
+            // hwUSD
+            vault: "0xa2f8Da4a55898B6c947Fa392eF8d6BFd87A4Ff77",
+            accountant: "0xa77F32BaDEeA2d2B7De78680C3A6d8B88C46055D",
+            accountantAbiVersion: 1,
+            startTimestamp: 1758738600,
+        },
+    ],
+    [CHAIN.BASE]: [
+        {
+            // hwUSD
+            vault: "0xa2f8Da4a55898B6c947Fa392eF8d6BFd87A4Ff77",
+            accountant: "0xa77F32BaDEeA2d2B7De78680C3A6d8B88C46055D",
+            accountantAbiVersion: 1,
+            startTimestamp: 1758738600,
+        },
+    ],
+    [CHAIN.ETHEREUM]: [
+        {
+            // hwUSD
+            vault: "0xa2f8Da4a55898B6c947Fa392eF8d6BFd87A4Ff77",
+            accountant: "0xa77F32BaDEeA2d2B7De78680C3A6d8B88C46055D",
+            accountantAbiVersion: 1,
+            startTimestamp: 1758738600,
         },
     ],
 };
@@ -52,14 +78,12 @@ interface ExchangeRateUpdatedEvent {
     newRate: bigint;
 }
 
-export async function getHwhypeFees(
-    options: FetchOptions
-): Promise<{
-    dailyFees: sdk.Balances,
-    dailyRevenue: sdk.Balances,
+export async function getHwhypeHwusdFees(options: FetchOptions): Promise<{
+    dailyFees: sdk.Balances;
+    dailyRevenue: sdk.Balances;
 }> {
-    const dailyFees = options.createBalances()
-    const dailyRevenue = options.createBalances()
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
 
     const START_TIMESTAMP = options.startTimestamp;
 
