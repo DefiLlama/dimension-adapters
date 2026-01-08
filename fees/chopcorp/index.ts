@@ -31,7 +31,9 @@ const fetch = async (options: FetchOptions) => {
       AND TIME_RANGE
   `
 
-  // Treasury is a PDA, simpler query is fine
+  // Note: balance_change is net per-tx. During rare lumberlode hits (1/750 chance),
+  // treasury may send > receive, causing negative balance_change and undercount.
+  // This is acceptable as lumberlode payouts redistribute previously-collected fees.
   const treasuryQuery = `
     SELECT
       SUM(balance_change/1e9) AS total_received
@@ -39,6 +41,13 @@ const fetch = async (options: FetchOptions) => {
     WHERE address = '${TREASURY_ADDRESS}'
       AND balance_change > 0
       AND tx_success = true
+      AND tx_id IN (
+        SELECT DISTINCT tx_id
+        FROM solana.instruction_calls
+        WHERE executing_account = '${CHOPCORP_PROGRAM_ID}'
+          AND tx_success = true
+          AND TIME_RANGE
+      )
       AND TIME_RANGE
   `
 
