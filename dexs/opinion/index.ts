@@ -38,6 +38,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   })
 
   orderFilledLogs.forEach((order: any) => {
+    dailyFees.addUSDValue(Number(order.fee) / 1e18)
+
     const maker = (order.maker || '').toString().toLowerCase()
     const taker = (order.taker || '').toString().toLowerCase()
 
@@ -48,7 +50,6 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const tradeVolume =
       Number(order.makerAssetId == 0 ? order.makerAmountFilled : order.takerAmountFilled) / 1e18
     dailyVolume.addUSDValue(Number(tradeVolume) / 2)
-    dailyFees.addUSDValue(Number(order.fee) / 1e18)
   })
 
   return {
