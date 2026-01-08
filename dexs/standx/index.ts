@@ -30,10 +30,10 @@ const fetch = async (_timestamp: number): Promise<FetchResultVolume> => {
 
   const { dailyVolume, openInterestAtEnd } = marketInfo.reduce((acc: any, curr: any) => {
     acc.dailyVolume += curr.volume_quote_24h;
-    acc.openInterestAtEnd += curr.open_interest_notional;
+    acc.openInterestAtEnd += +curr.open_interest_notional;
     return acc;
   }, { dailyVolume: 0, openInterestAtEnd: 0 });
-
+  
   return {
     dailyVolume,
     openInterestAtEnd,
