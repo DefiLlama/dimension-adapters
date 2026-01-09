@@ -325,4 +325,5 @@ export enum CHAIN {
   MATCHAIN = "matchain",
   SAAKURU = "saakuru",
   GENESYS = "genesys",
+  OPENLEDGER = "open"
 }
