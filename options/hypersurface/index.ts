@@ -25,8 +25,8 @@ const fetch = async (options: FetchOptions) => {
   for (const { totalPremium, totalNotional, totalFee, legs, underlyingPrice } of logs) {
     dailyPremiumVolume += Number(totalPremium) / 1e6;
     const { oToken } = legs[0];
-    const accumulatedNotionalInUsd = totalNotionalMap.get(oToken) || 0;
-    totalNotionalMap.set(oToken, accumulatedNotionalInUsd + (Number(totalNotional) * Number(underlyingPrice)))
+    const accumulatedNotionalIncludingDecimals = totalNotionalMap.get(oToken) || 0;
+    totalNotionalMap.set(oToken, accumulatedNotionalIncludingDecimals + (Number(totalNotional) * Number(underlyingPrice)))
     dailyFees += Number(totalFee) / 1e6;
   }
 
@@ -36,8 +36,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   let index = 0;
-  for (const [_oToken, accumulatedNotional] of totalNotionalMap.entries()) {
-    dailyNotionalVolume += (accumulatedNotional / (10 ** (oTokenDecimals[index] * 2)));
+  for (const [_oToken, accumulatedNotionalIncludingDecimals] of totalNotionalMap.entries()) {
+    dailyNotionalVolume += (accumulatedNotionalIncludingDecimals / (10 ** (oTokenDecimals[index] * 2)));
     index++;
   }
 
