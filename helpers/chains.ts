@@ -328,4 +328,5 @@ export enum CHAIN {
   ENDURANCE = "endurance",
   SWAN = "swan",
   BITCICHAIN = "bitcichain",
+  OPENLEDGER = "open"
 }
