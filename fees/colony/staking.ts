@@ -26,12 +26,29 @@ export async function stakingFees(
   ]);
   let dailyHoldersRevenue = createBalances();
 
+  // Get the subgraph's latest indexed block to avoid block availability issues
+  const latestBlockQuery = gql`
+    query {
+      _meta {
+        block {
+          number
+        }
+      }
+    }
+  `;
+  const latestBlockRes = await request(stakingSubgraphEndpoint, latestBlockQuery);
+  const subgraphLatestBlock = Number(latestBlockRes._meta.block.number);
+
+  // Ensure both start and end blocks are within subgraph's available range
+  const safeStartBlock = Math.min(startBlock, subgraphLatestBlock);
+  const safeEndBlock = Math.min(endBlock, subgraphLatestBlock);
+
   const [beforeRes, afterRes] = await Promise.all([
     request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-      block: startBlock,
+      block: safeStartBlock,
     }),
     request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
-      block: endBlock,
+      block: safeEndBlock,
     }),
   ]);
 
