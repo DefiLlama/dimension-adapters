@@ -44,7 +44,7 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchRe
 
   [vaultFee]
     .flat()
-    .forEach((i: any) => dailyHoldersRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
+    .forEach((i: any) => dailyProtocolRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
 
   [govFee]
     .flat()
@@ -53,7 +53,6 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchRe
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue
   };
