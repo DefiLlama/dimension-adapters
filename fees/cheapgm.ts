@@ -230,7 +230,7 @@ async function computeNetByBalance(options: FetchOptions): Promise<bigint> {
 }
 
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a:any, _b:any,options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   let gross = 0n;
@@ -246,10 +246,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   fetch,
   start: "2025-08-11",
   chains: CHAINS,
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "fees from GMCounter logs: if referral is set, fee x (1 - referralFees/BPS), otherwise full fee.",
     Revenue: "fees accrue to protocol treasury. If no GMCounter address provided for a chain, fallback is treasury net inflow for that chain/day.",
