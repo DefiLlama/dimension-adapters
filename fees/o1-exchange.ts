@@ -13,7 +13,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await addTokensReceived({ options, targets });
   await getETHReceived({ options, targets, balances: dailyFees, notFromSenders: ['0x4200000000000000000000000000000000000006'] });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 };
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
   
@@ -29,7 +29,7 @@ const fetchSol: any = async (_a: any, _b: any, options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 }; 
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }; 
 }
 
 const adapter: SimpleAdapter = {
@@ -40,7 +40,6 @@ const adapter: SimpleAdapter = {
     UserFees: 'User pays 0.5%-1% fee on each trade',
     Revenue: 'All trading fees are revenue.',
     ProtocolRevenue: 'All trading fees are revenue collected by o1 exchange.',
-    HoldersRevenue: 'No token holder revenue',
   },
   adapter: {
     [CHAIN.SOLANA]: {
