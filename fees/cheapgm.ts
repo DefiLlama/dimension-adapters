@@ -5,13 +5,26 @@ const TREASURY = "0x21ad6ef3979638d8e73747f22b92c4aade145d82".toLowerCase();
 
 const CHAINS: Array<string> = [
   CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.BSC,
-  CHAIN.SCROLL, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.ERA, CHAIN.TAIKO, CHAIN.BLAST, CHAIN.MODE,
-  CHAIN.ZORA, CHAIN.METIS, CHAIN.REDSTONE, CHAIN.XDAI, CHAIN.APECHAIN, CHAIN.XLAYER, CHAIN.BOTANIX,
-  CHAIN.CRONOS, CHAIN.CELO, CHAIN.CONFLUX, CHAIN.RONIN, CHAIN.LISK, CHAIN.BERACHAIN, CHAIN.CORE,
-  CHAIN.BOB, CHAIN.ZIRCUIT, CHAIN.MORPH, CHAIN.MANTA, CHAIN.ANCIENT8, CHAIN.TAIKO,
-  CHAIN.POLYGON_ZKEVM, CHAIN.WC, CHAIN.KLAYTN, CHAIN.ABSTRACT, CHAIN.SONEIUM, CHAIN.INK,
+  CHAIN.SCROLL, CHAIN.MANTLE, CHAIN.LINEA, CHAIN.ERA, 
+  CHAIN.BLAST, CHAIN.MODE,
+  CHAIN.ZORA, CHAIN.METIS, 
+  CHAIN.REDSTONE, 
+  CHAIN.XDAI, CHAIN.APECHAIN, CHAIN.XLAYER, 
+  CHAIN.BOTANIX,
+  CHAIN.CRONOS, CHAIN.CELO, CHAIN.CONFLUX, 
+  CHAIN.RONIN, CHAIN.LISK, CHAIN.BERACHAIN, CHAIN.CORE,
+  CHAIN.BOB, CHAIN.ZIRCUIT, CHAIN.MORPH, CHAIN.MANTA, 
+  CHAIN.ANCIENT8, 
+  CHAIN.TAIKO,
+  CHAIN.POLYGON_ZKEVM, CHAIN.WC, 
+  CHAIN.KLAYTN,
+  CHAIN.ABSTRACT, CHAIN.SONEIUM, CHAIN.INK,
   CHAIN.UNICHAIN, CHAIN.PLUME, CHAIN.SONIC
 ]
+
+const abis: any = {
+  treasury: "function treasury() view returns (address)",
+};
 
 const COUNTERS: Record<string, string[]> = {
   [CHAIN.BASE]: [
@@ -47,8 +60,8 @@ const COUNTERS: Record<string, string[]> = {
     "0xefb45cd4cff4d11d4b029659e618daacd8d18f3",
   ],
   [CHAIN.KLAYTN]: [
+    "0x676590111782691132a560301014510d30d0053c",
     "0x5fcea004bc26308bc91d8599dba4a271c57cba85",
-    "0x72fe6c968d0da46f45e65923330a262a1f75963c",
   ],
   [CHAIN.BERACHAIN]: [
     "0x2522bfee6451f7a1f64e3ab287d8cf46c173601f",
@@ -164,84 +177,20 @@ const COUNTERS: Record<string, string[]> = {
   ],
 };
 
-const abis = {
-  GMSent: "event GMSent(address indexed sender, address indexed referral)",
-  fee: "function fee() view returns (uint256)",
-  referralFees: "function referralFees() view returns (uint256)",
-};
 
-function toBig(v: any): bigint {
-  try {
-    if (v == null) return 0n;
-    if (typeof v === "bigint") return v;
-    if (typeof v === "number") return BigInt(Math.trunc(v));
-    if (typeof v === "string") return v.startsWith("0x") ? BigInt(v) : BigInt(v);
-  } catch { }
-  return 0n;
-}
-
-async function computeGrossByLogs(opts: FetchOptions, chainSlug: string): Promise<bigint> {
-  const counters = COUNTERS[chainSlug];
-  if (!counters?.length) return 0n;
-
-  const from_block = (opts as any).fromBlock;
-  const to_block = (opts as any).toBlock;
-  const BASIS = 10000n;
-  let total = 0n;
-
-  for (const counter of counters) {
-    const logs = (await opts.getLogs({
-      target: counter,
-      eventAbi: abis.GMSent,
-      entireLog: true,
-    }).catch(() => [])) as any[];
-
-    if (!logs.length) continue;
-
-    const [feeWei, refBpRaw] = await Promise.all([
-      (opts as any).api.call({ target: counter, abi: abis.fee, block: to_block }).catch(() => 0),
-      (opts as any).api.call({ target: counter, abi: abis.referralFees, block: to_block }).catch(() => 0),
-    ]);
-    const fee = toBig(feeWei);
-    const refBP = toBig(refBpRaw);
-
-    let withRef = 0n, noRef = 0n;
-    for (const e of logs) {
-      const ref = e?.args?.referral ?? e?.args?.[1] ?? "0x0000000000000000000000000000000000000000";
-      const isZero = typeof ref === "string" ? /^0x0{40}$/i.test(ref) : (!ref);
-      if (isZero) noRef += 1n; else withRef += 1n;
-    }
-    const perWithRef = fee * (BASIS - refBP) / BASIS;
-    total += fee * noRef + perWithRef * withRef;
-  }
-  return total > 0n ? total : 0n;
-}
-
-
-async function computeNetByBalance(options: FetchOptions): Promise<bigint> {
-  try {
-    const [balStart, balEnd] = await Promise.all([
-      options.fromApi.provider.getBalance(TREASURY),
-      options.toApi.provider.getBalance(TREASURY)
-    ]);
-    const delta = toBig(balEnd) - toBig(balStart);
-    return delta > 0n ? delta : 0n;
-  } catch { return 0n; }
-}
-
-
-const fetch = async (_a:any, _b:any,options: FetchOptions) => {
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+  // if (!COUNTERS[options.chain]) {
+  //   return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
+  // }
+  // const _treasury = await options.api.call({ target: COUNTERS[options.chain][0], abi: abis.treasury })
+  const [balStart, balEnd] = await Promise.all([
+    options.fromApi.provider.getBalance(TREASURY),
+    options.toApi.provider.getBalance(TREASURY)
+  ]);
+  const delta = Number(balEnd) - Number(balStart);
+  const fees = delta > 0n ? delta : 0n;
   const dailyFees = options.createBalances();
-
-  let gross = 0n;
-  try { gross = await computeGrossByLogs(options, options.chain); } catch { }
-  if (gross > 0n) {
-    dailyFees.addGasToken(gross);
-    return { dailyFees, dailyRevenue: dailyFees };
-  }
-
-  const net = await computeNetByBalance(options);
-  if (net > 0n) dailyFees.addGasToken(net);
+  dailyFees.addGasToken(fees);
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
@@ -250,7 +199,6 @@ const adapter: Adapter = {
   fetch,
   start: "2025-08-11",
   chains: CHAINS,
-  isExpensiveAdapter: true,
   methodology: {
     Fees: "fees from GMCounter logs: if referral is set, fee x (1 - referralFees/BPS), otherwise full fee.",
     Revenue: "fees accrue to protocol treasury. If no GMCounter address provided for a chain, fallback is treasury net inflow for that chain/day.",
