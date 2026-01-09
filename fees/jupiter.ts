@@ -9,7 +9,6 @@ interface IData {
   fee_usd: string;
 }
 
-const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // limit order fees
@@ -78,16 +77,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFeesUltra.resizeBy(0.25) // 
   dailyRevenue.addBalances(dailyFeesUltra)
 
-  const query = `
-    SELECT SUM(raw_amount) as total_amount
-    FROM solana.assets.transfers
-    WHERE to_address = '${JUP_LITTERBOX_ADDRESS}'
-    AND mint = '${ADDRESSES.solana.JUP}'
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-  `
-  const res = await queryAllium(query);
+  // Buybacks have stopped - holder revenue is now 0
   const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.add(ADDRESSES.solana.JUP, res[0].total_amount || 0);
 
   return {
     dailyFees,
@@ -107,7 +98,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Trading fees paid by users.',
     Revenue: 'Portion of fees collected by protocol.', // we don't add the holders revenue as it's 50% of ecosystem protocol revenue.
-    HolderRevenue: 'Jup Buybacks from 50% of jupiter ecosystem protocol revenue.',
+    HolderRevenue: 'Jup token buybacks (currently paused).',
   },
 }
 
