@@ -5,7 +5,7 @@ import * as sdk from "@defillama/sdk";
 // Previous API: https://cp-amm-api.meteora.ag/pools (with limit/offset support)
 // Min pool fee is 0.25% so wash trading is not economically viable
 
-const meteoraGlobalMetricsEndpoint = 'https://cp-amm-api.meteora.ag/pools/global-metrics';
+const meteoraGlobalMetricsEndpoint = 'https://dammv2-api.meteora.ag/pools/global-metrics';
 
 async function fetch() {
   try {
