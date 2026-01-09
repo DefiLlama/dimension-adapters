@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-const API_BASE = "https://baby-defillama-bsc-ton-bridge-backend-dev.dev.babyparrot.xyz";
+const API_BASE = "https://defillama-bsc-ton-bridge-backend-main.babybulldog.xyz";
 
 const chainIds: Record<string, string> = {
   [CHAIN.BSC]: "56",
