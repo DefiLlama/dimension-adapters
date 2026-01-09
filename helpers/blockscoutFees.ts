@@ -123,11 +123,6 @@ export const chainConfigMap: any = {
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
-
-
-
-
-
   [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/' },
   [CHAIN.TAC]: { CGToken: 'tac', explorer: 'https://explorer.tac.build/' },
   [CHAIN.ENDURANCE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
