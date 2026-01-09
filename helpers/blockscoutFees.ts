@@ -123,6 +123,12 @@ export const chainConfigMap: any = {
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
+  [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/' },
+  [CHAIN.TAC]: { CGToken: 'tac', explorer: 'https://explorer.tac.build/' },
+  [CHAIN.ENDURANCE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
+  [CHAIN.SWAN]: { CGToken: 'ethereum', explorer: 'https://mainnet-explorer.swanchain.io/' },
+  [CHAIN.BITCICHAIN]: { CGToken: 'bitcicoin', explorer: 'https://v3.bitciexplorer.com/' },
+  [CHAIN.PERENNIAL]: { CGToken: 'ethereum', explorer: 'https://explorer.perennial.foundation/' },
 }
 
 function getTimeString(timestamp: number) {
