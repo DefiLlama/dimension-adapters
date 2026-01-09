@@ -4,27 +4,34 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addOneToken } from "../../helpers/prices";
 import { cache } from "@defillama/sdk";
 
-export const brownfiV2Factories: { [key: string]: any } = {
+const chainConfig: Record<string, { factory: string, start: string }> = {
   [CHAIN.BERACHAIN]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-07-04',
   },
   [CHAIN.BASE]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-07-01',
   },
   [CHAIN.ARBITRUM]: {
-    factory: "0xD05395a6b6542020FBD38D31fe1377130b35592E"
+    factory: "0xD05395a6b6542020FBD38D31fe1377130b35592E",
+    start: '2025-07-01',
   },
   [CHAIN.HYPERLIQUID]: {
-    factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55"
+    factory: "0x3240853b71c89209ea8764CDDfA3b81766553E55",
+    start: '2025-07-19',
   },
   [CHAIN.LINEA]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-09-05',
   },
   [CHAIN.BSC]: {
-    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d"
+    factory: "0x43AB776770cC5c739adDf318Af712DD40918C42d",
+    start: '2025-07-01',
   },
   [CHAIN.MONAD]: {
-    factory: "0x68bc42F886ddf6a4b0B90a9496493dA1f8304536"
+    factory: "0x68bc42F886ddf6a4b0B90a9496493dA1f8304536",
+    start: '2025-12-02',
   },
 };
 
@@ -36,7 +43,7 @@ const abis = {
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const factory = brownfiV2Factories[options.chain].factory;
+  const factory = chainConfig[options.chain].factory;
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
 
@@ -104,8 +111,9 @@ const methodology = {
 }
 
 const adapters: SimpleAdapter = {
+  version: 1,
   fetch,
-  chains: [CHAIN.BERACHAIN, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.HYPERLIQUID, CHAIN.LINEA, CHAIN.BSC, CHAIN.MONAD],
+  adapter: chainConfig,
   methodology,
 };
 
