@@ -115,8 +115,7 @@ const methodology = {
   Fees: 'Maker and taker fees paid by premium accounts on the Lighter DEX',
   Revenue: 'All trading fees are protocol revenue',
   ProtocolRevenue: 'All trading fees go to the protocol treasury',
-  HoldersRevenue:
-    'LIT token buybacks executed by the treasury account. The protocol uses fees to buy back LIT tokens from the market.',
+  HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
 }
 
 const breakdownMethodology = {
@@ -131,18 +130,15 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]:
-      'LIT token buybacks from treasury account trades. Buybacks can be tracked at https://app.lighter.xyz/explorer/accounts/0',
+      'LIT token buybacks from treasury. Buybacks can be tracked at https://app.lighter.xyz/explorer/accounts/0',
   },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ZK_LIGHTER]: {
-      fetch,
-      start: '2025-10-22',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ZK_LIGHTER],
+  start: '2025-10-22',
   methodology,
   breakdownMethodology,
 }
