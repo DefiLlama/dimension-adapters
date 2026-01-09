@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Corex Markets Fees tracked by execution of orders.",
     Revenue: "Revenue collected from governance and vault fees.",
-    ProtocolRevenue: "Cortex gets all revenue collected from governance and vault fees.",
+    ProtocolRevenue: "Corex gets all revenue collected from governance and vault fees.",
     SupplySideRevenue: "Borrowing fees are distributed to suppliers and fees to referrals.",
   },
   breakdownMethodology: {
