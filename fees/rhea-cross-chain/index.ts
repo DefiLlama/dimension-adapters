@@ -5,13 +5,13 @@ const api_revenue = "https://api.ref.finance/get-total-revenue"
 const adapter: SimpleAdapter = {
     adapter: {
         "near": {
-          start: '2024-09-09',
+          start: '2026-01-12',
           fetch: async () => {
             const fee_result = await httpGet(api_fee);
             const revenue_result = await httpGet(api_revenue);
             return {
-                dailyFees: Number(fee_result?.data?.total_fee || 0) + Number(fee_result?.fee_data?.burrow_fee || 0),
-                dailyRevenue: Number(revenue_result?.data.total_revenue || 0) + Number(revenue_result?.revenue_data?.burrow_revenue || 0),
+                dailyFees: fee_result?.fee_data?.cross_chain_fee || '0',
+                dailyRevenue: revenue_result?.revenue_data?.cross_chain_revenue || '0',
             }
           }
         }
