@@ -2,7 +2,7 @@ import { Adapter, Dependencies, FetchOptions, FetchResult } from "../adapters/ty
 import { CHAIN } from "../helpers/chains";
 import { queryDune } from "../helpers/dune";
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
   const preFetchedResults = options.preFetchedResults;
   const dailyRevenueData = preFetchedResults.dailyRevenue || [];
   const dailyVolumeData = preFetchedResults.dailyVolume || [];
