@@ -199,6 +199,7 @@ const adapter: Adapter = {
   fetch,
   start: "2025-08-11",
   chains: CHAINS,
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "fees from GMCounter logs: if referral is set, fee x (1 - referralFees/BPS), otherwise full fee.",
     Revenue: "fees accrue to protocol treasury. If no GMCounter address provided for a chain, fallback is treasury net inflow for that chain/day.",
