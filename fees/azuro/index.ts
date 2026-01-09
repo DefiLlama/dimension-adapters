@@ -5,25 +5,51 @@ import { Chain } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
-    [CHAIN.POLYGON]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v3",
-    [CHAIN.XDAI]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3",
-    [CHAIN.ARBITRUM]: "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-arbitrum-one-v3",
-    [CHAIN.LINEA]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-linea-v3",
-    [CHAIN.CHILIZ]: "https://thegraph.bookmaker.xyz/subgraphs/name/azuro-protocol/azuro-api-chiliz-v3"
+    [CHAIN.POLYGON]: "https://thegraph.onchainfeed.org/subgraphs/name/azuro-protocol/azuro-api-polygon-v3",
+    [CHAIN.XDAI]: "https://thegraph.onchainfeed.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3",
+    [CHAIN.BASE]: "https://thegraph.onchainfeed.org/subgraphs/name/azuro-protocol/azuro-api-base-v3",
+    [CHAIN.CHILIZ]: "https://thegraph.onchainfeed.org/subgraphs/name/azuro-protocol/azuro-api-chiliz-v3",
 };
 
 const getStartTimestamp: { [chain: string]: number } = {
-    [CHAIN.POLYGON]: 1675209600,
-    [CHAIN.XDAI]: 1654646400,
-    [CHAIN.ARBITRUM]: 1686009600,
-    [CHAIN.LINEA]: 1691452800,
-    [CHAIN.CHILIZ]: 1716422400
+    [CHAIN.POLYGON]: 1675337850,
+    [CHAIN.XDAI]: 1654807885,
+    [CHAIN.BASE]: 1739303439,
+    [CHAIN.CHILIZ]: 1720525553
 };
 
-const fetchBets = async (url: string, from: number, to: number, skip: number, live = false): Promise<Bet[]> => {
+const fetchV3Bets = async (url: string, from: number, to: number, skip: number): Promise<Bet[]> => {
     const query = gql`
         {
-            ${live ? 'liveBets' : 'bets'}(
+            v3Bets(
+                where: {
+                    status: Resolved,
+                    resolvedBlockTimestamp_gte: ${from},
+                    resolvedBlockTimestamp_lte: ${to}
+                },
+                first: 1000,
+                skip: ${skip}
+            ) {
+                amount
+                odds
+                result
+            }
+        }
+    `;
+    const response = await request(url, query);
+    return response['v3Bets'] || [];
+};
+
+const fetchLegacyBets = async (
+    url: string,
+    from: number,
+    to: number,
+    skip: number,
+    entityName: 'bets' | 'liveBets'
+): Promise<Bet[]> => {
+    const query = gql`
+        {
+            ${entityName}(
                 where: {
                     status: Resolved,
                     _isFreebet: false,
@@ -40,14 +66,31 @@ const fetchBets = async (url: string, from: number, to: number, skip: number, li
         }
     `;
     const response = await request(url, query);
-    return response[live ? 'liveBets' : 'bets'];
+    return response[entityName] || [];
 };
 
-const fetchAllBets = async (url: string, from: number, to: number, live = false): Promise<Bet[]> => {
+const fetchAllV3Bets = async (url: string, from: number, to: number): Promise<Bet[]> => {
     let bets: Bet[] = [];
     let skip = 0;
     while (true) {
-        const newBets = await fetchBets(url, from, to, skip, live);
+        const newBets = await fetchV3Bets(url, from, to, skip);
+        bets = [...bets, ...newBets];
+        if (newBets.length < 1000) break;
+        skip += 1000;
+    }
+    return bets;
+};
+
+const fetchAllLegacyBets = async (
+    url: string,
+    from: number,
+    to: number,
+    entityName: 'bets' | 'liveBets'
+): Promise<Bet[]> => {
+    let bets: Bet[] = [];
+    let skip = 0;
+    while (true) {
+        const newBets = await fetchLegacyBets(url, from, to, skip, entityName);
         bets = [...bets, ...newBets];
         if (newBets.length < 1000) break;
         skip += 1000;
@@ -66,11 +109,15 @@ const calculateAmounts = (bets: Bet[]) => {
 const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
         return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
-            const [bets] = await Promise.all([
-                fetchAllBets(graphUrls[chain], startTimestamp, endTimestamp, false),
+            const [v3Bets, prematchBets, liveBets] = await Promise.all([
+                fetchAllV3Bets(graphUrls[chain], startTimestamp, endTimestamp),
+                fetchAllLegacyBets(graphUrls[chain], startTimestamp, endTimestamp, 'bets'),
+                fetchAllLegacyBets(graphUrls[chain], startTimestamp, endTimestamp, 'liveBets')
             ]);
 
-            const { totalBetAmount: dailyBetAmount, totalWonAmount: dailyWonAmount } = calculateAmounts(bets);
+            const allBets = [...v3Bets, ...prematchBets, ...liveBets];
+
+            const { totalBetAmount: dailyBetAmount, totalWonAmount: dailyWonAmount } = calculateAmounts(allBets);
             const dailyPoolProfit = dailyBetAmount - dailyWonAmount;
             return {
                 dailyFees: dailyPoolProfit.toString(),
@@ -97,13 +144,9 @@ const adapter: Adapter = {
             fetch: graphs(endpoints)(CHAIN.XDAI),
             start: getStartTimestamp[CHAIN.XDAI],
         },
-        [CHAIN.ARBITRUM]: {
-            fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-            start: getStartTimestamp[CHAIN.ARBITRUM],
-        },
-        [CHAIN.LINEA]: {
-            fetch: graphs(endpoints)(CHAIN.LINEA),
-            start: getStartTimestamp[CHAIN.LINEA],
+        [CHAIN.BASE]: {
+            fetch: graphs(endpoints)(CHAIN.BASE),
+            start: getStartTimestamp[CHAIN.BASE],
         },
         [CHAIN.CHILIZ]: {
             fetch: graphs(endpoints)(CHAIN.CHILIZ),
