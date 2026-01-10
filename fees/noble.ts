@@ -44,32 +44,29 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   // Add fees for each token
   Object.entries(feesByToken).forEach(([denom, amount]) => {
-    // Noble uses uusdc for USDC (6 decimals)
+    const amountNum = Number(amount);
+    // denoms https://api.noble.xyz/noble/globalfee/v1/gas_prices
     if (denom === 'uusdc') {
-      dailyFees.addCGToken('usd-coin', Number(amount) / 1e6);
-      dailyRevenue.addCGToken('usd-coin', Number(amount) / 1e6);
-    } else {
-      // For other tokens
-     /* 
-     {
-        fee_token: 'uusdn',
-        total_fee_amount: 324135
-      },
-      {
-        fee_token: 'ueure',
-        total_fee_amount: 216000
-      },
-      {
-        fee_token: 'ibc/EF48E6B1A1A19F47ECAEA62F5670C37C0580E86A9E88498B7E393EB6F49F33C0',
-        total_fee_amount: 180000
-      }
-      */
+      dailyFees.addCGToken('usd-coin', amountNum / 1e6);
+      dailyRevenue.addCGToken('usd-coin', amountNum / 1e6);
+    } else if (denom === 'uusdn') {
+      dailyFees.addCGToken('noble-dollar-usdn', amountNum / 1e6);
+      dailyRevenue.addCGToken('noble-dollar-usdn', amountNum / 1e6);
+    } else if (denom === 'ibc/EF48E6B1A1A19F47ECAEA62F5670C37C0580E86A9E88498B7E393EB6F49F33C0') {
+      dailyFees.addCGToken('cosmos', amountNum / 1e6);
+      dailyRevenue.addCGToken('cosmos', amountNum / 1e6);
+    } else if (denom === 'ausdy') {
+      dailyFees.addCGToken('ondo-us-dollar-yield', amountNum / 1e18);
+      dailyRevenue.addCGToken('ondo-us-dollar-yield', amountNum / 1e18);  
+    } else if (denom === 'ueure') {
+      dailyFees.addCGToken('monerium-eur-money-2', amountNum / 1e6);
+      dailyRevenue.addCGToken('monerium-eur-money-2', amountNum / 1e6);  
     }
   });
 
   return {
     dailyFees,
-    dailyRevenue
+    dailyRevenue,
   };
 };
 
