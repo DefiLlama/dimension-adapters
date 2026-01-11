@@ -1,8 +1,23 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { getSolanaReceived } from '../helpers/token';
+import { addTokensReceived, getETHReceived, getSolanaReceived } from '../helpers/token';
+
+// source: https://dune.com/queries/6136041/9815523
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const targets = [
+    '0x1E493E7CF969FD7607A8ACe7198f6C02e5eF85A4',
+    '0xc98218Df72975EE1472919d2685e5BD215Baaad4'
+  ];
+
+  const dailyFees = await addTokensReceived({ options, targets });
+  await getETHReceived({ options, targets, balances: dailyFees, notFromSenders: ['0x4200000000000000000000000000000000000006'] });
+
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+}
+
+  
+const fetchSol: any = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
     'FUzZ2SPwLPAKaHubxQzRsk9K8dXb4YBMR6hTrYEMFFZc',
     'HG73jy6opRQwgTaynUeT6MxX6h3mshNWLPGHme4HdiYy'
@@ -14,18 +29,27 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     targets,
   });
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyHoldersRevenue: 0 }; 
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }; 
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.SOLANA],
-  start: '2025-07-01',
   methodology: {
     Fees: 'User pays 0.5%-1% fee on each trade',
     UserFees: 'User pays 0.5%-1% fee on each trade',
-    HoldersRevenue: 'No token holder revenue',
+    Revenue: 'All trading fees are revenue.',
+    ProtocolRevenue: 'All trading fees are revenue collected by o1 exchange.',
+  },
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch: fetchSol,
+      start: '2025-07-01',
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch,
+      start: '2025-07-01',
+    },
   },
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],

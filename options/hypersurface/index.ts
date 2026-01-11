@@ -20,10 +20,25 @@ const fetch = async (options: FetchOptions) => {
   let dailyPremiumVolume = 0;
   let dailyFees = 0;
 
-  for (const log of logs) {
-    dailyPremiumVolume += Number(log.totalPremium) / 1e6;
-    dailyNotionalVolume += Number(log.totalNotional) / 1e6;
-    dailyFees += Number(log.totalFee) / 1e6;
+  const totalNotionalMap = new Map();
+
+  for (const { totalPremium, totalNotional, totalFee, legs, underlyingPrice } of logs) {
+    dailyPremiumVolume += Number(totalPremium) / 1e6;
+    const { oToken } = legs[0];
+    const accumulatedNotionalIncludingDecimals = totalNotionalMap.get(oToken) || 0;
+    totalNotionalMap.set(oToken, accumulatedNotionalIncludingDecimals + (Number(totalNotional) * Number(underlyingPrice)))
+    dailyFees += Number(totalFee) / 1e6;
+  }
+
+  const oTokenDecimals = await options.api.multiCall({
+    abi: 'uint8:decimals',
+    calls: [...totalNotionalMap.keys()]
+  });
+
+  let index = 0;
+  for (const [_oToken, accumulatedNotionalIncludingDecimals] of totalNotionalMap.entries()) {
+    dailyNotionalVolume += (accumulatedNotionalIncludingDecimals / (10 ** (oTokenDecimals[index] * 2)));
+    index++;
   }
 
   return {
