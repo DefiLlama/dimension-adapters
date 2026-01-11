@@ -129,6 +129,11 @@ export const chainConfigMap: any = {
   [CHAIN.SWAN]: { CGToken: 'ethereum', explorer: 'https://mainnet-explorer.swanchain.io/' },
   [CHAIN.BITCICHAIN]: { CGToken: 'bitcicoin', explorer: 'https://v3.bitciexplorer.com/' },
   [CHAIN.PERENNIAL]: { CGToken: 'ethereum', explorer: 'https://explorer.perennial.foundation/' },
+  [CHAIN.LOOP]: { CGToken: 'loopnetwork', explorer: 'https://explorer.mainnetloop.com/' },
+  [CHAIN.STRATIS]: { CGToken: 'stratis', explorer: 'https://explorer.xertra.com/' },
+  [CHAIN.OMAX]: { CGToken: 'omax-token', explorer: 'https://omaxscan.com/' },
+  [CHAIN.Q_PROTOCOL]: { CGToken: 'q-protocol', explorer: 'https://explorer.q.org/' },
+  [CHAIN.VINUCHAIN]: { CGToken: 'vinuchain', explorer: 'https://vinuexplorer.org/' },
 }
 
 function getTimeString(timestamp: number) {
