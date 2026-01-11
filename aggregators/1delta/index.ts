@@ -37,7 +37,7 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
   [CHAIN.ARBITRUM]: { chainId: 42161, start: '2025-03-01' },
   [CHAIN.BLAST]: { chainId: 81457, start: '2025-03-01' },
   [CHAIN.METIS]: { chainId: 1088, start: '2025-03-01' },
-  [CHAIN.XDAI]: { chainId: 100, start: '2025-03-01' },
+  // [CHAIN.XDAI]: { chainId: 100, start: '2025-03-01' }, // invalid spike
   [CHAIN.MODE]: { chainId: 34443, start: '2025-03-01' },
   [CHAIN.HEMI]: { chainId: 43111, start: '2025-03-01' },
   [CHAIN.SCROLL]: { chainId: 534352, start: '2025-03-01' },
