@@ -2,20 +2,29 @@ import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, nullAddress } from "./token";
 import { METRIC } from "./metrics";
 
-const METRICS = {
+export const METRICS = {
   GasCompensation: 'Gas Compensation',
   RedemptionFee: 'Redemption Fees',
   BorrowFees: 'Borrow Fees',
+  BorrowInterestToStabilityPools: 'Borrow Interest To Stability Pools',
+  RedemptionFeeToBorrowers: 'Redemtion Fee To Borrowers',
   LiquidationProfit: 'Liquidation Profit',
+  ProtocolIncentivizedLiquidity: 'Protocol Incentivized Liquidity',
 }
 
 export const getLiquityV2LogAdapter: any = ({
   collateralRegistry,
   stableTokenAbi = 'address:boldToken', // default to stableCoin
+  stabilityPoolRatio,
+  revenueRatio,
 }: LiquityV2Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, api } = fetchOptions
 
+    const dailyFees = createBalances()
+    const dailyRevenue = createBalances()
+    const dailySupplySideRevenue = createBalances()
+    
     const troves = await api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: collateralRegistry })
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
     const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
@@ -30,11 +39,17 @@ export const getLiquityV2LogAdapter: any = ({
     const stabilityPools = await api.multiCall({ abi: 'address:stabilityPool', calls: activePools })
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 
-    const borrowInterest = createBalances()
-    await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], balances: borrowInterest, fromAdddesses: [nullAddress] })
-
-    const dailyFees = createBalances()
-    dailyFees.addBalances(borrowInterest, METRIC.BORROW_INTEREST)
+    const borrowInterest = await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], fromAdddesses: [nullAddress] })
+    
+    dailyFees.add(borrowInterest, METRIC.BORROW_INTEREST)
+    
+    // share of borrow interest to stability pools
+    dailySupplySideRevenue.add(borrowInterest.clone(stabilityPoolRatio), METRICS.BorrowInterestToStabilityPools)
+    
+    // share of borrow interest to Protocol Incentivized Liquidity
+    if (revenueRatio > 0) {
+      dailyRevenue.add(borrowInterest.clone(revenueRatio), METRICS.ProtocolIncentivizedLiquidity)
+    }
 
     const redemptionLogs = await getLogs({
       targets: troves,
@@ -49,7 +64,12 @@ export const getLiquityV2LogAdapter: any = ({
 
     redemptionLogs.forEach((logs, i) => {
       const collateralToken = tokens[i]
-      logs.forEach((log: any) => dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee))
+      logs.forEach((log: any) => {
+        dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee)
+        
+        // v2 redemption fees are distributed to borrowers
+        dailySupplySideRevenue.add(collateralToken, log._ETHFee, METRICS.RedemptionFeeToBorrowers)
+      })
     })
 
     liquidationLogs.forEach((logs, i) => {
@@ -57,11 +77,13 @@ export const getLiquityV2LogAdapter: any = ({
       logs.forEach((log: any) => {
         dailyFees.add(collateralToken, log._collGasCompensation, METRICS.GasCompensation)
         dailyFees.add(stableCoin, log._boldGasCompensation, METRICS.GasCompensation)
+        dailySupplySideRevenue.add(collateralToken, log._collGasCompensation, METRICS.GasCompensation)
+        dailySupplySideRevenue.add(stableCoin, log._boldGasCompensation, METRICS.GasCompensation)
       })
     })
 
 
-    return { dailyFees, dailyRevenue: dailyFees }
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue  }
   }
   return fetch
 }
@@ -69,23 +91,32 @@ export const getLiquityV2LogAdapter: any = ({
 type LiquityV2Config = {
   collateralRegistry: string,
   stableTokenAbi?: string,
+  
+  // borrow interests are share to stability pool and Protocol Incentivized Liquidity
+  stabilityPoolRatio: number;
+  revenueRatio: number;
 }
 
 
 export const defaultV2methodology = {
   Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-  Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+  Revenue: 'Share of borrow interest to protocol if any',
+  SupplySideRevenue: 'Share of interest to stability pools takers, redemption fees paid by borrowers and liquidation profit',
 }
 
 export const defaultV2BreakdownMethodology = {
   Fees: {
-    'Borrow Interest': 'borrow interests paid by borrowers.',
-    'Redemption Fees': 'Redemption fees paid by borrowers.',
-    'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+    [METRIC.BORROW_INTEREST]: 'Borrow interests paid by borrowers.',
+    [METRICS.RedemptionFee]: 'Redemption fees paid by borrowers.',
+    [METRICS.GasCompensation]: 'Gas compensations paid to liquidator when trigger liquidations.',
   },
   Revenue: {
-    'Borrow Interest': 'borrow interests paid by borrowers.',
-    'Redemption Fees': 'Redemption fees paid by borrowers.',
+    [METRIC.BORROW_INTEREST]: 'Share of borrow interests paid by borrowers.',
+  },
+  SupplySideRevenue: {
+    [METRICS.BorrowInterestToStabilityPools]: 'Share of borrow interest to stability pools stakers.',
+    [METRICS.RedemptionFeeToBorrowers]: 'All redemtion fees are distributed to borrowers.',
+    [METRICS.GasCompensation]: 'Gas compensations paid to liquidator when trigger liquidations.',
   },
 }
 
