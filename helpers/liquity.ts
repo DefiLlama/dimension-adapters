@@ -105,6 +105,7 @@ const LiquidationEvent = 'event Liquidation(uint _liquidatedDebt, uint _liquidat
 const ETHGainWithdrawn = 'event ETHGainWithdrawn (address indexed _depositor, uint256 _ETH, uint256 _LUSDLoss)'
 
 type LiquityV1Config = {
+  start?: string;
   troveManager: string
   stableCoin: string
   holderRevenuePercentage?: number
@@ -225,6 +226,7 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV1LogAdapter(chainConfig),
+      start: chainConfig.start,
     }
   })
   return {

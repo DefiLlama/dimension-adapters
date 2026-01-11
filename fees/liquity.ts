@@ -5,6 +5,7 @@ import { liquityV1Exports } from "../helpers/liquity";
 export default {
   ...liquityV1Exports({
     [CHAIN.ETHEREUM]: { 
+      start: '2021-04-06',
       troveManager: '0xA39739EF8b0231DbFA0DcdA07d7e29faAbCf4bb2', 
       stableCoin: ADDRESSES.ethereum.LUSD,
       holderRevenuePercentage: 100,
