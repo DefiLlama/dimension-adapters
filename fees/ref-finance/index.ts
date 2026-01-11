@@ -10,8 +10,8 @@ const adapter: SimpleAdapter = {
             const fee_result = await httpGet(api_fee);
             const revenue_result = await httpGet(api_revenue);
             return {
-                dailyFees: Number(fee_result?.data?.total_fee || 0),
-                dailyRevenue: Number(revenue_result?.data.total_revenue || 0),
+                dailyFees: fee_result?.data?.total_fee || '0',
+                dailyRevenue: revenue_result?.data.total_revenue || '0',
             }
           }
         }
