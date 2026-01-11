@@ -332,5 +332,5 @@ export enum CHAIN {
   LOOP = "loop",
   STRATIS = "stratis",
   OMAX = "omax",
-  Q_PROTOCOL = "q_protocol",
+  Q_PROTOCOL = "q",
 }
