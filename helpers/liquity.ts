@@ -232,6 +232,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     
     // count liquidation gain to supplyside
     ETHGainWithdrawnLogs.forEach((logs) => {
+      // add col gain to balance
       if (config.collateralCoin) {
         dailyFees.add(config.collateralCoin, BigInt(logs['_ETH']), METRICS.LiquidationProfit)
         dailySupplySideRevenue.add(config.collateralCoin, BigInt(logs['_ETH']), METRICS.LiquidationProfit)
@@ -239,6 +240,10 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
         dailyFees.addGasToken(BigInt(logs['_ETH']), METRICS.LiquidationProfit)
         dailySupplySideRevenue.addGasToken(BigInt(logs['_ETH']), METRICS.LiquidationProfit)
       }
+      
+      // add stablecoin loss to balance
+      dailyFees.add(config.stableCoin, -Number(logs['_LUSDLoss']), METRICS.LiquidationProfit)
+      dailySupplySideRevenue.add(config.stableCoin, -Number(logs['_LUSDLoss']), METRICS.LiquidationProfit)
     })
 
     return {
