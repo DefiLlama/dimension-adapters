@@ -4,25 +4,25 @@ import { queryDuneSql } from "../helpers/dune"
 
 const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const query = `
-    WITH trades AS (
+WITH trades AS (
       SELECT
         block_time,
         DATE_TRUNC('day', block_time) AS block_date,
-        user,
-        tx_hash,
+        CAST(user AS VARCHAR) AS user,
+        CAST(tx_hash AS VARCHAR) AS tx_hash,
         COALESCE(fee, 0) AS fee,
         sizeDelta
-      FROM query_4086080
+      FROM query_6511128
       WHERE blockchain = 'Arbitrum'
     ), vaultInteractions AS (
       SELECT
         block_time,
         DATE_TRUNC('day', block_time) AS block_date,
-        user,
-        tx_hash,
+        CAST(user AS VARCHAR) AS user,
+        CAST(tx_hash AS VARCHAR) AS tx_hash,
         0 AS fee,
         0 AS sizeDelta
-      FROM query_4086117
+      FROM query_6512731
       WHERE blockchain = 'Arbitrum'
     ), integrator_volume AS (
       SELECT
