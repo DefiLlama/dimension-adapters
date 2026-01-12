@@ -47,7 +47,7 @@ export const getLiquityV2LogAdapter: any = ({
     dailySupplySideRevenue.add(borrowInterest.clone(stabilityPoolRatio), METRICS.BorrowInterestToStabilityPools)
     
     // share of borrow interest to Protocol Incentivized Liquidity
-    if (revenueRatio > 0) {
+    if (revenueRatio && revenueRatio > 0) {
       dailyRevenue.add(borrowInterest.clone(revenueRatio), METRICS.ProtocolIncentivizedLiquidity)
     }
 
@@ -93,8 +93,8 @@ type LiquityV2Config = {
   stableTokenAbi?: string,
   
   // borrow interests are share to stability pool and Protocol Incentivized Liquidity
-  stabilityPoolRatio: number;
-  revenueRatio: number;
+  stabilityPoolRatio?: number;
+  revenueRatio?: number;
 }
 
 
