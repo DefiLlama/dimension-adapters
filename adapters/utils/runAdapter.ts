@@ -4,7 +4,7 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchResultV2, FetchV2, SimpleAdapter, } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -114,9 +114,7 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
 function getRunKey(options: AdapterRunOptions) {
   const randomUID = options.module._randomUID ?? genUID(10)
-  const isHourly = isHourlyAdapter(options.module)
-  const windowSeconds = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
-  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}-${windowSeconds}`
+  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
@@ -314,7 +312,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize: number, moduleUID?: string }): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize = ONE_DAY_IN_SECONDS, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize?: number, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
