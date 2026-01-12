@@ -2,10 +2,14 @@ import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived, nullAddress } from "./token";
 import { METRIC } from "./metrics";
 
-const METRICS = {
+export const METRICS = {
   GasCompensation: 'Gas Compensation',
   RedemptionFee: 'Redemption Fees',
   BorrowFees: 'Borrow Fees',
+  BorrowInterestToStabilityPools: 'Borrow Interest To Stability Pools',
+  RedemptionFeeToBorrowers: 'Redemtion Fee To Borrowers',
+  LiquidationProfit: 'Liquidation Profit',
+  ProtocolIncentivizedLiquidity: 'Protocol Incentivized Liquidity',
 }
 
 export const getLiquityV2LogAdapter: any = ({
@@ -17,6 +21,10 @@ export const getLiquityV2LogAdapter: any = ({
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, api } = fetchOptions
 
+    const dailyFees = createBalances()
+    const dailyRevenue = createBalances()
+    const dailySupplySideRevenue = createBalances()
+    
     const troves = await api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: collateralRegistry })
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
     const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
@@ -31,11 +39,17 @@ export const getLiquityV2LogAdapter: any = ({
     const stabilityPools = await api.multiCall({ abi: 'address:stabilityPool', calls: activePools })
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 
-    const borrowInterest = createBalances()
-    await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], balances: borrowInterest, fromAdddesses: [nullAddress] })
-
-    const dailyFees = createBalances()
-    dailyFees.addBalances(borrowInterest, METRIC.BORROW_INTEREST)
+    const borrowInterest = await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], fromAdddesses: [nullAddress] })
+    
+    dailyFees.add(borrowInterest, METRIC.BORROW_INTEREST)
+    
+    // share of borrow interest to stability pools
+    dailySupplySideRevenue.add(borrowInterest.clone(stabilityPoolRatio), METRICS.BorrowInterestToStabilityPools)
+    
+    // share of borrow interest to Protocol Incentivized Liquidity
+    if (revenueRatio > 0) {
+      dailyRevenue.add(borrowInterest.clone(revenueRatio), METRICS.ProtocolIncentivizedLiquidity)
+    }
 
     const redemptionLogs = await getLogs({
       targets: troves,
@@ -50,7 +64,12 @@ export const getLiquityV2LogAdapter: any = ({
 
     redemptionLogs.forEach((logs, i) => {
       const collateralToken = tokens[i]
-      logs.forEach((log: any) => dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee))
+      logs.forEach((log: any) => {
+        dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee)
+        
+        // v2 redemption fees are distributed to borrowers
+        dailySupplySideRevenue.add(collateralToken, log._ETHFee, METRICS.RedemptionFeeToBorrowers)
+      })
     })
 
     liquidationLogs.forEach((logs, i) => {
@@ -58,37 +77,44 @@ export const getLiquityV2LogAdapter: any = ({
       logs.forEach((log: any) => {
         dailyFees.add(collateralToken, log._collGasCompensation, METRICS.GasCompensation)
         dailyFees.add(stableCoin, log._boldGasCompensation, METRICS.GasCompensation)
+        dailySupplySideRevenue.add(collateralToken, log._collGasCompensation, METRICS.GasCompensation)
+        dailySupplySideRevenue.add(stableCoin, log._boldGasCompensation, METRICS.GasCompensation)
       })
     })
 
 
-    return { dailyFees, dailyRevenue: dailyFees }
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue  }
   }
   return fetch
 }
 
 type LiquityV2Config = {
   collateralRegistry: string,
-  stableTokenAbi?: string,
-  stabilityPoolRatio?: number,
-  revenueRatio?: number,
+  stableTokenAbi?: string,  
+  stabilityPoolRatio: number;
+  revenueRatio: number;
 }
 
 
 export const defaultV2methodology = {
   Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-  Revenue: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+  Revenue: 'Share of borrow interest to protocol if any',
+  SupplySideRevenue: 'Share of interest to stability pools takers, redemption fees paid by borrowers and liquidation profit',
 }
 
 export const defaultV2BreakdownMethodology = {
   Fees: {
-    'Borrow Interest': 'borrow interests paid by borrowers.',
-    'Redemption Fees': 'Redemption fees paid by borrowers.',
-    'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+    [METRIC.BORROW_INTEREST]: 'Borrow interests paid by borrowers.',
+    [METRICS.RedemptionFee]: 'Redemption fees paid by borrowers.',
+    [METRICS.GasCompensation]: 'Gas compensations paid to liquidator when trigger liquidations.',
   },
   Revenue: {
-    'Borrow Interest': 'borrow interests paid by borrowers.',
-    'Redemption Fees': 'Redemption fees paid by borrowers.',
+    [METRIC.BORROW_INTEREST]: 'Share of borrow interests paid by borrowers.',
+  },
+  SupplySideRevenue: {
+    [METRICS.BorrowInterestToStabilityPools]: 'Share of borrow interest to stability pools stakers.',
+    [METRICS.RedemptionFeeToBorrowers]: 'All redemtion fees are distributed to borrowers.',
+    [METRICS.GasCompensation]: 'Gas compensations paid to liquidator when trigger liquidations.',
   },
 }
 
@@ -104,9 +130,11 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
 
 const RedemptionEvent = 'event Redemption(uint _attemptedLUSDAmount, uint _actualLUSDAmount, uint _ETHSent, uint _ETHFee)'
 const BorrowingEvent = 'event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)'
-const liquidationEvent = 'event Liquidation(uint _liquidatedDebt, uint _liquidatedColl, uint _collGasCompensation, uint _LUSDGasCompensation)'
+const LiquidationEvent = 'event Liquidation(uint _liquidatedDebt, uint _liquidatedColl, uint _collGasCompensation, uint _LUSDGasCompensation)'
+const ETHGainWithdrawn = 'event ETHGainWithdrawn (address indexed _depositor, uint256 _ETH, uint256 _LUSDLoss)'
 
 type LiquityV1Config = {
+  start?: string;
   troveManager: string
   stableCoin: string
   holderRevenuePercentage?: number
@@ -131,13 +159,14 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
 
     const protocolRevenueratio = config.protocolRevenuePercentage ? config.protocolRevenuePercentage / 100 : 0
     const holdersRevenueRatio = config.holderRevenuePercentage ? config.holderRevenuePercentage / 100 : 0
-    const revenueratio = protocolRevenueratio + holdersRevenueRatio
+    const revenueRatio = protocolRevenueratio + holdersRevenueRatio
 
     const redemptionEvent = config.redemptionEvent || RedemptionEvent
     const borrowingEvent = config.borrowingEvent || BorrowingEvent
 
     // Get brrower operator contract
     const borrowerOperator = await api.call({ abi: 'address:borrowerOperationsAddress', target: config.troveManager })
+    const stabilityPool = await api.call({ abi: 'address:stabilityPool', target: config.troveManager })
 
     // redemptions fees
     const redemptionLogs = await getLogs({
@@ -148,7 +177,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     // liquidations logs 
     const liquidationLogs = await getLogs({
       target: config.troveManager,
-      eventAbi: liquidationEvent,
+      eventAbi: LiquidationEvent,
     })
 
     // event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee);
@@ -156,17 +185,22 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       target: borrowerOperator,
       eventAbi: borrowingEvent,
     })
+    
+    const ETHGainWithdrawnLogs = await getLogs({
+      target: stabilityPool,
+      eventAbi: ETHGainWithdrawn,
+    })
 
-    // get _ETHFee from event - redemption fees are revenue
+    // get _ETHFee from event - redemption fees are holders revenue
     redemptionLogs.forEach((logs) => {
       if (config.collateralCoin) {
         dailyFees.addToken(config.collateralCoin, BigInt(logs['_ETHFee']), METRICS.RedemptionFee)
-        dailyRevenue.addToken(config.collateralCoin, BigInt(logs['_ETHFee']) * BigInt(revenueratio), METRICS.RedemptionFee)
+        dailyRevenue.addToken(config.collateralCoin, BigInt(logs['_ETHFee']) * BigInt(revenueRatio), METRICS.RedemptionFee)
         dailyProtocolRevenue.addToken(config.collateralCoin, BigInt(logs['_ETHFee'] * BigInt(protocolRevenueratio)), METRICS.RedemptionFee)
         dailyHoldersRevenue.addToken(config.collateralCoin, BigInt(logs['_ETHFee'] * BigInt(holdersRevenueRatio)), METRICS.RedemptionFee)
       } else {
         dailyFees.addGasToken(BigInt(logs['_ETHFee']), METRICS.RedemptionFee)
-        dailyRevenue.addGasToken(BigInt(logs['_ETHFee']) * BigInt(revenueratio), METRICS.RedemptionFee)
+        dailyRevenue.addGasToken(BigInt(logs['_ETHFee']) * BigInt(revenueRatio), METRICS.RedemptionFee)
         dailyProtocolRevenue.addGasToken(BigInt(logs['_ETHFee'] * BigInt(protocolRevenueratio)), METRICS.RedemptionFee)
         dailyHoldersRevenue.addGasToken(BigInt(logs['_ETHFee'] * BigInt(holdersRevenueRatio)), METRICS.RedemptionFee)
       }
@@ -175,7 +209,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     // get _LUSDFee from event - borrow fees are revenue
     borrowingLogs.forEach((logs) => {
       dailyFees.add(config.stableCoin, BigInt(logs['_LUSDFee']), METRICS.BorrowFees)
-      dailyRevenue.add(config.stableCoin, BigInt(logs['_LUSDFee']) * (BigInt(protocolRevenueratio)) + BigInt(holdersRevenueRatio), METRICS.BorrowFees)
+      dailyRevenue.add(config.stableCoin, BigInt(logs['_LUSDFee']) * BigInt(revenueRatio), METRICS.BorrowFees)
       dailyProtocolRevenue.add(config.stableCoin, BigInt(logs['_LUSDFee']) * BigInt(protocolRevenueratio), METRICS.BorrowFees)
       dailyHoldersRevenue.add(config.stableCoin, BigInt(logs['_LUSDFee']) * BigInt(holdersRevenueRatio), METRICS.BorrowFees)
     })
@@ -193,13 +227,29 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
         dailySupplySideRevenue.addGasToken(BigInt(logs['_collGasCompensation']), METRICS.GasCompensation)
       }
     })
+    
+    // count liquidation gain to supplyside
+    ETHGainWithdrawnLogs.forEach((logs) => {
+      // add col gain to balance
+      if (config.collateralCoin) {
+        dailyFees.add(config.collateralCoin, BigInt(logs['_ETH']), METRICS.LiquidationProfit)
+        dailySupplySideRevenue.add(config.collateralCoin, BigInt(logs['_ETH']), METRICS.LiquidationProfit)
+      } else {
+        dailyFees.addGasToken(BigInt(logs['_ETH']), METRICS.LiquidationProfit)
+        dailySupplySideRevenue.addGasToken(BigInt(logs['_ETH']), METRICS.LiquidationProfit)
+      }
+      
+      // add stablecoin loss to balance
+      dailyFees.add(config.stableCoin, -Number(logs['_LUSDLoss']), METRICS.LiquidationProfit)
+      dailySupplySideRevenue.add(config.stableCoin, -Number(logs['_LUSDLoss']), METRICS.LiquidationProfit)
+    })
 
     return {
       dailyFees,
-      dailyRevenue: revenueratio > 0 ? dailyRevenue : undefined,
-      dailyProtocolRevenue: config.protocolRevenuePercentage ? dailyProtocolRevenue : undefined,
+      dailyRevenue,
       dailySupplySideRevenue,
-      dailyHoldersRevenue: config.holderRevenuePercentage ? dailyHoldersRevenue : undefined,
+      dailyProtocolRevenue,
+      dailyHoldersRevenue,
     }
   }
   return fetch
@@ -210,6 +260,7 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV1LogAdapter(chainConfig),
+      start: chainConfig.start,
     }
   })
   return {
@@ -219,7 +270,7 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
       Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
       Revenue: 'Total fees distributed to protocol and token holders',
       HoldersRevenue: 'Total fees distributed to holders',
-      SupplySideRevenue: 'Total gas compensation to borrowers',
+      SupplySideRevenue: 'Total gas compensation to liquidators and liquidation profit to stability pool stakers.',
       ProtocolRevenue: 'Total fees distributed to protocol',
     },
   } as SimpleAdapter

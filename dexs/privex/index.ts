@@ -22,12 +22,12 @@ const chainConfig = {
     accountSource: '0x921dd892d67aed3d492f9ad77b30b60160b53fe1',
     endpoint: 'https://api.goldsky.com/api/public/project_cmae5a5bs72to01xmbkb04v80/subgraphs/privex-analytics/1.0.1/gn',
   },
-  // [CHAIN.COTI]: {
-  //   chainId: 2632500,
-  //   start: '2025-01-01', // January 1, 2025
-  //   accountSource: '0xbf318724218ced9a3ff7cfc642c71a0ca1952b0f',
-  //   endpoint: 'https://graph-symmio.prvx.io/subgraphs/name/coti-perps-analytics',
-  // },
+  [CHAIN.COTI]: {
+    chainId: 2632500,
+    start: '2025-01-01', // January 1, 2025
+    accountSource: '0xbf318724218ced9a3ff7cfc642c71a0ca1952b0f',
+    endpoint: 'https://graph-symmio.prvx.io/subgraphs/name/coti-perps-analytics',
+  },
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -78,6 +78,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   methodology,
+  doublecounted: true,
   adapter: chainConfig
 };
 

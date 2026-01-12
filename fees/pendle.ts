@@ -310,10 +310,11 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   let hasMore = true;
 
   while (hasMore) {
-    const { results: newResults } = await getConfig(
+    let { results: newResults } = await getConfig(
       `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
       `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
     );
+    newResults = newResults || []
     results = results.concat(newResults);
     skip += 100;
     hasMore = newResults.length === 100;
