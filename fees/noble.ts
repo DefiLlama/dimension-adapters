@@ -5,7 +5,6 @@ import { queryDuneSql } from "../helpers/dune";
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
     SELECT
-      date_trunc('day', b.block_timestamp) AS day,
       SUM(
         CAST(REGEXP_EXTRACT(tx.fee, '^([0-9]+)', 1) AS DOUBLE)
       ) AS total_fee_amount,
@@ -17,8 +16,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       AND tx.fee IS NOT NULL
       AND tx.fee != ''
       AND REGEXP_EXTRACT(tx.fee, '^[0-9]+(.+)$', 1) IS NOT NULL
-    GROUP BY 1, REGEXP_EXTRACT(tx.fee, '^[0-9]+(.+)$', 1)
-    ORDER BY day DESC
+    GROUP BY REGEXP_EXTRACT(tx.fee, '^[0-9]+(.+)$', 1)
   `;
 
   const results = await queryDuneSql(options, query);
@@ -27,19 +25,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   const feesByToken: Record<string, number> = {};
-  
+
   results.forEach((row: any) => {
     const feeToken = row.fee_token;
     const feeAmount = Number(row.total_fee_amount) || 0;
-    
+
     if (!feeToken) return;
-    
+
     if (!feesByToken[feeToken]) {
       feesByToken[feeToken] = 0;
     }
-    
+
     feesByToken[feeToken] += feeAmount;
-    
+
   });
 
   // Add fees for each token
@@ -57,10 +55,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       dailyRevenue.addCGToken('cosmos', amountNum / 1e6);
     } else if (denom === 'ausdy') {
       dailyFees.addCGToken('ondo-us-dollar-yield', amountNum / 1e18);
-      dailyRevenue.addCGToken('ondo-us-dollar-yield', amountNum / 1e18);  
+      dailyRevenue.addCGToken('ondo-us-dollar-yield', amountNum / 1e18);
     } else if (denom === 'ueure') {
       dailyFees.addCGToken('monerium-eur-money-2', amountNum / 1e6);
-      dailyRevenue.addCGToken('monerium-eur-money-2', amountNum / 1e6);  
+      dailyRevenue.addCGToken('monerium-eur-money-2', amountNum / 1e6);
     }
   });
 
