@@ -25,45 +25,29 @@ const fetch = async (options: FetchOptions) => {
   const apiList = apis[options.chain];
 
   let dailyFees = 0;
-  let totalFees = 0;
   let dailyRevenue = 0;
-  let totalRevenue = 0;
 
   for (const api of apiList) {
     const data = await httpGet(`${api}/fees?chain_id=${chainId}`);
     dailyFees += data.dailyFees || 0;
-    totalFees += data.totalFees || 0;
     dailyRevenue += data.dailyRevenue || 0;
-    totalRevenue += data.totalRevenue || 0;
   }
 
   return {
-    dailyFees: dailyFees,
-    totalFees: totalFees,
-    dailyRevenue: dailyFees,
-    totalRevenue: totalFees,
+    dailyFees,
+    dailyRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  runAtCurrTime: true,
   adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: "2024-01-01",
-    },
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2024-01-01",
-    },
-    [CHAIN.TON]: {
-      fetch,
-      start: "2024-01-01",
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2024-01-01",
-    },
+    [CHAIN.BSC]: { start: "2024-01-01" },
+    [CHAIN.SOLANA]: { start: "2024-01-01" },
+    [CHAIN.TON]: { start: "2024-01-01" },
+    [CHAIN.BASE]: { start: "2024-01-01" },
   },
 };
 

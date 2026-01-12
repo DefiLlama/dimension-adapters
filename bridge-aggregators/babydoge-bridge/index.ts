@@ -24,40 +24,27 @@ const fetch = async (options: FetchOptions) => {
   const chainId = chainIds[options.chain];
   const apiList = apis[options.chain];
 
-  let dailyVolume = 0;
-  let totalVolume = 0;
+  let dailyBridgeVolume = 0;
 
   for (const api of apiList) {
     const data = await httpGet(`${api}/volume?chain_id=${chainId}`);
-    dailyVolume += data.dailyVolume || 0;
-    totalVolume += data.totalVolume || 0;
+    dailyBridgeVolume += data.dailyVolume || 0;
   }
 
   return {
-    dailyBridgeVolume: dailyVolume,
-    totalBridgeVolume: totalVolume,
+    dailyBridgeVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  runAtCurrTime: true,
   adapter: {
-    [CHAIN.BSC]: {
-      fetch,
-      start: "2024-01-01",
-    },
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2024-01-01",
-    },
-    [CHAIN.TON]: {
-      fetch,
-      start: "2024-01-01",
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2024-01-01",
-    },
+    [CHAIN.BSC]: { start: "2024-01-01" },
+    [CHAIN.SOLANA]: { start: "2024-01-01" },
+    [CHAIN.TON]: { start: "2024-01-01" },
+    [CHAIN.BASE]: { start: "2024-01-01" },
   },
 };
 
