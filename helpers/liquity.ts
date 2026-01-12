@@ -95,6 +95,7 @@ type LiquityV2Config = {
   // borrow interests are share to stability pool and Protocol Incentivized Liquidity
   stabilityPoolRatio?: number;
   revenueRatio?: number;
+  start?: string | number;
 }
 
 
@@ -125,6 +126,7 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV2LogAdapter(chainConfig),
+      start: chainConfig.start,
     }
   })
   return { adapter: exportObject, version: 2, methodology: defaultV2methodology, breakdownMethodology: defaultV2BreakdownMethodology } as SimpleAdapter
