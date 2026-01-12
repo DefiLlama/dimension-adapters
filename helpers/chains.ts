@@ -325,4 +325,12 @@ export enum CHAIN {
   MATCHAIN = "matchain",
   SAAKURU = "saakuru",
   GENESYS = "genesys",
+  ENDURANCE = "endurance",
+  SWAN = "swan",
+  BITCICHAIN = "bitcichain",
+  OPENLEDGER = "open",
+  LOOP = "loop",
+  STRATIS = "stratis",
+  OMAX = "omax",
+  Q_PROTOCOL = "q",
 }

@@ -13,7 +13,8 @@ const dailyVolumeWorldchainEndpoint = (from: string, to: string) =>
 
 const dailyVolumeBSCEndpoint = (from: string, to: string) =>
 	`https://bnbfutures.holdstation.com/api/trading-history/volume-by-day?fromDate=${from}&toDate=${to}`;
-
+const historicalVolumeBSCEndpoint = (from: string, to: string) =>
+	`https://bnbfutures.holdstation.com/api/fees/summary/internal?fromDate=${from}&toDate=${to}`;
 interface IFees {
 	totalFee: string;
 	govFee: string;
@@ -39,6 +40,7 @@ const endpointMap: {
 		daily: dailyVolumeWorldchainEndpoint,
 	},
 	[CHAIN.BSC]: {
+		historical: historicalVolumeBSCEndpoint,
 		daily: dailyVolumeBSCEndpoint,
 	},
 };

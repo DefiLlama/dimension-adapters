@@ -63,7 +63,12 @@ const fetch = async (_a: number, _t: any, options: FetchOptions): Promise<FetchR
 
   let dailyVolume = 0;
   for (const item of items) {
-    dailyVolume += item.dailyVolume;
+    // reported wrong - spike volume on this day on ostium
+    if (options.chain === CHAIN.ARBITRUM && options.startOfDay === 1768003200 && item.protocol === 'ostium') {
+      dailyVolume += 0;
+    } else {
+      dailyVolume += item.dailyVolume;
+    }
   }
 
   return { dailyVolume }
