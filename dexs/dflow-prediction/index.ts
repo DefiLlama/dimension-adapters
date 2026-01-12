@@ -73,7 +73,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: 0,
   }
 }
 
@@ -83,7 +82,6 @@ const methodology = {
   Fees: 'Platform fees collected in CASH and USDC. Fee formula: scale * p * (1 - p) * c.',
   Revenue: 'All fees are protocol revenue',
   ProtocolRevenue: 'All fees go to the protocol',
-  HoldersRevenue: 'No holder revenue distribution',
 }
 
 const adapter: SimpleAdapter = {
@@ -91,9 +89,9 @@ const adapter: SimpleAdapter = {
   fetch,
   start: '2025-11-23',
   chains: [CHAIN.SOLANA],
-  methodology,
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
+  methodology,
 }
 
 export default adapter
