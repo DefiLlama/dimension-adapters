@@ -329,7 +329,7 @@ export enum CHAIN {
   SWAN = "swan",
   BITCICHAIN = "bitcichain",
   OPENLEDGER = "open",
-  ALTHEA_L1 = "althea"
+  ALTHEA_L1 = "althea",
   LOOP = "loop",
   STRATIS = "stratis",
   OMAX = "omax",
