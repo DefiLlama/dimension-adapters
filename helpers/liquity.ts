@@ -11,6 +11,8 @@ const METRICS = {
 export const getLiquityV2LogAdapter: any = ({
   collateralRegistry,
   stableTokenAbi = 'address:boldToken', // default to stableCoin
+  stabilityPoolRatio,
+  revenueRatio,
 }: LiquityV2Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, api } = fetchOptions
@@ -68,6 +70,8 @@ export const getLiquityV2LogAdapter: any = ({
 type LiquityV2Config = {
   collateralRegistry: string,
   stableTokenAbi?: string,
+  stabilityPoolRatio?: number,
+  revenueRatio?: number,
 }
 
 
