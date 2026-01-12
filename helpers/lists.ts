@@ -2,7 +2,7 @@ import { httpGet } from "../utils/fetchURL";
 import { formatAddress } from "../utils/utils";
 import { CHAIN } from "./chains";
 
-const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
+export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
     "0x044fe33895Cb7c6e4566DA8E24420C1110933a63",
     "0x888888aE2c4A298EFd66D162fFC53b3F2a869888",
