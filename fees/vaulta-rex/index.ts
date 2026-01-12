@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.EOS],
     methodology,
     breakdownMethodology,
-    start: '2025-12-10'
+    runAtCurrTime: true,
 }
 
 export default adapter;
