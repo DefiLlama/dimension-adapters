@@ -95,9 +95,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyProtocolRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
 
-  dailyFees.addUSDValue(dailyFeesValue, METRIC.TRADING_FEES)
-  dailyRevenue.addUSDValue(dailyFeesValue, METRIC.TRADING_FEES)
-  dailyProtocolRevenue.addUSDValue(dailyFeesValue, METRIC.TRADING_FEES)
+  dailyFees.addUSDValue(dailyFeesValue, 'Premium Accounts Trading Fees')
+  dailyRevenue.addUSDValue(dailyFeesValue, 'Premium Accounts Trading Fees')
+  dailyProtocolRevenue.addUSDValue(dailyFeesValue, 'Premium Accounts Trading Fees')
 
   if (dailyBuybackUsd > 0) {
     dailyHoldersRevenue.addUSDValue(dailyBuybackUsd, METRIC.TOKEN_BUY_BACK)
@@ -120,13 +120,13 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: 'Maker and taker fees from spot and perpetual trading',
+    'Premium Accounts Trading Fees': 'Maker and taker fees from spot and perpetual trading on premium accounts only.',
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: 'All trading fees are protocol revenue',
+    'Premium Accounts Trading Fees': 'All trading fees are protocol revenue',
   },
   ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'Trading fees collected by the protocol',
+    'Premium Accounts Trading Fees': 'Trading fees collected by the protocol',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]:

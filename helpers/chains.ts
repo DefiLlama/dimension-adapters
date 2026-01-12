@@ -328,5 +328,10 @@ export enum CHAIN {
   ENDURANCE = "endurance",
   SWAN = "swan",
   BITCICHAIN = "bitcichain",
-  OPENLEDGER = "open"
+  OPENLEDGER = "open",
+  ALTHEA_L1 = "althea",
+  LOOP = "loop",
+  STRATIS = "stratis",
+  OMAX = "omax",
+  Q_PROTOCOL = "q",
 }
