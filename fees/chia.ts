@@ -5,7 +5,6 @@ import { httpGet } from "../utils/fetchURL";
 interface Transaction {
   fee: string;
   timestamp: number;
-  // Add other fields as needed
 }
 
 // Multiple API sources for Chia block data
@@ -80,7 +79,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     return { dailyFees };
   }
 
-  // Try all API sources in parallel and return the first successful result
   const apiPromises = API_SOURCES.map(apiSource =>
     fetchFromApi(apiSource, dayStart, dayEnd).then(totalFeeXCH => ({
       apiSource,
