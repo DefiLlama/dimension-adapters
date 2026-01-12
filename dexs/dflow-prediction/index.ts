@@ -90,6 +90,7 @@ const adapter: SimpleAdapter = {
   start: '2025-11-23',
   chains: [CHAIN.SOLANA],
   isExpensiveAdapter: true,
+  doublecounted: true,
   dependencies: [Dependencies.DUNE],
   methodology,
 }
