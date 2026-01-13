@@ -10,11 +10,11 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
     getDailyHoldersRevenue(options)
   ])
 
-  const supplySideRevenue = dailyFees.clone(1)
-  supplySideRevenue.subtract(dailyRevenue)
+  const dailyFeesUSD = await dailyFees.getUSDValue()
+  const dailyRevenueUSD = await dailyRevenue.getUSDValue()
   
   const dailySupplySideRevenue = options.createBalances()
-  dailySupplySideRevenue.addBalances(supplySideRevenue, FLUID_METRICS.BorrowInterestToLenders)
+  dailySupplySideRevenue.addUSDValue(dailyFeesUSD - dailyRevenueUSD, FLUID_METRICS.BorrowInterestToLenders)
   
   return {
     dailyFees,
