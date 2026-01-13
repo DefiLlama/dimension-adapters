@@ -1,20 +1,22 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, FetchResultV2 } from "../../adapters/types"
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 
 const info = {
   methodology: {
-    Fees: 'All yields are generated from all staking assets across all trading strategies.',
-    Revenue: '20% Performance and 2% management fees charged by D2 Finance.',
-    SupplySideRevenue: 'Amount of yields are distributed to depositors.',
-    ProtocolRevenue: 'Performance and management fees charged by D2 Finance.',
-  }
-}
+    Fees: "All yields are generated from all staking assets across all trading strategies.",
+    Revenue:
+      "20% performance fee, 0% management fee on the flagship strategy, and 2% management fee on other strategies.",
+    SupplySideRevenue: "Amount of yields are distributed to depositors.",
+    ProtocolRevenue:
+      "20% performance fee, 0% management fee on the flagship strategy, and 2% management fee on other strategies.",
+  },
+};
 
 const VaultConfigs: any = {
-  ethereum: ['0x07Dff4087b43c4A759f4Fc69511c26d51929dAF4'],
+  ethereum: ["0x07Dff4087b43c4A759f4Fc69511c26d51929dAF4"],
   base: [
-    '0x6c05A7d2c24B48fC3C615D294fEc2eB068548897',
-    '0x2406aacbdF8463176DeB285AdAa81768415B6c7E',
+    "0x6c05A7d2c24B48fC3C615D294fEc2eB068548897",
+    "0x2406aacbdF8463176DeB285AdAa81768415B6c7E",
   ],
   arbitrum: [
     "0x27D22Eb71f00495Eccc89Bb02c2B68E6988C6A42",
@@ -32,73 +34,75 @@ const VaultConfigs: any = {
     "0x7348925D3C63e4E61e9F5308eEec0f06EaA3bB7b",
     "0xCFBBea43Fd99126E4c0eF53e2344609D513f72b3",
     "0x195a9e0f29f96d4ab2139ee1272380a4aa352890",
-    '0x75288264FDFEA8ce68e6D852696aB1cE2f3E5004',
-    '0xaB2743a3A2e06d457368E901F5f927F271fa1374',
-    '0x91aCd32dA9beA6DA3751dc12Ee0fBe47169349C1',
-    '0xc027EC28F76d92D4124fCbffCF6b25137a84968C',
-    '0xaC75f0c46723432a2303f2a7c7769535A179Ed56',
-    '0x907A9f69061736AD82811CccD6ADD9dC4A2352A9',
-    '0x1176c3760Af6a1dbAa5BBd0Cc6cdA8A2Ed6B785E',
-    '0x0178b56FeA3d7B5B9F9e0cDAd486522de948730F'
+    "0x75288264FDFEA8ce68e6D852696aB1cE2f3E5004",
+    "0xaB2743a3A2e06d457368E901F5f927F271fa1374",
+    "0x91aCd32dA9beA6DA3751dc12Ee0fBe47169349C1",
+    "0xc027EC28F76d92D4124fCbffCF6b25137a84968C",
+    "0xaC75f0c46723432a2303f2a7c7769535A179Ed56",
+    "0x907A9f69061736AD82811CccD6ADD9dC4A2352A9",
+    "0x1176c3760Af6a1dbAa5BBd0Cc6cdA8A2Ed6B785E",
+    "0x0178b56FeA3d7B5B9F9e0cDAd486522de948730F",
   ],
   berachain: [
-    '0xbE75c8A7E58C7901D2e128dc8d3b6DE2481F1F79',
-    '0x2b8d0420996a2753ef21c25c94eae9fc0c0aed1e',
-    '0x36b933554782b108bb9962ac00c498acbceb706d',
-    '0xAcE42F7E3F4672607897bf1951468031f0214359',
-    '0xf650ba4303ce164e1f6b215d4cbb5e212d307056',
-    '0xcd18006cc69c6d5fa4fd4eaf99910b58464fa3ae',
-    '0xBf075980792f8cc89DFb74b553acf6750a7E941b',
-    '0xC4fEE8c68293a63241b64e5A2EF07fcf89005dD3',
+    "0xbE75c8A7E58C7901D2e128dc8d3b6DE2481F1F79",
+    "0x2b8d0420996a2753ef21c25c94eae9fc0c0aed1e",
+    "0x36b933554782b108bb9962ac00c498acbceb706d",
+    "0xAcE42F7E3F4672607897bf1951468031f0214359",
+    "0xf650ba4303ce164e1f6b215d4cbb5e212d307056",
+    "0xcd18006cc69c6d5fa4fd4eaf99910b58464fa3ae",
+    "0xBf075980792f8cc89DFb74b553acf6750a7E941b",
+    "0xC4fEE8c68293a63241b64e5A2EF07fcf89005dD3",
   ],
   hyperliquid: [
-    '0xf44f49E6577B3934f981C6f0629d15154d2606E6',
-    '0x7410E69958a8ECE2A51C231C8528513d4d668C7a',
-    '0xade27c7dec9211973278876f3819aedc28cd50ca',
-    '0x6bf9345b5d6b27b5cbf2e463dc5e0b2afcedc21c',
-    '0x3ebb11ba6a5b61c04d1a703ea10728d519945440',
-    '0x195eb4d088f222c982282b5dd495e76dba4bc7d1',
-    '0x8ef30c5ce9a460bfae82f1f039f7c5e5427d7018',
+    "0xf44f49E6577B3934f981C6f0629d15154d2606E6",
+    "0x7410E69958a8ECE2A51C231C8528513d4d668C7a",
+    "0xade27c7dec9211973278876f3819aedc28cd50ca",
+    "0x6bf9345b5d6b27b5cbf2e463dc5e0b2afcedc21c",
+    "0x3ebb11ba6a5b61c04d1a703ea10728d519945440",
+    "0x195eb4d088f222c982282b5dd495e76dba4bc7d1",
+    "0x8ef30c5ce9a460bfae82f1f039f7c5e5427d7018",
   ],
-}
+};
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const assets = await options.api.multiCall({
-    abi: 'address:asset',
+    abi: "address:asset",
     calls: VaultConfigs[options.chain],
     permitFailure: true,
-  })
+  });
 
   const totalAssetsBefore = await options.fromApi.multiCall({
-    abi: 'uint256:totalAssets',
+    abi: "uint256:totalAssets",
     calls: VaultConfigs[options.chain],
     permitFailure: true,
-  })
+  });
   const totalAssetsAfter = await options.toApi.multiCall({
-    abi: 'uint256:totalAssets',
+    abi: "uint256:totalAssets",
     calls: VaultConfigs[options.chain],
     permitFailure: true,
-  })
+  });
   const totalSupplyBefore = await options.fromApi.multiCall({
-    abi: 'uint256:totalSupply',
+    abi: "uint256:totalSupply",
     calls: VaultConfigs[options.chain],
     permitFailure: true,
-  })
+  });
   const totalSupplyAfter = await options.toApi.multiCall({
-    abi: 'uint256:totalSupply',
+    abi: "uint256:totalSupply",
     calls: VaultConfigs[options.chain],
     permitFailure: true,
-  })
+  });
 
   for (let i = 0; i < VaultConfigs[options.chain].length; i++) {
     const asset = assets[i];
     if (asset) {
-      const rateBefore = Number(totalAssetsBefore[i]) * 1e18 / Number(totalSupplyBefore[i])
-      const rateAfter = Number(totalAssetsAfter[i]) * 1e18 / Number(totalSupplyAfter[i])
+      const rateBefore =
+        (Number(totalAssetsBefore[i]) * 1e18) / Number(totalSupplyBefore[i]);
+      const rateAfter =
+        (Number(totalAssetsAfter[i]) * 1e18) / Number(totalSupplyAfter[i]);
       let growthShare = rateAfter - rateBefore;
 
       // d2 strategies can made loss
@@ -106,12 +110,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         growthShare = 0;
       }
 
-      const yieldForSupplySide = Number(totalSupplyBefore[i]) * growthShare / 1e18
-      const yieldTotal = yieldForSupplySide / (1 - 0.2)
+      const yieldForSupplySide =
+        (Number(totalSupplyBefore[i]) * growthShare) / 1e18;
+      const yieldTotal = yieldForSupplySide / (1 - 0.2);
 
-      dailyFees.add(asset, yieldTotal)
-      dailySupplySideRevenue.add(asset, yieldForSupplySide)
-      dailyRevenue.add(asset, yieldTotal - yieldForSupplySide)
+      dailyFees.add(asset, yieldTotal);
+      dailySupplySideRevenue.add(asset, yieldForSupplySide);
+      dailyRevenue.add(asset, yieldTotal - yieldForSupplySide);
     }
   }
 
@@ -120,17 +125,18 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
-  }
+  };
 }
 
 export default {
-  fetch, methodology: info.methodology,
+  fetch,
+  methodology: info.methodology,
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: { start: "2024-01-20", },
-    [CHAIN.ETHEREUM]: { start: "2025-01-09", },
-    [CHAIN.BASE]: { start: "2025-01-09", },
-    [CHAIN.BERACHAIN]: { start: "2025-01-26", },
-    [CHAIN.HYPERLIQUID]: { start: "2025-05-06", },
+    [CHAIN.ARBITRUM]: { start: "2024-01-20" },
+    [CHAIN.ETHEREUM]: { start: "2025-01-09" },
+    [CHAIN.BASE]: { start: "2025-01-09" },
+    [CHAIN.BERACHAIN]: { start: "2025-01-26" },
+    [CHAIN.HYPERLIQUID]: { start: "2025-05-06" },
   },
 };
