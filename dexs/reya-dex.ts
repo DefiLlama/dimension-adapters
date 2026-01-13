@@ -112,19 +112,24 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     older_logs.forEach(processLog);
     newer_logs.forEach(processLog);
   }
+  
+  // in theory, dailyFees is always greater than dailyRevenue
+  const dailySupplySideRevenue = dailyFees.clone(1)
+  dailySupplySideRevenue.subtract(dailyRevenue)
 
-  return { dailyFees, dailyRevenue, dailyVolume };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume };
 };
 
 const adapters: SimpleAdapter = {
   version: 2,
   methodology: {
-    Volume: "Notional volume of trades",
-    Fees: "All fees paid by traders, including the APY earned by stakers",
-    Revenue: "Portion of fees distributed to the DAO Treasury",
+    Volume: "Notional volume of trades.",
+    Fees: "All fees paid by traders, including the APY earned by stakers.",
+    Revenue: "Portion of fees distributed to the DAO Treasury.",
+    SupplySideRevenue: "Portion of fees distributed to vaults stakers.",
   },
   chains: [CHAIN.REYA],
-  start: "2024-03-20",
+  start: "2024-08-11",
   fetch,
 };
 
