@@ -2,8 +2,7 @@ import { Balances, ChainApi } from "@defillama/sdk";
 import { BigNumber } from "bignumber.js";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
-import { ABI, EVENT_ABI, LIQUIDITY, zeroAddress } from "./config";
+import { ABI, EVENT_ABI, FLUID_METRICS, LIQUIDITY, zeroAddress } from "./config";
 
 const reserveContract = "0x264786EF916af64a1DB19F513F24a3681734ce92"
 
@@ -322,7 +321,7 @@ export const getDailyFees = async (options: FetchOptions): Promise<Balances> => 
     getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
   ])
 
-  dailyFees.addBalances(vaultFees, METRIC.BORROW_INTEREST)
-  dailyFees.addBalances(dexFees, METRIC.BORROW_INTEREST)
+  dailyFees.addBalances(vaultFees, FLUID_METRICS.BorrowInterest)
+  dailyFees.addBalances(dexFees, FLUID_METRICS.BorrowInterest)
   return dailyFees
 }
