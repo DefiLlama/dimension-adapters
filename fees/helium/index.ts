@@ -1,3 +1,7 @@
+// Sources:
+// - DefiLlama Protocol Page: https://defillama.com/protocol/helium-network
+// - Twitter Source: https://x.com/amirhaleem/status/2007203633532989883
+
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
