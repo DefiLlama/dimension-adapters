@@ -1,58 +1,80 @@
-import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types"
+import { CHAIN } from '../../helpers/chains'
+import { queryDuneSql } from "../../helpers/dune"
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.BASE]: "https://subgraph.xena.finance/subgraphs/name/analyticsv2",
-}
+const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+  const query = `
+with perp_flows as (
+    -- Increase Position
+    SELECT
+        CAST(
+            varbinary_to_uint256(
+                varbinary_substring(data, 97, 32)
+            ) AS DECIMAL
+        ) / 1e30 AS volume,
+        block_time
+    FROM base.logs
+    WHERE contract_address = 0x22787c26bb0ab0d331eb840ff010855a70a0dca6
+      AND topic0 = 0x8f1a004341b7c2e1e0799b80c6b849e04431c20757ba9b8c9064d5132405465d
 
-const historicalDataDerivatives = gql`
-  query get_volume($period: String!, $id: String!) {
-    volumeStats(where: {period: $period, id: $id}) {
-      trading
-    }
+    union all
+
+    -- Decrease Position
+    SELECT
+        CAST(
+            varbinary_to_uint256(
+                varbinary_substring(data, 97, 32)
+            ) AS DECIMAL
+        ) / 1e30 AS volume,
+        block_time
+    FROM base.logs
+    WHERE contract_address = 0x22787c26bb0ab0d331eb840ff010855a70a0dca6
+      AND topic0 = 0x8b8cf2b995650a0e5239d131bc9ace3606d59971f1c0370675babdbc1fc48e5f
+
+    union all
+
+    -- Liquidate Position
+    SELECT
+        CAST(
+            varbinary_to_uint256(
+                varbinary_substring(data, 129, 32)
+            ) AS DECIMAL
+        ) / 1e30 AS volume,
+        block_time
+    FROM base.logs
+    WHERE contract_address = 0x22787c26bb0ab0d331eb840ff010855a70a0dca6
+      AND topic0 = 0x136cbd19b29e7d7cbbb67178581f238ef5029382a513cd55f0096e974441a6fb
+)
+
+select
+    sum(volume) as daily_perp_volume
+from perp_flows
+WHERE date_trunc('day', block_time) = date(FROM_UNIXTIME(${timestamp}));
+  `;
+
+  const result = await queryDuneSql(options, query);
+
+  if (!result || result.length === 0) {
+    return {
+      dailyVolume: '0',
+    };
   }
-`
 
-interface IGraphResponse {
-  volumeStats: Array<{
-    burn: string,
-    liquidation: string,
-    margin: string,
-    mint: string,
-    swap: string,
-  }>
-}
-
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: `day-${String(dayTimestamp)}`,
-    period: 'daily',
-  })
+  const dailyVolume = Number(result[0].daily_perp_volume || 0);
 
   return {
-    timestamp: dayTimestamp,
-    dailyVolume:
-      dailyData.volumeStats.length == 1
-        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
-        : undefined,
-  }
+    dailyVolume: dailyVolume.toString(),
+  };
 }
 
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.BASE]: 1696856400,
-}
-
-const adapter: SimpleAdapter = {
-  deadFrom: '2025-01-01',
+const adapter: Adapter = {
   adapter: {
     [CHAIN.BASE]: {
-      fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),
-      start: startTimestamps[CHAIN.BASE],
-    }
+      fetch,
+      start: '2023-10-09',
+    },
   },
-};
+  dependencies: [Dependencies.DUNE],
+}
 
 export default adapter;
