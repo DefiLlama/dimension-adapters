@@ -41,6 +41,16 @@ async function fetch(options: FetchOptions) {
     cacheInCloud: true,
   })
   
+  // indexer bug, missing exactly this event log
+  // tx: 0x2630ba6a69d120c14fc6c2f0125e5f4499bd5125ab8f62a499cbe36a628934f7
+  MarketRegisteredEvents.push({
+    market: '0x699AbC15308156E9a3AB89Ec7387e9CfE1c86A3b',
+    baseAsset: '0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a',
+    quoteAsset: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
+    pricePrecision: BigInt(100000000),
+    sizePrecision: BigInt(1000000),
+  })
+  
   for (const log of MarketRegisteredEvents) {
     const address = formatAddress(log.market)
     markets[address] = {
