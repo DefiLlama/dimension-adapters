@@ -12,7 +12,7 @@ const chainsMap: Record<string, string> = {
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.BASE]: 'base',
   [CHAIN.LINEA]: 'linea',
-  [CHAIN.SONIC]: 'sonic',
+  // [CHAIN.SONIC]: 'sonic',
   // [CHAIN.ERA]: 'zksync',
   [CHAIN.SOLANA]: 'solana',
   [CHAIN.PLASMA]: 'plasma'
