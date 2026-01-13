@@ -1,6 +1,6 @@
-import { Balances } from "@defillama/sdk";
 import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
-import { BREAKDOWN_METHODOLOGY_FLUID, CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
+import { METRIC } from "../../helpers/metrics";
+import { CONFIG_FLUID } from "./config";
 import { getDailyFees } from "./fees";
 import { getDailyRevenue, getDailyHoldersRevenue } from "./revenue";
 
@@ -11,22 +11,58 @@ const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
     getDailyHoldersRevenue(options)
   ])
 
-  const fees = await (dailyFees as Balances).getUSDValue();
+  const supplySideRevenue = dailyFees.clone(1)
+  supplySideRevenue.subtract(dailyRevenue)
+  
+  const dailySupplySideRevenue = options.createBalances()
+  dailySupplySideRevenue.addBalances(supplySideRevenue, 'Borrow Interest To Lenders')
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, timestamp: options.startOfDay, dailyHoldersRevenue }
+  console.log(dailyFees.getBreakdownBalances())
+  console.log(dailySupplySideRevenue.getBreakdownBalances())
+  console.log(dailyRevenue.getBreakdownBalances())
+  
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  }
 }
 
 const adapter: Adapter = {
   version: 1,
   adapter: Object.entries(CONFIG_FLUID).reduce((acc, [chain, config]) => {
-    acc[chain] = {
-      start: config.dataStartTimestamp,
+    (acc as any)[chain] = {
+      start: config.start,
       fetch
     };
     return acc;
   }, {}),
-  methodology: METHODOLOGY_FLUID,
-  breakdownMethodology: BREAKDOWN_METHODOLOGY_FLUID,
+  methodology: {
+    Fees: "Interest paid by borrowers",
+    Revenue: "Percentage of interest going to treasury",
+    ProtocolRevenue: "Percentage of interest going to treasury",
+    SupplySideRevenue: "Borrow interests are distributed to lenders.",
+    HoldersRevenue: "Token buyback from the treasury",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: "All interests paid by borrowers.",
+    },
+    Revenue: {
+      "Borrow Interest To Treasury": "Percentage of interest going to treasury.",
+    },
+    ProtocolRevenue: {
+      "Borrow Interest To Treasury": "Percentage of interest going to treasury.",
+    },
+    SupplySIdeRevenue: {
+      "Borrow Interest To Lenders": "Amount of interests are distributed to lenders.",
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "FLUID token buyback from the treasury.",
+    },
+  },
 }
 
 export default adapter

@@ -222,8 +222,8 @@ export const getDailyRevenue = async (options: FetchOptions): Promise<Balances> 
     getVaultsT1Revenues(options),
   ]);
 
-  dailyRevenue.addBalances(liquidityRevenues, METRIC.BORROW_INTEREST)
-  dailyRevenue.addBalances(vaultRevenues, METRIC.BORROW_INTEREST)
+  dailyRevenue.addBalances(liquidityRevenues, 'Borrow Interest To Treasury')
+  dailyRevenue.addBalances(vaultRevenues, 'Borrow Interest To Treasury')
   return dailyRevenue
 };
 

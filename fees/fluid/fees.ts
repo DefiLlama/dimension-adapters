@@ -319,7 +319,8 @@ export const getDailyFees = async (options: FetchOptions): Promise<Balances> => 
 
   const [vaultFees, dexFees] = await Promise.all([
     getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
-    getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
+    getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
+    // getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
   ])
 
   dailyFees.addBalances(vaultFees, METRIC.BORROW_INTEREST)
