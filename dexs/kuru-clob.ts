@@ -101,8 +101,6 @@ async function fetch(options: FetchOptions) {
     }
   }
   
-  await dailyVolume.getUSDJSONs({ debug: true })
-
   return {
     dailyVolume,
   }
