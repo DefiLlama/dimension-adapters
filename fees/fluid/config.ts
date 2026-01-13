@@ -1,6 +1,7 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
+import { METRIC } from "../../helpers/metrics";
 
 type IConfig = {
   [s: string | Chain] : {
@@ -14,6 +15,13 @@ type IConfig = {
 export const zeroAddress = ADDRESSES.null
 
 export const LIQUIDITY = "0x52aa899454998be5b000ad077a46bbe360f4e497"
+
+export const FLUID_METRICS = {
+  BorrowInterest: METRIC.BORROW_INTEREST,
+  TokenBuyBack: METRIC.TOKEN_BUY_BACK,
+  BorrowInterestToTreasury: 'Borrow Interest To Treasury',
+  BorrowInterestToLenders: 'Borrow Interest To Lenders',
+}
 
 export const CONFIG_FLUID: IConfig = {
   [CHAIN.ETHEREUM]: {
@@ -50,7 +58,7 @@ export const CONFIG_FLUID: IConfig = {
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1758273257,
     vaultResolverExistAfterBlock: 1344397,
-  }
+  },
 };
 
 export const ABI: any = {

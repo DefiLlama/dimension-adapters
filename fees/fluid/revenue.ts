@@ -3,8 +3,7 @@ import { Balances, ChainApi } from "@defillama/sdk";
 import { BigNumber } from "bignumber.js";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
-import { ABI, CONFIG_FLUID, EVENT_ABI, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
+import { ABI, CONFIG_FLUID, EVENT_ABI, FLUID_METRICS, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 import { getVaultsT1Resolver } from "./fees";
 import { httpGet } from '../../utils/fetchURL';
 
@@ -222,8 +221,8 @@ export const getDailyRevenue = async (options: FetchOptions): Promise<Balances> 
     getVaultsT1Revenues(options),
   ]);
 
-  dailyRevenue.addBalances(liquidityRevenues, 'Borrow Interest To Treasury')
-  dailyRevenue.addBalances(vaultRevenues, 'Borrow Interest To Treasury')
+  dailyRevenue.addBalances(liquidityRevenues, FLUID_METRICS.BorrowInterestToTreasury)
+  dailyRevenue.addBalances(vaultRevenues, FLUID_METRICS.BorrowInterestToTreasury)
   return dailyRevenue
 };
 
@@ -251,7 +250,7 @@ export async function getDailyHoldersRevenue(options: FetchOptions): Promise<Bal
   }
 
   for (const item of buybackData) {
-    dailyHoldersRevenue.addUSDValue(Number(item.amountUsd), METRIC.TOKEN_BUY_BACK);
+    dailyHoldersRevenue.addUSDValue(Number(item.amountUsd), FLUID_METRICS.TokenBuyBack);
   }
 
   return dailyHoldersRevenue;
