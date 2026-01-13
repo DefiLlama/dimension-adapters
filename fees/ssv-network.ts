@@ -41,9 +41,11 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyNetworkEarningsIncrease = Math.max(0, Number(endNetworkEarnings) - Number(startNetworkEarnings));
 
   // Convert to SSV tokens
+  // getNetworkFee() returns total fees collected
+  // getNetworkEarnings() returns total revenue (protocol earnings)
   const totalFees = weiToSSV(dailyNetworkFeeIncrease.toString());
   const networkRevenue = weiToSSV(dailyNetworkEarningsIncrease.toString());
-  const operatorRevenue = Math.max(0, totalFees - networkRevenue); // Remaining goes to operators
+  const operatorRevenue = Math.max(0, totalFees - networkRevenue);
 
   // Add to balances
   dailyFees.addCGToken(SSV_COINGECKO_ID, totalFees);
