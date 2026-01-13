@@ -396,6 +396,10 @@ export const LifiFeeCollectors: IContract = {
     id: '0x3e46137a80BB3c14906505d0f78ADbb2deDb9E3f',
     startTime: '2025-09-01'
   },
+  [CHAIN.HEMI]: {
+    id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
+    startTime: '2025-09-07'
+  },
   [CHAIN.MONAD]: {
     id: '0x954d55105CDF5371224268691FAf6178be5f62F5',
     startTime: '2025-10-02'
