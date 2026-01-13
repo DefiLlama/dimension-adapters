@@ -1,54 +1,55 @@
-import { request } from "graphql-request";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-
-const config: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "https://api.studio.thegraph.com/query/88140/ssv-fee-tracker/version/latest",
-};
 
 const SSV_COINGECKO_ID = "ssv-network";
+const SSV_NETWORK_CONTRACT = "0xafE830B6Ee262ba11cce5F32fDCd760FFE6a66e4";
 
-const weiToSSV = (amount: string): Number => {
+const weiToSSV = (amount: string): number => {
   return Number(amount || "0") / 1e18;
 };
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
-  const { createBalances, startTimestamp } = options;
-
-  const date = new Date(getTimestampAtStartOfDayUTC(startTimestamp) * 1000);
-  const dateString = date.toISOString().split('T')[0];
-
-  const query = `
-    query GetSSVDailyFees {
-      dailyProtocolStats(id: "${dateString}") {
-        id
-        date
-        dailyTotalFeesIncrease
-        dailyOperatorEarningsIncrease
-        dailyNetworkEarningsIncrease
-      }
-    }
-  `;
+  const { createBalances } = options;
 
   // Initialize all balance objects
   const dailyFees = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  const result = await request(config[CHAIN.ETHEREUM], query);
+  // Get network fee and earnings at the start and end of the period
+  const [startNetworkFee, startNetworkEarnings, endNetworkFee, endNetworkEarnings] = await Promise.all([
+    options.fromApi.call({
+      target: SSV_NETWORK_CONTRACT,
+      abi: "function getNetworkFee() view returns (uint256)",
+    }),
+    options.fromApi.call({
+      target: SSV_NETWORK_CONTRACT,
+      abi: "function getNetworkEarnings() view returns (uint256)",
+    }),
+    options.toApi.call({
+      target: SSV_NETWORK_CONTRACT,
+      abi: "function getNetworkFee() view returns (uint256)",
+    }),
+    options.toApi.call({
+      target: SSV_NETWORK_CONTRACT,
+      abi: "function getNetworkEarnings() view returns (uint256)",
+    }),
+  ]);
 
-  const data = result.dailyProtocolStats;
-  
-  // Convert wei amounts to SSV tokens using BigNumber for precision
-  const totalFees = weiToSSV(data.dailyTotalFeesIncrease);
-  const networkRevenue = weiToSSV(data.dailyNetworkEarningsIncrease);
-  const operatorRevenue = weiToSSV(data.dailyOperatorEarningsIncrease);
+  // Calculate daily increases
+  const dailyNetworkFeeIncrease = Math.max(0, Number(endNetworkFee) - Number(startNetworkFee));
+  const dailyNetworkEarningsIncrease = Math.max(0, Number(endNetworkEarnings) - Number(startNetworkEarnings));
 
+  // Convert to SSV tokens
+  const totalFees = weiToSSV(dailyNetworkFeeIncrease.toString());
+  const networkRevenue = weiToSSV(dailyNetworkEarningsIncrease.toString());
+  const operatorRevenue = Math.max(0, totalFees - networkRevenue); // Remaining goes to operators
+
+  // Add to balances
   dailyFees.addCGToken(SSV_COINGECKO_ID, totalFees);
   dailyProtocolRevenue.addCGToken(SSV_COINGECKO_ID, networkRevenue);
   dailySupplySideRevenue.addCGToken(SSV_COINGECKO_ID, operatorRevenue);
-  
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -60,10 +61,10 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
 const methodology = {
   UserFees: "Fees paid by stakers for using SSV network validator services. These fees are paid in SSV tokens for distributed validator operations.",
-  Fees: "Fees collected by the SSV network from all validator operations. Includes both network fees and operator fees.",
-  Revenue: "Portion of fees that goes to the SSV DAO treasury. This revenue is used for protocol development, governance, and ecosystem growth.",
-  ProtocolRevenue: "Portion of fees that goes to the SSV DAO treasury. This revenue is used for protocol development, governance, and ecosystem growth.",
-  SupplySideRevenue: "Fees distributed to SSV node operators who provide the infrastructure and run the validator services. This incentivizes decentralized participation.",
+  Fees: "Total network fees collected from validator operations, calculated as the daily increase in network fee accumulator.",
+  Revenue: "Network earnings that go to the SSV DAO treasury, calculated as the daily increase in network earnings accumulator.",
+  ProtocolRevenue: "Network earnings that go to the SSV DAO treasury, calculated as the daily increase in network earnings accumulator.",
+  SupplySideRevenue: "Fees distributed to SSV node operators who provide the infrastructure and run the validator services, calculated as total fees minus network earnings.",
 };
 
 const adapter: Adapter = {
