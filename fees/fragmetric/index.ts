@@ -37,7 +37,6 @@ const FRAGMETRIC = {
   FRAGSOL_FUND: '3TK9fNePM4qdKC4dwvDe8Bamv14prDqdVfuANxPeiryb',
   FRAGJTO_FUND: 'ETbNmGejjPc1dswSZTdLDe8eUBeWvWokYPcFNgzYX9jj',
 
-  // Reward Token Reserve ATAs (actual token-holding accounts)
   REWARD_TOKEN_RESERVES: [
     'HRUZvKBSiH62NepNmbfiy87HoQ488Pdx4bzhBZp6jBbC', // SW1TCH rewards
     'HVBsQPboYJ8UUaLzKsLWH3UgBUwyRgjwqRbuDoDmbNmE', // FRAG rewards
@@ -49,7 +48,7 @@ const FRAGMETRIC = {
   ],
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
@@ -57,10 +56,8 @@ const fetch = async (options: FetchOptions) => {
   const fundAccounts = [FRAGMETRIC.FRAGSOL_FUND, FRAGMETRIC.FRAGJTO_FUND]
   const programRevenue = FRAGMETRIC.PROGRAM_REVENUE
   const rewardTokenReserves = FRAGMETRIC.REWARD_TOKEN_RESERVES
-
   const query = `
     WITH
-    -- Protocol fees: Transfers TO Fund Treasury or Program Revenue account
     protocol_fees AS (
       SELECT
         token_mint_address AS mint,
@@ -71,8 +68,6 @@ const fetch = async (options: FetchOptions) => {
         AND block_time < from_unixtime(${options.endTimestamp})
       GROUP BY token_mint_address
     ),
-    
-    -- User reward claims: Transfers FROM actual Reward Token Reserve ATAs
     reward_claims AS (
       SELECT
         token_mint_address AS mint,
@@ -83,7 +78,6 @@ const fetch = async (options: FetchOptions) => {
         AND block_time < from_unixtime(${options.endTimestamp})
       GROUP BY token_mint_address
     )
-    
     SELECT 'protocol' AS source, mint, amount FROM protocol_fees WHERE amount > 0
     UNION ALL
     SELECT 'rewards' AS source, mint, amount FROM reward_claims WHERE amount > 0
@@ -99,7 +93,7 @@ const fetch = async (options: FetchOptions) => {
       dailyRevenue.add(mint, amount)
       dailyFees.add(mint, amount)
     } else if (source === 'rewards') {
-      // User reward claims from Reward Reserve = supply side
+      // User reward claims from Reward Reserve = supply side revenue
       dailySupplySideRevenue.add(mint, amount)
       dailyFees.add(mint, amount)
     }
@@ -126,7 +120,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: '2024-08-01',
+  start: '2024-07-15',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
