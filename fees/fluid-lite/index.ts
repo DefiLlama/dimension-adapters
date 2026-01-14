@@ -22,10 +22,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   // Add revenue delta to daily revenue
   const revenueDelta = Number(currentRevenueValue) - Number(startRevenueValue)
-  dailyRevenue.add(
-    stETHAddress,
-    revenueDelta,
-  );
+  dailyRevenue.add(stETHAddress, revenueDelta, 'Lite Vaults Performance Fee');
 
   const collectRevenueLogs = await options.getLogs({
     target: iETHv2_VAULT,
@@ -47,10 +44,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     new BigNumber(0)
   );
 
-  dailyRevenue.add(
-    stETHAddress,
-    collectedRevenueAmount.toFixed(),
-  );
+  dailyRevenue.add(stETHAddress, collectedRevenueAmount.toFixed(), 'Lite Vaults Fees');
 
   return { dailyFees: dailyRevenue, dailyRevenue }
 };
@@ -60,6 +54,17 @@ const adapter: Adapter = {
   methodology: {
     Fees: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
     Revenue: 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee. Revenue is collected and transferred to the Instadapp treasury.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Lite Vaults Fees': 'Lite Vault charges a 20% performance fee on vaults and an additional 0.05% exit fee.',
+    },
+    Revenue: {
+      'Lite Vaults Fees': 'Lite vaults performance fee is collected as revenue and transferred to the Instadapp treasury.',
+    },
+    ProtocolRevenue: {
+      'Lite Vaults Fees': 'Lite vaults performance fee is collected as revenue and transferred to the Instadapp treasury.',
+    },
   },
   fetch,
   chains: [CHAIN.ETHEREUM],

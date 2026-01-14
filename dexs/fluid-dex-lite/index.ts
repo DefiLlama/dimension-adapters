@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { keccak256, AbiCoder } from "ethers";
+import { METRIC } from "../../helpers/metrics";
 
 /*//////////////////////////////////////////////////////////////
                             CONSTANTS
@@ -98,6 +99,7 @@ const abi = {
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   // Process DEX Lite events if available on this chain
   let dexLiteSwapEvents: any[] = [];
@@ -174,7 +176,7 @@ const fetch = async (options: FetchOptions) => {
         };
       }).filter(event => event !== null);
     } catch (error) {
-      console.warn("Failed to fetch DEX Lite data:", error);
+      // console.warn("Failed to fetch DEX Lite data:", error);
     }
   }
 
@@ -224,20 +226,37 @@ const fetch = async (options: FetchOptions) => {
       
       // Add volume and fees
       dailyVolume.add(actualToken, actualAmountIn);
-      dailyFees.add(actualToken, feesCollected);
+      dailyFees.add(actualToken, feesCollected, METRIC.SWAP_FEES);
+      dailyRevenue.add(actualToken, feesCollected, 'Swap Fees To Treasury');
     });
   };
 
   processDexLiteEvents(dexLiteSwapEvents);
 
-  return { dailyVolume, dailyFees }
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2025-8-10' },
+    [CHAIN.ETHEREUM]: { fetch, start: '2025-08-10' },
   },
+  methodology: {
+    Fees: 'All token swap fees from dex lite.',
+    Revenue: 'All swap fees are collected by treasury.',
+    ProtocolRevenue: 'All swap fees are collected by treasury.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'All token swap fees from dex lite.',
+    },
+    Revenue: {
+      'Swap Fees To Treasury': 'All swap fees are collected by treasury.',
+    },
+    ProtocolRevenue: {
+      'Swap Fees To Treasury': 'All swap fees are collected by treasury.',
+    },
+  }
 };
 
 export default adapter;
