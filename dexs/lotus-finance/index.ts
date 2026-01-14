@@ -11,24 +11,39 @@ const fetch = async (options: FetchOptions) => {
   const endTimestamp = options.endTimestamp;
   const dailyVolume = options.createBalances();
 
+  // Fetch data for current day and previous day
+  const extendedStartTime = (startTimestamp - 86400) * 1000; // 24 hours before
   const qs = new URLSearchParams({
-    startTime: String(startTimestamp * 1000),
+    startTime: String(extendedStartTime),
     endTime: String(endTimestamp * 1000),
     interval: INTERVAL,
   }).toString();
 
   const data = await fetchURL(`${LOTUS_BASE}${LOTUS_PATH}?${qs}`);
 
-  for (const row of data) {
-    if (!Array.isArray(row) || row.length < 2) continue;
+  let currentDayVolume = 0;
+  let previousDayVolume = 0;
 
-    const [timeMs, volumeUsd] = row;
-    const ts = timeMs / 1000;
-    if (ts < startTimestamp || ts >= endTimestamp) continue;
-    dailyVolume.addUSDValue(Number(volumeUsd));
+  for (const row of data) {
+    if (!Array.isArray(row) || row.length < 5) continue;
+
+    const [timeMs, totalValueLocked, tradingVolumeUsd, activeVaultCount, totalVaultCount] = row;
+    const ts = Number(timeMs) / 1000;
+    
+    if (ts >= startTimestamp && ts < endTimestamp) {
+      currentDayVolume = Number(tradingVolumeUsd);
+    } else if (ts < startTimestamp) {
+      previousDayVolume = Number(tradingVolumeUsd);
+    }
   }
 
-  return { dailyVolume }
+  // Calculate daily volume as difference
+  const dailyVolumeUsd = currentDayVolume - previousDayVolume;
+  if (dailyVolumeUsd > 0) {
+    dailyVolume.addUSDValue(dailyVolumeUsd);
+  }
+
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {

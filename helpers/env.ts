@@ -4,15 +4,14 @@ const BOOL_KEYS = [
 
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
+  ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
-  SOMNIA_RPC: "https://api.infra.mainnet.somnia.network",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc.camp.raas.gelato.cloud',
   SVM_RPC: "https://rpc.cosvm.net",
   XLAYER_RPC: "https://xlayerrpc.okx.com",
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
-  BERACHAIN_RPC: "https://rpc.berachain.com",
   VELAS_RPC: 'https://evmexplorer.velas.com/api/eth-rpc',
   HARMONY_RPC: 'https://explorer.harmony.one/api/eth-rpc',
   SMARTBCH_RPC: 'https://smartscout.cash//api/eth-rpc',
@@ -21,15 +20,15 @@ const DEFAULTS: any = {
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
+  SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
+  SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
-  HYDRAGON_RPC: "https://rpc-mainnet.hydrachain.org",
-  TAC_RPC: "https://rpc.tac.build",
-  FRAXTAL_RPC: "https://rpc.frax.com",
-  NIBIRU_RPC: "https://evm-rpc.archive.nibiru.fi",
-  TAC_RPC_MULTICALL: "0xcA11bde05977b3631167028862bE2a173976CA11",
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
+  SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
+  ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
+  HYDRADX_BLOCK_LOW: '7036666',
 }
 
 export const ENV_KEYS = new Set([
@@ -69,6 +68,10 @@ export const ENV_KEYS = new Set([
   'DUNE_BULK_MODE',
   'DUNE_BULK_MODE_BATCH_TIME',
   'LLAMA_HL_INDEXER',
+  'SAUCERSWAP_API_KEY',
+  'ASTROS_PERP_API_KEY',
+  'VOLO_VAULT_API_KEY',
+  'CLICKHOUSE_CONFIG',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

@@ -2,13 +2,14 @@ import { BaseAdapter, FetchOptions, IStartTimestamp } from "../../adapters/types
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
-import { normalizeAddress } from "@defillama/sdk/build/util";
 import { METRIC } from '../../helpers/metrics';
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
   lendingPoolProxy: string;
   dataProvider: string;
+  ignoreLiquidation?: boolean;
+  ignoreFlashloan?: boolean;
 
   // GHO on aave
   selfLoanAssets?: {
@@ -113,101 +114,105 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     }
   }
 
-  // get flashloan fees
-  const flashloanEvents = await options.getLogs({
-    target: pool.lendingPoolProxy,
-    eventAbi: AaveAbis.FlashloanEvent,
-  })
-  if (flashloanEvents.length > 0) {
-    // const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
-    //   target: pool.lendingPoolProxy,
-    //   abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
-    // })
-    const FLASHLOAN_PREMIUM_TO_PROTOCOL = await options.fromApi.call({
+  if (!pool.ignoreFlashloan) {
+    // get flashloan fees
+    const flashloanEvents = await options.getLogs({
       target: pool.lendingPoolProxy,
-      abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
+      eventAbi: AaveAbis.FlashloanEvent,
     })
-    // const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
-    const flashloanFeeProtocolRate = Number(FLASHLOAN_PREMIUM_TO_PROTOCOL) / 1e4
-
-    for (const event of flashloanEvents) {
-      const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
-
-      balances.dailyFees.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
-      balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
-      
-      // we don't count flashloan premium for LP as fees
-      // because they have already counted in liquidity index
-      balances.dailySupplySideRevenue.add(event.asset, 0)
+    if (flashloanEvents.length > 0) {
+      // const FLASHLOAN_PREMIUM_TOTAL = await options.fromApi.call({
+      //   target: pool.lendingPoolProxy,
+      //   abi: AaveAbis.FLASHLOAN_PREMIUM_TOTAL,
+      // })
+      const FLASHLOAN_PREMIUM_TO_PROTOCOL = await options.fromApi.call({
+        target: pool.lendingPoolProxy,
+        abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
+      })
+      // const flashloanFeeRate = Number(FLASHLOAN_PREMIUM_TOTAL) / 1e4
+      const flashloanFeeProtocolRate = Number(FLASHLOAN_PREMIUM_TO_PROTOCOL) / 1e4
+  
+      for (const event of flashloanEvents) {
+        const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
+  
+        balances.dailyFees.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
+        balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
+        
+        // we don't count flashloan premium for LP as fees
+        // because they have already counted in liquidity index
+        balances.dailySupplySideRevenue.add(event.asset, 0)
+      }
     }
   }
 
-  // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
-  if (pool.version === 3) {
-    const liquidationEvents: Array<any> = await options.getLogs({
-      target: pool.lendingPoolProxy,
-      eventAbi: AaveAbis.LiquidationEvent,
-    })
-    if (liquidationEvents.length > 0) {
-      const liquidationProtocolFees = (await options.api.multiCall({
-        abi: AaveAbis.getConfiguration,
+  if (!pool.ignoreLiquidation) {
+    // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
+    if (pool.version === 3) {
+      const liquidationEvents: Array<any> = await options.getLogs({
         target: pool.lendingPoolProxy,
-        calls: reservesList,
-      })).map((config: any) => {
-        return Number(decodeReserveConfig(config.data).liquidationProtocolFee)
+        eventAbi: AaveAbis.LiquidationEvent,
       })
-  
-      const reserveLiquidationConfigs: {[key: string]: {
-        bonus: number;
-        protocolFee: number;
-      }} = {}
-      for (let i = 0; i < reservesList.length; i++) {
-        reserveLiquidationConfigs[normalizeAddress(reservesList[i])] = {
-          bonus: Number(reserveConfigs[i].liquidationBonus),
-          protocolFee: liquidationProtocolFees[i],
+      if (liquidationEvents.length > 0) {
+        const liquidationProtocolFees = (await options.api.multiCall({
+          abi: AaveAbis.getConfiguration,
+          target: pool.lendingPoolProxy,
+          calls: reservesList,
+        })).map((config: any) => {
+          return Number(decodeReserveConfig(config.data).liquidationProtocolFee)
+        })
+    
+        const reserveLiquidationConfigs: {[key: string]: {
+          bonus: number;
+          protocolFee: number;
+        }} = {}
+        for (let i = 0; i < reservesList.length; i++) {
+          reserveLiquidationConfigs[sdk.util.normalizeAddress(reservesList[i])] = {
+            bonus: Number(reserveConfigs[i].liquidationBonus),
+            protocolFee: liquidationProtocolFees[i],
+          }
         }
-      }
-
-      for (const event of liquidationEvents) {
-        /**
-         * The math calculation for liquidation fees
-         * 
-         * where:
-         * e - collateral amount emitted from the event
-         * x - liquidation bonus rate
-         * y - liquidation protocol fee rate
-         * a - liquidated collateral amount
-         * b - liquidation bonus
-         * b2 - liquidation bonus fees for protocol
-         * 
-         * 1. b2 = yb
-         * 
-         * 2. e = a + b
-         * 
-         * 3. b = xa
-         * 
-         * from 1, 2, 3:
-         * b = (e - e / x)
-         * b2 = b * y
-         * 
-         */
   
-        const e = Number(event.liquidatedCollateralAmount)
-        const x = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
-        const y = reserveLiquidationConfigs[normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
-
-        // protocol fees from liquidation bonus
-        const b = (e - e / x)
-        const b2 = b * y
-
-        // count liquidation bonus as fees
-        balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
-
-        // count liquidation bonus for liquidator as supply side fees
-        balances.dailySupplySideRevenue.add(event.collateralAsset, b - b2, METRIC.LIQUIDATION_FEES)
-
-        // count liquidation bonus protocol fee as revenue
-        balances.dailyProtocolRevenue.add(event.collateralAsset, b2, METRIC.LIQUIDATION_FEES)
+        for (const event of liquidationEvents) {
+          /**
+           * The math calculation for liquidation fees
+           * 
+           * where:
+           * e - collateral amount emitted from the event
+           * x - liquidation bonus rate
+           * y - liquidation protocol fee rate
+           * a - liquidated collateral amount
+           * b - liquidation bonus
+           * b2 - liquidation bonus fees for protocol
+           * 
+           * 1. b2 = yb
+           * 
+           * 2. e = a + b
+           * 
+           * 3. b = xa
+           * 
+           * from 1, 2, 3:
+           * b = (e - e / x)
+           * b2 = b * y
+           * 
+           */
+    
+          const e = Number(event.liquidatedCollateralAmount)
+          const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
+          const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
+  
+          // protocol fees from liquidation bonus
+          const b = (e - e / x)
+          const b2 = b * y
+  
+          // count liquidation bonus as fees
+          balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
+  
+          // count liquidation bonus for liquidator as supply side fees
+          balances.dailySupplySideRevenue.add(event.collateralAsset, b - b2, METRIC.LIQUIDATION_FEES)
+  
+          // count liquidation bonus protocol fee as revenue
+          balances.dailyProtocolRevenue.add(event.collateralAsset, b2, METRIC.LIQUIDATION_FEES)
+        }
       }
     }
   }

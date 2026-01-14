@@ -4,18 +4,23 @@ import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidInde
 
 async function fetch(_1: number, _: any,  options: FetchOptions) {
   const dailyFees = options.createBalances()
-  const { hlpShare } = getRevenueRatioShares(options.startOfDay)
 
+  let perpFees = options.createBalances()
+  let spotFees = options.createBalances()
+  const { hlpShare } = getRevenueRatioShares(options.startOfDay)
   if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
     // get fees from hypurrscan, no volume
     const result = await queryHypurrscanApi(options);
-    dailyFees.add(result.dailyPerpFees.clone(hlpShare), 'Perp Fees')
-    dailyFees.add(result.dailySpotFees.clone(hlpShare), 'Spot Fees')
+    perpFees = result.dailyPerpFees.clone(hlpShare)
+    spotFees = result.dailySpotFees.clone(hlpShare)
   } else {
     const result = await queryHyperliquidIndexer(options);
-    dailyFees.add(result.dailyPerpRevenue.clone(hlpShare), 'Perp Fees')
-    dailyFees.add(result.dailyPerpRevenue.clone(hlpShare), 'Spot Fees')
+    perpFees = result.dailyPerpRevenue.clone(hlpShare)
+    spotFees = result.dailySpotRevenue.clone(hlpShare)
   }
+
+  dailyFees.add(perpFees, 'Perp Fees')
+  dailyFees.add(spotFees, 'Spot Fees')
 
   return {
     dailyFees,

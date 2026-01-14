@@ -10,7 +10,8 @@ const CHAIN_ID_MAP: any = {
     [CHAIN.AVAX]: 43114,
     [CHAIN.BASE]: 8453,
     [CHAIN.HYPERLIQUID]: 999,
-    [CHAIN.BSC]: 56
+    [CHAIN.BSC]: 56,
+    [CHAIN.MONAD]: 143,
 }
 const ONE_YEAR = 365 * 24 * 60 * 60;
 
@@ -28,7 +29,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     const currentChainVaults = vaultsData.filter((vault: any) => vault.chain === CHAIN_ID_MAP[options.chain]);
 
-    await Promise.all(currentChainVaults.map(async (vault: any) => {
+    await Promise.allSettled(currentChainVaults.map(async (vault: any) => {
         const { address, weekly_performance_fee_bps, platform_fee_override } = vault;
         const management_fee = platform_fee_override?.management_fee ?? 0;
         const dailyYield = await getERC4626VaultsYield({ options, vaults: [address] });
@@ -81,6 +82,7 @@ const adapter: Adapter = {
         [CHAIN.BASE]: { start: '2024-11-22' },
         [CHAIN.BSC]: { start: '2025-04-10' },
         [CHAIN.HYPERLIQUID]: { start: '2025-04-04' },
+        [CHAIN.MONAD]: { start: '2025-11-23' },
     },
     methodology,
     breakdownMethodology,

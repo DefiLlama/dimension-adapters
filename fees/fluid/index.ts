@@ -1,35 +1,57 @@
-import { Balances } from "@defillama/sdk";
 import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
-import { BREAKDOWN_METHODOLOGY_FLUID, CONFIG_FLUID, METHODOLOGY_FLUID } from "./config";
-import { getFluidDailyFees } from "./fees";
-import { getFluidDailyRevenue } from "./revenue";
+import { CONFIG_FLUID, FLUID_METRICS } from "./config";
+import { getDailyFees } from "./fees";
+import { getDailyRevenue, getDailyHoldersRevenue } from "./revenue";
 
 const fetch: Fetch = async (_t: any, _a: any, options: FetchOptions) => {
-  const [dailyFees, dailyRevenue] = await Promise.all([
-    getFluidDailyFees(options),
-    getFluidDailyRevenue(options)
+  const [dailyFees, dailyRevenue, dailyHoldersRevenue] = await Promise.all([
+    getDailyFees(options),
+    getDailyRevenue(options),
+    getDailyHoldersRevenue(options)
   ])
 
-  const fees = await (dailyFees as Balances).getUSDValue();
-
-  if (fees > 500_000) {
-    throw new Error(`Fluid fees are too high: ${JSON.stringify(await (dailyFees as Balances).getUSDJSONs())}`);
+  const dailyFeesUSD = await dailyFees.getUSDValue()
+  const dailyRevenueUSD = await dailyRevenue.getUSDValue()
+  
+  const dailySupplySideRevenue = options.createBalances()
+  dailySupplySideRevenue.addUSDValue(dailyFeesUSD - dailyRevenueUSD, FLUID_METRICS.BorrowInterestToLenders)
+  
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
-
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, timestamp: options.startOfDay }
 }
 
 const adapter: Adapter = {
-  version: 1,
-  adapter: Object.entries(CONFIG_FLUID).reduce((acc, [chain, config]) => {
-    acc[chain] = {
-      start: config.dataStartTimestamp,
-      fetch
-    };
-    return acc;
-  }, {}),
-  methodology: METHODOLOGY_FLUID,
-  breakdownMethodology: BREAKDOWN_METHODOLOGY_FLUID,
+  methodology: {
+    Fees: "Interest paid by borrowers",
+    Revenue: "Percentage of interest going to treasury",
+    ProtocolRevenue: "Percentage of interest going to treasury",
+    SupplySideRevenue: "Percentage of interest are distributed to lenders.",
+    HoldersRevenue: "Token buyback from the treasury",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [FLUID_METRICS.BorrowInterest]: "All interests paid by borrowers.",
+    },
+    Revenue: {
+      [FLUID_METRICS.BorrowInterestToTreasury]: "Percentage of interest going to treasury.",
+    },
+    ProtocolRevenue: {
+      [FLUID_METRICS.BorrowInterestToTreasury]: "Percentage of interest going to treasury.",
+    },
+    SupplySideRevenue: {
+      [FLUID_METRICS.BorrowInterestToLenders]: "Amount of interests are distributed to lenders.",
+    },
+    HoldersRevenue: {
+      [FLUID_METRICS.TokenBuyBack]: "FLUID token buyback from the treasury.",
+    },
+  },
+  fetch,
+  adapter: CONFIG_FLUID,
 }
 
 export default adapter

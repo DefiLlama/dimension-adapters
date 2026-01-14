@@ -12,7 +12,7 @@ const BORROW_EVENT_ABI = 'event Borrow(address indexed borrower, uint256 loanIdx
 
 const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
   // Retrieve whitelisted pools by getting whitelist proposal logs and checking if the target pool is whitelisted
-  const executedLogs = await getLogs({ target: CONTROLLER, eventAbi: EXECUTED_EVENT_ABI, fromBlock: 5000 })
+  const executedLogs = await getLogs({ target: CONTROLLER, eventAbi: EXECUTED_EVENT_ABI, fromBlock: 5000, cacheInCloud: true })
   const proposals = await api.multiCall({ target: CONTROLLER, abi: GET_PROPOSAL_ABI, calls: executedLogs.map(l => l.proposalIdx.toString()) })
   const potentialPools = proposals.map(p => p._target)
   const isWhitelisted = await api.multiCall({ target: CONTROLLER, abi: POOL_WHITELISTED_ABI, calls: potentialPools })
@@ -25,7 +25,7 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
   await Promise.all(whitelistedPools.map(async (pool, idx) => {
     // Creator fee is determined at the time of pool creation
     // It's expressed in wei, so we need to divide by 10^18 to get the actual fee
-    const subPoolLogs = await getLogs({ target: pool, eventAbi: NEWSUBPOOL_EVENT_ABI, fromBlock: 5000 })
+    const subPoolLogs = await getLogs({ target: pool, eventAbi: NEWSUBPOOL_EVENT_ABI, fromBlock: 5000, cacheInCloud: true })
     const creatorFee = subPoolLogs[0].creatorFee
     const logs = await getLogs({ target: pool, eventAbi: BORROW_EVENT_ABI, })
 

@@ -1,7 +1,8 @@
+import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { buildStablecoinAdapter} from "./attestations-stablecoins";
+import { buildStablecoinAdapter} from "../../helpers/attestations-stablecoins";
 
-const adapter = buildStablecoinAdapter('1', 30* 3,
+const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '1', 30* 3,
 // Based on https://tether.to/en/transparency/?tab=reports
 [
     {

@@ -18,7 +18,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     // Token transfer fee receivers
     '76Mk7UH3nSjJXKLi7CVaKurUSywo6xXqhu1k1tJMFUSi',
-    '2ViaoccYRm7gRewuPyW4Rp5WvxVJzNoKxxAMBUiii4rp'
+    '2ViaoccYRm7gRewuPyW4Rp5WvxVJzNoKxxAMBUiii4rp',
+
+    // Launchlab fee receiver
+    'HAxWvuuwXnPZDHk2FTwXW7VA8pGJKszQFMuJz1Ej65xk'
   ]
 
   const blacklists = [

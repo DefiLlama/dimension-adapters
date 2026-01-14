@@ -1,4 +1,3 @@
-import { CallsParams } from "@defillama/sdk/build/types";
 import { FetchOptions } from "../../adapters/types";
 import { formatAddress } from "../../utils/utils";
 
@@ -32,7 +31,8 @@ export interface ICurveDexConfig {
     [key: string]: {
       tokens: Array<string>;
     }
-  }
+  },
+  blacklistedPools?: Array<string>;
 }
 
 export interface IDexPool {
@@ -121,31 +121,38 @@ async function getVersionPools(options: FetchOptions, version: ContractVersion, 
 }
 
 export async function getAllPools(options: FetchOptions, config: ICurveDexConfig): Promise<{[key: string]: Array<string>}> {
+  const blacklistedPools = config.blacklistedPools ? config.blacklistedPools.map((p: string) => formatAddress(p)) : [];
   const customPools: {[key: string]: Array<string>} = config.customPools ? config.customPools : {}
 
   if (config.stable_factory) {
     customPools.stable_factory = customPools.stable_factory ? customPools.stable_factory : []
     customPools.stable_factory = customPools.stable_factory.concat(await getVersionPools(options, ContractVersion.stable_factory, config.stable_factory));
+    customPools.stable_factory = customPools.stable_factory.filter(p => !blacklistedPools.includes(p))
   }
   if (config.factory_crypto) {
     customPools.factory_crypto = customPools.factory_crypto ? customPools.factory_crypto : []
     customPools.factory_crypto = customPools.factory_crypto.concat(await getVersionPools(options, ContractVersion.factory_crypto, config.factory_crypto));
+    customPools.factory_crypto = customPools.factory_crypto.filter(p => !blacklistedPools.includes(p))
   }
   if (config.factory_crvusd) {
     customPools.factory_crvusd = customPools.factory_crvusd ? customPools.factory_crvusd : []
     customPools.factory_crvusd = customPools.factory_crvusd.concat(await getVersionPools(options, ContractVersion.factory_crvusd, config.factory_crvusd));
+    customPools.factory_crvusd = customPools.factory_crvusd.filter(p => !blacklistedPools.includes(p))
   }
   if (config.factory_twocrypto) {
     customPools.factory_twocrypto = customPools.factory_twocrypto ? customPools.factory_twocrypto : []
     customPools.factory_twocrypto = customPools.factory_twocrypto.concat(await getVersionPools(options, ContractVersion.factory_twocrypto, config.factory_twocrypto));
+    customPools.factory_twocrypto = customPools.factory_twocrypto.filter(p => !blacklistedPools.includes(p))
   }
   if (config.factory_tricrypto) {
     customPools.factory_tricrypto = customPools.factory_tricrypto ? customPools.factory_tricrypto : []
     customPools.factory_tricrypto = customPools.factory_tricrypto.concat(await getVersionPools(options, ContractVersion.factory_tricrypto, config.factory_tricrypto));
+    customPools.factory_tricrypto = customPools.factory_tricrypto.filter(p => !blacklistedPools.includes(p))
   }
   if (config.factory_stable_ng) {
     customPools.factory_stable_ng = customPools.factory_stable_ng ? customPools.factory_stable_ng : []
     customPools.factory_stable_ng = customPools.factory_stable_ng.concat(await getVersionPools(options, ContractVersion.factory_stable_ng, config.factory_stable_ng));
+    customPools.factory_stable_ng = customPools.factory_stable_ng.filter(p => !blacklistedPools.includes(p))
   }
 
   return customPools;
@@ -154,7 +161,7 @@ export async function getAllPools(options: FetchOptions, config: ICurveDexConfig
 export async function getPoolTokens(options: FetchOptions, poolAddresses: Array<string>, config: ICurveDexConfig): Promise<{[key: string]: IDexPool}> {
   const pools: {[key: string]: IDexPool} = {}
 
-  const coinsCalls: Array<CallsParams> = []
+  const coinsCalls: Array<any> = []
   for (const poolAddress of poolAddresses) {
     for (let i = 0; i < MAX_TOKENS_COUNT; i++) {
       coinsCalls.push({

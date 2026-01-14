@@ -33,7 +33,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
+  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, cacheInCloud: true, })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
 
   const bribes_contract: string[] = logs_gauge_created

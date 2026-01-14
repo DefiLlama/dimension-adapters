@@ -93,7 +93,7 @@ export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
-export const LLAMA_HL_INDEXER_FROM_TIME = 1758585600
+export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400
 export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
@@ -106,6 +106,8 @@ export const fetchBuilderCodeRevenue = async ({ options, builder_address }: { op
     const response = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}&builder=${formatAddress(builder_address)}`);
     for (const item of response.data) {
       dailyFees.addCGToken('usd-coin', item.feeByTokens.USDC || 0)
+      dailyFees.addCGToken('ethena-usde', item.feeByTokens.USDE || 0)
+      dailyFees.addCGToken('usdh-2', item.feeByTokens.USDH || 0)
       dailyVolume.addCGToken('usd-coin', item.volumeUsd)
     }
 
@@ -239,6 +241,7 @@ export const CoinGeckoMaps: Record<string, string> = {
   UDZ: 'doublezero',
   USPYX: 'sp500-xstock',
   UMOG: 'mog-coin',
+  USDH: 'usdh-2',
 }
 
 export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
@@ -251,6 +254,11 @@ export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
   }
 
   return coins
+}
+
+interface Hip3DeployerMetrics {
+  dailyPerpVolume: Balances;
+  dailyPerpFee: Balances;
 }
 
 interface QueryIndexerResult {
@@ -266,6 +274,8 @@ interface QueryIndexerResult {
   dailyUnitRevenue: Balances;
 
   currentPerpOpenInterest?: number;
+  
+  hip3Deployers: Record<string, Hip3DeployerMetrics>
 }
 
 export async function queryHyperliquidIndexer(options: FetchOptions): Promise<QueryIndexerResult> {
@@ -290,6 +300,7 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
   const dailySpotRevenue = options.createBalances()
   const dailyBuildersRevenue = options.createBalances()
   const dailyUnitRevenue = options.createBalances()
+  const hip3Deployers: Record<string, Hip3DeployerMetrics> = {}
 
   let currentPerpOpenInterest: number | undefined = undefined
 
@@ -318,6 +329,25 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
     }
 
     currentPerpOpenInterest = item.perpsOpenInterestUsd ? Number(item.perpsOpenInterestUsd) : undefined
+    
+    // add HIP3 deployers data
+    if (item.hip3Deployers) {
+      for (const [deployer, metrics] of Object.entries(item.hip3Deployers)) {
+        if (!hip3Deployers[deployer]) {
+          hip3Deployers[deployer] = {
+            dailyPerpVolume: options.createBalances(),
+            dailyPerpFee: options.createBalances(),
+          }
+        }
+        
+        hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', (metrics as any).perpsVolumeUsd)
+        for (const [coin, amount] of Object.entries((metrics as any).perpsFeeTokens)) {
+          if (CoinGeckoMaps[coin]) {
+            hip3Deployers[deployer].dailyPerpFee.addCGToken(CoinGeckoMaps[coin], amount)
+          }
+        }
+      }
+    }
   }
 
   return {
@@ -328,6 +358,7 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
     dailyBuildersRevenue,
     dailyUnitRevenue,
     currentPerpOpenInterest,
+    hip3Deployers,
   }
 }
 
@@ -360,4 +391,16 @@ export async function queryHypurrscanApi(options: FetchOptions): Promise<QueryHy
   result.dailySpotFees.addUSDValue(spotFees)
 
   return result;
+}
+
+export const fetchHIP3DeployerData = async ({ options, hip3DeployerId }: { options: FetchOptions, hip3DeployerId: string }): Promise<Hip3DeployerMetrics> => {
+  const result = await queryHyperliquidIndexer(options);
+  if (result.hip3Deployers[hip3DeployerId]) {
+    return result.hip3Deployers[hip3DeployerId]
+  }
+  
+  return {
+    dailyPerpVolume: options.createBalances(),
+    dailyPerpFee: options.createBalances(),
+  }
 }

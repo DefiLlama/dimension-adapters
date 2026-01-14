@@ -39,7 +39,7 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchRe
 
   [govFee, referralFee, triggerFee, rewardFee, borrowingFee].flat().forEach((i: any) => dailyFees.add(tokens[i.collateralIndex], i.amountCollateral));
   [govFee, rewardFee, triggerFee].flat().forEach((i: any) => dailyRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
-  [borrowingFee].flat().forEach((i: any) => dailySupplySideRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
+  [borrowingFee, referralFee].flat().forEach((i: any) => dailySupplySideRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
   [rewardFee].flat().forEach((i: any) => dailyHoldersRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
   [govFee, triggerFee].flat().forEach((i: any) => dailyProtocolRevenue.add(tokens[i.collateralIndex], i.amountCollateral));
 

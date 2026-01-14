@@ -75,6 +75,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 }
 
 type AdapterRunOptions = {
+  deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -111,7 +112,7 @@ const startOfDayIdCache: { [key: string]: string } = {}
 
 function getStartOfDayId(timestamp: number): string {
   if (!startOfDayIdCache[timestamp]) {
-    startOfDayIdCache[timestamp] =  '' + Math.floor(timestamp / 86400)
+    startOfDayIdCache[timestamp] = '' + Math.floor(timestamp / 86400)
   }
   return startOfDayIdCache[timestamp]
 }
@@ -121,6 +122,7 @@ async function _runAdapter({
   module, endTimestamp, name,
   isTest = false,
   withMetadata = false,
+  deadChains = new Set(),
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
@@ -151,6 +153,7 @@ async function _runAdapter({
     [chain: string]: {
       canRun: boolean,
       startTimestamp: number
+      endTimestamp?: number
     }
   }
   await Promise.all(chains.map(setChainValidStart))
@@ -171,9 +174,14 @@ async function _runAdapter({
   let breakdownByLabel: any = {}
 
   const response = await Promise.all(chains.filter(chain => {
-    const res = validStart[chain]?.canRun
-    if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
-    return validStart[chain]?.canRun
+    const res = validStart[chain]
+    if (isTest && !res.canRun) {
+      if (res.endTimestamp)
+        console.log(`Skipping ${chain} because the adapter ended at ${new Date(res.endTimestamp! * 1e3).toUTCString()} \n\n`)
+      else
+        console.log(`Skipping ${chain} because the configured start time is ${new Date(res.startTimestamp * 1e3).toUTCString()} \n\n`)
+    }
+    return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
   Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
@@ -240,6 +248,7 @@ async function _runAdapter({
         // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
           const { labelBreakdown, usdTvl, usdTokenBalances, rawTokenBalances } = await value.getUSDJSONs()
+          // if (usdTvl > 1e6) value.debug()
           result[recordType] = usdTvl
           breakdownByToken[chain] = breakdownByToken[chain] || {}
           breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
@@ -312,7 +321,13 @@ async function _runAdapter({
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
+    const problematicChains = new Set(['sei', 'xlayer'])
+
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
+
+
+      if (problematicChains.has(chain)) throw new Error(`getLogs is disabled for ${chain} chain due to frequent timeouts`)
+
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
 
@@ -369,8 +384,21 @@ async function _runAdapter({
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
+    // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
+    if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
+
+    // Only check deadFrom if it's explicitly set (not undefined)
+    if (_end !== undefined && typeof _end === 'number' && _end > 0 && _end < cleanPreviousDayTimestamp) {
+      validStart[chain] = {
+        canRun: false,
+        startTimestamp: _start as number,
+        endTimestamp: _end as number,
+      }
+      return;
+    }
 
     if (typeof _start === 'number') {
       validStart[chain] = {
@@ -445,7 +473,7 @@ function addMissingMetrics(chain: string, result: any) {
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
 
     // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
-    if (result.dailySupplySideRevenue && !result.dailyrevenue) {
+    if (result.dailySupplySideRevenue && result.dailyRevenue === undefined) {
       result.dailyRevenue = createBalanceFrom({ chain, timestamp: result.timestamp, amount: result.dailyFees })
       subtractBalance({ balance: result.dailyRevenue, amount: result.dailySupplySideRevenue })
     }

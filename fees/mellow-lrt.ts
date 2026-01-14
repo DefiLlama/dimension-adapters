@@ -1,111 +1,146 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { ChainApi } from "@defillama/sdk";
 import { getERC4626VaultsInfo } from "../helpers/erc4626";
 import { getConfig } from "../helpers/cache";
-
-const methodology = {
-  Fees: "Fees generated from staking assets in LRT vaults.",
-  Revenue: "Amount of fees are collected by Mellow protocol (0% total yields).",
-  ProtocolRevenue: "Amount of fees are collected by Mellow protocol (0% total yields).",
-  SupplySideRevenue: "Fees are distributed to supply side depositors (100% total yields).",
-};
+import { METRIC } from "../helpers/metrics";
 
 const MellowAbis: any = {
-  configurator: 'address:configurator',
-  priceOracle: 'address:priceOracle',
-  baseTokens: 'function baseTokens(address) view returns (address)',
-  underlyingTvl: 'function underlyingTvl() view returns (address[] tokens, uint256[] amounts)',
-  getPrice: 'function getPrice(address, address) view returns (uint256 answer, uint8 decimals)',
+  oracle: 'address:oracle',
   totalSupply: 'uint256:totalSupply',
-  decimals: 'uint8:decimals',
+  asset: 'function assetAt(uint256) view returns (address)',
+  priceReport: 'function getReport(address) view returns (tuple(uint224,uint32,bool))',
+  shareManager: 'address:shareManager',
+  reportHandledEvent: 'event ReportHandled (address indexed asset, uint224 indexed priceD18, uint32 depositTimestamp, uint32 redeemTimestamp, uint256 fees)'
 }
 
-// get active vaults from Mellow API
-// https://points.mellow.finance/v1/vaults
-const DVstETHVault = '0x5E362eb2c0706Bd1d134689eC75176018385430B'
-const DVstETHPriceOracle = '0x39D5F9aEbBEcba99ED5d707b11d790387B5acB63'
-async function getActiveVaults(): Promise<Array<string>> {
-  return ((await getConfig('mellow', 'https://points.mellow.finance/v1/vaults')).map((item: any) => item.address) as Array<string>)
-  .filter((vault: string) => String(vault).toLowerCase() !== String(DVstETHVault).toLowerCase())
+const chainConfig: Record<string, Record<string, string | number>> = {
+  [CHAIN.ETHEREUM]: { chainId: 1, start: '2024-09-01' },
+  [CHAIN.BSC]: { chainId: 56, start: '2025-07-27' },
+  [CHAIN.MONAD]: { chainId: 143, start: '2025-11-21' },
+  [CHAIN.FRAXTAL]: { chainId: 252, start: '2025-07-18' },
+  [CHAIN.LISK]: { chainId: 1135, start: '2025-05-13' },
 }
 
-async function getVaultInfo(usingApi: ChainApi, vault: string, priceOracle: string): Promise<{
-  totalBaseTokenDeposited: number
-  totalVaultSupply: number;
-}> {
-  let totalBaseTokenDeposited = 0;
+async function getCoreVaultInfo(options: FetchOptions, vaults: string[]): Promise<any> {
+  const assets = await options.api.multiCall({
+    calls: vaults.map(vault => ({ target: vault, params: 0 })),
+    abi: MellowAbis.asset,
+    permitFailure: true,
+  });
 
-  const [tokens, amounts]: any = await usingApi.call({
-    abi: MellowAbis.underlyingTvl,
-    target: vault,
-  })
-  for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex++) {
-    const token = tokens[tokenIndex]
-    const balance = amounts[tokenIndex]
+  const shareManagers = await options.api.multiCall({
+    calls: vaults,
+    abi: MellowAbis.shareManager,
+    permitFailure: true,
+  });
 
-    const {answer, decimals} = await usingApi.call({
-      abi: MellowAbis.getPrice,
-      target: priceOracle,
-      params: [vault, token]
-    })
-
-    totalBaseTokenDeposited += Number(balance) * Number(answer) / 1e18
-  }
-
-  const totalSupply: bigint = await usingApi.call({
+  const totalSupplies = await options.api.multiCall({
+    calls: shareManagers.map(i => i ? i : ''), // filter null address
     abi: MellowAbis.totalSupply,
-    target: vault,
-  })
+    permitFailure: true,
+  });
 
-  return {
-    totalBaseTokenDeposited,
-    totalVaultSupply: Number(totalSupply),
+  const oracles = await options.api.multiCall({
+    calls: vaults,
+    abi: MellowAbis.oracle,
+    permitFailure: true,
+  });
+
+  const priceConvertionsBefore = await options.fromApi.multiCall({
+    calls: oracles.map((oracle, index) => ({ target: oracle ? oracle : '', params: assets[index] ? assets[index] : '' })),
+    abi: MellowAbis.priceReport,
+    permitFailure: true,
+  });
+
+  const priceConvertionsAfter = await options.toApi.multiCall({
+    calls: oracles.map((oracle, index) => ({ target: oracle ? oracle : '', params: assets[index] ? assets[index] : '' })),
+    abi: MellowAbis.priceReport,
+    permitFailure: true,
+  });
+  
+  const dataItems: Array<any> = [];
+  for (let index = 0; index < vaults.length; index++) {
+    if (assets[index]) {
+      const priceChange = ((1 / priceConvertionsAfter[index][0]) - (1 / priceConvertionsBefore[index][0])) * 1e18
+      if (priceChange > 0) {
+        dataItems.push({
+          address: vaults[index],
+          supply: totalSupplies[index],
+          priceChange: priceChange,
+          underlyingAsset: assets[index],
+        })
+      }
+    }
   }
+
+  return dataItems;
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyFees = options.createBalances()
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  // DVstETHVault
-  const DVstETHVaultInfoOld = await getVaultInfo(options.fromApi, DVstETHVault, DVstETHPriceOracle)
-  const DVstETHVaultInfoNew = await getVaultInfo(options.toApi, DVstETHVault, DVstETHPriceOracle)
+  const currentChainId = chainConfig[options.chain].chainId;
 
-  const lrtRateOld = DVstETHVaultInfoOld.totalBaseTokenDeposited / DVstETHVaultInfoOld.totalVaultSupply
-  const lrtRateNew = DVstETHVaultInfoNew.totalBaseTokenDeposited / DVstETHVaultInfoNew.totalVaultSupply
-  const lrtRateIncrease = lrtRateNew - lrtRateOld
+  const vaults = await getConfig('mellow', 'https://points.mellow.finance/v1/vaults');
 
-  // token ETH
-  dailyFees.addGasToken(DVstETHVaultInfoOld.totalBaseTokenDeposited * lrtRateIncrease)
+  const coreMellowVaults = vaults.filter((vault: any) => vault.chain_id === currentChainId && vault.layer === "mellow").map((vault: any) => vault.address);
+  const restakingVaults = vaults.filter((vault: any) => vault.chain_id === currentChainId && vault.layer !== "mellow").map((vault: any) => vault.address);
 
-  const vaults = await getActiveVaults()
-  const vaultInfosOld = await getERC4626VaultsInfo(options.fromApi, vaults)
-  const vaultInfosNew = await getERC4626VaultsInfo(options.toApi, vaults)
+  const vaultInfosOld = await getERC4626VaultsInfo(options.fromApi, restakingVaults);
+  const vaultInfosNew = await getERC4626VaultsInfo(options.toApi, restakingVaults);
 
   for (const [vault, vaultInfoOld] of Object.entries(vaultInfosOld)) {
     const vaultInfoNew = vaultInfosNew[vault]
     if (vaultInfoOld && vaultInfoNew) {
       const vaultRateIncrease = vaultInfoNew.assetsPerShare - vaultInfoOld.assetsPerShare
-      dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18))
+      if (vaultRateIncrease > 0) {
+        dailyFees.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18),METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(vaultInfoOld.asset, vaultInfoOld.totalAssets * vaultRateIncrease / BigInt(1e18), METRIC.ASSETS_YIELDS);
+      }
     }
+  }
+
+  const coreVaultsInfo = await getCoreVaultInfo(options, coreMellowVaults);
+
+  if (coreVaultsInfo.length > 0) {
+    coreVaultsInfo.forEach(({ supply, priceChange, underlyingAsset }: { supply: number, priceChange: number, underlyingAsset: string }) => {
+      dailyFees.add(underlyingAsset, priceChange * supply, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(underlyingAsset, priceChange * supply, METRIC.ASSETS_YIELDS);
+    });
+
+    const feePaidLogs = await options.getLogs({
+      targets: coreVaultsInfo.map((vault: any) => vault.address),
+      eventAbi: MellowAbis.reportHandledEvent
+    });
+
+    feePaidLogs.forEach(log => {
+      const { asset, priceD18, fees } = log;
+      dailyFees.add(asset, (1e18 / Number(priceD18)) * Number(fees));
+      dailyRevenue.add(asset, (1e18 / Number(priceD18)) * Number(fees))
+    })
   }
 
   return {
     dailyFees,
-    dailyRevenue: 0, // no revenue cut from Mellow
-    dailyProtocolRevenue: 0, // no revenue cut from Mellow
-    dailySupplySideRevenue: dailyFees, // all fees to stakers
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue
   }
 }
 
+const methodology = {
+  Fees: "Fees generated from staking assets in LRT vaults.",
+  Revenue: "Protocol fees charged on Core vaults",
+  ProtocolRevenue: "All the revenue goes to protocol",
+  SupplySideRevenue: "Yields distributed to supply side depositors",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2024-09-01',
-    },
-  },
+  fetch,
+  adapter: chainConfig,
   methodology,
 };
 
