@@ -1,17 +1,8 @@
-/**
- * GroypFi Aggregator-Derivatives Adapter for DefiLlama
- * 
- * Tracks perpetual futures volume routed through GroypFi's STORM Trade integration.
- * GroypFi charges a 1% house fee on all perps trades.
- * 
- * Fee wallet: EQAO6fsGZMl8PEAOIeW5-xRBw7tt9fwrLqIijmyPifGwA9lR
- */
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const FEE_WALLET = "0:eee00893fff24abaa4f466789ed11a172103cf723e2e206619999edd42b8845944";
+const PERPS_FEE_WALLET = "0:00e9fb06648978c0402e21e5b9fb1441c3bb6df5fc2b2ea2228e6c8f89f1b003";
 const TON_API = "https://tonapi.io/v2";
 
 const fetchVolume = async (options: FetchOptions) => {
@@ -20,11 +11,12 @@ const fetchVolume = async (options: FetchOptions) => {
   const ratesResponse = await httpGet(`${TON_API}/rates?tokens=ton&currencies=usd`);
   const tonPriceUSD = ratesResponse.rates?.TON?.prices?.USD || 3.50;
   
-  const txResponse = await httpGet(`${TON_API}/blockchain/accounts/${FEE_WALLET}/transactions?limit=1000&start_date=${startTimestamp}&end_date=${endTimestamp}`);
+  const txResponse = await httpGet(`${TON_API}/blockchain/accounts/${PERPS_FEE_WALLET}/transactions?limit=1000`);
   
   let dailyVolumeNano = 0n;
   
   for (const tx of txResponse.transactions || []) {
+    if (tx.utime < startTimestamp || tx.utime > endTimestamp) continue;
     if (!tx.success) continue;
     if (tx.in_msg?.value > 0) {
       dailyVolumeNano += BigInt(tx.in_msg.value) * 100n;
