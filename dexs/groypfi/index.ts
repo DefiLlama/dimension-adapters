@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const SWAP_REFERRER = "0:eee00893fff24abaa4f466789ed11a172103cf723e2e206619999edd42b8845944";
+const SWAP_REFERRER = "UQDu4AiT__JKuqT0Znje0RoXIQMPcj4uIGYZme3UK4hFlE_Q";
 const TON_API = "https://tonapi.io/v2";
 
 const fetchVolume = async (options: FetchOptions) => {
