@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const PERPS_FEE_WALLET = "0:00e9fb06648978c0402e21e5b9fb1441c3bb6df5fc2b2ea2228e6c8f89f1b003";
+const PERPS_FEE_WALLET = "EQAO6fsGZMl8PEAOIeW5-xRBw7tt9fwrLqIijmyPifGwA9lR";
 const TON_API = "https://tonapi.io/v2";
 
 const fetchVolume = async (options: FetchOptions) => {
