@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
+import { Adapter, Fetch, FetchOptions } from "../../adapters/types";
 import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 
@@ -11,7 +11,7 @@ interface DailyStats {
   revenue: number;
 }
 
-const fetch: FetchV2 = async (options: FetchOptions) => {
+const fetch: Fetch = async (_timestamp, _chainBlocks, options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(
     options.endTimestamp
   );
@@ -26,7 +26,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
