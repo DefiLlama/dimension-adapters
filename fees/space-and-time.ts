@@ -3,10 +3,8 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 import { getBlock } from "../helpers/getBlock";
-import { sleep } from "../utils/utils";
 
 const getGasBurned = async (startTimestamp: number, endTimestamp: number) => {
-  await sleep(5000); // a void rate limit
   const data = await httpGet(
     "https://metrics.spaceandtime.dev/defillama/gas-burned",
     {
