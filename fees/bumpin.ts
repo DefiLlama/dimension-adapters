@@ -15,21 +15,17 @@ const fetch = async (options: FetchOptions) => {
   
   const response: BumpinApiResponse = await httpGet(url);
   
-  // 创建各种费用余额对象
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // 总费用
   dailyFees.addUSDValue(Number(response.dailyFeeUsd));
   
-  // 协议收入
+  
   dailyProtocolRevenue.addUSDValue(Number(response.dailyProtocolRevenueUsd));
   
-  // LP收入
   dailySupplySideRevenue.addUSDValue(Number(response.dailySupplySideRevenueUsd));
   
-  // 总收入 = 协议收入 + LP收入
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(dailyProtocolRevenue);
   dailyRevenue.addBalances(dailySupplySideRevenue);
