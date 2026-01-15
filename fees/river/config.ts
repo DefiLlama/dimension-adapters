@@ -47,4 +47,14 @@ export const config: Record<string, ChainConfig> = {
         stableCoin: '0xb4818BB69478730EF4e33Cc068dD94278e2766cB',
         start: '2025-02-21',
     },
+    [CHAIN.SONIC]: {
+        satoshiXapp: '0x07BbC5A83B83a5C440D1CAedBF1081426d0AA4Ec',
+        stableCoin: '0xb4818BB69478730EF4e33Cc068dD94278e2766cB',
+        start: '2025-06-10',
+    },
+    [CHAIN.XLAYER]: {
+        satoshiXapp: '0xB4d4793a1CD57b6EceBADf6FcbE5aEd03e8e93eC',
+        stableCoin: '0xceF6c74Ce218c0E1F48cA2430635D0a65Cd3737A',
+        start: '2025-08-28',
+    },
 }

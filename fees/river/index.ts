@@ -120,7 +120,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     })
 
     // Process NYM Protocol fees
-    // NYM Swap In: Users swap assets -> debtToken (feeIn: ~0.05%)
+    // NYM Swap In: Users swap assets -> debtToken (feeIn: ~0.5%)
     nymSwapInLogs.forEach((log) => {
         if (log.fee && log.fee > 0n) {
             // Fees are in debtToken (stableCoin)
@@ -129,7 +129,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         }
     })
 
-    // NYM Swap Out (Scheduled): Users swap debtToken -> assets (feeOut: ~1.00%)
+    // NYM Swap Out (Scheduled): Users swap debtToken -> assets (feeOut: ~5.00%)
     nymWithdrawalScheduledLogs.forEach((log) => {
         if (log.fee && log.fee > 0n) {
             // Fees are in debtToken (stableCoin)
@@ -201,8 +201,8 @@ export default {
             [METRICS.BorrowFees]: 'One-time borrow fees paid by borrowers.',
             [METRICS.RedemptionFee]: 'Redemption fees paid by borrowers.',
             [METRICS.GasCompensation]: 'Gas compensations paid when liquidations are triggered.',
-            [METRICS.NymSwapInFee]: 'Swap in fees when users exchange collateral assets for debtToken. Rate: ~0.05% (5 bps).',
-            [METRICS.NymSwapOutFee]: 'Swap out fees when users schedule exchanges of debtToken for collateral assets. Rate: ~1.00% (100 bps).',
+            [METRICS.NymSwapInFee]: 'Swap in fees when users exchange collateral assets for debtToken. Rate: ~0.5% (50 bps).',
+            [METRICS.NymSwapOutFee]: 'Swap out fees when users schedule exchanges of debtToken for collateral assets. Rate: ~5.00% (500 bps).',
         },
         Revenue: {
             [METRICS.BorrowFees]: 'One-time borrow fees paid by borrowers.',
