@@ -40,7 +40,7 @@ export const config: Record<string, ChainConfig> = {
     [CHAIN.ETHEREUM]: {
         satoshiXapp: '0xb8374e4DfF99202292da2FE34425e1dE665b67E6',
         stableCoin: '0x1958853A8BE062dc4f401750Eb233f5850F0d0d2',
-        start: '2025-8-20',
+        start: '2025-08-20',
     },
     [CHAIN.HEMI]: {
         satoshiXapp: '0x07BbC5A83B83a5C440D1CAedBF1081426d0AA4Ec',
