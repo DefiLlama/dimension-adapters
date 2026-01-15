@@ -18,11 +18,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     "https://www.cantonscan.com/api/mining-rounds/timeseries?interval=day"
   );
 
-  const targetDate = new Date(options.startTimestamp * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const startDate = new Date((options.endTimestamp - 86400) * 1000)
+  .toISOString()
+  .slice(0, 10);
 
-  const day = response.data.find(d => d.date === targetDate);
+  const day = response.data.find(d => d.date === startDate);
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -38,10 +38,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const burnedFromFees = day.burnedFromFees ?? 0;
   const burnedFromTrafficPurchases = day.burnedFromTrafficPurchases ?? 0;
 
-  dailyFees.addGasToken(burnedFromFees, METRIC.TRANSACTION_GAS_FEES);
-  dailyFees.addGasToken(burnedFromTrafficPurchases, 'Traffic Purchases');
-  dailyRevenue.addGasToken(burnedFromFees, METRIC.TRANSACTION_GAS_FEES);
-  dailyRevenue.addGasToken(burnedFromTrafficPurchases, 'Traffic Purchases');
+  dailyFees.addCGToken('canton-network', burnedFromFees, METRIC.TRANSACTION_GAS_FEES);
+  dailyFees.addCGToken('canton-network', burnedFromTrafficPurchases, 'Traffic Purchases');
+  dailyRevenue.addCGToken('canton-network', burnedFromFees, METRIC.TRANSACTION_GAS_FEES);
+  dailyRevenue.addCGToken('canton-network', burnedFromTrafficPurchases, 'Traffic Purchases');
 
   return {
     dailyFees,
