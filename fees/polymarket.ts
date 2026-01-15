@@ -37,7 +37,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Fees: 'Users pay fees when buy/sell binary options on Polymarket markets. Right now taker fees are charged on 15 min markets.Fees taken in USDC are calculated directly using fee modules and those in conditional tokens post redemption. All the fees are net maker fee refunds',
+    Fees: 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
     SupplySideRevenue: 'Part of Fees charged on trades are distributed as maker rebates',
     Revenue: 'Fees going to protocol address post maker rebate distribution',
     ProtocolRevenue: 'All the revenue goes to protocol',
