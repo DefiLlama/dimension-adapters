@@ -6,11 +6,19 @@ const METRICS = {
     GasCompensation: 'Gas Compensation',
     RedemptionFee: 'Redemption Fees',
     BorrowFees: 'Borrow Fees',
+    NymSwapInFee: 'NYM Swap In Fees',
+    NymSwapOutFee: 'NYM Swap Out Fees',
 }
 
+// River Protocol Events
 const RiverRedemptionEvent = 'event Redemption(address _user, uint256 _attemptedDebtAmount, uint256 _actualDebtAmount, uint256 _collateralSent, uint256 _collateralFee)'
 const RiverBorrowingEvent = 'event BorrowingFeePaid(address indexed borrower, address indexed collateralToken, uint256 amount)'
 const RiverLiquidationEvent = 'event LiquidationTroves(address indexed _troveManager, uint256 _liquidatedDebt, uint256 _liquidatedColl, uint256 _collGasCompensation, uint256 _debtGasCompensation)'
+
+// NYM (Nexus Yield Manager) Events
+const NymAssetForDebtTokenSwappedEvent = 'event AssetForDebtTokenSwapped(address indexed sender, address indexed receiver, address indexed asset, uint256 assetAmount, uint256 debtTokenAmount, uint256 fee)'
+const NymWithdrawalScheduledEvent = 'event WithdrawalScheduled(address indexed asset, address indexed user, uint256 assetAmount, uint256 fee, uint32 withdrawalTime)'
+const NymDebtTokenForAssetSwappedEvent = 'event DebtTokenForAssetSwapped(address indexed sender, address indexed receiver, address indexed asset, uint256 debtTokenAmount, uint256 assetAmount, uint256 fee)'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const { createBalances, getLogs, api, chain } = options
@@ -69,6 +77,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         eventAbi: RiverBorrowingEvent,
     })
 
+    // Fetch NYM events (same satoshiXapp address)
+    const nymSwapInLogs = await getLogs({
+        target: cfg.satoshiXapp,
+        eventAbi: NymAssetForDebtTokenSwappedEvent,
+    })
+
+    const nymWithdrawalScheduledLogs = await getLogs({
+        target: cfg.satoshiXapp,
+        eventAbi: NymWithdrawalScheduledEvent,
+    })
+
+    const nymSwapOutLogs = await getLogs({
+        target: cfg.satoshiXapp,
+        eventAbi: NymDebtTokenForAssetSwappedEvent,
+    })
+
+    // Process River Protocol fees
     redemptionLogs.forEach((log) => {
         const collateralToken = troveManagerToCollateral[log.address.toLowerCase()]
         if (!collateralToken) return
@@ -91,6 +116,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         if (collateralToken) {
             dailyFees.addToken(collateralToken, log.args._collGasCompensation, METRICS.GasCompensation)
             dailySupplySideRevenue.addToken(collateralToken, log.args._collGasCompensation, METRICS.GasCompensation)
+        }
+    })
+
+    // Process NYM Protocol fees
+    // NYM Swap In: Users swap assets -> debtToken (feeIn: ~0.05%)
+    nymSwapInLogs.forEach((log) => {
+        if (log.fee && log.fee > 0n) {
+            // Fees are in debtToken (stableCoin)
+            dailyFees.add(cfg.stableCoin, log.fee, METRICS.NymSwapInFee)
+            dailyRevenue.add(cfg.stableCoin, log.fee, METRICS.NymSwapInFee)
+        }
+    })
+
+    // NYM Swap Out (Scheduled): Users swap debtToken -> assets (feeOut: ~1.00%)
+    nymWithdrawalScheduledLogs.forEach((log) => {
+        if (log.fee && log.fee > 0n) {
+            // Fees are in debtToken (stableCoin)
+            dailyFees.add(cfg.stableCoin, log.fee, METRICS.NymSwapOutFee)
+            dailyRevenue.add(cfg.stableCoin, log.fee, METRICS.NymSwapOutFee)
+        }
+    })
+
+    // NYM Privileged Swap Out: Should have 0 fees, but included for completeness
+    nymSwapOutLogs.forEach((log) => {
+        if (log.fee && log.fee > 0n) {
+            dailyFees.add(cfg.stableCoin, log.fee, METRICS.NymSwapOutFee)
+            dailyRevenue.add(cfg.stableCoin, log.fee, METRICS.NymSwapOutFee)
         }
     })
 
@@ -139,24 +191,30 @@ export default {
         },
     },
     methodology: {
-        Fees: 'One-time borrow fees, redemption fees paid by borrowers, and liquidation gas compensations.',
-        Revenue: 'Borrow fees and redemption fees distributed to satUSD stability pool and satUSD+ holders.',
-        HoldersRevenue: 'Borrow fees and redemption fees distributed to the satUSD stability pool and satUSD+ holders.',
-        SupplySideRevenue: 'Liquidation gas compensations distributed supply-side.',
+        Fees: 'Combined fees from River Protocol (borrow, redemption, liquidation) and NYM Protocol (swap in/out fees).',
+        Revenue: 'River: Borrow and redemption fees to stability pool and satUSD+ holders. NYM: All swap fees to RewardManager for stakers.',
+        HoldersRevenue: 'River: Fees to satUSD stability pool and satUSD+ holders. NYM: Swap fees to debtToken stakers.',
+        SupplySideRevenue: 'River: Liquidation gas compensations to liquidators.',
     },
     breakdownMethodology: {
         Fees: {
             [METRICS.BorrowFees]: 'One-time borrow fees paid by borrowers.',
             [METRICS.RedemptionFee]: 'Redemption fees paid by borrowers.',
             [METRICS.GasCompensation]: 'Gas compensations paid when liquidations are triggered.',
+            [METRICS.NymSwapInFee]: 'Swap in fees when users exchange collateral assets for debtToken. Rate: ~0.05% (5 bps).',
+            [METRICS.NymSwapOutFee]: 'Swap out fees when users schedule exchanges of debtToken for collateral assets. Rate: ~1.00% (100 bps).',
         },
         Revenue: {
             [METRICS.BorrowFees]: 'One-time borrow fees paid by borrowers.',
             [METRICS.RedemptionFee]: 'Redemption fees paid by borrowers.',
+            [METRICS.NymSwapInFee]: 'Swap in fees sent to RewardManager for distribution to stakers.',
+            [METRICS.NymSwapOutFee]: 'Swap out fees sent to RewardManager for distribution to stakers.',
         },
         HoldersRevenue: {
             [METRICS.BorrowFees]: 'Borrow fees distributed to satUSD stability pool and satUSD+ holders.',
             [METRICS.RedemptionFee]: 'Redemption fees distributed to satUSD stability pool and satUSD+ holders.',
+            [METRICS.NymSwapInFee]: 'Swap in fees distributed to debtToken stakers via RewardManager.',
+            [METRICS.NymSwapOutFee]: 'Swap out fees distributed to debtToken stakers via RewardManager.',
         },
         SupplySideRevenue: {
             [METRICS.GasCompensation]: 'Gas compensations distributed to liquidators.',
