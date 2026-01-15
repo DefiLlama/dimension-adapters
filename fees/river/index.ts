@@ -16,9 +16,9 @@ const RiverBorrowingEvent = 'event BorrowingFeePaid(address indexed borrower, ad
 const RiverLiquidationEvent = 'event LiquidationTroves(address indexed _troveManager, uint256 _liquidatedDebt, uint256 _liquidatedColl, uint256 _collGasCompensation, uint256 _debtGasCompensation)'
 
 // NYM (Nexus Yield Manager) Events
-const NymAssetForDebtTokenSwappedEvent = 'event AssetForDebtTokenSwapped(address indexed sender, address indexed receiver, address indexed asset, uint256 assetAmount, uint256 debtTokenAmount, uint256 fee)'
-const NymWithdrawalScheduledEvent = 'event WithdrawalScheduled(address indexed asset, address indexed user, uint256 assetAmount, uint256 fee, uint32 withdrawalTime)'
-const NymDebtTokenForAssetSwappedEvent = 'event DebtTokenForAssetSwapped(address indexed sender, address indexed receiver, address indexed asset, uint256 debtTokenAmount, uint256 assetAmount, uint256 fee)'
+const NymAssetForDebtTokenSwappedEvent = 'event AssetForDebtTokenSwapped(address caller, address receiver, address asset, uint256 stableIn, uint256 tokenOut, uint256 fee)'
+const NymWithdrawalScheduledEvent = 'event WithdrawalScheduled(address asset, address user, uint256 amount, uint256 fee, uint32 time)'
+const NymDebtTokenForAssetSwappedEvent = 'event DebtTokenForAssetSwapped(address caller, address receiver, address asset, uint256 debtTokenBurnt, uint256 stableOut, uint256 fee)'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const { createBalances, getLogs, api, chain } = options
