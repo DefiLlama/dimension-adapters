@@ -44,7 +44,12 @@ const fetch = async (options: FetchOptions) => {
     calls: vaults.map((vaultAddress: string) => ({ target: vaultAddress, params: [String(1e18)] }))
   })
 
+  const blockedVaults = EulerChainConfigs[options.chain].blockedVaults || []
+
   for (let i = 0; i < vaults.length; i++) {
+    if (blockedVaults.includes(vaults[i].toLowerCase())) {
+      continue
+    }
     const balance = vaultBalances[i] ? vaultBalances[i] : 0
     const interestFeeRate = vaultInterestFees[i] ? vaultInterestFees[i] : 0
     const protocolFeeRate = vaultProtocolFeeShares[i] ? vaultProtocolFeeShares[i] : 0
