@@ -1,9 +1,10 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 
-const OPINION_CONTRACT = '0x5F45344126D6488025B0b84A3A8189F2487a7246'
-const ORDER_FILLED_EVENT =
-  'event OrderFilled (bytes32 indexed orderHash,  address indexed maker,address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)'
+const OPINION_EXCHANGE_CONTRACT = '0x5F45344126D6488025B0b84A3A8189F2487a7246'
+const OPINION_FEE_MANAGER_CONTRACT = '0xC9063Dc52dEEfb518E5b6634A6b8D624bc5d7c36'
+const ORDER_FILLED_EVENT = 'event OrderFilled (bytes32 indexed orderHash,  address indexed maker,address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)'
+const REBATE_EARNED_EVENT = 'event RebateEarned (address indexed referrer, address indexed trader, address indexed collateralToken, uint256 amount)'
 
 /**
  * WASH TRADING BLACKLIST
@@ -28,17 +29,24 @@ const WASH_TRADING_BLACKLIST = new Set(
   ].map((addr) => addr.toLowerCase())
 )
 
+// fees = trade fees - rebate fees
 async function fetch(options: FetchOptions): Promise<FetchResult> {
   const dailyVolume = options.createBalances()
-  const dailyFees = options.createBalances()
+  const tradeFees = options.createBalances()
+  const rebateFees = options.createBalances()
 
   const orderFilledLogs = await options.getLogs({
     eventAbi: ORDER_FILLED_EVENT,
-    target: OPINION_CONTRACT,
+    target: OPINION_EXCHANGE_CONTRACT,
+  })
+  
+  const rebateEarnedLogs = await options.getLogs({
+    eventAbi: REBATE_EARNED_EVENT,
+    target: OPINION_FEE_MANAGER_CONTRACT,
   })
 
   orderFilledLogs.forEach((order: any) => {
-    dailyFees.addUSDValue(Number(order.fee) / 1e18)
+    tradeFees.addUSDValue(Number(order.fee) / 1e18)
 
     const maker = (order.maker || '').toString().toLowerCase()
     const taker = (order.taker || '').toString().toLowerCase()
@@ -47,10 +55,17 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
       return
     }
 
-    const tradeVolume =
-      Number(order.makerAssetId == 0 ? order.makerAmountFilled : order.takerAmountFilled) / 1e18
+    const tradeVolume = Number(order.makerAssetId == 0 ? order.makerAmountFilled : order.takerAmountFilled) / 1e18
     dailyVolume.addUSDValue(Number(tradeVolume) / 2)
   })
+
+  rebateEarnedLogs.forEach((log: any) => {
+    rebateFees.addUSDValue(Number(log.amount) / 1e18)
+  })
+  
+  
+  const dailyFees = tradeFees.clone(1)
+  dailyFees.subtract(rebateFees)
 
   return {
     dailyVolume,
@@ -62,7 +77,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
 const methodology = {
   Volume: 'Opinion prediction market trading volume, excluding identified wash trading wallets',
-  Fees: 'Taker fees collected by opinion',
+  Fees: 'Taker fees collected by opinion minus rebate earned to traders.',
   Revenue: 'All the fees are revenue',
   ProtocolRevenue: 'All the revenue goes to protocol',
 }
