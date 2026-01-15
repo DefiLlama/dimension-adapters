@@ -13,16 +13,19 @@
   - Assets allocated to nSOL (LST) which stakes SOL
   - Fragmetric earns proportional share of nSOL staking rewards
   - Protocol captures fees in Fund accounts
+  - 100% of protocol fees used for FRAG token buybacks
   
   Methodology (based on Fragmetric contract code):
   1. Track protocol fees: Transfers TO Fund Treasury accounts or Program Revenue account
   2. Track supply-side revenue: User reward claims FROM Reward Token Reserve ATAs
-  3. Total fees = protocol fees + user reward claims
+  3. Track buybacks: FRAG tokens transferred TO Treasury Wallet (backed by 100% of protocol fees)
+  4. Total fees = protocol fees + user reward claims
   
   Key insights from contract analysis:
   - Protocol revenue goes to XEhpR3UauMkARQ8ztwaU9Kbv16jEpBbXs9ftELka9wj
   - Reward Token Reserve accounts are ATAs of Reward Reserve PDAs (seed: ["reward_reserve", receipt_token_mint])
   - Fragmetric uses a claim-based reward system where users actively claim from these ATAs
+  - Buybacks tracked via Treasury Wallet at 6dSWUQt6sbA6B26Jjzwa3JAQPXFVAQbzWY1X7xLqkRKD
   
   Program ID: fragnAis7Bp6FTsMoa6YcH8UffhEw43Ph79qAiK3iF3
 */
@@ -30,6 +33,8 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { queryDuneSql } from '../../helpers/dune'
+import { METRIC } from '../../helpers/metrics'
+import { getSolanaReceivedDune } from '../../helpers/token'
 
 const FRAGMETRIC = {
   // Protocol revenue destinations
@@ -46,12 +51,21 @@ const FRAGMETRIC = {
     '9e6aRiMT9UxhwZHJdkGcUB74wRELStdvvzJzKZNEAzSE', // fragBTC rewards
     'Hdz9kJ982ydC5ZBBU4v5Uerno5urLrTsXmtULoTcgJdU', // fragJTO rewards
   ],
+
+  // Buyback tracking
+  TREASURY_WALLET: '6dSWUQt6sbA6B26Jjzwa3JAQPXFVAQbzWY1X7xLqkRKD',
+  FRAG_TOKEN: 'FRAGMEWj2z65qM62zqKhNtwNFskdfKs4ekDUDX3b4VD5',
+
+  SW1TCH: 'SW1TCHLmRGTfW5xZknqQdpdarB8PD95sJYWpNp9TbFx',
+  FRAGSOL: 'FRAGSEthVFL7fdqM8hxfxkfCZzUvmg21cqPJVvC1qdbo',
+  FRAGJTO: 'FRAGJ157KSDfGvBJtCSrsTWUqFnZhrw4aC8N8LqHuoos',
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
   const fundAccounts = [FRAGMETRIC.FRAGSOL_FUND, FRAGMETRIC.FRAGJTO_FUND]
   const programRevenue = FRAGMETRIC.PROGRAM_REVENUE
@@ -89,13 +103,47 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const { source, mint, amount } = row
 
     if (source === 'protocol') {
-      // Protocol fees captured in Fund Treasury
-      dailyRevenue.add(mint, amount)
-      dailyFees.add(mint, amount)
+      if (mint === FRAGMETRIC.SW1TCH) {
+        // Jito restaking vault yield
+        dailyRevenue.add(mint, amount, METRIC.STAKING_REWARDS)
+        dailyFees.add(mint, amount, METRIC.STAKING_REWARDS)
+      } else if (mint === FRAGMETRIC.FRAGSOL || mint === FRAGMETRIC.FRAGJTO) {
+        // LRT operation fees
+        dailyRevenue.add(mint, amount, METRIC.MANAGEMENT_FEES)
+        dailyFees.add(mint, amount, METRIC.MANAGEMENT_FEES)
+      } else {
+        // Other protocol fees
+        dailyRevenue.add(mint, amount, METRIC.PROTOCOL_FEES)
+        dailyFees.add(mint, amount, METRIC.PROTOCOL_FEES)
+      }
     } else if (source === 'rewards') {
-      // User reward claims from Reward Reserve = supply side revenue
-      dailySupplySideRevenue.add(mint, amount)
-      dailyFees.add(mint, amount)
+      if (mint === FRAGMETRIC.SW1TCH) {
+        // Restaking rewards to users
+        dailySupplySideRevenue.add(mint, amount, METRIC.STAKING_REWARDS)
+        dailyFees.add(mint, amount, METRIC.STAKING_REWARDS)
+      } else {
+        // Other staking/yield rewards
+        dailySupplySideRevenue.add(mint, amount, METRIC.ASSETS_YIELDS)
+        dailyFees.add(mint, amount, METRIC.ASSETS_YIELDS)
+      }
+    }
+  }
+
+  // Track FRAG token buybacks using Solana helper
+  await getSolanaReceivedDune({
+    options,
+    balances: dailyHoldersRevenue,
+    target: FRAGMETRIC.TREASURY_WALLET,
+  })
+
+  // Apply buyback metric label to balances
+  const balancesData = dailyHoldersRevenue.getBalances()
+  for (const [tokenKey, amount] of Object.entries(balancesData)) {
+    if (amount) {
+      const token = tokenKey.includes(':') ? tokenKey.split(':')[1] : tokenKey
+
+      dailyHoldersRevenue.removeTokenBalance(tokenKey) // Remove unlabelled balance
+      dailyHoldersRevenue.add(token, amount, METRIC.TOKEN_BUY_BACK)
     }
   }
 
@@ -104,16 +152,38 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
 const methodology = {
   Fees: 'Total fees generated from Fragmetric LRTs, including protocol revenue and user reward claims.',
   Revenue:
-    "Protocol fees captured in Fund Treasury accounts and Program Revenue account. Represents Fragmetric's share of generated yield from restaking.",
+    "Protocol fees captured in Fund Treasury accounts, Program Revenue account, and Jito Restaking Vault. Includes fragSOL/fragJTO fees and protocol's share of Jito restaking rewards (SW1TCH).",
   ProtocolRevenue: 'Same as Revenue - protocol fees captured by Fragmetric.',
   SupplySideRevenue:
     'Staking and restaking rewards claimed by LRT holders. Tracked via transfers from Reward Token Reserve accounts.',
+  HoldersRevenue:
+    'FRAG token buybacks funded by 100% of protocol fees. Tracks FRAG tokens purchased and transferred to the Treasury Wallet, reducing circulating supply and benefiting token holders.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MANAGEMENT_FEES]: 'Fees from fragSOL and fragJTO LRT operations',
+    [METRIC.STAKING_REWARDS]: 'Restaking rewards from Jito vault operations',
+    [METRIC.ASSETS_YIELDS]: 'Yield rewards distributed to LRT holders',
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Protocol share of LRT operation fees',
+    [METRIC.STAKING_REWARDS]: 'Protocol share of Jito restaking rewards',
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: 'User claims of Jito restaking SW1TCH rewards',
+    [METRIC.ASSETS_YIELDS]: 'User claims of other staking/yield rewards',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: 'FRAG tokens purchased using protocol fees and sent to Treasury',
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -124,6 +194,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter
