@@ -7,14 +7,10 @@ const factories: { [key: string]: { address: string, start: string } } = {
     address: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1',
     start: '2025-01-07',
   },
-  [CHAIN.INK]: {
-    address: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424',
-    start: '2025-01-07'
-  },
-  // [CHAIN.ZERO]: {
-  //   address: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1',
-  //   start: '2025-12-21'
-  // },
+  [CHAIN.ZERO]: {
+    address: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1',
+    start: '2025-01-07',
+  }
 };
 
 const feeConfigs = {
@@ -34,10 +30,10 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: 'Swap fees from paid by users.',
+  Fees: 'Swap fees paid by users on each trade.',
   UserFees: 'User pays fees on each swap.',
-  Revenue: 'Protocol have no revenue.',
-  ProtocolRevenue: 'Protocol have no revenue.',
+  Revenue: 'Protocol has no revenue.',
+  ProtocolRevenue: 'Protocol has no revenue.',
   SupplySideRevenue: 'All user fees are distributed among LPs.',
   HoldersRevenue: 'Holders have no revenue.',
 };
