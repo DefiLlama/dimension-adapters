@@ -1,4 +1,5 @@
 import { CHAIN } from "../chains"
+import { DefaultVaultsBlacklisted } from "../lists"
 
 export const ABI = {
   ERC4626: {
@@ -224,6 +225,7 @@ export const EulerConfigs: any = {
     vaultFactories: [
       '0xf075cc8660b51d0b8a4474e3f47edac5fa034cfb',
     ],
+    blacklistedVaults: DefaultVaultsBlacklisted[CHAIN.SONIC],
   },
   [CHAIN.BERACHAIN]: {
     vaultFactories: [
