@@ -4,8 +4,6 @@ import { CHAIN } from "../helpers/chains";
 import { proxiedFetch } from "../utils/fetchURL";
 import { getBlock } from "../helpers/getBlock";
 
-// curl -x dc.oxylabs.io:8000 -U "user-test1_x8kti-country-US:Ww1234567890_" https://ip.oxylabs.io/location
-
 const getGasBurned = async (startTimestamp: number, endTimestamp: number) => {
   const data = await proxiedFetch(`https://metrics.spaceandtime.dev/defillama/gas-burned?start=${startTimestamp}&end=${endTimestamp}`)
 
