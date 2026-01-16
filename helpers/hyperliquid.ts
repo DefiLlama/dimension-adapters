@@ -259,6 +259,7 @@ export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
 interface Hip3DeployerMetrics {
   dailyPerpVolume: Balances;
   dailyPerpFee: Balances;
+  currentPerpOpenInterest?: number;
 }
 
 interface QueryIndexerResult {
@@ -340,11 +341,20 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
           }
         }
         
-        hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', (metrics as any).perpsVolumeUsd)
+        if ((metrics as any).perpsVolumeUsdSiteA) {
+          hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', Number((metrics as any).perpsVolumeUsdSiteA))
+        } else {
+          hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', Number((metrics as any).perpsVolumeUsd) / 2)
+        }
+        
         for (const [coin, amount] of Object.entries((metrics as any).perpsFeeTokens)) {
           if (CoinGeckoMaps[coin]) {
             hip3Deployers[deployer].dailyPerpFee.addCGToken(CoinGeckoMaps[coin], amount)
           }
+        }
+        
+        if ((metrics as any).perpsOpenInterestUsd) {
+          hip3Deployers[deployer].currentPerpOpenInterest = Number((metrics as any).perpsOpenInterestUs)
         }
       }
     }
@@ -402,5 +412,6 @@ export const fetchHIP3DeployerData = async ({ options, hip3DeployerId }: { optio
   return {
     dailyPerpVolume: options.createBalances(),
     dailyPerpFee: options.createBalances(),
+    currentPerpOpenInterest: 0,
   }
 }
