@@ -6,8 +6,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
     SELECT
       'So11111111111111111111111111111111111111112' as token,
-      (SUM(CASE WHEN balance_change < 0 THEN abs(balance_change) END) * 0.0035
-        + COUNT(CASE WHEN balance_change < 0 THEN 1 END) * 0.006 * POWER(10, 9)) as total_fees
+      (COALESCE(SUM(CASE WHEN balance_change < 0 THEN abs(balance_change) END), 0) * 0.0035
+        + COALESCE(COUNT(CASE WHEN balance_change < 0 THEN 1 END), 0) * 0.006 * POWER(10, 9)) as total_fees
     FROM solana.account_activity
     WHERE address = '4AV2Qzp3N4c9RfzyEbNZs2wqWfW4EwKnnxFAZCndvfGh'
       AND block_time > TIMESTAMP '2025-08-15 00:00:00 UTC'
@@ -17,7 +17,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     SELECT
       token_mint_address as token,
-      SUM(amount) as total_fees
+      COALESCE(SUM(amount), 0) as total_fees
     FROM tokens_solana.transfers
     WHERE from_owner = '2vV7xhCMWRrcLiwGoTaTRgvx98ku98TRJKPXhsS8jvBV'
       AND to_owner = 'AWexibGxNFKTa1b5R5MN4PJr9HWnWRwf8EW9g8cLx3dM'
