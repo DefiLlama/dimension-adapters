@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { METRIC } from "../../helpers/metrics"
+import { DefaultVaultsBlacklisted } from "../../helpers/lists"
 import { EulerChainConfigs } from './config';
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -44,10 +45,10 @@ const fetch = async (options: FetchOptions) => {
     calls: vaults.map((vaultAddress: string) => ({ target: vaultAddress, params: [String(1e18)] }))
   })
 
-  const blockedVaults = EulerChainConfigs[options.chain].blockedVaults || []
+  const blacklistedVaults = EulerChainConfigs[options.chain].blacklistedVaults || []
 
   for (let i = 0; i < vaults.length; i++) {
-    if (blockedVaults.includes(vaults[i].toLowerCase())) {
+    if (blacklistedVaults.includes(vaults[i].toLowerCase())) {
       continue
     }
     const balance = vaultBalances[i] ? vaultBalances[i] : 0

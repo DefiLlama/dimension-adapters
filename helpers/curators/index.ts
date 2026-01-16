@@ -87,7 +87,7 @@ async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | 
 async function getEulerVaults(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
   let eulerVaults = vaults ? vaults : []
 
-  const blockedVaults = EulerConfigs[options.chain].blockedVaults || []
+  const blacklistedVaults = EulerConfigs[options.chain].blacklistedVaults || []
 
   if (owners && owners.length > 0) {
     for (const factory of EulerConfigs[options.chain].vaultFactories) {
@@ -116,7 +116,7 @@ async function getEulerVaults(options: FetchOptions, vaults: Array<string> | und
         });
         for (let i = 0; i < proxyAddresses.length; i++) {
           if (isOwner(proxyCreators[i], owners)) {
-            if (blockedVaults.includes(proxyAddresses[i].toLowerCase())) {
+            if (blacklistedVaults.includes(proxyAddresses[i].toLowerCase())) {
               continue
             }
             eulerVaults.push(proxyAddresses[i])
