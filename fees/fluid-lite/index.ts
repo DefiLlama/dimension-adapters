@@ -22,7 +22,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   // Add revenue delta to daily revenue
   const revenueDelta = Number(currentRevenueValue) - Number(startRevenueValue)
-  dailyRevenue.add(stETHAddress, revenueDelta, 'Lite Vaults Performance Fee');
+  dailyRevenue.add(stETHAddress, revenueDelta, 'Lite Vaults Fees');
 
   const collectRevenueLogs = await options.getLogs({
     target: iETHv2_VAULT,
