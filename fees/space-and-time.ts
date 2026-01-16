@@ -17,12 +17,12 @@ const getPayPortalFees = async (startTimestamp: number, endTimestamp: number) =>
   const toBlock = await getBlock(endTimestamp, CHAIN.BASE)
   const logs = await sdk.getEventLogs({
     chain: CHAIN.BASE,
-    fromBlock: Number(fromBlock),
-    toBlock: Number(toBlock),
+    fromBlock: fromBlock,
+    toBlock: toBlock,
     target: "0x84C276C3EC3Dd3F67F51B775a53001c9d5017964",
     eventAbi: "event TransferWithFee(address indexed sender, address indexed recipient, uint256 netAmount, uint256 fee)",
   });
-  return Number(logs.reduce((sum, log) => sum + log.args.fee ? BigInt(log.args.fee) : 0n, 0n));
+  return Number(logs.reduce((sum, log) => sum + BigInt(log.args.fee), 0n));
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -33,7 +33,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const gasBurned = await getGasBurned(options.startTimestamp, options.endTimestamp);
 
   // PayPortal transfer fees on Base
-  const payPortalFees = await getPayPortalFees(options.startTimestamp, options.endTimestamp);
+   const payPortalFees = await getPayPortalFees(options.startTimestamp, options.endTimestamp);
 
   dailyFees.addCGToken('space-and-time', Number(gasBurned) / 1e18);
   dailyFees.addCGToken('space-and-time', Number(payPortalFees) / 1e18);
