@@ -72,6 +72,7 @@ export const ENV_KEYS = new Set([
   'ASTROS_PERP_API_KEY',
   'VOLO_VAULT_API_KEY',
   'CLICKHOUSE_CONFIG',
+  'PROXY_AUTH',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
