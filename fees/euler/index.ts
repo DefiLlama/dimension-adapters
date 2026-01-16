@@ -1,7 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { METRIC } from "../../helpers/metrics"
-import { DefaultVaultsBlacklisted } from "../../helpers/lists"
 import { EulerChainConfigs } from './config';
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
