@@ -1,6 +1,6 @@
-import * as sdk from "@defillama/sdk"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { getETHReceived } from "../../helpers/token"
 
 const VERIFIER_CONTRACTS: Record<string, string> = {
   [CHAIN.ARBITRUM]: "0xc4858e4D177Bf0d14571F91401492d62aa608047",
@@ -13,22 +13,12 @@ const VERIFIER_CONTRACTS: Record<string, string> = {
 
 const fetchFees = async (options: FetchOptions) => {
   const verifier = VERIFIER_CONTRACTS[options.chain]
-  const dailyFees = options.createBalances()
 
-  const endBalance = await sdk.api.eth.getBalance({
-    chain: options.chain,
+  const dailyFees = await getETHReceived({
+    options,
     target: verifier,
-    block: Number(options.toApi.block),
   })
-
-  const startBalance = await sdk.api.eth.getBalance({
-    chain: options.chain,
-    target: verifier,
-    block: Number(options.fromApi.block),
-  })
-
-  dailyFees.addGasToken(BigInt(endBalance.output) - BigInt(startBalance.output))
-
+  
   return {
     dailyFees,
     dailyRevenue: dailyFees,
