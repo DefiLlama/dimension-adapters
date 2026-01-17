@@ -334,4 +334,5 @@ export enum CHAIN {
   STRATIS = "stratis",
   OMAX = "omax",
   Q_PROTOCOL = "q",
+  CANTON = "canton",
 }
