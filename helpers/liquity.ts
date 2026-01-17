@@ -279,3 +279,40 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
     },
   } as SimpleAdapter
 }
+
+// // Protocol configurations for liquityV2 - eliminates need for individual files
+// const liquityV2Protocols: { [key: string]: IJSON<LiquityV2Config> } = {
+//   'nerite': {
+//     arbitrum: { collateralRegistry: '0x7f7fbc2711c0d6e8ef757dbb82038032dd168e68', stabilityPoolRatio: 1, start: '2025-07-11' }
+//   },
+//   'quill-fi': {
+//     scroll: { collateralRegistry: '0xcc4f29f9d1b03c8e77fc0057a120e2c370d6863d', stabilityPoolRatio: 1, start: '2025-01-23' }
+//   },
+//   'orki-finance': {
+//     swellchain: { collateralRegistry: '0xce9f80a0dcd51fb3dd4f0d6bec3afdcaea10c912', stabilityPoolRatio: 1, start: '2025-05-13' }
+//   },
+//   'mustang': {
+//     saga: { collateralRegistry: '0xF39bdCfB55374dDb0948a28af00b6474A566Ac22', stabilityPoolRatio: 1, start: '2025-11-28' }
+//   },
+//   'felix': {
+//     hyperliquid: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
+//   },
+//   'defi-dollar-cdp': {
+//     ethereum: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', stabilityPoolRatio: 1, start: '2025-07-04' }
+//   },
+//   'ebisu-ebusd': {
+//     ethereum: { collateralRegistry: '0x5e159fAC2D137F7B83A12B9F30ac6aB2ba6d45E7', stabilityPoolRatio: 1, start: '2025-06-05' },
+//     plasma: { collateralRegistry: '0x602096a2f43b43d11dcb3713702dda963c45adc6', stabilityPoolRatio: 1, start: '2025-10-15' }
+//   },
+//   'enosys-loans': {
+//     flare: { collateralRegistry: "0x9474206bc035D03d142264fd9913d1D51246d3AC", stabilityPoolRatio: 1, start: '2025-12-09' }
+//   },
+// };
+
+// export const protocolList = Object.keys(liquityV2Protocols);
+
+// export function getAdapter(protocolName: string): SimpleAdapter | undefined {
+//   const config = liquityV2Protocols[protocolName];
+//   if (!config) return undefined;
+//   return liquityV2Exports(config);
+// }
