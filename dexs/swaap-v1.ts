@@ -1,19 +1,33 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addOneToken } from "../helpers/prices";
 
 const pool = "0x7f5f7411c2c7eC60e2db946aBbe7DC354254870B";
 const swapEventAbi = "event LOG_SWAP( address indexed caller, address indexed tokenIn, address indexed tokenOut, uint256 tokenAmountIn, uint256 tokenAmountOut, uint256 spread, uint256 taxBaseIn, uint256 priceIn, uint256 priceOut)";
 const getSwapFeeAbi = "function getSwapFee() external view returns (uint256)";
+const getTokensAbi = "function getTokens() external view returns (address[] memory)";
+
+// Decimals used by the price oracle
+const PRICE_DECIMALS = 8;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
 
-  const swapFee = await options.api.call({
-    target: pool,
-    abi: getSwapFeeAbi,
-  })
+  const [swapFee, tokens] = await Promise.all([
+    options.api.call({ target: pool, abi: getSwapFeeAbi }),
+    options.api.call({ target: pool, abi: getTokensAbi }),
+  ]);
+
+  // Fetch decimals for all tokens
+  const decimalsResults = await options.api.multiCall({
+    abi: 'erc20:decimals',
+    calls: tokens.map((t: string) => t),
+  });
+
+  const tokenDecimals: { [key: string]: number } = {};
+  tokens.forEach((token: string, i: number) => {
+    tokenDecimals[token.toLowerCase()] = decimalsResults[i];
+  });
 
   const swapLogs = await options.getLogs({
     target: pool,
@@ -21,10 +35,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   })
 
   for (const log of swapLogs) {
-    addOneToken({ chain: options.chain, balances: dailyVolume, token0: log.tokenIn, token1: log.tokenOut, amount0: log.tokenAmountIn, amount1: log.tokenAmountOut })
+    const tokenIn = log.tokenIn.toLowerCase();
 
-    const feeAmount = (BigInt(log.tokenAmountIn) * BigInt(swapFee)) / BigInt(1e18);
-    dailyFees.add(log.tokenIn, feeAmount);
+    // Calculate USD volume using the oracle price
+    const volumeUSD = Number(log.tokenAmountIn) * Number(log.priceIn) / (10 ** tokenDecimals[tokenIn]) / (10 ** PRICE_DECIMALS);
+    dailyVolume.addUSDValue(volumeUSD);
+
+    const feeAmountToken = (BigInt(log.tokenAmountIn) * BigInt(swapFee)) / BigInt(1e18);
+    const feeUSD = Number(feeAmountToken) * Number(log.priceIn) / (10 ** tokenDecimals[tokenIn]) / (10 ** PRICE_DECIMALS);
+    dailyFees.addUSDValue(feeUSD);
   }
 
   return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees }
