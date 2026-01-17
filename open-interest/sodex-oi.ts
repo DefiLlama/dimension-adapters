@@ -10,7 +10,7 @@ const fetch = async (options: FetchOptions) => {
   const res = await httpGet(`${API_BASE}/perp/open-interest?timestamp=${timestamp}`);
 
   return {
-    openInterestAtEnd: res.openInterestAtEnd || 0,
+    openInterestAtEnd: Number(res.openInterestAtEnd ?? 0),
   };
 };
 

@@ -13,7 +13,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     httpGet(`${API_BASE}/perp/volume?timestamp=${timestamp}`),
   ]);
 
-  const dailyVolume = (spotRes.dailyVolume || 0) + (perpRes.dailyVolume || 0);
+  const dailyVolume = Number(spotRes.dailyVolume ?? 0) + Number(perpRes.dailyVolume ?? 0);
 
   return {
     dailyVolume,

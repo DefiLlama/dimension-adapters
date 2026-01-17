@@ -13,9 +13,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     httpGet(`${API_BASE}/perp/fees?timestamp=${timestamp}`),
   ]);
 
-  const dailyFees = (spotRes.dailyFees || 0) + (perpRes.dailyFees || 0);
-  const dailyRevenue = (spotRes.dailyRevenue || 0) + (perpRes.dailyRevenue || 0);
-  const dailyProtocolRevenue = (spotRes.dailyProtocolRevenue || 0) + (perpRes.dailyProtocolRevenue || 0);
+  const dailyFees = Number(spotRes.dailyFees ?? 0) + Number(perpRes.dailyFees ?? 0);
+  const dailyRevenue = Number(spotRes.dailyRevenue ?? 0) + Number(perpRes.dailyRevenue ?? 0);
+  const dailyProtocolRevenue = Number(spotRes.dailyProtocolRevenue ?? 0) + Number(perpRes.dailyProtocolRevenue ?? 0);
 
   return {
     dailyFees,
