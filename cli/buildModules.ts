@@ -3,6 +3,7 @@
 import { readdir, writeFile } from "fs/promises";
 import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
+import { listHelperProtocols } from "../factory/registry";
 
 const extensions = ['ts', 'md', 'js']
 
@@ -21,6 +22,8 @@ async function run() {
   for (const folderPath of ADAPTER_TYPES)
     await addAdapterType(folderPath)
 
+  // Add helper-based adapters for all adapter types
+  await addFactoryAdapters()
 
   await writeFile(outputFile, JSON.stringify(dimensionsImports))
 
@@ -44,6 +47,39 @@ async function run() {
 
     } catch (error) {
       console.error(`Error getting directories for ${folderPath}:`, error)
+    }
+  }
+
+  async function addFactoryAdapters() {
+    // Get all protocols from factory registry
+    const factoryProtocols = listHelperProtocols();
+    
+    for (const { protocolName, factoryName, adapterType, sourcePath } of factoryProtocols) {
+      if (!dimensionsImports[adapterType]) {
+        dimensionsImports[adapterType] = {};
+      }
+      
+      try {
+        // Import based on source path
+        const helperModule = sourcePath.startsWith('factory/') 
+          ? await import(`../${sourcePath.replace('.ts', '')}`)
+          : await import(`../helpers/${factoryName}`);
+        
+        const adapter = helperModule.getAdapter(protocolName);
+        
+        if (!adapter) continue;
+        
+        setModuleDefaults(adapter);
+        const mockedAdapter = mockFunctions({ default: adapter });
+        
+        dimensionsImports[adapterType][protocolName] = {
+          moduleFilePath: `${adapterType}/${protocolName}`,
+          codePath: sourcePath,
+          module: mockedAdapter.default,
+        };
+      } catch (error: any) {
+        console.log(`Error creating helper module for ${protocolName} from ${factoryName}:`, error.message);
+      }
     }
   }
 
