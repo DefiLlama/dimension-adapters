@@ -68,9 +68,9 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Revenue from product sales on Jellybean Playground. Users pay in USDC which is bridged to Aptos via Circle CCTP.",
+  Fees: "Revenue from product sales on Playground. Users pay in USDC which is bridged to Aptos via Circle CCTP.",
   Revenue: "Total USDC received from product purchases, tracked via fungible asset deposits on Aptos.",
-  ProtocolRevenue: "All USDC revenue collected by Jellybean Playground.",
+  ProtocolRevenue: "All USDC revenue collected by Playground.",
 };
 
 const adapter: SimpleAdapter = {
