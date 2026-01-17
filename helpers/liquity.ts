@@ -259,6 +259,12 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
   return fetch
 }
 
+/**
+ * Builds a SimpleAdapter for Liquity V1 from per-chain configurations.
+ *
+ * @param config - Mapping of chain identifiers to their Liquity V1 configuration objects
+ * @returns A SimpleAdapter (version 2) whose `adapter` maps each chain to an object with a `fetch` function and `start` block, and includes the adapter's methodology metadata
+ */
 export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, chainConfig]) => {
