@@ -58,6 +58,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
   } catch (error) {
     console.error('Error fetching USDC deposits:', error);
+    throw error;
   }
 
   return {
