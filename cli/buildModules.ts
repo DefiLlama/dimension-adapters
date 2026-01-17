@@ -69,7 +69,7 @@ async function run() {
         
         if (!adapter) continue;
         
-        setModuleDefaults(adapter);
+        await setModuleDefaults(adapter);
         const mockedAdapter = mockFunctions({ default: adapter });
         
         dimensionsImports[adapterType][protocolName] = {
