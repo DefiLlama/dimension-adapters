@@ -5,6 +5,7 @@ import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types
 import runAdapter from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
+import { getAdapterFromHelpers, listHelperProtocols } from '../factory/registry';
 
 function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
@@ -40,42 +41,74 @@ function toTimestamp(timeArg: string) {
 }
 
 // Get path of module import
-const adapterType: AdapterType = process.argv[2] as AdapterType
-const file = `${adapterType}/${process.argv[3]}`
+const adapterType: AdapterType | string = process.argv[2] as AdapterType
+const moduleArg = process.argv[3]
 
-const passedFile = path.resolve(process.cwd(), `./${adapterType}/${process.argv[3]}`);
+let adapterModule: SimpleAdapter;
+let usedHelper: string | null = null;
+
 (async () => {
-
-
-  const moduleArg = process.argv[3]
-
+  const file = `${adapterType}/${moduleArg}`
+  const passedFile = path.resolve(process.cwd(), `./${file}`);
+  
   // throw error if module doesnt start with lowercase letters
   if (!/^[a-z]/.test(moduleArg)) {
     throw new Error("Module name should start with a lowercase letter: " + moduleArg);
   }
+  
+  try {
+    // Try to import the individual file first
+    adapterModule = (await import(passedFile)).default;
+    console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter 🦙`);
+  } catch (error) {
+    // File doesn't exist, try to find it in helper registry
+    const result = getAdapterFromHelpers(adapterType, moduleArg);
+    
+    if (!result) {
+      // Only show error if not found in registry either
+      console.error(`❌ Protocol "${moduleArg}" not found in ${adapterType}/ or factory registry`);
+      
+      // Show available protocols in helpers for this adapter type
+      const helperProtocols = listHelperProtocols(adapterType);
+      if (helperProtocols.length > 0) {
+        console.error(`\n📋 Available protocols in ${adapterType} factories:`);
+        helperProtocols.forEach(p => console.error(`  - ${p.protocolName} (from: ${p.factoryName})`));
+      }
+      
+      process.exit(1);
+    }
+    
+    // Found in registry - no warning needed
+    adapterModule = result.adapter;
+    usedHelper = result.factoryName;
+    console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter from ${usedHelper} factory 🦙`);
+  }
+  
+  console.info(`---------------------------------------------------`)
 
   const cleanDayTimestamp = process.argv[4] ? toTimestamp(process.argv[4]) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
-  console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
-  console.info(`---------------------------------------------------`)
-  // Import module to test
-  let module: SimpleAdapter = (await import(passedFile)).default
-  const adapterVersion = module.version
+  
+  const adapterVersion = adapterModule.version
   let endTimestamp = endCleanDayTimestamp
   if (adapterVersion === 2) {
     endTimestamp = (process.argv[4] ? toTimestamp(process.argv[4]) : getTimestamp30MinutesAgo()) // 1 day;
-  } else {
-    // checkIfFileExistsInMasterBranch(file)
   }
 
   console.info(`Start Date:\t${new Date((endTimestamp - 3600 * 24) * 1e3).toUTCString()}`)
   console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
   console.info(`---------------------------------------------------\n`)
 
-  if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
+  if ((adapterModule as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   // Get adapter
   const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
-  const volumes: any = await runAdapter({ module, endTimestamp, withMetadata: debugBreakdownFees, isTest: true })
+  const volumes: any = await runAdapter({ 
+    module: adapterModule, 
+    endTimestamp, 
+    withMetadata: debugBreakdownFees, 
+    isTest: true,
+    name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
+  })
   
   if (debugBreakdownFees) {
     printVolumes2(volumes.response.map((volume: any) => timestampLast(volume)))
