@@ -51,6 +51,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const dailySupplySideRevenue = dailyFees.clone();
     dailySupplySideRevenue.subtract(dailyRevenue);
+    dailySupplySideRevenue.removeNegativeBalances();
 
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
@@ -60,23 +61,23 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
-            start: "9-29-2024",
+            start: "2024-09-29",
         },
         [CHAIN.ARBITRUM]: {
             fetch,
-            start: "9-3-2024",
+            start: "2024-09-03",
         },
         [CHAIN.BASE]: {
             fetch,
-            start: "11-8-2024",
+            start: "2024-11-08",
         },
         [CHAIN.UNICHAIN]: {
             fetch,
-            start: "6-18-2025",
+            start: "2025-06-18",
         },
         [CHAIN.TAC]: {
             fetch,
-            start: "7-11-2025",
+            start: "2025-07-11",
         },
     },
     methodology
