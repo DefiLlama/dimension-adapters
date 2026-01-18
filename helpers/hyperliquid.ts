@@ -6,7 +6,7 @@ import axios from "axios";
 import { decompressFrame } from 'lz4-napi';
 import { getEnv } from './env';
 import { httpGet, httpPost } from '../utils/fetchURL';
-import { formatAddress } from '../utils/utils';
+import { formatAddress, sleep } from '../utils/utils';
 import { Balances } from '@defillama/sdk';
 import { findClosest } from "./utils/findClosest";
 import { CHAIN } from './chains';
@@ -355,7 +355,7 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
         }
         
         if ((metrics as any).perpsOpenInterestUsd) {
-          hip3Deployers[deployer].currentPerpOpenInterest = Number((metrics as any).perpsOpenInterestUs)
+          hip3Deployers[deployer].currentPerpOpenInterest = Number((metrics as any).perpsOpenInterestUsd)
         }
       }
     }
@@ -407,6 +407,17 @@ export async function queryHypurrscanApi(options: FetchOptions): Promise<QueryHy
 export const fetchHIP3DeployerData = async ({ options, hip3DeployerId }: { options: FetchOptions, hip3DeployerId: string }): Promise<Hip3DeployerMetrics> => {
   const result = await queryHyperliquidIndexer(options);
   if (result.hip3Deployers[hip3DeployerId]) {
+    if (!result.hip3Deployers[hip3DeployerId].currentPerpOpenInterest) {
+      await sleep(1);
+      result.hip3Deployers[hip3DeployerId].currentPerpOpenInterest = 0;
+      const response = await httpPost('https://api.hyperliquid.xyz/info', { type: 'metaAndAssetCtxs', dex: hip3DeployerId });
+      for (const item of response[1]) {
+        const oi = parseFloat(item.openInterest || '0');
+        const markPrice = parseFloat(item.markPx || '0');
+        result.hip3Deployers[hip3DeployerId].currentPerpOpenInterest += oi * markPrice;
+      }
+    }
+    
     return result.hip3Deployers[hip3DeployerId]
   }
   
