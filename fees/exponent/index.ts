@@ -122,8 +122,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     const dailyMarketFees = await getSolanaReceived({ options, targets: marketTreasuryAccounts });
     unwrapSyTokensInBalances(dailyMarketFees, syMappings);
     dailyFees.addBalances(dailyMarketFees, METRIC.MarketsSwapFees);
-    dailyRevenue.addBalances(dailyMarketFees.clone(0.35), METRIC.MarketsSwapFeesToLPs);
-    dailySupplySideRevenue.addBalances(dailyMarketFees.clone(0.65), METRIC.MarketsSwapFeesToProtocol);
+    dailyRevenue.addBalances(dailyMarketFees.clone(0.35), METRIC.MarketsSwapFeesToProtocol);
+    dailySupplySideRevenue.addBalances(dailyMarketFees.clone(0.65), METRIC.MarketsSwapFeesToLPs);
 
     // Vault yield fees (5.5% of yield)
     const dailyVaultFees = await getSolanaReceived({ options, targets: vaultTreasuryAccounts });
