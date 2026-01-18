@@ -24,7 +24,7 @@ const QUOTE_MINT_DEFAULT = "So11111111111111111111111111111111111111112";
 
 const metrics = {
   TradingFees: METRIC.TRADING_FEES,
-  PartnerFees: "Partner Fees",
+  PartnersFees: "Partners Fees",
   ProtocolFees: "Protocol Fees",
 };
 
@@ -72,35 +72,35 @@ const dbcSQL = `
 
 // DAMM v2 query (migrated pools)
 const dammV2SQL = `
-WITH
+  WITH
     migration_configs AS (
-        SELECT DISTINCT
-            account_config,
-            account_pool
-        FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
-        WHERE account_config IN ({{configs}})
+      SELECT DISTINCT
+        account_config,
+        account_pool
+      FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
+      WHERE account_config IN ({{configs}})
     ),
     swap_events AS (
-        SELECT
-            s.pool,
-            m.account_config,
-            TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.output_amount') AS BIGINT)) AS output_amount,
-            TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.trading_fee') AS BIGINT)) AS trading_fee,
-            TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.protocol_fee') AS BIGINT)) AS protocol_fee,
-            TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.partner_fee') AS BIGINT)) AS partner_fee
-        FROM meteora_solana.cp_amm_evt_evtswap2 s
-        JOIN migration_configs m ON s.pool = m.account_pool
-        WHERE s.evt_block_time >= from_unixtime({{start}})
-          AND s.evt_block_time < from_unixtime({{end}})
+      SELECT
+        s.pool,
+        m.account_config,
+        TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.output_amount') AS BIGINT)) AS output_amount,
+        TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.trading_fee') AS BIGINT)) AS trading_fee,
+        TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.protocol_fee') AS BIGINT)) AS protocol_fee,
+        TRY(TRY_CAST(JSON_EXTRACT(s.swap_result, '$.SwapResult2.partner_fee') AS BIGINT)) AS partner_fee
+      FROM meteora_solana.cp_amm_evt_evtswap2 s
+      JOIN migration_configs m ON s.pool = m.account_pool
+      WHERE s.evt_block_time >= from_unixtime({{start}})
+        AND s.evt_block_time < from_unixtime({{end}})
     )
-SELECT
+  SELECT
     account_config,
     SUM(COALESCE(output_amount, 0)) AS total_volume,
     SUM(COALESCE(trading_fee, 0)) AS total_lp_fees,
     SUM(COALESCE(protocol_fee, 0)) AS total_protocol_fees,
     SUM(COALESCE(partner_fee, 0)) AS total_partner_fees
-FROM swap_events
-GROUP BY account_config
+  FROM swap_events
+  GROUP BY account_config
 `;
 
 const getSqlFromString = (sql: string, variables: Record<string, any> = {}): string => {
@@ -121,14 +121,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const configsResult: { account_config: string }[] = await queryDuneSql(options, resolvedConfigsQuery);
 
   if (!configsResult.length) {
-    const emptyBalances = options.createBalances();
-    return {
-      dailyFees: emptyBalances,
-      dailyUserFees: emptyBalances,
-      dailyRevenue: emptyBalances,
-      dailyProtocolRevenue: emptyBalances,
-      dailyVolume: emptyBalances,
-    };
+    throw Error('Orynth adapter: failed get configs from Dune query')
   }
 
   const configs = configsResult.map(c => `'${c.account_config}'`).join(",");
@@ -152,7 +145,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // Step 4: Aggregate fees and volume
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailyVolume = options.createBalances();
 
   // DBC
   dbcData.forEach((row) => {
@@ -161,21 +153,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
-
-    dailyVolume.add(row.quote_mint, Number(row.total_volume) / 2);
   });
 
   // DAMM v2
   dammv2Data.forEach((row) => {
     const quoteMint = dbcData[0]?.quote_mint ?? QUOTE_MINT_DEFAULT;
     dailyFees.add(quoteMint, Number(row.total_lp_fees), metrics.TradingFees);
-    dailyFees.add(quoteMint, Number(row.total_partner_fees), metrics.PartnerFees);
+    dailyFees.add(quoteMint, Number(row.total_partner_fees), metrics.PartnersFees);
     dailyFees.add(quoteMint, Number(row.total_protocol_fees), metrics.ProtocolFees);
 
     dailyProtocolRevenue.add(quoteMint, Number(row.total_lp_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(quoteMint, Number(row.total_protocol_fees), metrics.ProtocolFees);
-
-    dailyVolume.add(quoteMint, Number(row.total_volume / 2));
   });
 
   return {
@@ -183,7 +171,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
-    dailyVolume,
   };
 };
 
@@ -192,18 +179,16 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2025-11-21",
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology: {
     Fees: "Total trading fees paid by users.",
     UserFees: "Total trading fees paid by users.",
     Revenue: "Fees collected by Trends, including trendor rewards.",
     ProtocolRevenue: "All fees collected by Trends, including trendor rewards.",
-    Volume: "Total trading volume in quote tokens.",
   },
   breakdownMethodology: {
     Fees: {
       [metrics.TradingFees]: "Total trading fees paid by users.",
-      [metrics.PartnerFees]: "Amount of fees paid to partners.",
+      [metrics.PartnersFees]: "Amount of fees paid to partners.",
       [metrics.ProtocolFees]: "Amount of fees paid to Trends protocol.",
     },
     Revenue: {
