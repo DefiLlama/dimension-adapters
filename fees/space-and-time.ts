@@ -23,6 +23,19 @@ const getPayPortalFees = async (startTimestamp: number, endTimestamp: number) =>
   return Number(logs.reduce((sum, log) => sum + BigInt(log.args.fee), 0n));
 };
 
+const getQueryRouterFees = async (startTimestamp: number, endTimestamp: number, chain: any) => {
+  const fromBlock = await getBlock(startTimestamp, chain)
+  const toBlock = await getBlock(endTimestamp, chain)
+  const logs = await sdk.getEventLogs({
+    chain: chain,
+    fromBlock: fromBlock,
+    toBlock: toBlock,
+    target: "0x220a7036a815a1Bd4A7998fb2BCE608581fA2DbB",
+    eventAbi:"event PayoutOccurred(bytes32 indexed queryId, address indexed fulfiller, address indexed refundRecipient, uint256 fulfillerAmount, uint256 refundAmount)",
+  });
+  return Number(logs.reduce((sum, log) => sum + BigInt(log.args.fulfillerAmount), 0n));
+};
+
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -31,10 +44,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const gasBurned = await getGasBurned(options.startTimestamp, options.endTimestamp);
 
   // PayPortal transfer fees on Base
-   const payPortalFees = await getPayPortalFees(options.startTimestamp, options.endTimestamp);
+  const payPortalFees = await getPayPortalFees(options.startTimestamp, options.endTimestamp);
+
+  // QueryRouter fees
+  const queryRouterFeesEthereum = await getQueryRouterFees(options.startTimestamp, options.endTimestamp, CHAIN.ETHEREUM);
+  const queryRouterFeesBase = await getQueryRouterFees(options.startTimestamp, options.endTimestamp, CHAIN.BASE);
 
   dailyFees.addCGToken('space-and-time', Number(gasBurned) / 1e18);
   dailyFees.addCGToken('space-and-time', Number(payPortalFees) / 1e18);
+  dailyFees.addCGToken('space-and-time', Number(queryRouterFeesEthereum) / 1e18);
+  dailyFees.addCGToken('space-and-time', Number(queryRouterFeesBase) / 1e18);
   dailyRevenue.addCGToken('space-and-time', Number(payPortalFees) / 1e18);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
