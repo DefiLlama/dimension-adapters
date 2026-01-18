@@ -41,9 +41,10 @@ export default {
   methodology: {
     Fees: "All trading fees collected (includes swap and  yield fee)",
     UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
-    Revenue: "Protocol revenue from all fees collected",
-    ProtocolRevenue: "Balancer V2 protocol fees are set to 50%",
-    SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
+    Revenue: "Balancer V2 protocol collects 50% swap fees as revenue.",
+    ProtocolRevenue: "Share of revenue to Balancer DAO.",
+    HoldersRevenue: "Share of revenue to veBAL holders.",
+    SupplySideRevenue: "50% from swap fees paid by traders are shared to pool LPs",
   },
   adapter: {
     [CHAIN.ETHEREUM]: {
