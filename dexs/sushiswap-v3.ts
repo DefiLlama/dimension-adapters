@@ -22,8 +22,8 @@ const endpointsV3 = {
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
   [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
   [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
-  [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-2/gn",
-  [CHAIN.BITTORRENT]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-bttc/gn",
+  // [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-2/gn",
+  // [CHAIN.BITTORRENT]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-bttc/gn",
   // [CHAIN.FILECOIN]: "https://sushi.laconic.com/subgraphs/name/sushiswap/v3-filecoin",
   [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/api/public/fc1ae952-7a36-44ac-9e9b-f46d70cedf7d/subgraphs/sushi-v3/v3-metis/v0.0.1/gn",
   [CHAIN.KAVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-kava/gn",
@@ -132,6 +132,10 @@ v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc
 v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), }
 v3[CHAIN.HEMI] = { fetch: getUniV3LogAdapter({ factory: '0xcdbcd51a5e8728e0af4895ce5771b7d17ff71959', ...getUniV3LogAdapterConfig }), }
 v3[CHAIN.KATANA] = { fetch: getUniV3LogAdapter({ factory: '0x203e8740894c8955cb8950759876d7e7e45e04c1', ...getUniV3LogAdapterConfig }), }
+
+// chains badly support rpc getLogs
+// v3[CHAIN.BITTORRENT] = { fetch: getUniV3LogAdapter({ factory: '0xbbde1d67297329148fe1ed5e6b00114842728e65', ...getUniV3LogAdapterConfig }), }
+// v3[CHAIN.ROOTSTOCK] = { fetch: getUniV3LogAdapter({ factory: '0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e', ...getUniV3LogAdapterConfig }), }
 
 export default {
   version: 2,
