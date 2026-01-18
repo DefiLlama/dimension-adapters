@@ -11,10 +11,10 @@ const MARKET_TREASURY_OFFSET = 264;
 const VAULT_TREASURY_OFFSET = 473;
 
 const METRIC = {
-  MarketsSwapFees: 'Markets Swap Fees',
-  MarketsSwapFeesToLPs: 'Markets Swap Fees To LPs',
-  MarketsSwapFeesToProtocol: 'Markets Swap Fees To Protocol',
-  VaultManagementFees: 'Vaults Vault Management Fees',
+    MarketsSwapFees: 'Markets Swap Fees',
+    MarketsSwapFeesToLPs: 'Markets Swap Fees To LPs',
+    MarketsSwapFeesToProtocol: 'Markets Swap Fees To Protocol',
+    VaultManagementFees: 'Vaults Vault Management Fees',
 }
 
 // convert base64 to bytes and extract pubkey
@@ -22,6 +22,28 @@ function extractPubkey(base64Data: string, offset: number): string {
     const buffer = Buffer.from(base64Data, 'base64');
     const pubkeyBytes = new Uint8Array(buffer.slice(offset, offset + 32));
     return encodeBase58(pubkeyBytes);
+}
+
+// Get owners of token accounts
+async function getTokenAccountOwners(tokenAccounts: string[]): Promise<string[]> {
+    if (tokenAccounts.length === 0) return [];
+
+    const response = await httpPost(getEnv("SOLANA_RPC"), {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getMultipleAccounts",
+        params: [tokenAccounts, { encoding: "base64" }]
+    });
+
+    const owners: string[] = [];
+    for (const account of response.result.value) {
+        if (!account) continue;
+        // Owner is at offset 32
+        const owner = extractPubkey(account.data[0], 32);
+        owners.push(owner);
+    }
+
+    return owners;
 }
 
 interface SyTokenInfo {
@@ -55,7 +77,6 @@ function buildSyTokenMappings(markets: any[], vaults: any[]): Map<string, SyToke
 }
 
 // Convert SY tokens in balances to their underlying tokens (using raw amounts from getSolanaReceived())
-// SY tokens (Exponent wrapped yield tokens) don't have prices, so we convert to underlying tokens.
 function unwrapSyTokensInBalances(balances: Balances, syMappings: Map<string, SyTokenInfo>): void {
     const rawBalances = balances.getBalances();
 
@@ -118,15 +139,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         vaultTreasuryAccounts.push(treasury);
     }
 
+    const marketTreasuryOwners = await getTokenAccountOwners(marketTreasuryAccounts);
+    const vaultTreasuryOwners = await getTokenAccountOwners(vaultTreasuryAccounts);
+
     // Market trading fees (35% protocol, 65% LP)
-    const dailyMarketFees = await getSolanaReceived({ options, targets: marketTreasuryAccounts });
+    const dailyMarketFees = await getSolanaReceived({ options, targets: marketTreasuryOwners });
     unwrapSyTokensInBalances(dailyMarketFees, syMappings);
     dailyFees.addBalances(dailyMarketFees, METRIC.MarketsSwapFees);
     dailyRevenue.addBalances(dailyMarketFees.clone(0.35), METRIC.MarketsSwapFeesToProtocol);
     dailySupplySideRevenue.addBalances(dailyMarketFees.clone(0.65), METRIC.MarketsSwapFeesToLPs);
 
     // Vault yield fees (5.5% of yield)
-    const dailyVaultFees = await getSolanaReceived({ options, targets: vaultTreasuryAccounts });
+    const dailyVaultFees = await getSolanaReceived({ options, targets: vaultTreasuryOwners });
     unwrapSyTokensInBalances(dailyVaultFees, syMappings);
     dailyFees.addBalances(dailyVaultFees, METRIC.VaultManagementFees);
     dailyRevenue.addBalances(dailyVaultFees, METRIC.VaultManagementFees);
@@ -146,19 +170,19 @@ const adapter: SimpleAdapter = {
     },
     breakdownMethodology: {
         Fees: {
-          [METRIC.MarketsSwapFees]: 'Trading fees from AMM markets.',
-          [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields.',
+            [METRIC.MarketsSwapFees]: 'Trading fees from AMM markets.',
+            [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields.',
         },
         Revenue: {
-          [METRIC.MarketsSwapFeesToProtocol]: '35% of trading fees from AMM markets collected by protocol.',
-          [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields collected by protocol.',
+            [METRIC.MarketsSwapFeesToProtocol]: '35% of trading fees from AMM markets collected by protocol.',
+            [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields collected by protocol.',
         },
         ProtocolRevenue: {
-          [METRIC.MarketsSwapFeesToProtocol]: '35% of trading fees from AMM markets collected by protocol.',
-          [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields collected by protocol.',
+            [METRIC.MarketsSwapFeesToProtocol]: '35% of trading fees from AMM markets collected by protocol.',
+            [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields collected by protocol.',
         },
         SupplySideRevenue: {
-          [METRIC.MarketsSwapFeesToLPs]: '65% of trading fees from AMM markets are distributed to LPs.',
+            [METRIC.MarketsSwapFeesToLPs]: '65% of trading fees from AMM markets are distributed to LPs.',
         },
     },
     dependencies: [Dependencies.ALLIUM]
