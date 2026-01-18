@@ -284,14 +284,12 @@ async function calculateTokenYield(
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
   // Calculate yields for each supported LST/LRT token
   const yieldPromises = Object.values(LST_LRT_TOKENS).map(async (tokenConfig) => {
     const yieldAmount = await calculateTokenYield(options, tokenConfig.address);
     if (yieldAmount > 0n) {
       dailyFees.addGasToken(yieldAmount);
-      dailySupplySideRevenue.addGasToken(yieldAmount);
     }
   });
 
@@ -301,7 +299,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees,
     dailyRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailySupplySideRevenue,
+    dailySupplySideRevenue: dailyFees,
   };
 };
 
