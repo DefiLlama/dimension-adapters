@@ -10,6 +10,13 @@ import { Balances } from "@defillama/sdk";
 const MARKET_TREASURY_OFFSET = 264;
 const VAULT_TREASURY_OFFSET = 473;
 
+const METRIC = {
+  MarketsSwapFees: 'Markets Swap Fees',
+  MarketsSwapFeesToLPs: 'Markets Swap Fees To LPs',
+  MarketsSwapFeesToProtocol: 'Markets Swap Fees To Protocol',
+  VaultManagementFees: 'Vaults Vault Management Fees',
+}
+
 // convert base64 to bytes and extract pubkey
 function extractPubkey(base64Data: string, offset: number): string {
     const buffer = Buffer.from(base64Data, 'base64');
@@ -73,10 +80,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     const dailySupplySideRevenue = options.createBalances();
 
     // Get markets and vaults
-    const marketsUrl = "https://web-api.exponent.finance/api/markets";
-    const marketsResponse = await getConfig('exponent/markets', marketsUrl);
-    const vaultsUrl = "https://web-api.exponent.finance/api/vaults";
-    const vaultsResponse = await getConfig('exponent/vaults', vaultsUrl);
+    const marketsResponse = await getConfig('exponent/markets', 'https://web-api.exponent.finance/api/markets');
+    const vaultsResponse = await getConfig('exponent/vaults', 'https://web-api.exponent.finance/api/vaults');
 
     // Build mapping from SY token mints to underlying assets for unwrapping
     const syMappings = buildSyTokenMappings(marketsResponse.data, vaultsResponse.data);
@@ -116,31 +121,45 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     // Market trading fees (35% protocol, 65% LP)
     const dailyMarketFees = await getSolanaReceived({ options, targets: marketTreasuryAccounts });
     unwrapSyTokensInBalances(dailyMarketFees, syMappings);
-    dailyFees.addBalances(dailyMarketFees);
-    dailyRevenue.addBalances(dailyMarketFees.clone(0.35));
-    dailySupplySideRevenue.addBalances(dailyMarketFees.clone(0.65));
+    dailyFees.addBalances(dailyMarketFees, METRIC.MarketsSwapFees);
+    dailyRevenue.addBalances(dailyMarketFees.clone(0.35), METRIC.MarketsSwapFeesToLPs);
+    dailySupplySideRevenue.addBalances(dailyMarketFees.clone(0.65), METRIC.MarketsSwapFeesToProtocol);
 
     // Vault yield fees (5.5% of yield)
     const dailyVaultFees = await getSolanaReceived({ options, targets: vaultTreasuryAccounts });
     unwrapSyTokensInBalances(dailyVaultFees, syMappings);
-    dailyFees.addBalances(dailyVaultFees);
-    dailyRevenue.addBalances(dailyVaultFees);
+    dailyFees.addBalances(dailyVaultFees, METRIC.VaultManagementFees);
+    dailyRevenue.addBalances(dailyVaultFees, METRIC.VaultManagementFees);
 
     return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: "2025-02-03",
-        }
-    },
+    fetch,
+    start: "2025-02-03",
+    chains: [CHAIN.SOLANA],
     methodology: {
         Fees: "Trading fees from AMM swaps and 5.5% performance fee on vault yields.",
         Revenue: "5.5% performance fee on vault yields and 35% of AMM trading fees.",
         ProtocolRevenue: "5.5% performance fee on vault yields and 35% of AMM trading fees.",
         SupplySideRevenue: "65% of AMM trading fees distributed to liquidity providers.",
+    },
+    breakdownMethodology: {
+        Fees: {
+          [METRIC.MarketsSwapFees]: 'Trading fees from AMM markets.',
+          [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields.',
+        },
+        Revenue: {
+          [METRIC.MarketsSwapFeesToProtocol]: '35% of trading fees from AMM markets collected by protocol.',
+          [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields collected by protocol.',
+        },
+        ProtocolRevenue: {
+          [METRIC.MarketsSwapFeesToProtocol]: '35% of trading fees from AMM markets collected by protocol.',
+          [METRIC.VaultManagementFees]: '5.5% performance fee on vaults yields collected by protocol.',
+        },
+        SupplySideRevenue: {
+          [METRIC.MarketsSwapFeesToLPs]: '65% of trading fees from AMM markets are distributed to LPs.',
+        },
     },
     dependencies: [Dependencies.ALLIUM]
 };
