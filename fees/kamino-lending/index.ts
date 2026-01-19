@@ -8,11 +8,14 @@ const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-
 const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
     const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0];
-    const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
     
-    const dayData = historicalFeesRes['data'].find(row => row.day === dateString);
+    const historicalFeesRes = await fetchURL(AllezLabsKaminoFeeEndpoint);
     
-    // Return zeros if data doesn't exist yet
+    // Defensively normalize the response to an array
+    const data = Array.isArray(historicalFeesRes?.data) ? historicalFeesRes.data : [];
+    const dayData = data.find(row => row.day === dateString);
+    
+    // Return zeros if data doesn't exist yet (API typically has 2-3 day delay)
     if (!dayData) {
         return {
             timestamp: startOfDay,
@@ -23,8 +26,8 @@ const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     
     return {
         timestamp: startOfDay,
-        dailyFees: dayData.KlendFeesUSD,
-        dailyRevenue: dayData.KaminoRevenueUSD
+        dailyFees: dayData.KlendFeesUSD ?? "0",
+        dailyRevenue: dayData.KaminoRevenueUSD ?? "0"
     };
 };
 
