@@ -1,14 +1,15 @@
 import { queryAllium } from './allium';
-import { FetchOptions } from '../adapters/types';
+import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from "axios";
 import { decompressFrame } from 'lz4-napi';
 import { getEnv } from './env';
 import { httpGet, httpPost } from '../utils/fetchURL';
-import { formatAddress } from '../utils/utils';
+import { formatAddress, sleep } from '../utils/utils';
 import { Balances } from '@defillama/sdk';
 import { findClosest } from "./utils/findClosest";
+import { CHAIN } from './chains';
 
 export const fetchBuilderCodeRevenueAllium = async ({ options, builder_address }: { options: FetchOptions, builder_address: string }) => {
   // Delay as data is available only after 48 hours
@@ -259,6 +260,7 @@ export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
 interface Hip3DeployerMetrics {
   dailyPerpVolume: Balances;
   dailyPerpFee: Balances;
+  currentPerpOpenInterest?: number;
 }
 
 interface QueryIndexerResult {
@@ -340,11 +342,20 @@ export async function queryHyperliquidIndexer(options: FetchOptions): Promise<Qu
           }
         }
         
-        hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', (metrics as any).perpsVolumeUsd)
+        if ((metrics as any).perpsVolumeUsdSiteA) {
+          hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', Number((metrics as any).perpsVolumeUsdSiteA))
+        } else {
+          hip3Deployers[deployer].dailyPerpVolume.addCGToken('usd-coin', Number((metrics as any).perpsVolumeUsd) / 2)
+        }
+        
         for (const [coin, amount] of Object.entries((metrics as any).perpsFeeTokens)) {
           if (CoinGeckoMaps[coin]) {
             hip3Deployers[deployer].dailyPerpFee.addCGToken(CoinGeckoMaps[coin], amount)
           }
+        }
+        
+        if ((metrics as any).perpsOpenInterestUsd) {
+          hip3Deployers[deployer].currentPerpOpenInterest = Number((metrics as any).perpsOpenInterestUsd)
         }
       }
     }
@@ -396,11 +407,55 @@ export async function queryHypurrscanApi(options: FetchOptions): Promise<QueryHy
 export const fetchHIP3DeployerData = async ({ options, hip3DeployerId }: { options: FetchOptions, hip3DeployerId: string }): Promise<Hip3DeployerMetrics> => {
   const result = await queryHyperliquidIndexer(options);
   if (result.hip3Deployers[hip3DeployerId]) {
+    if (!result.hip3Deployers[hip3DeployerId].currentPerpOpenInterest) {
+      await sleep(1);
+      result.hip3Deployers[hip3DeployerId].currentPerpOpenInterest = 0;
+      const response = await httpPost('https://api.hyperliquid.xyz/info', { type: 'metaAndAssetCtxs', dex: hip3DeployerId });
+      for (const item of response[1]) {
+        const oi = parseFloat(item.openInterest || '0');
+        const markPrice = parseFloat(item.markPx || '0');
+        result.hip3Deployers[hip3DeployerId].currentPerpOpenInterest += oi * markPrice;
+      }
+    }
+    
     return result.hip3Deployers[hip3DeployerId]
   }
   
   return {
     dailyPerpVolume: options.createBalances(),
     dailyPerpFee: options.createBalances(),
+    currentPerpOpenInterest: 0,
   }
+}
+
+export const exportHIP3DeployerAdapter = (dexId: string, props: { type: 'dexs' | 'oi', start?: string, methodology?: any }) => {
+  const adapter: SimpleAdapter = {
+    version: 1,
+    doublecounted: true, // all metrics are double-counted to hyperliquid
+    adapter: {
+      [CHAIN.HYPERLIQUID]: {
+        fetch: async function (_1: number, _: any,  options: FetchOptions) {
+          const result = await fetchHIP3DeployerData({ options, hip3DeployerId: dexId });
+          
+          if (props.type === 'dexs') {
+            return {
+              dailyVolume: result.dailyPerpVolume,
+              dailyFees: result.dailyPerpFee,
+              dailyRevenue: result.dailyPerpFee.clone(0.5),
+              dailyProtocolRevenue: result.dailyPerpFee.clone(0.5),
+            }
+          } else {
+            return {
+              openInterestAtEnd: result.currentPerpOpenInterest,
+            }
+          }
+        },
+        start: props.type === 'dexs' ? props.start : undefined,
+        runAtCurrTime: props.type === 'oi',
+      }
+    },
+    methodology: props.methodology,
+  }
+  
+  return adapter;
 }

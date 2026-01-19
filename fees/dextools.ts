@@ -70,7 +70,7 @@ const sol = async (_a: any, _b: any, options: FetchOptions) => {
             'Hz77efVEvgUHUN55WAY97BiEEFg3DbgYBiCNo4UrQx9r'
         ]
     })
-    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
 }
 
 const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {

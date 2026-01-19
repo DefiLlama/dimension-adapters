@@ -1,33 +1,54 @@
-import { CHAIN } from '../helpers/chains'
-import { getGraphDimensions2 } from '../helpers/getUniSubgraph'
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
+
+const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const response = await fetchURL(API_URL);
+  const pools = response.data;
+
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  for (const { protocol_version, volume_24h_usd, fee_24h_usd } of pools) {
+    if (protocol_version !== "v2") continue;
+
+    dailyVolume.addUSDValue(Number(volume_24h_usd));
+    dailyFees.addUSDValue(Number(fee_24h_usd));
+  }
+
+  const dailySupplySideRevenue = dailyFees.clone(0.17 / 0.25);
+  const dailyHoldersRevenue = dailyFees.clone(0.08 / 0.25);
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue,
+  };
+};
 
 const methodology = {
-  Fees: "0.25% trading fees on all trades.",
-  ProtocolRevenue: 'Protocol gets 16% of the swap fees.',
-  SupplySideRevenue: '0.17% of the swap volume',
-  HoldersRevenue: 'All the revenue go to the vePOT holders.',
+  Fees: "PotatoSwap charges a 0.25% swap fee on v2 pools.",
+  UserFees: "Users pay a 0.25% swap fee per trade.",
+  SupplySideRevenue:
+    "Liquidity providers receive 0.17% of swap volume.",
+  HoldersRevenue:
+    "0.08% of swap volume is distributed to vePOT holders.",
+  ProtocolRevenue:
+    "The protocol does not retain a direct fee share.",
 };
-const graphs = getGraphDimensions2({
-  graphUrls: {
-    [CHAIN.XLAYER]: "https://indexer.potatoswap.finance/subgraphs/id/Qmaeqine8JeSiKV3QCi6JJqzDGryF7D8HCJdqcYxW7nekw",
-  },
-  totalVolume: {
-    factory: 'pancakeFactories',
-  },
-  feesPercent: {
-    type: "volume" as const,
-    Fees: 0.25,
-    UserFees: 0.25,
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0.08,
-    SupplySideRevenue: 0.17,
-    Revenue: 0.08
-  },
-})
-export default {
-  version: 2,
-  methodology,
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
   chains: [CHAIN.XLAYER],
-  fetch: graphs,
-  start: '2024-04-23'
-}
+  runAtCurrTime: true,
+  methodology,
+};
+
+export default adapter;

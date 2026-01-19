@@ -30,17 +30,31 @@ interface Market {
 
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
-  
+
   const markets: Record<string, Market> = {}
   const quoteAssetPrecisions: Record<string, bigint> = {}
-  
+
   const MarketRegisteredEvents = await options.getLogs({
     target: CONFIGS[options.chain].router,
     eventAbi: ABIS.EventMarketregistered,
     fromBlock: CONFIGS[options.chain].fromBlock,
     cacheInCloud: true,
   })
-  
+
+  const missingMarket = '0x699AbC15308156E9a3AB89Ec7387e9CfE1c86A3b'.toLowerCase()
+  const hasMissingMarket = !MarketRegisteredEvents.find((m: any) => m.market.toLowerCase() === missingMarket)
+
+  // indexer bug, missing exactly this event log
+  // tx: 0x2630ba6a69d120c14fc6c2f0125e5f4499bd5125ab8f62a499cbe36a628934f7
+  if (hasMissingMarket)
+    MarketRegisteredEvents.push({
+      market: '0x699AbC15308156E9a3AB89Ec7387e9CfE1c86A3b',
+      baseAsset: '0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a',
+      quoteAsset: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
+      pricePrecision: BigInt(100000000),
+      sizePrecision: BigInt(1000000),
+    })
+
   for (const log of MarketRegisteredEvents) {
     const address = formatAddress(log.market)
     markets[address] = {
@@ -50,14 +64,14 @@ async function fetch(options: FetchOptions) {
       pricePrecision: Number(log.pricePrecision),
       sizePrecision: Number(log.sizePrecision),
     }
-    
+
     if (log.quoteAsset === '0x0000000000000000000000000000000000000000') {
       quoteAssetPrecisions[formatAddress(log.quoteAsset)] = BigInt(1e18);
     } else {
       quoteAssetPrecisions[formatAddress(log.quoteAsset)] = BigInt(0);
     }
   }
-  
+
   const quoteAssets = Object.keys(quoteAssetPrecisions)
   const decimals = await options.api.multiCall({
     abi: ABIS.decimals,
@@ -69,7 +83,7 @@ async function fetch(options: FetchOptions) {
       quoteAssetPrecisions[quoteAssets[i]] = BigInt(10 ** Number(decimals[i]))
     }
   }
-  
+
   const marketAddresses = MarketRegisteredEvents.map((m: any) => m.market)
   const TradeEvents = await options.getLogs({
     targets: marketAddresses,
@@ -82,16 +96,14 @@ async function fetch(options: FetchOptions) {
     const market = markets[formatAddress(marketAddresses[i])]
     for (const marketTradeEvent of TradeEvents[i]) {
       // volume = price * filledSize * quoteDecimalMultiplier / (size_precision * 10**18)
-      const volumeQuote = BigInt(marketTradeEvent.price) 
-        * BigInt(marketTradeEvent.filledSize) 
+      const volumeQuote = BigInt(marketTradeEvent.price)
+        * BigInt(marketTradeEvent.filledSize)
         * quoteAssetPrecisions[market.quoteAsset]
         / (BigInt(market.sizePrecision) * BigInt(1e18))
-      
+
       dailyVolume.add(market.quoteAsset, String(volumeQuote))
     }
   }
-  
-  await dailyVolume.getUSDJSONs({ debug: true })
 
   return {
     dailyVolume,

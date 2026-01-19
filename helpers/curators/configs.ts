@@ -1,4 +1,5 @@
 import { CHAIN } from "../chains"
+import { DefaultVaultsBlacklisted } from "../lists"
 
 export const ABI = {
   ERC4626: {
@@ -9,6 +10,8 @@ export const ABI = {
   },
   morpho: {
     fee: 'uint256:fee',
+    performanceFee: 'uint256:performanceFee', // rate per assets
+    managementFee: 'uint256:managementFee', // rate per second
     CreateMetaMorphoEvent: 'event CreateMetaMorpho(address indexed metaMorpho, address indexed caller, address initialOwner, uint256 initialTimelock, address indexed asset, string name, string symbol, bytes32 salt)',
     CreateVaultV2: 'event CreateVaultV2 (address indexed owner, address indexed asset, bytes32 salt, address indexed newVaultV2)',
   },
@@ -222,6 +225,7 @@ export const EulerConfigs: any = {
     vaultFactories: [
       '0xf075cc8660b51d0b8a4474e3f47edac5fa034cfb',
     ],
+    blacklistedVaults: DefaultVaultsBlacklisted[CHAIN.SONIC],
   },
   [CHAIN.BERACHAIN]: {
     vaultFactories: [
