@@ -9,7 +9,7 @@ const NegRiskFeeModule = '0x78769D50Be1763ed1CA0D5E878D93f05aabff29e';
 const Ctf = '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045';
 const NegRiskCtf = '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296';
 
-const FeeRecipient = '0xf21a25DD01ccA63A96adF862F4002d1A186DecB2';
+const FeeRecipients = ['0xf21a25DD01ccA63A96adF862F4002d1A186DecB2','0xd4AA6F8E91cFEa29B66A48ebfF523AaFBdbbd40c'];
 
 //https://docs.polymarket.com/polymarket-learn/trading/maker-rebates-program
 const ProtocolFeeSwitchTime = 1768176000; //2026-01-12
@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = await addTokensReceived({
     options,
     fromAdddesses: [FeeModule, NegRiskFeeModule, Ctf, NegRiskCtf],
-    target: FeeRecipient,
+    targets: FeeRecipients,
     token: ADDRESSES.polygon.USDC
   });
 
