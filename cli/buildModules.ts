@@ -59,6 +59,12 @@ async function run() {
         dimensionsImports[adapterType] = {};
       }
       
+      // Guard: Skip if file-based adapter already exists (file-based takes precedence)
+      if (dimensionsImports[adapterType][protocolName]) {
+        // console.log(`Skipping factory adapter ${protocolName} in ${adapterType} - file-based adapter already exists`);
+        continue;
+      }
+      
       try {
         // Import based on source path
         const helperModule = sourcePath.startsWith('factory/') 
@@ -93,7 +99,7 @@ async function run() {
       if (!module.default) {
         throw new Error(`Module ${moduleFilePath} does not have a default export`)
       }
-      setModuleDefaults(module.default)
+      await setModuleDefaults(module.default)
       module = mockFunctions(module)
       dimensionsImports[adapterType][fileKey] = {
         moduleFilePath,

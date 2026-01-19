@@ -5,7 +5,7 @@ import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types
 import runAdapter from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
-import { getAdapterFromHelpers, listHelperProtocols } from '../factory/registry';
+import { importAdapter } from '../adapters/utils/importAdapter';
 
 function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
@@ -45,7 +45,7 @@ const adapterType: AdapterType | string = process.argv[2] as AdapterType
 const moduleArg = process.argv[3]
 
 let adapterModule: SimpleAdapter;
-let usedHelper: string | null = null;
+let usedHelper: string | null | undefined = null;
 
 (async () => {
   const file = `${adapterType}/${moduleArg}`
@@ -57,31 +57,18 @@ let usedHelper: string | null = null;
   }
   
   try {
-    // Try to import the individual file first
-    adapterModule = (await import(passedFile)).default;
-    console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter 🦙`);
-  } catch (error) {
-    // File doesn't exist, try to find it in helper registry
-    const result = getAdapterFromHelpers(adapterType, moduleArg);
-    
-    if (!result) {
-      // Only show error if not found in registry either
-      console.error(`❌ Protocol "${moduleArg}" not found in ${adapterType}/ or factory registry`);
-      
-      // Show available protocols in helpers for this adapter type
-      const helperProtocols = listHelperProtocols(adapterType);
-      if (helperProtocols.length > 0) {
-        console.error(`\n📋 Available protocols in ${adapterType} factories:`);
-        helperProtocols.forEach(p => console.error(`  - ${p.protocolName} (from: ${p.factoryName})`));
-      }
-      
-      process.exit(1);
-    }
-    
-    // Found in registry - no warning needed
+    const result = await importAdapter(adapterType, moduleArg, passedFile);
     adapterModule = result.adapter;
-    usedHelper = result.factoryName;
-    console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter from ${usedHelper} factory 🦙`);
+    
+    if (result.source === 'factory') {
+      usedHelper = result.factoryName;
+      console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter from ${usedHelper} factory 🦙`);
+    } else {
+      console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter 🦙`);
+    }
+  } catch (error: any) {
+    console.error(error.message);
+    process.exit(1);
   }
   
   console.info(`---------------------------------------------------`)

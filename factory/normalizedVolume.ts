@@ -10,7 +10,7 @@ interface NormalizedVolumeConfig {
 
 function fetch({ protocolName }: { protocolName: string }){
   return async (options: FetchOptions) => {
-    console.log(protocolName)
+    // console.log(protocolName)
     return {
       dailyNormalizedVolume: "0"
     };
@@ -41,10 +41,10 @@ function dailyNormalizedVolumeAdapter(config: NormalizedVolumeConfig): SimpleAda
 
 // Define all protocols
 const protocols = {
-  'abc': dailyNormalizedVolumeAdapter({
-    protocolName: 'abc',
-    chains: [CHAIN.ETHEREUM],
-    start: '2021-05-05'
+  'hyperliquid': dailyNormalizedVolumeAdapter({
+    protocolName: 'hyperliquid',
+    chains: [CHAIN.HYPERLIQUID],
+    start: '2026-01-18'
   }),
 } as const;
 
