@@ -26,7 +26,7 @@ export function createFactoryExports<T extends { [key: string]: SimpleAdapter }>
 // Legacy helpers are stored in helpers/{filename}.ts (marked with 'helpers/' prefix)
 const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'fees': [
-    // 'helpers/liquity',  // Legacy helper in helpers/ folder
+    'helpers/liquity',  // Legacy helper in helpers/ folder
   ],
   'dexs': [
     // 'normalizedVolume', // Factory in factory/ folder
