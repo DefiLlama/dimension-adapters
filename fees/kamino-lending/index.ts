@@ -3,28 +3,31 @@ import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-
-// Define the URL of the endpoint
 const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-lifetime-kamino.modal.run';
 
-// Function to make the GET request
 const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     const startOfDay = getTimestampAtStartOfDayUTC(options.startOfDay);
     const dateString = new Date(startOfDay * 1000).toISOString().split('T')[0];
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
     
-    const dailyFee = historicalFeesRes['data']
-        .find(row => row.day === dateString).KlendFeesUSD
+    const dayData = historicalFeesRes['data'].find(row => row.day === dateString);
     
-    const dailyRevenue = historicalFeesRes['data']
-        .find(row => row.day === dateString).KaminoRevenueUSD
+    // Return zeros if data doesn't exist yet
+    if (!dayData) {
+        return {
+            timestamp: startOfDay,
+            dailyFees: "0",
+            dailyRevenue: "0"
+        };
+    }
     
     return {
         timestamp: startOfDay,
-        dailyFees: dailyFee,
-        dailyRevenue
+        dailyFees: dayData.KlendFeesUSD,
+        dailyRevenue: dayData.KaminoRevenueUSD
     };
 };
+
 const methodology = {
     Fees: "Fees are aggregated by Allez Labs using the Kamino API"
 }
@@ -39,6 +42,5 @@ const adapter: Adapter = {
     },
     methodology,
 }
+
 export default adapter;
-
-
