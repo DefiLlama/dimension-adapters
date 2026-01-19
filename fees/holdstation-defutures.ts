@@ -87,10 +87,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
 	version: 1,
 	adapter: {
-		[CHAIN.BERACHAIN]: {
-			fetch,
-			start: "2025-02-07",
-		},
+		// [CHAIN.BERACHAIN]: {
+		// 	fetch,
+		// 	start: "2025-02-07",
+		// },
 		[CHAIN.WC]: {
 			fetch,
 			start: "2025-06-04",

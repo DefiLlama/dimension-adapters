@@ -6,13 +6,15 @@ const STATS_URL = "https://eosauthority.com/api/spa/rex/communityfunds?network=e
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
-    const unixTodayInMs = options.endTimestamp * 1000;
+    const unixTodayInMs = options.startOfDay * 1000;
 
     const { chartSeries } = await fetchURL(STATS_URL);
     chartSeries.forEach((chart: any) => {
         const feeType = chart.name;
-        const feeToday = chart.data.find((entry: any) => entry[0] === unixTodayInMs)[1];
-        dailyFees.addCGToken("eos", feeToday, feeType)
+        const feeToday = chart.data.find((entry: any) => entry[0] === unixTodayInMs);
+        if (feeToday) {
+          dailyFees.addCGToken("eos", feeToday[1], feeType)
+        }
     })
 
     return {
@@ -41,9 +43,9 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.EOS],
+    start: '2025-12-13',
     methodology,
     breakdownMethodology,
-    start: '2025-12-10'
 }
 
 export default adapter;
