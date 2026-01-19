@@ -376,6 +376,52 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.MONAD]: '0xd2b37aDE14708bf18904047b1E31F8166d39612b',
 }
 
+const RP10_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ARBITRUM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.OPTIMISM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BASE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.POLYGON]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.AVAX]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BSC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.LINEA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ARBITRUM_NOVA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.XDAI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.FANTOM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BITTORRENT]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CELO]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.FILECOIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HAQQ]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.KAVA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.METIS]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.THUNDERCORE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SCROLL]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ZETA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.POLYGON_ZKEVM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HARMONY]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BOBA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BOBA_BNB]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CORE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CRONOS]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BLAST]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SKALE_EUROPA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ROOTSTOCK]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ERA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MANTLE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MANTA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MODE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.TAIKO]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ZKLINK]: '0x67ad43499eda05ddd799f4e6c407646c5bf2ed47',
+  [CHAIN.APECHAIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SONIC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HEMI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.KATANA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HYPERLIQUID]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BERACHAIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.PLASMA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MONAD]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+}
+
 const WNATIVE_ADDRESS: any = {
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
   [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
@@ -451,6 +497,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP9_1_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   
   // count volune only from whitelisted tokens
   const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
