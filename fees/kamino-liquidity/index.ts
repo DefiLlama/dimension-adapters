@@ -12,11 +12,11 @@ const fetch = async (_: any, _tt: any, options: FetchOptions) =>  {
     const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
 
     // Calculate total and daily revenue
-    const dailyRevenue = historicalFeesRes['data']
-        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityRevenueUsd;
+    const dataRow = historicalFeesRes['data']
+        .find(row => row.day.split('T')[0] === dateStr);
 
-    const dailyFees = historicalFeesRes['data']
-        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityFeesUsd;
+    const dailyRevenue = dataRow?.KaminoLiquidityRevenueUsd ?? 0;
+    const dailyFees = dataRow?.KaminoLiquidityFeesUsd ?? 0;
 
     return {
         timestamp: dayTimestamp,
