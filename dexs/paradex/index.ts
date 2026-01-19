@@ -20,7 +20,7 @@ const fetchDailyVolumeCache = async (): Promise<DailyVolumeCache> => {
   for (const row of rows) {
     // Row format: [TRADE_DATE, PERP_VOLUME, OPTION_VOLUME, TOTAL_VOLUME, CUMULATIVE_VOLUME]
     const date = row[0].slice(0, 10) // "2026-01-19T00:00:00Z" -> "2026-01-19"
-    const perpVolume = row[1] || 0
+    const perpVolume = Number(row[1] ?? 0)
     dailyVolumeCache[date] = perpVolume
   }
   return dailyVolumeCache
@@ -35,7 +35,7 @@ const fetch = async (_: number, _1: any, options: FetchOptions): Promise<FetchRe
     // Use rolling 24h volume for current day
     const { data: { rows } } = await fetchURL(rolling24hEndpoint)
     if (!rows || rows.length === 0) throw new Error('No data returned from API')
-    return { dailyVolume: rows[0][0] }
+    return { dailyVolume: Number(rows[0][0] ?? 0) }
   }
 
   // Use historical daily volume for past dates
