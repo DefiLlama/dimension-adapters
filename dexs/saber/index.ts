@@ -9,7 +9,7 @@
  */
 
 import { CHAIN } from '../../helpers/chains';
-import { FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { queryDuneSql } from "../../helpers/dune"
 
 async function fetch(options: FetchOptions) {
@@ -40,10 +40,12 @@ async function fetch(options: FetchOptions) {
 }
 
 const adapter : SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2021-06-26"
+  start: "2021-06-26",
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true
 }
 
 export default adapter
