@@ -182,22 +182,22 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Total trading fees paid by users.",
     UserFees: "Total trading fees paid by users.",
-    Revenue: "Fees collected by Trends, including trendor rewards.",
-    ProtocolRevenue: "All fees collected by Trends, including trendor rewards.",
+    Revenue: "Fees collected by Orynth.",
+    ProtocolRevenue: "All fees collected by Orynth.",
   },
   breakdownMethodology: {
     Fees: {
       [metrics.TradingFees]: "Total trading fees paid by users.",
       [metrics.PartnersFees]: "Amount of fees paid to partners.",
-      [metrics.ProtocolFees]: "Amount of fees paid to Trends protocol.",
+      [metrics.ProtocolFees]: "Amount of fees paid to Orynth protocol.",
     },
     Revenue: {
       [metrics.TradingFees]: "Total trading fees paid by users.",
-      [metrics.ProtocolFees]: "Total fees paid to Trends protocol.",
+      [metrics.ProtocolFees]: "Total fees paid to Orynth protocol.",
     },
     ProtocolRevenue: {
       [metrics.TradingFees]: "Total trading fees paid by users.",
-      [metrics.ProtocolFees]: "Total fees paid to Trends protocol.",
+      [metrics.ProtocolFees]: "Total fees paid to Orynth protocol.",
     },
   },
 };
