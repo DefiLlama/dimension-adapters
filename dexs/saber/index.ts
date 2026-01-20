@@ -9,50 +9,41 @@
  */
 
 import { CHAIN } from '../../helpers/chains';
-import { ChainBlocks, FetchOptions } from '../../adapters/types';
-import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { queryDuneSql } from "../../helpers/dune"
 
-
-async function fetchLast24hVolume(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
-  const [volumeData, poolsData] = await Promise.all([
-    httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json'),
-    httpGet('https://raw.githubusercontent.com/saberdao/saber-registry-dist/master/data/pools-info.mainnet.json')
-  ]);
-
-  const dailyVolume = createBalances()
-
-  // Create map of tokenA mint addresses and decimals by swap account
-  const poolTokens = new Map(
-    poolsData.pools.map((pool: any) => [
-      pool.swap.config.swapAccount,
-      {
-        mint: pool.swap.state.tokenA.mint.toString(),
-        decimals: pool.tokens.find((token: any) => token.address === pool.swap.state.tokenA.mint.toString())?.decimals
-      }
-    ])
+async function fetch(options: FetchOptions) {
+  const dailyVolume = options.createBalances()
+  const query = `
+  WITH amounts AS (
+    SELECT 
+      SUM(varbinary_to_bigint(reverse(varbinary_substring(data, 2, 8)))) as inAmount,
+      account_arguments[5] AS poolSource
+    FROM solana.instruction_calls
+    WHERE inner_executing_account = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
+    AND TIME_RANGE
+    AND is_inner = true
+    AND tx_success = true
+    GROUP BY 2
   )
+  SELECT amounts.inAmount AS amount, ta.token_mint_address AS mint
+  FROM amounts
+  INNER JOIN solana_utils.token_accounts ta
+  ON amounts.poolSource = ta.address`
 
-  Object.entries(volumeData).forEach(([swapAccount, pool]: [string, any]) => {
-    if (!pool.v) return;
+ const result = await queryDuneSql(options, query)
+ result.forEach((result: Record<string, any>) => dailyVolume.add(result.mint, result.amount))
 
-    const tokenInfo = poolTokens.get(swapAccount);
-    if (!tokenInfo) return;
-
-    const { mint, decimals } = tokenInfo as { mint: string; decimals: number };
-    const adjustedVolume = pool.v * Math.pow(10, decimals || 0);
-
-    dailyVolume.add(mint, adjustedVolume);
-  })
-
-  return { dailyVolume, timestamp: Math.floor(Date.now() / 1e3) }
+ return {
+  dailyVolume
+ }
 }
 
-
-export default {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchLast24hVolume,
-      runAtCurrTime: true,
-    }
-  }
+const adapter : SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2021-06-26"
 }
+
+export default adapter
