@@ -18,7 +18,7 @@ export const chainConfigMap: any = {
   [CHAIN.REDSTONE]: { explorer: 'https://explorer.redstone.xyz', CGToken: 'ethereum', allStatsApi: 'https://stats-redstone.k8s.blockscout.com' },
   [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer' },
   [CHAIN.FLARE]: { explorer: 'https://flare-explorer.flare.network', CGToken: 'flare-networks' },
-  [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain' },
+  [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain', deadFrom: '2026-01-15', },
   [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.TELOS]: { explorer: 'https://telostx.com', CGToken: 'telos' },
   // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
@@ -147,11 +147,12 @@ async function sleep(time: number) {
 export function blockscoutFeeAdapter2(chain: string) {
   let config = chainConfigMap[chain]
   if (!config) throw new Error(`No blockscout config for chain ${chain}`)
-  let { url, CGToken, explorer, start, allStatsApi, requestConfig } = config
+  let { url, CGToken, explorer, start, allStatsApi, requestConfig, deadFrom, } = config
   if (explorer && explorer.endsWith('/')) explorer = explorer.slice(0, -1)
   if (!url && explorer) url = `${explorer}/api?module=stats&action=totalfees`
   const adapter: Adapter = {
     version: 1,
+    deadFrom,
     adapter: {
       [chain]: {
         fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
