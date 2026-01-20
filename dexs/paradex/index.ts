@@ -26,7 +26,7 @@ const fetchDailyVolumeCache = async (): Promise<DailyVolumeCache> => {
   return dailyVolumeCache
 }
 
-const fetch = async (_: number, _1: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const { startOfDay, endTimestamp } = options
   const now = Math.floor(Date.now() / 1000)
   const isCurrentDay = endTimestamp >= now
@@ -48,6 +48,7 @@ const fetch = async (_: number, _1: any, options: FetchOptions): Promise<FetchRe
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.PARADEX]: {
       fetch,
