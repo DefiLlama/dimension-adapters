@@ -43,12 +43,14 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, api }) => {
 
     const toTopic = padTopicAddress(TREASURY);
     const treasuryLc = TREASURY.toLowerCase();
+    const TRANSFER_TOPIC0 =
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
     for (const token of tokens) {
         const transferLogs = await getLogs({
             target: token,
             eventAbi: TRANSFER_EVENT,
-            topics: [null,null, toTopic] as any,
+            topics: [TRANSFER_TOPIC0,null, toTopic] as any,
         });
 
         for (const t of transferLogs as any[]) {
