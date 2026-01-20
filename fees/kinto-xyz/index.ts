@@ -27,7 +27,6 @@ const adapter: SimpleAdapter = {
   start: '2024-12-24',
   methodology,
   doublecounted: true,
-  // isExpensiveAdapter: true,
   deadFrom: '2025-09-07', // https://x.com/KintoXYZ/status/1964721235675537573
 }
 

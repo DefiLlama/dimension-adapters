@@ -22,6 +22,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-09-11',
   methodology,
+  doublecounted: true,
 };
 
 export default adapter;
