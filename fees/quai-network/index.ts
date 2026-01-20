@@ -2,22 +2,32 @@ import { Balances } from "@defillama/sdk";
 import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils"
 
 const getRavenMiningRewards = async (options: FetchOptions, dailyFees: Balances) => {
-  const address = "RXtpH2yp6AA6VvPVTuhCrqxYG7vCGEPMB5";
-  let pageNum = 0, dailyRavenMined = 0, lastTxnTime = options.startTimestamp
+  const addresses = [
+    "RXtpH2yp6AA6VvPVTuhCrqxYG7vCGEPMB5",
+    "RRTcyuUrrzdgKH2ti9QxwpqLtsAeZq2jtT",
+    "RMTUdg4fYvGPGzaxAPXJYzjk7fBX6JWinW",
+    "RVMKX8LuTWs8Y9zMyL4rZQbp5KwWmJMFwk"];
 
-  while (lastTxnTime >= options.startTimestamp) {
-    const response = await fetchURL(`https://explorer.rvn.zelcore.io/api/txs?address=${address}&pageNum=${pageNum}`);
-    for (const { isCoinBase, time, valueOut } of response.txs) {
-      if (isCoinBase && time >= options.startTimestamp && time < options.endTimestamp)
-        dailyRavenMined += valueOut;
-      lastTxnTime = time;
+  let dailyRavenMined = 0;
+
+  for (const address of addresses) {
+    let pageNum = 0, lastTxnTime = options.startTimestamp
+    while (lastTxnTime >= options.startTimestamp) {
+      const response = await fetchURL(`https://explorer.rvn.zelcore.io/api/txs?address=${address}&pageNum=${pageNum}`);
+      for (const { isCoinBase, time, valueOut } of response.txs) {
+        if (isCoinBase && time >= options.startTimestamp && time < options.endTimestamp)
+          dailyRavenMined += valueOut;
+        lastTxnTime = time;
+      }
+
+      if (response.txs.length === 0) break;
+
+      pageNum++;
     }
-
-    if (response.txs.length === 0) break;
-
-    pageNum++;
+    await sleep(2000);
   }
   dailyFees.addCGToken("ravencoin", dailyRavenMined);
 }
