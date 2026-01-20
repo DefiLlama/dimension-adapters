@@ -84,7 +84,7 @@ const getDogeMiningRewards = async (options: FetchOptions, dailyFees: Balances) 
     if (transactionSummaries.length === 0) break;
 
     for (const { coinbase, time, received } of transactionSummaries) {
-      if (coinbase && time >= options.startOfDay && time < options.endTimestamp)
+      if (coinbase && time >= options.startTimestamp && time < options.endTimestamp)
         dailyDogeMined += +received;
       lastTxnTime = time;
     }
