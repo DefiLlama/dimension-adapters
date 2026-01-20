@@ -2,10 +2,25 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { fetchBuilderCodeRevenue } from '../helpers/hyperliquid'
 
-const OKTO_BUILDER_ADDRESS = '0x05984fd37db96dc2a11a09519a8def556e80590b'
+const OKTO_BUILDER_ADDRESSES = [
+  '0x05984fd37db96dc2a11a09519a8def556e80590b',
+  '0x4fe1141b9066f3777f4bd4d4ac9d216173031dc1',
+]
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } = await fetchBuilderCodeRevenue({ options, builder_address: OKTO_BUILDER_ADDRESS });
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  
+  for (const address of OKTO_BUILDER_ADDRESSES) {
+    const result = await fetchBuilderCodeRevenue({ options, builder_address: address });
+    dailyVolume.addBalances(result.dailyVolume)
+    dailyFees.addBalances(result.dailyFees)
+    dailyRevenue.addBalances(result.dailyRevenue)
+    dailyProtocolRevenue.addBalances(result.dailyProtocolRevenue)
+  }
+  
 
   return {
     dailyVolume,
