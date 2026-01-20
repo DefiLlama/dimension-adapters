@@ -12,7 +12,7 @@ import { CHAIN } from '../../helpers/chains';
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { queryDuneSql } from "../../helpers/dune"
 
-async function fetch(options: FetchOptions) {
+async function fetch(_t: any, _a: any, options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const query = `
   WITH amounts AS (
