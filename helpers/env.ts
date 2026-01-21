@@ -26,6 +26,7 @@ const DEFAULTS: any = {
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
+  BLOCKFROST_PROJECT_ID: 'mai'+'nnetBfkdsCOvb4BS'+'VA6pb1D43ptQ7t3cLt06',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
   HYDRADX_BLOCK_LOW: '7036666',
@@ -72,6 +73,7 @@ export const ENV_KEYS = new Set([
   'ASTROS_PERP_API_KEY',
   'VOLO_VAULT_API_KEY',
   'CLICKHOUSE_CONFIG',
+  'PROXY_AUTH',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
