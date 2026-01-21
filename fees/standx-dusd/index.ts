@@ -38,7 +38,7 @@ async function fetchSol(_a: any, _b: any, options: FetchOptions): Promise<FetchR
 
     const queryResults = await queryDuneSql(options, duneQuery);
 
-    if(!queryResults)
+    if (!queryResults && !queryResults.length)
         throw new Error("No results found on dune");
 
     dailyFees.addUSDValue(queryResults[0].total_yield, METRIC.ASSETS_YIELDS);
