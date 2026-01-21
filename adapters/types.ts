@@ -144,6 +144,7 @@ export type FetchResultVolume = FetchResultBase & {
   openInterestAtEnd?: FetchResponseValue
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
+  dailyNormalizedVolume?: FetchResponseValue
 };
 
 // FEES
@@ -205,6 +206,7 @@ export enum AdapterType {
   // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
+  NORMALIZED_VOLUME = 'normalized-volume',
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
@@ -212,7 +214,7 @@ export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggre
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
+  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',

@@ -3,6 +3,7 @@
 import { readdir, writeFile } from "fs/promises";
 import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
+import { listHelperProtocols } from "../factory/registry";
 
 const extensions = ['ts', 'md', 'js']
 
@@ -21,6 +22,8 @@ async function run() {
   for (const folderPath of ADAPTER_TYPES)
     await addAdapterType(folderPath)
 
+  // Add helper-based adapters for all adapter types
+  await addFactoryAdapters()
 
   await writeFile(outputFile, JSON.stringify(dimensionsImports))
 
@@ -47,6 +50,45 @@ async function run() {
     }
   }
 
+  async function addFactoryAdapters() {
+    // Get all protocols from factory registry
+    const factoryProtocols = listHelperProtocols();
+    
+    for (const { protocolName, factoryName, adapterType, sourcePath } of factoryProtocols) {
+      if (!dimensionsImports[adapterType]) {
+        dimensionsImports[adapterType] = {};
+      }
+      
+      // Guard: Skip if file-based adapter already exists (file-based takes precedence)
+      if (dimensionsImports[adapterType][protocolName]) {
+        // console.log(`Skipping factory adapter ${protocolName} in ${adapterType} - file-based adapter already exists`);
+        continue;
+      }
+      
+      try {
+        // Import based on source path
+        const helperModule = sourcePath.startsWith('factory/') 
+          ? await import(`../${sourcePath.replace('.ts', '')}`)
+          : await import(`../helpers/${factoryName}`);
+        
+        const adapter = helperModule.getAdapter(protocolName);
+        
+        if (!adapter) continue;
+        
+        await setModuleDefaults(adapter);
+        const mockedAdapter = mockFunctions({ default: adapter });
+        
+        dimensionsImports[adapterType][protocolName] = {
+          moduleFilePath: `${adapterType}/${protocolName}`,
+          codePath: sourcePath,
+          module: mockedAdapter.default,
+        };
+      } catch (error: any) {
+        console.log(`Error creating helper module for ${protocolName} from ${factoryName}:`, error.message);
+      }
+    }
+  }
+
   async function createDimensionAdaptersModule(path: string, adapterType: string) {
     try {
       const fileKey = removeDotTs(path)
@@ -57,7 +99,7 @@ async function run() {
       if (!module.default) {
         throw new Error(`Module ${moduleFilePath} does not have a default export`)
       }
-      setModuleDefaults(module.default)
+      await setModuleDefaults(module.default)
       module = mockFunctions(module)
       dimensionsImports[adapterType][fileKey] = {
         moduleFilePath,

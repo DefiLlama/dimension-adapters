@@ -1,4 +1,6 @@
 import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
+import { createFactoryExports } from "../factory/registry";
+import { CHAIN } from "./chains";
 import { addTokensReceived, nullAddress } from "./token";
 import { METRIC } from "./metrics";
 
@@ -279,3 +281,15 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
     },
   } as SimpleAdapter
 }
+
+
+
+
+// Define all protocols
+const protocols = {
+  'felix': liquityV2Exports({
+    [CHAIN.HYPERLIQUID]: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
+  }),
+} as const;
+
+export const { protocolList, getAdapter } = createFactoryExports(protocols);
