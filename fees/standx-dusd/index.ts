@@ -38,6 +38,9 @@ async function fetchSol(_a: any, _b: any, options: FetchOptions): Promise<FetchR
 
     const queryResults = await queryDuneSql(options, duneQuery);
 
+    if(!queryResults)
+        throw new Error("No results found on dune");
+
     dailyFees.addUSDValue(queryResults[0].total_yield, METRIC.ASSETS_YIELDS);
     dailySupplySideRevenue.addUSDValue(queryResults[0].total_yield, METRIC.ASSETS_YIELDS);
 
@@ -100,7 +103,6 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-    fetch,
     methodology,
     breakdownMethodology,
     adapter: {
