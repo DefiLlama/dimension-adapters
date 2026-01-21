@@ -36,7 +36,7 @@ async function getMarketsPriceScales(): Promise<Map<string, number>> {
 
   for (const m of resp.markets || []) {
     const scale = m.oracleScaleFactor ?? 0;
-    map.set(m.marketId.toLowerCase(), Math.pow(10, Number(scale)));
+    map.set(m.marketId, Math.pow(10, Number(scale)));
   }
 
   return map;
