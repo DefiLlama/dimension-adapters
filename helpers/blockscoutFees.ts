@@ -74,7 +74,7 @@ export const chainConfigMap: any = {
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start:'2021-12-18'},
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start:'2025-02-20'},
-  [CHAIN.SX_NETWORK]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
+  [CHAIN.SX]: { CGToken: 'sx-network-2', explorer: 'https://explorerl2.sx.technology/', start:'2024-12-05'},
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },
   [CHAIN.RARI] : { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' },
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
