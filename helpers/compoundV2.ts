@@ -146,7 +146,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     version: 2,
     methodology: exportOptions && exportOptions.methodology ? exportOptions.methodology : {
       Fees: "Total interest paid by borrowers",
-      Revenue: "Protocol's share of interest treasury",
+      Revenue: "Protocol and holders share of interest",
       ProtocolRevenue: "Protocol's share of interest into treasury",
       HoldersRevenue: "Share of interest into protocol governance token holders.",
       SupplySideRevenue: "Interest paid to lenders in liquidity pools"

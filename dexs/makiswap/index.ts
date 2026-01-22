@@ -12,6 +12,7 @@ const fetch = univ2Adapter({
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2025-01-01',
   adapter: {
     [CHAIN.HECO]: { fetch: async () => ({ dailyVolume: 0 }), start: 1630000000 },
   },

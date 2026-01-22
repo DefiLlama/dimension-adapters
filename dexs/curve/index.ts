@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
+import { fetchCurveApiData, getChainDataFromApiResponse } from "./api";
 
 const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   [CHAIN.ETHEREUM]: {
@@ -448,6 +449,21 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       '0x6E28493348446503db04A49621d8e6C9A40015FB',
     ],
   },
+  [CHAIN.STABLE]: {
+    start: '2025-12-08',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
+    ],
+  },
 
   // [CHAIN.TAC]: {
   //   start: '2025-06-25',
@@ -464,6 +480,42 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
+async function fetchFromApi(options: FetchOptions) {
+  const apiResponse = await fetchCurveApiData(options.startTimestamp, options.endTimestamp);
+  const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
+
+  if (!chainData) {
+    throw new Error(`No data for chain ${options.chain} in API response`);
+  }
+
+  return {
+    dailyVolume: chainData.total_volume,
+    dailyFees: chainData.total_fees,
+    dailyUserFees: chainData.total_fees,
+    dailyRevenue: chainData.fees_to_dao + chainData.fees_to_treasury,
+    dailyProtocolRevenue: chainData.fees_to_treasury,
+    dailySupplySideRevenue: chainData.fees_to_lp,
+    dailyHoldersRevenue: chainData.fees_to_dao,
+  };
+}
+
+async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) {
+  const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, config);
+
+  const dailySupplySideRevenue = swapFees.clone(1);
+  dailySupplySideRevenue.subtract(adminFees);
+
+  return {
+    dailyVolume,
+    dailyFees: swapFees,
+    dailyUserFees: swapFees,
+    dailyRevenue: adminFees,
+    dailyProtocolRevenue: 0,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: adminFees,
+  };
+}
+
 export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
   const adapter: SimpleAdapter = {
     version: 2,
@@ -472,15 +524,12 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
         ...acc,
         [chain]: {
           fetch: async function(options: FetchOptions) {
-            const { dailyVolume, swapFees, adminFees } = await getCurveDexData(options, configs[chain])
-            
-            return {
-              dailyVolume,
-              dailyFees: swapFees,
-              dailyUserFees: swapFees,
-              dailyRevenue: adminFees,
-              dailyProtocolRevenue: 0,
-              dailyHoldersRevenue: adminFees,
+            // Try API first, fall back to on-chain if chain not in API or API fails
+            try {
+              return await fetchFromApi(options);
+            } catch (e) {
+              // Fall back to on-chain if API fails or chain not supported
+              return await fetchFromOnChain(options, configs[chain]);
             }
           },
           start: configs[chain].start,
@@ -496,12 +545,12 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
 const adapter = getCurveExport(CurveDexConfigs)
 
 adapter.methodology = {
-  Fees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
-  UserFees: "Trading fees paid by users (typically range from 0.01%-0.04%)",
-  Revenue: "A 50% of the trading fee is collected by veCRV holders",
-  ProtocolRevenue: "No revenue share for Curve protocol.",
-  HoldersRevenue: "A 50% of the trading fee is collected by the users who have vote locked their CRV",
-  SupplySideRevenue: "A 50% of all trading fees are distributed among liquidity providers"
+  Fees: "Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)",
+  UserFees: "Trading and liquidity fees paid by users",
+  Revenue: "Fees distributed to veCRV holders and protocol treasury",
+  ProtocolRevenue: "Fees allocated to the protocol treasury",
+  HoldersRevenue: "Fees distributed to veCRV governance token holders",
+  SupplySideRevenue: "Fees distributed to liquidity providers"
 }
 
 export default adapter;

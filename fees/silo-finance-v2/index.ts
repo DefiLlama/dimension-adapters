@@ -50,7 +50,12 @@ const subgraphMapping: SubgraphMapping = {
 // so we will filter out these silos from the data
 const badDebtSiloMapping: BadDebtSiloMapping = {
   [CHAIN.ETHEREUM]: [],
-  [CHAIN.ARBITRUM]: [],
+  [CHAIN.ARBITRUM]: [
+    {
+      silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
+      timestamp: 1762128000, // 2025-11-03
+    }
+  ],
   [CHAIN.AVAX]: [],
   [CHAIN.SONIC]: [
     {
@@ -76,6 +81,18 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     {
       silo: "0x8c98b43bf61f2b07c4d26f85732217948fca2a90",
       timestamp: 1754265600, // 2025-08-04
+    },
+    {
+      silo: "0xa1627a0e1d0ebca9326d2219b84df0c600bed4b1", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xbe0d3c8801206cc9f35a6626f90ef9f4f2983a3d",
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x172a687c397e315dbe56ed78ab347d7743d0d4fa", //xUsd
+      timestamp: 1762128000 // 2025-11-03
     },
   ],
 };

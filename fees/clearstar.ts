@@ -22,12 +22,16 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0x30988479C2E6a03E7fB65138b94762D41a733458',
       ],
+      start: '2025-10-01',
     },
-    [CHAIN.KATANA]: {
-      morphoVaultOwners: [
-        '0x30988479C2E6a03E7fB65138b94762D41a733458',
-      ],
-    },
+    // [CHAIN.KATANA]: {
+    //   morphoVaultOwners: [
+    //     '0x30988479C2E6a03E7fB65138b94762D41a733458',
+    //   ],
+    //   morphoVaultV2Owners: [
+    //     '0x829A13850b684A575C0580a83322890e19c5eFaa',
+    //   ],
+    // },
     [CHAIN.ARBITRUM]: {
       morphoVaultOwners: [
         '0x30988479C2E6a03E7fB65138b94762D41a733458',
@@ -37,6 +41,7 @@ const curatorConfig: CuratorConfig = {
       morphoVaultOwners: [
         '0x30988479C2E6a03E7fB65138b94762D41a733458'
       ],
+      start: '2025-10-01',
     },
   }
 }

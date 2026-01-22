@@ -1,13 +1,13 @@
 import { httpPost } from "../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { sliceIntoChunks } from "@defillama/sdk/build/util";
+import * as sdk from '@defillama/sdk'
 
 
 const fetch = async (): Promise<FetchResult> => {
   const pools = await httpPost('https://aftermath.finance/api/pools', {})
   const poolObjectIds = pools.map((pool: any) => pool.objectId)
-  const chunks = sliceIntoChunks(poolObjectIds, 42)
+  const chunks = sdk.util.sliceIntoChunks(poolObjectIds, 42)
   let i = 0
   let dailyVolume = 0
   let dailyFees = 0

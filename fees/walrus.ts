@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { ChainBlocks, Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
 
@@ -35,7 +35,7 @@ const ALLIUM_QUERY = (fromTime: string, toTime: string) => `
 
 `
 
-const fetch: any = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
   const fromTime = new Date(timestamp * 1000).toISOString().split('T')[0]
@@ -59,12 +59,13 @@ const fetch: any = async (timestamp: number, _: ChainBlocks, options: FetchOptio
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
+  chains: [CHAIN.SUI],
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'Users payd fees for data storage.',
     UserFees: 'Users payd fees for data storage.',
     Revenue: 'Fees paid for data storage are locked and distributed over time to storage providers',
   },
-  chains: [CHAIN.SUI],
 }
 
 export default adapter;

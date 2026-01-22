@@ -7,7 +7,7 @@ const methodology = {
   Fees: "Total fees paid by users on every swap, determined by the pool's fee tier (e.g., 0.01%, 0.05%, 0.30%, 1.00%).",
   UserFees: "Total fees paid by users (same as Fees).",
   Revenue: "Protocol revenue represents the share of swap fees diverted to the protocol. This share is set on a per-pool basis and can be updated by governance. Default share is 0%.",
-  ProtocolRevenue: "Calculated per-pool. If a pool's slot0() returns N > 0 for feeProtocol, the protocol revenue for that pool is (Total Fees / N).",
+  ProtocolRevenue: "Calculated per-pool. feeProtocol is a uint8 containing two uint4 values: feeProtocol0 (lower 4 bits) and feeProtocol1 (upper 4 bits). If feeProtocol0 = x1 and feeProtocol1 = x2, protocol revenue = Total Fees * (1/x1 + 1/x2) / 2. If only one is set, protocol revenue = Total Fees * 1/x.",
   SupplySideRevenue: "The portion of swap fees distributed to Liquidity Providers (LPs). This is (Total Fees - Protocol Revenue) for each pool.",
 };
 
@@ -26,13 +26,13 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
     throw new Error("Failed to fetch pool data");
   }
 
-  const pools = poolsResponse.data;
+  const pools = (poolsResponse.data).filter((pool:any)=>pool.protocol_version==='v3');
 
   const slot0Results = await options.api.multiCall({
     abi: SLOT0_ABI,
     calls: pools.map((p: any) => ({ target: p.address })),
     chain: CHAIN.XLAYER,
-    requery: true,
+    permitFailure: true,
   });
 
   // 2. Iterate over pools and calculate revenue distribution
@@ -47,13 +47,33 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
     dailyVolume = dailyVolume.plus(poolVolume24h);
     dailyFees = dailyFees.plus(poolFees24h);
 
-    const protocolFeeShare = Number(slot0Results[i].feeProtocol);
-
-    if (protocolFeeShare > 0) {
-      // Use .div() and .minus() for accurate calculations
-      const poolProtocolRevenue = poolFees24h.div(protocolFeeShare);
+    if (slot0Results[i]) {
+      // Extract feeProtocol0 (lower 4 bits) and feeProtocol1 (upper 4 bits)
+      const feeProtocolValue = Number(slot0Results[i].feeProtocol);
+      const feeProtocol0 = feeProtocolValue & 0x0F;
+      const feeProtocol1 = (feeProtocolValue >> 4) & 0x0F;
       
-      dailyRevenue = dailyRevenue.plus(poolProtocolRevenue);
+      // For combined USD fees, we use the average of (1/feeProtocol0 + 1/feeProtocol1) / 2
+      let protocolRevenueRatio = new BigNumber(0);
+      
+      if (feeProtocol0 > 0 && feeProtocol1 > 0) {
+        // Both tokens have protocol fee: average of (1/x1 + 1/x2) / 2
+        const ratio0 = new BigNumber(1).div(feeProtocol0);
+        const ratio1 = new BigNumber(1).div(feeProtocol1);
+        protocolRevenueRatio = ratio0.plus(ratio1).div(2);
+      } else if (feeProtocol0 > 0) {
+        // Only token0 has protocol fee
+        protocolRevenueRatio = new BigNumber(1).div(feeProtocol0);
+      } else if (feeProtocol1 > 0) {
+        // Only token1 has protocol fee
+        protocolRevenueRatio = new BigNumber(1).div(feeProtocol1);
+      }
+      
+      if (protocolRevenueRatio.gt(0)) {
+        // Protocol revenue = Total Fees * protocolRevenueRatio
+        const poolProtocolRevenue = poolFees24h.times(protocolRevenueRatio);
+        dailyRevenue = dailyRevenue.plus(poolProtocolRevenue);
+      }
     }
   }
   

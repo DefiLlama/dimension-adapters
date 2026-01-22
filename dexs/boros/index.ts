@@ -27,6 +27,7 @@ const TOKENID_TO_CGID: Record<number, string> = {
     1: 'bitcoin',
     2: 'ethereum',
     3: 'tether',
+    4: 'binancecoin',
 };
 
 // AMMConfigUpdated transactions, ignore volume from these transactions
@@ -54,6 +55,7 @@ const fetch = async (options: FetchOptions) => {
     const marketCreationLogs = await options.getLogs({
         target: BOROS_FACTORY,
         eventAbi: BOROS_ABIS.MARKET_CREATION_EVENT,
+        cacheInCloud: true,
         fromBlock: BOROS_FACTORY_CREATION_BLOCK
     });
 
