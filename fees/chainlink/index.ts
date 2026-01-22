@@ -24,7 +24,7 @@ const adapter : SimpleAdapter = {
     start: "2025-02-21",
     methodology: {
         "Fees": "All the tokens received by the fee aggregator contract",
-        "Revenue": "All the LINK tokens transfered from the PaymentAbstractionLayer to the Reserve and Staking Rewards contracts"
+        "Revenue": "All the LINK tokens transferred from the PaymentAbstractionLayer to the Reserve and Staking Rewards contracts"
     }
 }
 
