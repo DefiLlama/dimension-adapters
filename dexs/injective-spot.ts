@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 const INJECTIVE_TRADES_V1 =
-  "https://sentry.exchange.grpc-web.injective.network/api/exchange/spot/v1/trades";
+  "https://sentry.exchange.grpc-web.injective.network/api/exchange/spot/v2/trades";
 
 const INJECTIVE_MARKETS_V1 =
   "https://sentry.exchange.grpc-web.injective.network/api/exchange/spot/v1/markets";
