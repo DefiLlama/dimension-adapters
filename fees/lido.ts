@@ -31,8 +31,8 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const graphRes = await request(endpoints[options.chain], graphQuery);
 
   const dailyTotalRevenueUSD = Number(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD)
-  const dailySupplySideRevenueUSD = Number(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD)
   const dailyProtocolRevenueUSD = dailyTotalRevenueUSD * PROTOCOL_FEE_RATIO
+  const dailySupplySideRevenueUSD = dailyTotalRevenueUSD - dailyProtocolRevenueUSD
 
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
