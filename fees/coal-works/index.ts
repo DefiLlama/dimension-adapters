@@ -8,7 +8,6 @@ import {
   
   const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = await oreHelperCountSolBalanceDiff(options, 'Az6VVPggdbxjrt4sL7FzjBunWD7piMZCUKvx316yLLmw')
-    console.log(dailyFees);
     const dailyProtocolRevenue = dailyFees.clone(0.01);
     const dailyHoldersRevenue = dailyFees.clone(0.99);
   
