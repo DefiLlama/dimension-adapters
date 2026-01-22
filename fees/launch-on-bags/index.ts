@@ -6,8 +6,7 @@ import { FetchOptions } from "../../adapters/types";
 interface IData {
     quote_mint: string;
     total_trading_fees: number;
-    total_protocol_fees: number;
-    total_referral_fees: number;
+    total_partner_trading_fees: number;
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -20,22 +19,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const data: IData[] = await queryDuneSql(options, query)
 
     const dailyFees = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
     data.forEach(row => {
-        const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees);
-        dailyFees.add(row.quote_mint, Number(totalFees));
-        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees));
-        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees));
+        const totalTradingFee = Number(row.total_trading_fees);
+        const partnerTradingFee = Number(row.total_partner_trading_fees);
+        dailyFees.add(row.quote_mint, totalTradingFee);
+        // Bags takes 50% of partner trading fee
+        dailyProtocolRevenue.add(row.quote_mint, partnerTradingFee * 0.5);
     });
 
     return {
         dailyFees,
-        dailyUserFees: dailyFees,
-        dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
-        dailySupplySideRevenue,
     };
 };
 
@@ -48,10 +44,8 @@ const adapter: SimpleAdapter = {
     start: '2025-05-11',
     isExpensiveAdapter: true,
     methodology: {
-        Fees: "Trading fees paid by users.",
-        Revenue: "Fees collected by Bags App protocol.",
-        ProtocolRevenue: "Fees collected by Bags App protocol.",
-        SupplySideRevenue: 'Fees collected by referrals',
+        Fees: "Total trading fees from DBC swaps (80% of swap fee, excludes Meteora protocol fee and referral fees).",
+        ProtocolRevenue: "Bags takes 50% of partner trading fees. Calculated as (trading_fee * (100 - creator_trading_fee_percentage) / 100) * 50%.",
     },
 }
 
