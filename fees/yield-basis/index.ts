@@ -136,15 +136,25 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     }
 
     // Process FundEpoch logs - these show LT tokens entering the distributor for veYB holders
-    // Need to convert LT token amounts to underlying asset using pricePerShare
+    // If token is not in lookup, it's raw asset value, otherwise convert using pricePerShare
     for (const log of fundEpochLogs) {
         const ltAddress = log.token.toLowerCase();
         const assetToken = ltToAssetToken[ltAddress];
+        
+        if (!assetToken) {
+            // Raw asset value - use ltAddress as the token
+            dailyHoldersRevenue.addToken(ltAddress, log.amount, METRIC.PROTOCOL_FEES);
+            continue;
+        }
+
         const pricePerShare = ltToPricePerShare[ltAddress];
         const ltDec = ltToDecimals[ltAddress];
         const assetDec = ltToAssetDecimals[ltAddress];
 
-        if (!assetToken || !pricePerShare || !ltDec || !assetDec) continue;
+        if (!pricePerShare || !ltDec || !assetDec){
+            // console.log("Missing data for ltAddress", ltAddress, "pricePerShare", pricePerShare, "ltDec", ltDec, "assetDec", assetDec)
+            continue
+        };
 
         // Convert LT amount to asset value:
         // ltAmount (in 1e18) * pricePerShare (in 1e18) / 10^ltDecimals (1e18) = asset amount in 1e18
