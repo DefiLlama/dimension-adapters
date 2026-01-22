@@ -28,8 +28,8 @@ const fetchDailyVolumeCache = async (): Promise<DailyVolumeCache> => {
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const { startOfDay, endTimestamp } = options
-  const now = Math.floor(Date.now() / 1000)
-  const isCurrentDay = endTimestamp >= now
+  const todayStartOfDay = Math.floor(new Date(new Date(endTimestamp * 1000).toISOString().slice(0, 10)).getTime() / 1000)
+  const isCurrentDay = startOfDay === todayStartOfDay
 
   if (isCurrentDay) {
     // Use rolling 24h volume for current day
