@@ -1,48 +1,59 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 
-const config: any = {
-  [CHAIN.ARBITRUM]: {
-    exchanges: [
-      '0xF7CA7384cc6619866749955065f17beDD3ED80bC', // ETH/USDC
-      '0x85DDE4A11cF366Fb56e05cafE2579E7119D5bC2f', // WBTC/ETH
-    ],
-    USDC: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
-  },
-  [CHAIN.AVAX]: {
-    exchanges: [
-      '0xE9c2D66A1e23Db21D2c40552EC7fA3dFb91d0123', // JOE/USDC
-      '0xb2698B90BE455D617c0C5c1Bbc8Bc21Aa33F2Bbb', // WAVAX/USDC
-    ],
-    USDC: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
-  },
-};
+interface IExchange {
+  address: string,
+  baseToken: string;
+  baseTokenDecimals: number;
+}
+
+const exchangeConfigs: Record<string, Array<IExchange>> = {
+  [CHAIN.ARBITRUM]: [
+    {
+      address: '0xF7CA7384cc6619866749955065f17beDD3ED80bC', // ETH/USDC
+      baseToken: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8', // USDC
+      baseTokenDecimals: 6,
+    },
+    {
+      address: '0x85DDE4A11cF366Fb56e05cafE2579E7119D5bC2f', // WBTC/ETH
+      baseToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', // ETH
+      baseTokenDecimals: 18,
+    },
+  ],
+  [CHAIN.AVAX]: [
+    {
+      address: '0xE9c2D66A1e23Db21D2c40552EC7fA3dFb91d0123', // JOE/USDC
+      baseToken: '0xE9c2D66A1e23Db21D2c40552EC7fA3dFb91d0123', // USDC
+      baseTokenDecimals: 6,
+    },
+    {
+      address: '0xb2698B90BE455D617c0C5c1Bbc8Bc21Aa33F2Bbb', // AVAX/USDC
+      baseToken: '0xE9c2D66A1e23Db21D2c40552EC7fA3dFb91d0123', // USDC
+      baseTokenDecimals: 6,
+    },
+  ],
+}
 
 const abis = {
-  positionChanged:
-    'event PositionChanged(address indexed trader, uint256 tradeFee, uint256 traderPayout, int256 previousAsset, int256 previousStable, int256 newAsset, int256 newStable)',
+  positionChanged: 'event PositionChanged(address indexed trader, uint256 tradeFee, uint256 traderPayout, int256 previousAsset, int256 previousStable, int256 newAsset, int256 newStable)',
 };
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const chainConfig = config[options.chain];
+  const exchanges = exchangeConfigs[options.chain];
 
   const logs = await options.getLogs({
-    targets: chainConfig.exchanges,
+    targets: exchanges.map( i => i.address),
     eventAbi: abis.positionChanged,
-    flatten: true,
+    flatten: false,
   });
 
-  logs.forEach((log: any) => {
-    const tradeFee = log.tradeFee;
-
-    if (!tradeFee) {
-      return;
+  for (let i = 0; i < exchanges.length; i++) {
+    for (const log of logs[i]) {
+      dailyFees.add(exchanges[i].baseToken, BigInt(log.tradeFee) * BigInt(10**exchanges[i].baseTokenDecimals) / BigInt(1e18));
     }
-
-    dailyFees.add(chainConfig.USDC, tradeFee);
-  });
+  }
 
   return {
     dailyFees,

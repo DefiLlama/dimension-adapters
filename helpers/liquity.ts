@@ -1,4 +1,6 @@
 import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
+import { createFactoryExports } from "../factory/registry";
+import { CHAIN } from "./chains";
 import { addTokensReceived, nullAddress } from "./token";
 import { METRIC } from "./metrics";
 
@@ -47,7 +49,7 @@ export const getLiquityV2LogAdapter: any = ({
     dailySupplySideRevenue.add(borrowInterest.clone(stabilityPoolRatio), METRICS.BorrowInterestToStabilityPools)
     
     // share of borrow interest to Protocol Incentivized Liquidity
-    if (revenueRatio > 0) {
+    if (revenueRatio && revenueRatio > 0) {
       dailyRevenue.add(borrowInterest.clone(revenueRatio), METRICS.ProtocolIncentivizedLiquidity)
     }
 
@@ -91,8 +93,10 @@ export const getLiquityV2LogAdapter: any = ({
 type LiquityV2Config = {
   collateralRegistry: string,
   stableTokenAbi?: string,  
-  stabilityPoolRatio: number;
-  revenueRatio: number;
+  // borrow interests are share to stability pool and Protocol Incentivized Liquidity
+  stabilityPoolRatio?: number;
+  revenueRatio?: number;
+  start?: string | number;
 }
 
 
@@ -123,6 +127,7 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getLiquityV2LogAdapter(chainConfig),
+      start: chainConfig.start,
     }
   })
   return { adapter: exportObject, version: 2, methodology: defaultV2methodology, breakdownMethodology: defaultV2BreakdownMethodology } as SimpleAdapter
@@ -275,3 +280,15 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
     },
   } as SimpleAdapter
 }
+
+
+
+
+// Define all protocols
+const protocols = {
+  'felix': liquityV2Exports({
+    [CHAIN.HYPERLIQUID]: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
+  }),
+} as const;
+
+export const { protocolList, getAdapter } = createFactoryExports(protocols);

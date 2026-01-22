@@ -2,11 +2,27 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
-// Trojan Fee Wallet: 9yMwSPk9mrXSN7yDHUuZurAh1sjbJsfpUqjZ7SvVtdco
+const TrojanBotFeeWallets = [
+  '9yMwSPk9mrXSN7yDHUuZurAh1sjbJsfpUqjZ7SvVtdco',
+];
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, target: '9yMwSPk9mrXSN7yDHUuZurAh1sjbJsfpUqjZ7SvVtdco' })
+const TrojanTerminalFeeWallets = [
+  '92Med3qeK7duC5iiYsHX38H2f2twJfRsSx93oNrza2VH',
+  '2jwHNxavSoMZMEDbT1eV9PcPt5dDcayCqM6MkgaPpmWQ', 
+  '65gDv7pZQCZELsNpNYSFEBtNFpWZAbxmRFB6BGMqFkHH', 
+  'BWgb8wR1FEGiu1jCDSKuHKf752W27b4iN6SvoNCiK4qp', 
+  '8jgg7moFJkHyTtAv9M6RBSPMp2oXeXhuiUMKW8YbYCWn',
+];
 
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+  
+  const botFees = await getSolanaReceived({ options, targets: TrojanBotFeeWallets })
+  const terminalFees = await getSolanaReceived({ options, targets: TrojanTerminalFeeWallets })
+
+  dailyFees.addBalances(botFees, 'Trojan Bot Fees')
+  dailyFees.addBalances(terminalFees, 'Trojan Termial Fees')
+  
   // const query = `
   //   WITH
   //   allFeePayments AS (
@@ -54,9 +70,23 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: 'All trading fees paid by users while using Trojan bot.',
+    Fees: 'All trading fees paid by users while using Trojan bot and Trojan Terminal.',
     Revenue: 'Fees collected by Trojan protocol.',
     ProtocolRevenue: "Fees collected by Trojan protocol.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Trojan Bot Fees': 'Fees paid by users from Trojan Bot.',
+      'Trojan Terminal Fees': 'Fees paid by users from Trojan Terminal.',
+    },
+    Revenue: {
+      'Trojan Bot Fees': 'Fees paid by users from Trojan Bot.',
+      'Trojan Terminal Fees': 'Fees paid by users from Trojan Terminal.',
+    },
+    ProtocolRevenue: {
+      'Trojan Bot Fees': 'Fees paid by users from Trojan Bot.',
+      'Trojan Terminal Fees': 'Fees paid by users from Trojan Terminal.',
+    },
   }
 };
 

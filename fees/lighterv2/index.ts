@@ -74,7 +74,7 @@ async function fetchBuybacks(startTimestamp: number, endTimestamp: number): Prom
   return totalBuybackUsd
 }
 
-async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> {
   const todayStart = new Date(options.startOfDay * 1000).toISOString()
   const todayEnd = new Date(options.endTimestamp * 1000).toISOString()
 
@@ -135,7 +135,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.ZK_LIGHTER],
   start: '2025-10-22',

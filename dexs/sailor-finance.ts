@@ -77,7 +77,8 @@ const fetchV1 = async (_a: any, _b: any, _: FetchOptions) => {
   let dailyVolume = 0;
   let dailyFees = 0;
   for (const pool of poolStats.filter((i: any) => Number(i.tvl) > 200)) {
-    if (!blacklistPools.includes(String(pool.id).toLowerCase())) {
+    const volumeToTvl = pool.tvl>0?pool.day.volume/pool.tvl:0;
+    if (volumeToTvl<10 && !blacklistPools.includes(String(pool.id).toLowerCase())) {
       dailyVolume += Number(pool.day.volume);
       dailyFees += Number(pool.day.volume) * Number(pool.feeTier) / 1e6;
     }
