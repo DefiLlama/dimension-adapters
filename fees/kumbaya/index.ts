@@ -35,32 +35,25 @@ const fetch = async (options: FetchOptions) => {
   const startDate = startOfDay;
   const endDate = startOfDay + 86400;
 
-  try {
-    const data = await request(ENVIO_GRAPHQL_URL, query, { startDate, endDate });
-    const dayData = data.UniswapDayData?.[0];
+  const data = await request(ENVIO_GRAPHQL_URL, query, { startDate, endDate });
+  const dayData = data.UniswapDayData?.[0];
 
-    const dailyVolume = dayData?.volumeUSD ? parseFloat(dayData.volumeUSD) : 0;
-    const dailyFees = dayData?.feesUSD ? parseFloat(dayData.feesUSD) : 0;
+  const dailyVolume = dayData?.volumeUSD ? parseFloat(dayData.volumeUSD) : 0;
+  const dailyFees = dayData?.feesUSD ? parseFloat(dayData.feesUSD) : 0;
 
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyRevenue: dailyFees * 0.5, // 50% protocol fee when enabled
-      dailySupplySideRevenue: dailyFees * 0.5, // 50% to LPs
-    };
-  } catch (e) {
-    throw new Error(`Kumbaya indexer error: ${(e as Error).message}`);
-  }
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees * 0.5, // 50% protocol fee when enabled
+    dailySupplySideRevenue: dailyFees * 0.5, // 50% to LPs
+  };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.MEGAETH]: {
-      fetch,
-      start: "2025-12-21",
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.MEGAETH],
+  start: '2025-12-21',
 };
 
 export default adapter;
