@@ -25,7 +25,7 @@ async function fetch(options: FetchOptions) {
         options.getLogs({
             targets: filteredPoolsArray,
             eventAbi: swapEvent,
-            entireLog: true
+            onlyArgs: false,
         }),
         options.api.multiCall({
             calls: filteredPoolsArray,
