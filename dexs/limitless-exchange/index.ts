@@ -5,8 +5,15 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 const contracts = {
   FPMM_FACTORY_V1: "0x8e50578aca3c5e2ef5ed2aa4bd66429b5e44c16e",
   FPMM_FACTORY: "0xc397d5d70cb3b56b26dd5c2824d49a96c4dabf50",
+  
+  // legacy
   CTF_EXCHANGE: "0xa4409d988ca2218d956beefd3874100f444f0dc3",
   NEG_RISK_CTF_EXCHANGE: "0x5a38afc17f7e97ad8d6c547ddb837e40b4aedfc6",
+
+  // ✅ new main exchanges (found via Dune OrderFilled contract distribution)
+  CTF_EXCHANGE_V2: "0x05c748e2f4dcde0ec9fa8ddc40de6b867f923fa5",
+  NEG_RISK_CTF_EXCHANGE_V2: "0xe3e00ba3a9888d1de4834269f62ac008b4bb5c47",
+  
   FEE_MODULE: "0x6d8a7d1898306ca129a74c296d14e55e20aae87d",
   NEG_RISK_FEE_MODULE: "0x73fc1b1395ba964fea8705bff7ef8ea5c23cc661",
   CONDITIONAL_TOKENS: "0xC9c98965297Bc527861c898329Ee280632B76e18"
@@ -30,6 +37,14 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
   const fpmmMarkets: any[] = [];
 
+// ✅ ADD HERE: include both legacy + new exchanges in *all* exchange-related log pulls
+  const exchangeTargets = [
+    contracts.CTF_EXCHANGE,
+    contracts.NEG_RISK_CTF_EXCHANGE,
+    contracts.CTF_EXCHANGE_V2,
+    contracts.NEG_RISK_CTF_EXCHANGE_V2,
+  ];
+  
   const marketCreationLogs = await options.getLogs({
     eventAbi: abi.FPMM_CREATION,
     targets: [contracts.FPMM_FACTORY, contracts.FPMM_FACTORY_V1],
@@ -40,7 +55,8 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
   const tokenRegisteredLogs = await options.getLogs({
     eventAbi: abi.TOKEN_REGISTERED,
-    targets: [contracts.CTF_EXCHANGE, contracts.NEG_RISK_CTF_EXCHANGE],
+    // ✅ CHANGE HERE
+    targets: exchangeTargets,
     fromBlock: 26043405,
     cacheInCloud: true,
     skipIndexer: true
@@ -56,12 +72,14 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
   const orderMatchedLogs = await options.getLogs({
     eventAbi: abi.ORDERS_MATCHED,
-    targets: [contracts.CTF_EXCHANGE, contracts.NEG_RISK_CTF_EXCHANGE]
+    // ✅ CHANGE HERE
+    targets: exchangeTargets
   });
 
   const feeChargedLogs = await options.getLogs({
     eventAbi: abi.FEE_CHARGED,
-    targets: [contracts.CTF_EXCHANGE, contracts.NEG_RISK_CTF_EXCHANGE]
+    // ✅ CHANGE HERE
+    targets: exchangeTargets
   });
 
   const feeRefundedLogs = await options.getLogs({
@@ -109,7 +127,9 @@ async function fetch(_: any, _1: any, options: FetchOptions) {
 
   orderMatchedLogs.forEach(order => {
     const { makerAssetId, makerAmountFilled, takerAmountFilled } = order;
-    const tradeVolume = makerAssetId === 0 ? makerAmountFilled : takerAmountFilled;
+    // ✅ OPTIONAL (recommended): makerAssetId might be bigint/string depending on log decoder
+    const makerIdStr = makerAssetId?.toString?.() ?? String(makerAssetId);
+    const tradeVolume = makerIdStr === '0' ? makerAmountFilled : takerAmountFilled;
     dailyVolume.addToken(ADDRESSES.base.USDC, tradeVolume);
   });
 
