@@ -92,6 +92,7 @@ interface IVault {
   performanceFeeRate: number;
   managementFeeRate: number;
   decimals: number;
+  isV1: boolean;
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -148,6 +149,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
             performanceFeeRate: 0.2, // 20%
             managementFeeRate: 0.02, // 2% per year
             decimals: vaultDecimals[idx],
+            isV1: true
           })
         }
       }
@@ -203,6 +205,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         performanceFeeRate: Number(performanceFeesRate) / 1e4,
         managementFeeRate: vaultManagementFees[idx] ? Number(vaultManagementFees[idx]) / 1e4 : 0,
         decimals: vaultDecimals[idx],
+        isV1: false,
       })
     }
   }
@@ -214,7 +217,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
 
     const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
-    const tf = vault.totalSupply * priceShareGrowth / (10 ** vault.decimals)
+    const priceDecimals = vault.isV1 ? 18 : vault.decimals;
+    const tf = vault.totalSupply * priceShareGrowth / (10 ** priceDecimals)
 
     const performanceFees = tf * vault.performanceFeeRate
     const managementFees = tf * vault.managementFeeRate
