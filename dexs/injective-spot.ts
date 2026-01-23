@@ -1,12 +1,16 @@
 import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
+import BigNumber from "bignumber.js";
 
 const INJECTIVE_TRADES_V1 =
   "https://sentry.exchange.grpc-web.injective.network/api/exchange/spot/v2/trades";
 
 const INJECTIVE_MARKETS_V1 =
   "https://sentry.exchange.grpc-web.injective.network/api/exchange/spot/v1/markets";
+
+const INJECTIVE_TOKEN_METADATA =
+  "https://sentry.exchange.grpc-web.injective.network/api/exchange/meta/v1/tokenMetadata";
 
 interface SpotTrade {
   marketId?: string;
@@ -23,34 +27,98 @@ interface TradesResponseV1 {
 
 interface Market {
   marketId: string;
-  quoteTokenMeta?: { decimals?: number };
+  marketStatus: string;
+  quoteDenom: string;
+  quoteTokenMeta?: { 
+    decimals?: number;
+  };
+  baseTokenMeta?: {
+    decimals?: number;
+  };
 }
 
 interface MarketsResponseV1 {
   markets?: Market[];
 }
 
-async function getMarketsQuoteDecimals(): Promise<Map<string, number>> {
-  const resp: MarketsResponseV1 = await httpGet(INJECTIVE_MARKETS_V1);
-  const map = new Map<string, number>();
+interface TokenMetadata {
+  coingeckoId?: string;
+  denom: string;
+  name?: string;
+  symbol?: string;
+  decimals: number;
+}
 
-  for (const m of resp.markets || []) {
-    const decimals = m.quoteTokenMeta?.decimals ?? 0;
-    map.set(m.marketId, Number(decimals));
+interface TokenMetadataResponse {
+  tokens?: TokenMetadata[];
+}
+
+interface MarketInfo {
+  quoteDenom: string;
+  quoteDecimals: number;
+  baseDecimals: number;
+  coingeckoId?: string;
+  tokenDecimals: number;
+}
+
+// Fetch and cache token metadata from Injective
+async function getTokenMetadataMap(): Promise<Map<string, TokenMetadata>> {
+  const resp: TokenMetadataResponse = await httpGet(INJECTIVE_TOKEN_METADATA);
+  const map = new Map<string, TokenMetadata>();
+
+  for (const token of resp.tokens || []) {
+    map.set(token.denom, token);
   }
 
   return map;
 }
 
+async function getMarketsInfo(tokenMetadataMap: Map<string, TokenMetadata>): Promise<Map<string, MarketInfo>> {
+  const resp: MarketsResponseV1 = await httpGet(INJECTIVE_MARKETS_V1);
+  const map = new Map<string, MarketInfo>();
+
+  for (const m of resp.markets || []) {
+    // Only include active markets
+    if (m.marketStatus !== "active") continue;
+
+    const quoteDenom = m.quoteDenom;
+    const quoteDecimals = m.quoteTokenMeta?.decimals;
+    const baseDecimals = m.baseTokenMeta?.decimals;
+    
+    const tokenMetadata = tokenMetadataMap.get(quoteDenom);
+    const coingeckoId = tokenMetadata?.coingeckoId && tokenMetadata.coingeckoId.trim() !== "" 
+      ? tokenMetadata.coingeckoId 
+      : undefined;
+    const tokenDecimals = tokenMetadata?.decimals ?? Number(quoteDecimals);
+
+    map.set(m.marketId, {
+      quoteDenom,
+      quoteDecimals: Number(quoteDecimals),
+      baseDecimals: Number(baseDecimals),
+      coingeckoId,
+      tokenDecimals: Number(tokenDecimals),
+    });
+  }
+
+  return map;
+}
+
+interface VolumeResult {
+  coingeckoId?: string;
+  quoteDenom: string;
+  volume: number;
+  hasCoinGeckoId: boolean;
+}
+
 async function fetchMarketVolume(
   marketId: string,
-  quoteDec: number,
+  marketInfo: MarketInfo,
   startMs: number,
   endMs: number
-): Promise<number> {
+): Promise<VolumeResult | null> {
   let skip = 0;
   const limit = 100;
-  let total = 0;
+  let totalVolume = new BigNumber(0);
 
   while (true) {
     const url =
@@ -68,18 +136,32 @@ async function fetchMarketVolume(
     if (!trades.length) break;
   
     for (const t of trades) {
-      const px = Number(t.price?.price || 0);
-      const qty = Number(t.price?.quantity || 0);
-  
-      total += px * qty / Math.pow(10, quoteDec);
+      const price = new BigNumber(t.price?.price ?? 0);
+      const quantity = new BigNumber(t.price?.quantity ?? 0);
+      
+      const volumeInQuote = price.times(quantity).div(Math.pow(10, marketInfo.quoteDecimals));
+      totalVolume = totalVolume.plus(volumeInQuote);
     }
 
     if (trades.length < limit) break;
     
     skip += limit;
-  }  
+  }
 
-  return total;
+  if (marketInfo.coingeckoId) {
+    return {
+      coingeckoId: marketInfo.coingeckoId,
+      quoteDenom: marketInfo.quoteDenom,
+      volume: totalVolume.toNumber(),
+      hasCoinGeckoId: true
+    };
+  } else {
+    return {
+      quoteDenom: marketInfo.quoteDenom,
+      volume: totalVolume.times(Math.pow(10, marketInfo.tokenDecimals)).toNumber(),
+      hasCoinGeckoId: false
+    };
+  }
 }
 
 const fetch: FetchV2 = async (
@@ -89,14 +171,42 @@ const fetch: FetchV2 = async (
   const startMs = options.startTimestamp * 1000;
   const endMs = options.endTimestamp * 1000;
 
-  const marketQuoteDecs = await getMarketsQuoteDecimals();
-
-  const volumePromises = Array.from(marketQuoteDecs.entries()).map(
-    ([marketId, quoteDec]) => fetchMarketVolume(marketId, quoteDec, startMs, endMs)
+  // Fetch token metadata
+  const tokenMetadataMap = await getTokenMetadataMap();
+  
+  // Get market information
+  const marketsInfo = await getMarketsInfo(tokenMetadataMap);
+  
+  const results = await Promise.all(
+    Array.from(marketsInfo.entries()).map(([marketId, marketInfo]) =>
+      fetchMarketVolume(marketId, marketInfo, startMs, endMs)
+    )
   );
 
-  const volumes = await Promise.all(volumePromises);
-  const dailyVolume = volumes.reduce((sum, vol) => sum + vol, 0);
+  const volumeByCGToken = new Map<string, number>();
+  const volumeByDenom = new Map<string, number>();
+
+  for (const result of results) {
+    if (!result) continue;
+
+    if (result.hasCoinGeckoId && result.coingeckoId) {
+      const current = volumeByCGToken.get(result.coingeckoId) || 0;
+      volumeByCGToken.set(result.coingeckoId, current + result.volume);
+    } else {
+      const current = volumeByDenom.get(result.quoteDenom) || 0;
+      volumeByDenom.set(result.quoteDenom, current + result.volume);
+    }
+  }
+
+  const dailyVolume = options.createBalances();
+
+  for (const [coingeckoId, volume] of volumeByCGToken.entries()) {
+    dailyVolume.addCGToken(coingeckoId, volume);
+  }
+
+  for (const [denom, volume] of volumeByDenom.entries()) {
+    dailyVolume.add(denom, volume);
+  }
 
   return { dailyVolume };
 };
@@ -109,7 +219,7 @@ const adapter: SimpleAdapter = {
   start: "2021-07-17",
   methodology: {
     Volume:
-      "Sum of (price * quantity) over taker-side trades across all Injective spot markets within the 24h window.",
+      "Sum of (price * quantity) over taker-side trades across all active Injective spot markets within the 24h window.",
   },
 };
 
