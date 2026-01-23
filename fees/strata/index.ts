@@ -28,7 +28,11 @@ const fetch = async (options: FetchOptions) => {
         abi: "function totalReserve() view returns (uint256)",
         block: endBlock,
     });
-    const reserveGrowth = new BigNumber(reserveT1).minus(new BigNumber(reserveT0));
+
+    let reserveGrowth = new BigNumber(reserveT1).minus(new BigNumber(reserveT0));
+    if (reserveGrowth.isNegative()) {
+        reserveGrowth = new BigNumber(0);
+    }
 
     // calculate total exit fees
     // this includes the amt to reserve + amt to tranche
