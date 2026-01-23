@@ -1,3 +1,10 @@
+/**
+ * Kumbaya DEX - Uniswap V3 fork on MegaETH
+ * https://kumbaya.xyz
+ *
+ * Data source: Envio indexer (https://kby-hasura.up.railway.app/v1/graphql)
+ * Fee structure: 50% protocol / 50% LPs (when protocol fees enabled)
+ */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
@@ -19,6 +26,10 @@ const query = gql`
   }
 `;
 
+/**
+ * Fetches daily volume and fees from the Kumbaya indexer.
+ * Queries UniswapDayData for the specified day range.
+ */
 const fetch = async (options: FetchOptions) => {
   const { startOfDay } = options;
   const startDate = startOfDay;
