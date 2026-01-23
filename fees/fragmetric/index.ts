@@ -129,28 +129,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
   }
 
-  // Track FRAG token buybacks using Solana helper
-  await getSolanaReceivedDune({
+  const treasuryBalanceReceived = await getSolanaReceivedDune({
     options,
-    balances: dailyHoldersRevenue,
     target: FRAGMETRIC.TREASURY_WALLET,
   })
-
-  // Apply buyback metric label to balances
-  const balancesData = dailyHoldersRevenue.getBalances()
-  for (const [tokenKey, amount] of Object.entries(balancesData)) {
-    if (amount) {
-      const token = tokenKey.includes(':') ? tokenKey.split(':')[1] : tokenKey
-
-      dailyHoldersRevenue.removeTokenBalance(tokenKey) // Remove unlabelled balance
-      dailyHoldersRevenue.add(token, amount, METRIC.TOKEN_BUY_BACK)
-    }
-  }
+  dailyHoldersRevenue.add(treasuryBalanceReceived, METRIC.TOKEN_BUY_BACK)
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
   }
@@ -160,11 +148,11 @@ const methodology = {
   Fees: 'Total fees generated from Fragmetric LRTs, including protocol revenue and user reward claims.',
   Revenue:
     "Protocol fees captured in Fund Treasury accounts, Program Revenue account, and Jito Restaking Vault. Includes fragSOL/fragJTO fees and protocol's share of Jito restaking rewards (SW1TCH).",
-  ProtocolRevenue: 'Same as Revenue - protocol fees captured by Fragmetric.',
+  ProtocolRevenue: 'Fragmetric uses 100% of protocol revenue to buy back FRAG tokens.',
   SupplySideRevenue:
     'Staking and restaking rewards claimed by LRT holders. Tracked via transfers from Reward Token Reserve accounts.',
   HoldersRevenue:
-    'FRAG token buybacks funded by 100% of protocol fees. Tracks FRAG tokens purchased and transferred to the Treasury Wallet, reducing circulating supply and benefiting token holders.',
+    'FRAG token buybacks funded by 100% of protocol revenue. Tracks FRAG tokens purchased and transferred to the Treasury Wallet, reducing circulating supply and benefiting token holders.',
 }
 
 const breakdownMethodology = {
@@ -182,7 +170,7 @@ const breakdownMethodology = {
     [METRIC.ASSETS_YIELDS]: 'User claims of other staking/yield rewards',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'FRAG tokens purchased using protocol fees and sent to Treasury',
+    [METRIC.TOKEN_BUY_BACK]: 'FRAG tokens purchased using protocol revenue and sent to Treasury',
   },
 }
 
