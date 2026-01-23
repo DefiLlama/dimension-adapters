@@ -11,7 +11,7 @@ const fetch = async (options: FetchOptions) => {
   // All fees collected from all sources
   const dailyFees = await addTokensReceived({
     options,
-    targets: [TREASURY_FEES_RECIPIENT, VESDT_FEE_RECIPIENT, LIQUIDITY_FEES_RECIPIENT]
+    targets: [TREASURY_FEES_RECIPIENT, VESDT_FEE_RECIPIENT]
   });
 
   // Treasury revenue (Protocol Revenue)
@@ -27,10 +27,11 @@ const fetch = async (options: FetchOptions) => {
   });
 
   // Fees paid by users (liquidity fees)
-  const dailyUserFees = await addTokensReceived({
+  const dailyBribesRevenue = await addTokensReceived({
     options,
     targets: [LIQUIDITY_FEES_RECIPIENT]
   });
+
   const dailyRevenue = dailyProtocolRevenue.clone();
   dailyRevenue.addBalances(dailyHoldersRevenue);
   return {
@@ -38,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailyRevenue, // Protocol Revenue + Holder Revenue
-    dailyUserFees
+    dailyBribesRevenue
   };
 };
 
@@ -55,7 +56,7 @@ const adapter: Adapter = {
     Revenue: "Staking rewards earned by StakeDAO and veSDT holders",
     ProtocolRevenue: "Staking rewards earned by StakeDAO ",
     HoldersRevenue: "Staking rewards earned by veSDT holders",
-    SupplySideRevenue: "Staking rewards earned by depositors",
+    BribesRevenueb: "Liquidity incentives that support sdToken/token liquidity pools via vote incentives",
   }
 };
 
