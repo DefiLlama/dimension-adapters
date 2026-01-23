@@ -72,6 +72,7 @@ const ContractAbis = {
   pricePerShare: 'uint256:pricePerShare',
   performanceFee: 'uint16:performanceFee',
   managementFee: 'uint16:managementFee',
+  decimals: 'uint8:decimals',
 }
 
 const ChainIds: { [key: string]: number } = {
@@ -87,9 +88,10 @@ interface IVault {
   token: string;
   priceShareBefore: number;
   priceShareAfter: number;
-  totalAssets: number;
+  totalSupply: number;
   performanceFeeRate: number;
   managementFeeRate: number;
+  decimals: number;
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -121,6 +123,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       calls: YearnVaultsV1,
       permitFailure: true,
     })
+    const vaultDecimals = await options.api.multiCall({
+      abi: ContractAbis.decimals,
+      calls: YearnVaultsV1,
+      permitFailure: true,
+    })
 
     if (vaultTokens) {
       for (let idx = 0; idx < YearnVaultsV1.length; idx++) {
@@ -133,13 +140,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           vaults.push({
             vault: YearnVaultsV1[idx],
             token: token,
-            totalAssets: totalSupply * priceShareBefore / 1e18,
+            totalSupply,
             priceShareBefore: priceShareBefore,
             priceShareAfter: priceShareAfter,
 
             // v1 fees docs: https://github.com/yearn/yearn-docs/blob/master/yearn-finance/yvaults/overview.md
             performanceFeeRate: 0.2, // 20%
             managementFeeRate: 0.02, // 2% per year
+            decimals: vaultDecimals[idx],
           })
         }
       }
@@ -148,8 +156,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // get v2, v3 vaults data
   const configs = await getConfig(`yearn/vaults-${options.chain}`, vaultListApi(ChainIds[options.chain]))
-  const vaultTotalAssets = await options.api.multiCall({
-    abi: ContractAbis.totalAssets,
+  const vaultTotalSupply = await options.api.multiCall({
+    abi: ContractAbis.totalSupply,
     calls: configs.map((config: any) => config.address),
     permitFailure: true,
   })
@@ -173,10 +181,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     calls: configs.map((config: any) => config.address),
     permitFailure: true,
   })
-  if (vaultTotalAssets) {
+  const vaultDecimals = await options.api.multiCall({
+    abi: ContractAbis.decimals,
+    calls: configs.map((config: any) => config.address),
+    permitFailure: true,
+  })
+  if (vaultTotalSupply) {
     for (let idx = 0; idx < configs.length; idx++) {
       const token = configs[idx].token.address
-      const totalAssets = vaultTotalAssets[idx]
+      const totalSupply = vaultTotalSupply[idx]
       const priceShareBefore = vaultPriceShareBefore[idx]
       const priceShareAfter = vaultPriceShareAfter[idx]
       const performanceFeesRate = vaultPerformanceFees[idx]
@@ -184,11 +197,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       vaults.push({
         vault: configs[idx].address,
         token: token,
-        totalAssets: totalAssets,
+        totalSupply,
         priceShareBefore: priceShareBefore,
         priceShareAfter: priceShareAfter,
         performanceFeeRate: Number(performanceFeesRate) / 1e4,
         managementFeeRate: vaultManagementFees[idx] ? Number(vaultManagementFees[idx]) / 1e4 : 0,
+        decimals: vaultDecimals[idx],
       })
     }
   }
@@ -200,7 +214,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
 
     const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
-    const tf = vault.totalAssets * priceShareGrowth / 1e18
+    const tf = vault.totalSupply * priceShareGrowth / (10 ** vault.decimals)
 
     const performanceFees = tf * vault.performanceFeeRate
     const managementFees = tf * vault.managementFeeRate
