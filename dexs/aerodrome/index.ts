@@ -140,12 +140,9 @@ const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResu
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2023-08-28'
-    }
-  }
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2023-08-28',
 }
 
 export default adapters
