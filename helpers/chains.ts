@@ -334,4 +334,5 @@ export enum CHAIN {
   OMAX = "omax",
   Q_PROTOCOL = "q",
   IOTA = "iota",
+  MEGAETH = "megaeth",
 }
