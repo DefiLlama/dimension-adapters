@@ -56,7 +56,7 @@ const adapter: Adapter = {
     Revenue: "Staking rewards earned by StakeDAO and veSDT holders",
     ProtocolRevenue: "Staking rewards earned by StakeDAO ",
     HoldersRevenue: "Staking rewards earned by veSDT holders",
-    BribesRevenueb: "Liquidity incentives that support sdToken/token liquidity pools via vote incentives",
+    BribesRevenue: "Liquidity incentives that support sdToken/token liquidity pools via vote incentives",
   }
 };
 
