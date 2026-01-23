@@ -9,11 +9,10 @@ const CONFIG: Record<string, { url: string, start: string }> = {
   },
 }
 
-async function fetch(_a: number, _b: any, options: FetchOptions) {
+async function fetch(timestamp: number, _b: any, options: FetchOptions) {
   const baseUrl = CONFIG[options.chain].url;
-  const currentTimestamp = (Date.now() / 1000);
-  const startTimestamp = currentTimestamp - 86400;
-  const endTimestamp = currentTimestamp;
+  const startTimestamp = timestamp - 86400;
+  const endTimestamp = timestamp;
   const url = `${baseUrl}?start=${startTimestamp}&end=${endTimestamp}`;
   const data = await httpGet(url);
 
