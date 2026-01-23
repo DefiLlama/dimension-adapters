@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import BigNumber from 'bignumber.js';
 
 const ACCOUNTING = '0xa436c5Dd1Ba62c55D112C10cd10E988bb3355102';
 const USDE = '0x4c9EDD5852cd905f086C759E8383e09bff1E68B3';
@@ -10,19 +11,42 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
 
+    // calculate reserveNav growth
+    // this includes the exit fees + performance fees
+    const [startBlock, endBlock] = await Promise.all([
+        options.getStartBlock(),
+        options.getEndBlock(),
+    ]);
+
+    const reserveT0 = await options.api.call({
+        target: ACCOUNTING,
+        abi: "function totalReserve() view returns (uint256)",
+        block: startBlock,
+    });
+    const reserveT1 = await options.api.call({
+        target: ACCOUNTING,
+        abi: "function totalReserve() view returns (uint256)",
+        block: endBlock,
+    });
+    const reserveGrowth = new BigNumber(reserveT1).minus(new BigNumber(reserveT0));
+
+    // calculate total exit fees
+    // this includes the amt to reserve + amt to tranche
+    let totalExitFees = new BigNumber(0);
+
     const logs = await options.getLogs({
         target: ACCOUNTING,
         eventAbi: FEE_ACCRUED_EVENT,
     });
-
     logs.forEach((log: any) => {
-        const amountToReserve = BigInt(log.amountToReserve);
-        const amountToTranche = BigInt(log.amountToTranche);
-        const totalFee = amountToReserve + amountToTranche;
-
-        dailyFees.add(USDE, totalFee);
-        dailyRevenue.add(USDE, amountToReserve);
+        const amountToReserve = new BigNumber(log.amountToReserve);
+        const amountToTranche = new BigNumber(log.amountToTranche);
+        const totalFee = amountToReserve.plus(amountToTranche);
+        totalExitFees = totalExitFees.plus(totalFee);
     });
+
+    dailyFees.add(USDE, totalExitFees.toNumber());
+    dailyRevenue.add(USDE, reserveGrowth.toNumber());
 
     return {
         dailyFees,
