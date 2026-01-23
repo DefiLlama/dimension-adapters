@@ -10,7 +10,8 @@ const CONFIG: Record<string, { url: string, start: string }> = {
 }
 
 async function fetch(_a: number, _b: any, options: FetchOptions) {
-  const url = CONFIG[options.chain].url;
+  const baseUrl = CONFIG[options.chain].url;
+  const url = `${baseUrl}?start=${options.fromTimestamp}&end=${options.toTimestamp}`;
   const data = await httpGet(url);
 
   return {
@@ -35,6 +36,6 @@ export default {
   fetch,
   chains: [CHAIN.FOGO],
   start: '2025-12-20',
-  runAtCurrTime: true,
+  // runAtCurrTime: true,
   methodology,
 }
