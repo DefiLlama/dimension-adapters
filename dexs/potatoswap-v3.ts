@@ -22,11 +22,11 @@ async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOption
 
   const poolsResponse: any = await httpGet('https://v3.potatoswap.finance/api/pool/list-all');
   
-  if (!poolsResponse.data || poolsResponse.data.length === 0) {
+  if (!poolsResponse.data || !poolsResponse.data.pools || poolsResponse.data.length === 0) {
     throw new Error("Failed to fetch pool data");
   }
 
-  const pools = (poolsResponse.data).filter((pool:any)=>pool.protocol_version==='v3');
+  const pools = (poolsResponse.data.pools).filter((pool:any)=>pool.protocol_version==='v3');
 
   const slot0Results = await options.api.multiCall({
     abi: SLOT0_ABI,
