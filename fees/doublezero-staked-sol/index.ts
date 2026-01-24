@@ -8,7 +8,7 @@ const LST_FEE_TOKEN_ACCOUNT = "GhN6PpyP6Ln4ycWcyvqsNcowLfYjpUcA9uWKAcFBjj2D";
 const LST_MINT = "Gekfj7SL2fVpTDxJZmeC46cTYxinjB6gkAnb6EGT6mnn"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-
+  const revenueToken = options.startTimestamp > 1759735276 ? "doublezero-staked-sol" : "solana" // fallback to solana on dates where dzSOL is not priced
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
@@ -27,7 +27,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("doublezero-staked-sol", row.amount || 0);
+      dailyRevenue.addCGToken(revenueToken, row.amount || 0);
     }
   });
 
