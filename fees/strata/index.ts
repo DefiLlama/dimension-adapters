@@ -60,8 +60,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     methodology: {
-        Fees: "All fees collected from withdrawals",
-        ProtocolRevenue: "Protocol revenue is the portion of fees that goes to the reserve. Maximum reserve percentage is 2%, currently set to 0."
+        Fees: "Includes yield generated on deposited assets as well as fees charged by Strata, including performance and redemption fees.",
+        ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with senior and junior tranche holders."
     },
     version: 2,
     adapter: {
