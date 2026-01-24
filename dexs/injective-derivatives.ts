@@ -91,7 +91,7 @@ async function getMarketsInfo(tokenMetadataMap: Map<string, TokenMetadata>): Pro
     const coingeckoId = tokenMetadata?.coingeckoId && tokenMetadata.coingeckoId.trim() !== "" 
       ? tokenMetadata.coingeckoId 
       : undefined;
-    const tokenDecimals = tokenMetadata?.decimals ?? m.quoteTokenMeta?.decimals;
+    const tokenDecimals = tokenMetadata?.decimals ?? m.quoteTokenMeta?.decimals ?? 0;
 
     map.set(m.marketId, {
       quoteDenom,
