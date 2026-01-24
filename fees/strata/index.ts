@@ -11,8 +11,6 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
 
-    // calculate reserveNav growth
-    // this includes the exit fees + performance fees
     const [startBlock, endBlock] = await Promise.all([
         options.getStartBlock(),
         options.getEndBlock(),
@@ -34,9 +32,9 @@ const fetch = async (options: FetchOptions) => {
         reserveGrowth = new BigNumber(0);
     }
 
-    // calculate total exit fees
-    // this includes the amt to reserve + amt to tranche
+    let totalAmountToReserve = new BigNumber(0);
     let totalExitFees = new BigNumber(0);
+    let performanceFees = new BigNumber(0);
 
     const logs = await options.getLogs({
         target: ACCOUNTING,
@@ -47,10 +45,18 @@ const fetch = async (options: FetchOptions) => {
         const amountToTranche = new BigNumber(log.amountToTranche);
         const totalFee = amountToReserve.plus(amountToTranche);
         totalExitFees = totalExitFees.plus(totalFee);
+        totalAmountToReserve = totalAmountToReserve.plus(amountToReserve);
     });
 
-    dailyFees.add(USDE, totalExitFees.toNumber());
-    dailyRevenue.add(USDE, reserveGrowth.toNumber());
+    performanceFees = reserveGrowth.minus(totalAmountToReserve);
+    if (performanceFees.isNegative()) {
+        performanceFees = new BigNumber(0);
+    }
+
+    const trancheFees = totalExitFees.minus(totalAmountToReserve);
+
+    dailyFees.add(USDE, totalExitFees.plus(performanceFees));
+    dailyRevenue.add(USDE, reserveGrowth.plus(trancheFees));
 
     return {
         dailyFees,
