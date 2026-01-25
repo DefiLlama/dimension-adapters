@@ -291,33 +291,33 @@ async function fetch(
 
 const adapter: Adapter = {
   adapter: {
-    // [CHAIN.ETHEREUM]: {
-    //   fetch: (options: FetchOptions) =>
-    //     fetch(
-    //       options,
-    //       subgraphMapping[CHAIN.ETHEREUM],
-    //       badDebtSiloMapping[CHAIN.ETHEREUM]
-    //     ),
-    //   start: "2025-06-02",
-    // },
-    // [CHAIN.ARBITRUM]: {
-    //   fetch: (options: FetchOptions) =>
-    //     fetch(
-    //       options,
-    //       subgraphMapping[CHAIN.ARBITRUM],
-    //       badDebtSiloMapping[CHAIN.ARBITRUM]
-    //     ),
-    //   start: "2025-05-08",
-    // },
-    // [CHAIN.AVAX]: {
-    //   fetch: (options: FetchOptions) =>
-    //     fetch(
-    //       options,
-    //       subgraphMapping[CHAIN.AVAX],
-    //       badDebtSiloMapping[CHAIN.AVAX]
-    //     ),
-    //   start: "2025-06-18",
-    // },
+    [CHAIN.ETHEREUM]: {
+      fetch: (options: FetchOptions) =>
+        fetch(
+          options,
+          subgraphMapping[CHAIN.ETHEREUM],
+          badDebtSiloMapping[CHAIN.ETHEREUM]
+        ),
+      start: "2025-06-02",
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: (options: FetchOptions) =>
+        fetch(
+          options,
+          subgraphMapping[CHAIN.ARBITRUM],
+          badDebtSiloMapping[CHAIN.ARBITRUM]
+        ),
+      start: "2025-05-08",
+    },
+    [CHAIN.AVAX]: {
+      fetch: (options: FetchOptions) =>
+        fetch(
+          options,
+          subgraphMapping[CHAIN.AVAX],
+          badDebtSiloMapping[CHAIN.AVAX]
+        ),
+      start: "2025-06-18",
+    },
     [CHAIN.SONIC]: {
       fetch: (options: FetchOptions) =>
         fetch(
