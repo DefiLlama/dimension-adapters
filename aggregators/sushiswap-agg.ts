@@ -486,7 +486,10 @@ interface Log {
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
   const dailyVolume = createBalances()
-
+  
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: chain })
+  
   let logs: Array<Log> = [];
 
   if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
@@ -499,14 +502,17 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   
-  // count volune only from whitelisted tokens
-  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
-  const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: chain})
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
       && !blacklistedTokens.includes(formatAddress(log.tokenIn))
       && !blacklistedTokens.includes(formatAddress(log.tokenOut))
     )
+  }
+  
+  // filter many scam/spam tokens on arbitrum
+  if (chain === CHAIN.ARBITRUM) {
+    // require both input and output tokens in whitelisted
+    logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut))))
   }
 
   if (useSushiAPIPrice(chain)) {
