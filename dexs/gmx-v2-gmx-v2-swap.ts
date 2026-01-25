@@ -1,7 +1,6 @@
 import request, { gql } from 'graphql-request';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { getTimestampAtStartOfDayUTC } from '../utils/date';
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]:
@@ -48,42 +47,6 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions) => {
   };
 };
 
-const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay);
-  const targetDate = new Date(dayTimestamp * 1000).toISOString();
-  const query = gql`
-    {
-      volumeRecordDailies(
-        where: {timestamp_lte: "${targetDate}"},
-        orderBy: timestamp_ASC
-      ) {
-          timestamp
-          swapVolume
-      }
-    }
-  `;
-
-  const url =
-    'https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql';
-  const res = await request(url, query);
-
-  const dailyVolume = res.volumeRecordDailies
-    .filter(
-      (record: { timestamp: string }) =>
-        record.timestamp.split('T')[0] === targetDate.split('T')[0]
-    )
-    .reduce(
-      (acc: number, record: { swapVolume: string }) =>
-        acc + Number(record.swapVolume),
-      0
-    );
-  if (dailyVolume === 0) throw new Error('Not found daily data!.');
-
-  return {
-    dailyVolume: dailyVolume / 10 ** 20,
-  };
-};
-
 const methodology = {
   Volume: 'Sum of daily total volume for all markets on a given day.',
 };
@@ -101,10 +64,6 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.BOTANIX]: {
       start: '2025-05-30',
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2021-08-31',
     },
   },
 };
