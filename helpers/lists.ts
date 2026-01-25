@@ -333,6 +333,6 @@ export const DefaultVaultsBlacklisted: Record<string, Array<string>> = {
     '0xa13327562924ab07f70440de8b7fd85824a99683',
     '0xa3b2e9c59a6c0a03239f89e860c27d73630572c0',
     '0x74873cc11eea09d686ad30f5ce9ec1a1152faa7c',
-    '0xaf2e837150e941b87296ed7dca4a0c0b83c4242a'
+    '0xaf2e837150e941b87296ed7dca4a0c0b83c4242a',
   ],
-}
+};
