@@ -50,7 +50,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: '2025-02-20', // PutManager deployment date
+      start: '2026-01-20', // First YieldClaimed event
     }
   },
   methodology,
