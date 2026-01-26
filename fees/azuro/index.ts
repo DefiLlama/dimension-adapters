@@ -1,13 +1,10 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
-  const duneQuery = `
-    WITH merged AS (
+const prefetch = async (options: FetchOptions) => {
+  const query = `
+        WITH merged AS (
       SELECT
           resolve_time,
           chain,
@@ -43,33 +40,41 @@ const fetch = async (options: FetchOptions) => {
       SUM(usd_ggr) AS dailyRevenue,
       SUM(usd_ggr) AS dailyFees
     FROM normalized
-    WHERE chain_group = '${options.chain}'
     GROUP BY 1, 2
     ORDER BY 1, 2;
-    `
-  const results = await queryDuneSql(options, duneQuery);
+  `
+  const results = await queryDuneSql(options, query);
+  return results;
+}
 
-  if (results && results.length > 0) {
-      results.forEach(row => {
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const prefetchResults = options.preFetchedResults || [];
+  if (options.chain == CHAIN.CHILIZ){
+    return { dailyFees, dailyRevenue };
+  }
+  if (prefetchResults && prefetchResults.length > 0) {
+    for (const row of prefetchResults){
+      if(row.chain_group == options.chain){
         dailyFees.addUSDValue(row.dailyFees);
         dailyRevenue.addUSDValue(row.dailyRevenue);
-      });
+      }
+    }
+    return { dailyFees, dailyRevenue };
   }
 
-  return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyRevenue,
-  };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const methodology = {
-    Fees: "Total pools profits (equals total bets amount minus total won bets amount)",
-    Revenue: "Total pools profits (equals total bets amount minus total won bets amount)",
+  Fees: "Total pools profits (equals total bets amount minus total won bets amount)",
+  Revenue: "Total pools profits (equals total bets amount minus total won bets amount)",
 };
 
 const adapter: Adapter = {
-  version: 2,
-  fetch: fetch,
+  version: 1,
+  fetch,
   adapter: {
     [CHAIN.POLYGON]: {
       start: '2022-12-01',
@@ -80,7 +85,14 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       start: '2024-02-01',
     },
+    [CHAIN.CHILIZ]: {
+      start: '2024-07-09',
+      deadFrom: '2025-05-06'
+    }
   },
+  dependencies: [Dependencies.DUNE],
+  prefetch,
+  isExpensiveAdapter: true,
   methodology,
   allowNegativeValue: true,
 };
