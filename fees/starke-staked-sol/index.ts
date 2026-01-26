@@ -1,14 +1,13 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
-const STAKE_POOL_RESERVE_ACCOUNT = "FFtERWBSCkScg8spA2mNB9zN5SdH16NqQywXw3bbB1aJ";
-const STAKE_POOL_WITHDRAW_AUTHORITY = "4cpnpiwgBfUgELVwNYiecwGti45YHSH3R72CPkFTiwJt";
-const LST_FEE_TOKEN_ACCOUNT = "GhN6PpyP6Ln4ycWcyvqsNcowLfYjpUcA9uWKAcFBjj2D";
-const LST_MINT = "Gekfj7SL2fVpTDxJZmeC46cTYxinjB6gkAnb6EGT6mnn"
+const STAKE_POOL_RESERVE_ACCOUNT = "ETEu7ShVpBmtX7YYH3GBX2mLxW8gLXz1SBzQo92Fb5Z1";
+const STAKE_POOL_WITHDRAW_AUTHORITY = "8uKJ5wLUFXYdqTJw2JHRzdcWB8JLR96mEf9dreqD6d5X";
+const LST_FEE_TOKEN_ACCOUNT = "BtMP5Zka6Hxx5CAZDj4juUBKQBiTyyVv43GTuLhzV5o4";
+const LST_MINT = 'EPCz5LK372vmvCkZH3HgSuGNKACJJwwxsofW6fypCPZL';
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const revenueToken = options.startTimestamp > 1759735276 ? "doublezero-staked-sol" : "solana" // fallback to solana on dates where dzSOL is not priced
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
@@ -27,33 +26,29 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken(revenueToken, row.amount || 0);
+      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
     }
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
+    dailyProtocolRevenue: dailyRevenue
   };
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on doublezero staked solana',
+  Fees: 'Staking rewards from staked SOL on Starke staked solana',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
-  HoldersRevenue: 'No revenue share to 2Z token holers.',
 }
 
-const adapter: SimpleAdapter = {
+export default {
   version: 1,
-  methodology,
   fetch,
-  dependencies: [Dependencies.DUNE],
   chains: [CHAIN.SOLANA],
-  start: "2025-07-25",
-  isExpensiveAdapter: true
+  start: "2024-07-17",
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology,
 };
-
-export default adapter;
