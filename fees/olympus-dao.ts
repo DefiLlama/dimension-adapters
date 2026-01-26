@@ -211,8 +211,11 @@ async function fetchERC4626Yield(
   const fees = createBalances();
 
   try {
-    // Get total vault token balance across all treasury addresses
-    const balances = await api.multiCall({
+    // Get total vault token balance at START of period
+    // Using fromApi (start) instead of api (end) to avoid overcounting:
+    // When yield is claimed and re-wrapped mid-period, those new shares
+    // shouldn't have the full period's rate delta applied to them.
+    const balances = await fromApi.multiCall({
       abi: ABIS.balanceOf,
       calls: treasuryAddresses.map(t => ({ target: vaultAddress, params: [t] })),
     });
