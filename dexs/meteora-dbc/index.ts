@@ -75,6 +75,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const accepted_quote_mints = [
         'So11111111111111111111111111111111111111112',
@@ -88,6 +89,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         dailyVolume.add(row.quote_mint, Number(row.total_volume));
         dailyFees.add(row.quote_mint, totalFees);
         dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees));
+        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_trading_fees) + Number(row.total_referral_fees))
     });
 
     return {
@@ -96,6 +98,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         dailyUserFees: dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
+        dailySupplySideRevenue
     };
 };
 
@@ -109,7 +112,8 @@ const adapter: SimpleAdapter = {
     methodology: {
         Fees: "Trading fees paid by users.",
         Revenue: "Protocol fees collected by Meteora DBC protocol.",
-        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol."
+        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol.",
+        SupplySideRevenue: "The portion of the trading fees paid to LPs and referrals."
     }
 }
 
