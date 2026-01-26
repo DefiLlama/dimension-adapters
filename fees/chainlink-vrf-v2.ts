@@ -26,15 +26,13 @@ const address: TAddrress = {
   [CHAIN.AVAX]: '0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634',
 }
 
-const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi): Promise<{ transactions: any[]; totalPayment: number }> => {
+const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi, getLogs: FetchOptions["getLogs"]): Promise<{ transactions: any[]; totalPayment: number }> => {
   const target = address[api.chain];
   const TX_HASH_BATCH = 50;
   const MAX_PARALLEL = 2;
 
-  const logs = await api.getLogs({
+  const logs = await getLogs({
     target,
-    fromBlock,
-    toBlock,
     topics: [topics.topic0],
     eventAbi: eventAbis.randomWordsFulfilled,
     entireLog: true
@@ -91,12 +89,12 @@ const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi
   return { transactions: allTransactions, totalPayment };
 };
 
-const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances, api }: FetchOptions) => {
+const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances, api, getLogs }: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
   const dailyRevenue = createBalances()
   const dailyGas = createBalances()
   const dailyPayment = createBalances()
-  const { transactions, totalPayment } = await getTransactions(fromBlock, toBlock, api)
+  const { transactions, totalPayment } = await getTransactions(fromBlock, toBlock, api, getLogs)
 
   const dailyGasUsed = transactions.reduce((acc, tx) => {
     const gasUsed = Number(tx.gasUsed ?? 0);
