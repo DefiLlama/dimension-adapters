@@ -1,39 +1,31 @@
 import sdk from "@defillama/sdk";
+import { CHAIN } from "../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { addTokensReceived } from "../helpers/token";
 
 const TOKEN = "0xE32f9e8F7f7222fcd83EE0fC68bAf12118448Eaf";
 
-const TRANSFER_TOPIC =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-
-const DEAD_TOPIC =
-  "0x000000000000000000000000000000000000000000000000000000000000dead";
-
-const fetch = async (options: any) => {
-  const logs = await sdk.api.eth.getLogs({
-    target: TOKEN,
-    fromBlock: options.fromBlock,
-    toBlock: options.toBlock,
-    chain: options.chain,
-    topics: [TRANSFER_TOPIC, null, DEAD_TOPIC],
+const DEAD_ADDRESS = '0x000000000000000000000000000000000000dEaD'
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = await addTokensReceived({
+    options,
+    target: DEAD_ADDRESS,
+    token: TOKEN
   });
 
-  let dailyFees = 0n;
-
-  for (const log of logs.output) {
-    dailyFees += BigInt(log.data);
-  }
-
   return {
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyFees.toString(),
-    dailyProtocolRevenue: dailyFees.toString(),
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: '0',
+    dailyHoldersRevenue: dailyFees,
   };
 };
 
-export default {
-  bsc: {
-    version: 1,
-    fetch,
-    start: "2025-08-27", // at block 59020532,
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: "2025-08-27",
 };
+
+export default adapter;
