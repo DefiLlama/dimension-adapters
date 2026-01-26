@@ -32,6 +32,7 @@ const fetch = async (options: any) => {
 
 export default {
   bsc: {
+    version: 1,
     fetch,
     start: "2025-08-27", // at block 59020532,
   },
