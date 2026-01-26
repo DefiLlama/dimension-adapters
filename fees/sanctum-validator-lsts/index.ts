@@ -103,16 +103,17 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyFees.addCGToken('solana', Number(fees[0].daily_epoch_fees), 'STAKING_REWARDS')
+  dailyFees.addCGToken('solana', Number(fees[0].daily_epoch_fees), METRIC.STAKING_REWARDS)
   dailyFees.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
 
-  dailyRevenue.addCGToken('solana', Number(fees[0].daily_epoch_revenue), 'STAKING_REWARDS')
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_epoch_revenue), METRIC.STAKING_REWARDS)
   dailyRevenue.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
 
   return {
     dailyFees,
     dailyRevenue: dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -120,19 +121,20 @@ const methodology = {
   Fees: "Staking rewards + withdrawal/deposit fees from Sanctum LSTs",
   Revenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
   ProtocolRevenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  HoldersRevenue: "No revenue share to CLOUD token holders",
 };
 
 const breakdownMethodology = {
   Fees: {
-    ['STAKING_REWARDS']: 'Validators staking rewards from Sanctum LSTS.',
+    [METRIC.STAKING_REWARDS]: 'Validators staking rewards from Sanctum LSTS.',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'SOL deposit and withdraw fees.',
   },
   Revenue: {
-    ['STAKING_REWARDS']: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
   },
   ProtocolRevenue: {
-    ['STAKING_REWARDS']: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
   },
 }

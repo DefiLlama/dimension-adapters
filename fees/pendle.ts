@@ -80,6 +80,12 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BERACHAIN]: {
     treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+  }, 
+  [CHAIN.PLASMA]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6"
+  },
+  [CHAIN.HYPERLIQUID]: {
+    treasury: "0x17A191644E750AA24a5ec13A253b9446f4eF178b"
   }
 };
 
@@ -279,6 +285,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: {
       fetch: fetch(CHAIN.BERACHAIN),
       start: '2025-02-07',
+    }, 
+    [CHAIN.PLASMA]: {
+      fetch: fetch(CHAIN.PLASMA),
+      start: '2025-09-24',
+    },
+    [CHAIN.HYPERLIQUID]: {
+      fetch: fetch(CHAIN.HYPERLIQUID),
+      start: '2025-07-09',
     }
   },
 };
@@ -296,10 +310,11 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   let hasMore = true;
 
   while (hasMore) {
-    const { results: newResults } = await getConfig(
+    let { results: newResults } = await getConfig(
       `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
       `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
     );
+    newResults = newResults || []
     results = results.concat(newResults);
     skip += 100;
     hasMore = newResults.length === 100;

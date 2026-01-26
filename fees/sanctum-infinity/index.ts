@@ -13,7 +13,11 @@ Total revenue is what goes to Sanctum: 10% of total fees
 
 */
 
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import {
+  Dependencies,
+  FetchOptions,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -32,6 +36,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
               from
                   dune.sanctumso.result_infinity_fee_accounts
           )
+          AND token_balance_change > 0
           AND block_time >= from_unixtime(${options.startTimestamp})
           AND block_time <= from_unixtime(${options.endTimestamp})
     `

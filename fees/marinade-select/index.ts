@@ -9,8 +9,9 @@ interface MarinadeAmounts {
   dailyProtocolRevenue: string;
   dailySupplySideRevenue: string;
 }
+const buybacksStart = 1757030400; // 2025-09-05
 
-const fetch = async ({ createBalances }: FetchOptions) => {
+const fetch = async (_a: any, _b: any, { createBalances, fromTimestamp }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).select
   const coin = 'So11111111111111111111111111111111111111112'
@@ -19,12 +20,18 @@ const fetch = async ({ createBalances }: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
   dailyFees.add(coin, amounts.dailyFees);
   dailyUserFees.add(coin, amounts.dailyUserFees);
   dailyRevenue.add(coin, amounts.dailyRevenue);
-  dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
   dailySupplySideRevenue.add(coin, amounts.dailySupplySideRevenue);
+  if (fromTimestamp >= buybacksStart) {
+    dailyProtocolRevenue.add(coin, Number(amounts.dailyRevenue) * 0.5);
+    dailyHoldersRevenue.add(coin, Number(amounts.dailyRevenue) * 0.5);
+  } else {
+    dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
+  }
 
   return {
     dailyFees,
@@ -32,11 +39,12 @@ const fetch = async ({ createBalances }: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
@@ -49,8 +57,9 @@ const adapter: SimpleAdapter = {
     UserFees: 'Users paid fees to Marinade in Select program.',
     Fees: 'Staking rewards from Solana validators.',
     Revenue: 'Staking rewards collected by Marinade.',
-    ProtocolRevenue: 'Staking rewards collected by Marinade.',
-    SupplySideRevenue: 'Staking rewards ditributed to stakers.'
+    ProtocolRevenue: '50% of the revenue is collected by Marinade.',
+    SupplySideRevenue: 'Staking rewards ditributed to stakers.',
+    HoldersRevenue: '50% of the revenue is used on MNDE Buybacks since 2025-09-05.',
   }
 }
 export default adapter

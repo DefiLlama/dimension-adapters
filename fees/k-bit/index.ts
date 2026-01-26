@@ -11,6 +11,7 @@ const eventAbi =
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const logs = await options.getLogs({
     target: FEE_CONTRACT,
@@ -19,20 +20,24 @@ const fetch = async (options: FetchOptions) => {
 
   let totalFee = 0n;
   let totalProtocolRevenue = 0n;
+  let totalSupplySideRevenue = 0n;
 
   for (const log of logs) {
     if (log.fee) totalFee += BigInt(log.fee);
     if (log.protocolFee) totalProtocolRevenue += BigInt(log.protocolFee);
+    if (log.referrerFee) totalSupplySideRevenue += BigInt(log.referrerFee);
   }
 
   dailyFees.add(USDT, totalFee);
   dailyProtocolRevenue.add(USDT, totalProtocolRevenue);
+  dailySupplySideRevenue.add(USDT, totalSupplySideRevenue);
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -40,6 +45,7 @@ const methodology = {
   Fees: "Trading fees paid by users.",
   Revenue: "Protocol Revenue and Referral Revenue.",
   ProtocolRevenue: "Protocol Revenue share from the trading fees.",
+  SupplySideRevenue: "Referals share from the trading fees.",
 };
 
 const adapter: Adapter = {

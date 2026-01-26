@@ -366,11 +366,12 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
  * @param blacklist_signers - Optional array of transaction signers to exclude
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers, blacklist_mints }: {
+export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_mints }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
   targets?: string[];
+  mints?: string[];
   blacklists?: string[];
   blacklist_signers?: string[];
   blacklist_mints?: string[];
@@ -382,6 +383,14 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
 
+  // Build SQL condition to include only mints tokens
+  let mintsCondition = '';
+
+  if (mints && mints.length > 0) {
+    const formattedMints = mints.map(addr => `'${addr}'`).join(', ');
+    mintsCondition = `AND mint IN (${formattedMints})`;
+  }
+  
   // Build SQL condition to exclude blacklisted sender addresses
   let blacklistCondition = '';
 
@@ -415,6 +424,7 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
     FROM solana.assets.transfers
     WHERE to_address IN (${formattedAddresses})
     AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ${mintsCondition}
     ${blacklistCondition}
     ${blacklist_signersCondition}
     ${blacklist_mintsCondition}
@@ -570,7 +580,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     arbitrum: 'arbitrum',
     avax: 'avalanche',
     polygon: 'polygon',
-    celo: 'celo',
+    // celo: 'celo',
     tron: 'tron',
     unichain: 'unichain',
     zora: 'zora',
@@ -580,20 +590,24 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     berachain: 'berachain',
     polygon_zkevm: 'polygon_zkevm',
     plasma: 'plasma',
+    monad: 'monad',
   }
+  
+  // https://docs.allium.so/changelog/deprecated-schemas
   const tableMap: any = {
-    bsc: 'bnb_token_transfers',
-    avax: 'avax_token_transfers',
     tron: 'trx_token_transfers',
     near: 'near_token_transfers',
-    polygon: 'matic_token_transfers',
-    berachain: 'native_token_transfers',
-    ink: 'native_token_transfers',
-    xdai: 'native_token_transfers',
-    polygon_zkevm: 'native_token_transfers',
-    unichain: 'native_token_transfers',
-    sonic: 'native_token_transfers',
-    plasma: 'native_token_transfers',
+    // bsc: 'bnb_token_transfers',
+    // avax: 'avax_token_transfers',
+    // polygon: 'matic_token_transfers',
+    // berachain: 'native_token_transfers',
+    // ink: 'native_token_transfers',
+    // xdai: 'native_token_transfers',
+    // polygon_zkevm: 'native_token_transfers',
+    // unichain: 'native_token_transfers',
+    // sonic: 'native_token_transfers',
+    // plasma: 'native_token_transfers',
+    // monad: 'native_token_transfers'
   }
 
   let query = ``
@@ -603,7 +617,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
-      FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
+      FROM ${chainKey}${tableMap[options.chain] ? '.assets.${tableMap[options.chain]}' : '.assets.native_token_transfers'}
       WHERE to_address in ${targetList} 
       ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'

@@ -4,6 +4,7 @@ const BOOL_KEYS = [
 
 const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
+  ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc.camp.raas.gelato.cloud',
@@ -19,11 +20,16 @@ const DEFAULTS: any = {
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
+  SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
+  SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://tuber.build/api/eth-rpc',
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
+  BLOCKFROST_PROJECT_ID: 'mai'+'nnetBfkdsCOvb4BS'+'VA6pb1D43ptQ7t3cLt06',
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
+  ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
+  HYDRADX_BLOCK_LOW: '7036666',
 }
 
 export const ENV_KEYS = new Set([
@@ -64,6 +70,10 @@ export const ENV_KEYS = new Set([
   'DUNE_BULK_MODE_BATCH_TIME',
   'LLAMA_HL_INDEXER',
   'SAUCERSWAP_API_KEY',
+  'ASTROS_PERP_API_KEY',
+  'VOLO_VAULT_API_KEY',
+  'CLICKHOUSE_CONFIG',
+  'PROXY_AUTH',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

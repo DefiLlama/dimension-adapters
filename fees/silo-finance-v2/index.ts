@@ -50,7 +50,12 @@ const subgraphMapping: SubgraphMapping = {
 // so we will filter out these silos from the data
 const badDebtSiloMapping: BadDebtSiloMapping = {
   [CHAIN.ETHEREUM]: [],
-  [CHAIN.ARBITRUM]: [],
+  [CHAIN.ARBITRUM]: [
+    {
+      silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
+      timestamp: 1762128000, // 2025-11-03
+    }
+  ],
   [CHAIN.AVAX]: [],
   [CHAIN.SONIC]: [
     {
@@ -76,6 +81,46 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     {
       silo: "0x8c98b43bf61f2b07c4d26f85732217948fca2a90",
       timestamp: 1754265600, // 2025-08-04
+    },
+    {
+      silo: "0xa1627a0e1d0ebca9326d2219b84df0c600bed4b1", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xbe0d3c8801206cc9f35a6626f90ef9f4f2983a3d",
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x172a687c397e315dbe56ed78ab347d7743d0d4fa", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xb1412442aa998950f2f652667d5Eba35fE66E43f", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x27968d36b937DcB26F33902fA489E5b228b104BE", //dUSD
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x76DF755A9f40463F14d0a2b7Cba3Ccf05404eEdf", //dUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xAF1BDaE843d90c546DE5001f7b107B46e1a26Aa9", //dUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x5954ce6671d97D24B782920ddCdBB4b1E63aB2De", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x4935FaDB17df859667Cc4F7bfE6a8cB24f86F8d0", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x219656F33c58488D09d518BaDF50AA8CdCAcA2Aa", //xUsd
+      timestamp: 1762128000 // 2025-11-03
     },
   ],
 };

@@ -58,6 +58,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const burned = BigInt(log.xSPRKAmount) - BigInt(log.sprkAmount);
       if (burned > 0) {
         dailyHoldersRevenue.add(CONTRACT_SPARK_TOKEN, burned);
+        dailyFees.add(CONTRACT_SPARK_TOKEN, burned)
       }
     });
 

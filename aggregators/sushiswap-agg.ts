@@ -373,6 +373,53 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.HYPERLIQUID]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.BERACHAIN]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.PLASMA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.MONAD]: '0xd2b37aDE14708bf18904047b1E31F8166d39612b',
+}
+
+const RP10_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ARBITRUM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.OPTIMISM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BASE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.POLYGON]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.AVAX]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BSC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.LINEA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ARBITRUM_NOVA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.XDAI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.FANTOM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BITTORRENT]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CELO]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.FILECOIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HAQQ]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.KAVA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.METIS]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.THUNDERCORE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SCROLL]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ZETA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.POLYGON_ZKEVM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HARMONY]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BOBA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BOBA_BNB]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CORE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.CRONOS]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BLAST]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SKALE_EUROPA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ROOTSTOCK]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ERA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MANTLE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MANTA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MODE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.TAIKO]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.ZKLINK]: '0x67ad43499eda05ddd799f4e6c407646c5bf2ed47',
+  [CHAIN.APECHAIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.SONIC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HEMI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.KATANA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HYPERLIQUID]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BERACHAIN]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.PLASMA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.MONAD]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
 }
 
 const WNATIVE_ADDRESS: any = {
@@ -421,7 +468,8 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.KATANA]: ADDRESSES.optimism.WETH_1,
   [CHAIN.HYPERLIQUID]: ADDRESSES.hyperliquid.WHYPE,
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
-  [CHAIN.PLASMA]: '0x6100e367285b01f48d07953803a2d8dca5d19873',
+  [CHAIN.PLASMA]: ADDRESSES.plasma.WXPL,
+  [CHAIN.MONAD]: ADDRESSES.monad.WMON,
 }
 
 const useSushiAPIPrice = (chain: any) => [
@@ -438,7 +486,10 @@ interface Log {
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
   const dailyVolume = createBalances()
-
+  
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: chain })
+  
   let logs: Array<Log> = [];
 
   if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
@@ -449,15 +500,19 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP9_1_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_1_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   
-  // count volune only from whitelisted tokens
-  const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
-  const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: chain})
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
       && !blacklistedTokens.includes(formatAddress(log.tokenIn))
       && !blacklistedTokens.includes(formatAddress(log.tokenOut))
     )
+  }
+  
+  // filter many scam/spam tokens on arbitrum
+  if (chain === CHAIN.ARBITRUM) {
+    // require both input and output tokens in whitelisted
+    logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut))))
   }
 
   if (useSushiAPIPrice(chain)) {
@@ -679,6 +734,10 @@ const adapters = {
   [CHAIN.PLASMA]: {
     fetch,
     start: '2025-09-25'
+  },
+  [CHAIN.MONAD]: {
+    fetch,
+    start: '2025-11-23'
   }
 }
 
