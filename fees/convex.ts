@@ -173,6 +173,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     dailyFees.addUSDValue(snapshot.cvxRevenueToCvxCrvStakersAmount.toNumber(), 'CVX Revenue')
     dailyFees.addUSDValue(snapshot.threeCrvRevenueToCvxCrvStakersAmount.toNumber(), 'CRV Revenue')
     dailyFees.addUSDValue(snapshot.fxsRevenueToCvxFxsStakersAmount.toNumber(), 'FXS Revenue')
+    dailySupplySideRevenue.addUSDValue(snapshot.crvRevenueToCvxCrvStakersAmount.toNumber(), 'CRV Revenue')
+    dailySupplySideRevenue.addUSDValue(snapshot.cvxRevenueToCvxCrvStakersAmount.toNumber(), 'CVX Revenue')
+    dailySupplySideRevenue.addUSDValue(snapshot.threeCrvRevenueToCvxCrvStakersAmount.toNumber(), 'CRV Revenue')
+    dailySupplySideRevenue.addUSDValue(snapshot.fxsRevenueToCvxFxsStakersAmount.toNumber(), 'FXS Revenue')
 
     // All revenue redirected to LPs
     dailySupplySideRevenue.addUSDValue(snapshot.crvRevenueToLpProvidersAmount.toNumber(), 'CRV Revenue')
