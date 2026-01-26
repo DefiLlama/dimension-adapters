@@ -12,7 +12,7 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise
             feesUSD
         }
     }`;
-  const url = "https://api.studio.thegraph.com/query/50593/yaka-analytics/v0.0.3";
+  const url = "https://api.studio.thegraph.com/query/105503/yaka-data-new/version/latest";
   const req = await request(url, query);
   return {
     dailyVolume: req.algebraDayData.volumeUSD,
