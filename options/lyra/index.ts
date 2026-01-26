@@ -114,13 +114,14 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: {
     [CHAIN.OPTIMISM]: {
-      start: '2021-11-12'
+      start: '2021-11-12',
+      deadFrom: '2025-03-06'
     },
     [CHAIN.ARBITRUM]: {
-      start: '2023-01-12'
+      start: '2023-01-12',
+      deadFrom: '2023-12-29'
     }
   },
-  deadFrom: '2025-03-06'
 }
 
 export default adapter;
