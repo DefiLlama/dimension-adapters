@@ -326,6 +326,16 @@ interface QueryIndexerResult {
   hip3Deployers: Record<string, Hip3DeployerMetrics>;
 }
 
+const indexerResponses: Record<string, any> = {}
+async function _requestIndexer(endpoint: string, dateString: string): Promise<any> {
+  if (indexerResponses[dateString]) {
+    return indexerResponses[dateString];
+  }
+  indexerResponses[dateString] = await httpGet(`${endpoint}/v1/data/hourly?date=${dateString}`);
+  
+  return indexerResponses[dateString];
+}
+
 export async function queryHyperliquidIndexer(
   options: FetchOptions,
 ): Promise<QueryIndexerResult> {
@@ -344,9 +354,7 @@ export async function queryHyperliquidIndexer(
     .split("T")[0]
     .replace("-", "")
     .replace("-", "");
-  const response = await httpGet(
-    `${endpoint}/v1/data/hourly?date=${dateString}`,
-  );
+  const response = await _requestIndexer(endpoint, dateString);
 
   const coinsDeployedByUnit = await getUnitSeployedCoins();
 

@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer } from "../helpers/hyperliquid";
+import { fetchHIP3DeployerData, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer } from "../helpers/hyperliquid";
 import { httpGet } from "../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
@@ -8,9 +8,16 @@ const fetch = async (options: FetchOptions) => {
 
   if (options.startOfDay >= LLAMA_HL_INDEXER_FROM_TIME) {
     const result = await queryHyperliquidIndexer(options);
+    
+    // TODO: temp fix for now, will update hl indexer
+    let totalOpenInterest = result.currentPerpOpenInterest ? result.currentPerpOpenInterest : 0;
+    for (const dexId of ['xyz', 'vntl', 'flx', 'km', 'hyna']) {
+      const dexResult = await fetchHIP3DeployerData({ options, hip3DeployerId: dexId });
+      totalOpenInterest += dexResult.currentPerpOpenInterest ? dexResult.currentPerpOpenInterest : 0;
+    }
 
     return {
-      openInterestAtEnd: result.currentPerpOpenInterest,
+      openInterestAtEnd: totalOpenInterest,
     }
   } else {
     let openInterestAtEnd = 0;
