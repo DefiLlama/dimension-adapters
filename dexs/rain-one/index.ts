@@ -68,7 +68,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "All trades on prediction markets",
+  Volume: "All Market Trades On https://rain.one",
 };
 
 const adapter: SimpleAdapter = {
