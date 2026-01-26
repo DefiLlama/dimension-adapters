@@ -1,13 +1,14 @@
 import request, { gql } from "graphql-request";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const volume_subgraphs: Record<string, string> = {
   [CHAIN.ARBITRUM]: "https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql",
   [CHAIN.AVAX]: "https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql",
   [CHAIN.BOTANIX]: "https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql",
 }
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
   const query = gql`
@@ -20,7 +21,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyData = await request(volume_subgraphs[options.chain], query, {
     id: '1d:' + String(dayTimestamp),
   })
-  
+
   const dailyVolume = dailyData.volumeInfos.length > 0
     ? dailyData.volumeInfos.reduce((sum: number, element: any) => sum + Number(element.marginVolumeUsd), 0) * 10 ** -30
     : undefined
