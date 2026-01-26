@@ -24,22 +24,12 @@ const uniq = (items: string[]) => [...new Set(items)];
 
 function buildFetch(commands: string[]) {
   return async (options: FetchOptions): Promise<FetchResultV2> => {
-    console.log("[lazy-summer] buildFetch called");
     const { api } = options;
-
-    console.log("[lazy-summer] chain", options.chain, {
-      start: options.startTimestamp,
-      startFormatted: new Date(options.startTimestamp * 1000).toISOString(),
-      end: options.endTimestamp,
-      endFormatted: new Date(options.endTimestamp * 1000).toISOString(),
-      commands,
-    });
 
     const [fromBlock, toBlock] = await Promise.all([
       options.getFromBlock(),
       options.getToBlock(),
     ]);
-    console.log("[lazy-summer] blocks", { fromBlock, toBlock });
 
     const activePerCommand = (await api.multiCall({
       abi: abi.getActiveFleetCommanders,
@@ -53,12 +43,6 @@ function buildFetch(commands: string[]) {
       const activeFleet = (fleetList || []).filter(Boolean);
       if (!activeFleet.length) return;
       fleetCommanders.push(...activeFleet);
-      console.log(
-        "[lazy-summer] harbor command",
-        commands[idx],
-        "fleetCommanders",
-        activeFleet,
-      );
     });
 
     if (!fleetCommanders.length) {
@@ -83,9 +67,6 @@ function buildFetch(commands: string[]) {
 
     const tokens = uniq(fleetAssets.map(({ asset }) => asset as string));
 
-    console.log("[lazy-summer] assets", assets);
-    console.log("[lazy-summer] tokens", tokens);
-
     if (!fleetAssets.length || !tokens.length) {
       const empty = options.createBalances();
       return {
@@ -105,11 +86,6 @@ function buildFetch(commands: string[]) {
       toBlock,
       eventAbi: "event TipAccrued(uint256 tipAmount)",
     });
-
-    console.log(
-      "[lazy-summer] TipAccrued logs per fleet",
-      tipAccruedLogs.map((arr: any[]) => arr.length),
-    );
 
     const sharesPerFleet: bigint[] = Array(fleetAssets.length).fill(0n);
 
@@ -136,8 +112,6 @@ function buildFetch(commands: string[]) {
       const token = fleetAssets[idx].asset as string;
       dailyFees.add(token, amount);
     });
-
-    console.log("[lazy-summer] dailyFees raw", dailyFees.getBalances());
 
     const dailyRevenue = dailyFees.clone(0.3); // 30% to treasury + stakers
     const dailyProtocolRevenue = dailyFees.clone(0.1); // 10% retained by treasury
