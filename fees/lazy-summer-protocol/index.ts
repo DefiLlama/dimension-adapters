@@ -56,6 +56,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const tipAccruedLogs = await options.getLogs({
         targets: fleetCommanders,
         eventAbi: "event TipAccrued(uint256 tipAmount)",
+        flatten: false,
       });
       for (let i = 0; i < assets.length; i++) {
         if (assets[i]) {
