@@ -9,6 +9,7 @@ const cyberPerpApiUrl =
   "https://api.prod.move.cyberperp.io/stats/total-volume-range";
 
 const VUSD_DECIMALS = 1e6;
+const DAY_SECONDS = 86400;
 
 const getData = async (timestamp: number) => {
   const query = gql`
@@ -53,9 +54,12 @@ export const fetchVolume = async (options: FetchOptions) => {
 };
 
 export const fetchVolumeMove = async (options: FetchOptions) => {
-  const { fromTimestamp, toTimestamp, createBalances, startOfDay } = options;
+  const { createBalances, startOfDay } = options;
+  
+  const startTimestamp = options.startOfDay - DAY_SECONDS;
+  const endTimestamp = options.startOfDay;
 
-  const url = `${cyberPerpApiUrl}?fromTimestamp=${fromTimestamp}&toTimestamp=${toTimestamp}`;
+  const url = `${cyberPerpApiUrl}?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`;
   const response = await globalThis.fetch(url);
 
   if (!response.ok) {
