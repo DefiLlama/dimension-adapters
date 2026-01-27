@@ -1,9 +1,15 @@
 import { request, gql } from "graphql-request";
 import { FetchOptions } from "../../adapters/types";
 import BigNumber from "bignumber.js";
+import fetchURL from "../../utils/fetchURL";
 
 const graphUrl =
   "https://api.goldsky.com/api/public/project_clzwt9f7wxczz01vw8zx90k22/subgraphs/cyberLP-pool/latest/gn";
+
+const cyberPerpApiUrl =
+  "https://api.prod.move.cyberperp.io/stats/total-volume-range";
+
+const VUSD_DECIMALS = 1e6;
 
 const getData = async (timestamp: number) => {
   const query = gql`
@@ -44,5 +50,20 @@ export const fetchVolume = async (options: FetchOptions) => {
   return {
     dailyVolume: data.dailyVolume,
     timestamp: data.timestamp,
+  };
+};
+
+export const fetch = async (options: FetchOptions) => {
+  const { fromTimestamp, toTimestamp, createBalances, startOfDay } = options;
+
+  const url = `${cyberPerpApiUrl}?fromTimestamp=${fromTimestamp}&toTimestamp=${toTimestamp}`;
+  const volumeRaw = Number(await fetchURL(url));
+
+  const dailyVolume = createBalances();
+  dailyVolume.addUSDValue(volumeRaw / VUSD_DECIMALS);
+
+  return {
+    timestamp: startOfDay,
+    dailyVolume,
   };
 };
