@@ -1,147 +1,98 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const harborCommands: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: ["0x09eb323dBFECB43fd746c607A9321dACdfB0140F"],
-  [CHAIN.BASE]: ["0x09eb323dBFECB43fd746c607A9321dACdfB0140F"],
-  [CHAIN.ARBITRUM]: [
-    "0x09eb323dBFECB43fd746c607A9321dACdfB0140F",
-    "0x7fBfb946cA4ba96559467E84ef41DA6cfE0C9a17",
-  ],
-  [CHAIN.SONIC]: ["0xa8E4716a1e8Db9dD79f1812AF30e073d3f4Cf191"],
-  [CHAIN.HYPERLIQUID]: ["0x5CD5D7e3A1b604E0EdeDc4A2343b312729e09E3F"],
+const configs: Record<string, any> = {
+  [CHAIN.ETHEREUM]: {
+    harborCommands: ["0x09eb323dBFECB43fd746c607A9321dACdfB0140F"],
+    start: '2025-02-10',
+  },
+  [CHAIN.BASE]: {
+    harborCommands: ["0x09eb323dBFECB43fd746c607A9321dACdfB0140F"],
+    start: '2025-02-10',
+  },
+  [CHAIN.ARBITRUM]: {
+    harborCommands: [
+      "0x09eb323dBFECB43fd746c607A9321dACdfB0140F",
+      "0x7fBfb946cA4ba96559467E84ef41DA6cfE0C9a17",
+    ],
+    start: '2025-02-10',
+  },
+  [CHAIN.SONIC]: {
+    harborCommands: ["0xa8E4716a1e8Db9dD79f1812AF30e073d3f4Cf191"],
+    start: '2025-02-10',
+  },
+  [CHAIN.HYPERLIQUID]: {
+    harborCommands: ["0x5CD5D7e3A1b604E0EdeDc4A2343b312729e09E3F"],
+    start: '2025-12-03',
+  },
 };
 
 const abi = {
-  getActiveFleetCommanders:
-    "function getActiveFleetCommanders() view returns (address[])",
+  getActiveFleetCommanders: "function getActiveFleetCommanders() view returns (address[])",
   asset: "function asset() view returns (address)",
-  convertToAssets:
-    "function convertToAssets(uint256 shares) view returns (uint256)",
+  convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
 };
 
-const uniq = (items: string[]) => [...new Set(items)];
-
-function buildFetch(commands: string[]) {
-  return async (options: FetchOptions): Promise<FetchResultV2> => {
-    const { api } = options;
-
-    const [fromBlock, toBlock] = await Promise.all([
-      options.getFromBlock(),
-      options.getToBlock(),
-    ]);
-
-    const activePerCommand = (await api.multiCall({
-      abi: abi.getActiveFleetCommanders,
-      calls: commands,
-      permitFailure: true,
-    })) as string[][];
-
-    const fleetCommanders: string[] = [];
-
-    activePerCommand.forEach((fleetList, idx) => {
-      const activeFleet = (fleetList || []).filter(Boolean);
-      if (!activeFleet.length) return;
-      fleetCommanders.push(...activeFleet);
-    });
-
-    if (!fleetCommanders.length) {
-      const empty = options.createBalances();
-      return {
-        dailyFees: empty,
-        dailyRevenue: empty,
-        dailyProtocolRevenue: empty,
-        timestamp: options.endTimestamp,
-      };
-    }
-
-    const assets = await api.multiCall({
-      abi: abi.asset,
-      calls: fleetCommanders,
-      permitFailure: true,
-    });
-
-    const fleetAssets = fleetCommanders
-      .map((fleet, idx) => ({ fleet, asset: assets[idx] }))
-      .filter(({ fleet, asset }) => !!fleet && !!asset);
-
-    const tokens = uniq(fleetAssets.map(({ asset }) => asset as string));
-
-    if (!fleetAssets.length || !tokens.length) {
-      const empty = options.createBalances();
-      return {
-        dailyFees: empty,
-        dailyRevenue: empty,
-        dailyProtocolRevenue: empty,
-        timestamp: options.endTimestamp,
-      };
-    }
-
-    const dailyFees = options.createBalances();
-
-    const tipAccruedLogs = await options.getLogs({
-      targets: fleetAssets.map(({ fleet }) => fleet),
-      flatten: false,
-      fromBlock,
-      toBlock,
-      eventAbi: "event TipAccrued(uint256 tipAmount)",
-    });
-
-    const sharesPerFleet: bigint[] = Array(fleetAssets.length).fill(0n);
-
-    tipAccruedLogs.forEach((logsForFleet: any[], idx: number) => {
-      logsForFleet.forEach((log) => {
-        const amount = BigInt(log.tipAmount?.toString?.() ?? "0");
-        sharesPerFleet[idx] += amount;
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyFees = options.createBalances();
+  
+  const activePerCommands = await options.api.multiCall({
+    abi: abi.getActiveFleetCommanders,
+    calls: configs[options.chain].harborCommands,
+    permitFailure: true,
+  });
+  for (const fleetCommanders of activePerCommands) {
+    if (fleetCommanders && fleetCommanders.length > 0) {
+      const assets = await options.api.multiCall({
+        abi: abi.asset,
+        calls: fleetCommanders,
+        permitFailure: true,
       });
-    });
-
-    const assetsFromShares = await api.multiCall({
-      abi: abi.convertToAssets,
-      calls: sharesPerFleet.map((shares, idx) => ({
-        target: fleetAssets[idx].fleet,
-        params: [shares.toString()],
-      })),
-      block: toBlock,
-      permitFailure: true,
-    });
-
-    assetsFromShares.forEach((assetAmount, idx) => {
-      const amount = BigInt(assetAmount?.toString?.() ?? "0");
-      if (amount === 0n) return;
-      const token = fleetAssets[idx].asset as string;
-      dailyFees.add(token, amount);
-    });
-
-    const dailyRevenue = dailyFees.clone(0.3); // 30% to treasury + stakers
-    const dailyProtocolRevenue = dailyFees.clone(0.1); // 10% retained by treasury
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue,
-      timestamp: options.endTimestamp,
-    };
-  };
+      const priceShares = await options.api.multiCall({
+        abi: abi.convertToAssets,
+        calls: fleetCommanders.map((fleet: string) => ({ target: fleet, params: [String(BigInt(1e18))] })),
+        permitFailure: true,
+      });
+      const tipAccruedLogs = await options.getLogs({
+        targets: fleetCommanders,
+        eventAbi: "event TipAccrued(uint256 tipAmount)",
+      });
+      for (let i = 0; i < assets.length; i++) {
+        if (assets[i]) {
+          for (const log of tipAccruedLogs[i]) {
+            const assetAmount = BigInt(log.tipAmount) * BigInt(priceShares[i]) / BigInt(1e18)
+            dailyFees.add(assets[i], assetAmount);
+          }
+        }
+      }
+    }
+  }
+  
+  const dailySupplySideRevenue = dailyFees.clone(0.7);
+  const dailyRevenue = dailyFees.clone(0.3);
+  const dailyProtocolRevenue = dailyFees.clone(0.1);
+  const dailyHoldersRevenue = dailyFees.clone(0.2);
+  
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  }
 }
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {},
+  fetch,
+  adapter: configs,
   methodology: {
     Fees: "TipAccrued share amounts emitted by active FleetCommanders, converted to vault assets via convertToAssets and summed per underlying asset token.",
-    Revenue:
-      "30% of tips flow to the DAO treasury (of which 66.6% is forwarded to SUMR stakers).",
-    ProtocolRevenue:
-      "10% of tips (the remaining treasury share after distributing 20% to SUMR stakers).",
+    Revenue: "30% of tips flow to the DAO treasury and SUMR stakers.",
+    ProtocolRevenue: "10% of tips go to DAO treasury.",
+    HoldersRevenue: "20% of tips go to SUMR stakers.",
+    SupplySideRevenue: "70% of tips are distributed to FleetCommanders depositors.",
   },
-  start: "2025-02-10",
 };
-
-Object.entries(harborCommands).forEach(([chain, commands]) => {
-  const fetch = buildFetch(commands);
-  if (!adapter.adapter) adapter.adapter = {};
-  adapter.adapter[chain] = { fetch };
-});
 
 export default adapter;
