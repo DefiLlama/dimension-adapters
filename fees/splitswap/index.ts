@@ -37,8 +37,8 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "0.05-0.5% fee on deposits and withdrawals.",
-    Revenue: "30% referral fee, 70% protocol revenue.",
-    ProtocolRevenue: "70% of fees collected. ",
+    Revenue: "0.05-0.5% fee on deposits and withdrawals.",
+    ProtocolRevenue: "0.05-0.5% fee on deposits and withdrawals. ",
   },
 };
 
