@@ -1,4 +1,4 @@
-import { Adapter, Dependencies, FetchOptions, FetchResult } from "../adapters/types";
+import { SimpleAdapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
@@ -13,6 +13,7 @@ WITH daily_payments AS (
         contract_address = 0xEe83640f0ed07d36E799531CC6d87FB4CDcCaC13
         AND topic0 = 0x32aced27dfd49efcd31ceb0567a1ef533d2ab1481334c3f316047bf16fe1c8e8
         AND topic3 = 0x0000000000000000000000009e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3
+        AND TIME_RANGE
     GROUP BY DATE(block_time)
 ),
 daily_withdrawals AS (
@@ -25,6 +26,7 @@ daily_withdrawals AS (
         contract_address = 0xEe83640f0ed07d36E799531CC6d87FB4CDcCaC13
         AND topic0 = 0x8210728e7c071f615b840ee026032693858fbcd5e5359e67e438c890f59e5620
         AND topic2 = 0x0000000000000000000000009e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3
+        AND TIME_RANGE
     GROUP BY DATE(block_time)
 )
 SELECT 
@@ -41,9 +43,9 @@ FULL OUTER JOIN daily_withdrawals dw ON dp.payment_date = dw.withdrawal_date
 ORDER BY date DESC
 `;
 
-const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const preFetchedResults = options.preFetchedResults;
-  const dailyStats = preFetchedResults.dailyStats || [];
+  const dailyStats = preFetchedResults?.dailyStats || [];
 
   // Dune dates are usually strings like "2023-01-01 00:00:00"
   const dayStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
@@ -80,15 +82,16 @@ const methodology = {
   Volume: "Total user payment volume (USDT)",
 }
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  prefetch,
   adapter: {
     [CHAIN.OP_BNB]: {
-      fetch: fetch,
       start: '2025-12-08', // Approximate start date based on block number in query
       runAtCurrTime: true,
     }
   },
-  prefetch,
   dependencies: [Dependencies.DUNE],
   methodology,
 }
