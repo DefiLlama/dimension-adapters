@@ -48,17 +48,26 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyStats = preFetchedResults?.dailyStats || [];
 
   // Dune dates are usually strings like "2023-01-01 00:00:00"
-  const dayStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
+  const dayStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
 
   const dailyStatRow = dailyStats.find((row: any) => {
     // handle potential date format differences
-    const rowDate = row.date ? row.date.toString().split('T')[0] : "";
+    if (!row.date) return false;
+    
+    let rowDate: string;
+    if (row.date instanceof Date) {
+      rowDate = row.date.toISOString().slice(0, 10);
+    } else {
+      // Handle string formats like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+      const dateStr = row.date.toString();
+      rowDate = dateStr.slice(0, 10);
+    }
     return rowDate === dayStr;
   });
 
-  const dailyRevenue = dailyStatRow ? dailyStatRow.daily_net_usdt : undefined;
+  const dailyRevenue = dailyStatRow ? Number(dailyStatRow.daily_net_usdt) : 0;
   // Volume usually refers to the total amount processed, which here would be the received amount
-  const dailyVolume = dailyStatRow ? dailyStatRow.daily_received_usdt : undefined;
+  const dailyVolume = dailyStatRow ? Number(dailyStatRow.daily_received_usdt) : 0;
   
   return {
     dailyFees: dailyRevenue, // Assuming fees = revenue for this protocol based on description
