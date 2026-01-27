@@ -18,7 +18,7 @@ export default adapter;
 const STABLE_FEES = 0.0004;
 const VOLATILE_FEES = 0.0018;
 const PROTOCOL_FEE_RATE = 0.12;
-const endpoint = "https://api.goldsky.com/api/public/project_cltwdng5fw97s01x16mntew1i/subgraphs/yaka-finance/1.0.0/gn"
+const endpoint = "https://api.studio.thegraph.com/query/106608/yaka-finance/version/latest"
 const blocksEndpoint = "https://api.studio.thegraph.com/query/82132/sei-blocks/version/latest"
 
 async function getBlocks(timestamps) {
