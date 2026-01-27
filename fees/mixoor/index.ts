@@ -1,4 +1,8 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import {
+  Dependencies,
+  FetchOptions,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 
@@ -15,7 +19,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "All fees paid by users to use Mixoor. 0.35% SOL/SPL token on transfers",
+  Fees: "All fees paid by users to use Mixoor. 0.15% SOL/SPL token on transfers",
   Revenue: "All fees are collected by Mixoor protocol.",
   ProtocolRevenue: "Transfer fees are collected by Mixoor protocol.",
 };
