@@ -1,7 +1,6 @@
 import { request, gql } from "graphql-request";
 import { FetchOptions } from "../../adapters/types";
 import BigNumber from "bignumber.js";
-import fetchURL from "../../utils/fetchURL";
 
 const graphUrl =
   "https://api.goldsky.com/api/public/project_clzwt9f7wxczz01vw8zx90k22/subgraphs/cyberLP-pool/latest/gn";
@@ -53,11 +52,24 @@ export const fetchVolume = async (options: FetchOptions) => {
   };
 };
 
-export const fetch = async (options: FetchOptions) => {
+export const fetchVolumeMove = async (options: FetchOptions) => {
   const { fromTimestamp, toTimestamp, createBalances, startOfDay } = options;
 
   const url = `${cyberPerpApiUrl}?fromTimestamp=${fromTimestamp}&toTimestamp=${toTimestamp}`;
-  const volumeRaw = Number(await fetchURL(url));
+  const response = await globalThis.fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `Fetch volume error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const text = await response.text();
+  const volumeRaw = Number(text);
+
+  if (isNaN(volumeRaw)) {
+    throw new Error(`Invalid volume response: ${text}`);
+  }
 
   const dailyVolume = createBalances();
   dailyVolume.addUSDValue(volumeRaw / VUSD_DECIMALS);

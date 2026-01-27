@@ -1,6 +1,6 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchVolume, fetch } from "./cyberperp";
+import { fetchVolume, fetchVolumeMove } from "./cyberperp";
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -10,7 +10,7 @@ const adapter: SimpleAdapter = {
       start: '2024-07-23',
     },
     [CHAIN.IOTA]: {
-      fetch: fetch,
+      fetch: fetchVolumeMove,
       start: '2025-10-23',
     },
   },
