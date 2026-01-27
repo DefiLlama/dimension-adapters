@@ -126,7 +126,7 @@ async function moveAdapter(info: DeadAdapterInfo): Promise<boolean> {
 
     const mockedModule = mockFunctions({ ...module.default })
     deadAdapters[info.adapterType][info.fileKey] = {
-      modulePath: `dead/${info.adapterType}/${info.fileKey}`,
+      modulePath: `-`,
       codePath: `dead/${info.adapterType}/${info.path}`,
       module: mockedModule
     }
