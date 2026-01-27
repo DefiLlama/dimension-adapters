@@ -38,7 +38,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "0.05-0.5% fee on deposits and withdrawals.",
     Revenue: "0.05-0.5% fee on deposits and withdrawals.",
-    ProtocolRevenue: "0.05-0.5% fee on deposits and withdrawals. ",
+    ProtocolRevenue: "0.05-0.5% fee on deposits and withdrawals.",
   },
 };
 
