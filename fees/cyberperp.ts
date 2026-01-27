@@ -103,11 +103,10 @@ const fetchEvents = async (
     acc: Accumulator,
   ) => boolean,
 ) => {
-  let hasNextPage = true;
   let cursor: string | null = null;
   const eventType = `${PACKAGE_ID}::${module}::${event}`;
 
-  while (hasNextPage) {
+  while (true) {
     const query = buildQuery(cursor, eventType);
 
     const response: any = await request(GRAPHQL_URL, query);
@@ -152,39 +151,40 @@ const fetch = async (options: FetchOptions) => {
 
   // Protocol = Stake + Dev
   const protocolRevenue = divDecimals(acc.stake.plus(acc.dev));
-  // Holders = LP + Funding + Rollover
-  const holdersRevenue = divDecimals(
+  // LP provider = LP fee + Funding + Rollover
+  const providersRevenue = divDecimals(
     acc.lp.plus(acc.funding).plus(acc.rollover),
   );
-  const totalRevenue = protocolRevenue + holdersRevenue;
+  const totalRevenue = protocolRevenue + providersRevenue;
 
   const fees = createBalances();
   const rev = createBalances();
   const pRev = createBalances();
-  const hRev = createBalances();
-
+  const ssRev = createBalances();
+  
   fees.addCGToken("usd-coin", totalRevenue);
-  rev.addCGToken("usd-coin", totalRevenue);
+  rev.addCGToken("usd-coin", protocolRevenue);
   pRev.addCGToken("usd-coin", protocolRevenue);
-  hRev.addCGToken("usd-coin", holdersRevenue);
+  ssRev.addCGToken("usd-coin", providersRevenue);
 
   return {
     timestamp: startOfDay,
     dailyFees: fees,
     dailyRevenue: rev,
     dailyProtocolRevenue: pRev,
-    dailyHoldersRevenue: hRev,
+    dailySupplySideRevenue: ssRev,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: { [CHAIN.IOTA]: { fetch, start: "2025-10-23" } },
+  allowNegativeValue: true,
   methodology: {
     Fees: "All trading, funding and rollover fees collected from users",
-    Revenue: "Aggregated fees distributed between the protocol and holders",
-    ProtocolRevenue: "Fees directed to stake and dev vaults for maintenance",
-    HoldersRevenue:
+    Revenue: "Aggregated fees distributed between the protocol vaults",
+    ProtocolRevenue: "Fees directed to the protocol vaults for maintenance",
+    SupplySideRevenue:
       "Fees distributed to liquidity providers, adjusted for funding profit/loss",
   },
 };

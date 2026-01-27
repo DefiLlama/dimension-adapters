@@ -56,8 +56,8 @@ export const fetchVolume = async (options: FetchOptions) => {
 export const fetchVolumeMove = async (options: FetchOptions) => {
   const { createBalances, startOfDay } = options;
   
-  const startTimestamp = options.startOfDay - DAY_SECONDS;
-  const endTimestamp = options.startOfDay;
+  const startTimestamp = options.startOfDay;
+  const endTimestamp = options.startOfDay + DAY_SECONDS;
 
   const url = `${cyberPerpApiUrl}?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`;
   const response = await globalThis.fetch(url);
