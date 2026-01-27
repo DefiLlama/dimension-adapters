@@ -1,35 +1,23 @@
-import { SimpleAdapter } from "../../adapters/types";
-import { ETHEREUM } from "../../helpers/chains";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
-const endpoints = {
-  [ETHEREUM]:
-    "https://api.thegraph.com/subgraphs/name/1inch-exchange/oneinch-liquidity-protocol-v2",
-};
-
-const graphs = getChainVolume2({
-  graphUrls: {
-    [ETHEREUM]: endpoints[ETHEREUM],
-  },
-  totalVolume: {
-    factory: "mooniswapFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [ETHEREUM]: {
-      fetch: graphs(ETHEREUM),
-      start: getStartTimestamp({
-        endpoints,
-        chain: ETHEREUM,
-        dailyDataField: `mooniswapDayDatas`,
-      }),
+    [CHAIN.ETHEREUM]: {
+      fetch,
     },
   },
 };
 
 export default adapter;
+
+async function fetch(options: FetchOptions) {
+  const dailyVolume = options.createBalances()
+  const eventAbi = 'event Swapped (address indexed account, address indexed src, address indexed dst, uint256 amount, uint256 result, uint256 srcBalance, uint256 dstBalance, uint256 totalSupply, address referral)'
+  const pools = await options.api.call({ abi: 'address[]:getAllPools', target: '0x71CD6666064C3A1354a3B4dca5fA1E2D3ee7D303' })
+  const logs = await options.getLogs({ targets: pools, eventAbi })
+  logs.forEach(log => dailyVolume.add(log.dst, log.dstBalance))
+  return { dailyVolume, dailyFees: dailyVolume.clone(0.003) }
+}

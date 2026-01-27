@@ -1,15 +1,14 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
 import BigNumber from "bignumber.js";
 
-const usdcToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E'
+const usdcToken = ADDRESSES.avax.USDC
 
 export interface EarlyStageFees {
   dailyProtocolRevenue: Balances;
-  totalProtocolRevenue: Balances;
   dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
 }
 
 interface IProjectDistribution {
@@ -52,9 +51,7 @@ export async function earlyStageFees(
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyProtocolRevenue = createBalances()
-  let totalProtocolRevenue = createBalances()
   let dailyHoldersRevenue = createBalances()
-  let totalHoldersRevenue = createBalances()
 
   try {
     const res: IGraphEarlyStageFeesResponse = await request(earlystageSubgraphEndpoint, queryEarlyStageFees);
@@ -68,40 +65,20 @@ export async function earlyStageFees(
         return acc
       }, dailyProtocolRevenue)
 
-      totalProtocolRevenue = res.projectDistributions.reduce((acc: Balances, x) => {
-        acc.add(usdcToken, x.stablecoinColonyFee)
-        return acc
-      }, totalProtocolRevenue)
-
       dailyProtocolRevenue = todayRes.reduce((acc: Balances, x) => {
         acc.add(usdcToken, new BigNumber(x.ceTokenColonyFee).multipliedBy(x.project.tokenPrice).div(new BigNumber(10).pow(18)).toFixed(0))
         return acc
       }, dailyProtocolRevenue)
-
-      totalProtocolRevenue = res.projectDistributions.reduce((acc: Balances, x) => {
-        acc.add(usdcToken, new BigNumber(x.ceTokenColonyFee).multipliedBy(x.project.tokenPrice).div(new BigNumber(10).pow(18)).toFixed(0))
-        return acc
-      }, totalProtocolRevenue)
 
       dailyProtocolRevenue = todayRes.reduce((acc: Balances, x) => {
         acc.add(usdcToken, new BigNumber(x.ceTokenDexInitialLiquidity).multipliedBy(x.project.tokenPrice).div(new BigNumber(10).pow(18)).toFixed(0))
         return acc
       }, dailyProtocolRevenue)
 
-      totalProtocolRevenue = res.projectDistributions.reduce((acc: Balances, x) => {
-        acc.add(usdcToken, new BigNumber(x.ceTokenDexInitialLiquidity).multipliedBy(x.project.tokenPrice).div(new BigNumber(10).pow(18)).toFixed(0))
-        return acc
-      }, totalProtocolRevenue)
-
       dailyProtocolRevenue = todayRes.reduce((acc: Balances, x) => {
         acc.add(usdcToken, x.stablecoinInitialLiquidity)
         return acc
       }, dailyProtocolRevenue)
-
-      totalProtocolRevenue = res.projectDistributions.reduce((acc: Balances, x) => {
-        acc.add(usdcToken, x.stablecoinInitialLiquidity)
-        return acc
-      }, totalProtocolRevenue)
 
       // --- Holders Revenue
       dailyHoldersRevenue = todayRes.reduce((acc: Balances, x) => {
@@ -109,10 +86,6 @@ export async function earlyStageFees(
         return acc
       }, dailyHoldersRevenue)
 
-      totalHoldersRevenue = res.projectDistributions.reduce((acc: Balances, x) => {
-        acc.add(usdcToken, new BigNumber(x.ceTokenStakingReward).multipliedBy(x.project.tokenPrice).div(new BigNumber(10).pow(18)).toFixed(0))
-        return acc
-      }, totalHoldersRevenue)
     }
   } catch (e) {
     console.error(e);
@@ -120,8 +93,6 @@ export async function earlyStageFees(
 
   return {
     dailyProtocolRevenue,
-    totalProtocolRevenue,
     dailyHoldersRevenue,
-    totalHoldersRevenue
   }
 }

@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 type TMarketPlaceAddress = {
@@ -36,31 +36,31 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ARBITRUM_NOVA]: {
       fetch: fetch(CHAIN.ARBITRUM_NOVA),
-      start: 1675382400,
+      start: '2023-02-03',
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: 1679961600,
+      start: '2023-03-28',
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch(CHAIN.POLYGON_ZKEVM),
-      start: 1679961600,
+      start: '2023-03-28',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1692662400,
+      start: '2023-08-22',
     },
     [CHAIN.LINEA]: {
       fetch: fetch(CHAIN.LINEA),
-      start: 1692662400,
+      start: '2023-08-22',
     }
   }
 }

@@ -1,18 +1,16 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions } from "../../adapters/types";
-import { version } from "os";
 
-const fetchVolume = async (options: FetchOptions) => {
-  const url = `https://flowx-finance-mono.vercel.app/api/defillama/aggregator-vol?startTimestamp=${options.startOfDay}&endTimestamp=${options.startOfDay}`;
+const fetchVolume = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
+  const url = `https://flowx-finance-mono.vercel.app/api/defillama/aggregator-with-date?startTimestamp=${
+    fromTimestamp * 1000
+  }&endTimestamp=${toTimestamp * 1000}`;
+
   const res = await httpGet(url);
-  const record = res[0];
   return {
-    dailyVolume: record.totalUSD,
-  }
-
-
-
+    dailyVolume: res.totalUSD,
+  };
 };
 
 const adapter: any = {
@@ -20,7 +18,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,
-      start: 1717200000,
+      start: "2024-06-01",
     },
   },
 };

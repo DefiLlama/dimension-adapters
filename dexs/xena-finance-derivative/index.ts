@@ -31,20 +31,12 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     id: `day-${String(dayTimestamp)}`,
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
 
   return {
     timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
-        : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
         : undefined,
   }
 }
@@ -54,6 +46,7 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-01-01',
   adapter: {
     [CHAIN.BASE]: {
       fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),

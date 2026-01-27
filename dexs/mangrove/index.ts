@@ -9,17 +9,17 @@ import { CHAIN } from "../../helpers/chains";
 
 type ChainConfig = {
   core: string;
-  start: number;
+  start: number|string;
 };
 
 const mangrove: Record<string, ChainConfig> = {
   [CHAIN.BLAST]: {
     core: "0xb1a49C54192Ea59B233200eA38aB56650Dfb448C",
-    start: 1708992000,
+    start: '2024-02-27',
   },
   [CHAIN.ARBITRUM]: {
     core: "0x109d9CDFA4aC534354873EF634EF63C235F93f61",
-    start: 1721664539,
+    start: '2024-07-22',
   },
 };
 
@@ -85,16 +85,14 @@ const adapter: Adapter = {
   adapter: {
     ...Object.entries(mangrove).reduce((acc, [key, config]) => {
       acc[key] = {
-        meta: {
-          methodology: {
-            dailyVolume: "Sum of all offers taken in the last 24hrs",
-          },
-        },
         fetch,
         start: config.start,
       };
       return acc;
     }, {} as BaseAdapter),
+  },
+  methodology: {
+    dailyVolume: "Sum of all offers taken in the last 24hrs",
   },
 };
 

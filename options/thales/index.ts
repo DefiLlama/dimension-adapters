@@ -1,76 +1,122 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { addTokensReceived } from '../../helpers/token';
-import { Adapter, FetchOptions } from "../../adapters/types";
+/**
+ * Thales Options Adapter
+ *
+ * Fee/Revenue/HoldersRevenue Calculation (all equal):
+ * - SafeBoxFeePaid events from AMM contracts (AMM fees)
+ * - SafeBoxSharePaid events from LP contracts (LP performance fees)
+ * - Volume: Tracked from various market creation and trading events
+ */
+
+import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { OVERTIME_CONTRACT_ADDRESSES, LP_CONTRACT_COLLATERAL_MAPPING } from './config';
+import { OVERTIME_EVENT_ABI } from './abis';
+import {
+  parseTicketCreatedEvent,
+  parseBoughtFromAmmEvent,
+  parseSpeedMarketCreatedEvent,
+  parseChainedMarketCreatedEvent,
+  parseSafeBoxFeePaidEvent,
+  parseSafeBoxSharePaidEvent
+} from './parsers';
 import { CHAIN } from "../../helpers/chains";
 
-const config = {
-  optimism: { 
-    tokens: [ADDRESSES.optimism.sUSD, ADDRESSES.optimism.USDC_CIRCLE, ADDRESSES.optimism.WETH_1], 
-    fromAdddesses: [
-      '0x5ae7454827d83526261f3871c1029792644ef1b1', 
-      '0x278b5a44397c9d8e52743fedec263c4760dc1a1a',
-      '0x2d356b114cbca8deff2d8783eac2a5a5324fe1df',
-      '0xE16B8a01490835EC1e76bAbbB3Cadd8921b32001',
-      '0xFb4e4811C7A811E098A556bD79B64c20b479E431',
-      '0x170a5714112daeff20e798b6e92e25b86ea603c1',
-      '0x82b3634c0518507d5d817be6dab6233ebe4d68d9'
-    ], 
-    targets: [
-      '0xe853207c30f3c32eda9aeffddc67357d5332978c', 
-      '0xC392133eEa695603B51a5d5de73655d571c2CE51'
-    ],
-  },
-  arbitrum: {
-    tokens: [ADDRESSES.arbitrum.USDC, ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.arbitrum.WETH],
-    fromAdddesses: [
-      '0x2b89275efb9509c33d9ad92a4586bdf8c4d21505',
-      '0x5cf3b1882357bb66cf3cd2c85b81abbc85553962',
-      '0x02D0123a89Ae6ef27419d5EBb158d1ED4Cf24FA3',
-      '0xfb64E79A562F7250131cf528242CEB10fDC82395',
-      '0xae56177e405929c95e5d4b04c0c87e428cb6432b',
-      '0x2bb7d689780e7a34dd365359bd7333ab24903268'
-    ],
-    targets: [
-      '0xCd9c0E99396627C7746b4363B880939Ac2828d3E', 
-      '0x160Ca569999601bca06109D42d561D85D6Bb4b57'
-    ],
-  },
-  base: {
-    tokens: [ADDRESSES.base.USDbC],
-    fromAdddesses: [
-      '0xAFD339acf24813e8038bfdF19A8d87Eb94B4605d',
-      '0x5625c3233b52206a5f23c5fC1Ce16F6A7e3874dd',
-      '0xe41cD3A25CBdeDA0BC46D48C380393D953bD2034',
-      '0xB8109ac56EE572990e6d2C6b4648042bB1C33317',
-      '0x85b827d133FEDC36B844b20f4a198dA583B25BAA'
-    ],
-    targets: [
-      '0xe8e022405505a9F2b0B7452C844F1e64423849fC', 
-      '0x84aB38e42D8Da33b480762cCa543eEcA6135E040'
-    ],
-  }
+const CONTRACT_EVENT_MAPPING = {
+  sportsAMMV2: { abi: 'ticketCreated', parser: parseTicketCreatedEvent },
+  thalesAMM: { abi: 'boughtFromAmm', parser: parseBoughtFromAmmEvent },
+  rangedAMM: { abi: 'boughtFromAmm', parser: parseBoughtFromAmmEvent },
+  speedMarket: { abi: 'speedMarketCreated', parser: parseSpeedMarketCreatedEvent },
+  chainedSpeedMarket: { abi: 'chainedMarketCreated', parser: parseChainedMarketCreatedEvent },
+} as const;
+
+function getChainContractsToQuery(
+  chain: string,
+  dailyNotionalVolume: ReturnType<FetchOptions['createBalances']>,
+  dailyPremiumVolume: ReturnType<FetchOptions['createBalances']>
+) {
+  const contracts = OVERTIME_CONTRACT_ADDRESSES[chain];
+  if (!contracts) throw new Error(`No contracts found for chain: ${chain}`);
+
+  return Object.entries(contracts)
+    .filter(([, address]) => address)
+    .map(([contractType, address]) => {
+      const config = CONTRACT_EVENT_MAPPING[contractType as keyof typeof CONTRACT_EVENT_MAPPING];
+      const abiKey = config.abi as keyof typeof OVERTIME_EVENT_ABI;
+      return {
+        address: address as string,
+        eventAbi: OVERTIME_EVENT_ABI[abiKey] as string,
+        parser: (log: any) => config.parser(log, dailyNotionalVolume, dailyPremiumVolume)
+      };
+    });
 }
 
-const fetch = async (options: FetchOptions) => {
-    const dailyFees = await addTokensReceived({ ...config[options.chain], options})
-    return {
-      dailyFees,
-    };
-  };
+export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyNotionalVolume = options.createBalances();
+  const dailyPremiumVolume = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyLPPerformanceFee = options.createBalances();
+  const collateralMapping = LP_CONTRACT_COLLATERAL_MAPPING[options.chain] || {};
 
+  await Promise.all([
+    // Volume events from AMM contracts
+    ...getChainContractsToQuery(options.chain, dailyNotionalVolume, dailyPremiumVolume)
+      .map(async ({ address, eventAbi, parser }) => {
+        const logs = await options.getLogs({ target: address, eventAbi, onlyArgs: true });
+        logs.forEach(parser);
+      }),
+
+    // Revenue from SafeBoxFeePaid events (AMM contracts)
+    ...Object.values(OVERTIME_CONTRACT_ADDRESSES[options.chain] || {})
+      .map(async (address) => {
+        const logs = await options.getLogs({
+          target: address as string,
+          eventAbi: OVERTIME_EVENT_ABI.safeboxFeePaid,
+          onlyArgs: true,
+        });
+        logs.forEach(log => parseSafeBoxFeePaidEvent(log, dailyRevenue));
+      }),
+
+    // LP performance fees from SafeBoxSharePaid events (LP contracts)
+    ...Object.keys(collateralMapping)
+      .map(async (address) => {
+        const logs = await options.getLogs({
+          target: address,
+          eventAbi: OVERTIME_EVENT_ABI.safeboxSharePaid,
+          onlyArgs: true,
+        });
+        logs.forEach(log => parseSafeBoxSharePaidEvent(log, address, collateralMapping, dailyLPPerformanceFee));
+      })
+  ]);
+
+  // Fee = Revenue + LP Performance Fee
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailyLPPerformanceFee);
+
+  return {
+    dailyNotionalVolume,
+    dailyPremiumVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: 0,
+  };
+}
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch, start: 1662463922,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch, start: 1641838619,
-    },
-    [CHAIN.BASE]: {
-      fetch, start: 1691692525,
-    },
+    [CHAIN.ARBITRUM]: { start: '2024-08-01' },
+    [CHAIN.OPTIMISM]: { start: '2024-08-01' },
+    [CHAIN.BASE]: { start: '2024-08-01' },
+    [CHAIN.POLYGON]: { start: '2025-04-01' },
+  },
+  methodology: {
+    Fees: "Fees collected from AMM trades and LP performance fees",
+    Revenue: "Total revenue from AMM fees and LP performance fees, all distributed to $OVER token holders",
+    ProtocolRevenue: "Protocol doesn't keep any revenue",
+    HoldersRevenue: "100% of revenue (AMM fees + LP fees) goes to $OVER token buybacks",
   },
 };
+
 export default adapter;

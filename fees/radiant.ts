@@ -1,6 +1,6 @@
 import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 
 type TAddress = {
@@ -26,13 +26,22 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
   return { dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyFees, };
 }
 
+const methodology = {
+  Fees: "Interest and liquidation fees paid by borrowers",
+  Revenue: "75% fees earned by Radiant and token holders",
+  ProtocolRevenue: "15% fees earned by Radiant",
+  HoldersRevenue: "60% fees earned by token holders",
+  SupplySideRevenue: "25% fees earned by lenders",
+}
+
 const adapter: Adapter = {
+  fetch, methodology,
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: { fetch, start: 1679097600, },
-    [CHAIN.BSC]: { fetch, start: 1679788800, },
-    [CHAIN.ETHEREUM]: { fetch, start: 1698796800, },
-    [CHAIN.BASE]: { fetch, start: 1719592253, },
+    [CHAIN.ARBITRUM]: { start: '2023-03-18', },
+    [CHAIN.BSC]: { start: '2023-03-26', },
+    [CHAIN.ETHEREUM]: { start: '2023-11-01', },
+    [CHAIN.BASE]: { start: '2024-06-28', },
   }
 }
 

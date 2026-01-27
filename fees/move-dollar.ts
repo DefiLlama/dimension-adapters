@@ -2,8 +2,7 @@ import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const thalaDappURL = "https://app.thala.fi";
-const feesQueryURL = `${thalaDappURL}/api/defillama/protocol-fee-chart?timeframe=`;
+const feesQueryURL = "https://app.thala.fi/api/defillama/protocol-fee-chart?timeframe=";
 
 const feesEndpoint = (endTimestamp: number, timeframe: string) =>
   endTimestamp
@@ -22,16 +21,8 @@ const fetch = async (timestamp: number) => {
     0
   );
 
-  const totalFeesQuery = (await fetchURL(feesEndpoint(0, "ALL")))?.data;
-  const totalFees = totalFeesQuery.reduce(
-    (partialSum: number, a: IVolumeall) => partialSum + a.value,
-    0
-  );
-
   return {
-    totalFees: `${totalFees}`,
-    dailyFees: `${dailyFees}`,
-    timestamp,
+    dailyFees,
   };
 };
 
@@ -39,7 +30,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
-      start: 1680652406,
+      start: '2023-04-05',
     },
   },
 };

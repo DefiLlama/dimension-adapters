@@ -1,6 +1,6 @@
 import { CHAIN } from "../helpers/chains";
-import { Adapter, ProtocolType } from "../adapters/types";
-import { L2FeesFetcher } from "../helpers/ethereum-l2";
+import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
+import { fetchL2FeesWithDune } from "../helpers/ethereum-l2";
 
 const ethereumWallets = [
   '0x5050F69a9786F081509234F1a7F4684b5E5b76C9',
@@ -9,15 +9,19 @@ const ethereumWallets = [
   '0x56315b90c40730925ec5485cf004d835058518A0'
 ]
 
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  return await fetchL2FeesWithDune(options);
+}
+
 const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: L2FeesFetcher({ ethereumWallets }),
-      start: 1687474800,
-    },
-  },
-  protocolType: ProtocolType.CHAIN
+  version: 1,
+  chains: [CHAIN.BASE],
+  fetch,
+  start: '2023-06-23',
+  protocolType: ProtocolType.CHAIN,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  allowNegativeValue: true, // L1 Costs
 }
 
 export default adapter;

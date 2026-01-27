@@ -1,13 +1,14 @@
 import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import request, { gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4XKeW12D2RAhqefPYT3MLoT64p1JnT5TBLnYaNeSLA8k'),
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('F5jeL2nMXZt5LU6kSway7Vi2PTUcqDbw1gMQEbrmiVdJ'),
+  [CHAIN.SONIC]: sdk.graph.modifyEndpoint("wwazpiPPt5oJMiTNnQ2VjVxKnKakGDuE2FfEZPD4TKj"),
 };
 
 interface IPool {
@@ -46,7 +47,7 @@ const v2Graphs = (chain: Chain) => {
     }).filter(e => e < 100_000_000).reduce((a: number, b: number) => a + b, 0)
 
     return {
-      dailyVolume: `${dailyVolume}`,
+      dailyVolume: dailyVolume,
       timestamp,
     };
   };
@@ -58,7 +59,7 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: v2Graphs(chain),
-        start: 1633392000,
+        start: '2021-10-05',
       }
     }
   }, {})

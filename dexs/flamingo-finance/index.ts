@@ -1,23 +1,20 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-const { getUniqStartOfTodayTimestamp } = require("../../helpers/getUniSubgraphVolume");
 
-const fetch = async (timestamp: number) => {
+const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const data = (await fetchURL('https://api.flamingo.finance/project-info/defillama-volume?timestamp=' + dayTimestamp));
+  const data = (await fetchURL('https://flamingo-us-1.b-cdn.net/flamingo/analytics/rolling-30-days/total_data'))
+  const dayData = data.find((day: any) => day.date.slice(0, 10) === dateString)
+  if (!dayData) throw new Error(`No data for date ${dateString}`)
 
-  return {
-    dailyVolume: data.volume,
-    timestamp: data.timestamp,
-  };
+  return { dailyVolume: dayData.total_data.total_order_volume, dailyFees: dayData.total_data.total_order_fee_usd };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     neo: {
       fetch,
-      start: 1639130007,
+      start: '2025-08-18',
     },
   },
 };

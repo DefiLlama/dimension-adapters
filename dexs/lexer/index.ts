@@ -37,7 +37,6 @@ const historicalDataDerivatives = gql`
 
 const fetchSwapValue = async (timestamp: number): Promise<FetchResultVolume> => {
   let dailyVolume = 0;
-  let totalVolume = 0;
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   for (const api of apiEndPoints) {
     const  swap: VolumeStatsQuery[]   = (
@@ -47,25 +46,15 @@ const fetchSwapValue = async (timestamp: number): Promise<FetchResultVolume> => 
       })
     ).volumeStats as VolumeStatsQuery[];
     dailyVolume += Number(swap.reduce((acc, cur) => acc + Number(cur.swap), 0));
-    const totalSwap = (
-      await request(api, historicalDataSwap, {
-        id: "total",
-        period: "total",
-      })
-    ).volumeStats as VolumeStatsQuery[];
-    totalVolume += Number(totalSwap.reduce((acc, cur) => acc + Number(cur.swap), 0));
   }
   dailyVolume /= 1e30;
-  totalVolume /= 1e30;
   return {
     timestamp,
     dailyVolume: String(dailyVolume),
-    totalVolume: String(totalVolume),
   };
 }
 
 const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolume> => {
-  let totalVolume = 0;
   let dailyVolume = 0;
   const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   for (const api of apiEndPoints) {
@@ -81,23 +70,10 @@ const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolu
       )
     ) : 0
 
-    const totalDerivatives = (
-      await request(api, historicalDataDerivatives, {
-        id: "total",
-        period: "total",
-      })
-    ).volumeStats as VolumeStatsQuery[];
-    totalVolume += totalDerivatives.length ? Number(
-      Object.values(totalDerivatives[0] || {}).reduce((sum, element) =>
-        String(Number(sum) + Number(element))
-      )
-    ) : 0
   }
   dailyVolume /= 1e30;
-  totalVolume /= 1e30;
   return {
     timestamp,
-    totalVolume: String(totalVolume),
     dailyVolume: String(dailyVolume),
   };
 }
@@ -107,13 +83,13 @@ const adapter: BreakdownAdapter = {
     swap: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchSwapValue,
-        start: 1704758400,
+        start: '2024-01-09',
       }
     },
     derivatives: {
       [CHAIN.ARBITRUM]: {
         fetch: fetchDerivativesValue,
-        start: 1704758400,
+        start: '2024-01-09',
       }
     }
   }

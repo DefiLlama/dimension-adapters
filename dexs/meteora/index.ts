@@ -1,56 +1,54 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
+import { getSolanaReceived } from '../../helpers/token';
+import { Dependencies, FetchOptions } from '../../adapters/types';
 
 const meteoraStatsEndpoint = 'https://amm-v2.meteora.ag/pools/v2';
-
-interface Stats24H {
-  dailyVolume: number
-  timestamp: number
-};
+const BUYBACK_WALLET = 'FzULv8pR9Rd7cyVKjVkzmJ1eqEmgwDnzjYyNUcEJtoG9';
 
 interface Pool {
   total_count: number
   data: Array<{
     trading_volume: number
+    fee_volume: number
   }>
 }
 
-async function fetch(timestamp: number): Promise<Stats24H> {
+async function fetch(options: FetchOptions) {
   let dailyVolume = 0;
-  let page = 0;
-  try {
-    // while (true) {
-      const url = `${meteoraStatsEndpoint}?page=${page}&size=100000`;
-      const response:Pool = (await httpGet(url));
-      response.data.forEach(pool => {
-        dailyVolume += pool.trading_volume;
-      })
-      // if (response.data.length < 500) {
-      //   break;
-      // }
-      // if (page > 50) break;
-      page++;
-    // }
-    return {
-      dailyVolume: dailyVolume,
-      timestamp: timestamp
-    }
-  } catch (error) {
-    return {
-      dailyVolume: dailyVolume,
-      timestamp: timestamp
-    }
-  }
+  let dailyFees = 0;
 
+  let page = 0;
+  const url = `${meteoraStatsEndpoint}?page=${page}&size=100000`;
+  const response: Pool = (await httpGet(url));
+
+  response.data.forEach(pool => {
+    dailyVolume += pool.trading_volume
+    dailyFees += pool.fee_volume
+  })
+  if (isNaN(dailyVolume) || isNaN(dailyFees)) throw new Error('Invalid daily volume')
+
+  const dailyHoldersRevenue = await getSolanaReceived({
+    options,
+    target: BUYBACK_WALLET,
+    mints: ["METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL"],  // MET token
+  })
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyHoldersRevenue,
+  }
 }
 
 export default {
-    version: 2,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch: fetch,
-            runAtCurrTime: true,
-            start: 1714435200, // Apr 30 2024 - 00:00:00 UTC
-        }
+  version: 2,
+  dependencies: [Dependencies.ALLIUM],
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2024-04-30', // Apr 30 2024 - 00:00:00 UTC
     }
+  }
 }

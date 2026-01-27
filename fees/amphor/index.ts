@@ -1,5 +1,5 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
-import { ETHEREUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 
 const AmphorILHedgedWETH_contractAddress: string = '0xcDC51F2B0e5F0906f2fd5f557de49D99c34Df54e';
@@ -51,15 +51,13 @@ const data = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: Adapter = {
     adapter: {
-        [ETHEREUM]: {
+        [CHAIN.ETHEREUM]: {
             fetch: data,
-            start: 1696611600,
-            meta: {
-                methodology
-            }
+            start: '2023-10-06',
         }
     },
-    version: 2
+    version: 2,
+    methodology
 }
 
 export default adapter;

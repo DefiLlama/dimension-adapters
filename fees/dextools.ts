@@ -27,43 +27,84 @@ Please make the payment exclusively to this address (ERC20 payments to the ERC20
 UQC2-PvRTlqkHfeUdDx80rVRnaW7WoNWlpq4LBx7oWVhKisC
 
 Submit the form immediately after payment to avoid losing its validity.
-The discount is valid only if applied at payment and while it is displayed in the form; no refunds for overpayments or unused discounts! 
+The discount is valid only if applied at payment and while it is displayed in the form; no refunds for overpayments or unused discounts!
 
 For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as the payment code. Entering the token creator's payment code without creating the token through the creator will mark your update request as spam.
 */
 
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { evmReceivedGasAndTokens, getSolanaReceived } from '../helpers/token';
+import ADDRESSES from "../helpers/coreAssets.json";
+import { addTokensReceived, getETHReceived, getSolanaReceived } from '../helpers/token';
 
 const tokens = {
     ethereum: [
         "0xfb7b4564402e5500db5bb6d63ae671302777c75a", // DEXT
+        ADDRESSES.ethereum.USDC,
+        ADDRESSES.ethereum.USDT,
     ],
     bsc: [
         "0xe91a8d2c584ca93c7405f15c22cdfe53c29896e3", // DEXT
     ],
     base: []
-} as any
+} as any;
 
-const sol = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({ options, target: 'GZ7GGigCJF5AUDky2kts5GAsHwdfkzuFXochCQy3cxfW' })
-    return { dailyFees, dailyRevenue: dailyFees, }
+const DEXT = "0xfb7b4564402e5500db5bb6d63ae671302777c75a";
+
+const target_even: any = {
+    [CHAIN.ETHEREUM]: [
+        '0x4f62c60468A8F4291fec23701A73a325b2540765',
+        '0x501424D3F63F30c119cBAE88de531c80D8a93f6B',
+        '0x96c195F6643A3D797cb90cb6BA0Ae2776D51b5F3',
+        '0xDeb2FD0a2870Df5eBDC1462E1725B0a30FbB49A3'
+    ],
+    [CHAIN.BSC]: ['0x997Cc123cF292F46E55E6E63e806CD77714DB70f'],
+    [CHAIN.BASE]: ['0x997Cc123cF292F46E55E6E63e806CD77714DB70f'],
+}
+
+const sol = async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyFees = await getSolanaReceived({
+        options, targets: [
+            '4sdKYA9NLD1XHThXGPTmFE973mNs1UeVkCH4dFL3Wgho',
+            'e24SXSTq1AkusXQEKgZW389taxTTzSuGF8JQqjhbTfc',
+            'Hz77efVEvgUHUN55WAY97BiEEFg3DbgYBiCNo4UrQx9r'
+        ]
+    })
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
+}
+
+const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+    if (tokens[options.chain].length > 0) {
+        await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
+    }
+    const dailyHoldersRevenue = options.createBalances();
+    if (options.chain === CHAIN.ETHEREUM)
+        await addTokensReceived({ options, token: DEXT, targets: target_even[options.chain], balances: dailyHoldersRevenue })
+    await getETHReceived({ options, balances: dailyFees, targets: target_even[options.chain] })
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue }
+}
+
+const methodology = {
+    Fees: 'All fees paid by users for token profile listing.',
+    Revenue: 'All fees collected by DexTools.',
+    ProtocolRevenue: 'All fees collected by DexTools.',
+    HoldersRevenue: 'All the social update fees paid in DEXT are burnt',
 }
 
 const adapter: Adapter = {
-    version: 2,
+    methodology,
+    version: 1,
     isExpensiveAdapter: true,
+    dependencies: [Dependencies.ALLIUM],
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
         [chain]: {
-            fetch: evmReceivedGasAndTokens('0x997Cc123cF292F46E55E6E63e806CD77714DB70f', tokens[chain]),
-            start: 0,
+            fetch: fetchEvm,
         }
     }), {
         [CHAIN.SOLANA]: {
             fetch: sol,
-            start: 0
         }
     })
     // missing tron and ton

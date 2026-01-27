@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
-import { BreakdownAdapter } from "../../adapters/types";
+import { BreakdownAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions } from "../../helpers/getUniSubgraph";
+import { graphDimensionFetch } from "../../helpers/getUniSubgraph";
 import {
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
@@ -10,11 +10,13 @@ import {
   getChainVolume,
 } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
 const endpoints = {
   [CHAIN.POLYGON]: sdk.graph.modifyEndpoint(
     "FUWdkXWpi8JyhAnhKL5pZcVshpxuaUQG8JHMDqNCxjPd",
   ),
+  [CHAIN.BASE]: "https://gateway.thegraph.com/api/eae8430c94c2403f46fee0fdfa5f1fd4/subgraphs/id/HtaMv1w1dCbk6RzsEsMjdcgeWZWeNqwATNbCZtKhFY49",
 };
 
 const graphs = getChainVolume({
@@ -36,17 +38,15 @@ const endpointsAlgebraV3 = {
     "CCFSaj7uS128wazXMdxdnbGA3YQnND9yBdHjPtvH7Bc7",
   ),
   // [CHAIN.DOGECHAIN]: "https://graph-node.dogechain.dog/subgraphs/name/quickswap/dogechain-info",
-  [CHAIN.POLYGON_ZKEVM]:
-    "https://api.studio.thegraph.com/query/44554/quickswap-v3-02/0.0.7",
-  [CHAIN.MANTA]:
-    "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
-};
+  [CHAIN.POLYGON_ZKEVM]: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
+  [CHAIN.SONEIUM]:sdk.graph.modifyEndpoint("3GsT6AiuDiSzh2fXbFxUKtBxT8rBEGVdQCgHSsKMPHiu")
+  };
 
 const endpointsUniV3 = {
   [CHAIN.MANTA]:
     "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap/prod/gn",
-  [CHAIN.ASTAR_ZKEVM]:
-    "https://api.studio.thegraph.com/query/44554/astar-quickswap/version/latest",
+  [CHAIN.IMX]:
+    "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap-IMX/prod/gn",
 };
 
 const graphsAlgebraV3 = getChainVolume({
@@ -62,12 +62,8 @@ const graphsAlgebraV3 = getChainVolume({
   },
 });
 
-const v3GraphsUni = getGraphDimensions({
+const v3GraphsUni = graphDimensionFetch({
   graphUrls: endpointsUniV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
   dailyVolume: {
     factory: "uniswapDayData",
     field: "volumeUSD",
@@ -82,7 +78,7 @@ const v3GraphsUni = getGraphDimensions({
   },
 });
 
-const fetchLiquidityHub = async (timestamp: number) => {
+const fetchLiquidityHub = async (_a: any) => {
   let dailyResult = await fetchURL(
     "https://hub.orbs.network/analytics-daily/v1",
   );
@@ -94,11 +90,30 @@ const fetchLiquidityHub = async (timestamp: number) => {
     .result.rows[0].total_calculated_value;
 
   return {
-    dailyVolume: `${dailyVolume}`,
-    totalVolume: `${totalVolume}`,
-    timestamp: timestamp,
+    dailyVolume: dailyVolume,
   };
 };
+
+const QuickswapV3Factories: Record<string, string> = {
+  [CHAIN.POLYGON]: '0x411b0fAcC3489691f28ad58c47006AF5E3Ab3A28',
+  [CHAIN.POLYGON_ZKEVM]: '0x4B9f4d2435Ef65559567e5DbFC1BbB37abC43B57',
+  [CHAIN.SONEIUM]: '0x8Ff309F68F6Caf77a78E9C20d2Af7Ed4bE2D7093',
+}
+
+async function getFetchUniV3LogAdapter(_a: any, _b: any, options: FetchOptions) {
+  const adapter = getUniV3LogAdapter({ 
+    factory: QuickswapV3Factories[options.chain], 
+    poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)',
+    swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)',
+    isAlgebraV2: true,
+    userFeesRatio: 1,
+    revenueRatio: 0,
+    protocolRevenueRatio: 0,
+    holdersRevenueRatio: 0,
+  });
+  
+  return await adapter(options);
+}
 
 const adapter: BreakdownAdapter = {
   version: 1,
@@ -106,31 +121,43 @@ const adapter: BreakdownAdapter = {
     v2: {
       [CHAIN.POLYGON]: {
         fetch: graphs(CHAIN.POLYGON),
-        start: 1602118043,
+        start: '2020-10-08',
+      },
+      [CHAIN.BASE]: {
+        fetch: graphs(CHAIN.BASE),
+        start: '2025-08-12',
       },
     },
     v3: {
       [CHAIN.POLYGON]: {
-        fetch: graphsAlgebraV3(CHAIN.POLYGON),
-        start: 1662425243,
+        fetch: getFetchUniV3LogAdapter,
+        start: '2022-09-06',
       },
       // [CHAIN.DOGECHAIN]: {
       //   fetch: graphsV3(CHAIN.DOGECHAIN),
-      //   start: 1660694400
+      //   start: '2022-08-17'
       // },
       [CHAIN.POLYGON_ZKEVM]: {
-        fetch: graphsAlgebraV3(CHAIN.POLYGON_ZKEVM),
-        start: 1679875200,
+        fetch: getFetchUniV3LogAdapter,
+        start: '2023-03-27',
       },
       [CHAIN.MANTA]: {
-        fetch: v3GraphsUni(CHAIN.MANTA),
-        start: 1697690974,
+        fetch: v3GraphsUni,
+        start: '2023-10-19',
+      },
+      [CHAIN.IMX]: {
+        fetch: v3GraphsUni,
+        start: '2023-12-19',
+      },
+      [CHAIN.SONEIUM]: {
+        fetch: getFetchUniV3LogAdapter,
+        start: '2025-01-10',
       },
     },
     liquidityHub: {
       [CHAIN.POLYGON]: {
         fetch: fetchLiquidityHub,
-        start: 1695042000,
+        start: '2023-09-18',
       },
     },
   },

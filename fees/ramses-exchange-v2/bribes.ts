@@ -11,7 +11,7 @@ interface IBribes {
 }
 
 export const fees_bribes = async (fromBlock: number, timestamp: number, balances: Balances) => {
-  const endpoint = sdk.graph.modifyEndpoint('G2tXDm6mgqBMuC7hq9GRVeTv5SRBAVnPFGcpGBab2cea');
+  const endpoint = sdk.graph.modifyEndpoint('ATQTt3wRTgXy4canCh6t1yeczAz4ZuEkFQL2mrLXEMyQ');
   const graphQuery = `
       query GetBribes($fromBlock: Int!) {
         bribes(

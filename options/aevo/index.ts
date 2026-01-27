@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchAevoVolumeData,
-      start: 1681430400
+      start: '2023-04-14'
     },
   },
 };
@@ -34,15 +34,11 @@ export async function fetchAevoVolumeData(
 
   const dailyNotionalVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
   const dailyPremiumVolume =  Number(aevoVolumeData.daily_volume_premium).toFixed(2);
-  const totalNotionalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
-  const totalPremiumVolume = Number(aevoVolumeData.total_volume_premium).toFixed(2);
 
   return {
     timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
 }
 

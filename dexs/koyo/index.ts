@@ -1,31 +1,13 @@
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { getFeesExport } from "../../helpers/balancer";
 
-const endpoints = {
-  [CHAIN.BOBA]:
-    sdk.graph.modifyEndpoint('3CdxAdbTrVDhM6WQCr5TN4y4zxAodMAmcZwFFWRnEKz3'),
-};
-
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "koyos",
-    field: "totalSwapVolume",
-  },
-});
-
-const adapter: SimpleAdapter = {
-  version: 2,
+const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BOBA]: {
-      fetch: graphs(CHAIN.BOBA),
-      start: 1655104044,
-      customBackfill: customBackfill(CHAIN.BOBA, graphs),
+      fetch: getFeesExport('0x2a4409cc7d2ae7ca1e3d915337d1b6ba2350d6a3'), start: '2022-06-13',
     },
   },
+  version: 2,
 };
-
-export default adapter;
+export default adapters;

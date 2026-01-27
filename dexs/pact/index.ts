@@ -20,7 +20,7 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => (new Date(dayItem.for_datetime.split('T')[0]).getTime() / 1000) === dayTimestamp)?.volume;
 
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -29,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch,
-      start: 1667520000,
+      start: '2022-11-04',
     },
   },
 };

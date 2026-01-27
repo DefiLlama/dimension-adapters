@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELROND]: {
       fetch: fetch,
-      start: 1664928000
+      start: '2022-10-05'
     },
   },
 };

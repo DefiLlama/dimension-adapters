@@ -1,36 +1,34 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
-import { queryDune } from "../../helpers/dune";
+import { Dependencies, FetchOptions } from "../../adapters/types";
+import { queryDuneSql } from "../../helpers/dune";
+// 1800 1022 777
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
-const fetch = async (options: FetchOptions) => {
-  const data = await queryDune("4187430", {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  });
+  // https://dune.com/queries/4187430
+  const data = await queryDuneSql(options, `
+    SELECT 
+      sum(COALESCE(input_usd,output_usd)) as volume_24
+    FROM jupiter_solana.aggregator_swaps
+    WHERE block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
+  `);
+
   const chainData = data[0];
   if (!chainData) throw new Error(`Dune query failed: ${JSON.stringify(data)}`);
   return {
-    dailyVolume: chainData.volume_24,
-    totalVolume: chainData.volume,
+    dailyVolume: chainData.volume_24
   };
 };
 
 const adapter: any = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: 1681599600,
-      meta: {
-        methodology: {
-          totalVolume:
-            "Volume is calculated by summing the token volume of all trades settled on the protocol since launch.",
-          dailyVolume:
-            "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
-        },
-      },
-    },
+  version: 1,
+  dependencies: [Dependencies.DUNE],
+  fetch,
+  start: '2023-04-16',
+  methodology: {
+    dailyVolume:
+      "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
   },
+  chains: [CHAIN.SOLANA],
 };
 
 export default adapter;

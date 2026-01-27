@@ -2,7 +2,7 @@ import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { HOUR, getTimestampAtStartOfHour } from "../../utils/date";
 
 const endpoints = {
@@ -90,14 +90,12 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
         return {
           timestamp,
-          totalVolume: totalVolume.toString(),
           dailyVolume: last24hrVolume.toString(),
         };
       }
 
       return {
         timestamp,
-        totalVolume: "0",
         dailyVolume: "0",
       };
     };
@@ -108,11 +106,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: 1687806000,
+      start: '2023-06-26',
     },
     [CHAIN.BLAST]: {
       fetch: graphs(endpoints)(CHAIN.BLAST),
-      start: 1707094598,
+      start: '2024-02-05',
     },
   },
 };

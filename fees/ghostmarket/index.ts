@@ -1,10 +1,9 @@
-import { Adapter, DISABLED_ADAPTER_KEY } from "../../adapters/types";
-import type { ChainEndpoints, FetchOptions } from "../../adapters/types"
+import { Adapter } from "../../adapters/types";
+import type { FetchOptions } from "../../adapters/types"
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
-const endpoints = {
+const endpoints: Record<string, string> = {
   [CHAIN.NEO]: "https://api-external.ghostmarket.io/defillama/fees?chain=n3&timestamp=",
   [CHAIN.BSC]: "https://api-external.ghostmarket.io/defillama/fees?chain=bsc&timestamp=",
   [CHAIN.AVAX]: "https://api-external.ghostmarket.io/defillama/fees?chain=avalanche&timestamp=",
@@ -27,83 +26,33 @@ const methodology = {
 }
 
 
-const apis = (apiUrls: ChainEndpoints) => {
-  return (chain: CHAIN) => {
-    return async ({ endTimestamp }: FetchOptions) => {
-      const url = await buildUrl(apiUrls[chain], endTimestamp);
-      const data = (await fetchURL(url));
+const fetch = async ({ chain, endTimestamp }: FetchOptions) => {
+  const url = await buildUrl(endpoints[chain], endTimestamp);
+  const data = (await fetchURL(url));
 
-      return {
-        dailyFees: String(data.dailyFees),
-        totalFees: String(data.userFees),
-        dailyUserFees: String(data.dailyFees),
-        totalUserFees: String(data.userFees),
-        dailyRevenue: String(data.dailyRevenue),
-        totalRevenue: String(data.protocolRevenue),
-        dailyProtocolRevenue: String(data.dailyRevenue),
-        totalProtocolRevenue: String(data.protocolRevenue),
-        dailyVolume: String(data.dailyVolume),
-        totalVolume: String(data.totalVolume),
-        dailyHoldersRevenue: String(data.dailyFees * 0.2),
-        totalHoldersRevenue: String(data.userFees * 0.2),
-      }
-    };
-  };
+  return {
+    dailyFees: String(data.dailyFees),
+    dailyUserFees: String(data.dailyFees),
+    dailyRevenue: String(data.dailyRevenue),
+    dailyProtocolRevenue: String(data.dailyRevenue),
+    dailyVolume: String(data.dailyVolume),
+    dailyHoldersRevenue: String(data.dailyFees * 0.2),
+  }
 };
 
 const adapter: Adapter = {
+  deadFrom: "2024-12-14",
+  methodology,
+  fetch,
   version: 2,
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.NEO]: {
-      fetch: apis(endpoints)(CHAIN.NEO),
-      start: 1629813600,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch: apis(endpoints)(CHAIN.BSC),
-      start: 1653868800,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AVAX]: {
-      fetch: apis(endpoints)(CHAIN.AVAX),
-      start: 1653868800,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch: apis(endpoints)(CHAIN.POLYGON),
-      start: 1653868800,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: apis(endpoints)(CHAIN.ETHEREUM),
-      start: 1652400000,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.PHANTASMA]: {
-      fetch: apis(endpoints)(CHAIN.PHANTASMA),
-      start: 1577664000,
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BASE]: {
-      fetch: apis(endpoints)(CHAIN.BASE),
-      start: 1691660245,
-      meta: {
-        methodology
-      }
-    }
+    [CHAIN.NEO]: { start: '2021-08-24', },
+    [CHAIN.BSC]: { start: '2022-05-30', },
+    [CHAIN.AVAX]: { start: '2022-05-30', },
+    [CHAIN.POLYGON]: { start: '2022-05-30', },
+    [CHAIN.ETHEREUM]: { start: '2022-05-13', },
+    [CHAIN.PHANTASMA]: { start: '2019-12-30', },
+    [CHAIN.BASE]: { start: '2023-08-10', }
   }
 }
 

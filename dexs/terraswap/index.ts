@@ -1,6 +1,5 @@
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
 
 const { request, gql } = require("graphql-request");
 
@@ -56,13 +55,13 @@ const getStartTimestamp = async () => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2023-12-01',
   adapter: {
     [CHAIN.TERRA]: {
       fetch,
       runAtCurrTime: true,
       start: getStartTimestamp,
     },
-    [DISABLED_ADAPTER_KEY]: disabledAdapter
   },
 };
 

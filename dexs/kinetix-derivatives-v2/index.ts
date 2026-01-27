@@ -1,7 +1,7 @@
 import { SimpleAdapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 
 const kinetixPerpsV2Subgraph =
@@ -56,15 +56,14 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch(),
-      start: async () => 1706832000,
-      meta: {
-        methodology,
-      },
+      start: "2024-02-02",
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -24,7 +24,7 @@ const adapter: SimpleAdapter = {
     zilliqa: {
       fetch,
       runAtCurrTime: true,
-      start: 1673049600,
+      start: '2023-01-07',
     },
   },
 };

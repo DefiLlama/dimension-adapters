@@ -58,19 +58,17 @@ function adapterConstructor(
       ...obj,
       [chain]: {
         fetch: fetchVolumeFunc,
-        start: 1688169600, // 1st July 2023, 00:00:00 GMT
+        start: '2023-07-01', // 1st July 2023, 00:00:00 GMT
         // runAtCurrTime: false,
-        meta: {
-          methodology: {
-            dailyVolume: "Volume is calculated by summing the quote token volume of all trades settled on the protocol that day.",
-          }
-        },
       },
     }),
     {}
   );
 
   return {
+    methodology: {
+      dailyVolume: "Volume is calculated by summing the quote token volume of all trades settled on the protocol that day.",
+    },
     version: 2,
     adapter: chainVolumes,
   };

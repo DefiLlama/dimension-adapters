@@ -1,38 +1,11 @@
-import * as sdk from "@defillama/sdk";
-import { DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
-import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
-import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains"
+import { uniV2Exports } from "../../helpers/uniswap"
 
-const endpoints = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('FDn5m4S3bFqd8TV97P61i3dhZLpSigFwpRQEan2mrjTE'),
-};
-
-const v2Graph = getGraphDimensions2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "pancakeFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "volume",
-    Fees: 0.02,
-    UserFees: 0.02,
-    Revenue: 0.01,
-    ProtocolRevenue: 0.005,
-    HoldersRevenue: 0.005,
-    SupplySideRevenue: 0.004,
+export default uniV2Exports({
+  [CHAIN.BSC]: {
+    factory: '0x1D9F43a6195054313ac1aE423B1f810f593b6ac1',
+    userFeesRatio: 1,
+    revenueRatio: 0.1,
+    protocolRevenueRatio: 0.1,
   }
-});
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: v2Graph(CHAIN.BSC),
-      start: 1702339200
-    },
-  },
-};
-
-export default adapter;
+})

@@ -1,60 +1,23 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
-import { BreakdownAdapter } from "../../adapters/types";
 
-const endpointsV3 = {
-  [CHAIN.FLARE]:
-    "https://api.goldsky.com/api/public/project_cly4708cqpcj601tt7gzf1jdj/subgraphs/sparkdex-v3/latest/gn",
-};
+import { SimpleAdapter } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
+import { getUniV3LogAdapter } from '../../helpers/uniswap'
 
-const v3Graphs = getGraphDimensions2({
-  graphUrls: endpointsV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0, // Set revenue to 0 as protocol fee is not set for all pools for now
-  },
-});
 
-const startTimeV3: { [key: string]: number } = {
-  [CHAIN.FLARE]: 1719878400,
-};
-
-const v3 = Object.keys(endpointsV3).reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: v3Graphs(chain as Chain),
-      start: startTimeV3[chain],
-      meta: {
-        methodology: {
-          Fees: "Each pool charge between 0.01% to 1% fee",
-          UserFees: "Users pay between 0.01% to 1% fee",
-          Revenue: "0 to 1/4 of the fee goes to treasury",
-          HoldersRevenue: "None",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue:
-            "Liquidity providers get most of the fees of all trades in their pools",
-        },
-      },
-    },
-  }),
-  {}
-);
-
-const adapter: BreakdownAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
-  breakdown: {
-    v3: v3,
+  methodology: {
+    Volume: 'Total swap volume',
+    Fees: 'Swap fees paid by users.',
+    UserFees: 'Swap fees paid by users.',
+    Revenue: '7.5% of the fees go to the protocol.',
+    ProtocolRevenue: '2.5% of the fees go to the SparkDEX Foundation',
+    HoldersRevenue: '5% of the fees are used in buybacks and burns of $SPRK',
+    SupplySideRevenue: '87.5% of swap fees are distributed to LPs and 5% is distributed to $SPRK stakers',
   },
-};
+  start: '2024-06-27',
+  chains: [CHAIN.FLARE],
+  fetch: getUniV3LogAdapter({ factory: '0xb3fB4f96175f6f9D716c17744e5A6d4BA9da8176', userFeesRatio: 1, revenueRatio: 0.075, protocolRevenueRatio: 0.025, holdersRevenueRatio: 0.05 }),
+}
 
-export default adapter;
+export default adapter

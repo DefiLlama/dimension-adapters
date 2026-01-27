@@ -5,6 +5,7 @@ import { gql, GraphQLClient } from "graphql-request";
 const PROVIDER_CONFIG = {
   [CHAIN.BASE]: {
     startTimestamp: 1702943900,
+    start: '2023-12-18',
     endpoint: "https://subgraph.satsuma-prod.com/404b0c87e4a3/kwenta/base-perps-v3/api",
     query: gql`
       query aggregateStats($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
@@ -17,6 +18,7 @@ const PROVIDER_CONFIG = {
   },
   [CHAIN.OPTIMISM]: {
     startTimestamp: 1671494100,
+    start: '2022-12-19',
     endpoint: "https://subgraph.satsuma-prod.com/404b0c87e4a3/kwenta/optimism-perps/api",
     query: gql`
       query aggregateStats($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
@@ -29,6 +31,7 @@ const PROVIDER_CONFIG = {
   },
   [CHAIN.ARBITRUM]: {
     startTimestamp: 1696032000,
+    start: '2023-09-30',
     endpoint: "https://subgraph.perennial.finance/arbitrum",
     query: gql`
       query aggregateStats($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
@@ -62,15 +65,11 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp, chain }): Promise<
   const config = PROVIDER_CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
-  const [dailyData, totalData] = await Promise.all([
-    fetchVolume(chain as CHAIN, startTimestamp || (endTimestamp - 86400), endTimestamp),
-    fetchVolume(chain as CHAIN, config.startTimestamp, endTimestamp)
-  ]);
+  const dailyData = await fetchVolume(chain as CHAIN, startTimestamp || (endTimestamp - 86400), endTimestamp);
 
   return {
     timestamp: endTimestamp,
     dailyVolume: calculateVolume(dailyData, config.volumeField).toString(),
-    totalVolume: calculateVolume(totalData, config.volumeField).toString()
   };
 };
 
@@ -78,7 +77,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.fromEntries(
     Object.entries(PROVIDER_CONFIG).map(([chain, config]) => [
       chain,
-      { fetch, start: config.startTimestamp }
+      { fetch, start: config.start }
     ])
   ),
   version: 2

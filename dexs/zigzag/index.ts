@@ -30,18 +30,18 @@ const fetch = async (timestamp: number) => {
   })
   const dailyVolume = amountUSD.reduce((a: number, b: number) => a+b, 0)
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-04-07',
   adapter: {
     [CHAIN.ZKSYNC]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 1679443200,
+      start: '2023-03-22',
     },
   }
 };

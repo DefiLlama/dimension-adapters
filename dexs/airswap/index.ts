@@ -27,11 +27,11 @@ const fetch = (async (timestamp: number, _: any, { getLogs, createBalances, chai
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: 1680307200, },
-    [CHAIN.POLYGON]: { fetch, start: 1680307200, },
-    [CHAIN.AVAX]: { fetch, start: 1680307200, },
-    [CHAIN.BSC]: { fetch, start: 1680307200, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1689811200, },
+    [CHAIN.ETHEREUM]: { fetch, start: '2023-04-01', },
+    [CHAIN.POLYGON]: { fetch, start: '2023-04-01', },
+    [CHAIN.AVAX]: { fetch, start: '2023-04-01', },
+    [CHAIN.BSC]: { fetch, start: '2023-04-01', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-07-20', },
   }
 };
 

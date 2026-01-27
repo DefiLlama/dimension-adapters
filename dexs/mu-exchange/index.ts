@@ -26,15 +26,6 @@ const getVolume = gql`
   }
 `;
 
-interface IGraphResponse {
-  id: string,
-  tradeVolume: string,
-  marketDayDatas: Array<{
-    id: string,
-    tradeVolume: string,
-  }>;
-}
-
 const getFetch = (chain: string): Fetch => async (timestamp: number) => {
   const dayIndex = Math.floor(timestamp / 86400);
   const { market: response } = await request(ENDPOINTS[chain],
@@ -49,9 +40,6 @@ const getFetch = (chain: string): Fetch => async (timestamp: number) => {
         ? (BigInt(response.marketDayDatas[0].tradeVolume) /
           BigInt(10 ** SDAI_DECIMALS[chain])).toString()
         : undefined,
-    totalVolume: (BigInt(response.tradeVolume) /
-      BigInt(10 ** SDAI_DECIMALS[chain])).toString(),
-
   };
 };
 
@@ -59,7 +47,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.XDAI]: {
       fetch: getFetch(CHAIN.XDAI),
-      start: 1699488000,
+      start: '2023-11-09',
     },
   },
 };

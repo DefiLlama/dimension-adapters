@@ -13,17 +13,18 @@ const fees = async (timestamp: number): Promise<FetchResultFees> => {
   const feesData: IFees = (await fetchURL(url)).data;
   const dailyFees = feesData?.feeOfDate || '0';
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees,
     timestamp
   }
 }
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2025-04-26', // https://apex-pro.gitbook.io/apex-pro/apex-pro-discontinued/about-apex-pro
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fees,
-      start: 1693440000,
+      start: '2023-08-31',
     }
   }
 }

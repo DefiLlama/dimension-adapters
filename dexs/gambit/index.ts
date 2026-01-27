@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const topic0_limit_ex =
   "0x165b0f8d6347f7ebe92729625b03ace41aeea8fd7ebf640f89f2593ab0db63d1";
@@ -55,8 +55,8 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.ERA]: { fetch, start: 1690848000, },
-    [CHAIN.ARBITRUM]: { fetch, start: 1698883200, },
+    [CHAIN.ERA]: { fetch, start: '2023-08-01', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-11-02', },
   },
   version: 2
 };

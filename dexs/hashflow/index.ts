@@ -43,7 +43,7 @@ const adapter: SimpleAdapter = {
             dailyVolume: vol ? vol[2].toString() : undefined
           }
         },
-        start: async () => getStartTime(chain),
+        // start: async () => getStartTime(chain),
       }
     }
   }, {} as BaseAdapter)

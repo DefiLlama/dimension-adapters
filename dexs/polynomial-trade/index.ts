@@ -1,53 +1,38 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import fetchURL from "../../utils/fetchURL"
+import axios from "axios";
 import { CHAIN } from "../../helpers/chains";
 
-const volumeEndpoint = "https://perps-api-experimental.polynomial.fi/snx-perps/volume"
-const oneDay = 86400
-const startTimeStamp = 1679875200
+const polynomialAPI = "https://perps-api-mainnet.polynomial.finance/trade-stats"
+
+interface ApiResponse {
+  totalTrades: number;
+  last24HrTrades: number;
+  totalTradeVolume: number;
+  last24HrTradeVolume: number;
+  openInterest: number;
+}
 
 const fetch = async (timestamp: number) => {
-    const startDayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+    const { data: { last24HrTradeVolume } }: { data: ApiResponse } = await axios.get(polynomialAPI, {
+      headers: {
+        'x-api-key': 'defillama-56d0d13c534a573be5d0fdeb426f1a9d' 
+      }
+    });
+    const startDayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+
     return {
-      dailyVolume: await getDailyVolume(startDayTimestamp),
-      totalVolume: await getTotalVolume(timestamp),
+      dailyVolume: last24HrTradeVolume,
       timestamp: startDayTimestamp,
     };
   };
 
-  const getStartTimestamp = async () => {
-    return startTimeStamp;
-  }
-
-  async function getDailyVolume(startDayTimestamp: number) : Promise<string> {
-    const endDayTimeStamp = startDayTimestamp + oneDay
-    const dailyVolumeQuery = '?from='+startDayTimestamp.toString()+'&to='+endDayTimeStamp.toString()
-    return (await fetchURL(volumeEndpoint+dailyVolumeQuery));
-  }
-
-  async function getTotalVolume(endtimestamp: number) : Promise<string> {
-    let timestamp = startTimeStamp
-    let historicalVolume = 0
-    let startDayArray : number[] = [];
-    while (timestamp < endtimestamp)
-    {
-      startDayArray.push(timestamp)
-      timestamp += oneDay
-    }
-    const volumes = await Promise.all(
-      startDayArray.map( async startDay =>
-        parseFloat(await getDailyVolume(startDay))
-    ))
-    volumes.forEach(volume => {historicalVolume += volume})
-    return historicalVolume.toString();
-  }
-
   const adapter: SimpleAdapter = {
     adapter: {
-      [CHAIN.OPTIMISM]: {
+      [CHAIN.POLYNOMIAL]: {
         fetch,
-        start: getStartTimestamp,
+        runAtCurrTime: true,
+        start: '2024-08-22',
       },
     },
   };

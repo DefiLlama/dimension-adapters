@@ -44,9 +44,6 @@ const getFetch = (chain: string): FetchV2 => async (options: FetchOptions): Prom
         ? (BigInt(response.marketDayDatas[0].tradeVolume) /
           BigInt(10 ** USDC_DECIMALS[chain])).toString()
         : '0',
-    totalVolume: (BigInt(response.tradeVolume) /
-      BigInt(10 ** USDC_DECIMALS[chain])).toString(),
-
   };
 };
 
@@ -55,7 +52,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SCROLL]: {
       fetch: getFetch(CHAIN.SCROLL),
-      start: 1715212800,
+      start: '2024-05-09',
     },
   },
 };

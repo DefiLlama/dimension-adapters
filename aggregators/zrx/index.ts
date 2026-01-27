@@ -1,89 +1,55 @@
-import { GraphQLClient, gql } from "graphql-request";
-
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { FetchOptions } from "../../adapters/types";
 import { getEnv } from "../../helpers/env";
+import axios from "axios";
 
 type TChain = {
-  [key: string]: string;
+  [key: string]: number;
 };
 const CHAINS: TChain = {
-  [CHAIN.ARBITRUM]: "Arbitrum",
-  [CHAIN.AVAX]: "Avalanche",
-  [CHAIN.BASE]: "Base",
-  [CHAIN.BSC]: "BSC",
-  [CHAIN.CELO]: "Celo",
-  [CHAIN.ETHEREUM]: "Ethereum",
-  [CHAIN.FANTOM]: "Fantom",
-  [CHAIN.OPTIMISM]: "Optimism",
-  [CHAIN.POLYGON]: "Polygon",
+  [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.AVAX]: 43114,
+  [CHAIN.BASE]: 8453,
+  [CHAIN.BSC]: 56,
+  [CHAIN.ETHEREUM]: 1,
+  [CHAIN.OPTIMISM]: 10,
+  [CHAIN.POLYGON]: 137,
+  [CHAIN.BLAST]: 81457,
+  [CHAIN.LINEA]: 59144,
+  [CHAIN.SCROLL]: 534352,
+  [CHAIN.MANTLE]: 5000,
+  [CHAIN.MODE]: 34443,
+  [CHAIN.BERACHAIN]: 80094,
+  [CHAIN.INK]: 57073,
+  [CHAIN.UNICHAIN]: 130,
+  [CHAIN.WC]: 480,
+  [CHAIN.PLASMA]: 9745,
+  [CHAIN.SONIC]: 146,
+  [CHAIN.MONAD]: 143,
 };
 
-const graphQLClient = new GraphQLClient("https://api.0x.org/data/v0");
-const getGQLClient = () => {
-  graphQLClient.setHeader("0x-api-key", getEnv("AGGREGATOR_0X_API_KEY"));
-
-  return graphQLClient;
-};
-
-const getVolumeByChain = async (chain: string) => {
-  const client = getGQLClient();
-  const req = gql`
-    query Query_root {
-      aggTransactionsDailyRouter(
-        order_by: [{ timestamp: desc, chainName: null }]
-        where: { chainName: { _eq: ${chain} } }
-      ) {
-        chainName
-        timestamp
-        transactions
-        volumeUSD
-      }
+const fetch = async (_a, _b, options: FetchOptions) => {
+  const data = await axios.get(`https://api.0x.org/stats/volume/daily?timestamp=${options.startOfDay}&chainId=${CHAINS[options.chain]}`, {
+    headers: {
+      "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY")
     }
-  `;
-
-  const data = (await client.request(req))["aggTransactionsDailyRouter"];
-  return data;
-};
-
-const fetch = async (options: FetchOptions) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.endTimestamp * 1000)
-  );
-  try {
-    const data = await getVolumeByChain(options.chain);
-    const strDate = new Date(unixTimestamp * 1000).toISOString().split("T")[0];
-    const dayData = data.find(
-      ({ timestamp }: { timestamp: string }) =>
-        timestamp.split("T")[0] === strDate
-    );
-    return {
-      dailyVolume: dayData?.volumeUSD,
-      timestamp: unixTimestamp,
-    };
-  } catch (e) {
-    console.error(e);
-    return {
-      dailyVolume: "0",
-      timestamp: unixTimestamp,
-    };
+  })
+  return {
+    dailyVolume: data.data.data.volume
   }
 };
 
 const adapter: any = {
   version: 1,
-  adapter: {
-    ...Object.values(CHAINS).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: fetch,
-          start: 1652745600,
-        },
-      };
-    }, {}),
-  },
+  adapter: Object.keys(CHAINS).reduce((acc, chain) => {
+    return {
+      ...acc,
+      [chain]: {
+        fetch: fetch,
+        start: '2022-05-17',
+      },
+    };
+  }, {}),
 };
 
 export default adapter;

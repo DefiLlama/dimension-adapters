@@ -1,11 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { Adapter } from "../adapters/types";
-import { CHAIN }from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
+import type { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../adapters/types"
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDay, getTimestampAtStartOfDayUTC } from "../utils/date";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -35,7 +34,7 @@ const v2Endpoints = {
 
 const v1Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+    return async ({ getFromBlock, getToBlock }: FetchOptions) => {
       const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
       const graphQuery = gql
@@ -52,17 +51,12 @@ const v1Graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = (new BigNumber(graphRes["today"]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"]["totalSwapFee"])))
 
       return {
-        totalFees: graphRes["today"]["totalSwapFee"],
-        dailyFees: dailyFee.toString(),
-        totalUserFees: graphRes["today"]["totalSwapFee"],
-        dailyUserFees: dailyFee.toString(),
-        totalRevenue: "0",
+        dailyFees: dailyFee,
+        dailyUserFees: dailyFee,
         dailyRevenue: "0",
-        totalProtocolRevenue: "0",
         dailyProtocolRevenue: "0",
-        totalSupplySideRevenue: graphRes["today"]["totalSwapFee"],
-        dailySupplySideRevenue: dailyFee.toString(),
-      };
+        dailySupplySideRevenue: dailyFee,
+      } as any
     };
   };
 };
@@ -89,11 +83,11 @@ interface IBalancerSnapshot {
 
 const v2Graphs = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
-    return async ({ fromTimestamp, toTimestamp}: FetchOptions) => {
+    return async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
       const todayTimestamp = getTimestampAtStartOfDayUTC(toTimestamp);
       const yesterdayTimestamp = getTimestampAtStartOfDayUTC(fromTimestamp);
       const graphQuery = gql
-      `query fees {
+        `query fees {
         today: balancerSnapshots(where: {timestamp:${todayTimestamp}, totalProtocolFee_gt:0}, orderBy: totalProtocolFee, orderDirection: desc) {
           id
           totalSwapFee
@@ -111,36 +105,46 @@ const v2Graphs = (graphUrls: ChainEndpoints) => {
           timestamp
         }
       }`;
+      try {
+        const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
 
-      const graphRes: IBalancerSnapshot = await request(graphUrls[chain], graphQuery);
+        let dailySwapFee = new BigNumber(0);
+        let dailyProtocolFee = new BigNumber(0);
+        if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
+          dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
+          dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+        }
 
-      let dailySwapFee = new BigNumber(0);
-      let dailyProtocolFee = new BigNumber(0);
-      if (graphRes["today"].length > 0 && graphRes["yesterday"].length > 0) {
-        dailySwapFee = new BigNumber(graphRes["today"][0]["totalSwapFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalSwapFee"]));
-        dailyProtocolFee = new BigNumber(graphRes["today"][0]["totalProtocolFee"]).minus(new BigNumber(graphRes["yesterday"][0]["totalProtocolFee"]));
+        let tenPcFeeTimestamp = 0;
+        let fiftyPcFeeTimestamp = 0;
+
+        if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
+          tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
+          fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
+        }
+
+        // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
+        // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
+        const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
+          toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
+
+        return {
+          dailyUserFees: dailySwapFee,
+          dailyFees,
+          dailyRevenue: dailyProtocolFee,
+          dailyProtocolRevenue: dailyProtocolFee,
+          dailySupplySideRevenue: dailySwapFee,
+        } as any
+      } catch (e) {
+        return {
+          dailyUserFees: "0",
+          dailyFees: "0",
+          dailyRevenue: "0",
+          dailyProtocolRevenue: "0",
+          dailySupplySideRevenue: "0",
+        };
       }
 
-      let tenPcFeeTimestamp = 0;
-      let fiftyPcFeeTimestamp = 0;
-
-      if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
-        tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
-        fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
-      }
-
-      // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
-      // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
-      const dailyFees = toTimestamp < tenPcFeeTimestamp ? "0" : (
-        toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
-
-      return {
-        dailyUserFees: dailySwapFee.toString(),
-        dailyFees: dailyFees.toString(),
-        dailyRevenue: dailyProtocolFee.toString(),
-        dailyProtocolRevenue: dailyProtocolFee.toString(),
-        dailySupplySideRevenue: dailySwapFee.toString(),
-      };
     };
   };
 };
@@ -153,87 +157,52 @@ const methodology = {
   SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
 }
 
-const adapter: Adapter = {
+const adapter: BreakdownAdapter = {
+  methodology,
   version: 2,
   breakdown: {
     v1: {
       [CHAIN.ETHEREUM]: {
         fetch: v1Graphs(v1Endpoints)(CHAIN.ETHEREUM),
-        start: 1582761600,
-        meta: {
-          methodology: {
-            UserFees: "Trading fees paid by users, ranging from 0.0001% and 10%",
-            Fees: "All trading fees collected (includes swap and yield fee)",
-            Revenue: "Balancer V1 protocol fees are set to 0%",
-            ProtocolRevenue: "Balancer V1 protocol fees are set to 0%",
-            SupplySideRevenue: "Trading fees are distributed among LPs",
-          }
-        }
+        start: '2020-02-27',
       },
     },
     v2: {
       [CHAIN.ETHEREUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ETHEREUM),
-        start: 1619136000,
-        meta: {
-          methodology
-        }
+        start: '2021-04-23',
       },
       [CHAIN.POLYGON]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON),
-        start: 1624492800,
-        meta: {
-          methodology
-        }
+        start: '2021-06-24',
       },
       [CHAIN.ARBITRUM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.ARBITRUM),
-        start: 1630368000,
-        meta: {
-          methodology
-        }
+        start: '2021-08-31',
       },
       [CHAIN.AVAX]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.AVAX),
-        start: 1677283200,
-        meta: {
-          methodology
-        }
+        start: '2023-02-25',
       },
       [CHAIN.XDAI]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.XDAI),
-        start: 1673308800,
-        meta: {
-          methodology
-        }
+        start: '2023-01-10',
       },
       [CHAIN.BASE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.BASE),
-        start: 1690329600,
-        meta: {
-          methodology
-        }
+        start: '2023-07-26',
       },
       [CHAIN.POLYGON_ZKEVM]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.POLYGON_ZKEVM),
-        start: 1686614400,
-        meta: {
-          methodology
-        }
+        start: '2023-06-13',
       },
       [CHAIN.MODE]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.MODE),
-        start: 1716336000,
-        meta: {
-          methodology
-        }
+        start: '2024-05-22',
       },
       [CHAIN.FRAXTAL]: {
         fetch: v2Graphs(v2Endpoints)(CHAIN.FRAXTAL),
-        start: 1716163200,
-        meta: {
-          methodology
-        }
+        start: '2024-05-20',
       },
     }
   }

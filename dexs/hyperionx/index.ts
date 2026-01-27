@@ -2,7 +2,7 @@ import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { gql, GraphQLClient } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 
 const headers = { 'sex-dev': 'ServerDev'}
 type IEndPoints = {
@@ -44,11 +44,9 @@ const graphs = (chain: Chain) => {
 
     const response: IResponse = await graphQLClient.request(query);
     const dailyVolume = (Number(response.today[0].totalVolume) - Number(response.yesterday[0].totalVolume)) / 10 ** 6;
-    const totalVolume = Number(response.today[0].totalVolume) / 10 ** 6;
 
       return {
         timestamp,
-        totalVolume: totalVolume.toString(),
         dailyVolume: dailyVolume.toString(),
       };
   };
@@ -58,9 +56,10 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ZKFAIR]: {
       fetch: graphs(CHAIN.ZKFAIR),
-      start: 1706659200,
+      start: '2024-01-31',
     },
   },
+  deadFrom: '2024-10-31',
 };
 
 export default adapter;

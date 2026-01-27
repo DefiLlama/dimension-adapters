@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import request from "graphql-request";
 import { FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -30,7 +30,7 @@ const fetch: FetchV2 = async (options) => {
   let dailyFees = endRes.reduce((acc: number, val: any) => acc + +val.totalFeeUSD, 0) - startRes.reduce((acc: number, val: any) => acc + +val.totalFeeUSD, 0)
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees * 0.4,
     dailyProtocolRevenue: dailyFees * 0.05,
@@ -39,7 +39,7 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
-const adapter = { fetch, start: 1710115200, }
+const adapter = { fetch, start: '2024-03-11', }
 
 
 export default {

@@ -1,6 +1,7 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import ADDRESSES from '../helpers/coreAssets.json'
+import { Adapter, ChainBlocks, Dependencies, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDune } from "../helpers/dune";
+import { queryDuneSql } from "../helpers/dune";
 
 interface IStats {
   unix_ts: number;
@@ -16,6 +17,7 @@ interface IStats {
   all_fees: number;
   borrowing_fee: number;
   rollover_fee: number;
+  cumul_fees: number; // all time chain fees
 
   // gTokens
   dai_stakers: number;
@@ -25,59 +27,90 @@ interface IStats {
   // GNS staking
   gns_stakers: number;
 }
-const requests: any = {}
 
-export async function fetchURLWithRetry(url: string, options: FetchOptions) {
-  const start = options.startTimestamp;
-  const end = options.endTimestamp;
-  const key = `${url}-${start}`;
-  if (!requests[key])
-    requests[key] = queryDune("4192496", {
-      start: start,
-      end: end,
-    })
-  return requests[key]
-}
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `select
+      *
+    from
+      dune.gains.result_g_trade_stats_defi_llama
+    where
+      day >= from_unixtime(${options.startTimestamp})
+      AND day < from_unixtime(${options.endTimestamp})`);
+};
 
-const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
-  const stats: IStats[] = await fetchURLWithRetry("4192496", options);
+const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+  const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
-  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue, totalFees] = chainStat
-    ? [
-        chainStat.all_fees,
-        chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers,
-        chainStat.gns_stakers,
-        chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers,
-        chainStat.all_fees + chainStat.rollover_fee + chainStat.borrowing_fee,
-      ]
-    : [0, 0, 0, 0, 0];
+  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
+    ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
+    : [0, 0, 0, 0];
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
-    totalFees,
   };
+};
+
+const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+  // Dune does not currently support Apechain. Using events until support is added.
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const DIAMOND = "0x2BE5D7058AdBa14Bc38E4A83E94A81f7491b0163";
+  const APE = ADDRESSES.apechain.WAPE; // wAPE
+
+  const [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee]: any = await Promise.all(
+    [
+      "event GovFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event ReferralFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event TriggerFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event GnsOtcFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event GTokenFeeCharged(address indexed trader, uint8 indexed collateralIndex, uint256 amountCollateral)",
+      "event BorrowingFeeCharged(address indexed trader, uint32 indexed index, uint8 indexed collateralIndex, uint256 amountCollateral)",
+    ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
+  );
+
+  [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee].flat().forEach((i: any) => dailyFees.add(APE, i.amountCollateral));
+  [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral));
+  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
+  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON]: {
-      fetch: fetch,
-      start: 1654214400,
+      fetch,
+      start: "2022-06-03",
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: 1672358400,
+      fetch,
+      start: "2022-12-30",
     },
     [CHAIN.BASE]: {
-      fetch: fetch,
-      start: 1727351131,
+      fetch,
+      start: "2024-09-26",
+    },
+    [CHAIN.APECHAIN]: {
+      fetch: fetchApechain,
+      start: "2024-11-19",
     },
   },
+  prefetch: prefetch,
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Trading fees paid by users.',
+    Revenue: 'Share of trading fees to protocol and token holders.',
+    SupplySideRevenue: 'Share of trading fees to LPs.',
+    HoldersRevenue: 'Share of revenue to buy back and burn GNS tokens.',
+  },
 };
 
 export default adapter;

@@ -1,6 +1,5 @@
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { fetchURLWithRetry } from "../../helpers/duneRequest";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
+import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
 const chainsMap: Record<string, string> = {
   ETHEREUM: "ethereum",
@@ -11,35 +10,37 @@ const chainsMap: Record<string, string> = {
   BASE: "base",
 };
 
-const fetch =
-  (chain: string) =>
-    async (_: number): Promise<FetchResult> => {
-      const unixTimestamp = getUniqStartOfTodayTimestamp();
+const prefetch = async (options: FetchOptions) => {
+  const sql_query = getSqlFromFile('helpers/queries/conveyor.sql', {startTimestamp: options.startTimestamp, endTimestamp: options.endTimestamp})
+  return await queryDuneSql(options, sql_query);
+}
 
-      const data = await fetchURLWithRetry(`https://api.dune.com/api/v1/query/3325921/results`)
-      const chainData = data?.result?.rows?.find(
-        (row: any) => chainsMap[row.blockchain] === chain
-      );
+const fetch = async (_a:any, _b:any, options: FetchOptions): Promise<FetchResult> => {
+  const results = options.preFetchedResults || [];
+  const chainData = results.find(item => chainsMap[item.blockchain] === options.chain.toLowerCase());
 
-      return {
-        dailyVolume: chainData.volume_24h,
-        timestamp: unixTimestamp,
-      };
-    };
+  return {
+    dailyVolume: chainData?.volume_24h || 0,
+  };
+}
 
-const adapter: any = {
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     ...Object.values(chainsMap).reduce((acc, chain) => {
       return {
         ...acc,
         [(chainsMap as any)[chain] || chain]: {
-          fetch: fetch(chain),
+          fetch: fetch,
           runAtCurrTime: true,
-          start: 1692897682,
+          start: '2023-08-24',
         },
       };
     }, {}),
   },
+  prefetch,
   isExpensiveAdapter: true,
 };
 

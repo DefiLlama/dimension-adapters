@@ -1,15 +1,4 @@
-import { DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
-import disabledAdapter from "../../helpers/disabledAdapter";
+import { CHAIN } from "../../helpers/chains";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-
-const adapters: SimpleAdapter = {
-  adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.ZETA]: {
-      fetch: async (timestamp: number) => {return {timestamp, dailyVolume: '0'}},
-      start: 1707177600,
-    }
-  }
-}
-export default adapters;
+export default uniV2Exports({ [CHAIN.ZETA]: { factory: '0x769d1BcB5FDf30F5a9D19f1ab8A3cF8b60a6e855'}})

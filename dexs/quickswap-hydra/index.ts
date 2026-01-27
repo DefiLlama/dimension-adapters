@@ -42,11 +42,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
     });
 
     const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
-    const finalTotalVolume = parseInt(totalVolumeUSD.toString()) / 1e18;
 
     return {
       dailyVolume: finalDailyVolume.toString(),
-      totalVolume: finalTotalVolume.toString(),
       timestamp: todaysTimestamp,
     };
   };
@@ -63,19 +61,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-02',
     },
     [CHAIN.MANTA]: {
       fetch: graphs(endpoints),
-      start: 1719878400,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-02',
     },
   },
+  methodology,
 };
 
 export default adapter;

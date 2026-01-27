@@ -1,58 +1,40 @@
-import { SimpleAdapter } from "../adapters/types";
-import { MANTLE, CHAIN } from "../helpers/chains";
-import {
-  DEFAULT_TOTAL_VOLUME_FIELD,
-  getGraphDimensions2,
-} from "../helpers/getUniSubgraph";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniV3LogAdapter, } from "../helpers/uniswap";
 
-type TStartTime = {
-  [key: string]: number;
-};
-const startTimeV2: TStartTime = {
-  [CHAIN.MANTLE]: 1704326400,
-};
-
-const v2Endpoints = {
-  [CHAIN.MANTLE]:
-    "https://subgraph-api.mantle.xyz/subgraphs/name/cleoexchange/cl-subgraph",
-};
-
-const v2Graphs = getGraphDimensions2({
-  graphUrls: v2Endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-  feesPercent: {
-    type: "fees",
-    HoldersRevenue: 72,
-    ProtocolRevenue: 8,
-    UserFees: 100, // User fees are 100% of collected fees
-    Revenue: 80, // Revenue is 50% of collected fees
-    SupplySideRevenue: 20,
-  },
-});
 
 const methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
+  UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
   ProtocolRevenue: "Revenue going to the protocol.",
   HoldersRevenue: "User fees are distributed among holders.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.MANTLE]: {
-      fetch: v2Graphs(MANTLE),
-      start: startTimeV2[CHAIN.MANTLE],
-      meta: {
-        methodology: {
-          ...methodology,
-          UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
-        },
+      fetch: async (options: FetchOptions) => {
+        const adapter = getUniV3LogAdapter({
+          factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42',
+        })
+        const res = await adapter(options)
+        const dailyRevenue = res?.dailyFees.clone(.8)
+        const dailyHoldersRevenue = res?.dailyFees.clone(.72)
+        const dailyProtocolRevenue = res?.dailyFees.clone(.08)
+        const dailySupplySideRevenue = res?.dailyFees.clone(.2)
+        return {
+          ...res,
+          dailyRevenue,
+          dailyHoldersRevenue,
+          dailyProtocolRevenue,
+          dailySupplySideRevenue,
+          timestamp: options.startOfDay
+        }
       },
-    },
-  },
-};
+      start: '2024-01-04',
+    }
+  }
+}
 
-export default adapter;
+export default adapter

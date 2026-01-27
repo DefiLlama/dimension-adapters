@@ -1,4 +1,4 @@
-// import { Chain } from "@defillama/sdk/build/general";
+// import { Chain } from "../../adapters/types";
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
@@ -16,6 +16,7 @@ export async function getEarliestAvailableTimestamp() {
 const adapter: SimpleAdapter = {
   adapter: {
     arbitrum: {
+      runAtCurrTime: true,
       fetch: fetchArbitrumAnalyticsData,
       start: getEarliestAvailableTimestamp,
     },
@@ -36,15 +37,11 @@ export async function fetchArbitrumAnalyticsData(
 
   const dailyNotionalVolume = getNotionalVolumeUSD(dailyPositions).toFixed(2);
   const dailyPremiumVolume = getPremiumVolumeUSD(dailyPositions).toFixed(2);
-  const totalNotionalVolume = getNotionalVolumeUSD(allPositions).toFixed(2);
-  const totalPremiumVolume = getPremiumVolumeUSD(allPositions).toFixed(2);
 
   return {
     timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
 }
 

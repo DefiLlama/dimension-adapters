@@ -1,5 +1,5 @@
 import { Adapter, FetchOptions } from "../adapters/types";
-import { ETHEREUM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 
 const address = "0x0000000000e655fae4d56241588680f86e3b2377";
 const topic0_taker_bid = "0x3ee3de4684413690dee6fff1a0a4f92916a1b97d1c5a83cdf24671844306b2e3";
@@ -29,7 +29,7 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   });
 
   return {
-    dailyFees: dailyFees,
+    dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
   };
@@ -38,10 +38,15 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [ETHEREUM]: {
+    [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1640775864,
+      start: '2021-12-29',
     },
+  },
+  methodology: {
+    Fees: "NFT trading fees paid by users.",
+    Revenue: "100% fees are revenue to LOOKS token holders.",
+    HoldersRevenue: "100% revenue distributed to LOOKS token holders.",
   }
 }
 

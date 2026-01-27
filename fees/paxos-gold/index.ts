@@ -28,9 +28,12 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1704063600,
+      start: '2024-01-01',
     },
   },
+  methodology: {
+    Fees: "Fees paid by users while transferring PAXG token.",
+  }
 };
 
 export default adapter;

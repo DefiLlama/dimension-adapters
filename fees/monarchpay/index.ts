@@ -12,7 +12,7 @@ const fetch = async ({ getLogs }: FetchOptions) => {
     return Number('0x' + tx.data) / 10 ** 6;
   }).reduce((a: number, b: number) => a + b, 0);
   return {
-    dailyFees: dailyFees
+    dailyFees
   };
 }
 
@@ -21,8 +21,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
-      start: 1694044800
+      start: '2023-09-07',
     },
+  },
+  methodology: {
+    Fees: 'Payment fees paid by users.',
   }
 }
 

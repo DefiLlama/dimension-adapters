@@ -115,22 +115,20 @@ const fetchVolumeStats = async (timestamp: number) => {
     const orders = await getOrders(endOfCurrentDay);
     const {tradingVolume, tradingVolume24h} = calculateTradingVolumeFromOrders(orders, startOfCurrentDay);
     const [
-        convertedTradingVolume,
         convertedTradingVolume24h,
     ] = [tradingVolume, tradingVolume24h].map(value => convertToUsd(value));
     return {
         timestamp,
         dailyVolume: convertedTradingVolume24h.toString(),
-        totalVolume: convertedTradingVolume.toString(),
     };
 };
 
 export default {
+    deadFrom: '2025-01-01',
     adapter: {
         [CHAIN.BSC]: {
             fetch: fetchVolumeStats,
-            start: 1701720000,
-            runAtCurrTime: false,
+            start: '2023-12-04',
         },
     },
 };

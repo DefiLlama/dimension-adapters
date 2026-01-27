@@ -1,5 +1,5 @@
 import { request, gql } from "graphql-request";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../../adapters/types";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
 import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
@@ -35,6 +35,7 @@ interface IDailyResponse {
 }
 
 const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
+    if (timestamp > 1743940800) return {}
     const todaysTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
     const graphRes: IDailyResponse = await request(endpoints[chain], queryFee, {
         id: 'Daily:' + todaysTimestamp,
@@ -51,15 +52,14 @@ const getFetch = () => (chain: string): Fetch => async (timestamp: number) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    deadFrom: "2025-04-06",
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: getFetch()(CHAIN.ARBITRUM),
-            start: 1706227200,
-            meta: {
-                methodology
-            }
+            start: '2024-01-26',
         },
-    }
+    },
+    methodology
 }
 
 export default adapter;

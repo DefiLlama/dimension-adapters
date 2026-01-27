@@ -1,18 +1,4 @@
-// https://subgraph.satoshiswap.exchange/subgraphs/name/pancakeswap/exchange
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
-import disabledAdapter from "../../helpers/disabledAdapter";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.CORE]: "https://subgraph.satoshicoreswap.com/subgraphs/name/pancakeswap/exchange",
-};
-
-const adapter = univ2Adapter(endpoints, {
-  factoriesName: "pancakeFactories",
-  dayData: "pancakeDayData",
-});
-
-adapter.adapter.core.start = 1680825600;
-adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
-export default adapter
+export default uniV2Exports({ [CHAIN.CORE]: { factory: '0x8f5c03a1c86bf79ae0baC0D72E75aee662083e26'}})

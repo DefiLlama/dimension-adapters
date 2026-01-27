@@ -37,8 +37,8 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => dayItem.timestamp === dayTimestamp)?.volumeUSD
 
   return {
-    // totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    // totalVolume: totalVolume,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 }
@@ -47,7 +47,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SORA]: {
       fetch: fetch,
-      start: 1673136000
+      start: '2023-01-08'
     },
   },
 };

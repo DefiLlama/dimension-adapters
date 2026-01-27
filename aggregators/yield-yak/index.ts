@@ -17,8 +17,8 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, getLo
 
 const adapter: any = {
   adapter: {
-    avax: { fetch, start: 1685491200, },
-    arbitrum: { fetch, start: 1685491200, },
+    avax: { fetch, start: '2023-05-31', },
+    arbitrum: { fetch, start: '2023-05-31', },
   },
 };
 

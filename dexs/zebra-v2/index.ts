@@ -1,15 +1,21 @@
-
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { SimpleAdapter } from "../../adapters/types";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.SCROLL]: "https://api.studio.thegraph.com/query/55584/v3_scroll/version/latest",
-};
+// https://zebra.gitbook.io/zebra-document/product/fees
+const adapter: SimpleAdapter = {
+  version: 2,
+  methodology: {
+    Fees: 'Users pay dynamic amount of fees per swap.',
+    UserFees: 'Users pay dynamic amount of fees per swap.',
+    Revenue: 'Zebra collects 25% revenue from swap fees.',
+    ProtocolRevenue: 'Zebra collects 25% revenue from swap fees.',
+    SupplySideRevenue: 'Zebra distributes 75% swap fees to LPs.',
+  },
+  fetch: getUniV3LogAdapter({ factory: '0x96a7F53f7636c93735bf85dE416A4Ace94B56Bd9', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 }),
+  chains: [CHAIN.SCROLL],
+  start: '2023-11-16',
+}
 
-const adapter = univ2Adapter2(endpoints, {
-  factoriesName: "factories",
-  totalVolume: "totalVolumeUSD",
-});
+export default adapter;
 
-adapter.adapter.scroll.start = 1700697600
-export default adapter

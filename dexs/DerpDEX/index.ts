@@ -1,45 +1,8 @@
-import * as sdk from "@defillama/sdk";
-import { Adapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
+import { CHAIN } from "../../helpers/chains"
+import { uniV3Exports } from "../../helpers/uniswap"
 
-const endpoints = {
-  [CHAIN.ERA]:
-    "https://api.studio.thegraph.com/query/49147/derpdex-v3-amm/v0.0.10",
-  [CHAIN.BASE]:
-    sdk.graph.modifyEndpoint('6WLn1VLCtCYHNMPLT3AfKCCrKrq91qs1wCFcULWQUX96'),
-  // [CHAIN.OP_BNB]:
-  //   "https://opbnb.subgraph.derpdex.com/subgraphs/name/geckocoding/derpdex-opbnb",
-};
-const v3StartTimes = {
-  [CHAIN.ERA]: 1688515200,
-  [CHAIN.BASE]: 1692296100,
-  // [CHAIN.OP_BNB]: 1695275237,
-};
-
-const v3Graphs = getGraphDimensions2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 0% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0, // Revenue is 0% of collected fees
-  },
-});
-
-const adapter: Adapter = { adapter: {}, version: 2 };
-
-Object.keys(endpoints).map((chain: string) => {
-  adapter.adapter[chain] = {
-    fetch: v3Graphs(chain),
-    start: v3StartTimes[chain],
-  };
-});
-
-export default adapter;
+export default uniV3Exports({
+    [CHAIN.ERA]: { factory: '0x52a1865eb6903bc777a02ae93159105015ca1517', },
+    [CHAIN.BASE]: { factory: '0xeddef4273518b137cdbcb3a7fa1c6a688303dfe2', },
+    // [CHAIN.OP_BNB]: { factory: '0xb91331Ea9539ee881e3A45191076c454E482dAc7', },
+})

@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultFees } from "../adapters/types";
@@ -89,7 +89,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.LINEA]: {
             fetch: fetch,
-            start: 1691394680,
+            start: '2023-08-07',
         },
     },
 };

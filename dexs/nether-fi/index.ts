@@ -42,10 +42,6 @@ const getFetch =
       id: dailyId,
       period: "daily",
     });
-    const totalData: IGraphResponse = await request(graphEndpoint, query, {
-      id: "total",
-      period: "total",
-    });
 
     return {
       timestamp: dayTimestamp,
@@ -58,19 +54,11 @@ const getFetch =
                 10 ** -30
             )
           : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))
-              ) *
-                10 ** -30
-            )
-          : undefined,
     };
   };
 
 const adapter: BreakdownAdapter = {
+  deadFrom: '2025-01-28',
   breakdown: {
     swap: {
       [CHAIN.BASE]: {

@@ -8,8 +8,8 @@ const FACTORY_ADDRESS = '0xEd8db60aCc29e14bC867a497D94ca6e3CeB5eC04';
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
-      fetch: getFeesExport({ FACTORY_ADDRESS, VOTER_ADDRESS, }),
-      start: 1695458888,
+      fetch: getFeesExport({ FACTORY_ADDRESS, VOTER_ADDRESS,}),
+      start: '2023-09-23',
     },
   },
   version: 2,

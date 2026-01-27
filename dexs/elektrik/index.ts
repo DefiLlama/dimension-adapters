@@ -3,7 +3,7 @@ import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUn
 import { CHAIN } from "../../helpers/chains";
 
 const endpoints = {
-  [CHAIN.LIGHTLINK_PHOENIX]: "https://subgraph.elektrik.network/subgraphs/name/ELEKTRIK-GRAPH",
+  [CHAIN.LIGHTLINK_PHOENIX]: "https://graph.phoenix.lightlink.io/query/subgraphs/name/ELEKTRIK-GRAPH-V2-NEW",
 };
 
 const graphs = getChainVolume2({
@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LIGHTLINK_PHOENIX]: {
       fetch: graphs(CHAIN.LIGHTLINK_PHOENIX),
-      start: 1697155200
+      start: '2023-10-13'
     },
   },
 };

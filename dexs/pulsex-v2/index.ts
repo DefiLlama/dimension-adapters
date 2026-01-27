@@ -1,12 +1,20 @@
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter2({
-  [CHAIN.PULSECHAIN]: "https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2"
-}, {
+const fetch = univ2Adapter2({
+  endpoints: {
+    [CHAIN.PULSECHAIN]: "https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2"
+  },
   factoriesName: "pulseXFactories",
 });
 
-adapters.adapter.pulse.start = 1685577600;
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.PULSECHAIN]: { fetch, },
+  },
+  start: '2023-05-25'
+}
 
-export default adapters;
+export default adapter;

@@ -19,7 +19,7 @@ const VOTER_ABI: TABI = {
   "bribes": "function bribes(address) view returns (address)"
 }
 
-export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRESS: string, FACTORY_ADDRESS: string }) {
+export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDRESS: string, FACTORY_ADDRESS: string, }) {
   return async (fetchOptions: FetchOptions) => {
     const { api, getLogs, createBalances, } = fetchOptions
 
@@ -32,6 +32,7 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRE
     let [token0s, token1s] = await Promise.all(
       ['address:token0', 'address:token1'].map((method) => api.multiCall({ abi: method, calls: lpTokens, }))
     );
+    const allLPTokens = lpTokens
 
     const res = await filterPools2({ fetchOptions, pairs: lpTokens, token0s, token1s })
     lpTokens = res.pairs
@@ -39,7 +40,7 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRE
     token1s = res.token1s
 
 
-    const poolsGauges = await api.multiCall({ abi: VOTER_ABI.gauges, target: VOTER_ADDRESS, calls: lpTokens, });
+    const poolsGauges = await api.multiCall({ abi: VOTER_ABI.gauges, target: VOTER_ADDRESS, calls: allLPTokens, });
 
     const voterGauges = poolsGauges.filter((_vg: string) => _vg !== ADDRESSES.null);
 
@@ -74,6 +75,6 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS, }: { VOTER_ADDRE
         })
     });
 
-    return { dailyFees, dailyRevenue: dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyBribesRevenue, };
   }
 }

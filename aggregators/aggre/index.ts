@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -27,7 +27,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch,
-                start: 1698660910,
+                start: '2023-10-30',
             }
         }
     }, {}),

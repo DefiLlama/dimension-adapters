@@ -27,7 +27,8 @@ const contract_address: IContractAddress = {
     '0x925228d7b82d883dde340a55fe8e6da56244a22c',
     '0xe2c2ab221aa0b957805f229d2aa57fbe2f4dadf7',
     '0x91d25a56db77ad5147437d8b83eb563d46ebfa69',
-    '0x3df8dae2d123081c4d5e946e655f7c109b9dd630'
+    '0x3df8dae2d123081c4d5e946e655f7c109b9dd630',
+    '0xffBD6B0146C9E16A9f9E77DC8898cbfF6E2AA389'
   ],
   [CHAIN.ARBITRUM]: [
     '0x122f05f49e90508f089ee8d0d868d1a4f3e5a809',
@@ -82,7 +83,10 @@ const contract_address: IContractAddress = {
     '0x268fb4311d2c6cb2bba01cca9ac073fb3bfd1c7c',
     '0x8629008887e073260c5434d6cacfc83c3001d211',
     '0x8eaae6462816cb4957184c48b86afa7642d8bf2b',
-  ]
+  ],
+  [CHAIN.MONAD]: [
+    '0xb39B7D0cdd79B94B08b334965C1720be51A31986',
+  ],
 }
 
 
@@ -108,8 +112,8 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
     });
 
     return {
-      dailyFees: dailyFees,
-      dailyRevenue: dailyRevenue
+      dailyFees,
+      dailyRevenue
     };
 }
 
@@ -118,32 +122,36 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.BSC]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.BASE]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1688515200,
+      start: '2023-07-05',
     },
     [CHAIN.AVAX]: {
       fetch: fetchFees,
-      start: 1688515200,
-    }
+      start: '2023-07-05',
+    },
+    [CHAIN.MONAD]: {
+      fetch: fetchFees,
+      start: '2025-11-24',
+    },
   }
 }
 

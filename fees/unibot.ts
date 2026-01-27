@@ -69,7 +69,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   revFromToken.concat(transactions_v2).map((p: any) => dailyTokenTaxes.addGasToken(p.value))
 
   // ref https://dune.com/queries/2621049/4349967
-  return { timestamp, dailyFees, dailyRevenue: dailyFees, dailyTokenTaxes }
+  return { timestamp, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyTokenTaxes }
 
 }
 
@@ -77,9 +77,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1684972800,
+      start: '2023-05-25',
     },
   },
+  methodology: {
+    Fees: 'All trading fees paid by users.',
+    Revenue: 'All trading fees paid by users.',
+    HoldersRevenue: 'Fees distributed to token holders',
+    ProtocolRevenue: 'All trading fees paid by users.',
+  }
 };
 
 export default adapter;

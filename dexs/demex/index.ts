@@ -23,7 +23,7 @@ const fetch = (market_type: string) => {
         .reduce((a: number, b: IVolumeall) => a + Number(b.day_quote_volume), 0) / 1e18;
 
     return {
-      dailyVolume: volume ? `${volume}` : undefined,
+      dailyVolume: volume,
       timestamp: dayTimestamp,
     };
   };

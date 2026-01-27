@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_paid_stream = 'event RewardPaid (address indexed _user,address indexed _receiver,uint256 _reward,address indexed _rewardToken)';
 const event_paid_base = 'event RewardPaid (address indexed _user,address indexed _receiver,uint256 _reward,address indexed _token)';
@@ -39,18 +39,21 @@ const graph = (chain: Chain) => {
   }
 }
 
+const methodology = {
+    Fees: 'Staking rewards collected from assets staked on Wombat Exchange',
+    Revenue: 'Staking rewards collected from assets staked on Wombat Exchange',
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
 
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 77678653,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 77678653,
     },
   }
 };

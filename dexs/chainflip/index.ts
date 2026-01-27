@@ -1,30 +1,31 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const dimensionsEndpoint = "https://chainflip-broker.io/defillama/dexs"
+const dimensionsEndpoint =
+  "https://explorer-service-processor.chainflip.io/defi-llama/dexs";
 
-const fetch = async (timestamp: number) => {
-  const dimensionsData = await httpGet(`${dimensionsEndpoint}?timestamp=${timestamp}`, { headers: {"x-client-id": "defillama"}});
+const fetch = async (options: FetchOptions) => {
+  const dimensionsData = await httpGet(
+    `${dimensionsEndpoint}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`,
+    { headers: { "x-client-id": "defillama" } }
+  );
 
   return {
-    timestamp: dimensionsData.timestamp,
-    dailyVolume: dimensionsData.dailyVolume, 
-    totalVolume: dimensionsData.totalVolume
+    dailyVolume: dimensionsData.dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  methodology: {
+    Volume:
+      "Cumulative USD value of swaps executed on the chainflip protocol",
+  },
   adapter: {
     [CHAIN.CHAINFLIP]: {
       fetch,
-      start: 1700740800, // FLIP went live on 2023-11-23 12:00 UTC
-      runAtCurrTime: true,
-      meta: {
-        methodology: {
-          Volume: "Deposit value of a swap.",
-        }
-      }
+      start: "2023-11-23", // Protocol start date
     },
   },
 };

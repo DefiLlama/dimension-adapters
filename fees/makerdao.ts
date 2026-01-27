@@ -1,111 +1,76 @@
-import * as sdk from "@defillama/sdk";
-import { Adapter } from "../adapters/types";
-import { ETHEREUM } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
-import BigNumber from "bignumber.js";
+/*
+Data sources:
+- https://info.sky.money/revenue
+- https://info.sky.money/buyback
 
-const RAY = new BigNumber(10).pow(27);
+check against:
+- https://makerburn.com/#/
+*/
 
-const endpoints = {
-  [ETHEREUM]:
-    sdk.graph.modifyEndpoint('CLddaQxuXLjpzyyA67FMmNjmyX74yQDQZEAsytoQTtCD')
-}
+import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
+import { DAY } from "../utils/date";
+import { FetchOptions } from "../adapters/types";
 
-// Source: https://makerburn.com/#/rundown
-const collateralYields = {
-  "RWA007-A": 4,
-  "RWA009-A": 0.11,
-  "RWA010-A": 4,
-  "RWA011-A": 4,
-  "RWA014-A": 2.6,
-  "RWA015-A": 4.5,
-  "PSM-GUSD-A": 2,
-} as {
-  [rwa:string]:number
-}
+const getDay = (ts: number) => new Date(ts * 1000).toISOString().split('T')[0]
 
-const MCD_POT={
-  address: '0x197e90f9fad81970ba7976f33cbd77088e5d7cf7',
-  abis: {
-    Pie: {"constant":true,"inputs":[],"name":"Pie","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-    dsr: {"constant":true,"inputs":[],"name":"dsr","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-    chi: {"constant":true,"inputs":[],"name":"chi","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
-  } as any
-}
+async function fetch(_a: any, _b: any, options: FetchOptions) {
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async ({getEndBlock, getStartBlock, startTimestamp, endTimestamp, toApi} : FetchOptions) => {
-      const graphQuery = gql
-      `query fees {
-        yesterday: collateralTypes(block: {number: ${await getStartBlock()}}) {
-          id
-          totalDebt
-          stabilityFee
-        }
-        today: collateralTypes(block: {number: ${await getEndBlock()}}) {
-          id
-          totalDebt
-          stabilityFee
-        }
-      }`;
+  const revenue_data = await fetchURL(`https://info-sky.blockanalitica.com/api/v1/revenue/historic/?start_date=${getDay(options.startTimestamp - 3 * DAY)}&end_date=${getDay(options.endTimestamp + 3 * DAY)}`)
+  const buyback_data = await fetchURL(`https://info-sky.blockanalitica.com/buyback/historic/?days_ago=9999&format=json`)
 
-      const graphRes = await request(graphUrls[chain], graphQuery);
+  const staking_rewards_data = await fetchURL(`https://info-sky.blockanalitica.com/farms/0x38e4254bd82ed5ee97cd1c4278faae748d998865/historic/?days_ago=9999`)
 
-      const secondsBetweenDates = endTimestamp - startTimestamp;
-      
-      const todayDebts: { [id: string]: BigNumber } = {};
-      let dailyFee = new BigNumber(0)
+  const dayData = revenue_data.find((d: any) => d.date == getDay(options.startOfDay))
+  const buybackDayData = buyback_data.bar.find((d: any) => d.date == getDay(options.startOfDay))
 
-      for (const collateral of graphRes["today"]) {
-        todayDebts[collateral.id] = new BigNumber(collateral["totalDebt"]);
-      }
+  const prevDay = getDay(options.startOfDay - DAY)
+  const stakingRewardsDayData = staking_rewards_data.find((d: any) => d.date == getDay(options.startOfDay))
+  const stakingRewardsPrevDayData = staking_rewards_data.find((d: any) => d.date == prevDay)
+  const staking_reward_amount = Number(stakingRewardsDayData.total_farmed) - Number(stakingRewardsPrevDayData.total_farmed)
 
-      for (const collateral of graphRes["yesterday"]) {
-        if (todayDebts[collateral.id]) {
-          const avgDebt = todayDebts[collateral.id].plus(new BigNumber(collateral["totalDebt"])).div(2)
-          let accFees = new BigNumber(Math.pow(collateral["stabilityFee"], secondsBetweenDates) - 1)
-          if(collateralYields[collateral.id]){
-            accFees = new BigNumber(collateralYields[collateral.id]/365e2)
-          }
-          dailyFee = dailyFee.plus(avgDebt.multipliedBy(accFees))
-        }
-      }
-      const sparkSupplyAPR = await toApi.call({target: "0xC13e21B648A5Ee794902342038FF3aDAB66BE987", params: ["0x6B175474E89094C44Da98b954EedeAC495271d0F"], abi:{"inputs":[{"internalType":"address","name":"asset","type":"address"}],"name":"getReserveData","outputs":[{"components":[{"components":[{"internalType":"uint256","name":"data","type":"uint256"}],"internalType":"struct DataTypes.ReserveConfigurationMap","name":"configuration","type":"tuple"},{"internalType":"uint128","name":"liquidityIndex","type":"uint128"},{"internalType":"uint128","name":"currentLiquidityRate","type":"uint128"},{"internalType":"uint128","name":"variableBorrowIndex","type":"uint128"},{"internalType":"uint128","name":"currentVariableBorrowRate","type":"uint128"},{"internalType":"uint128","name":"currentStableBorrowRate","type":"uint128"},{"internalType":"uint40","name":"lastUpdateTimestamp","type":"uint40"},{"internalType":"uint16","name":"id","type":"uint16"},{"internalType":"address","name":"aTokenAddress","type":"address"},{"internalType":"address","name":"stableDebtTokenAddress","type":"address"},{"internalType":"address","name":"variableDebtTokenAddress","type":"address"},{"internalType":"address","name":"interestRateStrategyAddress","type":"address"},{"internalType":"uint128","name":"accruedToTreasury","type":"uint128"},{"internalType":"uint128","name":"unbacked","type":"uint128"},{"internalType":"uint128","name":"isolationModeTotalDebt","type":"uint128"}],"internalType":"struct DataTypes.ReserveData","name":"","type":"tuple"}],"stateMutability":"view","type":"function"}})
-      const sparkSupply = await toApi.call({target: "0x4dedf26112b3ec8ec46e7e31ea5e123490b05b8b", params: ["0xAfA2DD8a0594B2B24B59de405Da9338C4Ce23437"], abi:"erc20:balanceOf"})
-      const SECONDS_IN_YEAR = 365*24*60*60
-      const sparkSupplyAPY = (sparkSupplyAPR.currentLiquidityRate/1e27 / SECONDS_IN_YEAR + 1)**(24*3600) - 1
-      
-      dailyFee = dailyFee.plus(sparkSupplyAPY*sparkSupply/1e18)
+  const dailyFees = (Number(dayData.stability_fee) + Number(dayData.liquidation_income) + Number(dayData.psm_fees)) / 365
+  const dailyRevenue = Number(dayData.total_net_revenue) / 365
 
-      const [Pie, chi, dsr] = await Promise.all(["Pie", "chi", "dsr"].map(async name=>(
-        await toApi.call({
-          target: MCD_POT.address,
-          abi: MCD_POT.abis[name],
-        })
-      )))
-      const dsrTvl = BigNumber(Pie).times(chi).div(1e18).div(RAY) // check against https://makerburn.com/#/
-      const dsrExpenses = BigNumber(dsr).div(RAY).pow(60*60*24).minus(1).times(dsrTvl)
+  const dhr = options.createBalances();
+  const dpr = options.createBalances();
 
-      return {
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.minus(dsrExpenses).toString(),
-      };
-    };
+  if (buybackDayData) {
+    dhr.addCGToken('sky', Number(buybackDayData.sky_buyback_24h))
+  }
+
+  dpr.addCGToken('tether', Number(dailyRevenue))
+  dpr.subtract(dhr)
+
+  if (stakingRewardsDayData) {
+    dhr.addCGToken('usds', Number(staking_reward_amount))
+  }
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dhr,
+    dailyProtocolRevenue: dpr,
   };
 };
 
 
-const adapter: Adapter = {
-  version: 2,
+const adapter = {
+  version: 1,
   adapter: {
-    [ETHEREUM]: {
-        fetch: graphs(endpoints)(ETHEREUM),
-        start: 1573672933,
+    [CHAIN.ETHEREUM]: {
+      fetch,
+      start: '2019-11-13',
     },
-  }
+  },
+  methodology: {
+    Fees: "Stability fees charged on DAI loans, liquidation income from collateral auctions, and PSM (Peg Stability Module) fees from USDC/DAI conversions",
+    Revenue: "Fees collected minus savings rate paid to DSR depositors and operational expenses",
+    HoldersRevenue: "SKY token buybacks + staking rewards for sky stakers",
+    ProtocolRevenue: "Net protocol revenue after subtracting SKY token buybacks"
+  },
+  allowNegativeValue: true, // Expenses can be higher than Daily Fees
 }
 
 export default adapter;

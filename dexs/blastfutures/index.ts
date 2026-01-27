@@ -22,7 +22,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
     const dailyVolume = marketsData.reduce((acc, {volume}) => acc + Number(volume), 0);
 
     return {
-        dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+        dailyVolume: dailyVolume,
         timestamp: timestamp,
     };
 };
@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         "blast": {
             fetch: fetchVolume,
-            start: 1700179200, // Replace with actual start timestamp
+            start: '2023-11-17', // Replace with actual start timestamp
         },
     },
 };

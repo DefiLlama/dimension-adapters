@@ -1,80 +1,145 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { queryIndexer } from "../helpers/indexer";
+import { METRIC } from '../helpers/metrics';
 
-const eth_base = '0x373bdcf21f6a939713d5de94096ffdb24a406391';
-
-const contract_loan_mangaer: string[] = [
-  '0x91582bdfef0bf36fc326a4ab9b59aacd61c105ff',
-  '0xeca9d2c5f81dd50dce7493104467dc33362a436f',
-  '0xf4d4a5270aa834a2a77011526447fdf1e227018f',
-  '0x1b61765e954113e6508c4f9db07675989f7f5874',
-  '0xd05998a1940294e3e49f99dbb13fe20a3483f5ae',
-  '0xd7217f29d51deffc6d5f95ff0a5200f3d34c0f66',
-  '0x6b6491aaa92ce7e901330d8f91ec99c2a157ebd7',
-  '0x74cb3c1938a15e532cc1b465e3b641c2c7e40c2b',
-  '0x9b300a28d7dc7d422c7d1b9442db0b51a6346e00',
-  '0x373bdcf21f6a939713d5de94096ffdb24a406391',
-  '0xfdc7541201aa6831a64f96582111ced633fa5078'
-]
-
-const contract_open_term_loan: string[] = [
+const contract_open_term_loan_manager_stablecoin: string[] = [
   '0x2638802a78d6a97d0041cc7b52fb9a80994424cd',
   '0x483082e93635ef280bc5e9f65575a7ff288aba33',
-  '0x93b0f6f03cc6996120c19abff3e585fdb8d88648',
-  '0xd205b3ed8408afca53315798b891f37bd4c5ce2a',
   '0xdc9b93a8a336fe5dc9db97616ea2118000d70fc0',
-  '0xfab269cb4ab4d33a61e1648114f6147742f5eecc'
+  '0xfab269cb4ab4d33a61e1648114f6147742f5eecc',
+  '0x9ab77dbd4197c532f9c9f30a7e83a710e03da70a',
+  '0x616022e54324ef9c13b99c229dac8ea69af4faff',
+  '0x6aceb4caba81fa6a8065059f3a944fb066a10fac',
+  '0x56ef41693f69d422a88cc6492888a1bd41923d33',
+  '0xb50d675f3c6d18ce5ccac691354f92afebd1675e'
 ]
+const contract_open_term_loan_manager_eth = '0xe3aac29001c769fafcef0df072ca396e310ed13b';
 
-const fetchFees = async (timestamp: number, _: any, options: FetchOptions) => {
+const CLAIMED_FUNDS_DISTRIBUTED_EVENT = 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)';
+
+function getHoldersRevenueShare(date: number): number {
+  if (date < 1761955200) { // 2025-11-01
+    return 0 
+  } else {
+    return 0.25;
+  }
+}
+
+const fetchFees = async (options: FetchOptions) => {
   const { getLogs } = options
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const logsTranferERC20: any[] = await queryIndexer(`
-        SELECT
-          '0x' || encode(data, 'hex') AS value,
-          '0x' || encode(contract_address, 'hex') AS contract_address
-        FROM
-          ethereum.event_logs
-        WHERE
-          block_number > 12428594
-          AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-          AND topic_2 in ('\\x000000000000000000000000a9466eabd096449d650d5aeb0dd3da6f52fd0b19', '\\x000000000000000000000000d15b90ff80aa7e13fc69cd7ccd9fef654495e36c')
-          AND block_time BETWEEN llama_replace_date_range;
-          `, options);
-  const logs_funds_distribution = await getLogs({
-    targets: contract_loan_mangaer,
-    flatten: false,
-    eventAbi: 'event FundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_)'
-  })
-  const logs_claim_funds = await getLogs({
-    targets: contract_open_term_loan,
-    eventAbi: 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)'
-  })
-  console.log(logs_claim_funds.length, logs_funds_distribution.length, logsTranferERC20.length)
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
-  logs_funds_distribution.map((e: any, index: number) => {
-    const isEthBase = contract_loan_mangaer[index].toLowerCase() === eth_base.toLowerCase();
-    const token = isEthBase ? [ADDRESSES.ethereum.WETH]: ADDRESSES.ethereum.USDC
-    e.forEach((i: any) => dailyFees.add(token, i.netInterest_))
+  const holdersShare = getHoldersRevenueShare(options.startOfDay);
+  
+  const logs_claim_funds_stablecoin = await getLogs({
+    targets: contract_open_term_loan_manager_stablecoin,
+    eventAbi: CLAIMED_FUNDS_DISTRIBUTED_EVENT,
   })
 
-  logs_claim_funds.map((e: any) => dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_))
-  logsTranferERC20.forEach((b: any) => {
-    dailyFees.add(b.contract_address, b.value)
-    dailyRevenue.add(b.contract_address, b.value)
-  });
-  return { dailyFees, dailyRevenue, timestamp }
+  logs_claim_funds_stablecoin.map((e: any) => {
+    dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_, METRIC.BORROW_INTEREST)
+    dailyFees.add(ADDRESSES.ethereum.USDC, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(ADDRESSES.ethereum.USDC, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(ADDRESSES.ethereum.USDC, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyFees.add(ADDRESSES.ethereum.USDC, e.platformServiceFee_, METRIC.SERVICE_FEES)
+
+    dailySupplySideRevenue.add(ADDRESSES.ethereum.USDC, e.netInterest_, METRIC.BORROW_INTEREST)
+
+    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.platformServiceFee_, METRIC.SERVICE_FEES)
+
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+  })
+
+  const logs_claim_funds_eth = await getLogs({
+    target: contract_open_term_loan_manager_eth,
+    eventAbi: CLAIMED_FUNDS_DISTRIBUTED_EVENT,
+  })
+
+  logs_claim_funds_eth.map((e: any) => {
+    dailyFees.add(ADDRESSES.ethereum.WETH, e.netInterest_, METRIC.BORROW_INTEREST)
+    dailyFees.add(ADDRESSES.ethereum.WETH, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(ADDRESSES.ethereum.WETH, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(ADDRESSES.ethereum.WETH, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyFees.add(ADDRESSES.ethereum.WETH, e.platformServiceFee_, METRIC.SERVICE_FEES)
+
+    dailySupplySideRevenue.add(ADDRESSES.ethereum.WETH, e.netInterest_, METRIC.BORROW_INTEREST)
+
+    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.platformServiceFee_, METRIC.SERVICE_FEES)
+
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+  })
+  
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue, 
+  }
 }
 
 const adapters: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees as any,
-      start: 1672531200
+      start: '2023-01-01',
     }
+  },
+  methodology: {
+    Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
+    Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
+    ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
+    SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
+    HoldersRevenue: "Maple use 25% from protocol revenue to buy back SYRUP tokens from MIP-019.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: 'Net borrow interests paid by borrowers.',
+      [METRIC.MANAGEMENT_FEES]: 'Management fees cut by protocol and delegators.',
+      [METRIC.SERVICE_FEES]: 'Service fees cut by protocol and delegators.',
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: 'Net borrow interests are distributed to suppliers.',
+    },
+    Revenue: {
+      [METRIC.MANAGEMENT_FEES]: 'Management fees cut by protocol and delegators.',
+      [METRIC.SERVICE_FEES]: 'Service fees cut by protocol and delegators.',
+    },
+    ProtocolRevenue: {
+      [METRIC.MANAGEMENT_FEES]: 'Management fees share to Maple protocol.',
+      [METRIC.SERVICE_FEES]: 'Service fees share to Maple protocol.',
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: 'From MIP-019, Maple use 25% from protocol revenue to buy back SYRUP tokens.',
+    },
   }
 }
 export default adapters;

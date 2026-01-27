@@ -10,38 +10,53 @@ interface IMobyVolumeResponse {
 }
 
 // endTime is in ms
-export const mobyVolumeEndpoint = (endTime: number) => {
-  return `https://u63601xvgc.execute-api.ap-northeast-2.amazonaws.com/prod/getVolumeData?end_time=${endTime}`;
+export const arb_mobyVolumeEndpoint = (endTime: number) => {
+  return `https://lambda-api.moby.trade/getVolumeData?end_time=${endTime}`;
+}
+
+export const bera_mobyVolumeEndpoint = (endTime: number) => {
+  return `https://lambda-bera-api.moby.trade/getVolumeData?end_time=${endTime}`;
 }
 
 export const moby_adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetchMobyVolumeData,
-      start: 1712102400
+      fetch: arb_fetchMobyVolumeData,
+      start: '2024-04-03'
     },
+    [CHAIN.BERACHAIN]: {
+      fetch: bera_fetchMobyVolumeData,
+      start: '2025-02-08'
+    }
   },
 };
 
-export async function fetchMobyVolumeData(
-  /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
-) {
+const _fetchMobyVolumeData = async (timestamp, endPoint) => {
   let timestamp_in_ms = timestamp * 1000
-  const mobyVolumeData = await getMobyVolumeData(mobyVolumeEndpoint(timestamp_in_ms));
+  const mobyVolumeData = await getMobyVolumeData(endPoint(timestamp_in_ms));
 
   const dailyNotionalVolume = Number(mobyVolumeData.daily_notional_volume).toFixed(2);
   const dailyPremiumVolume =  Number(mobyVolumeData.daily_premium_volume).toFixed(2);
-  const totalNotionalVolume = Number(mobyVolumeData.total_notional_volume).toFixed(2);
-  const totalPremiumVolume = Number(mobyVolumeData.total_premium_volume).toFixed(2);
 
   return {
     timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
+}
+
+export async function arb_fetchMobyVolumeData(
+  /** Timestamp representing the end of the 24 hour period */
+  timestamp: number
+) {
+  return await _fetchMobyVolumeData(timestamp, arb_mobyVolumeEndpoint);
+}
+
+export async function bera_fetchMobyVolumeData(
+  /** Timestamp representing the end of the 24 hour period */
+  timestamp: number
+) {
+  return await _fetchMobyVolumeData(timestamp, bera_mobyVolumeEndpoint);
 }
 
 async function getMobyVolumeData(endpoint: string): Promise<IMobyVolumeResponse> {

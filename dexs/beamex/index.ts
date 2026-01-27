@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpointsBeamex: ChainEndpoints = {
-  [CHAIN.MOONBEAN]:
+  [CHAIN.MOONBEAM]:
     'https://graph.beamswap.io/subgraphs/name/beamswap/beamex-stats',
 };
 const historicalDataSwap = gql`
@@ -49,33 +49,13 @@ const getFetch =
             period: "daily",
           }
         );
-        const totalData: IGraphResponse = await request(
-          endpointsBeamex[chain],
-          query,
-          {
-            id: "total",
-            period: "total",
-          }
-        );
 
         return {
-          timestamp: dayTimestamp,
           dailyVolume:
             dailyData.volumeStats.length == 1
               ? String(
                 Number(
                   Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                    String(Number(sum) + Number(element))
-                  )
-                ) *
-                10 ** -30
-              )
-              : undefined,
-          totalVolume:
-            totalData.volumeStats.length == 1
-              ? String(
-                Number(
-                  Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
                     String(Number(sum) + Number(element))
                   )
                 ) *
@@ -95,29 +75,20 @@ const methodologyBeamex = {
     "70% of all collected fees will be distributed to BLP stakers. Currently they are distributed to treasury",
   Revenue: "70% of all collected fees are distributed to the treasury",
   ProtocolRevenue: "70% of all collected fees are distributed to the treasury",
-};
+}
 const adapter: BreakdownAdapter = {
+  methodology: methodologyBeamex,
   breakdown: {
     "beamex-swap": {
-      [CHAIN.MOONBEAN]: {
-        fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAN),
-        start: 1687421388,
-        meta: {
-          methodology: {
-            ...methodologyBeamex,
-          },
-        },
+      [CHAIN.MOONBEAM]: {
+        fetch: getFetch(historicalDataSwap)(CHAIN.MOONBEAM),
+        start: '2023-06-22',
       },
     },
     "beamex-perps": {
-      [CHAIN.MOONBEAN]: {
-        fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAN),
-        start: 1687421388,
-        meta: {
-          methodology: {
-            ...methodologyBeamex,
-          },
-        },
+      [CHAIN.MOONBEAM]: {
+        fetch: getFetch(historicalDataDerivatives)(CHAIN.MOONBEAM),
+        start: '2023-06-22',
       },
     },
   },

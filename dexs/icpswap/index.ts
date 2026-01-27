@@ -19,7 +19,7 @@ const adapter: Adapter = {
     [CHAIN.ICP]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1689465600,
+      start: '2023-07-16',
     },
   }
 }

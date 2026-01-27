@@ -14,7 +14,6 @@ const fetch = (chain: string) => async (timestamp: number) => {
     `https://api.mantissa.finance/api/pool/stats/volume/${chain}/?from_timestamp=${from}&to_timestamp=${to}`
   );
   return {
-    totalVolume: `${stats.total_volume}`,
     dailyVolume: `${stats.daily_volume}`,
     timestamp,
   };
@@ -24,15 +23,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetch("137"),
-      start: 1679309404,
+      start: '2023-03-20',
     },
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch("1101"),
-      start: 1685355566,
+      start: '2023-05-29',
     },
     [CHAIN.MODE]: {
       fetch: fetch("34443"),
-      start: 1709717650,
+      start: '2024-03-06',
     },
   },
 };

@@ -1,65 +1,61 @@
-import ADDRESSES from '../helpers/coreAssets.json'
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryFlipside } from "../helpers/flipsidecrypto";
+import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
+import { queryDuneSql } from "../helpers/dune";
+
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+
+    const query = `
+        WITH l2_fees_cte AS (
+            SELECT
+                SUM(tx_fee_raw) AS daily_fees
+            FROM gas.fees
+            WHERE blockchain = 'polygon'
+                AND block_time >= from_unixtime(${options.startTimestamp})
+                AND block_time <= from_unixtime(${options.endTimestamp})
+        ),
+        l1_batch_costs_cte AS (
+            SELECT 
+                SUM(t.gas_used*t.gas_price) AS daily_cost
+            FROM ethereum.transactions AS t
+            WHERE t.to = 0x86e4dc95c7fbdbf52e33d563bbdb00823894c287
+                AND cast(t.data as varchar) LIKE '0x4e43e495%'
+                AND block_time >= from_unixtime(${options.startTimestamp})
+                AND block_time <= from_unixtime(${options.endTimestamp})
+        )
+        SELECT 
+            l2.daily_fees,
+            l1.daily_cost
+        FROM l2_fees_cte as l2
+        CROSS JOIN l1_batch_costs_cte as l1 
+    `
+    const res = await queryDuneSql(options, query);
+    dailyFees.addGasToken(res[0].daily_fees);
+    const dailyRevenue = dailyFees.clone();
+    const dc = options.createBalances();
+    dc.addCGToken('ethereum', Number(res[0].daily_cost) / 1e18);
+    dailyRevenue.subtract(dc)
+
+    return {
+        dailyFees,
+        dailyRevenue
+    }
+}
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-        const dailyFees = options.createBalances();
-        const dailyRevenue = options.createBalances();
-        const startblock = await options.getFromBlock()
-        const endblock = await options.getToBlock()
-
-        const query_tx_fee = `WITH TransactionTotals AS (
-              SELECT
-                  BLOCK_NUMBER,
-                  COALESCE(SUM(tx_fee), 0) AS tx_fee
-              FROM
-                  polygon.core.fact_transactions
-              WHERE
-                  BLOCK_NUMBER > ${startblock}
-                  AND BLOCK_NUMBER < ${endblock}
-              GROUP BY
-                  BLOCK_NUMBER
-          ),
-          BlockTotals AS (
-              SELECT
-                  BLOCK_NUMBER,
-                  SUM(
-                      COALESCE(BLOCK_HEADER_JSON['baseFeePerGas'], 0) * BLOCK_HEADER_JSON['gasUsed']
-                  ) / 1e18 AS burned
-              FROM
-                  polygon.core.fact_blocks
-              WHERE
-                  BLOCK_NUMBER > ${startblock}
-                  AND BLOCK_NUMBER < ${endblock}
-              GROUP BY
-                  BLOCK_NUMBER
-          )
-          SELECT
-              COALESCE(SUM(tt.tx_fee), 0) AS total_tx_fee,
-              COALESCE(SUM(bt.burned), 0) AS total_burned
-          FROM
-              TransactionTotals tt
-          LEFT JOIN
-              BlockTotals bt ON tt.BLOCK_NUMBER = bt.BLOCK_NUMBER;`
-
-        const [tx_fee, burn_fee]: number[] = (await queryFlipside(query_tx_fee, 260)).flat();
-        const maticAddress = "ethereum:" + ADDRESSES.ethereum.MATIC;
-
-        dailyFees.addTokenVannila(maticAddress, tx_fee * 1e18);
-        dailyRevenue.addTokenVannila(maticAddress, burn_fee * 1e18);
-        return { timestamp, dailyFees, dailyRevenue, };
-      },
-      // start: 1575158400,
-      start: 1672531200,
-      runAtCurrTime: true,
+    version: 1,
+    fetch,
+    chains: [CHAIN.POLYGON],
+    start: '2020-05-30',
+    dependencies: [Dependencies.DUNE],
+    protocolType: ProtocolType.CHAIN,
+    isExpensiveAdapter: true,
+    allowNegativeValue: true, // L1 Costs
+    methodology: {
+        Fees: 'Total transaction fees paid by users',
+        Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
     }
-  },
-  isExpensiveAdapter: true,
-  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;

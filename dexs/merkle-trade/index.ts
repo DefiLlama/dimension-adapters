@@ -11,7 +11,6 @@ const fetch = async (timestamp: number) => {
   const res = (await fetchURL(`${endpoint}?ts=${timestamp}`));
 
   return {
-    totalVolume: res.totalVolume,
     dailyVolume: res.dailyVolume,
     timestamp: dayTimestamp,
   };
@@ -21,7 +20,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetch,
-      start: 1698138000,
+      start: '2023-10-24',
     },
   },
 };

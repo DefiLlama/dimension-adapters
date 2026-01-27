@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { FetchOptions } from "../../adapters/types";
 
 const chains = [
     CHAIN.ETHEREUM,
@@ -13,7 +13,10 @@ const chains = [
     CHAIN.BLAST,
     CHAIN.XLAYER,
     CHAIN.METIS,
-    CHAIN.ARBITRUM
+    CHAIN.ARBITRUM,
+    CHAIN.ZETA,
+    CHAIN.SONEIUM,
+    CHAIN.UNIT0,
 ];
 
 const chainToId: Record<string, number> = {
@@ -28,22 +31,16 @@ const chainToId: Record<string, number> = {
     [CHAIN.METIS]: 1088,
     [CHAIN.XLAYER]: 196,
     [CHAIN.ARBITRUM]: 42161,
+    [CHAIN.ZETA]: 7000,
+    [CHAIN.SONEIUM]: 1868,
+    [CHAIN.UNIT0]: 88811,
 };
 
-const fetch = (chain: string) => async (timestamp: number) => {
-    const unixTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
-    );
-
-    const volume = (
-        await fetchURL(
-            `https://api-gateway.wowmax.exchange/statistics/chains/${chainToId[chain]}/volume?timestamp=${unixTimestamp}`
-        )
-    )?.volume;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyVolume = (await fetchURL(`https://api-gateway.wowmax.exchange/statistics/chains/${chainToId[options.chain]}/volume?timestamp=${options.startOfDay}`))?.volume;
 
     return {
-        dailyVolume: volume,
-        timestamp: unixTimestamp,
+        dailyVolume,
     };
 };
 
@@ -53,8 +50,8 @@ const adapter: any = {
             return {
                 ...acc,
                 [chain]: {
-                    fetch: fetch(chain),
-                    start: 1705104000,
+                    fetch,
+                    start: '2024-01-13',
                 },
             };
         }, {}),

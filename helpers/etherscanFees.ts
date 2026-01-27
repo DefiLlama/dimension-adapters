@@ -11,8 +11,13 @@ export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: strin
             "origin": url,
         }
     });
-    const feesToday = dailyFees.split("\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay)
-    return Number(feesToday?.split(",")[2].slice(1, -2))
+    const feesToday = dailyFees.split("\r\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay)
+
+    if (!feesToday) {
+        throw Error('no fee found for totay from etherscan')
+    }
+
+    return Number(feesToday?.split(",")[2].slice(1, -1))
 }
 
 export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string) {
@@ -37,7 +42,7 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                         dailyFees,
                     };
                 },
-                start: 1690761600
+                start: '2023-07-31'
             },
         },
         protocolType: ProtocolType.CHAIN

@@ -1,35 +1,18 @@
-import * as sdk from "@defillama/sdk";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint(
-    "GknVfnDT8h7aFsdS6Y6CeWTx3bHFnUnGxNgAUSSCQPz1",
-  ),
-  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint(
-    "GhBfNocNJJCjS4norsp6Cpiw2vJompiURM9frjgsnVdW",
-  ),
-};
-
-const v2Graph = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "pancakeFactories",
-    field: "totalVolumeUSD",
-  },
-});
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BSC]: {
-      fetch: v2Graph(CHAIN.BSC),
-      start: 1635379200,
+      fetch: getUniV2LogAdapter({ factory: '0xf0bc2E21a76513aa7CC2730C7A1D6deE0790751f'}),
+      start: '2021-10-28',
     },
     [CHAIN.FANTOM]: {
-      fetch: v2Graph(CHAIN.FANTOM),
-      start: 1637798400,
+      fetch: getUniV2LogAdapter({ factory: '0x7d82F56ea0820A9d42b01C3C28F1997721732218'}),
+      start: '2021-11-25',
     },
   },
 };

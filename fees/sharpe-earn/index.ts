@@ -1,22 +1,23 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions, ChainBlocks } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
 const supportedERC20Tokens: Record<string, string[]> = {
   [CHAIN.ARBITRUM]: [
-    "0x5979D7b546E38E414F7E9822514be443A4800529",
+    ADDRESSES.arbitrum.WSTETH,
     "0xEC70Dcb4A1EFa46b8F2D97C310C9c4790ba5ffA8",
-    "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    ADDRESSES.arbitrum.WETH,
   ],
   [CHAIN.OPTIMISM]: [
-    "0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb",
+    ADDRESSES.optimism.WSTETH,
     "0x9Bcef72be871e61ED4fBbc7630889beE758eb81D",
-    "0x4200000000000000000000000000000000000006",
+    ADDRESSES.optimism.WETH_1,
   ],
   [CHAIN.BASE]: [
-    "0x4200000000000000000000000000000000000006",
-    "0xc1cba3fcea344f92d9239c08c0568f6f2f0ee452",
-    "0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22",
+    ADDRESSES.optimism.WETH_1,
+    ADDRESSES.base.wstETH,
+    ADDRESSES.base.cbETH,
   ],
 };
 
@@ -38,15 +39,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
-      start: async () => 1710037587,
+      start: '2024-03-10',
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch,
-      start: async () => 1710037587,
+      start: '2024-03-10',
     },
     [CHAIN.BASE]: {
       fetch: fetch,
-      start: async () => 1710037587,
+      start: '2024-03-10',
     },
   },
 };

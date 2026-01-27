@@ -9,18 +9,16 @@ async function fetch() {
 
   return {
     dailyVolume: Math.round(volume24h),
-    timestamp: Date.now() / 1e3,
   };
 }
 
 const adapter = {
-  breakdown: {
-    derivatives: {
-      [CHAIN.SOLANA]: {
-        fetch: () => fetch(),
-        runAtCurrTime: true,
-        start: 1693497600,
-      },
+  version: 2,
+  adapter: {
+    [CHAIN.SOLANA]: {
+      fetch,
+      runAtCurrTime: true,
+      start: '2023-08-31',
     },
   },
 };

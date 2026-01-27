@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
@@ -48,12 +48,10 @@ const adapter: Adapter = {
   adapter: {
     [FANTOM]: {
       fetch: graphs(endpoints)(FANTOM),
-      start: 1689767230,
-      meta: {
-        methodology: '100.00% of All & Any Fees generated from All activity on Any Equity Platform Product goes solely to veEQUAL voters.'
-      }
+      start: '2023-07-19',
     },
   },
+  methodology: '100.00% of All & Any Fees generated from All activity on Any Equity Platform Product goes solely to veEQUAL voters.'
 };
 
 export default adapter;

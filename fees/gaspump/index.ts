@@ -26,9 +26,12 @@ const adapter: any = {
   adapter: {
     [CHAIN.TON]: {
       fetch,
-      start: 1725134400,
+      start: '2024-08-31',
     },
   },
+  methodology: {
+    Fees: "Tokens trading and launching fees paid by users.",
+  }
 };
 
 export default adapter;

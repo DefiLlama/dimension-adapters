@@ -14,8 +14,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     bsquared: {
       fetch,
-      start: 0,
-      runAtCurrTime: true,
+            runAtCurrTime: true,
     }
   }
 }

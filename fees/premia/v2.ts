@@ -65,7 +65,7 @@ function toNumber(value: string): number {
 async function getFeeRevenueData(
   url: string,
   timestamp: number
-): Promise<FetchResultFees & { totalDailyHoldersRevenue: string }> {
+): Promise<FetchResultFees> {
   const _timestamp = getTimestampAtStartOfNextDayUTC(timestamp);
   const fromTimestamp = _timestamp - 60 * 60 * 24
   const toTimestamp = _timestamp
@@ -92,24 +92,13 @@ async function getFeeRevenueData(
   const dailyFees = !isYesterdayEmpty && !isTodayEmpty ? toNumber(today.totalFeeRevenueDailies[0].totalFeeRevenueInUsd) - toNumber(yesterday.totalFeeRevenueDailies[0].totalFeeRevenueInUsd) : 0;
   // const dailyPremiums = !isYesterdayEmpty && !isTodayEmpty ? toNumber(today.totalPremiumsDailies[0].totalPremiumsInUsd) - toNumber(yesterday.totalPremiumsDailies[0].totalPremiumsInUsd) : 0;
 
-
-  const totalFees = toNumber(today._totalFeeRevenueDailies[0].totalFeeRevenueInUsd);
-  // const totalPremiums = toNumber(today._totalPremiumsDailies[0].totalPremiumsInUsd);
-
   return {
     timestamp: timestamp,
-    dailyFees: dailyFees.toString(),
-    dailyUserFees: dailyFees.toString(),
-    dailyRevenue: (dailyFees * 0.8).toString(),
-    dailyProtocolRevenue: (dailyFees * 0.2).toString(),
-    dailyHoldersRevenue: (dailyFees * 0.8).toString(),
-    // dailySupplySideRevenue: dailyPremiums.toString(),
-    totalFees: totalFees.toString(),
-    totalUserFees: totalFees.toString(),
-    totalRevenue: (totalFees * 0.8).toString(),
-    totalProtocolRevenue: (totalFees * 0.2).toString(),
-    totalDailyHoldersRevenue: (totalFees * 0.8).toString(),
-    // totalSupplySideRevenue: totalPremiums.toString(),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: (dailyFees * 0.8),
+    dailyProtocolRevenue: (dailyFees * 0.2),
+    dailyHoldersRevenue: (dailyFees * 0.8),
   };
 }
 

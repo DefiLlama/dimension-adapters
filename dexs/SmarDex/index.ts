@@ -1,72 +1,50 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { ethers, Interface } from "ethers";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import {
   DEFAULT_TOTAL_VOLUME_FIELD,
   getGraphDimensions2,
 } from "../../helpers/getUniSubgraph";
-import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import { getEnv } from "../../helpers/env";
+import { CHAIN_CONFIG, getGraphHeaders } from "./config";
+import { USDNVolumeService } from "./usdn-volume";
 
-const SMARDEX_SUBGRAPH_API_KEY = getEnv('SMARDEX_SUBGRAPH_API_KEY');
-const SMARDEX_SUBGRAPH_GATEWAY = "https://subgraph.smardex.io/defillama";
-
-// if (!SMARDEX_SUBGRAPH_API_KEY) {
-//   console.error('')
-//   // throw new Error("Missing SMARDEX_SUBGRAPH_API_KEY env variable");
-// }
-
-const defaultHeaders = {
-  "x-api-key": SMARDEX_SUBGRAPH_API_KEY,
-};
-
-const graphUrls = {
-  [CHAIN.ARBITRUM]: `${SMARDEX_SUBGRAPH_GATEWAY}/arbitrum`,
-  [CHAIN.BASE]: `${SMARDEX_SUBGRAPH_GATEWAY}/base`,
-  [CHAIN.BSC]: `${SMARDEX_SUBGRAPH_GATEWAY}/bsc`,
-  [CHAIN.ETHEREUM]: `${SMARDEX_SUBGRAPH_GATEWAY}/ethereum`,
-  [CHAIN.POLYGON]: `${SMARDEX_SUBGRAPH_GATEWAY}/polygon`,
-};
-
-type IMap = {
-  [s: string | Chain]: any;
-}
-const graphRequestHeaders:IMap = {
-  [CHAIN.ARBITRUM]: defaultHeaders,
-  [CHAIN.BASE]: defaultHeaders,
-  [CHAIN.BSC]: defaultHeaders,
-  [CHAIN.ETHEREUM]: defaultHeaders,
-  [CHAIN.POLYGON]: defaultHeaders,
-};
-
-const startTimes = {
-  [CHAIN.ARBITRUM]: 1689582249,
-  [CHAIN.BASE]: 1691491872,
-  [CHAIN.BSC]: 1689581494,
-  [CHAIN.ETHEREUM]: 1678404995,
-  [CHAIN.POLYGON]: 1689582144,
-}
-
-/**
- * @note We are using this method that allow us to use http headers
- * The method `getGraphDimensions` try returns daily fees and total fees
- * but we are currently not using them in our subgraphs, so they are undefined
- */
 const graphs = getGraphDimensions2({
-  graphUrls,
-  graphRequestHeaders,
+  graphUrls: CHAIN_CONFIG.GRAPH_URLS,
+  graphRequestHeaders: getGraphHeaders(),
   totalVolume: {
     factory: "smardexFactories",
     field: DEFAULT_TOTAL_VOLUME_FIELD,
   },
 });
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2 }
+const adapter: SimpleAdapter = { adapter: {}, version: 2 };
 
-Object.keys(graphUrls).map((chain: string) => {
-  adapter.adapter[chain] = {
-    fetch: graphs(chain), 
-    start: startTimes[chain]
-  }
-})
+Object.keys(CHAIN_CONFIG.GRAPH_URLS).forEach((chain: string) => {
+  const subgraphFetching = graphs;
+
+  adapter.adapter![chain] = {
+    fetch: async (options: FetchOptions) => {
+      try {
+        const smardexDimensions = await subgraphFetching(options);
+
+        if (chain === CHAIN.ETHEREUM) {
+          const volumeService = new USDNVolumeService(options);
+          const usdnVolume = await volumeService.getUsdnVolume();
+          smardexDimensions.dailyVolume =
+            usdnVolume + Number(smardexDimensions.dailyVolume);
+        }
+
+        return {
+          ...smardexDimensions,
+        };
+      } catch (error) {
+        console.error(`Error fetching data for ${chain}:`, error);
+        return subgraphFetching(options)
+      }
+    },
+
+    start: CHAIN_CONFIG.START_TIMES[chain],
+  };
+});
 
 export default adapter;

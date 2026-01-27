@@ -40,7 +40,7 @@ const pools: string[] = [
 const core_pool = '0xb01b315e32d1d9b5ce93e296d483e1f0aad39e75';
 const senior_pool = '0x8481a6ebaf5c7dabc3f7e09e44a89531fd31f822';
 
-const fetchFees = async ({ createBalances,  getLogs, }: FetchOptions) => {
+const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
@@ -76,9 +76,14 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      start: 1629331200
+      start: '2021-08-19',
     }
   },
   version: 2,
+  methodology: {
+    Fees: "Interest, payment, and reserve fees paid by users.",
+    Revenue: "Reserve fees are revenue.",
+    SupplySideRevenue: "Interest and payment fees are distributed to suppliers.",
+  }
 }
 export default adapters;

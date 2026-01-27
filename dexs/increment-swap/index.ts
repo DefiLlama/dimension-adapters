@@ -21,17 +21,13 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
       volume
     };
   });
-  const totalVolume = historicalVolume
-    .filter(volItem =>  getUniqStartOfTodayTimestamp(new Date(volItem.time)) <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0)
   const date = new Date(dayTimestamp * 1000);
   const todayDateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.time === todayDateString)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -41,7 +37,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FLOW]: {
       fetch,
-      start: 1650844800,
+      start: '2022-04-25',
     },
   },
 };

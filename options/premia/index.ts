@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains"
-import { BreakdownAdapter, ChainEndpoints } from "../../adapters/types"
+import { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../../adapters/types"
 
 import getV2Data from "./v2"
 import getV3Data from "./v3"
@@ -40,16 +40,6 @@ const adapter: BreakdownAdapter = {
         [chain]: {
           fetch: async (ts: string) => await getV2Data(v2Endpoints[chain], ts),
           start: v2StartTimes[chain],
-          meta: {
-            methodology: {
-              UserFees:
-                "Traders pay taker fees on each trade up to 3% of the option premium.",
-              ProtocolRevenue: "The protocol collects 20% of the taker fees.",
-              SupplySideRevenue:
-                "Liquidity providers earn revenue from market-making options.",
-              HoldersRevenue: "vxPREMIA holders collect 80% of the taker fees.",
-            },
-          },
         },
       }
     }, {}),
@@ -58,19 +48,9 @@ const adapter: BreakdownAdapter = {
       return {
         ...acc,
         [chain]: {
-          fetch: async (ts: number) =>
-            await getV3Data(v3Endpoints[chain], ts, chain),
+          fetch: async (_ts: number, _t: any, options: FetchOptions) =>
+            await getV3Data(v3Endpoints[chain], options.startOfDay, chain),
           start: v3StartTimes[chain],
-          meta: {
-            methodology: {
-              UserFees:
-                "Traders pay taker fees on each trade up to 3% of the option premium.",
-              ProtocolRevenue: "The protocol collects 10% of the taker fees.",
-              SupplySideRevenue:
-                "Liquidity providers collect 50% of the taker fees and earn revenue from market-making options.",
-              HoldersRevenue: "vxPREMIA holders collect 40% of the taker fees.",
-            },
-          },
         },
       }
     }, {}),

@@ -42,7 +42,6 @@ const fetch = async ({ fromTimestamp, toTimestamp, }: FetchOptions) => {
   const startVolume = await getTotalVolume(fromTimestamp)
 
   return {
-    totalFees: endVolume/1e6,
     dailyFees: (endVolume - startVolume)/1e6,
   };
 }
@@ -53,7 +52,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.FLOW]: {
       fetch,
-      start: 1430971,
     },
   },
 };

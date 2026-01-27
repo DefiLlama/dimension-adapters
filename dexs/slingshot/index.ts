@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -59,27 +59,27 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: 1683590400
+      start: '2023-05-09'
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: 1683590400
+      start: '2023-05-09'
     },
     [CHAIN.POLYGON]: {
       fetch: fetchVolume(CHAIN.POLYGON),
-      start: 1683590400
+      start: '2023-05-09'
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: 1683590400
+      start: '2023-05-09'
     },
     [CHAIN.BSC]: {
       fetch: fetchVolume(CHAIN.BSC),
-      start: 1683590400
+      start: '2023-05-09'
     },
     [CHAIN.CANTO]: {
       fetch: fetchVolume(CHAIN.CANTO),
-      start: 1683590400
+      start: '2023-05-09'
     }
   }
 }

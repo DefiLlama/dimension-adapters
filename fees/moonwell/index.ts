@@ -100,24 +100,31 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     return { dailyFees, dailyRevenue }
 }
 
+const methodology = {
+    Fees: "Total interest paid by borrowers",
+    Revenue: "Protocol's share of interest treasury",
+    ProtocolRevenue: "Protocol's share of interest into treasury",
+    HoldersRevenue: "No revenue for WELL holders.",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+}
+
 function moonwellExport(config: IJSON<string>) {
     const exportObject: BaseAdapter = {}
     Object.entries(config).map(([chain, market]) => {
         exportObject[chain] = {
             fetch: (async (options: FetchOptions) => {
                 const { dailyFees, dailyRevenue } = await getFees(market, options, {})
-                const dailyHoldersRevenue = dailyRevenue
                 const dailySupplySideRevenue = options.createBalances()
                 dailySupplySideRevenue.addBalances(dailyFees)
                 Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
                     dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
                 })
-                return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+                return { dailyFees, dailyRevenue, dailyHoldersRevenue: 0, dailySupplySideRevenue }
             }),
-            start: 0,
         }
     })
-    return { adapter: exportObject, version: 2 } as SimpleAdapter
+    // dailySupplySideRevenue could be negative if protocol revenue exceeds total fees, though unlikely in normal conditions(like bad liquidations)
+    return { adapter: exportObject, version: 2, allowNegativeValue: true, methodology, } as SimpleAdapter
 }
 
 export default moonwellExport({ base: baseUnitroller, moonbeam: moonbeamUnitroller, moonriver: moonriverUnitroller, optimism: optimismUnitroller });

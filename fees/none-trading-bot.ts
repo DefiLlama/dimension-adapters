@@ -1,9 +1,8 @@
-import { DISABLED_ADAPTER_KEY, FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import disabledAdapter from "../helpers/disabledAdapter";
 import { queryIndexer } from "../helpers/indexer";
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch: any = async (_a: number, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
   const revenue_split = await queryIndexer(`
       SELECT
@@ -23,17 +22,21 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions): Pro
         `, options);
   revenue_split.forEach((e: any) => dailyFees.addGasToken(Number(e.eth_value)));
 
-  return { dailyFees, dailyRevenue: dailyFees, timestamp }
+  return { dailyFees, dailyRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2024-12-14',
   adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1690675200,
+      start: '2023-07-30',
     },
   },
+  methodology: {
+    Fees: 'NFT trading fees paid by users.',
+    Revenue: 'NFT trading fees paid by users.',
+  }
 };
 
 export default adapter;

@@ -6,8 +6,6 @@ import {
 
 import fetchURL from "../../utils/fetchURL";
 
-const urlTotalStats =
-  "https://api.mngo.cloud/data/v4/stats/protocol-total-volume-fees";
 const urlDailyStats =
   "https://api.mngo.cloud/data/v4/stats/protocol-daily-volume-fees";
 
@@ -31,11 +29,9 @@ interface DailyStats {
 const fetchSpotVolume = async (
   timestamp: number,
 ): Promise<FetchResultVolume> => {
-  const totalStats: TotalStats = (await fetchURL(urlTotalStats));
   const dailyStats: DailyStats = (await fetchURL(urlDailyStats));
   return {
     dailyVolume: dailyStats?.spot_volume_24h.toString(),
-    totalVolume: totalStats?.spot_volume.toString(),
     timestamp: timestamp,
   };
 };
@@ -43,11 +39,9 @@ const fetchSpotVolume = async (
 const fetchPerpVolume = async (
   timestamp: number,
 ): Promise<FetchResultVolume> => {
-  const totalStats: TotalStats = (await fetchURL(urlTotalStats));
   const dailyStats: DailyStats = (await fetchURL(urlDailyStats));
   return {
     dailyVolume: dailyStats?.perp_volume_24h.toString(),
-    totalVolume: totalStats?.perp_volume.toString(),
     timestamp: timestamp,
   };
 };
@@ -58,20 +52,17 @@ const adapter: BreakdownAdapter = {
       solana: {
         fetch: fetchSpotVolume,
         runAtCurrTime: true,
-        customBackfill: undefined,
-        start: 0,
-      },
+              },
     },
     perp: {
       solana: {
         fetch: fetchPerpVolume,
         runAtCurrTime: true,
-        customBackfill: undefined,
-        start: 0,
-      },
+              },
     },
   },
   protocolType: ProtocolType.PROTOCOL,
+  deadFrom: '2025-02-05',
 };
 
 export default adapter;

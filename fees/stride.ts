@@ -1,6 +1,6 @@
-import { Adapter, FetchResult } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
 interface DailyFeeResponse {
   fees: {
@@ -11,118 +11,33 @@ interface DailyFeeResponse {
 
 const chainOverrides: { [key: string]: string } = {
   terra: "terra2",
+  islm: "haqq",
 };
 
-const fetch = (chain: string) => {
-  return async (timestamp: number): Promise<FetchResult> => {
-    const overriddenChain = chainOverrides[chain] || chain; // Override if exists, else use original
-    const response: DailyFeeResponse = await httpGet(
-      `https://edge.stride.zone/api/${overriddenChain}/stats/fees`
-    );
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const overriddenChain = chainOverrides[options.chain] || options.chain; // Override if exists, else use original
+  const response: DailyFeeResponse = await fetchURL(
+    `https://stride-fees-production.up.railway.app/api/${overriddenChain}/stats/fees`
+  );
 
-    return {
-      timestamp: timestamp,
-      dailyFees: String(response.fees.dailyFees),
-      dailyRevenue: String(response.fees.dailyRevenue),
-    };
+  return {
+    dailyFees: response.fees.dailyFees,
+    dailyRevenue: response.fees.dailyRevenue,
   };
 };
 
-const meta = {
+const info = {
   methodology: {
     Fees: "Fees are staking rewards earned by tokens staked with Stride. They are measured across Stride's LSD tokens' yields and converted to USD terms.",
-    Revenue:
-      "Stride collects 10% of liquid staked assets's staking rewards. These fees are measured across Stride's LSD tokens' yields and converted to USD terms.",
+    Revenue: "Stride collects 10% of liquid staked assets's staking rewards. These fees are measured across Stride's LSD tokens' yields and converted to USD terms.",
   },
 };
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.COSMOS]: {
-      fetch: fetch("cosmos"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    celestia: {
-      fetch: fetch("celestia"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    osmosis: {
-      fetch: fetch("osmosis"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    dydx: {
-      fetch: fetch("dydx"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    dymension: {
-      fetch: fetch("dymension"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    juno: {
-      fetch: fetch("juno"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    stargaze: {
-      fetch: fetch("stargaze"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    terra: {
-      fetch: fetch("terra"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    evmos: {
-      fetch: fetch("evmos"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    injective: {
-      fetch: fetch("injective"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    umee: {
-      fetch: fetch("umee"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    comdex: {
-      fetch: fetch("comdex"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    haqq: {
-      fetch: fetch("haqq"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-    band: {
-      fetch: fetch("band"),
-      runAtCurrTime: true,
-      start: 0,
-      meta,
-    },
-  },
+const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.COSMOS, CHAIN.CELESTIA, CHAIN.OSMOSIS, CHAIN.JUNO, CHAIN.TERRA, CHAIN.EVMOS, CHAIN.INJECTIVE, 'umee', 'comdex', CHAIN.HAQQ, 'band', 'dydx', 'stargaze'],
+  methodology: info.methodology,
+  runAtCurrTime: true,
 };
 
-export default adapter; // yarn test fees stride
+export default adapter;

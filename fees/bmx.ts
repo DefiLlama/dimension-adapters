@@ -6,9 +6,9 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api-v2.morphex.trade/subgraph/2vZHkWfx8g27Tri5LkTbhvCExCQcXJ3f28X2BwzFhjf6",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.2/gn",
   [CHAIN.MODE]:
-    "https://api-v2.morphex.trade/subgraph/8tp7xrDSCuutJ5omjfQKHvkGJpLszqPVWg3pby9XMLEz",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
 };
 
 const methodology = {
@@ -36,6 +36,16 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
 
   const graphRes = await request(endpoints[chain], graphQuery);
 
+  if (!graphRes.feeStat) {
+    return {
+      dailyFees: 0,
+      dailyUserFees: 0,
+      dailyRevenue: 0,
+      dailyHoldersRevenue: 0,
+      dailySupplySideRevenue: 0,
+    }
+  }
+
   const dailyFee =
     parseInt(graphRes.feeStat.mint) +
     parseInt(graphRes.feeStat.burn) +
@@ -58,20 +68,15 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs,
-      start: 1694304000,
-      meta: {
-        methodology,
-      },
+      start: '2023-09-10',
     },
     [CHAIN.MODE]: {
       fetch: graphs,
-      start: 1720627435,
-      meta: {
-        methodology,
-      },
+      start: '2024-07-10',
     },
   },
 };

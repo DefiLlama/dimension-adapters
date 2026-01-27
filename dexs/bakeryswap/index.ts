@@ -1,12 +1,6 @@
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 import { CHAIN } from "../../helpers/chains";
 
-/*
-BROKEN! subgraph has only indexed up until Aug-11-2021 and is too slow to catch up
-export default univ2Adapter({
-    [CHAIN.BSC]: "https://api.bscgraph.org/subgraphs/name/bakeryswap",
-  }, {
-  factoriesName: "bakerySwapFactories",
-  dayData: "bakerySwapDayData",
-});
-*/
+export default uniV2Exports({
+  [CHAIN.BSC]: { factory: '0x01bF7C66c6BD861915CdaaE475042d3c4BaE16A7', },
+})

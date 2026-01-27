@@ -1,12 +1,19 @@
 import request, { gql } from 'graphql-request'
-import { BreakdownAdapter, Fetch, SimpleAdapter } from '../../adapters/types'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume'
 import { getEnv } from '../../helpers/env'
 
 const apiKey = getEnv('PERENNIAL_V2_SUBGRAPH_API_KEY')
-const graphUrls: { [key: string]: string } = {
-  [CHAIN.ARBITRUM]: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum-new/api`,
+const chainConfig: { [chain: string]: { start: string, graphUrl: string, deadFrom?: string } } = {
+  [CHAIN.ARBITRUM]: {
+    start: '2023-09-29',
+    graphUrl: `https://subgraph.satsuma-prod.com/${apiKey}/equilibria/perennial-v2-arbitrum-new/api`,
+    deadFrom: '2025-03-02'
+  },
+  [CHAIN.PERENNIAL]: {
+    start: '2025-02-13',
+    graphUrl: 'https://api.perennial.foundation/subgraphs/perennial'
+  },
 }
 
 const volumeDataQuery = gql`
@@ -41,62 +48,35 @@ interface IGraphResponse {
   }>
 }
 
-const getFetch =
-  (query: string) =>
-  (chain: string): Fetch =>
-  async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(
-      new Date(timestamp * 1000)
-    )
-    const endTimestamp = dayTimestamp + 86400
-
-    const volumeData: IGraphResponse = await request(graphUrls[chain], query, {
-      period: dayTimestamp.toString(),
-      periodEnd: endTimestamp.toString(),
-    })
-
-    const totalDailyVolume = volumeData.daily.reduce(
-      (sum, el) =>
-        (
-          BigInt(sum) +
-          BigInt(el.longNotional) +
-          BigInt(el.shortNotional)
-        ).toString(),
-      '0'
-    )
-    const totalVolume = volumeData.total.reduce(
-      (sum, el) =>
-        (
-          BigInt(sum) +
-          BigInt(el.longNotional) +
-          BigInt(el.shortNotional)
-        ).toString(),
-      '0'
-    )
-
-    return {
-      timestamp: dayTimestamp,
-      dailyVolume: (Number(totalDailyVolume) * 10 ** -6).toString(),
-      totalVolume: (Number(totalVolume) * 10 ** -6).toString(),
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const config = chainConfig[options.chain];
+  if (config.deadFrom) {
+    const deadFromTimestamp = Date.parse(config.deadFrom) / 1000;
+    if (options.startOfDay > deadFromTimestamp) {
+      return {
+        dailyVolume: 0,
+      }
     }
   }
+  const dailyData: IGraphResponse = await request(chainConfig[options.chain].graphUrl, volumeDataQuery, {
+    period: String(options.startOfDay),
+    periodEnd: String(options.startOfDay + 86400),
+  })
 
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.ARBITRUM]: 1695945600,
+  const totalDailyVolume = dailyData.daily.reduce(
+    (sum, el) => BigInt(sum) + BigInt(el.longNotional) + BigInt(el.shortNotional),
+    BigInt(0)
+  ).toString()
+
+  return {
+    dailyVolume: (Number(totalDailyVolume) * 10 ** -6).toString(),
+  }
 }
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    derivatives: Object.keys(graphUrls).reduce((acc, chain) => {
-      return {
-        ...acc,
-        [chain]: {
-          fetch: getFetch(volumeDataQuery)(chain),
-          start: startTimestamps[chain],
-        },
-      }
-    }, {}),
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  adapter: chainConfig
 }
 
 export default adapter

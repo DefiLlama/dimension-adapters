@@ -1,4 +1,5 @@
-import { Chain } from "@defillama/sdk/build/general";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -19,7 +20,10 @@ const contracts: IAddress = {
     "0xcDafB1b2dB43f366E48e6F614b8DCCBFeeFEEcD3",
     "0x268Ca24DAefF1FaC2ed883c598200CcbB79E931D",
   ],
-  [CHAIN.BSC]: ["0x138EB30f73BC423c6455C53df6D89CB01d9eBc63"],
+  [CHAIN.BSC]: [
+    "0x138EB30f73BC423c6455C53df6D89CB01d9eBc63",
+    "0x962Bd449E630b0d928f308Ce63f1A21F02576057"
+  ],
   [CHAIN.AVAX]: [
     "0x5634c4a5FEd09819E3c46D86A965Dd9447d86e47",
     "0x12dC9256Acc9895B076f6638D628382881e62CeE",
@@ -43,7 +47,9 @@ const contracts: IAddress = {
     "0x36ed193dc7160D3858EC250e69D12B03Ca087D08",
     "0x4dCBFC0249e8d5032F89D6461218a9D2eFff5125",
   ],
-  [CHAIN.LINEA]: ["0x81F6138153d473E8c5EcebD3DC8Cd4903506B075"],
+  [CHAIN.LINEA]: [
+    "0x81F6138153d473E8c5EcebD3DC8Cd4903506B075"
+  ],
   [CHAIN.MANTLE]: [
     "0x4c1d3Fc3fC3c177c3b633427c2F769276c547463",
     "0xAc290Ad4e0c891FDc295ca4F0a6214cf6dC6acDC",
@@ -54,19 +60,55 @@ const contracts: IAddress = {
     "0xdc181Bd607330aeeBEF6ea62e03e5e1Fb4B6F7C7",
     "0x27a16dc786820B16E5c9028b75B99F6f604b5d26",
   ],
-  [CHAIN.KAVA]: ["0x41A5b0470D96656Fb3e8f68A218b39AdBca3420b"],
+  [CHAIN.KAVA]: [
+    "0x41A5b0470D96656Fb3e8f68A218b39AdBca3420b"
+  ],
   [CHAIN.SCROLL]: [
     "0xC2b638Cb5042c1B3c5d5C969361fB50569840583",
     "0x3Fc69CC4A842838bCDC9499178740226062b14E4",
   ],
-  [CHAIN.AURORA]: ["0x81F6138153d473E8c5EcebD3DC8Cd4903506B075"],
-};
+  [CHAIN.AURORA]: [
+    "0x81F6138153d473E8c5EcebD3DC8Cd4903506B075"
+  ],
+  [CHAIN.UNICHAIN]: [
+    "0xe9aBA835f813ca05E50A6C0ce65D0D74390F7dE7"
+  ],
+  [CHAIN.ABSTRACT]: [
+    "0x221F0E1280Ec657503ca55c708105F1e1529527D"
+  ],
+  [CHAIN.XDAI]: [
+    "0xB1EeAD6959cb5bB9B20417d6689922523B2B86C3",
+    "0xe9aBA835f813ca05E50A6C0ce65D0D74390F7dE7",
+  ],
+  [CHAIN.SEI]:[
+    "0x45d417612e177672958dC0537C45a8f8d754Ac2E",
+    "0x0dB9afb4C33be43a0a0e396Fd1383B4ea97aB10a"
+  ], 
+  [CHAIN.LIGHTLINK_PHOENIX]: [
+    "0x8731d54E9D02c286767d56ac03e8037C07e01e98"
+  ],
+  [CHAIN.HEMI]: [
+    ADDRESSES.fuse.WETH_3
+  ],
+  [CHAIN.SONIC]: [
+    "0x45d417612e177672958dC0537C45a8f8d754Ac2E"
+  ],
+  [CHAIN.SONEIUM]:[
+    "0x45f1A95A4D3f3836523F5c83673c797f4d4d263B",
+    ADDRESSES.fuse.WETH_3
+  ],
+  [CHAIN.MANTA]:[
+    "0x9895D81bB462A195b4922ED7De0e3ACD007c32CB"
+  ],
+  [CHAIN.SWELLCHAIN]:[
+    "0xCc0587aeBDa397146cc828b445dB130a94486e74"
+  ]
+};  
 
 async function getPoolFees(
   { api, fromApi, toApi, createBalances }: FetchOptions,
   contracts: string[]
 ): Promise<FetchResultV2> {
-  const totalFees = createBalances();
   const dailyFees = createBalances();
 
   const [assets, prevFees, currFees] = await Promise.all([
@@ -80,11 +122,10 @@ async function getPoolFees(
     const currFee = currFees[index];
 
     if (!prevFee || !currFee) return;
-    totalFees.add(asset, currFees[index]);
     dailyFees.add(asset, currFees[index] - prevFees[index]);
   });
 
-  return { totalFees, dailyFees };
+  return { dailyFees };
 }
 
 function adapterByChain(contracts: string[], timestamp: number) {
@@ -97,10 +138,16 @@ function adapterByChain(contracts: string[], timestamp: number) {
 const timestamp = 1716892946;
 const adapter: Adapter = {
   adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
-    acc[chain] = adapterByChain(contracts[chain], timestamp);
+    acc[chain] = {
+      ...adapterByChain(contracts[chain], timestamp),
+    };
     return acc;
   }, {}),
   version: 2,
+  allowNegativeValue: true, // due to bridge gas fees
+  methodology: {
+    Fees: "All fees paid by users while using Stargate bridge.",
+  }
 };
 
 export default adapter;

@@ -25,6 +25,7 @@ export default uniV2Exports({
   [CHAIN.NEON]: { factory },
   [CHAIN.OPTIMISM]: { factory },
   [CHAIN.POLYGON]: { factory },
+  [CHAIN.SONIC]: { factory },
   [CHAIN.TELOS]: { factory },
   [CHAIN.ERA]: { factory: FACTORY_ADDRESS_ZKSYNC },
   [CHAIN.ZORA]: { factory },

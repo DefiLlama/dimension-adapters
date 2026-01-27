@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { Adapter, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -39,12 +39,10 @@ const fetch = (chain: Chain) => {
 
     const res: IProtocolData = await request(endpoints[chain], graphQuery);
     const dailyVolume = Number(res.protocolByDay.totalTradingVolume) / 10 ** 18;
-    const totalVolume = Number(res.protocol.totalTradingVolume) / 10 ** 18;
 
     return {
       timestamp,
       dailyVolume: dailyVolume.toString(),
-      totalVolume: totalVolume.toString(),
     };
   };
 };
@@ -53,7 +51,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CELO]: {
       fetch: fetch(CHAIN.CELO),
-      start: 1690848000,
+      start: '2023-08-01',
     },
   },
 };

@@ -46,11 +46,7 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const statsRes = await getGQLClient().request(getDailyVolume());
   const historicalVolume: IExchangeStats = statsRes.exchangeStats;
-  const cumulativeVolume: IExchangeTotalVolume = statsRes.exchangeTotalVolume;
   return {
-    totalVolume: cumulativeVolume.totalVolume
-      ? cumulativeVolume.totalVolume
-      : undefined,
     dailyVolume: historicalVolume.volume24H
       ? `${historicalVolume.volume24H}`
       : undefined,
@@ -62,7 +58,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetch,
-      start: 1673568000,
+      start: '2023-01-13',
       runAtCurrTime: true,
     },
   },

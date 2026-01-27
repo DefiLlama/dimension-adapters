@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     ton: {
       fetch,
-      start: 1725256740,
+      start: '2024-09-02',
     },
   },
 }

@@ -22,7 +22,7 @@ const fetch = async (timestamp: number) => {
   const results: IVolume = (await request(API_URL, VolumeQuery)).defillama;
   const dailyVolume = results?.totalVolumeUSD24h;
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 }
@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ELROND]: {
       fetch: fetch,
       runAtCurrTime: true,
-      start: 1676592000
+      start: '2023-02-17'
     },
   },
 };

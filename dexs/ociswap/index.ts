@@ -23,11 +23,9 @@ const fetchVolume = (poolType: 'basic' | 'precision') => {
         const index = response.findIndex(pool => pool.pool_type === poolType);
 
         const dailyVolume = Number(response[index].volume.usd["24h"]);
-        const totalVolume = Number(response[index].volume.usd.total);
 
         return {
-            dailyVolume: `${dailyVolume}`,
-            totalVolume: `${totalVolume}`,
+            dailyVolume: dailyVolume,
             timestamp
         };
     };
@@ -39,14 +37,14 @@ const adapters: BreakdownAdapter = {
         basic: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchVolume('basic'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         },
         precision: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchVolume('precision'),
-                start: 1696118400,
+                start: '2023-10-01',
                 // runAtCurrTime: true
             }
         }

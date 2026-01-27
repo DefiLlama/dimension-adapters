@@ -1,46 +1,11 @@
-import { ChainEndpoints, DISABLED_ADAPTER_KEY, SimpleAdapter } from "../../adapters/types";
-import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
-import customBackfill from "../../helpers/customBackfill";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import { getStartTimestamp } from "../../helpers/getStartTimestamp";
-import disabledAdapter from "../../helpers/disabledAdapter";
+import { SimpleAdapter } from "../../adapters/types";
+import { getFeesExport } from "../../helpers/balancer";
 
-const endpoints: ChainEndpoints = {
-  [CHAIN.KLAYTN]: "https://graph-prod.klex.finance/subgraphs/name/klex-staging-2-mainnet",
-};
-
-const graphParams = {
-  totalVolume: {
-    factory: "balancers",
-    field: "totalSwapVolume",
+const adapters: SimpleAdapter = {
+  adapter: {
+    [CHAIN.KLAYTN]: {fetch: getFeesExport('0xb519Cf56C63F013B0320E89e1004A8DE8139dA27'), },
   },
-}
-
-
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  ...graphParams
-});
-
-const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: graphs(chain as Chain),
-        customBackfill: customBackfill(chain as Chain, graphs),
-        start: getStartTimestamp({
-          endpoints,
-          chain: chain,
-          dailyDataField: `balancerSnapshots`,
-          dateField: 'timestamp',
-          volumeField: 'totalSwapVolume'
-        }),
-      }
-    }
-  }, {})
 };
-adapter.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
-export default adapter;
+export default adapters;

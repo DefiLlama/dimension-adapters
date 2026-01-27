@@ -11,8 +11,8 @@ const path = require('path')
 const rootFolder = projectsDir
 
 
-const ibcChains = ['ibc', 'terra', 'terra2', 'crescent', 'osmosis', 'kujira', 'stargaze', 'juno', 'injective', 'cosmos', 'comdex', 'umee', 'orai', 'persistence', 'fxcore', 'neutron', 'quasar', 'chihuahua', 'sei', 'archway', 'migaloo', 'secret', 'aura', 'xpla', 'bostrom']
-const ignoredChains = ['tezos', 'waves', 'algorand', 'klaytn', 'astar', 'iotex', 'elrond', 'defichain', 'cardano', ...ibcChains]
+const ibcChains = ['ibc', 'terra', 'terra2', 'crescent', 'osmosis', 'kujira', 'stargaze', 'juno', 'injective', 'cosmos', 'comdex', 'umee', 'orai', 'persistence', 'fxcore', 'neutron', 'quasar', 'chihuahua', 'sei', 'archway', 'migaloo', 'secret', 'aura', 'xpla', 'bostrom', 'noble',]
+const ignoredChains = ['tezos', 'waves', 'algorand', 'klaytn', 'astar', 'iotex', 'elrond', 'defichain', 'cardano', 'ripple', ...ibcChains]
 
 function run() {
   ignoredChains.forEach(i => delete allLabels[i])
@@ -38,7 +38,7 @@ function updateFile(file) {
 
   Object.entries(allLabels).forEach(([chain, mapping]) => {
     const label = ['ADDRESSES', chain]
-    if (chain === 'null') {
+    if (chain === 'null' || chain === 'GAS_TOKEN_2' ) {
       updateFileStr([...label].join('.'), mapping, file)
     } else {
       Object.entries(mapping).forEach(([symbol, addr]) => {

@@ -1,9 +1,7 @@
 
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoint = "https://data-api.claimswap.org/dashboard/charts/tradingvolume";
@@ -35,17 +33,11 @@ const fetch = async (timestamp: number) => {
     } as IVolume
   });
 
-  const totalVolume = historicalVolume
-  .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
-  .reduce((acc, { volume }) => acc + Number(volume), 0)
-
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: dailyVolume,
   };
 };
 
@@ -53,7 +45,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch,
-      customBackfill: customBackfill(CHAIN.KLAYTN as Chain, (_chian: string) => fetch),
       start: START_TIME,
     },
   }

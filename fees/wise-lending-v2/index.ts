@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { ARBITRUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 const feeMaangerContract = "0x90a022796798f9dbA1Da0f8645234B284d4E8EC6";
 
 const fetch: any = async ({ api, fromApi, createBalances, getLogs, }: FetchOptions) => {
@@ -13,9 +13,9 @@ const fetch: any = async ({ api, fromApi, createBalances, getLogs, }: FetchOptio
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
-        [ARBITRUM]: {
+        [CHAIN.ARBITRUM]: {
             fetch,
-            start: 1727740800,
+            start: '2024-10-01',
         },
     },
 };

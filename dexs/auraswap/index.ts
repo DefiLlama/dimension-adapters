@@ -1,15 +1,16 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
+import { getUniV2LogAdapter } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('HimtcQxxRnR2Uj4pq7EZQ3nUnhz8f5UJu7uax6WuYCGt'),
-}, {
-  factoriesName: "factories",
-  dayData: "dayData",
-  dailyVolume: "volumeUSD",
-  totalVolume: "volumeUSD",
-});
+const adapter: SimpleAdapter = {
+  version: 2,
+  methodology: {
+    Fees: 'Users pay 03% per swap.',
+    UserFees: 'Users pay 03% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  fetch: getUniV2LogAdapter({ factory: '0x015DE3ec460869eb5ceAe4224Dc7112ac0a39303', userFeesRatio: 1, revenueRatio: 0 }),
+  chains: [CHAIN.POLYGON],
+}
 
-adapters.adapter.polygon.start = 1654992851;
-export default adapters;
+export default adapter;

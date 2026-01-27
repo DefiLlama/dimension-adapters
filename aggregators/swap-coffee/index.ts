@@ -1,25 +1,20 @@
 import { Adapter, FetchV2 } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { DAY, getTimestampAtStartOfDay } from "../../utils/date";
 
 const statisticsEndpoint = "https://backend.swap.coffee/v1/statistics/generic"
 
-const fetch: FetchV2 = async ({startTimestamp}) => {
-    const start = getTimestampAtStartOfDay(startTimestamp)
-    const end = start + DAY
-
+const fetch: FetchV2 = async ({startTimestamp, endTimestamp}) => {
     const statistics = await httpGet(
         statisticsEndpoint,
         {
             params: {
-                from: start,
-                to: end
+                from: startTimestamp,
+                to: endTimestamp - 1
             }
         })
 
     return {
-        timestamp: end,
         dailyVolume: statistics?.volume,
         dailyFees: statistics?.fees,
     };
@@ -30,7 +25,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.TON]: {
             fetch,
-            start: 1717957740,
+            start: '2024-06-09',
         },
     }
 }

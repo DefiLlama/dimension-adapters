@@ -3,3 +3,9 @@ node_modules
 .DS_store
 .env
 .idea
+yarn.lock
+test.py
+test.js
+
+cli/dimensionModules.json
+wash/

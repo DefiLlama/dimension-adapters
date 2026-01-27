@@ -1,14 +1,6 @@
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.VELAS]: "https://thegraph3.wagyuswap.app/subgraphs/name/wagyu"
-}, {
-  factoriesName: "pancakeFactories",
-  dayData: "pancakeDayData"
-});
-adapters.adapter.velas.start = 1635653053;
-adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
-export default adapters;
+export default uniV2Exports({
+  [CHAIN.VELAS]: { factory: '0x69f3212344a38b35844cce4864c2af9c717f35e3' },
+})

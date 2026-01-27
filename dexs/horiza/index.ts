@@ -7,7 +7,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getUniV3LogAdapter({ factory: '0x5b1C257B88537d1Ce2AF55a1760336288CcD28B6', }), 
-      start: 1704585600,
+      start: '2024-01-07',
     }
   }
 }

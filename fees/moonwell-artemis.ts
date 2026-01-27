@@ -1,52 +1,120 @@
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
-import { Adapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types"
-import { Chain } from '@defillama/sdk/build/general';
-import BigNumber from "bignumber.js";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoints = {
-  [CHAIN.MOONBEAN]: sdk.graph.modifyEndpoint('DQhrdUHwspQf3hSjDtyfS6uqq9YiKoLF3Ut3U9os2HK')
-}
-
-
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const dateId = Math.floor(getTimestampAtStartOfDayUTC(timestamp) / 86400)
-
-      const graphQuery = gql
-      `{
-        financialsDailySnapshot(id: ${dateId}) {
-            dailyTotalRevenueUSD
-            dailyProtocolSideRevenueUSD
-        }
-      }`;
-
-      const graphRes = await request(graphUrls[chain], graphQuery);
-
-      const dailyFee = new BigNumber(graphRes.financialsDailySnapshot?.dailyTotalRevenueUSD || 0);
-      const dailyRev = new BigNumber(graphRes.financialsDailySnapshot?.dailyProtocolSideRevenueUSD || 0);
-
-      return {
-        timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
-      };
-    };
-  };
+const comptrollerABI = {
+    underlying: "address:underlying",
+    exchangeRateCurrent: "uint256:exchangeRateCurrent",
+    getAllMarkets: "address[]:getAllMarkets",
+    liquidationIncentiveMantissa: "uint256:liquidationIncentiveMantissa",
+    accrueInterest: "event AccrueInterest(uint256 cashPrior,uint256 interestAccumulated,uint256 borrowIndex,uint256 totalBorrows)",
+    reservesAdded: "event ReservesAdded(address benefactor,uint256 addAmount,uint256 newTotalReserves)",
+    liquidateBorrow: "event LiquidateBorrow (address liquidator, address borrower, uint256 repayAmount, address mTokenCollateral, uint256 seizeTokens)",
+    reserveFactor: "uint256:reserveFactorMantissa",
 };
 
+const moonbeamUnitroller = "0x8E00D5e02E65A19337Cdba98bbA9F84d4186a180";
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.MOONBEAN]: {
-        fetch: graphs(endpoints)(CHAIN.MOONBEAN),
-        start: 1656115200,
-    },
-  }
+async function getFees(market: string, { createBalances, api, getLogs, }: FetchOptions, {
+    dailyFees,
+    dailyRevenue,
+    abis = {},
+}: {
+    dailyFees?: sdk.Balances,
+    dailyRevenue?: sdk.Balances,
+    abis?: any
+}) {
+    if (!dailyFees) dailyFees = createBalances()
+    if (!dailyRevenue) dailyRevenue = createBalances()
+    const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+    const liquidationIncentiveMantissa = await api.call({ target: market, abi: comptrollerABI.liquidationIncentiveMantissa, })
+    const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
+    const exchangeRatesCurrent = await api.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateCurrent, permitFailure: true, });
+    underlyings.forEach((underlying, index) => {
+        if (!underlying) underlyings[index] = "0x0000000000000000000000000000000000000000"
+    })
+    const reserveFactors = await api.multiCall({ calls: markets, abi: abis.reserveFactor ?? comptrollerABI.reserveFactor, });
+    const logs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.accrueInterest,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            interestAccumulated: Number(i.interestAccumulated),
+            marketIndex: index,
+        }));
+    }).flat()
+
+    const reservesAddedLogs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.reservesAdded,
+    })).map((log: any, index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            addAmount: Number(i.addAmount),
+            marketIndex: index,
+        }));
+    }).flat()
+
+    const liquidateBorrowLogs: any[] = (await getLogs({
+        targets: markets,
+        flatten: false,
+        eventAbi: comptrollerABI.liquidateBorrow,
+    })).map((log: any, _index: number) => {
+        return log.map((i: any) => ({
+            ...i,
+            seizeTokens: Number(i.seizeTokens),
+            marketIndex: markets.indexOf(i.mTokenCollateral),
+        }));
+    }).flat()
+
+    logs.forEach((log: any) => {
+        const marketIndex = log.marketIndex;
+        const underlying = underlyings[marketIndex]
+        dailyFees!.add(underlying, log.interestAccumulated);
+        dailyRevenue!.add(underlying, log.interestAccumulated * Number(reserveFactors[marketIndex]) / 1e18);
+    })
+
+    reservesAddedLogs.forEach((log: any) => {
+        const marketIndex = log.marketIndex;
+        const underlying = underlyings[marketIndex]
+        dailyRevenue!.add(underlying, log.addAmount);
+    })
+
+    liquidateBorrowLogs.forEach((log: any) => {
+        const marketIndex = log.marketIndex;
+        const underlying = underlyings[marketIndex]
+        dailyFees!.add(underlying, (log.seizeTokens * ((liquidationIncentiveMantissa / 1e18) - 1) * (exchangeRatesCurrent[marketIndex] / 1e18)));
+    })
+
+    return { dailyFees, dailyRevenue }
 }
 
-export default adapter;
+const methodology = {
+    Fees: "Total interest paid by borrowers",
+    Revenue: "Protocol's share of interest treasury",
+    ProtocolRevenue: "Protocol's share of interest into treasury",
+    HoldersRevenue: "No revenue for WELL holders.",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+}
+
+function moonwellArtemisExport(config: { moonbeam: string }) {
+    const exportObject: BaseAdapter = {}
+    Object.entries(config).map(([chain, market]) => {
+        exportObject[chain] = {
+            fetch: (async (options: FetchOptions) => {
+                const { dailyFees, dailyRevenue } = await getFees(market, options, {})
+                const dailySupplySideRevenue = options.createBalances()
+                dailySupplySideRevenue.addBalances(dailyFees)
+                Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
+                    dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
+                })
+                return { dailyFees, dailyRevenue, dailyHoldersRevenue: 0, dailySupplySideRevenue }
+            }),
+        }
+    })
+    return { adapter: exportObject, version: 2, allowNegativeValue: true, methodology, } as SimpleAdapter
+}
+
+export default moonwellArtemisExport({ moonbeam: moonbeamUnitroller });

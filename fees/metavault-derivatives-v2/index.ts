@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { gql, request } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
@@ -39,20 +39,16 @@ const fetch = (endpoint) => {
     const feeStats: IFeeStat[] = response.feeStats;
 
     let dailyFeeUSD = BigInt(0);
-    let totalFeeUSD = BigInt(0);
 
     feeStats.forEach((fee) => {
       dailyFeeUSD += BigInt(fee.feeUsd);
-      totalFeeUSD += BigInt(fee.cumulativeFeeUsd);
     });
 
     const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e18;
-    const finalTotalFee = parseInt(totalFeeUSD.toString()) / 1e18;
 
     return {
       timestamp: todaysTimestamp,
       dailyFees: finalDailyFee.toString(),
-      totalFees: finalTotalFee.toString(),
     };
   };
 };
@@ -62,19 +58,14 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.LINEA]: {
       fetch: fetch(endpoints[CHAIN.LINEA]),
-      start: 1709251200,
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
+      start: '2024-03-01',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(endpoints[CHAIN.POLYGON]),
-      start: 1709251200,
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
+      start: '2024-03-01',
     },
   },
+  methodology: "All treasuryFee, poolFee and keeperFee are collected",
 };
 
 export default adapter;

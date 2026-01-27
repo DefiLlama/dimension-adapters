@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -8,7 +8,6 @@ const API_ENDPOINT = "https://flask.tigristrade.info";
 interface ApiResponse {
   dailyNotionalVolume: number;
   day: number;
-  totalNotionalVolume: number;
 }
 
 const fetchFromAPI = async (chain: Chain, timestamp: number): Promise<ApiResponse[]> => {
@@ -50,9 +49,7 @@ const fetch = (chain: Chain) => {
 
     return {
       dailyPremiumVolume: '0',
-      totalPremuimVolume: '0',
       dailyNotionalVolume: matchingData.dailyNotionalVolume.toString(),
-      totalNotionalVolume: matchingData.totalNotionalVolume.toString(),
       timestamp: matchingData.day
     };
   }
@@ -62,11 +59,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1663023600,
+      start: '2022-09-13',
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
-      start: 1663023600,
+      start: '2022-09-13',
     }
   }
 }

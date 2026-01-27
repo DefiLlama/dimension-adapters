@@ -7,52 +7,48 @@ const adapter: SimpleAdapter = {
         osmosis: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
                 const marketInfos = await fetchMarketInfos("osmosis");
-                const [dailyVolume, totalVolume] = await Promise.all([
+                const [dailyVolume,] = await Promise.all([
                     fetchVolume("daily", marketInfos, timestamp),
-                    fetchVolume("total", marketInfos, timestamp)
                 ]);
-                return { timestamp, dailyVolume, totalVolume, }
+                return { timestamp, dailyVolume, }
             },
-            start: 1688628356
+            start: '2023-07-06'
         },
         sei: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
                 const marketInfos = await fetchMarketInfos("sei");
 
-                const [dailyVolume, totalVolume] = await Promise.all([
+                const [dailyVolume,] = await Promise.all([
                     fetchVolume("daily", marketInfos, timestamp),
-                    fetchVolume("total", marketInfos, timestamp)
                 ]);
 
-                return { timestamp, dailyVolume, totalVolume, }
+                return { timestamp, dailyVolume, }
             },
-            start: 1691305909
+            start: '2023-08-06'
         },
         injective: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
                 const marketInfos = await fetchMarketInfos("injective");
 
-                const [dailyVolume, totalVolume] = await Promise.all([
+                const [dailyVolume,] = await Promise.all([
                     fetchVolume("daily", marketInfos, timestamp),
-                    fetchVolume("total", marketInfos, timestamp)
                 ]);
 
-                return { timestamp, dailyVolume, totalVolume, }
+                return { timestamp, dailyVolume, }
             },
-            start: 1695738685
+            start: '2023-09-26'
         },
         neutron: {
             fetch: async (timestamp: number): Promise<FetchResultVolume> => {
                 const marketInfos = await fetchMarketInfos("neutron");
 
-                const [dailyVolume, totalVolume] = await Promise.all([
+                const [dailyVolume,] = await Promise.all([
                     fetchVolume("daily", marketInfos, timestamp),
-                    fetchVolume("total", marketInfos, timestamp)
                 ]);
 
-                return { timestamp, dailyVolume, totalVolume, }
+                return { timestamp, dailyVolume, }
             },
-            start: 1715168042
+            start: '2024-05-08'
         }
     }
 }

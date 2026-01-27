@@ -17,34 +17,18 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   const [month, day, year] = dateStr.split('/');
   const formattedDate = `${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).volume.daily.data;
-  const totalFees = historicalVolume
-    .filter(volItem => Number(new Date(volItem.date.split('/').join('-')).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { fees }) => acc + Number(fees), 0);
-
   const dailyFees = historicalVolume
     .find(dayItem => dayItem.date === formattedDate)?.fees;
-  const fetchResponse: FetchResultFees = {
-    timestamp: dayTimestamp
-  }
-  if (dailyFees !== undefined) {
-    const dailyFeesUsd = new BigNumber(dailyFees);
-    fetchResponse['dailyFees'] = dailyFeesUsd.toString()
-    fetchResponse['dailyRevenue'] = dailyFeesUsd.toString()
-    fetchResponse['dailyProtocolRevenue'] = dailyFeesUsd.toString()
-    fetchResponse['dailySupplySideRevenue'] = dailyFeesUsd.multipliedBy(0).toString()
-    fetchResponse['dailyUserFees'] = dailyFeesUsd.toString()
-  }
 
-  if (totalFees !== undefined) {
-    const totalFeesUsd = new BigNumber(totalFees);
-    fetchResponse['totalFees'] = totalFeesUsd.toString()
-    fetchResponse['totalRevenue'] = totalFeesUsd.toString()
-    fetchResponse['totalProtocolRevenue'] = totalFeesUsd.toString()
-    fetchResponse['totalSupplySideRevenue'] = totalFeesUsd.multipliedBy(0).toString()
-    fetchResponse['totalUserFees'] = totalFeesUsd.toString()
-  }
+  const dailyFeesUsd = new BigNumber(dailyFees || 0);
 
-  return fetchResponse;
+  return {
+    dailyFees: dailyFeesUsd.toString(),
+    dailyRevenue: dailyFeesUsd.toString(),
+    dailyProtocolRevenue: dailyFeesUsd.toString(),
+    dailySupplySideRevenue: dailyFeesUsd.multipliedBy(0).toString(),
+    dailyUserFees: dailyFeesUsd.toString(),
+  };
 };
 
 const methodology = {
@@ -64,12 +48,11 @@ const getStartTimestamp = async () => {
 const adapter: Adapter = {
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fetch,
+      fetch,
       start: getStartTimestamp,
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology,
+  deadFrom:'2025-11-21',
 }
 export default adapter;

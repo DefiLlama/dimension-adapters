@@ -17,7 +17,6 @@ const fetch  =  async (_timestamp: number) => {
     const volumeData: GetVolumeReturn = (await fetchURL(getVolumeURL));
 
     return {
-            totalVolume: volumeData.totalVolume.toString(),
             dailyVolume: volumeData.dailyVolume.toString(),
             timestamp: volumeData.timestamp,
         };
@@ -28,7 +27,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.SUI]: {
             fetch,
             runAtCurrTime: true,
-            start: 1684003134,
+            start: '2023-05-13',
         }
     },
 };

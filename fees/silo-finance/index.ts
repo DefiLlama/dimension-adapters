@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -84,11 +84,17 @@ async function getSilos(
     const logChunk = await getLogs({
       target: address,
       fromBlock: block,
+      cacheInCloud: true,
       eventAbi:
         "event NewSiloCreated(address indexed silo, address indexed asset, uint128 version)",
     });
 
-    logs.push(logChunk.map((result) => result[0]));
+    logs.push(
+      logChunk.map((result) => ({
+        silo: result[0],
+        assets: [],
+      }))
+    );
   };
 
   for (const { factory } of silos) {
@@ -104,10 +110,7 @@ async function getSilos(
 
   return silos.map((silo, index) => ({
     ...silo,
-    silos: logs[index]?.map((siloAddress: string) => ({
-      silo: siloAddress,
-      assets: [],
-    })),
+    silos: logs[index] || [],
   }));
 }
 
@@ -140,7 +143,7 @@ async function getSilosAssets(
 
 async function getSilosFeesStorage(
   rawSilos: ISilo[],
-  { fromApi, toApi }: FetchOptions
+  { fromApi, toApi, chain }: FetchOptions
 ): Promise<{ totalFeesResults: FeeResult[]; dailyFeesResults: FeeResult[] }> {
   const totalFeesResults: FeeResult[] = [];
   const dailyFeesResults: FeeResult[] = [];
@@ -184,44 +187,39 @@ async function fetch(
   options: FetchOptions,
   rawSilos: ISilo[]
 ): Promise<FetchResultV2> {
-  const totalFees = options.createBalances();
   const dailyFees = options.createBalances();
 
   const rawSiloWithAddresses = await getSilos(rawSilos, options);
   const siloWithAssets = await getSilosAssets(rawSiloWithAddresses, options);
-  const { totalFeesResults, dailyFeesResults } = await getSilosFeesStorage(
+  const { dailyFeesResults } = await getSilosFeesStorage(
     siloWithAssets,
     options
   );
-
-  totalFeesResults.forEach(({ asset, fee }) => {
-    totalFees.add(asset, fee);
-  });
 
   dailyFeesResults.forEach(({ asset, fee }) => {
     dailyFees.add(asset, fee);
   });
 
-  return { totalFees, dailyFees };
+  return { dailyFees };
 }
 
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.ETHEREUM]),
-      start: 1660150409,
+      start: "2022-08-10",
     },
     [CHAIN.ARBITRUM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.ARBITRUM]),
-      start: 1683046409,
+      start: "2023-05-02",
     },
     [CHAIN.OPTIMISM]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.OPTIMISM]),
-      start: 1716656009,
+      start: "2024-05-25",
     },
     [CHAIN.BASE]: {
       fetch: (options: FetchOptions) => fetch(options, silo[CHAIN.BASE]),
-      start: 1719420809,
+      start: "2024-06-26",
     },
   },
   version: 2,

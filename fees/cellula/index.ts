@@ -10,13 +10,15 @@ const LIFE_ABI = "event FeedEvent(uint256 tokenId, uint256 startTime, uint256 wo
 const methodology = {
   Fees: "The cost of renting a Cell.",
   Revenue: "The sum of life charging fees and life mint fees.",
+  Protocolrevenue: "Share of 25% of life charging fees and life mint fees.",
+  HoldersRevenue: "Share of 5% of life charging fees and life mint fees.",
+  SupplySideRevenue: "Share of 70% of life charging fees and life mint fees.",
 };
 const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch: (async ({ getLogs, createBalances, }) => {
         // Fees
-        // const totalFees = createBalances()
         const dailyFees = createBalances() // ✅
 
         // Revenue
@@ -24,12 +26,6 @@ const adapter: Adapter = {
         const dailyProtocolRevenue = createBalances() // 70% + Food
         const dailyHoldersRevenue = createBalances() //  5%
         const dailySupplySideRevenue = createBalances() // 25%
-        // const totalRevenue = createBalances()
-        // const totalProtocolRevenue = createBalances()
-        // const totalSupplySideRevenue = createBalances()
-        // const totalUserFees = createBalances()
-        // const dailyBribesRevenue = createBalances()
-        // const dailyTokenTaxes = createBalances()
 
         const logs = await getLogs({ target: CELL_ADDRESS, eventAbi: CELL_ABI })
         logs.map((e: any) => {
@@ -62,13 +58,11 @@ const adapter: Adapter = {
           dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue
         }
       }) as FetchV2,
-      start: 1713052800,
-      meta: {
-        methodology
-      },
+      start: '2024-04-14',
     },
   },
   version: 2,
+  methodology
 }
 
 export default adapter;

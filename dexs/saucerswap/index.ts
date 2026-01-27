@@ -1,47 +1,58 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getPrices } from "../../utils/prices";
 import { httpGet } from "../../utils/fetchURL";
 
-const historicalVolumeEndpoint = (to: number) =>`https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=${to}`
-// https://server.saucerswap.finance/api/public/stats/platformData?field=VOLUME&interval=DAY&from=1650586&to=1682093355
-interface IVolumeall {
-  timestampSeconds: string;
-  valueHbar: string;
-}
-
-const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, startOfDay }: FetchOptions) => {
-  const historicalVolume: IVolumeall[] = (await httpGet(historicalVolumeEndpoint(new Date().getTime() / 1000), { headers: {
-    'origin': 'https://analytics.saucerswap.finance',
-  }}));
-
-  const totalVolume = historicalVolume
-    .filter(volItem => Number(volItem.timestampSeconds) <= startOfDay)
-    .reduce((acc, { valueHbar }) => acc + Number(valueHbar), 0)
-
-  const _dailyVolume = historicalVolume
-    .find(dayItem => Number(dayItem.timestampSeconds) === startOfDay)?.valueHbar
-
-
-  const dailyVolume = createBalances()
-  dailyVolume.addCGToken("hedera-hashgraph", (_dailyVolume as any)/1e8)
-
-  return {
-    // totalVolume: totalVolume ? String(totalVolume/1e8 * prices[coinId].price) : "0",
-    dailyVolume,
-    timestamp: startOfDay,
-  };
+const methodology = {
+  Fees: "A 0.3% fee is charged to users on every swap, 1/6 goes to protocol.",
+  UserFees: "A 0.3% fee is charged to users on every swap, 1/6 goes to protocol.",
+  SupplySideRevenue: "There are 5/6 of swap fees goes to liquidity providers.",
+  Revenue: "There are 1/6 goes to protocol.",
+  ProtocolRevenue: "There are 1/6 goes to protocol.",
 };
 
+const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
+  const platformData: Array<any> = await httpGet(`https://server.saucerswap.finance/api/public/pools/platform-data?field=VOLUME_USD&interval=DAY&from=${startOfDay}&to=${startOfDay + 24 * 3600}`,
+    {
+      headers: {
+        origin: "https://www.saucerswap.finance",
+      },
+    },
+  );
+  
+  const _dailyVolume = platformData.find(
+    (dayItem: any) => Number(dayItem.timestampSeconds) === startOfDay,
+  );
+  
+  if (!_dailyVolume) {
+    throw Error(`can not found value data for date ${startOfDay}`)
+  }
+  
+  const dailyVolume = Number(_dailyVolume ? _dailyVolume.value : 0)
+  
+  // https://docs.saucerswap.finance/protocol/saucerswap-v1
+  // v1 charges fee 0.3% per swap, 5/6 goes to LP, 1/6 goes to protocol
+  const dailyFees = dailyVolume * 0.003;
+  const dailyRevenue = (dailyFees * 1) / 6;
+  const dailySupplySideRevenue = (dailyFees * 5) / 6;
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  };
+};
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HEDERA]: {
       fetch,
-      start: 1659571200,
+      start: "2022-07-31",
     },
   },
+  methodology,
 };
 
 export default adapter;

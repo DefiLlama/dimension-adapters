@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -6,7 +7,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const feesStart = await options.fromApi.call({ target: address, abi: "uint:GGR" })
   const feesEnd = await options.toApi.call({ target: address, abi: "uint:GGR" })
-  dailyFees.add("0xd988097fb8612cc24eeC14542bC03424c656005f", feesEnd - feesStart)
+  dailyFees.add(ADDRESSES.mode.USDC, feesEnd - feesStart)
   dailyFees.resizeBy(0.065)
   return { dailyFees, dailyRevenue: dailyFees }
 }
@@ -16,8 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: {
       fetch: fetch,
-      start: 0,
-    }
+          }
   }
 }
 

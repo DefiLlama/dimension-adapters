@@ -1,66 +1,40 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { request } from "graphql-request";
 import fetchURL from "../../utils/fetchURL";
 
-const API_ENDPOINT = "https://multichain-api.astroport.fi/graphql";
-
-const statsQuery = `
-query Stats($chains: [String]!) {
-  stats(chains: $chains, sortDirection: DESC) {
-    chains {
-      chainId
-      totalVolume24h
-    }
-  }
-}
-`;
-const url = 'https://app.astroport.fi/api/trpc/protocol.stats?input={"json":{"chains":["phoenix-1","injective-1","neutron-1","pacific-1","osmosis-1"]}}'
+let res: any
+const url = "https://app.astroport.fi/api/trpc/protocol.stats?input=%7B%22json%22%3A%7B%22chains%22%3A%5B%22phoenix-1%22%2C%22neutron-1%22%5D%7D%7D"
 const fetch = (chainId: string) => {
-  return async (timestamp: number): Promise<FetchResult> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const results = (await fetchURL(url)).result.data.json.chains[chainId];
-    const totalVolume24h = results?.dayVolumeUSD;
+  return async (): Promise<FetchResult> => {
+    if (!res) res = fetchURL(url)
+    const results = (await res).result.data.json.chains[chainId];
     return {
-      timestamp: dayTimestamp,
-      dailyVolume: totalVolume24h ? String(totalVolume24h) : undefined,
+      dailyVolume: results.dayVolumeUSD,
+      dailyFees: results.dayLpFeesUSD,
+      dailyRevenue: 0,
     };
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  runAtCurrTime: true,
   adapter: {
-    "terra2": {
+    terra2: {
       fetch: fetch("phoenix-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
     },
-    [CHAIN.INJECTIVE]: {
-      fetch: fetch("injective-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
-    },
+    // deprecated: https://github.com/DefiLlama/dimension-adapters/issues/5116#issuecomment-3660619459
+    // [CHAIN.INJECTIVE]: {
+    //   fetch: fetch("injective-1"),
+    // },
     neutron: {
       fetch: fetch("neutron-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
     },
-    [CHAIN.SEI]: {
-      fetch: fetch("pacific-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
-    },
-    [CHAIN.OSMOSIS]: {
-      fetch: fetch("osmosis-1"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: 0,
-    }
+    // [CHAIN.SEI]: {
+    //   fetch: fetch("pacific-1"),
+    // },
+    // [CHAIN.OSMOSIS]: {
+    //   fetch: fetch("osmosis-1"),
+    // },
   },
 };
 

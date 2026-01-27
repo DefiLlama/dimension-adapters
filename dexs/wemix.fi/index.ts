@@ -14,17 +14,13 @@ interface IVolumeall {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).data.history;
-  const totalVolume = historicalVolume
-    .filter(volItem => volItem.timestamp / 1000 <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0)
   const date = new Date(dayTimestamp * 1000)
   const dateString =  `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
   const dailyVolume = historicalVolume
     .find(dayItem =>  dayItem.dateTime.split(' ')[0] === dateString)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -33,7 +29,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.WEMIX]: {
       fetch,
-      start: 1676937600,
+      start: '2023-02-21',
     },
   },
 };

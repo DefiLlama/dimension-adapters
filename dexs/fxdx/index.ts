@@ -64,11 +64,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     // [CHAIN.OPTIMISM]: {
     //   fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
-    //   start: 1683864388,
+    //   start: '2023-05-12',
     // },
     [CHAIN.BASE] :{
       fetch: getFetch(historicalDataSwap)(CHAIN.BASE),
-      start: 1692688600,
+      start: '2023-08-22',
     }
   },
 };

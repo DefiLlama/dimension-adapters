@@ -1,12 +1,20 @@
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
 
-const adapters = univ2Adapter2({
-  [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/cryptoalgebra/analytics"
-}, {
+const fetch = univ2Adapter2({
+  endpoints: {
+    [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/cryptoalgebra/analytics"
+  },
   factoriesName: "factories",
   totalVolume: "totalVolumeUSD",
-});
+})
 
-adapters.adapter.metis.start = 1698983690;
-export default adapters;
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.METIS],
+  start: '2023-11-03'
+}
+
+export default adapter;

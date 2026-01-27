@@ -1,5 +1,5 @@
 import request, { gql } from "graphql-request";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import type { ChainEndpoints } from "../../adapters/types";
 import {
   IValoremDailyRecordsResponse,

@@ -18,7 +18,7 @@ interface IGraphResponse {
   yesterday: IPair[];
 }
 const getFees = () => {
-  return async ({ getFromBlock, getToBlock}: FetchOptions) => {
+  return async ({ getFromBlock, getToBlock }: FetchOptions) => {
     const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
 
     const query = gql`
@@ -63,23 +63,21 @@ const getFees = () => {
 };
 
 
-  const adapter: SimpleAdapter = {
-    version: 2,
-      adapter: {
-          [CHAIN.EON]: {
-              fetch: getFees(),
-              start: 1698796800,
-
-          meta: {
-            methodology: {
-              UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
-            }
-          }
-      }
-      }
+const adapter: SimpleAdapter = {
+  deadFrom: '2025-05-05',  // EON chain is deprecated
+  version: 2,
+  adapter: {
+    [CHAIN.EON]: {
+      fetch: getFees(),
+      start: '2023-11-01',
+    }
+  },
+  methodology: {
+    UserFees: "User pays 0.05%, 0.30%, or 1% on each swap."
   }
+}
 
 
 
 
-              export default adapter;
+export default adapter;

@@ -1,6 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_redemption = 'event Redemption(address indexed _asset,uint256 _attemptedVSTAmount,uint256 _actualVSTAmount,uint256 _AssetSent,uint256 _AssetFee)';
 const event_borrow_fees_paid = 'event VSTBorrowingFeePaid(address indexed _asset,address indexed _borrower,uint256 _VSTFee)';
@@ -60,7 +60,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1672272000,
+      start: '2022-12-29',
     },
   }
 }

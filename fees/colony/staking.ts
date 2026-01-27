@@ -17,7 +17,6 @@ export async function stakingFees(
   ColonyGovernanceToken: string,
 ): Promise<{
   dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
 }> {
   const { createBalances, getStartBlock, getEndBlock } = options;
 
@@ -26,7 +25,6 @@ export async function stakingFees(
     getEndBlock(),
   ]);
   let dailyHoldersRevenue = createBalances();
-  let totalHoldersRevenue = createBalances();
 
   const [beforeRes, afterRes] = await Promise.all([
     request(stakingSubgraphEndpoint, queryStakingFeesMetrics, {
@@ -45,10 +43,8 @@ export async function stakingFees(
     Number(afterRes.metrics[0].totalUnstakeFees);
 
   dailyHoldersRevenue.add(ColonyGovernanceToken, afterFees - beforeFees);
-  totalHoldersRevenue.add(ColonyGovernanceToken, afterFees);
 
   return {
     dailyHoldersRevenue,
-    totalHoldersRevenue,
   };
 }

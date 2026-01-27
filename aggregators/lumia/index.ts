@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 
 const chains: Record<string, string> = {
     [CHAIN.ETHEREUM]: 'ethereum',
@@ -13,38 +13,30 @@ const chains: Record<string, string> = {
 
 interface ApiResponse {
   daily_volume_in_usd: string;
-  daily_transaction_count: string;
-  total_volume_in_usd: string;
-  total_transaction_count: string;
 }
 
-const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
-  const response: ApiResponse = (
-    await fetchURL(`https://trade.orion.xyz/frontage/api/v1/statistics/defilama?date=${options.startTimestamp}&network=${chain}`)
-  );
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const data: ApiResponse = await fetchURL(`https://trade.orion.xyz/frontage/api/v1/statistics/defilama?date=${options.startTimestamp}&network=${chains[options.chain]}`);
 
   return {
-    dailyVolume: response?.daily_volume_in_usd || '0',
-    totalVolume: response?.total_volume_in_usd || '0',
-    timestamp: options.startTimestamp,
+    dailyVolume: data?.daily_volume_in_usd || '0',
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  deadFrom: '2025-07-16', // webapp down, X account suspended
   adapter: {
-    ...Object.entries(chains).reduce((acc, chain) => {
-      const [key, value] = chain;
-
+    ...Object.entries(chains).reduce((acc, [key]) => {
       return {
         ...acc,
-        [key]: {
-          fetch: fetch(value),
-          start: 1672531200, // 01.01.2023
+        [key]: { 
+          fetch,
+          start: '2023-01-01',
         },
       };
     }, {}),
   },
-  version: 2
 };
 
 export default adapter;

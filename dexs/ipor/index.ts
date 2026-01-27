@@ -1,5 +1,6 @@
-import {BreakdownAdapter, FetchOptions} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 interface IChainData {
   startTimestamp: number;
@@ -20,12 +21,25 @@ const chainsData: { [key: string]: IChainData } = {
     stETHs: []
   },
   [CHAIN.ARBITRUM]: {
-      startTimestamp: 1708504270,
-      iporProtocolRouter: '0x760Fa0aB719c4067D3A8d4727Cf07E8f3Bf118db',
-      stables: [],
-      stETHs: []
+    startTimestamp: 1708504270,
+    iporProtocolRouter: '0x760Fa0aB719c4067D3A8d4727Cf07E8f3Bf118db',
+    stables: [],
+    stETHs: []
+  },
+  [CHAIN.BASE]: {
+    startTimestamp: 1731067807,
+    iporProtocolRouter: '0x21d337eBF86E584e614ecC18A2B1144D3C375918',
+    stables: [],
+    stETHs: []
   }
 }
+
+const decimalsNormalizationTokens = new Set([
+  ADDRESSES.ethereum.USDC.toLowerCase(),
+  ADDRESSES.ethereum.USDT.toLowerCase(),
+  ADDRESSES.arbitrum.USDC_CIRCLE.toLowerCase(),
+  ADDRESSES.base.USDC.toLowerCase()
+]);
 
 const OpenSwapStablesTopic = "0x29267df9e90ec6126925ee936b6dc88a7da741b06bcd364f02acf9d38a7b97f7"
 const openSwapStablesEventAbi = "event OpenSwap(uint256 indexed swapId, address indexed buyer, address asset, uint8 direction, (uint256 totalAmount, uint256 collateral, uint256 notional, uint256 openingFeeLPAmount, uint256 openingFeeTreasuryAmount, uint256 iporPublicationFee, uint256 liquidationDepositAmount) money, uint256 openTimestamp, uint256 endTimestamp, (uint256 iporIndexValue, uint256 ibtPrice, uint256 ibtQuantity, uint256 fixedInterestRate) indicator)"
@@ -43,27 +57,24 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
   const logs = logsStables.concat(logsStETHs)
   logs.forEach(log => {
     let balance = Number(log.money?.notional || log.amounts?.notional)
-    if (log.asset.toLowerCase() === '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'.toLowerCase()) {
+    if (decimalsNormalizationTokens.has(log.asset.toLowerCase())) {
       balance = balance / 1e12
-    }
-    if (log.asset.toLowerCase() === '0xdAC17F958D2ee523a2206206994597C13D831ec7'.toLowerCase()
-      || log.asset.toLowerCase() === '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'.toLowerCase()) { // 6
-      balance = balance / 1e10
     }
     dailyNotionalVolume.add(log.asset, balance)
   })
   return { timestamp, dailyVolume: dailyNotionalVolume };
 };
 
-const adapter: BreakdownAdapter = {
-  breakdown: {
-    "derivatives": {
-      [CHAIN.ETHEREUM]: {
-        fetch, start: chainsData[CHAIN.ETHEREUM].startTimestamp
-      },
-      [CHAIN.ARBITRUM]: {
-        fetch, start: chainsData[CHAIN.ARBITRUM].startTimestamp
-      }
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch, start: chainsData[CHAIN.ETHEREUM].startTimestamp
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch, start: chainsData[CHAIN.ARBITRUM].startTimestamp
+    },
+    [CHAIN.BASE]: {
+      fetch, start: chainsData[CHAIN.BASE].startTimestamp
     }
   }
 }

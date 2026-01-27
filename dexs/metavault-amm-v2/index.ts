@@ -1,17 +1,7 @@
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const endpoints = {
-  [CHAIN.LINEA]:
-    "https://api.studio.thegraph.com/query/55804/linea-v2/version/latest",
-  [CHAIN.SCROLL]:
-    "https://api.studio.thegraph.com/query/55804/metavault-v2/version/latest",
-};
-
-export default univ2Adapter2(endpoints, {
-  factoriesName: "factories",
-  totalVolume: "volumeUSD",
-  dayData: "factoryDaySnapshot",
-  dailyVolume: "volumeUSD",
-  dailyVolumeTimestampField: "timestamp",
-});
+export default uniV2Exports({
+  [CHAIN.SCROLL]: { factory: '0xCc570Ec20eCB62cd9589FA33724514BDBc98DC7E', },
+  [CHAIN.LINEA]: { factory: '0xCc570Ec20eCB62cd9589FA33724514BDBc98DC7E', },
+})

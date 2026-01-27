@@ -1,12 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { uniV3Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter2({
-  [CHAIN.LINEA]: "https://graph-query.linea.build/subgraphs/name/nileexchange/cl-subgraph"
-}, {
-  factoriesName: "factories",
-  totalVolume: "totalVolumeUSD",
-});
-
-adapters.adapter.linea.start = 1705968000;
-export default adapters;
+export default uniV3Exports({
+  [CHAIN.LINEA]: { factory: '0xAAA32926fcE6bE95ea2c51cB4Fcb60836D320C42', },
+})

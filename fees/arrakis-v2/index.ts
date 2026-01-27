@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -47,7 +47,6 @@ async function getVaultsFees(
   { api, fromApi, toApi, createBalances }: FetchOptions,
   { helper, factory }: IVault
 ) {
-  const totalFees = createBalances();
   const dailyFees = createBalances();
 
   const limit = await api.call({ target: factory, abi: abi.numVaults });
@@ -71,12 +70,11 @@ async function getVaultsFees(
     const prevFee0 = prevBals[index]?.fee0 ?? 0;
     const currFee0 = currBals[index].fee0;
 
-    const token1 = token1s[index];    
+    const token1 = token1s[index];
     const prevFee1 = prevBals[index]?.fee1 ?? 0;
     const currFee1 = currBals[index].fee1;
 
     if (token0 && prevFee0 && currFee0) {
-      totalFees.add(token0, currFee0);
       const dailyFee0 = BigInt(currFee0) - BigInt(prevFee0);
       if (dailyFee0 >= 0) {
         dailyFees.add(token0, dailyFee0);
@@ -84,7 +82,6 @@ async function getVaultsFees(
     }
 
     if (token1 && prevFee1 && currFee1) {
-      totalFees.add(token1, currFee1);
       const dailyFee1 = BigInt(currFee1) - BigInt(prevFee1);
       if (dailyFee1 >= 0) {
         dailyFees.add(token1, dailyFee1);
@@ -92,36 +89,19 @@ async function getVaultsFees(
     }
   });
 
-  return { totalFees, dailyFees };
+  return { dailyFees };
 }
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'All yields are collected from deposited assets by liquidity providers.',
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
         getVaultsFees(options, contracts[CHAIN.ETHEREUM]),
-      start: 1693039022,
+      start: '2023-08-26',
     },
-    // [CHAIN.POLYGON]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.POLYGON]),
-    //   start: 1693039022,
-    // },
-    // [CHAIN.OPTIMISM]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.OPTIMISM]),
-    //   start: 1693039022,
-    // },
-    // [CHAIN.BASE]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.BASE]),
-    //   start: 1693039022,
-    // },
-    // [CHAIN.ARBITRUM]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.ARBITRUM]),
-    //   start: 1693039022,
-    // },
   },
   version: 2,
 };

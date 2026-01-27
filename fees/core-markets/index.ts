@@ -58,17 +58,9 @@ const fetchVolume = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
     dailyFees = dailyFees.plus(new BigNumber(data.platformFee));
   });
 
-  let totalFees = new BigNumber(0);
-
-  response.totalHistories.forEach((data) => {
-    totalFees = totalFees.plus(new BigNumber(data.platformFee));
-  });
-
   dailyFees = dailyFees.dividedBy(new BigNumber(1e18));
-  totalFees = totalFees.dividedBy(new BigNumber(1e18));
 
   const _dailyFees = toString(dailyFees);
-  const _totalFees = toString(totalFees);
 
   const dailyUserFees = _dailyFees;
   const dailyRevenue = _dailyFees;
@@ -76,24 +68,14 @@ const fetchVolume = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
   const dailyHoldersRevenue = _dailyFees;
   const dailySupplySideRevenue = "0";
 
-  const totalUserFees = _totalFees;
-  const totalRevenue = _totalFees;
-  const totalProtocolRevenue = "0";
-  const totalSupplySideRevenue = "0";
-
   return {
-    dailyFees: _dailyFees ?? "0",
-    totalFees: _totalFees ?? "0",
+    dailyFees: _dailyFees,
 
-    dailyUserFees: dailyUserFees ?? "0",
-    dailyRevenue: dailyRevenue ?? "0",
-    dailyProtocolRevenue: dailyProtocolRevenue ?? "0",
-    dailyHoldersRevenue: dailyHoldersRevenue ?? "0",
-    dailySupplySideRevenue: dailySupplySideRevenue ?? "0",
-    totalUserFees: totalUserFees ?? "0",
-    totalRevenue: totalRevenue ?? "0",
-    totalProtocolRevenue: totalProtocolRevenue ?? "0",
-    totalSupplySideRevenue: totalSupplySideRevenue ?? "0",
+    dailyUserFees: dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyHoldersRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
   };
 };
 
@@ -101,7 +83,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BLAST]: {
       fetch: fetchVolume,
-      start: async () => 236678,
     },
   },
   version: 2

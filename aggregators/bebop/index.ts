@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { getTransactions } from "../../helpers/getTxReceipts";
 import JAM_ABI from "./jamAbi";
 import {queryDuneSql} from "../../helpers/dune"
@@ -38,13 +38,13 @@ const abis = {
 const contract_interface = new ethers.Interface(Object.values(abis));
 
 const JamContract = new ethers.Contract('0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b', JAM_ABI)
-const jamAddress = {
+const jamAddress: any = {
   era:'0x574d1fcF950eb48b11de5DF22A007703cbD2b129',
   default: '0xbebebeb035351f58602e0c1c8b59ecbff5d5f47b'
 }
 
 
-const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async (_:any, _1:any, { createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyVolume = createBalances()
   const cowswapData: any = {}
   const logs = await getLogs({
@@ -91,6 +91,7 @@ const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
 
   const jamData: any = await getTransactions(chain, jamLogs.map((log: any) => log.transactionHash), { cacheKey: 'bebop' })
   for (const d of jamData) {
+    if (!d) continue;
     const decoded = JamContract.interface.parseTransaction(d)
     if (!decoded) {
       api.log('jam no decoded', d.hash, d.input.slice(0, 10), d.to, chain)
@@ -108,29 +109,49 @@ const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   return { dailyVolume }
 };
 
-async function fetchDune(options: FetchOptions){
-  const vol = await queryDuneSql(options, `SELECT SUM(amount_usd) AS vol FROM bebop.trades WHERE blockchain = 'CHAIN' AND TIME_RANGE`)
-  const dailyVolume = options.createBalances()
-  dailyVolume.addCGToken("tether", vol[0].vol)
-  return { dailyVolume }
+// Prefetch function that will run once before any fetch calls
+const prefetch = async (options: FetchOptions) => {
+  return queryDuneSql(options, `
+    SELECT 
+      blockchain,
+      SUM(amount_usd) AS vol 
+    FROM bebop.trades 
+    WHERE block_time >= from_unixtime(${options.startTimestamp})
+    AND block_time < from_unixtime(${options.endTimestamp})
+    GROUP BY blockchain
+  `);
+};
+
+async function fetchDune(_:any, _1:any, options: FetchOptions){
+  const results = options.preFetchedResults || [];
+  const chainData = results.find((item: any) => item.blockchain.toLowerCase() === options.chain.toLowerCase());
+  // volume can be null
+  let dailyVolume = 0
+  if (chainData) {
+    dailyVolume = chainData.vol;
+  }
+
+  return { dailyVolume };
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   adapter: {
-    arbitrum: { fetch: fetchDune, start: 1685491200, },
-    ethereum: { fetch: fetchDune, start: 1685491200, },
-    polygon: { fetch: fetchDune, start: 1685491200, },
-    bsc: { fetch: fetchDune, start: 1685491200, },
-    blast: { fetch, start: 1685491200, },
-    era: { fetch, start: 1685491200, },
-    optimism: { fetch: fetchDune, start: 1685491200, },
-    mode: { fetch, start: 1685491200, },
-    base: { fetch: fetchDune, start: 1685491200, },
-    scroll: { fetch: fetchDune, start: 1685491200, },
-    taiko: { fetch, start: 1685491200, },
+    arbitrum: { fetch: fetchDune, start: '2023-05-31', },
+    ethereum: { fetch: fetchDune, start: '2023-05-31', },
+    polygon: { fetch: fetchDune, start: '2023-05-31', },
+    bsc: { fetch: fetchDune, start: '2023-05-31', },
+    blast: { fetch, start: '2023-05-31', },
+    era: { fetch, start: '2023-05-31', },
+    optimism: { fetch: fetchDune, start: '2023-05-31', },
+    mode: { fetch, start: '2023-05-31', },
+    base: { fetch: fetchDune, start: '2023-05-31', },
+    scroll: { fetch: fetchDune, start: '2023-05-31', },
+    taiko: { fetch, start: '2023-05-31', },
   },
+  prefetch: prefetch,
 };
 
 export default adapter;

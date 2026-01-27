@@ -18,15 +18,6 @@ const historicalDailyData = gql`
     }
   }
 `
-const historicalTotalData = gql`
-  query markets {
-    markets {
-      # liqVol
-      totalVolUSD
-    }
-  }
-`
-
 interface IGraphResponse {
   marketInfoDailies: Array<{
     liqVolUSD: string,
@@ -53,20 +44,13 @@ const getFetch = (chain: string): Fetch => async (timestamp: any) => {
     dailyVolume += parseFloat(dailyData.marketInfoDailies[i].totalVolUSD)
   }
   
-  const totalData: IGraphResponse = await request(endpoints[chain], historicalTotalData, {})
-  let totalVolume = 0;
-  for(let i in totalData.markets) {
-    totalVolume += parseFloat(totalData.markets[i].totalVolUSD)
-  }
-  
   return {
     timestamp: dayTimestamp,
     dailyVolume: dailyVolume.toString(),
-    totalVolume: totalVolume.toString()
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
+const getStartTimestamp = (chain: string) => {
   const startTimestamps: { [chain: string]: number } = {
     [CHAIN.ARBITRUM]: 1713916800,
     [CHAIN.BASE]: 1721001600,
@@ -80,7 +64,7 @@ const volume = chains.reduce(
     ...acc,
     [chain]: {
       fetch: getFetch(chain),
-      start: async () => getStartTimestamp(chain)
+      start: getStartTimestamp(chain)
     },
   }),
   {}

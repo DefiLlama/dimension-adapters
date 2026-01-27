@@ -1,28 +1,19 @@
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (timestamp: number) => {
-  const url = `https://www.api.pearprotocol.io/v1/metric?timestamp=${timestamp}`;
-  const response = await httpGet(url);
-
-  const totalVolume = response.payload.totalVolume;
+  const url = `https://api.pearprotocol.io/v1/metric?timestamp=${timestamp}`;
+  const response = await fetchURL(url);
   const dailyVolume = response.payload.dailyVolume;
-
-  return {
-    totalVolume,
-    dailyVolume,
-    timestamp,
-  };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-      [CHAIN.ARBITRUM]: {
-        fetch: fetch,
-        start: 1715199684,
-      },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2024-05-08'
 };
 
 export default adapter;

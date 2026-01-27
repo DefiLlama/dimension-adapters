@@ -28,7 +28,6 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     const volume = response.find((data: DayData) => data.id === dayID.toString());
     return {
         dailyVolume: volume?.dailyVolumeUSD ? `${volume.dailyVolumeUSD}` : undefined,
-        totalVolume: volume?.totalVolumeUSD ? `${volume.totalVolumeUSD}` : undefined,
         timestamp: dayTimestamp,
     };
 }
@@ -37,7 +36,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STARKNET]: {
           fetch: fetch,
-          start: 1673308800,
+          start: '2023-01-10',
         },
     },
 };

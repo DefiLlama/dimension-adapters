@@ -60,9 +60,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
 
   return {
     timestamp,
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyFees.toString(),
-    dailyHoldersRevenue: dailyFees.toString(),
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
 
   }
 }
@@ -70,7 +70,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: 1672444800
+      start: '2022-12-31'
     },
   }
 }

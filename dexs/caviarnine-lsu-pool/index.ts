@@ -23,7 +23,7 @@ const fetchFees = async (timestamp: number): Promise<FetchResultVolume> => {
   const response: CaviarNineLSUPool = (await fetchURL("https://api-core.caviarnine.com/v1.0/stats/product/lsupool")).summary;
   const dailyVolume = Number(response.volume.interval_1d.usd);
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume,
     timestamp
   }
 }
@@ -32,7 +32,7 @@ const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,
-      start: 1699142400,
+      start: '2023-11-05',
       // runAtCurrTime: true
     }
   }

@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
+import { addGasTokensReceived } from "../helpers/token";
 
 interface IFee {
   isMarketplaceFees: boolean;
@@ -17,7 +18,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const logs = await await queryIndexer(`
+  const logs = await queryIndexer(`
     SELECT
       encode(transaction_hash, 'hex') AS HASH,
       encode(data, 'hex') AS data,
@@ -31,18 +32,6 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
       `, options);
 
   const hash_sale: string[] = logs.map((e: any) => e.hash);
-  const logs_mint = await queryIndexer(`
-    SELECT
-      encode(transaction_hash, 'hex') AS HASH,
-      encode(data, 'hex') AS data,
-    encode(topic_3, 'hex') as topic_3
-    FROM
-      ethereum.event_logs
-    WHERE
-      contract_address = '\\xd1d1d4e36117ab794ec5d4c78cbd3a8904e691d0'
-      and topic_0 = '\\x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d'
-      AND block_time BETWEEN llama_replace_date_range;
-      `, options);
 
   const log = logs.map((p: any) => {
     const volume = Number('0x' + p.data)
@@ -53,26 +42,24 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
     } as IFee
   });
 
-  const log_mint = logs_mint
-    .filter((e: any) => !hash_sale.includes(e.hash))
-    .map((p: any) => {
-      const volume = Number('0x' + p.data)
-      return {
-        volume: volume,
-        tx: '0x' + p.hash
-      }
-    });
 
   const royalties_fees = log.filter((e: IFee) => !e.isMarketplaceFees)
     .reduce((a: number, b: IFee) => a + b.volume, 0)
   const marketplace_fees = log.filter((e: IFee) => e.isMarketplaceFees)
     .reduce((a: number, b: IFee) => a + b.volume, 0)
 
-  const mint_fees = log_mint
-    .reduce((a: number, b: IMintFee) => a + b.volume, 0)
 
-  dailyFees.addGasToken(royalties_fees+marketplace_fees+mint_fees);
-  dailyRevenue.addGasToken(marketplace_fees+mint_fees);
+  const dailyMintFees = await addGasTokensReceived({
+    options,
+    multisig: '0xd1d1d4e36117ab794ec5d4c78cbd3a8904e691d0',
+    blacklist_fromAddresses: ['0xf2989961Bf987bdD6c86CD6B845B6fACa194a8e4']
+  })
+
+  dailyFees.addGasToken(royalties_fees+marketplace_fees);
+  dailyRevenue.addGasToken(marketplace_fees);
+
+  dailyFees.addBalances(dailyMintFees);
+  dailyRevenue.addBalances(dailyMintFees);
 
   return {
     timestamp,
@@ -92,13 +79,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: 1669852800,
-      meta: {
-        methodology
-      }
+      start: '2022-12-01',
     },
   },
-
+  
+  methodology,
 }
 
 export default adapter;

@@ -2,7 +2,6 @@ import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/t
 import { CHAIN } from "../../helpers/chains";
 
 const event_modified_positions = 'event PositionModified(uint indexed id,address indexed account,uint margin,int size,int tradeSize,uint lastPrice,uint fundingIndex,uint fee,int skew)';
-const event_postions_liq = 'event PositionLiquidated(uint id,address account,address liquidator,int size,uint price,uint flaggerFee,uint liquidatorFee,uint stakersFee)';
 
 const contracts: string[] = [
   '0x5374761526175B59f1E583246E20639909E189cE',
@@ -47,32 +46,55 @@ const contracts: string[] = [
   '0xdcB8438c979fA030581314e5A5Df42bbFEd744a0',
   '0x549dbDFfbd47bD5639f9348eBE82E63e2f9F777A',
   '0x6110DF298B411a46d6edce72f5CAca9Ad826C1De',
+  '0x105f7F2986A2414B4007958b836904100a53d1AD',
+  '0xE698CcC3cD4f2172a848094eA6D28D89d750C16f',
+  '0xf9AE92bc49A5DD96AE5840eaAE75218016811c99',
+  '0xae90E9BB73b32505FB56a0F4Fd4eC8cf94BaB730',
+  '0x48BeadAB5781aF9C4Fec27AC6c8E0F402F2Cc3D6',
+  '0x3f957DF3AB99ff502eE09071dd353bf4352BBEfE',
+  '0xB3422e49dB926f7C5F5d7DaF5F1069Abf1b7E894',
+  '0x296286ae0b5c066CBcFe46cc4Ffb375bCCAFE640',
+  '0xD5FcCd43205CEF11FbaF9b38dF15ADbe1B186869',
+  '0x4bF3C1Af0FaA689e3A808e6Ad7a8d89d07BB9EC7',
+  '0xb7059Ed9950f2D9fDc0155fC0D79e63d4441e806',
+  '0x2ea06E73083f1b3314Fa090eaE4a5F70eb058F2e',
+  '0xf7d9Bd13F877171f6C7f93F71bdf8e380335dc12',
+  '0x6940e7C6125a177b052C662189bb27692E88E9Cb',
+  '0x572F816F21F56D47e4c4fA577837bd3f58088676',
+  '0xfAD0835dAD2985b25ddab17eace356237589E5C7',
+  '0x77DA808032dCdd48077FA7c57afbF088713E09aD',
+  '0x1681212A0Edaf314496B489AB57cB3a5aD7a833f',
+  '0x71f42cA320b3e9A8e4816e26De70c9b69eAf9d24',
+  '0x2fD9a39ACF071Aa61f92F3D7A98332c68d6B6602',
+  '0xd4e9e0784C3cE4796f54F2EA0D337c7CFcCFD645',
+  '0x2F0F0865dFDD52AdefB583Ae824dDE7D60b76a3B',
+  '0xBBd74c2c8c89D45B822e08fCe400F4DDE99e600b',
+  '0xaF2E4c337B038eaFA1dE23b44C163D0008e49EaD',
+  '0x66fc48720f09Ac386608FB65ede53Bb220D0D5Bc',
+  '0xEAf0191bCa9DD417202cEf2B18B7515ABff1E196',
+  '0xdcCDa0cFBEE25B33Ff4Ccca64467E89512511bf6',
+  '0x35B0ed8473e7943d31Ee1eeeAd06C8767034Ce39',
+  '0x96f2842007021a4C5f06Bcc72961701D66Ff8465',
+  '0xfbbBFA96Af2980aE4014d5D5A2eF14bD79B2a299',
+  '0x50a40d947726ac1373DC438e7aaDEde9b237564d'
 ]
 
-const fetchVolume: any = async (timestamp: number, _, { getLogs, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (_a: any, _b: any, { getLogs }: FetchOptions): Promise<FetchResultVolume> => {
   let dailyVolume = 0
   const logs_modify: any[] = await getLogs({ targets: contracts, eventAbi: event_modified_positions, })
-  const logs_liq: any[] = await getLogs({ targets: contracts, eventAbi: event_postions_liq, })
   logs_modify.forEach((log: any) => {
     let value = Number(log.tradeSize) * Number(log.lastPrice) / 1e36
     if (value < 0) value *= -1
     dailyVolume += value
   })
-  logs_liq.forEach((log: any) => {
-    let value = Number(log.size) * Number(log.price) / 1e36
-    if (value < 0) value *= -1
-    dailyVolume += value
-  })
 
-  return { dailyVolume, timestamp }
+  return { dailyVolume }
 }
+
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchVolume,
-      start: 1682121600,
-    },
-  }
+  fetch,
+  chains: [CHAIN.OPTIMISM],
+  start: '2023-04-22',
 };
 
 export default adapter;

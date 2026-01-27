@@ -1,11 +1,8 @@
-
 import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-const adapters = univ2Adapter({
-  [CHAIN.TELOS]: "https://subgraph.meridianfinance.net/subgraphs/name/meridian-swaps",
-}, {
-});
-
-adapters.adapter.telos.start = 1723909337;
-export default adapters;
+export default uniV2Exports({ 
+  [CHAIN.TELOS]: {
+    factory: '0x1F2542D8F784565D526eeaDC9F1ca8Fbb75e5996',
+  }
+})

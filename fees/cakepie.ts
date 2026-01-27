@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_paid_stream = 'event V3PoolFeesPaidTo  (address indexed _user, uint256 _positionId, address _token, uint256 _feeAmount)';
 const event_paid_bribe = 'event NewBribe ( address indexed _user, uint256 indexed _targetTime, address _pool, address _bribeToken, uint256 _amount)';
@@ -25,44 +25,45 @@ const address_bribe: TAddress = {
 const graph = (chain: Chain) => {
   return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
-    if (chain=='BSC'){
-    (await getLogs({
-      target: address_reward[chain],
-      eventAbi: event_paid_stream,
-    })).map((e: any) => {
-      // check if it is cake address
+    if (chain == 'BSC') {
+      (await getLogs({
+        target: address_reward[chain],
+        eventAbi: event_paid_stream,
+      })).map((e: any) => {
+        // check if it is cake address
         if (e.token === '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82') {
-            dailyFees.add(e._token, e._feeAmount);
-          }
-    })
-  }
+          dailyFees.add(e._token, e._feeAmount);
+        }
+      })
+    }
     (await getLogs({
       target: address_bribe[chain],
       eventAbi: event_paid_bribe,
     })).map((e: any) => {
-      dailyFees.add(e._bribeToken, e._amount)     
+      dailyFees.add(e._bribeToken, e._amount)
     })
-    return { dailyFees, dailyRevenue: dailyFees,dailyUserFees:dailyFees  };
+    return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };
   }
 }
 
+const methodology = {
+  Fees: 'Staking rewards collected from assets staked on PancakeSwap',
+  Revenue: 'Staking rewards collected from assets staked on PancakeSwap',
+}
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
-
     [CHAIN.BSC]: {
       fetch: graph(CHAIN.BSC),
-      start: 77678653,
     },
     [CHAIN.ARBITRUM]: {
       fetch: graph(CHAIN.ARBITRUM),
-      start: 77678653,
     },
     [CHAIN.ETHEREUM]: {
-        fetch: graph(CHAIN.ETHEREUM),
-        start: 77678653,
-      },
+      fetch: graph(CHAIN.ETHEREUM),
+    },
   }
 };
 

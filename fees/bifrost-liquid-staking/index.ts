@@ -2,24 +2,19 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-
-
-
-const fetch = async (options: FetchOptions) => {
-  const startTime = new Date(options.startTimestamp * 1000).toISOString().split("T")[0]
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const res = await fetchURL('https://dapi.bifrost.io/api/dapp/stats')
-  const { dailyFees, dailyRevenue, totalRevenue, totalFees } = res.find(v => v.date === startTime)
+  const { dailyFees, dailyRevenue, } = res.find(v => v.date === options.dateString)
 
-  return { dailyFees, dailyRevenue, totalRevenue, totalFees, timestamp: options.startTimestamp };
+  return { dailyFees, dailyRevenue, };
 };
 
 
 const adapter: any = {
-  version: 2,
   adapter: {
     [CHAIN.BIFROST]: {
       fetch,
-      start: 1640995200,
+      start: '2022-01-01',
     },
   },
 };

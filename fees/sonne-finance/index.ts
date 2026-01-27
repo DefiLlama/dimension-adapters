@@ -41,14 +41,21 @@ const fetchbase = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  methodology: {
+    Fees: "Total interest paid by borrowers",
+    Revenue: "Protocol's share of interest treasury",
+    ProtocolRevenue: "Protocol's share of interest into treasury",
+    HoldersRevenue: "Share of interest into protocol governance token holders.",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+  },
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchoptimism as any,
-      start: 1664582400,
+      start: '2022-10-01',
     },
     [CHAIN.BASE]: {
       fetch: fetchbase as any,
-      start: 1693449471,
+      start: '2023-08-31',
     },
   },
 };

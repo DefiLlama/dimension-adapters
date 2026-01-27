@@ -1,15 +1,12 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { FetchResult, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { httpGet } from "../../utils/fetchURL";
 
-const fetch: FetchV2 = async ({ chain,toTimestamp,endTimestamp,fromTimestamp }): Promise<FetchResultV2> => {
-    let volumeRes=await httpGet("https://app.xei.finance/indexer/1329/xei/dexVolume?endAt="+toTimestamp.toString())
-    // console.log(volumeRes)
+const fetch: FetchV2 = async ({ toTimestamp, }): Promise<FetchResultV2> => {
+    let volumeRes = await httpGet("https://app.xei.finance/indexer/1329/xei/dexVolume?endAt=" + toTimestamp.toString())
     return {
-        dailyVolume:parseInt(volumeRes.data),
-        
+        dailyVolume: parseInt(volumeRes.data),
+
     };
 };
 const contract = {
@@ -22,9 +19,7 @@ const adapter: SimpleAdapter = {
             ...acc,
             [chain]: {
                 fetch,
-                start: 1716890175,
-                runAtCurrTime:false,
-                // customBackfill:customBackfill(contract, chain)
+                start: '2024-05-28',
             },
         }
     }, {}),

@@ -1,16 +1,31 @@
-import { DISABLED_ADAPTER_KEY } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import disabledAdapter from "../../helpers/disabledAdapter";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import {CHAIN} from "../../helpers/chains";
+import {uniV2Exports} from "../../helpers/uniswap";
+import {SimpleAdapter} from "../../adapters/types";
 
-const adapters = univ2Adapter({
-  [CHAIN.BITGERT]: "https://graph2.icecreamswap.com/subgraphs/name/simone1999/icecreamswap-bitgert",
-  [CHAIN.CORE]: "https://graph-core.icecreamswap.com/subgraphs/name/simone1999/icecreamswap-core"
-}, {
-  factoriesName: "pancakeFactories",
-  dayData: "pancakeDayData"
-});
-adapters.adapter.bitgert.start = 1655917200;
-adapters.adapter.core.start = 1675814400;
-adapters.adapter[DISABLED_ADAPTER_KEY] = disabledAdapter;
+const FACTORY_ADDRESS = '0x9E6d21E759A7A288b80eef94E4737D313D31c13f';
+
+const methodology = {
+  UserFees: "Users pays 0.3% of each swap",
+  Fees: "A 0.3% trading fee is collected",
+  Revenue: "A 1/6 fees goes to the protocol",
+  SupplySideRevenue: "5/6 of trading fees are distributed among liquidity providers."
+}
+
+const adapters: SimpleAdapter = uniV2Exports({
+  [CHAIN.BITGERT]: {
+    factory: FACTORY_ADDRESS,
+    fees: 0.003,
+    revenueRatio: 1 / 6,
+    userFeesRatio: 1
+  },
+  [CHAIN.CORE]: {
+    factory: FACTORY_ADDRESS,
+    fees: 0.003,
+    revenueRatio: 1 / 6,
+    userFeesRatio: 1,
+  },
+})
+
+adapters.methodology = methodology;
+
 export default adapters;

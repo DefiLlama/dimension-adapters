@@ -15,7 +15,7 @@ interface IPair {
 
 const fetchVolune: FetchV2 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const pairLogs = await options.getLogs({ target: factory, eventAbi: 'event PairAdded(address orderbook, address base, address quote, uint8 bDecimal, uint8 qDecimal)', onlyArgs: true, fromBlock: 4381503 })
+  const pairLogs = await options.getLogs({ target: factory, eventAbi: 'event PairAdded(address orderbook, address base, address quote, uint8 bDecimal, uint8 qDecimal)', onlyArgs: true, fromBlock: 4381503, cacheInCloud: true, })
   const pairs: IPair[] = pairLogs.map((log: any) => {
     return {
       orderbook: log.orderbook,
@@ -40,7 +40,7 @@ const fetchVolune: FetchV2 = async (options: FetchOptions) => {
 }
 
 
-const options: any = { fetch: fetchVolune, start: 1708992000 }
+const options: any = { fetch: fetchVolune, start: '2024-02-27' }
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: options,

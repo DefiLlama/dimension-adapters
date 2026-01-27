@@ -1,51 +1,40 @@
-import { Chain } from "@defillama/sdk/build/general";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 
-type IContract = {
-  [c: string | Chain]: string;
-}
+const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId, bool hasSourceSwaps, bool hasDestinationCall) bridgeData)"
+const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas','lifi-gasless-jumper']
 
-const contract: IContract = {
-  [CHAIN.AURORA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.ARBITRUM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.OPTIMISM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.BASE]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.ETHEREUM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.AVAX]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.BSC]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.LINEA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.MANTA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.POLYGON]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.POLYGON_ZKEVM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.FANTOM]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.MODE]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.SCROLL]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.ERA]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.METIS]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-  [CHAIN.XDAI]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-}
-
-const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
-  const dailyVolume = createBalances();
-  const data: any[] = await getLogs({
-    target: contract[chain],
-    eventAbi: 'event LiFiTransferStarted(bytes32 indexed transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId,bool hasSourceSwaps,bool hasDestinationCall )'
+const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, integrators, [], 'cross-chain');
+    return {
+      dailyBridgeVolume: dailyVolume
+    };
+  }
+  const dailyVolume = options.createBalances();
+  const logs: any[] = await options.getLogs({
+    target: LifiDiamonds[options.chain].id,
+    topic: '0xcba69f43792f9f399347222505213b55af8e0b0b54b893085c2e27ecbe1644f1',
+    eventAbi: LifiBridgeEvent,
   });
-  data.forEach((e: any) => {
-    if (e.integrator === 'jumper.exchange' || e.integrator === 'jumper.exchange.gas') {
-      dailyVolume.add(e.sendingAssetId, e.minAmount);
+
+  logs.forEach((e: any) => {
+    const { bridgeData: { integrator, sendingAssetId, minAmount } } = e;
+    if (integrators.includes(integrator)) {
+      dailyVolume.add(sendingAssetId, minAmount);
     }
   });
 
-  return { dailyBridgeVolume: dailyVolume, timestamp, } as any;
+  return { dailyBridgeVolume: dailyVolume } as any;
 };
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(contract).reduce((acc, chain) => {
+  version: 2,
+  adapter: Object.keys(LifiDiamonds).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: 1691625600, }
+      [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
     }
   }, {})
 };

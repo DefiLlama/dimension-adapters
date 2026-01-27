@@ -1,5 +1,4 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -23,7 +22,6 @@ const fetch = () => {
 
         const volume: IVolume = response.data;
         return {
-            totalVolume: `${volume?.total_vol || undefined}`,
             dailyVolume: `${volume['24h_vol'] || undefined}`,
             timestamp: dayTimestamp,
         };
@@ -32,11 +30,11 @@ const fetch = () => {
 
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-01-23', // v1 is shutting down on 2026-01-23
     adapter: {
         ['merlin']: {
             fetch: fetch(),
             runAtCurrTime: true,
-            start: 9142115,
         }
     },
 };

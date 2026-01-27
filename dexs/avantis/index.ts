@@ -1,9 +1,8 @@
-import { Chain } from "@defillama/sdk/build/general";
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { FetchResultVolume } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 interface IData {
 	success: boolean;
@@ -19,38 +18,32 @@ interface IData {
 
 const API_URL = "https://api.avantisfi.com/v1";
 
-const fetchData = (_: Chain) => {
-	return async (timestamp: number): Promise<FetchResultVolume> => {
-		const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
+	const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+	const date = new Date(todaysTimestamp * 1000);
+	const dateStr = date.toISOString().split("T")[0];
 
-		// Convert timestamp to Date object and format to YYYY-MM-DD in UTC
-		const date = new Date(todaysTimestamp * 1000);
-		const dateStr = date.toISOString().split("T")[0];
+	const url = `${API_URL}/history/analytics/daily-volumes/60`;
+	const value: IData = await fetchURL(url);
+	if (!value.success) throw new Error("Failed to fetch data");
 
-		// Find difference in days between today and the timestamp
-		const today = new Date();
-		const diffTime = Math.abs(today.getTime() - date.getTime());
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+	const data = await fetchURL(`${API_URL}/cached/history/analytics/open-interest-snapshot/60`);
+	const openInterest = data.history.find((d: any) => d.date === dateStr)?.openInterestSnapshot;
+	const openInterestAtEnd = openInterest ? openInterest.totalRatio : 0;
+	const dailyVolume = value.history.find((d) => d.date === dateStr)?.volume;
 
-		const url = `${API_URL}/history/analytics/daily-volumes/${diffDays}`;
-		const value: IData = await fetchURL(url);
-		if (!value.success) throw new Error("Failed to fetch data");
-
-		const dailyVolume = value.history.find((d) => d.date === dateStr)?.volume;
-		const totalVolume = value.history[value.history.length - 1]?.cumulativeVolume;
-		return {
-			dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-			totalVolume: totalVolume ? `${totalVolume}` : undefined,
-			timestamp: todaysTimestamp,
-		};
+	return {
+		dailyVolume,
+		openInterestAtEnd
 	};
 };
 
 const adapter: SimpleAdapter = {
+	version: 1,
 	adapter: {
 		[CHAIN.BASE]: {
-			fetch: fetchData(CHAIN.BASE),
-			start: 1706313600,
+			fetch,
+			start: '2024-01-27',
 		},
 	},
 };

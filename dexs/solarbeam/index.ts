@@ -1,10 +1,6 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-const adapter = univ2Adapter2({
-    [CHAIN.MOONRIVER]: sdk.graph.modifyEndpoint('71vx2Ph76RyX8y7RRqzNKToMm4w6now3YBJjAWpGyUCP')
-},{
-});
-adapter.adapter.moonriver.start = 1630903340;
-export default adapter;
+export default uniV2Exports({
+  [CHAIN.MOONRIVER]: { factory: '0x049581aEB6Fe262727f290165C29BDAB065a1B68', start: '2021-09-06', fees: 0.0025, revenueRatio: 0.2, protocolRevenueRatio: 0.2, holdersRevenueRatio: 0,},
+})

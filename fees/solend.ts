@@ -1,5 +1,6 @@
 import {
   Adapter,
+  FetchOptions,
   FetchResultFees,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -18,6 +19,7 @@ interface DailyStats {
   protocolSpreadFees: string,
   protocolLiquidationTakeRate: string,
   liquidityProviderInterest: string,
+  closeFees: string,
   previous: string,
   next: string,
 }
@@ -27,47 +29,43 @@ const methodology = {
   ProtocolReveneue: 'The portion of the total fees going to the Solend DAO treasury'
 }
 
-const fetchSolendStats = async (timestamp: number): Promise<FetchResultFees> => {
-  const url = `${solendFeesURL}?ts=${timestamp}&span=24h`
+const fetchSolendStats = async ({ endTimestamp }: FetchOptions) => {
+  const url = `${solendFeesURL}?ts=${endTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
 
   const userFees =
     parseInt(stats.liquidityProviderInterest) +
     parseFloat(stats.hostOriginationFees) +
     parseFloat(stats.hostFlashLoanFees) +
-    parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.hostOriginationFees) +
+    parseFloat(stats.protocolOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
-    parseFloat(stats.protocolLiquidationTakeRate);
+    parseFloat(stats.protocolLiquidationTakeRate) +
+    parseFloat(stats.closeFees) 
 
-  const dailyRevenue = parseFloat(stats.protocolSpreadFees) +
+  const dailyRevenue = parseFloat(stats.protocolOriginationFees) +
     parseFloat(stats.protocolFlashLoanFees) +
     parseFloat(stats.protocolSpreadFees) +
     parseFloat(stats.protocolLiquidationTakeRate);
   return {
-    timestamp,
-    dailyFees: userFees.toString(),
-    dailyUserFees: userFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailyProtocolRevenue: dailyRevenue.toString(),
+    dailyFees: userFees,
+    dailyUserFees: userFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue: stats.liquidityProviderInterest, // some day is negative
   };
 };
 
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
-      runAtCurrTime: false,
-      customBackfill: undefined,
       fetch: fetchSolendStats,
-      start: 1675123053,
-      meta: {
-        methodology,
-      },
+      start: '2023-01-31',
     },
   },
+  methodology,
 };
 
 export default adapter;

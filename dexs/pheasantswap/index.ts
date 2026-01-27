@@ -17,7 +17,7 @@ const fetch = async (timestamp: number) => {
     .find(dayItem => Number(dayItem.date) === dayTimestamp)?.amount
 
   return {
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
+    dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
 };
@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ENULS]: {
       fetch,
-      start: 1682294400,
+      start: '2023-04-24',
     },
   },
 };

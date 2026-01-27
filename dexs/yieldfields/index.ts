@@ -1,37 +1,8 @@
-import * as sdk from "@defillama/sdk";
-const { BSC } = require("../../helpers/chains");
-const { getStartTimestamp } = require("../../helpers/getStartTimestamp");
-import { SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from "../../helpers/chains"
+import { uniV2Exports } from "../../helpers/uniswap"
 
-const endpoints = {
-  [BSC]: sdk.graph.modifyEndpoint('6PGfw9826xTB8JNN9HuMyY5eaFZLq6uqUcBwH7YEytsZ'),
-};
-
-const DAILY_VOLUME_FACTORY = "yieldFieldsDayData";
-
-const graphs = getChainVolume2({
-  graphUrls: {
-    [BSC]: endpoints[BSC],
-  },
-  totalVolume: {
-    factory: "yieldFieldsFactories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [BSC]: {
-      fetch: graphs(BSC),
-      start: getStartTimestamp({
-        endpoints,
-        chain: BSC,
-        dailyDataField: `${DAILY_VOLUME_FACTORY}s`,
-      }),
-    },
-  },
-};
-
-export default adapter;
+export default uniV2Exports({
+  [CHAIN.BSC]: {
+    factory: '0x0A376eE063184B444ff66a9a22AD91525285FE1C',
+  }
+})

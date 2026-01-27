@@ -2,7 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ethers } from "ethers";
-import { getProvider } from "@defillama/sdk/build/general";
+import * as sdk from "@defillama/sdk";
 
 const channels_address = '0x693Bac5ce61c720dDC68533991Ceb41199D8F8ae';
 const wxHOPR_address = ADDRESSES.xdai.XHOPR;
@@ -23,23 +23,18 @@ interface ITx {
 }
 
 const fetch = async ({ toTimestamp, getLogs, createBalances, }: FetchOptions) => {
-  const provider = getProvider('xdai');
+  const provider = sdk.getProvider('xdai');
   const iface = new ethers.Interface(['function execTransactionFromModule(address to,uint256 value,bytes data,uint8 operation)'])
 
   const ticketRedeemedLogs: ITx[] = await getLogs({
     target: channels_address,
     eventAbi: 'event TicketRedeemed (bytes32 indexed channelId, uint48 newTicketIndex)', entireLog: true,
   })
-  const ticketRedeemedHashSet = new Set(ticketRedeemedLogs.map(ticket => ticket.transactionHash.toLowerCase()));
-  console.log('ticketRedeemedHashSet', ticketRedeemedHashSet.size);
-
 
   const erc20transferLog: ITx[] = await getLogs({
     target: wxHOPR_address, topics: [topic1, topic2], entireLog: true,
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
   });
-  const erc20transferHashSet = new Set(erc20transferLog.map(transaction => transaction.transactionHash.toLowerCase()));
-  console.log('erc20transferHashSet', erc20transferHashSet.size);
   const erc20TransferMap = new Map(erc20transferLog.map(transaction => [transaction.transactionHash.toLowerCase(), transaction.data]));
 
   let dailyRevenueStayedInChannelsTXs: string[] = [];
@@ -68,13 +63,11 @@ const fetch = async ({ toTimestamp, getLogs, createBalances, }: FetchOptions) =>
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.XDAI]: {
       fetch: fetch,
-      start: 1693440000,
-      meta: {
-        methodology
-      }
+      start: '2023-08-31',
     },
   }
 }

@@ -8,6 +8,8 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.AVAX]: "https://subgraph.satsuma-prod.com/3b2ced13c8d9/gmx/gmx-avalanche-stats/api",
 }
 
+const HACK_TIMESTAMP = 1752019200;
+
 const historicalDataSwap = gql`
   query get_volume($period: String!, $id: String!) {
     volumeStats(where: {period: $period, id: $id}) {
@@ -59,13 +61,10 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
       : String(dayTimestamp) + ':daily',
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
-  let dailyOpenInterest = 0;
-  let dailyLongOpenInterest = 0;
-  let dailyShortOpenInterest = 0;
+
+  let openInterestAtEnd = 0;
+  let longOpenInterestAtEnd = 0;
+  let shortOpenInterestAtEnd = 0;
 
   if (query === historicalDataDerivatives) {
     const tradingStats: IGraphResponseOI = await request(endpoints[chain], historicalOI, {
@@ -74,25 +73,27 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
       : String(dayTimestamp) + ':daily',
       period: 'daily',
     });
-    dailyOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest);
-    dailyLongOpenInterest = Number(tradingStats.tradingStats[0].longOpenInterest);
-    dailyShortOpenInterest = Number(tradingStats.tradingStats[0].shortOpenInterest);
+    openInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].longOpenInterest) + Number(tradingStats.tradingStats[0].shortOpenInterest) : 0;
+    longOpenInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].longOpenInterest) : 0;
+    shortOpenInterestAtEnd = tradingStats.tradingStats[0] ? Number(tradingStats.tradingStats[0].shortOpenInterest) : 0;
+  }
+  if (dayTimestamp == HACK_TIMESTAMP && chain == CHAIN.ARBITRUM){
+    return {
+      longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
+      openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
+      dailyVolume: '0',
+    }
   }
 
   return {
-    timestamp: dayTimestamp,
-    dailyLongOpenInterest: dailyLongOpenInterest ? String(dailyLongOpenInterest * 10 ** -30) : undefined,
-    dailyShortOpenInterest: dailyShortOpenInterest ? String(dailyShortOpenInterest * 10 ** -30) : undefined,
-    dailyOpenInterest: dailyOpenInterest ? String(dailyOpenInterest * 10 ** -30) : undefined,
+    longOpenInterestAtEnd: longOpenInterestAtEnd ? String(longOpenInterestAtEnd * 10 ** -30) : undefined,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd ? String(shortOpenInterestAtEnd * 10 ** -30) : undefined,
+    openInterestAtEnd: openInterestAtEnd ? String(openInterestAtEnd * 10 ** -30) : undefined,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
+        : 0
   }
 }
 
@@ -101,6 +102,7 @@ const startTimestamps: { [chain: string]: number } = {
   [CHAIN.ARBITRUM]: 1630368000,
   [CHAIN.AVAX]: 1640131200,
 }
+
 const adapter: BreakdownAdapter = {
   breakdown: {
     "swap": Object.keys(endpoints).reduce((acc, chain) => {

@@ -1,511 +1,315 @@
-import * as sdk from "@defillama/sdk";
-import { AVAX, OPTIMISM, FANTOM, HARMONY, ARBITRUM, ETHEREUM, POLYGON, CHAIN } from "../../helpers/chains";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints, FetchOptions } from "../../adapters/types";
-import { V1Reserve, V2Reserve, V3Reserve } from "./types"
-import { Chain } from "@defillama/sdk/build/general";
-
-//POOL_ADDRESSES_PROVIDER available in https://github.com/bgd-labs/aave-address-book
-//remember to lowercase
-const poolIDs = {
-  V1: '0x24a42fd28c976a61df5d00d0599c34c4f90748c8',
-  V2: '0xb53c1a33016b2dc2ff3653530bff1848a515c8c5',
-  V2_AMM: '0xacc030ef66f9dfeae9cbb0cd1b25654b82cfa8d5',
-  V2_POLYGON: '0xd05e3e715d945b59290df0ae8ef85c1bdb684744',
-  V2_AVALANCHE: '0xb6a86025f0fe1862b372cb0ca18ce3ede02a318f',
-  V3: '0xa97684ead0e402dc232d5a977953df7ecbab3cdb', // arbitrum, Optimism, fantom, harmony, polygon, avalanche
-  V3_ETH: '0x2f39d218133afab8f2b819b1066c7e434ad94e9e',
-  V3_BNB: '0xff75b6da14ffbbfd355daf7a2731456b3562ba6d',
-  V3_GNOSIS: '0x36616cf17557639614c1cddb356b1b83fc0b2132',
-  V3_METIS: '0xb9fabd7500b2c6781c35dd48d54f81fc2299d7af',
-  V3_BASE: '0xe20fcbdbffc4dd138ce8b2e6fbb6cb49777ad64d',
-  V3_SCROLL: '0x69850d0b276776781c063771b161bd8894bcdd04',
-}
-type THeader = {
-  [s: string]: string;
-}
-const headers: THeader = {
-  'origin': 'https://aave.com/',
-  'referer': 'https://aave.com/',
-  'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-};
-
-const ONE_DAY = 24 * 60 * 60;
-
-const v1Endpoints = {
-  [ETHEREUM]: sdk.graph.modifyEndpoint('GJfRcmN4YAzKW3VH2ZKzTcWXjgtvkpAYSwFh1LfHsEuh'),
-}
-
-const v2Endpoints = {
-  [ETHEREUM]: sdk.graph.modifyEndpoint('8wR23o1zkS4gpLqLNU4kG3JHYVucqGyopL5utGxP2q1N'),
-  [AVAX]: sdk.graph.modifyEndpoint('EZvK18pMhwiCjxwesRLTg81fP33WnR6BnZe5Cvma3H1C'),
-  [POLYGON]: sdk.graph.modifyEndpoint('H1Et77RZh3XEf27vkAmJyzgCME2RSFLtDS2f4PPW6CGp')
-};
-
-//V3 endpoints avilable here: https://github.com/aave/protocol-subgraphs
-const v3Endpoints = {
-  [POLYGON]: sdk.graph.modifyEndpoint('Co2URyXjnxaw8WqxKyVHdirq9Ahhm5vcTs4dMedAq211'),
-  [AVAX]: sdk.graph.modifyEndpoint('2h9woxy8RTjHu1HJsCEnmzpPHFArU33avmUh4f71JpVn'),
-  [ARBITRUM]: sdk.graph.modifyEndpoint('DLuE98kEb5pQNXAcKFQGQgfSQ57Xdou4jnVbAEqMfy3B'),
-  [OPTIMISM]: sdk.graph.modifyEndpoint('DSfLz8oQBUeU5atALgUFQKMTSYV9mZAVYp4noLSXAfvb'),
-  [FANTOM]: sdk.graph.modifyEndpoint('6L1vPqyE3xvkzkWjh6wUKc1ABWYYps5HJahoxhrv2PJn'),
-  [HARMONY]: sdk.graph.modifyEndpoint('FifJapBdCqT9vgNqJ5axmr6eNyUpUSaRAbbZTfsViNsT'),
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('Cd2gEDVeqnjBn1hSeqFMitw8Q1iiyV9FYUZkLNRcL87g'),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('7Jk85XgkV1MQ7u56hD8rr65rfASbayJXopugWkUoBMnZ'),
-  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('HtcDaL8L8iZ2KQNNS44EBVmLruzxuNAz1RkBYdui1QUT'),
-  [CHAIN.METIS]: 'https://metisapi.0xgraph.xyz/subgraphs/name/aave/protocol-v3-metis',
-  [CHAIN.BASE]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-base/1.0.0/gn',
-  [CHAIN.SCROLL]: 'https://api.goldsky.com/api/public/project_clk74pd7lueg738tw9sjh79d6/subgraphs/aave-v3-scroll/1.0.0/gn',
-}
-
-
-const v1Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
-  const graphQuery = gql
-  `{
-    reserves(where: { pool: "${poolIDs.V1}" }) {
-      id
-      paramsHistory(
-        where: { timestamp_lte: ${timestamp}, timestamp_gte: ${timestamp - ONE_DAY} },
-        orderBy: "timestamp",
-        orderDirection: "desc",
-        first: 1
-      ) {
-        id
-        priceInUsd
-        reserve {
-          decimals
-          symbol
-        }
-        lifetimeFlashloanDepositorsFee
-        lifetimeFlashloanProtocolFee
-        lifetimeOriginationFee
-        lifetimeDepositorsInterestEarned
-      }
-    }
-  }`;
-
-  const graphRes = await request(graphUrls[chain], graphQuery);
-  const reserves = graphRes.reserves.map((r: any) => r.paramsHistory[0]).filter((r: any) => r)
-  return reserves
-}
-
-const v1Graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async ({ endTimestamp }: FetchOptions)  => {
-      const todaysTimestamp = endTimestamp
-      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
-
-      const todaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, todaysTimestamp);
-      const yesterdaysReserves: V1Reserve[] = await v1Reserves(graphUrls, chain, yesterdaysTimestamp);
-
-      const dailyFee = todaysReserves.reduce((acc: number, reserve: V1Reserve) => {
-        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-
-        if (!yesterdaysReserve) {
-          return acc;
-        }
-
-        const priceInUsd = parseFloat(reserve.priceInUsd);
-
-        const depositorInterest = parseFloat(reserve.lifetimeDepositorsInterestEarned) - parseFloat(yesterdaysReserve.lifetimeDepositorsInterestEarned);
-        const depositorInterestUSD = depositorInterest * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const originationFees = parseFloat(reserve.lifetimeOriginationFee) - parseFloat(yesterdaysReserve.lifetimeOriginationFee);
-        const originationFeesUSD = originationFees * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const flashloanDepositorsFees = parseFloat(reserve.lifetimeFlashloanDepositorsFee) - parseFloat(yesterdaysReserve.lifetimeFlashloanDepositorsFee);
-        const flashloanDepositorsFeesUSD = flashloanDepositorsFees * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const flashloanProtocolFees = parseFloat(reserve.lifetimeFlashloanProtocolFee) - parseFloat(yesterdaysReserve.lifetimeFlashloanProtocolFee);
-        const flashloanProtocolFeesUSD = flashloanProtocolFees * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        return acc
-          + depositorInterestUSD
-          + originationFeesUSD
-          + flashloanProtocolFeesUSD
-          + flashloanDepositorsFeesUSD;
-      }, 0);
-
-      const dailyRev = todaysReserves.reduce((acc: number, reserve: V1Reserve) => {
-        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-
-        if (!yesterdaysReserve) {
-          return acc;
-        }
-
-        const priceInUsd = parseFloat(reserve.priceInUsd);
-
-        const originationFees = parseFloat(reserve.lifetimeOriginationFee) - parseFloat(yesterdaysReserve.lifetimeOriginationFee);
-        const originationFeesUSD = originationFees * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const flashloanProtocolFees = parseFloat(reserve.lifetimeFlashloanProtocolFee) - parseFloat(yesterdaysReserve.lifetimeFlashloanProtocolFee);
-        const flashloanProtocolFeesUSD = flashloanProtocolFees * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        return acc
-          + originationFeesUSD
-          + flashloanProtocolFeesUSD
-      }, 0);
-
-      return {
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
-        dailyHoldersRevenue: '0',
-      };
-    };
-  };
-};
-
-
-const v2Reserves = async (graphUrls: ChainEndpoints, poolId: string, chain: string, timestamp: number) => {
-  const graphQuery = gql
-  `{
-    reserves(where: { pool: "${poolId}" }) {
-        id
-        paramsHistory(
-          where: { timestamp_lte: ${timestamp}, timestamp_gte: ${timestamp - ONE_DAY} },
-          orderBy: "timestamp",
-          orderDirection: "desc",
-          first: 1
-        ) {
-          id
-          priceInEth
-          priceInUsd
-          reserve {
-            decimals
-            symbol
-          }
-          lifetimeFlashLoanPremium
-          lifetimeReserveFactorAccrued
-          lifetimeDepositorsInterestEarned
-        }
-      }
-    }`;
-  const graphRes = await request(graphUrls[chain], graphQuery, {}, headers);
-  const reserves = graphRes.reserves.map((r: any) => r.paramsHistory[0]).filter((r: any) => r)
-  return reserves
-}
-
-type TMap = {
-  [s: string]: string[];
-}
-const blacklisted_v2_symbol: TMap = {
-  [CHAIN.ETHEREUM]: ['AMPL'],
-  [AVAX]: [],
-  [POLYGON]: [],
-}
-const v2Graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async ({ endTimestamp }: FetchOptions)  => {
-      const todaysTimestamp = endTimestamp
-      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
-
-      let poolID = poolIDs.V2
-      if (chain == "avax") {
-        poolID = poolIDs.V2_AVALANCHE
-      } else if (chain == "polygon") {
-        poolID = poolIDs.V2_POLYGON
-      }
-
-      const todaysReserves: V2Reserve[] = await v2Reserves(graphUrls, poolID, chain, todaysTimestamp);
-      const yesterdaysReserves: V2Reserve[] = await v2Reserves(graphUrls, poolID, chain, yesterdaysTimestamp);
-
-      let dailyFee = todaysReserves.reduce((acc: number, reserve: V2Reserve) => {
-        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-
-        if (!yesterdaysReserve) {
-          return acc;
-        }
-        if (blacklisted_v2_symbol[chain].includes(reserve.reserve.symbol)) return acc;
-
-        const priceInUsd = chain == 'avax' ? parseFloat(reserve.priceInUsd) / (10 ** 8) : parseFloat(reserve.priceInUsd)
-
-        const depositorInterest = parseFloat(reserve.lifetimeDepositorsInterestEarned) - (parseFloat(yesterdaysReserve?.lifetimeDepositorsInterestEarned) || 0);
-        const depositorInterestUSD = depositorInterest * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const flashloanPremium = parseFloat(reserve.lifetimeFlashLoanPremium) - (parseFloat(yesterdaysReserve?.lifetimeFlashLoanPremium) || 0);
-        const flashloanPremiumUSD = flashloanPremium * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const reserveFactor = parseFloat(reserve.lifetimeReserveFactorAccrued) - (parseFloat(yesterdaysReserve.lifetimeReserveFactorAccrued) || 0);
-        const reserveFactorUSD = reserveFactor * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        return acc
-          + depositorInterestUSD
-          + flashloanPremiumUSD
-          + reserveFactorUSD;
-      }, 0);
-
-      let dailyRev = todaysReserves.reduce((acc: number, reserve: V2Reserve) => {
-        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-
-        if (!yesterdaysReserve) {
-          return acc;
-        }
-
-        const priceInUsd = chain == 'avax' ? parseFloat(reserve.priceInUsd) / (10 ** 8) : parseFloat(reserve.priceInUsd)
-
-        const reserveFactor = parseFloat(reserve.lifetimeReserveFactorAccrued) - (parseFloat(yesterdaysReserve.lifetimeReserveFactorAccrued) || 0);
-        const reserveFactorUSD = reserveFactor * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        return acc + reserveFactorUSD;
-      }, 0);
-
-      if (chain == "ethereum") {
-        const ammPoolID = poolIDs.V2_AMM
-
-        const ammTodaysReserves: V2Reserve[] = await v2Reserves(graphUrls, ammPoolID, chain, todaysTimestamp);
-        const ammYesterdaysReserves: V2Reserve[] = await v2Reserves(graphUrls, ammPoolID, chain, yesterdaysTimestamp);
-
-        dailyFee += ammTodaysReserves.reduce((acc: number, reserve: V2Reserve) => {
-          const yesterdaysReserve = ammYesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-
-          if (!yesterdaysReserve) {
-            return acc;
-          }
-
-          const priceInUsd = parseFloat(reserve.priceInUsd)
-
-          const depositorInterest = parseFloat(reserve.lifetimeDepositorsInterestEarned) - (parseFloat(yesterdaysReserve?.lifetimeDepositorsInterestEarned) || 0);
-          const depositorInterestUSD = depositorInterest * priceInUsd / (10 ** reserve.reserve.decimals);
-
-          const flashloanPremium = parseFloat(reserve.lifetimeFlashLoanPremium) - (parseFloat(yesterdaysReserve?.lifetimeFlashLoanPremium) || 0);
-          const flashloanPremiumUSD = flashloanPremium * priceInUsd / (10 ** reserve.reserve.decimals);
-
-          const reserveFactor = parseFloat(reserve.lifetimeReserveFactorAccrued) - (parseFloat(yesterdaysReserve.lifetimeReserveFactorAccrued) || 0);
-          const reserveFactorUSD = reserveFactor * priceInUsd / (10 ** reserve.reserve.decimals);
-
-          return acc
-            + depositorInterestUSD
-            + flashloanPremiumUSD
-            + reserveFactorUSD;
-        }, 0);
-
-        dailyRev += ammTodaysReserves.reduce((acc: number, reserve: V2Reserve) => {
-          const yesterdaysReserve = ammYesterdaysReserves.find((r: any) => r.reserve.symbol === reserve.reserve.symbol)
-
-          if (!yesterdaysReserve) {
-            return acc;
-          }
-
-          const priceInUsd = parseFloat(reserve.priceInUsd)
-
-          const reserveFactor = parseFloat(reserve.lifetimeReserveFactorAccrued) - (parseFloat(yesterdaysReserve.lifetimeReserveFactorAccrued) || 0);
-          const reserveFactorUSD = reserveFactor * priceInUsd / (10 ** reserve.reserve.decimals);
-
-          return acc + reserveFactorUSD;
-        }, 0);
-      }
-
-      return {
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
-      };
-    };
-  };
-};
-
-
-
-const v3Reserves = async (graphUrls: ChainEndpoints, chain: string, timestamp: number) => {
-  let poolid;
-  if (chain === CHAIN.ETHEREUM) {
-    poolid = poolIDs.V3_ETH;
-  }
-  else if (chain === CHAIN.BSC) {
-    poolid = poolIDs.V3_BNB;
-  }
-  else if (chain === CHAIN.XDAI) {
-    poolid = poolIDs.V3_GNOSIS;
-  }
-  else if (chain === CHAIN.METIS) {
-    poolid = poolIDs.V3_METIS;
-  }
-  else if (chain === CHAIN.BASE) {
-    poolid = poolIDs.V3_BASE;
-  }
-  else if (chain === CHAIN.SCROLL) {
-    poolid = poolIDs.V3_SCROLL;
-  }
-  else {
-    poolid= poolIDs.V3;
-  }
-
-  const graphQuery =
-  `{
-    reserves(where: { pool: "${poolid}" }) {
-        id
-        paramsHistory(
-          where: { timestamp_lte: ${timestamp}, timestamp_gte: ${timestamp - ONE_DAY} },
-          orderBy: "timestamp",
-          orderDirection: "desc",
-          first: 1
-        ) {
-          id
-          priceInEth
-          priceInUsd
-          reserve {
-            decimals
-            symbol
-            underlyingAsset
-          }
-          lifetimeFlashLoanLPPremium
-          lifetimeFlashLoanProtocolPremium
-          lifetimePortalLPFee
-          lifetimePortalProtocolFee
-          lifetimeReserveFactorAccrued
-          lifetimeDepositorsInterestEarned: lifetimeSuppliersInterestEarned
-          accruedToTreasury
-        }
-      }
-    }`;
-  const graphRes = await request(graphUrls[chain], graphQuery);
-  const reserves = graphRes.reserves.map((r: any) => r.paramsHistory[0]).filter((r: any) => r)
-  return reserves
-}
-
-const v3Graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async ({ endTimestamp }: FetchOptions)  => {
-      const todaysTimestamp = endTimestamp
-      const yesterdaysTimestamp = endTimestamp - 60 * 60 * 24
-
-      const todaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, todaysTimestamp);
-      const yesterdaysReserves: V3Reserve[] = await v3Reserves(graphUrls, chain, yesterdaysTimestamp);
-
-      const feeBreakdown: any = todaysReserves.reduce((acc, reserve: V3Reserve) => {
-        const yesterdaysReserve = yesterdaysReserves.find((r: any) => r.reserve.underlyingAsset === reserve.reserve.underlyingAsset)
-
-        if (!yesterdaysReserve) {
-          return acc;
-        }
-
-        const priceInUsd = parseFloat(reserve.priceInUsd) / (10 ** 8)
-
-        const depositorInterest = parseFloat(reserve.lifetimeDepositorsInterestEarned) - parseFloat(yesterdaysReserve?.lifetimeDepositorsInterestEarned);
-        const depositorInterestUSD = depositorInterest * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const flashloanLPPremium = parseFloat(reserve.lifetimeFlashLoanLPPremium) - parseFloat(yesterdaysReserve.lifetimeFlashLoanLPPremium);
-        const flashloanLPPremiumUSD = flashloanLPPremium * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const flashloanProtocolPremium = parseFloat(reserve.lifetimeFlashLoanProtocolPremium) - parseFloat(yesterdaysReserve.lifetimeFlashLoanProtocolPremium);
-        const flashloanProtocolPremiumUSD = flashloanProtocolPremium * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const portalLPFee = parseFloat(reserve.lifetimePortalLPFee) - parseFloat(yesterdaysReserve?.lifetimePortalLPFee);
-        const portalLPFeeUSD = portalLPFee * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const portalProtocolFee = parseFloat(reserve.lifetimePortalProtocolFee) - parseFloat(yesterdaysReserve?.lifetimePortalProtocolFee);
-        const portalProtocolFeeUSD = portalProtocolFee * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const treasuryIncome = parseFloat(reserve.lifetimeReserveFactorAccrued) - parseFloat(yesterdaysReserve?.lifetimeReserveFactorAccrued);
-
-        const outstandingTreasuryIncome = parseFloat(reserve.accruedToTreasury) - parseFloat(yesterdaysReserve?.accruedToTreasury);
-
-        const treasuryIncomeUSD = treasuryIncome * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        const outstandingTreasuryIncomeUSD = outstandingTreasuryIncome * priceInUsd / (10 ** reserve.reserve.decimals);
-
-        acc.outstandingTreasuryIncomeUSD += outstandingTreasuryIncomeUSD;
-        acc.treasuryIncomeUSD += treasuryIncomeUSD;
-        acc.depositorInterestUSD += depositorInterestUSD;
-        acc.flashloanLPPremiumUSD += flashloanLPPremiumUSD;
-        acc.flashloanProtocolPremiumUSD += flashloanProtocolPremiumUSD;
-        acc.portalLPFeeUSD += portalLPFeeUSD;
-        acc.portalProtocolFeeUSD += portalProtocolFeeUSD;
-        return acc;
-      }, {
-        depositorInterestUSD: 0,
-        flashloanLPPremiumUSD: 0,
-        flashloanProtocolPremiumUSD: 0,
-        portalLPFeeUSD: 0,
-        portalProtocolFeeUSD: 0,
-        treasuryIncomeUSD: 0,
-        outstandingTreasuryIncomeUSD: 0
-      });
-      const dailyFee = feeBreakdown.depositorInterestUSD + feeBreakdown.treasuryIncomeUSD
-      const dailyRev = feeBreakdown.treasuryIncomeUSD
-
-      return {
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyRev.toString(),
-      };
-    };
-  };
-};
-
-const adapter = {
-  breakdown: {
-//v1 subgraph no longer responding
-//    v1: {
-//      [ETHEREUM]: {
-//        fetch: v1Graphs(v1Endpoints)(ETHEREUM),
-//        start: 1578459600
-//      },
-//    },
-    v2: {
-      [AVAX]: {
-        fetch: v2Graphs(v2Endpoints)(AVAX),
-        start: 1606971600
-      },
-      [ETHEREUM]: {
-        fetch: v2Graphs(v2Endpoints)(ETHEREUM),
-        start: 1606971600
-      },
-      [POLYGON]: {
-        fetch: v2Graphs(v2Endpoints)(POLYGON),
-        start: 1606971600
-      },
+import { BreakdownAdapter } from "../../adapters/types";
+import { aaveExport, AaveLendingPoolConfig, } from "../../helpers/aave";
+import { CHAIN } from "../../helpers/chains";
+
+const AaveV1Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+  [CHAIN.ETHEREUM]: [
+    {
+      version: 1,
+      lendingPoolProxy: '0x398eC7346DcD622eDc5ae82352F02bE94C62d119',
+      dataProvider: '0x082B0cA59f2122c94E5F57Db0085907fa9584BA6',
     },
-    v3: {
-      [AVAX]: {
-        fetch: v3Graphs(v3Endpoints)(AVAX),
-        start: 1647230400
-      },
-      [POLYGON]: {
-        fetch: v3Graphs(v3Endpoints)(POLYGON),
-        start: 1647230400
-      },
-      [ARBITRUM]: {
-        fetch: v3Graphs(v3Endpoints)(ARBITRUM),
-        start: 1647230400
-      },
-      [OPTIMISM]: {
-        fetch: v3Graphs(v3Endpoints)(OPTIMISM),
-        start: 1647230400
-      },
-      [FANTOM]: {
-        fetch: v3Graphs(v3Endpoints)(FANTOM),
-        start: 1647230400
-      },
-      [HARMONY]: {
-        fetch: v3Graphs(v3Endpoints)(HARMONY),
-        start: 1647230400
-      },
+  ]
+}
+
+const AaveV2Markets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+  [CHAIN.ETHEREUM]: [
+    {
+      version: 2,
+      lendingPoolProxy: '0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9',
+      dataProvider: '0x057835ad21a177dbdd3090bb1cae03eacf78fc6d',
+    },
+  ],
+  [CHAIN.POLYGON]: [
+    {
+      version: 2,
+      lendingPoolProxy: '0x8dff5e27ea6b7ac08ebfdf9eb090f32ee9a30fcf',
+      dataProvider: '0x7551b5d2763519d4e37e8b81929d336de671d46d',
+    },
+  ],
+  [CHAIN.AVAX]: [
+    {
+      version: 2,
+      lendingPoolProxy: '0x4f01aed16d97e3ab5ab2b501154dc9bb0f1a5a2c',
+      dataProvider: '0x65285e9dfab318f57051ab2b139cccf232945451',
+    },
+  ],
+}
+
+export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+  [CHAIN.ETHEREUM]: [
+    // core market
+    {
+      version: 3,
+      lendingPoolProxy: '0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2',
+      dataProvider: '0x7b4eb56e7cd4b454ba8ff71e4518426369a138a3',
+      selfLoanAssets: {
+        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': 'GHO',
+      }
+    },
+
+    // lido market
+    {
+      version: 3,
+      lendingPoolProxy: '0x4e033931ad43597d96d6bcc25c280717730b58b1',
+      dataProvider: '0xa3206d66cf94aa1e93b21a9d8d409d6375309f4a',
+    },
+
+    // ether.fi market
+    {
+      version: 3,
+      lendingPoolProxy: '0x0AA97c284e98396202b6A04024F5E2c65026F3c0',
+      dataProvider: '0x8Cb4b66f7B13F2Ae4D3c91338fC007dbF8C14208',
+    },
+
+    // horizon market 
+    {
+      version: 3,
+      lendingPoolProxy: '0xAe05Cd22df81871bc7cC2a04BeCfb516bFe332C8',
+      dataProvider: '0x53519c32f73fE1797d10210c4950fFeBa3b21504',
+    },
+  ],
+  [CHAIN.OPTIMISM]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
+      dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+    },
+  ],
+  [CHAIN.ARBITRUM]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
+      dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+    },
+  ],
+  [CHAIN.POLYGON]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
+      dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+    },
+  ],
+  [CHAIN.AVAX]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
+      dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+    },
+  ],
+  [CHAIN.FANTOM]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
+      dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+    },
+  ],
+  [CHAIN.BASE]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xa238dd80c259a72e81d7e4664a9801593f98d1c5',
+      dataProvider: '0x2d8a3c5677189723c4cb8873cfc9c8976fdf38ac',
+    },
+  ],
+  [CHAIN.METIS]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x90df02551bb792286e8d4f13e0e357b4bf1d6a57',
+      dataProvider: '0x99411fc17ad1b56f49719e3850b2cdcc0f9bbfd8',
+    },
+  ],
+  [CHAIN.XDAI]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xb50201558b00496a145fe76f7424749556e326d8',
+      dataProvider: '0x501b4c19dd9c2e06e94da7b6d5ed4dda013ec741',
+    },
+  ],
+  [CHAIN.BSC]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x6807dc923806fe8fd134338eabca509979a7e0cb',
+      dataProvider: '0x41585c50524fb8c3899b43d7d797d9486aac94db',
+    },
+  ],
+  [CHAIN.SCROLL]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x11fCfe756c05AD438e312a7fd934381537D3cFfe',
+      dataProvider: '0xa99F4E69acF23C6838DE90dD1B5c02EA928A53ee',
+    },
+  ],
+  [CHAIN.ERA]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x78e30497a3c7527d953c6B1E3541b021A98Ac43c',
+      dataProvider: '0x48B96565291d1B23a014bb9f68E07F4B2bb3Cd6D',
+    },
+  ],
+  [CHAIN.LINEA]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xc47b8C00b0f69a36fa203Ffeac0334874574a8Ac',
+      dataProvider: '0x2D97F8FA96886Fd923c065F5457F9DDd494e3877',
+    },
+  ],
+  [CHAIN.SONIC]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x5362dBb1e601abF3a4c14c22ffEdA64042E5eAA3',
+      dataProvider: '0x306c124fFba5f2Bc0BcAf40D249cf19D492440b9',
+    },
+  ],
+  [CHAIN.CELO]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x3E59A31363E2ad014dcbc521c4a0d5757d9f3402',
+      dataProvider: '0x33b7d355613110b4E842f5f7057Ccd36fb4cee28',
+    },
+  ],
+  [CHAIN.SONEIUM]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0xDd3d7A7d03D9fD9ef45f3E587287922eF65CA38B',
+      dataProvider: '0xa0208CE8356ad6C5EC6dFb8996c9A6B828212022',
+    },
+  ],
+  [CHAIN.PLASMA]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x925a2A7214Ed92428B5b1B090F80b25700095e12',
+      dataProvider: '0xf2D6E38B407e31E7E7e4a16E6769728b76c7419F',
+    },
+  ],
+}
+
+const info = {
+  methodology: {
+    Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
+    Revenue: 'Amount of fees go to Aave treasury.',
+    SupplySideRevenue: 'Amount of fees distributed to suppliers.',
+    ProtocolRevenue: 'Amount of fees go to Aave treasury.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest': 'All interest paid by borrowers from all markets (excluding GHO).',
+      'Borrow Interest GHO': 'All interest paid by borrowers from GHO only.',
+      'Liquidation Fees': 'Fees from liquidation penalty and bonuses.',
+      'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors.',
+    },
+    Revenue: {
+      'Borrow Interest': 'A portion of interest paid by borrowers from all markets (excluding GHO).',
+      'Borrow Interest GHO': 'All 100% interest paid by GHO borrowers.',
+      'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses.',
+      'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors.',
+    },
+    SupplySideRevenue: {
+      'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO).',
+      'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market.',
+      'Liquidation Fees': 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+      'Flashloan Fees': 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
+    },
+    ProtocolRevenue: {
+      'Borrow Interest': 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
+      'Borrow Interest GHO': 'All interest paid on GHO market are collected by Aave treasury.',
+      'Liquidation Fees': 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
+      'Flashloan Fees': 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
+    },
+  }
+}
+
+const adapter: BreakdownAdapter = {
+  version: 2,
+  methodology: info.methodology,
+  breakdownMethodology: info.breakdownMethodology,
+  breakdown: {
+    v1: aaveExport({
       [CHAIN.ETHEREUM]: {
-        fetch: v3Graphs(v3Endpoints)(CHAIN.ETHEREUM),
-        start: 1647230400
+        pools: AaveV1Markets[CHAIN.ETHEREUM],
+        start: '2020-01-09',
       },
-      [CHAIN.BSC]: {
-        fetch: v3Graphs(v3Endpoints)(CHAIN.BSC),
-        start: 1700222400
+    }),
+    v2: aaveExport({
+      [CHAIN.ETHEREUM]: {
+        pools: AaveV2Markets[CHAIN.ETHEREUM],
+        start: '2020-12-01',
       },
-      [CHAIN.XDAI]: {
-        fetch: v3Graphs(v3Endpoints)(CHAIN.XDAI),
-        start: 1696420800
+      [CHAIN.POLYGON]: {
+        pools: AaveV2Markets[CHAIN.POLYGON],
+        start: '2021-04-01',
       },
-      [CHAIN.METIS]: {
-        fetch: v3Graphs(v3Endpoints)(CHAIN.METIS),
-        start: 1682164800
+      [CHAIN.AVAX]: {
+        pools: AaveV2Markets[CHAIN.AVAX],
+        start: '2021-09-21',
+      },
+    }),
+    v3: aaveExport({
+      [CHAIN.ETHEREUM]: {
+        pools: AaveMarkets[CHAIN.ETHEREUM],
+        start: '2023-01-01',
+      },
+      [CHAIN.OPTIMISM]: {
+        pools: AaveMarkets[CHAIN.OPTIMISM],
+        start: '2022-08-05',
+      },
+      [CHAIN.ARBITRUM]: {
+        pools: AaveMarkets[CHAIN.ARBITRUM],
+        start: '2022-03-12',
+      },
+      [CHAIN.POLYGON]: {
+        pools: AaveMarkets[CHAIN.POLYGON],
+        start: '2022-03-12',
+      },
+      [CHAIN.AVAX]: {
+        pools: AaveMarkets[CHAIN.AVAX],
+        start: '2022-03-12',
+      },
+      [CHAIN.FANTOM]: {
+        pools: AaveMarkets[CHAIN.FANTOM],
+        start: '2022-03-12',
       },
       [CHAIN.BASE]: {
-        fetch: v3Graphs(v3Endpoints)(CHAIN.BASE),
-        start: 1691496000
+        pools: AaveMarkets[CHAIN.BASE],
+        start: '2023-08-09',
+      },
+      [CHAIN.BSC]: {
+        pools: AaveMarkets[CHAIN.BSC],
+        start: '2023-11-18',
+      },
+      [CHAIN.METIS]: {
+        pools: AaveMarkets[CHAIN.METIS],
+        start: '2023-04-24',
+      },
+      [CHAIN.XDAI]: {
+        pools: AaveMarkets[CHAIN.XDAI],
+        start: '2023-10-05',
       },
       [CHAIN.SCROLL]: {
-        fetch: v3Graphs(v3Endpoints)(CHAIN.SCROLL),
-        start: 1705741200
+        pools: AaveMarkets[CHAIN.SCROLL],
+        start: '2024-01-21',
       },
-    }
-  },
-  version: 2
+      [CHAIN.ERA]: {
+        pools: AaveMarkets[CHAIN.ERA],
+        start: '2024-09-09',
+      },
+      [CHAIN.LINEA]: {
+        pools: AaveMarkets[CHAIN.LINEA],
+        start: '2024-11-24',
+      },
+      [CHAIN.SONIC]: {
+        pools: AaveMarkets[CHAIN.SONIC],
+        start: '2025-02-16',
+      },
+      [CHAIN.CELO]: {
+        pools: AaveMarkets[CHAIN.CELO],
+        start: '2025-02-16',
+      },
+      [CHAIN.SONEIUM]: {
+        pools: AaveMarkets[CHAIN.SONEIUM],
+        start: '2025-05-14',
+      },
+    }),
+  }
 }
 
-export default adapter;
+export default adapter

@@ -1,13 +1,13 @@
-import { Adapter } from "../adapters/types";
-import {ARBITRUM, AVAX, BSC, FANTOM, OPTIMISM} from "../helpers/chains";
+import { Adapter, FetchOptions } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-enum CHAIN_ID {
-  ARB = 42161,
-  BSC = 56,
-  FTM = 250,
-  AVALANCHE = 43114,
-  OPTIMISM = 10,
+const CHAIN_ID_CONFIG: Record<string, number> = {
+  [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.BSC]: 56,
+  [CHAIN.FANTOM]: 250,
+  [CHAIN.AVAX]: 43114,
+  [CHAIN.OPTIMISM]: 10,
 }
 
 interface FeesMetaBaseData {
@@ -33,7 +33,7 @@ const formatMetaBaseData = (cols: Array<any>, rows: Array<Array<any>>) => {
 }
 
 const formatDate = (date: number) => {
-  return date < 10 ? `0${date}` : `${date}`
+  return date < 10 ? `0${date}` : `${date }`
 }
 
 const computeRevenue = (fee: number, por: number) => {
@@ -52,60 +52,55 @@ const computeProtocolRevenue = (fee: number) => {
   return fee * 0.3
 }
 
-const getFees = (chainId: CHAIN_ID) => {
-  return async (timestamp: number) => {
-    const date = new Date(timestamp * 1000)
-    const dateTime = `${date.getUTCFullYear()}-${formatDate(date.getUTCMonth()+1)}-${formatDate(date.getUTCDate())}`
-    const parameter = `[{"type":"date/single","value":"${dateTime}","target":["variable",["template-tag","timestamp"]],"id":"eff4a885"}]`
-    const feePathUrl = `${feesDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
-    const porPathUrl = `${porDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
-    const feeData = (await fetchURL(feePathUrl))?.data
-    const por = (await fetchURL(porPathUrl))?.data.rows[0][0]
+const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+  const chainId = CHAIN_ID_CONFIG[options.chain]
+  const date = new Date(timestamp * 1000)
+  const dateTime = `${date.getUTCFullYear()}-${formatDate(date.getUTCMonth()+1)}-${formatDate(date.getUTCDate())}`
+  const parameter = `[{"type":"date/single","value":"${dateTime}","target":["variable",["template-tag","timestamp"]],"id":"eff4a885"}]`
+  const feePathUrl = `${feesDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
+  const porPathUrl = `${porDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`
+  const feeData = (await fetchURL(feePathUrl))?.data
+  const por = (await fetchURL(porPathUrl))?.data.rows[0][0]
 
-    const result = formatMetaBaseData(feeData.cols, feeData.rows) as FeesMetaBaseData[]
-    let dailyFees = 0
-    let totalFees = 0
+  const result = formatMetaBaseData(feeData.cols, feeData.rows) as FeesMetaBaseData[]
+  let dailyFees = 0
 
-    for (const v of result) {
-      if (v.chain_id === chainId) {
-        dailyFees = v.fee
-        totalFees = v.total_fee
-        break
-      }
+  for (const v of result) {
+    if (v.chain_id === chainId) {
+      dailyFees = v.fee
+      break
     }
-
-    return {
-      timestamp,
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: computeRevenue(dailyFees, por).toString(),
-      dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por).toString(),
-      dailyProtocolRevenue: computeProtocolRevenue(dailyFees).toString(),
-      totalFees: totalFees.toString(),
-    };
   }
+
+  return {
+    dailyFees,
+    dailyRevenue: computeRevenue(dailyFees, por),
+    dailyHoldersRevenue: computeHoldersRevenue(dailyFees, por),
+    dailyProtocolRevenue: computeProtocolRevenue(dailyFees),
+  };
 }
 
 const adapter: Adapter = {
   adapter: {
-    [ARBITRUM]: {
-      fetch: getFees(CHAIN_ID.ARB),
-      start: 1659312000, // 2022-08-01
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2022-08-01', // 2022-08-01
     },
-    [BSC]: {
-      fetch: getFees(CHAIN_ID.BSC),
-      start: 1659312000, // 2022-08-01
+    [CHAIN.BSC]: {
+      fetch,
+      start: '2022-08-01', // 2022-08-01
     },
-    [AVAX]: {
-      fetch: getFees(CHAIN_ID.AVALANCHE),
-      start: 1659312000, // 2022-08-01
+    [CHAIN.AVAX]: {
+      fetch,
+      start: '2022-08-01', // 2022-08-01
     },
-    [FANTOM]: {
-      fetch: getFees(CHAIN_ID.FTM),
-      start: 1659312000, // 2022-08-01
+    [CHAIN.FANTOM]: {
+      fetch,
+      start: '2022-08-01', // 2022-08-01
     },
-    [OPTIMISM]: {
-      fetch: getFees(CHAIN_ID.OPTIMISM),
-      start: 1672876800, // 2023-01-05
+    [CHAIN.OPTIMISM]: {
+      fetch,
+      start: '2023-01-05', // 2023-01-05
     },
   }
 }

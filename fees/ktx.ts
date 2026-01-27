@@ -1,15 +1,5 @@
-import { BSC, MANTLE, ARBITRUM } from "../helpers/chains";
-import { Adapter } from "../adapters/types";
-import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
-
-const endpoints = {
-  [BSC]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/bsc_stats/api",
-  [MANTLE]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/mantle_stats/api",
-  [ARBITRUM]: "https://subgraph.satsuma-prod.com/dff088b6cd75/kesters-team/ktx_stats/api",
-};
+import { CHAIN } from "../helpers/chains";
+import { gmxV1Exports } from "../helpers/gmx";  
 
 const methodology = {
   Fees: "Fees from open/close position (based on token utilization, capped at 0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
@@ -21,75 +11,29 @@ const methodology = {
   ProtocolRevenue: "Treasury has no revenue",
 };
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-      const searchTimestamp =
-        chain == "bsc" || chain == "mantle" || chain == "arbitrum"
-          ? todaysTimestamp
-          : todaysTimestamp + ":daily";
-
-      const graphQuery = gql`{
-        feeStat(id: "${searchTimestamp}") {
-          mint
-          burn
-          marginAndLiquidation
-          swap
-        }
-      }`;
-
-      const graphRes = await request(graphUrls[chain], graphQuery);
-
-      const dailyFee =
-        parseInt(graphRes.feeStat.mint) +
-        parseInt(graphRes.feeStat.burn) +
-        parseInt(graphRes.feeStat.marginAndLiquidation) +
-        parseInt(graphRes.feeStat.swap);
-      const finalDailyFee = dailyFee / 1e30;
-      const userFee =
-        parseInt(graphRes.feeStat.marginAndLiquidation) +
-        parseInt(graphRes.feeStat.swap);
-      const finalUserFee = userFee / 1e30;
-
-      return {
-        timestamp,
-        dailyFees: finalDailyFee.toString(),
-        dailyUserFees: finalUserFee.toString(),
-        dailyRevenue: (finalDailyFee * 0.3).toString(),
-        dailyProtocolRevenue: "0",
-        totalProtocolRevenue: "0",
-        dailyHoldersRevenue: (finalDailyFee * 0.3).toString(),
-        dailySupplySideRevenue: (finalDailyFee * 0.7).toString(),
-      };
-    };
-  };
-};
-
-const adapter: Adapter = {
-  adapter: {
-    [BSC]: {
-      fetch: graphs(endpoints)(BSC),
-      start: 1682870400,
-      meta: {
-        methodology,
-      },
-    },
-    [MANTLE]: {
-      fetch: graphs(endpoints)(MANTLE),
-      start: 1693843200,
-      meta: {
-        methodology,
-      },
-    },
-    [ARBITRUM]: {
-      fetch: graphs(endpoints)(ARBITRUM),
-      start: 1705248000,
-      meta: {
-        methodology,
-      },
-    },
+export default gmxV1Exports({
+  [CHAIN.ARBITRUM]: {
+    vault: "0xc657A1440d266dD21ec3c299A8B9098065f663Bb",
+    start: '2024-01-14',
+    ProtocolRevenue: 0,
+    SupplySideRevenue: 70,
+    HoldersRevenue: 30,
+    methodology,
   },
-};
-
-export default adapter;
+  [CHAIN.BSC]: {
+    vault: "0xd98b46C6c4D3DBc6a9Cc965F385BDDDf7a660856",
+    start: '2023-04-30',
+    methodology,
+    ProtocolRevenue: 0,
+    SupplySideRevenue: 70,
+    HoldersRevenue: 30,
+  },
+  [CHAIN.MANTLE]: {
+    vault: "0x2e488D7ED78171793FA91fAd5352Be423A50Dae1",
+    start: '2023-09-04',
+    methodology,
+    ProtocolRevenue: 0,
+    SupplySideRevenue: 70,
+    HoldersRevenue: 30,
+  },
+})

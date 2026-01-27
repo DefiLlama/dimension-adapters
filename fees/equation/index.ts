@@ -24,7 +24,8 @@ const queryTotalFee = gql`
 const getFetch =
   () =>
   (chain: string): FetchV2 =>
-  async ({ getStartBlock, getEndBlock }) => {
+  async ({ startTimestamp, getStartBlock, getEndBlock }) => {
+    if (startTimestamp > 1743940800) return {}
     const [startBlock, endBlock] = await Promise.all([
       getStartBlock(),
       getEndBlock(),
@@ -40,29 +41,24 @@ const getFetch =
 
     const dailyFees =
       totalData.protocolState.totalFee - prevData.protocolState.totalFee;
-    const totalFees = totalData.protocolState.totalFee;
 
     return {
       dailyFees,
       dailyRevenue: dailyFees / 2,
       dailyProtocolRevenue: dailyFees / 2,
-      totalFees,
-      totalRevenue: totalFees / 2,
-      totalProtocolRevenue: totalFees / 2,
     };
   };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: "2025-04-06",
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: getFetch()(CHAIN.ARBITRUM),
-      start: 1697760000,
-      meta: {
-        methodology,
-      },
+      start: '2023-10-20',
     },
   },
+  methodology,
 };
 
 export default adapter;

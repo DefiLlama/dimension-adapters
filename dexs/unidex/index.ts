@@ -1,7 +1,7 @@
 import { FetchResultVolume, BreakdownAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import request, { gql } from "graphql-request";
 import { adapter_dexs_agg } from './unidex-dexs-agg/index';
 
@@ -62,41 +62,35 @@ const methodology = {
 };
 
 const adapter: any = {
+  methodology,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
-      start: 1687422746,
-      meta: { methodology },
+      start: '2023-06-22',
     },
     [CHAIN.ERA]: {
       fetch: fetch(CHAIN.ERA),
-      start: 1687422746,
-      meta: { methodology },
+      start: '2023-06-22',
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
-      start: 1687422746,
-      meta: { methodology },
+      start: '2023-06-22',
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
-      start: 1687422746,
-      meta: { methodology },
+      start: '2023-06-22',
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
-      start: 1687422746,
-      meta: { methodology },
+      start: '2023-06-22',
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
-      start: 1687898060,
-      meta: { methodology },
+      start: '2023-06-27',
     },
     [CHAIN.EVMOS]: {
       fetch: fetch(CHAIN.EVMOS),
-      start: 1700104066,
-      meta: { methodology },
+      start: '2023-11-16',
     },
   },
 };

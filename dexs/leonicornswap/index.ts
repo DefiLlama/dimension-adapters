@@ -1,10 +1,9 @@
-import * as sdk from "@defillama/sdk";
-import { CHAIN } from "../../helpers/chains";
-import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { CHAIN } from '../../helpers/chains'
+import { uniV2Exports } from '../../helpers/uniswap'
 
-export default univ2Adapter({
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint('ttjEWD8FZJecTZrHHhtiYnQtWhSmgtqqABU4pgAttaC')
-}, {
-    factoriesName: "leonicornFactories",
-    dayData: "leonicornDayData",
-});
+export default uniV2Exports({
+  [CHAIN.BSC]: { 
+    factory: '0xEB10f4Fe2A57383215646b4aC0Da70F8EDc69D4F', 
+    fees: 0.003, // 0.3% fee on swaps
+  },
+})

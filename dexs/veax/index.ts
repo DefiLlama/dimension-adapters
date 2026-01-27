@@ -16,7 +16,7 @@ const rpc = (url: string, method: string, params: any) =>
 const adapter: SimpleAdapter = {
   adapter: {
     near: {
-      start: 1682607600,
+      start: '2023-04-27',
       fetch: async (ts) => {
         const data = await rpc(POOLS_SERVICE_URL, 'volumes_statistic', {
           timestamp: ts,
@@ -24,7 +24,6 @@ const adapter: SimpleAdapter = {
         return {
           timestamp: ts,
           dailyVolume: data.daily_volume,
-          totalVolume: data.total_volume,
         }
       }
     }

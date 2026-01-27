@@ -1,40 +1,10 @@
-import { DISABLED_ADAPTER_KEY, FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
-import disabledAdapter from "../../helpers/disabledAdapter";
+import { uniV2Exports } from "../../helpers/uniswap";
 
-interface IData {
-  date: string;
-  value: number;
-}
+const adapters = uniV2Exports({
+  [CHAIN.MANTLE]: { factory: '0x3eF942017d51BA257c4B61BE2f8f641209C8b341'}
+});
 
-interface IRes {
-  fees: IData[];
-  volumes: IData[];
-}
+adapters.deadFrom = '2023-12-12';
 
-const url = "https://api.fcon.ai/swapping/token_address/charts/?interval=90";
-const fetch = async (timestamp: number): Promise<FetchResultFees & FetchResultVolume> => {
-  const dateString = new Date(timestamp * 1000).toISOString().split("T")[0];
-  const data: IRes = (await fetchURL(url));
-  const dailyVolume = data.volumes.find((e: IData) => e.date.split('T')[0] === dateString)?.value;
-  const dailyFee = data.fees.find((e: IData) => e.date.split('T')[0] === dateString)?.value;
-  return {
-    dailyFees: `${dailyFee}`,
-    dailyVolume: `${dailyVolume}`,
-    timestamp
-  }
-}
-
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [DISABLED_ADAPTER_KEY]: disabledAdapter,
-    [CHAIN.MANTLE]: {
-      fetch: async (timestamp: number) => {return {timestamp}},
-      start: 1691280000,
-    },
-  },
-};
-
-export default adapter;
+export default adapters;

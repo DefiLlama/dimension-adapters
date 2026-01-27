@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import type { Adapter, BaseAdapter, FetchResultFees, IJSON } from '../adapters/types';
-import type { Chain } from '@defillama/sdk/build/general';
+import type { Adapter, BaseAdapter, Chain, FetchResultFees, IJSON } from '../adapters/types';
 import fetchURL from '../utils/fetchURL';
 
 interface ChainData {
@@ -19,6 +18,7 @@ const getFees = async (chainCode: string, fromDate: string, toDate: string): Pro
 
 const getFeesFunction = (chain: Chain) => {
   return async (timestamp: number): Promise<FetchResultFees> => {
+    if (chain === CHAIN.HECO) { return {}} // skip HECO for now
     const chainCode = chainCodeMap[chain];
     const dateString = formatTimestampAsIsoDate(timestamp);
     const dailyFees = await getFees(chainCode, dateString, dateString);
@@ -26,9 +26,9 @@ const getFeesFunction = (chain: Chain) => {
     const dailySupplySideRevenue = dailyFees * 0.8;
     return {
       timestamp,
-      dailyFees: dailyFees !== undefined ? String(dailyFees) : undefined,
-      dailyProtocolRevenue: dailyRevenue !== undefined ? String(dailyRevenue) : undefined,
-      dailySupplySideRevenue: dailySupplySideRevenue !== undefined ? String(dailySupplySideRevenue) : undefined,
+      dailyFees,
+      dailyProtocolRevenue: dailyRevenue,
+      dailySupplySideRevenue: dailySupplySideRevenue,
     } as FetchResultFees;
   }
 }
@@ -90,11 +90,11 @@ const adapter: Adapter = {
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch: getFeesFunction(chain),
-      meta: { methodology },
       start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)
 }
 
+adapter.methodology = methodology;
 export default adapter;

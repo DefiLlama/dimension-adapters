@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
           dailyVolume: '0'
         }
       },
-      start: 1627385129,
+      start: '2021-07-27',
     },
   },
 };
