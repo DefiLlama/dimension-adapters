@@ -4,18 +4,16 @@ import { httpGet } from "../utils/fetchURL";
 
 const API_BASE = "https://data-api.sodex.com/api/defillama";
 
-const fetch = async (options: FetchOptions) => {
-  const timestamp = options.startOfDay;
-
-  const res = await httpGet(`${API_BASE}/perp/open-interest?timestamp=${timestamp}`);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const res = await httpGet(`${API_BASE}/perp/open-interest?timestamp=${options.startOfDay}`);
 
   return {
-    openInterestAtEnd: Number(res.openInterestAtEnd ?? 0),
+    openInterestAtEnd: res.openInterestAtEnd,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.VALUECHAIN],
   start: "2025-10-20",
