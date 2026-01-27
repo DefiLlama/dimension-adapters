@@ -64,7 +64,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees: dailyRevenue, // Assuming fees = revenue for this protocol based on description
     dailyRevenue: dailyRevenue,
     dailyVolume: dailyVolume,
-    timestamp: options.startOfDay,
   };
 }
 
