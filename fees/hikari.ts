@@ -52,7 +52,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.KATANA]: {
             fetch: fetch as any,
-            start: '2025-07-8'
+            start: '2025-07-08'
         }
     }
 }
