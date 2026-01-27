@@ -49,8 +49,10 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   );
 
   if (dayData) {
-    dailyVolume.addCGToken("usd-coin", parseFloat(dayData.volume));
-    dailyFees.addCGToken("usd-coin", parseFloat(dayData.extendedFees));
+    const volume = parseFloat(dayData.volume);
+    const fees = volume * 0.0002; // 2 bps
+    dailyVolume.addCGToken("usd-coin", volume);
+    dailyFees.addCGToken("usd-coin", fees);
   }
 
   return {
