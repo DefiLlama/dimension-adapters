@@ -1,4 +1,6 @@
 import { SimpleAdapter } from "../adapters/types";
+import deadAdapters from './deadAdapters.json'
+export { deadAdapters}
 
 /**
  * Interface that all factories must implement
@@ -46,6 +48,14 @@ export function getAdapterFromHelpers(
   adapterType: string,
   protocolName: string
 ): { adapter: SimpleAdapter; factoryName: string } | null {
+
+  if ((deadAdapters as any)[adapterType]?.[protocolName]) {
+    return {
+      factoryName: 'deadAdapter',
+      adapter: (deadAdapters as any)[adapterType][protocolName]
+    }
+  }
+
   const factories = factoriesByAdapterType[adapterType];
   if (!factories) return null;
 
