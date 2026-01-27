@@ -11,7 +11,7 @@ const fetch = async (options: FetchOptions) => {
     
     // TODO: temp fix for now, will update hl indexer
     let totalOpenInterest = result.currentPerpOpenInterest ? result.currentPerpOpenInterest : 0;
-    for (const dexId of ['xyz', 'vntl', 'flx', 'km', 'hyna']) {
+    for (const dexId of ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash']) {
       const dexResult = await fetchHIP3DeployerData({ options, hip3DeployerId: dexId });
       totalOpenInterest += dexResult.currentPerpOpenInterest ? dexResult.currentPerpOpenInterest : 0;
     }
