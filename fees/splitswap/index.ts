@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   fetch,
   dependencies: [Dependencies.DUNE],
   chains: [CHAIN.SOLANA],
-  start: "2025-01-01",
+  start: "2025-12-15",
   isExpensiveAdapter: true,
   methodology: {
     Fees: "0.05-0.5% fee on deposits and withdrawals.",
