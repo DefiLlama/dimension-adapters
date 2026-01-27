@@ -5,10 +5,10 @@ import { fetchVolume, fetchVolumeMove } from "./cyberperp";
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.IOTAEVM]: {
-      fetch: fetchVolume,
-      start: '2024-07-23',
-    },
+    // [CHAIN.IOTAEVM]: {
+    //   fetch: fetchVolume,
+    //   start: '2024-07-23',
+    // },
     [CHAIN.IOTA]: {
       fetch: fetchVolumeMove,
       start: '2025-10-23',
