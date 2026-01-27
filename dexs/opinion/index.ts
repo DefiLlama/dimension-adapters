@@ -35,27 +35,6 @@ const WASH_TRADING_BLACKLIST = new Set(
     '0x0a7300dbc3fcef290601793bf4395ea0fd38f35c', // $18.7M - 100% offsetting, score 100
     '0x44df52c5c8ffb86da6044b81577f0dd537dec07f', // $5.0M - only 2 CPs, 100% concentration
     '0x015e2b259233ac5c805b14703ef2144dedfc8b01', // $5.0M - only 2 CPs, 82% concentration
-
-    // Medium-high volume wash traders ($1M-$5M)
-    '0xfe5d02c0dcb5f7ee642713628be52e6f4de9f08e', // $4.1M - 100% offsetting, score 100
-    '0xe9209e46699190d99215f1697381ce637925cac3', // $4.0M - 100% offsetting, only 1-7 CPs
-    '0xb850edbc7dc207f7fe6aecb9be06e0e4d7bc69ac', // $4.0M - 100% offsetting, only 1-2 CPs
-    '0x0f61a1f7717b51fd13cc76de9092e5209808b91c', // $3.2M - 99% offsetting
-    '0x608601662152b9c37708b610a4be5d1a15567e78', // $3.1M - score 100
-    '0xf4852d5bc219c31386e36a836d82439f61160c82', // $3.1M - score 100
-    '0x0dcb08000fb624bb64aca0015cbd9b2307dc46fd', // $2.1M - score 100
-    '0xc2823f06eb7536f23c4ff9be799058a204ce4add', // $2.1M - score 100
-    '0x686fa7c3b7ca92d98a00f58b46066c51d802dafb', // $1.7M - score 100
-    '0x0a9e71ecece618a920a883a0858d9d983810758d', // $1.6M - 98% offsetting, only 2 CPs
-    '0xd7c2d443a4fde099f9423b5962270bbe333c9558', // $1.6M - 100% offsetting, only 2 CPs
-    '0x127ff13f0b5b1070a36fa30b083b4644016ad30f', // $1.6M - score 40 but only 1 CP
-    '0xec78b801a379daf065b2e946e8aa352a70511153', // $1.4M - only 1 CP, 100% concentration
-    '0x0b8bb27fd7dac838df100f8270b3c35dd270360c', // $1.4M - only 1 CP, 100% concentration
-    '0xe225ea7da5d13deacd308c37b7e2d3c5c87e44db', // $1.2M - 99% offsetting
-    '0xf9085026722167af624c82f4a51190212f1358ec', // $1.1M - score 100
-    '0xc1d70151b25b8831d38bc0b2c5717e6d7079e522', // $1.0M - only 2 CPs, 100% concentration
-    '0xfa679b1ec37f5c61711a540a25e43153b1dfda57', // $1.0M - 94% offsetting, score 97
-    '0x6fcc720d5538d848117469ee17011eb25ba3373d', // $1.0M - 97% offsetting, score 98
   ].map((addr) => addr.toLowerCase())
 )
 
