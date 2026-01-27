@@ -17,7 +17,8 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise
   return {
     dailyVolume: req.algebraDayData.volumeUSD,
     dailyFees: req.algebraDayData.feesUSD,
-    dailyRevenue: req.algebraDayData.feesUSD* 0.12,
+    dailySupplySideRevenue: req.algebraDayData.feesUSD * 0.88,
+    dailyRevenue: req.algebraDayData.feesUSD * 0.12,
   }
 }
 
@@ -25,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch,
-      start: '2024-10-01',
+      start: '2025-04-10',
     },
   }
 }
