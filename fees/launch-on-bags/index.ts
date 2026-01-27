@@ -10,7 +10,7 @@ interface IData {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const query = getSqlFromFile('helpers/queries/dbc.sql', {
+    const query = getSqlFromFile('helpers/queries/dbc-partner-fees.sql', {
         tx_signer: 'BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv',
         start: options.startTimestamp,
         end: options.endTimestamp
