@@ -1,5 +1,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
+import { addTokensReceived } from "../helpers/token";
 
 // Flying Tulip yield wrapper contract addresses on Ethereum mainnet
 const WRAPPERS: string[] = [
@@ -13,15 +15,14 @@ const WRAPPERS: string[] = [
 
 const yieldClaimedEvent = 'event YieldClaimed(address yieldClaimer, address token, uint256 amount)';
 
-const methodology = {
-  Fees: "Yield generated from deposited assets in Flying Tulip wrappers.",
-  Revenue: "Protocol revenue from claimed yield.",
-  ProtocolRevenue: "100% of yield goes to protocol treasury.",
-}
+// PUT Marketplace contract
+const PUT_MARKETPLACE = '0x31248663adccdbcad155555b7717697b76cf570c';
+
+// Treasury address
+const TREASURY = '0x1118e1c057211306a40A4d7006C040dbfE1370Cb';
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   // Fetch YieldClaimed events from all wrappers
   const logs = await options.getLogs({
@@ -34,14 +35,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   logs.forEach((log: any) => {
     const token = log.token;
     const amount = log.amount;
-    dailyFees.add(token, amount);
-    dailyRevenue.add(token, amount);
+    dailyFees.add(token, amount, METRIC.ASSETS_YIELDS);
   });
+  
+  const tokenReceived = await addTokensReceived({
+    options,
+    target: TREASURY,
+    fromAdddesses: [PUT_MARKETPLACE],
+  })
+  dailyFees.add(tokenReceived, 'Marketplace Fees');
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -53,7 +60,25 @@ const adapter: Adapter = {
       start: '2026-01-20', // First YieldClaimed event
     }
   },
-  methodology,
+  methodology: {
+    Fees: "Yield generated from deposited assets in Flying Tulip wrappers + marketplace fees from PUT trades.",
+    Revenue: "Protocol revenue from claimed yield.",
+    ProtocolRevenue: "100% of yield goes to protocol treasury.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: 'Yield generated from deposited assets in Flying Tulip wrappers.',
+      'Marketplace Fees': 'Marketplace fees from PUT trades.',
+    },
+    Revenue: {
+      [METRIC.ASSETS_YIELDS]: 'Yield generated from deposited assets in Flying Tulip wrappers.',
+      'Marketplace Fees': 'Marketplace fees from PUT trades.',
+    },
+    ProtocolRevenue: {
+      [METRIC.ASSETS_YIELDS]: 'Yield generated from deposited assets in Flying Tulip wrappers.',
+      'Marketplace Fees': 'Marketplace fees from PUT trades.',
+    },
+  }
 }
 
 export default adapter;
