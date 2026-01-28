@@ -1,32 +1,49 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
 
 /**
  * OlympusDAO Revenue Adapter
  * 
- * Tracks protocol revenue from multiple sources:
- * 1. Cooler Loan Interest - Interest accrued on perpetual gOHM-backed loans
- * 2. sUSDS/sUSDe Yield - ERC-4626 yield from treasury stablecoin holdings
- * 3. CD Facility Revenue - Yield harvested from Convertible Deposit facility
- * 4. POL Fees - LP fees from protocol-owned Uniswap V3 positions
- * 
+ * Tracks protocol revenue from multiple sources on Ethereum mainnet.
  * All revenue accrues to the protocol treasury (100% protocol revenue).
+ * 
+ * Revenue Sources:
+ * 1. Cooler Loan Interest - Interest accrued on perpetual gOHM-backed loans
+ * 2. sUSDS Yield - ERC-4626 yield from treasury sUSDS holdings
+ * 3. sUSDe Yield - ERC-4626 yield from treasury sUSDe holdings  
+ * 4. CD Facility Revenue - Yield harvested from Convertible Deposit facility
+ * 
+ * Note: POL (Protocol-Owned Liquidity) fees from Uniswap V3 positions are not
+ * yet included. These represent a smaller portion of revenue and will be added
+ * in a future update.
+ * 
+ * @see https://docs.olympusdao.finance/
  */
+
+// Token addresses
+const TOKENS = {
+  USDS: "0xdC035D45d973E3EC169d2276DDab16f1e407384F",
+  USDE: "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3",
+};
 
 // Treasury addresses
 const TREASURY_ADDRESSES = {
+  /** Olympus TRSRY module - primary treasury */
   TRSRY_MODULE: "0xa8687A15D4BE32CC8F0a8a7B9704a4C3993D9613",
+  /** DAO Multisig - governance controlled treasury */
   DAO_MULTISIG: "0x245cc372C84B3645Bf0Ffe6538620B04a217988B",
 };
 
 // Contract addresses
 const CONTRACTS = {
+  /** MonoCooler - Cooler v2 lending contract */
   MONO_COOLER: "0xdb591Ea2e5db886da872654d58f6cc584b68e7cc",
+  /** sUSDS - Sky savings USDS vault */
   SUSDS: "0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD",
+  /** sUSDe - Ethena staked USDe vault */
   SUSDE: "0x9D39A5DE30e57443BfF2A8307A4256c8797A3497",
+  /** Convertible Deposit Facility */
   CD_FACILITY: "0xEBDe552D9e4F4b1855756F30Dc9ff16d8B2A24d8",
-  UNISWAP_V3_POSITIONS: "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
 };
 
 // ABIs
@@ -38,19 +55,23 @@ const COOLER_ABI = {
 const ERC4626_ABI = {
   convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
   balanceOf: "function balanceOf(address account) view returns (uint256)",
-  decimals: "uint8:decimals",
 };
 
 const CD_FACILITY_ABI = {
   claimedYield: "event ClaimedYield(address indexed asset, uint256 amount)",
 };
 
-const UNISWAP_V3_ABI = {
-  collect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
-};
-
 const RAY = BigInt(10) ** BigInt(27);
 
+/**
+ * Fetches Cooler loan interest revenue.
+ * 
+ * Calculates interest accrued on all outstanding Cooler loans using the
+ * accumulator delta method: interest = avgDebt × (accumEnd - accumStart) / RAY
+ * 
+ * @param options - Fetch options containing API references for start/end blocks
+ * @returns Balances object with accrued interest in USDS
+ */
 async function fetchCoolerInterest(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   
@@ -68,8 +89,8 @@ async function fetchCoolerInterest(options: FetchOptions) {
     const accumDelta = BigInt(accumEnd) - BigInt(accumStart);
     const interest = (avgDebt * accumDelta) / RAY;
     
-    // Cooler uses USDS (formerly DAI)
-    dailyRevenue.add("0xdC035D45d973E3EC169d2276DDab16f1e407384F", interest); // USDS
+    // Cooler loans are denominated in USDS
+    dailyRevenue.add(TOKENS.USDS, interest);
   } catch (e) {
     console.log("Cooler interest fetch failed:", e);
   }
@@ -77,11 +98,30 @@ async function fetchCoolerInterest(options: FetchOptions) {
   return dailyRevenue;
 }
 
+/**
+ * Fetches ERC-4626 yield from treasury stablecoin holdings.
+ * 
+ * Calculates yield by measuring the change in share-to-asset conversion rate
+ * over the period and applying it to treasury balances at START of period.
+ * Using START balance avoids overstatement from mid-period deposits.
+ * 
+ * Tracks yield from:
+ * - sUSDS (Sky savings USDS)
+ * - sUSDe (Ethena staked USDe)
+ * 
+ * @param options - Fetch options containing API references for start/end blocks
+ * @returns Balances object with accrued yield in underlying tokens
+ */
 async function fetchERC4626Yield(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const treasuryAddresses = Object.values(TREASURY_ADDRESSES);
   
-  for (const vault of [CONTRACTS.SUSDS, CONTRACTS.SUSDE]) {
+  const vaultConfigs = [
+    { vault: CONTRACTS.SUSDS, underlying: TOKENS.USDS },
+    { vault: CONTRACTS.SUSDE, underlying: TOKENS.USDE },
+  ];
+  
+  for (const { vault, underlying } of vaultConfigs) {
     try {
       // Get conversion rate at start and end (using 1e18 shares as reference)
       const oneShare = BigInt(10) ** BigInt(18);
@@ -102,12 +142,7 @@ async function fetchERC4626Yield(options: FetchOptions) {
       const rateDelta = BigInt(rateEnd) - BigInt(rateStart);
       const yieldAmount = (totalBalance * rateDelta) / oneShare;
       
-      // Add yield in underlying asset (USDS or USDe)
-      if (vault === CONTRACTS.SUSDS) {
-        dailyRevenue.add("0xdC035D45d973E3EC169d2276DDab16f1e407384F", yieldAmount); // USDS
-      } else {
-        dailyRevenue.add("0x4c9EDD5852cd905f086C759E8383e09bff1E68B3", yieldAmount); // USDe
-      }
+      dailyRevenue.add(underlying, yieldAmount);
     } catch (e) {
       console.log(`ERC4626 yield fetch failed for ${vault}:`, e);
     }
@@ -116,6 +151,15 @@ async function fetchERC4626Yield(options: FetchOptions) {
   return dailyRevenue;
 }
 
+/**
+ * Fetches revenue from the Convertible Deposit (CD) Facility.
+ * 
+ * The CD Facility holds sUSDS and periodically harvests yield via ClaimedYield
+ * events. This yield is separate from the direct treasury sUSDS holdings.
+ * 
+ * @param options - Fetch options containing log fetching utilities
+ * @returns Balances object with claimed yield amounts
+ */
 async function fetchCDFacilityRevenue(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   
@@ -135,48 +179,34 @@ async function fetchCDFacilityRevenue(options: FetchOptions) {
   return dailyRevenue;
 }
 
-async function fetchPOLFees(options: FetchOptions) {
-  const dailyRevenue = options.createBalances();
-  const treasuryAddresses = Object.values(TREASURY_ADDRESSES).map(a => a.toLowerCase());
-  
-  try {
-    const logs = await options.getLogs({
-      target: CONTRACTS.UNISWAP_V3_POSITIONS,
-      eventAbi: UNISWAP_V3_ABI.collect,
-    });
-    
-    for (const log of logs) {
-      // Only count fees collected to treasury addresses
-      if (treasuryAddresses.includes(log.recipient.toLowerCase())) {
-        // Note: We'd need to resolve the pool's token addresses from the tokenId
-        // For now, adding as ETH equivalent (simplified)
-        // TODO: Resolve actual tokens from position NFT
-      }
-    }
-  } catch (e) {
-    console.log("POL fees fetch failed:", e);
-  }
-  
-  return dailyRevenue;
-}
-
+/**
+ * Main fetch function that aggregates all revenue sources.
+ * 
+ * Fetches revenue from:
+ * - Cooler loan interest
+ * - sUSDS/sUSDe ERC-4626 yield
+ * - CD Facility harvests
+ * 
+ * All revenue is protocol revenue (no supply-side or holder distributions).
+ * 
+ * @param options - Fetch options from DefiLlama adapter framework
+ * @returns Revenue metrics for the period
+ */
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   
-  // Fetch all revenue sources
-  const [coolerRevenue, erc4626Revenue, cdRevenue, polRevenue] = await Promise.all([
+  // Fetch all revenue sources concurrently
+  const [coolerRevenue, erc4626Revenue, cdRevenue] = await Promise.all([
     fetchCoolerInterest(options),
     fetchERC4626Yield(options),
     fetchCDFacilityRevenue(options),
-    fetchPOLFees(options),
   ]);
   
   // Combine all sources
   dailyRevenue.addBalances(coolerRevenue);
   dailyRevenue.addBalances(erc4626Revenue);
   dailyRevenue.addBalances(cdRevenue);
-  dailyRevenue.addBalances(polRevenue);
   
   // For Olympus, fees = revenue (all accrues to protocol)
   dailyFees.addBalances(dailyRevenue);
@@ -192,7 +222,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees: "Total revenue generated by the Olympus protocol from Cooler loan interest, stablecoin yield (sUSDS/sUSDe), CD Facility harvests, and POL LP fees.",
+  Fees: "Total revenue generated by the Olympus protocol from Cooler loan interest, stablecoin yield (sUSDS/sUSDe), and CD Facility harvests.",
   UserFees: "OlympusDAO charges no fees to users.",
   Revenue: "All fees collected accrue to the protocol treasury.",
   ProtocolRevenue: "100% of revenue goes to the Olympus treasury to back OHM.",
