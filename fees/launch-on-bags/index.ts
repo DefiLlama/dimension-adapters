@@ -31,6 +31,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
   };
 };
@@ -45,6 +46,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Total trading fees from DBC swaps (80% of swap fee, excludes Meteora protocol fee and referral fees).",
+    Revenue: "Bags takes 50% of partner trading fees. Calculated as (trading_fee * (100 - creator_trading_fee_percentage) / 100) * 50%.",
     ProtocolRevenue: "Bags takes 50% of partner trading fees. Calculated as (trading_fee * (100 - creator_trading_fee_percentage) / 100) * 50%.",
   },
 }
