@@ -6,10 +6,12 @@ import { sleep } from '../../utils/utils';
 // Previous API: https://cp-amm-api.meteora.ag/pools (with limit/offset support)
 // Min pool fee is 0.25% so wash trading is not economically viable
 
-const meteoraGlobalMetricsEndpoint = 'https://dammv2-api.meteora.ag/pools/global-metrics';
-
 async function fetch() {
   const baseUrl = 'https://damm-v2.datapi.meteora.ag/pools/groups';
+  const allPoolsUrl = 'https://dammv2-api.meteora.ag/pools';
+
+  const nonBlacklistedPools = new Set();
+
   let page = 1;
   let totalVolume = 0;
   const pageSize = 99;
@@ -26,7 +28,9 @@ async function fetch() {
     for (const pool of pools) {
       const tvl = pool.total_tvl || 0;
       const volume = pool.total_volume || 0;
-      
+
+      nonBlacklistedPools.add(pool.group_name)
+
       // Ignore if TVL < 1M and volume > 10x TVL
       if (tvl < 1_000_000 && volume > tvl * 10) {
         continue;
@@ -41,21 +45,40 @@ async function fetch() {
   }
 
   try {
-    const response = await httpGet(meteoraGlobalMetricsEndpoint);
-    
-    const dailyVolume = response.data.volume24h || 0;
-    const dailySupplySideRevenue = response.data.lp_fee24h || 0; // LP fees
-    const dailyProtocolRevenue = response.data.protocol_fee24h || 0; // Protocol fees
-    const dailyPartnerRevenue = response.data.partner_fee24h || 0; // Partner fees
-    const dailyReferralRevenue = response.data.referral_fee24h || 0; // Referral fees
+    let dailySupplySideRevenue = 0; // LP fees
+    let dailyRevenue = 0;
+
+    let offset = 0;
+    const lpFeeRatio = 0.8;
+
+    while (true) {
+      const response = await httpGet(`${allPoolsUrl}?order_by=fee24h&order=desc&offset=${offset}`);
+
+      const pools = response.data || [];
+      if (pools.length === 0) break;
+
+      for (const pool of pools) {
+        const tvl = pool.tvl || 0;
+        const volume = pool.volume24h || 0;
+
+        if (!nonBlacklistedPools.has(pool.pool_name) || (tvl < 1_000_000 && volume > tvl * 10))
+          continue;
+        dailySupplySideRevenue += (lpFeeRatio * pool.fee24h);
+        dailyRevenue += ((1 - lpFeeRatio) * pool.fee24h)
+      }
+
+      const lastPool = pools[pools.length - 1];
+      if (lastPool.fee24h < 10) break;
+
+      await sleep(100)
+
+      offset += 50;
+    }
 
     // Total fees paid by users
-    const dailyFees = dailySupplySideRevenue + dailyProtocolRevenue + dailyPartnerRevenue + dailyReferralRevenue;
-    
-    // Total revenue = Protocol + Partner + Referral (excluding LP fees)
-    const dailyRevenue = dailyProtocolRevenue + dailyPartnerRevenue + dailyReferralRevenue;
-    
-    if (isNaN(dailyVolume) || isNaN(dailyFees)) {
+    const dailyFees = dailySupplySideRevenue + dailyRevenue;
+
+    if (isNaN(totalVolume) || isNaN(dailyFees)) {
       throw new Error('Invalid daily volume or fees from global metrics');
     }
 
@@ -64,7 +87,6 @@ async function fetch() {
       dailyFees,
       dailyUserFees: dailyFees,
       dailyRevenue,
-      dailyProtocolRevenue,
       dailySupplySideRevenue,
     };
     
