@@ -21,7 +21,7 @@ async function fetch() {
       const tvl = pool.liquidity || 0;
       const volume = pool.trade_volume_24h || 0;
       const protocolFeeRatio = +pool.protocol_fee_percentage / 100 || 0;
-      const fees = pool.fees_24h;
+      const fees = pool.fees_24h || 0;
 
       // Ignore if TVL < 1M and volume > 10x TVL
       if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10))
