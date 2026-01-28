@@ -124,7 +124,7 @@ const adapter: SimpleAdapter = {
         Fees: "Trading fees paid by users.",
         Revenue: "Protocol fees collected by Meteora DBC protocol.",
         ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol.",
-        HoldersRevenue: "Part of revenue going to MET token buybacks."
+        HoldersRevenue: "Part of revenue going to MET token buybacks.",
         SupplySideRevenue: "The portion of the trading fees paid to LPs and referrals."
     }
 }
