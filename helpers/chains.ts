@@ -333,6 +333,7 @@ export enum CHAIN {
   STRATIS = "stratis",
   OMAX = "omax",
   Q_PROTOCOL = "q",
+  VALUECHAIN = "valuechain",
   IOTA = "iota",
   MEGAETH = "megaeth",
 }
