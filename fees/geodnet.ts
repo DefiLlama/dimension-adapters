@@ -1,10 +1,12 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { queryDuneSql } from '../helpers/dune';
+import { getSolanaReceived } from '../helpers/token';
 
 const GEODNET_TOKEN_ADDRESS = '0xAC0F66379A6d7801D7726d5a943356A172549Adb';
 const TOPIC_0_EVT_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const PADDED_BURN_ADDRESS = '0x000000000000000000000000000000000000000000000000000000000000dead';
+const INCINERATOR_ADDRESS = '1nc1nerator11111111111111111111111111111111';
 
 interface ILog {
   data: string;
@@ -38,24 +40,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
-  const query = `
-    select
-      account_mint as token_contract
-      , SUM(amount) as total_amount
-    from spl_token_solana.spl_token_call_burn
-    where account_mint = '7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'
-      and call_block_time >= from_unixtime(${options.startTimestamp})
-      and call_block_time < from_unixtime(${options.endTimestamp})
-    group by
-        1
-  `;
-  const result = await queryDuneSql(options, query);
-
-  const fees = options.createBalances();
-
-  result.forEach((row: any) => {
-    fees.add(row.token_contract, row.total_amount);
-  });
+  // const query = `
+  //   select
+  //     account_mint as token_contract
+  //     , SUM(amount) as total_amount
+  //   from spl_token_solana.spl_token_call_burn
+  //   where account_mint = '7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'
+  //     and call_block_time >= from_unixtime(${options.startTimestamp})
+  //     and call_block_time < from_unixtime(${options.endTimestamp})
+  //   group by
+  //       1
+  // `;
+  const fees = await getSolanaReceived({ options, target: INCINERATOR_ADDRESS, mints: ['7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'] });
 
   const dailyFees = fees.clone(1 / 0.8)
 
