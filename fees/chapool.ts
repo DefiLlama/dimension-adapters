@@ -1,106 +1,156 @@
-import { SimpleAdapter, Dependencies, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { ethers } from "ethers";
 
-const dailyStatsQuery = `
-WITH daily_payments AS (
-    SELECT 
-        DATE(block_time) as payment_date,
-        COUNT(*) as payment_count,
-        SUM(varbinary_to_uint256(bytearray_substring(data, 1, 32))) as daily_received
-    FROM opbnb.logs
-    WHERE 
-        contract_address = 0xEe83640f0ed07d36E799531CC6d87FB4CDcCaC13
-        AND topic0 = 0x32aced27dfd49efcd31ceb0567a1ef533d2ab1481334c3f316047bf16fe1c8e8
-        AND topic3 = 0x0000000000000000000000009e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3
-        AND TIME_RANGE
-    GROUP BY DATE(block_time)
-),
-daily_withdrawals AS (
-    SELECT 
-        DATE(block_time) as withdrawal_date,
-        COUNT(*) as withdrawal_count,
-        SUM(varbinary_to_uint256(bytearray_substring(data, 1, 32))) as daily_withdrawn
-    FROM opbnb.logs
-    WHERE 
-        contract_address = 0xEe83640f0ed07d36E799531CC6d87FB4CDcCaC13
-        AND topic0 = 0x8210728e7c071f615b840ee026032693858fbcd5e5359e67e438c890f59e5620
-        AND topic2 = 0x0000000000000000000000009e5aac1ba1a2e6aed6b32689dfcf62a509ca96f3
-        AND TIME_RANGE
-    GROUP BY DATE(block_time)
-)
-SELECT 
-    COALESCE(dp.payment_date, dw.withdrawal_date) as date,
-    
-    COALESCE(dp.daily_received, 0) / 1e18 as daily_received_usdt,
-    COALESCE(dw.daily_withdrawn, 0) / 1e18 as daily_withdrawn_usdt,
-    (COALESCE(dp.daily_received, 0) - COALESCE(dw.daily_withdrawn, 0)) / 1e18 as daily_net_usdt,
-    
-    COALESCE(dp.payment_count, 0) as payment_count,
-    COALESCE(dw.withdrawal_count, 0) as withdrawal_count
-FROM daily_payments dp
-FULL OUTER JOIN daily_withdrawals dw ON dp.payment_date = dw.withdrawal_date
-ORDER BY date DESC
-`;
+const PAYMENT_CONTRACT = "0xEe83640f0ed07d36E799531CC6d87FB4CDcCaC13";
+const MARKETPLACE_CONTRACT = "0x6374aD0E4adab392dFeE60304a16ADc569f06703";
+const USDT_ADDRESS = "0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3";
+
+// Event ABIs
+const ITEM_SOLD_ABI = "event ItemSold(uint256 indexed listingId, address indexed seller, address indexed buyer, address payer, uint256 price, uint256 platformFee)";
+const AUCTION_SETTLED_ABI = "event AuctionSettled(uint256 indexed listingId, address indexed seller, address indexed winner, address payer, uint256 finalPrice, uint256 platformFee)";
+const PAYMENT_MADE_ABI = "event PaymentMade(uint256 indexed orderId, address indexed payer, address indexed token, uint256 amount, uint256 timestamp)";
+
+// Calculate event topic0 signatures
+const itemSoldInterface = new ethers.Interface([ITEM_SOLD_ABI]);
+const auctionSettledInterface = new ethers.Interface([AUCTION_SETTLED_ABI]);
+const paymentMadeInterface = new ethers.Interface([PAYMENT_MADE_ABI]);
+
+const ITEM_SOLD_TOPIC0 = itemSoldInterface.getEvent("ItemSold")!.topicHash;
+const AUCTION_SETTLED_TOPIC0 = auctionSettledInterface.getEvent("AuctionSettled")!.topicHash;
+const PAYMENT_MADE_TOPIC0 = paymentMadeInterface.getEvent("PaymentMade")!.topicHash;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const preFetchedResults = options.preFetchedResults;
-  const dailyStats = preFetchedResults?.dailyStats || [];
+  const { getLogs, getFromBlock, getToBlock } = options;
 
-  // Dune dates are usually strings like "2023-01-01 00:00:00"
-  const dayStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  // Get block range
+  const fromBlock = await getFromBlock();
+  const toBlock = await getToBlock();
 
-  const dailyStatRow = dailyStats.find((row: any) => {
-    // handle potential date format differences
-    if (!row.date) return false;
-    
-    let rowDate: string;
-    if (row.date instanceof Date) {
-      rowDate = row.date.toISOString().slice(0, 10);
-    } else {
-      // Handle string formats like "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
-      const dateStr = row.date.toString();
-      rowDate = dateStr.slice(0, 10);
-    }
-    return rowDate === dayStr;
+  // 1. Fetch C2C Marketplace events
+  // Use raw topics for accuracy and skipCache to prevent caching issues
+  const [itemSoldLogs, auctionSettledLogs] = await Promise.all([
+    getLogs({
+      target: MARKETPLACE_CONTRACT,
+      topics: [ITEM_SOLD_TOPIC0],
+      fromBlock,
+      toBlock,
+      skipCache: true,
+    }),
+    getLogs({
+      target: MARKETPLACE_CONTRACT,
+      topics: [AUCTION_SETTLED_TOPIC0],
+      fromBlock,
+      toBlock,
+      skipCache: true,
+    }),
+  ]);
+
+  // 2. Fetch Payment contract events
+  const allPaymentLogs = await getLogs({
+    target: PAYMENT_CONTRACT,
+    topics: [PAYMENT_MADE_TOPIC0],
+    fromBlock,
+    toBlock,
+    skipCache: true,
+  });
+  
+  // Filter for USDT payment events
+  // PaymentMade(uint256 indexed orderId, address indexed payer, address indexed token, uint256 amount, uint256 timestamp)
+  // topic0: sig
+  // topic1: orderId
+  // topic2: payer
+  // topic3: token
+  const paymentLogs = allPaymentLogs.filter((log: any) => {
+    if (log.topics.length < 4) return false;
+    const tokenTopic = log.topics[3];
+    // Check if token matches USDT (last 40 chars)
+    return tokenTopic.toLowerCase().includes(USDT_ADDRESS.toLowerCase().slice(2));
   });
 
-  const dailyRevenue = dailyStatRow ? Number(dailyStatRow.daily_net_usdt) : 0;
-  // Volume usually refers to the total amount processed, which here would be the received amount
-  const dailyVolume = dailyStatRow ? Number(dailyStatRow.daily_received_usdt) : 0;
+  // 3. Calculate Daily Fees (C2C marketplace 5% platform fee)
+  let dailyFees = 0;
   
-  return {
-    dailyFees: dailyRevenue, // Assuming fees = revenue for this protocol based on description
-    dailyRevenue: dailyRevenue,
-    dailyVolume: dailyVolume,
-  };
-}
+  // ItemSold: payer, price, platformFee
+  itemSoldLogs.forEach((log: any) => {
+    const parsedLog = itemSoldInterface.parseLog({ topics: [...log.topics], data: log.data });
+    if (parsedLog) {
+        dailyFees += Number(parsedLog.args.platformFee) / 1e18;
+    }
+  });
 
-const prefetch = async (options: FetchOptions) => {
-  const dailyStats = await queryDuneSql(options, dailyStatsQuery);
+  // AuctionSettled: payer, finalPrice, platformFee
+  auctionSettledLogs.forEach((log: any) => {
+    const parsedLog = auctionSettledInterface.parseLog({ topics: [...log.topics], data: log.data });
+    if (parsedLog) {
+        dailyFees += Number(parsedLog.args.platformFee) / 1e18;
+    }
+  });
+
+  // 4. Calculate Daily Revenue (NFT minting fees + NFT trading fees)
+  let dailyRevenue = 0;
+  
+  // NFT minting fees (Payment pay function)
+  paymentLogs.forEach((log: any) => {
+    // data: amount, timestamp
+    const parsedLog = paymentMadeInterface.parseLog({ topics: [...log.topics], data: log.data });
+    if (parsedLog) {
+        dailyRevenue += Number(parsedLog.args.amount) / 1e18;
+    }
+  });
+  
+  // NFT trading fees (C2C marketplace fee)
+  dailyRevenue += dailyFees;
+
+  // 5. Calculate Daily Volume (C2C trading volume + Payment USDT received)
+  let dailyVolume = 0;
+  
+  // C2C direct sale volume
+  itemSoldLogs.forEach((log: any) => {
+    const parsedLog = itemSoldInterface.parseLog({ topics: [...log.topics], data: log.data });
+    if (parsedLog) {
+        dailyVolume += Number(parsedLog.args.price) / 1e18;
+    }
+  });
+  
+  // C2C auction volume
+  auctionSettledLogs.forEach((log: any) => {
+    const parsedLog = auctionSettledInterface.parseLog({ topics: [...log.topics], data: log.data });
+    if (parsedLog) {
+        dailyVolume += Number(parsedLog.args.finalPrice) / 1e18;
+    }
+  });
+  
+  // USDT received by Payment pay function (NFT minting)
+  paymentLogs.forEach((log: any) => {
+    const parsedLog = paymentMadeInterface.parseLog({ topics: [...log.topics], data: log.data });
+    if (parsedLog) {
+        dailyVolume += Number(parsedLog.args.amount) / 1e18;
+    }
+  });
 
   return {
-    dailyStats
+    dailyFees,    // C2C marketplace 5% platform fee
+    dailyRevenue, // NFT minting fees + NFT trading fees
+    dailyVolume,  // C2C trading volume + Payment USDT received
   };
 }
 
 const methodology = {
-  Fees: "Net revenue from payments and withdrawals (USDT)",
-  Revenue: "Net revenue from payments and withdrawals (USDT)",
-  Volume: "Total user payment volume (USDT)",
+  Fees: "C2C marketplace platform fee (5% of NFT trading volume in USDT)",
+  Revenue: "NFT minting fees (Payment contract pay function) + NFT trading fees (C2C marketplace 5% platform fee) in USDT",
+  Volume: "Total NFT trading volume (C2C marketplace fixed price + auction sales) + NFT minting payments (Payment contract) in USDT",
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  prefetch,
   adapter: {
     [CHAIN.OP_BNB]: {
-      start: '2025-12-08', // Approximate start date based on block number in query
+      start: '2025-12-08',
       runAtCurrTime: true,
     }
   },
-  dependencies: [Dependencies.DUNE],
   methodology,
 }
 
