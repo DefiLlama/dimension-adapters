@@ -274,15 +274,14 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
   // Derived metrics
   const dailyUserFees = dailyFees.clone();
   const dailyHoldersRevenue = dailyFees.clone();
-  const dailySupplySideRevenue = createBalances();
-  const dailyRevenue = createBalances();
 
   return {
     dailyFees,
     dailyUserFees,
-    dailyRevenue,
+    dailyRevenue: dailyHoldersRevenue,
     dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    dailySupplySideRevenue: 0,
+    dailyProtocolRevenue: 0,
     dailyBribesRevenue,
   };
 };
@@ -290,7 +289,8 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
 const methodology = {
   Fees: "All token transfers into MultiRewardsDepot contracts originating from pools and bribes",
   UserFees: "100% of fees",
-  Revenue: "0 - Protocol earns via HERMES emissions DAO share",
+  Revenue: "100% of fees distributed to governance token holders are revenue.",
+  ProtocolRevenue: "0 - Protocol earns via HERMES emissions DAO share",
   HoldersRevenue: "100% of fees distributed to governance token holders",
   SupplySideRevenue: "0 - LPs earn via HERMES emissions",
   BribesRevenue: "Token transfers into MultiRewardsDepot contracts as voting incentives (excluding fee distributions from pools)",
