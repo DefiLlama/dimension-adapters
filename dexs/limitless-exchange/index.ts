@@ -34,9 +34,10 @@ const abi = {
   ORDERS_MATCHED: 'event OrdersMatched (bytes32 indexed takerOrderHash, address indexed takerOrderMaker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled)',
 };
 
-async function fetch(options: FetchOptions) {
+async function fetch(_a: any, _b: any, options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
   const fpmmMarkets: any[] = [];
 
   const exchangeTargets = [
@@ -70,11 +71,13 @@ async function fetch(options: FetchOptions) {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
+    dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensBought);
   })
   sellLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
+    dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensSold);
   })
 
   const orderMatchedLogs = await options.getLogs({
@@ -86,7 +89,9 @@ async function fetch(options: FetchOptions) {
     const { makerAssetId, makerAmountFilled, takerAmountFilled } = order;
     const makerIdStr = makerAssetId?.toString?.() ?? String(makerAssetId);
     const tradeVolume = makerIdStr === '0' ? makerAmountFilled : takerAmountFilled;
+    const notionalTradeVolume = makerIdStr === '0' ? takerAmountFilled : makerAmountFilled;
     dailyVolume.addToken(ADDRESSES.base.USDC, tradeVolume);
+    dailyNotionalVolume.addToken(ADDRESSES.base.USDC, notionalTradeVolume);
   });
 
   await addTokensReceived({
@@ -103,6 +108,7 @@ async function fetch(options: FetchOptions) {
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
     dailyHoldersRevenue: 0,
+    dailyNotionalVolume,
   };
 }
 
@@ -114,7 +120,6 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   fetch,
   chains: [CHAIN.BASE],
   methodology,
