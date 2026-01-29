@@ -8,7 +8,7 @@ const getChainQueryConfig = (
 	duneChain: string,
 ): {
 	filteredTransfers: (fromTimestamp: number, toTimestamp: number) => string;
-	tokenDecimals: string;
+	tokenDecimals: (sourceTable: string) => string;
 	defaultDecimals: number;
 } => {
 	const ecosystem = duneChain === 'solana' ? 'solana' : 'evm';
@@ -28,10 +28,10 @@ const getChainQueryConfig = (
 				AND t.block_time <= from_unixtime(${toTimestamp})
 				AND t.to_owner IS NOT NULL
 			`,
-			tokenDecimals: `
+			tokenDecimals: (sourceTable: string) => `
 				SELECT token_mint_address AS contract_address, decimals
 				FROM tokens_solana.fungible
-				WHERE token_mint_address IN (SELECT contract_address FROM raw_tvl)
+				WHERE token_mint_address IN (SELECT contract_address FROM ${sourceTable})
 			`,
 			defaultDecimals: 9,
 		},
@@ -47,10 +47,10 @@ const getChainQueryConfig = (
 				WHERE from_unixtime(${fromTimestamp}) <= evt_block_time
 				AND from_unixtime(${toTimestamp}) >= evt_block_time 
 				AND evt_tx_hash IN (SELECT evt_tx_hash FROM mp_txs)`,
-			tokenDecimals: `
+			tokenDecimals: (sourceTable: string) => `
 				SELECT contract_address, decimals
 				FROM tokens.erc20
-				WHERE contract_address IN (SELECT contract_address FROM raw_tvl)
+				WHERE contract_address IN (SELECT contract_address FROM ${sourceTable})
 			`,
 			defaultDecimals: 18,
 		}
@@ -71,47 +71,52 @@ const getDuneVolumeQuery = (duneChain: string, fromTimestamp: number, toTimestam
         WHERE chain = '${duneChain}'
     ),
 
-    -- 2) Get relevant tx hashes of spot_purchase events
+    -- 2) Get relevant txs from spot_purchase events
     mp_txs AS (
-        SELECT evt_tx_hash
+        SELECT evt_tx_hash,
+               buyerfee,
+               sellerfee
         FROM dune.secondswapio.result_get_all_spot_purchase_events_from_marketplace
         WHERE from_unixtime(${fromTimestamp}) <= evt_block_time
         AND from_unixtime(${toTimestamp}) >= evt_block_time 
         AND chain = '${duneChain}'
     ),
 
-    -- 3) Pre-filter transfers by marketplace transactions
-    filtered_transfers AS (${queryConfig.filteredTransfers(fromTimestamp, toTimestamp)}
+    -- 3) Pre-filter token transfers by marketplace transactions
+    filtered_transfers AS (
+        ${queryConfig.filteredTransfers(fromTimestamp, toTimestamp)}
     ),
 
-    -- 4) Retain transfers to marketplace address
+    -- 4) Retain transfers to marketplace address and join with fees
     mp_transfers AS (
-        SELECT f.contract_address,
-               f.value,
-               f.evt_block_date
+        SELECT 
+            f.contract_address,
+            f.value,
+            m.buyerfee,
+            m.sellerfee
         FROM filtered_transfers f
-        JOIN mp
-        ON f."to" = mp.marketplace
+        JOIN mp ON f."to" = mp.marketplace
+        JOIN mp_txs m ON f.evt_tx_hash = m.evt_tx_hash
     ),
 
-    -- 5) Aggregate by date + token
-    raw_tvl AS (
-        SELECT
-            contract_address,
-            evt_block_date AS date,
-            SUM(value) AS value
+    -- 5) Get unique payment tokens used
+    payment_tokens AS (
+        SELECT DISTINCT contract_address
         FROM mp_transfers
-        GROUP BY evt_block_date, contract_address
     ),
 
-    -- 6) Fetch token decimals
-    token_decimals AS (${queryConfig.tokenDecimals})
+    -- 6) Fetch token decimals for payment tokens
+    token_decimals AS (
+        ${queryConfig.tokenDecimals('payment_tokens')}
+    )
 
-    SELECT
-        SUM(r.value / POW(10, COALESCE(t.decimals, ${queryConfig.defaultDecimals}))) AS usd_volume
-    FROM raw_tvl r
-    LEFT JOIN token_decimals t
-    ON r.contract_address = t.contract_address
+    -- 7) Aggregate volume and fees with proper decimal conversion
+    SELECT 
+        SUM(m.value / POW(10, COALESCE(td.decimals, ${queryConfig.defaultDecimals}))) AS usd_volume,
+        SUM((m.buyerfee + m.sellerfee) / POW(10, COALESCE(td.decimals, ${queryConfig.defaultDecimals}))) AS usd_fee
+    FROM mp_transfers m
+    LEFT JOIN token_decimals td 
+		ON m.contract_address = td.contract_address
   `;
 }
 
@@ -135,17 +140,30 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 			return { dailyVolume: 0 }
 		}
 
-		const usdVolume = volumeQueryResult[0].usd_volume
+		const {
+			usd_volume,
+			usd_fee
+		} = volumeQueryResult[0]
 
 		return {
-			dailyVolume: usdVolume,
+			dailyVolume: usd_volume,
+			dailyFees: usd_fee,
 		}
 	} catch (error) {
-		return { dailyVolume: 0 }
+		return {
+			dailyVolume: 0,
+			dailyFees: 0,
+		}
 	}
 };
 
+const methodology = {
+	Volume: "SecondSwap facilitates trading of locked/vesting tokens. Volume is calculated from the total value of quote tokens (e.g., USDT) spent by buyers in spot purchases, aggregated via Dune Analytics.",
+	Fees: "Trading fees paid by buyers and sellers on each spot purchase transaction.",
+};
+
 const adapter: SimpleAdapter = {
+	methodology,
 	fetch,
 	dependencies: [Dependencies.DUNE],
 	adapter: {
