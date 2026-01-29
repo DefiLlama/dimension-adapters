@@ -3,6 +3,7 @@ export enum CHAIN {
   PACASWAP = "pacaswap",
   PEAQ = "peaq",
   CHROMIA = "chromia",
+  CITREA = "citrea",
   OFF_CHAIN = "off_chain",
   GATE_LAYER = "gatelayer",
   ZK_LIGHTER = "zklighter",
