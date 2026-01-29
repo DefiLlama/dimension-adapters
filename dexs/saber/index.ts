@@ -79,7 +79,7 @@ const adapter : SimpleAdapter = {
     Fees: 'Swap fees paid by users',
     UserFees: 'Swap fees paid by users',
     SupplySideRevenue: 'Half of the swap fees go to LPs',
-    Revenue: 'Half ot the swap fees go to the protocol',
+    Revenue: 'Half of the swap fees go to the protocol',
     ProtocolRevenue: 'Half of the swap fees go to the protocol'
   },
   chains: [CHAIN.SOLANA],
