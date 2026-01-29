@@ -4,10 +4,12 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 
 const event_order_filled = 'event OrderFilled(bytes32 indexed orderUUID,string orderType,address target,address filler,address srcAsset,address dstAsset,uint256 srcQuantity,uint256 dstQuantity)';
 
-// Old router (Dec 2025 - Jan 2026)
-const OLD_V2_ORDER_ROUTER = '0x98888e2e040944cee3d7c8da22368aef18f5a3f4';
-// New router (Jan 2026 - present)
-const NEW_V2_ORDER_ROUTER = '0x90000069af5a354cf1dC438dEFbF8e0469d87F02';
+// v2_order_router contract addresses (same across all chains, updated over time)
+const ALL_ROUTERS = [
+  '0x98888e2e040944cee3d7c8da22368aef18f5a3f4', // Router v1 (Dec 2025 - Jan 2026)
+  '0x90000069af5a354cf1dC438dEFbF8e0469d87F02', // Router v2 (Jan 2026)
+  '0x900000D231B9C5c2374415f0974C1F8a377757E9', // Router v3 (Jan 2026 - present)
+];
 
 const chainConfig = {
   [CHAIN.ETHEREUM]: { start: "2025-08-30" },
@@ -24,21 +26,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const chain = options.chain;
 
-  // Query both old and new router contracts to capture all volume
-  const [oldLogs, newLogs] = await Promise.all([
-    options.getLogs({
-      target: OLD_V2_ORDER_ROUTER,
-      eventAbi: event_order_filled,
-      onlyArgs: true,
-    }),
-    options.getLogs({
-      target: NEW_V2_ORDER_ROUTER,
-      eventAbi: event_order_filled,
-      onlyArgs: true,
-    }),
-  ]);
-
-  const allLogs = [...oldLogs, ...newLogs];
+  // Query OrderFilled events from all router contract versions
+  const logsPerRouter = await Promise.all(
+    ALL_ROUTERS.map((router) =>
+      options.getLogs({
+        target: router,
+        eventAbi: event_order_filled,
+        onlyArgs: true,
+      })
+    )
+  );
+  const allLogs = logsPerRouter.flat();
 
   allLogs.forEach((log: any) => {
     if (log.srcAsset && log.srcQuantity) {
