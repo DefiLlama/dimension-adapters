@@ -131,13 +131,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 		const duneChain = llamaChainToDuneChain[options.chain];
 		if (!duneChain) {
 			console.error(`No Dune chain mapping found for defillama chain ${options.chain}`);
-			return { dailyVolume: 0 }
+			return { dailyVolume: 0, dailyFees: 0 }
 		}
 		const query = getDuneVolumeQuery(duneChain, options.startTimestamp, options.endTimestamp);
 		const volumeQueryResult = await queryDuneSql(options, query)
 
 		if (!volumeQueryResult || volumeQueryResult.length === 0 || volumeQueryResult[0].usd_volume === null) {
-			return { dailyVolume: 0 }
+			return { dailyVolume: 0, dailyFees: 0 }
 		}
 
 		const {
@@ -150,10 +150,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 			dailyFees: usd_fee,
 		}
 	} catch (error) {
-		return {
-			dailyVolume: 0,
-			dailyFees: 0,
-		}
+		return { dailyVolume: 0, dailyFees: 0 }
 	}
 };
 
