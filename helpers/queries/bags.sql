@@ -97,16 +97,7 @@ WITH
             AND executing_account = 'FEE2tBhCKAt7shrod19QttSVREUYPiyMzoku1mL1gqVK'
             AND bytearray_substring(data, 1, 16)
                 = 0xe445a52e51cb9a1d876d797eab3e764c
-            AND bytearray_to_bigint(
-                bytearray_reverse(
-                    bytearray_substring(data, 17, 8)
-                )
-            ) >= {{start}}
-            AND bytearray_to_bigint(
-                bytearray_reverse(
-                    bytearray_substring(data, 17, 8)
-                )
-            ) < {{end}}
+            AND TIME_RANGE
     )
 
 /* =========================
