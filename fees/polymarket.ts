@@ -70,6 +70,7 @@ const adapter: SimpleAdapter = {
       start: '2022-09-26',
     }
   },
+  allowNegativeValue: true // rewards are paid from treasury
 }
 
 export default adapter
