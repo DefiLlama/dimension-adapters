@@ -80,7 +80,7 @@ async function fetchAllTrades(
   return allTrades;
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const subgraphUrl = SUBGRAPH_URLS[options.chain];
   if (!subgraphUrl) {
     throw new Error(`No subgraph URL found for chain: ${options.chain}`);
@@ -125,7 +125,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
@@ -137,11 +137,11 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    dailyNotionalVolume:
+    NotionalVolume:
       "Sum of the notional value (in USD) of all options traded on the protocol each day. Calculated as sum of |leg.amount| × oracle_price_at_trade_time for each trade leg.",
-    dailyPremiumVolume:
+    PremiumVolume:
       "Sum of all premiums paid for options traded on the protocol each day.",
-    dailyFees: "Sum of all fees collected by the protocol each day.",
+    Fees: "Sum of all fees collected by the protocol each day.",
   },
 };
 
