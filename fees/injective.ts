@@ -41,24 +41,15 @@ const fetch = async (_: number, _t: any, options: FetchOptions) => {
   const auctionRes: IAuctionsResponse = await httpGet(`${BASE_URL}/auction?start_date=${options.dateString}`);
   if (feesRes.days.length !== 1 || auctionRes.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
 
-  const totalBurn = auctionRes.total_usd_value
-
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
 
-  dailyFees.addUSDValue(feesRes.total_fees_usd);
-
-  dailyRevenue.addBalances(dailyFees, 'Transaction Fees')
-  dailyRevenue.addUSDValue(totalBurn, 'Auction Fees')
-  
-  dailyHoldersRevenue.addBalances(dailyFees, 'Transaction Fees')
-  dailyHoldersRevenue.addUSDValue(totalBurn, 'Auction Fees')
+  dailyFees.addUSDValue(feesRes.total_fees_usd, 'Transaction Fees');
+  dailyFees.addUSDValue(auctionRes.total_usd_value, 'Auction Fees');
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue: dailyFees,
   };
 };
 
@@ -69,7 +60,15 @@ export default {
     HoldersRevenue: 'Transaction Fees + Auction Fees (INJ burned in auctions)',
   },
   breakdownMethodology: {
+    Fees: {
+      'Transaction Fees': 'Gas fees paid by users on each transaction, 100% is burned',
+      'Auction Fees': 'Exchange fees are auctioned off to the highest bidder for INJ, 100% of auction fees are burned. Auction fees are spread evenly across days in between auctions.',
+    },
     Revenue: {
+      'Transaction Fees': 'Gas fees paid by users on each transaction, 100% is burned',
+      'Auction Fees': 'Exchange fees are auctioned off to the highest bidder for INJ, 100% of auction fees are burned. Auction fees are spread evenly across days in between auctions.',
+    },
+    HoldersRevenue: {
       'Transaction Fees': 'Gas fees paid by users on each transaction, 100% is burned',
       'Auction Fees': 'Exchange fees are auctioned off to the highest bidder for INJ, 100% of auction fees are burned. Auction fees are spread evenly across days in between auctions.',
     },
