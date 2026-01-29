@@ -12,16 +12,20 @@ const event_reward_added = 'event RewardAdded(address indexed rewardToken, uint2
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, getToBlock } = options;
 
-  const dailyRevenue = createBalances();
+  const dailyFees = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailyBribesRevenue = createBalances();
 
-  // 1. Get options revenue from Option Exercise events (goes to SPR)
+  // 1. Get options revenue from Option Exercise events (goes to Strategic Protocol Reserve/treasury)
   const exerciseLogs = await getLogs({
     target: OPTION_EXERCISE_CONTRACT,
     eventAbi: event_exercise,
   });
 
   exerciseLogs.forEach((log: any) => {
-    dailyRevenue.add(ADDRESSES.base.USDC, log.paymentAmount);
+    dailyFees.add(ADDRESSES.base.USDC, log.paymentAmount);
+    dailyProtocolRevenue.add(ADDRESSES.base.USDC, log.paymentAmount);
   });
 
   // 2. Get all bribe contracts from CreateBribe events (cache from start to avoid re-querying all history)
@@ -37,19 +41,51 @@ const fetch = async (options: FetchOptions) => {
 
   const bribeContracts: string[] = createBribeLogs.map((e: any) => e.bribe.toLowerCase());
 
-  // 3. Get all RewardAdded events from bribe contracts (this accounts for DEX fees, omni fees, and bribes)
-  const rewardLogs = await getLogs({
-    targets: bribeContracts,
-    eventAbi: event_reward_added,
+  // Query TYPE() on each bribe contract to determine if internal or external
+  const bribeTypes = await options.api.multiCall({
+    abi: 'function TYPE() view returns (string)',
+    calls: bribeContracts,
   });
 
-  rewardLogs.forEach((log: any) => {
-    dailyRevenue.add(log.rewardToken, log.reward);
+  // Map contracts to their types (external if contains "Bribe", otherwise internal)
+  const isExternalBribe = new Map<string, boolean>();
+  bribeContracts.forEach((contract, i) => {
+    const typeStr = (bribeTypes[i] || '').toLowerCase();
+    const isExternal = typeStr.includes('bribe');
+    isExternalBribe.set(contract, isExternal);
   });
+
+  // 3. Get all RewardAdded events from bribe contracts (DEX fees, Omni fees, and external bribes)
+  // Fetch logs per contract to know which address emitted each event
+  for (const contract of bribeContracts) {
+    const isExternal = isExternalBribe.get(contract);
+
+    const logs = await getLogs({
+      target: contract,
+      eventAbi: event_reward_added,
+    });
+
+    logs.forEach((log: any) => {
+      dailyFees.add(log.rewardToken, log.reward);
+
+      if (isExternal) {
+        dailyBribesRevenue.add(log.rewardToken, log.reward);
+      } else {
+        dailyHoldersRevenue.add(log.rewardToken, log.reward);
+      }
+    });
+  }
+
+  const dailyRevenue = createBalances();
+  dailyRevenue.addBalances(dailyProtocolRevenue);
+  dailyRevenue.addBalances(dailyHoldersRevenue);
 
   return {
-    dailyFees: dailyRevenue,
+    dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailyBribesRevenue,
   };
 };
 
@@ -62,8 +98,11 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "Total fees from DEX fees, option exercises (SPR), Omni Liquidity Fees, and bribe rewards",
-    Revenue: "Total revenue from DEX fees, option exercises (SPR), Omni Liquidity Fees, and bribe rewards",
+    Fees: "Total fees from DEX fees, option exercises, Omni Liquidity fees, and external bribes.",
+    Revenue: "Protocol revenue from DEX fees (to holders), option exercises (to Strategic Protocol Reserve/treasury), and Omni Liquidity fees (to holders). External bribes are tracked separately in BribesRevenue.",
+    ProtocolRevenue: "Revenue from option exercises allocated to the Strategic Protocol Reserve (treasury).",
+    HoldersRevenue: "Protocol-generated revenue from DEX fees and Omni Liquidity fees distributed to governance token holders (excludes external bribes which are tracked in BribesRevenue).",
+    BribesRevenue: "External bribes paid to governance token holders as incentives (tracked separately from protocol-generated HoldersRevenue).",
   }
 };
 
