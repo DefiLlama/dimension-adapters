@@ -5,12 +5,12 @@ import { FetchOptions } from "../../adapters/types";
 
 interface IData {
   quote_mint: string;
-  total_trading_fees: number;
-  total_partner_trading_fees: number;
+  daily_fees: number;
+  daily_protocol_revenue: number;
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const query = getSqlFromFile('helpers/queries/dbc.sql', {
+  const query = getSqlFromFile('helpers/queries/bags.sql', {
     tx_signer: 'BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv',
     start: options.startTimestamp,
     end: options.endTimestamp
@@ -22,17 +22,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   data.forEach(row => {
-    const totalTradingFee = Number(row.total_trading_fees);
-    const partnerTradingFee = Number(row.total_partner_trading_fees);
-    dailyFees.add(row.quote_mint, totalTradingFee);
-    // Bags takes 50% of partner trading fee
-    dailyProtocolRevenue.add(row.quote_mint, partnerTradingFee * 0.5);
+    dailyFees.add(row.quote_mint, Number(row.daily_fees));
+    dailyProtocolRevenue.add(row.quote_mint, Number(row.daily_protocol_revenue));
   });
 
   return {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
   };
 };
 
@@ -45,9 +41,8 @@ const adapter: SimpleAdapter = {
   start: '2025-05-11',
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Total trading fees from DBC swaps (80% of swap fee, excludes Meteora protocol fee and referral fees).",
-    Revenue: "Bags takes 50% of partner trading fees. Calculated as (trading_fee * (100 - creator_trading_fee_percentage) / 100) * 50%.",
-    ProtocolRevenue: "Bags takes 50% of partner trading fees. Calculated as (trading_fee * (100 - creator_trading_fee_percentage) / 100) * 50%.",
+    Fees: "Total trading fees from Bags swaps.",
+    Revenue: "Total Bags revenue from trading fees.",
   },
 }
 
