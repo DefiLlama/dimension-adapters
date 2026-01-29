@@ -15,16 +15,31 @@ const FeeRecipients = ['0xf21a25DD01ccA63A96adF862F4002d1A186DecB2','0xd4AA6F8E9
 const ProtocolFeeSwitchTime = 1768176000; //2026-01-12
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const dailyFees = await addTokensReceived({
+  const [dailyFees, liquidityRewards, holdingRewards] = await Promise.all([
+    addTokensReceived({
     options,
     fromAdddesses: [FeeModule, NegRiskFeeModule, Ctf, NegRiskCtf],
     targets: FeeRecipients,
     token: ADDRESSES.polygon.USDC
-  });
-
+    }),
+    addTokensReceived({ 
+      options, 
+      token: ADDRESSES.polygon.USDC, 
+      fromAddressFilter: '0xc288480574783BD7615170660d71753378159c47'
+    }),
+    addTokensReceived({ 
+      options, 
+      token: ADDRESSES.polygon.USDC, 
+      fromAddressFilter: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41'
+    })
+  ])
   const revenueRatio = options.startOfDay >= ProtocolFeeSwitchTime ? 0.8 : 0;
   const dailyRevenue = dailyFees.clone(revenueRatio);
-  const dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio);
+  const dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio, "Maker Rebates");
+  dailySupplySideRevenue.addBalances(liquidityRewards, "Liquidity Rewards")
+  dailySupplySideRevenue.addBalances(holdingRewards, "Holding Rewards")
+  dailyRevenue.subtract(liquidityRewards)
+  dailyRevenue.subtract(holdingRewards)
 
   return {
     dailyFees,
@@ -38,9 +53,16 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
     Fees: 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
-    SupplySideRevenue: 'Part of Fees charged on trades are distributed as maker rebates',
-    Revenue: 'Fees going to protocol address post maker rebate distribution',
+    SupplySideRevenue: 'Maker rebates, liquidity and holding rewards',
+    Revenue: 'Fees going to protocol address post maker rebate, liquidity and holding rewards distribution',
     ProtocolRevenue: 'All the revenue goes to protocol',
+  },
+  breakdownMethodology: {
+    SupplySideRevenue: {
+      'Maker Rebates': 'Part of Fees charged on trades are distributed as maker rebates',
+      'Liquidity Rewards': 'Liquidity incentives paid to users who place limit orders that help keep the market active and balanced',
+      'Holding Rewards': 'Polymarket pays a 4.00% annualized Holding Reward on certain markets'
+    }
   },
   adapter: {
     [CHAIN.POLYGON]: {
