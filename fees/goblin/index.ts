@@ -20,13 +20,15 @@ const fetch = async (_: any, _1: any, { startOfDay }: FetchOptions) => {
   };
 
   const data = await request(BASE_URL, query, variables);
-  const dailyFees = data.api.getVaultsFeeStat.dailyFees;
-  const dailyRevenue = Number(dailyFees) * 0.5;
+  
+  // Goblin is curator for hyperion vaults
+  // it share 50% from performance and management fees
+  const dailyFees = Number(data.api.getVaultsFeeStat.dailyFees) * 0.5;
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -39,8 +41,9 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "The fee is charged 20% of our reward received",
-    Revenue: "Revenue is calculated as 50% of the daily fees",
+    Fees: "Goblin gets 50% share of performance and management fees from hyperion vaults.",
+    Revenue: "Goblin gets 50% share of performance and management fees from hyperion vaults.",
+    ProtocolRevenue: "Goblin gets 50% share of performance and management fees from hyperion vaults.",
   },
 };
 
