@@ -2,6 +2,7 @@ import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
+import { METRIC } from "../../helpers/metrics";
 
 interface IData {
   quote_mint: string;
@@ -21,8 +22,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   data.forEach(row => {
-    dailyFees.add(row.quote_mint, row.daily_fees);
-    dailyProtocolRevenue.add(row.quote_mint, row.daily_protocol_revenue);
+    const creatorFees = Number(row.daily_fees) - Number(row.daily_protocol_revenue);
+    dailyFees.add(row.quote_mint, row.daily_protocol_revenue, METRIC.PROTOCOL_FEES);
+    dailyProtocolRevenue.add(row.quote_mint, row.daily_protocol_revenue, METRIC.PROTOCOL_FEES);
+    dailyFees.add(row.quote_mint, creatorFees, METRIC.CREATOR_FEES);
   });
 
   return {
@@ -43,9 +46,21 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     Fees: "Total trading fees paid by users when swapping against Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration). These fees exclude the underlying Meteora protocol fee and DAMMv2 LP Fees and any referral fees.",
-    Revenue: "Trading-fee revenue earned by Bags from DBC (pre-migration), For DAMMv2 (post-migration), this is Bags accrued fees based on on-chain fee share events.",
+    Revenue: "Trading-fee revenue earned by Bags from DBC (pre-migration), For DAMMv2 (post-migration).",
     ProtocolRevenue: "Net Revenue earned by the Bags protocol from trading activity"
   },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.CREATOR_FEES]: 'Creator fees to token creators from Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration).',
+      [METRIC.PROTOCOL_FEES]: 'Protocol fees to Bags protocol from Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration).',
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: 'Protocol fees to Bags protocol from Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration).',
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: 'Protocol fees to Bags protocol from Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration).',
+    },
+  }
 }
 
 export default adapter
