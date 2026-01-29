@@ -118,8 +118,8 @@ const fetchEvents = async (
   }
 };
 
-const fetch = async (options: FetchOptions) => {
-  const { fromTimestamp, toTimestamp, createBalances, startOfDay } = options;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const { fromTimestamp, toTimestamp, createBalances } = options;
   const acc: Accumulator = {
     lp: new BigNumber(0),
     stake: new BigNumber(0),
@@ -157,35 +157,31 @@ const fetch = async (options: FetchOptions) => {
   );
   const totalRevenue = protocolRevenue + providersRevenue;
 
-  const fees = createBalances();
-  const rev = createBalances();
-  const pRev = createBalances();
-  const ssRev = createBalances();
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
   
-  fees.addCGToken("usd-coin", totalRevenue);
-  rev.addCGToken("usd-coin", protocolRevenue);
-  pRev.addCGToken("usd-coin", protocolRevenue);
-  ssRev.addCGToken("usd-coin", providersRevenue);
+  dailyFees.addUSDValue(totalRevenue);
+  dailyRevenue.addUSDValue(protocolRevenue);
+  dailySupplySideRevenue.addUSDValue(providersRevenue);
 
   return {
-    timestamp: startOfDay,
-    dailyFees: fees,
-    dailyRevenue: rev,
-    dailyProtocolRevenue: pRev,
-    dailySupplySideRevenue: ssRev,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: { [CHAIN.IOTA]: { fetch, start: "2025-10-23" } },
   allowNegativeValue: true,
   methodology: {
     Fees: "All trading, funding and rollover fees collected from users",
     Revenue: "Aggregated fees distributed between the protocol vaults",
     ProtocolRevenue: "Fees directed to the protocol vaults for maintenance",
-    SupplySideRevenue:
-      "Fees distributed to liquidity providers, adjusted for funding profit/loss",
+    SupplySideRevenue: "Fees distributed to liquidity providers, adjusted for funding profit/loss",
   },
 };
 
