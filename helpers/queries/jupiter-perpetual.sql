@@ -165,4 +165,4 @@ FROM
 WHERE
     COALESCE(pf.day, sf.day, posf.day) IS NOT NULL
 ORDER BY
-    day; 
+    day
