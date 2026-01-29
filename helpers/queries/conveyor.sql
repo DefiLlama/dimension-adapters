@@ -140,4 +140,4 @@ SELECT
 FROM
   volume_totals_by_chain
 ORDER BY
-  volume_24h DESC;
+  volume_24h DESC

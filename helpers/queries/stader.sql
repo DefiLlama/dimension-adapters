@@ -546,4 +546,4 @@ FROM
 WHERE
     day=CAST('{{target_date}}' AS DATE)
 ORDER BY
-    day DESC;
+    day DESC

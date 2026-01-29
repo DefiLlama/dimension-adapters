@@ -112,4 +112,4 @@ FROM (
     UNION ALL
     SELECT * FROM v2_revenue
 ) t
-GROUP BY quote_mint;
+GROUP BY quote_mint
