@@ -151,7 +151,7 @@ async function getFeesAndBribes(
     calls: gauges,
     permitFailure: true,
   });
-
+  
   // Build depot -> actual pool mapping and collect valid depots
   const depotToPool = new Map<string, string>();
   const validDepots: string[] = [];
@@ -170,7 +170,7 @@ async function getFeesAndBribes(
       }
     }
   });
-
+  
   if (!validDepots.length) {
     return { dailyFees, dailyBribesRevenue };
   }
@@ -181,9 +181,9 @@ async function getFeesAndBribes(
     eventAbi: eventAbis.AssetAdded,
     fromBlock: DEPLOY_BLOCK,
     cacheInCloud: true,
-    entireLog: true,
+    onlyArgs: false,
   });
-
+  
   // Build depot -> tokens mapping
   const depotTokens = new Map<string, Set<string>>();
   assetAddedLogs.forEach((log: any) => {
@@ -193,10 +193,11 @@ async function getFeesAndBribes(
       if (!depotTokens.has(depot)) {
         depotTokens.set(depot, new Set());
       }
+      
       depotTokens.get(depot)!.add(token);
     }
   });
-
+  
   // Fetch Transfer logs for each depot's tokens and process into both balances
   for (const [depot, tokens] of depotTokens.entries()) {
     const pool = depotToPool.get(depot);
@@ -214,7 +215,7 @@ async function getFeesAndBribes(
         toAddressFilter as any,
       ],
     });
-
+    
     // Process logs - transferLogs grouped by token
     transferLogs.forEach((logs: any[], index: number) => {
       const token = tokenArray[index];
@@ -242,27 +243,16 @@ async function getFeesAndBribes(
  * Main fetch function
  */
 const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
-  const { createBalances, api } = fetchOptions;
+  const { api } = fetchOptions;
 
   // Step 1: Get all gauges
   const gauges = await getGauges(fetchOptions);
-
-  if (!gauges.length) {
-    return {
-      dailyFees: createBalances(),
-      dailyUserFees: createBalances(),
-      dailyRevenue: createBalances(),
-      dailyHoldersRevenue: createBalances(),
-      dailySupplySideRevenue: createBalances(),
-      dailyBribesRevenue: createBalances(),
-    };
-  }
-
+  
   // Step 2: Build gauge -> pool mapping and get pool info
   const gaugeToPool = await getGaugePoolMapping(gauges, api);
   const pools = Array.from(new Set(gaugeToPool.values()));
   const poolInfo = await getPoolInfo(pools, api);
-
+  
   // Step 3: Get fees and bribes
   const { dailyFees, dailyBribesRevenue } = await getFeesAndBribes(
     gauges,
@@ -271,13 +261,10 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
     fetchOptions
   );
 
-  // Derived metrics
-  const dailyUserFees = dailyFees.clone();
   const dailyHoldersRevenue = dailyFees.clone();
 
   return {
     dailyFees,
-    dailyUserFees,
     dailyRevenue: dailyHoldersRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue: 0,
@@ -288,7 +275,6 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
 
 const methodology = {
   Fees: "All token transfers into MultiRewardsDepot contracts originating from pools and bribes",
-  UserFees: "100% of fees",
   Revenue: "100% of fees distributed to governance token holders are revenue.",
   ProtocolRevenue: "0 - Protocol earns via HERMES emissions DAO share",
   HoldersRevenue: "100% of fees distributed to governance token holders",
