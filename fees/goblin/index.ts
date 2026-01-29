@@ -1,13 +1,10 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraph/utils";
 
 const BASE_URL = "https://api.hyperion.xyz/v1/graphql";
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-
+const fetch = async (_: any, _1: any, { startOfDay }: FetchOptions) => {
   const query = gql`
     query defillamaStats($timestamp: Float!) {
       api {
@@ -19,7 +16,7 @@ const fetch = async (timestamp: number) => {
   `;
 
   const variables = {
-    timestamp: dayTimestamp,
+    timestamp: startOfDay,
   };
 
   const data = await request(BASE_URL, query, variables);
@@ -29,10 +26,12 @@ const fetch = async (timestamp: number) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
