@@ -5,8 +5,8 @@ import { FetchOptions } from "../../adapters/types";
 
 interface IData {
   quote_mint: string;
-  daily_fees: number;
-  daily_protocol_revenue: number;
+  daily_fees: string;
+  daily_protocol_revenue: string;
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -22,13 +22,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
 
   data.forEach(row => {
-    dailyFees.add(row.quote_mint, Number(row.daily_fees));
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.daily_protocol_revenue));
+    dailyFees.add(row.quote_mint, row.daily_fees);
+    dailyProtocolRevenue.add(row.quote_mint, row.daily_protocol_revenue);
   });
 
   return {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
   };
 };
 
@@ -41,8 +42,8 @@ const adapter: SimpleAdapter = {
   start: '2025-05-11',
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Total trading fees from Bags swaps.",
-    Revenue: "Total Bags revenue from trading fees.",
+    Fees: "Protocol fees from trading volume.",
+    Revenue: "Protocol revenue from trading volume.",
   },
 }
 
