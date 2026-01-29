@@ -15,7 +15,7 @@ const FeeRecipients = ['0xf21a25DD01ccA63A96adF862F4002d1A186DecB2','0xd4AA6F8E9
 const ProtocolFeeSwitchTime = 1768176000; //2026-01-12
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const [dailyFees, liquidityRewards, holdingRewards] = await Promise.all([
+  const [fees, liquidityRewards, holdingRewards] = await Promise.all([
     addTokensReceived({
     options,
     fromAdddesses: [FeeModule, NegRiskFeeModule, Ctf, NegRiskCtf],
@@ -33,13 +33,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       fromAddressFilter: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41'
     })
   ])
+  const dailyFees = fees.clone(1, 'Taker Fees')
   const revenueRatio = options.startOfDay >= ProtocolFeeSwitchTime ? 0.8 : 0;
   const dailyRevenue = dailyFees.clone(revenueRatio);
   const dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio, "Maker Rebates");
   dailySupplySideRevenue.addBalances(liquidityRewards, "Liquidity Rewards")
   dailySupplySideRevenue.addBalances(holdingRewards, "Holding Rewards")
-  dailyRevenue.subtract(liquidityRewards)
-  dailyRevenue.subtract(holdingRewards)
+  dailyRevenue.subtract(liquidityRewards, 'Taker Fees')
+  dailyRevenue.subtract(holdingRewards, 'Taker Fees')
 
   return {
     dailyFees,
@@ -58,6 +59,15 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: 'All the revenue goes to protocol',
   },
   breakdownMethodology: {
+    Fees: {
+      'Taker Fees': 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
+    },
+    Revenue: {
+      'Taker Fees': 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
+    },
+    ProtocolRevenue: {
+      'Taker Fees': 'Taker fees minus rebates, liquidity and holding rewards',
+    },
     SupplySideRevenue: {
       'Maker Rebates': 'Part of Fees charged on trades are distributed as maker rebates',
       'Liquidity Rewards': 'Liquidity incentives paid to users who place limit orders that help keep the market active and balanced',
