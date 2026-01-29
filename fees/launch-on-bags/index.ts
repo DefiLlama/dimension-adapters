@@ -17,7 +17,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   const data: IData[] = await queryDuneSql(options, query)
-
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
@@ -41,9 +40,11 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   start: '2025-05-11',
   isExpensiveAdapter: true,
+  doublecounted: true,
   methodology: {
-    Fees: "Protocol fees from trading volume.",
-    Revenue: "Protocol revenue from trading volume.",
+    Fees: "Total trading fees paid by users when swapping against Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration). These fees exclude the underlying Meteora protocol fee and DAMMv2 LP Fees and any referral fees.",
+    Revenue: "Trading-fee revenue earned by Bags from DBC (pre-migration), For DAMMv2 (post-migration), this is Bags accrued fees based on on-chain fee share events.",
+    ProtocolRevenue: "Net Revenue earned by the Bags protocol from trading activity"
   },
 }
 

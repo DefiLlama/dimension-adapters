@@ -64,7 +64,9 @@ WITH
         SELECT
             quote_mint,
             SUM(trading_fee) AS daily_fees,
-            SUM(trading_fee * (100 - creator_fee_pct) / 100) AS daily_protocol_revenue
+            SUM(trading_fee * creator_fee_pct / 100) AS daily_protocol_revenue
+            -- In Bags launchpad, the protocol is configured as the DBC creator. Therefore, protocol revenue is calculated as the creator share of the DBC trading fee and dbc config partner is configured as the token creator
+            -- SUM(trading_fee * (100 - creator_fee_pct) / 100) AS daily_bags_creator_revenue
         FROM v1_swap_events
         GROUP BY quote_mint
     ),
