@@ -5,6 +5,12 @@ import BigNumber from "bignumber.js";
 const graphUrl =
   "https://api.goldsky.com/api/public/project_clzwt9f7wxczz01vw8zx90k22/subgraphs/cyberLP-pool/latest/gn";
 
+const cyberPerpApiUrl =
+  "https://api.prod.move.cyberperp.io/stats/total-volume-range";
+
+const VUSD_DECIMALS = 1e6;
+const DAY_SECONDS = 86400;
+
 const getData = async (timestamp: number) => {
   const query = gql`
     {
@@ -44,5 +50,36 @@ export const fetchVolume = async (options: FetchOptions) => {
   return {
     dailyVolume: data.dailyVolume,
     timestamp: data.timestamp,
+  };
+};
+
+export const fetchVolumeMove = async (options: FetchOptions) => {
+  const { createBalances, startOfDay } = options;
+  
+  const startTimestamp = options.startOfDay;
+  const endTimestamp = options.startOfDay + DAY_SECONDS;
+
+  const url = `${cyberPerpApiUrl}?fromTimestamp=${startTimestamp}&toTimestamp=${endTimestamp}`;
+  const response = await globalThis.fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `Fetch volume error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const text = await response.text();
+  const volumeRaw = Number(text);
+
+  if (isNaN(volumeRaw)) {
+    throw new Error(`Invalid volume response: ${text}`);
+  }
+
+  const dailyVolume = createBalances();
+  dailyVolume.addUSDValue(volumeRaw / VUSD_DECIMALS);
+
+  return {
+    timestamp: startOfDay,
+    dailyVolume,
   };
 };
