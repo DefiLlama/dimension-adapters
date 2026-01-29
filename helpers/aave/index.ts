@@ -25,9 +25,12 @@ export interface AaveAdapterExportConfig {
 
 // PercentageMath uses 4 decimals: https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F17#L15
 const PercentageMathDecimals = 1e4;
+// BigInt version to keep reserveFactor math exact (avoid float precision loss).
+const PercentageMathDecimalsBI = 10000n;
 
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
+const SECONDS_PER_YEAR = 31536000n;
 
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
@@ -70,24 +73,28 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     calls: reservesList,
   })
 
+  // time delta in seconds between start and end blocks
+  const timeDelta = BigInt(options.toTimestamp - options.fromTimestamp)
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
-    let totalLiquidity = BigInt(0)
     let totalVariableDebt = BigInt(0)
+    let totalStableDebt = BigInt(0)
+    let avgStableBorrowRate = BigInt(0)
     if (pool.version === 1) {
-      totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalLiquidity)
-    } else if (pool.version === 2) {
-      // = available + borrowed
-      totalLiquidity = BigInt(reserveDataBefore[reserveIndex].availableLiquidity)
-        + BigInt(reserveDataBefore[reserveIndex].totalStableDebt)
-        + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
+      // V1 exposes variable debt as totalBorrowsVariable; default to 0 if missing.
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalBorrowsVariable ?? 0)
+      totalStableDebt = BigInt(reserveDataBefore[reserveIndex].totalBorrowsStable ?? 0)
+      avgStableBorrowRate = BigInt(reserveDataBefore[reserveIndex].averageStableBorrowRate ?? 0)
     } else {
-      totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
       totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
+      totalStableDebt = BigInt(reserveDataBefore[reserveIndex].totalStableDebt)
+      avgStableBorrowRate = BigInt(reserveDataBefore[reserveIndex].averageStableBorrowRate)
     }
 
     const token = reservesList[reserveIndex].toLowerCase()
-    const reserveFactor = reserveFactors[reserveIndex] / PercentageMathDecimals
+    // Keep reserve factor in bps as BigInt for ratio math.
+    const reserveFactorBps = BigInt(reserveFactors[reserveIndex])
 
     if (pool.selfLoanAssets && pool.selfLoanAssets[token]) {
       // self-loan assets, no supply-side revenue
@@ -95,22 +102,38 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
       const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
-      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
+      // totalVariableDebt is already index-applied, so divide by the prior index (not RAY) to get interest delta.
+      const interestAccrued = reserveVariableBorrowIndexBefore === 0n
+        ? 0n
+        : totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore
 
       balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailyProtocolRevenue.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
     } else {
-      // normal reserves
-      const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
-      const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-      const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
-      const revenueAccrued = Number(interestAccrued) * reserveFactor
+      // Variable debt interest: use variableBorrowIndex to calculate interest
+      // (avoids flashloan supply premium contamination and works for 100% RF)
+      const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
+      const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      // totalVariableDebt is already index-applied, so divide by the prior index (not RAY) to get interest delta.
+      const variableInterest = reserveVariableBorrowIndexBefore === 0n
+        ? 0n
+        : totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore
 
-      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
-      balances.dailySupplySideRevenue.add(token, Number(interestAccrued) - revenueAccrued, METRIC.BORROW_INTEREST)
-      balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
+      // Stable debt interest: calculate from average stable rate and time delta
+      // stableInterest = totalStableDebt * avgStableRate * timeDelta / SECONDS_PER_YEAR / RAY
+      const stableInterest = totalStableDebt * avgStableBorrowRate * timeDelta / SECONDS_PER_YEAR / LiquidityIndexDecimals
+
+      const totalInterest = variableInterest + stableInterest
+
+      // Split by reserve factor: protocol gets RF%, suppliers get (1-RF)%
+      const protocolInterest = totalInterest * reserveFactorBps / PercentageMathDecimalsBI
+      const supplyInterest = totalInterest - protocolInterest
+
+      balances.dailyFees.add(token, totalInterest, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, supplyInterest, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, protocolInterest, METRIC.BORROW_INTEREST)
     }
   }
 
@@ -134,13 +157,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   
       for (const event of flashloanEvents) {
         const flashloanPremiumForProtocol = Number(event.premium) * flashloanFeeProtocolRate
-  
-        balances.dailyFees.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
+        const flashloanPremiumForSupply = Number(event.premium) - flashloanPremiumForProtocol
+
+        balances.dailyFees.add(event.asset, event.premium, METRIC.FLASHLOAN_FEES)
         balances.dailyProtocolRevenue.add(event.asset, flashloanPremiumForProtocol, METRIC.FLASHLOAN_FEES)
-        
-        // we don't count flashloan premium for LP as fees
-        // because they have already counted in liquidity index
-        balances.dailySupplySideRevenue.add(event.asset, 0)
+        balances.dailySupplySideRevenue.add(event.asset, flashloanPremiumForSupply, METRIC.FLASHLOAN_FEES)
       }
     }
   }
