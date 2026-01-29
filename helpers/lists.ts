@@ -90,6 +90,9 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xa39052Dbd640e7ad9e8537860C13134D0f432880",
     "0xb8499dbF176de8eCed16c478CFf51997A529F1bE",
   ],
+  [CHAIN.BASE]: [
+    "0xAb6363dA0C80cEF3Ae105Bd6241E30872355d021",
+  ],
 };
 
 export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
@@ -333,6 +336,6 @@ export const DefaultVaultsBlacklisted: Record<string, Array<string>> = {
     '0xa13327562924ab07f70440de8b7fd85824a99683',
     '0xa3b2e9c59a6c0a03239f89e860c27d73630572c0',
     '0x74873cc11eea09d686ad30f5ce9ec1a1152faa7c',
-    '0xaf2e837150e941b87296ed7dca4a0c0b83c4242a'
+    '0xaf2e837150e941b87296ed7dca4a0c0b83c4242a',
   ],
-}
+};

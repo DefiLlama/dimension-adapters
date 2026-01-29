@@ -1,5 +1,4 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -31,6 +30,7 @@ const fetch = () => {
 
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-01-23', // v1 is shutting down on 2026-01-23
     adapter: {
         ['merlin']: {
             fetch: fetch(),
