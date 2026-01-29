@@ -74,7 +74,7 @@ export default {
     },
   },
   fetch,
-  start: "2021-07-16",
+  start: "2021-10-25",
   chains: [CHAIN.INJECTIVE],
   protocolType: ProtocolType.CHAIN,
 };

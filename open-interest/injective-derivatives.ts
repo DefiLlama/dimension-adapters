@@ -20,6 +20,6 @@ const fetch = async (_: number, _t: any, options: FetchOptions) => {
 
 export default {
   fetch,
-  start: "2021-07-17",
+  start: "2025-09-12",
   chains: [CHAIN.INJECTIVE],
 };
