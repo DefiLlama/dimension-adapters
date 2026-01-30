@@ -41,12 +41,30 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     }
     
     const pythEntropyContract = chainInfo.contract_addr;
+    const defaultProvider = '0x52DeaA1c84233F7bb8C8A45baeDE41091c616506';
 
-    const feePerRequest = await options.api.call({
+    // Try getFeeV2 first (newer contracts), then getFee (older contracts), then use default_fee from API
+    let feePerRequest = await options.api.call({
         target: pythEntropyContract,
         abi: 'uint128:getFeeV2',
         permitFailure: true,
     });
+    
+    if (!feePerRequest) {
+        // Try older getFee method with default provider
+        feePerRequest = await options.api.call({
+            target: pythEntropyContract,
+            abi: 'function getFee(address provider) view returns (uint128)',
+            params: [defaultProvider],
+            permitFailure: true,
+        });
+    }
+    
+    if (!feePerRequest) {
+        // Fall back to default_fee from Fortuna API config
+        feePerRequest = chainInfo.default_fee;
+    }
+    
     if (!feePerRequest) {
       return {
         dailyFees: 0,
