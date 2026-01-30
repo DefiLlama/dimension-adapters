@@ -1,108 +1,151 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types'
-import { CHAIN } from '../helpers/chains'
-import { addTokensReceived } from '../helpers/token'
-import { getERC4626VaultsYield } from '../helpers/erc4626'
-import { METRIC } from '../helpers/metrics'
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
+import { ethers } from "ethers";
 
-/**
- * TermMax Fee Adapter
- *
- * TermMax is a fixed-rate lending protocol where users borrow/lend at fixed rates
- * using Fixed-rate Tokens (FT) that mature to their face value.
- *
- * Fee Structure (docs: https://docs.ts.finance/termmax/transaction-fees):
- * - Lending Fee: 2% of APR * time to maturity
- * - Borrowing Fee: GT Minting Fee (10% of ref rate) + 3% of matched rate * time
- * - Leverage Fee: Same as borrowing fee, applied to leveraged amount
- * - Vault Performance Fee: 10-20% of vault profits
- *
- * Note: Fees are collected in FT tokens and settle to debt tokens at maturity.
- * Protocol revenue appears when positions mature, not when transactions occur.
- */
+// chain: ethereum, arbitrum, bsc, berachain
+const TREASURY = "0x719e77027952929ed3060dbFFC5D43EC50c1cf79";
 
-const TREASURY = '0x719e77027952929ed3060dbFFC5D43EC50c1cf79'
+async function getTransfers(
+  options: FetchOptions,
+  _from: string | null,
+  _to: string | null,
+  fromBlock: number,
+  toBlock: number,
+) {
+  const eventAbi =
+    "event Transfer (address indexed from, address indexed to, uint256 value)";
+  const from = _from ? ethers.zeroPadValue(_from, 32) : null;
+  const to = _to ? ethers.zeroPadValue(_to, 32) : null;
+  return await options.getLogs({
+    eventAbi,
+    topics: [
+      // Transfer(address,address,uint256)
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      from as any,
+      to as any,
+    ],
+    fromBlock,
+    toBlock,
+    entireLog: true,
+    noTarget: true,
+  });
+}
 
-// TermMax Vaults per chain
-// Docs: https://docs.ts.finance/technical-details/contract-addresses
-const VAULTS: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: [
-    '0x984408C88a9B042BF3e2ddf921Cd1fAFB4b735D1', // TMX-USDC
-    '0xDEB8a9C0546A01b7e5CeE8e44Fd0C8D8B96a1f6e', // TMX-WETH
-  ],
-  [CHAIN.ARBITRUM]: [
-    '0xc94b752839a22D2C44E99e298671dd4B2aDd11b3', // TMX-USDC
-    '0x8c5161f287Cbc9Afa48bC8972eE8CC0a755fcAdC', // TMX-WETH
-  ],
-  [CHAIN.BSC]: [
-    '0x86c958cac8aee37de62715691c0d597c710eca51', // TMX-USDT
-    '0x89653e6523fb73284353252b41ae580e6f96dfad', // TMX-WBNB
-  ],
+async function handleLogs(options: FetchOptions, logs: any[]) {
+  const dailyUserFees = options.createBalances();
+
+  const froms = [];
+  const addresses = [];
+  for (const log of logs) {
+    froms.push(log.args.from);
+    addresses.push(log.address);
+  }
+
+  const [gtConfigs, marketAddresses] = await Promise.all([
+    options.api.multiCall({
+      abi: "function getGtConfig() view returns ((address collateral, address debtToken, address ft, address treasurer, uint64 maturity, (address oracle, uint32 liquidationLtv, uint32 maxLtv, bool liquidatable) loanConfig))",
+      calls: froms,
+      permitFailure: true,
+    }),
+    options.api.multiCall({
+      abi: "address:marketAddr",
+      calls: addresses,
+      permitFailure: true,
+    }),
+  ]);
+
+  const allTokens = await options.api.multiCall({
+    // _0: Fixed-rate Token(bond token). Earning Fixed Income with High Certainty
+    // _1: Intermediary Token for Collateralization and Leveraging
+    // _2: Gearing Token
+    // _3: Collateral token
+    // _4: Underlying Token(debt)
+    abi: "function tokens() view returns (address, address, address, address, address)",
+    calls: marketAddresses,
+    permitFailure: true,
+  });
+
+  for (let i = 0; i < logs.length; i++) {
+    const [gtConfig, marketAddress, balance] = [
+      gtConfigs[i],
+      marketAddresses[i],
+      logs[i].args.value,
+    ];
+    if (gtConfig) {
+      // liquidation penalty
+      dailyUserFees.add(gtConfig.collateral, balance, METRIC.LIQUIDATION_FEES);
+    } else if (marketAddress) {
+      // protocol fee
+      const tokens = allTokens[i];
+      const underlyingToken = tokens[4];
+      dailyUserFees.add(underlyingToken, balance, METRIC.PROTOCOL_FEES); // underlying token (debt)
+    }
+  }
+
+  return { dailyUserFees };
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
+  const dailyRevenue = options.createBalances();
 
-  const dailyProtocolRevenue = await addTokensReceived({
-    options,
-    target: TREASURY,
-  })
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+  const logs = await getTransfers(options, null, TREASURY, fromBlock, toBlock);
 
-  const vaults = VAULTS[options.chain] || []
-  if (vaults.length > 0) {
-    const vaultYields = await getERC4626VaultsYield({
-      options,
-      vaults,
-    })
-    dailySupplySideRevenue.addBalances(vaultYields, METRIC.ASSETS_YIELDS)
-  }
-
-  dailyFees.addBalances(dailySupplySideRevenue, METRIC.ASSETS_YIELDS)
-  dailyFees.addBalances(dailyProtocolRevenue, METRIC.PROTOCOL_FEES)
-  dailyRevenue.addBalances(dailyProtocolRevenue, METRIC.PROTOCOL_FEES)
+  const { dailyUserFees } = await handleLogs(options, logs);
+  dailyRevenue.add(dailyUserFees);
 
   return {
-    dailyFees,
+    dailyUserFees,
+    dailyFees: dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  }
-}
+  };
+};
 
 const methodology = {
-  Fees: 'Interest earned by lenders plus protocol fees from fixed-rate lending.',
-  Revenue: 'Protocol fees settled to treasury when positions mature.',
-  ProtocolRevenue: 'Lending, borrowing, leverage, and vault performance fees.',
-  SupplySideRevenue: 'Yield earned by vault depositors from lending markets.',
-}
+  Fees: "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+  UserFees:
+    "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+  Revenue:
+    "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+  ProtocolRevenue:
+    "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+};
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.ASSETS_YIELDS]: 'Interest earned by vault depositors from borrower payments.',
-    [METRIC.PROTOCOL_FEES]: 'Fees from lending (2% of APR), borrowing/leverage (GT minting + 3% of rate), and vault performance (10-20%).',
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
+  },
+  UserFees: {
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'Fees collected in FT tokens that have matured and converted to actual tokens (e.g. USDC).',
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: 'Fees from lending (2% of APR), borrowing/leverage (GT minting + 3% of rate), and vault performance (10-20%).',
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
   },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Interest distributed to vault depositors who provide liquidity.',
-  },
-}
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: { start: '2025-03-27' },
-    [CHAIN.ARBITRUM]: { start: '2025-03-27' },
-    [CHAIN.BSC]: { start: '2025-05-28' },
+    [CHAIN.ETHEREUM]: { start: "2025-03-27" },
+    [CHAIN.ARBITRUM]: { start: "2025-03-27" },
+    [CHAIN.BSC]: { start: "2025-05-28" },
+    [CHAIN.BERACHAIN]: { start: "2025-07-08" },
   },
   methodology,
   breakdownMethodology,
-}
+};
 
-export default adapter
+export default adapter;
