@@ -28,7 +28,7 @@ const buildQuery = (cursor: string | null, eventType: string) => gql`
     ) {
       pageInfo {
         hasNextPage
-        endCursor
+        startCursor
       }
       edges {
         node {
@@ -114,7 +114,7 @@ const fetchEvents = async (
 
     const shouldContinue = processor(response.events.edges, from, to, acc);
     if (!shouldContinue) break;
-    cursor = response.events.pageInfo.endCursor;
+    cursor = response.events.pageInfo.startCursor;
   }
 };
 
