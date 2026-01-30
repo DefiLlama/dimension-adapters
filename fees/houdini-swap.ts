@@ -21,7 +21,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: 'Swap fees paid by users.',
     Revenue: 'Swap fees paid by users.',
-    HoldersRevenue: 'All swap fees fistributed to token holders.',
+    HoldersRevenue: 'All swap fees distributed to token holders.',
   }
 }
 

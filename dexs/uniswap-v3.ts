@@ -1,9 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { DEFAULT_TOTAL_VOLUME_FIELD, getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { httpPost } from "../utils/fetchURL";
-import { getUniV3LogAdapter } from "../helpers/uniswap";
+import { filterPools, getUniV3LogAdapter } from "../helpers/uniswap";
+import { addOneToken } from "../helpers/prices";
 
 const v3Endpoints = {
   // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
@@ -16,7 +17,8 @@ const v3Endpoints = {
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
   // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
-  // [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX')
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX'),
+  [CHAIN.XLAYER]: sdk.graph.modifyEndpoint('2LM2nhSfVsKVNW1EF6AgJHMGBKU2zR9rZcE3zzkFkwW1'),
 };
 
 type TStartTime = {
@@ -31,7 +33,8 @@ const startTimeV3: TStartTime = {
   [CHAIN.BSC]: 1678665600,
   [CHAIN.AVAX]: 1689033600,
   [CHAIN.BASE]: 1691280000,
-  [CHAIN.ERA]: 1693440000
+  [CHAIN.ERA]: 1693440000,
+  [CHAIN.XLAYER]: 1767571200,
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -94,16 +97,20 @@ const mappingChain = (chain: string) => {
   if (chain === CHAIN.POLYGON_ZKEVM) return "polygon-zkevm"
   if (chain === CHAIN.XDAI) return "gnosis"
   if (chain === CHAIN.LIGHTLINK_PHOENIX) return "lightlink"
+  if (chain === CHAIN.SONIC) return "sonic"
+  if (chain === CHAIN.ETHERLINK) return "etherlink"
+  if (chain === CHAIN.NIBIRU) return "nibiru"
+  if (chain === CHAIN.MONAD) return "monad"
   return chain
 }
 
 const methodology = {
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'Protocol make no revenue.',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI.',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'All fees are distributed to LPs.',
-  HoldersRevenue: 'No revenue for UNI holders.',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI.',
 }
 
 const adapter: SimpleAdapter = {
@@ -165,7 +172,6 @@ const okuChains = [
   CHAIN.ERA,
   CHAIN.SEI,
   CHAIN.UNICHAIN,
-  CHAIN.SEI,
   CHAIN.TAIKO,
   CHAIN.SCROLL,
   CHAIN.ROOTSTOCK,
@@ -185,12 +191,16 @@ const okuChains = [
   CHAIN.CELO,
   CHAIN.NIBIRU,
   CHAIN.MONAD,
-  
+  CHAIN.SONIC,
+  CHAIN.ETHERLINK,
+  CHAIN.SAGA,
+  CHAIN.LENS,
+
   // CHAIN.BLAST,
-  // CHAIN.LENS,
   // CHAIN.LISK,
+  // CHAIN.MOONBEAM,
   // CHAIN.POLYGON_ZKEVM,
-  // CHAIN.SAGA,
+  // CHAIN.MANTA,
 ]
 
 
@@ -200,5 +210,64 @@ okuChains.forEach(chain => {
     fetch: async (_t: any, _tb: any, options: FetchOptions) => fetchFromOku(options),
   }
 });
+
+
+const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
+const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
+(adapter.adapter as BaseAdapter)[CHAIN.ETHEREUM] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    function getRevenueShare(fee: number): number {
+      // https://docs.uniswap.org/contracts/protocol-fee/fee-setting-rational
+      if (fee === 0.0001) return 0.000025;
+      if (fee === 0.0005) return 0.0000125;
+      if (fee === 0.003) return 0.0005;
+      if (fee === 0.01) return 0.001666;
+      return 0;
+    }
+    
+    const poolCreatedLogs = await options.getLogs({
+      target: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
+      eventAbi: poolCreatedEvent,
+      fromBlock: 12369621,
+      cacheInCloud: true,
+    })
+
+    const pairObject: IJSON<string[]> = {}
+    const fees: any = {}
+    const revenueShares: any = {}
+  
+    poolCreatedLogs.forEach((log: any) => {
+      pairObject[log.pool] = [log.token0, log.token1]
+      fees[log.pool] = (log.fee?.toString() || 0) / 1e6
+      revenueShares[log.pool] = getRevenueShare(Number(log.fee?.toString() || 0) / 1e6)
+    })
+    
+    const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances })
+    
+    const dailyVolume = options.createBalances()
+    const dailyFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+  
+    if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees }
+  
+    const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
+    allLogs.map((logs: any, index) => {
+      if (!logs.length) return;
+      const pair = Object.keys(filteredPairs)[index]
+      const [token0, token1] = pairObject[pair]
+      const fee = fees[pair]
+      const revenueRatio = revenueShares[pair]
+      logs.forEach((log: any) => {
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
+        addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
+        addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * revenueRatio, amount1: log.amount1.toString() * revenueRatio })
+        addOneToken({ chain: options.chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
+      })
+    })
+  
+    return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue: dailyRevenue, }
+  },
+};
 
 export default adapter;

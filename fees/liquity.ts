@@ -5,9 +5,11 @@ import { liquityV1Exports } from "../helpers/liquity";
 export default {
   ...liquityV1Exports({
     [CHAIN.ETHEREUM]: { 
+      start: '2021-04-06',
       troveManager: '0xA39739EF8b0231DbFA0DcdA07d7e29faAbCf4bb2', 
       stableCoin: ADDRESSES.ethereum.LUSD,
-      holderRevenuePercentage: 100
+      holderRevenuePercentage: 100,
+      protocolRevenuePercentage: 0, // no protocol revenue
     }
   }),
   methodology: {
@@ -22,6 +24,7 @@ export default {
       'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
       'Redemption Fees': 'Redemption fees paid by borrowers.',
       'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      'Liquidation Profit': 'On liquidations, there are an amount of profit from ETH collaterals are distributed to stability pool stakers.',
     },
     Revenue: {
       'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
@@ -33,6 +36,7 @@ export default {
     },
     SupplySideRevenue: {
       'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      'Liquidation Profit': 'On liquidations, there are an amount of profit from ETH collaterals are distributed to stability pool stakers.',
     },
     ProtocolRevenue: 'No revenue for Liquity protocol.',
   },

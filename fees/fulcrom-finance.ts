@@ -6,7 +6,7 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: Record<string, string> = {
   [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
+  // [CHAIN.ERA]: "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
   [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
 };
 
@@ -65,10 +65,10 @@ const adapter: Adapter = {
       fetch,
       start: '2023-02-27',
     },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2023-10-05',
-    },
+    // [CHAIN.ERA]: {
+    //   fetch,
+    //   start: '2023-10-05',
+    // },
     [CHAIN.CRONOS_ZKEVM]: {
       fetch,
       start: '2024-08-15',

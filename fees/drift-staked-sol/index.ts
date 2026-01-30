@@ -7,10 +7,16 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 
 const STAKE_POOL_WITHDRAW_AUTHORITY = "6727ZvQ2YEz8jky1Z9fqDFG5mYuAvC9G34o2MxwzmrUK";
 const STAKE_POOL_RESERVE_ACCOUNT = "4RjzgujRmdadbLjyh2L1Qn5ECsQ1qfjaapTfeWKYtsC3";
-const LST_FEE_TOKEN_ACCOUNT = "5NJUMVJPVxN5huLKQ7tNxBv7LHxHDLwREUym5ekfdSgD";
+const LST_FEE_TOKEN_ACCOUNT_NEW = "4ipvqrPR7dvkRPJ9iHhAxY7NfcgCSrZw5KLH3K8aAbCM";
+const LST_FEE_TOKEN_ACCOUNT_OLD = "5NJUMVJPVxN5huLKQ7tNxBv7LHxHDLwREUym5ekfdSgD";
 const LST_MINT = ADDRESSES.solana.dSOL;
+let LST_FEE_TOKEN_ACCOUNT = '4ipvqrPR7dvkRPJ9iHhAxY7NfcgCSrZw5KLH3K8aAbCM'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    if (options.startOfDay <= 1762646400){
+        LST_FEE_TOKEN_ACCOUNT = LST_FEE_TOKEN_ACCOUNT_OLD;
+    }
+
     const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
         start: options.startTimestamp,
         end: options.endTimestamp,
@@ -36,7 +42,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue
+        dailyProtocolRevenue: dailyRevenue,
+        dailyHoldersRevenue: 0,
     };
 };
 
@@ -44,6 +51,7 @@ const methodology = {
     Fees: 'Staking rewards from staked SOL on drift staked solana',
     Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
     ProtocolRevenue: 'Revenue going to treasury/team',
+    HoldersRevenue: 'No revenue share to DRIFT token holders',
 }
 
 export default {
