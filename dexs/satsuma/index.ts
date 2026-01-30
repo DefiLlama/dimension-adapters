@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CITREA]: {
       fetch: graphs(CHAIN.CITREA),
-      start: "2024-11-01",
+      start: "2026-01-17",
     },
   },
 };
