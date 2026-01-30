@@ -19,7 +19,7 @@ const chainConfig: Record<string, { start: string, chainName: string }> = {
     [CHAIN.KLAYTN]: { start: '2024-06-22', chainName: 'kaia' },
     [CHAIN.APECHAIN]: { start: '2024-10-03', chainName: 'apechain' },
     [CHAIN.MONAD]: { start: '2025-11-24', chainName: 'monad' },
-    [CHAIN.SEI]: { start: '2024-08-15', chainName: 'sei-evm' },
+    // [CHAIN.SEI]: { start: '2024-08-15', chainName: 'sei-evm' },
     [CHAIN.TAIKO]: { start: '2024-06-05', chainName: 'taiko' },
     [CHAIN.STORY]: { start: '2025-03-06', chainName: 'story' },
 };
