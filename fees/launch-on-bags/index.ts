@@ -52,7 +52,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dammv2Url = `${DAMMV2_API_URL}?start_time=${options.startTimestamp + 1}&end_time=${options.endTimestamp}`;
   const dammv2Response: IDammv2FeeResponse = await httpGet(dammv2Url);
 
-  dammv2Response.results.forEach(r => {
+  (dammv2Response?.results ?? []).forEach(r => {
     const totalFees = r.fees ?? 0;
     const protocolRevenue = r.protocol_revenue ?? 0;
     const creatorFees = totalFees - protocolRevenue;
