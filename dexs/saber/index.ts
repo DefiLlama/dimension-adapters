@@ -9,50 +9,83 @@
  */
 
 import { CHAIN } from '../../helpers/chains';
-import { ChainBlocks, FetchOptions } from '../../adapters/types';
-import { httpGet } from "../../utils/fetchURL";
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { queryDuneSql } from "../../helpers/dune"
 
+async function fetch(_t: any, _a: any, options: FetchOptions) {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
 
-async function fetchLast24hVolume(timestamp: number, _: ChainBlocks, { createBalances }: FetchOptions) {
-  const [volumeData, poolsData] = await Promise.all([
-    httpGet('https://raw.githubusercontent.com/saberdao/birdeye-data/refs/heads/main/volume.json'),
-    httpGet('https://raw.githubusercontent.com/saberdao/saber-registry-dist/master/data/pools-info.mainnet.json')
-  ]);
-
-  const dailyVolume = createBalances()
-
-  // Create map of tokenA mint addresses and decimals by swap account
-  const poolTokens = new Map(
-    poolsData.pools.map((pool: any) => [
-      pool.swap.config.swapAccount,
-      {
-        mint: pool.swap.state.tokenA.mint.toString(),
-        decimals: pool.tokens.find((token: any) => token.address === pool.swap.state.tokenA.mint.toString())?.decimals
-      }
-    ])
+  const query = `
+  WITH transactions AS (
+    SELECT 
+      varbinary_to_bigint(reverse(varbinary_substring(data, 2, 8))) as inAmount,
+      account_arguments[5] AS poolSource,
+      account_arguments[6] as poolDestination,
+      account_arguments[8] as adminAddress,
+      tx_id
+    FROM solana.instruction_calls
+    WHERE executing_account = 'SSwpkEEcbUqx4vtoEByFjSkhKdCT862DNVb52nZg1UZ'
+    AND TIME_RANGE
+    AND varbinary_substring(data, 1, 1) = 0x01
+    AND tx_success = true
+  ),
+  fees AS (
+    SELECT SUM(amount_usd) as fees, token_mint_address as mint
+    FROM tokens_solana.transfers t
+    INNER JOIN transactions
+    ON transactions.poolDestination = t.from_token_account 
+    AND transactions.adminAddress = t.to_token_account 
+    AND transactions.tx_id = t.tx_id
+    WHERE TIME_RANGE
+    GROUP BY token_mint_address
+  ), 
+  volume AS (
+    SELECT SUM(transactions.inAmount) AS volume, ta.token_mint_address AS mint
+    FROM transactions
+    INNER JOIN solana_utils.token_accounts ta
+    ON transactions.poolSource = ta.address
+    GROUP BY ta.token_mint_address
   )
+  SELECT 
+    COALESCE(f.mint, v.mint) as mint,
+    COALESCE(f.fees, 0) as fees,
+    COALESCE(v.volume, 0) as volume
+  FROM fees f
+  FULL OUTER JOIN volume v 
+  ON f.mint = v.mint`
 
-  Object.entries(volumeData).forEach(([swapAccount, pool]: [string, any]) => {
-    if (!pool.v) return;
-
-    const tokenInfo = poolTokens.get(swapAccount);
-    if (!tokenInfo) return;
-
-    const { mint, decimals } = tokenInfo as { mint: string; decimals: number };
-    const adjustedVolume = pool.v * Math.pow(10, decimals || 0);
-
-    dailyVolume.add(mint, adjustedVolume);
+  const result = await queryDuneSql(options, query)
+  result.forEach((row: Record<string, any>) => {
+    dailyVolume.add(row.mint, row.volume)
+    dailyFees.addUSDValue(row.fees)
   })
-
-  return { dailyVolume, timestamp: Math.floor(Date.now() / 1e3) }
-}
-
-
-export default {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchLast24hVolume,
-      runAtCurrTime: true,
-    }
+  const dailySupplySideRevenue = dailyFees.clone(0.5)
+  const dailyRevenue = dailyFees.clone(0.5)  
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue
   }
 }
+
+const adapter : SimpleAdapter = {
+  version: 1,
+  fetch,
+  methodology: {
+    Fees: 'Swap fees paid by users',
+    UserFees: 'Swap fees paid by users',
+    SupplySideRevenue: 'Half of the swap fees go to LPs',
+    Revenue: 'Half of the swap fees go to the protocol',
+    ProtocolRevenue: 'Half of the swap fees go to the protocol'
+  },
+  chains: [CHAIN.SOLANA],
+  start: "2021-05-28",
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true
+}
+
+export default adapter
