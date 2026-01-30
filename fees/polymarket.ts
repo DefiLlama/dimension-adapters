@@ -15,6 +15,10 @@ const FeeRecipients = ['0xf21a25DD01ccA63A96adF862F4002d1A186DecB2','0xd4AA6F8E9
 const ProtocolFeeSwitchTime = 1768176000; //2026-01-12
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  
   const [fees, liquidityRewards, holdingRewards] = await Promise.all([
     addTokensReceived({
     options,
@@ -33,14 +37,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       fromAddressFilter: '0xC536633Ff12ee52e280b2aF2594031060C5aAf41'
     })
   ])
-  const dailyFees = fees.clone(1, 'Taker Fees')
+  
   const revenueRatio = options.startOfDay >= ProtocolFeeSwitchTime ? 0.8 : 0;
-  const dailyRevenue = dailyFees.clone(revenueRatio);
-  const dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio, "Maker Rebates");
-  dailySupplySideRevenue.addBalances(liquidityRewards, "Liquidity Rewards")
-  dailySupplySideRevenue.addBalances(holdingRewards, "Holding Rewards")
-  dailyRevenue.subtract(liquidityRewards, 'Taker Fees')
-  dailyRevenue.subtract(holdingRewards, 'Taker Fees')
+  const revenueFromTakerFees = fees.clone(revenueRatio);
+  const makerRebatesFees = fees.clone(1 - revenueRatio);
+  
+  revenueFromTakerFees.subtract(liquidityRewards)
+  revenueFromTakerFees.subtract(holdingRewards)
+  
+  dailyFees.add(fees, 'Taker Fees');
+  dailyRevenue.add(revenueFromTakerFees, 'Taker Fees');
+  dailySupplySideRevenue.add(makerRebatesFees, 'Maker Rebates')
+  dailySupplySideRevenue.add(liquidityRewards, 'Liquidity Rewards')
+  dailySupplySideRevenue.add(holdingRewards, 'Holding Rewards')
 
   return {
     dailyFees,
@@ -80,7 +89,9 @@ const adapter: SimpleAdapter = {
       start: '2022-09-26',
     }
   },
-  allowNegativeValue: true // rewards are paid from treasury
+  // Polymarket rewards LP from assets in their treasury
+  // These rewards were subtracted from revenue and they can exceed fees from takers
+  allowNegativeValue: true
 }
 
 export default adapter
