@@ -75,6 +75,24 @@ const chainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.EVENTUM]: { start: "2024-06-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
 };
 
+// Fee per price feed update by chain (from https://docs.pyth.network/price-feeds/core/current-fees)
+// Default is 1 wei for chains not listed
+const feePerUpdateByChain: Record<string, bigint> = {
+  [CHAIN.AURORA]: 3000000000000n,        // 0.000003 ETH
+  [CHAIN.AVAX]: 250000000000000n,        // 0.00025 AVAX
+  [CHAIN.CONFLUX]: 100000000000000000n,  // 0.1 CFX
+  [CHAIN.CRONOS]: 60000000000000000n,    // 0.06 CRO
+  [CHAIN.METER]: 20000000000000000n,     // 0.02 MTR
+  [CHAIN.OP_BNB]: 186000000000000n,      // 0.000186 BNB
+  [CHAIN.RONIN]: 1000000000000000n,      // 0.001 RON
+  [CHAIN.SEI]: 10000000000000000n,       // 0.01 SEI
+  [CHAIN.SHIMMER_EVM]: 1000000000000000000n, // 1 SMR
+  [CHAIN.SWELL]: 50000000000000n,        // 0.00005 ETH
+  [CHAIN.WORLDCHAIN]: 10000000000000n,   // 0.00001 ETH
+};
+
+const DEFAULT_FEE = 1n; // 1 wei for most chains
+
 const PRICE_FEED_UPDATE_ABI = "event PriceFeedUpdate(bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf)";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -92,10 +110,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
       eventAbi: PRICE_FEED_UPDATE_ABI,
     });
 
-    const uniqueTxs = new Set(updateLogs.map((log: any) => log.transactionHash));
-    const updateCount = uniqueTxs.size;
-
-    const feePerUpdate = 100000000000000n;
+    const updateCount = updateLogs.length;
+    const feePerUpdate = feePerUpdateByChain[options.chain] || DEFAULT_FEE;
+    
     dailyFees.addGasToken(feePerUpdate * BigInt(updateCount));
 
     return {
@@ -110,7 +127,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 }
 
 const methodology = {
-  Fees: "Fees paid by users to update Pyth price feeds on-chain",
+  Fees: "Fees paid by users to update Pyth price feeds on-chain (per feed update)",
   Revenue: "All update fees accrue to the Pyth protocol",
 };
 
