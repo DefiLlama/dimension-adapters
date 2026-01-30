@@ -3,7 +3,30 @@ import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { ethers } from "ethers";
 
-// chain: ethereum, arbitrum, bsc, berachain
+/**
+ * TermMax Protocol Fees Adapter
+ *
+ * TermMax is a fixed-rate lending protocol that enables users to borrow/lend at fixed rates.
+ * Docs: https://docs.ts.finance/
+ *
+ * Fee Collection Mechanism:
+ * - All protocol fees are collected via ERC20 Transfer events TO the treasury address
+ * - We track all token transfers sent to the treasury within the time range
+ *
+ * Fee Types (distinguished by the source of the transfer):
+ * 1. Protocol Fees: Fees from trading orders (borrow/lend transactions)
+ *    - Source: FT (Fixed-rate Token) contracts associated with a market
+ *    - Detected when: marketAddress lookup succeeds (transfer came from an FT token)
+ *    - Valued in: Underlying/debt token (FT is valued 1:1 with underlying at maturity)
+ *
+ * 2. Liquidation Penalties: Fees charged when undercollateralized positions are liquidated
+ *    - Source: GT (Gearing Token) contracts
+ *    - Detected when: gtConfig lookup succeeds (transfer came from a GT token)
+ *    - Valued in: Collateral token
+ */
+
+// Treasury address - same address used across all supported chains
+// Supported chains: ethereum, arbitrum, bsc, berachain
 const TREASURY = "0x719e77027952929ed3060dbFFC5D43EC50c1cf79";
 
 async function getTransfers(
@@ -32,6 +55,16 @@ async function getTransfers(
   });
 }
 
+/**
+ * Classifies and sums fees from Transfer logs
+ *
+ * Classification logic:
+ * - For each transfer, we try to identify the source contract type:
+ *   1. Call getGtConfig() on the 'from' address - if it succeeds, this is a GT contract
+ *      -> The transfer is a liquidation penalty (valued in collateral token)
+ *   2. Call marketAddr() on the token address - if it succeeds, this is an FT contract
+ *      -> The transfer is a protocol fee (valued in underlying token)
+ */
 async function handleLogs(options: FetchOptions, logs: any[]) {
   const dailyUserFees = options.createBalances();
 
@@ -56,11 +89,11 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
   ]);
 
   const allTokens = await options.api.multiCall({
-    // _0: Fixed-rate Token(bond token). Earning Fixed Income with High Certainty
-    // _1: Intermediary Token for Collateralization and Leveraging
-    // _2: Gearing Token
+    // _0: Fixed-rate Token (FT) - bond token for earning fixed income
+    // _1: Intermediary Token (XT) - for collateralization and leveraging
+    // _2: Gearing Token (GT) - for leveraged positions
     // _3: Collateral token
-    // _4: Underlying Token(debt)
+    // _4: Underlying Token (debt) - we use this for protocol fee valuation
     abi: "function tokens() view returns (address, address, address, address, address)",
     calls: marketAddresses,
     permitFailure: true,
@@ -73,14 +106,15 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
       logs[i].args.value,
     ];
     if (gtConfig) {
-      // liquidation penalty
+      // GT contract -> Liquidation penalty (valued in collateral token)
       dailyUserFees.add(gtConfig.collateral, balance, METRIC.LIQUIDATION_FEES);
     } else if (marketAddress) {
-      // protocol fee
+      // FT contract -> Protocol fee (valued in underlying token, 1:1 with FT at maturity)
       const tokens = allTokens[i];
       const underlyingToken = tokens[4];
-      dailyUserFees.add(underlyingToken, balance, METRIC.PROTOCOL_FEES); // underlying token (debt)
+      dailyUserFees.add(underlyingToken, balance, METRIC.PROTOCOL_FEES);
     }
+    // Transfers from unknown sources are ignored (not TermMax protocol fees)
   }
 
   return { dailyUserFees };
@@ -94,7 +128,6 @@ const fetch = async (options: FetchOptions) => {
     options.getToBlock(),
   ]);
   const logs = await getTransfers(options, null, TREASURY, fromBlock, toBlock);
-
   const { dailyUserFees } = await handleLogs(options, logs);
   dailyRevenue.add(dailyUserFees);
 
