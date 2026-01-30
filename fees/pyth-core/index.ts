@@ -1,7 +1,10 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
+import { getSolanaReceived } from "../../helpers/token";
+import { queryAllium } from "../../helpers/allium";
 
-const chainConfig: Record<string, { start: string; contract: string }> = {
+// ============ EVM Chain Config ============
+const evmChainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.OG]: { start: "2024-06-01", contract: "0x2880ab155794e7179c9ee2e38200202908c17b43" },
   [CHAIN.ETHEREUM]: { start: "2023-07-01", contract: "0x4305FB66699C3B2702D4d05CF36551390A4c69C6" },
   [CHAIN.AVAX]: { start: "2023-07-01", contract: "0x4305FB66699C3B2702D4d05CF36551390A4c69C6" },
@@ -76,28 +79,33 @@ const chainConfig: Record<string, { start: string; contract: string }> = {
 };
 
 // Fee per price feed update by chain (from https://docs.pyth.network/price-feeds/core/current-fees)
-// Default is 1 wei for chains not listed
 const feePerUpdateByChain: Record<string, bigint> = {
-  [CHAIN.AURORA]: 3000000000000n,        // 0.000003 ETH
-  [CHAIN.AVAX]: 250000000000000n,        // 0.00025 AVAX
-  [CHAIN.CONFLUX]: 100000000000000000n,  // 0.1 CFX
-  [CHAIN.CRONOS]: 60000000000000000n,    // 0.06 CRO
-  [CHAIN.METER]: 20000000000000000n,     // 0.02 MTR
-  [CHAIN.OP_BNB]: 186000000000000n,      // 0.000186 BNB
-  [CHAIN.RONIN]: 1000000000000000n,      // 0.001 RON
-  [CHAIN.SEI]: 10000000000000000n,       // 0.01 SEI
-  [CHAIN.SHIMMER_EVM]: 1000000000000000000n, // 1 SMR
-  [CHAIN.SWELL]: 50000000000000n,        // 0.00005 ETH
-  [CHAIN.WORLDCHAIN]: 10000000000000n,   // 0.00001 ETH
+  [CHAIN.AURORA]: 3000000000000n,
+  [CHAIN.AVAX]: 250000000000000n,
+  [CHAIN.CONFLUX]: 100000000000000000n,
+  [CHAIN.CRONOS]: 60000000000000000n,
+  [CHAIN.METER]: 20000000000000000n,
+  [CHAIN.OP_BNB]: 186000000000000n,
+  [CHAIN.RONIN]: 1000000000000000n,
+  [CHAIN.SEI]: 10000000000000000n,
+  [CHAIN.SHIMMER_EVM]: 1000000000000000000n,
+  [CHAIN.SWELL]: 50000000000000n,
+  [CHAIN.WORLDCHAIN]: 10000000000000n,
 };
 
-const DEFAULT_FEE = 1n; // 1 wei for most chains
-
+const DEFAULT_FEE = 1n;
 const PRICE_FEED_UPDATE_ABI = "event PriceFeedUpdate(bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf)";
 
-async function fetch(options: FetchOptions): Promise<FetchResult> {
+// ============ Non-EVM Chain Config ============
+const SOLANA_FEE_ADDRESS = "8hQfT7SVhkCrzUSgBq6u2wYEt1sH3xmofZ5ss3YaydZW";
+const SUI_PYTH_PACKAGE = "0x04e20ddf36af412a4096f9014f4a565af9e812db9a05cc40254846cf6ed0ad91";
+const APTOS_PYTH_CONTRACT = "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387";
+const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
+
+// ============ EVM Fetch Function ============
+async function fetchEvm(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
-  const config = chainConfig[options.chain];
+  const config = evmChainConfig[options.chain];
 
   if (!config) {
     const emptyBalances = options.createBalances();
@@ -112,30 +120,135 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const updateCount = updateLogs.length;
     const feePerUpdate = feePerUpdateByChain[options.chain] || DEFAULT_FEE;
-    
     dailyFees.addGasToken(feePerUpdate * BigInt(updateCount));
 
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-    };
+    return { dailyFees, dailyRevenue: dailyFees };
   } catch (e) {
-    console.error(`Pyth Core fetch error on ${options.chain}:`, e);
+    console.error(`Pyth Core EVM fetch error on ${options.chain}:`, e);
     const emptyBalances = options.createBalances();
     return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
   }
 }
 
-const methodology = {
-  Fees: "Fees paid by users to update Pyth price feeds on-chain (per feed update)",
-  Revenue: "All update fees accrue to the Pyth protocol",
-};
+// ============ Solana Fetch Function ============
+async function fetchSolana(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+  try {
+    const dailyFees = await getSolanaReceived({
+      options,
+      target: SOLANA_FEE_ADDRESS,
+    });
+    return { dailyFees, dailyRevenue: dailyFees };
+  } catch (e) {
+    console.error(`Pyth Core Solana fetch error:`, e);
+    const emptyBalances = options.createBalances();
+    return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
+  }
+}
+
+// ============ Sui Fetch Function ============
+async function fetchSui(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+  const dailyFees = options.createBalances();
+  const fromTime = new Date(options.startTimestamp * 1000).toISOString().split("T")[0];
+  const toTime = new Date(options.endTimestamp * 1000).toISOString().split("T")[0];
+
+  try {
+    const query = `
+      SELECT SUM(ABS(amount::DOUBLE)) AS total_fees
+      FROM sui.raw.balance_changes
+      WHERE (checkpoint_timestamp, transaction_block_digest) IN (
+        SELECT checkpoint_timestamp, transaction_block_digest
+        FROM sui.raw.events
+        WHERE type LIKE '${SUI_PYTH_PACKAGE}::%'
+        AND checkpoint_timestamp >= '${fromTime}'
+        AND checkpoint_timestamp <= '${toTime}'
+      )
+      AND checkpoint_timestamp >= '${fromTime}'
+      AND checkpoint_timestamp <= '${toTime}'
+    `;
+    const res = await queryAllium(query);
+    if (res[0]?.total_fees) {
+      dailyFees.addCGToken("sui", res[0].total_fees / 1e9);
+    }
+    return { dailyFees, dailyRevenue: dailyFees };
+  } catch (e) {
+    console.error(`Pyth Core Sui fetch error:`, e);
+    const emptyBalances = options.createBalances();
+    return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
+  }
+}
+
+// ============ Aptos Fetch Function ============
+async function fetchAptos(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+  const dailyFees = options.createBalances();
+
+  try {
+    const query = `
+      SELECT SUM(amount) AS total_fees
+      FROM aptos.core.fungible_asset_activities
+      WHERE owner_address = '${APTOS_PYTH_CONTRACT}'
+      AND activity_type = 'deposit'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `;
+    const res = await queryAllium(query);
+    if (res[0]?.total_fees) {
+      dailyFees.addCGToken("aptos", res[0].total_fees / 1e8);
+    }
+    return { dailyFees, dailyRevenue: dailyFees };
+  } catch (e) {
+    console.error(`Pyth Core Aptos fetch error:`, e);
+    const emptyBalances = options.createBalances();
+    return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
+  }
+}
+
+// ============ Near Fetch Function ============
+async function fetchNear(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+  const dailyFees = options.createBalances();
+
+  try {
+    const query = `
+      SELECT SUM(deposit) AS total_fees
+      FROM near.raw.receipts
+      WHERE receiver_id = '${NEAR_PYTH_CONTRACT}'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `;
+    const res = await queryAllium(query);
+    if (res[0]?.total_fees) {
+      dailyFees.addCGToken("near", res[0].total_fees / 1e24);
+    }
+    return { dailyFees, dailyRevenue: dailyFees };
+  } catch (e) {
+    console.error(`Pyth Core Near fetch error:`, e);
+    const emptyBalances = options.createBalances();
+    return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
+  }
+}
+
+// ============ Build Adapter ============
+const evmAdapterEntries = Object.fromEntries(
+  Object.entries(evmChainConfig).map(([chain, config]) => [
+    chain,
+    { fetch: fetchEvm, start: config.start },
+  ])
+);
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: chainConfig,
-  fetch,
-  methodology,
+  version: 1,
+  adapter: {
+    ...evmAdapterEntries,
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2023-01-01" },
+    [CHAIN.SUI]: { fetch: fetchSui, start: "2023-06-01" },
+    [CHAIN.APTOS]: { fetch: fetchAptos, start: "2023-06-01" },
+    [CHAIN.NEAR]: { fetch: fetchNear, start: "2023-06-01" },
+  },
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "Fees paid by users to update Pyth price feeds on-chain",
+    Revenue: "All update fees accrue to the Pyth protocol",
+  },
 };
 
 export default adapter;
