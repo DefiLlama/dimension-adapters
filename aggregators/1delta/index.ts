@@ -35,7 +35,7 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
   [CHAIN.TAIKO]: { chainId: 167000, start: '2025-03-01' },
   [CHAIN.BASE]: { chainId: 8453, start: '2025-03-01' },
   [CHAIN.ARBITRUM]: { chainId: 42161, start: '2025-03-01' },
-  [CHAIN.BLAST]: { chainId: 81457, start: '2025-03-01' },
+  //[CHAIN.BLAST]: { chainId: 81457, start: '2025-03-01' }, //invalid spike
   [CHAIN.METIS]: { chainId: 1088, start: '2025-03-01' },
   // [CHAIN.XDAI]: { chainId: 100, start: '2025-03-01' }, // invalid spike
   [CHAIN.MODE]: { chainId: 34443, start: '2025-03-01' },
@@ -57,7 +57,7 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
   [CHAIN.MORPH]: { chainId: 2818, start: '2025-10-21' },
   [CHAIN.MANTA]: { chainId: 169, start: '2025-10-21' },
   [CHAIN.PLASMA]: { chainId: 9745, start: '2025-10-21' },
-  [CHAIN.MOONBEAM]: { chainId: 1284, start: '2025-10-21' },
+  //[CHAIN.MOONBEAM]: { chainId: 1284, start: '2025-10-21' }, //invalid spike
   [CHAIN.FUEL]: { chainId: 0, start: '2025-01-20' }
 }
 
