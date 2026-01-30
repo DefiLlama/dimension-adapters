@@ -88,17 +88,7 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
     }),
   ]);
 
-  const allTokens = await options.api.multiCall({
-    // _0: Fixed-rate Token (FT) - bond token for earning fixed income
-    // _1: Intermediary Token (XT) - for collateralization and leveraging
-    // _2: Gearing Token (GT) - for leveraged positions
-    // _3: Collateral token
-    // _4: Underlying Token (debt) - we use this for protocol fee valuation
-    abi: "function tokens() view returns (address, address, address, address, address)",
-    calls: marketAddresses,
-    permitFailure: true,
-  });
-
+  const tuples = [];
   for (let i = 0; i < logs.length; i++) {
     const [gtConfig, marketAddress, balance] = [
       gtConfigs[i],
@@ -109,12 +99,33 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
       // GT contract -> Liquidation penalty (valued in collateral token)
       dailyUserFees.add(gtConfig.collateral, balance, METRIC.LIQUIDATION_FEES);
     } else if (marketAddress) {
-      // FT contract -> Protocol fee (valued in underlying token, 1:1 with FT at maturity)
-      const tokens = allTokens[i];
-      const underlyingToken = tokens[4];
-      dailyUserFees.add(underlyingToken, balance, METRIC.PROTOCOL_FEES);
+      const log = logs[i];
+      tuples.push({ log, marketAddress });
     }
     // Transfers from unknown sources are ignored (not TermMax protocol fees)
+  }
+
+  if (tuples.length > 0) {
+    const allTokens = await options.api.multiCall({
+      // _0: Fixed-rate Token (FT) - bond token for earning fixed income
+      // _1: Intermediary Token (XT) - for collateralization and leveraging
+      // _2: Gearing Token (GT) - for leveraged positions
+      // _3: Collateral token
+      // _4: Underlying Token (debt) - we use this for protocol fee valuation
+      abi: "function tokens() view returns (address, address, address, address, address)",
+      calls: tuples.map((t) => t.marketAddress),
+      permitFailure: true,
+    });
+    for (let i = 0; i < tuples.length; i++) {
+      const { log } = tuples[i];
+      const tokens = allTokens[i];
+      if (tokens && tokens[4]) {
+        // FT contract -> Protocol fee (valued in underlying token)
+        const underlyingToken = tokens[4];
+        const balance = log.args.value;
+        dailyUserFees.add(underlyingToken, balance, METRIC.PROTOCOL_FEES);
+      }
+    }
   }
 
   return { dailyUserFees };
