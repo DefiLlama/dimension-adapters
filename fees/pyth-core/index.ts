@@ -1,12 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter, FetchResult } from "../../adapters/types";
 
-// Pyth Core contract addresses by chain (verified from Pyth docs)
 const chainConfig: Record<string, { start: string; contract: string }> = {
-  // 0G
   [CHAIN.OG]: { start: "2024-06-01", contract: "0x2880ab155794e7179c9ee2e38200202908c17b43" },
-  
-  // Major L1s
   [CHAIN.ETHEREUM]: { start: "2023-07-01", contract: "0x4305FB66699C3B2702D4d05CF36551390A4c69C6" },
   [CHAIN.AVAX]: { start: "2023-07-01", contract: "0x4305FB66699C3B2702D4d05CF36551390A4c69C6" },
   [CHAIN.BSC]: { start: "2023-07-01", contract: "0x4D7E825f80bDf85e913E0DD2A2D54927e9dE1594" },
@@ -19,7 +15,7 @@ const chainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.CONFLUX]: { start: "2023-07-01", contract: "0xe9d69CdD6Fe41e7B621B4A688C5D1a68cB5c8ADc" },
   [CHAIN.METER]: { start: "2023-07-01", contract: "0xbFe3f445653f2136b2FD1e6DdDb5676392E3AF16" },
   [CHAIN.WEMIX]: { start: "2023-07-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
-  [CHAIN.KLAYTN]: { start: "2023-07-01", contract: "0x2880ab155794e7179c9ee2e38200202908c17b43" }, // Kaia
+  [CHAIN.KLAYTN]: { start: "2023-07-01", contract: "0x2880ab155794e7179c9ee2e38200202908c17b43" },
   [CHAIN.HEDERA]: { start: "2023-07-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
   [CHAIN.BITTORRENT]: { start: "2023-07-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
   [CHAIN.CORE]: { start: "2023-07-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
@@ -27,8 +23,6 @@ const chainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.FLOW]: { start: "2023-10-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
   [CHAIN.FILECOIN]: { start: "2024-03-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
   [CHAIN.BITTENSOR]: { start: "2024-06-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
-  
-  // L2s and Rollups
   [CHAIN.ARBITRUM]: { start: "2023-07-01", contract: "0xff1a0f4744e8582DF1aE09D5611b887B6a12925C" },
   [CHAIN.OPTIMISM]: { start: "2023-07-01", contract: "0xff1a0f4744e8582DF1aE09D5611b887B6a12925C" },
   [CHAIN.BASE]: { start: "2023-08-01", contract: "0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a" },
@@ -52,8 +46,6 @@ const chainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.MERLIN]: { start: "2024-04-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
   [CHAIN.VICTION]: { start: "2024-01-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
   [CHAIN.CHILIZ]: { start: "2024-03-01", contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729" },
-  
-  // Newer chains
   [CHAIN.SEI]: { start: "2024-01-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
   [CHAIN.BERACHAIN]: { start: "2025-01-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
   [CHAIN.SONIC]: { start: "2024-12-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
@@ -83,7 +75,6 @@ const chainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.EVENTUM]: { start: "2024-06-01", contract: "0x2880aB155794e7179c9eE2e38200202908C17B43" },
 };
 
-// Event emitted when price feeds are updated
 const PRICE_FEED_UPDATE_ABI = "event PriceFeedUpdate(bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf)";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -91,25 +82,20 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   const config = chainConfig[options.chain];
 
   if (!config) {
-    return { dailyFees: 0 };
+    const emptyBalances = options.createBalances();
+    return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
   }
 
   try {
-    // Get price feed update events
     const updateLogs = await options.getLogs({
       target: config.contract,
       eventAbi: PRICE_FEED_UPDATE_ABI,
     });
 
-    // Get unique transaction hashes to count actual update calls
     const uniqueTxs = new Set(updateLogs.map((log: any) => log.transactionHash));
     const updateCount = uniqueTxs.size;
 
-    // Approximate fee per update transaction
-    // Pyth charges a small fee (typically ~1 wei per price feed)
-    // Using conservative estimate of 0.0001 native token per update tx
-    const feePerUpdate = 100000000000000n; // 0.0001 in wei (1e14)
-    
+    const feePerUpdate = 100000000000000n;
     dailyFees.addGasToken(feePerUpdate * BigInt(updateCount));
 
     return {
@@ -118,7 +104,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     };
   } catch (e) {
     console.error(`Pyth Core fetch error on ${options.chain}:`, e);
-    return { dailyFees: 0, dailyRevenue: 0 };
+    const emptyBalances = options.createBalances();
+    return { dailyFees: emptyBalances, dailyRevenue: emptyBalances };
   }
 }
 
