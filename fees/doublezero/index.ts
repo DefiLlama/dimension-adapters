@@ -37,7 +37,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     LEFT JOIN burn_tx_ids b ON t.tx_id = b.tx_id`;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(doubleZero, fees[0].fees);
+  dailyFees.add(doubleZero, fees?.[0]?.fees ?? 0);
   const dailySupplySideRevenue = dailyFees.clone(0.9)
   const dailyHoldersRevenue = dailyFees.clone(0.1)
 
