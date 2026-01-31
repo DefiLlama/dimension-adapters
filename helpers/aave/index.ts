@@ -105,11 +105,14 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
       const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
       const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-      const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
-      const revenueAccrued = Number(interestAccrued) * reserveFactor
+      
+      // contracts substract reserve/revenue from liquidity index
+      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+      const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
+      const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 
       balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
-      balances.dailySupplySideRevenue.add(token, Number(interestAccrued) - revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, supplySideInterestAccrued, METRIC.BORROW_INTEREST)
       balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
     }
   }
