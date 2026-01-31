@@ -110,20 +110,14 @@ const ABIS = {
   interestAccumulatorRay: "function interestAccumulatorRay() view returns (uint256)",
   totalDebt: "function totalDebt() view returns (uint256)",
 
-  // Uniswap V3 / Camelot positions
+  // Uniswap V3 positions
   positions: "function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
-
-  // Algebra (Camelot) positions - slightly different return structure
-  algebraPositions: "function positions(uint256 tokenId) view returns (uint88 nonce, address operator, address token0, address token1, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
 };
 
 // Event ABIs
 const EVENTS = {
   // Uniswap V3 Collect event
   uniV3Collect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
-
-  // Camelot/Algebra Collect event (same structure)
-  algebraCollect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
 
   // Camelot V2 Swap event (Uniswap V2 style)
   // amount0In/amount1In are the input amounts, amount0Out/amount1Out are outputs
@@ -304,11 +298,13 @@ async function fetchCDLendingRevenue(options: FetchOptions) {
 /**
  * Fetch Uniswap V3 POL fees
  * Works for Ethereum and Base
+ * @param positionIds - Optional list of position IDs to track. If provided, only these positions are counted.
  */
 async function fetchUniV3POLFees(
   options: FetchOptions,
   positionManager: string,
-  treasuryAddresses: string[]
+  treasuryAddresses: string[],
+  positionIds?: number[]
 ) {
   const fees = options.createBalances();
 
@@ -318,10 +314,13 @@ async function fetchUniV3POLFees(
       eventAbi: EVENTS.uniV3Collect,
     });
 
-    // Filter for collects where recipient is a treasury address
-    const treasuryCollects = collectLogs.filter(
-      (log: any) => treasuryAddresses.includes(log.recipient.toLowerCase())
-    );
+    // Filter for collects where recipient is a treasury address AND tokenId is tracked
+    const positionIdSet = positionIds ? new Set(positionIds.map(String)) : null;
+    const treasuryCollects = collectLogs.filter((log: any) => {
+      if (!treasuryAddresses.includes(log.recipient.toLowerCase())) return false;
+      // If positionIds specified, only count those positions
+      return !positionIdSet || positionIdSet.has(String(log.tokenId));
+    });
 
     // Cache position lookups
     const positionCache = new Map<string, { token0: string; token1: string }>();
@@ -363,68 +362,13 @@ async function fetchUniV3POLFees(
 }
 
 /**
- * Fetch Camelot (Algebra) POL fees on Arbitrum
- */
-async function fetchCamelotPOLFees(
-  options: FetchOptions,
-  nftManager: string,
-  treasuryAddresses: string[]
-) {
-  const fees = options.createBalances();
-
-  try {
-    const collectLogs = await options.getLogs({
-      target: nftManager,
-      eventAbi: EVENTS.algebraCollect,
-    });
-
-    // Filter for collects where recipient is a treasury address
-    const treasuryCollects = collectLogs.filter(
-      (log: any) => treasuryAddresses.includes(log.recipient.toLowerCase())
-    );
-
-    // Cache position lookups
-    const positionCache = new Map<string, { token0: string; token1: string }>();
-
-    for (const log of treasuryCollects) {
-      const tokenId = String(log.tokenId);
-      const amount0 = log.amount0;
-      const amount1 = log.amount1;
-
-      try {
-        let positionData = positionCache.get(tokenId);
-        if (!positionData) {
-          const position = await options.api.call({
-            abi: ABIS.algebraPositions,
-            target: nftManager,
-            params: [tokenId],
-          });
-          positionData = { token0: position.token0, token1: position.token1 };
-          positionCache.set(tokenId, positionData);
-        }
-
-        const { token0, token1 } = positionData;
-
-        if (BigInt(amount0) > 0) {
-          fees.add(token0, amount0);
-        }
-        if (BigInt(amount1) > 0) {
-          fees.add(token1, amount1);
-        }
-      } catch (e) {
-        // Position may have been burned
-      }
-    }
-  } catch (e) {
-    // POL fee tracking may fail in periods with no collects
-  }
-
-  return fees;
-}
-
-/**
  * Fetch Camelot V2 POL fees on Arbitrum
- * V2 DEX fees are calculated from swap volume (0.3% fee, all to LPs since Olympus owns 100%)
+ * V2 DEX fees are calculated from swap volume.
+ *
+ * ASSUMPTION: Olympus owns ~100% of LP in this pool.
+ * This is validated as of Jan 2026 - Olympus seeded and owns effectively all liquidity.
+ * If third-party LPs join, this calculation would overstate Olympus's share.
+ * TODO: Consider querying actual LP ownership if pool composition changes.
  */
 async function fetchCamelotV2Fees(options: FetchOptions) {
   const fees = options.createBalances();
@@ -436,10 +380,10 @@ async function fetchCamelotV2Fees(options: FetchOptions) {
       eventAbi: EVENTS.camelotV2Swap,
     });
 
-    // Camelot V2 fee is 0.3% (30 bps) of input amounts
-    // Since Olympus owns ~100% of LP, they earn ~100% of LP fees
-    // LP fees are typically 0.25% (protocol takes 0.05%)
-    const FEE_RATE = BigInt(25); // 0.25% = 25 bps
+    // Camelot V2 total fee is 0.3% (30 bps) of input amounts
+    // LP share is 0.25% (protocol takes 0.05%)
+    // Olympus owns ~100% of LP, so they earn ~100% of LP fees
+    const FEE_RATE = BigInt(25); // 0.25% = 25 bps (LP share)
     const BPS = BigInt(10000);
 
     for (const log of swapLogs) {
@@ -488,7 +432,9 @@ async function fetchEthereum(options: FetchOptions) {
       options,
       CHAIN_CONFIG.ethereum.sUSDS,
       CHAIN_CONFIG.ethereum.usds,
-      [CHAIN_CONFIG.ethereum.treasuryV1, CHAIN_CONFIG.ethereum.treasuryV2, CHAIN_CONFIG.ethereum.treasuryMultisig]
+      // Include CD Facility since it holds sUSDS and earns yield
+      // (we subtract CD-claimed amounts later to avoid double counting)
+      [CHAIN_CONFIG.ethereum.treasuryV1, CHAIN_CONFIG.ethereum.treasuryV2, CHAIN_CONFIG.ethereum.treasuryMultisig, CHAIN_CONFIG.ethereum.cdFacility]
     ),
     fetchERC4626Yield(
       options,
@@ -498,7 +444,7 @@ async function fetchEthereum(options: FetchOptions) {
     ),
     fetchCDFacilityRevenue(options),
     fetchCDLendingRevenue(options),
-    fetchUniV3POLFees(options, CHAIN_CONFIG.ethereum.uniV3PositionManager, treasuryAddresses),
+    fetchUniV3POLFees(options, CHAIN_CONFIG.ethereum.uniV3PositionManager, treasuryAddresses, CHAIN_CONFIG.ethereum.positionIds),
   ]);
 
   // Combine all sources
@@ -550,7 +496,8 @@ async function fetchBase(options: FetchOptions) {
   const dailyFees = await fetchUniV3POLFees(
     options,
     CHAIN_CONFIG.base.uniV3PositionManager,
-    treasuryAddresses
+    treasuryAddresses,
+    CHAIN_CONFIG.base.positionIds
   );
 
   return {
