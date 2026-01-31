@@ -15,7 +15,7 @@ BASE:
 1. POL Fees (OHM/USDC) - Uniswap V3 LP fees
 
 ARBITRUM:
-1. POL Fees (OHM/USDC) - Camelot (Algebra) LP fees
+1. POL Fees (WETH/OHM) - Camelot V2 LP fees
 
 Key Contracts & Addresses documented in CHAIN_CONFIG below.
 
@@ -164,23 +164,27 @@ function getTreasuryAddresses(chain: string): string[] {
  * Uses accumulator delta approach: interest = totalDebt * (accAfter - accBefore) / RAY
  */
 async function fetchCoolerLoanInterest(options: FetchOptions) {
-  const { api, fromApi, toApi, createBalances } = options;
+  const { fromApi, toApi, createBalances } = options;
   const fees = createBalances();
 
   try {
     const monoCooler = CHAIN_CONFIG.ethereum.monoCooler;
 
-    // Get accumulator at start and end of period
-    const [accBefore, accAfter, totalDebt] = await Promise.all([
+    // Get accumulator and debt at start and end of period
+    // Using average debt for more accurate interest calculation
+    const [accBefore, accAfter, debtBefore, debtAfter] = await Promise.all([
       fromApi.call({ abi: ABIS.interestAccumulatorRay, target: monoCooler }),
       toApi.call({ abi: ABIS.interestAccumulatorRay, target: monoCooler }),
-      api.call({ abi: ABIS.totalDebt, target: monoCooler }),
+      fromApi.call({ abi: ABIS.totalDebt, target: monoCooler }),
+      toApi.call({ abi: ABIS.totalDebt, target: monoCooler }),
     ]);
 
     const accDelta = BigInt(accAfter) - BigInt(accBefore);
-    if (accDelta > 0 && BigInt(totalDebt) > 0) {
-      // Interest = totalDebt * accDelta / RAY
-      const interest = (BigInt(totalDebt) * accDelta) / RAY;
+    const avgDebt = (BigInt(debtBefore) + BigInt(debtAfter)) / BigInt(2);
+
+    if (accDelta > 0 && avgDebt > 0) {
+      // Interest = avgDebt * accDelta / RAY
+      const interest = (avgDebt * accDelta) / RAY;
       // Cooler loans are denominated in DAI
       fees.add(CHAIN_CONFIG.ethereum.dai, interest);
     }
@@ -322,26 +326,33 @@ async function fetchUniV3POLFees(
       return !positionIdSet || positionIdSet.has(String(log.tokenId));
     });
 
-    // Cache position lookups
+    // Batch fetch all unique position metadata upfront
     const positionCache = new Map<string, { token0: string; token1: string }>();
+    const uniqueTokenIds = [...new Set(treasuryCollects.map((log: any) => String(log.tokenId)))];
+
+    if (uniqueTokenIds.length > 0) {
+      try {
+        const positions = await options.api.multiCall({
+          abi: ABIS.positions,
+          calls: uniqueTokenIds.map(tokenId => ({ target: positionManager, params: [tokenId] })),
+        });
+        positions.forEach((position: any, i: number) => {
+          if (position) {
+            positionCache.set(uniqueTokenIds[i], { token0: position.token0, token1: position.token1 });
+          }
+        });
+      } catch (e) {
+        // Batch fetch failed, positions may have been burned
+      }
+    }
 
     for (const log of treasuryCollects) {
       const tokenId = String(log.tokenId);
       const amount0 = log.amount0;
       const amount1 = log.amount1;
+      const positionData = positionCache.get(tokenId);
 
-      try {
-        let positionData = positionCache.get(tokenId);
-        if (!positionData) {
-          const position = await options.api.call({
-            abi: ABIS.positions,
-            target: positionManager,
-            params: [tokenId],
-          });
-          positionData = { token0: position.token0, token1: position.token1 };
-          positionCache.set(tokenId, positionData);
-        }
-
+      if (positionData) {
         const { token0, token1 } = positionData;
 
         if (BigInt(amount0) > 0) {
@@ -350,8 +361,6 @@ async function fetchUniV3POLFees(
         if (BigInt(amount1) > 0) {
           fees.add(token1, amount1);
         }
-      } catch (e) {
-        // Position may have been burned
       }
     }
   } catch (e) {
