@@ -64,6 +64,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   const dailyVolume = options.createBalances()
   const tradeFees = options.createBalances()
   const rebateFees = options.createBalances()
+  const dailyNotionalVolume = options.createBalances()
 
   const orderFilledLogs = await options.getLogs({
     eventAbi: ORDER_FILLED_EVENT,
@@ -86,7 +87,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     }
 
     const tradeVolume = Number(order.makerAssetId == 0 ? order.makerAmountFilled : order.takerAmountFilled) / 1e18
+    const notionalVolume = Number(order.makerAssetId == 0 ? order.takerAmountFilled : order.makerAmountFilled) / 1e18
     dailyVolume.addUSDValue(Number(tradeVolume) / 2)
+    dailyNotionalVolume.addUSDValue(notionalVolume / 2)
   })
 
   rebateEarnedLogs.forEach((log: any) => {
@@ -102,6 +105,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailyNotionalVolume,
   }
 }
 

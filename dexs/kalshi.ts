@@ -15,25 +15,29 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   ),
   market_report_agg AS (
     SELECT 
-      SUM(CASE WHEN status = 'active' THEN open_interest ELSE 0 END) AS open_interest
+      SUM(CASE WHEN status = 'active' THEN open_interest ELSE 0 END) AS open_interest,
+      SUM(daily_volume) AS notional_volume
     FROM kalshi.market_report 
     WHERE date = '${dateString}'
   )
   SELECT 
     tr.cash_volume,
-    mr.open_interest
+    mr.open_interest,
+    mr.notional_volume
   FROM trade_report_agg tr
   CROSS JOIN market_report_agg mr
   `
   const data: { 
     cash_volume: string,
-    open_interest: string
+    open_interest: string,
+    notional_volume: string,
   }[] = await queryDuneSql(options, query)
   
   const dailyVolume = Number(data[0]?.cash_volume) || 0
   const openInterestAtEnd = Number(data[0]?.open_interest) || 0
+  const dailyNotionalVolume = Number(data[0]?.notional_volume) || 0
 
-  return { dailyVolume, openInterestAtEnd }
+  return { dailyVolume, openInterestAtEnd, dailyNotionalVolume }
 }
 
 const adapter: SimpleAdapter = {

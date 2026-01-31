@@ -12,6 +12,9 @@ const EVENT_ABI = {
 async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
+    const dailyNotionalVolume = options.createBalances();
+
+    const epochData: Map<number, { bullAmount: bigint; bearAmount: bigint }> = new Map();
 
     const bullLogs = await options.getLogs({
         target: PCS_BNB_PREDICTION_CONTRACT,
@@ -20,6 +23,10 @@ async function fetch(options: FetchOptions) {
 
     bullLogs.forEach(bet => {
         dailyVolume.add(ADDRESSES.bsc.WBNB, bet.amount);
+        const epoch = bet.epoch;
+        const data = epochData.get(epoch) || { bullAmount: 0n, bearAmount: 0n };
+        data.bullAmount += BigInt(bet.amount);
+        epochData.set(epoch, data);
     });
 
     const bearLogs = await options.getLogs({
@@ -29,6 +36,10 @@ async function fetch(options: FetchOptions) {
 
     bearLogs.forEach(bet => {
         dailyVolume.add(ADDRESSES.bsc.WBNB, bet.amount);
+        const epoch = bet.epoch;
+        const data = epochData.get(epoch) || { bullAmount: 0n, bearAmount: 0n };
+        data.bearAmount += BigInt(bet.amount);
+        epochData.set(epoch, data);
     });
 
     const rewardLogs = await options.getLogs({
@@ -40,11 +51,20 @@ async function fetch(options: FetchOptions) {
         dailyFees.add(ADDRESSES.bsc.WBNB, reward.treasuryAmount);
     });
 
-    return { 
+    epochData.forEach(({ bullAmount, bearAmount }) => {
+        if (bullAmount > 0n && bearAmount > 0n) {
+            const total = bullAmount + bearAmount;
+            const notional = (total * (bullAmount * bullAmount + bearAmount * bearAmount)) / (bullAmount * bearAmount);
+            dailyNotionalVolume.add(ADDRESSES.bsc.WBNB, notional);
+        }
+    });
+
+    return {
         dailyVolume,
         dailyFees,
         dailyRevenue: dailyFees,
-        dailyProtocolRevenue:0, 
+        dailyNotionalVolume,
+        dailyProtocolRevenue: 0,
         dailyHoldersRevenue: dailyFees,
     };
 }
