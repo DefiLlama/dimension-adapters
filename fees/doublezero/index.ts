@@ -40,15 +40,11 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFees.add(doubleZero, fees[0].fees);
   const dailySupplySideRevenue = dailyFees.clone(0.9)
   const dailyHoldersRevenue = dailyFees.clone(0.1)
-  const dailyRevenue = dailyFees.clone()
-  dailyRevenue.subtract(dailySupplySideRevenue)
-  const dailyProtocolRevenue = dailyRevenue.clone()
-  dailyProtocolRevenue.subtract(dailyHoldersRevenue)
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue
   }
@@ -63,10 +59,10 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "A flat 5% fee is charged on block signature rewards and priority fees. Fees started at epoch 859 (October 4th, 2025) and are denominated in SOL and settled per epoch.",
-    Revenue: "5% block reward fees and priority fees are collected by the protocol from validators.",
+    Revenue: "10% of the collected fees",
     ProtocolRevenue: "No protocol revenue",
     HoldersRevenue: "10% of the collected fees are burned",
-    SupplySideRevenue: "90% of the collected fees distributed to network contributors"
+    SupplySideRevenue: "90% of the collected fees are distributed to network contributors"
   },
 };
 
