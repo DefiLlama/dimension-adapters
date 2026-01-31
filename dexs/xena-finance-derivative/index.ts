@@ -1,58 +1,39 @@
-import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types"
+import { CHAIN } from '../../helpers/chains'
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.BASE]: "https://subgraph.xena.finance/subgraphs/name/analyticsv2",
-}
+const VAULT_ADDRESS = '0x22787c26bb0ab0d331eb840ff010855a70a0dca6'
 
-const historicalDataDerivatives = gql`
-  query get_volume($period: String!, $id: String!) {
-    volumeStats(where: {period: $period, id: $id}) {
-      trading
-    }
-  }
-`
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const dailyVolume = options.createBalances()
 
-interface IGraphResponse {
-  volumeStats: Array<{
-    burn: string,
-    liquidation: string,
-    margin: string,
-    mint: string,
-    swap: string,
-  }>
-}
-
-const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const dailyData: IGraphResponse = await request(endpoints[chain], query, {
-    id: `day-${String(dayTimestamp)}`,
-    period: 'daily',
+  // Increase position fees
+  const increasePositionLogs = await options.getLogs({
+    target: VAULT_ADDRESS,
+    eventAbi: 'event IncreasePosition(bytes32 indexed key, address account, address collateralToken, address indexToken, uint256 collateralValue, uint256 sizeChanged, uint8 side, uint256 indexPrice, uint256 feeValue)',
   })
 
-  return {
-    timestamp: dayTimestamp,
-    dailyVolume:
-      dailyData.volumeStats.length == 1
-        ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))))
-        : undefined,
-  }
-}
+  // Decrease position fees
+  const decreasePositionLogs = await options.getLogs({
+    target: VAULT_ADDRESS,
+    eventAbi: 'event DecreasePosition(bytes32 indexed key, address account, address collateralToken, address indexToken, uint256 collateralChanged, uint256 sizeChanged, uint8 side, uint256 indexPrice, int256 pnl, uint256 feeValue)',
+  })
+  
+  // Add position fees (back to 1e30 division)
+  increasePositionLogs.concat(decreasePositionLogs).forEach((log: any) => {
+    dailyVolume.addUSDValue(Number(log.sizeChanged) / 1e30)
+  })
 
-const startTimestamps: { [chain: string]: number } = {
-  [CHAIN.BASE]: 1696856400,
+  return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
-  deadFrom: '2025-01-01',
+  version: 2,
   adapter: {
     [CHAIN.BASE]: {
-      fetch: getFetch(historicalDataDerivatives)(CHAIN.BASE),
-      start: startTimestamps[CHAIN.BASE],
-    }
+      fetch,
+      start: '2023-10-09',
+    },
   },
-};
+}
 
-export default adapter;
+export default adapter
