@@ -197,7 +197,7 @@ export function printBreakdownFeesByLabel(breakdownByLabel: any) {
     console.log('')
     
     const entries: any = {}
-    for (const dataKey of Object.values(['dailyFees', 'dailySupplySideRevenue', 'dailyRevenue'])) {
+    for (const dataKey of Object.values(['dailyFees', 'dailySupplySideRevenue', 'dailyRevenue', 'dailyHoldersRevenue'])) {
       if (breakdownByLabel[dataKey]) {
         for (const [label, value] of Object.entries(breakdownByLabel[dataKey])) {
           entries[label] = entries[label] || { label: label };
