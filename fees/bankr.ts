@@ -26,6 +26,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  start: '2026-01-01',
   chains: [CHAIN.BASE],
   methodology: {
     Fees: 'All fees come from membership subscriptions paid in $BNKR tokens.',
