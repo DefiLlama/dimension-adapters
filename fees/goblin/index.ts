@@ -21,14 +21,17 @@ const fetch = async (_: any, _1: any, { startOfDay }: FetchOptions) => {
 
   const data = await request(BASE_URL, query, variables);
   
-  // Goblin is curator for hyperion vaults
-  // it share 50% from performance and management fees
-  const dailyFees = Number(data.api.getVaultsFeeStat.dailyFees) * 0.5;
+  // Goblin takes 50% from performance and management fees
+  // remain 50% are distributed to goAPT staking - supply side revenue
+  const dailyFees = Number(data.api.getVaultsFeeStat.dailyFees);
+  const dailyRevenue = dailyFees * 0.5;
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -41,9 +44,10 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "Goblin gets 50% share of performance and management fees from hyperion vaults.",
-    Revenue: "Goblin gets 50% share of performance and management fees from hyperion vaults.",
-    ProtocolRevenue: "Goblin gets 50% share of performance and management fees from hyperion vaults.",
+    Fees: "Performance fees charged from all vaults.",
+    Revenue: "Goblin gets 50% fees as revenue.",
+    ProtocolRevenue: "Goblin gets 50% fees as revenue.",
+    SupplySideRevenue: "Goblin distribute 50% fees to goAPT staking for additional yields.",
   },
 };
 
