@@ -98,7 +98,7 @@ const PRICE_FEED_UPDATE_ABI = "event PriceFeedUpdate(bytes32 indexed id, uint64 
 
 // ============ Non-EVM Chain Config ============
 const SOLANA_FEE_ADDRESS = "8hQfT7SVhkCrzUSgBq6u2wYEt1sH3xmofZ5ss3YaydZW";
-const SUI_PYTH_PACKAGE = "0x04e20ddf36af412a4096f9014f4a565af9e812db9a05cc40254846cf6ed0ad91";
+const SUI_FEE_RECIPIENT = "0x9da043aa51d1c91706d1e95168d9566cd3f9335a568a0a8564750a1e3b7ab891";
 const APTOS_PYTH_CONTRACT = "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387";
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
 
@@ -153,17 +153,12 @@ async function fetchSui(_a: any, _b: any, options: FetchOptions): Promise<FetchR
 
   try {
     const query = `
-      SELECT SUM(ABS(amount::DOUBLE)) AS total_fees
+      SELECT SUM(amount::DOUBLE) AS total_fees
       FROM sui.raw.balance_changes
-      WHERE (checkpoint_timestamp, transaction_block_digest) IN (
-        SELECT checkpoint_timestamp, transaction_block_digest
-        FROM sui.raw.events
-        WHERE type LIKE '${SUI_PYTH_PACKAGE}::%'
+      WHERE owner = '${SUI_FEE_RECIPIENT}'
+        AND amount > 0
         AND checkpoint_timestamp >= '${fromTime}'
         AND checkpoint_timestamp <= '${toTime}'
-      )
-      AND checkpoint_timestamp >= '${fromTime}'
-      AND checkpoint_timestamp <= '${toTime}'
     `;
     const res = await queryAllium(query);
     if (res[0]?.total_fees) {
