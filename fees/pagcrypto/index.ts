@@ -240,8 +240,18 @@ function buildXrplSql(_options: FetchOptions) {
 // 4) Prefetch + Fetch
 // -----------------------------
 
+function hasDuneKey(): boolean {
+  // Adjust if your repo uses a different env var name
+  return Boolean(process.env.DUNE_API_KEY || process.env.DUNE_KEY || process.env.DUNE_API_TOKEN);
+}
+
 const prefetch = async (options: FetchOptions) => {
   assertWalletsConfigured();
+
+  // If running in CI/local without Dune credentials, return empty results (0).
+  if (!hasDuneKey()) {
+    return [];
+  }
 
   const queries: string[] = [];
 
