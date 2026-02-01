@@ -296,13 +296,13 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   adapter: {
-    [CHAIN.SOLANA]: { start: "2024-01-01" },
-    [CHAIN.BASE]: { start: "2024-01-01" },
-    [CHAIN.POLYGON]: { start: "2024-01-01" },
-    [CHAIN.TRON]: { start: "2024-01-01" },
+    [CHAIN.SOLANA]: { start: "2025-01-01" },
+    [CHAIN.BASE]: { start: "2025-01-01" },
+    [CHAIN.POLYGON]: { start: "2025-01-01" },
+    [CHAIN.TRON]: { start: "2025-01-01" },
     // If the chain constant differs in your repo, rename accordingly.
     // Some repos use CHAIN.XRPL, others CHAIN.RIPPLE, etc.
-    [CHAIN.XRPL]: { start: "2024-01-01" },
+    [CHAIN.XRPL]: { start: "2025-01-01" },
   },
   dependencies: [Dependencies.DUNE],
   methodology: {
