@@ -4,8 +4,8 @@ import { queryIndexer } from "./indexer";
 import { getETHReceived } from "./token";
 
 const KnownValidatorsMevRecipients = [
-  '0x388c818ca8b9251b393131c08a736a67ccb19297', // Lido MEW Vault
-  '0x4675c7e5baafbffbca748158becba61ef3b0a263', // Coinbase MEW Builder
+  '0x388c818ca8b9251b393131c08a736a67ccb19297', // Lido MEV Vault
+  '0x4675c7e5baafbffbca748158becba61ef3b0a263', // Coinbase MEV Builder
   '0xd6e4aa932147a3fe5311da1b67d9e73da06f9cef', // Mantle mETH
   '0x7d16d2c4e96bcfc8f815e15b771ac847ecbdb48b', // Liquid Collective
   '0xb3D9cf8E163bbc840195a97E81F8A34E295B8f39', // Swell
@@ -29,7 +29,7 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
     allowNegativeValue: true,
     start: exportOptions.start ? exportOptions.start : '2024-01-01',
     methodology: {
-      Fees: 'Total transactions fees and MEW rewards collected by building blocks on Ethereum blockchain.',
+      Fees: 'Total transactions fees and MEV rewards collected by building blocks on Ethereum blockchain.',
       Revenue: 'Earning from total fees minus total priority rewards paid to validators.',
       ProtocolRevenue: 'Earning from total fees minus total priority rewards paid to validators.',
     },
@@ -50,7 +50,7 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
           AND time BETWEEN '${fromTime}' AND '${toTime}'
       `)
       
-      const mewFees = await getETHReceived({ options: options, target: exportOptions.builderAddress })
+      const mevFees = await getETHReceived({ options: options, target: exportOptions.builderAddress })
       
       // count all ETH directly transfer from builder to validators + transaction fees
       // make sure to to_addresses are known validators addresses or transaction value < 1 ETH
@@ -79,7 +79,7 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
       totalPriority.addGasToken((fees as any)[0].total_fees_transactions); // transactions fees paid
       
       dailyFees.add(totalFees);
-      dailyFees.add(mewFees);
+      dailyFees.add(mevFees);
       
       const dailyRevenue = dailyFees.clone(1);
       dailyRevenue.subtract(totalPriority);
