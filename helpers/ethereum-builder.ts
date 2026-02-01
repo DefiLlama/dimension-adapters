@@ -29,7 +29,7 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
     allowNegativeValue: true,
     start: exportOptions.start ? exportOptions.start : '2024-01-01',
     methodology: {
-      Fees: 'Total transactions fees collected from built blocks on Ethereum blockchain.',
+      Fees: 'Total transactions fees and MEW rewards collected by building blocks on Ethereum blockchain.',
       Revenue: 'Earning from total fees minus total priority rewards paid to validators.',
       ProtocolRevenue: 'Earning from total fees minus total priority rewards paid to validators.',
     },
