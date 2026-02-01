@@ -146,16 +146,16 @@ function enabledAssets(chain: ChainKey) {
 // Many Dune Solana schemas provide token transfers with mint address; native SOL may require system transfers table.
 // Here we implement SPL token transfers in a conservative way and leave native SOL as TODO.
 function buildSolanaSql(options: FetchOptions) {
-  const wallets = getWallets("solana");
+  const wallets = WALLETS.solana; // string[]
   const assets = enabledAssets("solana");
-
-  if (!wallets.length || !splMints.length) {
-    return `SELECT 'solana' AS chain, 0 AS volume_usd`;
-  }
 
   const splMints = assets
       .filter((a) => a.address !== "native")
       .map((a) => a.address);
+
+  if (!wallets.length || !splMints.length) {
+    return `SELECT 'solana' AS chain, 0 AS volume_usd`;
+  }
 
   return `
     WITH spl_in AS (
