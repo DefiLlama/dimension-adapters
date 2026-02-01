@@ -13,36 +13,70 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 
   const query = `
     WITH
-    allFeePayments AS (
+    -- On-chain fee payments to the fee wallet
+    onchain_fee_payments AS (
       SELECT
         tx_id,
-        token_balance_change AS fee_token_amount,
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' AS fee_token_mint_address
-      FROM
-        solana.account_activity
+        block_time,
+        token_balance_change AS fee_token_amount
+      FROM solana.account_activity
       WHERE
-        TIME_RANGE
-        AND tx_success
+        tx_success
         AND address = 'HrTf9CzXR1dRH4Sof5QrpmGWwpwAf3qZzwCsEjQpXcSq'
         AND token_balance_change > 0 
         AND token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
     ),
-    botTrades AS (
+
+    -- Filter to only bot trades (exclude market maker)
+    onchain_bot_fees AS (
       SELECT 
+        DATE(trades.block_time) AS fee_date,
         trades.tx_id,
-        MAX(fee_token_amount) as fee
-      FROM
-        dex_solana.trades AS trades
-        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+        MAX(fee_token_amount) AS fee
+      FROM dex_solana.trades AS trades
+      JOIN onchain_fee_payments AS fp ON trades.tx_id = fp.tx_id
       WHERE
-        TIME_RANGE
-        AND trades.trader_id != 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX'
-      GROUP BY trades.tx_id
+        trades.trader_id != 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX'
+      GROUP BY DATE(trades.block_time), trades.tx_id
+    ),
+
+    -- Aggregate on-chain fees by day
+    onchain_daily AS (
+      SELECT
+        fee_date,
+        SUM(fee) AS fee_usd
+      FROM onchain_bot_fees
+      GROUP BY fee_date
+    ),
+
+    -- Off-chain relay fees (deduplicated)
+    offchain_ranked AS (
+      SELECT
+        CAST(fee_period AS DATE) AS fee_date,
+        platform_fees + referral_fees AS fee_usd,
+        ROW_NUMBER() OVER (PARTITION BY fee_period ORDER BY synced_at DESC) AS rn
+      FROM dune.tryfomo.fomo_relay_fees
+    ),
+
+    offchain_daily AS (
+      SELECT fee_date, fee_usd
+      FROM offchain_ranked
+      WHERE rn = 1
+    ),
+
+    -- Combine both sources
+    combined AS (
+      SELECT fee_date, fee_usd FROM onchain_daily
+      UNION ALL
+      SELECT fee_date, fee_usd FROM offchain_daily
     )
+
     SELECT
-      SUM(fee) AS fee_usd
-    FROM
-      botTrades
+      fee_date,
+      SUM(fee_usd) AS fee_usd
+    FROM combined
+    GROUP BY fee_date
+    ORDER BY fee_date DESC
   `;
 
   const fees = await queryDuneSql(options, query);
