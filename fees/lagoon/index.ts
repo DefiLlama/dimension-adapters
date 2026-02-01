@@ -60,6 +60,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   for (let i = 0; i < vaults.length; i++) {
     if (assets[i] && balances[i] && cumulativeIndexBefore[i] && cumulativeIndexAfter[i]) {
       const cumulativeYield = (BigInt(cumulativeIndexAfter[i]) - BigInt(cumulativeIndexBefore[i])) * BigInt(balances[i]) / BigInt(1e18)
+      
+      if (cumulativeYield < BigInt(0)) continue;
 
       const managementFeeRate = Number(feeRates[i] ? Number(feeRates[i].managementRate) / 1e4 : 0)
       const performanceFeeRate = Number(feeRates[i] ? Number(feeRates[i].performanceRate) / 1e4 : 0)
