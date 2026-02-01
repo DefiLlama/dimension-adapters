@@ -117,9 +117,25 @@ function assertWalletsConfigured() {
 // 3) SQL builders
 // -----------------------------
 
-function sqlList(items: string[]) {
-  return items.map((x) => `'${x}'`).join(", ");
+function sqlList(items: any): string {
+  // Accept string (comma-separated), array, null/undefined, anything.
+  if (items == null) return "''";
+
+  let arr: string[];
+
+  if (Array.isArray(items)) {
+    arr = items.map((x) => String(x));
+  } else if (typeof items === "string") {
+    arr = items.split(",").map((s) => s.trim());
+  } else {
+    // fallback: single value
+    arr = [String(items)];
+  }
+
+  const cleaned = arr.map((s) => s.trim()).filter(Boolean);
+  return cleaned.length ? cleaned.map((x) => `'${x}'`).join(", ") : "''";
 }
+
 
 function enabledAssets(chain: ChainKey) {
   return CONFIG[chain].assets.filter((a) => a.status);
@@ -151,6 +167,7 @@ function buildSolanaSql(options: FetchOptions) {
     FROM spl_in
   `;
 }
+
 
 // EVM: use a transfers table and filter by "to" and token_address.
 // Dune commonly has ERC20 transfers tables per chain; some setups also have unified tables.
