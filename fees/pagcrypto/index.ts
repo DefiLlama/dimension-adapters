@@ -96,19 +96,20 @@ const CONFIG: Record<ChainKey, ChainCfg> = {
 };
 
 const WALLETS: Record<ChainKey, string[]> = {
-  solana: "5XvzUs92L7G4picBJchfatM25RcR93oE3h8xGRZe7462",
-  base: "0xC8e3BC38C3e4D768f83a1a064BdE4045aFf3158C",
-  polygon: "0xC8e3BC38C3e4D768f83a1a064BdE4045aFf3158C",
-  tron: "TA9Xywe3xb6GPeBFYDdTkdT43DktDPnyDT",
-  xrpl: "rD6YURvhPwmUwRCrFJX6pFU81obJNk7WyA",
+  solana: "5XvzUs92L7G4picBJchfatM25RcR93oE3h8xGRZe7462" as any,
+  base: "0xC8e3BC38C3e4D768f83a1a064BdE4045aFf3158C" as any,
+  polygon: "0xC8e3BC38C3e4D768f83a1a064BdE4045aFf3158C" as any,
+  tron: "TA9Xywe3xb6GPeBFYDdTkdT43DktDPnyDT" as any,
+  xrpl: "rD6YURvhPwmUwRCrFJX6pFU81obJNk7WyA" as any,
 };
 
 function assertWalletsConfigured() {
-  const missing = (Object.keys(WALLETS) as ChainKey[]).filter((k) => CONFIG[k].status && WALLETS[k].length === 0);
+  const missing = (Object.keys(WALLETS) as ChainKey[])
+      .filter((k) => CONFIG[k].status && WALLETS[k].length === 0);
+
   if (missing.length) {
     throw new Error(
-      `Missing PagCrypto wallet env vars for: ${missing.join(", ")}. ` +
-        `Set PAGCRYPTO_<CHAIN>_WALLETS env vars (comma-separated).`
+        `Missing PagCrypto wallet env vars for: ${missing.join(", ")}`
     );
   }
 }
@@ -145,8 +146,12 @@ function enabledAssets(chain: ChainKey) {
 // Many Dune Solana schemas provide token transfers with mint address; native SOL may require system transfers table.
 // Here we implement SPL token transfers in a conservative way and leave native SOL as TODO.
 function buildSolanaSql(options: FetchOptions) {
-  const wallets = WALLETS.solana; // string[]
+  const wallets = getWallets("solana");
   const assets = enabledAssets("solana");
+
+  if (!wallets.length || !splMints.length) {
+    return `SELECT 'solana' AS chain, 0 AS volume_usd`;
+  }
 
   const splMints = assets
       .filter((a) => a.address !== "native")
