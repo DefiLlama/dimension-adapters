@@ -1,10 +1,12 @@
 import { CHAIN } from "../../helpers/chains";
+import { DefaultVaultsBlacklisted } from "../../helpers/lists";
 
 interface EulerChainConfig {
   eVaultAddress: string;
   feeFlowController: string;
   tokenEUL: string;
   start: string;
+  blacklistedVaults?: string[];
 }
 
 const eVaultFactories: Record<string, string> = {
@@ -79,6 +81,7 @@ export const EulerChainConfigs: Record<string, EulerChainConfig> = {
     feeFlowController: feeFlowControllers[CHAIN.SONIC],
     tokenEUL: tokenEUL[CHAIN.SONIC],
     start: '2025-01-31',
+    blacklistedVaults: DefaultVaultsBlacklisted[CHAIN.SONIC],
   },
   [CHAIN.SWELLCHAIN]: {
     eVaultAddress: eVaultFactories[CHAIN.SWELLCHAIN],
