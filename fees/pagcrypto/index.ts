@@ -168,16 +168,31 @@ function buildSolanaSql(options: FetchOptions) {
   `;
 }
 
+function normalizeStringArray(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
+  if (typeof value === "string") return value.split(",").map((s) => s.trim()).filter(Boolean);
+  return [String(value)].map((s) => s.trim()).filter(Boolean);
+}
+
+function getWallets(chainKey: string): string[] {
+  return normalizeStringArray((WALLETS as any)[chainKey]);
+}
+
 
 // EVM: use a transfers table and filter by "to" and token_address.
 // Dune commonly has ERC20 transfers tables per chain; some setups also have unified tables.
 function buildEvmSql(options: FetchOptions, chainKey: "base" | "polygon") {
-  const wallets = WALLETS[chainKey].map((w) => w.toLowerCase());
+  const wallets = getWallets(chainKey).map((w) => w.toLowerCase());
   const assets = enabledAssets(chainKey);
-  const erc20s = assets.filter((a) => a.address !== "native").map((a) => a.address.toLowerCase());
+  const erc20s = assets
+      .filter((a) => a.address !== "native")
+      .map((a) => a.address.toLowerCase());
 
-  // If you rely on chain-specific schemas, swap table names accordingly.
-  // The important part is: WHERE to IN wallets AND token_address IN erc20s AND time window
+  if (!wallets.length || !erc20s.length) {
+    return `SELECT '${chainKey}' AS chain, 0 AS volume_usd`;
+  }
+
   return `
     SELECT
       '${chainKey}' AS chain,
