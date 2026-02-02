@@ -131,7 +131,7 @@ async function fetchEvm(options: FetchOptions): Promise<FetchResult> {
 }
 
 // ============ Solana Fetch Function ============
-async function fetchSolana(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetchSolana(options: FetchOptions): Promise<FetchResult> {
   try {
     const dailyFees = await getSolanaReceived({
       options,
@@ -146,19 +146,20 @@ async function fetchSolana(_a: any, _b: any, options: FetchOptions): Promise<Fet
 }
 
 // ============ Sui Fetch Function ============
-async function fetchSui(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+const SUI_COIN_TYPE = "0x2::sui::SUI";
+
+async function fetchSui(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
-  const fromTime = new Date(options.startTimestamp * 1000).toISOString().split("T")[0];
-  const toTime = new Date(options.endTimestamp * 1000).toISOString().split("T")[0];
 
   try {
     const query = `
       SELECT SUM(amount::DOUBLE) AS total_fees
       FROM sui.raw.balance_changes
       WHERE owner = '${SUI_FEE_RECIPIENT}'
+        AND coin_type = '${SUI_COIN_TYPE}'
         AND amount > 0
-        AND checkpoint_timestamp >= '${fromTime}'
-        AND checkpoint_timestamp <= '${toTime}'
+        AND checkpoint_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND checkpoint_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     `;
     const res = await queryAllium(query);
     if (res[0]?.total_fees) {
@@ -173,7 +174,9 @@ async function fetchSui(_a: any, _b: any, options: FetchOptions): Promise<FetchR
 }
 
 // ============ Aptos Fetch Function ============
-async function fetchAptos(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+const APTOS_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
+
+async function fetchAptos(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   try {
@@ -181,9 +184,10 @@ async function fetchAptos(_a: any, _b: any, options: FetchOptions): Promise<Fetc
       SELECT SUM(amount) AS total_fees
       FROM aptos.core.fungible_asset_activities
       WHERE owner_address = '${APTOS_PYTH_CONTRACT}'
-      AND activity_type = 'deposit'
-      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND asset_type = '${APTOS_COIN_TYPE}'
+        AND activity_type = 'deposit'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     `;
     const res = await queryAllium(query);
     if (res[0]?.total_fees) {
@@ -198,7 +202,7 @@ async function fetchAptos(_a: any, _b: any, options: FetchOptions): Promise<Fetc
 }
 
 // ============ Near Fetch Function ============
-async function fetchNear(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetchNear(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   try {
