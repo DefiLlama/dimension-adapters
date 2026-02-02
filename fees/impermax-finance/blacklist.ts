@@ -87,7 +87,8 @@ const blacklistedLendingPools = {
     "0x8dc6fae7fedd7a60ecbb27c17af830f5811d773e", //MMTH-BTC.b
   ],
   sonic: [
-    "0xd9de9f15994182518a688933d09787a9a9fb5bc9" // s/shadow stakedlp
+    "0xd9de9f15994182518a688933d09787a9a9fb5bc9", // s/shadow stakedlp
+    "0xc49f877f44a821e40b8253f7cc988d17857db918" // sfrxUSD/eliteRingsScUSD stakedLp on equalizer
   ]
 };
 

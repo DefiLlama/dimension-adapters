@@ -17,7 +17,8 @@ const v3Endpoints = {
   // [CHAIN.AVAX]: sdk.graph.modifyEndpoint('9EAxYE17Cc478uzFXRbM7PVnMUSsgb99XZiGxodbtpbk'),
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('HMuAwufqZ1YCRmzL2SfHTVkzZovC9VL2UAKhjvRqKiR1'),
   // [CHAIN.ERA]: "https://api.thegraph.com/subgraphs/name/freakyfractal/uniswap-v3-zksync-era",
-  // [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX')
+  [CHAIN.UNICHAIN]: sdk.graph.modifyEndpoint('BCfy6Vw9No3weqVq9NhyGo4FkVCJep1ZN9RMJj5S32fX'),
+  [CHAIN.XLAYER]: sdk.graph.modifyEndpoint('2LM2nhSfVsKVNW1EF6AgJHMGBKU2zR9rZcE3zzkFkwW1'),
 };
 
 type TStartTime = {
@@ -32,7 +33,8 @@ const startTimeV3: TStartTime = {
   [CHAIN.BSC]: 1678665600,
   [CHAIN.AVAX]: 1689033600,
   [CHAIN.BASE]: 1691280000,
-  [CHAIN.ERA]: 1693440000
+  [CHAIN.ERA]: 1693440000,
+  [CHAIN.XLAYER]: 1767571200,
 }
 
 const v3Graphs = getGraphDimensions2({
