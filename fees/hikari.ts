@@ -4,6 +4,7 @@ import { CHAIN } from "../helpers/chains";
 const KATANA_TOKEN = "0x7F1f4b4b29f5058fA32CC7a97141b8D7e5ABDC2d";
 const hikariPool = "0x2ac7673C3a0370dE512A20464a800fa7C53235C3";
 const hikariStaking = "0xeCA16687491B0D748C6246645f56AAE787474f3b";
+const AUSD_TOKEN = "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a";
 
 const FEE_EVENT =
   "event Collect(address indexed owner, address recipient, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount0, uint128 amount1)";
@@ -59,6 +60,7 @@ const fetch = async (options: FetchOptions) => {
     const userFees = totalFees * 0.7;
     dailyUserFees.addUSDValue(userFees);
     dailyRevenue.addUSDValue(userFees);
+    dailySupplySideRevenue.add(AUSD_TOKEN, rewardClaimedLog.ausd);
   });
 
   katanaLogs.forEach((katanaLog) => {
@@ -81,7 +83,7 @@ const adapter: SimpleAdapter = {
     Revenue: "Revenue collected from fees and yield from the staking contract.",
     UserFees: "User fees collected from the staking contract.",
     SupplySideRevenue:
-      "Supply side revenue collected from the staking contract in Katana tokens.",
+      "Supply side revenue collected from the staking contract in Katana tokens and AUSD tokens.",
   },
   version: 2,
   adapter: {
