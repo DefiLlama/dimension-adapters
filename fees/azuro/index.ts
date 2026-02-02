@@ -41,22 +41,23 @@ const prefetch = async (options: FetchOptions) => {
       SUM(usd_ggr) AS dailyFees
     FROM normalized
     GROUP BY 1, 2
-    ORDER BY 1, 2;
+    ORDER BY 1, 2
   `
   const results = await queryDuneSql(options, query);
   return results;
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const prefetchResults = options.preFetchedResults || [];
-  if (options.chain == CHAIN.CHILIZ){
+
+  if (options.chain == CHAIN.CHILIZ) {
     return { dailyFees, dailyRevenue };
   }
   if (prefetchResults && prefetchResults.length > 0) {
-    for (const row of prefetchResults){
-      if(row.chain_group == options.chain){
+    for (const row of prefetchResults) {
+      if (row.chain_group == options.chain) {
         dailyFees.addUSDValue(row.dailyFees);
         dailyRevenue.addUSDValue(row.dailyRevenue);
       }
