@@ -8,9 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@clickhouse/client':
+        specifier: ^1.15.0
+        version: 1.15.0
       '@defillama/sdk':
-        specifier: ^5.0.195
-        version: 5.0.195(typescript@5.9.3)
+        specifier: ^5.0.206
+        version: 5.0.206(typescript@5.9.3)
       '@supercharge/promise-pool':
         specifier: ^3.1.0
         version: 3.2.0
@@ -314,12 +317,19 @@ packages:
     resolution: {integrity: sha512-ORHRQ2tmvnBXc8t/X9Z8IcSbBA4xTLKuN873FopzklHMeqBst7YG0d+AX97inkvDX+NChYtSr+qGfcqGFaI8Zw==}
     engines: {node: '>=18.0.0'}
 
+  '@clickhouse/client-common@1.15.0':
+    resolution: {integrity: sha512-/1BXaNNsBzH2w5ALWiH6M9zS+cJwlM9uMnMj9e8ETwvDjJzO+nIYlyxzp8Prc+9pEDZ5iAilZ4F8c0YVCzzNaA==}
+
+  '@clickhouse/client@1.15.0':
+    resolution: {integrity: sha512-QmW+p4c/r0oa3X6Un6lcBs4GZtJEQUdvf//x8GeqM5ru6m4oIUg3WwvermP3HE31kpEGoFOQfKbMN5ooR5gvNw==}
+    engines: {node: '>=16'}
+
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@defillama/sdk@5.0.195':
-    resolution: {integrity: sha512-QgX+6Kfefw/Nc4zgd7f2ywtHd7MPUwqE8YrQ1arebEd0WhoMHOd21nqx/h+Xm8vzK9wvIWuJ+UyAhltMsR7gkw==}
+  '@defillama/sdk@5.0.206':
+    resolution: {integrity: sha512-IJmWEBRguzRQPgg0LqRFBRWsSjGp2aRBicLP1Xx6djBYp2dEJ/Wt3KlLsEVt3CyYwFlJExJwuwgpIZn4f3PICw==}
 
   '@elastic/elasticsearch@8.19.1':
     resolution: {integrity: sha512-+1j9NnQVOX+lbWB8LhCM7IkUmjU05Y4+BmSLfusq0msCsQb1Va+OUKFCoOXjCJqQrcgdRdQCjYYyolQ/npQALQ==}
@@ -2091,11 +2101,17 @@ snapshots:
 
   '@aws/lambda-invoke-store@0.0.1': {}
 
+  '@clickhouse/client-common@1.15.0': {}
+
+  '@clickhouse/client@1.15.0':
+    dependencies:
+      '@clickhouse/client-common': 1.15.0
+
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@defillama/sdk@5.0.195(typescript@5.9.3)':
+  '@defillama/sdk@5.0.206(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-s3': 3.913.0
       '@elastic/elasticsearch': 8.19.1

@@ -1,10 +1,8 @@
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
-import { getSolanaReceived } from '../../helpers/token';
 import { FetchOptions } from '../../adapters/types';
 
 const meteoraStatsEndpoint = 'https://amm-v2.meteora.ag/pools/v2';
-const BUYBACK_WALLET = 'FzULv8pR9Rd7cyVKjVkzmJ1eqEmgwDnzjYyNUcEJtoG9';
 
 interface Pool {
   total_count: number
@@ -14,7 +12,7 @@ interface Pool {
   }>
 }
 
-async function fetch(options: FetchOptions) {
+async function fetch(_options: FetchOptions) {
   let dailyVolume = 0;
   let dailyFees = 0;
 
@@ -28,16 +26,9 @@ async function fetch(options: FetchOptions) {
   })
   if (isNaN(dailyVolume) || isNaN(dailyFees)) throw new Error('Invalid daily volume')
 
-  const dailyHoldersRevenue = await getSolanaReceived({
-    options,
-    target: BUYBACK_WALLET,
-    mints: ["METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL"],  // MET token
-  })
-
   return {
     dailyVolume,
     dailyFees,
-    dailyHoldersRevenue,
   }
 }
 

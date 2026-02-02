@@ -26,6 +26,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

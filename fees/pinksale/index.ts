@@ -1,9 +1,9 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../../helpers/token";
 
 // FEE WALLETS:
-const FEE_WALLETS = {
+const FEE_WALLETS: any = {
   [CHAIN.SOLANA]: ["7juXaFuWZ3nkiaYBN8JkKFGvEY56Gh15h1kBGNdUfeU"],
   [CHAIN.ETHEREUM]: ["0x2e6C8927285353F24A00fcBAF605C54E2E18ea83", "0x4b04213c2774f77e60702880654206b116d00508"],
   [CHAIN.AVAX]: ["0x4F3Dea8CE389dae557B352595e247e51c9572f41"],
@@ -21,12 +21,12 @@ const FEE_WALLETS = {
 };
 
 
-const fetchSolanaFees: any = async (options: FetchOptions) => {
+const fetchSolanaFees: any = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: FEE_WALLETS[CHAIN.SOLANA] })
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0, }
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   // https://docs.pinksale.finance/service-fees
 
   const feeWallet = FEE_WALLETS[options.chain];
@@ -36,13 +36,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  methodology: {
-    Fees: "All fees paid by users by using PinkSale services.",
-    Revenue: "All fees are collected by PinkSale protocol.",
-    ProtocolRevenue: "Trading fees are collected by PinkSale protocol.",
-    HoldersRevenue: "No revenue share to PINK token holders.",
-  },
+  version: 1,
+  dependencies: [Dependencies.ALLIUM],
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2021-10-30', },
@@ -56,6 +51,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {start: '2024-04-05', },
     [CHAIN.UNICHAIN]: {start: '2025-02-21', },
     [CHAIN.SOLANA]: { fetch: fetchSolanaFees, start: '2024-02-04', },
+  },
+  methodology: {
+    Fees: "All fees paid by users by using PinkSale services.",
+    Revenue: "All fees are collected by PinkSale protocol.",
+    ProtocolRevenue: "Trading fees are collected by PinkSale protocol.",
+    HoldersRevenue: "No revenue share to PINK token holders.",
   },
 };
 

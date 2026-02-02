@@ -264,10 +264,10 @@ export const LifiFeeCollectors: IContract = {
     id: '0x11d40Dc8Ff0CE92F54A315aD8e674a55a866cBEe',
     startTime: '2023-10-19'
   },
-  [CHAIN.EVMOS]: {
-    id: '0xB49EaD76FE09967D7CA0dbCeF3C3A06eb3Aa0cB4',
-    startTime: '2022-10-24'
-  },
+  // [CHAIN.EVMOS]: {
+  //   id: '0xB49EaD76FE09967D7CA0dbCeF3C3A06eb3Aa0cB4',
+  //   startTime: '2022-10-24'
+  // },
   [CHAIN.ERA]: {
     id: '0x8dBf6f59187b2EB36B980F3D8F4cFC6DC4E4642e',
     startTime: '2023-07-13'
@@ -340,10 +340,10 @@ export const LifiFeeCollectors: IContract = {
     id: '0xB49EaD76FE09967D7CA0dbCeF3C3A06eb3Aa0cB4',
     startTime: '2023-06-01'
   },
-  [CHAIN.ROOTSTOCK]: {
-    id: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
-    startTime: '2024-05-27'
-  },
+  // [CHAIN.ROOTSTOCK]: {
+  //   id: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
+  //   startTime: '2024-05-27'
+  // },
   [CHAIN.SCROLL]: {
     id: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
     startTime: '2024-02-06'
@@ -395,6 +395,10 @@ export const LifiFeeCollectors: IContract = {
   [CHAIN.PLUME]: {
     id: '0x3e46137a80BB3c14906505d0f78ADbb2deDb9E3f',
     startTime: '2025-09-01'
+  },
+  [CHAIN.HEMI]: {
+    id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
+    startTime: '2025-09-07'
   },
   [CHAIN.MONAD]: {
     id: '0x954d55105CDF5371224268691FAf6178be5f62F5',

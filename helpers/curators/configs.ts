@@ -1,4 +1,5 @@
 import { CHAIN } from "../chains"
+import { DefaultVaultsBlacklisted } from "../lists"
 
 export const ABI = {
   ERC4626: {
@@ -9,7 +10,10 @@ export const ABI = {
   },
   morpho: {
     fee: 'uint256:fee',
+    performanceFee: 'uint256:performanceFee', // rate per assets
+    managementFee: 'uint256:managementFee', // rate per second
     CreateMetaMorphoEvent: 'event CreateMetaMorpho(address indexed metaMorpho, address indexed caller, address initialOwner, uint256 initialTimelock, address indexed asset, string name, string symbol, bytes32 salt)',
+    CreateVaultV2: 'event CreateVaultV2 (address indexed owner, address indexed asset, bytes32 salt, address indexed newVaultV2)',
   },
   euler: {
     interestFee: 'uint256:interestFee',
@@ -31,6 +35,12 @@ export const MorphoConfigs: any = {
         fromBlock: 21439510,
       },
     ],
+    vaultV2Factories: [
+      {
+        address: '0xA1D94F746dEfa1928926b84fB2596c06926C0405',
+        fromBlock: 23375073,
+      },
+    ],
   },
   [CHAIN.BASE]: {
     vaultFactories: [
@@ -41,6 +51,12 @@ export const MorphoConfigs: any = {
       {
         address: '0xFf62A7c278C62eD665133147129245053Bbf5918',
         fromBlock: 23928808,
+      },
+    ],
+    vaultV2Factories: [
+      {
+        address: '0x4501125508079A99ebBebCE205DeC9593C2b5857',
+        fromBlock: 35615206,
       },
     ],
   },
@@ -59,6 +75,12 @@ export const MorphoConfigs: any = {
         fromBlock: 9025733,
       },
     ],
+    vaultV2Factories: [
+      {
+        address: '0x6846EA318B6B987Ee6b28eBFd87c3409F1d13108',
+        fromBlock: 20253005,
+      },
+    ],
   },
   [CHAIN.CORN]: {
     vaultFactories: [
@@ -75,6 +97,12 @@ export const MorphoConfigs: any = {
         fromBlock: 9316789,
       },
     ],
+    vaultV2Factories: [
+      {
+        address: '0xC9b34c108014B44e5a189A830e7e04c56704a0c9',
+        fromBlock: 29092109,
+      },
+    ],
   },
   [CHAIN.KATANA]: {
     vaultFactories: [
@@ -83,12 +111,24 @@ export const MorphoConfigs: any = {
         fromBlock: 2741420,
       },
     ],
+    vaultV2Factories: [
+      {
+        address: '0xFcb8b57E56787bB29e130Fca67f3c5a1232975D1',
+        fromBlock: 13096629,
+      },
+    ],
   },
   [CHAIN.ARBITRUM]: {
     vaultFactories: [
       {
         address: '0x878988f5f561081deEa117717052164ea1Ef0c82',
         fromBlock: 296447195,
+      },
+    ],
+    vaultV2Factories: [
+      {
+        address: '0x6b46fa3cc9EBF8aB230aBAc664E37F2966Bf7971',
+        fromBlock: 387016724,
       },
     ],
   },
@@ -113,6 +153,48 @@ export const MorphoConfigs: any = {
       {
         address: '0xec051b19d654C48c357dC974376DeB6272f24e53',
         fromBlock: 1988677,
+      },
+    ],
+    vaultV2Factories: [
+      {
+        address: '0xD7217E5687FF1071356C780b5fe4803D9D967da7',
+        fromBlock: 14188393,
+      },
+    ],
+  },
+  [CHAIN.MONAD]: {
+    vaultFactories: [
+      {
+        address: '0x33f20973275B2F574488b18929cd7DCBf1AbF275',
+        fromBlock: 32320327,
+      },
+    ],
+    vaultV2Factories: [
+      {
+        address: '0x8B2F922162FBb60A6a072cC784A2E4168fB0bb0c',
+        fromBlock: 32321811,
+      },
+    ],
+  },
+  [CHAIN.STABLE]: {
+    vaultFactories: [
+      {
+        address: '0xb4ae5673c48621189E2bEfBA96F31912032DD1AE',
+        fromBlock: 1504774,
+      },
+    ],
+    vaultV2Factories: [
+      {
+        address: '0x7fc35488803D49D00a94b206A223f7661898BE3a',
+        fromBlock: 1506182,
+      },
+    ],
+  },
+  [CHAIN.PLUME]: {
+    vaultFactories: [
+      {
+        address: '0x2525D453D9BA13921D5aB5D8c12F9202b0e19456',
+        fromBlock: 766079,
       },
     ],
   },
@@ -143,6 +225,7 @@ export const EulerConfigs: any = {
     vaultFactories: [
       '0xf075cc8660b51d0b8a4474e3f47edac5fa034cfb',
     ],
+    blacklistedVaults: DefaultVaultsBlacklisted[CHAIN.SONIC],
   },
   [CHAIN.BERACHAIN]: {
     vaultFactories: [
@@ -182,6 +265,11 @@ export const EulerConfigs: any = {
   [CHAIN.PLASMA]: {
     vaultFactories: [
       '0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3',
+    ],
+  },
+  [CHAIN.MONAD]: {
+    vaultFactories: [
+      '0xba4Dd672062dE8FeeDb665DD4410658864483f1E',
     ],
   },
 }

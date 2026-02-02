@@ -56,10 +56,11 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch(),
-      start: '2024-02-02',
+      start: "2024-02-02",
     },
   },
   methodology,
