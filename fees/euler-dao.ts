@@ -41,6 +41,12 @@ const curatorConfig: CuratorConfig = {
       ],
       start: '2025-10-01',
     },
+    [CHAIN.MONAD]: {
+      eulerVaultOwners: [
+        '0x5D42F8aCd567810D57D60f90bB9C6d194207a6e1',
+      ],
+      start: '2025-11-28',
+    }
   }
 }
 
