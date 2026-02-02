@@ -106,6 +106,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         dailyRevenue.addCGToken("usd-coin", performanceFee);
       }
     }
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
   const dailyFees = dailyRevenue.clone(0.05);
   dailyFees.addBalances(dailySupplySideRevenue);
