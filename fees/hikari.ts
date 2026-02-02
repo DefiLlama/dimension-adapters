@@ -64,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   katanaLogs.forEach((katanaLog) => {
-    const katana = Number(katanaLog.tokens) / 1e6;
+    const katana = Number(katanaLog.tokens);
     dailySupplySideRevenue.add(KATANA_TOKEN, katana);
   });
 
