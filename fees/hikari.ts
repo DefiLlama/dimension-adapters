@@ -1,9 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const AUSD_TOKEN = "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a";
 const KATANA_TOKEN = "0x7F1f4b4b29f5058fA32CC7a97141b8D7e5ABDC2d";
-const BASELINE_CONTRACT = "0xE788dfA236CC9973750239593Db189ac78Afb2C6";
 const hikariPool = "0x2ac7673C3a0370dE512A20464a800fa7C53235C3";
 const hikariStaking = "0xeCA16687491B0D748C6246645f56AAE787474f3b";
 
@@ -28,7 +26,6 @@ const KATANA_CLAIMED_EVENT =
 const fetch = async (options: FetchOptions) => {
   const dailyUserFees = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
@@ -42,16 +39,6 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: KATANA_CLAIMED_EVENT,
   });
 
-  const unstakedLogs = await options.getLogs({
-    target: hikariStaking,
-    eventAbi: UNSTAKED_EVENT,
-  });
-
-  const yieldFees = await options.getLogs({
-    target: hikariStaking,
-    eventAbi: REWARD_CLAIMED_EVENT,
-  });
-
   const feesLogs = await options.getLogs({
     target: hikariPool,
     eventAbi: FEE_EVENT,
@@ -63,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   feesLogs.forEach((feeLog) => {
-    dailyRevenue.addUSDValue(feeLog.amount0); //need price conversion of kari ? No need as the current price is not logged
+    dailyRevenue.addUSDValue(feeLog.amount0);
   });
 
   rewardClaimedLogs.forEach((rewardClaimedLog) => {
