@@ -29,6 +29,9 @@ import { ethers } from "ethers";
 // Supported chains: ethereum, arbitrum, bsc, berachain
 const TREASURY = "0x719e77027952929ed3060dbFFC5D43EC50c1cf79";
 
+// Performance Fee Manager address - used to identify performance fee transfers
+const PERFORMANCE_FEE_MANAGER = "0xEEC1238f2191978528e31dFf120bB8030fc62ff2";
+
 async function getTransfers(
   options: FetchOptions,
   _from: string | null,
@@ -90,7 +93,8 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
 
   const tuples = [];
   for (let i = 0; i < logs.length; i++) {
-    const [gtConfig, marketAddress, balance] = [
+    const [tokenAddress, gtConfig, marketAddress, balance] = [
+      addresses[i],
       gtConfigs[i],
       marketAddresses[i],
       logs[i].args.value,
@@ -101,6 +105,11 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
     } else if (marketAddress) {
       const log = logs[i];
       tuples.push({ log, marketAddress });
+    } else if (
+      froms[i].toLowerCase() === PERFORMANCE_FEE_MANAGER.toLowerCase()
+    ) {
+      // Transfers from the operator address are performance fees (valued in the transferred token)
+      dailyUserFees.add(tokenAddress, balance, METRIC.PERFORMANCE_FEES);
     }
     // Transfers from unknown sources are ignored (not TermMax protocol fees)
   }
@@ -151,31 +160,39 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+  Fees: "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
   UserFees:
-    "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+    "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
   Revenue:
-    "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+    "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
   ProtocolRevenue:
-    "Protocol fees (FT valued at underlying 1:1) from trading orders and liquidation penalties (in collateral tokens).",
+    "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
+    [METRIC.PERFORMANCE_FEES]:
+      "The performance fee charged for passive earn yield on TermMax.",
   },
   UserFees: {
     [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
+    [METRIC.PERFORMANCE_FEES]:
+      "The performance fee charged for passive earn yield on TermMax.",
   },
   Revenue: {
     [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
+    [METRIC.PERFORMANCE_FEES]:
+      "The performance fee charged for passive earn yield on TermMax.",
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
+    [METRIC.PERFORMANCE_FEES]:
+      "The performance fee charged for passive earn yield on TermMax.",
   },
 };
 
