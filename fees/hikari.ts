@@ -78,8 +78,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Fees collected from the Hikari pool's Concentrated Liquidity.",
-    Revenue: "Revenue collected from the Hikari pool.",
-    Volume: "Volume collected from the Hikari pool.",
+    Revenue: "Revenue collected from fees and yield from the staking contract.",
+    UserFees: "User fees collected from the staking contract.",
+    SupplySideRevenue:
+      "Supply side revenue collected from the staking contract in Katana tokens.",
   },
   version: 2,
   adapter: {
