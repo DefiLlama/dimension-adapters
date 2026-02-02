@@ -47,17 +47,17 @@ const prefetch = async (options: FetchOptions) => {
   return results;
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const prefetchResults = options.preFetchedResults || [];
-  console.log(prefetchResults)
-  if (options.chain == CHAIN.CHILIZ){
+
+  if (options.chain == CHAIN.CHILIZ) {
     return { dailyFees, dailyRevenue };
   }
   if (prefetchResults && prefetchResults.length > 0) {
-    for (const row of prefetchResults){
-      if(row.chain_group == options.chain){
+    for (const row of prefetchResults) {
+      if (row.chain_group == options.chain) {
         dailyFees.addUSDValue(row.dailyFees);
         dailyRevenue.addUSDValue(row.dailyRevenue);
       }
