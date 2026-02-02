@@ -23,6 +23,11 @@ import { ethers } from "ethers";
  *    - Source: GT (Gearing Token) contracts
  *    - Detected when: gtConfig lookup succeeds (transfer came from a GT token)
  *    - Valued in: Collateral token
+ *
+ * 3. Performance Fees: Fees charged on yield earned by passive depositors
+ *    - Source: Performance Fee Manager contract
+ *    - Detected when: transfer originates from the PERFORMANCE_FEE_MANAGER address
+ *    - Valued in: The transferred token (typically the vault's underlying asset)
  */
 
 // Treasury address - same address used across all supported chains
@@ -67,6 +72,8 @@ async function getTransfers(
  *      -> The transfer is a liquidation penalty (valued in collateral token)
  *   2. Call marketAddr() on the token address - if it succeeds, this is an FT contract
  *      -> The transfer is a protocol fee (valued in underlying token)
+ *   3. Check if 'from' address matches PERFORMANCE_FEE_MANAGER
+ *      -> The transfer is a performance fee (valued in the transferred token)
  */
 async function handleLogs(options: FetchOptions, logs: any[]) {
   const dailyUserFees = options.createBalances();
