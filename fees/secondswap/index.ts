@@ -100,6 +100,7 @@ const adapter: SimpleAdapter = {
 		},
 	},
 	isExpensiveAdapter: true,
+	version: 1,
 };
 
 export default adapter
