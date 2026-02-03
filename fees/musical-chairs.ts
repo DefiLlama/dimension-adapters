@@ -17,7 +17,7 @@ const contracts: any = {
   },
 };
 
-// ABI событий для парсинга
+// Event ABI for parsing
 const event_game_deposit = "event GameDeposit(uint256 indexed gameId, address indexed player, uint256 indexed amount)";
 const event_game_results = "event GameResultsRecorded(uint256 indexed gameId, address[] winners, address loser, uint256 amountPerWinner)";
 const event_referral_paid = "event ReferralCommissionPaid(address indexed referrer, uint256 indexed gameId, uint256 amount)";
@@ -36,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
   const toBlock = await getToBlock();
   const startBlock = Math.max(fromBlock, contractStartBlock);
 
-  // --- 1. Считаем Volume (все входящие депозиты) ---
+  // --- 1. Calculate Volume (all incoming deposits) ---
   const depositLogs = await getLogs({
     target: factory,
     topic: iface.getEvent("GameDeposit")?.topicHash,
@@ -47,14 +47,14 @@ const fetch = async (options: FetchOptions) => {
   const depositsByGameId = new Map<string, bigint>();
   for (const log of depositLogs) {
     const gameId = BigInt(log.topics[1]).toString();
-    const amount = BigInt(log.topics[3]); // amount проиндексирован в твоем контракте
+    const amount = BigInt(log.topics[3]); // amount is indexed in the contract
     dailyVolume.addGasToken(amount);
 
     const currentTotal = depositsByGameId.get(gameId) || 0n;
     depositsByGameId.set(gameId, currentTotal + amount);
   }
 
-  // --- 2. Считаем Fees (удержанная комиссия платформы) ---
+  // --- 2. Calculate Fees (platform commission withheld) ---
   const resultsLogs = await getLogs({
     target: factory,
     topic: iface.getEvent("GameResultsRecorded")?.topicHash,
@@ -76,14 +76,14 @@ const fetch = async (options: FetchOptions) => {
 
         if (fee >= 0) {
           dailyFees.addGasToken(fee);
-          // Revenue изначально равна Fees, далее вычтем бонусы
+          // Revenue is initially equal to Fees, then we subtract bonuses
           dailyRevenue.addGasToken(fee);
         }
       }
     }
   }
 
-  // --- 3. Считаем Referral Bonuses (расходы на партнеров) ---
+  // --- 3. Calculate Referral Bonuses (partner expenses) ---
   const referralLogs = await getLogs({
     target: factory,
     topic: iface.getEvent("ReferralCommissionPaid")?.topicHash,
@@ -95,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
     const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
     if (parsed) {
       const referralAmount = BigInt(parsed.args.amount);
-      // Вычитаем бонусы из чистой прибыли протокола
+      // Subtract bonuses from the protocol's net profit
       dailyRevenue.addGasToken(-referralAmount);
     }
   }
@@ -131,3 +131,4 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
+
