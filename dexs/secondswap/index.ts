@@ -25,7 +25,7 @@ const getChainQueryConfig = (
 				FROM tokens_solana.transfers t
 				INNER JOIN mp_txs m ON t.tx_id = m.evt_tx_hash
 				WHERE t.block_time >= from_unixtime(${fromTimestamp})
-				AND t.block_time <= from_unixtime(${toTimestamp})
+				AND t.block_time < from_unixtime(${toTimestamp})
 				AND t.to_owner IS NOT NULL
 			`,
 			tokenDecimals: (sourceTable: string) => `
@@ -45,7 +45,7 @@ const getChainQueryConfig = (
 						"to"
 				FROM erc20_${duneChain}.evt_Transfer
 				WHERE from_unixtime(${fromTimestamp}) <= evt_block_time
-				AND from_unixtime(${toTimestamp}) >= evt_block_time 
+				AND from_unixtime(${toTimestamp}) > evt_block_time 
 				AND evt_tx_hash IN (SELECT evt_tx_hash FROM mp_txs)`,
 			tokenDecimals: (sourceTable: string) => `
 				SELECT contract_address, decimals
@@ -78,7 +78,7 @@ const getDuneVolumeQuery = (duneChain: string, fromTimestamp: number, toTimestam
                sellerfee
         FROM dune.secondswapio.result_get_all_spot_purchase_events_from_marketplace
         WHERE from_unixtime(${fromTimestamp}) <= evt_block_time
-        AND from_unixtime(${toTimestamp}) >= evt_block_time 
+        AND from_unixtime(${toTimestamp}) > evt_block_time 
         AND chain = '${duneChain}'
     ),
 
@@ -178,6 +178,7 @@ const adapter: SimpleAdapter = {
 		},
 	},
 	isExpensiveAdapter: true,
+	version: 1,
 };
 
 export default adapter
