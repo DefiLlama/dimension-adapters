@@ -29,7 +29,6 @@ const getDuneFeesQuery = (duneChain: string, fromTimestamp: number, toTimestamp:
     -- Get spot purchase events with fees
     spot_purchases AS (
         SELECT 
-            evt_tx_hash,
             buyerfee,
             sellerfee
         FROM dune.secondswapio.result_get_all_spot_purchase_events_from_marketplace
