@@ -108,11 +108,6 @@ export const VAULTS_BY_CHAIN_ID: Record<string, VaultEntry[]> = {
     { vault: "0x2805b908a0f9ca58a2b3b7900341b4ebd0b994e9", token: "0xc1cba3fcea344f92d9239c08c0568f6f2f0ee452" },
     { vault: "0xbd282333710b9c7e33e8a37d027885a7c079ae23", token: "0x4200000000000000000000000000000000000006" },
   ],
-  "34443": [
-    { vault: "0x8574cbc539c26df9ec11ba283218268101ff10e1", token: "0x04c0599ae5a44757c0af6f9ec3b93da8976c150a" },
-    { vault: "0xaa8f9d05599f1a5d5929c40342c06a5da063a4de", token: "0xe7903b1f75c534dd8159b313d92cdcfbc62cb3cd" },
-    { vault: "0xde45e2bccb99e0ed1a2876cfc51a71ca5e822641", token: "0x211cc4dd073734da055fbf44a2b4667d5e5fe5d2" },
-  ],
   "42161": [
     { vault: "0x3fbfd80ef7591658d1d7ddec067f413efd6f985c", token: "0x35751007a407ca6feffe80b3cb397736d2cf4dbe" },
     { vault: "0x486936fb1ce805e8c46e71c69256e72f3f550d38", token: "0x4186bfc76e2e237523cbc30fd220fe055156b41f" },
@@ -130,11 +125,6 @@ export const VAULTS_BY_CHAIN_ID: Record<string, VaultEntry[]> = {
     { vault: "0xb2cb9ada6e00118da8e83a6a53df1ec6331a60a6", token: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9" },
     { vault: "0x8574cbc539c26df9ec11ba283218268101ff10e1", token: "0x5979d7b546e38e414f7e9822514be443a4800529" },
   ],
-  "81457": [
-    { vault: "0x2805b908a0f9ca58a2b3b7900341b4ebd0b994e9", token: "0x04c0599ae5a44757c0af6f9ec3b93da8976c150a" },
-    { vault: "0x28c9ddf9a3b29c2e6a561c1bc520954e5a33de5d", token: "0xe7903b1f75c534dd8159b313d92cdcfbc62cb3cd" },
-    { vault: "0x837808498206fbb5c758d79424cc3dcad5d9e873", token: "0x211cc4dd073734da055fbf44a2b4667d5e5fe5d2" },
-  ],
 };
 
 /** Map chain ID (number) to DefiLlama CHAIN for supported chains */
@@ -142,10 +132,9 @@ export const CHAIN_ID_TO_CHAIN: Record<number, string> = {
   1: CHAIN.ETHEREUM,
   10: CHAIN.OPTIMISM,
   957: CHAIN.LYRA,
+  999: CHAIN.HYPERLIQUID,
   8453: CHAIN.BASE,
-  34443: CHAIN.MODE,
   42161: CHAIN.ARBITRUM,
-  81457: CHAIN.BLAST,
 };
 
 /** Chains supported for Lyra v2 TVL (DefiLlama CHAIN enum) */
@@ -153,10 +142,9 @@ export const LYRA_V2_TVL_CHAINS = [
   CHAIN.ETHEREUM,
   CHAIN.OPTIMISM,
   CHAIN.LYRA,
+  CHAIN.HYPERLIQUID,
   CHAIN.BASE,
-  CHAIN.MODE,
   CHAIN.ARBITRUM,
-  CHAIN.BLAST,
 ] as const;
 
 /** Get vault entries for a DefiLlama chain (e.g. CHAIN.ETHEREUM). Uses chainId mapping. */
@@ -165,10 +153,9 @@ export function getVaultsForChain(chain: string): VaultEntry[] {
     [CHAIN.ETHEREUM]: "1",
     [CHAIN.OPTIMISM]: "10",
     [CHAIN.LYRA]: "957",
+    [CHAIN.HYPERLIQUID]: "999",
     [CHAIN.BASE]: "8453",
-    [CHAIN.MODE]: "34443",
     [CHAIN.ARBITRUM]: "42161",
-    [CHAIN.BLAST]: "81457",
   };
   const chainId = chainIdMap[chain];
   return chainId ? VAULTS_BY_CHAIN_ID[chainId] ?? [] : [];
