@@ -17,118 +17,98 @@ const contracts: any = {
   },
 };
 
-// Event ABI for parsing
-const event_game_deposit = "event GameDeposit(uint256 indexed gameId, address indexed player, uint256 indexed amount)";
-const event_game_results = "event GameResultsRecorded(uint256 indexed gameId, address[] winners, address loser, uint256 amountPerWinner)";
-const event_referral_paid = "event ReferralCommissionPaid(address indexed referrer, uint256 indexed gameId, uint256 amount)";
+const abi = [
+  "event GameDeposit(uint256 indexed gameId, address indexed player, uint256 indexed amount)",
+  "event GameResultsRecorded(uint256 indexed gameId, address[] winners, address loser, uint256 amountPerWinner)",
+  "event ReferralCommissionPaid(address indexed referrer, uint256 indexed gameId, uint256 amount)"
+];
 
-const iface = new ethers.Interface([event_game_deposit, event_game_results, event_referral_paid]);
+const iface = new ethers.Interface(abi);
 
 const fetch = async (options: FetchOptions) => {
-  const { createBalances, getLogs, chain, getFromBlock, getToBlock } = options;
+  const { createBalances, getLogs, chain, api } = options;
   const { factory, fromBlock: contractStartBlock } = contracts[chain];
   
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
 
-  const fromBlock = await getFromBlock();
-  const toBlock = await getToBlock();
-  const startBlock = Math.max(fromBlock, contractStartBlock);
+  const parseLog = (log: any) => {
+    try { return iface.parseLog({ topics: [...log.topics], data: log.data }); } 
+    catch (e) { return null; }
+  };
 
-  // --- 1. Calculate Volume (all incoming deposits) ---
-  const depositLogs = await getLogs({
-    target: factory,
-    topic: iface.getEvent("GameDeposit")?.topicHash,
-    fromBlock: startBlock,
-    toBlock,
-  });
-
+  // 1. Daily Volume
+  const depositLogs = await getLogs({ target: factory, topic: iface.getEvent("GameDeposit")!.topicHash });
   const depositsByGameId = new Map<string, bigint>();
-  for (const log of depositLogs) {
-    const gameId = BigInt(log.topics[1]).toString();
-    const amount = BigInt(log.topics[3]); // amount is indexed in the contract
-    dailyVolume.addGasToken(amount);
 
-    const currentTotal = depositsByGameId.get(gameId) || 0n;
-    depositsByGameId.set(gameId, currentTotal + amount);
+  for (const log of depositLogs) {
+    const parsed = parseLog(log);
+    if (parsed) {
+      const amount = BigInt(parsed.args.amount);
+      const gameId = parsed.args.gameId.toString();
+      dailyVolume.addGasToken(amount);
+      depositsByGameId.set(gameId, (depositsByGameId.get(gameId) || 0n) + amount);
+    }
   }
 
-  // --- 2. Calculate Fees (platform commission withheld) ---
-  const resultsLogs = await getLogs({
-    target: factory,
-    topic: iface.getEvent("GameResultsRecorded")?.topicHash,
-    fromBlock: startBlock,
-    toBlock,
-  });
+  // 2. Daily Fees (Settled Games)
+  const resultsLogs = await getLogs({ target: factory, topic: iface.getEvent("GameResultsRecorded")!.topicHash });
 
   for (const log of resultsLogs) {
-    const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
-    if (parsed) {
-      const gameId = parsed.args.gameId.toString();
-      const winnersCount = parsed.args.winners.length;
-      const amountPerWinner = parsed.args.amountPerWinner;
+    const parsed = parseLog(log);
+    if (!parsed) continue;
 
-      const totalPot = depositsByGameId.get(gameId);
-      if (totalPot) {
-        const distributed = BigInt(amountPerWinner) * BigInt(winnersCount);
-        const fee = totalPot - distributed;
+    const gameId = parsed.args.gameId.toString();
 
-        if (fee >= 0) {
-          dailyFees.addGasToken(fee);
-          // Revenue is initially equal to Fees, then we subtract bonuses
-          dailyRevenue.addGasToken(fee);
+    if (!depositsByGameId.has(gameId)) {
+      const historicalLogs = await getLogs({
+        target: factory,
+        topic: iface.getEvent("GameDeposit")!.topicHash,
+        fromBlock: contractStartBlock,
+        toBlock: api.fromBlock,
+      });
+      for (const hLog of historicalLogs) {
+        const hParsed = parseLog(hLog);
+        if (hParsed && hParsed.args.gameId.toString() === gameId) {
+          depositsByGameId.set(gameId, (depositsByGameId.get(gameId) || 0n) + BigInt(hParsed.args.amount));
         }
+      }
+    }
+
+    const totalPot = depositsByGameId.get(gameId);
+    if (totalPot) {
+      const distributed = BigInt(parsed.args.amountPerWinner) * BigInt(parsed.args.winners.length);
+      const fee = totalPot - distributed;
+      if (fee > 0n) {
+        dailyFees.addGasToken(fee);
+        dailyRevenue.addGasToken(fee);
       }
     }
   }
 
-  // --- 3. Calculate Referral Bonuses (partner expenses) ---
-  const referralLogs = await getLogs({
-    target: factory,
-    topic: iface.getEvent("ReferralCommissionPaid")?.topicHash,
-    fromBlock: startBlock,
-    toBlock,
-  });
-
+  // 3. Referral Deductions
+  const referralLogs = await getLogs({ target: factory, topic: iface.getEvent("ReferralCommissionPaid")!.topicHash });
   for (const log of referralLogs) {
-    const parsed = iface.parseLog({ topics: [...log.topics], data: log.data });
-    if (parsed) {
-      const referralAmount = BigInt(parsed.args.amount);
-      // Subtract bonuses from the protocol's net profit
-      dailyRevenue.addGasToken(-referralAmount);
-    }
+    const parsed = parseLog(log);
+    if (parsed) dailyRevenue.addGasToken(-BigInt(parsed.args.amount));
   }
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-  };
+  return { dailyVolume, dailyFees, dailyRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: 1733529600, 
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: 1738108800,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch,
-      start: 1737504000,
-    },
+    [CHAIN.ARBITRUM]: { fetch, start: 1733529600 },
+    [CHAIN.ETHEREUM]: { fetch, start: 1738108800 },
+    [CHAIN.BASE]: { fetch, start: 1737504000 },
   },
   methodology: {
-    Volume: "Total ETH deposited by players into games.",
-    Fees: "Total commissions collected by the protocol (difference between total stakes and payouts).",
-    Revenue: "Net protocol income after deducting referral commission payouts.",
+    Volume: "Total ETH stakes deposited into game rounds.",
+    Fees: "Platform commission (total stakes minus winner payouts) collected at the end of each game.",
+    Revenue: "Net protocol income after subtracting referral commission payouts.",
   }
 };
 
 export default adapter;
-
