@@ -33,7 +33,7 @@ const getDuneFeesQuery = (duneChain: string, fromTimestamp: number, toTimestamp:
             sellerfee
         FROM dune.secondswapio.result_get_all_spot_purchase_events_from_marketplace
         WHERE from_unixtime(${fromTimestamp}) <= evt_block_time
-        AND from_unixtime(${toTimestamp}) >= evt_block_time 
+        AND from_unixtime(${toTimestamp}) > evt_block_time 
         AND chain = '${duneChain}'
     )
 
