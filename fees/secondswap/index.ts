@@ -84,7 +84,6 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
 	methodology,
-	fetch,
 	dependencies: [Dependencies.DUNE],
 	adapter: {
 		[CHAIN.ETHEREUM]: {
