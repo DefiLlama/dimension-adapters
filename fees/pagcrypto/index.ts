@@ -1,26 +1,12 @@
-// index.ts (PagCrypto - fees/revenue adapter skeleton)
-//
-// Goal:
-// - Track "what passes through PagCrypto wallets" per chain by summing token transfers to your wallets.
-// - Convert to USD using Dune pre-joined usd fields when available (or leave as TODO if not available).
-//
-// Notes:
-// - You MUST set wallet addresses for each chain (env vars below).
-// - This file is written to be aligned with your JSON: only chains/assets with status=true are enabled.
-
 import { CHAIN } from "../../helpers/chains";
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { queryDuneSql } from "../../helpers/dune";
-
-// -----------------------------
-// 1) CONFIG (from your JSON)
-// -----------------------------
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import {addTokensReceived, getSolanaReceived, getSolanaReceivedDune} from "../../helpers/token";
 
 type ChainKey = "solana" | "base" | "polygon" | "tron" | "xrpl";
 
 type AssetCfg = {
   symbol: string;
-  address: string; // "native" or token mint / contract / issued currency
+  address: string;
   decimals: number;
   status: boolean;
 };
@@ -45,7 +31,6 @@ const CONFIG: Record<ChainKey, ChainCfg> = {
       { symbol: "LINK", address: "CWE8jPTUYhdCTZYWPTe1o5DFqfdjzWKc9WKz6rSjQUdG", decimals: 6, status: true },
       { symbol: "JUP", address: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN", decimals: 6, status: true },
       { symbol: "SKR", address: "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3", decimals: 6, status: true },
-      // TRUMP/WETH are status:false in your JSON => intentionally excluded here
     ],
   },
 
@@ -54,13 +39,11 @@ const CONFIG: Record<ChainKey, ChainCfg> = {
     status: true,
     assets: [
       { symbol: "ETH", address: "native", decimals: 18, status: true },
-      // base USDC enabled in your JSON
       { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6, status: true },
       { symbol: "USDe", address: "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34", decimals: 6, status: true },
       { symbol: "USDS", address: "0xdC035D45d973E3EC169d2276DDab16f1e407384F", decimals: 6, status: true },
       { symbol: "EURC", address: "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42", decimals: 6, status: true },
       { symbol: "LINK", address: "0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196", decimals: 6, status: true },
-      // base USDT is status:false in your JSON => excluded
     ],
   },
 
@@ -78,11 +61,7 @@ const CONFIG: Record<ChainKey, ChainCfg> = {
   tron: {
     key: "tron",
     status: true,
-    assets: [
-      // TRX native
-      { symbol: "TRX", address: "native", decimals: 6, status: true },
-      // USDT/USDC are status:false in your JSON => excluded
-    ],
+    assets: [{ symbol: "TRX", address: "native", decimals: 6, status: true }],
   },
 
   xrpl: {
@@ -104,185 +83,96 @@ const WALLETS: Record<ChainKey, string[]> = {
 };
 
 function assertWalletsConfigured() {
-  const missing = (Object.keys(WALLETS) as ChainKey[])
-      .filter((k) => CONFIG[k].status && WALLETS[k].length === 0);
+  const missing = (Object.keys(WALLETS) as ChainKey[]).filter(
+      (k) => CONFIG[k].status && WALLETS[k].length === 0
+  );
 
   if (missing.length) {
-    throw new Error(
-        `Missing PagCrypto wallet env vars for: ${missing.join(", ")}`
-    );
+    throw new Error(`Missing PagCrypto wallet env vars for: ${missing.join(", ")}`);
   }
 }
-
-// -----------------------------
-// 3) SQL builders
-// -----------------------------
-
-function sqlList(items: any): string {
-  // Accept string (comma-separated), array, null/undefined, anything.
-  if (items == null) return "''";
-
-  let arr: string[];
-
-  if (Array.isArray(items)) {
-    arr = items.map((x) => String(x));
-  } else if (typeof items === "string") {
-    arr = items.split(",").map((s) => s.trim());
-  } else {
-    // fallback: single value
-    arr = [String(items)];
-  }
-
-  const cleaned = arr.map((s) => s.trim()).filter(Boolean);
-  return cleaned.length ? cleaned.map((x) => `'${x}'`).join(", ") : "''";
-}
-
 
 function enabledAssets(chain: ChainKey) {
   return CONFIG[chain].assets.filter((a) => a.status);
 }
 
-// SOLANA: use SPL transfers for token mints + native SOL transfers (often separate tables).
-// Many Dune Solana schemas provide token transfers with mint address; native SOL may require system transfers table.
-// Here we implement SPL token transfers in a conservative way and leave native SOL as TODO.
-function buildSolanaSql(options: FetchOptions) {
-  const wallets = WALLETS.solana; // string[]
-  const assets = enabledAssets("solana");
-
-  const splMints = assets
-      .filter((a) => a.address !== "native")
-      .map((a) => a.address);
-
-  if (!wallets.length || !splMints.length) {
-    return `SELECT 'solana' AS chain, 0 AS volume_usd`;
-  }
-
-  return `
-    WITH spl_in AS (
-      SELECT
-        'solana' AS chain,
-        SUM(COALESCE(amount_usd, 0)) AS usd_in
-      FROM tokens_solana.transfers
-      WHERE block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
-        AND to_owner IN (${sqlList(wallets)})
-        AND token_mint_address IN (${sqlList(splMints)})
-    )
-    SELECT chain, COALESCE(usd_in, 0) AS volume_usd
-    FROM spl_in
-  `;
-}
-
-function normalizeStringArray(value: any): string[] {
+function normalizeTargets(value: any): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
   if (typeof value === "string") return value.split(",").map((s) => s.trim()).filter(Boolean);
   return [String(value)].map((s) => s.trim()).filter(Boolean);
 }
 
-function getWallets(chainKey: string): string[] {
-  return normalizeStringArray((WALLETS as any)[chainKey]);
+async function fetchEvmInflows(options: FetchOptions, chainKey: "base" | "polygon") {
+  const dailyFees = options.createBalances();
+
+  const tokens = enabledAssets(chainKey)
+      .filter((a) => a.address !== "native")
+      .map((a) => a.address);
+
+  const targets = normalizeTargets(WALLETS[chainKey]);
+
+  if (!targets.length || !tokens.length) return dailyFees;
+
+  const inflows = await addTokensReceived({
+    options,
+    tokens,
+    target: targets[0],
+    targets,
+  } as any);
+
+  dailyFees.addBalances(inflows);
+  return dailyFees;
 }
 
+async function fetchSolanaInflows(options: FetchOptions) {
+  const dailyFees = options.createBalances();
 
-// EVM: use a transfers table and filter by "to" and token_address.
-// Dune commonly has ERC20 transfers tables per chain; some setups also have unified tables.
-function buildEvmSql(options: FetchOptions, chainKey: "base" | "polygon") {
-  const wallets = getWallets(chainKey).map((w) => w.toLowerCase());
-  const assets = enabledAssets(chainKey);
-  const erc20s = assets
+  const targets = normalizeTargets(WALLETS.solana); // array of solana owners
+  const mints = enabledAssets("solana")
       .filter((a) => a.address !== "native")
-      .map((a) => a.address.toLowerCase());
+      .map((a) => a.address); // SPL mint addresses
 
-  if (!wallets.length || !erc20s.length) {
-    return `SELECT '${chainKey}' AS chain, 0 AS volume_usd`;
+  if (!targets.length || !mints.length) return dailyFees;
+
+  // getSolanaReceived should return balances (token amounts), which balances can price to USD
+  const inflows = await getSolanaReceived({
+    options,
+    targets: targets,      // some helpers call it owners
+    tokens: mints,        // or mints
+  } as any);
+
+  dailyFees.addBalances(inflows);
+  return dailyFees;
+}
+
+async function fetchStub(options: FetchOptions) {
+  return options.createBalances();
+}
+
+const fetch = async (...args: any[]) => {
+  const options: FetchOptions | undefined =
+      args.find((a) => a && typeof a === "object" && typeof a.createBalances === "function");
+
+  if (!options) {
+    throw new Error("PagCrypto adapter: FetchOptions not provided by runner (missing createBalances).");
   }
 
-  return `
-    SELECT
-      '${chainKey}' AS chain,
-      COALESCE(SUM(amount_usd), 0) AS volume_usd
-    FROM tokens.transfers
-    WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
-      AND blockchain = '${chainKey}'
-      AND lower("to") IN (${sqlList(wallets)})
-      AND lower(token_address) IN (${sqlList(erc20s)})
-  `;
-}
-
-// TRON: Dune has Tron datasets (token transfers, etc.). :contentReference[oaicite:2]{index=2}
-// You will likely need to join prices for USD, depending on the table you choose.
-// This is a stub that still filters transfers to your wallets.
-function buildTronSql(options: FetchOptions) {
-  const wallets = WALLETS.tron;
-  // Your JSON only has native TRX enabled; if you later enable TRC20, add contract filter similar to EVM.
-  return `
-    SELECT
-      'tron' AS chain,
-      0 AS volume_usd
-    -- TODO: implement using Tron transfer tables + pricing join on Dune
-  `;
-}
-
-// XRPL: Dune has XRPL data catalog but querying "what passes through wallets" is not identical to ERC20/SPL. :contentReference[oaicite:3]{index=3}
-// Keep as stub until you decide which XRPL metric you want (XRP Payments? Issued Currency transfers?).
-function buildXrplSql(_options: FetchOptions) {
-  return `
-    SELECT
-      'xrpl' AS chain,
-      0 AS volume_usd
-    -- TODO: implement XRPL payments/issued currency flow query on Dune
-  `;
-}
-
-// -----------------------------
-// 4) Prefetch + Fetch
-// -----------------------------
-
-function hasDuneKey(): boolean {
-  // Adjust if your repo uses a different env var name
-  return Boolean(process.env.DUNE_API_KEY || process.env.DUNE_KEY || process.env.DUNE_API_TOKEN);
-}
-
-const prefetch = async (options: FetchOptions) => {
   assertWalletsConfigured();
 
-  // If running in CI/local without Dune credentials, return empty results (0).
-  if (!hasDuneKey()) {
-    return [];
+  let dailyFees = options.createBalances();
+
+  if (options.chain === CHAIN.BASE && CONFIG.base.status) {
+    dailyFees = await fetchEvmInflows(options, "base");
+  } else if (options.chain === CHAIN.POLYGON && CONFIG.polygon.status) {
+    dailyFees = await fetchEvmInflows(options, "polygon");
+  } else if (options.chain === CHAIN.SOLANA && CONFIG.solana.status) {
+    dailyFees = await fetchSolanaInflows(options);
+  } else if (options.chain === CHAIN.TRON && CONFIG.tron.status) {
+    dailyFees = await fetchStub(options);
+  } else if ((options.chain as any) === (CHAIN as any).XRPL && CONFIG.xrpl.status) {
+    dailyFees = await fetchStub(options);
   }
-
-  const queries: string[] = [];
-
-  if (CONFIG.solana.status) queries.push(buildSolanaSql(options));
-  if (CONFIG.base.status) queries.push(buildEvmSql(options, "base"));
-  if (CONFIG.polygon.status) queries.push(buildEvmSql(options, "polygon"));
-  if (CONFIG.tron.status) queries.push(buildTronSql(options));
-  if (CONFIG.xrpl.status) queries.push(buildXrplSql(options));
-
-  // union results from all enabled chains
-  const sql = `
-    WITH all_chain_results AS (
-      ${queries.map((q, i) => (i === 0 ? q : `UNION ALL ${q}`)).join("\n")}
-    )
-    SELECT chain, SUM(volume_usd) AS volume_usd
-    FROM all_chain_results
-    GROUP BY chain
-  `;
-
-  return queryDuneSql(options, sql);
-};
-
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const results = options.preFetchedResults || [];
-  const row = results.find((r: any) => r.chain === String(options.chain).toLowerCase());
-
-  // Here we are treating "volume through wallet" as "fees" only as a placeholder.
-  // In a proper fees adapter, you typically compute actual fee revenue (spread, protocol fee, etc.)
-  // If you want: set dailyVolume instead (different dashboard) or compute revenue separately.
-  if (row?.volume_usd) dailyFees.addUSDValue(Number(row.volume_usd));
 
   return {
     dailyFees,
@@ -291,26 +181,22 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
+
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
-  prefetch,
   adapter: {
-    [CHAIN.SOLANA]: { start: "2025-01-01" },
     [CHAIN.BASE]: { start: "2025-01-01" },
     [CHAIN.POLYGON]: { start: "2025-01-01" },
+    [CHAIN.SOLANA]: { start: "2025-01-01" },
     [CHAIN.TRON]: { start: "2025-01-01" },
-    // If the chain constant differs in your repo, rename accordingly.
-    // Some repos use CHAIN.XRPL, others CHAIN.RIPPLE, etc.
     [CHAIN.XRPL]: { start: "2025-01-01" },
   },
-  dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: "Counts USD-denominated token flow into PagCrypto-controlled wallets (proxy). Replace with real fee revenue logic (spread/protocol fee) when available.",
-    Revenue: "Same as Fees (proxy).",
-    ProtocolRevenue: "Same as Fees (proxy).",
+    Fees: "ERC20 token inflows into PagCrypto-controlled wallets on supported EVM chains (Base/Polygon).",
+    Revenue: "Same as Fees.",
+    ProtocolRevenue: "Same as Fees.",
   },
 };
 
 export default adapter;
-
