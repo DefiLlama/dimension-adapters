@@ -1,8 +1,6 @@
-import { Dependencies, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { FetchOptions } from "../../adapters/types";
-
 // Chain-specific configurations for transfers and token decimals
 const getChainQueryConfig = (
 	duneChain: string,
