@@ -128,18 +128,17 @@ async function fetchEvmInflows(options: FetchOptions, chainKey: "base" | "polygo
 async function fetchSolanaInflows(options: FetchOptions) {
   const dailyFees = options.createBalances();
 
-  const targets = normalizeTargets(WALLETS.solana); // array of solana owners
+  const targets = normalizeTargets(WALLETS.solana);
   const mints = enabledAssets("solana")
       .filter((a) => a.address !== "native")
-      .map((a) => a.address); // SPL mint addresses
+      .map((a) => a.address);
 
   if (!targets.length || !mints.length) return dailyFees;
 
-  // getSolanaReceived should return balances (token amounts), which balances can price to USD
   const inflows = await getSolanaReceived({
     options,
-    targets: targets,      // some helpers call it owners
-    tokens: mints,        // or mints
+    targets: targets,
+    tokens: mints,
   } as any);
 
   dailyFees.addBalances(inflows);
