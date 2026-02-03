@@ -17,7 +17,10 @@ const pools = [
     // keep historical pools
     "Community.3",
 ]
-
+/**
+ * NOTE: API experienced outage on 2025-01-27 and 2025-01-28.
+ * Data is now available.
+ */
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const targetDate = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
 
