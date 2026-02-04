@@ -63,8 +63,8 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const config = await fetchCacheURL('https://s3.us-west-1.amazonaws.com/assets.hop.exchange/mainnet/v1-core-config.json')
   const l2_bridges = Object.values(config.bridges).map((e: any) => e[options.chain]).filter(Boolean)
-  const contract_bond: string[] = l2_bridges.map((e: any) => e.l2Bridge).filter(Boolean)
-  const mapping_token = l2_bridges.map((e: any) => {
+  let contract_bond: string[] = l2_bridges.map((e: any) => e.l2Bridge).filter(Boolean)
+  let mapping_token = l2_bridges.map((e: any) => {
     return {
       [e.l2Bridge]: e.l2CanonicalToken
     }
@@ -75,8 +75,8 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
       [e.cctpL2Bridge]: e.l2CanonicalToken
     }
   }).filter(Boolean)
-  contract_bond.concat(contract_ccpt)
-  mapping_token.concat(mapping_token_ccp)
+  contract_bond = contract_bond.concat(contract_ccpt)
+  mapping_token = mapping_token.concat(mapping_token_ccp)
 
   const logs_ccpt = await options.getLogs({
     eventAbi: event_ccpt,

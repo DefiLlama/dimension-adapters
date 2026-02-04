@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { queryDuneSql } from '../helpers/dune';
 import { getSolanaReceived } from '../helpers/token';
 
 const GEODNET_TOKEN_ADDRESS = '0xAC0F66379A6d7801D7726d5a943356A172549Adb';
