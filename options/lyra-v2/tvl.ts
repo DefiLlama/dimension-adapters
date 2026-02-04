@@ -6,8 +6,8 @@ const BALANCE_OF_ABI = "function balanceOf(address account) view returns (uint25
 
 /**
  * Lyra v2 / Derive TVL: sum of token balances held by each vault on the current chain.
- * Vaults are Socket-style (see socket-vault-abi): they hold the underlying token and have no
- * totalAssets(); we use token.balanceOf(vault) for each (vault, token) pair.
+ * Vaults are Socket-style (hold the underlying token, no totalAssets()); we use
+ * token.balanceOf(vault) for each (vault, token) pair.
  */
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const tvl = options.createBalances();
