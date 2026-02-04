@@ -44,7 +44,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
       logs.forEach((log: any) => {
         const hop_contract = contract_bond[index]
         const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-        dailyFees.add(token_l2[hop_contract], log.bonderFee)
+        dailyFees.add(token_l2[hop_contract], log.bonderFee, { label: 'cctp-bonder-fees' })
       })
     })
 
@@ -52,7 +52,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
       logs.forEach((log: any) => {
         const hop_contract = contract_bond[index]
         const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-        dailyFees.add(token_l2[hop_contract], log.relayerFee)
+        dailyFees.add(token_l2[hop_contract], log.relayerFee, { label: 'l1-relayer-fees' })
       })
     })
     return { dailyFees };
@@ -63,8 +63,8 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const config = await fetchCacheURL('https://s3.us-west-1.amazonaws.com/assets.hop.exchange/mainnet/v1-core-config.json')
   const l2_bridges = Object.values(config.bridges).map((e: any) => e[options.chain]).filter(Boolean)
-  const contract_bond: string[] = l2_bridges.map((e: any) => e.l2Bridge).filter(Boolean)
-  const mapping_token = l2_bridges.map((e: any) => {
+  let contract_bond: string[] = l2_bridges.map((e: any) => e.l2Bridge).filter(Boolean)
+  let mapping_token = l2_bridges.map((e: any) => {
     return {
       [e.l2Bridge]: e.l2CanonicalToken
     }
@@ -75,8 +75,8 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
       [e.cctpL2Bridge]: e.l2CanonicalToken
     }
   }).filter(Boolean)
-  contract_bond.concat(contract_ccpt)
-  mapping_token.concat(mapping_token_ccp)
+  contract_bond = contract_bond.concat(contract_ccpt)
+  mapping_token = mapping_token.concat(mapping_token_ccp)
 
   const logs_ccpt = await options.getLogs({
     eventAbi: event_ccpt,
@@ -100,25 +100,25 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
     logs.forEach((log: any) => {
       const hop_contract = contract_bond[index]
       const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-      dailyFees.add(token_l2[hop_contract], log.relayerFee)
+      dailyFees.add(token_l2[hop_contract], log.relayerFee, { label: 'l2-relayer-fees' })
     })
   })
-  
+
 
   logs_ccpt.forEach((logs, index) => {
     logs.forEach((log: any) => {
       const hop_contract = contract_bond[index]
       const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-      dailyFees.add(token_l2[hop_contract], log.bonderFee)
+      dailyFees.add(token_l2[hop_contract], log.bonderFee, { label: 'cctp-bonder-fees' })
     })
   })
-  
+
 
   logs_bond.forEach((logs, index) => {
     logs.forEach((log: any) => {
       const hop_contract = contract_bond[index]
       const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-      dailyFees.add(token_l2[hop_contract], log.bonderFee)
+      dailyFees.add(token_l2[hop_contract], log.bonderFee, { label: 'transfer-bonder-fees' })
     })
   })
   
@@ -128,6 +128,14 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
 const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Fees paid by users for bridging tokens via Hop.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'cctp-bonder-fees': 'Bonder fees collected from CCTP (Cross-Chain Transfer Protocol) bridge transfers.',
+      'l1-relayer-fees': 'Relayer fees collected from L1 transfer events sent to L2.',
+      'l2-relayer-fees': 'Relayer fees collected from transfers completed from L1 on L2 chains.',
+      'transfer-bonder-fees': 'Bonder fees collected from standard Hop bridge transfers on L2 chains.',
+    },
   },
   version: 2,
   adapter: {

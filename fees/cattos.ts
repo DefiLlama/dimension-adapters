@@ -14,9 +14,12 @@ const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResu
   `
   const chainData = await queryDuneSql(options, query)
   const dailyFees = options.createBalances()
-  dailyFees.addCGToken('aptos', chainData[0]["total_rev"])
+  dailyFees.addCGToken('aptos', chainData[0]["total_rev"], 'APT from chest sales')
 
-  return { dailyFees, dailyRevenue: dailyFees, };
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.addCGToken('aptos', chainData[0]["total_rev"], 'APT from chest sales')
+
+  return { dailyFees, dailyRevenue, };
 };
 
 const adapter: any = {
@@ -29,6 +32,14 @@ const adapter: any = {
   methodology: {
     Fees: 'APT collected from selling chests.',
     Revenue: 'APT collected from selling chests.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'APT from chest sales': 'APT cost paid by users when purchasing chests, queried from on-chain events.',
+    },
+    Revenue: {
+      'APT from chest sales': 'APT cost paid by users when purchasing chests, queried from on-chain events.',
+    },
   }
 };
 

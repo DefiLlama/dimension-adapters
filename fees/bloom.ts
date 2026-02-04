@@ -10,6 +10,17 @@ const methodology = {
     Revenue: "Trading fees are collected by Bloom protocol.",
 }
 
+const breakdownMethodology = {
+    Fees: {
+        "Bloom Solana trading bot fees collected in SOL from DEX trades": "Trading fees paid by users in SOL when executing DEX trades via the Bloom Solana trading bot",
+        "Bloom EVM trading bot fees collected in native gas token from contract events": "Trading fees paid by users in native gas tokens when executing trades via Bloom EVM trading bot contracts",
+    },
+    Revenue: {
+        "Bloom Solana trading bot fees collected in SOL from DEX trades": "Trading fees paid by users in SOL when executing DEX trades via the Bloom Solana trading bot",
+        "Bloom EVM trading bot fees collected in native gas token from contract events": "Trading fees paid by users in native gas tokens when executing trades via Bloom EVM trading bot contracts",
+    },
+}
+
 const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
 
 const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
@@ -48,9 +59,12 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, "Bloom Solana trading bot fees collected in SOL from DEX trades");
 
-  return { dailyFees, dailyRevenue: dailyFees }
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, "Bloom Solana trading bot fees collected in SOL from DEX trades");
+
+  return { dailyFees, dailyRevenue }
 }
 
 const contract: any = {
@@ -111,12 +125,14 @@ const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
     flatten: true
   })
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   logs.forEach((log: any) => {
     const data = log.data.replace('0x', '');
     const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
-    dailyFees.addGasToken(fees_amount);
+    dailyFees.addGasToken(fees_amount, "Bloom EVM trading bot fees collected in native gas token from contract events");
+    dailyRevenue.addGasToken(fees_amount, "Bloom EVM trading bot fees collected in native gas token from contract events");
   })
-  return { dailyFees, dailyRevenue: dailyFees } 
+  return { dailyFees, dailyRevenue } 
 }
 
 const adapter: SimpleAdapter = {
@@ -138,6 +154,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

@@ -108,8 +108,8 @@ const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   
   if (result && result.length > 0) {
-    dailyFees.addUSDValue(result[0].daily_fees_usd)
-    dailyRevenue.addUSDValue(result[0].daily_revenue_usd)
+    dailyFees.addUSDValue(result[0].daily_fees_usd, "Total fees from token launches and trades on four.meme")
+    dailyRevenue.addUSDValue(result[0].daily_revenue_usd, "Protocol revenue excluding rev-share payments")
   }
 
   return { dailyFees, dailyRevenue }
@@ -165,6 +165,14 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All fees paid by users for launching, trading tokens.',
     Revenue: 'Fees collected by four.meme protocol.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Total fees from token launches and trades on four.meme": "USD value of all BNB and token fees collected from token launches and trades, including rev-share distributions",
+    },
+    Revenue: {
+      "Protocol revenue excluding rev-share payments": "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
+    },
+  },
 };
 export default adapter;

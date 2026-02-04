@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 
 const event_swap = 'event SwapERC20(uint256 indexed nonce,address indexed signerWallet,address signerToken,uint256 signerAmount,uint256 protocolFee,address indexed senderWallet,address senderToken,uint256 senderAmount)';
 
@@ -23,7 +24,7 @@ const graph = (chain: Chain) => {
       target: address[chain],
       eventAbi: event_swap,
     })).map((e: any) => {
-      dailyFees.add(e.signerToken, e.signerAmount.toString() * e.protocolFee.toString() / 10000)
+      dailyFees.add(e.signerToken, e.signerAmount.toString() * e.protocolFee.toString() / 10000, METRIC.SWAP_FEES)
     })
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
@@ -35,8 +36,21 @@ const methodology = {
     ProtocolRevenue: 'All revenue are collected by AirSwap.',
 }
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SWAP_FEES]: 'Protocol fees charged on each peer-to-peer token swap, calculated as a percentage of the signer amount.',
+    },
+    Revenue: {
+        [METRIC.SWAP_FEES]: 'All swap fees are collected as protocol revenue since there are no liquidity providers in P2P swaps.',
+    },
+    ProtocolRevenue: {
+        [METRIC.SWAP_FEES]: 'All swap fees go directly to the AirSwap protocol.',
+    },
+}
+
 const adapter: SimpleAdapter = {
   methodology,
+  breakdownMethodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {

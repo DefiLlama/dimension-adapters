@@ -45,7 +45,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const res = await queryDuneSql(options, query);
 
   const dayItem = res[0];
-  dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18);
+  dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18, { label: "MEV tips paid to Eden builders" });
 
   return {
     dailyFees
@@ -62,6 +62,11 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Total MEV Tips for Eden Builders"
+  },
+  breakdownMethodology: {
+    Fees: {
+      "MEV tips paid to Eden builders": "ETH rewards from MEV tips sent to Eden block builders, calculated as end-of-block transfer value minus priority gas fees",
+    },
   }
 }
 

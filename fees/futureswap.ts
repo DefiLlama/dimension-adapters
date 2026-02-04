@@ -40,6 +40,8 @@ const abis = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   const exchanges = exchangeConfigs[options.chain];
 
@@ -51,14 +53,17 @@ const fetch = async (options: FetchOptions) => {
 
   for (let i = 0; i < exchanges.length; i++) {
     for (const log of logs[i]) {
-      dailyFees.add(exchanges[i].baseToken, BigInt(log.tradeFee) * BigInt(10**exchanges[i].baseTokenDecimals) / BigInt(1e18));
+      const amount = BigInt(log.tradeFee) * BigInt(10**exchanges[i].baseTokenDecimals) / BigInt(1e18);
+      dailyFees.add(exchanges[i].baseToken, amount, 'Trade fees from leveraged position changes');
+      dailyRevenue.add(exchanges[i].baseToken, amount, 'Revenue from trading fees');
+      dailyProtocolRevenue.add(exchanges[i].baseToken, amount, 'Protocol revenue from trading fees');
     }
   }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
@@ -77,6 +82,17 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: { start: '2022-04-22' },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      'Trade fees from leveraged position changes': 'Trading fees collected from the tradeFee field in PositionChanged events when users open, close, or modify leveraged positions.',
+    },
+    Revenue: {
+      'Revenue from trading fees': 'All trade fees are attributed as revenue since Futureswap does not have on-chain fee distribution data.',
+    },
+    ProtocolRevenue: {
+      'Protocol revenue from trading fees': 'All trade fees are attributed as protocol revenue due to the absence of on-chain fee splitting mechanisms.',
+    },
+  },
 };
 
 export default adapter;

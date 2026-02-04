@@ -32,17 +32,33 @@ const fetch: any = async (options: FetchOptions) => {
 
   const transactions: IData[] = (await queryIndexer(transfer_txs, options)) as any
   transactions.map((e: IData) => {
-    dailyFees.addGasToken(Number(e.value))
+    dailyFees.addGasToken(Number(e.value), 'Trading Bot Execution Fees')
   })
 
   // fetch profit data from OpenBot profitShare API
   const openBotFundData = await httpGet(profitShareAPI);
 
   const openBotFundAmount = openBotFundData['total'];
-  dailyFees.addGasToken(openBotFundAmount * 1e18);
+  dailyFees.addGasToken(openBotFundAmount * 1e18, 'OpenBot Profit Share');
 
   return { dailyFees, dailyRevenue: dailyFees }
 
+}
+
+const methodology = {
+  Fees: "Fees paid by users while using the bot.",
+  Revenue: "All fees are revenue.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    'Trading Bot Execution Fees': 'ETH fees collected from on-chain trading bot executions routed through Aimbot contracts.',
+    'OpenBot Profit Share': 'Profit share fees collected from the Aimbot OpenBot automated trading service.',
+  },
+  Revenue: {
+    'Trading Bot Execution Fees': 'All trading bot execution fees accrue as protocol revenue.',
+    'OpenBot Profit Share': 'All OpenBot profit share fees accrue as protocol revenue.',
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -53,10 +69,8 @@ const adapter: SimpleAdapter = {
       start: '2023-08-02',
     },
   },
-  methodology: {
-    Fees: "Fees paid by users while using the bot.",
-    Revenue: "All fees are revenue.",
-  }
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

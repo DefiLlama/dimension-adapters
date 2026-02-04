@@ -20,11 +20,16 @@ const marketplace_address: TMarketPlaceAddress = {
 const fetch = (chain: Chain) => {
   return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
-    (await getLogs({
+    const dailyRevenue = createBalances();
+    const logs = await getLogs({
       target: marketplace_address[chain],
       eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
-    })).forEach((e: any) => dailyFees.add(e.erc20, e.amount))
-    return { dailyFees, dailyRevenue: dailyFees };
+    });
+    logs.forEach((e: any) => {
+      dailyFees.add(e.erc20, e.amount, 'RPC Service Deposits')
+      dailyRevenue.add(e.erc20, e.amount, 'RPC Service Revenue')
+    })
+    return { dailyFees, dailyRevenue };
   }
 }
 
@@ -33,8 +38,18 @@ const methodology = {
   Revenue: "All fees are revenue.",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'RPC Service Deposits': 'Token deposits made by users to the BlastAPI marketplace contract for RPC service access.',
+  },
+  Revenue: {
+    'RPC Service Revenue': 'All user deposits for RPC services are recognized as protocol revenue.',
+  },
+}
+
 const adapter: Adapter = {
   methodology,
+  breakdownMethodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {

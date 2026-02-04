@@ -14,12 +14,19 @@ const contracts: TContract = {
 const fetchFees = (chain: Chain) => {
     return async ({ createBalances, getLogs }: FetchOptions) => {
         const dailyFees = createBalances()
+        const dailyRevenue = createBalances()
+        const dailyProtocolRevenue = createBalances()
         await Promise.all(contracts[chain].map(async contract => {
             const logs = await getLogs({ target: contract, eventAbi: 'event Transferred (address indexed operator, bytes16 id, address recipient, address sender, uint256 spentAmount, address spentCurrency)' })
-            logs.forEach((i: any) => dailyFees.add(i.spentCurrency, i.spentAmount / BigInt(100)))
+            logs.forEach((i: any) => {
+                const amount = i.spentAmount / BigInt(100)
+                dailyFees.add(i.spentCurrency, amount, "1% service fee on commerce transfers")
+                dailyRevenue.add(i.spentCurrency, amount, "1% service fee on commerce transfers")
+                dailyProtocolRevenue.add(i.spentCurrency, amount, "1% service fee on commerce transfers")
+            })
         }))
 
-        return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+        return { dailyFees, dailyRevenue, dailyProtocolRevenue }
     }
 }
 
@@ -29,9 +36,22 @@ const methodology = {
     ProtocolRevenue: 'All fees paid by users using Coinbase Commerce service.',
 }
 
+const breakdownMethodology = {
+    Fees: {
+        "1% service fee on commerce transfers": "1% of each transfer amount processed through Coinbase Commerce contracts, derived from the Transferred event spentAmount.",
+    },
+    Revenue: {
+        "1% service fee on commerce transfers": "1% of each transfer amount processed through Coinbase Commerce contracts, derived from the Transferred event spentAmount.",
+    },
+    ProtocolRevenue: {
+        "1% service fee on commerce transfers": "1% of each transfer amount processed through Coinbase Commerce contracts, derived from the Transferred event spentAmount.",
+    },
+}
+
 const start = 1700053261
 const adapters: SimpleAdapter = {
     methodology,
+    breakdownMethodology,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetchFees(CHAIN.ETHEREUM),

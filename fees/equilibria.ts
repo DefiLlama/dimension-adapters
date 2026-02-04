@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 
 const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
+  const dailyRevenue = option.createBalances();
 
   const contracts: {[key: string]: string }  = {
     ethereum:  "0x357F55b46821A6C6e476CC32EBB2674cD125e849",
@@ -18,10 +19,9 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
       "event RewardAdded(address indexed _rewardToken, uint256 _reward)",
   });
   logs.map((e) => {
-    dailyFees.add(e._rewardToken, e._reward);
+    dailyFees.add(e._rewardToken, e._reward, "Pendle reward distributions");
+    dailyRevenue.add(e._rewardToken, e._reward * BigInt(1) / BigInt(3), "Protocol share of reward distributions");
   });
-  
-  const dailyRevenue = dailyFees.clone(1/3);
 
   return {
     dailyFees,
@@ -54,6 +54,14 @@ const adapter: SimpleAdapter = {
     },
   },
   version: 2,
+  breakdownMethodology: {
+    Fees: {
+      "Pendle reward distributions": "Total reward tokens distributed via Equilibria RewardAdded events across all supported chains.",
+    },
+    Revenue: {
+      "Protocol share of reward distributions": "One-third of total reward distributions retained as Equilibria protocol revenue.",
+    },
+  },
 };
 
 export default adapter;

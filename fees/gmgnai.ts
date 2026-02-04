@@ -9,6 +9,7 @@ import { getETHReceived } from '../helpers/token';
 
 const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const query = `
     WITH
@@ -63,19 +64,23 @@ const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, "Solana trading fees collected from DEX trades via GMGN bot");
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee, "Solana trading fees collected from DEX trades via GMGN bot");
 
-  return { dailyFees, dailyRevenue: dailyFees, }
+  return { dailyFees, dailyRevenue, }
 }
 
 const feeCollector = '0xb8159ba378904F803639D274cEc79F788931c9C8'
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  await getETHReceived({ options: options, balances: dailyFees, target: feeCollector})
+  const dailyRevenue = options.createBalances();
+  const ethReceived = await getETHReceived({ options: options, target: feeCollector})
+  dailyFees.addBalances(ethReceived, "BSC native token fees received by GMGN fee collector");
+  dailyRevenue.addBalances(ethReceived, "BSC native token fees received by GMGN fee collector");
   return {
     dailyFees,
-    dailyRevenue: dailyFees
+    dailyRevenue
   }
 }
 
@@ -96,7 +101,17 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "All trading fees paid by users while using GMGN AI bot.",
     Revenue: "Trading fees are collected by GMGN AI protocol."
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Solana trading fees collected from DEX trades via GMGN bot": "SOL fees paid to GMGN fee-receiving addresses on Solana DEX trades, sourced from on-chain account activity",
+      "BSC native token fees received by GMGN fee collector": "BNB received by the GMGN fee collector address on BSC via native token transfers",
+    },
+    Revenue: {
+      "Solana trading fees collected from DEX trades via GMGN bot": "SOL fees paid to GMGN fee-receiving addresses on Solana DEX trades, sourced from on-chain account activity",
+      "BSC native token fees received by GMGN fee collector": "BNB received by the GMGN fee collector address on BSC via native token transfers",
+    },
+  },
 };
 
 export default adapter;

@@ -30,7 +30,7 @@ const fetch = async (options: FetchOptions) => {
 	).flat();
 	const minterFees = options.createBalances();
 	for (const { feeAsset, amount } of feesDistributedLogs) {
-		minterFees.add(feeAsset, amount);
+		minterFees.add(feeAsset, amount, 'Borrow Fees Distributed to Stakers');
 	}
 
 	const protocolFeeClaimedLogs = (
@@ -54,7 +54,7 @@ const fetch = async (options: FetchOptions) => {
 	).flat();
 	const protocolFees = options.createBalances();
 	for (const { feeAsset, amount } of protocolFeeClaimedLogs) {
-		protocolFees.add(feeAsset, amount);
+		protocolFees.add(feeAsset, amount, 'Protocol Borrow Fee Cut');
 	}
 
 	const restakerFeesLogs = await options.getLogs({
@@ -63,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
 	});
 	const restakerFees = options.createBalances();
 	for (const log of restakerFeesLogs) {
-		restakerFees.add(log.asset, log.amount);
+		restakerFees.add(log.asset, log.amount, 'Restaker Delegation Rewards');
 	}
 
 	const insuranceFunds = vaultConfigs
@@ -81,16 +81,18 @@ const fetch = async (options: FetchOptions) => {
 		: options.createBalances();
 
 	const dailyFees = options.createBalances();
-	dailyFees.addBalances(minterFees);
-	dailyFees.addBalances(protocolFees);
-	dailyFees.addBalances(restakerFees);
-	dailyFees.addBalances(insuranceFundFees);
+	dailyFees.addBalances(minterFees, 'Borrow Fees Distributed to Stakers');
+	dailyFees.addBalances(protocolFees, 'Protocol Borrow Fee Cut');
+	dailyFees.addBalances(restakerFees, 'Restaker Delegation Rewards');
+	dailyFees.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 
 	const dailyRevenue = options.createBalances();
-	dailyRevenue.addBalances(protocolFees);
+	dailyRevenue.addBalances(protocolFees, 'Protocol Borrow Fee Cut');
 
-	const dailySupplySideRevenue = dailyFees.clone();
-	dailySupplySideRevenue.subtract(dailyRevenue)
+	const dailySupplySideRevenue = options.createBalances();
+	dailySupplySideRevenue.addBalances(minterFees, 'Borrow Fees Distributed to Stakers');
+	dailySupplySideRevenue.addBalances(restakerFees, 'Restaker Delegation Rewards');
+	dailySupplySideRevenue.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 
 	return {
 		dailyFees,
@@ -107,12 +109,33 @@ const methodology = {
 	ProtocolRevenue: "Share of borrow fees for protocol",
 };
 
+const breakdownMethodology = {
+	Fees: {
+		'Borrow Fees Distributed to Stakers': 'Interest fees from borrowing distributed to vault stakers.',
+		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees claimed separately.',
+		'Restaker Delegation Rewards': 'Rewards distributed to delegators via the delegation contract.',
+		'Insurance Fund Fees': 'Tokens sent from minters to insurance funds for risk management.',
+	},
+	Revenue: {
+		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees.',
+	},
+	SupplySideRevenue: {
+		'Borrow Fees Distributed to Stakers': 'Interest fees distributed to vault stakers.',
+		'Restaker Delegation Rewards': 'Rewards distributed to delegators.',
+		'Insurance Fund Fees': 'Tokens sent to insurance funds from minters.',
+	},
+	ProtocolRevenue: {
+		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees.',
+	},
+};
+
 const adapter: SimpleAdapter = {
 	version: 2,
 	fetch,
 	chains: [CHAIN.ETHEREUM],
 	start: capConfig[CHAIN.ETHEREUM].fromDate,
 	methodology,
+	breakdownMethodology,
 };
 
 export default adapter;

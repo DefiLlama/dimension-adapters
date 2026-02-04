@@ -38,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
   // Protocol retains 15% of yield (10% buyback + 5% liquidity)
   // Derive total yield and calculate 85% for depositors (supply-side)
   const feeFromYield = dailyProtocolRevenue.clone();
-  feeFromYield.add(dailyHoldersRevenue);
+  feeFromYield.add(dailyHoldersRevenue, undefined, 'CORAL Buyback Revenue');
   const dailySupplySideRevenue = feeFromYield.clone(85 / 15);
 
   // Track exit fee wallet - 0.2% withdrawal fee in USDT
@@ -50,10 +50,10 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyRevenue = dailyHoldersRevenue.clone();
-  dailyRevenue.add(dailyProtocolRevenue);
+  dailyRevenue.add(dailyProtocolRevenue, undefined, 'Liquidity Reinvestment & Exit Fees');
 
   const dailyFees = dailyRevenue.clone();
-  dailyFees.add(dailySupplySideRevenue);
+  dailyFees.add(dailySupplySideRevenue, undefined, 'Supply-Side Revenue (Depositor Yield)');
 
   return {
     dailyFees,
@@ -73,6 +73,27 @@ const methodology = {
   SupplySideRevenue: "85% of yield distributed to depositors (derived from 15% protocol retention rate).",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    'CORAL Buyback Revenue': '10% of protocol yield distributed to CORAL token holders via buyback and burn',
+    'Liquidity Reinvestment & Exit Fees': '5% of protocol yield reserved for liquidity reinvestment plus 0.2% withdrawal exit fees collected in USDT',
+    'Supply-Side Revenue (Depositor Yield)': '85% of total yield distributed to depositors as supply-side revenue',
+  },
+  Revenue: {
+    'CORAL Buyback Revenue': '10% of protocol yield distributed to CORAL token holders via buyback and burn',
+    'Liquidity Reinvestment & Exit Fees': '5% of protocol yield reserved for liquidity reinvestment plus 0.2% withdrawal exit fees collected in USDT',
+  },
+  HoldersRevenue: {
+    'CORAL Buyback Revenue': '10% of protocol yield distributed to CORAL token holders via buyback and burn',
+  },
+  ProtocolRevenue: {
+    'Liquidity Reinvestment & Exit Fees': '5% of protocol yield reserved for liquidity reinvestment plus 0.2% withdrawal exit fees collected in USDT',
+  },
+  SupplySideRevenue: {
+    'Supply-Side Revenue (Depositor Yield)': '85% of total yield distributed to depositors as supply-side revenue',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -82,6 +103,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -25,13 +25,23 @@ const adapter: Adapter = {
       fetch: async ({ api, createBalances }: FetchOptions) => {
         const feesInRwa = await getFees24Hr(api)
         const dailyFees = createBalances()
-        dailyFees.addCGToken('xend-finance', feesInRwa/1e18)
-        return { dailyFees, dailyRevenue: dailyFees }
+        dailyFees.addCGToken('xend-finance', feesInRwa/1e18, 'XEND token fees')
+        const dailyRevenue = createBalances()
+        dailyRevenue.addCGToken('xend-finance', feesInRwa/1e18, 'XEND token revenue')
+        return { dailyFees, dailyRevenue }
       },
       start: '2020-08-29',
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  breakdownMethodology: {
+    Fees: {
+      'XEND token fees': 'Epoch-based fees collected in XEND tokens over 24-hour period (6 epochs of 4 hours each)',
+    },
+    Revenue: {
+      'XEND token revenue': 'Revenue generated from XEND token transaction fees',
+    },
+  }
 }
 
 export default adapter;

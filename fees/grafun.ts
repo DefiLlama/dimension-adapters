@@ -39,8 +39,8 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const dailyFees = restOpts.createBalances();
   const dailyRevenue = restOpts.createBalances();
 
-  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0);
-  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0);
+  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0, { label: "Token sale factory fees" });
+  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0, { label: "Token sale factory revenue" });
 
   return {
     dailyFees,
@@ -60,6 +60,14 @@ const adapter: Adapter = {
   },
   fetch,
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      "Token sale factory fees": "Fees collected in native gas token from the Token Sale Factory smart contract.",
+    },
+    Revenue: {
+      "Token sale factory revenue": "Revenue collected in native gas token from the Token Sale Factory smart contract.",
+    },
+  },
 }
 
 export default adapter;

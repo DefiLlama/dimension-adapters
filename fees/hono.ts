@@ -27,16 +27,18 @@ const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async (timestamp: number, _: ChainBlocks, { createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
       const dailyFees = createBalances()
+      const dailyRevenue = createBalances()
 
       const graphRes: IData[] = (await request(graphUrls[chain], graphQuery, {
         timestampFrom: fromTimestamp,
         timestampTo: toTimestamp
       })).dailyRevenueAggregators;
       const value = graphRes.reduce((acc, cur) => acc + Number(cur.todayETHRevenue), 0);
-      dailyFees.addGasToken(value)
+      dailyFees.addGasToken(value, { label: "ETH revenue from aggregator fees" })
+      dailyRevenue.addGasToken(value, { label: "ETH revenue from aggregator fees" })
       return {
         dailyFees,
-        dailyRevenue: dailyFees,
+        dailyRevenue,
         timestamp
       }
     }
@@ -50,7 +52,15 @@ const adapter: Adapter = {
       fetch: graph(endpoints)(CHAIN.ETHEREUM),
       start: '2023-08-12'
     }
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      "ETH revenue from aggregator fees": "ETH collected as revenue by the Hono protocol aggregator, sourced from the subgraph dailyRevenueAggregators entity",
+    },
+    Revenue: {
+      "ETH revenue from aggregator fees": "ETH collected as revenue by the Hono protocol aggregator, sourced from the subgraph dailyRevenueAggregators entity",
+    },
+  },
 }
 
 export default adapter;

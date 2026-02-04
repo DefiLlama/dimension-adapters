@@ -14,13 +14,18 @@ const adapter: Adapter = {
         const dailyFees = options.createBalances();
         const logs = await options.getLogs({ target: paymaster, eventAbi: abi_event.TokenPaymasterOperation, })
         logs.map((tx: any) => {
-          dailyFees.add(tx.token, tx.totalCharge)
+          dailyFees.add(tx.token, tx.totalCharge, "Paymaster token charges")
         })
         return { dailyFees, }
       }) as FetchV2,
     },
   },
   version: 2,
+  breakdownMethodology: {
+    Fees: {
+      "Paymaster token charges": "Fees charged by the Token Paymaster for sponsoring user operations, denominated in the token used for payment",
+    },
+  },
 }
 
 export default adapter;

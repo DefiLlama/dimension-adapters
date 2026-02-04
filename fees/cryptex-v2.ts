@@ -24,7 +24,8 @@ type IPrice = {
 }
 
 const fetch = async ({ getLogs, api, createBalances }: FetchOptions) => {
-  const dailyFees = createBalances();
+  const dailyMakerFees = createBalances();
+  const dailyTakerFees = createBalances();
   for (const product of products) {
     const make_closed_topic0_logs = await getLogs({ target: product, eventAbi: make_closed_event })
     const make_opened_topic0_logs = await getLogs({ target: product, eventAbi: make_opened_event })
@@ -58,17 +59,23 @@ const fetch = async ({ getLogs, api, createBalances }: FetchOptions) => {
     maker_logs.forEach((value: any) => {
       const price = _prices[value!.version]
       const fees = makerFees[0].toString()
-      dailyFees.addUSDValue(value.amount.toString() * price * fees / 1e36)
+      dailyMakerFees.addUSDValue(value.amount.toString() * price * fees / 1e36, { label: 'Maker position fees from TCAP product open and close events' })
     })
 
     taker_logs.forEach((value: any) => {
       const price = _prices[value!.version]
       const fees = takerFees[0].toString()
-      dailyFees.addUSDValue(value.amount.toString() * price * fees / 1e36)
+      dailyTakerFees.addUSDValue(value.amount.toString() * price * fees / 1e36, { label: 'Taker position fees from TCAP product open and close events' })
     })
   }
 
-  return { dailyFees, dailyRevenue: dailyFees, }
+  const dailyFees = createBalances();
+  dailyFees.addBalances(dailyMakerFees);
+  dailyFees.addBalances(dailyTakerFees);
+  const dailyRevenue = createBalances();
+  dailyRevenue.addBalances(dailyMakerFees);
+  dailyRevenue.addBalances(dailyTakerFees);
+  return { dailyFees, dailyRevenue, }
 }
 
 const adapter: Adapter = {
@@ -78,7 +85,17 @@ const adapter: Adapter = {
       fetch: fetch,
       start: '2023-05-20'
     }
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Maker position fees from TCAP product open and close events': 'Fees charged on maker positions when opening or closing TCAP perpetual product contracts, calculated as position size multiplied by the oracle price and the maker fee rate.',
+      'Taker position fees from TCAP product open and close events': 'Fees charged on taker positions when opening or closing TCAP perpetual product contracts, calculated as position size multiplied by the oracle price and the taker fee rate.',
+    },
+    Revenue: {
+      'Maker position fees from TCAP product open and close events': 'Fees charged on maker positions when opening or closing TCAP perpetual product contracts, calculated as position size multiplied by the oracle price and the maker fee rate.',
+      'Taker position fees from TCAP product open and close events': 'Fees charged on taker positions when opening or closing TCAP perpetual product contracts, calculated as position size multiplied by the oracle price and the taker fee rate.',
+    },
+  },
 }
 
 export default adapter;

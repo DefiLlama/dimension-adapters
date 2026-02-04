@@ -34,7 +34,7 @@ const fetch = async (_:any, _1: any, options: FetchOptions) => {
   const finalDailyFee = tokenAmount / 1e8;
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('hedera-hashgraph', finalDailyFee);
+  dailyFees.addCGToken('hedera-hashgraph', finalDailyFee, 'Network transaction fees paid in HBAR');
 
   return {
     dailyFees
@@ -51,6 +51,11 @@ const adapter: Adapter = {
     },
   },
   protocolType: ProtocolType.CHAIN,
+  breakdownMethodology: {
+    Fees: {
+      'Network transaction fees paid in HBAR': 'Hourly network fees aggregated from the Hedera ecosystem metrics GraphQL API, denominated in HBAR.',
+    },
+  },
 };
 
 export default adapter;

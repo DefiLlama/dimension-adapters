@@ -74,16 +74,16 @@ const fetchFees = async (options: FetchOptions) => {
 
     for (const log of transferLogs) {
       if (log.from.toLowerCase() === chainConfig.feeSplitter.toLowerCase()) {
-        dailyFees.add(chainConfig.crvusd, log.value);
+        dailyFees.add(chainConfig.crvusd, log.value, 'crvUSD borrow interest distributed via FeeSplitter');
 
         // Only DAO collector portion is token holder revenue
         if (log.to.toLowerCase() === chainConfig.daoFeeCollector.toLowerCase()) {
           // After June 2025: 10% goes to treasury, 90% to veCRV holders
           if (toBlock >= chainConfig.feeAllocatorStartBlock) {
-            dailyProtocolRevenue.add(chainConfig.crvusd, BigInt(log.value) * 1n / 10n);
-            dailyHoldersRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n);
+            dailyProtocolRevenue.add(chainConfig.crvusd, BigInt(log.value) * 1n / 10n, 'Treasury share of DAO-collected fees');
+            dailyHoldersRevenue.add(chainConfig.crvusd, BigInt(log.value) * 9n / 10n, 'veCRV holders share of DAO-collected fees');
           } else {
-            dailyHoldersRevenue.add(chainConfig.crvusd, log.value);
+            dailyHoldersRevenue.add(chainConfig.crvusd, log.value, 'Pre-allocator DAO-collected fees to veCRV holders');
           }
 
         }
@@ -98,21 +98,21 @@ const fetchFees = async (options: FetchOptions) => {
         fromBlock,
         toBlock,
       });
-      logs.forEach((log: any) => dailyFees.add(chainConfig.crvusd, log.amount));
+      logs.forEach((log: any) => dailyFees.add(chainConfig.crvusd, log.amount, 'crvUSD borrow interest from CollectFees events'));
 
       const feesStart = await fromApi.call({ target: controller, abi: "uint256:admin_fees" });
       const feesEnd = await toApi.call({ target: controller, abi: "uint256:admin_fees" });
       if (feesEnd > feesStart) {
-        dailyFees.add(chainConfig.crvusd, feesEnd - feesStart);
+        dailyFees.add(chainConfig.crvusd, feesEnd - feesStart, 'Accrued admin fees from controller contracts');
       }
     }));
 
     // Before FeeSplitter, all fees went to token holders
-    dailyHoldersRevenue.addBalances(dailyFees);
+    dailyHoldersRevenue.addBalances(dailyFees, 'Pre-FeeSplitter fees fully allocated to veCRV holders');
   }
   
   const dailyRevenue = dailyProtocolRevenue.clone(1)
-  dailyRevenue.addBalances(dailyHoldersRevenue)
+  dailyRevenue.addBalances(dailyHoldersRevenue, 'veCRV holders revenue added to total revenue')
   
   const dailySupplySideRevenue = dailyFees.clone(1)
   dailySupplySideRevenue.subtract(dailyRevenue)
@@ -140,6 +140,24 @@ const adapters: SimpleAdapter = {
     ProtocolRevenue: 'Revenue share to protocol treasury.',
     HoldersRevenue: 'Revenue share to veCRV holders.',
     SupplySideRevenue: 'Revenue share to scrvUSD stakers.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'crvUSD borrow interest distributed via FeeSplitter': 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024).',
+      'crvUSD borrow interest from CollectFees events': 'Borrow interest collected from controller contracts via CollectFees events (pre FeeSplitter).',
+      'Accrued admin fees from controller contracts': 'Uncollected admin fees accrued in controller contracts between start and end of the period.',
+    },
+    Revenue: {
+      'veCRV holders revenue added to total revenue': 'veCRV holders revenue combined with protocol treasury revenue to compute total revenue.',
+    },
+    ProtocolRevenue: {
+      'Treasury share of DAO-collected fees': '10% of DAO-collected fees allocated to the protocol treasury via the Fee Allocator (post June 2025).',
+    },
+    HoldersRevenue: {
+      'veCRV holders share of DAO-collected fees': '90% of DAO-collected fees distributed to veCRV holders via the Fee Allocator (post June 2025).',
+      'Pre-allocator DAO-collected fees to veCRV holders': 'DAO-collected fees fully distributed to veCRV holders before the Fee Allocator was deployed.',
+      'Pre-FeeSplitter fees fully allocated to veCRV holders': 'Before the FeeSplitter deployment, all collected fees were allocated to veCRV holders.',
+    },
   }
 };
 

@@ -74,11 +74,20 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
     ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
   );
 
-  [govFee, referralFee, triggerFee, stakingFee, gTokenFee, borrowingFee].flat().forEach((i: any) => dailyFees.add(APE, i.amountCollateral));
-  [govFee, stakingFee].flat().forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral));
-  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
-  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
-  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+  govFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Protocol governance fees"));
+  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Referral fees paid to referrers"));
+  triggerFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Trigger/bot execution fees"));
+  stakingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "GNS staking fees distributed to stakers"));
+  gTokenFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "gToken vault fees paid to liquidity providers"));
+  borrowingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Borrowing fees on open positions"));
+
+  govFee.forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral, "Protocol governance revenue"));
+  stakingFee.forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral, "GNS staking revenue for token holders"));
+
+  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral, "GNS staker revenue used for buyback and burn"));
+
+  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, "gToken vault fees earned by LPs"));
+  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, "Referral fees earned by referrers"));
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -110,6 +119,27 @@ const adapter: Adapter = {
     Revenue: 'Share of trading fees to protocol and token holders.',
     SupplySideRevenue: 'Share of trading fees to LPs.',
     HoldersRevenue: 'Share of revenue to buy back and burn GNS tokens.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Protocol governance fees": "Fees charged for protocol governance and development fund",
+      "Referral fees paid to referrers": "Trading fees distributed to referrers who onboard new traders",
+      "Trigger/bot execution fees": "Fees paid to bots that execute limit orders and liquidations",
+      "GNS staking fees distributed to stakers": "Portion of trading fees distributed to GNS token stakers",
+      "gToken vault fees paid to liquidity providers": "Fees earned by gToken vault depositors who provide trading liquidity",
+      "Borrowing fees on open positions": "Fees charged to traders for maintaining open leveraged positions",
+    },
+    Revenue: {
+      "Protocol governance revenue": "Governance fees retained as protocol revenue",
+      "GNS staking revenue for token holders": "Trading fees directed to GNS stakers as protocol revenue",
+    },
+    HoldersRevenue: {
+      "GNS staker revenue used for buyback and burn": "Fees distributed to GNS stakers, used for token buyback and burn",
+    },
+    SupplySideRevenue: {
+      "gToken vault fees earned by LPs": "Trading fees earned by liquidity providers in gToken vaults",
+      "Referral fees earned by referrers": "Referral rewards paid out to users who refer traders",
+    },
   },
 };
 

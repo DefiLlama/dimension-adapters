@@ -22,20 +22,22 @@ const RewardsCoordinatorContract = '0x7750d328b314effa365a0402ccfd489b80b0adda'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   const events = await options.getLogs({
     target: RewardsCoordinatorContract,
     eventAbi: ContractAbis.RewardsClaimedEvent,
   })
   for (const event of events) {
-    dailyFees.add(event.token, event.claimedAmount)
+    dailyFees.add(event.token, event.claimedAmount, "Rewards claimed by stakers and operators")
+    dailySupplySideRevenue.add(event.token, event.claimedAmount, "Rewards distributed to stakers and operators")
   }
 
   return {
     dailyFees,
     dailyRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue,
   }
 }
 
@@ -48,6 +50,14 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      "Rewards claimed by stakers and operators": "Rewards claimed on the RewardsCoordinator contract by EigenLayer stakers and operators.",
+    },
+    SupplySideRevenue: {
+      "Rewards distributed to stakers and operators": "All claimed rewards are distributed to stakers and operators as supply-side revenue.",
+    },
+  },
 };
 
 export default adapter;

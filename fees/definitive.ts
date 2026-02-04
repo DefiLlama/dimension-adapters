@@ -53,6 +53,9 @@ const chainConfig = {
 
 const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   // Handle Solana separately with the original logic
   if (options.chain === CHAIN.SOLANA) {
@@ -61,44 +64,37 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
       targets: SOLANA_FEE_ADDRESSES,
       blacklists: SOLANA_BLACKLIST,
     });
-    
-    return {
-      dailyFees: solanaFees,
-      dailyUserFees: solanaFees,
-      dailyRevenue: solanaFees,
-      dailyProtocolRevenue: solanaFees,
-    };
+
+    dailyFees.addBalances(solanaFees, { label: 'Solana trading fees received at fee collection addresses' });
+    dailyUserFees.addBalances(solanaFees, { label: 'Solana trading fees received at fee collection addresses' });
+    dailyRevenue.addBalances(solanaFees, { label: 'Solana trading fees received at fee collection addresses' });
+    dailyProtocolRevenue.addBalances(solanaFees, { label: 'Solana trading fees received at fee collection addresses' });
+
+    return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
   }
 
   // Handle EVM chains with Dune query
   const preFetchedResults = options.preFetchedResults || [];
   const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
-  
+
   if (!dune_chain) {
     console.log(`No Dune mapping found for chain ${options.chain}`);
-    return {
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
+    return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue };
   }
-  
+
   const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
 
   if (data) {
     const usdcFees = data.total_amount_usdc || 0;
-    dailyFees.addUSDValue(usdcFees);
-  } else { 
+    dailyFees.addUSDValue(usdcFees, { label: 'EVM trading fees collected from Dune analytics' });
+    dailyUserFees.addUSDValue(usdcFees, { label: 'EVM trading fees collected from Dune analytics' });
+    dailyRevenue.addUSDValue(usdcFees, { label: 'EVM trading fees collected from Dune analytics' });
+    dailyProtocolRevenue.addUSDValue(usdcFees, { label: 'EVM trading fees collected from Dune analytics' });
+  } else {
     console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
   }
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  }
+  return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue }
 }
 
 const methodology = {
@@ -108,12 +104,32 @@ const methodology = {
   ProtocolRevenue: 'Fees are distributed to Definitive',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Solana trading fees received at fee collection addresses': 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses on Solana, excluding known aggregator authority addresses.',
+    'EVM trading fees collected from Dune analytics': 'Trading fees (0.05%-0.25% per trade) collected by the Definitive fee collector contract on EVM chains, aggregated via Dune analytics query in USDC.',
+  },
+  UserFees: {
+    'Solana trading fees received at fee collection addresses': 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses on Solana, excluding known aggregator authority addresses.',
+    'EVM trading fees collected from Dune analytics': 'Trading fees (0.05%-0.25% per trade) collected by the Definitive fee collector contract on EVM chains, aggregated via Dune analytics query in USDC.',
+  },
+  Revenue: {
+    'Solana trading fees received at fee collection addresses': 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses on Solana, excluding known aggregator authority addresses.',
+    'EVM trading fees collected from Dune analytics': 'Trading fees (0.05%-0.25% per trade) collected by the Definitive fee collector contract on EVM chains, aggregated via Dune analytics query in USDC.',
+  },
+  ProtocolRevenue: {
+    'Solana trading fees received at fee collection addresses': 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses on Solana, excluding known aggregator authority addresses.',
+    'EVM trading fees collected from Dune analytics': 'Trading fees (0.05%-0.25% per trade) collected by the Definitive fee collector contract on EVM chains, aggregated via Dune analytics query in USDC.',
+  },
+}
+
 const adapter: Adapter = {
   fetch,
   adapter: chainConfig,
   prefetch,
   dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 

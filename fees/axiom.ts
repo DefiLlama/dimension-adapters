@@ -79,7 +79,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   `;
   const fees = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, 'Trading fees');
 
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
 };
@@ -97,6 +97,20 @@ const adapter: SimpleAdapter = {
     UserFees: 'User pays 0.75%-1% fee on each trade',
     HoldersRevenue: 'No token holder revenue',
     ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Trading fees': 'Fee paid by users on each trade routed through Axiom (0.75%-1%)',
+    },
+    UserFees: {
+      'Trading fees': 'Users pay the trading fee on each trade',
+    },
+    Revenue: {
+      'Trading fees': 'All trading fees go to the protocol',
+    },
+    ProtocolRevenue: {
+      'Trading fees': 'All trading fees go to the protocol',
+    },
   },
   isExpensiveAdapter: true,
 };

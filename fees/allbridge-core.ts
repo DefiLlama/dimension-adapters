@@ -1,3 +1,4 @@
+import { Balances } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { Chain, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
@@ -62,7 +63,7 @@ const SUI_EVENT_TYPES = [
 const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
 const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
 
-const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<number> => {
+const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<Balances> => {
   const balances = createBalances();
   const pools = lpTokenAddresses[chain]
   const logs_fromUSD = await getLogs({ targets: pools, eventAbi: event_swap_fromUSD, flatten: false, })
@@ -74,12 +75,12 @@ const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions):
 
   function addLogs(logs: any, index: number) {
     const token = tokens[index]
-    logs.forEach((log: any) => balances.add(token, log.fee))
+    logs.forEach((log: any) => balances.add(token, log.fee, 'Bridge Swap Fees'))
   }
-  return balances.getUSDValue();
+  return balances;
 };
 
-const fetchFeesSui = async (options: FetchOptions): Promise<number> => {
+const fetchFeesSui = async (options: FetchOptions): Promise<Balances> => {
   const { createBalances } = options;
   const balances = createBalances();
 
@@ -88,23 +89,23 @@ const fetchFeesSui = async (options: FetchOptions): Promise<number> => {
       eventType,
       options,
     });
-    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee));
+    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee, 'Bridge Swap Fees'));
   }
 
-  return balances.getUSDValue();
+  return balances;
 };
 
 export async function fetchFeesAmountFromAnalyticsApi(
   chainCode: string,
   options: FetchOptions,
-): Promise<number> {
+): Promise<Balances> {
   const { createBalances, startOfDay, toTimestamp } = options;
   const balances = createBalances();
 
   const eventData = await getEventsFromAnalyticsApi(chainCode, startOfDay * 1000, toTimestamp * 1000);
-  eventData.map((data) => balances.add(data.token, data.fee));
+  eventData.map((data) => balances.add(data.token, data.fee, 'Bridge Swap Fees'));
 
-  return balances.getUSDValue();
+  return balances;
 }
 
 interface AnalyticsEvent {
@@ -123,7 +124,7 @@ export async function getEventsFromAnalyticsApi(
 }
 
 const fetch: any = async (options: FetchOptions) => {
-  let dailyFees: number;
+  let dailyFees: Balances;
   if (options.chain === CHAIN.TRON) {
     dailyFees = await fetchFeesAmountFromAnalyticsApi('TRX', options);
   } else if (options.chain === CHAIN.SUI) {
@@ -133,8 +134,10 @@ const fetch: any = async (options: FetchOptions) => {
   } else {
     dailyFees = await fetchFees(options);
   }
-  const dailyRevenue = dailyFees * 0.2;
-  const dailySupplySideRevenue = dailyFees * 0.8;
+  const dailySupplySideRevenue = dailyFees.clone();
+  dailySupplySideRevenue.resizeBy(0.8);
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.resizeBy(0.2);
   return {
     dailyFees,
     dailyRevenue,
@@ -148,9 +151,22 @@ const methodology = {
   Revenue: "20% of the swap fees goes to governance",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    'Bridge Swap Fees': 'Fees collected from cross-chain token swaps at a 0.3% rate.',
+  },
+  SupplySideRevenue: {
+    'Bridge Swap Fees': '80% of swap fees distributed to liquidity providers.',
+  },
+  Revenue: {
+    'Bridge Swap Fees': '20% of swap fees going to protocol governance.',
+  },
+};
+
 const adapters: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-05-14', },
