@@ -111,7 +111,7 @@ const adapter = {
     },
     HoldersRevenue: {
       [METRICS.TokenBuyBack]: 'SKY tokens buy back from revenue',
-      [METRICS.StakingRewards]: 'USDS rewards paid to USDS stakers',
+      [METRICS.StakingRewards]: 'USDS rewards paid to SKY stakers',
     },
   },
   allowNegativeValue: true, // Expenses can be higher than Daily Fees
