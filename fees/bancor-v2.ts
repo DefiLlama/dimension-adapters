@@ -23,6 +23,8 @@ export default {
     [CHAIN.ETHEREUM]: { fetch, start: '2020-06-20' },
   },
   breakdownMethodology: {
-    'Swap conversion fees charged on Bancor v2 trades': 'Conversion fees collected from each token swap on Bancor v2 liquidity pools, extracted from on-chain Conversion events.',
+    Fees: {
+      'Swap conversion fees charged on Bancor v2 trades': 'Conversion fees collected from each token swap on Bancor v2 liquidity pools, extracted from on-chain Conversion events.',
+    },
   },
 }
