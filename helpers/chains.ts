@@ -320,6 +320,7 @@ export enum CHAIN {
   CROSS = "cross",
   PROM = "prom",
   GRX = "grx",
+  N1 = "n1",
   ZILLIQA = "zilliqa",
   SONGBIRD = "songbird",
   MATCHAIN = "matchain",
