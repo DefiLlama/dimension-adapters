@@ -1,10 +1,6 @@
 /**
- * Lyra v2 / Derive vault and token addresses extracted from prod_lyra_addresses.json
- * and prod_lyra-old_addresses.json. Used for TVL.
- *
- * Only entries with both "Vault" and "NonMintableToken" fields are included.
- * Keys are chain IDs (string). Each entry is { vault, token } where token is the
- * underlying asset (NonMintableToken) and vault is Vault.
+ * Lyra v2 TVL: vault and token addresses (Vault + NonMintableToken pairs per chain).
+ * Keys are chain IDs (string). Each entry is { vault, token }.
  */
 import { CHAIN } from "../../helpers/chains";
 
