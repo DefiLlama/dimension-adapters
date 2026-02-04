@@ -74,7 +74,14 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     SELECT
       fee_date,
       SUM(fee_usd) AS fee_usd
-    FROM combined
+    FROM (
+      SELECT
+        fee_date,
+        fee_usd,
+        MAX(fee_date) OVER () AS max_fee_date
+      FROM combined
+    )
+    WHERE fee_date < max_fee_date
     GROUP BY fee_date
     ORDER BY fee_date DESC
   `;
