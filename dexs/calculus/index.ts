@@ -55,6 +55,7 @@ export default {
         [CHAIN.BSC]: {
             fetch,
             start: START_TS,
+            doublecounted: true,
             meta: {
                 methodology: {
                     Volume:
