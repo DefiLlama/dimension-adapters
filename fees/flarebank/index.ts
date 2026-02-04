@@ -147,7 +147,7 @@ const fetch = async (options: FetchOptions) => {
   // Apply distribution percentages
   // 80% to holders, 20% to protocol (team + DAO)
   for (const [token, amount] of Object.entries(dailyFees.getBalances())) {
-    const amountBN = BigInt(amount as string);
+    const amountBN = BigInt(amount.toString());
     dailyHoldersRevenue.add(token, amountBN * HOLDERS_SHARE / 100n);
     dailyProtocolRevenue.add(token, amountBN * PROTOCOL_SHARE / 100n);
   }
