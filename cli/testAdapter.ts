@@ -52,7 +52,7 @@ let usedHelper: string | null | undefined = null;
   const passedFile = path.resolve(process.cwd(), `./${file}`);
   
   // throw error if module doesnt start with lowercase letters
-  if (!/^[a-z]/.test(moduleArg)) {
+  if (!/^[a-z0-9]/.test(moduleArg)) {
     throw new Error("Module name should start with a lowercase letter: " + moduleArg);
   }
   
