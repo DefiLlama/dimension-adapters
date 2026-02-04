@@ -9,8 +9,8 @@
  * ├─────────────┼───────────────┼────────────────────────────────┤
  * │ Mint (buy)  │ 10% of WFLR   │ 80% holders, 15% team, 5% DAO  │
  * │ Burn (sell) │ 10% of WFLR   │ 80% holders, 15% team, 5% DAO  │
- * │ Transfer    │ 1% burn + 1%  │ 80% holders, 15% team, 5% DAO  │
- * │ LP Swap     │ 1% burn + 1%  │ 80% holders, 15% team, 5% DAO  │
+ * │ Transfer    │ 1%            │ 80% holders, 15% team, 5% DAO  │
+ * │ LP Swap     │ 1%            │ 80% holders, 15% team, 5% DAO  │
  * └─────────────┴───────────────┴────────────────────────────────┘
  * 
  * METRICS:
@@ -53,8 +53,8 @@ const EVENTS = {
 
 // Fee rates
 const MINT_BURN_FEE = 10n;  // 10%
-const TRANSFER_FEE = 1n;    // 1% fee (+ 1% burn)
-const SWAP_FEE = 1n;        // 1% fee (+ 1% burn)
+const TRANSFER_FEE = 1n;    // 1% fee
+const SWAP_FEE = 1n;        // 1% fee
 
 // Distribution percentages
 const HOLDERS_SHARE = 80n;   // 80%
@@ -159,7 +159,7 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue,                   // Team (15%) + DAO (5%)
     dailyHoldersRevenue,                    // 80% to BANK holders as dividends
     dailySupplySideRevenue: dailyHoldersRevenue, // Holders are supply side
-    dailyTokenTax: dailyTokenTax,           // 1% burns on transfers/swaps
+    dailyTokenTaxes: dailyTokenTax,          // 1% burns on transfers/swaps
   };
 };
 
@@ -171,8 +171,8 @@ const adapter: SimpleAdapter = {
       start: "2024-01-15",
       meta: {
         methodology: {
-          Fees: "10% fee on mints and burns (WFLR), 1% fee on transfers and LP swaps (BANK). Plus 1% token burn on transfers/swaps.",
-          UserFees: "Users pay all fees: 10% on mint/burn, 2% on transfer/swap (1% fee + 1% burn).",
+          Fees: "10% fee on mints and burns (WFLR), 1% fee on transfers and LP swaps (BANK).",
+          UserFees: "Users pay all fees: 10% on mint/burn, 1% on transfer/swap.",
           Revenue: "20% of fees go to protocol (15% team, 5% DAO treasury).",
           ProtocolRevenue: "15% to team wallet, 5% to DAO treasury.",
           HoldersRevenue: "80% of all fees distributed as dividends to BANK token holders.",
