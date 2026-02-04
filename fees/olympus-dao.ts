@@ -492,7 +492,7 @@ async function fetchEthereum(options: FetchOptions) {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
@@ -512,7 +512,7 @@ async function fetchBase(options: FetchOptions) {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
@@ -526,7 +526,7 @@ async function fetchArbitrum(options: FetchOptions) {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyHoldersRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
@@ -537,7 +537,7 @@ async function fetchArbitrum(options: FetchOptions) {
 const methodology = {
   Fees: "Total revenue from all protocol sources: Cooler Loan interest, sUSDS/sUSDe treasury yield, CD Facility yield, CD Lending interest, and POL (Protocol-Owned Liquidity) fees across all chains",
   Revenue: "Sum of all protocol revenue streams - as a reserve currency protocol, all revenue strengthens the treasury backing OHM",
-  HoldersRevenue: "100% of revenue benefits OHM holders through increased treasury backing per OHM",
+  ProtocolRevenue: "100% of revenue flows to protocol treasury, funding YRF buybacks that increase backing per OHM. Holder value accrual via improved Cooler Loan LTV will be tracked in a separate Lending adapter.",
 };
 
 const adapter: SimpleAdapter = {
