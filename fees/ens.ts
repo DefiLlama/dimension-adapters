@@ -39,6 +39,7 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch: async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
+        const dailyRevenue = options.createBalances();
 
         /* ----- v4 registrations ----- */
         const v4Registered = await options.getLogs({
@@ -49,7 +50,8 @@ const adapter: Adapter = {
         v4Registered.forEach((tx: any) => {
           const total = Number(tx.baseCost) + Number(tx.premium);
           if (total / 1e18 < 10) {
-            dailyFees.addGasToken(total);
+            dailyFees.addGasToken(total, "V4 name registration fees");
+            dailyRevenue.addGasToken(total, "V4 name registration revenue");
           }
         });
 
@@ -61,7 +63,8 @@ const adapter: Adapter = {
 
         v5Registered.forEach((tx: any) => {
           if (Number(tx.cost) / 1e18 < 10) {
-            dailyFees.addGasToken(tx.cost);
+            dailyFees.addGasToken(tx.cost, "V5 name registration fees");
+            dailyRevenue.addGasToken(tx.cost, "V5 name registration revenue");
           }
         });
 
@@ -73,19 +76,32 @@ const adapter: Adapter = {
 
         renewedLogs.forEach((tx: any) => {
           if (Number(tx.cost) / 1e18 < 10) {
-            dailyFees.addGasToken(tx.cost);
+            dailyFees.addGasToken(tx.cost, "Name renewal fees");
+            dailyRevenue.addGasToken(tx.cost, "Name renewal revenue");
           }
         });
 
         return {
           dailyFees,
-          dailyRevenue: dailyFees,
+          dailyRevenue,
         };
       },
       start: 1677110400, // 2023-02-23
     },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      "V4 name registration fees": "ETH paid for .eth name registrations through the V4 ETHRegistrarController contract, including base cost and premium.",
+      "V5 name registration fees": "ETH paid for .eth name registrations through the V5 ETHRegistrarController contract.",
+      "Name renewal fees": "ETH paid for .eth name renewals through both V4 and V5 ETHRegistrarController contracts.",
+    },
+    Revenue: {
+      "V4 name registration revenue": "Revenue from .eth name registrations through the V4 ETHRegistrarController contract.",
+      "V5 name registration revenue": "Revenue from .eth name registrations through the V5 ETHRegistrarController contract.",
+      "Name renewal revenue": "Revenue from .eth name renewals through both V4 and V5 ETHRegistrarController contracts.",
+    },
+  },
 };
 
 export default adapter;

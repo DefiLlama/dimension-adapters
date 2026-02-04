@@ -25,6 +25,8 @@ const address_bribe: TAddress = {
 const graph = (chain: Chain) => {
   return async ({ createBalances, getLogs, }: FetchOptions) => {
     const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
+    const dailyUserFees = createBalances();
     if (chain == 'BSC') {
       (await getLogs({
         target: address_reward[chain],
@@ -32,7 +34,9 @@ const graph = (chain: Chain) => {
       })).map((e: any) => {
         // check if it is cake address
         if (e.token === '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82') {
-          dailyFees.add(e._token, e._feeAmount);
+          dailyFees.add(e._token, e._feeAmount, 'CAKE staking stream rewards');
+          dailyRevenue.add(e._token, e._feeAmount, 'CAKE staking stream rewards');
+          dailyUserFees.add(e._token, e._feeAmount, 'CAKE staking stream rewards');
         }
       })
     }
@@ -40,9 +44,11 @@ const graph = (chain: Chain) => {
       target: address_bribe[chain],
       eventAbi: event_paid_bribe,
     })).map((e: any) => {
-      dailyFees.add(e._bribeToken, e._amount)
+      dailyFees.add(e._bribeToken, e._amount, 'Vote incentive bribes')
+      dailyRevenue.add(e._bribeToken, e._amount, 'Vote incentive bribes')
+      dailyUserFees.add(e._bribeToken, e._amount, 'Vote incentive bribes')
     })
-    return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };
+    return { dailyFees, dailyRevenue, dailyUserFees };
   }
 }
 
@@ -51,8 +57,24 @@ const methodology = {
   Revenue: 'Staking rewards collected from assets staked on PancakeSwap',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'CAKE staking stream rewards': 'CAKE token rewards paid out from PancakeSwap V3 pool staking positions on BSC.',
+    'Vote incentive bribes': 'Bribe token rewards distributed to voters as vote incentives for PancakeSwap pools.',
+  },
+  Revenue: {
+    'CAKE staking stream rewards': 'CAKE token rewards paid out from PancakeSwap V3 pool staking positions on BSC.',
+    'Vote incentive bribes': 'Bribe token rewards distributed to voters as vote incentives for PancakeSwap pools.',
+  },
+  UserFees: {
+    'CAKE staking stream rewards': 'CAKE token rewards paid out from PancakeSwap V3 pool staking positions on BSC.',
+    'Vote incentive bribes': 'Bribe token rewards distributed to voters as vote incentives for PancakeSwap pools.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   methodology,
+  breakdownMethodology,
   version: 2,
   adapter: {
     [CHAIN.BSC]: {

@@ -30,16 +30,26 @@ const graphs = (chain: Chain) => {
         `
     const graphRes: ISwap[] = (await request(endpoints[chain], query)).fees;
 
-    graphRes.map((e: ISwap) => dailyFees.addGasToken(e.fee))
+    graphRes.map((e: ISwap) => dailyFees.addGasToken(e.fee, "Trading bot swap fees"))
     return { dailyFees, timestamp }
   }
 }
+
+const breakdownMethodology = {
+  Fees: {
+    "Trading bot swap fees": "Fees collected in native gas token from users executing swaps through the BlazeBot trading bot.",
+  },
+  Revenue: {
+    "Trading bot swap fees": "Revenue collected in native gas token from users executing swaps through the BlazeBot trading bot.",
+  },
+};
 
 const adapter: Adapter = {
   methodology: {
     Fees: "All trading fees paid by users while using trading bot.",
     Revenue: 'All trading fees paid by users while using trading bot.',
   },
+  breakdownMethodology,
   deadFrom: "2024-03-12",
   adapter: {
     [CHAIN.BASE]: {

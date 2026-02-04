@@ -13,6 +13,7 @@ const endpoints = {
 const graph = (graphUrls: ChainEndpoints) => {
   return (chain: Chain) => {
     return async ({ createBalances, startOfDay }: FetchOptions) => {
+      const dailyFees = createBalances();
       const dailyRevenue = createBalances();
       const dateId = Math.floor(startOfDay);
 
@@ -24,16 +25,29 @@ const graph = (graphUrls: ChainEndpoints) => {
       );
       if (!snapshot) throw new Error("No data found");
 
-      dailyRevenue.addCGToken("convex-finance", snapshot.cvxRevenue * 1e18);
-      dailyRevenue.addCGToken("frax", snapshot.fraxRevenue * 1e18);
+      const cvxAmount = snapshot.cvxRevenue * 1e18;
+      const fraxAmount = snapshot.fraxRevenue * 1e18;
 
-      const usd = await dailyRevenue.getUSDValue();
-      const revenue = (usd / 1e18).toFixed(0);
-      const dailyFees = ((usd * 2) / 1e18).toFixed(0);
+      dailyFees.addCGToken("convex-finance", cvxAmount * 2, "CVX harvest fees");
+      dailyFees.addCGToken("frax", fraxAmount * 2, "FRAX harvest fees");
 
-      return { dailyFees, dailyRevenue: revenue };
+      dailyRevenue.addCGToken("convex-finance", cvxAmount, "CVX protocol revenue");
+      dailyRevenue.addCGToken("frax", fraxAmount, "FRAX protocol revenue");
+
+      return { dailyFees, dailyRevenue };
     };
   };
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "CVX harvest fees": "Total fees collected from CVX token harvests, representing the full fee amount before the protocol revenue split.",
+    "FRAX harvest fees": "Total fees collected from FRAX token harvests, representing the full fee amount before the protocol revenue split.",
+  },
+  Revenue: {
+    "CVX protocol revenue": "Protocol share (50%) of CVX harvest fees retained by CLever as revenue.",
+    "FRAX protocol revenue": "Protocol share (50%) of FRAX harvest fees retained by CLever as revenue.",
+  },
 };
 
 const adapter: Adapter = {
@@ -44,6 +58,7 @@ const adapter: Adapter = {
       start: '2023-04-19',
     },
   },
+  breakdownMethodology,
 };
 
 export default adapter;

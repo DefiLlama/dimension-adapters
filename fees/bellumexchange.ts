@@ -13,20 +13,31 @@ const FACTORIES = [
 
 const FEE = BigInt(100);
 
+const breakdownMethodology = {
+  Fees: {
+    'Swap Fees': 'Trading fees charged on token swaps executed through BellumExchange.',
+  },
+  Revenue: {
+    'Swap Fees': 'Trading fees collected by BellumExchange from swaps.',
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: (async (options: FetchOptions) => {
         const dailyFees = options.createBalances();
+        const dailyRevenue = options.createBalances();
         const logs = await options.getLogs({
           targets: FACTORIES,
           eventAbi: "event BellumSwap(address indexed token, address indexed sender, uint amount0In, uint amount0Out, uint amount1In, uint amount1Out)",
         })
         logs.map((tx: any) => {
-          dailyFees.addGasToken((tx.amount1In + tx.amount1Out) / FEE)
+          dailyFees.addGasToken((tx.amount1In + tx.amount1Out) / FEE, 'Swap Fees')
+          dailyRevenue.addGasToken((tx.amount1In + tx.amount1Out) / FEE, 'Swap Fees')
         })
-        return { dailyFees, dailyRevenue: dailyFees }
+        return { dailyFees, dailyRevenue }
       }) as any,
       start: '2024-08-11',
     },
@@ -34,7 +45,8 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Trading fees paid by users.",
     Revenue: "Trading fees paid by users.",
-  }
+  },
+  breakdownMethodology,
 
 }
 

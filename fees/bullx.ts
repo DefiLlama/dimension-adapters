@@ -9,6 +9,7 @@ import { queryDuneSql } from "../helpers/dune";
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   // Determine which address/trader_id to use based on date 2024-11-16
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const cutoffTimestamp = 1731715200;
   const isNewAddress = options.startOfDay >= cutoffTimestamp;
 
@@ -47,11 +48,12 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const fees = await queryDuneSql(options, query);
 
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, "Trading fees paid by BullX bot users");
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee, "Trading fees collected by BullX protocol");
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
   }
 }
 
@@ -65,6 +67,14 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "All trading fees paid by users while using BullX bot.",
     Revenue: "Trading fees are collected by BullX protocol."
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Trading fees paid by BullX bot users": "SOL fees collected from user trades executed through the BullX trading bot on Solana DEXes.",
+    },
+    Revenue: {
+      "Trading fees collected by BullX protocol": "SOL revenue retained by BullX protocol from user trading activity.",
+    },
   }
 };
 

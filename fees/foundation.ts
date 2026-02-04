@@ -13,12 +13,14 @@ const topic_0_withdraw_creator_revenue_from_dutch_auction = '0x5e16e96b4ba4fe46f
 // todo: track new events
 const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
   (await getLogs({
     target: market_address,
     topics: [topic_0_reserveAuction_finalized],
     eventAbi:  "event ReserveAuctionFinalized(uint256 indexed auctionId, address indexed seller, address indexed bidder, uint256 totalFees, uint256 creatorRev, uint256 sellerRev)",
   })).map((e: any) => {
-    dailyFees.addGasToken(e.totalFees)
+    dailyFees.addGasToken(e.totalFees, "Reserve auction fees")
+    dailyRevenue.addGasToken(e.totalFees, "Reserve auction revenue")
   });
 
   (await getLogs({
@@ -26,7 +28,8 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     topics: [topic_0_private_sale_finalized],
     eventAbi: "event PrivateSaleFinalized(address indexed nftContract, uint256 indexed tokenId, address indexed seller, address buyer, uint256 f8nFee, uint256 creatorFee, uint256 ownerRev, uint256 deadline)"
   })).map((e: any) => {
-    dailyFees.addGasToken(e.f8nFee)
+    dailyFees.addGasToken(e.f8nFee, "Private sale fees")
+    dailyRevenue.addGasToken(e.f8nFee, "Private sale revenue")
   });
 
   (await getLogs({
@@ -34,7 +37,8 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     topics: [topic_0_buyPrice_accepted],
     eventAbi: "event BuyPriceAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, address buyer, uint256 totalFees, uint256 creatorRev, uint256 sellerRev)"
   })).map((e: any) => {
-    dailyFees.addGasToken(e.totalFees)
+    dailyFees.addGasToken(e.totalFees, "Buy price sale fees")
+    dailyRevenue.addGasToken(e.totalFees, "Buy price sale revenue")
   });
 
   (await getLogs({
@@ -42,7 +46,8 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     topics: [topic_0_offer_accepted],
     eventAbi: "event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 totalFees, uint256 creatorRev, uint256 sellerRev)"
   })).map((e: any) => {
-    dailyFees.addGasToken(e.totalFees)
+    dailyFees.addGasToken(e.totalFees, "Offer accepted fees")
+    dailyRevenue.addGasToken(e.totalFees, "Offer accepted revenue")
   });
 
   (await getLogs({
@@ -50,7 +55,8 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     topics: [topic_0_mint_from_fixed_price_drop],
     eventAbi: "event MintFromFixedPriceDrop (address indexed nftContract, address indexed buyer, uint256 indexed firstTokenId, uint256 count, uint256 totalFees, uint256 creatorRev)"
   })).map((e: any) => {
-    dailyFees.addGasToken(e.totalFees)
+    dailyFees.addGasToken(e.totalFees, "Fixed price drop mint fees")
+    dailyRevenue.addGasToken(e.totalFees, "Fixed price drop mint revenue")
   });
 
   (await getLogs({
@@ -58,11 +64,12 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     topics: [topic_0_withdraw_creator_revenue_from_dutch_auction],
     eventAbi: "event WithdrawCreatorRevenueFromDutchAuction (address indexed nftContract, uint256 clearingPrice, uint256 totalMintedCount, uint256 totalFees, uint256 creatorRev)"
   })).map((e: any) => {
-    dailyFees.addGasToken(e.totalFees)
+    dailyFees.addGasToken(e.totalFees, "Dutch auction fees")
+    dailyRevenue.addGasToken(e.totalFees, "Dutch auction revenue")
   });
 
   return {
-    dailyFees, dailyRevenue: dailyFees
+    dailyFees, dailyRevenue
   }
 }
 
@@ -74,7 +81,25 @@ const adapter: Adapter = {
       fetch: fetch,
       start: '2021-02-01',
     },
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Reserve auction fees": "Platform fees collected from finalized reserve auctions on the Foundation marketplace.",
+      "Private sale fees": "Foundation platform fees collected from finalized private sales.",
+      "Buy price sale fees": "Platform fees collected when a buy-now price is accepted on the marketplace.",
+      "Offer accepted fees": "Platform fees collected when an offer is accepted on the marketplace.",
+      "Fixed price drop mint fees": "Platform fees collected from fixed price NFT drop mints.",
+      "Dutch auction fees": "Platform fees collected from dutch auction NFT drops.",
+    },
+    Revenue: {
+      "Reserve auction revenue": "Revenue from finalized reserve auctions retained by Foundation.",
+      "Private sale revenue": "Revenue from finalized private sales retained by Foundation.",
+      "Buy price sale revenue": "Revenue from buy-now price sales retained by Foundation.",
+      "Offer accepted revenue": "Revenue from accepted offers retained by Foundation.",
+      "Fixed price drop mint revenue": "Revenue from fixed price NFT drop mints retained by Foundation.",
+      "Dutch auction revenue": "Revenue from dutch auction NFT drops retained by Foundation.",
+    },
+  },
 }
 
 export default adapter;

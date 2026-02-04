@@ -37,7 +37,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   let token = options.chain === CHAIN.BSC ? ETH_ON_BSC : ZeroAddress
 
-  dailyFees.add(token, df)
+  dailyFees.add(token, df, 'ETH staking rewards')
 
   const dailyProtocolRevenue = dailyFees.clone(0.1)
   const dailySupplySideRevenue = dailyFees.clone(0.9)
@@ -50,9 +50,25 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   }
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'ETH staking rewards': 'Total ETH staking rewards from validators on the Binance Staked ETH (WBETH) contract. These rewards are split as 90% to supply-side and 10% to protocol.',
+  },
+  Revenue: {
+    'ETH staking rewards': 'Total ETH staking rewards from validators on the Binance Staked ETH (WBETH) contract. These rewards are split as 90% to supply-side and 10% to protocol.',
+  },
+  ProtocolRevenue: {
+    'ETH staking rewards': 'Total ETH staking rewards from validators on the Binance Staked ETH (WBETH) contract. These rewards are split as 90% to supply-side and 10% to protocol.',
+  },
+  SupplySideRevenue: {
+    'ETH staking rewards': 'Total ETH staking rewards from validators on the Binance Staked ETH (WBETH) contract. These rewards are split as 90% to supply-side and 10% to protocol.',
+  },
+}
+
 const adapter: Adapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

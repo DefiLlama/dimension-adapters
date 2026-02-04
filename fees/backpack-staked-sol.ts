@@ -21,26 +21,34 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0, "staking rewards from staked SOL");
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, "withdrawal and management fees");
+      dailyProtocolRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, "revenue to treasury and team");
     }
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue
   };
 };
 
-const methodology = {
-  Fees: 'Staking rewards from staked SOL on Backpack staked solana',
-  Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-  ProtocolRevenue: 'Revenue going to treasury/team',
+const breakdownMethodology = {
+  Fees: {
+    "staking rewards from staked SOL": 'Staking rewards from staked SOL on Backpack staked solana',
+  },
+  Revenue: {
+    "withdrawal and management fees": 'Includes withdrawal fees and management fees collected by fee collector',
+  },
+  ProtocolRevenue: {
+    "revenue to treasury and team": 'Revenue going to treasury/team',
+  },
 }
 
 export default {
@@ -50,5 +58,5 @@ export default {
   start: "2025-02-24",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  methodology,
+  breakdownMethodology,
 };

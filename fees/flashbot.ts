@@ -14,7 +14,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const res = await queryDuneSql(options, sql);
 
   const dayItem = res[0]
-  dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0)
+  dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0, { label: "Proposer revenue from Flashbots bundles" })
 
   return {
     dailyFees
@@ -29,6 +29,11 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'Total ETH fees paid to block proposers by users.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Proposer revenue from Flashbots bundles": "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
+    },
   },
 }
 

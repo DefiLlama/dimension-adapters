@@ -58,15 +58,15 @@ const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: 'event ReserveFundsCollected (address indexed user, uint256 amount)'
   }))
   InterestCollected.forEach((log: any) => {
-    dailyFees.addUSDValue(log.poolAmount.toString() / 1e6)
-    dailySupplySideRevenue.addUSDValue(log.poolAmount.toString() / 1e6)
+    dailyFees.addUSDValue(log.poolAmount.toString() / 1e6, undefined, "core-pool-interest-collected")
+    dailySupplySideRevenue.addUSDValue(log.poolAmount.toString() / 1e6, undefined, "core-pool-interest-to-suppliers")
   });
   PaymentApplied.forEach((log: any) => {
-    dailyFees.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6)
-    dailySupplySideRevenue.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6)
+    dailyFees.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6, undefined, "borrower-payment-interest-net-of-reserve")
+    dailySupplySideRevenue.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6, undefined, "borrower-payment-interest-to-suppliers")
   });
-  ReserveFundsCollected.forEach((log: any) => dailyFees.addUSDValue(log.amount.toString() / 1e6));
-  ReserveFundsCollected.forEach((log: any) => dailyRevenue.addUSDValue(log.amount.toString() / 1e6));
+  ReserveFundsCollected.forEach((log: any) => dailyFees.addUSDValue(log.amount.toString() / 1e6, undefined, "reserve-funds-collected"));
+  ReserveFundsCollected.forEach((log: any) => dailyRevenue.addUSDValue(log.amount.toString() / 1e6, undefined, "reserve-funds-as-protocol-revenue"));
 
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue } as any
@@ -84,6 +84,20 @@ const adapters: SimpleAdapter = {
     Fees: "Interest, payment, and reserve fees paid by users.",
     Revenue: "Reserve fees are revenue.",
     SupplySideRevenue: "Interest and payment fees are distributed to suppliers.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "core-pool-interest-collected": "Interest collected from the core pool, counted as a fee and directed to supply-side",
+      "borrower-payment-interest-net-of-reserve": "Borrower interest payments minus reserve allocation, counted as a fee and directed to supply-side",
+      "reserve-funds-collected": "Reserve funds collected across all pools, counted as a protocol fee",
+    },
+    Revenue: {
+      "reserve-funds-as-protocol-revenue": "Reserve funds retained by the protocol as revenue",
+    },
+    SupplySideRevenue: {
+      "core-pool-interest-to-suppliers": "Core pool interest distributed to liquidity suppliers",
+      "borrower-payment-interest-to-suppliers": "Net borrower interest payments distributed to liquidity suppliers",
+    },
   }
 }
 export default adapters;

@@ -14,7 +14,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   });
 
   if (fees && fees.result !== undefined && fees.result !== null) {
-    dailyFees.addCGToken('dogecoin', fees.result / 1e18);
+    dailyFees.addCGToken('dogecoin', fees.result / 1e18, 'Transaction fees paid in DOGE');
   }
 
   return {
@@ -27,7 +27,12 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.DOGECHAIN],
   fetch,
   start: '2022-08-01',
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  breakdownMethodology: {
+    Fees: {
+      'Transaction fees paid in DOGE': 'Gas fees paid by users for transactions on the Dogechain network, denominated in DOGE',
+    },
+  },
 };
 
 export default adapter;

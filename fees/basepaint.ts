@@ -13,9 +13,9 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const amounts = logs.map((e: any) => e.amount)
-  dailyFees.add(ethAddress, amounts)
+  dailyFees.add(ethAddress, amounts, 'Total artist earnings and protocol fees')
   dailyFees.resizeBy(1 / 0.9) // 90% of the fees go to the artists
-  dailyRevenue.addBalances(dailyFees)
+  dailyRevenue.addBalances(dailyFees, undefined, 'Protocol revenue from BasePaint')
   dailyRevenue.resizeBy(protocol_fees / 100) // 10% of the fees go to the protocol
 
   return { dailyFees, dailyRevenue }
@@ -32,6 +32,14 @@ const adapterFees: SimpleAdapter = {
   methodology: {
     Fees: 'Fees paid by users for using BasePaint services.',
     Revenue: 'Fees portion collected by BasePaint.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Total artist earnings and protocol fees': 'Sum of all earnings from the ArtistsEarned event, representing 90% artist payments and 10% protocol fees before revenue allocation',
+    },
+    Revenue: {
+      'Protocol revenue from BasePaint': 'The 10% protocol revenue portion collected from total fees after deducting artist earnings',
+    },
   }
 }
 

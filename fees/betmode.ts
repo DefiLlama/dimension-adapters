@@ -7,7 +7,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const feesStart = await options.fromApi.call({ target: address, abi: "uint:GGR" })
   const feesEnd = await options.toApi.call({ target: address, abi: "uint:GGR" })
-  dailyFees.add(ADDRESSES.mode.USDC, feesEnd - feesStart)
+  dailyFees.add(ADDRESSES.mode.USDC, feesEnd - feesStart, "Betmode protocol fees")
   dailyFees.resizeBy(0.065)
   return { dailyFees, dailyRevenue: dailyFees }
 }
@@ -17,7 +17,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MODE]: {
       fetch: fetch,
-          }
+    }
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Betmode protocol fees": "Gross gaming revenue collected on the Betmode protocol in USDC",
+    },
+    Revenue: {
+      "Betmode protocol fees": "Gross gaming revenue collected on the Betmode protocol in USDC",
+    },
   }
 }
 

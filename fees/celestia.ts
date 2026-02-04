@@ -12,7 +12,7 @@ const fetchFees = async (_t: number, _b: ChainBlocks, options: FetchOptions)  =>
   const dailyFees = options.createBalances();
   const res: Fee[] = await httpGet(url(options.fromTimestamp, options.toTimestamp))
   res.forEach(fee => {
-    dailyFees.addCGToken('celestia', Number(fee.value)/1e6)
+    dailyFees.addCGToken('celestia', Number(fee.value)/1e6, 'Transaction fees paid in TIA')
   })
   return {
     timestamp: options.startOfDay,
@@ -27,6 +27,11 @@ const adapter: SimpleAdapter = {
           },
   },
   protocolType: ProtocolType.CHAIN,
+  breakdownMethodology: {
+    Fees: {
+      'Transaction fees paid in TIA': 'Gas fees paid by users in TIA for submitting transactions and data blobs on the Celestia network, fetched from the Celenium API.',
+    },
+  },
 }
 
 export default adapter;

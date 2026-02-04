@@ -2,6 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
 const contract_address: any = {
   [CHAIN.BLAST]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
@@ -56,7 +57,7 @@ const fethcFeesSolana = async (_: any, _1: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
@@ -71,8 +72,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   logs.map((log: any) => {
     const data = log.data.replace('0x', '');
     const gasToken = data.slice(0, 64);
-    dailyFees.addGasToken(Number('0x' + gasToken));
-    dailyRevenue.addGasToken(Number('0x' + gasToken));
+    dailyFees.addGasToken(Number('0x' + gasToken), METRIC.TRADING_FEES);
+    dailyRevenue.addGasToken(Number('0x' + gasToken), METRIC.TRADING_FEES);
   });
   return {
     dailyFees,
@@ -85,6 +86,18 @@ const methodology = {
   Fees: 'All trading fees paid by users for using Banana Bot.',
   Revenue: 'Fees collected by Banana Bot protocol.',
   ProtocolRevenue: 'Fees collected by Banana Bot protocol.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Trading fees charged on each trade executed through Banana Gun bot.',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees collected by Banana Gun protocol.',
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees collected by Banana Gun protocol (no supply side).',
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -104,6 +117,7 @@ const adapter: SimpleAdapter = {
   },
   dependencies: [Dependencies.DUNE],
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 

@@ -53,8 +53,8 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyVolume = options.createBalances();
 
-    dailyFees.addCGToken('aptos', octasToApt(feesEnd - feesStart));
-    dailyVolume.addCGToken('aptos', octasToApt(volumeEnd - volumeStart));
+    dailyFees.addCGToken('aptos', octasToApt(feesEnd - feesStart), 'Integrator fees from token trading and launching');
+    dailyVolume.addCGToken('aptos', octasToApt(volumeEnd - volumeStart), 'Quote volume from token swaps');
 
     return {
         dailyFees,
@@ -72,5 +72,10 @@ export default {
     },
     methodology: {
         Fees: "Tokens trading and launching fees paid by users.",
+    },
+    breakdownMethodology: {
+        Fees: {
+            'Integrator fees from token trading and launching': 'Cumulative integrator fees denominated in APT, computed as the difference between the end and start of the period from the on-chain registry view.',
+        },
     }
 };

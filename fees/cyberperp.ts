@@ -159,18 +159,35 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
-  
-  dailyFees.addUSDValue(totalRevenue);
-  dailyRevenue.addUSDValue(protocolRevenue);
-  dailySupplySideRevenue.addUSDValue(providersRevenue);
+
+  dailyFees.addUSDValue(totalRevenue, "Trading and position fees");
+  dailyRevenue.addUSDValue(protocolRevenue, "Staking and developer vault fees");
+  dailyProtocolRevenue.addUSDValue(protocolRevenue, "Staking and developer vault fees");
+  dailySupplySideRevenue.addUSDValue(providersRevenue, "LP provider fees from trading, funding, and rollover");
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Trading and position fees": "All trading, funding, and rollover fees collected from users across all position events.",
+  },
+  Revenue: {
+    "Staking and developer vault fees": "Fees directed to the staking and developer vaults from deposit fee events.",
+  },
+  ProtocolRevenue: {
+    "Staking and developer vault fees": "Fees directed to the staking and developer vaults from deposit fee events.",
+  },
+  SupplySideRevenue: {
+    "LP provider fees from trading, funding, and rollover": "Fees distributed to liquidity providers including LP share of deposit fees, net funding fees, and rollover fees.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -183,6 +200,7 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "Fees directed to the protocol vaults for maintenance",
     SupplySideRevenue: "Fees distributed to liquidity providers, adjusted for funding profit/loss",
   },
+  breakdownMethodology,
 };
 
 export default adapter;

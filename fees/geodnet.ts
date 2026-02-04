@@ -16,7 +16,9 @@ interface ILog {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const balances = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const burnedEventLogs: ILog[] = await options.getLogs({
     target: GEODNET_TOKEN_ADDRESS,
@@ -24,13 +26,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   burnedEventLogs.forEach((log: ILog) => {
-    balances.add(GEODNET_TOKEN_ADDRESS, Number(log.data));
+    dailyHoldersRevenue.add(GEODNET_TOKEN_ADDRESS, Number(log.data), 'GEOD token buyback and burn');
   })
 
-
-  const dailyHoldersRevenue = balances
-  const dailyFees = balances.clone(1 / 0.8)
-  const dailyRevenue = dailyFees;
+  const burnBalancesScaled = dailyHoldersRevenue.clone(1 / 0.8);
+  dailyFees.addBalances(burnBalancesScaled, { label: 'Station access fees derived from GEOD burns' });
+  dailyRevenue.addBalances(burnBalancesScaled, { label: 'Protocol revenue from station access' });
 
   return {
     dailyFees,
@@ -51,14 +52,21 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   //   group by
   //       1
   // `;
-  const fees = await getSolanaReceived({ options, target: INCINERATOR_ADDRESS, mints: ['7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'] });
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-  const dailyFees = fees.clone(1 / 0.8)
+  const burnedBalances = await getSolanaReceived({ options, target: INCINERATOR_ADDRESS, mints: ['7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'] });
+  dailyHoldersRevenue.addBalances(burnedBalances, { label: 'GEOD token buyback and burn' });
+
+  const burnBalancesScaled = burnedBalances.clone(1 / 0.8);
+  dailyFees.addBalances(burnBalancesScaled, { label: 'Station access fees derived from GEOD burns' });
+  dailyRevenue.addBalances(burnBalancesScaled, { label: 'Protocol revenue from station access' });
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyHoldersRevenue: fees,
+    dailyRevenue,
+    dailyHoldersRevenue,
   };
 }
 
@@ -78,6 +86,17 @@ const adapter: SimpleAdapter = {
     Fees: 'GEODNET receives fees for station access to their RTK network.',
     Revenue: "When GEODNET receives fees for station access, 80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation. The remaining 20% supports the foundation's organizational costs.",
     HoldersRevenue: '80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Station access fees derived from GEOD burns': 'Total station access fees inferred from GEOD burns (burns represent 80% of total fees, so total = burns / 0.8).',
+    },
+    Revenue: {
+      'Protocol revenue from station access': 'Total revenue from station access fees, including both the 80% used for GEOD buyback-and-burn and the 20% retained by the foundation.',
+    },
+    HoldersRevenue: {
+      'GEOD token buyback and burn': 'GEOD tokens bought back from the open market and sent to the burn address, representing 80% of station access fees redistributed to holders.',
+    },
   },
 };
 

@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
           AND block_time BETWEEN llama_replace_date_range;
       `, options);
 
-  // bal vote
+  // bal yield
   const bal_bal_yield_logs = await queryIndexer(`
         SELECT
           substr(encode(topic_1, 'hex'), 25) AS origin,
@@ -62,11 +62,11 @@ const fetch = async (options: FetchOptions) => {
   //         `, options);
 
   bal_transfer_logs.map((e: any) => {
-    dailyFees.add(BAL_TOKEN, '0x' + e.data)
+    dailyFees.add(BAL_TOKEN, '0x' + e.data, 'BAL Vote Incentive Rewards')
   });
 
   bal_bal_yield_logs.map((e: any) => {
-    dailyFees.add(BAL_TOKEN, '0x' + e.data)
+    dailyFees.add(BAL_TOKEN, '0x' + e.data, 'BAL Yield Rewards')
   });
 
 
@@ -94,6 +94,24 @@ const adapter: Adapter = {
     HoldersRevenue: "Staking rewards earned by AURA holders.",
     ProtocolRevenue: "Staking rewards earned by Aura.",
     SupplySideRevenue: "Staking rewards distributed to depositors."
+  },
+  breakdownMethodology: {
+    Fees: {
+      'BAL Vote Incentive Rewards': 'BAL tokens received from vote incentive contracts to the Aura collector.',
+      'BAL Yield Rewards': 'BAL tokens received from other yield sources to the Aura collector.',
+    },
+    Revenue: {
+      'BAL Vote Incentive Rewards': '25% of BAL vote incentive rewards retained by the Aura protocol.',
+      'BAL Yield Rewards': '25% of BAL yield rewards retained by the Aura protocol.',
+    },
+    SupplySideRevenue: {
+      'BAL Vote Incentive Rewards': '75% of BAL vote incentive rewards distributed to depositors.',
+      'BAL Yield Rewards': '75% of BAL yield rewards distributed to depositors.',
+    },
+    HoldersRevenue: {
+      'BAL Vote Incentive Rewards': '4% of BAL vote incentive rewards earned by AURA holders.',
+      'BAL Yield Rewards': '4% of BAL yield rewards earned by AURA holders.',
+    },
   }
 
 }
