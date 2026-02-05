@@ -121,7 +121,7 @@ const adapter: SimpleAdapter = {
       [METRIC.SWAP_FEES]: "Fees collected from swaps executed using Jupiter Ultra Swap API"
     },
     Revenue: {
-      "Limit Orders": "The protocol collects all the fees from limit orders placed using the Jupiter Trigger API are",
+      "Limit Orders": "The protocol collects all the fees from limit orders placed using the Jupiter Trigger API",
       [METRIC.SWAP_FEES]: "The protocol collects 20% of the integrator fees" 
     },
     SupplySideRevenue: {
