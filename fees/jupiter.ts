@@ -21,7 +21,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       , '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
     ]
   })
-  dailyFees.addBalances(limitOrderFees, "Limit orders")
+  dailyFees.addBalances(limitOrderFees, "Limit Orders")
   // ultra fees
   // https://dune.com/queries/4769928
   const data: IData[] = await queryDuneSql(options, `
