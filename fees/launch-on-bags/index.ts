@@ -27,7 +27,8 @@ interface IDammv2FeeResponse {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dbcQuery = getSqlFromFile('helpers/queries/bags.sql', {
+  // Use v1-only query to avoid double counting with DAMM v2 API data
+  const dbcQuery = getSqlFromFile('helpers/queries/bags-v1.sql', {
     tx_signer: 'BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv',
     start: options.startTimestamp,
     end: options.endTimestamp
@@ -37,6 +38,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
+  // DBC pre-migration fees
   dbcData.forEach(row => {
     const protocolFees = Number(row.daily_protocol_revenue);
     const creatorFees = Number(row.daily_fees) - protocolFees;
@@ -46,9 +48,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.add(row.quote_mint, creatorFees, METRIC.CREATOR_FEES);
   });
 
-  // Fetch DAMMv2 data from API (post-migration)
-  // DAMMV2_API_URL return fee in USD value
-  // startTimestamp need to add 1 seconds to match the start of the day 
+  /**
+   * Fetch DAMMv2 data from API (post-migration)
+   * This includes all DAMM v2 graduated pools and pools using FEE2 contract
+   * API returns fees for Bags token authority (BAGSB9TpGrZxQbEsrEznv5jXXdwyP6AXerN8aVRiAmcv) 
+   * and fee sharing contract (FEE2tBhCKAt7shrod19QttSVREUYPiyMzoku1mL1gqVK)
+   * DAMMV2_API_URL returns fee in USD value
+   * startTimestamp need to add 1 seconds to match the start of the day
+   * */ 
   const dammv2Url = `${DAMMV2_API_URL}?start_time=${options.startTimestamp + 1}&end_time=${options.endTimestamp}`;
   const dammv2Response: IDammv2FeeResponse = await httpGet(dammv2Url);
 
