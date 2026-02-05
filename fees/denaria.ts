@@ -50,9 +50,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Fees+slippage derived from ExecutedTrade legs, expressed in USDC (1e6).",
-  Revenue: "Same as Fees.",
-  ProtocolRevenue: "Same as Fees.",
+  Fees: "Fees generate from Denaria Perp, calculate in USDC.",
 };
 
 const adapter: SimpleAdapter = {

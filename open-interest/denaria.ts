@@ -17,20 +17,39 @@ async function fetch(options: FetchOptions) {
   const totalTraderExposureBtc18 = BigInt(totalTraderExposure.toString());
 
   // timestamp price BTC
-  const endTimestamp =
-    typeof (options as any).endTimestamp === "number"
-      ? (options as any).endTimestamp
-      : Math.floor(Date.now() / 1000);
+  let endTimestamp = Math.floor(Date.now() / 1000);
 
-  // 3) set BTC price
-  const { data } = await axios.get(
-    `https://coins.llama.fi/prices/historical/${endTimestamp}/coingecko:bitcoin`
-  );
+  if (typeof options.endTimestamp === "number") {
+    endTimestamp = options.endTimestamp;
+  } else {
+    // keep default (now)
+  }
 
-  const btcPriceUsd = data.coins["coingecko:bitcoin"].price as number;
+  // set BTC price
+  let btcPriceUsd: number;
+
+  try {
+    const { data } = await axios.get(
+      `https://coins.llama.fi/prices/historical/${endTimestamp}/coingecko:bitcoin`
+    );
+
+    const maybePrice = data?.coins?.["coingecko:bitcoin"]?.price;
+
+    if (typeof maybePrice !== "number" || maybePrice <= 0) {
+      throw new Error(
+        `Invalid BTC price response: ${JSON.stringify(data)?.slice(0, 300)}`
+      );
+    }
+
+    btcPriceUsd = maybePrice;
+  } catch (err: any) {
+    throw new Error(
+      `[Denaria][OI] Failed to fetch BTC price from coins.llama (ts=${endTimestamp}). ` +
+        `Error: ${err?.message ?? String(err)}`
+    );
+  }
+
   const btcPriceUsd1e8 = BigInt(Math.round(btcPriceUsd * 1e8));
-
-  console.log("[Denaria][OI] BTC price", { endTimestamp, btcPriceUsd });
 
   // calc exposure trader in USDC
   const totalTraderExposureUSDC = (((totalTraderExposureBtc18 * btcPriceUsd1e8) / BigInt(1e8)) / BigInt(1e12))
