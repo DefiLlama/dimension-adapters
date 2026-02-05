@@ -20,7 +20,13 @@ interface WrapEvent {
   fees: [number, number, number, number];
 }
 
-interface WrapAndSwapEvent {
+interface WrapAndSwapV1Event {
+  inputAndOutputToken: [string, string];
+  inputAndOutputAmount: [number, number];
+  fees: [number, number, number, number, number];
+}
+
+interface WrapAndSwapV2Event {
   inputIntermediaryOutputToken: [string, string, string];
   inputIntermediaryOutputAmount: [number, number, number];
   fees: [number, number, number, number, number];
@@ -61,7 +67,9 @@ const CHAIN_CONFIGS: Partial<Record<CHAIN, ChainConfig>> = {
 const EVENT_SIGNATURES = {
   NEW_UNWRAP:
     "event NewUnwrap(bytes userScript,uint8 scriptType,address lockerTargetAddress,address indexed userTargetAddress,uint256 requestIdOfLocker,uint256 indexed deadline,uint256 thirdPartyId,address inputToken,uint256[3] amounts,uint256[4] fees)",
-  NEW_WRAP_AND_SWAP:
+  NEW_WRAP_AND_SWAP_V1:
+    "event NewWrapAndSwap(address lockerTargetAddress,address indexed user,address[2] inputAndOutputToken,uint256[2] inputAndOutputAmount,uint256 indexed speed,address indexed teleporter,bytes32 bitcoinTxId,uint256 appId,uint256 thirdPartyId,uint256[5] fees,uint256 destinationChainId)",
+  NEW_WRAP_AND_SWAP_V2:
     "event NewWrapAndSwapV2(address lockerTargetAddress,bytes32 indexed user,bytes32[3] inputIntermediaryOutputToken,uint256[3] inputIntermediaryOutputAmount,uint256 indexed speed,address indexed teleporter,bytes32 bitcoinTxId,uint256 appId,uint256 thirdPartyId,uint256[5] fees,uint256 destinationChainId)",
   NEW_WRAP:
     "event NewWrap(bytes32 bitcoinTxId,bytes indexed lockerLockingScript,address lockerTargetAddress,address indexed user,address teleporter,uint256[2] amounts,uint256[4] fees,uint256 thirdPartyId,uint256 destinationChainId)",
@@ -102,18 +110,28 @@ async function processWrapAndSwapEvents(
   dailyVolume: ReturnType<FetchOptions["createBalances"]>,
   dailyFees: ReturnType<FetchOptions["createBalances"]>
 ): Promise<void> {
-  const wrapAndSwapLogs = await options.getLogs({
-    target: config.exchangeRouter,
-    eventAbi: EVENT_SIGNATURES.NEW_WRAP_AND_SWAP,
-  });
+  const [v1Logs, v2Logs] = await Promise.all([
+    options.getLogs({
+      target: config.exchangeRouter,
+      eventAbi: EVENT_SIGNATURES.NEW_WRAP_AND_SWAP_V1,
+    }),
+    options.getLogs({
+      target: config.exchangeRouter,
+      eventAbi: EVENT_SIGNATURES.NEW_WRAP_AND_SWAP_V2,
+    }),
+  ]);
 
-  for (const wrapAndSwapLog of wrapAndSwapLogs) {
-    const event = wrapAndSwapLog as WrapAndSwapEvent;
+  for (const log of v1Logs) {
+    const event = log as WrapAndSwapV1Event;
+    dailyVolume.add(event.inputAndOutputToken[0], event.inputAndOutputAmount[0]);
+    const fees =
+      event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
+    dailyFees.add(config.teleBTC as string, fees);
+  }
 
-    // Add volume using teleBTC since tokens are now bytes32 (cross-chain identifiers)
+  for (const log of v2Logs) {
+    const event = log as WrapAndSwapV2Event;
     dailyVolume.add(config.teleBTC, event.inputIntermediaryOutputAmount[0]);
-
-    // Add fees (BTC fees at indices 1 and 2)
     const fees =
       event.fees[FEE_INDICES.LOCKER_FEE] + event.fees[FEE_INDICES.PROTOCOL_FEE];
     dailyFees.add(config.teleBTC as string, fees);
