@@ -21,8 +21,8 @@ interface WrapEvent {
 }
 
 interface WrapAndSwapEvent {
-  inputAndOutputToken: [string, string];
-  inputAndOutputAmount: [number, number];
+  inputIntermediaryOutputToken: [string, string, string];
+  inputIntermediaryOutputAmount: [number, number, number];
   fees: [number, number, number, number, number];
 }
 
@@ -62,7 +62,7 @@ const EVENT_SIGNATURES = {
   NEW_UNWRAP:
     "event NewUnwrap(bytes userScript,uint8 scriptType,address lockerTargetAddress,address indexed userTargetAddress,uint256 requestIdOfLocker,uint256 indexed deadline,uint256 thirdPartyId,address inputToken,uint256[3] amounts,uint256[4] fees)",
   NEW_WRAP_AND_SWAP:
-    "event NewWrapAndSwap(address lockerTargetAddress,address indexed user,address[2] inputAndOutputToken,uint256[2] inputAndOutputAmount,uint256 indexed speed,address indexed teleporter,bytes32 bitcoinTxId,uint256 appId,uint256 thirdPartyId,uint256[5] fees,uint256 destinationChainId)",
+    "event NewWrapAndSwapV2(address lockerTargetAddress,bytes32 indexed user,bytes32[3] inputIntermediaryOutputToken,uint256[3] inputIntermediaryOutputAmount,uint256 indexed speed,address indexed teleporter,bytes32 bitcoinTxId,uint256 appId,uint256 thirdPartyId,uint256[5] fees,uint256 destinationChainId)",
   NEW_WRAP:
     "event NewWrap(bytes32 bitcoinTxId,bytes indexed lockerLockingScript,address lockerTargetAddress,address indexed user,address teleporter,uint256[2] amounts,uint256[4] fees,uint256 thirdPartyId,uint256 destinationChainId)",
 } as const;
@@ -110,11 +110,8 @@ async function processWrapAndSwapEvents(
   for (const wrapAndSwapLog of wrapAndSwapLogs) {
     const event = wrapAndSwapLog as WrapAndSwapEvent;
 
-    // Add volume from input token (teleBTC) amount (index 1)
-    dailyVolume.add(
-      event.inputAndOutputToken[0],
-      event.inputAndOutputAmount[0]
-    );
+    // Add volume using teleBTC since tokens are now bytes32 (cross-chain identifiers)
+    dailyVolume.add(config.teleBTC, event.inputIntermediaryOutputAmount[0]);
 
     // Add fees (BTC fees at indices 1 and 2)
     const fees =
