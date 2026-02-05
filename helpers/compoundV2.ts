@@ -135,7 +135,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
         const dailySupplySideRevenue = options.createBalances()
         dailySupplySideRevenue.addBalances(dailyFees)
         Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
-          dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
+          dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1, METRIC.BORROW_INTEREST)
         })
         return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
       }),
