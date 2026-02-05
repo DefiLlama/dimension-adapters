@@ -1,6 +1,8 @@
-import { buildStablecoinAdapter} from "./attestations-stablecoins";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
+import { buildStablecoinAdapter} from "../../helpers/attestations-stablecoins";
 
-const adapter = buildStablecoinAdapter('1', 30* 3,
+const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '1', 30* 3,
 // Based on https://tether.to/en/transparency/?tab=reports
 [
     {
@@ -120,10 +122,21 @@ const adapter = buildStablecoinAdapter('1', 30* 3,
 
 ]);
 
-adapter.adapter.ethereum.meta = {
-    methodology: {
-        Fees: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
-        Revenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+adapter.methodology = {
+    Fees: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
+    Revenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+    ProtocolRevenue: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+}
+
+adapter.breakdownMethodology = {
+    Fees: {
+        [METRIC.ASSETS_YIELDS]: 'All yields from USDT backing assets investments, mostly US Treasury Bills.',
+    },
+    Revenue: {
+        [METRIC.ASSETS_YIELDS]: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
+    },
+    ProtocolRevenue: {
+        [METRIC.ASSETS_YIELDS]: 'All yields from USDT backing assets investments, mostly US Treasury Bills collected by Tether.',
     },
 }
 

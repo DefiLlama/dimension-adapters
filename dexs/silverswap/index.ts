@@ -34,9 +34,7 @@ export default {
 		[CHAIN.SONIC]: {
 			fetch,
 			start: "2024-12-07",
-			meta: {
-				methodology,
-			},
 		},
 	},
+	methodology,
 };

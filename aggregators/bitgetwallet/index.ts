@@ -1,78 +1,65 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
-const historicalVolumeEndpoint = "https://new-swapopen.bitapi.vip/st/getOrderDayList"
+const historicalVolumeEndpoint = "https://api-3rd.bitkeep.com/swap-go/open/getOrderDayVolume"
 
 interface IVolumeall {
-    volume: string;
-    date: string;
+  volume: string;
+  date: string;
 }
 
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-    const chain = options.chain;
-    if (chain === CHAIN.HECO || chain === CHAIN.BASE || chain === CHAIN.ETHEREUM) { return {}} // skip HECO for now
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${chain}`))?.data?.list;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
-    const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
+  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${options.chain}`))?.data?.list;
+  const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === options.startOfDay)?.volume
 
-    return {
-        dailyVolume: dailyVolume
-    };
+  return { dailyVolume };
 }
 
 const CHAINS: Array<CHAIN> = [
-    CHAIN.APTOS,
-    CHAIN.ARBITRUM,
-    // CHAIN.AVAX,
-    CHAIN.BASE,
-    CHAIN.BLAST,
-    CHAIN.BSC,
-    CHAIN.BITCOIN,
-    CHAIN.CELO,
-    CHAIN.CORE,
-    CHAIN.ETHEREUM,
-    CHAIN.FANTOM,
-    CHAIN.HECO,
-    // CHAIN.KLAYTN,
-    CHAIN.LINEA,
-    CHAIN.MANTA,
-    CHAIN.POLYGON,
-    CHAIN.MANTLE,
-    CHAIN.MORPH,
-    CHAIN.NEAR,
-    CHAIN.OP_BNB,
-    CHAIN.OPTIMISM,
-    CHAIN.SOLANA,
-    CHAIN.SUI,
-    CHAIN.TON,
-    CHAIN.TRON,
-    CHAIN.ZKFAIR,
-    CHAIN.ZKSYNC
+  CHAIN.APTOS,
+  CHAIN.HYPERLIQUID,
+  CHAIN.SOLANA,
+  CHAIN.BLAST,
+  CHAIN.BITCOIN,
+  CHAIN.ARBITRUM,
+  CHAIN.KLAYTN,
+  CHAIN.SONIC,
+  CHAIN.MANTLE,
+  CHAIN.RIPPLE,
+  CHAIN.AVAX,
+  CHAIN.LINEA,
+  CHAIN.SUI,
+  CHAIN.SCROLL,
+  CHAIN.BASE,
+  CHAIN.POLYGON,
+  CHAIN.TON,
+  CHAIN.CRONOS,
+  CHAIN.DOGECHAIN,
+  CHAIN.BERACHAIN,
+  CHAIN.MONAD,
+  CHAIN.TRON,
+  CHAIN.CELO,
+  CHAIN.BSC,
+  CHAIN.MORPH,
+  CHAIN.XLAYER,
+  CHAIN.CORE,
+  CHAIN.OP_BNB,
+  CHAIN.ZKSYNC,
+  CHAIN.ETHEREUM,
+  CHAIN.OPTIMISM,
+  CHAIN.FANTOM,
+  CHAIN.PLASMA,
+  CHAIN.SEI
 ];
 
-
-
 const adapter: SimpleAdapter = {
-    version: 1,
-    adapter: {
-        ...CHAINS.map(chain => {
-            return {
-                [chain]: {
-                    fetch,
-                    start: '2022-10-31'
-                }
-            }
-        }).reduce((acc, item) => {
-            return {
-                ...acc,
-                ...item
-            }
-        })
-    }
+  version: 1,
+  fetch,
+  chains: CHAINS,
+  start: '2025-04-01',
 };
 
 export default adapter;

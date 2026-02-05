@@ -26,23 +26,22 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
   return { dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyFees, };
 }
 
-const meta = {
-  methodology: {
-    Fees: "Interest and liquidation fees paid by borrowers",
-    Revenue: "75% fees earned by Radiant and token holders",
-    ProtocolRevenue: "15% fees earned by Radiant",
-    HoldersRevenue: "60% fees earned by token holders",
-    SupplySideRevenue: "25% fees earned by lenders",
-  }
+const methodology = {
+  Fees: "Interest and liquidation fees paid by borrowers",
+  Revenue: "75% fees earned by Radiant and token holders",
+  ProtocolRevenue: "15% fees earned by Radiant",
+  HoldersRevenue: "60% fees earned by token holders",
+  SupplySideRevenue: "25% fees earned by lenders",
 }
 
 const adapter: Adapter = {
+  fetch, methodology,
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: { fetch, start: '2023-03-18', meta },
-    [CHAIN.BSC]: { fetch, start: '2023-03-26', meta },
-    [CHAIN.ETHEREUM]: { fetch, start: '2023-11-01', meta },
-    [CHAIN.BASE]: { fetch, start: '2024-06-28', meta },
+    [CHAIN.ARBITRUM]: { start: '2023-03-18', },
+    [CHAIN.BSC]: { start: '2023-03-26', },
+    [CHAIN.ETHEREUM]: { start: '2023-11-01', },
+    [CHAIN.BASE]: { start: '2024-06-28', },
   }
 }
 

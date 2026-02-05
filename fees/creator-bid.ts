@@ -28,15 +28,13 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-09-09',
-      meta: {
-        methodology: {
-          Fees: 'Fees paid by users when create and trade AI agents.',
-          Revenue: 'Fees paid by users when create and trade AI agents.',
-          ProtocolRevenue: 'Fees paid by users when create and trade AI agents.',
-        }
-      }
     },
   },
+  methodology: {
+    Fees: 'Fees paid by users when create and trade AI agents.',
+    Revenue: 'Fees paid by users when create and trade AI agents.',
+    ProtocolRevenue: 'Fees paid by users when create and trade AI agents.',
+  }
 }
 
 export default adapter;

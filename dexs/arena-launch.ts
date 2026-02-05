@@ -11,8 +11,8 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
 
-  const buyLogs = await getLogs({target: '0x8315f1eb449Dd4B779495C3A0b05e5d194446c6e', eventAbi: abi.Buy })
-  const sellLogs = await getLogs({target: '0x8315f1eb449Dd4B779495C3A0b05e5d194446c6e', eventAbi: abi.Sell })
+  const buyLogs = await getLogs({ target: '0x8315f1eb449Dd4B779495C3A0b05e5d194446c6e', eventAbi: abi.Buy })
+  const sellLogs = await getLogs({ target: '0x8315f1eb449Dd4B779495C3A0b05e5d194446c6e', eventAbi: abi.Sell })
 
   function addLogData(log: any) {
     dailyVolume.addGasToken(log.cost)
@@ -31,16 +31,14 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
 export default {
   version: 2,
+  methodology: {
+    Fees: 'All fees paid by users for trading tokens.',
+    Revenue: 'All fees paid by users for trading tokens.',
+  },
+  fetch,
   adapter: {
     [CHAIN.AVAX]: {
       start: '2025-05-04',
-      fetch,
-      meta: {
-        methodology: {
-          Fees: 'All fees paid by users for trading tokens.',
-          Revenue: 'All fees paid by users for trading tokens.',
-        }
-      }
     },
   }
 }

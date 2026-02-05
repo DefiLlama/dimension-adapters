@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 import { getETHReceived } from "../../helpers/token";
@@ -13,49 +13,45 @@ const KAIROS_AUCTION_BIDDER_ADDRESS = '0x2b38a73dd32a2eafe849825a4b515ae5187eda4
 
 const AUCTIONRESOLVED_EVENT_ABI = 'event AuctionResolved(bool indexed isMultiBidAuction, uint64 round, address indexed firstPriceBidder, address indexed firstPriceExpressLaneController, uint256 firstPriceAmount, uint256 price, uint64 roundStartTimestamp, uint64 roundEndTimestamp)'
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
-    const dailyFees = options.createBalances();
-    const dailyCost = options.createBalances();
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyCost = options.createBalances();
 
-    const logs = await options.getLogs({
-      target: '0x5fcb496a31b7ae91e7c9078ec662bd7a55cd3079',
-      eventAbi: AUCTIONRESOLVED_EVENT_ABI
-    });
+  const logs = await options.getLogs({
+    target: '0x5fcb496a31b7ae91e7c9078ec662bd7a55cd3079',
+    eventAbi: AUCTIONRESOLVED_EVENT_ABI
+  });
 
-    await getETHReceived({ options, balances: dailyFees, target: KAIROS_PAYMENT_ADDRESS });
+  await getETHReceived({ options, balances: dailyFees, target: KAIROS_PAYMENT_ADDRESS });
 
-    logs.map((log: any) => {
-      if (log.firstPriceBidder.toLowerCase() === KAIROS_AUCTION_BIDDER_ADDRESS.toLowerCase()) {
-        dailyCost.add(WETH_ADDRESS, log.price);
-      }
-    });
-
-    const dailyRevenue = dailyFees.clone();
-    dailyRevenue.subtract(dailyCost);
-
-    return {
-        dailyFees,
-        dailyRevenue
+  logs.map((log: any) => {
+    if (log.firstPriceBidder.toLowerCase() === KAIROS_AUCTION_BIDDER_ADDRESS.toLowerCase()) {
+      dailyCost.add(WETH_ADDRESS, log.price);
     }
+  });
+
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.subtract(dailyCost);
+
+  return {
+    dailyFees,
+    dailyRevenue
+  }
 }
 
 // version 1 as it's using allium query
 const adapter: SimpleAdapter = {
-  allowNegativeValue: true, // Kairos pre-pays gas/auction costs for Arbitrum Timeboost slots.
   version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFees as any,
-      start: '2025-04-16',
-      meta: {
-        "methodology": {
-          Fees: "Kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue.",
-          Revenue: "Revenue of fees after remove costs.",
-        }
-      }
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2025-04-16',
+  allowNegativeValue: true, // Kairos pre-pays gas/auction costs for Arbitrum Timeboost slots.
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
+  methodology: {
+    Fees: "Kairos pay for auction bids upfront, we subtract the cost from the fees to get the revenue.",
+    Revenue: "Revenue of fees after remove costs.",
+  },
 }
 
 export default adapter;

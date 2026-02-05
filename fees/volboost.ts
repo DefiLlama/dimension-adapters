@@ -34,16 +34,14 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: fetchFees,
-        meta: {
-          methodology: {
-            Fees: "Fees paid by users while using boost services.",
-            Revenue: "Fees paid by users while using boost services.",
-            ProtocolRevenue: "Fees paid by users while using boost services.",
-          }
-        }
       },
     };
   }, {}),
+  methodology: {
+    Fees: "Fees paid by users while using boost services.",
+    Revenue: "Fees paid by users while using boost services.",
+    ProtocolRevenue: "Fees paid by users while using boost services.",
+  }
 };
 
 export default adapter;

@@ -12,6 +12,7 @@ const chainMapping: { [key: string]: { chain: CHAIN; gasCgTokenId: string | null
     'BTC': { chain: CHAIN.BITCOIN, gasCgTokenId: 'bitcoin' },
     'XRP': { chain: CHAIN.RIPPLE, gasCgTokenId: 'ripple' },
     'ADA': { chain: CHAIN.CARDANO, gasCgTokenId: 'cardano' },
+    'HYPEREVM_HYPE': { chain: CHAIN.HYPERLIQUID, gasCgTokenId: 'hyperliquid' },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -27,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
         const feeTokenset = log.feeTokenset;
         feeTokenset.forEach((tokenData: any) => {
             const [chainStr, _symbol, addr, _decimalsFromLog, amount] = tokenData;
-
+            
             const mappedChainData = chainMapping[chainStr];
             if (!mappedChainData) {
                 throw new Error(`Chain ${chainStr} not found in mapping`);
@@ -46,11 +47,11 @@ const fetch = async (options: FetchOptions) => {
         });
     });
 
-    return { 
-        dailyFees, 
-        dailyRevenue: dailyFees, 
-        dailyProtocolRevenue: dailyFees, 
-        dailyHoldersRevenue: 0 
+    return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+        dailyHoldersRevenue: 0
     };
 };
 
@@ -60,14 +61,12 @@ export default {
         [CHAIN.BASE]: {
             fetch,
             start: '2024-12-17',
-            meta: {
-                methodology: {
-                    Fees: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets.',
-                    Revenue: 'All services fees paid by users.',
-                    ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
-                    HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
-                }
-            }
         }
-    }
+    },
+    methodology: {
+        Fees: 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets.',
+        Revenue: 'All services fees paid by users.',
+        ProtocolRevenue: 'All services fees are collected by SoSoValue protocol.',
+        HoldersRevenue: 'No holder revenue, only emissions as staking rewards',
+    },
 };

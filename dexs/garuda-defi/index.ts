@@ -4,7 +4,7 @@ import request, { gql } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints = {
-  terra: "https://server-grdx-api.diforce.id/graphql", 
+  terra: "https://server-grdx-api.nexora-tech.org/graphql", 
 };
 
 const historicalData = gql`

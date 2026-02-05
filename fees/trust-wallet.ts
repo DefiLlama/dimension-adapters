@@ -16,6 +16,8 @@ const chains = [
 const targets: any = {
   [CHAIN.ETHEREUM]: [
     "0x9cdFbB62C42767E911b696292eF7179Df66bEE27",
+    "0x74379aD026eF386679a27B320841224A08722C66",
+    "0x92f980a7aae3574cfe45e30a21d6aa14d08f7c7d",
     "0xe020C8934B23E5bCcA1E7EEcdb6f39674029Fe47",
     "0xaD01C20d5886137e056775af56915de824c8fCe5",
     "0x19cd4F3820E7BBed45762a30BFA37dFC6c9C145b",
@@ -25,7 +27,9 @@ const targets: any = {
     "0xcA868ef1dF9e52d7d5AC79f7e52F492e619f2bAB",
     "0xb27028fcd9cb9d621646bb1e769ab9b6a4bf69f3",
     "0x37815fC86c61b06eff53EC7c4DEA59784499d74A",
-    "0xf2eF6cDFd963091b3fDd2097299f90C8e18DC379"
+    "0xf2eF6cDFd963091b3fDd2097299f90C8e18DC379",
+    "0xc84f14C250128357C82E1b737Bf19e6Efb1111bc",
+    "0xab28e2d6e4713dc0f6F1aDdf74abc3d2313445cc"
   ],
   [CHAIN.OPTIMISM]: [
     '0xaD01C20d5886137e056775af56915de824c8fCe5',
@@ -145,7 +149,9 @@ const fromAdddesses_type_percent: any = {
 
 const fromAdddesses: any = {
   [CHAIN.ETHEREUM]: [
-    "0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146"
+    "0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146",
+    "0xCE99790A72037EDcFEDCd667bA837FfF29DFf969",
+    "0x790D46F47a1934229452D8C1e6aF1De2c1326Ed3"
   ],
 }
 
@@ -186,16 +192,14 @@ const adapter: SimpleAdapter = {
       [chain]: {
         fetch: fetchFees,
         start: '2023-05-18',
-        meta: {
-          methodology: {
-            Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
-            Revenue: 'Fees collected by Trust Wallet.',
-            ProtocolRevenue: 'Fees collected by Trust Wallet.',
-          }
-        }
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
+    Revenue: 'Fees collected by Trust Wallet.',
+    ProtocolRevenue: 'Fees collected by Trust Wallet.',
+  }
 };
 
 export default adapter;

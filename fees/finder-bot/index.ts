@@ -1,27 +1,23 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 
-const fetch: any = async (options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: 'or8TBDJvuD86CUiFjFWX9oy34EmjoTtHEpPULP1JTta' })
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: "All trading fees paid by users while using bot.",
-          Revenue: "Trading fees are collected by protocol.",
-          ProtocolRevenue: "Trading fees are collected by protocol.",
-        }
-      }
-    },
+  version: 1,
+  dependencies: [Dependencies.ALLIUM],
+  fetch,
+  chains: [CHAIN.SOLANA],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading fees paid by users while using bot.",
+    Revenue: "Trading fees are collected by protocol.",
+    ProtocolRevenue: "Trading fees are collected by protocol.",
   },
-  isExpensiveAdapter: true
 };
 
 export default adapter;

@@ -28,7 +28,7 @@ const fetchFees = async (options: FetchOptions) => {
   const toBlock = await options.getBlock(options.toTimestamp, options.chain, {})
   // const fromBlock = 15111743
   // const toBlock = 28654931
-  
+
   const logs = await options.getLogs({
     eventAbi: "event DealFundsWithdrawn (address indexed token, address indexed to, uint256 amount)",
     topics: [DEAL_FUNDS_WITHDRAWN_TOPIC, null as any, ethers.zeroPadValue(ECHO_FEE_RECEIVER, 32)],
@@ -40,7 +40,7 @@ const fetchFees = async (options: FetchOptions) => {
   })
 
   const uniqueFees = new Map<string, { token: string, amount: bigint }>();
-  
+
   // Process each log, keeping only the platform fee portion
   for (const log of logs) {
     const token = '0x' + log.topics[1].slice(26);
@@ -50,7 +50,7 @@ const fetchFees = async (options: FetchOptions) => {
       uniqueFees.set(key, { token, amount });
     }
   }
-  
+
   const dailyFees = options.createBalances();
   for (const { token, amount } of uniqueFees.values()) {
     dailyFees.add(token, amount);
@@ -68,13 +68,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-03-27',
-      meta: {
-        methodology: {
-          Fees: "Platform fees collected by Echo protocol from each deal",
-          Revenue: "Platform fees collected by Echo protocol from each deal",
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: "Platform fees collected by Echo protocol from each deal",
+    Revenue: "Platform fees collected by Echo protocol from each deal",
   }
 }
 

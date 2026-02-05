@@ -37,15 +37,10 @@ const fetch = (chain: Chain) => {
     });
 
     const historical = historicalVolume.filter((e: IVolumeall)  => e.title === chainsMap[chain]);
-    const totalVolume = historical
-      .filter(volItem => getUniqStartOfTodayTimestamp(new Date(volItem.time)) <= dayTimestamp)
-      .reduce((acc, { volume }) => acc + Number(volume), 0)
-
     const dailyVolume = historical
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.time)) === dayTimestamp)?.volume
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

@@ -31,14 +31,12 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: '2024-11-18',
-      meta: {
-        methodology: {
-          Fees: 'All fees accrued by liquidity pools.',
-          Revenue: '20% to gov token holder, 10% to buyback gov token, 0% to protocol.',
-          SupplySideRevenue: "70% to pool token holders.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: 'All fees accrued by liquidity pools.',
+    Revenue: '20% to gov token holder, 10% to buyback gov token, 0% to protocol.',
+    SupplySideRevenue: "70% to pool token holders.",
   },
 };
 

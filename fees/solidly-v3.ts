@@ -58,7 +58,7 @@ const fetch = (chain: Chain) => {
   }
 }
 
-const meta = {
+const info = {
       methodology: {
         UserFees: "User pays fees on each swap.",
         Revenue: '20% of the fees are distributed to voters using veSOLID.',
@@ -67,36 +67,31 @@ const meta = {
     }
 
 const adapter: Adapter = {
+  methodology: info.methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2023-08-18',
-      meta
     },
     [CHAIN.SONIC]: {
       fetch: fetch(CHAIN.SONIC),
       start: '2024-12-17',
-      meta
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: '2024-01-24',
-      meta
     },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2024-01-24',
-      meta
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2024-01-24',
-      meta
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(CHAIN.FANTOM),
       start: '2023-25-12',
-      meta
     }
   }, 
 }

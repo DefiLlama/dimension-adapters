@@ -20,6 +20,7 @@ async function getVaults({ getLogs }: FetchOptions): Promise<string[]> {
     const logChunk = await getLogs({
         target: Config.Factory,
         fromBlock: Config.startBlock,
+        cacheInCloud: true,
         eventAbi: "event VaultAndStrategy(address indexed deployer, string vaultType, string strategyId, address vault, address strategy, string name, string symbol, address[] assets, bytes32 deploymentKey, uint256 vaultManagerTokenId)",
     });
 
@@ -68,12 +69,10 @@ const adapter: SimpleAdapter = {
         [CHAIN.SONIC]: {
             fetch: fetch,
             start: '2024-12-24',
-            meta: {
-                methodology: {
-                    Fees: "Yield and management fees collected from managed assets and vaults.",
-                },
-            },
         },
+    },
+    methodology: {
+        Fees: "Yield and management fees collected from managed assets and vaults.",
     },
 }
 

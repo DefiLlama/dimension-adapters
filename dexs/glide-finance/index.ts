@@ -1,11 +1,20 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapters = univ2Adapter({
-  [CHAIN.ELASTOS]: "https://api.glidefinance.io/subgraphs/name/glide/exchange"
-}, {
+const fetch = univ2Adapter({
+  endpoints: {
+    [CHAIN.ELASTOS]: "https://api.glidefinance.io/subgraphs/name/glide/exchange"
+  },
   factoriesName: "glideFactories",
   dayData: "glideDayData"
 });
-adapters.adapter.elastos.start = 1635479215;
-export default adapters;
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.ELASTOS]: { fetch, start: 1635479215 },
+  },
+}
+
+export default adapter;

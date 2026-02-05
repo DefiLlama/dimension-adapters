@@ -1,11 +1,12 @@
 
-import { SimpleAdapter } from "../adapters/types";
+import { Dependencies, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
 import { ProtocolType } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
     [CHAIN.STARKNET]: {
       fetch: async (_t: any, _a: any, options: FetchOptions) => {
@@ -33,8 +34,8 @@ const adapter: SimpleAdapter = {
       }
     },
   },
-  version: 1,
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   protocolType: ProtocolType.CHAIN,
 };
 

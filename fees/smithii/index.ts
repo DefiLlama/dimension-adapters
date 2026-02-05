@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { postURL } from "../../utils/fetchURL";
@@ -9,7 +9,7 @@ const config: Record<string, { contract: string, start: string }> = {
     contract: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
     start: "2024-07-26",
   },
-  [CHAIN.BASE]:{
+  [CHAIN.BASE]: {
     contract: "0xD5765b5d565227A27dD7C96B32b2600958c9cE9c",
     start: "2024-07-26",
   },
@@ -143,6 +143,8 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  dependencies: [Dependencies.ALLIUM],
+  methodology,
   adapter: {
     ...Object.keys(config).reduce((acc, chain) => {
       return {
@@ -150,18 +152,15 @@ const adapter: SimpleAdapter = {
         [chain]: {
           fetch: evmFetch,
           start: config[chain].start,
-          meta: { methodology },
         },
       };
     }, {}),
     [CHAIN.SOLANA]: {
       fetch: solanaFetch,
-      meta: { methodology },
     },
     [CHAIN.SUI]: {
       fetch: suiFetch,
       start: "2025-03-19",
-      meta: { methodology },
     },
   },
   isExpensiveAdapter: true,

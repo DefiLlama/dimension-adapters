@@ -22,6 +22,7 @@ const chains: TChains = {
   [CHAIN.MOONRIVER]: 'Moonriver',
   [CHAIN.POLYGON]: 'Polygon',
   [CHAIN.FRAXTAL]: 'Fraxtal',
+  [CHAIN.OPTIMISM]: 'Optimism',
 };
 
 interface IVolumeall {
@@ -37,14 +38,10 @@ const graphs = (chain: Chain) => {
     const historicalVolume = historical
       .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
 
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.intervalTimestamp).getTime() / 1000) <= dayTimestamp)
-      .reduce((acc, { swapVolumeUsdAmount }) => acc + Number(swapVolumeUsdAmount), 0)
     const dailyVolume = historicalVolume
       .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.swapVolumeUsdAmount
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

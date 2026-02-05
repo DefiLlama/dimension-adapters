@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const URL = 'https://routerv2.akka.finance';
 
@@ -23,12 +22,11 @@ const startTimestamps = {
   [CHAIN.BSQUARED]: '2024-10-29',
 };
 
-const fetch = async (timestamp: number, _: any, { chain }: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const chainId = chainIds[chain];
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+  const chainId = chainIds[options.chain];
 
-  const endpoint = `/v2/${ chainId }/statistics/dappradar`;
-  const response = await fetchURL(`${ URL }${ endpoint }`);
+  const endpoint = `/v2/${chainId}/statistics/dappradar`;
+  const response = await fetchURL(`${URL}${endpoint}`);
 
   const { dailyVolume }: IAPIResponse = response;
 

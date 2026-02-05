@@ -28,11 +28,11 @@ async function fetchLast24hFees(timestamp: number, _: ChainBlocks, { createBalan
   const dailySupplySideRevenue = dailyFees.clone(0.5); // Half of the fees go to liquidity providers
   const dailyProtocolRevenue = dailyFees.clone(0.5); // Half of the fees go to the protocol
 
-  return { 
-    dailyFees, 
-    dailyRevenue: dailyProtocolRevenue, 
-    dailyProtocolRevenue, 
-    dailySupplySideRevenue 
+  return {
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue
   }
 }
 
@@ -43,15 +43,13 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchLast24hFees,
       runAtCurrTime: true,
-      meta: {
-        methodology: {
-          Fees: "Total fees collected from all pools in USD over the last 24 hours, based on the 'feesUsd' field from the volume data.",
-          Revenue: "Half of the total fees, representing the portion retained by the protocol.",
-          ProtocolRevenue: "Half of the total fees, representing the portion retained by the protocol.",
-          SupplySideRevenue: "Half of the total fees, representing the portion going to liquidity providers.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Total fees collected from all pools in USD over the last 24 hours, based on the 'feesUsd' field from the volume data.",
+    Revenue: "Half of the total fees, representing the portion retained by the protocol.",
+    ProtocolRevenue: "Half of the total fees, representing the portion retained by the protocol.",
+    SupplySideRevenue: "Half of the total fees, representing the portion going to liquidity providers.",
   },
 };
 

@@ -1,10 +1,9 @@
-import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
 
 
 const usdo = '0x3D513abc13f53A1E18Ae59A7B5B0930E55733C87';
-const BUSD = ADDRESSES.onus.BUSD
+const BUSD = '0xdfB5E8a4AC08E46258A12AbE737bba5D8c452508';
 
 const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
   const dailyFees = createBalances()

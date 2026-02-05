@@ -70,7 +70,7 @@ async function getVaultsFees(
     const prevFee0 = prevBals[index]?.fee0 ?? 0;
     const currFee0 = currBals[index].fee0;
 
-    const token1 = token1s[index];    
+    const token1 = token1s[index];
     const prevFee1 = prevBals[index]?.fee1 ?? 0;
     const currFee1 = currBals[index].fee1;
 
@@ -93,37 +93,15 @@ async function getVaultsFees(
 }
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'All yields are collected from deposited assets by liquidity providers.',
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
         getVaultsFees(options, contracts[CHAIN.ETHEREUM]),
       start: '2023-08-26',
-      meta: {
-        methodology: {
-          Fees: 'All yields are collected from deposited assets by liquidity providers.',
-        }
-      }
     },
-    // [CHAIN.POLYGON]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.POLYGON]),
-    //   start: '2023-08-26',
-    // },
-    // [CHAIN.OPTIMISM]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.OPTIMISM]),
-    //   start: '2023-08-26',
-    // },
-    // [CHAIN.BASE]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.BASE]),
-    //   start: '2023-08-26',
-    // },
-    // [CHAIN.ARBITRUM]: {
-    //   fetch: (options: FetchOptions) =>
-    //     getVaultsFees(options, contracts[CHAIN.ARBITRUM]),
-    //   start: '2023-08-26',
-    // },
   },
   version: 2,
 };

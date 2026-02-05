@@ -21,7 +21,6 @@ const adapter: SimpleAdapter = {
 
         return {
           dailyFees: data.daily_fee,
-          totalFees: data.total_fee,
         }
       }
     }

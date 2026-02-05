@@ -13,18 +13,20 @@ const fromBlock = 65218551
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain, api } = options
-  
+
   let logs = await options.getLogs({
     target: factory,
     eventAbi: poolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   })
   logs = logs.concat(await options.getLogs({
     target: factory,
     eventAbi: customPoolEvent,
     fromBlock: fromBlock,
     entireLog: true,
+    cacheInCloud: true,
   }))
   const iface = new ethers.Interface([poolEvent, customPoolEvent])
   logs = logs.map((log: any) => iface.parseLog(log)?.args)
@@ -58,11 +60,21 @@ const fetch = async (options: FetchOptions) => {
       addOneToken({ chain, balances: dailyRevenue, token0, token1, amount0: log.amount0.toString() * fee, amount1: log.amount1.toString() * fee })
     })
   })
-  
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: 0, dailySupplySideRevenue, dailyHoldersRevenue: dailyRevenue }
+
+  return { 
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyProtocolRevenue: 0,
+    dailyHoldersRevenue: dailyRevenue,
+  }
 }
 
-const meta = {
+const adapter: SimpleAdapter = {
+  version: 2,
+
   methodology: {
     Fees: "All swap fees paid by users.",
     UserFees: "All swap fees paid by users.",
@@ -70,17 +82,9 @@ const meta = {
     Revenue: "All swap fees are revenue.",
     ProtocolRevenue: "Protocol makes no revenue.",
     HoldersRevenue: "All revenue are distributed to veBlack holders.",
-  }
-};
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.AVAX]: {
-      meta,
-      fetch,
-    },
-  }
+  },
+  chains: [CHAIN.AVAX],
+  fetch,
 };
 
 export default adapter;

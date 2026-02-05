@@ -31,12 +31,8 @@ const fetch = (chainId: string) => {
     const dailyFees = fees
       .find(item => item.time === dayTimestamp)?.dayTradeFee
 
-    const totalFees = fees
-      .find(item => item.time === dayTimestamp)?.totalTradeFee
-
     return {
       dailyFees,
-      totalFees,
       timestamp: dayTimestamp,
     };
   };

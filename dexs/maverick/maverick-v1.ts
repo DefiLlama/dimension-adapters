@@ -36,7 +36,7 @@ const getData = async (options: any, dataType: "volume" | "fee") => {
   const factoryFromBlock = maverickV1Factories[options.chain].startBlock;
 
   let pools: string[];
-  const logs = await options.getLogs({ target: factory, fromBlock: factoryFromBlock, eventAbi: mavV2PoolCreated, });
+  const logs = await options.getLogs({ target: factory, fromBlock: factoryFromBlock, eventAbi: mavV2PoolCreated, cacheInCloud: true, });
 
   pools = logs.map((log: any) => log.poolAddress.toLowerCase());
   const tokenAs = await options.api.multiCall({ abi: "address:tokenA", calls: pools!, });

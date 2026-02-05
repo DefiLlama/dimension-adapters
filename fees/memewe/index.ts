@@ -23,15 +23,13 @@ const adapter: Adapter = {
         };
       }) as any,
       start: "2024-11-28",
-      meta: {
-        methodology: {
-          Fees: "Tokens trading and launching fees paid by users.",
-          Revenue: "All fees are revenue.",
-          ProtocolRevenue: "All revenue collected by protocol.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Tokens trading and launching fees paid by users.",
+    Revenue: "All fees are revenue.",
+    ProtocolRevenue: "All revenue collected by protocol.",
+  }
 };
 
 export default adapter;

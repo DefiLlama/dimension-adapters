@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
+import { handleBribeToken } from "./utils";
 
 const CONFIG = {
   PoolFactory: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da',
@@ -28,11 +29,11 @@ const abis = {
 }
 
 const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
-  const { createBalances, } = fetchOptions
+  const { createBalances, startTimestamp } = fetchOptions
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
+  const logs_gauge_created = await fetchOptions.getLogs({ target: CONFIG.voter, fromBlock: 3200601, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, cacheInCloud: true, })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
 
   const bribes_contract: string[] = logs_gauge_created
@@ -45,8 +46,11 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
     const contract = (log.address || log.source).toLowerCase()
     if (!bribeSet.has(contract)) return;
     const parsedLog = iface.parseLog(log)
-    dailyBribesRevenue.add(parsedLog!.args.reward, parsedLog!.args.amount)
+    const token = parsedLog!.args.reward.toLowerCase()
+    const amount = parsedLog!.args.amount
+    handleBribeToken(token, amount, startTimestamp, dailyBribesRevenue)
   })
+
   return { dailyBribesRevenue }
 }
 
@@ -136,12 +140,9 @@ const fetch = async (_t: any, _a: any, options: FetchOptions): Promise<FetchResu
 
 const adapters: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2023-08-28'
-    }
-  }
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2023-08-28',
 }
 
 export default adapters

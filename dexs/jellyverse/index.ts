@@ -33,9 +33,6 @@ async function fetch(_: any, _1: any, { toTimestamp, chain }: FetchOptions) {
     dailyVolume: today.totalSwapVolume - yesterday.totalSwapVolume,
     dailyFees: today.totalSwapFee - yesterday.totalSwapFee,
     dailyRevenue: today.totalProtocolFee - yesterday.totalProtocolFee,
-    totalVolume: today.totalSwapVolume,
-    totalFees: today.totalSwapFee,
-    totalRevenue: today.totalProtocolFee,
   }
 }
 

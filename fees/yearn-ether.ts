@@ -1,15 +1,18 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
 
 const methodology = {
   Fees: 'Total swap fees paid by users from yETH pool',
   SupplySideRevenue: 'Total fees are distributed to liquidity providers',
+  Revenue: 'The amount of fees go Yearn treasury',
   ProtocolRevenue: 'The amount of fees go Yearn treasury',
 }
 
-const yETHPoolOld = '0x2cced4ffa804adbe1269cdfc22d7904471abde63'
-const yETHPoolNew = '0x0ca1bd1301191576bea9b9afcfd4649dd1ba6822'
+const yETHPools: Array<string> = [
+  '0x2cced4ffa804adbe1269cdfc22d7904471abde63',
+  '0x0ca1bd1301191576bea9b9afcfd4649dd1ba6822',
+  '0xCcd04073f4BdC4510927ea9Ba350875C3c65BF81',
+]
 
 const SwapFeesRate = 0.0003 // 0.03%
 
@@ -26,49 +29,36 @@ for (let i = 0; i < 20; i++) {
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
 
-  const assets: {[key: string]: Array<string>} = {
-    [yETHPoolOld]: await options.api.multiCall({
+  for (const pool of yETHPools) {
+    const assets: Array<string> = await options.api.multiCall({
       abi: ContractAbis.assets,
-      target: yETHPoolOld,
+      target: pool,
       calls: CoinIndexs,
       permitFailure: true,
-    }),
-    [yETHPoolNew]: await options.api.multiCall({
-      abi: ContractAbis.assets,
-      target: yETHPoolNew,
-      calls: CoinIndexs,
-      permitFailure: true,
-    }),
-  }
-
-  for (const pool of [yETHPoolOld, yETHPoolNew]) {
+    })
     const swapEvents = await options.getLogs({
       eventAbi: ContractAbis.SwapEvent,
       target: pool,
     })
     for (const event of swapEvents) {
-      dailyFees.add(assets[pool][Number(event.asset_in)], Number(event.amount_in) * SwapFeesRate)
+      dailyFees.add(assets[Number(event.asset_in)], Number(event.amount_in) * SwapFeesRate)
     }
   }
 
   return {
     dailyFees,
     dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
   }
 }
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2023-09-07',
-      meta: {
-        methodology,
-      }
-    },
-  },
+  methodology,
+  fetch,
+  start: '2023-09-07',
+  chains: [CHAIN.ETHEREUM],
 };
 
 export default adapter;

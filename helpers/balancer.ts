@@ -22,11 +22,11 @@ export async function getFees(vault: string, { createBalances, api, getLogs, }: 
   logs_flash_bot.forEach((log: any) => dailyFees.add(log.token, log.feeAmount))
   const poolIds = [...new Set(logs_swap.map((a: any) => a.poolId))]
   const pools = (await api.multiCall({ abi: abis.getPool, calls: poolIds, target: vault })).map(i => i[0])
-  const swapFees = await api.multiCall({ abi: abis.getSwapFeePercentage, calls: pools })
+  const swapFees = await api.multiCall({ abi: abis.getSwapFeePercentage, calls: pools, permitFailure: true })
   logs_swap.forEach((log: any) => {
     const index = poolIds.indexOf(log.poolId)
     if (index === -1) return;
-    const fee = swapFees[index] / 1e18
+    const fee = swapFees[index] ? swapFees[index] / 1e18 : 0
     dailyFees.add(log.tokenOut, Number(log.amountOut) * fee)
     addOneToken({ chain: api.chain, balances: dailyVolume, token0: log.tokenIn, token1: log.tokenOut, amount0: log.amountIn, amount1: log.amountOut })
   })
@@ -63,16 +63,12 @@ export function getFeesExport(vault: string, { revenueRatio = 0, protocolRevenue
 
 export function getGraphExport(graphEndpoint: string, { revenueRatio = 0 }: { revenueRatio?: number } = {}) {
   return (async ({ getEndBlock, getStartBlock, createBalances, }: FetchOptions) => {
-    const { dailyFees, dailyVolume, totalFees, totalVolume } = await getDataGraph()
-    const response: any = { dailyFees, dailyVolume, totalFees, totalVolume }
+    const { dailyFees, dailyVolume, } = await getDataGraph()
+    const response: any = { dailyFees, dailyVolume, }
 
     if (revenueRatio) {
       const dailyRevenue = dailyFees.clone(revenueRatio)
       const dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
-      const totalRevenue = totalFees.clone(revenueRatio)
-      const totalSupplySideRevenue = totalFees.clone(1 - revenueRatio)
-      response.totalRevenue = totalRevenue
-      response.totalSupplySideRevenue = totalSupplySideRevenue
       response.dailyRevenue = dailyRevenue
       response.dailySupplySideRevenue = dailySupplySideRevenue
     }
@@ -90,18 +86,14 @@ export function getGraphExport(graphEndpoint: string, { revenueRatio = 0 }: { re
         }
       }`
       const graphRes = await sdk.graph.request(graphEndpoint, graphQuery)
-      const totalFees = createBalances()
-      const totalVolume = createBalances()
       const dailyFees = createBalances()
       const dailyVolume = createBalances()
       graphRes.today.forEach((today: any, i: number) => {
         const yesterday = graphRes.yesterday[i]
-        totalFees.addUSDValue(+today.totalSwapFee)
-        totalVolume.addUSDValue(+today.totalSwapVolume)
         dailyFees.addUSDValue(+today.totalSwapFee - yesterday.totalSwapFee)
         dailyVolume.addUSDValue(today.totalSwapVolume - yesterday.totalSwapVolume)
       })
-      return { dailyFees, dailyVolume, totalFees, totalVolume }
+      return { dailyFees, dailyVolume, }
     }
   }) as FetchV2
 }

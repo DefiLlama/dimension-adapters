@@ -62,11 +62,9 @@ const adapter: Adapter = {
       fetch,
       // Saturday, 1 March 2025 00:00:00
       start: '2025-03-01',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

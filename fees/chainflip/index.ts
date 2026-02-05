@@ -15,16 +15,13 @@ const fetch = async (options: FetchOptions) => {
     // Fees collected from burning $FLIP. This is a fixed percentage of swap value.
     dailyProtocolRevenue: dimensionsData.dailyProtocolRevenue,
     dailyRevenue: dimensionsData.dailyProtocolRevenue,
-    totalProtocolRevenue: dimensionsData.totalProtocolRevenue,
 
     // Ingress, Egress, and Broker fees paid by the user per swap
     dailyUserFees: dimensionsData.dailyUserFees,
     dailyFees: dimensionsData.dailyUserFees,
-    totalUserFees: dimensionsData.totalUserFees,
 
     // Fees collected by the LP. This is a fixed percentage of swap value.
     dailySupplySideRevenue: dimensionsData.dailySupplySideRevenue,
-    totalSupplySideRevenue: dimensionsData.totalSupplySideRevenue,
   };
 };
 
@@ -34,17 +31,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.CHAINFLIP]: {
       fetch,
       start: "2023-11-23", // Protocol start date
-      meta: {
-        methodology: {
-          Revenue:
-            "Fees collected from burning $FLIP. This is a fixed percentage of swap value.",
-          UserFees:
-            "Ingress, Egress, and Broker fees paid by the user per swap",
-          SupplySideRevenue:
-            "Fees collected by the LP. This is a fixed percentage of swap value.",
-        },
-      },
     },
+  },
+  methodology: {
+    Revenue:
+      "Fees collected from burning $FLIP. This is a fixed percentage of swap value.",
+    UserFees:
+      "Ingress, Egress, and Broker fees paid by the user per swap",
+    SupplySideRevenue:
+      "Fees collected by the LP. This is a fixed percentage of swap value.",
   },
 };
 

@@ -64,15 +64,13 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 1,
+  methodology,
   adapter: Object.keys(config).reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch,
         start: config[chain].start,
-        meta: {
-          methodology
-        }
       }
     }
   }, {})

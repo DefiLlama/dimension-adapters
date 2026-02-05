@@ -38,15 +38,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
       };
     };
     const historicalVolume = historical.filter(e => e.chainId === chains[options.chain]);
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.timestamp).getTime()) <= dayTimestamp)
-      .reduce((acc, { volDay }) => acc + Number(volDay), 0)
-
     const dailyVolume = historicalVolume
       .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
     
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

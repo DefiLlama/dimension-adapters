@@ -41,16 +41,14 @@ const adapter: SimpleAdapter = {
         [CHAIN.APTOS]: {
             fetch,
             start: '2025-05-07',
-            meta: {
-                methodology: {
-                    Fees: "Sum of all fees, interest accrued and all liquidation penalty",
-                    Revenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
-                    ProtocolRevenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
-                    SupplySideRevenue: "LP's share of all interest accrued",
-                }
-            }
         },
     },
+    methodology: {
+        Fees: "Sum of all fees, interest accrued and all liquidation penalty",
+        Revenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
+        ProtocolRevenue: "Sum of all protocol fee, and fee on interest accrued and all liquidation penalties",
+        SupplySideRevenue: "LP's share of all interest accrued",
+    }
 };
 
 export default adapter;

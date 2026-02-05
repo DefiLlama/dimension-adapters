@@ -40,14 +40,6 @@ const getFetch =
         period: "daily",
       }
     );
-    const totalData: IGraphResponse = await request(
-      endpoints[chain],
-      historicalData,
-      {
-        id: "total",
-        period: "total",
-      }
-    );
 
     return {
       timestamp: dayTimestamp,
@@ -62,17 +54,6 @@ const getFetch =
                 10 ** -30
             )
           : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-                10 ** -30
-            )
-          : undefined,
     };
   };
 
@@ -81,6 +62,7 @@ const startTimestamps: { [chain: string]: number } = {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {
       ...acc,

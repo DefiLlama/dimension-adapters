@@ -41,6 +41,13 @@ const RangoChains: Record<string, string> = {
   [CHAIN.TON]: 'TON',
   [CHAIN.BERACHAIN]: 'BERACHAIN',
   [CHAIN.AURORA]: 'AURORA',
+  [CHAIN.XRPL]: 'XRPL',
+  [CHAIN.HYPERLIQUID]: 'HYPERLIQUID',
+  [CHAIN.MONAD]: 'MONAD',
+  [CHAIN.UNICHAIN]: 'UNICHAIN',
+  [CHAIN.SONEIUM]: 'SONEIUM',
+  [CHAIN.KATANA]: 'KATANA',
+  [CHAIN.PLASMA]: 'PLASMA'
 };
 
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
@@ -62,7 +69,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
 }
 
 const prefetch = async (_: FetchOptions) => {
-  const data = await httpGet('https://api.rango.exchange/scanner/summary/daily?days=10000&breakDownBy=SOURCE&apiKey=4a624ab5-16ff-4f96-90b7-ab00ddfc342c');
+  const data = await httpGet('https://api.rango.exchange/scanner/summary/daily?days=10000&breakDownBy=SOURCE&apiKey=4a624ab5-16ff-4f96-90b7-ab00ddfc342c&txType=BRIDGE');
   return data.stats;
 }
 

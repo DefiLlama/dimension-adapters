@@ -44,6 +44,13 @@ const RangoChains: Record<string, ChainInfo> = {
   [CHAIN.TON]: { code: 'TON', start: '2024-11-01' },
   [CHAIN.BERACHAIN]: { code: 'BERACHAIN', start: '2025-04-01' },
   [CHAIN.AURORA]: { code: 'AURORA', start: '2022-08-01' },
+  [CHAIN.XRPL]: { code: 'XRPL', start: '2025-09-01' },
+  [CHAIN.HYPERLIQUID]: { code: 'HYPERLIQUID', start: '2025-10-01' },
+  [CHAIN.MONAD]: { code: 'MONAD', start: '2025-11-01' },
+  [CHAIN.UNICHAIN]: { code: 'UNICHAIN', start: '2025-08-01' },
+  [CHAIN.SONEIUM]: { code: 'SONEIUM', start: '2025-09-01' },
+  [CHAIN.KATANA]: { code: 'KATANA', start: '2025-11-01' },
+  [CHAIN.PLASMA]: { code: 'PLASMA', start: '2025-12-01' }
 };
 
 const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
@@ -67,22 +74,27 @@ const prefetch = async (_: FetchOptions) => {
   const API_KEY = '4a624ab5-16ff-4f96-90b7-ab00ddfc342c'
   const BREAKDOWN = 'SOURCE'
 
-  // fire off one request per chain
-  const entries = await Promise.all(
-    Object.values(RangoChains).map(({ code, start }) => {
-      const fromTs = new Date(`${start}T00:00:00Z`).getTime();
-      const url = `https://api.rango.exchange/scanner/summary/daily` +
-        `?from=${fromTs}` +
-        `&to=${Date.now()}` +
-        `&breakDownBy=${BREAKDOWN}` +
-        `&apiKey=${API_KEY}` +
-        `&source=${code}` +
-        `&destination=${code}`;
-      return httpGet(url).then(response => [code, response.stats]) 
-    })
-  );
+  const fromTs = new Date(`${DEFAULT_START}T00:00:00Z`).getTime();
 
-  return Object.fromEntries(entries);
+  const url = `https://api.rango.exchange/scanner/summary/daily` +
+    `?from=${fromTs}` +
+    `&to=${Date.now()}` +
+    `&breakDownBy=${BREAKDOWN}` +
+    `&apiKey=${API_KEY}` +
+    `&txType=DEX`;
+
+  const response = await httpGet(url);
+  const resultsByChain: Record<string, any> = {};
+
+  for (const stat of response.stats) {
+    const bucket = stat.bucket;
+    if (!resultsByChain[bucket]) {
+      resultsByChain[bucket] = [];
+    }
+    resultsByChain[bucket].push(stat);
+  }
+
+  return resultsByChain;
 }
 
 const adapter: Adapter = {
@@ -95,7 +107,7 @@ const adapter: Adapter = {
       ];
     })
   ),
-  prefetch
+  prefetch: prefetch,
 };
 
 export default adapter;

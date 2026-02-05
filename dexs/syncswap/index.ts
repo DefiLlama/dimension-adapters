@@ -35,37 +35,32 @@ async function getGraphData(options: FetchOptions): Promise<FetchResultV2> {
   }
 }
 
-const meta = {
-  methodology: {
+const methodology = {
     Volume: "Count token swap volume from SyncSwap subgraphs.",
     Fees: "All fees comes from users by swap token on SyncSwap.",
     UserFees: "Users pay fees for every swap on SyncSwap.",
     SupplySideRevenue: "All swap fees paid to LPs.",
-  }
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ERA]: {
       fetch: getGraphData,  
       start: '2024-03-06',
-      meta: meta
     },
     [CHAIN.LINEA]: {
       fetch: getGraphData,
       start: '2024-03-06',
-      meta: meta
     },
     // [CHAIN.SOPHON]: {
     //   fetch: getGraphDataV2,
     //   start: '2024-03-06',
-    //   meta: meta
     // },
     [CHAIN.SCROLL]: {
       fetch: getGraphData,
       start: '2024-03-06',
-      meta: meta
     },
   }
 }

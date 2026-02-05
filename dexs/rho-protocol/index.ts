@@ -85,12 +85,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: {
       fetch,
       start: '2023-10-29',
-      meta: {
-        hallmarks: [
-          [1747047600, 'Vault launch'],
-          [1743418800, 'Protocol public launch'],
-        ],
-      },
     },
   },
 };

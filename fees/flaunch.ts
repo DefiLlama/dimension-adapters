@@ -1,8 +1,8 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addTokensReceived, getETHReceived, nullAddress } from "../helpers/token";
+import { getETHReceived, nullAddress } from "../helpers/token";
 
-const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances()
     const logs = await options.getLogs({
         target: "0x51Bba15255406Cfe7099a42183302640ba7dAFDC",
@@ -22,18 +22,14 @@ const fetchFees = async (_: any, _1: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
-    adapter: {
-        [CHAIN.BASE]: {
-            fetch: fetchFees,
-            meta: {
-                methodology: {
-                    Fees: "Tokens trading and launching fees paid by users.",
-                    Revenue: "Tokens trading and launching fees paid by users.",
-                    ProtocolRevenue: "Tokens trading and launching fees paid by users.",
-                }
-            }
-        },
-    },
+    chains: [CHAIN.BASE],
+    dependencies: [Dependencies.ALLIUM],
+    fetch,
+    methodology: {
+        Fees: "Tokens trading and launching fees paid by users.",
+        Revenue: "Tokens trading and launching fees paid by users.",
+        ProtocolRevenue: "Tokens trading and launching fees paid by users.",
+    }
 };
 
 export default adapter;

@@ -47,20 +47,18 @@ const fetch = async (timestamp: number, _, options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'Fees are calculated based on a 0.25% commission on each exchange operation, distributed as 0.2% to liquidity providers and 0.05% for token burning.',
+    Revenue: 'Fees amount distributed to suppliers and holders.',
+    SupplySideRevenue: '0.2% of commission to liquidity providers.',
+    HoldersRevenue: '0.05% of commission for token burning.',
+    ProtocolRevenue: 'No fees for protocol.',
+  },
   version: 1,
   adapter: {
     [CHAIN.EOS]: {
       fetch,
       start: '2021-04-14',
-      meta: {
-        methodology: {
-          Fees: 'Fees are calculated based on a 0.25% commission on each exchange operation, distributed as 0.2% to liquidity providers and 0.05% for token burning.',
-          Revenue: 'Fees amount distributed to suppliers and holders.',
-          SupplySideRevenue: '0.2% of commission to liquidity providers.',
-          HoldersRevenue: '0.05% of commission for token burning.',
-          ProtocolRevenue: 'No fees for protocol.',
-        }
-      }
     },
   },
 };

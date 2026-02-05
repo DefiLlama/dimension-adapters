@@ -1,10 +1,9 @@
 /*
 
 Sanctum validator LSTs are LSTs deployed under the Sanctum stake pool programs (SP12tWFxD9oJsVWNavTTBZvMbA6gkAmxtVgxdqvyvhY or SPMBzsVUuoHA4Jm6KunbsotaahvVikZs1JyTW6iJvbn)
-Total fees are the staking rewards (MEV + inflation) paid to all stake accounts from all Sanctum stake pools, paid to LST holders
-Total revenue is withdrawal fees (0.1%) + epoch fees (2.5% of staking rewards) that are paid to each Sanctum LST's manager fee account, which are ATAs of EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T (Sanctum wallet)
-
-Before the fee switch mid-March 2025, Sanctum stake pools were charging 0.1% deposit fees
+Total fees are the staking rewards (MEV + inflation) paid to all stake accounts from all Sanctum stake pools then passed on to LST holders (LST/SOL goes up in value)
+Total revenue used to be 0.1% of deposit fees
+It is now is withdrawal fees (0.1%) + epoch fees (2.5% of staking rewards) that are paid to each Sanctum LST's manager fee account, which are ATAs of EeQmNqm1RcQnee8LTyx6ccVG9FnR8TezQuw2JXq2LC1T (Sanctum wallet)
 See https://x.com/sanctumso/status/1898234985372328274 for more details
 
 Here are the different materialized query you can find in the query below:
@@ -13,8 +12,9 @@ Here are the different materialized query you can find in the query below:
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
@@ -71,73 +71,82 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
           AND tx_success = TRUE
           AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
           AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
-      ), stake_pool_transactions AS (
+      ), daily_withdraw_and_deposit_fees AS (
+        SELECT SUM(t.amount) / 1e9 AS daily_withdraw_and_deposit_fees
+        FROM stake_pool_instructions s
+        JOIN transfer_txns t USING (tx_id, outer_instruction_index, spl_instruction_type)
+      ), epoch_fees_summary AS (
         SELECT
-          block_time,
-          tx_id,
-          amount
-        FROM stake_pool_instructions
-        INNER JOIN transfer_txns
-          USING (tx_id, outer_instruction_index, spl_instruction_type)
-      ), withdraw_and_deposit_daily_fees AS (
-        SELECT
-          SUM(COALESCE(amount, 0) / 1e9) AS withdraw_and_deposit_daily_fees
-        FROM stake_pool_transactions AS spt
-      ), epoch_fees AS (
-        SELECT
-          COALESCE(SUM(rew.lamports / 1e9), 0) AS daily_fees
+            SUM(rew.lamports) / 1e9 AS daily_fees,
+            SUM(
+                CASE
+                    WHEN date_trunc('day', rew.block_time) > CAST('2025-03-14' AS TIMESTAMP)
+                    THEN (rew.lamports / 1e9) * 0.025
+                    ELSE 0
+                END
+            ) AS daily_revenue
         FROM solana.rewards AS rew
         JOIN dune.sanctumso.result_sanctum_validator_stake_accounts AS vsa
-          ON vsa.stake_account = rew.recipient
+            ON vsa.stake_account = rew.recipient
         WHERE
-          rew.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-          AND rew.block_time <= FROM_UNIXTIME(${options.endTimestamp})
-          AND rew.block_time > CAST('2025-03-14' AS TIMESTAMP)
-          AND rew.reward_type = 'Staking'
+            rew.reward_type = 'Staking'
+            AND rew.block_time BETWEEN FROM_UNIXTIME(${options.startTimestamp}) AND FROM_UNIXTIME(${options.endTimestamp})
       )
       SELECT
-        TRY_CAST(df.daily_fees AS DOUBLE) AS daily_fees,
-        TRY_CAST(wddf.withdraw_and_deposit_daily_fees AS DOUBLE) AS withdraw_and_deposit_daily_fees
-      FROM epoch_fees AS df, withdraw_and_deposit_daily_fees AS wddf
+        TRY_CAST(efs.daily_revenue AS DOUBLE) AS daily_epoch_revenue,
+        TRY_CAST(efs.daily_fees AS DOUBLE) AS daily_epoch_fees,
+        TRY_CAST(wddf.daily_withdraw_and_deposit_fees AS DOUBLE) AS daily_withdraw_and_deposit_fees
+      FROM epoch_fees_summary AS efs, daily_withdraw_and_deposit_fees AS wddf
     `
   );
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  dailyFees.addCGToken(
-    "solana",
-    Number(fees[0].daily_fees) + Number(fees[0].withdraw_and_deposit_daily_fees)
-  );
-  dailyRevenue.addCGToken(
-    "solana",
-    Number(0.025 * fees[0].daily_fees) +
-      Number(fees[0].withdraw_and_deposit_daily_fees)
-  );
+
+  dailyFees.addCGToken('solana', Number(fees[0].daily_epoch_fees), METRIC.STAKING_REWARDS)
+  dailyFees.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
+
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_epoch_revenue), METRIC.STAKING_REWARDS)
+  dailyRevenue.addCGToken('solana', Number(fees[0].daily_withdraw_and_deposit_fees), METRIC.DEPOSIT_WITHDRAW_FEES)
 
   return {
     dailyFees,
     dailyRevenue: dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
   Fees: "Staking rewards + withdrawal/deposit fees from Sanctum LSTs",
-  Revenue:
-    "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  Revenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  ProtocolRevenue: "2.5% of staking rewards + withdrawal/deposit fees from Sanctum LSTs",
+  HoldersRevenue: "No revenue share to CLOUD token holders",
 };
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Validators staking rewards from Sanctum LSTS.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'SOL deposit and withdraw fees.',
+  },
+  Revenue: {
+    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
+  },
+  ProtocolRevenue: {
+    [METRIC.STAKING_REWARDS]: '2.5% of validators staking rewards from Sanctum LSTS.',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'All SOL deposit and withdraw fees.',
+  },
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2024-01-01", // First unstake transaction
-      meta: {
-        methodology,
-      },
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2024-01-01", // First unstake transaction
+  methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 

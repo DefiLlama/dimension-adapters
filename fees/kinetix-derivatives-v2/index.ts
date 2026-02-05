@@ -33,13 +33,10 @@ const graphs = (graphUrls: ChainEndpoints) => {
       const dailyFee = parseInt(graphRes.feeStats[0].feeUsd);
 
       const finalDailyFee = dailyFee / 1e18;
-      const totalFees = parseInt(graphRes.feeStats[0].cumulativeFeeUsd) / 1e18;
 
       return {
         timestamp,
         dailyFees: finalDailyFee,
-        totalFees,
-        //dailyRevenue: (finalDailyFee * 0.3),
       };
     };
   };
@@ -47,15 +44,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
 const adapter: Adapter = {
   version: 1,
+  deadFrom: "2025-08-19", // Kinetix Perpetuals V1 & V2 officially terminated
   adapter: {
     [CHAIN.KAVA]: {
       fetch: graphs(endpoints)(CHAIN.KAVA),
-      start: '2024-02-02',
-      meta: {
-        methodology: "All treasury, pool and keeper fees are collected",
-      },
+      start: "2024-02-02",
     },
   },
+  methodology: "All treasury, pool and keeper fees are collected",
 };
 
 export default adapter;

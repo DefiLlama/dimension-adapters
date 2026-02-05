@@ -25,14 +25,14 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyProtocolRevenue = options.createBalances();
 
     // Get SwapExecuted events for volume
-    const swapLogs = await options.getLogs({ 
-        target: LIQUIDSWAP_ADDRESS, 
+    const swapLogs = await options.getLogs({
+        target: LIQUIDSWAP_ADDRESS,
         eventAbi: SwapExecutedEvent,
     });
     for (const swapLog of swapLogs) {
         dailyVolume.add(swapLog.input_token_address, swapLog.input_token_amount);
     }
-    
+
     // Get PositiveSlippageCaptured events for positive slippage revenue
     const slippageLogs = await options.getLogs({
         target: LIQUIDSWAP_ADDRESS,
@@ -78,7 +78,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         );
     }
 
-    return { 
+    return {
         dailyVolume,
         dailyFees,
         dailyRevenue,
@@ -88,20 +88,15 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
     version: 2,
-    adapter: {
-        [CHAIN.HYPERLIQUID]: {
-            fetch: fetch,
-            start: "2025-04-02",
-            meta: {
-                methodology: {
-                    Volume: "Volume is calculated from SwapExecuted events emitted by the LiquidSwap aggregator contract.",
-                    Fees: "Fees are tracked from PositiveSlippageCaptured and FeeCaptured events.",
-                    Revenue: "Revenue represents the protocol and intergators share of captured positive slippage and fees.",
-                    ProtocolRevenue: "Revenue represents the protocol share of captured positive slippage and fees.",
-                },
-            },
-        },
+    fetch,
+    start: "2025-04-02",
+    methodology: {
+        Volume: "Volume is calculated from SwapExecuted events emitted by the LiquidSwap aggregator contract.",
+        Fees: "Fees are tracked from PositiveSlippageCaptured and FeeCaptured events.",
+        Revenue: "Revenue represents the protocol and intergators share of captured positive slippage and fees.",
+        ProtocolRevenue: "Revenue represents the protocol share of captured positive slippage and fees.",
     },
+    chains: [CHAIN.HYPERLIQUID],
 };
 
 export default adapter;

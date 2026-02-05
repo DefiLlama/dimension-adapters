@@ -1,12 +1,19 @@
 import { CHAIN } from "../../helpers/chains";
 import { univ2Adapter } from "../../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../../adapters/types";
 
-const adapter = univ2Adapter({
-    [CHAIN.WAN]: "https://thegraph.one/subgraphs/name/wanswap/wanswap-subgraph-3"
-}, {
+const fetch = univ2Adapter({
+    endpoints: {
+        [CHAIN.WAN]: "https://thegraph.one/subgraphs/name/wanswap/wanswap-subgraph-3"
+    },
     factoriesName: "uniswapFactories",
     dayData: "uniswapDayData",
 });
-adapter.adapter.wan.start = 1632268798;
+
+const adapter: SimpleAdapter = {
+    fetch,
+    chains: [CHAIN.WAN],
+    start: 1632268798,
+}
 
 export default adapter;

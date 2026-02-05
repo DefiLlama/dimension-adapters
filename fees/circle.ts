@@ -1,6 +1,8 @@
-import { buildStablecoinAdapter} from "./tether/attestations-stablecoins";
+import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
+import { buildStablecoinAdapter} from "../helpers/attestations-stablecoins";
 
-const adapter = buildStablecoinAdapter('2', 30,
+const adapter = buildStablecoinAdapter(CHAIN.OFF_CHAIN, '2', 30,
 // Based on https://www.circle.com/en/transparency
 [
     {
@@ -210,10 +212,21 @@ const adapter = buildStablecoinAdapter('2', 30,
 
 ]);
 
-adapter.adapter.ethereum.meta = {
-    methodology: {
-        Fees: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills.',
-        Revenue: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
+adapter.methodology= {
+    Fees: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills.',
+    Revenue: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
+    ProtocolRevenue: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
+}
+
+adapter.breakdownMethodology = {
+    Fees: {
+        [METRIC.ASSETS_YIELDS]: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills.',
+    },
+    Revenue: {
+        [METRIC.ASSETS_YIELDS]: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
+    },
+    ProtocolRevenue: {
+        [METRIC.ASSETS_YIELDS]: 'All yields from USDC backing cash-equivalent assets, and US Treasury Bills collected by Circle.',
     },
 }
 

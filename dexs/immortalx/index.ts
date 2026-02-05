@@ -39,12 +39,10 @@ const fetch = (chain: Chain) => {
 
     const res: IProtocolData = await request(endpoints[chain], graphQuery);
     const dailyVolume = Number(res.protocolByDay.totalTradingVolume) / 10 ** 18;
-    const totalVolume = Number(res.protocol.totalTradingVolume) / 10 ** 18;
 
     return {
       timestamp,
       dailyVolume: dailyVolume.toString(),
-      totalVolume: totalVolume.toString(),
     };
   };
 };

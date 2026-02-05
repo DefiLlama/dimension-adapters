@@ -12,16 +12,13 @@ const historicalVolumeEndpoint = "https://api-mainnet-prod.minswap.org/defillama
 
 const fetch = async (timestamp: number, _: ChainBlocks, { startOfDay, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances();
-  const totalVolume = createBalances();
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   const volData = vols
     .find(dayItem => new Date(Number(dayItem.time)).getTime() / 1000 === startOfDay)
   dailyVolume.addGasToken(volData?.volume)
-  totalVolume.addGasToken(volData?.totalVolume)
 
   return {
     timestamp: startOfDay,
-    // totalVolume,
     dailyVolume,
   }
 }

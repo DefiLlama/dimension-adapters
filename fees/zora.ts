@@ -18,7 +18,7 @@ const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const logs = await await queryIndexer(`
+  const logs = await queryIndexer(`
     SELECT
       encode(transaction_hash, 'hex') AS HASH,
       encode(data, 'hex') AS data,
@@ -80,12 +80,10 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2022-12-01',
-      meta: {
-        methodology
-      }
     },
   },
-
+  
+  methodology,
 }
 
 export default adapter;

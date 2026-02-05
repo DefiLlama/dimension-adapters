@@ -1,10 +1,11 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
+import { METRIC } from "../../helpers/metrics";
 
 type IConfig = {
   [s: string | Chain] : {
-    dataStartTimestamp: number
+    start: string
     revenueResolverExistAfterBlock: number
     vaultResolverExistAfterTimestamp: number
     vaultResolverExistAfterBlock: number
@@ -15,34 +16,48 @@ export const zeroAddress = ADDRESSES.null
 
 export const LIQUIDITY = "0x52aa899454998be5b000ad077a46bbe360f4e497"
 
+export const FLUID_METRICS = {
+  BorrowInterest: METRIC.BORROW_INTEREST,
+  TokenBuyBack: METRIC.TOKEN_BUY_BACK,
+  BorrowInterestToTreasury: 'Borrow Interest To Treasury',
+  BorrowInterestToLenders: 'Borrow Interest To Lenders',
+}
+
 export const CONFIG_FLUID: IConfig = {
   [CHAIN.ETHEREUM]: {
-    dataStartTimestamp: 1708246655, // ~ when liquidity resolver was deployed
+    start: '2024-02-18', // ~ when liquidity resolver was deployed
     revenueResolverExistAfterBlock: 19959852,
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1708931052,
     vaultResolverExistAfterBlock: 19313700,
   },
   [CHAIN.ARBITRUM]: {
-    dataStartTimestamp: 1720018638, // ~ before any activity started (block 228361633)
+    start: '2024-07-03', // ~ before any activity started (block 228361633)
     revenueResolverExistAfterBlock: 228361632,
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1720018637,
     vaultResolverExistAfterBlock: 228361632,
   },
   [CHAIN.BASE]: {
-    dataStartTimestamp: 1723484700, // ~ before any activity started (block 18347681)
+    start: '2024-08-13', // ~ before any activity started (block 18347681)
     revenueResolverExistAfterBlock: 18347681,
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1723484700,
     vaultResolverExistAfterBlock: 18347681,
   },
   [CHAIN.POLYGON]: {
-    dataStartTimestamp: 1741205235, // ~ before any activity started (block 68688825)
+    start: '2025-03-26', // ~ before any activity started (block 68688825)
     revenueResolverExistAfterBlock: 68688825,
     // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
     vaultResolverExistAfterTimestamp: 1741205235,
     vaultResolverExistAfterBlock: 68688825,
+  },
+  [CHAIN.PLASMA]: {
+    start: '2025-09-19', // ~ before any activity started (block 643135)
+    revenueResolverExistAfterBlock: 1344397,
+    // vault resolver related revenue only exists after this timestamp. revenue / fees before are negligible
+    vaultResolverExistAfterTimestamp: 1758273257,
+    vaultResolverExistAfterBlock: 1344397,
   },
 };
 
@@ -89,11 +104,6 @@ export const TOPIC0: any = {
   logCollectRevenue: '0x7ded56fbc1e1a41c85fd5fb3d0ce91eafc72414b7f06ed356c1d921823d4c37c',
   logRebalance: '0x9a85dfb89c634cdc63db5d8cedaf8f9cfa4926df888bad563d70b7314a33a0ae'
 }
-
-export const METHODOLOGY_FLUID = {
-  Fees: "Interest paid by borrowers",
-  Revenue: "Percentage of interest going to treasury",
-};
 
 export const parseInTopic = (address: string): string => {
   if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {

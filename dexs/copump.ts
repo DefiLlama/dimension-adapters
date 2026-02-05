@@ -1,5 +1,5 @@
 
-import { FetchOptions, SimpleAdapter } from '../adapters/types'
+import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 
 const config: any = {
@@ -51,6 +51,6 @@ const adapter: SimpleAdapter = {
   adapter: {}
 }
 
-Object.keys(config).forEach(chain => adapter.adapter[chain] = { fetch })
+Object.keys(config).forEach(chain => (adapter.adapter as BaseAdapter)[chain] = { fetch })
 
 export default adapter

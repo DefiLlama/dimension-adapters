@@ -53,15 +53,18 @@
 // }
 
 import * as sdk from "@defillama/sdk";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { formatAddress } from "../utils/utils";
 
 interface IUniswapConfig {
   poolManager: string;
   positionManager: string;
   source: 'LOGS';
   start: string;
+  blacklistPoolIds?: Array<string>;
 }
 
 interface IPool {
@@ -80,6 +83,9 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e',
     source: 'LOGS',
     start: '2025-01-24',
+    blacklistPoolIds: [
+      '0x78f394840909614a7a1213503e4207d7e62f4a07af85561fc420e7ee6d22d6ce',
+    ],
   },
   [CHAIN.UNICHAIN]: {
     poolManager: '0x1f98400000000000000000000000000000000004',
@@ -124,10 +130,10 @@ const Configs: Record<string, IUniswapConfig> = {
     start: '2025-01-24',
   },
   [CHAIN.WC]: {
-  poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33',
-   source: 'LOGS',
-   positionManager: '0xc585e0f504613b5fbf874f21af14c65260fb41fa',
-   start: '2025-01-24',
+    poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33',
+    source: 'LOGS',
+    positionManager: '0xc585e0f504613b5fbf874f21af14c65260fb41fa',
+    start: '2025-01-24',
   },
   [CHAIN.INK]: {
     poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32',
@@ -153,6 +159,18 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0x7a4a5c919ae2541aed11041a1aeee68f1287f95b',
     start: '2025-01-24',
   },
+  [CHAIN.MONAD]: {
+    poolManager: '0x188d586ddcf52439676ca21a244753fa19f9ea8e',
+    source: 'LOGS',
+    positionManager: '0x5b7eC4a94fF9beDb700fb82aB09d5846972F4016',
+    start: '2025-11-23',
+  },
+  [CHAIN.XLAYER]: {
+    poolManager: '0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32',
+    source: 'LOGS',
+    positionManager: '0xcf1eafc6928dc385a342e7c6491d371d2871458b',
+    start: '2026-01-07'
+  }
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {
@@ -213,53 +231,69 @@ async function fetch(options: FetchOptions) {
   }
 
   if (config.source === 'LOGS') {
-    const events = await options.getLogs({
+    const events = await sdk.getEventLogs({
+      chain: options.chain,
       target: config.poolManager,
       eventAbi: SwapEvent,
+      fromBlock: Number(options.fromApi.block),
+      toBlock: Number(options.toApi.block),
+      maxBlockRange: 10000,
+      onlyArgs: true,
     });
 
-    const pools: {[key: string]: IPool | null} = {}
-    for (const event of events) {
-      pools[event.id] = null
-    }
-
-    // query pools info
-    const poolIds = Object.keys(pools)
-    const poolKeys = await options.api.multiCall({
-      abi: FunctionPoolKeys,
-      calls: poolIds.map(poolId => {
-        return {
-          target: config.positionManager,
-          params: [getPoolKey(poolId)],
+    if (events.length > 0) {
+      const pools: {[key: string]: IPool | null} = {}
+      for (const event of events) {
+        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id)) {
+          // ignore blacklist pools
+          continue;
         }
-      }),
-      permitFailure: true,
-    })
+        pools[event.id] = null
+      }
 
-    for (let i = 0; i < poolIds.length; i++) {
-      if (poolKeys[i]) {
-        // uniswap v4 supports hooks execute before and after swap
-        // so poolManager may be emit Swap event without the liquidity pool was even existed
-        // these logics are likely can be ignored because it didn't work as LP or swap from users
-        // to check a valid liquidity pool, we need atleast one token is not null address
-        if (poolKeys[i].currency0 !== ADDRESSES.null || poolKeys[i].currency1 !== ADDRESSES.null) {
-          pools[poolIds[i]] = {
-            poolId: poolIds[i],
-            poolKey: getPoolKey(poolIds[i]),
-            currency0: String(poolKeys[i].currency0),
-            currency1: String(poolKeys[i].currency1),
+      // query pools info
+      const poolIds = Object.keys(pools)
+      const poolKeys = await options.api.multiCall({
+        abi: FunctionPoolKeys,
+        calls: poolIds.map(poolId => {
+          return {
+            target: config.positionManager,
+            params: [getPoolKey(poolId)],
+          }
+        }),
+        permitFailure: true,
+      })
+
+      for (let i = 0; i < poolIds.length; i++) {
+        if (poolKeys[i]) {
+          // uniswap v4 supports hooks execute before and after swap
+          // so poolManager may be emit Swap event without the liquidity pool was even existed
+          // these logics are likely can be ignored because it didn't work as LP or swap from users
+          // to check a valid liquidity pool, we need atleast one token is not null address
+          if (poolKeys[i].currency0 !== ADDRESSES.null || poolKeys[i].currency1 !== ADDRESSES.null) {
+            pools[poolIds[i]] = {
+              poolId: poolIds[i],
+              poolKey: getPoolKey(poolIds[i]),
+              currency0: String(poolKeys[i].currency0),
+              currency1: String(poolKeys[i].currency1),
+            }
           }
         }
       }
-    }
-    
-    for (const event of events) {
-      const poolId = String(event.id)
-      if (pools[poolId] as IPool) {
-        const token = (pools[poolId] as IPool).currency0
-        dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
-        dailyVolume.add(token, Math.abs(Number(event.amount0)))
-      }
+      
+      for (const event of events) {
+        const poolId = String(event.id)
+        if (pools[poolId] as IPool) {
+          const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+          if (blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency0)) || blacklistTokens.has(formatAddress((pools[poolId] as IPool).currency1))) {
+            continue;
+          }
+
+          const token = (pools[poolId] as IPool).currency0
+          dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
+          dailyVolume.add(token, Math.abs(Number(event.amount0)))
+        }
+      }      
     }
   }
 
@@ -278,9 +312,6 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {},
   // prefetch: prefetchWithDune,
-};
-
-const meta = {
   methodology: {
     Fees: 'Swap fees paid by users.',
     UserFees: 'Swap fees paid by users.',
@@ -288,13 +319,12 @@ const meta = {
     ProtocolRevenue: 'Protocol make no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
-  }
-}
+  },
+  fetch,
+};
 
 for (const [chain, config] of Object.entries(Configs)) {
-  adapter.adapter[chain] = {
-    fetch,
-    meta,
+  (adapter.adapter as BaseAdapter)[chain] = {
     start: config.start,
   }
 }

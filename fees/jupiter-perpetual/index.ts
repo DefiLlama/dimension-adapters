@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
@@ -32,26 +32,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   }
 };
 
-const meta = {
+const adapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: '2024-01-23',
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "Fees paid by users to open/close positions for perps",
     Revenue: "25% of total fees goes to protocol tresuary + JLP holders",
     ProtocolRevenue: "50% of revenue (12.5% of total fees) goes to protocol treasury",
     HoldersRevenue: "50% of revenue (12.5% of total fees) goes to JUP holders", 
     SupplySideRevenue: "75% of total fees goes to liquidity providers",
-  }
-}
-
-const adapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2024-01-23',
-      meta
-    },
   },
-  isExpensiveAdapter: true,
 };
 
 export default adapter;

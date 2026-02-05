@@ -128,7 +128,7 @@ interface TornadoPoolData {
     token: string;
 }
 
-const getFees = async ({getLogs, chain, createBalances}: FetchOptions) => {
+const getFees = async ({ getLogs, chain, createBalances }: FetchOptions) => {
     const fees: { [token: string]: number } = {};
 
     for (const [token, data] of Object.entries(TORNADO_CONTRACTS[chain]) as [string, TornadoPoolData][]) {
@@ -143,60 +143,26 @@ const getFees = async ({getLogs, chain, createBalances}: FetchOptions) => {
     for (const [token, fee] of Object.entries(fees)) {
         dailyFees.add(token, fee);
     }
-    
-    return {dailyFees};
+
+    return {
+      dailyFees,
+      dailySupplySideRevenue: dailyFees,
+      dailyRevenue: 0,
+    };
 }
 
 const methodology = {
-    Fees: "All fees that are paid by users",
+    Fees: "All fees that are paid by users from withdrawal to relayers.",
+    SupplySideRevenue: "All fees that are paid by users from withdrawal to relayers.",
+    Revenue: "No revenue.",
 }
 
 const adapter: SimpleAdapter = {
+    methodology,
+    fetch: getFees,
     version: 2,
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.BSC]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.AVAX]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.OPTIMISM]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.ARBITRUM]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.POLYGON]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.XDAI]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        }
-    },
+    chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
+    adapter: {},
     isExpensiveAdapter: true
 };
 

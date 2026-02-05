@@ -23,13 +23,13 @@ const fetch = () => {
     const fee: IFee = response.data;
     return {
       dailyFees: `${fee?.daily_fee || undefined}`,
-      totalFees: `${fee?.total_fee || undefined}`,
       timestamp: dayTimestamp,
     };
   };
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-01-23', // v1 is shutting down on 2026-01-23
   version: 1,
   adapter: {
     ['merlin']: {

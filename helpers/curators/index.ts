@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
+import { METRIC } from "../metrics";
 
 export interface CuratorConfig {
   methodology?: any;
@@ -14,6 +15,7 @@ export interface CuratorConfig {
 
       // initial owner of morpho vaults
       morphoVaultOwners?: Array<string>;
+      morphoVaultV2Owners?: Array<string>;
 
       // creators of euler vaults
       eulerVaultOwners?: Array<string>;
@@ -52,11 +54,10 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
       const logs = await options.getLogs({
         eventAbi: ABI.morpho.CreateMetaMorphoEvent,
         target: factory.address,
-        skipCache: true,
         fromBlock: factory.fromBlock,
-        toBlock: options.toApi.block ? Number(options.toApi.block) : undefined,
+        cacheInCloud: true,
       })
-      const vaultOfOwners =logs.filter(log => isOwner(log.initialOwner, owners)).map((log) => log.metaMorpho)
+      const vaultOfOwners = logs.filter(log => isOwner(log.initialOwner, owners)).map((log) => log.metaMorpho)
       morphoVaults = morphoVaults.concat(vaultOfOwners)
     }
   }
@@ -64,8 +65,29 @@ async function getMorphoVaults(options: FetchOptions, vaults: Array<string> | un
   return morphoVaults
 }
 
+async function getMorphoVaultsV2(options: FetchOptions, owners: Array<string> | undefined): Promise<Array<string>> {
+  let morphoVaults: Array<string> = []
+
+  if (owners && owners.length > 0) {
+    for (const factory of MorphoConfigs[options.chain].vaultV2Factories) {
+      const logs = await options.getLogs({
+        eventAbi: ABI.morpho.CreateVaultV2,
+        target: factory.address,
+        fromBlock: factory.fromBlock,
+        cacheInCloud: true,
+      })
+      const vaultOfOwners = logs.filter(log => isOwner(log.owner, owners)).map((log) => log.newVaultV2)
+      morphoVaults = morphoVaults.concat(vaultOfOwners)
+    }
+  }
+  
+  return morphoVaults
+}
+
 async function getEulerVaults(options: FetchOptions, vaults: Array<string> | undefined, owners: Array<string> | undefined): Promise<Array<string>> {
   let eulerVaults = vaults ? vaults : []
+
+  const blacklistedVaults = EulerConfigs[options.chain] && EulerConfigs[options.chain].blacklistedVaults ? EulerConfigs[options.chain].blacklistedVaults : []
 
   if (owners && owners.length > 0) {
     for (const factory of EulerConfigs[options.chain].vaultFactories) {
@@ -94,6 +116,9 @@ async function getEulerVaults(options: FetchOptions, vaults: Array<string> | und
         });
         for (let i = 0; i < proxyAddresses.length; i++) {
           if (isOwner(proxyCreators[i], owners)) {
+            if (blacklistedVaults.includes(proxyAddresses[i].toLowerCase())) {
+              continue
+            }
             eulerVaults.push(proxyAddresses[i])
           }
         }
@@ -104,7 +129,7 @@ async function getEulerVaults(options: FetchOptions, vaults: Array<string> | und
   return eulerVaults
 }
 
-async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>): Promise<Array<VaultERC4626Info>> {
+async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>, decimalAdjustment?: boolean): Promise<Array<VaultERC4626Info>> {
   const vaultInfo: Array<VaultERC4626Info> = []
 
   const assets = await options.fromApi.multiCall({
@@ -145,13 +170,16 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
   for (let i = 0; i < vaults.length; i++) {
     const asset = assets[i]
     if (asset) {
+      const assetDecimals = Number(decimals[i]);
+      const denominator = decimalAdjustment ? 10 ** (18 - assetDecimals) : 1;
+      
       vaultInfo.push({
         vault: vaults[i],
         asset,
         assetDecimals: Number(decimals[i]),
         balance: BigInt(balances[i] ? balances[i] : 0),
-        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0),
-        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0),
+        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0) * BigInt(denominator),
+        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0) * BigInt(denominator),
       })
     }
   }
@@ -160,7 +188,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>)
 }
 
 async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
-  const vaultInfo = await getVaultERC4626Info(options, vaults)
+  const vaultInfo = await getVaultERC4626Info(options, vaults, true)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.morpho.fee,
     calls: vaultInfo.map(item => item.vault),
@@ -177,18 +205,18 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
       // it mean that vault fees were added from vault token shares
 
       // interest earned and distributed to vault deposited including fees
-      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**vaultInfo[i].assetDecimals)
+      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
       
       // interest earned by vault curator
       const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
 
-async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+export async function getEulerVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
   const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.euler.interestFee,
@@ -217,13 +245,60 @@ async function getEulerVaultFee(options: FetchOptions, balances: Balances, vault
       // interest earned by vault curator
       const interestFee = interestEarnedBeforeFee - interestEarned
 
-      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee)
-      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee)
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
 
-export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
+async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>) {
+  const vaultInfo = await getVaultERC4626Info(options, vaults, true)
+  const vaultPerformanceFeeRates = await options.api.multiCall({
+    abi: ABI.morpho.performanceFee,
+    calls: vaultInfo.map(item => item.vault),
+    permitFailure: true,
+  })
+  const vaultManagementFeeRates = await options.api.multiCall({
+    abi: ABI.morpho.managementFee,
+    calls: vaultInfo.map(item => item.vault),
+    permitFailure: true,
+  })
+  
+  for (let i = 0; i < vaultInfo.length; i++) {
+    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
+
+    
+    if (growthRate > 0) {
+      const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
+      const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
+      
+      // morpho vault include fee directly to vault shares
+      // it mean that vault fees were added from vault token shares
+
+      // interest earned and distributed to vault deposited including fees
+      const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+      
+      // interest earned by vault curator - performance fee
+      const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
+      
+      // interest earned by vault curator - management fee
+      const timeElapsed = options.toTimestamp - options.fromTimestamp
+      const interestManagementFee = interestEarnedIncludingFees * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+
+      balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestPerformanceFee, METRIC.ASSETS_YIELDS)
+      balances.dailyRevenue.add(vaultInfo[i].asset, interestManagementFee, METRIC.ASSETS_YIELDS)
+    }
+  }
+}
+
+export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
+  const methodology = curatorConfig.methodology ? curatorConfig.methodology :  {
+    Fees: 'Total yields from deposited assets in all curated vaults.',
+    Revenue: 'Yields are collected by curators.',
+    ProtocolRevenue: 'Yields are collected by curators.',
+    SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
+  }
   const exportObject: BaseAdapter = {}
 
   Object.entries(curatorConfig.vaults).map(([chain, vaults]) => {
@@ -232,17 +307,26 @@ export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
         let dailyFees = options.createBalances()
         let dailyRevenue = options.createBalances()
 
+        // morpho meta vaults
         const morphoVaults = await getMorphoVaults(options, vaults.morpho, vaults.morphoVaultOwners);
+
+        // morpho v2 vaults
+        const morphoVaultsV2 = await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners);
+        
         const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
+
         if (morphoVaults.length > 0) {
           await getMorphoVaultFee(options, { dailyFees, dailyRevenue }, morphoVaults)
+        }
+        if (morphoVaultsV2.length > 0) {
+          await getMorphoVaultV2Fee(options, { dailyFees, dailyRevenue }, morphoVaultsV2)
         }
         if (eulerVaults.length > 0) {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
         }
 
-        const dailySupplySideRevenue = dailyFees.clone()
-        dailySupplySideRevenue.subtract(dailyRevenue)
+        const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
+        dailySupplySideRevenue.subtract(dailyRevenue, METRIC.ASSETS_YIELDS)
 
         return {
           dailyFees,
@@ -252,18 +336,13 @@ export function getCuratorExport(curatorConfig: CuratorConfig): BaseAdapter {
         }
       }),
       start: vaults.start,
-      meta: curatorConfig.methodology ? {
-        methodology: curatorConfig.methodology,
-      } : {
-        methodology: {
-          Fees: 'Total yields from deposited assets in all curated vaults.',
-          Revenue: 'Yields are collected by curators.',
-          ProtocolRevenue: 'Yields are collected by curators.',
-          SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
-        }
-      },
     }
   })
 
-  return exportObject
+  return {
+    version: 2,
+    methodology,
+    adapter: exportObject,
+  }
 }
+

@@ -78,16 +78,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
       start: '2023-05-25',
-      meta: {
-        methodology: {
-          Fees: 'All trading fees paid by users.',
-          Revenue: 'All trading fees paid by users.',
-          HoldersRevenue: 'Fees distributed to token holders',
-          ProtocolRevenue: 'All trading fees paid by users.',
-        }
-      }
     },
   },
+  methodology: {
+    Fees: 'All trading fees paid by users.',
+    Revenue: 'All trading fees paid by users.',
+    HoldersRevenue: 'Fees distributed to token holders',
+    ProtocolRevenue: 'All trading fees paid by users.',
+  }
 };
 
 export default adapter;

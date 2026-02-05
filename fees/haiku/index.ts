@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { HaikuAddreses } from "../../helpers/aggregators/haiku";
+import { HaikuChainConfig } from "../../helpers/aggregators/haiku";
 
 const HaikuExecutedEvent =
   "event Executed(address indexed user, address indexed agent)";
@@ -8,20 +8,12 @@ const HaikuExecutedEvent =
 const HaikuFeeCollectedEvent =
   "event Charged(address indexed token, uint256 amount, address indexed collector, bytes32 metadata)";
 
-const meta = {
-  methodology: {
-    Fees: "All fees paid by users for swap and bridge tokens via Haiku.",
-    Revenue: "Fees are distributed to Haiku.",
-    ProtocolRevenue: "Fees are distributed to Haiku.",
-  },
-};
-
 const nativeToken = ADDRESSES.GAS_TOKEN_2;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const data: any[] = await options.getLogs({
-    target: HaikuAddreses[options.chain].id,
+    target: HaikuChainConfig[options.chain].id,
     eventAbi: HaikuExecutedEvent,
   });
 
@@ -51,16 +43,13 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.keys(HaikuAddreses).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        meta,
-        fetch,
-        start: HaikuAddreses[chain].startTime,
-      },
-    };
-  }, {}),
+  methodology: {
+    Fees: "All fees paid by users for swap and bridge tokens via Haiku.",
+    Revenue: "Fees are distributed to Haiku.",
+    ProtocolRevenue: "Fees are distributed to Haiku.",
+  },
+  fetch,
+  adapter: HaikuChainConfig
 };
 
 export default adapter;

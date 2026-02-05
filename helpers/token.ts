@@ -7,6 +7,7 @@ import { getCache, setCache } from "./cache";
 import ADDRESSES from './coreAssets.json';
 import { getEnv } from './env';
 import { sleep } from '../utils/utils';
+import { queryDuneSql } from './dune';
 
 export const nullAddress = ADDRESSES.null
 
@@ -365,13 +366,15 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
  * @param blacklist_signers - Optional array of transaction signers to exclude
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceived({ options, balances, target, targets, blacklists, blacklist_signers }: {
+export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_mints }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
   targets?: string[];
+  mints?: string[];
   blacklists?: string[];
   blacklist_signers?: string[];
+  blacklist_mints?: string[];
 }) {
   // Initialize balances if not provided
   if (!balances) balances = options.createBalances();
@@ -380,6 +383,14 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
 
+  // Build SQL condition to include only mints tokens
+  let mintsCondition = '';
+
+  if (mints && mints.length > 0) {
+    const formattedMints = mints.map(addr => `'${addr}'`).join(', ');
+    mintsCondition = `AND mint IN (${formattedMints})`;
+  }
+  
   // Build SQL condition to exclude blacklisted sender addresses
   let blacklistCondition = '';
 
@@ -396,26 +407,138 @@ export async function getSolanaReceived({ options, balances, target, targets, bl
     blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
   }
 
+  // Build SQL condition to exclude blacklisted tokens
+  let blacklist_mintsCondition = '';
+
+  if (blacklist_mints && blacklist_mints.length > 0) {
+    const formattedBlacklist = blacklist_mints.map(addr => `'${addr}'`).join(', ');
+    blacklist_mintsCondition = `AND mint NOT IN (${formattedBlacklist})`;
+  }
+
   // Format addresses for IN clause
   const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
 
   // Construct SQL query to get sum of received token values in USD and native amount
   const query = `
-      SELECT '${ADDRESSES.solana.USDC}' as token, SUM(usd_amount * 1000000) as amount
-      FROM solana.assets.transfers
-      WHERE to_address IN (${formattedAddresses})
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      ${blacklistCondition}
-      ${blacklist_signersCondition}
-      GROUP BY mint
-    `;
+    SELECT mint as token, SUM(raw_amount) as amount
+    FROM solana.assets.transfers
+    WHERE to_address IN (${formattedAddresses})
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ${mintsCondition}
+    ${blacklistCondition}
+    ${blacklist_signersCondition}
+    ${blacklist_mintsCondition}
+    GROUP BY mint
+  `;
 
   // Execute query against Allium database
   const res = await queryAllium(query);
 
+  // for debug purpose
+  // const query2 = `
+  //   SELECT mint, SUM(usd_amount * 1000000) as amount
+  //   FROM solana.assets.transfers
+  //   WHERE to_address IN (${formattedAddresses})
+  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   ${blacklistCondition}
+  //   ${blacklist_signersCondition}
+  //   ${blacklist_mintsCondition}
+  //   GROUP BY mint
+  //   ORDER BY amount DESC
+  // `;
+
   // Add the USD value to the balances object (defaulting to 0 if no results)
   res.forEach((row: any) => {
     balances!.add(row.token, row.amount)
+  })
+  return balances;
+}
+
+
+/**
+ * Retrieves the total value of tokens received by a Solana address or addresses within a specified time period
+ * 
+ * @param options - FetchOptions containing timestamp range and other configuration
+ * @param balances - Optional sdk.Balances object to add the results to
+ * @param target - Single Solana address to query
+ * @param targets - Array of Solana addresses to query (alternative to target)
+ * @param blacklists - Optional array of addresses to exclude from the sender side
+ * @param blacklist_signers - Optional array of transaction signers to exclude
+ * @returns The balances object with added USD value from received tokens
+ */
+export async function getSolanaReceivedDune({ options, balances, target, targets, blacklists, blacklist_signers, blacklist_mints }: {
+  options: FetchOptions;
+  balances?: sdk.Balances;
+  target?: string;
+  targets?: string[];
+  blacklists?: string[];
+  blacklist_signers?: string[];
+  blacklist_mints?: string[];
+}) {
+  // Initialize balances if not provided
+  if (!balances) balances = options.createBalances();
+
+  // If targets is provided, use that instead of single target
+  const addresses = targets?.length ? targets : target ? [target] : [];
+  if (addresses.length === 0) return balances;
+
+  // Build SQL condition to exclude blacklisted sender addresses
+  let blacklistCondition = '';
+
+  if (blacklists && blacklists.length > 0) {
+    const formattedBlacklist = blacklists.map(addr => `'${addr}'`).join(', ');
+    blacklistCondition = `AND from_owner NOT IN (${formattedBlacklist})`;
+  }
+
+  // Build SQL condition to exclude blacklisted transaction signers
+  let blacklist_signersCondition = '';
+
+  if (blacklist_signers && blacklist_signers.length > 0) {
+    const formattedBlacklist = blacklist_signers.map(addr => `'${addr}'`).join(', ');
+    blacklist_signersCondition = `AND tx_signer NOT IN (${formattedBlacklist})`;
+  }
+
+  // Build SQL condition to exclude blacklisted tokens
+  let blacklist_mintsCondition = '';
+
+  if (blacklist_mints && blacklist_mints.length > 0) {
+    const formattedBlacklist = blacklist_mints.map(addr => `'${addr}'`).join(', ');
+    blacklist_mintsCondition = `AND token_mint_address NOT IN (${formattedBlacklist})`;
+  }
+
+  // Format addresses for IN clause
+  const formattedAddresses = addresses.map(addr => `'${addr}'`).join(', ');
+
+  // Construct SQL query to get sum of received token values in USD and native amount
+  const query = `
+    SELECT token_mint_address as mint, SUM(amount) as amount
+    FROM tokens_solana.transfers
+    WHERE to_owner IN (${formattedAddresses})
+    AND block_time >= from_unixtime(${options.startTimestamp}) AND block_time <= from_unixtime(${options.endTimestamp})
+    ${blacklistCondition}
+    ${blacklist_signersCondition}
+    ${blacklist_mintsCondition}
+    GROUP BY token_mint_address
+  `;
+  // Execute query against Allium database
+  const res = await queryDuneSql(options, query);
+
+  // for debug purpose
+  // const query2 = `
+  //   SELECT mint, SUM(usd_amount * 1000000) as amount
+  //   FROM solana.assets.transfers
+  //   WHERE to_address IN (${formattedAddresses})
+  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   ${blacklistCondition}
+  //   ${blacklist_signersCondition}
+  //   ${blacklist_mintsCondition}
+  //   GROUP BY mint
+  //   ORDER BY amount DESC
+  // `;
+
+  // Add the USD value to the balances object (defaulting to 0 if no results)
+  res.forEach((row: any) => {
+    balances!.add(row.mint, row.amount)
   })
   return balances;
 }
@@ -432,7 +555,7 @@ function getAlliumChain(chain: string): string {
   }
 }
 
-export async function getETHReceived({ options, balances, target, targets = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[] }) {
+export async function getETHReceived({ options, balances, target, targets = [], notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[], notFromSenders?: string[] }) {
   if (!balances) balances = options.createBalances()
 
   if (!target && !targets?.length) return balances
@@ -441,6 +564,11 @@ export async function getETHReceived({ options, balances, target, targets = [] }
 
   targets = targets.map(i => i.toLowerCase())
   targets = [...new Set(targets)]
+
+  notFromSenders = notFromSenders.map(i => i.toLowerCase())
+  notFromSenders = [...new Set(notFromSenders)]
+
+  const excludeSenders = targets.concat(notFromSenders)
 
   // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
@@ -452,7 +580,7 @@ export async function getETHReceived({ options, balances, target, targets = [] }
     arbitrum: 'arbitrum',
     avax: 'avalanche',
     polygon: 'polygon',
-    celo: 'celo',
+    // celo: 'celo',
     tron: 'tron',
     unichain: 'unichain',
     zora: 'zora',
@@ -461,30 +589,37 @@ export async function getETHReceived({ options, balances, target, targets = [] }
     ink: 'ink',
     berachain: 'berachain',
     polygon_zkevm: 'polygon_zkevm',
+    plasma: 'plasma',
+    monad: 'monad',
   }
+  
+  // https://docs.allium.so/changelog/deprecated-schemas
   const tableMap: any = {
-    bsc: 'bnb_token_transfers',
-    avax: 'avax_token_transfers',
     tron: 'trx_token_transfers',
     near: 'near_token_transfers',
-    polygon: 'matic_token_transfers',
-    berachain: 'native_token_transfers',
-    ink: 'native_token_transfers',
-    xdai: 'native_token_transfers',
-    polygon_zkevm: 'native_token_transfers',
-    unichain: 'native_token_transfers',
-    sonic: 'native_token_transfers',
+    // bsc: 'bnb_token_transfers',
+    // avax: 'avax_token_transfers',
+    // polygon: 'matic_token_transfers',
+    // berachain: 'native_token_transfers',
+    // ink: 'native_token_transfers',
+    // xdai: 'native_token_transfers',
+    // polygon_zkevm: 'native_token_transfers',
+    // unichain: 'native_token_transfers',
+    // sonic: 'native_token_transfers',
+    // plasma: 'native_token_transfers',
+    // monad: 'native_token_transfers'
   }
 
   let query = ``
   const targetList = '( ' + targets.map(i => `'${i}'`).join(', ') + ' )'
+  const excludeSenderList = '( ' + excludeSenders.map(i => `'${i}'`).join(', ') + ' )'
   const chainKey = chainMap[options.chain]
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
-      FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
+      FROM ${chainKey}${tableMap[options.chain] ? '.assets.${tableMap[options.chain]}' : '.assets.native_token_transfers'}
       WHERE to_address in ${targetList} 
-      ${targets.length > 1 ? `AND from_address not in ${targetList} ` : ' '}
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
@@ -497,7 +632,7 @@ export async function getETHReceived({ options, balances, target, targets = [] }
       FROM ${getAlliumChain(options.chain)}.raw.traces
       WHERE to_address in ${targetList} 
       AND status = 1
-      ${targets.length > 1 ? `AND from_address not in ${targetList} ` : ' '}
+      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   }

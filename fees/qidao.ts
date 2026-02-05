@@ -40,17 +40,17 @@ const fetch: FetchV2 = async ({ chain, createBalances, getLogs, }) => {
   log_withdraw_fees.map((e: any) => dailyFees.add(e.token, e.amount))
   log_token_earned.map((e: any) => dailyFees.add(e.perfToken, e.amount))
   const dailyRevenue = dailyFees.clone(0.5)
-  const totalSupplySideRevenue = dailyFees.clone(0.5)
+  const dailySupplySideRevenue = dailyFees.clone(0.5)
 
   return {
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue: dailyRevenue,
-    dailySupplySideRevenue: totalSupplySideRevenue,
+    dailySupplySideRevenue: dailySupplySideRevenue,
   }
 }
 
-const meta = {
+const info = {
   methodology: {
     Fees: "Total reward and withdraw fees paid by users.",
     Revenue: "50% of collected fees earned by QiDAO, 50% fees to asset suppliers.",
@@ -58,8 +58,9 @@ const meta = {
   }
 };
 
-const options: any = { fetch, start: '2023-08-05', meta }
+const options: any = { start: '2023-08-05', }
 const adapter: SimpleAdapter = {
+  fetch, methodology: info.methodology,
   adapter: {
     [CHAIN.ARBITRUM]: options,
     [CHAIN.POLYGON]: options,

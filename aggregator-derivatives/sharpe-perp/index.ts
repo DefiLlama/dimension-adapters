@@ -12,6 +12,7 @@ const fetch = async (options: any): Promise<FetchResultV2> => {
 // CHAIN.ARBITRUM, CHAIN.MANTLE, CHAIN.OPTIMISM, CHAIN.BASE, 
 export default {
     version: 2,
+    deadFrom: '2025-05-03',
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,

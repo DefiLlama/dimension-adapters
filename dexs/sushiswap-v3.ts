@@ -1,5 +1,4 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
 import { FetchOptions } from "../adapters/types";
@@ -23,8 +22,8 @@ const endpointsV3 = {
   [CHAIN.BASE]: sdk.graph.modifyEndpoint('Cz4Snpih41NNNPZcbj1gd3fYXPwFr5q92iWMoZjCarEb'),
   [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/sushi-v3/v3-core",
   [CHAIN.BLAST]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-blast/gn",
-  [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-2/gn",
-  [CHAIN.BITTORRENT]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-bttc/gn",
+  // [CHAIN.ROOTSTOCK]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-rootstock-2/gn",
+  // [CHAIN.BITTORRENT]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-bttc/gn",
   // [CHAIN.FILECOIN]: "https://sushi.laconic.com/subgraphs/name/sushiswap/v3-filecoin",
   [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/api/public/fc1ae952-7a36-44ac-9e9b-f46d70cedf7d/subgraphs/sushi-v3/v3-metis/v0.0.1/gn",
   [CHAIN.KAVA]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushi-v3/v3-kava/gn",
@@ -34,8 +33,8 @@ const endpointsV3 = {
   [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('5gyhoHx768oHn3GxsHsEc7oKFMPFg9AH8ud1dY8EirRc'),
   // [CHAIN.SKALE_EUROPA]: "https://elated-tan-skat-graph.skalenodes.com:8000/subgraphs/name/sushi/v3-skale-europa",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('5ijXw9MafwFkXgoHmUiWsWHvRyYAL3RD4smnmBLmNPnw'),
-  [CHAIN.HEMI]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-hemi/gn",
-  [CHAIN.KATANA]: sdk.graph.modifyEndpoint('2YG7eSFHx1Wm9SHKdcrM8HR23JQpVe8fNNdmDHMXyVYR')
+  // [CHAIN.HEMI]: "https://api.goldsky.com/api/public/project_clslspm3c0knv01wvgfb2fqyq/subgraphs/sushiswap/v3-hemi/gn",
+  // [CHAIN.KATANA]: sdk.graph.modifyEndpoint('2YG7eSFHx1Wm9SHKdcrM8HR23JQpVe8fNNdmDHMXyVYR')
 }
 
 const v3Graphs = getGraphDimensions2({
@@ -85,28 +84,14 @@ const startTimeV3: { [key: string]: number } = {
   [CHAIN.SONIC]: 1711982400,
 }
 
-const meta = {
-  methodology: {
-    Fees: "Each pool charge between 0.01% to 1% fee",
-    UserFees: "Users pay between 0.01% to 1% fee",
-    Revenue: "0 to 1/4 of the fee goes to treasury",
-    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
-    ProtocolRevenue: "Treasury receives a share of the fees",
-    SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
-  }
-}
-
 const v3: any = Object.keys(endpointsV3).reduce(
   (acc, chain) => ({
     ...acc,
     [chain]: {
       fetch: async (options: FetchOptions) => {
-        const res = (await v3Graphs(chain as Chain)(options))
+        const res = (await v3Graphs(options))
         const result = {
-          totalVolume: res.totalVolume,
           dailyVolume: res.dailyVolume,
-          totalFees: res.totalFees,
-          totalUserFees: res.totalUserFees,
           dailyFees: res.dailyFees,
           dailyUserFees: res.dailyUserFees,
           dailyRevenue: res.dailyRevenue,
@@ -122,7 +107,6 @@ const v3: any = Object.keys(endpointsV3).reduce(
         return result;
       },
       start: startTimeV3[chain],
-      meta,
     },
   }),
   {}
@@ -135,18 +119,33 @@ const getUniV3LogAdapterConfig = {
   holdersRevenueRatio: 0,
 }
 
-v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.LINEA] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.THUNDERCORE] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba661d51a773d3a992Fc9DDCB', ...getUniV3LogAdapterConfig }), meta, }
-// v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F', ...getUniV3LogAdapterConfig }), meta, }
-v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), meta, }
+v3[CHAIN.ARBITRUM_NOVA] = { fetch: getUniV3LogAdapter({ factory: '0xaa26771d497814e81d305c511efbb3ced90bf5bd', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.BSC] = { fetch: getUniV3LogAdapter({ factory: '0x126555dd55a39328F69400d6aE4F782Bd4C34ABb', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.OPTIMISM] = { fetch: getUniV3LogAdapter({ factory: '0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.POLYGON] = { fetch: getUniV3LogAdapter({ factory: '0x917933899c6a5F8E37F31E19f92CdBFF7e8FF0e2', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.POLYGON_ZKEVM] = { fetch: getUniV3LogAdapter({ factory: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.LINEA] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.THUNDERCORE] = { fetch: getUniV3LogAdapter({ factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.FANTOM] = { fetch: getUniV3LogAdapter({ factory: '0x7770978eED668a3ba661d51a773d3a992Fc9DDCB', ...getUniV3LogAdapterConfig }), }
+// v3[CHAIN.FUSE] = { fetch: getUniV3LogAdapter({ factory: '0x1b9d177CcdeA3c79B6c8F40761fc8Dc9d0500EAa', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.ETHEREUM] = { fetch: getUniV3LogAdapter({ factory: '0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.AVAX] = { fetch: getUniV3LogAdapter({ factory: '0x3e603C14aF37EBdaD31709C4f848Fc6aD5BEc715', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.HEMI] = { fetch: getUniV3LogAdapter({ factory: '0xcdbcd51a5e8728e0af4895ce5771b7d17ff71959', ...getUniV3LogAdapterConfig }), }
+v3[CHAIN.KATANA] = { fetch: getUniV3LogAdapter({ factory: '0x203e8740894c8955cb8950759876d7e7e45e04c1', ...getUniV3LogAdapterConfig }), }
+
+// chains badly support rpc getLogs
+// v3[CHAIN.BITTORRENT] = { fetch: getUniV3LogAdapter({ factory: '0xbbde1d67297329148fe1ed5e6b00114842728e65', ...getUniV3LogAdapterConfig }), }
+// v3[CHAIN.ROOTSTOCK] = { fetch: getUniV3LogAdapter({ factory: '0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e', ...getUniV3LogAdapterConfig }), }
 
 export default {
   version: 2,
+  methodology: {
+    Fees: "Each pool charge between 0.01% to 1% fee",
+    UserFees: "Users pay between 0.01% to 1% fee",
+    Revenue: "0 to 1/4 of the fee goes to treasury",
+    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools"
+  },
   adapter: v3,
 }

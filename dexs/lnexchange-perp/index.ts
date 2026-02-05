@@ -18,9 +18,11 @@ const fetch = async (timestamp: number) => {
   const dailyVolume = respose.reduce((acc, item) => {
     return acc.plus(item.dayNtlVlm);
   }, new BigNumber(0));
+  if (dailyVolume.gt(200000000)) { // very high unusual spike in volume
+    throw new Error("Unusual spike in volume, it's avg volume is 200M");
+  }
   return {
     dailyVolume: dailyVolume?.toString(),
-    timestamp: dayTimestamp,
   };
 };
 

@@ -2,22 +2,6 @@ import fetchURL from "../../utils/fetchURL";
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const chainToId: Record<string, number> = {
-    [CHAIN.ETHEREUM]: 1,
-    [CHAIN.ARBITRUM]: 42161,
-    [CHAIN.AVAX]: 43114,
-    [CHAIN.BSC]: 56,
-    [CHAIN.FANTOM]: 250,
-    [CHAIN.OPTIMISM]: 10,
-    [CHAIN.POLYGON]: 137,
-    [CHAIN.LINEA]: 59144,
-    [CHAIN.SCROLL]: 534352,
-    [CHAIN.ERA]: 324,
-    [CHAIN.CRONOS]: 25,
-    [CHAIN.MANTA]: 169,
-};
-
-
 const url = "https://api.aperture.finance/getMetricsBreakDownSinceInception"
 
 interface VolumeInfo {
@@ -31,7 +15,7 @@ interface VolumeResponse {
 }
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-    const chainId = chainToId[options.chain]
+    const chainId = options.api.chainId
 
     const data: VolumeResponse = await fetchURL(`${url}?chainid=${chainId}&timestamp=${timestamp}`);
 
@@ -43,6 +27,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) =
 }
 
 const adapter: SimpleAdapter = {
+    deadFrom: '2024-06-01',
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,

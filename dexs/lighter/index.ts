@@ -4,7 +4,6 @@ import { CHAIN } from "../../helpers/chains";
 const fetch = async (timestamp: number) => {
   return {
     dailyVolume: '0',
-    totalVolume: '4913817761.861917',
     timestamp: timestamp,
   };
 };

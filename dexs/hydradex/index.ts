@@ -1,4 +1,4 @@
-import { Chain } from  "../../adapters/types";
+import { Chain } from "../../adapters/types";
 import { BreakdownAdapter, BaseAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { getStartTimestamp } from '../../helpers/getStartTimestamp';
@@ -54,13 +54,6 @@ const v3Graphs = getGraphDimensions2({
   getCustomBlock: getV3CustomBlock,
 });
 
-const methodology = {
-  UserFees: 'User pays 0.3% fees on each swap.',
-  ProtocolRevenue: 'Protocol have no revenue.',
-  SupplySideRevenue: 'All user fees are distributed among LPs.',
-  HoldersRevenue: 'Holders have no revenue.',
-};
-
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
@@ -71,20 +64,11 @@ const adapter: BreakdownAdapter = {
             timestamp
           }
         },
-        meta: {
-          methodology,
-        },
       },
     },
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
-        meta: {
-          methodology: {
-            ...methodology,
-            UserFees: 'User pays 0.01%, 0.05%, 0.3%, or 1% on each swap.',
-          },
-        },
+        fetch: v3Graphs,
       };
       return acc;
     }, {} as BaseAdapter),

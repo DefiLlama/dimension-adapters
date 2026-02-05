@@ -15,7 +15,10 @@ const feeAdapter = getDexChainFees({
   revenue: 0.0002,
   userFees: TOTAL_FEES,
   volumeAdapter,
-  meta: {
+});
+
+const adapter: Adapter = {
+  version: 2,
     methodology: {
       UserFees: "User pays 0.04% fees on each stable swap.",
       ProtocolRevenue: "0.003% goes to an address which you can have no expectations (~7% of fees).",
@@ -23,12 +26,7 @@ const feeAdapter = getDexChainFees({
       HoldersRevenue: "0.017% (43% of fees) is used to buy and burn PLSX.",
       Revenue: "All revenue generated comes from user fees.",
       Fees: "All fees comes from the user."
-    }
-  }
-});
-
-const adapter: Adapter = {
-  version: 2,
+    },
   adapter: feeAdapter
 };
 

@@ -22,12 +22,10 @@ const adapter: Adapter = {
     [CHAIN.KAVA]: {
       fetch: fetch,
       start: '2023-09-07',
-      meta: {
-        methodology: {
-          Fees: 'Payment fees paid by users.',
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: 'Payment fees paid by users.',
   }
 }
 

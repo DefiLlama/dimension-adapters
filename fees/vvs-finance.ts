@@ -1,3 +1,4 @@
+import { BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
@@ -19,6 +20,6 @@ const adapters = univ2DimensionAdapter2({
   }
 }, {
 });
-adapters.adapter.cronos.start = 1632035122;
+(adapters.adapter as BaseAdapter).cronos.start = 1632035122;
 
 export default adapters;

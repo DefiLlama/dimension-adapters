@@ -1,12 +1,12 @@
 import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
-import { ETHEREUM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
 import { request } from "graphql-request";
 import type { ChainEndpoints, FetchOptions } from "../adapters/types";
 import { Chain } from "../adapters/types";
 
 const endpoints = {
-  [ETHEREUM]:
+  [CHAIN.ETHEREUM]:
     sdk.graph.modifyEndpoint('CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo'),
 };
 
@@ -39,8 +39,8 @@ const graph = (graphUrls: ChainEndpoints) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [ETHEREUM]: {
-      fetch: graph(endpoints)(ETHEREUM),
+    [CHAIN.ETHEREUM]: {
+      fetch: graph(endpoints)(CHAIN.ETHEREUM),
       start: '2023-04-19',
     },
   },

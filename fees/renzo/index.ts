@@ -6,6 +6,10 @@ import {
   getERC20FeesData,
   getERC20EarningsData
 } from "./common";
+import { addTokensReceived } from '../../helpers/token';
+
+const RENZO_TOKEN = "0x3B50805453023a91a8bf641e279401a0b23FA6F9";
+const BUYBACK_BOT = "0x7d7445b6e7098efBDEAfA4A24f443847D5dAA262";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const { createBalances, startTimestamp, endTimestamp } = options;
@@ -67,10 +71,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(retainedBalances.getBalances());
 
+  const dailyHoldersRevenue = await addTokensReceived({ token: RENZO_TOKEN, options, target: BUYBACK_BOT })
+
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue
   };
 }
 
@@ -79,16 +86,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      meta: {
-        methodology: {
-          Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
-          Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
-          ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees."
-        },
-      },
       start: '2024-09-04' // September 4th, 2024 -- M4 EigenPod Upgrade
     }
-  }
+  },
+  methodology: {
+    Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
+    Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+    ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+    HoldersRevenue: "75-100% of revenue directed to buyback bot of which 90% goes to burn and 10% to stakers"
+  },
 }
 
 export default adapter;

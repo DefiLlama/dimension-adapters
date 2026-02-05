@@ -30,38 +30,33 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  methodology,
   deadFrom: '2024-02-29',
   version: 1,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch(43114),
       start: '2022-08-08',
-      meta: { methodology },
     },
     [CHAIN.FANTOM]: {
       fetch: fetch(137),
       start: '2022-06-07',
-      meta: { methodology },
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(137),
       start: '2022-08-25',
-      meta: { methodology },
     },
     [CHAIN.BSC]: {
       fetch: fetch(56),
       start: '2022-07-08',
-      meta: { methodology },
     },
     [CHAIN.CRONOS]: {
       fetch: fetch(25),
       start: '2022-06-28',
-      meta: { methodology },
     },
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),
       start: '2023-01-10',
-      meta: { methodology },
     },
   },
 };

@@ -84,14 +84,12 @@ export default {
     adapter: {
         [CHAIN.TON]: {
             start: '2023-11-14',
-            meta: {
-                methodology: {
-                    UserFees: "User pays fee on each swap (depends on pool, 0.1% - 1%).",
-                    Revenue: "Protocol receives 20% of fees, it is distributed among DUST stakers.",
-                    SupplySideRevenue: "80% of user fees are distributed among LPs.",
-                },
-            },
             fetch: fetchFees,
         },
+    },
+    methodology: {
+        UserFees: "User pays fee on each swap (depends on pool, 0.1% - 1%).",
+        Revenue: "Protocol receives 20% of fees, it is distributed among DUST stakers.",
+        SupplySideRevenue: "80% of user fees are distributed among LPs.",
     },
 }

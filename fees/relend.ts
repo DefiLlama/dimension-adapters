@@ -1,4 +1,3 @@
-import { SimpleAdapter } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 
 const curatorConfig: CuratorConfig = {
@@ -18,13 +17,9 @@ const curatorConfig: CuratorConfig = {
       euler: [
         '0xc5976e0356f0A3Ce8307fF08C88bB05933F88761',
       ],
+      start: '2025-04-28',
     },
   }
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: getCuratorExport(curatorConfig),
-}
-
-export default adapter
+export default getCuratorExport(curatorConfig)

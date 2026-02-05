@@ -22,14 +22,6 @@ export const factories = {
   [CHAIN.ARBITRUM]: '0x717EF162cf831db83c51134734A15D1EBe9E516a',
 };
 
-// const graphs = getChainVolume2({
-//   graphUrls: endpoints,
-//   totalVolume: {
-//     factory: "factories",
-//     field: DEFAULT_TOTAL_VOLUME_FIELD,
-//   },
-// });
-
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: chains.reduce((acc, chain) => {
@@ -40,11 +32,6 @@ const adapter: SimpleAdapter = {
           const adapter = getUniV2LogAdapter({ factory: factories[chain] })
           const response = await adapter(options)
           return response;
-          // const res = await graphs(chain as Chain)(option);
-          // return {
-          //   dailyVolume: res?.dailyVolume || "0",
-          //   totalVolume: res?.totalVolume || "0",
-          // }
         },
         start: getStartTimestamp({
           endpoints: endpoints,

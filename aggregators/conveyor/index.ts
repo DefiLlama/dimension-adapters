@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 
 const chainsMap: Record<string, string> = {
@@ -27,6 +27,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions): Promise<FetchResult
 
 const adapter: SimpleAdapter = {
   version: 1,
+  dependencies: [Dependencies.DUNE],
   adapter: {
     ...Object.values(chainsMap).reduce((acc, chain) => {
       return {

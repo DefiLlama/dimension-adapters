@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions, ProtocolType } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 
@@ -30,19 +30,15 @@ const fetch = async (_timestamp: number, __: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.NEAR]: {
-      fetch,
-      start: '2020-07-21',
-      meta: {
-        methodology: {
-          Fees: "We fetch daily transaction fees from NearBlocks API. The data is aggregated daily and includes all transaction fees paid on the NEAR blockchain. 70% of transaction fees are burned, while 30% can optionally be allocated to smart contract developers as rewards if they specify a fee percentage for their contracts (otherwise 100% is burned). Note that validators do not earn transaction fees - their rewards come from protocol-level inflation.",
-          Revenue: "All fees paid by users while using Near blockchain.",
-        }
-      }
-    },
+  fetch,
+  chains: [CHAIN.NEAR],
+  start: '2020-07-21',
+  dependencies: [Dependencies.ALLIUM],
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: "We fetch daily transaction fees from NearBlocks API. The data is aggregated daily and includes all transaction fees paid on the NEAR blockchain. 70% of transaction fees are burned, while 30% can optionally be allocated to smart contract developers as rewards if they specify a fee percentage for their contracts (otherwise 100% is burned). Note that validators do not earn transaction fees - their rewards come from protocol-level inflation.",
+    Revenue: "All fees paid by users while using Near blockchain.",
   },
-  protocolType: ProtocolType.CHAIN
 };
 
 export default adapter;

@@ -1,11 +1,24 @@
 import request, { gql } from "graphql-request";
-import { Adapter, ChainEndpoints, Fetch, } from "../../adapters/types";
+import { Adapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { fetchBuilderSymmioPerpsByName } from "../../helpers/symmio";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
+const methodology = {
+  symmio: {
+    Volume: 'builder code volume from Symmio Perps Trades.',
+    Fees: 'builder code fees from Symmio Perps Trades.',
+    Revenue: 'builder code revenue from Symmio Perps Trades.',
+    ProtocolRevenue: 'builder code revenue from Symmio Perps Trades.',
+    OpenInterest: 'builder code openInterest from Symmio Perps Trades.',
+  },
+  quickswap: {
+    dailyVolume: "Total cumulativeVolumeUsd for specified chain for the given day",
+  },
+};
+
 const endpoints = {
-  [CHAIN.POLYGON_ZKEVM]:
-    "https://api.studio.thegraph.com/query/46725/quickperp-subgraph/version/latest",
+  [CHAIN.POLYGON_ZKEVM]: "https://api.studio.thegraph.com/query/46725/quickperp-subgraph/version/latest",
 };
 
 interface IVolumeStat {
@@ -14,57 +27,37 @@ interface IVolumeStat {
   id: string;
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: Fetch = async (timestamp: any, _cb: any, { chain, }) => {
+const graphs = (graphUrls: Record<string, string>) => {
+  const fetch: Fetch = async (timestamp: number, _cb, { chain }) => {
     const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-
     const graphQuery = gql`
-    query MyQuery {
-      volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
-        cumulativeVolumeUsd
-        volumeUsd
-        id
+      query ($ts: Int!) {
+        volumeStats(where: { timestamp: $ts, period: "daily" }) {
+          volumeUsd
+        }
       }
-    }
-  `;
-
-    const graphRes = await request(graphUrls[chain], graphQuery);
-    const volumeStats: IVolumeStat[] = graphRes.volumeStats;
-
-    let dailyVolumeUSD = BigInt(0);
-    let totalVolumeUSD = BigInt(0);
-
-    volumeStats.forEach((vol) => {
-      dailyVolumeUSD += BigInt(vol.volumeUsd);
-      totalVolumeUSD += BigInt(vol.cumulativeVolumeUsd);
-    });
-
-    const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e30;
-    const finalTotalVolume = parseInt(totalVolumeUSD.toString()) / 1e30;
-
-    return {
-      dailyVolume: finalDailyVolume.toString(),
-      totalVolume: finalTotalVolume.toString(),
-      timestamp: todaysTimestamp,
-    };
+    `;
+    const graphRes = await request(graphUrls[chain], graphQuery, { ts: todaysTimestamp });
+    const volumeStats: IVolumeStat[] = graphRes.volumeStats ?? [];
+    let dailyVolumeUSD = 0n;
+    for (const v of volumeStats) dailyVolumeUSD += BigInt(v.volumeUsd || "0");
+    const finalDailyVolume = Number(dailyVolumeUSD) / 1e30;
+    return { dailyVolume: String(finalDailyVolume), timestamp: todaysTimestamp };
   };
   return fetch;
 };
 
-const methodology = {
-  dailyVolume:
-    "Total cumulativeVolumeUsd for specified chain for the given day",
-};
-
 const adapter: Adapter = {
   version: 1,
+  doublecounted: true,
+  methodology: methodology.symmio,
   adapter: {
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: graphs(endpoints),
       start: '2024-01-01',
-      meta: {
-        methodology,
+      fetch: graphs(endpoints)
       },
+    [CHAIN.BASE]: {
+      fetch: fetchBuilderSymmioPerpsByName("Quickswap"),
     },
   },
 };

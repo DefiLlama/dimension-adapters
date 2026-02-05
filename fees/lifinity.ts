@@ -50,10 +50,9 @@ const adapter: Adapter = {
     [CHAIN.SOLANA]: {
       fetch,
       start: getStartTimestamp,
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology,
+  deadFrom:'2025-11-21',
 }
 export default adapter;

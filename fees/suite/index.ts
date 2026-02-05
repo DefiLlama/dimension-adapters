@@ -37,16 +37,14 @@ const adapter: Adapter = {
     [CHAIN.SUI]: {
       fetch: fetchSuiteStats,
       start: '2024-09-25',
-      meta: {
-        methodology: {
-          Fees: 'Total fees paid from bot trades',
-          Revenue: 'Total fees paid from bot trades',
-          ProtocolReveneue: '50% of the total fees goes to the treasury',
-          HoldersRevenue: '50% of the total fees goes to the token holders (doesn\'t include other revenue sources)'
-        }
-      },
     },
   },
+  methodology: {
+    Fees: 'Total fees paid from bot trades',
+    Revenue: 'Total fees paid from bot trades',
+    ProtocolReveneue: '50% of the total fees goes to the treasury',
+    HoldersRevenue: '50% of the total fees goes to the token holders (doesn\'t include other revenue sources)'
+  }
 };
 
 export default adapter;

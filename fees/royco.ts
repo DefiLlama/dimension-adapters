@@ -27,7 +27,7 @@ const methodology = {
 }
 
 // defillama chain => royco subgraph chain
-const ChainMaps: {[key: string]: string} = {
+const ChainMaps: { [key: string]: string } = {
   [CHAIN.ETHEREUM]: 'mainnet',
   [CHAIN.ARBITRUM]: 'arbitrum-one',
   [CHAIN.BASE]: 'base',
@@ -58,14 +58,14 @@ interface RecipeEvent {
 
 async function querySubgraph(options: FetchOptions, endpoint: string, dailySupplySideRevenue: Balances, dailyProtocolRevenue: Balances) {
   const fromTime = Number(options.fromApi.timestamp)
-    const toTime = options.toApi.timestamp ? options.toApi.timestamp : fromTime + 24 * 3600
+  const toTime = options.toApi.timestamp ? options.toApi.timestamp : fromTime + 24 * 3600
 
-    const receiptEvents: Array<RecipeEvent> = []
+  const receiptEvents: Array<RecipeEvent> = []
 
-    const querySize = 100
-    let startOfferHash = ''
-    do {
-      const query_ipofferFilleds = gql`
+  const querySize = 100
+  let startOfferHash = ''
+  do {
+    const query_ipofferFilleds = gql`
         query get_ipofferFilleds($fromTime: Int, $toTime: Int, $offerHash: String) {
           ipofferFilleds(first: ${querySize}, where: {blockTimestamp_gte: $fromTime, blockTimestamp_lte: $toTime, offerHash_gt: $offerHash}) {
             offerHash
@@ -77,41 +77,41 @@ async function querySubgraph(options: FetchOptions, endpoint: string, dailySuppl
           }
         }
       `
-      const response = await request(endpoint, query_ipofferFilleds, {
-        fromTime,
-        toTime,
-        offerHash: startOfferHash,
-      })
+    const response = await request(endpoint, query_ipofferFilleds, {
+      fromTime,
+      toTime,
+      offerHash: startOfferHash,
+    })
 
-      for (const item of response.ipofferFilleds) {
-        const event: RecipeEvent = {
-          offerHash: item.offerHash,
-          fillAmount: item.fillAmount,
-          incentiveAmounts: item.incentiveAmounts,
-          protocolFeeAmounts: item.protocolFeeAmounts,
-          frontendFeeAmounts: item.frontendFeeAmounts,
+    for (const item of response.ipofferFilleds) {
+      const event: RecipeEvent = {
+        offerHash: item.offerHash,
+        fillAmount: item.fillAmount,
+        incentiveAmounts: item.incentiveAmounts,
+        protocolFeeAmounts: item.protocolFeeAmounts,
+        frontendFeeAmounts: item.frontendFeeAmounts,
 
-          // will fill later
-          incentiveTokens: [],
-        }
-
-        receiptEvents.push(event)
-        startOfferHash = event.offerHash
+        // will fill later
+        incentiveTokens: [],
       }
 
-      if (response.ipofferFilleds.length === 0) {
-        // break loop
-        startOfferHash = ''
-      }
-    } while(startOfferHash !== '')
-
-    if (receiptEvents.length === 0) {
-      return;
+      receiptEvents.push(event)
+      startOfferHash = event.offerHash
     }
 
-    // query marketId of given offerHash
-    const offerHashList: Array<string> = receiptEvents.map(item => item.offerHash)
-    const query_ipofferCreateds = gql`
+    if (response.ipofferFilleds.length === 0) {
+      // break loop
+      startOfferHash = ''
+    }
+  } while (startOfferHash !== '')
+
+  if (receiptEvents.length === 0) {
+    return;
+  }
+
+  // query marketId of given offerHash
+  const offerHashList: Array<string> = receiptEvents.map(item => item.offerHash)
+  const query_ipofferCreateds = gql`
       query get_ipofferCreateds($offers: [String]) {
         ipofferCreateds(first: ${offerHashList.length}, where: {offerHash_in: $offers}) {
           offerHash
@@ -119,12 +119,12 @@ async function querySubgraph(options: FetchOptions, endpoint: string, dailySuppl
         }
       }
     `
-    const query_ipofferCreatedsResponse = await request(endpoint, query_ipofferCreateds, {
-      offers: offerHashList,
-    })
+  const query_ipofferCreatedsResponse = await request(endpoint, query_ipofferCreateds, {
+    offers: offerHashList,
+  })
 
-    // query incentive tokens of given marketId
-    const query_rawMarkets = gql`
+  // query incentive tokens of given marketId
+  const query_rawMarkets = gql`
       query get_rawMarkets($markets: [String]) {
         rawMarkets(first: ${offerHashList.length}, where: {marketId_in: $markets}) {
           marketId
@@ -132,36 +132,36 @@ async function querySubgraph(options: FetchOptions, endpoint: string, dailySuppl
         }
       }
     `
-    const query_rawMarketsResponse = await request(endpoint, query_rawMarkets, {
-      markets: query_ipofferCreatedsResponse.ipofferCreateds.map((item: any) => item.marketHash),
-    })
+  const query_rawMarketsResponse = await request(endpoint, query_rawMarkets, {
+    markets: query_ipofferCreatedsResponse.ipofferCreateds.map((item: any) => item.marketHash),
+  })
 
-    // map offer offerHash -> raw market id
-    const offerHashToIncentiveTokens: {[key: string]: Array<string>} = {}
-    for (const offer of query_ipofferCreatedsResponse.ipofferCreateds) {
-      const rawMarket = query_rawMarketsResponse.rawMarkets.find((item: any) => item.marketId === offer.marketHash)
-      if (rawMarket) {
-        // parse incentive tokens from format of: chain-address
-        // 1-0x6243558a24cc6116abe751f27e6d7ede50abfc76
-        offerHashToIncentiveTokens[offer.offerHash] = rawMarket.incentivesOfferedIds.map((token: string) => token.split('-')[1])
-      }
+  // map offer offerHash -> raw market id
+  const offerHashToIncentiveTokens: { [key: string]: Array<string> } = {}
+  for (const offer of query_ipofferCreatedsResponse.ipofferCreateds) {
+    const rawMarket = query_rawMarketsResponse.rawMarkets.find((item: any) => item.marketId === offer.marketHash)
+    if (rawMarket) {
+      // parse incentive tokens from format of: chain-address
+      // 1-0x6243558a24cc6116abe751f27e6d7ede50abfc76
+      offerHashToIncentiveTokens[offer.offerHash] = rawMarket.incentivesOfferedIds.map((token: string) => token.split('-')[1])
     }
+  }
 
-    // update event incentive tokens
-    for (let i = 0; i < receiptEvents.length; i++) {
-      receiptEvents[i].incentiveTokens = offerHashToIncentiveTokens[receiptEvents[i].offerHash]
+  // update event incentive tokens
+  for (let i = 0; i < receiptEvents.length; i++) {
+    receiptEvents[i].incentiveTokens = offerHashToIncentiveTokens[receiptEvents[i].offerHash]
+  }
+
+  for (const event of receiptEvents) {
+    for (let i = 0; i < event.incentiveTokens.length; i++) {
+      // add incentive amount + frontend fees to supply side
+      dailySupplySideRevenue.add(event.incentiveTokens[i], event.incentiveAmounts[i])
+      dailySupplySideRevenue.add(event.incentiveTokens[i], event.frontendFeeAmounts[i])
+
+      // add protocol fees to Royco protocol
+      dailyProtocolRevenue.add(event.incentiveTokens[i], event.protocolFeeAmounts[i])
     }
-
-    for (const event of receiptEvents) {
-      for (let i = 0; i < event.incentiveTokens.length; i++) {
-        // add incentive amount + frontend fees to supply side
-        dailySupplySideRevenue.add(event.incentiveTokens[i], event.incentiveAmounts[i])
-        dailySupplySideRevenue.add(event.incentiveTokens[i], event.frontendFeeAmounts[i])
-
-        // add protocol fees to Royco protocol
-        dailyProtocolRevenue.add(event.incentiveTokens[i], event.protocolFeeAmounts[i])
-      }
-    }
+  }
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -169,9 +169,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
-  
+
   await querySubgraph(options, recipeSubgraphUrl, dailySupplySideRevenue, dailyProtocolRevenue)
-  
+
   const dailyFees = options.createBalances()
   dailyFees.addBalances(dailySupplySideRevenue)
   dailyFees.addBalances(dailyProtocolRevenue)
@@ -185,49 +185,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  methodology,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      meta: {
-        methodology,
-      },
-      start: '2024-12-2',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      meta: {
-        methodology,
-      },
-      start: '2024-11-24',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch,
-      meta: {
-        methodology,
-      },
-      start: '2024-12-23',
-    },
-    [CHAIN.CORN]: {
-      fetch: fetch,
-      meta: {
-        methodology,
-      },
-      start: '2024-12-2',
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch,
-      meta: {
-        methodology,
-      },
-      start: '2025-01-15',
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetch,
-      meta: {
-        methodology,
-      },
-      start: '2024-12-2',
-    },
+    [CHAIN.ETHEREUM]: { start: '2024-12-2', },
+    [CHAIN.ARBITRUM]: { start: '2024-11-24', },
+    [CHAIN.BASE]: { start: '2024-12-23', },
+    [CHAIN.CORN]: { start: '2024-12-2', },
+    [CHAIN.SONIC]: { start: '2025-01-15', },
+    [CHAIN.HYPERLIQUID]: { start: '2024-12-2', },
   }
 }
 

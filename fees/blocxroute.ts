@@ -1,10 +1,10 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { getETHReceived } from "../helpers/token";
 
-const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
   WITH sol_payments_total AS (
       SELECT
@@ -73,7 +73,7 @@ const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
 }
 
 // https://docs.bloxroute.com/bsc-and-eth/apis/transaction-bundles/bundle-submission/bsc-bundle-submission
-const fetchBSC: any = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchBSC: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({
     options,
     target: '0x74c5F8C6ffe41AD4789602BDB9a48E6Cad623520',
@@ -86,23 +86,17 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
-        }
-      }
     },
     [CHAIN.BSC]: {
       fetch: fetchBSC,
       start: '2024-04-15',
-      meta:{
-        methodology: {
-          Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
-        }
-      }
     }
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
+  methodology: {
+    Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+  }
 };
 
 export default adapter;

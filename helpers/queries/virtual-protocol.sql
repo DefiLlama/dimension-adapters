@@ -1,236 +1,199 @@
 WITH
-    -- Base Chain Calculations
-    base_contracts_filtered AS (
-        -- Old token launcher
-        SELECT
-            varbinary_ltrim (varbinary_substring (data, 33, 32)) as token_address
-        FROM
-            base.logs
-        WHERE
-            contract_address=0x94Bf9622348Cf5598D9A491Fa809194Cf85A0D61
-            AND topic0=0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-        UNION ALL
-        -- 2nd old token launcher
-        SELECT
-            varbinary_ltrim (varbinary_substring (data, 33, 32)) as token_address
-        FROM
-            base.logs
-        WHERE
-            contract_address=0x5706d5A36c2Cc90a6d46E851efCb3C6Ac0372EB2
-            AND topic0=0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-        UNION ALL
-        -- Bonding contract
-        SELECT
-            varbinary_ltrim (varbinary_substring (data, 33, 32)) as token_address
-        FROM
-            base.logs
-        WHERE
-            contract_address=0x71B8EFC8BCaD65a5D9386D07f2Dff57ab4EAf533
-            AND topic0=0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-        UNION ALL
-        -- New token launcher pumpfun
-        SELECT
-            varbinary_ltrim (topic1) as token_address
-        FROM
-            base.logs
-        WHERE
-            contract_address=0xF66DeA7b3e897cD44A5a231c61B6B4423d613259
-            AND topic0=0x714aa39317ad9a7a7a99db52b44490da5d068a0b2710fffb1a1282ad3cadae1f
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-        UNION ALL
-        -- LUNA address
-        SELECT
-            token_address
-        FROM
-            (
-                VALUES
-                    (0x55cD6469F597452B5A7536e2CD98fDE4c1247ee4)
-            ) as t (token_address)
+    -- Agent treasury addresses from factory contracts
+    agent_treasury_add AS (
+        SELECT DISTINCT
+            varbinary_ltrim(varbinary_substring(data, 97, 32)) as treasury_add
+        FROM base.logs
+        WHERE contract_address IN (
+            0x94Bf9622348Cf5598D9A491Fa809194Cf85A0D61,
+            0x5706d5A36c2Cc90a6d46E851efCb3C6Ac0372EB2,
+            0x71B8EFC8BCaD65a5D9386D07f2Dff57ab4EAf533,
+            0xeb8A7B0184373550DCAa79156812F5d33e998C1E
+        )
+        AND topic0 = 0xf9d151d23a5253296eb20ab40959cf48828ea2732d337416716e302ed83ca658
+        AND block_time >= timestamp '2024-08-30'
+        AND block_time <= from_unixtime({{endTimestamp}})
     ),
-    virtual_price_for_period AS (
-        SELECT
-            SUM(amount_usd)/SUM(token_bought_amount) AS avg_price
-        FROM
-            dex.trades
-        WHERE
-            token_bought_address=0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b -- VIRTUAL token address
-            AND blockchain='base'
-            AND amount_usd>0
-            AND token_bought_amount>0
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-            AND block_time>CAST('2023-10-16' AS TIMESTAMP) -- Original filter, adjust if needed
+    
+    -- Base chain trading transactions
+    trading_txns AS (
+        SELECT 
+            evt_tx_hash, 
+            contract_address, 
+            CASE 
+                WHEN contract_address = 0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b THEN value / power(10, 18)
+                WHEN contract_address = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf THEN value / power(10, 8)
+                ELSE null 
+            END as amt,
+            CASE 
+                WHEN "to" = 0x86CbAC9d9Ac726F729eEf6627Dc4817BcBB03A9c THEN 'legacy'
+                -- Modified: Exclude cowswap address from prototype category
+                WHEN "to" = 0x89c69df65d0F6a0Df92b2f5B0715E9663b711341 AND "from" != 0x9008d19f58aabd9ed0d60971565aa8510560ab41 THEN 'prototype'
+                WHEN "to" = 0xb51C52d9E5E41937B0100840b6C3CBA6f7A57A0C THEN 'ecosystem'
+                WHEN "to" IN (SELECT treasury_add FROM agent_treasury_add) THEN 'sentient'
+                ELSE null 
+            END as category1
+        FROM erc20_base.evt_transfer
+        WHERE contract_address IN (0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b, 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf)
+        AND (
+            "to" IN (
+                0x86CbAC9d9Ac726F729eEf6627Dc4817BcBB03A9c, -- virtual legacy 
+                0x89c69df65d0F6a0Df92b2f5B0715E9663b711341, -- cbbtc prototype (but exclude cowswap)
+                0xb51C52d9E5E41937B0100840b6C3CBA6f7A57A0C  -- builder code (ecosystem)
+            ) 
+            OR "to" IN (SELECT treasury_add FROM agent_treasury_add)
+        )
+        AND evt_block_time >= from_unixtime({{startTimestamp}})
+        AND evt_block_time <= from_unixtime({{endTimestamp}})
     ),
-    base_virtual_trades_volume_sum AS (
-        SELECT
-            SUM(
-                CASE
-                    WHEN token_bought_address=0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b THEN token_bought_amount
-                    ELSE token_sold_amount
-                END
-            )*COALESCE(
-                (
-                    SELECT
-                        avg_price
-                    FROM
-                        virtual_price_for_period
-                ),
-                0
-            ) as total_virtual_volume_usd
-        FROM
-            dex.trades
-        WHERE
-            (
-                (
-                    token_bought_address IN (
-                        SELECT
-                            token_address
-                        FROM
-                            base_contracts_filtered
-                    )
-                    AND token_sold_address=0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
-                )
-                OR (
-                    token_sold_address IN (
-                        SELECT
-                            token_address
-                        FROM
-                            base_contracts_filtered
-                    )
-                    AND token_bought_address=0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
-                )
-            )
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-            AND block_time>CAST('2023-10-16' AS TIMESTAMP)
+    
+    -- Base revenue transactions with fun/app categorization (only legacy and prototype)
+    base_rev_txns AS (
+        SELECT 
+            contract_address,
+            amt,
+            CASE 
+                WHEN contract_address = 0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b AND category2 = 'fun' AND category1 = 'legacy' THEN 'base-virtual-fun'
+                WHEN contract_address = 0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b AND category2 = 'app' AND category1 = 'legacy' THEN 'base-virtual-app'
+                WHEN contract_address = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf AND category1 = 'prototype' THEN 'base-cbbtc-prototype'
+                -- ecosystem and sentient are NOT included here - they're replaced by base_rev_cbbtc_out
+                ELSE null 
+            END as category_new
+        FROM (
+            SELECT 
+                a.contract_address,
+                a.amt,
+                a.category1,
+                -- buy / sell methods are fun, the rest are app
+                CASE 
+                    WHEN varbinary_substring(b.data, 1, 4) IN (0x4189a68e, 0x7deb6025) THEN 'fun'
+                    ELSE 'app'
+                END as category2
+            FROM trading_txns a
+            LEFT JOIN base.transactions b ON a.evt_tx_hash = b.hash 
+                AND b.block_time >= from_unixtime({{startTimestamp}})
+                AND b.block_time <= from_unixtime({{endTimestamp}})
+        ) categorized
+        WHERE category1 IN ('legacy', 'prototype')
     ),
-    base_other_trades_volume_sum AS (
-        SELECT
-            SUM(amount_usd) as total_other_volume_usd
-        FROM
-            dex.trades
-        WHERE
-            (
-                (
-                    token_bought_address IN (
-                        SELECT
-                            token_address
-                        FROM
-                            base_contracts_filtered
-                    )
-                    AND token_sold_address!=0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
-                )
-                OR (
-                    token_sold_address IN (
-                        SELECT
-                            token_address
-                        FROM
-                            base_contracts_filtered
-                    )
-                    AND token_bought_address!=0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b
-                )
-            )
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-            AND block_time>CAST('2023-10-16' AS TIMESTAMP)
+    
+    -- CBBTC outflows from tax manager (sentient agent revenue)
+    base_rev_cbbtc_out AS (
+        SELECT 
+            COALESCE(SUM(value) / power(10, 8), 0) as amt
+        FROM erc20_base.evt_transfer
+        WHERE "from" = 0x7E26173192D72fd6D75A759F888d61c2cdbB64B1
+        AND contract_address = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
+        AND evt_block_time >= from_unixtime({{startTimestamp}})
+        AND evt_block_time <= from_unixtime({{endTimestamp}})
     ),
-    base_chain_total_volume AS (
-        SELECT
-            'base' as chain,
-            COALESCE(
-                (
-                    SELECT
-                        total_virtual_volume_usd
-                    FROM
-                        base_virtual_trades_volume_sum
-                ),
-                0
-            )+COALESCE(
-                (
-                    SELECT
-                        total_other_volume_usd
-                    FROM
-                        base_other_trades_volume_sum
-                ),
-                0
-            ) as volume_usd
-    ),
-    -- Solana Chain Calculations
-    hour_sol_price_filtered AS (
-        SELECT
-            date_trunc('hour', minute) as hour_time,
-            AVG(price) as price
-        FROM
-            prices.usd
-        WHERE
-            symbol='SOL'
-            AND blockchain='solana'
-            AND minute>=from_unixtime({{startTimestamp}})
-            AND minute<=from_unixtime({{endTimestamp}})
-            AND minute>CAST('2023-10-15' AS TIMESTAMP)
-        GROUP BY
-            1
-    ),
-    sol_agent_swaps_filtered AS (
-        SELECT
-            tx_id,
-            abs(token_balance_change) as token_swap_amt
-        FROM
-            solana.account_activity
-        WHERE
-            token_balance_owner='GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL'
-            AND token_mint_address IN (
-                '9se6kma7LeGcQWyRBNcYzyxZPE3r9t9qWZ8SnjnN3jJ7', -- LUNA
-                'JCKqVrB4cKRFGKFYTMuYzry8QVCgaxS6g5s3HbczCP5W', -- SAM
-                '5SzHH6NKpByimEpb8SrgkZhe6MgKmmuUgLTRJHMp6C48', -- AIRENE
-                '14zP2ToQ79XWvc7FQpm4bRnp9d6Mp1rFfsUW3gpLcRX' -- AIXBT
-            )
-            AND block_time>=from_unixtime({{startTimestamp}})
-            AND block_time<=from_unixtime({{endTimestamp}})
-            AND block_time>CAST('2023-10-15' AS TIMESTAMP)
-    ),
-    sol_swaps_for_volume_calc AS (
-        SELECT
-            s_act.block_time,
-            abs(s_act.token_balance_change) as sol_amount
-        FROM
-            solana.account_activity s_act
-            INNER JOIN sol_agent_swaps_filtered sasf ON s_act.tx_id=sasf.tx_id -- Ensure we only consider txns from agent swaps
-        WHERE
-            s_act.token_balance_owner='GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL'
-            AND s_act.token_mint_address='So11111111111111111111111111111111111111112' -- SOL mint address
-            AND s_act.block_time>=from_unixtime({{startTimestamp}})
-            AND s_act.block_time<=from_unixtime({{endTimestamp}})
-            AND s_act.block_time>CAST('2023-10-15' AS TIMESTAMP)
-    ),
-    solana_chain_total_volume AS (
-        SELECT
-            'solana' as chain,
-            SUM(ssvc.sol_amount*hspf.price) as volume_usd
-        FROM
-            sol_swaps_for_volume_calc ssvc
-            LEFT JOIN hour_sol_price_filtered hspf ON date_trunc('hour', ssvc.block_time)=hspf.hour_time
+    
+    -- Ethereum revenue (already split into 70% dev, 30% ecosystem)
+    eth_rev AS (
+        SELECT 
+            COALESCE(SUM(value) / power(10, 18), 0) as amt
+        FROM erc20_ethereum.evt_transfer
+        WHERE "to" = 0xB754597FDf090B6C860cB1deB63585aA3f19C163
+        AND contract_address = 0x44ff8620b8cA30902395A7bD3F2407e1A091BF73
+        AND evt_block_time >= from_unixtime({{startTimestamp}})
+        AND evt_block_time <= from_unixtime({{endTimestamp}})
     )
-    -- Final Combined Output
+    
+    -- -- Solana contracts for agent tokens
+    -- sol_contracts AS (
+    --     SELECT DISTINCT token_mint_address
+    --     FROM (
+    --         SELECT token_mint_address
+    --         FROM tokens_solana.transfers
+    --         WHERE tx_id IN (
+    --             SELECT tx_id
+    --             FROM tokens_solana.transfers
+    --             WHERE to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+    --             AND token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --             AND block_time >= timestamp '2024-08-30'
+    --             AND block_time <= from_unixtime({{endTimestamp}})
+    --         )
+    --         AND block_time >= timestamp '2024-08-30'
+    --         AND block_time <= from_unixtime({{endTimestamp}})
+    --         AND token_mint_address NOT IN ('3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y', 'So11111111111111111111111111111111111111112')
+    --         AND token_mint_address LIKE '%virt%'
+    --     ) agent_tokens    
+    -- ),
+    
+    -- -- Solana trading volume for sentient revenue
+    -- sol_volume AS (
+    --     SELECT
+    --         COALESCE(SUM(
+    --             CASE
+    --                 WHEN token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y' THEN token_bought_amount
+    --                 ELSE token_sold_amount 
+    --             END
+    --         ), 0) as base_token_amount
+    --     FROM dex_solana.trades
+    --     WHERE (
+    --         (
+    --             token_bought_mint_address IN (SELECT token_mint_address FROM sol_contracts)
+    --             AND token_sold_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --         )
+    --         OR (
+    --             token_sold_mint_address IN (SELECT token_mint_address FROM sol_contracts)
+    --             AND token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --         )
+    --     )
+    --     AND block_time >= from_unixtime({{startTimestamp}})
+    --     AND block_time <= from_unixtime({{endTimestamp}})
+    -- ),
+    
+    -- -- Solana prototype fees (starts from 2024-08-30)
+    -- sol_prototype_fees AS (
+    --     SELECT 
+    --         COALESCE(SUM(amount) / power(10, 9), 0) as amt
+    --     FROM tokens_solana.transfers
+    --     WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+    --     AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2024-08-30')
+    --     AND block_time <= from_unixtime({{endTimestamp}})
+    --     AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+    -- )
+
+-- Final output following original query structure exactly
 SELECT
     chain,
-    COALESCE(volume_usd, 0)*0.01 as fees_usd
-FROM
-    (
-        SELECT
-            *
-        FROM
-            base_chain_total_volume
-        UNION ALL
-        SELECT
-            *
-        FROM
-            solana_chain_total_volume
-    ) AS combined_volumes;
+    virtual_fees,
+    cbbtc_fees
+FROM (
+    -- Base chain revenues following original evm_combined structure
+    SELECT 
+        'base' as chain,
+        -- Virtual fun + app + cbbtc prototype (from base_rev_txns)
+        -- CBBTC sentient revenue (from base_rev_combined - 70% dev + 30% ecosystem = 100%)
+        (
+            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-virtual-fun'), 0) + 
+            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-virtual-app'), 0)
+        ) as virtual_fees,
+        (
+            COALESCE((SELECT SUM(amt) FROM base_rev_txns WHERE category_new = 'base-cbbtc-prototype'), 0) + 
+            COALESCE(bco.amt, 0)
+        ) as cbbtc_fees
+    FROM base_rev_cbbtc_out bco
+    
+    UNION ALL
+    
+    -- Ethereum revenues (from eth_rev - already includes 70% + 30% = 100%)
+    SELECT 
+        'ethereum' as chain,
+        COALESCE(er.amt, 0) as virtual_fees,
+        0 as cbbtc_fees
+    FROM eth_rev er
+    
+    -- UNION ALL
+    
+    -- -- Solana revenues (from sol_trading_rev)
+    -- -- Sol prototype fees
+    -- -- Sol sentient (1% of trading volume)
+    -- SELECT 
+    --     'solana' as chain,
+    --     ( COALESCE(spf.amt, 0) + COALESCE(sv.base_token_amount * 0.01, 0) ) as virtual_fees,
+    --     0 as cbbtc_fees
+    -- FROM sol_prototype_fees spf
+    -- CROSS JOIN sol_volume sv
+)

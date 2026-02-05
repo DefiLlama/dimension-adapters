@@ -56,15 +56,13 @@ const adapters: SimpleAdapter = {
     [CHAIN.ERA]: {
       fetch: fetch,
       start: '2024-11-06',
-      meta: {
-        methodology: {
-          UserFees: "User pays 0.01% fees on each swap.",
-          Revenue: "Approximately 33% of the fees go to the protocol.",
-          ProtocolRevenue: "Approximately 33% of the fees go to the protocol.",
-          SupplySideRevenue: "Approximately 67% of the fees are distributed to liquidity providers (ZFLP token holders)",
-        }
-      }
     }
+  },
+  methodology: {
+    UserFees: "User pays 0.01% fees on each swap.",
+    Revenue: "Approximately 33% of the fees go to the protocol.",
+    ProtocolRevenue: "Approximately 33% of the fees go to the protocol.",
+    SupplySideRevenue: "Approximately 67% of the fees are distributed to liquidity providers (ZFLP token holders)",
   }
 }
 export default adapters;

@@ -90,11 +90,11 @@ const adapter: Adapter = {
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch: getFeesFunction(chain),
-      meta: { methodology },
       start: startTimes[chain],
     };
     return acc;
   }, {} as BaseAdapter)
 }
 
+adapter.methodology = methodology;
 export default adapter;

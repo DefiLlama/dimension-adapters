@@ -1,65 +1,132 @@
-import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 interface Pool {
-    poolName: string;
-    date: string;
-    totalRevenue: string;
-    totalProtocolFee: string;
+  poolName: string;
+  date: string;
+  totalRevenue: string;
+  totalProtocolFee: string;
 }
 
-const urlDailyStats = "https://api.prod.flash.trade/protocol-fees/daily";
+const urlRevStats = "https://api.prod.flash.trade/protocol-fees/daily";
 
 const calculateProtocolRevenue = (stats: Pool[]) => {
-    return stats
-        .filter(item => item.poolName !== "Community.1")
-        .reduce((sum, item) => sum + 0.3 * parseFloat(item.totalProtocolFee), 0);
-}
+  const protocolRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee) / 1e6, 0);
+  return protocolRevenue;
+};
 
-const fetchFlashStats = async (options: FetchOptions): Promise<FetchResultFees> => {
-    const timestamp = options.startOfDay;
-    
-    const dailyStatsResponse = await fetchURL(urlDailyStats);
-    const dailyStats: Pool[] = dailyStatsResponse;
-    
-    // Convert timestamp to date string format matching the API data
-    const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
-    
-    // Filter to only include entries from the target date
-    const todayStats = dailyStats.filter(item => {
-        const itemDate = new Date(item.date).toISOString().split('T')[0];
-        return itemDate === targetDate;
-    });
-    
-    const dailyAccrued = (todayStats.reduce((sum, item) => sum + parseFloat(item.totalProtocolFee), 0));
-    const dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
+const calculateteHolderRevenue = (stats: Pool[]) => {
+  const holderRevenue = stats.reduce((sum, item) => sum + parseFloat(item.totalRevenue) / 1e6, 0);
+  return holderRevenue;
+};
 
-    return {
-        dailyFees: (dailyAccrued * 10**-6).toString(),
-        dailyRevenue: (dailyProtocolRevenue * 10**-6).toString(),
-        dailyProtocolRevenue: (dailyProtocolRevenue * 10**-6).toString(),
+const pools = [
+  "Crypto.1",
+  "Virtual.1",
+  "Governance.1",
+  "Community.1",
+  "Community.2",
+  "Trump.1",
+  "Ore.1",
+  "Remora.1",
+  // keep historical pools
+  "Community.3",
+]
 
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+  const timestamp = options.startOfDay;
+  const targetDate = new Date(timestamp * 1000).toISOString().split('T')[0];
+
+  const poolFeesData: { [pool: string]: number } = {};
+  let dailyFees = 0;
+
+  for (const pool of pools) {
+    const url = `https://api.prod.flash.trade/pnl-info/cumulative-pnl-per-day?poolName=${pool}&startDate=2023-01-01%2000:00:00&endDate=${targetDate}%2023:59:59`;
+    try {
+      const res = await fetchURL(url);
+      const poolFees = (res[targetDate]?.totalFees / 1e6) || 0;
+      poolFeesData[pool] = poolFees;
+      dailyFees += poolFees;
+    } catch {
+      // Treat failures as zero fees and continue with the remaining pools
+      poolFeesData[pool] = 0;
+      continue;
+    }
+  }
+
+  const dailyRevStatsResponse = await fetchURL(urlRevStats);
+  const dailyStats: Pool[] = dailyRevStatsResponse;
+
+  const todayStats = dailyStats.filter(item => {
+    const itemDate = new Date(item.date).toISOString().split('T')[0];
+    return itemDate === targetDate;
+  });
+
+  // June 19, 2025 timestamp (when holder revenue started)
+  const holderRevenueStartTimestamp = 1750291200;
+  
+  let dailyHoldersRevenue = 0;
+  let dailyProtocolRevenue = 0;
+  let dailyRevenue = 0;
+
+  if (timestamp > holderRevenueStartTimestamp) {
+    // After June 19, 2025: Use API data for holder and protocol revenue
+    dailyHoldersRevenue = calculateteHolderRevenue(todayStats);
+    dailyProtocolRevenue = calculateProtocolRevenue(todayStats);
+    dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  } else {
+    // Before June 19, 2025: Apply specific revenue percentages per pool
+    const poolRevenueRates: { [key: string]: number } = {
+      "Crypto.1": 0.30,
+      "Virtual.1": 0.30,
+      "Governance.1": 0.30,
+      "Community.1": 0.00,
+      "Community.2": 0.00,
+      "Community.3": 0.05,
+      "Trump.1": 0.05,
+      "Ore.1": 0.10,
+      "Remora.1": 0.20,
     };
+
+    for (const pool of pools) {
+      const rate = poolRevenueRates[pool] || 0;
+      if (rate > 0) {
+        const poolFees = poolFeesData[pool] || 0;
+        dailyRevenue += poolFees * rate;
+      }
+    }
+
+    dailyProtocolRevenue = dailyRevenue; // All revenue goes to protocol before holder revenue started
+    dailyHoldersRevenue = 0;
+  }
+
+  const dailySupplySideRevenue = dailyFees > dailyRevenue ? dailyFees - dailyRevenue : 0;
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
-    Fees: 'Sum of all fees accrued from LP pools.',
-    Revenue: 'Sum of protocol revenue and holder revenue.',
-    ProtocolRevenue: '30% of all the fees accrued excluding Community pool.',
-    HolderRevenue: '50% of revenue goes to token stakers.',
+  Fees: 'All fees generated by the pools.',
+  Revenue: 'Sum of protocol revenue and holder revenue.',
+  ProtocolRevenue: 'Before 2025-06-19: Crypto.1/Virtual.1/Governance.1 pools at 30%, Trump.1 pools at 5%, Community.1/Community.2 at 0%. After 2025-06-19: dynamic based on API.',
+  HolderRevenue: 'Token holder revenue started from 2025-06-19, 0 before that date.',
+  SupplySideRevenue: 'Fees paid to LP pools.',
 }
 
 const adapter: Adapter = {
-    version: 2,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch: fetchFlashStats,
-            runAtCurrTime: true,
-            meta: { methodology },
-        },
-    },
+  version: 1,
+  chains: [CHAIN.SOLANA],
+  fetch,
+  start: '2023-12-29',
+  methodology
 };
 
 export default adapter;

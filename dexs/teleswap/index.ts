@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 interface ChainConfig {
@@ -33,28 +33,28 @@ const CHAIN_CONFIGS: Partial<Record<CHAIN, ChainConfig>> = {
     exchangeRouter: "0xD1E9Ff33EC28f9Dd8D99E685a2B0F29dCaa095a3",
     transferRouter: "0x04367D74332137908BEF9acc0Ab00a299A823707",
     teleBTC: "0x3BF668Fe1ec79a84cA8481CEAD5dbb30d61cC685",
-    startDate: "2023-04-02",
+    startDate: "2024-01-01",
   },
   [CHAIN.BSC]: {
     burnRouter: "0x2787D48e0B74125597DD479978a5DE09Bb9a3C15",
     exchangeRouter: "0xcA5416364720c7324A547d39b1db496A2DCd4F0D",
     transferRouter: "0xA38aD0d52B89C20c2229E916358D2CeB45BeC5FF",
     teleBTC: "0xC58C1117DA964aEbe91fEF88f6f5703e79bdA574",
-    startDate: "2023-04-02",
+    startDate: "2024-01-01",
   },
   [CHAIN.BOB]: {
     burnRouter: "0x754DC006F4a748f80CcaF27C0efBfF412e54160D",
     exchangeRouter: "0xd724e5709dF7DC4B4dDd14B644118774146b9492",
     transferRouter: "0x25BEf4b1Ca5985661657B3B71f29c0994C36Bbba",
     teleBTC: "0x0670bEeDC28E9bF0748cB254ABd946c87f033D9d",
-    startDate: "2023-04-02",
+    startDate: "2024-01-01",
   },
   [CHAIN.BSQUARED]: {
     burnRouter: "0x84da07E1B81e3125A66124F37bEA4897e0bB4b90",
     exchangeRouter: "0xE0166434A2ad67536B5FdAFCc9a6C1B41CC5e085",
     transferRouter: "0x9042B082A31343dFf352412136fA52157ff7fdC8",
     teleBTC: "0x05698eaD40cD0941e6E5B04cDbd56CB470Db762A",
-    startDate: "2023-04-02",
+    startDate: "2024-01-01",
   },
 };
 
@@ -70,14 +70,6 @@ const EVENT_SIGNATURES = {
 const FEE_INDICES = {
   LOCKER_FEE: 1,
   PROTOCOL_FEE: 2,
-} as const;
-
-const META = {
-  methodology: {
-    Volume:
-      "Total value of Bitcoin bridged to and from EVM chains, based on amounts in NewUnwrap, NewWrap, and NewWrapAndSwap events emitted by the CCBurnRouter, CCExchangeRouter, and CCTransferRouter contracts",
-    Fees: "Total of the protocol fee and Locker fee collected during bridging.",
-  },
 } as const;
 
 async function processUnwrapEvents(
@@ -173,21 +165,29 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   return {
     dailyVolume,
     dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
+}
+
+const methodology = {
+  Volume: "Total value of Bitcoin bridged to and from EVM chains, based on amounts in NewUnwrap, NewWrap, and NewWrapAndSwap events emitted by the CCBurnRouter, CCExchangeRouter, and CCTransferRouter contracts",
+  Fees: "Total of the protocol fee and Locker fee collected during bridging.",
+  Revenue: "Total of the protocol fee and Locker fee collected during bridging.",
+  ProtocolRevenue: "Total of the protocol fee and Locker fee collected during bridging.",
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.fromEntries(
-    Object.keys(CHAIN_CONFIGS).map((chain) => [
-      chain,
-      {
-        fetch,
-        start: CHAIN_CONFIGS[chain as keyof typeof CHAIN_CONFIGS]?.startDate,
-        meta: META,
-      },
-    ])
-  ),
+  methodology,
+  adapter: {}
+};
+
+for (const [chain, config] of Object.entries(CHAIN_CONFIGS)) {
+  (adapter.adapter as BaseAdapter)[chain] = {
+    fetch,
+    start: config.startDate,
+  }
 };
 
 export default adapter;

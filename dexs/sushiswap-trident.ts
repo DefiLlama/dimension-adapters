@@ -14,14 +14,6 @@ const endpointsTrident: Record<string, string> = {
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NNTV3MgqSGtHMBGdMVLXzzDbKDKmsY87k3PsQ2knmC1'),
 }
 
-const VOLUME_FIELD = "volumeUSD";
-
-const startTimeQueryTrident = {
-  endpoints: endpointsTrident,
-  dailyDataField: "factoryDaySnapshots",
-  volumeField: VOLUME_FIELD,
-};
-
 const tridentQuery = gql`
   query trident($number: Int) {
     factory(
@@ -43,50 +35,45 @@ const trident = Object.keys(endpointsTrident).reduce(
           getStartBlock(),
           getEndBlock()
         ])
-      try {
-        const beforeRes = await request(endpointsTrident[chain], tridentQuery, {
-          number: startBlock,
-        });
-        const afterRes = await await request(endpointsTrident[chain], tridentQuery, {
-          number: endBlock,
-        });
+        try {
+          const beforeRes = await request(endpointsTrident[chain], tridentQuery, {
+            number: startBlock,
+          });
+          const afterRes = await await request(endpointsTrident[chain], tridentQuery, {
+            number: endBlock,
+          });
 
-        const result = {
-          totalVolume: afterRes.factory.volumeUSD,
-          totalFees: afterRes.factory.feesUSD,
-          totalUserFees: afterRes.factory.feesUSD,
-          dailyVolume: afterRes.factory.volumeUSD - beforeRes.factory.volumeUSD,
-          dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
-          dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
-        };
+          const result = {
+            dailyVolume: afterRes.factory.volumeUSD - beforeRes.factory.volumeUSD,
+            dailyFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD,
+            dailyUserFees: afterRes.factory.feesUSD - beforeRes.factory.feesUSD
+          };
 
-        Object.entries(result).forEach(([key, value]) => {
-          if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
-        });
+          Object.entries(result).forEach(([key, value]) => {
+            if (Number(value) < 0) throw new Error(`${key} cannot be negative. Current value: ${value}`);
+          });
 
-        return result;
-      } catch {
-        return {
-          dailyVolume: 0,
-          dailyFees: 0,
-          dailyUserFees: 0
+          return result;
+        } catch {
+          return {
+            dailyVolume: 0,
+            dailyFees: 0,
+            dailyUserFees: 0
+          }
         }
-      }
 
       },
-      start: '2024-04-01',
-      meta: {
-        methodology: {
-          Fees: "Trading fees paid by users",
-          UserFees: "Trading fees paid by users",
-        }
-      }
     },
   }),
   {}
 );
 
 export default {
+  methodology: {
+    Fees: "Trading fees paid by users",
+    UserFees: "Trading fees paid by users",
+  },
   version: 2,
+  start: '2024-04-01',
   adapter: trident,
 }
