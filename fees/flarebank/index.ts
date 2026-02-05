@@ -20,8 +20,6 @@
  * - dailyProtocolRevenue: Team (15%) + DAO (5%) = 20%
  * - dailyHoldersRevenue: 80% of fees to BANK holders
  * - dailySupplySideRevenue: 80% to holders (they are the supply side)
- * - dailyBribesRevenue: 0
- * - dailyTokenTax: Burns from transfers/swaps (1% of transfer/swap volume)
  * 
  * Submit to: https://github.com/DefiLlama/dimension-adapters/tree/master/fees
  */
@@ -51,10 +49,16 @@ const EVENTS = {
   Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
 };
 
+// Fee labels for breakdown (like ethena.ts)
+const FEE_LABELS = {
+  MINT_FEES: 'Mint Fees',
+  BURN_FEES: 'Burn Fees',
+  TRANSFER_FEES: 'Transfer/Swap Fees',
+};
+
 // Fee rates
 const MINT_BURN_FEE = 10n;  // 10%
 const TRANSFER_FEE = 1n;    // 1% fee
-const SWAP_FEE = 1n;        // 1% fee
 
 // Distribution percentages
 const HOLDERS_SHARE = 80n;   // 80%
@@ -64,7 +68,9 @@ const PROTOCOL_SHARE = TEAM_SHARE + DAO_SHARE; // 20%
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyTokenTax = options.createBalances();
+  const dailyMintFees = options.createBalances();
+  const dailyBurnFees = options.createBalances();
+  const dailyTransferFees = options.createBalances();
   
   const lpAddressesLower = LP_ADDRESSES.map(a => a.toLowerCase());
   const bankAddressLower = FLAREBANK_ADDRESS.toLowerCase();
@@ -80,7 +86,7 @@ const fetch = async (options: FetchOptions) => {
   mintLogs.forEach((log: any) => {
     const incomingWFLR = BigInt(log.incomingEthereum);
     const fee = incomingWFLR * MINT_BURN_FEE / 100n;
-    dailyFees.addGasToken(fee);
+    dailyMintFees.add(WFLR_ADDRESS, fee, FEE_LABELS.MINT_FEES);
   });
   
   // ═══════════════════════════════════════════════════════════════════════
@@ -96,11 +102,11 @@ const fetch = async (options: FetchOptions) => {
     // ethereumEarned is AFTER 10% fee, so original = earned / 0.9
     // fee = original * 0.1 = earned / 9
     const fee = ethereumEarned / 9n;
-    dailyFees.addGasToken(fee);
+    dailyBurnFees.add(WFLR_ADDRESS, fee, FEE_LABELS.BURN_FEES);
   });
   
   // ═══════════════════════════════════════════════════════════════════════
-  // 3. TRANSFER + SWAP FEES (1% burn + 1% fee)
+  // 3. TRANSFER + SWAP FEES (1% fee)
   // ═══════════════════════════════════════════════════════════════════════
   const transferLogs = await options.getLogs({
     target: FLAREBANK_ADDRESS,
@@ -117,24 +123,19 @@ const fetch = async (options: FetchOptions) => {
     if (to === "0x0000000000000000000000000000000000000000") return;
     if (to === bankAddressLower) return;
     
-    // Check if LP swap
-    const isFromLP = lpAddressesLower.includes(from);
-    const isToLP = lpAddressesLower.includes(to);
-    const isSwap = isFromLP || isToLP;
-    
-    // Transfer/Swap: 1% burned + 1% fee
-    // Fee is 1% of sent amount, denominated in BANK
-    // We need to convert to WFLR value - use approximate backing ratio
-    // For simplicity, track in BANK and let DefiLlama price it
-    const burnAmount = value / 100n;  // 1% burned
+    // Transfer/Swap: 1% fee (1% also burned but burns not counted as fee per reviewer)
     const feeAmount = value / 100n;   // 1% fee
     
-    // Add the 1% fee to dailyFees (in BANK token)
-    dailyFees.add(FLAREBANK_ADDRESS, feeAmount);
-    
-    // Track burns separately for dailyTokenTax
-    dailyTokenTax.add(FLAREBANK_ADDRESS, burnAmount);
+    // Add the 1% fee to dailyFees (in BANK token) with label
+    dailyTransferFees.add(FLAREBANK_ADDRESS, feeAmount, FEE_LABELS.TRANSFER_FEES);
   });
+  
+  // ═══════════════════════════════════════════════════════════════════════
+  // Aggregate fees with labels (like ethena.ts pattern)
+  // ═══════════════════════════════════════════════════════════════════════
+  dailyFees.addBalances(dailyMintFees, FEE_LABELS.MINT_FEES);
+  dailyFees.addBalances(dailyBurnFees, FEE_LABELS.BURN_FEES);
+  dailyFees.addBalances(dailyTransferFees, FEE_LABELS.TRANSFER_FEES);
   
   // ═══════════════════════════════════════════════════════════════════════
   // Calculate revenue splits
@@ -153,13 +154,12 @@ const fetch = async (options: FetchOptions) => {
   }
   
   return {
-    dailyFees,                              // All fees collected
+    dailyFees,                              // All fees collected (with labels)
     dailyUserFees: dailyFees,               // Users pay all fees
     dailyRevenue: dailyProtocolRevenue,     // Team + DAO (20%)
     dailyProtocolRevenue,                   // Team (15%) + DAO (5%)
     dailyHoldersRevenue,                    // 80% to BANK holders as dividends
     dailySupplySideRevenue: dailyHoldersRevenue, // Holders are supply side
-    dailyTokenTaxes: dailyTokenTax,          // 1% burns on transfers/swaps
   };
 };
 
@@ -177,7 +177,6 @@ const adapter: SimpleAdapter = {
           ProtocolRevenue: "15% to team wallet, 5% to DAO treasury.",
           HoldersRevenue: "80% of all fees distributed as dividends to BANK token holders.",
           SupplySideRevenue: "Same as HoldersRevenue - BANK holders provide the liquidity backing.",
-          TokenTax: "1% of all transfers and LP swaps are burned, reducing BANK supply.",
         },
       },
     },
