@@ -103,9 +103,11 @@ const fetch = async (options: FetchOptions) => {
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
 	dailyRevenue.addBalances(capUsdMintFees, METRIC.MINT_REDEEM_FEES);
-
-	const dailySupplySideRevenue = dailyFees.clone();
-	dailySupplySideRevenue.subtract(dailyRevenue);
+	
+	const dailySupplySideRevenue = options.createBalances();
+	dailySupplySideRevenue.addBalances(minterFees, METRIC.ASSETS_YIELDS);
+	dailySupplySideRevenue.addBalances(restakerFees, METRIC.STAKING_REWARDS);
+	dailySupplySideRevenue.addBalances(insuranceFundFees, METRICS.INSURANCE_FUND_FEES);
 
 	return {
 		dailyFees,
