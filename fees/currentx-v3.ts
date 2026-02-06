@@ -3,7 +3,6 @@ import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types";
 
-const key = process.env.THEGRAPH_API_KEY;
 
 const graphs = async (_t: any, _b: any, options: FetchOptions) => {
 
@@ -18,9 +17,9 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
           }
 
       }`;
-      const url = `https://gateway.thegraph.com/api/${key}/subgraphs/id/Hw24iWxGzMM5HvZqENyBQpA6hwdUTQzCSK5e5BfCXyHd`;
+      const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v3/1.0.0/gn";
       const req = await request(url, query);
-      const dailyFee = req?.uniswapDayData ? Number(req.uniswapDayData.feesUSD ?? 0) : 0;
+      const dailyFee = Number(req.uniswapDayData.feesUSD);
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
@@ -35,10 +34,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch: graphs,
- 
     }
   }
 }
-
 
 export default adapter;
