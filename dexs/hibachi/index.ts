@@ -1,13 +1,13 @@
-import type { Fetch, SimpleAdapter } from "../../adapters/types";
+import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 type FutureContracts = {
   id: number;
   symbol: string;
-  volume24h: string | null;
-  low24h: string | null;
-  high24h: string | null;
+  volume: string | null;
+  low: string | null;
+  high: string | null;
 };
 
 type ChainVolume = {
@@ -21,9 +21,9 @@ interface Response {
   chain_volumes: ChainVolume[];
 }
 
-const fetch: Fetch = async (timestamp: number, chainBlocks, options) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const response: Response = await httpGet(
-    "https://data-api.hibachi.xyz/exchange/stats/volumes"
+    `https://data-api.hibachi.xyz/exchange/stats/volumes?start_timestamp=${options.fromTimestamp}&end_timestamp=${options.toTimestamp}`
   );
 
   const chain_volume =
@@ -40,7 +40,7 @@ const fetch: Fetch = async (timestamp: number, chainBlocks, options) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
