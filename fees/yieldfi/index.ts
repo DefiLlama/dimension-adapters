@@ -4,120 +4,230 @@ import {
   FetchResultV2,
   SimpleAdapter,
 } from "../../adapters/types";
+import { ethers } from "ethers";
+import { Balances } from "@defillama/sdk";
+
+const decimal_map = {
+  "0x1e2a5622178f93efd4349e2eb3dbdf2761749e1b": 8, // vyBTC
+  "0x3073112c2c4800b89764973d5790ccc7fba5c9f9": 18, // vyETH
+  "0xa01200b2e74de6489cf56864e3d76bbc06fc6c43": 8, // yBTC
+  "0x8464f6ecae1ea58ec816c13f964030eab8ec123a": 18, // yETH
+  '0xdd5eff0756db08bad0ff16b66f88f506e7318894': 18, // yPRISM
+};
 
 const YPRISM_TOKEN = "0xDd5eff0756DB08BAD0Ff16b66f88F506e7318894";
 
+
 const NAV_ABI =
   "event NAVUpdated(address indexed vault, uint256 indexed newNav, uint256 vestingEndTime, uint256 managementFee, uint256 performanceFee)";
+const NAV_ABI_2 =
+  "event NAVUpdated(address indexed vault,uint256 oldNav,uint256 newNav,uint256 vestingEndTime)";
 
 const NAV_MANAGER: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0x08fB9833A5a84d5bCEcDF5a4a635d33260C5F05C",
   [CHAIN.BSC]: "0x08fB9833A5a84d5bCEcDF5a4a635d33260C5F05C",
 };
+
+const NAV_PROXY: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "0x95178e55fE7edD0792b9819B7654C9Ee076832fa",
+  [CHAIN.BSC]: "0x95178e55fE7edD0792b9819B7654C9Ee076832fa",
+};
+
 const V2_YIELD_PROXY_ABI =
   "event DistributeYield(address caller, address indexed asset, address indexed receiver, uint256 amount, bool profit)";
 
+const V2_ASSET_SHARED_ABI =
+  "event AssetAndShareManaged(address indexed caller,address indexed yToken,uint256 shares,uint256 assetAmount,bool updateAsset,bool isMint,bool isNewYToken)";
+
 const V2_YIELD_PROXY: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0x392017161a9507F19644E8886A237C58809212B5",
-  [CHAIN.BSC]: "0x392017161a9507F19644E8886A237C58809212B5",
+};
+
+const V2_MANAGER: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "0x03ACc35286bAAE6D73d99a9f14Ef13752208C8dC",
+};
+
+const fetchV2 = async (
+  options: FetchOptions,
+  fromBlock: number,
+  toBlock: number,
+  dailyFees: Balances,
+  dailyRevenue: Balances
+): Promise<{ dailyFees: Balances; dailyRevenue: Balances }> => {
+
+  if(!V2_YIELD_PROXY[options.chain]) {
+    return { dailyFees, dailyRevenue };
+  }
+  
+  const distributeYieldLogs = await options // gives yield
+    .getLogs({
+      target: V2_YIELD_PROXY[options.chain],
+      eventAbi: V2_YIELD_PROXY_ABI,
+      fromBlock,
+      toBlock,
+    })
+    .catch(() => []);
+
+  const v2AssetSharedLogs = await options.getLogs({
+    // gives fees
+    target: V2_MANAGER[options.chain],
+    eventAbi: V2_ASSET_SHARED_ABI,
+    fromBlock,
+    toBlock,
+  });
+
+  if (Array.isArray(distributeYieldLogs) && distributeYieldLogs.length > 0) {
+    const assetAmounts: Record<string, bigint> = {};
+
+    distributeYieldLogs.forEach((log: any) => {
+      if (!log || !log.asset || log.amount === undefined) return;
+
+      const receiver = log.receiver.toLowerCase();
+      const amount = BigInt(log.amount || 0); // yield
+      const profit = log.profit || false;
+
+      if (amount > BigInt(0) && profit) {
+        assetAmounts[receiver] = (assetAmounts[receiver] || BigInt(0)) + amount;
+      }
+    });
+
+    for (const [yToken, yieldAmount] of Object.entries(assetAmounts)) {
+      dailyFees.add(yToken, yieldAmount);
+    }
+  }
+
+  if (Array.isArray(v2AssetSharedLogs) && v2AssetSharedLogs.length > 0) {
+    const assetAmounts: Record<string, bigint> = {};
+
+    v2AssetSharedLogs.forEach((log: any) => {
+      if (!log || !log.yToken || log.assetAmount === undefined) return;
+
+      const yToken = log.yToken.toLowerCase();
+      const assetAmount = BigInt(log.assetAmount || 0);
+
+      assetAmounts[yToken] = (assetAmounts[yToken] || BigInt(0)) + assetAmount;
+    });
+
+    for (const [yToken, totalAmount] of Object.entries(assetAmounts)) {
+      dailyFees.add(yToken, totalAmount);
+      dailyRevenue.add(yToken, totalAmount);
+    }
+  }
+  return { dailyFees, dailyRevenue };
+};
+
+const fetchV3 = async (
+  options: FetchOptions,
+  fromBlock: number,
+  toBlock: number,
+  dailyFees: Balances,
+  dailyRevenue: Balances
+): Promise<{ dailyFees: Balances; dailyRevenue: Balances }> => {
+  
+  if(!NAV_MANAGER[options.chain]) {
+    return { dailyFees, dailyRevenue };
+  }
+  
+  const navManagerLogs = await options.getLogs({
+    target: NAV_MANAGER[options.chain],
+    eventAbi: NAV_ABI,
+    fromBlock,
+    toBlock,
+  });
+
+  const navManagerLogs2Raw = await options.getLogs({
+    target: NAV_PROXY[options.chain],
+    eventAbi: NAV_ABI_2,
+    fromBlock,
+    toBlock,
+    entireLog: true,
+  });
+
+  const navInterface = new ethers.Interface([NAV_ABI_2]);
+  const navManagerLogs2 = navManagerLogs2Raw.map((log: any) => {
+    const parsed = navInterface.parseLog(log);
+    return {
+      blockNumber: Number(log.blockNumber),
+      vault: parsed?.args.vault,
+      oldNav: parsed?.args.oldNav,
+      newNav: parsed?.args.newNav,
+      vestingEndTime: parsed?.args.vestingEndTime,
+    };
+  });
+
+  if (Array.isArray(navManagerLogs) && navManagerLogs.length > 0) {
+    const navAmounts: Record<string, bigint> = {};
+
+    navManagerLogs.forEach((log: any) => {
+      if (!log || !log.vault || log.newNav === undefined) return;
+
+      const vault = log.vault.toLowerCase();
+      const performanceFee = BigInt(log.performanceFee || 0);
+      const managementFee = BigInt(log.managementFee || 0);
+
+      navAmounts[vault] = performanceFee + managementFee;
+    });
+
+    // added fee
+    for (const [vault, totalAmount] of Object.entries(navAmounts)) {
+      dailyFees.add(vault, totalAmount);
+      dailyRevenue.add(vault, totalAmount);
+    }
+  }
+
+  if (Array.isArray(navManagerLogs2) && navManagerLogs2.length > 0) {
+    const navAmounts: Record<string, bigint> = {};
+
+    for (const log of navManagerLogs2) {
+      if (!log || !log.vault || log.newNav === undefined) continue;
+
+      const vault = log.vault.toLowerCase();
+      const oldNav = BigInt(log.oldNav || 0);
+      const newNav = BigInt(log.newNav || 0);
+
+      let totalSupply = await options.api.call({
+        abi: 'uint256:totalSupply',
+        target: vault,
+        block: log.blockNumber,
+        chain: options.chain,
+      });
+
+      totalSupply = BigInt(totalSupply);
+
+      const growthRate = (newNav - oldNav);
+      let growthRateInteger: any = ethers.formatUnits(growthRate, decimal_map[vault]);
+      growthRateInteger = formatNumber(growthRateInteger);
+      let totalSupplyInteger: any = ethers.formatUnits(totalSupply, decimal_map[vault]);
+      totalSupplyInteger = formatNumber(totalSupplyInteger);
+
+      const yieldAmount = (growthRateInteger) * totalSupplyInteger;
+      navAmounts[vault] = ethers.parseUnits(yieldAmount.toString(), decimal_map[vault]);
+    }
+
+    for (const [vault, totalAmount] of Object.entries(navAmounts)) {
+      dailyFees.add(vault, totalAmount);
+    }
+  }
+
+  return { dailyFees: dailyFees, dailyRevenue: dailyRevenue };
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  try {
-    const fromBlock = await options.getStartBlock();
-    const toBlock = await options.getEndBlock();
+  const fromBlock = await options.getStartBlock();
+  const toBlock = await options.getEndBlock();
 
-    const distributeYieldLogs = await options
-      .getLogs({
-        target: V2_YIELD_PROXY[options.chain],
-        eventAbi: V2_YIELD_PROXY_ABI,
-        fromBlock,
-        toBlock,
-      })
-      .catch(() => []);
+  const { dailyFees: v2DailyFees, dailyRevenue: v2DailyRevenue } =
+    await fetchV2(options, fromBlock, toBlock, dailyFees, dailyRevenue);
 
-    console.log(`\n[${options.chain}] distributeYieldLogs (${distributeYieldLogs.length} logs):`);
-    console.log(JSON.stringify(distributeYieldLogs, (key, value) => 
-      typeof value === 'bigint' ? value.toString() : value, 2));
+  const { dailyFees: v3DailyFees, dailyRevenue: v3DailyRevenue } =
+    await fetchV3(options, fromBlock, toBlock, dailyFees, dailyRevenue);
 
-    if (Array.isArray(distributeYieldLogs) && distributeYieldLogs.length > 0) {
-      const assetAmounts: Record<string, bigint> = {};
-      
-      distributeYieldLogs.forEach((log: any) => {
-        if (!log || !log.asset || log.amount === undefined) return;
-
-        const asset = log.asset.toLowerCase();
-        const amount = BigInt(log.amount || 0);
-        const profit = log.profit || false;
-
-        if (amount > BigInt(0) && profit) {
-          assetAmounts[asset] = (assetAmounts[asset] || BigInt(0)) + amount;
-        }
-      });
-
-      for (const [asset, totalAmount] of Object.entries(assetAmounts)) {
-        dailyFees.add(asset, totalAmount);
-        dailyRevenue.add(asset, totalAmount);
-      }
-    }
-  } catch (error: any) {
-    console.error(
-      `Error fetching DistributeYield fees: ${error?.message || error}`
-    );
-  }
-
-  let navLogs: {
-    asset: string;
-    managementFee: bigint;
-    performanceFee: bigint;
-    chain: string;
-  }[] = [];
-
-
-  try {
-    const fromBlock = await options.getStartBlock();
-    const toBlock = await options.getEndBlock();
-    const loadLogsManager = await options
-      .getLogs({
-        target: NAV_MANAGER[options.chain],
-        eventAbi: NAV_ABI,
-        entireLog: true,
-        fromBlock,
-        toBlock,
-      })
-      .catch(() => []);
-
-    console.log(`\n[${options.chain}] loadLogsManager (${loadLogsManager.length} logs):`);
-    console.log(JSON.stringify(loadLogsManager, (key, value) => 
-      typeof value === 'bigint' ? value.toString() : value, 2));
-      
-    if (Array.isArray(loadLogsManager) && loadLogsManager.length > 0) {
-      loadLogsManager.forEach((log: any) => {
-        if (!log || !log.data) return;
-
-        const data = log.data.replace("0x", "");
-
-        if (data.length < 192) return;
-
-        const managementFeeHex = data.substring(64, 128);
-        const performanceFeeHex = data.substring(128, 192);
-
-        const managementFee = BigInt("0x" + managementFeeHex);
-        const performanceFee = BigInt("0x" + performanceFeeHex);
-
-        const totalFees = managementFee + performanceFee;
-
-        if (totalFees > BigInt(0)) {
-          dailyFees.add(YPRISM_TOKEN, totalFees);
-          dailyRevenue.add(YPRISM_TOKEN, totalFees);
-        }
-      });
-    }
-  } catch (error: any) {
-    console.error(`Error fetching YPRISM fees: ${error?.message || error}`);
-  }
+  dailyFees.addBalances(v2DailyFees);
+  dailyRevenue.addBalances(v2DailyRevenue);
+  dailyFees.addBalances(v3DailyFees);
+  dailyRevenue.addBalances(v3DailyRevenue);
 
   const dailySupplySideRevenue = dailyFees.clone(1);
   dailySupplySideRevenue.subtract(dailyRevenue);
@@ -130,6 +240,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   };
 };
 
+const formatNumber = (number: string) => {
+  const [integer, decimal] = number.split(".");
+  if (decimal && decimal.length > 15) {
+    return Number(`${integer}.${decimal.slice(0, 15)}`);
+  }
+  return number;
+};
+
 const methodology = {
   Fees: "Total yield generated by YieldFi across all supported chains + management fees by YieldFi",
   Revenue: "Total management fees by YieldFi.",
@@ -139,60 +257,44 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  fetch,
-  methodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      start: "2024-11-11",
+    version: 2,
+    fetch,
+    methodology,
+    adapter: {
+        [CHAIN.ETHEREUM]: {
+            start: '2024-11-11',
+        },
+        [CHAIN.OPTIMISM]: {
+            start: '2025-04-30',
+        },
+        [CHAIN.ARBITRUM]: {
+            start: '2025-04-30',
+        },
+        [CHAIN.BASE]: {
+            start: '2025-04-30',
+        },
+        [CHAIN.SONIC]: {
+            start: '2025-05-09',
+        },
+        [CHAIN.PLUME]: {
+            start: '2025-06-10',
+        },
+        [CHAIN.KATANA]: {
+            start: '2025-07-31',
+        },
+        [CHAIN.BSC]: {
+            start: '2025-07-27',
+        },
+        [CHAIN.AVAX]: {
+            start: '2025-07-31',
+        },
+        [CHAIN.TAC]: {
+            start: '2025-07-17',
+        },
+        [CHAIN.PLASMA]: {
+            start: '2025-09-30',
+        },
     },
-    [CHAIN.OPTIMISM]: {
-      start: "2025-04-30",
-    },
-    [CHAIN.ARBITRUM]: {
-      start: "2025-04-30",
-    },
-    [CHAIN.BASE]: {
-      start: "2025-04-30",
-    },
-    [CHAIN.SONIC]: {
-      start: "2025-05-09",
-    },
-    [CHAIN.PLUME]: {
-      start: "2025-06-10",
-    },
-    [CHAIN.KATANA]: {
-      start: "2025-07-31",
-    },
-    [CHAIN.BSC]: {
-      start: "2025-07-27",
-    },
-    [CHAIN.AVAX]: {
-      start: "2025-07-31",
-    },
-    [CHAIN.TAC]: {
-      start: "2025-07-17",
-    },
-    [CHAIN.PLASMA]: {
-      start: "2025-09-30",
-    },
-  },
 };
 
 export default adapter;
-
-
-
-
-// management fees per year
-const getFeeRate = (chain: string, vault: string): number => {
-  if (chain === CHAIN.ETHEREUM) {
-      if (vault.toLowerCase() === String('0x8464F6eCAe1EA58EC816C13f964030eAb8Ec123A') || vault.toLowerCase() === String('0x3073112c2c4800b89764973d5790ccc7fba5c9f9')) {
-          return 0.01; // 1% per year
-      } else if (vault.toLowerCase() === String('0xa01200b2e74DE6489cF56864E3d76BBc06fc6C43') || vault.toLowerCase() === String('0x1e2a5622178f93EFd4349E2eB3DbDF2761749e1B')) {
-          return 0.005; // 0.5% per year
-      }
-  }
-
-  return 0.02; // default 2% per year
-}
