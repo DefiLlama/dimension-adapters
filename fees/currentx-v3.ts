@@ -18,9 +18,9 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
           }
 
       }`;
-      const url = "https://gateway.thegraph.com/api/subgraphs/id/Hw24iWxGzMM5HvZqENyBQpA6hwdUTQzCSK5e5BfCXyHd";
+      const url = `https://gateway.thegraph.com/api/${key}/subgraphs/id/Hw24iWxGzMM5HvZqENyBQpA6hwdUTQzCSK5e5BfCXyHd`;
       const req = await request(url, query);
-      const dailyFee = Number(req.uniswapDayData.feesUSD);
+      const dailyFee = req?.uniswapDayData ? Number(req.uniswapDayData.feesUSD ?? 0) : 0;
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
@@ -35,6 +35,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch: graphs,
+ 
     }
   }
 }
