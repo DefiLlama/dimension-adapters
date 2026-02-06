@@ -2,6 +2,8 @@ import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+const key = process.env.THEGRAPH_API_KEY;
+
 const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<any> => {
     const dayID = Math.floor(options.startOfDay / 86400);
     const query =gql`
@@ -26,5 +28,6 @@ const adapter: SimpleAdapter = {
         },
     }
 }
+
 
 export default adapter;
