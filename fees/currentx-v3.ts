@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types";
 
+const key = process.env.THEGRAPH_API_KEY;
 
 const graphs = async (_t: any, _b: any, options: FetchOptions) => {
 
@@ -37,5 +38,6 @@ const adapter: Adapter = {
     }
   }
 }
+
 
 export default adapter;
