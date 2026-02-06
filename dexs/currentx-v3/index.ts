@@ -13,8 +13,11 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
             volumeUSD
         }
     }`;
-    const url = "https://gateway.thegraph.com/api/subgraphs/id/Hw24iWxGzMM5HvZqENyBQpA6hwdUTQzCSK5e5BfCXyHd";
+    const url = `https://gateway.thegraph.com/api/${key}/subgraphs/id/Hw24iWxGzMM5HvZqENyBQpA6hwdUTQzCSK5e5BfCXyHd`;
     const req = await request(url, query);
+    if (!req?.uniswapDayData) {
+        return { dailyVolume: "0" };
+    }
     return {
         dailyVolume: req.uniswapDayData.volumeUSD,
     }
@@ -24,10 +27,10 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.MEGAETH]: {
             fetch,
-            start: '2026-02-03',
+            start: '2026-02-04',
         },
     }
 }
 
-
 export default adapter;
+
