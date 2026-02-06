@@ -8,7 +8,7 @@ import { time } from "console";
 const key = process.env.THEGRAPH_API_KEY;
 
 const endpoints = {
-  [CHAIN.MEGAETH]: "https://gateway.thegraph.com/api/subgraphs/id/3berhRZGzFfAhEB5HZGHEsMAfQ2AQpDk2WyVr5Nnkjyv"
+  [CHAIN.MEGAETH]: `https://gateway.thegraph.com/api/${key}/subgraphs/id/3berhRZGzFfAhEB5HZGHEsMAfQ2AQpDk2WyVr5Nnkjyv`
 }
 
 const methodology = {
@@ -30,9 +30,9 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
           }
 
       }`;
-      const url = "https://gateway.thegraph.com/api/subgraphs/id/3berhRZGzFfAhEB5HZGHEsMAfQ2AQpDk2WyVr5Nnkjyv";
+      const url = endpoints[CHAIN.MEGAETH];
       const req = await request(url, query);
-      const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
+      const dailyFee = req?.uniswapDayData ? Number(req.uniswapDayData.dailyFeesUSD ?? 0) : 0;
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
@@ -48,6 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch: graphs,
+      start: '2026-02-03',
     }
   },
   methodology
