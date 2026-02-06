@@ -43,7 +43,10 @@ const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promis
   const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
   const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
-    ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
+    ? [chainStat.all_fees, 
+      chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, 
+      chainStat.gns_stakers, 
+      chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers + chainStat.referral + chainStat.nft_bots]
     : [0, 0, 0, 0];
 
   return {
@@ -79,6 +82,7 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
   stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral));
   gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
   referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
+  borrowingFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral));
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
