@@ -185,31 +185,31 @@ const adapters: SimpleAdapter = {
   start: '2022-01-01',
   chains: [CHAIN.ETHEREUM],
   methodology: {
-    Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
-    Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
-    ProtocolRevenue: "Total revenue flowing to Maple protocol treasuries.",
-    SupplySideRevenue: "Interest earned by liquidity providers/depositors in Maple pools from net interest distributions on loans.",
-    HoldersRevenue: "Maple use 25% from protocol revenue to buy back SYRUP tokens from MIP-019.",
+    Fees: "Total interest and fees paid by borrowers on both fixed-term and open-term loans, including net interest, management fees, service fees, and origination fees.",
+    Revenue: "Total revenue flowing to Maple protocol and delegates, including management fees, service fees, and origination fees from both fixed-term and open-term loans.",
+    ProtocolRevenue: "Revenue flowing to Maple protocol treasuries (75% of total revenue, with 25% allocated to SYRUP token buybacks from MIP-019).",
+    SupplySideRevenue: "Net interest earned by liquidity providers/depositors in Maple pools from both fixed-term and open-term loan payments.",
+    HoldersRevenue: "25% of protocol revenue used to buy back SYRUP tokens from MIP-019 (starting Nov 2025).",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Net borrow interests paid by borrowers.',
-      [METRIC.MANAGEMENT_FEES]: 'Management fees cut by protocol and delegators.',
-      [METRIC.SERVICE_FEES]: 'Service fees cut by protocol and delegators.',
+      [METRIC.BORROW_INTEREST]: 'Net interest paid by borrowers on open-term loans.',
+      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term loans and origination fees from fixed-term loans, paid to protocol and delegates.',
+      [METRIC.SERVICE_FEES]: 'Service fees from both fixed-term and open-term loans, paid to protocol and delegates.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Net borrow interests are distributed to suppliers.',
+      [METRIC.BORROW_INTEREST]: 'Net interest distributed to liquidity providers.',
     },
     Revenue: {
-      [METRIC.MANAGEMENT_FEES]: 'Management fees cut by protocol and delegators.',
-      [METRIC.SERVICE_FEES]: 'Service fees cut by protocol and delegators.',
+      [METRIC.MANAGEMENT_FEES]: 'Management fees from open-term loans and origination fees from fixed-term loans.',
+      [METRIC.SERVICE_FEES]: 'Service fees from both fixed-term and open-term loans.',
     },
     ProtocolRevenue: {
       [METRIC.MANAGEMENT_FEES]: 'Management fees share to Maple protocol.',
       [METRIC.SERVICE_FEES]: 'Service fees share to Maple protocol.',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'From MIP-019, Maple use 25% from protocol revenue to buy back SYRUP tokens.',
+      [METRIC.TOKEN_BUY_BACK]: '25% of all protocol revenue used for SYRUP token buybacks (from MIP-019, starting Nov 2025).',
     },
   }
 }
