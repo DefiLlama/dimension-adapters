@@ -1,22 +1,23 @@
-import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { METRIC } from '../helpers/metrics';
 
-const contract_open_term_loan_manager_stablecoin: string[] = [
-  '0x2638802a78d6a97d0041cc7b52fb9a80994424cd',
-  '0x483082e93635ef280bc5e9f65575a7ff288aba33',
-  '0xdc9b93a8a336fe5dc9db97616ea2118000d70fc0',
-  '0xfab269cb4ab4d33a61e1648114f6147742f5eecc',
-  '0x9ab77dbd4197c532f9c9f30a7e83a710e03da70a',
-  '0x616022e54324ef9c13b99c229dac8ea69af4faff',
-  '0x6aceb4caba81fa6a8065059f3a944fb066a10fac',
-  '0x56ef41693f69d422a88cc6492888a1bd41923d33',
-  '0xb50d675f3c6d18ce5ccac691354f92afebd1675e'
-]
-const contract_open_term_loan_manager_eth = '0xe3aac29001c769fafcef0df072ca396e310ed13b';
+const feeManager = '0xFeACa6A5703E6F9DE0ebE0975C93AE34c00523F2'
 
-const CLAIMED_FUNDS_DISTRIBUTED_EVENT = 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)';
+// Open-Term Loan
+const openTermLoanManagerFactory = '0x90b14505221a24039A2D11Ad5862339db97Cc160'
+
+const claimed_funds_distributed_event = 'event ClaimedFundsDistributed(address indexed loan_, uint256 principal_, uint256 netInterest_, uint256 delegateManagementFee_, uint256 delegateServiceFee_, uint256 platformManagementFee_, uint256 platformServiceFee_)';
+const loan_manager_deployed_event = 'event InstanceDeployed(uint256 indexed version_, address indexed instance_, bytes initializationArguments_)'
+
+// Fixed-Term Loan
+// const fixedTermLoanManagerFactory = '0x1551717AE4FdCB65ed028F7fB7abA39908f6A7A6'
+const fixedTermLoanFactoryV1 = '0x36a7350309B2Eb30F3B908aB0154851B5ED81db0'
+const fixedTermLoanFactoryV2 = '0xeA067DB5B32CE036Ee5D8607DBB02f544768dBC6'
+
+const origination_fees_paid_event = 'event OriginationFeesPaid(address loan_, uint256 delegateOriginationFee_, uint256 platformOriginationFee_)';
+const service_fees_paid_event = 'event ServiceFeesPaid(address loan_, uint256 delegateServiceFee_, uint256 partialRefinanceDelegateServiceFee_, uint256 platformServiceFee_, uint256 partialRefinancePlatformServiceFee_)'
+// const management_fees_paid_event = 'event ManagementFeesPaid(address loan_, uint256 delegateManagementFee_, uint256 platformManagementFee_)';
 
 function getHoldersRevenueShare(date: number): number {
   if (date < 1761955200) { // 2025-11-01
@@ -26,7 +27,7 @@ function getHoldersRevenueShare(date: number): number {
   }
 }
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { getLogs } = options
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -35,67 +36,140 @@ const fetchFees = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
 
   const holdersShare = getHoldersRevenueShare(options.startOfDay);
-  
+
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+
+  // Fixed Term Loan
+  const logs_fixed_term_loan_deployed = await getLogs({
+    targets: [fixedTermLoanFactoryV1, fixedTermLoanFactoryV2],
+    eventAbi: loan_manager_deployed_event,
+    fromBlock: 13997864 // Jan-13-2022
+  })
+
+  const fixed_term_loans: string[] = logs_fixed_term_loan_deployed.map(e => e.instance_);
+
+  // const fixed_term_loan_managers = logs_fixed_term_loan_manager_deployed.map(e => e.instance_);
+
+  const fixed_term_loan_assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: fixed_term_loans})
+
+  const fixed_term_loan_to_asset: Record<string, string> = {};
+  fixed_term_loans.forEach((loan, i) => {
+    fixed_term_loan_to_asset[loan.toLowerCase()] = fixed_term_loan_assets[i];
+  })
+
+  // Origination fees from fixed-term loans
+  const logs_origination_fees = await getLogs({
+    target: feeManager,
+    eventAbi: origination_fees_paid_event,
+  })
+
+  // Service fees from fixed-term loans  
+  const logs_service_fees = await getLogs({
+    target: feeManager,
+    eventAbi: service_fees_paid_event,
+  })
+
+  logs_origination_fees.map((e: any) => {
+    const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
+    dailyFees.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
+
+    dailyRevenue.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
+
+    dailyProtocolRevenue.add(asset, Number(e.delegateOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.platformOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+
+    dailyHoldersRevenue.add(asset, Number(e.delegateOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
+    dailyHoldersRevenue.add(asset, Number(e.platformOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
+
+  })
+
+  logs_service_fees.map((e: any) => {
+    const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
+    dailyFees.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyFees.add(asset, e.partialRefinanceDelegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyFees.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
+    dailyFees.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
+
+    dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(asset, e.partialRefinanceDelegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
+
+    dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+
+    dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+    dailyHoldersRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+    dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+    dailyHoldersRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+  })
+
+  if (toBlock < 17372608) {
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue,
+      dailyHoldersRevenue, 
+    }
+  }
+
+  const logs_open_term_loan_manager_deployed = await getLogs({
+    target: openTermLoanManagerFactory,
+    eventAbi: loan_manager_deployed_event,
+    fromBlock: 17372608 // May-30-2023
+  })
+
+  // const open_term_loans = logs_open_term_loan_deployed.map(e => e.instance_);
+  const open_term_loan_managers = logs_open_term_loan_manager_deployed.map(e => e.instance_);
+
+  const loans = [...open_term_loan_managers];
+
+  const assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: loans})
+
+  const loanToAsset: Record<string, string> = {};
+  loans.forEach((loan, i) => {
+    loanToAsset[loan.toLowerCase()] = assets[i];
+  })
+
   const logs_claim_funds_stablecoin = await getLogs({
-    targets: contract_open_term_loan_manager_stablecoin,
-    eventAbi: CLAIMED_FUNDS_DISTRIBUTED_EVENT,
+    targets: loans,
+    eventAbi: claimed_funds_distributed_event,
+    entireLog: true,
+    parseLog: true,
   })
 
-  logs_claim_funds_stablecoin.map((e: any) => {
-    dailyFees.add(ADDRESSES.ethereum.USDC, e.netInterest_, METRIC.BORROW_INTEREST)
-    dailyFees.add(ADDRESSES.ethereum.USDC, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(ADDRESSES.ethereum.USDC, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(ADDRESSES.ethereum.USDC, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyFees.add(ADDRESSES.ethereum.USDC, e.platformServiceFee_, METRIC.SERVICE_FEES)
+  logs_claim_funds_stablecoin.map((t: any) => {
+    const e = t.args;
+    const asset = loanToAsset[t.address?.toLowerCase()];
+    dailyFees.add(asset, e.netInterest_, METRIC.BORROW_INTEREST)
+    dailyFees.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyFees.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyFees.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
 
-    dailySupplySideRevenue.add(ADDRESSES.ethereum.USDC, e.netInterest_, METRIC.BORROW_INTEREST)
+    dailySupplySideRevenue.add(asset, e.netInterest_, METRIC.BORROW_INTEREST)
 
-    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyRevenue.add(ADDRESSES.ethereum.USDC, e.platformServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+    dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+    dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
 
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+    dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
 
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.USDC, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(asset, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(asset, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
   })
 
-  const logs_claim_funds_eth = await getLogs({
-    target: contract_open_term_loan_manager_eth,
-    eventAbi: CLAIMED_FUNDS_DISTRIBUTED_EVENT,
-  })
-
-  logs_claim_funds_eth.map((e: any) => {
-    dailyFees.add(ADDRESSES.ethereum.WETH, e.netInterest_, METRIC.BORROW_INTEREST)
-    dailyFees.add(ADDRESSES.ethereum.WETH, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(ADDRESSES.ethereum.WETH, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(ADDRESSES.ethereum.WETH, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyFees.add(ADDRESSES.ethereum.WETH, e.platformServiceFee_, METRIC.SERVICE_FEES)
-
-    dailySupplySideRevenue.add(ADDRESSES.ethereum.WETH, e.netInterest_, METRIC.BORROW_INTEREST)
-
-    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyRevenue.add(ADDRESSES.ethereum.WETH, e.platformServiceFee_, METRIC.SERVICE_FEES)
-
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-    dailyProtocolRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(ADDRESSES.ethereum.WETH, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-  })
-  
   return {
     dailyFees,
     dailyRevenue,
@@ -107,12 +181,9 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapters: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees as any,
-      start: '2023-01-01',
-    }
-  },
+  fetch,
+  start: '2022-01-01',
+  chains: [CHAIN.ETHEREUM],
   methodology: {
     Fees: "Total interest and fees paid by borrowers on loans, including net interest from loan distributions and open-term loan claims.",
     Revenue: "Total revenue flowing to Maple protocol treasuries, including fees from loan management, delegate fees, and platform fees collected from various pool strategies.",
@@ -142,4 +213,5 @@ const adapters: SimpleAdapter = {
     },
   }
 }
+
 export default adapters;
