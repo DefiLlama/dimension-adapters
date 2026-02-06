@@ -5,6 +5,8 @@ import type { ChainEndpoints, FetchOptions, FetchV2 } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { time } from "console";
 
+const key = process.env.THEGRAPH_API_KEY;
+
 const endpoints = {
   [CHAIN.MEGAETH]: "https://gateway.thegraph.com/api/subgraphs/id/3berhRZGzFfAhEB5HZGHEsMAfQ2AQpDk2WyVr5Nnkjyv"
 }
@@ -50,5 +52,6 @@ const adapter: Adapter = {
   },
   methodology
 }
+
 
 export default adapter;
