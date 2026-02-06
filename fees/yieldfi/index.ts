@@ -1,115 +1,198 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { getERC4626VaultsInfo } from "../../helpers/erc4626";
+import {
+  FetchOptions,
+  FetchResultV2,
+  SimpleAdapter,
+} from "../../adapters/types";
 
+const YPRISM_TOKEN = "0xDd5eff0756DB08BAD0Ff16b66f88F506e7318894";
 
-const YUSD_CONTRACT = '0x4772D2e014F9fC3a820C444e3313968e9a5C8121'
-const VYUSD_CONTRACT = '0xF4F447E6AFa04c9D11Ef0e2fC0d7f19C24Ee55de'
+const NAV_ABI =
+  "event NAVUpdated(address indexed vault, uint256 indexed newNav, uint256 vestingEndTime, uint256 managementFee, uint256 performanceFee)";
 
-const VAULTS_CONTRACTS: Record<string, Array<string>> = {
-    [CHAIN.ETHEREUM]: [
-        '0x19Ebd191f7A24ECE672ba13A302212b5eF7F35cb',
-        '0x2e3C5e514EEf46727DE1FE44618027A9b70D92FC',
-        '0x8464F6eCAe1EA58EC816C13f964030eAb8Ec123A',
-        '0x3073112c2c4800b89764973d5790ccc7fba5c9f9',
-        '0xa01200b2e74DE6489cF56864E3d76BBc06fc6C43',
-        '0x1e2a5622178f93EFd4349E2eB3DbDF2761749e1B',
-    ],
-}
+const NAV_MANAGER: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "0x08fB9833A5a84d5bCEcDF5a4a635d33260C5F05C",
+  [CHAIN.BSC]: "0x08fB9833A5a84d5bCEcDF5a4a635d33260C5F05C",
+};
+const V2_YIELD_PROXY_ABI =
+  "event DistributeYield(address caller, address indexed asset, address indexed receiver, uint256 amount, bool profit)";
 
-// management fees per year
-const getFeeRate = (chain: string, vault: string): number => {
-    if (chain === CHAIN.ETHEREUM) {
-        if (vault.toLowerCase() === String('0x8464F6eCAe1EA58EC816C13f964030eAb8Ec123A') || vault.toLowerCase() === String('0x3073112c2c4800b89764973d5790ccc7fba5c9f9')) {
-            return 0.01; // 1% per year
-        } else if (vault.toLowerCase() === String('0xa01200b2e74DE6489cF56864E3d76BBc06fc6C43') || vault.toLowerCase() === String('0x1e2a5622178f93EFd4349E2eB3DbDF2761749e1B')) {
-            return 0.005; // 0.5% per year
-        }
-    }
-
-    return 0.02; // default 2% per year
-}
+const V2_YIELD_PROXY: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "0x392017161a9507F19644E8886A237C58809212B5",
+  [CHAIN.BSC]: "0x392017161a9507F19644E8886A237C58809212B5",
+};
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const dailyFees = options.createBalances()
-    const dailyRevenue = options.createBalances()
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  try {
+    const fromBlock = await options.getStartBlock();
+    const toBlock = await options.getEndBlock();
 
-    const vaults: Array<string> = options.chain === CHAIN.ETHEREUM ? VAULTS_CONTRACTS[options.chain] : [YUSD_CONTRACT, VYUSD_CONTRACT]
+    const distributeYieldLogs = await options
+      .getLogs({
+        target: V2_YIELD_PROXY[options.chain],
+        eventAbi: V2_YIELD_PROXY_ABI,
+        fromBlock,
+        toBlock,
+      })
+      .catch(() => []);
 
-    const vaultInfosBefore = await getERC4626VaultsInfo(options.fromApi, vaults)
-    const vaultInfosAfter = await getERC4626VaultsInfo(options.toApi, vaults)
-    for (const vault of Object.keys(vaultInfosBefore)) {
-        if (vaultInfosBefore[vault] && vaultInfosAfter[vault]) {
-            const totalAssets = Number(vaultInfosAfter[vault].totalAssets) / (10 ** vaultInfosAfter[vault].decimals)
-            const growthCumulativeIndex = Number(vaultInfosAfter[vault].assetsPerShare) - Number(vaultInfosBefore[vault].assetsPerShare)
-            const growthYields = (growthCumulativeIndex / (10 ** vaultInfosAfter[vault].assetDecimals)) * totalAssets;
-            // management fees on totalAssets
-            const feeRate = getFeeRate(options.chain, vault)
-            const year = 365 * 24 * 3600
-            const timeframe = options.toTimestamp - options.fromTimestamp
-            const managementFees = totalAssets * feeRate * timeframe / year;
+    console.log(`\n[${options.chain}] distributeYieldLogs (${distributeYieldLogs.length} logs):`);
+    console.log(JSON.stringify(distributeYieldLogs, (key, value) => 
+      typeof value === 'bigint' ? value.toString() : value, 2));
 
-            dailyFees.add(vaultInfosBefore[vault].asset, ((growthYields + managementFees) * (10 ** vaultInfosAfter[vault].decimals)))
-            dailyRevenue.add(vaultInfosBefore[vault].asset, (managementFees * (10 ** vaultInfosAfter[vault].decimals)))
+    if (Array.isArray(distributeYieldLogs) && distributeYieldLogs.length > 0) {
+      const assetAmounts: Record<string, bigint> = {};
+      
+      distributeYieldLogs.forEach((log: any) => {
+        if (!log || !log.asset || log.amount === undefined) return;
+
+        const asset = log.asset.toLowerCase();
+        const amount = BigInt(log.amount || 0);
+        const profit = log.profit || false;
+
+        if (amount > BigInt(0) && profit) {
+          assetAmounts[asset] = (assetAmounts[asset] || BigInt(0)) + amount;
         }
-    }
-    const dailySupplySideRevenue = dailyFees.clone(1)
-    dailySupplySideRevenue.subtract(dailyRevenue)
+      });
 
-    return {
-        dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
-        dailySupplySideRevenue,
-    };
-}
+      for (const [asset, totalAmount] of Object.entries(assetAmounts)) {
+        dailyFees.add(asset, totalAmount);
+        dailyRevenue.add(asset, totalAmount);
+      }
+    }
+  } catch (error: any) {
+    console.error(
+      `Error fetching DistributeYield fees: ${error?.message || error}`
+    );
+  }
+
+  let navLogs: {
+    asset: string;
+    managementFee: bigint;
+    performanceFee: bigint;
+    chain: string;
+  }[] = [];
+
+
+  try {
+    const fromBlock = await options.getStartBlock();
+    const toBlock = await options.getEndBlock();
+    const loadLogsManager = await options
+      .getLogs({
+        target: NAV_MANAGER[options.chain],
+        eventAbi: NAV_ABI,
+        entireLog: true,
+        fromBlock,
+        toBlock,
+      })
+      .catch(() => []);
+
+    console.log(`\n[${options.chain}] loadLogsManager (${loadLogsManager.length} logs):`);
+    console.log(JSON.stringify(loadLogsManager, (key, value) => 
+      typeof value === 'bigint' ? value.toString() : value, 2));
+      
+    if (Array.isArray(loadLogsManager) && loadLogsManager.length > 0) {
+      loadLogsManager.forEach((log: any) => {
+        if (!log || !log.data) return;
+
+        const data = log.data.replace("0x", "");
+
+        if (data.length < 192) return;
+
+        const managementFeeHex = data.substring(64, 128);
+        const performanceFeeHex = data.substring(128, 192);
+
+        const managementFee = BigInt("0x" + managementFeeHex);
+        const performanceFee = BigInt("0x" + performanceFeeHex);
+
+        const totalFees = managementFee + performanceFee;
+
+        if (totalFees > BigInt(0)) {
+          dailyFees.add(YPRISM_TOKEN, totalFees);
+          dailyRevenue.add(YPRISM_TOKEN, totalFees);
+        }
+      });
+    }
+  } catch (error: any) {
+    console.error(`Error fetching YPRISM fees: ${error?.message || error}`);
+  }
+
+  const dailySupplySideRevenue = dailyFees.clone(1);
+  dailySupplySideRevenue.subtract(dailyRevenue);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
+};
 
 const methodology = {
-    Fees: 'Total yield generated by YieldFi across all supported chains + management fees by YieldFi',
-    Revenue: 'Total management fees by YieldFi.',
-    ProtocolRevenue: 'Total management fees by YieldFi.',
-    SupplySideRevenue: 'Total yield generated and distributed to vaults depositors.',
-}
+  Fees: "Total yield generated by YieldFi across all supported chains + management fees by YieldFi",
+  Revenue: "Total management fees by YieldFi.",
+  ProtocolRevenue: "Total management fees by YieldFi.",
+  SupplySideRevenue:
+    "Total yield generated and distributed to vaults depositors.",
+};
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    fetch,
-    methodology,
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            start: '2024-11-11',
-        },
-        [CHAIN.OPTIMISM]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.ARBITRUM]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.BASE]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.SONIC]: {
-            start: '2025-05-09',
-        },
-        [CHAIN.PLUME]: {
-            start: '2025-06-10',
-        },
-        [CHAIN.KATANA]: {
-            start: '2025-07-31',
-        },
-        [CHAIN.BSC]: {
-            start: '2025-07-27',
-        },
-        [CHAIN.AVAX]: {
-            start: '2025-07-31',
-        },
-        [CHAIN.TAC]: {
-            start: '2025-07-17',
-        },
-        [CHAIN.PLASMA]: {
-            start: '2025-09-30',
-        },
+  version: 2,
+  fetch,
+  methodology,
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      start: "2024-11-11",
     },
+    [CHAIN.OPTIMISM]: {
+      start: "2025-04-30",
+    },
+    [CHAIN.ARBITRUM]: {
+      start: "2025-04-30",
+    },
+    [CHAIN.BASE]: {
+      start: "2025-04-30",
+    },
+    [CHAIN.SONIC]: {
+      start: "2025-05-09",
+    },
+    [CHAIN.PLUME]: {
+      start: "2025-06-10",
+    },
+    [CHAIN.KATANA]: {
+      start: "2025-07-31",
+    },
+    [CHAIN.BSC]: {
+      start: "2025-07-27",
+    },
+    [CHAIN.AVAX]: {
+      start: "2025-07-31",
+    },
+    [CHAIN.TAC]: {
+      start: "2025-07-17",
+    },
+    [CHAIN.PLASMA]: {
+      start: "2025-09-30",
+    },
+  },
 };
 
 export default adapter;
+
+
+
+
+// management fees per year
+const getFeeRate = (chain: string, vault: string): number => {
+  if (chain === CHAIN.ETHEREUM) {
+      if (vault.toLowerCase() === String('0x8464F6eCAe1EA58EC816C13f964030eAb8Ec123A') || vault.toLowerCase() === String('0x3073112c2c4800b89764973d5790ccc7fba5c9f9')) {
+          return 0.01; // 1% per year
+      } else if (vault.toLowerCase() === String('0xa01200b2e74DE6489cF56864E3d76BBc06fc6C43') || vault.toLowerCase() === String('0x1e2a5622178f93EFd4349E2eB3DbDF2761749e1B')) {
+          return 0.005; // 0.5% per year
+      }
+  }
+
+  return 0.02; // default 2% per year
+}
