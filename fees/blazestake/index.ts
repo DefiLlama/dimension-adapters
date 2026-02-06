@@ -22,10 +22,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances()
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
+      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
     } else if (row.metric_type === 'dailyRevenue') {
       dailyRevenue.addCGToken("blazestake-staked-sol", row.amount || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
       dailyFees.addCGToken("blazestake-staked-sol", row.amount || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
@@ -36,7 +38,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue,
     dailyHoldersRevenue: 0,
   };
 };
