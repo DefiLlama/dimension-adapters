@@ -245,7 +245,7 @@ const formatNumber = (number: string) => {
   if (decimal && decimal.length > 15) {
     return Number(`${integer}.${decimal.slice(0, 15)}`);
   }
-  return number;
+  return Number(number);
 };
 
 const methodology = {
