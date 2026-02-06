@@ -2,10 +2,11 @@ import fetchURL from "../utils/fetchURL"
 import { FetchResultFees, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const ember_fees_url="https://vaults.api.sui-prod.bluefin.io/api/v1/vaults/fees"
+const ember_fees_url="https://vaults.api.sui-prod.bluefin.io/api/v2/vaults/fees"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
   const result= await fetchURL(`${ember_fees_url}?startTimestampInMs=${options.startTimestamp*1000}&endTimestampInMs=${options.endTimestamp*1000}`);
+  console.log(`${ember_fees_url}?startTimestampInMs=${options.startTimestamp*1000}&endTimestampInMs=${options.endTimestamp*1000}`);
   const feesUsdE9=result.feesUsdE9;
   const revenueUsdE9=result.revenueUsdE9;
 
