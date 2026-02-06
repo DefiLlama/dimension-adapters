@@ -4,33 +4,27 @@ import { request } from "graphql-request";
 import { query } from "./query";
 import { BLACKLIST } from "./blacklist";
 
-const config = {
-  [CHAIN.ETHEREUM]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-mainnet-v1/v0.0.1',
-  ],
+const config: Record<string, string[]> = {
   [CHAIN.POLYGON]: [
     'https://api.studio.thegraph.com/query/46041/impermax-x-uniswap-v2-polygon-v2/v0.0.1',
     'https://api.studio.thegraph.com/query/46041/impermax-polygon-solv2/v0.0.1',
-    'https://api.studio.thegraph.com/query/46041/impermax-polygon-sol-stable/v0.0.1',
+    'https://api.studio.thegraph.com/query/46041/impermax-polygon-sol-stable/v0.0.2',
   ],
   [CHAIN.ARBITRUM]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-arbitrum-v1/v0.0.1',
     'https://api.studio.thegraph.com/query/46041/impermax-arbitrum-v2/v0.0.1',
     'https://api.studio.thegraph.com/query/46041/impermax-arbitrum-solv2/v0.0.2',
   ],
   [CHAIN.OPTIMISM]: [
     'https://api.studio.thegraph.com/query/46041/impermax-optimism-solv2/v0.0.1',
-    'https://api.studio.thegraph.com/query/46041/impermax-optimism-solv2-stable/v0.0.1'
+    'https://api.studio.thegraph.com/query/46041/impermax-optimism-solv2-stable/v0.0.1',
   ],
   [CHAIN.FANTOM]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-fantom-solv1/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-fantom-solv2/v0.0.3',
     'https://api.studio.thegraph.com/query/46041/impermax-fantom-v2/v0.0.2',
   ],
   [CHAIN.BASE]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-base-solv2/v0.0.2',
+    'https://api.studio.thegraph.com/query/46041/impermax-base-solv2/v0.0.4',
     'https://api.studio.thegraph.com/query/46041/impermax-base-solv2-stable/v0.0.2',
-    'https://api.studio.thegraph.com/query/46041/impermax-base-v2/v0.0.3',
   ],
   [CHAIN.SCROLL]: [
     'https://api.studio.thegraph.com/query/46041/impermax-scroll-solv2/v0.0.2',
@@ -38,11 +32,6 @@ const config = {
   ],
   [CHAIN.AVAX]: [
     'https://api.studio.thegraph.com/query/46041/impermax-avalanche-v1/v0.0.2',
-    'https://api.studio.thegraph.com/query/46041/impermax-avalanche-solv2/v0.0.3',
-  ],
-  [CHAIN.LINEA]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-linea-solv2/v0.0.2',
-    'https://api.studio.thegraph.com/query/46041/impermax-linea-solv2-stable/v0.0.2',
   ],
   [CHAIN.SONIC]: [
     'https://api.studio.thegraph.com/query/46041/impermax-sonic-solv2/v0.0.2',
@@ -50,11 +39,7 @@ const config = {
   ],
   [CHAIN.BLAST]: [
     'https://api.studio.thegraph.com/query/46041/impermax-blast-solv2/v0.0.3',
-    'https://api.studio.thegraph.com/query/46041/impermax-blast-v2/v0.0.2',
     'https://api.studio.thegraph.com/query/46041/impermax-blast-solv2-stable/v0.0.2',
-  ],
-  [CHAIN.ZKSYNC]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-zksync-era-solv2/v0.0.2',
   ],
 };
 
@@ -78,8 +63,12 @@ const getChainBorrowables = async (chain: CHAIN): Promise<IBorrowable[]> => {
   let allBorrowables: IBorrowable[] = [];
 
   for (const url of urls) {
-    const queryResult = await request(url, query);
-    allBorrowables = allBorrowables.concat(queryResult.borrowables);
+    try {
+      const queryResult = await request(url, query);
+      allBorrowables = allBorrowables.concat(queryResult.borrowables);
+    } catch (e) {
+      console.error(`Failed to fetch from ${url}: ${e}`);
+    }
   }
 
   const blacklist = BLACKLIST[chain] || [];
@@ -129,7 +118,6 @@ const adapter: Adapter = {
   fetch,
   methodology,
   adapter: {
-    [CHAIN.ETHEREUM]: { start: '2023-10-23', },
     [CHAIN.POLYGON]: { start: '2023-10-23', },
     [CHAIN.ARBITRUM]: { start: '2023-10-23', },
     [CHAIN.FANTOM]: { start: '2023-10-23', },
@@ -139,8 +127,6 @@ const adapter: Adapter = {
     [CHAIN.AVAX]: { start: '2023-10-23', },
     [CHAIN.SONIC]: { start: '2023-10-23', },
     [CHAIN.BLAST]: { start: '2023-10-23', },
-    [CHAIN.LINEA]: { start: '2023-10-23', },
-    [CHAIN.ZKSYNC]: { start: '2023-10-23', },
   },
 };
 
