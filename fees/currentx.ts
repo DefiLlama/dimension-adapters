@@ -48,7 +48,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch: graphs,
-      start: '2026-02-03',
+      start: '2026-02-04',
     }
   },
   methodology
@@ -56,3 +56,4 @@ const adapter: Adapter = {
 
 
 export default adapter;
+
