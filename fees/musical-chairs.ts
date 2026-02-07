@@ -71,9 +71,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: "Comission from total deposits.",
-    Revenue: "Comission from total deposits post referral bonuses.",
-    ProtocolRevenue: "Comission from total deposits post referral bonuses.",
+    Fees: "Commission from total deposits.",
+    Revenue: "Commission from total deposits post referral bonuses.",
+    ProtocolRevenue: "Commission from total deposits post referral bonuses.",
     SupplySideRevenue: "Referral bonuses paid out to referrers.",
 }
 
@@ -86,3 +86,4 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
+
