@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
 
-// source: https://dune.com/queries/6136041
+// source: https://dune.com/queries/5682491
 
 const sql = `
   WITH solana_transfers AS (
