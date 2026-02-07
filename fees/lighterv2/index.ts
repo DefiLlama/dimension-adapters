@@ -2,12 +2,15 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from '../../adapters/types
 import { CHAIN } from '../../helpers/chains'
 import { METRIC } from '../../helpers/metrics'
 import fetchURL from '../../utils/fetchURL'
+import PromisePool from '@supercharge/promise-pool'
 
 const TREASURY_ACCOUNT_INDEX = 0
 const MAX_LOGS_PER_REQUEST = 100
 const BUYBACK_MARKET_INDEX = 2049
 const BUYBACK_TAKER_ASK = 0
 const MAX_LOG_OFFSET = 20000
+const API_BASE = 'https://mainnet.zklighter.elliot.ai/api/v1'
+const RATE_LIMIT_PER_MINUTE = 200
 
 interface LogEntry {
   time: string
@@ -19,6 +22,26 @@ interface LogEntry {
       size: string
     }
   }
+}
+
+interface ExchangeMetricResponse {
+  code: number
+  metrics: Array<{
+    timestamp: number
+    data: number
+  }>
+}
+
+interface OrderBookDetail {
+  symbol: string
+  market_id: number
+  market_type: string
+  status: string
+}
+
+interface OrderBookDetailsResponse {
+  code: number
+  order_book_details: OrderBookDetail[]
 }
 
 /** Fetches LIT buyback USD value from treasury account trades within a time range
@@ -74,17 +97,82 @@ async function fetchBuybacks(startTimestamp: number, endTimestamp: number): Prom
   return totalBuybackUsd
 }
 
-async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> {
-  const todayStart = new Date(options.startOfDay * 1000).toISOString()
-  const todayEnd = new Date(options.endTimestamp * 1000).toISOString()
+async function fetchExchangeMetricByMarket(kind: string, symbol: string, startOfDay: number): Promise<number> {
+  const response: ExchangeMetricResponse = await fetchURL(
+    `${API_BASE}/exchangeMetrics?period=all&kind=${kind}&filter=byMarket&value=${symbol}`
+  )
+  
+  if (!response?.metrics || !Array.isArray(response.metrics)) {
+    return 0
+  }
 
-  // Fetch fees from lightalytics API
-  const result = (
-    await fetchURL(
-      `https://lightalytics.com/api/v1/stats/network/fees_history?exchange=lighter&from=${todayStart}&to=${todayEnd}&interval=1d&value=period`
-    )
-  ).series
-  const dailyFeesValue = parseFloat(result[0].revenue_24h_usd)
+  // Find the metric matching the startOfDay timestamp
+  const metric = response.metrics.find(m => m.timestamp === startOfDay)
+  return metric?.data || 0
+}
+
+async function getActivePerpMarkets(api: any): Promise<OrderBookDetail[]> {
+  const response: OrderBookDetailsResponse = await fetchURL(`${API_BASE}/orderBookDetails`)
+  
+  if (!response?.order_book_details || !Array.isArray(response.order_book_details)) {
+    return []
+  }
+
+  // Filter for active perp markets only
+  const activePerpMarkets = response.order_book_details.filter(
+    market => market.market_type === 'perp' && market.status === 'active'
+  )
+
+  api.log('Active perp markets #', activePerpMarkets.length)
+  
+  return activePerpMarkets
+}
+
+async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResultV2> {
+  // Get all active perp markets
+  const markets = await getActivePerpMarkets(options.api)
+  
+  // Calculate concurrency based on rate limit
+  // 5 fee types per market, 200 requests per minute limit
+  // Use concurrency of 30 to be safe (30 * 5 = 150 requests per batch)
+  const concurrency = 5
+  const batchSize = concurrency
+  const delayBetweenBatches = 60000 / (RATE_LIMIT_PER_MINUTE / 5) * batchSize // milliseconds
+  
+  let totalMakerFee = 0
+  let totalTakerFee = 0
+  let totalTransferFee = 0
+  let totalWithdrawFee = 0
+  let totalLiquidationFee = 0
+  let processedCount = 0
+
+  // Fetch fees for each market
+  await PromisePool.withConcurrency(concurrency)
+    .for(markets)
+    .process(async (market: OrderBookDetail) => {
+      const [makerFee, takerFee, transferFee, withdrawFee, liquidationFee] = await Promise.all([
+        fetchExchangeMetricByMarket('maker_fee', market.symbol, options.startOfDay),
+        fetchExchangeMetricByMarket('taker_fee', market.symbol, options.startOfDay),
+        fetchExchangeMetricByMarket('transfer_fee', market.symbol, options.startOfDay),
+        fetchExchangeMetricByMarket('withdraw_fee', market.symbol, options.startOfDay),
+        fetchExchangeMetricByMarket('liquidation_fee', market.symbol, options.startOfDay),
+      ])
+
+      totalMakerFee += makerFee
+      totalTakerFee += takerFee
+      totalTransferFee += transferFee
+      totalWithdrawFee += withdrawFee
+      totalLiquidationFee += liquidationFee
+      
+      processedCount++
+      
+      // Add delay after each batch to respect rate limits
+      if (processedCount % batchSize === 0 && processedCount < markets.length) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches))
+      }
+    })
+
+  const tradingFees = totalMakerFee + totalTakerFee
 
   // Fetch buybacks from explorer API
   const dailyBuybackUsd = await fetchBuybacks(options.startOfDay, options.endTimestamp)
@@ -92,12 +180,13 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
   // Create balances
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
 
-  dailyFees.addUSDValue(dailyFeesValue, 'Premium Accounts Trading Fees')
-  dailyRevenue.addUSDValue(dailyFeesValue, 'Premium Accounts Trading Fees')
-  dailyProtocolRevenue.addUSDValue(dailyFeesValue, 'Premium Accounts Trading Fees')
+  dailyRevenue.addUSDValue(tradingFees, METRIC.TRADING_FEES)
+  dailyRevenue.addUSDValue(totalTransferFee, 'Transfer Fees')
+  dailyRevenue.addUSDValue(totalWithdrawFee, METRIC.DEPOSIT_WITHDRAW_FEES)
+  dailyFees.addUSDValue(totalLiquidationFee, METRIC.LIQUIDATION_FEES)
+  dailyFees.addBalances(dailyRevenue)
 
   if (dailyBuybackUsd > 0) {
     dailyHoldersRevenue.addUSDValue(dailyBuybackUsd, METRIC.TOKEN_BUY_BACK)
@@ -106,27 +195,24 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue,
   }
 }
 
 const methodology = {
-  Fees: 'Maker and taker fees paid by premium accounts on the Lighter DEX',
-  Revenue: 'All trading fees are protocol revenue',
-  ProtocolRevenue: 'All trading fees go to the protocol treasury',
+  Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
+  Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
+  ProtocolRevenue: 'All trading and operational fees collected by the protocol treasury',
   HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Premium Accounts Trading Fees': 'Maker and taker fees from spot and perpetual trading on premium accounts only.',
-  },
-  Revenue: {
-    'Premium Accounts Trading Fees': 'All trading fees are protocol revenue',
-  },
-  ProtocolRevenue: {
-    'Premium Accounts Trading Fees': 'Trading fees collected by the protocol',
+    [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading.',
+    'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid by traders on the Lighter DEX',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]:
