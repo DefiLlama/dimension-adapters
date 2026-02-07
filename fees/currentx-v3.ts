@@ -18,7 +18,7 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
 
       }`;
       const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v3/1.0.0/gn";
-       const req = await request(url, query);
+      const req = await request(url, query);
       if (!req.uniswapDayData) {
           return { timestamp: options.startOfDay, dailyFees: "0", dailyRevenue: "0" };
       }
