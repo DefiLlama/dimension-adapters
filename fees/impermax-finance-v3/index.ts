@@ -57,12 +57,8 @@ const getChainBorrowables = async (chain: CHAIN): Promise<IBorrowable[]> => {
   let allBorrowables: IBorrowable[] = [];
 
   for (const url of urls) {
-    try {
-      const queryResult = await request(url, query);
-      allBorrowables = allBorrowables.concat(queryResult.borrowables);
-    } catch (e) {
-      console.error(`Failed to fetch from ${url}: ${e}`);
-    }
+    const queryResult = await request(url, query);
+    allBorrowables = allBorrowables.concat(queryResult.borrowables);
   }
 
   const blacklist = BLACKLIST[chain] || [];
