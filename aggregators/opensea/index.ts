@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 import { getSolanaReceived } from "../../helpers/token";
 
-const chainConfig = {
+const chainConfig: any = {
 	[CHAIN.ETHEREUM]: { dune_chain: 'ethereum' },
 	// [CHAIN.ABSTRACT]: {dune_chain: 'abstract'},
 	[CHAIN.APECHAIN]: { dune_chain: 'apechain' },
@@ -20,6 +20,7 @@ const chainConfig = {
 	[CHAIN.UNICHAIN]: { dune_chain: 'unichain' },
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
 	[CHAIN.SOLANA]: { dune_chain: 'solana' },
+	[CHAIN.MONAD]: { dune_chain: 'monad' },
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -57,7 +58,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 	}
 	const results = options.preFetchedResults || [];
 	const chainData = results.find(
-		(item) => chainConfig[options.chain].dune_chain === item.blockchain
+		(item: any) => chainConfig[options.chain].dune_chain === item.blockchain
 	);
 	return {
 		dailyVolume: chainData?.dailyVolume || 0,
@@ -69,7 +70,7 @@ const adapter: SimpleAdapter = {
 	fetch,
 	chains: Object.keys(chainConfig),
 	prefetch,
-	dependencies: [Dependencies.DUNE],
+	dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
 	doublecounted: true
 }
 

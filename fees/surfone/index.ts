@@ -29,6 +29,7 @@ const fetch = () => {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-01-23', // v1 is shutting down on 2026-01-23
   version: 1,
   adapter: {
     ['merlin']: {

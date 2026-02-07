@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter, IStartTimestamp } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
 import { addOneToken } from "./prices";
 
@@ -21,6 +21,7 @@ interface IPair {
 interface ExportConfig {
   [key: string]: {
     factories: Array<IFactory>;
+    start?: IStartTimestamp | number | string;
   }
 }
 
@@ -54,6 +55,7 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
         target: factory.factory,
         eventAbi: Abis.LBPairCreatedEvent,
         fromBlock: factory.fromBlock,
+        cacheInCloud: true,
       })
 
       const feeParameters = factory.version === 2 ? await options.api.multiCall({
@@ -146,9 +148,16 @@ export function joeLiquidityBookExport(config: ExportConfig, feesConfig?: Export
   }
 
   for (const chain of Object.keys(config)) {
-    (adapter.adapter as any)[chain] = {
+    const chainConfig = config[chain];
+    const adapterConfig: any = {
       fetch: getFetch(config, feesConfig)
+    };
+    
+    if (chainConfig.start !== undefined) {
+      adapterConfig.start = chainConfig.start;
     }
+    
+    (adapter.adapter as any)[chain] = adapterConfig;
   }
 
   return adapter;

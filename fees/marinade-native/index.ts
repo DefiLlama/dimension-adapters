@@ -10,8 +10,9 @@ interface MarinadeAmounts {
   dailyProtocolRevenue: string;
   dailySupplySideRevenue: string;
 }
+const buybacksStart = 1757030400; // 2025-09-05
 
-const fetch = async (_a: any, _b: any, { createBalances }: FetchOptions) => {
+const fetch = async (_a: any, _b: any, { createBalances, fromTimestamp }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).native
   const coin = ADDRESSES.solana.SOL
@@ -20,12 +21,18 @@ const fetch = async (_a: any, _b: any, { createBalances }: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
   dailyFees.add(coin, amounts.dailyFees);
   dailyUserFees.add(coin, amounts.dailyUserFees);
   dailyRevenue.add(coin, amounts.dailyRevenue);
-  dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
   dailySupplySideRevenue.add(coin, amounts.dailySupplySideRevenue);
+  if (fromTimestamp >= buybacksStart) {
+    dailyProtocolRevenue.add(coin, Number(amounts.dailyRevenue) * 0.5);
+    dailyHoldersRevenue.add(coin, Number(amounts.dailyRevenue) * 0.5);
+  } else {
+    dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
+  }
 
   return {
     dailyFees,
@@ -33,7 +40,7 @@ const fetch = async (_a: any, _b: any, { createBalances }: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue,
   }
 }
 
@@ -46,7 +53,7 @@ const adapter: SimpleAdapter = {
     Revenue: ' = ProtocolRevenue',
     ProtocolRevenue: ' = UserFees',
     SupplySideRevenue: 'Stakers revenue = Fees',
-    HoldersRevenue: 'No revenue share to MNDE token holders.',
+    HoldersRevenue: '50% of the revenue is used on MNDE Buybacks since 2025-09-05.',
   },
   runAtCurrTime: true,
   adapter: {

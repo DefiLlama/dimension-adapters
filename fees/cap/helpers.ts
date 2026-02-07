@@ -25,12 +25,14 @@ export const fetchAssetAddresses = async (
 		eventAbi: capABI.Vault.AddAssetEvent,
 		target: tokens.cUSD.address,
 		fromBlock: tokens.cUSD.fromBlock,
+		cacheInCloud: true,
 	});
 
 	const lenderReserveAssetAddresses = await options.getLogs({
 		eventAbi: capABI.Lender.ReserveAssetAddedEvent,
 		target: lender.address,
 		fromBlock: lender.fromBlock,
+		cacheInCloud: true,
 	});
 
 	return [
@@ -48,6 +50,7 @@ export const fetchVaultConfigs = async (options: FetchOptions) => {
 		target: infra.lender.address,
 		eventAbi: capABI.Lender.ReserveAssetAddedEvent,
 		fromBlock: infra.lender.fromBlock,
+		cacheInCloud: true,
 	});
 
 	const vaultConfigsByAsset: Record<
@@ -76,6 +79,7 @@ export const fetchVaultConfigs = async (options: FetchOptions) => {
 		target: infra.lender.address,
 		eventAbi: capABI.Lender.ReserveInterestReceiverUpdatedEvent,
 		fromBlock: infra.lender.fromBlock,
+		cacheInCloud: true,
 	});
 	for (const event of interestReceiverUpdatedEvents) {
 		const asset = event.asset.toLowerCase();

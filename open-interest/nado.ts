@@ -74,7 +74,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.INK],
   start: '2025-11-15',
-  runAtCurrTime: true,
 };
 
 export default adapter;

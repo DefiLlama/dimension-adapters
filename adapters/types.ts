@@ -77,7 +77,8 @@ export type FetchV2 = (
 export type IStartTimestamp = () => Promise<number>
 
 export type BaseAdapterChainConfig = {
-    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
+    start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format -  indicates when the adapter can start fetching data
+    deadFrom?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format - indicates when the adapter should stop fetching data
     fetch?: Fetch | FetchV2;
     runAtCurrTime?: boolean;
   }
@@ -122,7 +123,7 @@ export type SimpleAdapter = AdapterBase & {
   adapter?: BaseAdapter
 }
 
-export type BreakdownAdapter = AdapterBase & {
+export type BreakdownAdapter = AdapterBase & {  // do not use this, this is deprecated
   breakdown: {
     [version: string]: BaseAdapter
   };
@@ -144,6 +145,7 @@ export type FetchResultVolume = FetchResultBase & {
   openInterestAtEnd?: FetchResponseValue
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
+  dailyNormalizedVolume?: FetchResponseValue
 };
 
 // FEES
@@ -205,6 +207,7 @@ export enum AdapterType {
   // ROYALTIES = 'royalties',
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
+  NORMALIZED_VOLUME = 'normalized-volume',
 }
 
 export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
@@ -212,7 +215,7 @@ export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggre
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume',
+  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',

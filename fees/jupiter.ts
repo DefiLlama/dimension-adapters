@@ -4,6 +4,7 @@ import { queryDuneSql } from "../helpers/dune"
 import { queryAllium } from "../helpers/allium"
 import { getSolanaReceived } from "../helpers/token"
 import ADDRESSES from "../helpers/coreAssets.json"
+import { METRIC } from "../helpers/metrics"
 
 interface IData {
   fee_usd: string;
@@ -12,13 +13,15 @@ interface IData {
 const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances()
   // limit order fees
-  const dailyFees = await getSolanaReceived({
+  const limitOrderFees = await getSolanaReceived({
     options, targets: [
       'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
       , '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
     ]
   })
+  dailyFees.addBalances(limitOrderFees, "Limit Orders")
   // ultra fees
   // https://dune.com/queries/4769928
   const data: IData[] = await queryDuneSql(options, `
@@ -74,9 +77,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFeesUltra.addUSDValue(item.fee_usd)
   })
   const dailyRevenue = dailyFees.clone()
-  dailyFees.addBalances(dailyFeesUltra)
-  dailyFeesUltra.resizeBy(0.25) // 
-  dailyRevenue.addBalances(dailyFeesUltra)
+  dailyFees.addBalances(dailyFeesUltra, METRIC.SWAP_FEES)
+  const dailySupplySideRevenue = dailyFeesUltra.clone(0.8, METRIC.SWAP_FEES)
+  dailyFeesUltra.resizeBy(0.2)
+  dailyRevenue.addBalances(dailyFeesUltra, METRIC.SWAP_FEES)
 
   const query = `
     SELECT SUM(raw_amount) as total_amount
@@ -92,7 +96,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue
+    dailyHoldersRevenue,
+    dailySupplySideRevenue
   }
 }
 
@@ -101,14 +106,28 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   start: '2023-06-01',
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'Trading fees paid by users.',
     Revenue: 'Portion of fees collected by protocol.', // we don't add the holders revenue as it's 50% of ecosystem protocol revenue.
+    SupplySideRevenue: 'Integrator fees',
     HolderRevenue: 'Jup Buybacks from 50% of jupiter ecosystem protocol revenue.',
   },
+  breakdownMethodology: {
+    Fees: {
+      "Limit Orders": "Fees collected from limit orders placed using the Jupiter Trigger API",
+      [METRIC.SWAP_FEES]: "Fees collected from swaps executed using Jupiter Ultra Swap API"
+    },
+    Revenue: {
+      "Limit Orders": "The protocol collects all the fees from limit orders placed using the Jupiter Trigger API",
+      [METRIC.SWAP_FEES]: "The protocol collects 20% of the integrator fees" 
+    },
+    SupplySideRevenue: {
+      [METRIC.SWAP_FEES]: "Fees collected by protocols integrating the Jupiter Ultra Swap API"
+    }
+  }
 }
 
 export default adapter

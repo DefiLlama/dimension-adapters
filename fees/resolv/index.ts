@@ -1,7 +1,8 @@
-import { getTokenTransfers } from "@defillama/sdk/build/util/indexer";
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import * as sdk from '@defillama/sdk'
 
 const USR = '0x66a1e37c9b0eaddca17d3662d6c05f4decf3e110';
 const ST_USR = '0x6c8984bc7DBBeDAf4F6b2FD766f16eBB7d10AAb4';
@@ -28,17 +29,20 @@ const WST_USR_ABI = 'function convertToAssets(uint256 _wstUSRAmount) external vi
 const methodology = {
   Fees: 'Total investment yields from backing assets for RLP and USR',
   Revenue: 'Protocol share of daily yield (profit) which was actived from Aug 2025',
+  ProtocolRevenue: 'Protocol share of daily yield (profit) which was actived from Aug 2025',
+  HoldersRevenue: 'No revenue share to RESOLV token holders',
 };
 
 const breakdownMethodology = {
   Fees: { [METRIC.ASSETS_YIELDS]: 'Total investment yields from backing assets for RLP and USR' },
   Revenue: { [METRIC.ASSETS_YIELDS]: 'Protocol share of daily yield (profit) which was actived from Aug 2025' },
+  ProtocolRevenue: { [METRIC.ASSETS_YIELDS]: 'Protocol share of daily yield (profit) which was actived from Aug 2025' },
 };
 
 const getOtherRevenues = async (options: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([options.getStartBlock(), options.api.getBlock()])
 
-  return getTokenTransfers({
+  return sdk.indexer.getTokenTransfers({
     chain: options.chain,
     target: FEE_COLLECTOR,
     fromAddressFilter: ADDRESSES_FROM,
@@ -82,9 +86,14 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(token, value, METRIC.ASSETS_YIELDS)
   })
 
+  // 2025-03-19 RESOLV was deployed on Ethereum
+  const dailyHoldersRevenue = options.startOfDay >= 1742342400 ? 0 : undefined
+  
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue,
   };
 };
 
