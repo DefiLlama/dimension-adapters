@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
 
-const AGGREGATOR_CONTRACT = '0xb3f2B217B024700b6B85bB0941d4958EF17214C1';
+const AGGREGATOR_CONTRACT = "0xb3f2B217B024700b6B85bB0941d4958EF17214C1";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -24,7 +24,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.CRONOS]: {
       fetch,
-      start: '2025-01-01',
+      start: "2025-01-01",
     },
   },
 };
