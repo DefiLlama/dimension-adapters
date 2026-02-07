@@ -8,8 +8,7 @@ const fetch = async (options: FetchOptions) => {
 
   const logs = await options.getLogs({
     target: AGGREGATOR_CONTRACT,
-    eventAbi:
-      "event SwapExecuted(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 taxCollected, uint256 timestamp)",
+    eventAbi: "event SwapExecuted(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 taxCollected, uint256 timestamp)",
   });
 
   for (const log of logs) {
