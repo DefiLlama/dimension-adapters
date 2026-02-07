@@ -7,7 +7,8 @@ const methodology = {
   Fees: 'Total yields from deposited assets across all vaults',
   SupplySideRevenue: 'Total yields are distributed to depositors',
   Revenue: 'Performance and management fees to Yearn treasury',
-  ProtocolRevenue: 'Performance and management fees to Yearn treasury',
+  ProtocolRevenue: '10% of the performance and management fees go to Yearn treasury',
+  HoldersRevenue: '90% of the protocol revenue goes to stYFI stakers since 2026-02-05'
 }
 
 const breakdownMethodology = {
@@ -22,8 +23,12 @@ const breakdownMethodology = {
     [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
   },
   ProtocolRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
-    [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
+    [METRIC.ASSETS_YIELDS]: '10% of the Performance fees go to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: '10% of the Management fees go to Yearn treasury',
+  },
+  HoldersRevenue: {
+    [METRIC.ASSETS_YIELDS]: '90% of the Performance fees go to stYFI stakers',
+    [METRIC.MANAGEMENT_FEES]: '90% of the Management fees to to stYFI stakers',
   },
 }
 
@@ -95,10 +100,13 @@ interface IVault {
   isV1: boolean;
 }
 
+const stYFILaunch = 1770249600 // 2026-02-05
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
   const vaults: Array<IVault> = []
 
@@ -229,12 +237,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyProtocolRevenue.add(vault.token, performanceFees, METRIC.ASSETS_YIELDS)
     dailyProtocolRevenue.add(vault.token, managementFees, METRIC.MANAGEMENT_FEES)
   }
+  if (options.fromTimestamp >= stYFILaunch) {
+    dailyHoldersRevenue.addBalances(dailyProtocolRevenue)
+    dailyProtocolRevenue.resizeBy(0.1)
+    dailyHoldersRevenue.resizeBy(0.9)
+  }
+  const dailyRevenue = dailyProtocolRevenue.clone()
+  dailyRevenue.addBalances(dailyHoldersRevenue)
 
   return {
     dailyFees,
     dailySupplySideRevenue,
-    dailyRevenue: dailyProtocolRevenue,
+    dailyRevenue,
     dailyProtocolRevenue,
+    dailyHoldersRevenue
   }
 }
 
