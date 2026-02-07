@@ -1,9 +1,10 @@
 import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
+import { FetchOptions } from "../adapters/types";
 
 const API_URL = "https://api.alphasec.trade/api/v1/defillama/stats";
 
-const fetch = async () => {
+const fetch = async (_options: FetchOptions) => {
   const data = await httpGet(API_URL);
   const stats = data.result;
 
