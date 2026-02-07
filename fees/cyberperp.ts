@@ -79,14 +79,31 @@ const processTradingFees = (
   acc: Accumulator,
 ): boolean => {
   return processEvents(edges, from, to, acc, (json, acc) => {
-    acc.rollover = acc.rollover.plus(json.rollover_fee || "0");
+    if (String(json.event_type) === "0") return;
 
-    const funding = new BigNumber(json.funding_fee || "0");
+    const collateral = new BigNumber(String(json.original_collateral || "0"));
+    let funding = new BigNumber(String(json.funding_fee || "0"));
+    let rollover = new BigNumber(String(json.rollover_fee || "0"));
+
     if (json.is_funding_fee_profit) {
       acc.funding = acc.funding.minus(funding);
     } else {
+      if (!json.is_increase) {
+        const totalFeesOwed = funding.plus(rollover);
+
+        if (totalFeesOwed.gt(collateral)) {
+          const realRollover = BigNumber.min(rollover, collateral);
+          const realFunding = BigNumber.max(collateral.minus(realRollover), 0);
+
+          rollover = realRollover;
+          funding = realFunding;
+        }
+      }
+
       acc.funding = acc.funding.plus(funding);
     }
+
+    acc.rollover = acc.rollover.plus(rollover);
   });
 };
 
@@ -160,7 +177,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
-  
+
   dailyFees.addUSDValue(totalRevenue);
   dailyRevenue.addUSDValue(protocolRevenue);
   dailySupplySideRevenue.addUSDValue(providersRevenue);
@@ -181,7 +198,8 @@ const adapter: SimpleAdapter = {
     Fees: "All trading, funding and rollover fees collected from users",
     Revenue: "Aggregated fees distributed between the protocol vaults",
     ProtocolRevenue: "Fees directed to the protocol vaults for maintenance",
-    SupplySideRevenue: "Fees distributed to liquidity providers, adjusted for funding profit/loss",
+    SupplySideRevenue:
+      "Fees distributed to liquidity providers, adjusted for funding profit/loss",
   },
 };
 
