@@ -28,7 +28,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [METRIC.ASSETS_YIELDS]: '90% of the Performance fees go to stYFI stakers',
-    [METRIC.MANAGEMENT_FEES]: '90% of the Management fees to to stYFI stakers',
+    [METRIC.MANAGEMENT_FEES]: '90% of the Management fees go to stYFI stakers',
   },
 }
 
