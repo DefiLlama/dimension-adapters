@@ -30,6 +30,9 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
       }`;
       const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v2/1.0.0/gn";
       const req = await request(url, query);
+      if (!req.uniswapDayData) {
+          return { timestamp: options.startOfDay, dailyFees: "0", dailyRevenue: "0" };
+      }
       const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
       return {
         timestamp: options.startOfDay,
@@ -46,10 +49,11 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch: graphs,
-      start: '2026-02-04',
+      start: '2026-02-06',
     }
   },
   methodology
 }
 
 export default adapter;
+
