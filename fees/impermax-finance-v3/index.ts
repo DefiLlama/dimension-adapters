@@ -8,7 +8,7 @@ const config: Record<string, Array<string>> = {
     'https://api.studio.thegraph.com/query/46041/impermax-v-3-base/v0.0.3',
   ],
   [CHAIN.UNICHAIN]: [
-    'https://api.studio.thegraph.com/query/46041/impermax-v-3-unichain/v0.0.2',
+    'https://api.studio.thegraph.com/query/46041/impermax-v-3-unichain/v0.0.3',
   ],
   [CHAIN.HYPERLIQUID]: [
     'https://api.goldsky.com/api/public/project_cm2d5q4l4w31601vz4swb3vmi/subgraphs/impermax-v3-hyperevm/0.0.1/gn',
