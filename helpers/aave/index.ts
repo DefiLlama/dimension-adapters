@@ -8,6 +8,7 @@ export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
   lendingPoolProxy: string;
   dataProvider: string;
+  dataProvider2?: string;
   ignoreLiquidation?: boolean;
   ignoreFlashloan?: boolean;
 

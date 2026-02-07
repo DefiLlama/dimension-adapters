@@ -47,7 +47,8 @@ export default {
           version: 2.1,
           fromBlock: 32248561,
         },
-      ]
+      ],
+      start: "2025-10-29"
     },
   }, {
     holdersRevenueFromRevenue: 1, // 100% revenue
