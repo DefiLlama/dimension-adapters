@@ -10,18 +10,21 @@ const fetch = async (options: FetchOptions) => {
     `${dimensionsEndpoint}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`,
     { headers: { "x-client-id": "defillama" } }
   );
-
+  const dailyProtocolRevenue = Number(dimensionsData.dailyProtocolRevenue)
+  const dailyUserFees = Number(dimensionsData.dailyUserFees)
+  const dailySupplySideRevenue = Number(dimensionsData.dailySupplySideRevenue) + dailyUserFees
+  const dailyFees = dailyProtocolRevenue + dailySupplySideRevenue
   return {
+    dailyFees,
     // Fees collected from burning $FLIP. This is a fixed percentage of swap value.
-    dailyProtocolRevenue: dimensionsData.dailyProtocolRevenue,
-    dailyRevenue: dimensionsData.dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue,
+    dailyRevenue: dailyProtocolRevenue,
 
     // Ingress, Egress, and Broker fees paid by the user per swap
-    dailyUserFees: dimensionsData.dailyUserFees,
-    dailyFees: dimensionsData.dailyUserFees,
+    dailyUserFees,
 
     // Fees collected by the LP. This is a fixed percentage of swap value.
-    dailySupplySideRevenue: dimensionsData.dailySupplySideRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -34,12 +37,13 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
+    Fees: "Includes Swap, Broker, Ingress, Egress and Network Fees for Buy/Burn Mechanism",
     Revenue:
       "Fees collected from burning $FLIP. This is a fixed percentage of swap value.",
     UserFees:
       "Ingress, Egress, and Broker fees paid by the user per swap",
     SupplySideRevenue:
-      "Fees collected by the LP. This is a fixed percentage of swap value.",
+      "Fees collected by the LPs + Broker, Ingress and Egress fees",
   },
 };
 
