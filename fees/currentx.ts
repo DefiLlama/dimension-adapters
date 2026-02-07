@@ -24,7 +24,6 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
           uniswapDayData(id:${dayID}) {
               id
               dailyVolumeUSD
-              dailyFeesUSD
           }
 
       }`;
@@ -33,7 +32,8 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
       if (!req.uniswapDayData) {
         return { timestamp: options.startOfDay, dailyFees: "0", dailyRevenue: "0" };
       }
-      const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
+      const dailyVolume = Number(req.uniswapDayData.dailyVolumeUSD ?? 0);
+      const dailyFee = dailyVolume * 0.003;
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
@@ -55,4 +55,6 @@ const adapter: Adapter = {
 }
 
 export default adapter;
+
+
 
