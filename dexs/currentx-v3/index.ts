@@ -8,13 +8,16 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
     {
         uniswapDayData(id:${dayID}) {
             id
-            volumeUSD
+            dailyVolumeUSD
         }
     }`;
-    const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v3/1.0.0/gn";
+    const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v2/1.0.0/gn";
     const req = await request(url, query);
-    return {
-        dailyVolume: req.uniswapDayData.volumeUSD,
+    if (!req.uniswapDayData) {
+        return { dailyVolume: "0" };
+    }
+     return {
+         dailyVolume: req.uniswapDayData.dailyVolumeUSD,
     }
 }
 
