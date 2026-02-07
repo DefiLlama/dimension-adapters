@@ -5,10 +5,8 @@ import type { ChainEndpoints, FetchOptions, FetchV2 } from "../adapters/types"
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { time } from "console";
 
-const key = process.env.THEGRAPH_API_KEY;
-
 const endpoints = {
-  [CHAIN.MEGAETH]: `https://gateway.thegraph.com/api/${key}/subgraphs/id/3berhRZGzFfAhEB5HZGHEsMAfQ2AQpDk2WyVr5Nnkjyv`
+  [CHAIN.MEGAETH]: "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v2/1.0.0/gn"
 }
 
 const methodology = {
@@ -30,9 +28,9 @@ const graphs = async (_t: any, _b: any, options: FetchOptions) => {
           }
 
       }`;
-      const url = endpoints[CHAIN.MEGAETH];
+      const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v2/1.0.0/gn";
       const req = await request(url, query);
-      const dailyFee = req?.uniswapDayData ? Number(req.uniswapDayData.dailyFeesUSD ?? 0) : 0;
+      const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
       return {
         timestamp: options.startOfDay,
         dailyFees: dailyFee.toString(),
@@ -54,6 +52,4 @@ const adapter: Adapter = {
   methodology
 }
 
-
 export default adapter;
-
