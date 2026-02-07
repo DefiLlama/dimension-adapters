@@ -23,7 +23,7 @@ const adapter: any = {
   adapter: {
     [CHAIN.CRONOS]: {
       fetch,
-      start: "2025-01-01",
+      start: "2026-02-07",
     },
   },
 };
