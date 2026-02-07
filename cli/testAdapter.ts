@@ -50,16 +50,16 @@ let usedHelper: string | null | undefined = null;
 (async () => {
   const file = `${adapterType}/${moduleArg}`
   const passedFile = path.resolve(process.cwd(), `./${file}`);
-  
+
   // throw error if module doesnt start with lowercase letters
   if (!/^[a-z0-9]/.test(moduleArg)) {
     throw new Error("Module name should start with a lowercase letter: " + moduleArg);
   }
-  
+
   try {
     const result = await importAdapter(adapterType, moduleArg, passedFile);
     adapterModule = result.adapter;
-    
+
     if (result.source === 'factory') {
       usedHelper = result.factoryName;
       console.info(`🦙 Running ${moduleArg.toUpperCase()} adapter from ${usedHelper} factory 🦙`);
@@ -70,7 +70,7 @@ let usedHelper: string | null | undefined = null;
     console.error(error.message);
     process.exit(1);
   }
-  
+
   console.info(`---------------------------------------------------`)
 
   const rawTimeArg = process.argv[4]
@@ -100,6 +100,69 @@ let usedHelper: string | null | undefined = null;
     }
   }
 
+
+  if (isHourly && !rawTimeArg) {
+    const rollingEnd = getTimestamp30MinutesAgo()
+    const rollingEndSafe = rollingEnd - (rollingEnd % (60 * 60))
+    const rollingStart = rollingEndSafe - 24 * 60 * 60
+
+    console.info(`Start Date:\t${new Date(rollingStart * 1e3).toUTCString()}`)
+    console.info(`End Date:\t${new Date(rollingEndSafe * 1e3).toUTCString()}`)
+    console.info(`---------------------------------------------------\n`)
+
+    const dayStart = rollingStart
+    const lastHour = 23
+
+    await runHourlyMultiSlot(dayStart, lastHour)
+    process.exit(0)
+  }
+
+  if (isHourly && isPlainDate) {
+    const endOfWindow = toTimestamp(rawTimeArg)       // 2025-12-09 00:00:00
+    const dayStart = endOfWindow - 24 * 60 * 60       // 2025-12-08 00:00:00
+
+    console.info(`Start Date:\t${new Date(dayStart * 1e3).toUTCString()}`)
+    console.info(`End Date:\t${new Date(endOfWindow * 1e3).toUTCString()}`)
+    console.info(`---------------------------------------------------\n`)
+
+    await runHourlyMultiSlot(dayStart, 23)
+    process.exit(0)
+  }
+
+  let endTimestamp = endCleanDayTimestamp
+  if (adapterVersion === 2) {
+    endTimestamp = (rawTimeArg ? toTimestamp(rawTimeArg) : getTimestamp30MinutesAgo()) // 1 day;
+  } else {
+    // checkIfFileExistsInMasterBranch(file)
+  }
+
+  const windowSeconds = isHourly ? 60 * 60 : 3600 * 24
+
+  console.info(`Start Date:\t${new Date((endTimestamp - windowSeconds) * 1e3).toUTCString()}`)
+  console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
+  console.info(`---------------------------------------------------\n`)
+
+  if ((adapterModule as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
+  // Get adapter
+  const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
+  const volumes: any = await runAdapter({
+    module: adapterModule,
+    endTimestamp,
+    withMetadata: debugBreakdownFees,
+    isTest: true,
+    name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
+  })
+
+  if (debugBreakdownFees) {
+    printVolumes2(volumes.response.map((volume: any) => timestampLast(volume)))
+    printBreakdownFeesByLabel(volumes.adaptorRecordV2JSON.breakdownByLabel)
+  } else {
+    printVolumes2(volumes.map((volume: any) => timestampLast(volume)))
+  }
+
+  console.info("\n")
+  process.exit(0)
+
   async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
 
     if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
@@ -114,7 +177,7 @@ let usedHelper: string | null | undefined = null;
       jobs.push({ hour, startTimestamp, endTimestamp })
     }
 
-    const MAX_PARALLEL = 6
+    const MAX_PARALLEL = 2
 
     for (let i = 0; i < jobs.length; i += MAX_PARALLEL) {
       const batch = jobs.slice(i, i + MAX_PARALLEL)
@@ -167,68 +230,7 @@ let usedHelper: string | null | undefined = null;
     console.info(`\n====== TOTAL DAILY AGGREGATED (sum of slots per chain) ======\n`)
     printVolumes2(dailyRows)
   }
-
-  if (isHourly && !rawTimeArg) {
-    const rollingEnd = getTimestamp30MinutesAgo()
-    const rollingEndSafe = rollingEnd - (rollingEnd % (60 * 60))
-    const rollingStart = rollingEndSafe - 24 * 60 * 60
-
-    console.info(`Start Date:\t${new Date(rollingStart * 1e3).toUTCString()}`)
-    console.info(`End Date:\t${new Date(rollingEndSafe * 1e3).toUTCString()}`)
-    console.info(`---------------------------------------------------\n`)
-
-    const dayStart = rollingStart
-    const lastHour = 23
-
-    await runHourlyMultiSlot(dayStart, lastHour)
-    process.exit(0)
-  }
-
-  if (isHourly && isPlainDate) {
-    const endOfWindow = toTimestamp(rawTimeArg)       // 2025-12-09 00:00:00
-    const dayStart = endOfWindow - 24 * 60 * 60       // 2025-12-08 00:00:00
-
-    console.info(`Start Date:\t${new Date(dayStart * 1e3).toUTCString()}`)
-    console.info(`End Date:\t${new Date(endOfWindow * 1e3).toUTCString()}`)
-    console.info(`---------------------------------------------------\n`)
-
-    await runHourlyMultiSlot(dayStart, 23)
-    process.exit(0)
-  }
-
-  let endTimestamp = endCleanDayTimestamp
-  if (adapterVersion === 2) {
-    endTimestamp = (rawTimeArg ? toTimestamp(rawTimeArg) : getTimestamp30MinutesAgo()) // 1 day;
-  } else {
-    // checkIfFileExistsInMasterBranch(file)
-  }
-
-  const windowSeconds = isHourly ? 60 * 60 : 3600 * 24
-
-  console.info(`Start Date:\t${new Date((endTimestamp - windowSeconds) * 1e3).toUTCString()}`)
-  console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
-  console.info(`---------------------------------------------------\n`)
-
-  if ((adapterModule as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
-  // Get adapter
-  const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
-  const volumes: any = await runAdapter({ 
-    module: adapterModule, 
-    endTimestamp, 
-    withMetadata: debugBreakdownFees, 
-    isTest: true,
-    name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
-  })
   
-  if (debugBreakdownFees) {
-    printVolumes2(volumes.response.map((volume: any) => timestampLast(volume)))
-    printBreakdownFeesByLabel(volumes.adaptorRecordV2JSON.breakdownByLabel)
-  } else {
-    printVolumes2(volumes.map((volume: any) => timestampLast(volume)))
-  }
-
-  console.info("\n")
-  process.exit(0)
 })().catch((e) => {
   console.log(ERROR_STRING)
   console.error(e.stack?.split('\n')?.slice(0, 3)?.join('\n'))
