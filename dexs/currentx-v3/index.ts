@@ -2,8 +2,6 @@ import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const key = process.env.THEGRAPH_API_KEY;
-
 const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<any> => {
     const dayID = Math.floor(options.startOfDay / 86400);
     const query =gql`
@@ -13,11 +11,8 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
             volumeUSD
         }
     }`;
-    const url = `https://gateway.thegraph.com/api/${key}/subgraphs/id/Hw24iWxGzMM5HvZqENyBQpA6hwdUTQzCSK5e5BfCXyHd`;
+    const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v3/1.0.0/gn";
     const req = await request(url, query);
-    if (!req?.uniswapDayData) {
-        return { dailyVolume: "0" };
-    }
     return {
         dailyVolume: req.uniswapDayData.volumeUSD,
     }
@@ -27,10 +22,9 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.MEGAETH]: {
             fetch,
-            start: '2026-02-04',
+            start: '2026-02-06',
         },
     }
 }
 
 export default adapter;
-
