@@ -13,8 +13,11 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions): Promise<a
     }`;
     const url = "https://api.goldsky.com/api/public/project_cmlbj5xkhtfha01z0caladt37/subgraphs/currentx-v2/1.0.0/gn";
     const req = await request(url, query);
-    return {
-        dailyVolume: req.uniswapDayData.dailyVolumeUSD,
+    if (!req.uniswapDayData) {
+        return { dailyVolume: "0" };
+    }
+     return {
+         dailyVolume: req.uniswapDayData.dailyVolumeUSD,
     }
 }
 
@@ -28,3 +31,4 @@ const adapter: SimpleAdapter = {
 }
 
 export default adapter;
+
