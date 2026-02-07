@@ -31,26 +31,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       (d) => d.chain_name.toLowerCase() === options.chain.toLowerCase()
     )?.volume ?? 0;
 
-  const output = {
-    dailyVolume: chain_volume.toString(),
-    timestamp: new Date(Math.floor(Number(response.timestamp))).getTime() / 1000,
+  return {
+    dailyVolume: chain_volume
   };
-
-  return output;
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: "2025-06-01",
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2025-06-01",
-    },
-  },
+  fetch,
+  start: '2025-06-01',
+  chains: [CHAIN.ARBITRUM, CHAIN.BASE],
 };
 
 export default adapter;
