@@ -135,7 +135,7 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
   // Calculate concurrency based on rate limit
   // 5 fee types per market, 200 requests per minute limit
   // Use concurrency of 30 to be safe (30 * 5 = 150 requests per batch)
-  const concurrency = 30
+  const concurrency = 5
   const batchSize = concurrency
   const delayBetweenBatches = 60000 / (RATE_LIMIT_PER_MINUTE / 5) * batchSize // milliseconds
   
