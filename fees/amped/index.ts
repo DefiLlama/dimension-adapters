@@ -104,7 +104,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue: 0,
@@ -113,7 +113,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
 const methodology = {
   Fees: "Fees collected from trading, liquidation, and margin activities.",
-  Revenue: "Revenue is distributed with 70% going to liquidity providers and 30% to AMPED stakers.",
+  Revenue: "30% of the fees goes to AMPED stakers.",
   SupplySideRevenue: "70% of revenue is distributed to liquidity providers.",
   HoldersRevenue: "30% of revenue is distributed to AMPED stakers After TGE(25th July 2025).",
   ProtocolRevenue: "Protocol doesn't earn anything.",

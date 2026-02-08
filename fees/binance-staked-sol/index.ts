@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { METRIC } from "../../helpers/metrics";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "9xcCvbbAAT9XSFsMAsCeR8CEbxutj15m5BfNr4DEMQKn";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "75NPzpxoh8sXGuSENFMREidq6FMzEx4g2AfcBEB6qjCV";
@@ -22,26 +23,32 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
+      dailySupplySideRevenue.addCGToken("solana", row.amount * 0.9 || 0, METRIC.STAKING_REWARDS);
+      dailyRevenue.addCGToken("solana", row.amount * 0.1 || 0, METRIC.STAKING_REWARDS);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("binance-staked-sol", row.amount || 0);
+      dailyRevenue.addCGToken("binance-staked-sol", row.amount || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyFees.addCGToken("binance-staked-sol", row.amount || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
     }
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue
   };
 };
 
 const methodology = {
   Fees: 'Staking rewards from staked SOL on binance staked solana',
-  Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
+  Revenue: 'Binance takes a 10% comission on the staking rewards',
   ProtocolRevenue: 'Revenue going to treasury/team',
+  SupplySideRevenue: '90% of the staking rewards go to stakers'
 }
 
 export default {
@@ -51,5 +58,22 @@ export default {
   dependencies: [Dependencies.DUNE],
   start: "2024-09-12",
   methodology,
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'Staking rewards from staked SOL on Binance',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes withdrawal fees'
+    },
+    Revenue: {
+      [METRIC.STAKING_REWARDS]: 'Binance takes a 10% comission on the staking rewards',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes withdrawal fees'
+    },
+    ProtocolRevenue: {
+      [METRIC.STAKING_REWARDS]: 'Binance takes a 10% comission on the staking rewards',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes withdrawal fees'
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: '90% of the staking rewards are distributed to bnSOL'
+    }
+  },
 };
