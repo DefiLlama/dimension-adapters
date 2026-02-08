@@ -208,10 +208,11 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     }
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
-    const allLogs = await getLogs({ targets: Object.keys(filteredPairs), eventAbi: swapEvent, flatten: false })
+    const pairs = Object.keys(filteredPairs)
+    const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
-      const pair = Object.keys(filteredPairs)[index]
+      const pair = pairs[index]
       if (blacklistPoolsSet && blacklistPoolsSet.has(pair.toLowerCase())) return;
       const [token0, token1] = pairObject[pair]
       const fee = fees[pair]
@@ -294,12 +295,17 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {
   return { adapter: exportObject, version: 2 } as SimpleAdapter
 }
 
-export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false } = {}) {
+export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swapEvent, pullHourly = false, }: {
+  runAsV1?: boolean,
+  swapEvent?: string,
+  pullHourly?: boolean,
+} = {}) {
   const exportObject: BaseAdapter = {}
   const exportObjectV1: BaseAdapter = {}
 
 
   Object.entries(config).map(([chain, chainConfig]) => {
+    if (swapEvent) chainConfig.swapEvent = swapEvent
     const fetch: any = getUniV3LogAdapter(chainConfig)
     exportObject[chain] = { fetch }
     exportObjectV1[chain] = {
@@ -312,7 +318,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false } = {
     return { adapter: exportObjectV1, version: 1 } as SimpleAdapter
 
 
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return { adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
 }
 
 
