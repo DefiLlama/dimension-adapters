@@ -13,14 +13,20 @@ const contracts = {
   FEE_MODULE: "0x6d8a7d1898306ca129a74c296d14e55e20aae87d",
   NEG_RISK_FEE_MODULE: "0x73fc1b1395ba964fea8705bff7ef8ea5c23cc661",
 
+  CTF_EXCHANGE_V2: "0xf1de958f8641448a5ba78c01f434085385af096d",
+  NEG_RISK_CTF_EXCHANGE_V2: "0x46e607d3f4a8494b0ab9b304d1463e2f4848891d",
+  FEE_MODULE_V2: "0xEECD2Cf0FF29D712648fC328be4EE02FC7931c7A",
+  NEG_RISK_FEE_MODULE_V2: "0x18B3E1192c01286050A0994Bc26f7226Ae4A483d",
+
   // new main exchanges
-  CTF_EXCHANGE_V2: "0x05c748e2f4dcde0ec9fa8ddc40de6b867f923fa5",
-  NEG_RISK_CTF_EXCHANGE_V2: "0xe3e00ba3a9888d1de4834269f62ac008b4bb5c47",
-  FEE_MODULE_V2: "0x5130c2c398F930c4f43B15635410047cBEa9D6EB",
-  NEG_RISK_FEE_MODULE_V2: "0xfeb646D32a2A558359419a1C9c5dfb47fD92dADb",
+  CTF_EXCHANGE_V3: "0x05c748e2f4dcde0ec9fa8ddc40de6b867f923fa5",
+  NEG_RISK_CTF_EXCHANGE_V3: "0xe3e00ba3a9888d1de4834269f62ac008b4bb5c47",
+  FEE_MODULE_V3: "0x5130c2c398F930c4f43B15635410047cBEa9D6EB",
+  NEG_RISK_FEE_MODULE_V3: "0xfeb646D32a2A558359419a1C9c5dfb47fD92dADb",
 
   WRAPPED_COLLATERAL_1: "0x5d6C6a4fEA600E0b1A3Ab3eF711060310E27886A",
   WRAPPED_COLLATERAL_2: "0x8f4fA186E00E376a9054968a03172cfa1c2EedfE",
+  WRAPPED_COLLATERAL_3: "0x81140765fcf9D3a66CD9AA11cb972F9e07bc5deA",
 
   CONDITIONAL_TOKENS: "0xC9c98965297Bc527861c898329Ee280632B76e18",
   FEE_RECIPIENT: "0x88eaf31f9fE392002e0E818527f8259af92287b1",
@@ -34,9 +40,10 @@ const abi = {
   ORDERS_MATCHED: 'event OrdersMatched (bytes32 indexed takerOrderHash, address indexed takerOrderMaker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled)',
 };
 
-async function fetch(options: FetchOptions) {
+async function fetch(_a: any, _b: any, options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
   const fpmmMarkets: any[] = [];
 
   const exchangeTargets = [
@@ -44,6 +51,8 @@ async function fetch(options: FetchOptions) {
     contracts.NEG_RISK_CTF_EXCHANGE,
     contracts.CTF_EXCHANGE_V2,
     contracts.NEG_RISK_CTF_EXCHANGE_V2,
+    contracts.CTF_EXCHANGE_V3,
+    contracts.NEG_RISK_CTF_EXCHANGE_V3,
   ];
 
   const marketCreationLogs = await options.getLogs({
@@ -70,11 +79,13 @@ async function fetch(options: FetchOptions) {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.investmentAmount);
+    dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensBought);
   })
   sellLogs.forEach(log => {
     const collateralToken = fpmmMarketMap[log.address.toLowerCase()]
     if (!collateralToken) return;
     dailyVolume.addToken(collateralToken, log.args.returnAmount);
+    dailyNotionalVolume.addToken(collateralToken, log.args.outcomeTokensSold);
   })
 
   const orderMatchedLogs = await options.getLogs({
@@ -86,13 +97,15 @@ async function fetch(options: FetchOptions) {
     const { makerAssetId, makerAmountFilled, takerAmountFilled } = order;
     const makerIdStr = makerAssetId?.toString?.() ?? String(makerAssetId);
     const tradeVolume = makerIdStr === '0' ? makerAmountFilled : takerAmountFilled;
+    const notionalTradeVolume = makerIdStr === '0' ? takerAmountFilled : makerAmountFilled;
     dailyVolume.addToken(ADDRESSES.base.USDC, tradeVolume);
+    dailyNotionalVolume.addToken(ADDRESSES.base.USDC, notionalTradeVolume);
   });
 
   await addTokensReceived({
     options,
     balances: dailyFees,
-    fromAdddesses: [contracts.CONDITIONAL_TOKENS, contracts.FEE_MODULE, contracts.FEE_MODULE_V2, contracts.WRAPPED_COLLATERAL_1, contracts.WRAPPED_COLLATERAL_2, contracts.NEG_RISK_FEE_MODULE, contracts.NEG_RISK_FEE_MODULE_V2],
+    fromAdddesses: [contracts.CONDITIONAL_TOKENS, contracts.FEE_MODULE, contracts.FEE_MODULE_V2, contracts.FEE_MODULE_V3, contracts.WRAPPED_COLLATERAL_1,contracts.WRAPPED_COLLATERAL_2, contracts.WRAPPED_COLLATERAL_3, contracts.NEG_RISK_FEE_MODULE, contracts.NEG_RISK_FEE_MODULE_V2, contracts.NEG_RISK_FEE_MODULE_V3],
     target: contracts.FEE_RECIPIENT,
     token: ADDRESSES.base.USDC
   });
@@ -103,6 +116,7 @@ async function fetch(options: FetchOptions) {
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
     dailyHoldersRevenue: 0,
+    dailyNotionalVolume,
   };
 }
 
@@ -114,7 +128,6 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   fetch,
   chains: [CHAIN.BASE],
   methodology,

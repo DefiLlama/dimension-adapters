@@ -49,13 +49,18 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         select * from market_data
     )
     SELECT
-        SUM(volume_usd) as total_volume_usd
+        SUM(volume_usd) as total_volume_usd,
+        SUM(notional_volume) as total_notional_volume
     FROM (
         SELECT
-            SUM(CASE 
+            SUM(CASE
                     WHEN makerAssetId = 0 THEN makerAmountFilled
-                    WHEN takerAssetId = 0 THEN takerAmountFilled 
-                END) / 1e6 as volume_usd
+                    WHEN takerAssetId = 0 THEN takerAmountFilled
+                END) / 1e6 as volume_usd,
+            SUM(CASE
+                    WHEN makerAssetId = 0 THEN takerAmountFilled
+                    WHEN takerAssetId = 0 THEN makerAmountFilled
+                END) / 1e6 as notional_volume
         FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled b
         where b.evt_block_number > 50505492
             and evt_block_time >= from_unixtime(${options.startTimestamp})
@@ -64,10 +69,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         UNION ALL
 
         SELECT
-            SUM(CASE 
+            SUM(CASE
                     WHEN makerAssetId = 0 THEN makerAmountFilled
-                    WHEN takerAssetId = 0 THEN takerAmountFilled 
-                END) / 1e6 as volume_usd
+                    WHEN takerAssetId = 0 THEN takerAmountFilled
+                END) / 1e6 as volume_usd,
+            SUM(CASE
+                    WHEN makerAssetId = 0 THEN takerAmountFilled
+                    WHEN takerAssetId = 0 THEN makerAmountFilled
+                END) / 1e6 as notional_volume
         FROM polymarket_polygon.CTFExchange_evt_OrderFilled a
         where a.evt_block_number > 33605403
             and evt_block_time >= from_unixtime(${options.startTimestamp})
@@ -76,7 +85,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         UNION ALL
 
         select
-            bytearray_to_uint256(substr(pl.DATA, 1, 32)) / 1e6 as volume_usd
+            bytearray_to_uint256(substr(pl.DATA, 1, 32)) / 1e6 as volume_usd,
+            bytearray_to_uint256(substr(pl.DATA, 65, 96)) / 1e6 as notional_volume
         from
             polygon.logs pl
             left join polymarket_market_data md on pl.contract_address = md.market_maker_address
@@ -97,12 +107,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   options.api.log(data);
 
   const dailyVolume = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
 
   // Polymarket emits two OrderFilled events per trade (maker + taker), so summing them directly double-counts volume. Dividing by 2 converts this into true one-sided volume. This also normalizes swaps and merge/split fills, where maker and taker amounts can differ but still represent the same underlying trade, preventing inflated totals
 
   dailyVolume.addUSDValue(data[0].total_volume_usd / 2);
+  dailyNotionalVolume.addUSDValue(data[0].total_notional_volume/2);
 
-  return { dailyVolume }
+  return { dailyVolume, dailyNotionalVolume }
 }
 
 const adapters: SimpleAdapter = {
