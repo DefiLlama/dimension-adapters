@@ -219,6 +219,7 @@ export const whitelistedDimensionKeys = new Set([
   'tokenIncentives',
   'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
   'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+  'tvl',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
