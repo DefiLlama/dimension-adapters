@@ -1,10 +1,10 @@
+import { SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
-import { FetchOptions } from "../adapters/types";
 
 const API_URL = "https://api.alphasec.trade/api/v1/defillama/stats";
 
-const fetch = async (_options: FetchOptions) => {
+const fetch = async () => {
   const data = await httpGet(API_URL);
   const stats = data.result;
 
@@ -16,11 +16,14 @@ const fetch = async (_options: FetchOptions) => {
   };
 };
 
-export default {
-  version: 2,
-  fetch,
-  runAtCurrTime: true,
-  chains: [CHAIN.ALPHASEC],
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.ALPHASEC]: {
+      fetch,
+      runAtCurrTime: true,
+    },
+  },
   methodology: {
     Volume: 'Total notional value of all trades executed on the AlphaSec DEX.',
     Fees: 'Total trading fees paid by users before any rebates or commissions are deducted.',
@@ -28,3 +31,5 @@ export default {
     Revenue: 'Total fees minus supply side revenue (rebates and commissions).',
   },
 };
+
+export default adapter;
