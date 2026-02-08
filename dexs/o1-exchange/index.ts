@@ -44,11 +44,11 @@ const prefetch = async (options: FetchOptions) => {
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const data = options.preFetchedResults?.[0];
+  const data = options.preFetchedResults[0];
   const cols = chainColumnMap[options.chain];
 
-  const dailyFees = data?.[cols.fees] || 0;
-  const dailyVolume = data?.[cols.volume] || 0;
+  const dailyFees = data[cols.fees];
+  const dailyVolume = data[cols.volume];
 
   return {
     dailyVolume,
