@@ -78,7 +78,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         const vaultRateAfter = await options.toApi.multiCall({ abi: 'uint256:getRate', calls: vaults, permitFailure: true });
 
         for (let i = 0; i < vaults.length; i++) {
-            dailyFees.add(assets[i], (totalSupplies[i] / 10 ** decimals[i]) * (vaultRateAfter[i] - vaultRateBefore[i]) / 10 ** (decimals[i] - assetDecimals[i]));
+            if (assets[i] && totalSupplies[i] && decimals[i] && assetDecimals[i] && vaultRateAfter[i] && vaultRateBefore[i])
+                dailyFees.add(assets[i], (totalSupplies[i] / 10 ** decimals[i]) * (vaultRateAfter[i] - vaultRateBefore[i]) / 10 ** (decimals[i] - assetDecimals[i]));
         }
     }
     const dailySupplySideRevenue = dailyFees.clone();
