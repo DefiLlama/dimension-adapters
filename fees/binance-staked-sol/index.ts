@@ -65,11 +65,11 @@ export default {
       [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes withdrawal fees'
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: 'Binance takes a 10% comission on the staking rewards',
+      [METRIC.STAKING_REWARDS]: 'Binance takes a 10% performance fee on the staking rewards',
       [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes withdrawal fees'
     },
     ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Binance takes a 10% comission on the staking rewards',
+      [METRIC.STAKING_REWARDS]: 'Binance takes a 10% performance fee on the staking rewards',
       [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes withdrawal fees'
     },
     SupplySideRevenue: {
