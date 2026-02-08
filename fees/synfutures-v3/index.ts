@@ -13,8 +13,7 @@ const endpoints = {
 // LiquidityFee = MakerRebates + FeesToLP
 const methodology = {
   Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
-  MakerRebates: "fees rebated received by limit order makers on the protocol, these fees are paid by takers",
-  FeesToLp: "fees received by AMM LPs on the protocol, these fees are paid by takers",
+  SupplySideRevenue: "fees rebated received by limit order makers and fees received by AMM LPs on the protocol, these fees are paid by takers",
   ProcotolFees: "fees received by the protocol from takers, these fees are paid by takers"
 }
 
@@ -51,16 +50,14 @@ const graphs = (graphUrls: ChainEndpoints) => {
       }`;
 
       const dailyFee = createBalances();
-      const dailyMakerRebates = createBalances();
-      const dailyFeesToLP = createBalances();
+      const dailySupplySideRevenue = createBalances();
       const dailyProtocolRevenue = createBalances();
 
       const graphRes = await request(graphUrls[chain], graphQuery);
 
       for (const record of graphRes.dailyQuoteDatas) {
-        dailyFee.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.protocolFee), record.quote.decimals))
-        dailyMakerRebates.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) - Number(record.poolFee), record.quote.decimals))
-        dailyFeesToLP.addToken(record.quote.id, convertDecimals(Number(record.poolFee), record.quote.decimals))
+        dailyFee.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.protocolFee) + Number(record.poolFee), record.quote.decimals))
+        dailySupplySideRevenue.addToken(record.quote.id, convertDecimals(Number(record.liquidityFee) + Number(record.poolFee), record.quote.decimals))
         dailyProtocolRevenue.addToken(record.quote.id, convertDecimals(Number(record.protocolFee), record.quote.decimals))
       }
 
@@ -68,6 +65,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
         dailyFees: dailyFee,
         dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
+        dailySupplySideRevenue
       };
     };
     return fetch 

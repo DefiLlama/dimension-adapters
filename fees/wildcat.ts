@@ -18,10 +18,12 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyFees.add(borrow.token, fees)
     })
     const dailyRevenue = dailyFees.clone(0.05)
+    const dailySupplySideRevenue = dailyFees.clone(0.95)
     return {
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue
     }
 }
 
@@ -74,6 +76,7 @@ const adapter: SimpleAdapter = {
         Fees: 'All interests paid by borrowers.',
         Revenue: '5% fees are collected by Wildcat Protocol.',
         ProtocolRevenue: '5% fees are collected by Wildcat Protocol.',
+        SupplySideRevenue: '95% of the fees go to lenders'
     }
 }
 

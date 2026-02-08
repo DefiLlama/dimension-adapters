@@ -32,12 +32,10 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   logs.forEach((log: any) => {
     const totalFees = Number(log.totalFees)
     const collectedFees = Number(log.collectedFees)
-    const referralFees = Number(log.referralFees)
-    const settlementReward = Number(log.settlementReward)
     dailyFees.addCGToken(usdt, totalFees / 1e18)
     dailyRevenue.addCGToken(usdt, collectedFees / 1e18)
     dailyHoldersRevenue.addCGToken(usdt, collectedFees / 1e18)
-    const supplySideRevenue = Number(totalFees) - Number(collectedFees) - Number(referralFees) - Number(settlementReward)
+    const supplySideRevenue = Number(totalFees) - Number(collectedFees)
     dailySupplySideRevenue.addCGToken(usdt, supplySideRevenue / 1e18)
   });
 
