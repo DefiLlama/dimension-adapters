@@ -3,6 +3,7 @@ export enum CHAIN {
   PACASWAP = "pacaswap",
   PEAQ = "peaq",
   CHROMIA = "chromia",
+  CITREA = "citrea",
   OFF_CHAIN = "off_chain",
   GATE_LAYER = "gatelayer",
   ZK_LIGHTER = "zklighter",
@@ -319,6 +320,7 @@ export enum CHAIN {
   CROSS = "cross",
   PROM = "prom",
   GRX = "grx",
+  N1 = "n1",
   ZILLIQA = "zilliqa",
   SONGBIRD = "songbird",
   MATCHAIN = "matchain",
@@ -333,6 +335,7 @@ export enum CHAIN {
   STRATIS = "stratis",
   OMAX = "omax",
   Q_PROTOCOL = "q",
+  VALUECHAIN = "valuechain",
   IOTA = "iota",
   MEGAETH = "megaeth",
 }

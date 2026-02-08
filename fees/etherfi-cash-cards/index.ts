@@ -42,6 +42,7 @@ const config = {
 };
 
 const fetch = async (options: FetchOptions) => {
+    const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -53,7 +54,9 @@ const fetch = async (options: FetchOptions) => {
         });
         logs.forEach(log => {
             for (const amount of log.amountInUsd) {
-                if (amount > 0) {
+              if (amount > 0) {
+                    dailyVolume.addUSDValue(Number(amount) / 1e6);
+                
                     //Cash transaction fees(1.38 % on card spends) - protocol revenue
                     dailyFees.addUSDValue(Number(amount) * 0.0138 / 1e6, MetricLabels.CASH_TRANSACTION_FEES);
                     dailyRevenue.addUSDValue(Number(amount) * 0.0138 / 1e6, MetricLabels.CASH_TRANSACTION_FEES);
@@ -74,7 +77,8 @@ const fetch = async (options: FetchOptions) => {
         })
     }
 
-    return {
+  return {
+        dailyVolume,
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
@@ -88,6 +92,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.SCROLL],
     start: '2024-11-01',
     methodology: {
+        Volume: "Total spending volumes using EtherFi Cash services.",
         Fees: "Total fees generated from EtherFi Cash services on Scroll including transaction fees and cashbacks.",
         Revenue: "Protocol's share of fees from EtherFi Cash operations including transaction fees",
         ProtocolRevenue: "Same as Revenue - all protocol earnings from EtherFi Cash on Scroll.",
