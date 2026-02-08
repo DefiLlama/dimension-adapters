@@ -1,3 +1,7 @@
+// Sources:
+// - DefiLlama Protocol Page: https://defillama.com/protocol/helium-network
+// - Twitter Source: https://x.com/amirhaleem/status/2007203633532989883
+
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -17,16 +21,16 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
     return {
         dailyFees,
         dailyRevenue: dailyFees,
-        dailyProtocolRevenue: '0',
-        dailyHoldersRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+        dailyHoldersRevenue: '0',
     };
 }
 
 const methodology = {
     Fees: 'All fees paid(in Data credits) to use helium network services.',
     Revenue: 'Data credits are minted by burning HNT',
-    ProtocolRevenue: 'Protocol revenue is 0',
-    HoldersRevenue: 'Data credits are minted by burning HNT',
+    ProtocolRevenue: 'All revenue goes to protocol since buybacks stopped',
+    HoldersRevenue: 'Holder revenue is 0 since buybacks stopped',
 };
 
 const adapters: SimpleAdapter = {
