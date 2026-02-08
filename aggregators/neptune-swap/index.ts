@@ -5,6 +5,7 @@ const AGGREGATOR_CONTRACT = "0xb3f2B217B024700b6B85bB0941d4958EF17214C1";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
   const logs = await options.getLogs({
     target: AGGREGATOR_CONTRACT,
@@ -15,9 +16,17 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     dailyVolume.add(log.tokenOut, log.amountOut);
+    // Tax is collected from the input token (0.3% of amountIn)
+    dailyFees.add(log.tokenIn, log.taxCollected);
   }
 
-  return { dailyVolume };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 const adapter: any = {
