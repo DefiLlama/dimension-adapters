@@ -100,7 +100,7 @@ const APTOS_PYTH_CONTRACT = "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
 
 // ============ EVM Fetch Function ============
-async function fetchEvm(options: FetchOptions): Promise<FetchResult> {
+async function fetchEvm(_t: number, _cb: any, options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
   const config = evmChainConfig[options.chain];
 
@@ -128,7 +128,7 @@ async function fetchEvm(options: FetchOptions): Promise<FetchResult> {
 }
 
 // ============ Solana Fetch Function ============
-async function fetchSolana(options: FetchOptions): Promise<FetchResult> {
+async function fetchSolana(_t: number, _cb: any, options: FetchOptions): Promise<FetchResult> {
   try {
     const dailyFees = await getSolanaReceived({
       options,
@@ -145,7 +145,7 @@ async function fetchSolana(options: FetchOptions): Promise<FetchResult> {
 // ============ Sui Fetch Function ============
 const SUI_COIN_TYPE = "0x2::sui::SUI";
 
-async function fetchSui(options: FetchOptions): Promise<FetchResult> {
+async function fetchSui(_t: number, _cb: any, options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   try {
@@ -173,7 +173,7 @@ async function fetchSui(options: FetchOptions): Promise<FetchResult> {
 // ============ Aptos Fetch Function ============
 const APTOS_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
 
-async function fetchAptos(options: FetchOptions): Promise<FetchResult> {
+async function fetchAptos(_t: number, _cb: any, options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   try {
@@ -199,7 +199,7 @@ async function fetchAptos(options: FetchOptions): Promise<FetchResult> {
 }
 
 // ============ Near Fetch Function ============
-async function fetchNear(options: FetchOptions): Promise<FetchResult> {
+async function fetchNear(_t: number, _cb: any, options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
 
   try {
