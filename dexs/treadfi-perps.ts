@@ -55,9 +55,9 @@ const getHeaders = () => {
   };
 };
 
-const fetchTreadToolsData = async (startOfDay: number): Promise<TreadToolsApiResponse> => {
+const prefetch = async (options: FetchOptions): Promise<any> => {
   try {
-    const url = `${TREADTOOLS_API_URL}?timestamp=${startOfDay}`;
+    const url = `${TREADTOOLS_API_URL}?timestamp=${options.startOfDay}`;
     const response: TreadToolsApiResponse = await httpGet(url, {
       headers: getHeaders(),
     });
@@ -65,7 +65,6 @@ const fetchTreadToolsData = async (startOfDay: number): Promise<TreadToolsApiRes
     if (response.status !== "ok") {
       throw new Error(`API returned status: ${response.status}`);
     }
-
     return response;
   } catch (error: any) {
     throw new Error(`Failed to fetch TreadTools data: ${error.message}`);
@@ -115,7 +114,7 @@ const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
+  const treadToolsData = options.preFetchedResults;
   const paradexData = treadToolsData.data?.paradex;
 
   if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
@@ -138,7 +137,7 @@ const fetchInk = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
+  const treadToolsData = options.preFetchedResults;
   const nadoData = treadToolsData.data?.nado;
 
   if (nadoData && typeof nadoData.dailyVolume === "number" && nadoData.dailyVolume > 0) {
@@ -161,7 +160,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
+  const treadToolsData = options.preFetchedResults;
   const pacificaData = treadToolsData.data?.pacifica;
   const bybitData = treadToolsData.data?.bybit;
 
@@ -192,7 +191,7 @@ const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
+  const treadToolsData = options.preFetchedResults;
   const asterData = treadToolsData.data?.aster;
   const binanceData = treadToolsData.data?.binance;
 
@@ -226,6 +225,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  prefetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch: fetchHyperliquid,
