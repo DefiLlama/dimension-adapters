@@ -45,12 +45,13 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   dailyFees.addCGToken("solana", fees[0].daily_fees);
 
-  return { dailyFees, dailyRevenue: dailyFees.clone(0.1) };
+  return { dailyFees, dailyRevenue: dailyFees.clone(0.1), dailySupplySideRevenue: dailyFees.clone(0.9) };
 };
 
 const methodology = {
   Fees: "Total Infinity trading fees (LPs + Sanctum)",
   Revenue: "Infinity trading fees going to Sanctum (10% of total)",
+  SupplySideRevenue: "Infinity trading fees going to stakers"
 };
 
 const adapter: SimpleAdapter = {

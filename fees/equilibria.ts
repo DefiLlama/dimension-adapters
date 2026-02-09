@@ -21,15 +21,22 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
     dailyFees.add(e._rewardToken, e._reward);
   });
   
-  const dailyRevenue = dailyFees.clone(1/3);
+  const dailyRevenue = dailyFees.clone(0.1);
+  const dailySupplySideRevenue = dailyFees.clone(0.9);
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue
   };
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Boosted yield generated through Equilibria",
+    Revenue: "Equilibria collects 10% of all the yield generated, 7.5% goes to treasury and 2.5% is used on vePENDLE lock, ePENDLE liquidity, or buyback, depending on strategic needs",
+    SupplySideRevenue: "77.5% of the yield generated goes to LPs and 12.5% goes to ePendle stakers"
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
