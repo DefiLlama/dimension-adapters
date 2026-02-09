@@ -1,9 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { capABI, capConfig } from "./config";
 import { fetchAssetAddresses, fetchVaultConfigs } from "./helpers";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const fetch = async (options: FetchOptions) => {
 	const infra = capConfig[options.chain].infra;
@@ -79,19 +81,28 @@ const fetch = async (options: FetchOptions) => {
 				tokens: assetAddresses,
 				targets: insuranceFunds,
 			})
-		: options.createBalances();
+			: options.createBalances();
+
+	const capUsdMintFees = await addTokensReceived({
+		options,
+		fromAddressFilter: ADDRESSES.null,
+		token: capConfig[options.chain].tokens.cUSD.address,
+		target: capConfig[options.chain].feeRecipient,
+	});
 
 	const dailyFees = options.createBalances();
-	dailyFees.addBalances(minterFees, METRIC.BORROW_INTEREST);
+	dailyFees.addBalances(minterFees, METRIC.ASSETS_YIELDS);
 	dailyFees.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
 	dailyFees.addBalances(restakerFees, METRIC.STAKING_REWARDS);
 	dailyFees.addBalances(insuranceFundFees, 'Insurance Fund Fees');
+	dailyFees.addBalances(capUsdMintFees, METRIC.MINT_REDEEM_FEES);
 
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
-
+dailyRevenue.addBalances(capUsdMintFees, METRIC.MINT_REDEEM_FEES);
+	
 	const dailySupplySideRevenue = options.createBalances();
-	dailySupplySideRevenue.addBalances(minterFees, METRIC.BORROW_INTEREST);
+	dailySupplySideRevenue.addBalances(minterFees, METRIC.ASSETS_YIELDS);
 	dailySupplySideRevenue.addBalances(restakerFees, METRIC.STAKING_REWARDS);
 	dailySupplySideRevenue.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 
@@ -105,28 +116,27 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
 	Fees: "All fees paid by users for either borrowing (borrow fees + restaker fees) or minting (insurance fund fees).",
-	Revenue: "Share of borrow fees for protocol",
+	Revenue: "Share of borrow fees for protocol and 0.1% of mint amount paid as fees for cUSD.",
 	SupplySideRevenue: "Borrow fees distributed to stakers and restaker fees are distributed to delegators.",
-	ProtocolRevenue: "Share of borrow fees for protocol",
+	ProtocolRevenue: "Share of borrow fees for protocol and 0.1% of mint amount paid as fees for cUSD.",
 };
 
 const breakdownMethodology = {
 	Fees: {
-		[METRIC.BORROW_INTEREST]: 'Interest fees from borrowing distributed to vault stakers.',
-		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees claimed separately.',
-		[METRIC.STAKING_REWARDS]: 'Rewards distributed to delegators via the delegation contract.',
-		'Insurance Fund Fees': 'Tokens sent from minters to insurance funds for risk management.',
+		[METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
+		[METRIC.PROTOCOL_FEES]: "Protocol share of borrow fees.",
+		[METRIC.STAKING_REWARDS]: "Restaker fees distributed to delegators.",
+		'Insurance Fund Fees': "Fees allocated to insurance funds from minting.",
+		[METRIC.MINT_REDEEM_FEES]: "0.1% of mint amount paid as fees for cUSD.",
 	},
 	Revenue: {
-		[METRIC.PROTOCOL_FEES]: 'Protocol\'s share of borrow fees.',
+		[METRIC.PROTOCOL_FEES]: "Protocol share of borrow fees.",
+		[METRIC.MINT_REDEEM_FEES]: "0.1% of mint amount paid as fees for cUSD.",
 	},
 	SupplySideRevenue: {
-		[METRIC.BORROW_INTEREST]: 'Interest fees distributed to vault stakers.',
-		[METRIC.STAKING_REWARDS]: 'Rewards distributed to delegators.',
-		'Insurance Fund Fees': 'Tokens sent to insurance funds from minters.',
-	},
-	ProtocolRevenue: {
-		[METRIC.PROTOCOL_FEES]: 'Protocol\'s share of borrow fees.',
+		[METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
+		[METRIC.STAKING_REWARDS]: "Restaker fees distributed to delegators.",
+	  'Insurance Fund Fees': "Fees allocated to insurance funds from minting.",
 	},
 };
 

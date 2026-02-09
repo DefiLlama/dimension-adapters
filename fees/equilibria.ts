@@ -24,9 +24,12 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
     dailyRevenue.add(e._rewardToken, e._reward * BigInt(1) / BigInt(3), METRIC.PROTOCOL_FEES);
   });
 
+  const dailySupplySideRevenue = dailyFees.clone(0.9);
+
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue
   };
 };
 

@@ -5,23 +5,46 @@ import { httpGet } from "../../utils/fetchURL";
 const dimensionsEndpoint =
   "https://explorer-service-processor.chainflip.io/defi-llama/fees";
 
+const METRICS = {
+  NetworkFees: 'Network Fees',
+  IngressEgressBrokerFees: 'Ingress, Egress, Broker Fees',
+  SwapFees: 'Swap Fees',
+}
+
 const fetch = async (options: FetchOptions) => {
   const dimensionsData = await httpGet(
     `${dimensionsEndpoint}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`,
     { headers: { "x-client-id": "defillama" } }
   );
+  
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
+  dailyFees.add(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
+  dailyFees.add(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
+  dailyFees.add(dimensionsData.dailySupplySideRevenue, METRICS.SwapFees);
+  
+  dailyUserFees.add(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
+
+  dailySupplySideRevenue.add(dimensionsData.dailySupplySideRevenue, METRICS.SwapFees);
+  dailySupplySideRevenue.add(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
+  
+  dailyRevenue.add(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
+  
   return {
+    dailyFees,
+
     // Fees collected from burning $FLIP. This is a fixed percentage of swap value.
-    dailyProtocolRevenue: dimensionsData.dailyProtocolRevenue,
-    dailyRevenue: dimensionsData.dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
 
     // Ingress, Egress, and Broker fees paid by the user per swap
-    dailyUserFees: dimensionsData.dailyUserFees,
-    dailyFees: dimensionsData.dailyUserFees,
+    dailyUserFees,
 
     // Fees collected by the LP. This is a fixed percentage of swap value.
-    dailySupplySideRevenue: dimensionsData.dailySupplySideRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -34,13 +57,28 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
+    Fees: "Includes Swap, Broker, Ingress, Egress and Network Fees for Buy/Burn Mechanism",
     Revenue:
       "Fees collected from burning $FLIP. This is a fixed percentage of swap value.",
     UserFees:
       "Ingress, Egress, and Broker fees paid by the user per swap",
     SupplySideRevenue:
-      "Fees collected by the LP. This is a fixed percentage of swap value.",
+      "Fees collected by the LPs + Broker, Ingress and Egress fees",
   },
+  breakdownMethodology: {
+    Fees: {
+      [METRICS.SwapFees]: 'Swap fees paid by users to LP.',
+      [METRICS.IngressEgressBrokerFees]: 'Broker, Ingress, Egress fees paid by users.',
+      [METRICS.NetworkFees]: 'Network Fees for Buy/Burn Mechanism.',
+    },
+    Revenue: {
+      [METRICS.NetworkFees]: 'Network Fees for Buy/Burn Mechanism.',
+    },
+    SupplySideRevenue: {
+      [METRICS.IngressEgressBrokerFees]: 'Broker, Ingress, Egress fees paid by users.',
+      [METRICS.NetworkFees]: 'Network Fees for Buy/Burn Mechanism.',
+    },
+  }
 };
 
 export default adapter;
