@@ -338,4 +338,5 @@ export enum CHAIN {
   VALUECHAIN = "valuechain",
   IOTA = "iota",
   MEGAETH = "megaeth",
+  ENI = "eni",
 }
