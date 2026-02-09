@@ -23,8 +23,8 @@ const fetch = async (options: FetchOptions) => {
       // Use revenue_value (in wei) instead of revenue_eth
       const revenueWei = dayData.revenue_value || (dayData.revenue_eth * 1e18).toString();
       if (revenueWei && revenueWei !== "0") {
-        dailyFees.add(ADDRESSES.null, revenueWei, 'BOB L2 sequencer fees');
-        dailyRevenue.add(ADDRESSES.null, revenueWei, 'BOB L2 sequencer fees');
+        dailyFees.add(ADDRESSES.null, revenueWei, 'sequencer fees');
+        dailyRevenue.add(ADDRESSES.null, revenueWei, 'sequencer fees');
       }
     }
   }
@@ -37,10 +37,10 @@ const fetch = async (options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    'BOB L2 sequencer fees': 'ETH revenue collected by the BOB L2 sequencer from transaction processing, sourced from Dune Analytics.',
+    'sequencer fees': 'ETH revenue collected by the Bob L2 sequencer from transaction processing, sourced from Dune Analytics.',
   },
   Revenue: {
-    'BOB L2 sequencer fees': 'ETH revenue collected by the BOB L2 sequencer from transaction processing, sourced from Dune Analytics.',
+    'sequencer fees': 'ETH revenue collected by the Bob L2 sequencer from transaction processing, sourced from Dune Analytics.',
   },
 };
 

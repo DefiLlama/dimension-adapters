@@ -3,7 +3,6 @@ import { CHAIN } from "../helpers/chains";
 
 const contractAddress = '0xFC00FACE00000000000000000000000000000000';
 
-
 async function getFees24Hr(api: any) {
   const currentEpoch = await api.call({ abi: 'uint256:currentSealedEpoch', target: contractAddress })
   const snapshotABI = 'function getEpochSnapshot(uint256 epoch) view returns (uint256 endTime, uint256 epochFee, uint256 totalBaseRewardWeight, uint256 totalTxRewardWeight, uint256 baseRewardPerSecond, uint256 totalStake, uint256 totalSupply)'
@@ -18,30 +17,20 @@ async function getFees24Hr(api: any) {
   return epochData.reduce((acc: any, data: any) => acc + +data.epochFee, 0)
 }
 
+const fetch = async ({ api, createBalances }: FetchOptions) => {
+  const feesInRwa = await getFees24Hr(api)
+  const dailyFees = createBalances()
+  dailyFees.addCGToken('xend-finance', feesInRwa/1e18)
+  return { dailyFees, dailyRevenue: dailyFees }
+}
+
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ASSETCHAIN]: {
-      fetch: async ({ api, createBalances }: FetchOptions) => {
-        const feesInRwa = await getFees24Hr(api)
-        const dailyFees = createBalances()
-        dailyFees.addCGToken('xend-finance', feesInRwa/1e18, 'XEND token fees')
-        const dailyRevenue = createBalances()
-        dailyRevenue.addCGToken('xend-finance', feesInRwa/1e18, 'XEND token revenue')
-        return { dailyFees, dailyRevenue }
-      },
-      start: '2020-08-29',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ASSETCHAIN],
+  start: '2020-08-29',
+  runAtCurrTime: true,
   protocolType: ProtocolType.CHAIN,
-  breakdownMethodology: {
-    Fees: {
-      'XEND token fees': 'Epoch-based fees collected in XEND tokens over 24-hour period (6 epochs of 4 hours each)',
-    },
-    Revenue: {
-      'XEND token revenue': 'Revenue generated from XEND token transaction fees',
-    },
-  }
 }
 
 export default adapter;

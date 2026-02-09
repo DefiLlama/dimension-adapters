@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { Chain, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { queryEvents } from '../helpers/sui';
+import { METRIC } from "../helpers/metrics";
 
 type TChainAddress = {
   [s: Chain | string]: string[];
@@ -75,7 +76,12 @@ const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions):
 
   function addLogs(logs: any, index: number) {
     const token = tokens[index]
-    logs.forEach((log: any) => balances.add(token, log.fee, 'Bridge Swap Fees'))
+    // if (!token) return;
+    if (!token){
+      logs.forEach((log: any) => balances.addGasToken(log.fee, METRIC.SWAP_FEES));
+    }else {
+      logs.forEach((log: any) => balances.add(token, log.fee, METRIC.SWAP_FEES))
+    }
   }
   return balances;
 };
@@ -89,7 +95,7 @@ const fetchFeesSui = async (options: FetchOptions): Promise<Balances> => {
       eventType,
       options,
     });
-    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee, 'Bridge Swap Fees'));
+    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee, METRIC.SWAP_FEES));
   }
 
   return balances;
@@ -103,7 +109,7 @@ export async function fetchFeesAmountFromAnalyticsApi(
   const balances = createBalances();
 
   const eventData = await getEventsFromAnalyticsApi(chainCode, startOfDay * 1000, toTimestamp * 1000);
-  eventData.map((data) => balances.add(data.token, data.fee, 'Bridge Swap Fees'));
+  eventData.map((data) => balances.add(data.token, data.fee, METRIC.SWAP_FEES));
 
   return balances;
 }
@@ -153,13 +159,13 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Bridge Swap Fees': 'Fees collected from cross-chain token swaps at a 0.3% rate.',
+    [METRIC.SWAP_FEES]: 'Fees collected from cross-chain token swaps at a 0.3% rate.',
   },
   SupplySideRevenue: {
-    'Bridge Swap Fees': '80% of swap fees distributed to liquidity providers.',
+    [METRIC.SWAP_FEES]: '80% of swap fees distributed to liquidity providers.',
   },
   Revenue: {
-    'Bridge Swap Fees': '20% of swap fees going to protocol governance.',
+    [METRIC.SWAP_FEES]: '20% of swap fees going to protocol governance.',
   },
 };
 

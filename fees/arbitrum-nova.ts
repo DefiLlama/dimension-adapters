@@ -20,9 +20,9 @@ async function getFees(options: FetchOptions) {
   await fromApi.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
   const logs = await getLogs({ targets: feeVaults, eventAbi, })
 
-  logs.map((log) => balances.addGasToken(log.value, 'ETH Gas Fees From Vault Events'))
-  balances.addBalances(api.getBalancesV2(), 'Current Fee Vault Balances')
-  balances.subtract(fromApi.getBalancesV2(), 'Previous Day Fee Vault Balances')
+  logs.map((log) => balances.addGasToken(log.value))
+  balances.addBalances(api.getBalancesV2())
+  balances.subtract(fromApi.getBalancesV2())
   return balances
 }
 
@@ -35,20 +35,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM_NOVA]: {
-      fetch: fetch,
-      start: '2023-08-14',
-    }
-  },
-  protocolType: ProtocolType.CHAIN,
-  breakdownMethodology: {
-    Fees: {
-      'ETH Gas Fees From Vault Events': 'ETH transferred to fee vaults as captured from RecipientRecieved events',
-      'Current Fee Vault Balances': 'Current ETH balance held in fee vaults',
-      'Previous Day Fee Vault Balances': 'Previous day ETH balance held in fee vaults, subtracted to calculate net daily fees',
-    }
-  }
+  fetch,
+  chains: [CHAIN.ARBITRUM_NOVA],
+  start: '2023-08-14',
+  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;

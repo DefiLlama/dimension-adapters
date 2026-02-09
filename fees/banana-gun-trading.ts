@@ -95,9 +95,6 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.TRADING_FEES]: 'Trading fees collected by Banana Gun protocol.',
   },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'Trading fees collected by Banana Gun protocol (no supply side).',
-  },
 }
 
 const adapter: SimpleAdapter = {

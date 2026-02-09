@@ -49,8 +49,8 @@ const fetch = async (options: FetchOptions) => {
   // Convert from microAlgos to ALGO (1 ALGO = 1,000,000 microAlgos)
   const feeAmount = totalFees / 1e6;
   dailyFees.addCGToken('algorand', feeAmount, 'Transaction Fees');
-  dailyRevenue.addCGToken('algorand', feeAmount, 'Burned Fees Revenue');
-  dailyHoldersRevenue.addCGToken('algorand', feeAmount, 'Burned Fees Benefit To Holders');
+  dailyRevenue.addCGToken('algorand', feeAmount, 'Transaction Fees');
+  dailyHoldersRevenue.addCGToken('algorand', feeAmount, 'Transaction Fees');
 
   return {
     dailyFees,
@@ -62,17 +62,13 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "All transaction fees paid by users on the Algorand blockchain",
   Revenue: "All transaction fees on Algorand are burned, effectively benefiting all ALGO holders through reduced supply",
-  HoldersRevenue: "All transaction fees on Algorand are burned, effectively benefiting all ALGO holders through reduced supply"
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ALGORAND]: {
-      fetch,
-      start: '2019-06-11', // Algorand mainnet launch date
-    },
-  },
+  fetch,
+  chains: [CHAIN.ALGORAND],
+  start: '2019-06-11', // Algorand mainnet launch date
   protocolType: ProtocolType.CHAIN,
   methodology,
   breakdownMethodology: {
@@ -80,10 +76,10 @@ const adapter: SimpleAdapter = {
       'Transaction Fees': 'All transaction fees paid by users on the Algorand blockchain',
     },
     Revenue: {
-      'Burned Fees Revenue': 'All transaction fees on Algorand are burned, effectively benefiting all ALGO holders through reduced supply',
+      'Transaction Fees': 'All transaction fees on Algorand are burned, effectively benefiting all ALGO holders through reduced supply',
     },
     HoldersRevenue: {
-      'Burned Fees Benefit To Holders': 'All transaction fees on Algorand are burned, effectively benefiting all ALGO holders through reduced supply',
+      'Transaction Fees': 'All transaction fees on Algorand are burned, effectively benefiting all ALGO holders through reduced supply',
     },
   },
 };

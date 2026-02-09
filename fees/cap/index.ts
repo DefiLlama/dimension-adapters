@@ -3,6 +3,7 @@ import { addTokensReceived } from "../../helpers/token";
 import { CHAIN } from "../../helpers/chains";
 import { capABI, capConfig } from "./config";
 import { fetchAssetAddresses, fetchVaultConfigs } from "./helpers";
+import { METRIC } from "../../helpers/metrics";
 
 const fetch = async (options: FetchOptions) => {
 	const infra = capConfig[options.chain].infra;
@@ -30,7 +31,7 @@ const fetch = async (options: FetchOptions) => {
 	).flat();
 	const minterFees = options.createBalances();
 	for (const { feeAsset, amount } of feesDistributedLogs) {
-		minterFees.add(feeAsset, amount, 'Borrow Fees Distributed to Stakers');
+		minterFees.add(feeAsset, amount, METRIC.BORROW_INTEREST);
 	}
 
 	const protocolFeeClaimedLogs = (
@@ -54,7 +55,7 @@ const fetch = async (options: FetchOptions) => {
 	).flat();
 	const protocolFees = options.createBalances();
 	for (const { feeAsset, amount } of protocolFeeClaimedLogs) {
-		protocolFees.add(feeAsset, amount, 'Protocol Borrow Fee Cut');
+		protocolFees.add(feeAsset, amount, METRIC.PROTOCOL_FEES);
 	}
 
 	const restakerFeesLogs = await options.getLogs({
@@ -63,7 +64,7 @@ const fetch = async (options: FetchOptions) => {
 	});
 	const restakerFees = options.createBalances();
 	for (const log of restakerFeesLogs) {
-		restakerFees.add(log.asset, log.amount, 'Restaker Delegation Rewards');
+		restakerFees.add(log.asset, log.amount, METRIC.STAKING_REWARDS);
 	}
 
 	const insuranceFunds = vaultConfigs
@@ -81,17 +82,17 @@ const fetch = async (options: FetchOptions) => {
 		: options.createBalances();
 
 	const dailyFees = options.createBalances();
-	dailyFees.addBalances(minterFees, 'Borrow Fees Distributed to Stakers');
-	dailyFees.addBalances(protocolFees, 'Protocol Borrow Fee Cut');
-	dailyFees.addBalances(restakerFees, 'Restaker Delegation Rewards');
+	dailyFees.addBalances(minterFees, METRIC.BORROW_INTEREST);
+	dailyFees.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
+	dailyFees.addBalances(restakerFees, METRIC.STAKING_REWARDS);
 	dailyFees.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 
 	const dailyRevenue = options.createBalances();
-	dailyRevenue.addBalances(protocolFees, 'Protocol Borrow Fee Cut');
+	dailyRevenue.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
 
 	const dailySupplySideRevenue = options.createBalances();
-	dailySupplySideRevenue.addBalances(minterFees, 'Borrow Fees Distributed to Stakers');
-	dailySupplySideRevenue.addBalances(restakerFees, 'Restaker Delegation Rewards');
+	dailySupplySideRevenue.addBalances(minterFees, METRIC.BORROW_INTEREST);
+	dailySupplySideRevenue.addBalances(restakerFees, METRIC.STAKING_REWARDS);
 	dailySupplySideRevenue.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 
 	return {
@@ -111,21 +112,21 @@ const methodology = {
 
 const breakdownMethodology = {
 	Fees: {
-		'Borrow Fees Distributed to Stakers': 'Interest fees from borrowing distributed to vault stakers.',
+		[METRIC.BORROW_INTEREST]: 'Interest fees from borrowing distributed to vault stakers.',
 		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees claimed separately.',
-		'Restaker Delegation Rewards': 'Rewards distributed to delegators via the delegation contract.',
+		[METRIC.STAKING_REWARDS]: 'Rewards distributed to delegators via the delegation contract.',
 		'Insurance Fund Fees': 'Tokens sent from minters to insurance funds for risk management.',
 	},
 	Revenue: {
-		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees.',
+		[METRIC.PROTOCOL_FEES]: 'Protocol\'s share of borrow fees.',
 	},
 	SupplySideRevenue: {
-		'Borrow Fees Distributed to Stakers': 'Interest fees distributed to vault stakers.',
-		'Restaker Delegation Rewards': 'Rewards distributed to delegators.',
+		[METRIC.BORROW_INTEREST]: 'Interest fees distributed to vault stakers.',
+		[METRIC.STAKING_REWARDS]: 'Rewards distributed to delegators.',
 		'Insurance Fund Fees': 'Tokens sent to insurance funds from minters.',
 	},
 	ProtocolRevenue: {
-		'Protocol Borrow Fee Cut': 'Protocol\'s share of borrow fees.',
+		[METRIC.PROTOCOL_FEES]: 'Protocol\'s share of borrow fees.',
 	},
 };
 

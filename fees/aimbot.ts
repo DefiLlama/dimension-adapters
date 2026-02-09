@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
+import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
 const profitShareAPI = "https://aimbotapi.onrender.com/api/openBot/profitShare";
 
@@ -11,6 +12,8 @@ interface IData {
 const fetch: any = async (options: FetchOptions) => {
   const { createBalances, } = options
   const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+
   const transfer_txs = `
       SELECT
           value
@@ -32,43 +35,41 @@ const fetch: any = async (options: FetchOptions) => {
 
   const transactions: IData[] = (await queryIndexer(transfer_txs, options)) as any
   transactions.map((e: IData) => {
-    dailyFees.addGasToken(Number(e.value), 'Trading Bot Execution Fees')
+    dailyFees.addGasToken(Number(e.value), METRIC.TRADING_FEES)
   })
 
   // fetch profit data from OpenBot profitShare API
   const openBotFundData = await httpGet(profitShareAPI);
 
   const openBotFundAmount = openBotFundData['total'];
-  dailyFees.addGasToken(openBotFundAmount * 1e18, 'OpenBot Profit Share');
+  dailyFees.addGasToken(openBotFundAmount * 1e18, METRIC.PROTOCOL_FEES);
+  dailyRevenue.addGasToken(openBotFundAmount * 1e18, METRIC.PROTOCOL_FEES);
 
-  return { dailyFees, dailyRevenue: dailyFees }
+  return { dailyFees, dailyRevenue }
 
 }
 
 const methodology = {
   Fees: "Fees paid by users while using the bot.",
-  Revenue: "All fees are revenue.",
+  Revenue: "Profit share fees collected from the Aimbot OpenBot automated trading service.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Trading Bot Execution Fees': 'ETH fees collected from on-chain trading bot executions routed through Aimbot contracts.',
-    'OpenBot Profit Share': 'Profit share fees collected from the Aimbot OpenBot automated trading service.',
+    [METRIC.TRADING_FEES]: 'ETH fees collected from on-chain trading bot executions routed through Aimbot contracts.',
+    [METRIC.PROTOCOL_FEES]: 'Profit share fees collected from the Aimbot OpenBot automated trading service.',
   },
   Revenue: {
-    'Trading Bot Execution Fees': 'All trading bot execution fees accrue as protocol revenue.',
-    'OpenBot Profit Share': 'All OpenBot profit share fees accrue as protocol revenue.',
+    [METRIC.TRADING_FEES]: 'All trading bot execution fees accrue as protocol revenue.',
+    [METRIC.PROTOCOL_FEES]: 'All OpenBot profit share fees accrue as protocol revenue.',
   },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2023-08-02',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-08-02',
   methodology,
   breakdownMethodology,
 };

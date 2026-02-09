@@ -1,10 +1,9 @@
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "../adapters/types";
-
+import { METRIC } from "../helpers/metrics";
 
 type TMarketPlaceAddress = {
-  [l: string | Chain]: string;
+  [l: string | CHAIN]: string;
 }
 const marketplace_address: TMarketPlaceAddress = {
   [CHAIN.ETHEREUM]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
@@ -17,20 +16,18 @@ const marketplace_address: TMarketPlaceAddress = {
   [CHAIN.OPTIMISM]: '0xfb181a48b102580539b9b8aca6b1617ef0c80bf8',
 }
 
-const fetch = (chain: Chain) => {
-  return async ({ createBalances, getLogs, }: FetchOptions) => {
-    const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-    const logs = await getLogs({
-      target: marketplace_address[chain],
-      eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
-    });
-    logs.forEach((e: any) => {
-      dailyFees.add(e.erc20, e.amount, 'RPC Service Deposits')
-      dailyRevenue.add(e.erc20, e.amount, 'RPC Service Revenue')
-    })
-    return { dailyFees, dailyRevenue };
-  }
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const logs = await getLogs({
+    target: marketplace_address[chain],
+    eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
+  });
+  logs.forEach((e: any) => {
+    dailyFees.add(e.erc20, e.amount, [METRIC.SERVICE_FEES])
+    dailyRevenue.add(e.erc20, e.amount, [METRIC.SERVICE_FEES])
+  })
+  return { dailyFees, dailyRevenue };
 }
 
 const methodology = {
@@ -40,51 +37,28 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'RPC Service Deposits': 'Token deposits made by users to the BlastAPI marketplace contract for RPC service access.',
+    [METRIC.SERVICE_FEES]: 'Token deposits made by users to the BlastAPI marketplace contract for RPC service access.',
   },
   Revenue: {
-    'RPC Service Revenue': 'All user deposits for RPC services are recognized as protocol revenue.',
+    [METRIC.SERVICE_FEES]: 'All user deposits for RPC services are recognized as protocol revenue.',
   },
 }
 
 const adapter: Adapter = {
+  version: 2,
+  fetch,
+  adapter: {
+    [CHAIN.ETHEREUM]: { start: '2023-02-03', },
+    [CHAIN.BSC]: { start: '2023-02-03', },
+    [CHAIN.AVAX]: { start: '2023-02-03', },
+    [CHAIN.MOONBEAM]: { start: '2023-02-03', },
+    [CHAIN.FANTOM]: { start: '2023-02-03', },
+    [CHAIN.POLYGON]: { start: '2023-02-03', },
+    [CHAIN.XDAI]: { start: '2023-02-03', },
+    [CHAIN.OPTIMISM]: { start: '2023-02-03', },
+  },
   methodology,
   breakdownMethodology,
-  version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: '2023-02-03',
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: '2023-02-03',
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-      start: '2023-02-03',
-    },
-    [CHAIN.MOONBEAM]: {
-      fetch: fetch(CHAIN.MOONBEAM),
-      start: '2023-02-03',
-    },
-    [CHAIN.FANTOM]: {
-      fetch: fetch(CHAIN.FANTOM),
-      start: '2023-02-03',
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: '2023-02-03',
-    },
-    [CHAIN.XDAI]: {
-      fetch: fetch(CHAIN.XDAI),
-      start: '2023-02-03',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-02-03',
-    }
-  }
 }
 
 export default adapter;

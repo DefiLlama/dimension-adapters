@@ -4,6 +4,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from '../helpers/metrics';
 
 const methodology = {
     Fees: "All trading fees paid by users while using Bloom Trading bot.",
@@ -12,12 +13,10 @@ const methodology = {
 
 const breakdownMethodology = {
     Fees: {
-        "Bloom Solana trading bot fees collected in SOL from DEX trades": "Trading fees paid by users in SOL when executing DEX trades via the Bloom Solana trading bot",
-        "Bloom EVM trading bot fees collected in native gas token from contract events": "Trading fees paid by users in native gas tokens when executing trades via Bloom EVM trading bot contracts",
+        [METRIC.TRADING_FEES]: "Trading fees are collected by Bloom protocol.",
     },
     Revenue: {
-        "Bloom Solana trading bot fees collected in SOL from DEX trades": "Trading fees paid by users in SOL when executing DEX trades via the Bloom Solana trading bot",
-        "Bloom EVM trading bot fees collected in native gas token from contract events": "Trading fees paid by users in native gas tokens when executing trades via Bloom EVM trading bot contracts",
+        [METRIC.TRADING_FEES]: "Trading fees are collected by Bloom protocol.",
     },
 }
 
@@ -59,10 +58,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, "Bloom Solana trading bot fees collected in SOL from DEX trades");
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, [METRIC.TRADING_FEES]);
 
   const dailyRevenue = options.createBalances();
-  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, "Bloom Solana trading bot fees collected in SOL from DEX trades");
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, [METRIC.TRADING_FEES]);
 
   return { dailyFees, dailyRevenue }
 }
@@ -129,8 +128,8 @@ const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
   logs.forEach((log: any) => {
     const data = log.data.replace('0x', '');
     const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
-    dailyFees.addGasToken(fees_amount, "Bloom EVM trading bot fees collected in native gas token from contract events");
-    dailyRevenue.addGasToken(fees_amount, "Bloom EVM trading bot fees collected in native gas token from contract events");
+    dailyFees.addGasToken(fees_amount, [METRIC.TRADING_FEES]);
+    dailyRevenue.addGasToken(fees_amount, [METRIC.TRADING_FEES]);
   })
   return { dailyFees, dailyRevenue } 
 }

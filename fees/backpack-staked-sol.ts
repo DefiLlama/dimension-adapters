@@ -1,6 +1,7 @@
-import { Dependencies, FetchOptions } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "C6nDiFyQH8vbVyfGhgpCfzWbHixf5Kq3MUN5vFCdJ4qP";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "5hhYv4b1Bt5sdMGYyyvpciwRbyUD1ZWeCmTaQcuvb7Eg";
@@ -25,10 +26,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0, "staking rewards from staked SOL");
+      dailyFees.addCGToken("solana", row.amount || 0, [METRIC.STAKING_REWARDS]);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, "withdrawal and management fees");
-      dailyProtocolRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, "revenue to treasury and team");
+      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, [METRIC.MANAGEMENT_FEES]);
+      dailyProtocolRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, [METRIC.MANAGEMENT_FEES]);
     }
   });
 
@@ -41,17 +42,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    "staking rewards from staked SOL": 'Staking rewards from staked SOL on Backpack staked solana',
+    [METRIC.STAKING_REWARDS]: 'Staking rewards from staked SOL on Backpack staked solana',
   },
   Revenue: {
-    "withdrawal and management fees": 'Includes withdrawal fees and management fees collected by fee collector',
-  },
-  ProtocolRevenue: {
-    "revenue to treasury and team": 'Revenue going to treasury/team',
+    [METRIC.MANAGEMENT_FEES]: 'Includes withdrawal fees and management fees collected by fee collector',
   },
 }
 
-export default {
+const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
@@ -60,3 +58,5 @@ export default {
   isExpensiveAdapter: true,
   breakdownMethodology,
 };
+
+export default adapter;

@@ -20,25 +20,18 @@ async function fetchFunction(_a: any, _b: any, options: FetchOptions) {
   }
 
   const dailyFees = options.createBalances()
-  dailyFees.addCGToken('bitcoin', item.y, 'Bitcoin network transaction fees')
+  dailyFees.addCGToken('bitcoin', item.y)
 
   return {
     dailyFees,
   }
 }
 
-const breakdownMethodology = {
-  Fees: {
-    'Bitcoin network transaction fees': 'Total transaction fees paid by users to the Bitcoin network for transaction processing and validation.',
-  },
-}
-
 const adapter: Adapter = {
   version: 1,
   fetch: fetchFunction,
   chains: [CHAIN.BITCOIN],
-  protocolType: ProtocolType.CHAIN,
-  breakdownMethodology
+  protocolType: ProtocolType.CHAIN
 }
 
 export default adapter;
