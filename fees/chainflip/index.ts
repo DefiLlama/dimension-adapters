@@ -76,7 +76,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       [METRICS.IngressEgressBrokerFees]: 'Broker, Ingress, Egress fees paid by users.',
-      [METRICS.SwapFees]: 'Network Fees for Buy/Burn Mechanism.',
+      [METRICS.SwapFees]: 'Swap fees paid to LP.',
     },
   }
 };
