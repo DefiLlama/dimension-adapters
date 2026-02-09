@@ -122,7 +122,7 @@ const adapter: SimpleAdapter = {
         ],
       },
       [CHAIN.ABSTRACT]: {
-        start: '2025-01-28',
+        start: '2025-05-14',
         pools: [
           {
             version: 3,

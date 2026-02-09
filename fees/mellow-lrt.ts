@@ -117,8 +117,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     feePaidLogs.forEach(log => {
       const { asset, priceD18, fees } = log;
-      dailyFees.add(asset, (1e18 / Number(priceD18)) * Number(fees));
-      dailyRevenue.add(asset, (1e18 / Number(priceD18)) * Number(fees))
+      dailyFees.add(asset, (1e18 / Number(priceD18)) * Number(fees), METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyRevenue.add(asset, (1e18 / Number(priceD18)) * Number(fees), METRIC.DEPOSIT_WITHDRAW_FEES)
     })
   }
 
@@ -142,6 +142,21 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees charged on deposits and withdrawals to the vaults",
+      [METRIC.ASSETS_YIELDS]: "Fees generated from staking assets in LRT vaults",
+    },
+    Revenue: {
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Protocol fees charged on Core vaults",
+    },
+    ProtocolRevenue: {
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Protocol fees charged on Core vaults",
+    },
+    SupplySideRevenue: {
+      [METRIC.ASSETS_YIELDS]: "Yields distributed to depositors",
+    }
+  }
 };
 
 export default adapter;

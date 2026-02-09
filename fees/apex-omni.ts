@@ -13,15 +13,17 @@ const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResul
   const url = `https://omni.apex.exchange/api/v3/data/fee-by-date?time=${options.startOfDay * 1000}`;
   const feesData: IFees = (await httpGet(url)).data;
   if (typeof feesData?.feeOfDate !== "string") throw new Error("No fee data");
-  
   // 50% fees are revenue
   const fee = Number(feesData.feeOfDate)
   const revenue = fee * 0.5
+  const supplySideRevenue = fee * 0.5
   
   return {
     dailyFees: fee,
     dailyRevenue: revenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue: revenue,
+    dailySupplySideRevenue: supplySideRevenue,
   }
 }
 
@@ -40,7 +42,9 @@ const info = {
   methodology: {
     Fees: "All fees collected from trading on APEX Omni exchange.",
     Revenue: "50% of fees used to buy back APEX tokens.",
+    ProtocolRevenue: "No protocol revenue, all revenue goes to token holders via buybacks.",
     HoldersRevenue: "50% of fees used to buy back APEX tokens on a weekly basis on random days of the week.",
+    SupplySideRevenue: "50% of fees distributed to protocol vaults depositors.",
   },
 }
 

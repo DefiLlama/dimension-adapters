@@ -204,6 +204,7 @@ const fetch = async (options: FetchOptions) => {
     // Track MOR emissions - convert from wei (18 decimals) to whole tokens
     const morAmount = Number(log.amount) / 1e18
     dailySupplySideRevenue.addCGToken(MOR_COINGECKO_ID, morAmount, MetricLabels.MOR_EMISSION)
+    dailyFees.addCGToken(MOR_COINGECKO_ID, morAmount, MetricLabels.MOR_EMISSION)
   }
 
   return {

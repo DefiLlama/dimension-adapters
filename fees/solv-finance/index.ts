@@ -56,21 +56,23 @@ const fetch: FetchV2 = async (options) => {
   if (!contracts[options.chain])
     return {}
 
-  const { dailyFees, dailyRevenue } = await fees(options, contracts);
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await fees(options, contracts);
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 async function fees(options: FetchOptions, contracts: any) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const pools = contracts[options.chain];
   if (!pools)
-    return { dailyFees, dailyRevenue };
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
   const shareConcretes = await concrete(pools, options);
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
@@ -138,6 +140,7 @@ async function fees(options: FetchOptions, contracts: any) {
       const subscriptionAmount = await subscriptionFees(options, pool.marketAddress, pool.poolId);
       const subscriptionFeeAmount = BigNumber(subscriptionAmount).times(todayNav.minus(BigNumber(10).pow(currencyDecimal)));
       dailyRevenue.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber(), METRIC.MINT_REDEEM_FEES);
+      dailyFees.add(poolBaseInfo.currency, subscriptionFeeAmount.div(sharesDecimal).toNumber(), METRIC.MINT_REDEEM_FEES);
     }
 
     if (redemptionFee) {
@@ -154,12 +157,13 @@ async function fees(options: FetchOptions, contracts: any) {
     if (receivedFee) {
       const receivedFees = await received(options, receivedFee);
       dailyFees.addBalances(receivedFees, METRIC.MINT_REDEEM_FEES);
-      dailyRevenue.addBalances(receivedFees.clone(revenueRatio.toNumber()), METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.addBalances(receivedFees, METRIC.MINT_REDEEM_FEES);
     }
 
     if (receivedFeeGasTokens) {
       const nativeTokenFees = await gasTokensReceived(options, receivedFeeGasTokens);
-      dailyRevenue.addBalances(nativeTokenFees.clone(revenueRatio.toNumber()), METRIC.MINT_REDEEM_FEES);
+      dailyFees.addBalances(nativeTokenFees, METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.addBalances(nativeTokenFees, METRIC.MINT_REDEEM_FEES);
     }
 
     // fee = net value increase after on-chain deduction * today's shares / (1 - corresponding fund's revenue_ratio)
@@ -170,6 +174,7 @@ async function fees(options: FetchOptions, contracts: any) {
 
     dailyFees.add(poolBaseInfo.currency, fee.toNumber(), METRIC.STAKING_REWARDS);
     dailyRevenue.add(poolBaseInfo.currency, fee.times(revenueRatio).toNumber(), METRIC.STAKING_REWARDS);
+    dailySupplySideRevenue.add(poolBaseInfo.currency, fee.times(BigNumber(1).minus(revenueRatio)).toNumber(), METRIC.STAKING_REWARDS);
   }
 
   if (Object.keys(redemptionFees).length > 0) {
@@ -180,10 +185,11 @@ async function fees(options: FetchOptions, contracts: any) {
       address: redemptionFeeAddresses,
       token: redemptionFeeTokens
     });
+    dailyFees.addBalances(redemptionFeeAmount, METRIC.MINT_REDEEM_FEES);
     dailyRevenue.addBalances(redemptionFeeAmount, METRIC.MINT_REDEEM_FEES);
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 }
 
 async function received(
@@ -268,8 +274,9 @@ async function gasTokensReceived(
 
 const methodology = {
   Fees: 'All yields are generated from staking assets and mint/redemption fees.',
-  Revenue: 'Mint/Redemption Fees collected by Solv Protocol.',
-  ProtocolRevenue: 'Mint/Redemption collected by Solv Protocol.',
+  Revenue: 'Protocol share of staking rewards plus all mint/redemption fees collected by Solv Protocol.',
+  ProtocolRevenue: 'Protocol share of staking rewards plus all mint/redemption fees collected by Solv Protocol.',
+  SupplySideRevenue: 'Staking rewards distributed to depositors.',
 }
 
 const breakdownMethodology = {
@@ -278,10 +285,15 @@ const breakdownMethodology = {
     [METRIC.MINT_REDEEM_FEES]: 'All mint/redemption fees.',
   },
   Revenue: {
-    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption Fees collected by Solv Protocol.',
+    [METRIC.STAKING_REWARDS]: 'Protocol share of staking rewards.',
+    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption fees collected by Solv Protocol.',
   },
   ProtocolRevenue: {
-    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption Fees collected by Solv Protocol.',
+    [METRIC.STAKING_REWARDS]: 'Protocol share of staking rewards.',
+    [METRIC.MINT_REDEEM_FEES]: 'Mint/Redemption fees collected by Solv Protocol.',
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: 'Staking rewards distributed to depositors.',
   },
 }
 
