@@ -22,16 +22,16 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.add(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
-  dailyFees.add(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
-  dailyFees.add(dimensionsData.dailySupplySideRevenue, METRICS.SwapFees);
+  dailyFees.addUSDValue(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
+  dailyFees.addUSDValue(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
+  dailyFees.addUSDValue(dimensionsData.dailySupplySideRevenue, METRICS.SwapFees);
   
-  dailyUserFees.add(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
+  dailyUserFees.addUSDValue(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
 
-  dailySupplySideRevenue.add(dimensionsData.dailySupplySideRevenue, METRICS.SwapFees);
-  dailySupplySideRevenue.add(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
+  dailySupplySideRevenue.addUSDValue(dimensionsData.dailySupplySideRevenue, METRICS.SwapFees);
+  dailySupplySideRevenue.addUSDValue(dimensionsData.dailyUserFees, METRICS.IngressEgressBrokerFees);
   
-  dailyRevenue.add(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
+  dailyRevenue.addUSDValue(dimensionsData.dailyProtocolRevenue, METRICS.NetworkFees);
   
   return {
     dailyFees,
@@ -76,7 +76,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       [METRICS.IngressEgressBrokerFees]: 'Broker, Ingress, Egress fees paid by users.',
-      [METRICS.NetworkFees]: 'Network Fees for Buy/Burn Mechanism.',
+      [METRICS.SwapFees]: 'Swap fees paid to LP.',
     },
   }
 };
