@@ -30,8 +30,8 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyFees.addCGToken("internet-computer", feesInIcp);
-  dailyRevenue.addCGToken("internet-computer", Number(revenueInIcp));
+  dailyFees.addCGToken("internet-computer", feesInIcp, 'Transaction Fees');
+  dailyRevenue.addCGToken("internet-computer", Number(revenueInIcp), 'Token Burn');
 
   return {
     dailyFees,
@@ -50,6 +50,14 @@ const adapter: SimpleAdapter = {
     Fees: "Cycles consumed on the network converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
     Revenue: "ICP tokens burned to mint cycles and for transaction fees.",
     HoldersRevenue: "Same as revenue, as burns are deflationary benefiting holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Transaction Fees': "Cycles consumed on the Internet Computer network, converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
+    },
+    Revenue: {
+      'Token Burn': "ICP tokens burned to mint cycles and for transaction fees.",
+    },
   }
 };
 

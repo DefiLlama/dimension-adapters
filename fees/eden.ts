@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
@@ -45,7 +46,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const res = await queryDuneSql(options, query);
 
   const dayItem = res[0];
-  dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18);
+  dailyFees.addGasToken((dayItem?.mev_reward || 0) * 1e18, METRIC.MEV_REWARDS);
 
   return {
     dailyFees
@@ -54,14 +55,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  deadFrom: '2025-05-28',
   fetch,
   start: '2022-09-15',
+  deadFrom: '2025-05-28',
   chains: [CHAIN.ETHEREUM],
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Total MEV Tips for Eden Builders"
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.MEV_REWARDS]: "ETH rewards from MEV tips sent to Eden block builders",
+    },
   }
 }
 

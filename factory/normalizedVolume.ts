@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 import { elastic } from "@defillama/sdk";
 
-const HOURLY_VOLUME_INDEX = 'hourly-normalized-volume';
+const HOURLY_VOLUME_INDEX = 'hourly-perp-metrics';
 
 interface NormalizedVolumeConfig {
   protocolName: string;

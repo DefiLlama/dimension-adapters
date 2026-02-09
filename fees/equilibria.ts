@@ -1,8 +1,10 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
+  const dailyRevenue = option.createBalances();
 
   const contracts: {[key: string]: string }  = {
     ethereum:  "0x357F55b46821A6C6e476CC32EBB2674cD125e849",
@@ -18,10 +20,10 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
       "event RewardAdded(address indexed _rewardToken, uint256 _reward)",
   });
   logs.map((e) => {
-    dailyFees.add(e._rewardToken, e._reward);
+    dailyFees.add(e._rewardToken, e._reward, METRIC.ASSETS_YIELDS);
+    dailyRevenue.add(e._rewardToken, e._reward * BigInt(1) / BigInt(3), METRIC.PROTOCOL_FEES);
   });
-  
-  const dailyRevenue = dailyFees.clone(0.1);
+
   const dailySupplySideRevenue = dailyFees.clone(0.9);
 
   return {
@@ -32,35 +34,18 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  methodology: {
-    Fees: "Boosted yield generated through Equilibria",
-    Revenue: "Equilibria collects 10% of all the yield generated, 7.5% goes to treasury and 2.5% is used on vePENDLE lock, ePENDLE liquidity, or buyback, depending on strategic needs",
-    SupplySideRevenue: "77.5% of the yield generated goes to LPs and 12.5% goes to ePendle stakers"
-  },
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-  },
   version: 2,
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.OPTIMISM, CHAIN.MANTLE],
+  start: '2023-06-02',
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: "Total reward tokens distributed via Equilibria RewardAdded events across all supported chains.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "One-third of total reward distributions retained as Equilibria protocol revenue.",
+    },
+  },
 };
 
 export default adapter;

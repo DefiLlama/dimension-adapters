@@ -18,10 +18,8 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
 export default {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      start: '2025-04-03',
-      fetch,
-    },
-  }
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2025-04-03',
+  deadFrom: '2025-10-01',
 }

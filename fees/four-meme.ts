@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 // import { addGasTokensReceived, addTokensReceived, getETHReceived } from "../helpers/token";
 
 // const feeReceiverMultisig = [
@@ -108,8 +109,8 @@ const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   
   if (result && result.length > 0) {
-    dailyFees.addUSDValue(result[0].daily_fees_usd)
-    dailyRevenue.addUSDValue(result[0].daily_revenue_usd)
+    dailyFees.addUSDValue(result[0].daily_fees_usd, METRIC.TRADING_FEES)
+    dailyRevenue.addUSDValue(result[0].daily_revenue_usd, METRIC.PROTOCOL_FEES)
   }
 
   return { dailyFees, dailyRevenue }
@@ -165,6 +166,14 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All fees paid by users for launching, trading tokens.',
     Revenue: 'Fees collected by four.meme protocol.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: "USD value of all BNB and token fees collected from token launches and trades, including rev-share distributions",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
+    },
+  },
 };
 export default adapter;
