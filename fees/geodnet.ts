@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getSolanaReceived } from '../helpers/token';
+import { METRIC } from '../helpers/metrics';
 
 const GEODNET_TOKEN_ADDRESS = '0xAC0F66379A6d7801D7726d5a943356A172549Adb';
 const TOPIC_0_EVT_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -17,7 +18,6 @@ interface ILog {
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   const burnedEventLogs: ILog[] = await options.getLogs({
     target: GEODNET_TOKEN_ADDRESS,
@@ -25,16 +25,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   burnedEventLogs.forEach((log: ILog) => {
-    dailyHoldersRevenue.add(GEODNET_TOKEN_ADDRESS, Number(log.data), 'GEOD token buyback and burn');
+    dailyHoldersRevenue.add(GEODNET_TOKEN_ADDRESS, Number(log.data), METRIC.TOKEN_BUY_BACK);
   })
 
   const burnBalancesScaled = dailyHoldersRevenue.clone(1 / 0.8);
-  dailyFees.addBalances(burnBalancesScaled, { label: 'Station access fees derived from GEOD burns' });
-  dailyRevenue.addBalances(burnBalancesScaled, { label: 'Protocol revenue from station access' });
+  dailyFees.addBalances(burnBalancesScaled, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue,
   };
 };
@@ -53,18 +52,16 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   // `;
   const dailyHoldersRevenue = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   const burnedBalances = await getSolanaReceived({ options, target: INCINERATOR_ADDRESS, mints: ['7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'] });
-  dailyHoldersRevenue.addBalances(burnedBalances, { label: 'GEOD token buyback and burn' });
+  dailyHoldersRevenue.addBalances(burnedBalances, METRIC.TOKEN_BUY_BACK);
 
   const burnBalancesScaled = burnedBalances.clone(1 / 0.8);
-  dailyFees.addBalances(burnBalancesScaled, { label: 'Station access fees derived from GEOD burns' });
-  dailyRevenue.addBalances(burnBalancesScaled, { label: 'Protocol revenue from station access' });
+  dailyFees.addBalances(burnBalancesScaled, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue,
   };
 }
@@ -88,13 +85,13 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'Station access fees derived from GEOD burns': 'Total station access fees inferred from GEOD burns (burns represent 80% of total fees, so total = burns / 0.8).',
+      [METRIC.SERVICE_FEES]: 'Total station access fees inferred from GEOD burns (burns represent 80% of total fees, so total = burns / 0.8).',
     },
     Revenue: {
-      'Protocol revenue from station access': 'Total revenue from station access fees, including both the 80% used for GEOD buyback-and-burn and the 20% retained by the foundation.',
+      [METRIC.SERVICE_FEES]: 'Total revenue from station access fees, including both the 80% used for GEOD buyback-and-burn and the 20% retained by the foundation.',
     },
     HoldersRevenue: {
-      'GEOD token buyback and burn': 'GEOD tokens bought back from the open market and sent to the burn address, representing 80% of station access fees redistributed to holders.',
+      [METRIC.TOKEN_BUY_BACK]: 'GEOD tokens bought back from the open market and sent to the burn address, representing 80% of station access fees redistributed to holders.',
     },
   },
 };

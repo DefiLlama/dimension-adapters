@@ -2,6 +2,7 @@ import { request, gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
+import { METRIC } from "../helpers/metrics";
 
 const GRAPHQL_URL = "https://graphql.mainnet.iota.cafe";
 const PACKAGE_ID =
@@ -152,20 +153,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // Protocol = Stake + Dev
   const protocolRevenue = divDecimals(acc.stake.plus(acc.dev));
   // LP provider = LP fee + Funding + Rollover
-  const providersRevenue = divDecimals(
+  const SupplySideRevenue = divDecimals(
     acc.lp.plus(acc.funding).plus(acc.rollover),
   );
-  const totalRevenue = protocolRevenue + providersRevenue;
+  const totalRevenue = protocolRevenue + SupplySideRevenue;
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  dailyFees.addUSDValue(totalRevenue, "Trading and position fees");
-  dailyRevenue.addUSDValue(protocolRevenue, "Staking and developer vault fees");
-  dailyProtocolRevenue.addUSDValue(protocolRevenue, "Staking and developer vault fees");
-  dailySupplySideRevenue.addUSDValue(providersRevenue, "LP provider fees from trading, funding, and rollover");
+  dailyFees.addUSDValue(totalRevenue, METRIC.TRADING_FEES);
+  dailyRevenue.addUSDValue(protocolRevenue, METRIC.PROTOCOL_FEES);
+  dailyProtocolRevenue.addUSDValue(protocolRevenue, METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addUSDValue(SupplySideRevenue, METRIC.LP_FEES);
 
   return {
     dailyFees,
@@ -177,22 +178,24 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    "Trading and position fees": "All trading, funding, and rollover fees collected from users across all position events.",
+    [METRIC.TRADING_FEES]: "All trading, funding, and rollover fees collected from users across all position events.",
   },
   Revenue: {
-    "Staking and developer vault fees": "Fees directed to the staking and developer vaults from deposit fee events.",
+    [METRIC.PROTOCOL_FEES]: "Fees directed to the staking and developer vaults from deposit fee events.",
   },
   ProtocolRevenue: {
-    "Staking and developer vault fees": "Fees directed to the staking and developer vaults from deposit fee events.",
+    [METRIC.PROTOCOL_FEES]: "Fees directed to the staking and developer vaults from deposit fee events.",
   },
   SupplySideRevenue: {
-    "LP provider fees from trading, funding, and rollover": "Fees distributed to liquidity providers including LP share of deposit fees, net funding fees, and rollover fees.",
+    [METRIC.LP_FEES]: "Fees distributed to liquidity providers including LP share of deposit fees, net funding fees, and rollover fees.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: { [CHAIN.IOTA]: { fetch, start: "2025-10-23" } },
+  fetch,
+  chains: [CHAIN.IOTA],
+  start: "2025-10-23",
   allowNegativeValue: true,
   methodology: {
     Fees: "All trading, funding and rollover fees collected from users",

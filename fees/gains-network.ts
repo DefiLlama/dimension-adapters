@@ -2,6 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, ChainBlocks, Dependencies, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from '../helpers/metrics';
 
 interface IStats {
   unix_ts: number;
@@ -42,9 +43,27 @@ const prefetch = async (options: FetchOptions) => {
 const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
   const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
-  const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
-    ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
-    : [0, 0, 0, 0];
+  // const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
+  //   ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
+  //   : [0, 0, 0, 0];
+
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  if (chainStat) {
+    dailyRevenue.addUSDValue(chainStat.dev_fund + chainStat.project_fund, METRIC.PROTOCOL_FEES);
+    dailyRevenue.addUSDValue(chainStat.gns_stakers, METRIC.STAKING_REWARDS);
+    dailyHoldersRevenue.addUSDValue(chainStat.gns_stakers, METRIC.STAKING_REWARDS);
+  
+    dailySupplySideRevenue.addUSDValue(chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers, METRIC.LP_FEES);
+    dailySupplySideRevenue.addUSDValue(chainStat.referral, 'Referral Fees');
+    dailySupplySideRevenue.addUSDValue(chainStat.nft_bots, METRIC.OPERATORS_FEES);
+    dailySupplySideRevenue.addUSDValue(chainStat.borrowing_fee, 'Borrowing Fees');
+  }
+  dailyFees.addBalances(dailyRevenue);
+  dailyFees.addBalances(dailySupplySideRevenue);
 
   return {
     dailyFees,
@@ -74,20 +93,20 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
     ].map((eventAbi) => getLogs({ target: DIAMOND, eventAbi }))
   );
 
-  govFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Protocol governance fees"));
-  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Referral fees paid to referrers"));
-  triggerFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Trigger/bot execution fees"));
-  stakingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "GNS staking fees distributed to stakers"));
-  gTokenFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "gToken vault fees paid to liquidity providers"));
-  borrowingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, "Borrowing fees on open positions"));
+  govFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.PROTOCOL_FEES));
+  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, 'Refferal Fees'));
+  triggerFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.OPERATORS_FEES));
+  stakingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.STAKING_REWARDS));
+  gTokenFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.LP_FEES));
+  borrowingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, 'Borrowing Fees'));
 
-  govFee.forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral, "Protocol governance revenue"));
-  stakingFee.forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral, "GNS staking revenue for token holders"));
+  govFee.forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral, METRIC.PROTOCOL_FEES));
+  stakingFee.forEach((i: any) => dailyRevenue.add(APE, i.amountCollateral, METRIC.STAKING_REWARDS));
 
-  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral, "GNS staker revenue used for buyback and burn"));
+  stakingFee.forEach((i: any) => dailyHoldersRevenue.add(APE, i.amountCollateral, METRIC.STAKING_REWARDS));
 
-  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, "gToken vault fees earned by LPs"));
-  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, "Referral fees earned by referrers"));
+  gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, METRIC.LP_FEES));
+  referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, 'Referral Fees'));
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -122,23 +141,12 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Protocol governance fees": "Fees charged for protocol governance and development fund",
-      "Referral fees paid to referrers": "Trading fees distributed to referrers who onboard new traders",
-      "Trigger/bot execution fees": "Fees paid to bots that execute limit orders and liquidations",
-      "GNS staking fees distributed to stakers": "Portion of trading fees distributed to GNS token stakers",
-      "gToken vault fees paid to liquidity providers": "Fees earned by gToken vault depositors who provide trading liquidity",
-      "Borrowing fees on open positions": "Fees charged to traders for maintaining open leveraged positions",
-    },
-    Revenue: {
-      "Protocol governance revenue": "Governance fees retained as protocol revenue",
-      "GNS staking revenue for token holders": "Trading fees directed to GNS stakers as protocol revenue",
-    },
-    HoldersRevenue: {
-      "GNS staker revenue used for buyback and burn": "Fees distributed to GNS stakers, used for token buyback and burn",
-    },
-    SupplySideRevenue: {
-      "gToken vault fees earned by LPs": "Trading fees earned by liquidity providers in gToken vaults",
-      "Referral fees earned by referrers": "Referral rewards paid out to users who refer traders",
+      [METRIC.PROTOCOL_FEES]: "Fees charged for protocol governance and development fund",
+      [METRIC.OPERATORS_FEES]: "Fees paid to bots that execute limit orders and liquidations",
+      [METRIC.STAKING_REWARDS]: "Portion of trading fees distributed to GNS token stakers",
+      'Referral Fees': "Trading fees distributed to referrers who onboard new traders",
+      [METRIC.LP_FEES]: "Fees earned by gToken vault depositors who provide trading liquidity",
+      'Borrowing Fees': "Fees charged to traders for maintaining open leveraged positions",
     },
   },
 };

@@ -59,7 +59,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 
   
-const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const config = await fetchCacheURL('https://s3.us-west-1.amazonaws.com/assets.hop.exchange/mainnet/v1-core-config.json')
   const l2_bridges = Object.values(config.bridges).map((e: any) => e[options.chain]).filter(Boolean)
@@ -126,6 +126,14 @@ const fetchFeesL2 = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-01-01' },
+    [CHAIN.BASE]: { fetch, start: '2023-01-01' },
+    [CHAIN.OPTIMISM]: { fetch, start: '2023-01-01' },
+    [CHAIN.POLYGON]: { fetch, start: '2023-01-01' },
+    [CHAIN.ETHEREUM]: { fetch: fetchFeesL1, start: '2023-01-01' },
+  },
   methodology: {
     Fees: 'Fees paid by users for bridging tokens via Hop.',
   },
@@ -137,29 +145,6 @@ const adapter: SimpleAdapter = {
       'transfer-bonder-fees': 'Bonder fees collected from standard Hop bridge transfers on L2 chains.',
     },
   },
-  version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchFeesL2,
-      start: '2023-01-01',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchFeesL2,
-      start: '2023-01-01',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchFeesL2,
-      start: '2023-01-01',
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchFeesL2,
-      start: '2023-01-01',
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFeesL1,
-      start: '2023-01-01',
-    }
-  }
 }
 
 export default adapter;

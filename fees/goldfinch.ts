@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 
 const pools: string[] = [
@@ -40,7 +41,7 @@ const pools: string[] = [
 const core_pool = '0xb01b315e32d1d9b5ce93e296d483e1f0aad39e75';
 const senior_pool = '0x8481a6ebaf5c7dabc3f7e09e44a89531fd31f822';
 
-const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
@@ -58,28 +59,24 @@ const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: 'event ReserveFundsCollected (address indexed user, uint256 amount)'
   }))
   InterestCollected.forEach((log: any) => {
-    dailyFees.addUSDValue(log.poolAmount.toString() / 1e6, undefined, "core-pool-interest-collected")
-    dailySupplySideRevenue.addUSDValue(log.poolAmount.toString() / 1e6, undefined, "core-pool-interest-to-suppliers")
+    dailyFees.addUSDValue(log.poolAmount.toString() / 1e6, METRIC.BORROW_INTEREST)
+    dailySupplySideRevenue.addUSDValue(log.poolAmount.toString() / 1e6, METRIC.BORROW_INTEREST)
   });
   PaymentApplied.forEach((log: any) => {
-    dailyFees.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6, undefined, "borrower-payment-interest-net-of-reserve")
-    dailySupplySideRevenue.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6, undefined, "borrower-payment-interest-to-suppliers")
+    dailyFees.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6, METRIC.BORROW_INTEREST)
+    dailySupplySideRevenue.addUSDValue((log.interestAmount.toString() - log.reserveAmount.toString()) / 1e6, METRIC.BORROW_INTEREST)
   });
-  ReserveFundsCollected.forEach((log: any) => dailyFees.addUSDValue(log.amount.toString() / 1e6, undefined, "reserve-funds-collected"));
-  ReserveFundsCollected.forEach((log: any) => dailyRevenue.addUSDValue(log.amount.toString() / 1e6, undefined, "reserve-funds-as-protocol-revenue"));
+  ReserveFundsCollected.forEach((log: any) => dailyFees.addUSDValue(log.amount.toString() / 1e6, METRIC.PROTOCOL_FEES));
+  ReserveFundsCollected.forEach((log: any) => dailyRevenue.addUSDValue(log.amount.toString() / 1e6, METRIC.PROTOCOL_FEES));
 
-
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue } as any
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
 const adapters: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2021-08-19',
-    }
-  },
   version: 2,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2021-08-19',
   methodology: {
     Fees: "Interest, payment, and reserve fees paid by users.",
     Revenue: "Reserve fees are revenue.",
@@ -87,16 +84,14 @@ const adapters: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "core-pool-interest-collected": "Interest collected from the core pool, counted as a fee and directed to supply-side",
-      "borrower-payment-interest-net-of-reserve": "Borrower interest payments minus reserve allocation, counted as a fee and directed to supply-side",
-      "reserve-funds-collected": "Reserve funds collected across all pools, counted as a protocol fee",
+      [METRIC.BORROW_INTEREST]: "Interest and Payment Fees collected by the protocol, counted as a fee",
+      [METRIC.PROTOCOL_FEES]: "Reserve funds collected across all pools, counted as a protocol fee",
     },
     Revenue: {
-      "reserve-funds-as-protocol-revenue": "Reserve funds retained by the protocol as revenue",
+      [METRIC.PROTOCOL_FEES]: "Reserve funds retained by the protocol as revenue",
     },
     SupplySideRevenue: {
-      "core-pool-interest-to-suppliers": "Core pool interest distributed to liquidity suppliers",
-      "borrower-payment-interest-to-suppliers": "Net borrower interest payments distributed to liquidity suppliers",
+      [METRIC.BORROW_INTEREST]: "interest and Payment Fees distributed to liquidity suppliers",
     },
   }
 }

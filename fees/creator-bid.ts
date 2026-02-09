@@ -1,39 +1,34 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const contract = '0xe794f7eb7e644eb49056133373fb9b1ea39f22ad'
 const payment_event = 'event Payment(address indexed from, uint256 value)'
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+
   const logs = await options.getLogs({
     target: contract,
     eventAbi: payment_event,
   });
   logs.map((log: any) => {
-    dailyFees.addGasToken(log.value, { label: "AI agent creation and trading fees" });
-    dailyRevenue.addGasToken(log.value, { label: "AI agent creation and trading fees" });
-    dailyProtocolRevenue.addGasToken(log.value, { label: "AI agent creation and trading fees" });
+    dailyFees.addGasToken(log.value, METRIC.TRADING_FEES);
   });
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 }
 
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: fetchFees,
-      start: '2024-09-09',
-    },
-  },
+  fetch,
+  chains: [CHAIN.BASE],
+  start: '2024-09-09',
   methodology: {
     Fees: 'Fees paid by users when create and trade AI agents.',
     Revenue: 'Fees paid by users when create and trade AI agents.',
@@ -41,13 +36,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "AI agent creation and trading fees": "ETH payments collected by the protocol when users create and trade AI agents",
-    },
-    Revenue: {
-      "AI agent creation and trading fees": "ETH payments collected by the protocol when users create and trade AI agents",
-    },
-    ProtocolRevenue: {
-      "AI agent creation and trading fees": "ETH payments collected by the protocol when users create and trade AI agents",
+      [METRIC.TRADING_FEES]: "ETH payments collected by the protocol when users create and trade AI agents",
     },
   }
 }

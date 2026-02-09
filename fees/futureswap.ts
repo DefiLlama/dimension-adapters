@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { METRIC } from '../helpers/metrics';
 
 interface IExchange {
   address: string,
@@ -40,9 +41,6 @@ const abis = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-
   const exchanges = exchangeConfigs[options.chain];
 
   const logs = await options.getLogs({
@@ -54,23 +52,20 @@ const fetch = async (options: FetchOptions) => {
   for (let i = 0; i < exchanges.length; i++) {
     for (const log of logs[i]) {
       const amount = BigInt(log.tradeFee) * BigInt(10**exchanges[i].baseTokenDecimals) / BigInt(1e18);
-      dailyFees.add(exchanges[i].baseToken, amount, 'Trade fees from leveraged position changes');
-      dailyRevenue.add(exchanges[i].baseToken, amount, 'Revenue from trading fees');
-      dailyProtocolRevenue.add(exchanges[i].baseToken, amount, 'Protocol revenue from trading fees');
+      dailyFees.add(exchanges[i].baseToken, amount, METRIC.TRADING_FEES);
     }
   }
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const methodology = {
   Fees: 'Trading fees as reported by the tradeFee field in PositionChanged events. Futureswap is a leveraged derivatives protocol and does not emit explicit fee settlement events.',
-  Revenue:
-    'All reported trade fees are treated as protocol revenue due to lack of on-chain fee distribution data.',
+  Revenue: 'All reported trade fees are treated as protocol revenue due to lack of on-chain fee distribution data.',
   ProtocolRevenue: 'Same as Revenue.',
 };
 
@@ -84,13 +79,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      'Trade fees from leveraged position changes': 'Trading fees collected from the tradeFee field in PositionChanged events when users open, close, or modify leveraged positions.',
-    },
-    Revenue: {
-      'Revenue from trading fees': 'All trade fees are attributed as revenue since Futureswap does not have on-chain fee distribution data.',
-    },
-    ProtocolRevenue: {
-      'Protocol revenue from trading fees': 'All trade fees are attributed as protocol revenue due to the absence of on-chain fee splitting mechanisms.',
+      [METRIC.TRADING_FEES]: 'Trading fees collected from the tradeFee field in PositionChanged events when users open, close, or modify leveraged positions.',
     },
   },
 };

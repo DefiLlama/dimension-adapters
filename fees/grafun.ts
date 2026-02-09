@@ -2,6 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { request, } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import type { FetchV2, Adapter } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint("71DeFz7cWQPvf8zibkLUovwaeT67xNUZp3A5xecbpiz5"),
@@ -39,8 +40,8 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const dailyFees = restOpts.createBalances();
   const dailyRevenue = restOpts.createBalances();
 
-  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0, { label: "Token sale factory fees" });
-  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0, { label: "Token sale factory revenue" });
+  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0, METRIC.TRADING_FEES);
+  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0, METRIC.PROTOCOL_FEES);
 
   return {
     dailyFees,
@@ -62,10 +63,10 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      "Token sale factory fees": "Fees collected in native gas token from the Token Sale Factory smart contract.",
+      [METRIC.TRADING_FEES]: "Fees collected in native gas token from the Token Sale Factory smart contract.",
     },
     Revenue: {
-      "Token sale factory revenue": "Revenue collected in native gas token from the Token Sale Factory smart contract.",
+      [METRIC.PROTOCOL_FEES]: "Revenue collected in native gas token from the Token Sale Factory smart contract.",
     },
   },
 }

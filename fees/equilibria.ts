@@ -1,5 +1,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const fetch: FetchV2 = async (option: FetchOptions) => {
   const dailyFees = option.createBalances();
@@ -19,8 +20,8 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
       "event RewardAdded(address indexed _rewardToken, uint256 _reward)",
   });
   logs.map((e) => {
-    dailyFees.add(e._rewardToken, e._reward, "Pendle reward distributions");
-    dailyRevenue.add(e._rewardToken, e._reward * BigInt(1) / BigInt(3), "Protocol share of reward distributions");
+    dailyFees.add(e._rewardToken, e._reward, METRIC.ASSETS_YIELDS);
+    dailyRevenue.add(e._rewardToken, e._reward * BigInt(1) / BigInt(3), METRIC.PROTOCOL_FEES);
   });
 
   return {
@@ -30,36 +31,16 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetch,
-      start: "2023-06-02",
-    },
-  },
   version: 2,
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.OPTIMISM, CHAIN.MANTLE],
+  start: '2023-06-02',
   breakdownMethodology: {
     Fees: {
-      "Pendle reward distributions": "Total reward tokens distributed via Equilibria RewardAdded events across all supported chains.",
+      [METRIC.ASSETS_YIELDS]: "Total reward tokens distributed via Equilibria RewardAdded events across all supported chains.",
     },
     Revenue: {
-      "Protocol share of reward distributions": "One-third of total reward distributions retained as Equilibria protocol revenue.",
+      [METRIC.PROTOCOL_FEES]: "One-third of total reward distributions retained as Equilibria protocol revenue.",
     },
   },
 };

@@ -29,16 +29,14 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
 
-  dailyFees.addCGToken("internet-computer", feesInIcp, "Cycles burned as network fees");
-  dailyRevenue.addCGToken("internet-computer", Number(revenueInIcp), "ICP burned for cycles and transaction fees");
-  dailyHoldersRevenue.addCGToken("internet-computer", Number(revenueInIcp), "ICP burned benefiting token holders");
+  dailyFees.addCGToken("internet-computer", feesInIcp, 'Transaction Fees');
+  dailyRevenue.addCGToken("internet-computer", Number(revenueInIcp), 'Token Burn');
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue,
+    dailyHoldersRevenue: dailyRevenue,
   };
 }
 
@@ -55,13 +53,10 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Cycles burned as network fees": "Cycles consumed on the Internet Computer network, converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
+      'Transaction Fees': "Cycles consumed on the Internet Computer network, converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
     },
     Revenue: {
-      "ICP burned for cycles and transaction fees": "ICP tokens burned to mint cycles and to pay for transaction fees on the network.",
-    },
-    HoldersRevenue: {
-      "ICP burned benefiting token holders": "ICP tokens burned, which act as a deflationary mechanism benefiting all ICP token holders.",
+      'Token Burn': "ICP tokens burned to mint cycles and for transaction fees.",
     },
   }
 };
