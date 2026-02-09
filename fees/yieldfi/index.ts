@@ -105,36 +105,9 @@ const adapter: SimpleAdapter = {
         [CHAIN.ETHEREUM]: {
             start: '2024-11-11',
         },
-        [CHAIN.OPTIMISM]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.ARBITRUM]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.BASE]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.SONIC]: {
-            start: '2025-05-09',
-        },
-        [CHAIN.PLUME]: {
-            start: '2025-06-10',
-        },
-        [CHAIN.KATANA]: {
-            start: '2025-07-31',
-        },
         [CHAIN.BSC]: {
             start: '2025-07-27',
         },
-        [CHAIN.AVAX]: {
-            start: '2025-07-31',
-        },
-        [CHAIN.TAC]: {
-            start: '2025-07-17',
-        },
-        [CHAIN.PLASMA]: {
-            start: '2025-09-30',
-        }
     },
 };
 
