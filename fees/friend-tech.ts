@@ -19,7 +19,7 @@ const fetch = async ({ getLogs, createBalances, }: FetchOptions) => {
     dailyRevenue.add("0x0bd4887f7d41b35cd75dff9ffee2856106f86670", e.protocolFee, METRIC.PROTOCOL_FEES)
   })
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyFees }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapter: Adapter = {

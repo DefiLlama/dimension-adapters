@@ -4,7 +4,6 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { capABI, capConfig } from "./config";
 import { fetchAssetAddresses, fetchVaultConfigs } from "./helpers";
-import { METRIC } from "../../helpers/metrics";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const fetch = async (options: FetchOptions) => {
