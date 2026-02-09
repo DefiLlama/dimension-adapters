@@ -6,10 +6,6 @@ import { capABI, capConfig } from "./config";
 import { fetchAssetAddresses, fetchVaultConfigs } from "./helpers";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const METRICS = {
-	INSURANCE_FUND_FEES: "Insurance Fund Fees",
-}
-
 const fetch = async (options: FetchOptions) => {
 	const infra = capConfig[options.chain].infra;
 	const assetAddresses = await fetchAssetAddresses(options, options.chain);
@@ -36,7 +32,7 @@ const fetch = async (options: FetchOptions) => {
 	).flat();
 	const minterFees = options.createBalances();
 	for (const { feeAsset, amount } of feesDistributedLogs) {
-		minterFees.add(feeAsset, amount);
+		minterFees.add(feeAsset, amount, METRIC.BORROW_INTEREST);
 	}
 
 	const protocolFeeClaimedLogs = (
@@ -60,7 +56,7 @@ const fetch = async (options: FetchOptions) => {
 	).flat();
 	const protocolFees = options.createBalances();
 	for (const { feeAsset, amount } of protocolFeeClaimedLogs) {
-		protocolFees.add(feeAsset, amount);
+		protocolFees.add(feeAsset, amount, METRIC.PROTOCOL_FEES);
 	}
 
 	const restakerFeesLogs = await options.getLogs({
@@ -69,7 +65,7 @@ const fetch = async (options: FetchOptions) => {
 	});
 	const restakerFees = options.createBalances();
 	for (const log of restakerFeesLogs) {
-		restakerFees.add(log.asset, log.amount);
+		restakerFees.add(log.asset, log.amount, METRIC.STAKING_REWARDS);
 	}
 
 	const insuranceFunds = vaultConfigs
@@ -97,17 +93,17 @@ const fetch = async (options: FetchOptions) => {
 	dailyFees.addBalances(minterFees, METRIC.ASSETS_YIELDS);
 	dailyFees.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
 	dailyFees.addBalances(restakerFees, METRIC.STAKING_REWARDS);
-	dailyFees.addBalances(insuranceFundFees, METRICS.INSURANCE_FUND_FEES);
+	dailyFees.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 	dailyFees.addBalances(capUsdMintFees, METRIC.MINT_REDEEM_FEES);
 
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.addBalances(protocolFees, METRIC.PROTOCOL_FEES);
-	dailyRevenue.addBalances(capUsdMintFees, METRIC.MINT_REDEEM_FEES);
+dailyRevenue.addBalances(capUsdMintFees, METRIC.MINT_REDEEM_FEES);
 	
 	const dailySupplySideRevenue = options.createBalances();
 	dailySupplySideRevenue.addBalances(minterFees, METRIC.ASSETS_YIELDS);
 	dailySupplySideRevenue.addBalances(restakerFees, METRIC.STAKING_REWARDS);
-	dailySupplySideRevenue.addBalances(insuranceFundFees, METRICS.INSURANCE_FUND_FEES);
+	dailySupplySideRevenue.addBalances(insuranceFundFees, 'Insurance Fund Fees');
 
 	return {
 		dailyFees,
@@ -129,7 +125,7 @@ const breakdownMethodology = {
 		[METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
 		[METRIC.PROTOCOL_FEES]: "Protocol share of borrow fees.",
 		[METRIC.STAKING_REWARDS]: "Restaker fees distributed to delegators.",
-		[METRICS.INSURANCE_FUND_FEES]: "Fees allocated to insurance funds from minting.",
+		'Insurance Fund Fees': "Fees allocated to insurance funds from minting.",
 		[METRIC.MINT_REDEEM_FEES]: "0.1% of mint amount paid as fees for cUSD.",
 	},
 	Revenue: {
@@ -139,7 +135,7 @@ const breakdownMethodology = {
 	SupplySideRevenue: {
 		[METRIC.ASSETS_YIELDS]: "Yields earned on vault deposits",
 		[METRIC.STAKING_REWARDS]: "Restaker fees distributed to delegators.",
-		[METRICS.INSURANCE_FUND_FEES]: "Fees allocated to insurance funds from minting.",
+	  'Insurance Fund Fees': "Fees allocated to insurance funds from minting.",
 	},
 };
 
