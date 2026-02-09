@@ -237,19 +237,19 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.PARADEX]: {
       fetch: fetchParadex,
-      start: "2024-10-05",
+      start: "2025-11-11",
     },
     [CHAIN.INK]: {
       fetch: fetchInk,
-      start: "2024-10-05",
+      start: "2026-01-07",
     },
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: "2024-10-05",
+      start: "2025-10-13",
     },
     [CHAIN.BSC]: {
       fetch: fetchBsc,
-      start: "2024-10-05",
+      start: "2025-10-08",
     },
   },
   methodology,
