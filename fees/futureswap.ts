@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { METRIC } from '../helpers/metrics';
 
 interface IExchange {
   address: string,
@@ -40,7 +41,6 @@ const abis = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-
   const exchanges = exchangeConfigs[options.chain];
 
   const logs = await options.getLogs({
@@ -51,7 +51,8 @@ const fetch = async (options: FetchOptions) => {
 
   for (let i = 0; i < exchanges.length; i++) {
     for (const log of logs[i]) {
-      dailyFees.add(exchanges[i].baseToken, BigInt(log.tradeFee) * BigInt(10**exchanges[i].baseTokenDecimals) / BigInt(1e18));
+      const amount = BigInt(log.tradeFee) * BigInt(10**exchanges[i].baseTokenDecimals) / BigInt(1e18);
+      dailyFees.add(exchanges[i].baseToken, amount, METRIC.TRADING_FEES);
     }
   }
 
@@ -64,8 +65,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Trading fees as reported by the tradeFee field in PositionChanged events. Futureswap is a leveraged derivatives protocol and does not emit explicit fee settlement events.',
-  Revenue:
-    'All reported trade fees are treated as protocol revenue due to lack of on-chain fee distribution data.',
+  Revenue: 'All reported trade fees are treated as protocol revenue due to lack of on-chain fee distribution data.',
   ProtocolRevenue: 'Same as Revenue.',
 };
 
@@ -77,6 +77,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.AVAX]: { start: '2022-04-22' },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: 'Trading fees collected from the tradeFee field in PositionChanged events when users open, close, or modify leveraged positions.',
+    },
+  },
 };
 
 export default adapter;

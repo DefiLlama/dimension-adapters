@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { queryDuneSql } from '../helpers/dune';
 import { getSolanaReceived } from '../helpers/token';
+import { METRIC } from '../helpers/metrics';
 
 const GEODNET_TOKEN_ADDRESS = '0xAC0F66379A6d7801D7726d5a943356A172549Adb';
 const TOPIC_0_EVT_TRANSFER = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -16,7 +16,8 @@ interface ILog {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const balances = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
 
   const burnedEventLogs: ILog[] = await options.getLogs({
     target: GEODNET_TOKEN_ADDRESS,
@@ -24,17 +25,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   })
 
   burnedEventLogs.forEach((log: ILog) => {
-    balances.add(GEODNET_TOKEN_ADDRESS, Number(log.data));
+    dailyHoldersRevenue.add(GEODNET_TOKEN_ADDRESS, Number(log.data), METRIC.TOKEN_BUY_BACK);
   })
 
-
-  const dailyHoldersRevenue = balances
-  const dailyFees = balances.clone(1 / 0.8)
-  const dailyRevenue = dailyFees;
+  const burnBalancesScaled = dailyHoldersRevenue.clone(1 / 0.8);
+  dailyFees.addBalances(burnBalancesScaled, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailyHoldersRevenue,
   };
 };
@@ -51,14 +50,19 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   //   group by
   //       1
   // `;
-  const fees = await getSolanaReceived({ options, target: INCINERATOR_ADDRESS, mints: ['7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'] });
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  const dailyFees = fees.clone(1 / 0.8)
+  const burnedBalances = await getSolanaReceived({ options, target: INCINERATOR_ADDRESS, mints: ['7JA5eZdCzztSfQbJvS8aVVxMFfd81Rs9VvwnocV1mKHu'] });
+  dailyHoldersRevenue.addBalances(burnedBalances, METRIC.TOKEN_BUY_BACK);
+
+  const burnBalancesScaled = burnedBalances.clone(1 / 0.8);
+  dailyFees.addBalances(burnBalancesScaled, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyHoldersRevenue: fees,
+    dailyHoldersRevenue,
   };
 }
 
@@ -78,6 +82,17 @@ const adapter: SimpleAdapter = {
     Fees: 'GEODNET receives fees for station access to their RTK network.',
     Revenue: "When GEODNET receives fees for station access, 80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation. The remaining 20% supports the foundation's organizational costs.",
     HoldersRevenue: '80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SERVICE_FEES]: 'Total station access fees inferred from GEOD burns (burns represent 80% of total fees, so total = burns / 0.8).',
+    },
+    Revenue: {
+      [METRIC.SERVICE_FEES]: 'Total revenue from station access fees, including both the 80% used for GEOD buyback-and-burn and the 20% retained by the foundation.',
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: 'GEOD tokens bought back from the open market and sent to the burn address, representing 80% of station access fees redistributed to holders.',
+    },
   },
 };
 
