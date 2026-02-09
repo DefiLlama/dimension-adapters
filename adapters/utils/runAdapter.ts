@@ -91,6 +91,7 @@ type AdapterRunOptions = {
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
   cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+  runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
@@ -132,12 +133,14 @@ async function _runAdapter({
   isTest = false,
   withMetadata = false,
   deadChains = new Set(),
+  runWindowInSeconds = ONE_DAY_IN_SECONDS,
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
   const moduleUID = module._randomUID
-  const isHourly = isHourlyAdapter(module)
-  const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
+  // const isHourly = isHourlyAdapter(module)
+  // const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
+  const WINDOW_SECONDS = runWindowInSeconds
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
   const { prefetch, allowNegativeValue = false, } = module
