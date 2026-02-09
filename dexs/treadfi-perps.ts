@@ -38,6 +38,7 @@ interface TreadToolsApiResponse {
     };
   };
   timestamp: string;
+  queriedDate: string | null;
   dateRange: {
     start: string;
     end: string;
@@ -54,21 +55,10 @@ const getHeaders = () => {
   };
 };
 
-// Cache TreadTools response to avoid multiple API calls per run
-let treadToolsCache: { data: TreadToolsApiResponse | null; timestamp: number } = {
-  data: null,
-  timestamp: 0,
-};
-
-const fetchTreadToolsData = async (): Promise<TreadToolsApiResponse> => {
-  const now = Date.now();
-  // Cache for 5 minutes
-  if (treadToolsCache.data && now - treadToolsCache.timestamp < 5 * 60 * 1000) {
-    return treadToolsCache.data;
-  }
-
+const fetchTreadToolsData = async (startOfDay: number): Promise<TreadToolsApiResponse> => {
   try {
-    const response: TreadToolsApiResponse = await httpGet(TREADTOOLS_API_URL, {
+    const url = `${TREADTOOLS_API_URL}?timestamp=${startOfDay}`;
+    const response: TreadToolsApiResponse = await httpGet(url, {
       headers: getHeaders(),
     });
 
@@ -76,7 +66,6 @@ const fetchTreadToolsData = async (): Promise<TreadToolsApiResponse> => {
       throw new Error(`API returned status: ${response.status}`);
     }
 
-    treadToolsCache = { data: response, timestamp: now };
     return response;
   } catch (error: any) {
     throw new Error(`Failed to fetch TreadTools data: ${error.message}`);
@@ -126,7 +115,7 @@ const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData();
+  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
   const paradexData = treadToolsData.data?.paradex;
 
   if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
@@ -149,7 +138,7 @@ const fetchInk = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData();
+  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
   const nadoData = treadToolsData.data?.nado;
 
   if (nadoData && typeof nadoData.dailyVolume === "number" && nadoData.dailyVolume > 0) {
@@ -172,7 +161,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData();
+  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
   const pacificaData = treadToolsData.data?.pacifica;
   const bybitData = treadToolsData.data?.bybit;
 
@@ -203,7 +192,7 @@ const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const treadToolsData = await fetchTreadToolsData();
+  const treadToolsData = await fetchTreadToolsData(options.startOfDay);
   const asterData = treadToolsData.data?.aster;
   const binanceData = treadToolsData.data?.binance;
 
