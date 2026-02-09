@@ -66,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   bal_bal_yield_logs.map((e: any) => {
-    dailyFees.add(BAL_TOKEN, '0x' + e.data, [METRIC.ASSETS_YIELDS])
+    dailyFees.add(BAL_TOKEN, '0x' + e.data, METRIC.ASSETS_YIELDS)
   });
 
 

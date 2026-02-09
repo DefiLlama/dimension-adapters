@@ -8,7 +8,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const feesStart = await options.fromApi.call({ target: address, abi: "uint:GGR" })
   const feesEnd = await options.toApi.call({ target: address, abi: "uint:GGR" })
-  dailyFees.add(ADDRESSES.mode.USDC, feesEnd - feesStart, [METRIC.PROTOCOL_FEES])
+  dailyFees.add(ADDRESSES.mode.USDC, feesEnd - feesStart, METRIC.PROTOCOL_FEES)
   dailyFees.resizeBy(0.065)
   return { dailyFees, dailyRevenue: dailyFees }
 }

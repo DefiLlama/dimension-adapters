@@ -29,10 +29,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   let token = options.chain === CHAIN.BSC ? ETH_ON_BSC : ZeroAddress
 
-  dailyFees.add(token, df, [METRIC.STAKING_REWARDS])
+  dailyFees.add(token, df, METRIC.STAKING_REWARDS)
 
-  const dailyProtocolRevenue = dailyFees.clone(0.1, [METRIC.PROTOCOL_FEES])
-  const dailySupplySideRevenue = dailyFees.clone(0.9, [METRIC.STAKING_REWARDS])
+  const dailyProtocolRevenue = dailyFees.clone(0.1, METRIC.PROTOCOL_FEES)
+  const dailySupplySideRevenue = dailyFees.clone(0.9, METRIC.STAKING_REWARDS)
 
   return {
     dailyFees,

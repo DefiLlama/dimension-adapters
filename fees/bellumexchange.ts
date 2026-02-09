@@ -22,8 +22,8 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: "event BellumSwap(address indexed token, address indexed sender, uint amount0In, uint amount0Out, uint amount1In, uint amount1Out)",
   })
   logs.map((tx: any) => {
-    dailyFees.addGasToken((tx.amount1In + tx.amount1Out) / FEE, [METRIC.TRADING_FEES])
-    dailyRevenue.addGasToken((tx.amount1In + tx.amount1Out) / FEE, [METRIC.TRADING_FEES])
+    dailyFees.addGasToken((tx.amount1In + tx.amount1Out) / FEE, METRIC.TRADING_FEES)
+    dailyRevenue.addGasToken((tx.amount1In + tx.amount1Out) / FEE, METRIC.TRADING_FEES)
   })
   return { dailyFees, dailyRevenue }
 }

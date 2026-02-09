@@ -24,8 +24,8 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     eventAbi: 'event Deposit (address indexed account, address indexed erc20, uint256 amount)'
   });
   logs.forEach((e: any) => {
-    dailyFees.add(e.erc20, e.amount, [METRIC.SERVICE_FEES])
-    dailyRevenue.add(e.erc20, e.amount, [METRIC.SERVICE_FEES])
+    dailyFees.add(e.erc20, e.amount, METRIC.SERVICE_FEES)
+    dailyRevenue.add(e.erc20, e.amount, METRIC.SERVICE_FEES)
   })
   return { dailyFees, dailyRevenue };
 }

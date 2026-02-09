@@ -14,9 +14,9 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const amounts = logs.map((e: any) => e.amount)
-  dailyFees.add(ethAddress, amounts, [METRIC.CREATOR_FEES])
+  dailyFees.add(ethAddress, amounts, METRIC.CREATOR_FEES)
   dailyFees.resizeBy(1 / 0.9) // 90% of the fees go to the artists
-  dailyRevenue.addBalances(dailyFees, [METRIC.PROTOCOL_FEES])
+  dailyRevenue.addBalances(dailyFees, METRIC.PROTOCOL_FEES)
   dailyRevenue.resizeBy(protocol_fees / 100) // 10% of the fees go to the protocol
 
   return { dailyFees, dailyRevenue }

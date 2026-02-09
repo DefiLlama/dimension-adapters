@@ -26,10 +26,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0, [METRIC.STAKING_REWARDS]);
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, [METRIC.MANAGEMENT_FEES]);
-      dailyProtocolRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, [METRIC.MANAGEMENT_FEES]);
+      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, METRIC.MANAGEMENT_FEES);
+      dailyProtocolRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, METRIC.MANAGEMENT_FEES);
     }
   });
 

@@ -49,8 +49,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 
   const fees = await queryDuneSql(options, query);
 
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, [METRIC.TRADING_FEES]);
-  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee, [METRIC.TRADING_FEES]);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
 
   return {
     dailyFees,

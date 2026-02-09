@@ -58,10 +58,10 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, [METRIC.TRADING_FEES]);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
 
   const dailyRevenue = options.createBalances();
-  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, [METRIC.TRADING_FEES]);
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
 
   return { dailyFees, dailyRevenue }
 }
@@ -128,8 +128,8 @@ const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
   logs.forEach((log: any) => {
     const data = log.data.replace('0x', '');
     const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
-    dailyFees.addGasToken(fees_amount, [METRIC.TRADING_FEES]);
-    dailyRevenue.addGasToken(fees_amount, [METRIC.TRADING_FEES]);
+    dailyFees.addGasToken(fees_amount, METRIC.TRADING_FEES);
+    dailyRevenue.addGasToken(fees_amount, METRIC.TRADING_FEES);
   })
   return { dailyFees, dailyRevenue } 
 }
