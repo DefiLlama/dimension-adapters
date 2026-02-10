@@ -37,19 +37,16 @@ function fetchV1({ protocolName, minContracts }: { protocolName: string, minCont
         query: {
           bool: {
             must: [
-              { 
-                range: { 
-                  timestamp: {
-                    gte: startTimestamp * 1000,
-                    lt: endTimestamp * 1000
-                  }
+              {
+                term: {
+                  dayTimestamp: options.startOfDay * 1000
                 }
               },
               { term: { 'exchange.keyword': protocolName } }
             ]
           }
         },
-        size: 10000
+        size: 100
       }
     });
 
@@ -111,16 +108,16 @@ function fetchV2({ protocolName, minContracts }: { protocolName: string, minCont
               { 
                 range: { 
                   timestamp: {
-                    gte: startTimestamp * 1000,
+                    gte: (startTimestamp + 1) * 1000,
                     lt: endTimestamp * 1000
                   }
                 }
               },
-              { term: { exchange: protocolName } }
+              { term: { 'exchange.keyword': protocolName } }
             ]
           }
         },
-        size: 10000
+        size: 100
       }
     });
 
@@ -206,7 +203,7 @@ const protocols = {
     protocolName: 'lighter',
     chains: [CHAIN.ZK_LIGHTER],
     start: '2026-01-20',
-    minContracts: 130
+    minContracts: 100
   }),
   'aster': dailyNormalizedVolumeAdapter({
     protocolName: 'aster',
