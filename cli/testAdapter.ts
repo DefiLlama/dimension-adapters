@@ -76,10 +76,10 @@ let usedHelper: string | null | undefined = null;
   const rawTimeArg = process.argv[4]
   const cleanDayTimestamp = rawTimeArg ? toTimestamp(rawTimeArg) : getUniqStartOfTodayTimestamp(new Date())
   let endCleanDayTimestamp = cleanDayTimestamp;
-  console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
-  console.info(`---------------------------------------------------`)
+  // console.info(`🦙 Running ${process.argv[3].toUpperCase()} adapter 🦙`)
+  // console.info(`---------------------------------------------------`)
   // Import module to test
-  let module: SimpleAdapter = (await import(passedFile)).default
+  let module: SimpleAdapter = adapterModule
   const adapterVersion = module.version
   const isHourly = isHourlyAdapter(module)
   const isPlainDate = isPlainDateArg(rawTimeArg)
