@@ -18,7 +18,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0, METRIC.MEV_REWARDS)
 
   return {
-    dailyFees
+    dailyFees,
+    dailyRevenue: dailyFees,
   }
 }
 
@@ -33,6 +34,9 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
+      [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
+    },
+    Revenue: {
       [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
     },
   },
