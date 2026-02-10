@@ -13,7 +13,7 @@ type IConfig = {
   };
 }
 
-const configs: IConfig = {
+export const configs: IConfig = {
   [CHAIN.ETHEREUM]: {
     routerAddress: '0x881d40237659c251811cec9c364ef91dc08d300c',
     getTrasnactionLimit: 5000,
@@ -87,7 +87,7 @@ async function retry(chain: string, fromBlock: number, toBlock: number, address:
   return [];
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances()
 
   const blacklistTokens: Array<string> = getDefaultDexTokensBlacklisted(options.chain)
@@ -123,18 +123,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 }
 
-const methodology = {
-  Volume: 'Total token swap volumes by users using Metamask wallet.',
-  Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
-  Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
-  ProtocolRevenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
-}
-
 const adapter: Adapter = {
   version: 2,
   fetch,
   adapter: configs,
-  methodology,
 }
 
 export default adapter;
