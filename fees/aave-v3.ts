@@ -113,6 +113,10 @@ const chainConfig = {
     pools: AaveMarkets[CHAIN.PLASMA],
     start: '2025-09-25',
   },
+  [CHAIN.MEGAETH]: {
+    pools: AaveMarkets[CHAIN.MEGAETH],
+    start: '2026-02-09',
+  },
 }
 
 const fetch = async (options: FetchOptions) => {

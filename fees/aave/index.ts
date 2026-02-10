@@ -195,6 +195,13 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0xf2D6E38B407e31E7E7e4a16E6769728b76c7419F',
     },
   ],
+  [CHAIN.MEGAETH]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x7e324AbC5De01d112AfC03a584966ff199741C28',
+      dataProvider: '0x9588b453A4EE24a420830CB3302195cA7aA3b403',
+    },
+  ],
 }
 
 const info = {
@@ -321,6 +328,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.SONEIUM]: {
         pools: AaveMarkets[CHAIN.SONEIUM],
         start: '2025-05-14',
+      },
+      [CHAIN.MEGAETH]: {
+        pools: AaveMarkets[CHAIN.MEGAETH],
+        start: '2026-02-10',
       },
     }),
   }
