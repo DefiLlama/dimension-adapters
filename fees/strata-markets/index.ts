@@ -49,8 +49,12 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({ targets: vaultAddresses, eventAbi: WITHDRAW_EVENT }),
   ]);
 
-  depositLogs.forEach((log: any) => totalDeposits += Number(log.assets));
-  withdrawLogs.forEach((log: any) => totalWithdrawals += Number(log.assets));
+  for (const log of depositLogs) {
+    totalDeposits += Number(log.assets);
+  }
+  for (const log of withdrawLogs) {
+    totalWithdrawals += Number(log.assets);
+  }
   const netUserFlows = totalDeposits - totalWithdrawals;
 
   // 3. Get Admin Flows (Reserve Reductions)
@@ -109,11 +113,11 @@ const fetch = async (options: FetchOptions) => {
   // Fees: Gross Yield + All Redemption Fees
   const totalFees = grossYield + redemptionFeesTotal;
 
-  // Revenue: Performance Fees + All Redemption Fees
-  const totalRevenue = performanceFee + redemptionFeesTotal;
+  // Protocol Revenue: Performance Fee + Redemption Fees Reserve
+  const protocolRevenue = performanceFee + redemptionFeesReserve;
 
-  // Protocol Revenue: Same as Revenue
-  const protocolRevenue = totalRevenue;
+  // Total Revenue: Performance Fee + Redemption Fees Total
+  const totalRevenue = performanceFee + redemptionFeesTotal;
 
   // SupplySide Revenue: Gross Yield - Performance Fees + Redemption Fees kept by Tranche
   const supplySideRevenue = (grossYield - performanceFee) + redemptionFeesTranche;
@@ -133,8 +137,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Includes yield generated on deposited assets as well as fees charged by Strata, including performance and redemption fees.",
-  Revenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with senior and junior tranche holders.",
-  ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with senior and junior tranche holders.",
+  Revenue: "Protocol revenue consists of performance and total redemption fees collected by Strata, including the portion of fees shared with senior and junior tranche holders and reserve.",
+  ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with reserve.",
   SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche."
 }
 
