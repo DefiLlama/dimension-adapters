@@ -150,6 +150,7 @@ export type FetchResultVolume = FetchResultBase & {
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
   dailyNormalizedVolume?: FetchResponseValue
+  dailyActiveLiquidity?: FetchResponseValue
 };
 
 // FEES
@@ -219,7 +220,7 @@ export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggre
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume',
+  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume', 'dailyActiveLiquidity',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',

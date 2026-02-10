@@ -3,13 +3,14 @@ import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 import { elastic } from "@defillama/sdk";
 
-const HOURLY_VOLUME_INDEX = 'hourly-perp-metrics';
+const HOURLY_VOLUME_INDEX = 'perp-metrics';
 
 interface NormalizedVolumeConfig {
   protocolName: string;
   chains: string[];
   start?: number | string;
   version?: 1 | 2;
+  minContracts?: number;
 }
 
 interface HourlyVolumeRecord {
@@ -20,12 +21,13 @@ interface HourlyVolumeRecord {
   normalized_volume: number;
   reported_volume: number;
   contracts: number;
+  active_liquidity?: number;
 }
 
 const fetch = async (options: FetchOptions) => {
 }
 
-function fetchV1({ protocolName }: { protocolName: string }){
+function fetchV1({ protocolName, minContracts }: { protocolName: string, minContracts?: number }){
   return async (_a: any, _b: any, options: FetchOptions) => {
     const { startTimestamp, endTimestamp } = options;
     
@@ -43,7 +45,7 @@ function fetchV1({ protocolName }: { protocolName: string }){
                   }
                 }
               },
-              { term: { exchange: protocolName } }
+              { term: { 'exchange.keyword': protocolName } }
             ]
           }
         },
@@ -52,24 +54,51 @@ function fetchV1({ protocolName }: { protocolName: string }){
     });
 
     const records = (response.hits?.hits || []).map((hit: any) => hit._source as HourlyVolumeRecord);
-
-    if (records.length < 24) throw new Error('Incomplete orderbook data for ' + protocolName)
-    const dailyNormalizedVolume = records.reduce((sum, record) => {
+    // Verify data accuracy with min_contracts (5% miss rate threshold)
+    let completeRecords = records;
+    let accuracyRate = 100;
+    
+    if (minContracts !== undefined) {
+      const expectedMinContracts = minContracts * 0.95; // 5% miss rate tolerance per record
+      completeRecords = records.filter(record => (record.contracts || 0) >= expectedMinContracts);
+      accuracyRate = records.length > 0 ? (completeRecords.length / records.length) * 100 : 0;
+      
+      if (completeRecords.length < 24) {
+        throw new Error(
+          `Incomplete orderbook data for ${protocolName}: ${completeRecords.length}/24 complete records (accuracy rate: ${accuracyRate.toFixed(2)}%). ` +
+          `Expected at least ${expectedMinContracts.toFixed(0)} contracts per record.`
+        );
+      }
+    } else if (records.length < 24) {
+      throw new Error(`Incomplete orderbook data for ${protocolName}: ${records.length}/24 records`);
+    }
+    
+    const dailyNormalizedVolume = completeRecords.reduce((sum, record) => {
       return sum + (record.normalized_volume || 0);
     }, 0);
     
-    // const dailyVolume = records.reduce((sum, record) => {
+    // Calculate average active_liquidity where >0 and not undefined
+    const validActiveLiquidity = completeRecords
+      .map(record => record.active_liquidity)
+      .filter(val => val !== undefined && val > 0) as number[];
+    
+    const dailyActiveLiquidity = validActiveLiquidity.length > 0
+      ? validActiveLiquidity.reduce((sum, val) => sum + val, 0) / validActiveLiquidity.length
+      : 0;
+    
+    // const dailyVolume = completeRecords.reduce((sum, record) => {
     //   return sum + (record.reported_volume || 0);
     // }, 0);
 
     return {
       dailyNormalizedVolume: dailyNormalizedVolume.toString(),
+      dailyActiveLiquidity: dailyActiveLiquidity.toString(),
       // dailyVolume: dailyVolume.toString()
     };
   }
 }
 
-function fetchV2({ protocolName }: { protocolName: string }){
+function fetchV2({ protocolName, minContracts }: { protocolName: string, minContracts?: number }){
   return async (options: FetchOptions) => {
     const { startTimestamp, endTimestamp } = options;
     
@@ -97,27 +126,55 @@ function fetchV2({ protocolName }: { protocolName: string }){
 
     const records = (response.hits?.hits || []).map((hit: any) => hit._source as HourlyVolumeRecord);
 
-    if (records.length < 24) throw new Error('Incomplete orderbook data for ' + protocolName)
-    const dailyNormalizedVolume = records.reduce((sum, record) => {
+    // Verify data accuracy with min_contracts (5% miss rate threshold)
+    let completeRecords = records;
+    let accuracyRate = 100;
+    
+    if (minContracts !== undefined) {
+      const expectedMinContracts = minContracts * 0.95; // 5% miss rate tolerance per record
+      completeRecords = records.filter(record => (record.contracts || 0) >= expectedMinContracts);
+      accuracyRate = records.length > 0 ? (completeRecords.length / records.length) * 100 : 0;
+      
+      if (completeRecords.length < 24) {
+        throw new Error(
+          `Incomplete orderbook data for ${protocolName}: ${completeRecords.length}/24 complete records (accuracy rate: ${accuracyRate.toFixed(2)}%). ` +
+          `Expected at least ${expectedMinContracts.toFixed(0)} contracts per record.`
+        );
+      }
+    } else if (records.length < 24) {
+      throw new Error(`Incomplete orderbook data for ${protocolName}: ${records.length}/24 records`);
+    }
+
+    const dailyNormalizedVolume = completeRecords.reduce((sum, record) => {
       return sum + (record.normalized_volume || 0);
     }, 0);
     
-    // const dailyVolume = records.reduce((sum, record) => {
+    // Calculate average active_liquidity where >0 and not undefined
+    const validActiveLiquidity = completeRecords
+      .map(record => record.active_liquidity)
+      .filter(val => val !== undefined && val > 0) as number[];
+    
+    const dailyActiveLiquidity = validActiveLiquidity.length > 0
+      ? validActiveLiquidity.reduce((sum, val) => sum + val, 0) / validActiveLiquidity.length
+      : 0;
+    
+    // const dailyVolume = completeRecords.reduce((sum, record) => {
     //   return sum + (record.reported_volume || 0);
     // }, 0);
 
     return {
       dailyNormalizedVolume: dailyNormalizedVolume.toString(),
+      dailyActiveLiquidity: dailyActiveLiquidity.toString(),
       // dailyVolume: dailyVolume.toString()
     };
   }
 }
 
 function dailyNormalizedVolumeAdapter(config: NormalizedVolumeConfig): SimpleAdapter {
-  const { protocolName, chains, start, version = 1 } = config;
+  const { protocolName, chains, start, version = 1, minContracts } = config;
 
   const adapter: any = {};
-  const fetchFn = version === 2 ? fetchV2({ protocolName }) : fetchV1({ protocolName });
+  const fetchFn = version === 2 ? fetchV2({ protocolName, minContracts }) : fetchV1({ protocolName, minContracts });
 
   chains.forEach(chain => {
     adapter[chain] = {
@@ -136,28 +193,33 @@ const protocols = {
   'hyperliquid': dailyNormalizedVolumeAdapter({
     protocolName: 'hyperliquid',
     chains: [CHAIN.HYPERLIQUID],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 285
   }),
   'edgex': dailyNormalizedVolumeAdapter({
     protocolName: 'edgex',
     chains: [CHAIN.EDGEX],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 170
   }),
   'lighter': dailyNormalizedVolumeAdapter({
     protocolName: 'lighter',
     chains: [CHAIN.ZK_LIGHTER],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 130
   }),
   'aster': dailyNormalizedVolumeAdapter({
     protocolName: 'aster',
     chains: [CHAIN.OFF_CHAIN],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 260
   }),
   'paradex': dailyNormalizedVolumeAdapter({
     protocolName: 'paradex',
     chains: [CHAIN.PARADEX],
     start: '2026-01-20',
-    version: 2
+    version: 2,
+    minContracts: 90
   }),
   'sunx': dailyNormalizedVolumeAdapter({
     protocolName: 'sunx',
@@ -167,24 +229,28 @@ const protocols = {
   'apex-omni': dailyNormalizedVolumeAdapter({
     protocolName: 'apex-omni',
     chains: [CHAIN.ETHEREUM],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 90
   }),
   'grvt': dailyNormalizedVolumeAdapter({
     protocolName: 'grvt',
     chains: [CHAIN.GRVT],
     start: '2026-01-20',
-    version: 2
+    version: 2,
+    minContracts: 80
   }),
   'pacifica': dailyNormalizedVolumeAdapter({
     protocolName: 'pacifica',
     chains: [CHAIN.SOLANA],
     start: '2026-01-20',
-    version: 2
+    version: 2,
+    minContracts: 45
   }),
   'extended': dailyNormalizedVolumeAdapter({
     protocolName: 'extended',
     chains: [CHAIN.STARKNET],
-    start: '2026-01-20'
+    start: '2026-01-20',
+    minContracts: 75
   }),
 } as const;
 
