@@ -8,4 +8,6 @@ export default uniV3Exports({
     revenueRatio: 0.1,
     protocolRevenueRatio: 0.1,
   }
+}, {
+  pullHourly: true,
 })
