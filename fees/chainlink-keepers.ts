@@ -76,17 +76,16 @@ const addresses: TAddress = {
 const getTransactions = async (
   fromBlock: number,
   toBlock: number,
-  api: ChainApi
+  api: ChainApi,
+  getLogs: FetchOptions["getLogs"]
 ): Promise<{ transactions: any[]; totalPayment: number }> => {
   const target = addresses[api.chain].address;
   const TX_HASH_BATCH = 50;
   const MAX_PARALLEL = 3;
 
-  const logs = await api.getLogs({
+  const logs = await getLogs({
     target,
-    fromBlock,
-    toBlock,
-    topics: [topics.upkeepPerformed, null, topics.success],
+    topics: [topics.upkeepPerformed, null, topics.success] as any[],
     eventAbi: eventAbis.upkeepPerformed,
     onlyArgs: false,
   });
@@ -144,13 +143,13 @@ const getTransactions = async (
   return { transactions: allTransactions, totalPayment };
 };
 
-const fetch = async ({ createBalances, api, fromApi, toApi }: FetchOptions) => {
+const fetch = async ({ createBalances, api, fromApi, toApi, getLogs }: FetchOptions) => {
   const fromBlock = Number(fromApi.block)
   const toBlock = Number(toApi.block)
   const dailyRevenue = createBalances();
   const dailyGas = createBalances();
   const dailyPayment = createBalances();
-  const { transactions, totalPayment } = await getTransactions(fromBlock, toBlock, api);
+  const { transactions, totalPayment } = await getTransactions(fromBlock, toBlock, api, getLogs);
 
   const dailyGasUsed = transactions.reduce((acc, tx) => {
     const gasUsed = Number(tx.gasUsed ?? 0);

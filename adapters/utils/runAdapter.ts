@@ -344,10 +344,51 @@ async function _runAdapter({
 
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
+      const requestCount = targets ? targets.length : 1
+      if (api) api.addStat('logsRequests', requestCount)
 
       return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
+
+    const streamLogs = async (params: Parameters<typeof sdk.indexer.getLogs>[0] & {
+      targetsFilter?: string[] | Set<string>
+    }) => {
+
+
+      if (!sdk.indexer.supportedChainSet2.has(chain)) {
+        throw new Error(`streamLogs is not supported for ${chain} chain`)
+      }
+
+      const origProcessor = params.processor
+      let targetsFilter = params.targetsFilter
+
+      if (Array.isArray(targetsFilter))
+        targetsFilter = new Set(targetsFilter.map((t) => t.toLowerCase()))
+
+      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
+      if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
+      if (!params.hasOwnProperty('all')) params.all = true
+      if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
+      if (!params.hasOwnProperty('collect')) params.collect = false
+      if (!params.hasOwnProperty('onlyArgs') && !params.entireLog) params.onlyArgs = true
+
+      if (params.hasOwnProperty('processor')) params.processor = (chunk: any | any[]) => {
+        let swapLogs = Array.isArray(chunk) ? chunk : [chunk]
+
+        if (targetsFilter)
+          swapLogs = swapLogs.filter((log) => targetsFilter!.has(log.address.toLowerCase()))
+
+
+        origProcessor!(swapLogs)
+      }
+
+
+      const requestCount = params.targets ? params.targets.length : 1
+      if (api) api.addStat('streamLogs', requestCount)
+
+      return sdk.indexer.getLogs({ ...params, chain })
+    }
     // we intentionally add a delay to avoid fetching the same block before it is cached
     // await randomDelay()
 
@@ -365,6 +406,9 @@ async function _runAdapter({
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api
+
+    api.getLogs = () => { throw new Error('api.getLogs is disabled, use getLogs from options object instead') }
+    fromApi.getLogs = () => { throw new Error('fromApi.getLogs is disabled, use getLogs from options object instead') }
 
     return {
       createBalances,
@@ -386,6 +430,7 @@ async function _runAdapter({
       dateString: getDateString(startOfDay),
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
+      streamLogs,
     }
   }
 
