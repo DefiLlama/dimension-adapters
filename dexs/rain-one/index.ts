@@ -1,8 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import coreAssets from "../../helpers/coreAssets.json";
 
-const usdt = coreAssets.arbitrum.USDT;
 const rainFactory = "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1";
 
 const enterOptionEvent =
@@ -15,37 +13,34 @@ const poolTokenSetEvent =
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const poolCreationLogs = await options.api.getLogs({
+  const poolCreationLogs = await options.getLogs({
     target: rainFactory,
     eventAbi: poolCreatedEvent,
     fromBlock: 307026817,
-    toTimestamp: options.toTimestamp,
     cacheInCloud: true,
   });
 
-  const pools = poolCreationLogs.map((log) => log.args.poolAddress);
+  const pools = poolCreationLogs.map((log) => log.poolAddress);
 
   const poolsEndTime = await options.api.multiCall({ abi: "uint256:endTime", calls: pools, });
 
   const filteredPools = pools.filter((_, i) => poolsEndTime[i] >= options.fromTimestamp,);
 
-  const poolTokenSetLogs = await options.api.getLogs({
+  const poolTokenSetLogs = await options.getLogs({
     target: rainFactory,
     eventAbi: poolTokenSetEvent,
     fromBlock: 307026817,
-    toTimestamp: options.toTimestamp,
     cacheInCloud: true,
   });
 
   const poolTokenMap: Record<string, { token: string; decimals: number }> = {};
 
   poolTokenSetLogs.forEach((log) => {
-    poolTokenMap[log.args.poolAddress.toLowerCase()] = {
-      token: log.args.tokenAddress.toLowerCase(),
-      decimals: Number(log.args.tokenDecimals),
+    poolTokenMap[log.poolAddress.toLowerCase()] = {
+      token: log.tokenAddress.toLowerCase(),
+      decimals: Number(log.tokenDecimals),
     };
   });
-
 
   await options.streamLogs({
     noTarget: true,
@@ -56,11 +51,9 @@ const fetch = async (options: FetchOptions) => {
       console.log(`Processed ${Array.isArray(logs) ? logs.length : 1} enterOption logs`)
       logs.forEach((log: any) => {
         const pool = log.address.toLowerCase();
-        const tokenInfo = poolTokenMap[pool] ?? {
-          token: usdt,
-          decimals: 6,
-        };
-        dailyVolume.addToken(tokenInfo?.token, log.args.baseAmount);
+        const tokenInfo = poolTokenMap[pool]
+        if (!tokenInfo) throw new Error(`Token info not found for pool ${pool}`);
+          dailyVolume.addToken(tokenInfo?.token, log.args.baseAmount);
       })
     }
   })
@@ -78,6 +71,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ARBITRUM],
   start: "2025-02-17",
   methodology,
+  pullHourly: true,
 };
 
 export default adapter;
