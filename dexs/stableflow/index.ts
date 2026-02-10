@@ -43,7 +43,7 @@ const fetch: Fetch = async (_timestamp, _chainBlocks, options): Promise<FetchRes
     preFetchedResults: data,
   } = options;
 
-  const record = data.find((item: ApiResponse) => {
+  const record = Array.isArray(data) && data.find((item: ApiResponse) => {
     return item.chain === chainMap[currentChainBlock] && item.date_time >= startTimestamp && item.date_time < endTimestamp;
   });
 
