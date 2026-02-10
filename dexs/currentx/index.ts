@@ -11,7 +11,7 @@ const feesConfig = {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.CITREA]: {
+    [CHAIN.MEGAETH]: {
       fetch: getUniV3LogAdapter({ factory: '0x09cF8A0b9e8C89bff6d1ACbe1467e8E335Bdd03E', ...feesConfig }),
       start: "2026-02-05",
     },
@@ -19,3 +19,4 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
+
