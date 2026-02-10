@@ -44,6 +44,7 @@ function addByCategory(
     if (val != null && val > 0) {
       balances.addCGToken("solana", val);
     }
+  }
 }
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
