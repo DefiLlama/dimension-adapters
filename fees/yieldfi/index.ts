@@ -1,115 +1,115 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { getERC4626VaultsInfo } from "../../helpers/erc4626";
 
-
-const YUSD_CONTRACT = '0x4772D2e014F9fC3a820C444e3313968e9a5C8121'
-const VYUSD_CONTRACT = '0xF4F447E6AFa04c9D11Ef0e2fC0d7f19C24Ee55de'
-
-const VAULTS_CONTRACTS: Record<string, Array<string>> = {
-    [CHAIN.ETHEREUM]: [
-        '0x19Ebd191f7A24ECE672ba13A302212b5eF7F35cb',
-        '0x2e3C5e514EEf46727DE1FE44618027A9b70D92FC',
-        '0x8464F6eCAe1EA58EC816C13f964030eAb8Ec123A',
-        '0x3073112c2c4800b89764973d5790ccc7fba5c9f9',
-        '0xa01200b2e74DE6489cF56864E3d76BBc06fc6C43',
-        '0x1e2a5622178f93EFd4349E2eB3DbDF2761749e1B',
-    ],
+const ABI = {
+    NAV: "event NAVUpdated(address indexed vault, uint256 indexed newNav, uint256 vestingEndTime, uint256 managementFee, uint256 performanceFee)",
+    NAV_2: "event NAVUpdated(address indexed vault,uint256 oldNav,uint256 newNav,uint256 vestingEndTime)",
+    YIELD_PROXY: "event DistributeYield(address caller, address indexed asset, address indexed receiver, uint256 amount, bool profit)",
+    ASSET_SHARED: "event AssetAndShareManaged(address indexed caller,address indexed yToken,uint256 shares,uint256 assetAmount,bool updateAsset,bool isMint,bool isNewYToken)",
+    DEPLOY_VAULT: "event VaultDeployed(address indexed vault, address indexed implementation, string name, string symbol, bytes32 salt)"
 }
 
-// management fees per year
-const getFeeRate = (chain: string, vault: string): number => {
-    if (chain === CHAIN.ETHEREUM) {
-        if (vault.toLowerCase() === String('0x8464F6eCAe1EA58EC816C13f964030eAb8Ec123A') || vault.toLowerCase() === String('0x3073112c2c4800b89764973d5790ccc7fba5c9f9')) {
-            return 0.01; // 1% per year
-        } else if (vault.toLowerCase() === String('0xa01200b2e74DE6489cF56864E3d76BBc06fc6C43') || vault.toLowerCase() === String('0x1e2a5622178f93EFd4349E2eB3DbDF2761749e1B')) {
-            return 0.005; // 0.5% per year
-        }
+const CONTRACTS = {
+    NAV_MANAGER: {
+        [CHAIN.ETHEREUM]: "0x08fB9833A5a84d5bCEcDF5a4a635d33260C5F05C",
+        [CHAIN.BSC]: "0x08fB9833A5a84d5bCEcDF5a4a635d33260C5F05C",
+    },
+    VAULT_DEPLOYER: {
+        [CHAIN.ETHEREUM]: "0x5c46Ed83fC4446282a75d30375d993357aBa3878",
+        [CHAIN.BSC]: "0x5c46Ed83fC4446282a75d30375d993357aBa3878",
+    },
+    YIELD_PROXY: {
+        [CHAIN.ETHEREUM]: "0x392017161a9507F19644E8886A237C58809212B5",
+    },
+    V2_MANAGER: {
+        [CHAIN.ETHEREUM]: "0x03ACc35286bAAE6D73d99a9f14Ef13752208C8dC",
+    },
+    FROM_BLOCK: {
+        [CHAIN.ETHEREUM]: 24241384,
+        [CHAIN.BSC]: 76733207,
+    },
+}
+
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+
+    const yieldProxy = CONTRACTS.YIELD_PROXY[options.chain];
+    const manager = CONTRACTS.V2_MANAGER[options.chain];
+    const navManager = CONTRACTS.NAV_MANAGER[options.chain];
+    const vaultDeployer = CONTRACTS.VAULT_DEPLOYER[options.chain];
+    const fromBlock = CONTRACTS.FROM_BLOCK[options.chain];
+
+    if (yieldProxy) {
+        const yieldDistributedLogs = await options.getLogs({ target: yieldProxy, eventAbi: ABI.YIELD_PROXY });
+        const feeCollectedLogs = await options.getLogs({ target: manager, eventAbi: ABI.ASSET_SHARED });
+
+        yieldDistributedLogs.forEach((log: any) => dailyFees.add(log.asset, log.amount));
+
+        feeCollectedLogs.forEach((log: any) => {
+            dailyFees.add(log.yToken, log.assetAmount);
+            dailyRevenue.add(log.yToken, log.assetAmount);
+        });
     }
 
-    return 0.02; // default 2% per year
-}
+    if (navManager) {
+        const navManagerLogs = await options.getLogs({
+            target: navManager,
+            eventAbi: ABI.NAV,
+        });
+        const vaultDeployedLogs = await options.getLogs({
+            target: vaultDeployer,
+            eventAbi: ABI.DEPLOY_VAULT,
+            cacheInCloud: true,
+            fromBlock,
+        });
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const dailyFees = options.createBalances()
-    const dailyRevenue = options.createBalances()
+        navManagerLogs.forEach((log: any) => {
+            dailyFees.add(log.vault, log.managementFee + log.performanceFee);
+            dailyRevenue.add(log.vault, log.managementFee + log.performanceFee);
+        });
 
-    const vaults: Array<string> = options.chain === CHAIN.ETHEREUM ? VAULTS_CONTRACTS[options.chain] : [YUSD_CONTRACT, VYUSD_CONTRACT]
+        const vaults = vaultDeployedLogs.map((log: any) => log.vault);
+        const totalSupplies = await options.api.multiCall({ abi: 'uint256:totalSupply', calls: vaults, permitFailure: true });
+        const assets = await options.api.multiCall({ abi: 'address:asset', calls: vaults, permitFailure: true });
+        const decimals = await options.api.multiCall({ abi: 'uint8:decimals', calls: vaults, permitFailure: true });
+        const assetDecimals = await options.api.multiCall({ abi: 'uint8:decimals', calls: assets, permitFailure: true });
+        const vaultRateBefore = await options.fromApi.multiCall({ abi: 'uint256:getRate', calls: vaults, permitFailure: true });
+        const vaultRateAfter = await options.toApi.multiCall({ abi: 'uint256:getRate', calls: vaults, permitFailure: true });
 
-    const vaultInfosBefore = await getERC4626VaultsInfo(options.fromApi, vaults)
-    const vaultInfosAfter = await getERC4626VaultsInfo(options.toApi, vaults)
-    for (const vault of Object.keys(vaultInfosBefore)) {
-        if (vaultInfosBefore[vault] && vaultInfosAfter[vault]) {
-            const totalAssets = Number(vaultInfosAfter[vault].totalAssets) / (10 ** vaultInfosAfter[vault].decimals)
-            const growthCumulativeIndex = Number(vaultInfosAfter[vault].assetsPerShare) - Number(vaultInfosBefore[vault].assetsPerShare)
-            const growthYields = (growthCumulativeIndex / (10 ** vaultInfosAfter[vault].assetDecimals)) * totalAssets;
-            // management fees on totalAssets
-            const feeRate = getFeeRate(options.chain, vault)
-            const year = 365 * 24 * 3600
-            const timeframe = options.toTimestamp - options.fromTimestamp
-            const managementFees = totalAssets * feeRate * timeframe / year;
-
-            dailyFees.add(vaultInfosBefore[vault].asset, ((growthYields + managementFees) * (10 ** vaultInfosAfter[vault].decimals)))
-            dailyRevenue.add(vaultInfosBefore[vault].asset, (managementFees * (10 ** vaultInfosAfter[vault].decimals)))
+        for (let i = 0; i < vaults.length; i++) {
+            if (assets[i] && totalSupplies[i] && decimals[i] && assetDecimals[i] && vaultRateAfter[i] && vaultRateBefore[i])
+                dailyFees.add(assets[i], (totalSupplies[i] / 10 ** decimals[i]) * (vaultRateAfter[i] - vaultRateBefore[i]) / 10 ** (decimals[i] - assetDecimals[i]));
         }
     }
-    const dailySupplySideRevenue = dailyFees.clone(1)
-    dailySupplySideRevenue.subtract(dailyRevenue)
+    const dailySupplySideRevenue = dailyFees.clone();
+    dailySupplySideRevenue.subtract(dailyRevenue);
 
-    return {
-        dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
-        dailySupplySideRevenue,
-    };
-}
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue };
+};
+
 
 const methodology = {
-    Fees: 'Total yield generated by YieldFi across all supported chains + management fees by YieldFi',
-    Revenue: 'Total management fees by YieldFi.',
-    ProtocolRevenue: 'Total management fees by YieldFi.',
-    SupplySideRevenue: 'Total yield generated and distributed to vaults depositors.',
-}
+    Fees: "Total yield generated by YieldFi across all supported chains + management fees, performance fees by YieldFi",
+    Revenue: "Total management fees and performance fees charged by YieldFi.",
+    ProtocolRevenue: "Total management fees and performance fees charged by YieldFi.",
+    SupplySideRevenue: "Total yield generated and distributed to vaults depositors.",
+};
 
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     methodology,
+    allowNegativeValue: true, //NAV can go down
     adapter: {
         [CHAIN.ETHEREUM]: {
             start: '2024-11-11',
         },
-        [CHAIN.OPTIMISM]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.ARBITRUM]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.BASE]: {
-            start: '2025-04-30',
-        },
-        [CHAIN.SONIC]: {
-            start: '2025-05-09',
-        },
-        [CHAIN.PLUME]: {
-            start: '2025-06-10',
-        },
-        [CHAIN.KATANA]: {
-            start: '2025-07-31',
-        },
         [CHAIN.BSC]: {
             start: '2025-07-27',
         },
-        [CHAIN.AVAX]: {
-            start: '2025-07-31',
-        },
-        [CHAIN.TAC]: {
-            start: '2025-07-17',
-        },
-        [CHAIN.PLASMA]: {
-            start: '2025-09-30',
-        },
     },
 };
+
 
 export default adapter;

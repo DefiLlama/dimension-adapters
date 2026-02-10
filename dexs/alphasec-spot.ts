@@ -1,40 +1,35 @@
-import fetchURL from "../utils/fetchURL";
+import { SimpleAdapter } from "../adapters/types";
+import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
-const URL = "https://api.alphasec.trade/api/v1";
+const API_URL = "https://api.alphasec.trade/api/v1/defillama/stats";
 
 const fetch = async () => {
-  const markets = (await fetchURL(URL + '/market')).result.filter((i: any) => i.type === 'spot')
-  const marketData = (await fetchURL(URL + '/market/ticker')).result
+  const data = await httpGet(API_URL);
+  const stats = data.result;
 
-  const marketDataMap: any = {}
-  const tokenPriceMap: any = {
-    '2': 1, // USDT
-  }
+  return {
+    dailyVolume: stats.volume.daily,
+    dailyFees: stats.fees.daily,
+    dailyRevenue: stats.revenue.daily,
+    dailySupplySideRevenue: stats.supplySideRevenue.daily,
+  };
+};
 
-  marketData.forEach((market: any) => {
-    marketDataMap[market.marketId] = market
-    tokenPriceMap[market.baseTokenId] = market.price
-  })
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.ALPHASEC]: {
+      fetch,
+      runAtCurrTime: true,
+    },
+  },
+  methodology: {
+    Volume: 'Total notional value of all trades executed on the AlphaSec DEX.',
+    Fees: 'Total trading fees paid by users before any rebates or commissions are deducted.',
+    SupplySideRevenue: 'Rebates and commissions paid to ecosystem participants.',
+    Revenue: 'Total fees minus supply side revenue (rebates and commissions).',
+  },
+};
 
-  let dailyVolume = 0
-  let dailyFees = 0
-
-  markets.forEach((market: any) => {
-    const data = marketDataMap[market.marketId]
-    if (!data) return;
-    const price = tokenPriceMap[market.quoteTokenId] || 0
-    const usdValue = data.quoteVolume24h * price
-    const totalFees = +market.takerFee + +market.makerFee
-    dailyVolume += usdValue
-    dailyFees += usdValue * totalFees
-  })
-
-  return { dailyVolume, dailyFees, }
-}
-
-export default {
-  fetch,
-  runAtCurrTime: true,
-  chains: [CHAIN.ALPHASEC],
-}
+export default adapter;

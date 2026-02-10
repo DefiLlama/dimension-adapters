@@ -1,6 +1,7 @@
-import { Dependencies, FetchOptions, FetchResult, } from "../adapters/types";
+import { Dependencies, FetchOptions, FetchResult } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
 const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResult> => {
   const query = `
@@ -14,7 +15,7 @@ const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResu
   `
   const chainData = await queryDuneSql(options, query)
   const dailyFees = options.createBalances()
-  dailyFees.addCGToken('aptos', chainData[0]["total_rev"])
+  dailyFees.addCGToken('aptos', chainData[0]["total_rev"], METRIC.PROTOCOL_FEES)
 
   return { dailyFees, dailyRevenue: dailyFees, };
 };
@@ -29,6 +30,11 @@ const adapter: any = {
   methodology: {
     Fees: 'APT collected from selling chests.',
     Revenue: 'APT collected from selling chests.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.PROTOCOL_FEES]: 'APT cost paid by users when purchasing chests, queried from on-chain events.',
+    },
   }
 };
 

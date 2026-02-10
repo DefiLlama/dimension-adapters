@@ -1,12 +1,12 @@
-import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
+import { METRIC } from "../helpers/metrics";
 
 const BAL_TOKEN = '0xba100000625a3754423978a60c9317c58a424e3D';
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-
 
   // bal vote
   const bal_transfer_logs = await queryIndexer(`
@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
           AND block_time BETWEEN llama_replace_date_range;
       `, options);
 
-  // bal vote
+  // bal yield
   const bal_bal_yield_logs = await queryIndexer(`
         SELECT
           substr(encode(topic_1, 'hex'), 25) AS origin,
@@ -62,11 +62,11 @@ const fetch = async (options: FetchOptions) => {
   //         `, options);
 
   bal_transfer_logs.map((e: any) => {
-    dailyFees.add(BAL_TOKEN, '0x' + e.data)
+    dailyFees.add(BAL_TOKEN, '0x' + e.data, METRIC.STAKING_REWARDS)
   });
 
   bal_bal_yield_logs.map((e: any) => {
-    dailyFees.add(BAL_TOKEN, '0x' + e.data)
+    dailyFees.add(BAL_TOKEN, '0x' + e.data, METRIC.ASSETS_YIELDS)
   });
 
 
@@ -75,25 +75,46 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.resizeBy(0.25);
   const dailyHoldersRevenue = dailyFees.clone();
+  const dailyProtocolRevenue = dailyFees.clone();
   dailyHoldersRevenue.resizeBy(0.04);
+  dailyProtocolRevenue.resizeBy(0.21);
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue, }
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue, dailyProtocolRevenue }
 }
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch as any,
-      start: '2022-12-01',
-    },
-  },
+  chains: [CHAIN.ETHEREUM],
+  fetch,
+  start: '2022-12-01',
   methodology: {
     Fees: "Staking rewards from all staking pools from users.",
     Revenue: "Staking rewards collected by Aura.",
     HoldersRevenue: "Staking rewards earned by AURA holders.",
-    ProtocolRevenue: "Staking rewards earned by Aura.",
+    ProtocolRevenue: "Staking rewards retained by the Aura protocol.",
     SupplySideRevenue: "Staking rewards distributed to depositors."
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'BAL tokens received from vote incentive contracts to the Aura collector.',
+      [METRIC.ASSETS_YIELDS]: 'BAL tokens received from other yield sources to the Aura collector.',
+    },
+    Revenue: {
+      [METRIC.STAKING_REWARDS]: 'BAL vote incentive rewards retained by the Aura protocol and holders.',
+      [METRIC.ASSETS_YIELDS]: '25% of BAL yield rewards retained by the Aura protocol and holders.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: '75% of BAL vote incentive rewards distributed to depositors.',
+      [METRIC.ASSETS_YIELDS]: '75% of BAL yield rewards distributed to depositors.',
+    },
+    HoldersRevenue: {
+      [METRIC.STAKING_REWARDS]: '4% of BAL vote incentive rewards earned by AURA holders.',
+      [METRIC.ASSETS_YIELDS]: '4% of BAL yield rewards earned by AURA holders.',
+    },
+    ProtocolRevenue: {
+      [METRIC.STAKING_REWARDS]: '21% of BAL vote incentive rewards retained by the Aura protocol.',
+      [METRIC.ASSETS_YIELDS]: '21% of BAL yield rewards retained by the Aura protocol.',
+    },
   }
 
 }
