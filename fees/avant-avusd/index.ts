@@ -33,9 +33,10 @@ const fetch = async (options: FetchOptions) => {
     target: savUsd,
   })
   daily_rewards.forEach((log) => {
-    dailyFees.add(avUsd, log.amount, METRIC.ASSETS_YIELDS);
+    const protocolCut = Number(log.amount) / 9
+    dailyFees.add(avUsd, Number(log.amount) + protocolCut, METRIC.ASSETS_YIELDS);
     dailySupplySideRevenue.add(avUsd, log.amount, METRIC.ASSETS_YIELDS);
-    dailyRevenue.add(avUsd, Number(log.amount) / 9, METRIC.PERFORMANCE_FEES)
+    dailyRevenue.add(avUsd, protocolCut, METRIC.PERFORMANCE_FEES)
   });
 
   return {
