@@ -26,6 +26,7 @@ export interface CuratorConfig {
 interface Balances {
   dailyFees: sdk.Balances,
   dailyRevenue: sdk.Balances,
+  dailySupplySideRevenue?: sdk.Balances
 }
 
 interface VaultERC4626Info {
@@ -247,6 +248,7 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
 
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.ASSETS_YIELDS)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
+      if (balances.dailySupplySideRevenue) balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedBeforeFee - interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }

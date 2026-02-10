@@ -8,7 +8,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   ]
   const dailyRevenue = await getSolanaReceived({ options, targets: targets })
   const dailyFees = dailyRevenue.clone(1 + (1 / 2) + (1 / 0.6))
-  return { dailyFees, dailyRevenue, }
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
 const adapters: SimpleAdapter = {
@@ -19,6 +21,7 @@ const adapters: SimpleAdapter = {
   methodology: {
     Fees: "Trading fees paid by users on Tribe.run.",
     Revenue: "Portion of fees collected by Tribe.run.",
+    SupplySideRevenue: "The portion of trading fees paid to token creators and chat members"
   }
 }
 

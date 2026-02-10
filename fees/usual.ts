@@ -117,6 +117,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyProtocolRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   const redeemEvents: Array<any> = await options.getLogs({
     targets: [DaoCollateral,USD0aDaoCollateral, EUR0DaoCollateral, ETH0DaoCollateral],
@@ -182,6 +183,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.add(USD0, feeAmount)
     dailyProtocolRevenue.add(USD0, feeAmount)
   }
+
+  dailyRevenue.add(dailyHoldersRevenue)
 
   for (const event of sUsd0DistributedEvents) {
     // not added to dailyFees because USD0 is minted from RWA yield
@@ -318,15 +321,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
  
   }
 
-  await getEulerVaultFee(options, { dailyFees, dailyRevenue }, EULER_VAULTS)
+  await getEulerVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, EULER_VAULTS)
   dailyRevenue.add(dailyProtocolRevenue)
-  dailyRevenue.add(dailyHoldersRevenue)
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
+    dailySupplySideRevenue
   }
 }
 
