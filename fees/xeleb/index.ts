@@ -9,7 +9,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
     target: DEAD_ADDRESS,
-    token: TOKEN
+    token: TOKEN,
+    skipIndexer: true,
   });
 
   return {
