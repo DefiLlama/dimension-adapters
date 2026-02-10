@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 /**
- * Fetch data for CHAIN.GATE_LAYER
+ * Fetch data for Gate DEX on CHAIN.GATE_LAYER
  * This endpoint requires a date parameter to request data for a single date
  */
 async function fetchGateData(dateString: string): Promise<any> {
