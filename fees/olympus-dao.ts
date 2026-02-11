@@ -80,6 +80,7 @@ const ABIS = {
 
 const EVENTS = {
   uniV3Collect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
+  uniV3DecreaseLiquidity: "event DecreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
   camelotV2Swap: "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)",
   cdClaimedYield: "event ClaimedYield(address indexed asset, uint256 actualYield)",
   cdLendingRepaid: "event LoanRepaid(address indexed user, uint16 indexed redemptionId, uint256 principal, uint256 interest)",
@@ -208,6 +209,11 @@ async function fetchCDLendingRevenue(options: FetchOptions) {
 
 /**
  * Fetch Uniswap V3 POL fees (Ethereum and Base)
+ *
+ * Collect events include both accrued fees AND principal returned from
+ * DecreaseLiquidity (rebalances / withdrawals). To isolate pure fee revenue
+ * we subtract per-token DecreaseLiquidity amounts from Collect amounts for
+ * each position in the same period.
  */
 async function fetchUniV3POLFees(
   options: FetchOptions,
@@ -218,19 +224,43 @@ async function fetchUniV3POLFees(
   const fees = options.createBalances();
 
   try {
-    const collectLogs = await options.getLogs({
-      target: positionManager,
-      eventAbi: EVENTS.uniV3Collect,
-    });
+    const [collectLogs, decreaseLogs] = await Promise.all([
+      options.getLogs({ target: positionManager, eventAbi: EVENTS.uniV3Collect }),
+      options.getLogs({ target: positionManager, eventAbi: EVENTS.uniV3DecreaseLiquidity }),
+    ]);
 
     const positionIdSet = positionIds ? new Set(positionIds.map(String)) : null;
-    const treasuryCollects = collectLogs.filter((log: any) => 
-      treasuryAddresses.includes(log.recipient.toLowerCase()) && 
+    const treasuryCollects = collectLogs.filter((log: any) =>
+      treasuryAddresses.includes(log.recipient.toLowerCase()) &&
       (!positionIdSet || positionIdSet.has(String(log.tokenId)))
     );
 
+    // Aggregate DecreaseLiquidity amounts per tokenId so we can subtract
+    // returned principal from the corresponding Collect amounts.
+    const decreasedAmounts = new Map<string, { amount0: bigint; amount1: bigint }>();
+    for (const log of decreaseLogs) {
+      const id = String(log.tokenId);
+      if (positionIdSet && !positionIdSet.has(id)) continue;
+      const prev = decreasedAmounts.get(id) || { amount0: BigInt(0), amount1: BigInt(0) };
+      prev.amount0 += BigInt(log.amount0);
+      prev.amount1 += BigInt(log.amount1);
+      decreasedAmounts.set(id, prev);
+    }
+
+    // Aggregate Collect amounts per tokenId
+    const collectedAmounts = new Map<string, { amount0: bigint; amount1: bigint }>();
+    for (const log of treasuryCollects) {
+      const id = String(log.tokenId);
+      const prev = collectedAmounts.get(id) || { amount0: BigInt(0), amount1: BigInt(0) };
+      prev.amount0 += BigInt(log.amount0);
+      prev.amount1 += BigInt(log.amount1);
+      collectedAmounts.set(id, prev);
+    }
+
+    // Look up token addresses for each position
+    const uniqueTokenIds: string[] = [];
+    collectedAmounts.forEach((_, id) => uniqueTokenIds.push(id));
     const positionCache = new Map<string, { token0: string; token1: string }>();
-    const uniqueTokenIds = [...new Set(treasuryCollects.map((log: any) => String(log.tokenId)))];
 
     if (uniqueTokenIds.length > 0) {
       try {
@@ -246,13 +276,18 @@ async function fetchUniV3POLFees(
       } catch (e) {}
     }
 
-    for (const log of treasuryCollects) {
-      const positionData = positionCache.get(String(log.tokenId));
-      if (positionData) {
-        if (BigInt(log.amount0) > 0) fees.add(positionData.token0, log.amount0);
-        if (BigInt(log.amount1) > 0) fees.add(positionData.token1, log.amount1);
-      }
-    }
+    // Fee = Collected - Decreased (floor at 0)
+    collectedAmounts.forEach((collected, id) => {
+      const positionData = positionCache.get(id);
+      if (!positionData) return;
+
+      const decreased = decreasedAmounts.get(id) || { amount0: BigInt(0), amount1: BigInt(0) };
+      const fee0 = collected.amount0 - decreased.amount0;
+      const fee1 = collected.amount1 - decreased.amount1;
+
+      if (fee0 > BigInt(0)) fees.add(positionData.token0, fee0);
+      if (fee1 > BigInt(0)) fees.add(positionData.token1, fee1);
+    });
   } catch (e) {}
 
   return fees;
