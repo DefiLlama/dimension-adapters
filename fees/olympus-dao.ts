@@ -182,10 +182,10 @@ async function fetchCoolerLoanInterest(options: FetchOptions) {
     const accDelta = BigInt(accAfter) - BigInt(accBefore);
     const avgDebt = (BigInt(debtBefore) + BigInt(debtAfter)) / BigInt(2);
 
-    if (accDelta > 0 && avgDebt > 0) {
+    if (avgDebt > 0) {
       // Interest = avgDebt * accDelta / RAY
+      // Allow negative to avoid phantom yield on break-even edge cases
       const interest = (avgDebt * accDelta) / RAY;
-      // Cooler loans are denominated in DAI
       fees.add(CHAIN_CONFIG.ethereum.dai, interest);
     }
   } catch (e) {
@@ -232,11 +232,10 @@ async function fetchERC4626Yield(
     ]);
 
     const rateDelta = BigInt(newRate) - BigInt(oldRate);
-    if (rateDelta > 0) {
-      // Yield = rateDelta * totalBalance / 1e18
-      const yieldAmount = (rateDelta * totalBalance) / ONE_SHARE;
-      fees.add(underlyingToken, yieldAmount);
-    }
+    // Allow negative yield to avoid edge case where rate drop isn't counted
+    // but recovery is, creating phantom positive yield on break-even
+    const yieldAmount = (rateDelta * totalBalance) / ONE_SHARE;
+    fees.add(underlyingToken, yieldAmount);
   } catch (e) {
     // Vault may not exist or treasury may have no holdings in early periods
   }
@@ -478,9 +477,8 @@ async function fetchEthereum(options: FetchOptions) {
     const netSusdsYield = susdsUsdsYield - cdClaimedUsds;
 
     // Add the adjusted sUSDS yield (only the portion not already claimed via CD Facility)
-    if (netSusdsYield > BigInt(0)) {
-      dailyFees.add(CHAIN_CONFIG.ethereum.usds, netSusdsYield);
-    }
+    // Allow negative to avoid phantom yield on break-even edge cases
+    dailyFees.add(CHAIN_CONFIG.ethereum.usds, netSusdsYield);
     // Add CD Facility revenue (the actual claimed amount)
     dailyFees.addBalances(cdFacilityRevenue);
   } else {
@@ -542,6 +540,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  allowNegativeValue: true, // Yield rates can temporarily decrease; allowing negative prevents phantom yield on recovery
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchEthereum,
