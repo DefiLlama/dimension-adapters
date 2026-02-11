@@ -80,6 +80,10 @@ const ABIS = {
 
 const EVENTS = {
   uniV3Collect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
+
+  // Uniswap V3 IncreaseLiquidity (emitted by position manager)
+  // Used to detect repositioning: Collect during repositioning includes withdrawn principal
+  uniV3IncreaseLiquidity: "event IncreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
   camelotV2Swap: "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)",
   cdClaimedYield: "event ClaimedYield(address indexed asset, uint256 actualYield)",
   cdLendingRepaid: "event LoanRepaid(address indexed user, uint16 indexed redemptionId, uint256 principal, uint256 interest)",
@@ -208,6 +212,12 @@ async function fetchCDLendingRevenue(options: FetchOptions) {
 
 /**
  * Fetch Uniswap V3 POL fees (Ethereum and Base)
+ *
+ * Filters out liquidity repositioning to avoid counting withdrawn principal as fees.
+ * The Collect event fires for both fee harvests and liquidity removals. When treasury
+ * repositions LP (DecreaseLiquidity → Collect → IncreaseLiquidity), the Collect includes
+ * withdrawn principal. We detect this by checking for IncreaseLiquidity on the same
+ * tokenId in the same period and skipping those Collect events.
  */
 async function fetchUniV3POLFees(
   options: FetchOptions,
@@ -218,16 +228,30 @@ async function fetchUniV3POLFees(
   const fees = options.createBalances();
 
   try {
-    const collectLogs = await options.getLogs({
-      target: positionManager,
-      eventAbi: EVENTS.uniV3Collect,
-    });
+    const [collectLogs, increaseLogs] = await Promise.all([
+      options.getLogs({
+        target: positionManager,
+        eventAbi: EVENTS.uniV3Collect,
+      }),
+      options.getLogs({
+        target: positionManager,
+        eventAbi: EVENTS.uniV3IncreaseLiquidity,
+      }).catch(() => []),
+    ]);
+
+    // tokenIds that had IncreaseLiquidity = repositioning, skip their Collect events
+    const repositionedIds = new Set<string>();
+    for (const log of increaseLogs) {
+      repositionedIds.add(String(log.tokenId));
+    }
 
     const positionIdSet = positionIds ? new Set(positionIds.map(String)) : null;
-    const treasuryCollects = collectLogs.filter((log: any) => 
-      treasuryAddresses.includes(log.recipient.toLowerCase()) && 
-      (!positionIdSet || positionIdSet.has(String(log.tokenId)))
-    );
+    const treasuryCollects = collectLogs.filter((log: any) => {
+      if (!treasuryAddresses.includes(log.recipient.toLowerCase())) return false;
+      if (positionIdSet && !positionIdSet.has(String(log.tokenId))) return false;
+      if (repositionedIds.has(String(log.tokenId))) return false;
+      return true;
+    });
 
     const positionCache = new Map<string, { token0: string; token1: string }>();
     const uniqueTokenIds = [...new Set(treasuryCollects.map((log: any) => String(log.tokenId)))];
