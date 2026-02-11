@@ -37,7 +37,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     )
   `)
   
-  return { dailyVolume: results[0] ? results[0].total_volume : 0 };
+  return { dailyVolume: (results[0] && results[0].total_volume) ? results[0].total_volume : 0 };
 };
 
 const adapter: SimpleAdapter = {
