@@ -37,11 +37,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     )
   `)
   
-  if (!results[0]) {
-    throw Error(`Failed to query dune data for ready-card, please check the query and fix it`);
-  }
-
-  return { dailyVolume: results[0].total_volume };
+  return { dailyVolume: results[0] ? results[0].total_volume : 0 };
 };
 
 const adapter: SimpleAdapter = {

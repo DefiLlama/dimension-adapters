@@ -1,7 +1,7 @@
 WITH all_traces AS (
     -- 1. SEPARATE DATA (Unchanged)
     SELECT 
-        block_time, tx_hash, input, 'Optimism' as chain, 
+        block_time, tx_hash, input, 'optimism' as chain, 
         SUBSTRING(input FROM 1 FOR 4) as method_id,
         ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY trace_address ASC) as rn
     FROM optimism.traces
@@ -12,7 +12,7 @@ WITH all_traces AS (
     UNION ALL
 
     SELECT 
-        block_time, tx_hash, input, 'Base' as chain, 
+        block_time, tx_hash, input, 'base' as chain, 
         SUBSTRING(input FROM 1 FOR 4) as method_id,
         ROW_NUMBER() OVER (PARTITION BY tx_hash ORDER BY trace_address ASC) as rn
     FROM base.traces
