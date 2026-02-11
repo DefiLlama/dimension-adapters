@@ -185,8 +185,9 @@ async function fetchCoolerLoanInterest(options: FetchOptions) {
     if (avgDebt > 0) {
       // Interest = avgDebt * accDelta / RAY
       // Allow negative to avoid phantom yield on break-even edge cases
+      // MonoCooler V2 loans are denominated in USDS (migrated from DAI)
       const interest = (avgDebt * accDelta) / RAY;
-      fees.add(CHAIN_CONFIG.ethereum.dai, interest);
+      fees.add(CHAIN_CONFIG.ethereum.usds, interest);
     }
   } catch (e) {
     // Cooler may not be active in early periods
