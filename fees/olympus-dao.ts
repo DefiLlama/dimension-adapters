@@ -286,9 +286,7 @@ async function fetchCDLendingRevenue(options: FetchOptions) {
       // LoanRepaid event contains interest amount paid to treasury
       // Interest is denominated in USDS (the deposit token)
       const interest = BigInt(log.interest);
-      if (interest > 0) {
-        fees.add(CHAIN_CONFIG.ethereum.usds, interest);
-      }
+      fees.add(CHAIN_CONFIG.ethereum.usds, interest);
     }
   } catch (e) {
     // CD Lending may not have repayments in all periods
