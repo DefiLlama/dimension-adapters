@@ -464,14 +464,14 @@ async function fetchEthereum(options: FetchOptions) {
   // this yield transfers to treasury as USDS. The sUSDS exchange rate method would also
   // capture this yield growth, leading to ~0.02% overstatement. To fix this, we subtract
   // any USDS claimed by the CD Facility from the sUSDS yield calculation.
-  const usdsAddress = CHAIN_CONFIG.ethereum.usds.toLowerCase();
+  const usdsAddressKey = `ethereum:${CHAIN_CONFIG.ethereum.usds.toLowerCase()}`;
   const cdBalances = cdFacilityRevenue.getBalances();
-  const cdClaimedUsds = BigInt(cdBalances[usdsAddress] || 0);
+  const cdClaimedUsds = BigInt(cdBalances[usdsAddressKey] || 0);
 
   if (cdClaimedUsds > BigInt(0)) {
     // Subtract CD claimed USDS from sUSDS yield to get net treasury sUSDS yield
     const susdsBalances = susdsYield.getBalances();
-    const susdsUsdsYield = BigInt(susdsBalances[usdsAddress] || 0);
+    const susdsUsdsYield = BigInt(susdsBalances[usdsAddressKey] || 0);
     const netSusdsYield = susdsUsdsYield - cdClaimedUsds;
 
     // Add the adjusted sUSDS yield (only the portion not already claimed via CD Facility)
