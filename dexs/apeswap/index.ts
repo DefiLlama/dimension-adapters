@@ -23,11 +23,11 @@ const adapter: SimpleAdapter = {
   version: 2,
   methodology,
   adapter: {
-    [CHAIN.BSC]: { fetch: getUniV2LogAdapter({ factory: '0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6', getUniV2LogAdapterConfig }), start: 1613273226 },
-    [CHAIN.POLYGON]: { fetch: getUniV2LogAdapter({ factory: '0xcf083be4164828f00cae704ec15a36d711491284', getUniV2LogAdapterConfig }), start: 1623814026 },
-    [CHAIN.ETHEREUM]: { fetch: getUniV2LogAdapter({ factory: '0xBAe5dc9B19004883d0377419FeF3c2C8832d7d7B', getUniV2LogAdapterConfig }), start: 1652239626 },
-    [CHAIN.ARBITRUM]: { fetch: getUniV2LogAdapter({ factory: '0xCf083Be4164828f00cAE704EC15a36D711491284', getUniV2LogAdapterConfig }), start: 1678406400 },
-    // [CHAIN.TELOS]: { fetch: getUniV2LogAdapter({ factory: '0x411172Dfcd5f68307656A1ff35520841C2F7fAec', getUniV2LogAdapterConfig }), start: 1665880589 },
+    [CHAIN.BSC]: { fetch: getUniV2LogAdapter({ factory: '0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6', ...getUniV2LogAdapterConfig }), start: 1613273226 },
+    [CHAIN.POLYGON]: { fetch: getUniV2LogAdapter({ factory: '0xcf083be4164828f00cae704ec15a36d711491284', ...getUniV2LogAdapterConfig }), start: 1623814026 },
+    [CHAIN.ETHEREUM]: { fetch: getUniV2LogAdapter({ factory: '0xBAe5dc9B19004883d0377419FeF3c2C8832d7d7B', ...getUniV2LogAdapterConfig }), start: 1652239626 },
+    [CHAIN.ARBITRUM]: { fetch: getUniV2LogAdapter({ factory: '0xCf083Be4164828f00cAE704EC15a36D711491284', ...getUniV2LogAdapterConfig }), start: 1678406400 },
+    // [CHAIN.TELOS]: { fetch: getUniV2LogAdapter({ factory: '0x411172Dfcd5f68307656A1ff35520841C2F7fAec', ...getUniV2LogAdapterConfig }), start: 1665880589 },
   }
 }
 
