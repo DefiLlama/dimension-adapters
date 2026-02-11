@@ -67,86 +67,90 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
 
   // Fixed Term Loan
-  const logs_fixed_term_loan_deployed = await getLogs({
-    targets: [fixedTermLoanFactoryV1, fixedTermLoanFactoryV2],
-    eventAbi: loan_manager_deployed_event,
-    fromBlock: 13997864, // Jan-13-2022
-    cacheInCloud: true,
-  })
+  if (toBlock >= 13997864) {
+    const logs_fixed_term_loan_deployed = await getLogs({
+      targets: [fixedTermLoanFactoryV1, fixedTermLoanFactoryV2],
+      eventAbi: loan_manager_deployed_event,
+      fromBlock: 13997864, // Jan-13-2022
+      cacheInCloud: true,
+    })
 
-  const fixed_term_loans: string[] = logs_fixed_term_loan_deployed.map(e => e.instance_);
+    const fixed_term_loans: string[] = logs_fixed_term_loan_deployed.map(e => e.instance_);
 
-  // const fixed_term_loan_managers = logs_fixed_term_loan_manager_deployed.map(e => e.instance_);
+    // const fixed_term_loan_managers = logs_fixed_term_loan_manager_deployed.map(e => e.instance_);
 
-  const fixed_term_loan_assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: fixed_term_loans })
+    if (fixed_term_loans.length) {
+      const fixed_term_loan_assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: fixed_term_loans })
 
-  const fixed_term_loan_to_asset: Record<string, string> = {};
-  fixed_term_loans.forEach((loan, i) => {
-    fixed_term_loan_to_asset[loan.toLowerCase()] = fixed_term_loan_assets[i];
-  })
+      const fixed_term_loan_to_asset: Record<string, string> = {};
+      fixed_term_loans.forEach((loan, i) => {
+        fixed_term_loan_to_asset[loan.toLowerCase()] = fixed_term_loan_assets[i];
+      })
 
-  // Origination fees from fixed-term loans
-  const logs_origination_fees = await getLogs({
-    target: feeManager,
-    eventAbi: origination_fees_paid_event,
-  })
+      // Origination fees from fixed-term loans
+      const logs_origination_fees = await getLogs({
+        target: feeManager,
+        eventAbi: origination_fees_paid_event,
+      })
 
-  // Service fees from fixed-term loans  
-  const logs_service_fees = await getLogs({
-    target: feeManager,
-    eventAbi: service_fees_paid_event,
-  })
+      // Service fees from fixed-term loans  
+      const logs_service_fees = await getLogs({
+        target: feeManager,
+        eventAbi: service_fees_paid_event,
+      })
 
-  const logs_interest_paid = await getLogs({
-    targets: fixed_term_loans,
-    eventAbi: interest_paid_event,
-    entireLog: true,
-  })
+      const logs_interest_paid = await getLogs({
+        targets: fixed_term_loans,
+        eventAbi: interest_paid_event,
+        entireLog: true,
+      })
 
-  logs_origination_fees.forEach((e: any) => {
-    const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
-    dailyFees.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
+      logs_origination_fees.forEach((e: any) => {
+        const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
+        dailyFees.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
+        dailyFees.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
 
-    dailyRevenue.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
+        dailyRevenue.add(asset, e.delegateOriginationFee_, METRIC.MANAGEMENT_FEES)
+        dailyRevenue.add(asset, e.platformOriginationFee_, METRIC.MANAGEMENT_FEES)
 
-    dailyProtocolRevenue.add(asset, Number(e.delegateOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.platformOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+        dailyProtocolRevenue.add(asset, Number(e.delegateOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+        dailyProtocolRevenue.add(asset, Number(e.platformOriginationFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
 
-    dailyHoldersRevenue.add(asset, Number(e.delegateOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
-    dailyHoldersRevenue.add(asset, Number(e.platformOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
+        dailyHoldersRevenue.add(asset, Number(e.delegateOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
+        dailyHoldersRevenue.add(asset, Number(e.platformOriginationFee_) * holdersShare, METRIC.MANAGEMENT_FEES)
 
-  })
+      })
 
-  logs_service_fees.forEach((e: any) => {
-    const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
-    dailyFees.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyFees.add(asset, e.partialRefinanceDelegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyFees.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
-    dailyFees.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
+      logs_service_fees.forEach((e: any) => {
+        const asset = fixed_term_loan_to_asset[e.loan_?.toLowerCase()]
+        dailyFees.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+        dailyFees.add(asset, e.partialRefinanceDelegateServiceFee_, METRIC.SERVICE_FEES)
+        dailyFees.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
+        dailyFees.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
 
-    dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyRevenue.add(asset, e.partialRefinanceDelegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
-    dailyRevenue.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
+        dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+        dailyRevenue.add(asset, e.partialRefinanceDelegateServiceFee_, METRIC.SERVICE_FEES)
+        dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
+        dailyRevenue.add(asset, e.partialRefinancePlatformServiceFee_, METRIC.SERVICE_FEES)
 
-    dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+        dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+        dailyProtocolRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+        dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+        dailyProtocolRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
 
-    dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-    dailyHoldersRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-    dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-    dailyHoldersRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
-  })
+        dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+        dailyHoldersRevenue.add(asset, Number(e.partialRefinanceDelegateServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+        dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+        dailyHoldersRevenue.add(asset, Number(e.partialRefinancePlatformServiceFee_) * holdersShare, METRIC.SERVICE_FEES)
+      })
 
-  logs_interest_paid.forEach((e: any) => {
-    const asset = fixed_term_loan_to_asset[e.address?.toLowerCase()]
-    dailyFees.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
-    dailySupplySideRevenue.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
-  })
+      logs_interest_paid.forEach((e: any) => {
+        const asset = fixed_term_loan_to_asset[e.address?.toLowerCase()]
+        dailyFees.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
+        dailySupplySideRevenue.add(asset, e.args.interestPaid_, METRIC.BORROW_INTEREST)
+      })
+    }
+  }
 
   if (toBlock < 17372608) {
     return {
@@ -168,78 +172,86 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // const open_term_loans = logs_open_term_loan_deployed.map(e => e.instance_);
   const open_term_loan_managers = logs_open_term_loan_manager_deployed.map(e => e.instance_);
 
-  const loans = [...open_term_loan_managers];
+  if (open_term_loan_managers.length) {
+    const loans = [...open_term_loan_managers];
 
-  const assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: loans })
+    const assets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: loans })
 
-  const loanToAsset: Record<string, string> = {};
-  loans.forEach((loan, i) => {
-    loanToAsset[loan.toLowerCase()] = assets[i];
-  })
+    const loanToAsset: Record<string, string> = {};
+    loans.forEach((loan, i) => {
+      loanToAsset[loan.toLowerCase()] = assets[i];
+    })
 
-  const logs_claim_funds_stablecoin = await getLogs({
-    targets: loans,
-    eventAbi: claimed_funds_distributed_event,
-    entireLog: true,
-    parseLog: true,
-  })
-  logs_claim_funds_stablecoin.forEach((t: any) => {
-    const e = t.args;
-    const asset = loanToAsset[t.address?.toLowerCase()];
-    dailyFees.add(asset, e.netInterest_, METRIC.BORROW_INTEREST)
-    dailyFees.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyFees.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyFees.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
+    const logs_claim_funds_stablecoin = await getLogs({
+      targets: loans,
+      eventAbi: claimed_funds_distributed_event,
+      entireLog: true,
+      parseLog: true,
+    })
+    logs_claim_funds_stablecoin.forEach((t: any) => {
+      const e = t.args;
+      const asset = loanToAsset[t.address?.toLowerCase()];
+      dailyFees.add(asset, e.netInterest_, METRIC.BORROW_INTEREST)
+      dailyFees.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+      dailyFees.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+      dailyFees.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+      dailyFees.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
 
-    dailySupplySideRevenue.add(asset, e.netInterest_, METRIC.BORROW_INTEREST)
+      dailySupplySideRevenue.add(asset, e.netInterest_, METRIC.BORROW_INTEREST)
 
-    dailyRevenue.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
-    dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
-    dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
+      dailyRevenue.add(asset, e.delegateManagementFee_, METRIC.MANAGEMENT_FEES)
+      dailyRevenue.add(asset, e.platformManagementFee_, METRIC.MANAGEMENT_FEES)
+      dailyRevenue.add(asset, e.delegateServiceFee_, METRIC.SERVICE_FEES)
+      dailyRevenue.add(asset, e.platformServiceFee_, METRIC.SERVICE_FEES)
 
-    dailyProtocolRevenue.add(asset, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+      dailyProtocolRevenue.add(asset, Number(e.delegateManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+      dailyProtocolRevenue.add(asset, Number(e.platformManagementFee_) * (1 - holdersShare), METRIC.MANAGEMENT_FEES)
+      dailyProtocolRevenue.add(asset, Number(e.delegateServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
+      dailyProtocolRevenue.add(asset, Number(e.platformServiceFee_) * (1 - holdersShare), METRIC.SERVICE_FEES)
 
-    dailyHoldersRevenue.add(asset, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(asset, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-    dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
-  })
+      dailyHoldersRevenue.add(asset, Number(e.delegateManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+      dailyHoldersRevenue.add(asset, Number(e.platformManagementFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+      dailyHoldersRevenue.add(asset, Number(e.delegateServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+      dailyHoldersRevenue.add(asset, Number(e.platformServiceFee_) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    })
+  }
 
-  const strategies_deployed = await getLogs({
-    targets: [skyStrategyFactory, aaveStrategyFactory],
-    eventAbi: loan_manager_deployed_event,
-    fromBlock: 21995795, // Mar-07-2025
-    cacheInCloud: true,
-  })
+  let strategies: string[] = []
+  if (toBlock >= 21995795) {
+    const strategies_deployed = await getLogs({
+      targets: [skyStrategyFactory, aaveStrategyFactory],
+      eventAbi: loan_manager_deployed_event,
+      fromBlock: 21995795, // Mar-07-2025
+      cacheInCloud: true,
+    })
 
-  const strategies = strategies_deployed.map(strategy => strategy.instance_);
+    strategies = strategies_deployed.map(strategy => strategy.instance_);
+  }
 
-  const strategyAssets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: strategies })
+  if (strategies.length) {
+    const strategyAssets = await options.api.multiCall({ abi: 'address:fundsAsset', calls: strategies })
 
-  const strategies_to_asset: Record<string, string> = {};
-  strategies.forEach((strategy, i) => {
-    strategies_to_asset[strategy.toLowerCase()] = strategyAssets[i];
-  })
+    const strategies_to_asset: Record<string, string> = {};
+    strategies.forEach((strategy, i) => {
+      strategies_to_asset[strategy.toLowerCase()] = strategyAssets[i];
+    })
 
-  const logs_strategy_fees = await getLogs({
-    targets: strategies,
-    eventAbi: strategy_fees_paid_event,
-    entireLog: true,
-  })
+    const logs_strategy_fees = await getLogs({
+      targets: strategies,
+      eventAbi: strategy_fees_paid_event,
+      entireLog: true,
+      parseLog: true
+    })
 
-  logs_strategy_fees.forEach((e: any) => {
-    const asset = strategies_to_asset[e.address?.toLowerCase()]
+    logs_strategy_fees.forEach((e: any) => {
+      const asset = strategies_to_asset[e.address?.toLowerCase()]
 
-    dailyFees.add(asset, e.args.fees, STRATEGY_FEES)
-    dailyRevenue.add(asset, e.args.fees, STRATEGY_FEES)
-    dailyProtocolRevenue.add(asset, Number(e.args.fees) * (1 - holdersShare), STRATEGY_FEES)
-    dailyHoldersRevenue.add(asset, Number(e.args.fees) * holdersShare, METRIC.TOKEN_BUY_BACK)
-  })
+      dailyFees.add(asset, e.args.fees, STRATEGY_FEES)
+      dailyRevenue.add(asset, e.args.fees, STRATEGY_FEES)
+      dailyProtocolRevenue.add(asset, Number(e.args.fees) * (1 - holdersShare), STRATEGY_FEES)
+      dailyHoldersRevenue.add(asset, Number(e.args.fees) * holdersShare, METRIC.TOKEN_BUY_BACK)
+    })
+  }
 
   return {
     dailyFees,
