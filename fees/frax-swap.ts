@@ -39,13 +39,16 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailyFees,
     dailyRevenue: "0",
   };
 };
 
 const methodology = {
   UserFees: "Users pay 0.3% swap fees",
-  Fees: "A 0.3% fee is collected from each swap"
+  Fees: "A 0.3% fee is collected from each swap",
+  SupplySideRevenue: "All fees go to LPs",
+  Revenue: "No revenue"
 }
 
 const adapter: Adapter = {
