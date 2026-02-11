@@ -40,8 +40,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     balances: pkstrTokenTreasuryRevenue,
     options
   });
-  commonTokenTreasuryRevenue.resizeBy(1.2) // to adjust for 80% fee receieved in contract address
-  pkstrTokenTreasuryRevenue.resizeBy(1.2)
+  commonTokenTreasuryRevenue.resizeBy(1.25) // to adjust for 80% fee receieved in contract address
+  pkstrTokenTreasuryRevenue.resizeBy(1.25)
 
   // Total fees = all ETH received by all token contracts
   const dailyFees = options.createBalances();
@@ -79,8 +79,8 @@ export default {
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: '10% buy/sell tax collected from strategy tokens trading from main uni-v4 pools',
-    Revenue: '10% of PKSTR token tax goes to token-works team.',
-    ProtocolRevenue: '10% of PKSTR token tax goes to token-works team.',
+    Revenue: '10% of PKSTR token tax goes to token-works team and 80% is used to buy CryptoPunks for the protocol.',
+    ProtocolRevenue: '10% of PKSTR token tax goes to token-works team and 80% is used to buy CryptoPunks for the protocol.',
     SupplySideRevenue: '10% of token tax is distributed to NFT creators as royalties and 10% of the PKSTR tax is gifted to FundingWorks NFT holders.',
     HoldersRevenue: '10% of the common tokens tax is used to buy and burn $PNKSTR',
   },
