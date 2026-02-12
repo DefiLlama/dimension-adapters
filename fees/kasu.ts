@@ -61,7 +61,7 @@ const methodology = {
   UserFees: "Same as Fees - borrowers pay interest, of which a performance fee is deducted.",
   Revenue: "Protocol's share of performance fees, sent to the protocol fee receiver.",
   ProtocolRevenue: "Same as Revenue.",
-  HoldersRevenue: "Ecosystem share of performance fees, distributed to KASU token lockers (rKASU holders).",
+  HoldersRevenue: "Ecosystem share of performance fees, distributed to KSU token lockers (rKSU holders).",
 };
 
 const adapter: SimpleAdapter = {
