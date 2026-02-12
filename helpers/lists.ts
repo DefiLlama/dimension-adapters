@@ -9,6 +9,12 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xb4357054c3da8d46ed642383f03139ac7f090343", // PORT3 - hacked
   ],
   [CHAIN.BSC]: [
+    "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
+    "0xda0638ea374c4c5bf2914e6f4d5b2335deb8d80d",
+    "0xf4B385849f2e817E92bffBfB9AEb48F950Ff4444",
+    "0xf9a2e332b1ecd3d6ab51618432d68c8d5995c992",
+    "0x23d3f4eaaa515403c6765bb623f287a8cca28f2b",
+    "0x6d5ad1592ed9d6d1df9b93c793ab759573ed6714",
     "0x3b248CEfA87F836a4e6f6d6c9b42991b88Dc1d58",
     "0xd89B7dD376E671c124352267516BEF1C2cc231a3",
     "0xAC23B90A79504865D52B49B327328411a23d4dB2",

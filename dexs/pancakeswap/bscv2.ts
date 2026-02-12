@@ -1,20 +1,31 @@
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { queryDune } from "../../helpers/dune";
-import { httpGet } from "../../utils/fetchURL";
 import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 import { CHAIN } from "../../helpers/chains";
+import { getConfig } from "../../helpers/cache";
 
 function formatAddress(address: any): string {
   return String(address).toLowerCase();
 }
 
-async function getWhitelistedTokens(): Promise<Array<string>> {
+export async function getBscTokenLists(): Promise<Array<string>> {
   const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
-  const data = await httpGet('https://raw.githubusercontent.com/pancakeswap/token-list/main/lists/coingecko.json');
-  return data.tokens
-    .filter((token: any) => Number(token.chainId) === 56)
-    .map((token: any) => formatAddress(token.address))
-    .filter((token: string) => !blacklisted.includes(token))
+  const lists = [
+    'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+    'https://tokens.pancakeswap.finance/ondo-rwa-tokens.json',
+    'https://tokens.coingecko.com/binance-smart-chain/all.json',
+  ];
+  let tokens: Array<string> = [];
+  for (const url of lists) {
+    const data = await getConfig(`pcs-token-list-bsc-${url}`, url);
+    tokens = tokens.concat(
+      data.tokens
+        .filter((token: any) => Number(token.chainId) === 56)
+        .map((token: any) => formatAddress(token.address))
+    );
+  }
+  
+  return tokens.filter((token: string) => !blacklisted.includes(token))
 }
 
 export const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelistedTokens: Array<string>) => {
@@ -43,7 +54,7 @@ export const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelist
 export async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances()
 
-  const whitelistedTokens = await getWhitelistedTokens()
+  const whitelistedTokens = await getBscTokenLists()
 
   const tokensAndAmounts = await queryDune('3996608',{
     fullQuery: PANCAKESWAP_V2_QUERY(options.fromTimestamp, options.toTimestamp, whitelistedTokens),
