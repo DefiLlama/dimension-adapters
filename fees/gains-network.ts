@@ -24,6 +24,9 @@ interface IStats {
   dai_stakers: number;
   usdc_stakers: number;
   weth_stakers: number;
+  usdm_stakers: number;
+  btcusd_stakers: number;
+  ggns_stakers: number;
 
   // GNS staking
   gns_stakers: number;
@@ -56,8 +59,10 @@ const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promis
     dailyRevenue.addUSDValue(chainStat.dev_fund + chainStat.project_fund, METRIC.PROTOCOL_FEES);
     dailyRevenue.addUSDValue(chainStat.gns_stakers, METRIC.STAKING_REWARDS);
     dailyHoldersRevenue.addUSDValue(chainStat.gns_stakers, METRIC.STAKING_REWARDS);
-  
-    dailySupplySideRevenue.addUSDValue(chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers, METRIC.LP_FEES);
+    dailySupplySideRevenue.addUSDValue(
+      chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers + chainStat.usdm_stakers + chainStat.btcusd_stakers + chainStat.ggns_stakers,
+      METRIC.LP_FEES
+    );
     dailySupplySideRevenue.addUSDValue(chainStat.referral, 'Referral Fees');
     dailySupplySideRevenue.addUSDValue(chainStat.nft_bots, METRIC.OPERATORS_FEES);
     dailySupplySideRevenue.addUSDValue(chainStat.borrowing_fee, 'Borrowing Fees');
@@ -128,6 +133,10 @@ const adapter: Adapter = {
     [CHAIN.APECHAIN]: {
       fetch: fetchApechain,
       start: "2024-11-19",
+    },
+    [CHAIN.MEGAETH]: {
+      fetch,
+      start: "2026-02-09",
     },
   },
   prefetch: prefetch,
