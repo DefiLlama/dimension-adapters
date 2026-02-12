@@ -5,8 +5,7 @@ import { httpGet } from "../../utils/fetchURL";
 const SOMESWAP_API_BASE = process.env.SOMESWAP_API_BASE ?? "https://api-someswap.something.tools";
 
 const parseVolume = (response: any) => {
-  const volume = Number(response?.volumeUsd ?? response?.volume_usd ?? response?.dailyVolume ?? 0);
-  return Number.isFinite(volume) ? volume : 0;
+  return Number(response.volumeUsd ?? response.dailyVolume);
 };
 
 const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
@@ -16,7 +15,7 @@ const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
 
   const [volumeResponse, volumeV2Response] = await Promise.all([
     httpGet(volumeUrl),
-    httpGet(volumeV2Url).catch(() => null),
+    httpGet(volumeV2Url),
   ]);
 
   const dailyVolume = parseVolume(volumeResponse) + parseVolume(volumeV2Response);
@@ -30,6 +29,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.MONAD],
+  start: "2025-11-25",
 };
 
 export default adapter;
