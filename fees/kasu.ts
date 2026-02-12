@@ -14,7 +14,7 @@ const FEE_MANAGER: Record<string, string> = {
 const PAYMENT_TOKEN: Record<string, string> = {
   [CHAIN.BASE]: CoreAssets.base.USDC,
   [CHAIN.PLUME]: CoreAssets.plume_mainnet.pUSD,
-  [CHAIN.XDC]: '0xfa2958cb79b0491cc627c1557f441ef849ca8eb1', // USDC on XDC
+  [CHAIN.XDC]: CoreAssets.xdc["USDC.e"],
 };
 
 // Emitted by FeeManager when performance fees are distributed
