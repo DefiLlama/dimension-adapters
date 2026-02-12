@@ -1,6 +1,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
+
 import CoreAssets from "../helpers/coreAssets.json";
 
 // FeeManager contract addresses per chain
@@ -37,14 +37,14 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const protocolFee = log.protocolFeeAmount;
 
     // Total fees = ecosystem + protocol share of performance fees
-    dailyFees.add(token, ecosystemFee, METRIC.PERFORMANCE_FEES);
-    dailyFees.add(token, protocolFee, METRIC.PERFORMANCE_FEES);
+    dailyFees.add(token, ecosystemFee);
+    dailyFees.add(token, protocolFee);
 
     // Protocol revenue = protocol's share
-    dailyRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(token, protocolFee);
 
     // Holders revenue = ecosystem fees distributed to KSU lockers
-    dailyHoldersRevenue.add(token, ecosystemFee, METRIC.PERFORMANCE_FEES);
+    dailyHoldersRevenue.add(token, ecosystemFee);
   }
 
   return {
