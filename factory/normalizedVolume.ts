@@ -24,13 +24,10 @@ interface HourlyVolumeRecord {
   active_liquidity?: number;
 }
 
-const fetch = async (options: FetchOptions) => {
-}
 
 function fetchV1({ protocolName, minContracts }: { protocolName: string, minContracts?: number }){
   return async (_a: any, _b: any, options: FetchOptions) => {
-    const { startTimestamp, endTimestamp } = options;
-    
+
     const response = await elastic.search({
       index: HOURLY_VOLUME_INDEX,
       body: {
@@ -51,6 +48,7 @@ function fetchV1({ protocolName, minContracts }: { protocolName: string, minCont
     });
 
     const records = (response.hits?.hits || []).map((hit: any) => hit._source as HourlyVolumeRecord);
+    // console.log(records);
     // Verify data accuracy with min_contracts (5% miss rate threshold)
     let completeRecords = records;
     let accuracyRate = 100;
@@ -122,6 +120,7 @@ function fetchV2({ protocolName, minContracts }: { protocolName: string, minCont
     });
 
     const records = (response.hits?.hits || []).map((hit: any) => hit._source as HourlyVolumeRecord);
+    // console.log(records);
 
     // Verify data accuracy with min_contracts (5% miss rate threshold)
     let completeRecords = records;
@@ -191,13 +190,13 @@ const protocols = {
     protocolName: 'hyperliquid',
     chains: [CHAIN.HYPERLIQUID],
     start: '2026-01-20',
-    minContracts: 285
+    minContracts: 250
   }),
   'edgex': dailyNormalizedVolumeAdapter({
     protocolName: 'edgex',
     chains: [CHAIN.EDGEX],
     start: '2026-01-20',
-    minContracts: 170
+    minContracts: 100
   }),
   'lighter': dailyNormalizedVolumeAdapter({
     protocolName: 'lighter',
@@ -209,7 +208,7 @@ const protocols = {
     protocolName: 'aster',
     chains: [CHAIN.OFF_CHAIN],
     start: '2026-01-20',
-    minContracts: 260
+    minContracts: 150
   }),
   'paradex': dailyNormalizedVolumeAdapter({
     protocolName: 'paradex',
