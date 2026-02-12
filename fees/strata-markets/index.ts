@@ -110,8 +110,8 @@ const fetch = async (options: FetchOptions) => {
 
   // 6. Aggregate Metrics
 
-  // Fees: Gross Yield + All Redemption Fees
-  const totalFees = grossYield + redemptionFeesTotal;
+  // Fees: Gross Yield - Performance Fee + All Redemption Fees
+  const totalFees = grossYield - performanceFee + redemptionFeesTotal;
 
   // Protocol Revenue: Performance Fee + Redemption Fees Reserve
   const protocolRevenue = performanceFee + redemptionFeesReserve;
@@ -119,8 +119,8 @@ const fetch = async (options: FetchOptions) => {
   // Total Revenue: Performance Fee + Redemption Fees Total
   const totalRevenue = performanceFee + redemptionFeesTotal;
 
-  // SupplySide Revenue: Gross Yield - Performance Fees + Redemption Fees kept by Tranche
-  const supplySideRevenue = (grossYield - performanceFee) + redemptionFeesTranche;
+  // SupplySide Revenue: Gross Yield - 2*Performance Fees + Redemption Fees kept by Tranche
+  const supplySideRevenue = (grossYield - (2 * performanceFee)) + redemptionFeesTranche;
 
   dailyFees.add(USDE, totalFees);
   dailyRevenue.add(USDE, totalRevenue);
@@ -136,8 +136,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Includes yield generated on deposited assets as well as fees charged by Strata, including performance and redemption fees.",
-  Revenue: "Protocol revenue consists of performance and total redemption fees collected by Strata, including the portion of fees shared with senior and junior tranche holders and reserve.",
+  Fees: "Includes yield generated on deposited assets and redemption fees charged by Strata.",
+  Revenue: "Protocol revenue consists of performance fees (5-10%) charged by Strata on the yield generated and redemption fees paid by the users. ",
   ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with reserve.",
   SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche."
 }
