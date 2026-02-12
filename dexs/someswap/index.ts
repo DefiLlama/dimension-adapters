@@ -4,10 +4,22 @@ import { httpGet } from "../../utils/fetchURL";
 
 const SOMESWAP_API_BASE = process.env.SOMESWAP_API_BASE ?? "https://api-someswap.something.tools";
 
+const parseVolume = (response: any) => {
+  const volume = Number(response?.volumeUsd ?? response?.volume_usd ?? response?.dailyVolume ?? 0);
+  return Number.isFinite(volume) ? volume : 0;
+};
+
 const fetch = async ({ startTimestamp, endTimestamp }: FetchOptions) => {
-  const url = `${SOMESWAP_API_BASE}/api/amm/volume?start=${startTimestamp}&end=${endTimestamp}`;
-  const response = await httpGet(url);
-  const dailyVolume = Number(response?.volumeUsd ?? response?.volume_usd ?? response?.dailyVolume ?? 0);
+  const commonQuery = `start=${startTimestamp}&end=${endTimestamp}`;
+  const volumeUrl = `${SOMESWAP_API_BASE}/api/amm/volume?${commonQuery}`;
+  const volumeV2Url = `${SOMESWAP_API_BASE}/api/amm/volume/v2?${commonQuery}`;
+
+  const [volumeResponse, volumeV2Response] = await Promise.all([
+    httpGet(volumeUrl),
+    httpGet(volumeV2Url).catch(() => null),
+  ]);
+
+  const dailyVolume = parseVolume(volumeResponse) + parseVolume(volumeV2Response);
 
   return {
     dailyVolume,
