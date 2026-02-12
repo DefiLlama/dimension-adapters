@@ -94,6 +94,38 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
       silo: "0x172a687c397e315dbe56ed78ab347d7743d0d4fa", //xUsd
       timestamp: 1762128000 // 2025-11-03
     },
+    {
+      silo: "0xb1412442aa998950f2f652667d5Eba35fE66E43f", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x27968d36b937DcB26F33902fA489E5b228b104BE", //dUSD
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x76DF755A9f40463F14d0a2b7Cba3Ccf05404eEdf", //dUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xAF1BDaE843d90c546DE5001f7b107B46e1a26Aa9", //dUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x5954ce6671d97D24B782920ddCdBB4b1E63aB2De", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x4935FaDB17df859667Cc4F7bfE6a8cB24f86F8d0", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x219656F33c58488D09d518BaDF50AA8CdCAcA2Aa", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x61ffbead1d4dc9ffba35eb16fd6cadee9b37b2aa", //smsUSD
+      timestamp: 1762128000 // 2025-11-03
+    }
   ],
 };
 

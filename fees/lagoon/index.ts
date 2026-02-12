@@ -1,5 +1,5 @@
 import { METRIC } from "../../helpers/metrics";
-import { Adapter, BaseAdapterChainConfig, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { InfraConfigs } from "./config";
 
 // docs: https://docs.lagoon.finance/vault/fees
@@ -15,6 +15,14 @@ const Abis = {
   protocolRate: 'function protocolRate(address vault) view returns (uint256 rate)',
 }
 
+const METRICS = {
+  ASSETS_YIELDS: METRIC.ASSETS_YIELDS,
+  ASSETS_YIELDS_LP: 'Assets Yields To Suppliers',
+  PERFORMANCE_FEES: METRIC.PERFORMANCE_FEES,
+  MANAGEMENT_FEES: METRIC.MANAGEMENT_FEES,
+  CURATORS_FEES: METRIC.CURATORS_FEES,
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
@@ -25,7 +33,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const events = await options.getLogs({
       eventAbi: Abis.ProxyDeployedEvent,
       target: factory.address,
-    cacheInCloud: true,
+      cacheInCloud: true,
       fromBlock: factory.fromBlock,
     });
     vaults = vaults.concat(events.map((e: any) => e.proxy))
@@ -52,6 +60,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   for (let i = 0; i < vaults.length; i++) {
     if (assets[i] && balances[i] && cumulativeIndexBefore[i] && cumulativeIndexAfter[i]) {
       const cumulativeYield = (BigInt(cumulativeIndexAfter[i]) - BigInt(cumulativeIndexBefore[i])) * BigInt(balances[i]) / BigInt(1e18)
+      
+      if (cumulativeYield < BigInt(0)) continue;
 
       const managementFeeRate = Number(feeRates[i] ? Number(feeRates[i].managementRate) / 1e4 : 0)
       const performanceFeeRate = Number(feeRates[i] ? Number(feeRates[i].performanceRate) / 1e4 : 0)
@@ -68,16 +78,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const protocolManagementFees = Number(managementFees) * protocolFeeRate
       const curatorsFees = (performanceFees * (1- protocolFeeRate)) + (managementFees * (1- protocolFeeRate))
 
-      dailyFees.add(assets[i], supplySideYields, METRIC.ASSETS_YIELDS);
-      dailyFees.add(assets[i], protocolPerformanceFees, METRIC.PERFORMANCE_FEES);
-      dailyFees.add(assets[i], protocolManagementFees, METRIC.MANAGEMENT_FEES);
-      dailyFees.add(assets[i], curatorsFees, METRIC.CURATORS_FEES);
+      dailyFees.add(assets[i], supplySideYields, METRICS.ASSETS_YIELDS);
+      dailyFees.add(assets[i], protocolPerformanceFees, METRICS.ASSETS_YIELDS);
+      dailyFees.add(assets[i], curatorsFees, METRICS.ASSETS_YIELDS);
+      dailyFees.add(assets[i], protocolManagementFees, METRICS.MANAGEMENT_FEES);
 
-      dailySupplySideRevenue.add(assets[i], supplySideYields, METRIC.ASSETS_YIELDS);
-      dailySupplySideRevenue.add(assets[i], curatorsFees, METRIC.CURATORS_FEES);
+      dailySupplySideRevenue.add(assets[i], supplySideYields, METRICS.ASSETS_YIELDS_LP);
+      dailySupplySideRevenue.add(assets[i], curatorsFees, METRICS.CURATORS_FEES);
 
-      dailyRevenue.add(assets[i], protocolPerformanceFees, METRIC.PERFORMANCE_FEES);
-      dailyRevenue.add(assets[i], protocolManagementFees, METRIC.MANAGEMENT_FEES);
+      dailyRevenue.add(assets[i], protocolPerformanceFees, METRICS.PERFORMANCE_FEES);
+      dailyRevenue.add(assets[i], protocolManagementFees, METRICS.MANAGEMENT_FEES);
     }
   }
 
@@ -101,22 +111,20 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: 'Amount of yields after performance and management fees cut.',
-      [METRIC.MANAGEMENT_FEES]: 'Management fees share to Lagoon protocol.',
-      [METRIC.PERFORMANCE_FEES]: 'Performance fees share to Lagoon protocol.',
-      [METRIC.CURATORS_FEES]: 'Share of performance and management fees to vault deployers/curators.',
+      [METRICS.ASSETS_YIELDS]: 'Amount of yields after performance and management fees cut.',
+      [METRICS.MANAGEMENT_FEES]: 'Management fees share to Lagoon protocol.',
     },
     Revenue: {
-      [METRIC.MANAGEMENT_FEES]: 'Management fees share to Lagoon protocol.',
-      [METRIC.PERFORMANCE_FEES]: 'Performance fees share to Lagoon protocol.',
+      [METRICS.MANAGEMENT_FEES]: 'Management fees share to Lagoon protocol.',
+      [METRICS.PERFORMANCE_FEES]: 'Performance fees share to Lagoon protocol.',
     },
     ProtocolRevenue: {
-      [METRIC.MANAGEMENT_FEES]: 'Management fees share to Lagoon protocol.',
-      [METRIC.PERFORMANCE_FEES]: 'Performance fees share to Lagoon protocol.',
+      [METRICS.MANAGEMENT_FEES]: 'Management fees share to Lagoon protocol.',
+      [METRICS.PERFORMANCE_FEES]: 'Performance fees share to Lagoon protocol.',
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: 'Amount of yields after performance and management fees cut to suppliers.',
-      [METRIC.CURATORS_FEES]: 'Share of performance and management fees to vault deployers/curators.',
+      [METRICS.ASSETS_YIELDS_LP]: 'Amount of yields after performance and management fees cut to suppliers.',
+      [METRICS.CURATORS_FEES]: 'Share of performance and management fees to vault deployers/curators.',
     },
   }
 };

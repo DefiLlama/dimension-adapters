@@ -12,12 +12,13 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions): Promise
             feesUSD
         }
     }`;
-  const url = "https://api.studio.thegraph.com/query/50593/yaka-analytics/v0.0.3";
+  const url = "https://api.studio.thegraph.com/query/105503/yaka-data-new/version/latest";
   const req = await request(url, query);
   return {
     dailyVolume: req.algebraDayData.volumeUSD,
     dailyFees: req.algebraDayData.feesUSD,
-    dailyRevenue: req.algebraDayData.feesUSD* 0.12,
+    dailySupplySideRevenue: req.algebraDayData.feesUSD * 0.88,
+    dailyRevenue: req.algebraDayData.feesUSD * 0.12,
   }
 }
 
@@ -25,7 +26,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SEI]: {
       fetch,
-      start: '2024-10-01',
+      start: '2025-04-10',
     },
   }
 }

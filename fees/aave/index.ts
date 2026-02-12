@@ -43,6 +43,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2',
       dataProvider: '0x7b4eb56e7cd4b454ba8ff71e4518426369a138a3',
+      dataProvider2: '0x41393e5e337606dc3821075Af65AeE84D7688CBD',
       selfLoanAssets: {
         '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': 'GHO',
       }
@@ -53,6 +54,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x4e033931ad43597d96d6bcc25c280717730b58b1',
       dataProvider: '0xa3206d66cf94aa1e93b21a9d8d409d6375309f4a',
+      dataProvider2: '0x08795CFE08C7a81dCDFf482BbAAF474B240f31cD'
     },
 
     // ether.fi market
@@ -60,6 +62,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x0AA97c284e98396202b6A04024F5E2c65026F3c0',
       dataProvider: '0x8Cb4b66f7B13F2Ae4D3c91338fC007dbF8C14208',
+      dataProvider2: '0xE7d490885A68f00d9886508DF281D67263ed5758'
     },
 
     // horizon market 
@@ -74,6 +77,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+      dataProvider2: '0x7F23D86Ee20D869112572136221e173428DD740B'
     },
   ],
   [CHAIN.ARBITRUM]: [
@@ -81,6 +85,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+      dataProvider2: '0x7F23D86Ee20D869112572136221e173428DD740B'
     },
   ],
   [CHAIN.POLYGON]: [
@@ -88,6 +93,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+      dataProvider2: '0x7F23D86Ee20D869112572136221e173428DD740B'
     },
   ],
   [CHAIN.AVAX]: [
@@ -95,6 +101,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+      dataProvider2: '0x7F23D86Ee20D869112572136221e173428DD740B'
     },
   ],
   [CHAIN.FANTOM]: [
@@ -102,6 +109,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
+      dataProvider2: '0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654'
     },
   ],
   [CHAIN.BASE]: [
@@ -109,6 +117,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0xa238dd80c259a72e81d7e4664a9801593f98d1c5',
       dataProvider: '0x2d8a3c5677189723c4cb8873cfc9c8976fdf38ac',
+      dataProvider2: '0xd82a47fdebB5bf5329b09441C3DaB4b5df2153Ad'
     },
   ],
   [CHAIN.METIS]: [
@@ -116,6 +125,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x90df02551bb792286e8d4f13e0e357b4bf1d6a57',
       dataProvider: '0x99411fc17ad1b56f49719e3850b2cdcc0f9bbfd8',
+      dataProvider2: '0xC01372469A17b6716A38F00c277533917B6859c0'
     },
   ],
   [CHAIN.XDAI]: [
@@ -123,6 +133,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0xb50201558b00496a145fe76f7424749556e326d8',
       dataProvider: '0x501b4c19dd9c2e06e94da7b6d5ed4dda013ec741',
+      dataProvider2: '0x57038C3e3Fe0a170BB72DE2fD56E98e4d1a69717'
     },
   ],
   [CHAIN.BSC]: [
@@ -130,6 +141,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x6807dc923806fe8fd134338eabca509979a7e0cb',
       dataProvider: '0x41585c50524fb8c3899b43d7d797d9486aac94db',
+      dataProvider2: '0x23dF2a19384231aFD114b036C14b6b03324D79BC'
     },
   ],
   [CHAIN.SCROLL]: [
@@ -137,6 +149,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x11fCfe756c05AD438e312a7fd934381537D3cFfe',
       dataProvider: '0xa99F4E69acF23C6838DE90dD1B5c02EA928A53ee',
+      dataProvider2: '0xe2108b60623C6Dcf7bBd535bD15a451fd0811f7b'
     },
   ],
   [CHAIN.ERA]: [
@@ -144,6 +157,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x78e30497a3c7527d953c6B1E3541b021A98Ac43c',
       dataProvider: '0x48B96565291d1B23a014bb9f68E07F4B2bb3Cd6D',
+      dataProvider2: '0x5F2A704cE47B373c908fE8A29514249469b52b99'
     },
   ],
   [CHAIN.LINEA]: [
@@ -179,6 +193,13 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x925a2A7214Ed92428B5b1B090F80b25700095e12',
       dataProvider: '0xf2D6E38B407e31E7E7e4a16E6769728b76c7419F',
+    },
+  ],
+  [CHAIN.MEGAETH]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x7e324AbC5De01d112AfC03a584966ff199741C28',
+      dataProvider: '0x9588b453A4EE24a420830CB3302195cA7aA3b403',
     },
   ],
 }
@@ -307,6 +328,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.SONEIUM]: {
         pools: AaveMarkets[CHAIN.SONEIUM],
         start: '2025-05-14',
+      },
+      [CHAIN.MEGAETH]: {
+        pools: AaveMarkets[CHAIN.MEGAETH],
+        start: '2026-02-10',
       },
     }),
   }

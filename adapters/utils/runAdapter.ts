@@ -4,7 +4,7 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchResultV2, FetchV2, SimpleAdapter, } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -74,6 +74,15 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 }
 
+export function isHourlyAdapter(module: SimpleAdapter) {
+  const adapterVersion = module.version
+  return adapterVersion === 2 && (module as any).pullHourly === true
+}
+
+export function isPlainDateArg(rawTimeArg?: string) {
+  return !!rawTimeArg && /^\d{4}-\d{2}-\d{2}$/.test(rawTimeArg)
+}
+
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
@@ -82,6 +91,7 @@ type AdapterRunOptions = {
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
   cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+  runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
@@ -104,7 +114,7 @@ export default async function runAdapter(options: AdapterRunOptions) {
 }
 
 function getRunKey(options: AdapterRunOptions) {
-  let randomUID = options.module._randomUID ?? genUID(10)
+  const randomUID = options.module._randomUID ?? genUID(10)
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
 }
 
@@ -123,10 +133,14 @@ async function _runAdapter({
   isTest = false,
   withMetadata = false,
   deadChains = new Set(),
+  runWindowInSeconds = ONE_DAY_IN_SECONDS,
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
   const moduleUID = module._randomUID
+  // const isHourly = isHourlyAdapter(module)
+  // const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
+  const WINDOW_SECONDS = runWindowInSeconds
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
   const { prefetch, allowNegativeValue = false, } = module
@@ -163,7 +177,7 @@ async function _runAdapter({
   if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
-      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID });
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
     }
   }
@@ -216,7 +230,7 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
-      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID })
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
       }
@@ -307,7 +321,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject({ timestamp, chain, chainBlocks, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, moduleUID?: string }): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize = ONE_DAY_IN_SECONDS, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize?: number, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
@@ -318,7 +332,7 @@ async function _runAdapter({
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
-    const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
+    const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const problematicChains = new Set(['sei', 'xlayer'])
@@ -330,10 +344,51 @@ async function _runAdapter({
 
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
+      const requestCount = targets ? targets.length : 1
+      if (api) api.addStat('logsRequests', requestCount)
 
       return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
+
+    const streamLogs = async (params: Parameters<typeof sdk.indexer.getLogs>[0] & {
+      targetsFilter?: string[] | Set<string>
+    }) => {
+
+
+      if (!sdk.indexer.supportedChainSet2.has(chain)) {
+        throw new Error(`streamLogs is not supported for ${chain} chain`)
+      }
+
+      const origProcessor = params.processor
+      let targetsFilter = params.targetsFilter
+
+      if (Array.isArray(targetsFilter))
+        targetsFilter = new Set(targetsFilter.map((t) => t.toLowerCase()))
+
+      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
+      if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
+      if (!params.hasOwnProperty('all')) params.all = true
+      if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
+      if (!params.hasOwnProperty('collect')) params.collect = false
+      if (!params.hasOwnProperty('onlyArgs') && !params.entireLog) params.onlyArgs = true
+
+      if (params.hasOwnProperty('processor')) params.processor = (chunk: any | any[]) => {
+        let swapLogs = Array.isArray(chunk) ? chunk : [chunk]
+
+        if (targetsFilter)
+          swapLogs = swapLogs.filter((log) => targetsFilter!.has(log.address.toLowerCase()))
+
+
+        origProcessor!(swapLogs)
+      }
+
+
+      const requestCount = params.targets ? params.targets.length : 1
+      if (api) api.addStat('streamLogs', requestCount)
+
+      return sdk.indexer.getLogs({ ...params, chain })
+    }
     // we intentionally add a delay to avoid fetching the same block before it is cached
     // await randomDelay()
 
@@ -351,6 +406,9 @@ async function _runAdapter({
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api
+
+    api.getLogs = () => { throw new Error('api.getLogs is disabled, use getLogs from options object instead') }
+    fromApi.getLogs = () => { throw new Error('fromApi.getLogs is disabled, use getLogs from options object instead') }
 
     return {
       createBalances,
@@ -372,6 +430,7 @@ async function _runAdapter({
       dateString: getDateString(startOfDay),
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
+      streamLogs,
     }
   }
 

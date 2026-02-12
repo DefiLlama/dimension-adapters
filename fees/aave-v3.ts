@@ -113,6 +113,10 @@ const chainConfig = {
     pools: AaveMarkets[CHAIN.PLASMA],
     start: '2025-09-25',
   },
+  [CHAIN.MEGAETH]: {
+    pools: AaveMarkets[CHAIN.MEGAETH],
+    start: '2026-02-09',
+  },
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -120,7 +124,15 @@ const fetch = async (options: FetchOptions) => {
   let dailyProtocolRevenue = options.createBalances()
   let dailySupplySideRevenue = options.createBalances()
 
-  const pools = AaveMarkets[options.chain]
+  // There was an upgrade between these dates (Oct 8-17, 2024) and the dataProvider contracts don't work, so we use the backup contracts
+  const pools = AaveMarkets[options.chain].map(pool => {
+    if (pool.dataProvider2 && 
+        options.startTimestamp >= 1728345600 && 
+        options.endTimestamp <= 1729209599) {
+      return { ...pool, dataProvider: pool.dataProvider2 };
+    }
+    return pool;
+  });
 
   for (const pool of pools) {
     await getPoolFees(pool, options, {

@@ -4,10 +4,20 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from '../helpers/metrics';
 
 const methodology = {
     Fees: "All trading fees paid by users while using Bloom Trading bot.",
     Revenue: "Trading fees are collected by Bloom protocol.",
+}
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.TRADING_FEES]: "Trading fees are collected by Bloom protocol.",
+    },
+    Revenue: {
+        [METRIC.TRADING_FEES]: "Trading fees are collected by Bloom protocol.",
+    },
 }
 
 const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
@@ -48,9 +58,12 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
 
-  return { dailyFees, dailyRevenue: dailyFees }
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
+
+  return { dailyFees, dailyRevenue }
 }
 
 const contract: any = {
@@ -111,12 +124,14 @@ const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
     flatten: true
   })
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   logs.forEach((log: any) => {
     const data = log.data.replace('0x', '');
     const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
-    dailyFees.addGasToken(fees_amount);
+    dailyFees.addGasToken(fees_amount, METRIC.TRADING_FEES);
+    dailyRevenue.addGasToken(fees_amount, METRIC.TRADING_FEES);
   })
-  return { dailyFees, dailyRevenue: dailyFees } 
+  return { dailyFees, dailyRevenue } 
 }
 
 const adapter: SimpleAdapter = {
@@ -138,6 +153,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

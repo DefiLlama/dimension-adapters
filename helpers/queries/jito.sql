@@ -68,4 +68,4 @@ SELECT
     (SELECT COALESCE(SUM(usd_amt), 0) FROM jitostake_pool_fees) AS jitostake_pool_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM interceptor_fees) AS interceptor_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM tip_router_fees) AS tip_router_fees,
-    (SELECT COALESCE(SUM(usd_amt), 0) FROM bam_mev_tips) AS bam_mev_tips;
+    (SELECT COALESCE(SUM(usd_amt), 0) FROM bam_mev_tips) AS bam_mev_tips
