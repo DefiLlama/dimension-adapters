@@ -30,7 +30,7 @@ importers:
         specifier: ^9.1.0
         version: 9.3.1
       dotenv:
-        specifier: ^16.6.1
+        specifier: ^16.0.3
         version: 16.6.1
       ethers:
         specifier: ^6.9.2
