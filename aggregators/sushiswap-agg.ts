@@ -802,10 +802,10 @@ const adapters = {
     fetch,
     start: '2026-02-08'
   },
-  [CHAIN.XLAYER]: {
-    fetch,
-    start: '2026-02-08'
-  },
+  // [CHAIN.XLAYER]: {
+  //   fetch,
+  //   start: '2026-02-08'
+  // },
 }
 
 export default {
