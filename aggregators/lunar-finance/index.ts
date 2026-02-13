@@ -4,16 +4,11 @@ import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const LUNA_API_BASE = "https://api.lunarfinance.io";
-const BRIDGE_ANALYTICS_ENDPOINT = `${LUNA_API_BASE}/api/analytics/bridge`;
 const SWAP_ANALYTICS_ENDPOINT = `${LUNA_API_BASE}/api/analytics/dexs`;
-const COMBINED_ANALYTICS_ENDPOINT = `${LUNA_API_BASE}/api/analytics/fees`;
 
 interface LunaAnalyticsResponse {
   success: boolean;
   data: {
-    dailyBridgeVolume?: {
-      usd: string;
-    };
     dailySwapVolume?: {
       usd: string;
     };
@@ -23,15 +18,8 @@ interface LunaAnalyticsResponse {
     dailyRevenue?: {
       usd: string;
     };
-    metadata?: {
-      timeframe: {
-        start: number;
-        end: number;
-      };
-    };
   };
 }
-
 
 const weiToNumber = (weiString: string): number => {
   return parseFloat(weiString) / 1e18;
@@ -41,28 +29,19 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const nextDayTimestamp = dayTimestamp + 86400;
 
-  const url = `${COMBINED_ANALYTICS_ENDPOINT}?startTime=${dayTimestamp}&endTime=${nextDayTimestamp}`;
+  const url = `${SWAP_ANALYTICS_ENDPOINT}?startTime=${dayTimestamp}&endTime=${nextDayTimestamp}`;
   const response: LunaAnalyticsResponse = await fetchURL(url);
 
   if (!response.success) {
-    throw new Error("Failed to fetch Luna Finance analytics");
+    throw new Error("Failed to fetch Luna Finance swap analytics");
   }
 
-  const { dailyBridgeVolume, dailySwapVolume, dailyFees, dailyRevenue } = response.data;
-
-  const bridgeVol = dailyBridgeVolume ? weiToNumber(dailyBridgeVolume.usd) : 0;
-  const swapVol = dailySwapVolume ? weiToNumber(dailySwapVolume.usd) : 0;
-  const totalVolume = bridgeVol + swapVol;
-
-  const totalFees = dailyFees ? weiToNumber(dailyFees.usd) : 0;
-  const totalRevenue = dailyRevenue ? weiToNumber(dailyRevenue.usd) : 0;
+  const { dailySwapVolume, dailyFees, dailyRevenue } = response.data;
 
   return {
-    dailyVolume: totalVolume,
-    dailyBridgeVolume: bridgeVol,
-    dailySwapVolume: swapVol,
-    dailyFees: totalFees,
-    dailyRevenue: totalRevenue,
+    dailyVolume: dailySwapVolume ? weiToNumber(dailySwapVolume.usd) : 0,
+    dailyFees: dailyFees ? weiToNumber(dailyFees.usd) : 0,
+    dailyRevenue: dailyRevenue ? weiToNumber(dailyRevenue.usd) : 0,
     timestamp: dayTimestamp,
   };
 };
@@ -77,6 +56,5 @@ const adapter: SimpleAdapter = {
     },
   },
 };
-
 
 export default adapter;
