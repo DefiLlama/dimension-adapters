@@ -2,19 +2,16 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { METRIC } from "../../helpers/metrics";
+import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "FMAWbzuxsgbgndArunedwxXPA6sweaVUGGgadCpSxau2";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQDNw";
 const LST_FEE_TOKEN_ACCOUNT_OLD = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD"; // old
 const LST_FEE_TOKEN_ACCOUNT_NEW = "GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g";
 const LST_MINT = ADDRESSES.solana.JupSOL;
-let LST_FEE_TOKEN_ACCOUNT = 'GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  if (options.startOfDay <= 1760486400){
-    LST_FEE_TOKEN_ACCOUNT = LST_FEE_TOKEN_ACCOUNT_OLD;
-  }
+  const LST_FEE_TOKEN_ACCOUNT = options.startOfDay <= 1760486400 ? LST_FEE_TOKEN_ACCOUNT_OLD : LST_FEE_TOKEN_ACCOUNT_NEW;
   const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
@@ -28,33 +25,41 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
-      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
+      dailyFees.addCGToken("solana", row.amount || 0, JUPITER_METRICS.JupSOLStakingRewards);
+      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, JUPITER_METRICS.JupSOLStakingRewardsToStakers);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.addCGToken("jupiter-staked-sol", row.amount || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
-      dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyFees.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
+      dailyRevenue.addCGToken("jupiter-staked-sol", row.amount || 0, JUPITER_METRICS.JupSOLDepositWithdrawFees);
     }
   });
-
+  
+  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
+  const revenueHolders = dailyRevenue.clone(buybackRatio);
+  const revenueProtocol = dailyRevenue.clone(buybackRatio);
+  dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupSOLDepositWithdrawFees);
+  dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
+  
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
-    dailySupplySideRevenue
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on jupiter staked solana',
+  Fees: 'Staking rewards from staked SOL and deposit/withdraw fees on jupiter staked solana',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-  ProtocolRevenue: 'Revenue going to treasury/team',
-  HoldersRevenue: 'No revenue share to JUP token holders.',
-  SupplySideRevenue: 'All the staking rewards go to stakers'
+  ProtocolRevenue: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
+  HoldersRevenue: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',
+  SupplySideRevenue: 'All SOL staking rewards go to stakers.'
 }
 
 const adapter: SimpleAdapter = {
@@ -67,18 +72,21 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   breakdownMethodology: {
     Fees: {
-      [METRIC.STAKING_REWARDS]: 'Staking rewards from staked SOL on Jupiter',
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes 0.1% deposit fee'
+      [JUPITER_METRICS.JupSOLStakingRewards]: 'Staking rewards from staked SOL on Jupiter.',
+      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Includes 0.1% deposit fee.',
     },
     Revenue: {
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes 0.1% deposit fee'
+      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Includes 0.1% deposit fee.',
     },
     ProtocolRevenue: {
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Includes 0.1% deposit fee'
+      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: 'All the staking rewards are distributed to jupSOL'
-    }
+      [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: 'All the staking rewards are distributed to jupSOL.',
+    },
+    HoldersRevenue: {
+      [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',
+    },
   } ,
 };
 
