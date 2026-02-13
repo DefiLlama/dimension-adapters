@@ -50,7 +50,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Token trading and launching fees.',
     Revenue: 'All fees collected by protocol.',
-    ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 205-02-17.',
+    ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
     HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
   },
   breakdownMethodology: {

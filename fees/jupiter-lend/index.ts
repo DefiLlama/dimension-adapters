@@ -62,8 +62,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
     Revenue: 'Amount of interest share to Jupiter and JUP token holders.',
-    ProtocolRevenue: '50% of the revenue goes to jupiter, it was 100% before 2025-02-07.',
-    HoldersRevnue: 'From 2025-02-17, 50% of the revenue goes to JUP token holders via buy back.',
+    ProtocolRevenue: '50% of the revenue goes to jupiter, it was 100% before 2025-02-17.',
+    HoldersRevenue: 'From 2025-02-17, 50% of the revenue goes to JUP token holders via buy back.',
     SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market.',
   },
   breakdownMethodology: {
@@ -74,7 +74,8 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.InterestToJupiter]: 'Amount of interest cut collected by Jupiter, (50% goes to jupiter, other 50% to Fluid).',
     },
     SupplySideRevenue: {
-      [JUPITER_METRICS.InterestToLenders]: 'Interest distributed to lenders and Fluid from all markets.',
+      [JUPITER_METRICS.InterestToLenders]: 'Interest distributed to lenders from all markets.',
+      [JUPITER_METRICS.InterestToFluid]: 'Interest distributed to Fluid from all markets.',
     },
     ProtocolRevenue: {
       [JUPITER_METRICS.InterestToJupiter]: '50% of the revenue goes to Jupiter.',

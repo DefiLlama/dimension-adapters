@@ -41,7 +41,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   
   const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
   const revenueHolders = dailyRevenue.clone(buybackRatio);
-  const revenueProtocol = dailyRevenue.clone(buybackRatio);
+  const revenueProtocol = dailyRevenue.clone(1 - buybackRatio);
   dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupSOLDepositWithdrawFees);
   dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
   

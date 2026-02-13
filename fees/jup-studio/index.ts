@@ -159,7 +159,7 @@ const adapter: SimpleAdapter = {
         Fees: "Trading fees paid by users.",
         Revenue: "Fees collected by Jup Studio.",
         SupplySideRevenue: "Fees collected by referrals.",
-        ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 205-02-17.',
+        ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
         HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
     },
     breakdownMethodology: {
@@ -170,7 +170,7 @@ const adapter: SimpleAdapter = {
             [JUPITER_METRICS.JupStudioFeesToJupiter]: 'All token trading and launching fees are revenue.',
         },
         ProtocolRevenue: {
-            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Share of 50% fees collected by protocol, it was 100% before 205-02-17.',
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
         },
         SupplySideRevenue: {
             [JUPITER_METRICS.JupStudioFeesToReferrals]: 'Fees collected by referrals.',
