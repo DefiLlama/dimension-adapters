@@ -220,11 +220,13 @@ async function fetchUniV3POLFees(
       target: positionManager,
       eventAbi: EVENTS.uniV3Collect,
       entireLog: true,
+      parseLog: true,
     }),
     options.getLogs({
       target: positionManager,
       eventAbi: EVENTS.uniV3DecreaseLiquidity,
       entireLog: true,
+      parseLog: true,
     }),
   ]);
 
