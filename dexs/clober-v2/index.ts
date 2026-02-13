@@ -8,7 +8,7 @@ const abi = {
   feeCollected: 'event FeeCollected(address indexed recipient, address indexed token, uint256 amount)'
 }
 const bookManagerContract: Record<string, string> = {
-  [CHAIN.BASE]: '0x382CCccbD3b142D7DA063bF68cd0c89634767F76',
+  [CHAIN.BASE]: '0x8ca3a6f4a6260661fcb9a25584c796a1fa380112',
   [CHAIN.ERA]: '0xAaA0e933e1EcC812fc075A81c116Aa0a82A5bbb8',
   [CHAIN.MONAD]: '0x6657d192273731C3cAc646cc82D5F28D0CBE8CCC',
 }
@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2024-06-12',
+      start: '2026-01-17',
     },
     [CHAIN.ERA]: {
       fetch,
