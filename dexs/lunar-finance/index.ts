@@ -34,7 +34,8 @@ interface LunaAnalyticsResponse {
 
 
 const weiToNumber = (weiString: string): number => {
-  return parseFloat(weiString) / 1e18;
+  const parsed = parseFloat(weiString);
+  return isNaN(parsed) ? 0 : parsed / 1e18;
 };
 
 const fetch = async (timestamp: number) => {
