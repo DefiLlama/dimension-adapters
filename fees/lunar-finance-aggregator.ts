@@ -3,7 +3,7 @@ import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
-const LUNA_API_BASE = "https://api.lunarfinance.io";
+const LUNA_API_BASE = process.env.LUNA_API_BASE ?? "https://api.lunarfinance.io";
 const SWAP_ANALYTICS_ENDPOINT = `${LUNA_API_BASE}/api/analytics/dexs`;
 
 interface LunaAnalyticsResponse {
