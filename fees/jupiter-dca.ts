@@ -54,7 +54,7 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupDCAFees]: 'All fees collected by protocol and JUP token holders',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupApeFees]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
+      [JUPITER_METRICS.JupDCAFees]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
     },
     HoldersRevenue: {
       [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
