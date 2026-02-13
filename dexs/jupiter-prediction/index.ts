@@ -86,6 +86,7 @@ const adapter: SimpleAdapter = {
     isExpensiveAdapter: true,
     doublecounted: true,
     dependencies: [Dependencies.DUNE],
+    breakdownMethodology
 }
 
 export default adapter;
