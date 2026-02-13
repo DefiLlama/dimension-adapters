@@ -80,6 +80,8 @@ const ABIS = {
 
 const EVENTS = {
   uniV3Collect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
+  uniV3DecreaseLiquidity: "event DecreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
+  uniV3IncreaseLiquidity: "event IncreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
   camelotV2Swap: "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)",
   cdClaimedYield: "event ClaimedYield(address indexed asset, uint256 actualYield)",
   cdLendingRepaid: "event LoanRepaid(address indexed user, uint16 indexed redemptionId, uint256 principal, uint256 interest)",
@@ -124,7 +126,7 @@ async function fetchCoolerLoanInterest(options: FetchOptions) {
       const interest = (avgDebt * accDelta) / RAY;
       fees.add(CHAIN_CONFIG.ethereum.usds, interest);
     }
-  } catch (e) {}
+  } catch (e) { }
 
   return fees;
 }
@@ -142,24 +144,22 @@ async function fetchERC4626Yield(
   const { fromApi, toApi, createBalances } = options;
   const fees = createBalances();
 
-  try {
-    const balances = await fromApi.multiCall({
-      abi: ABIS.balanceOf,
-      calls: treasuryAddresses.map(t => ({ target: vaultAddress, params: [t] })),
-    });
+  const balances = await fromApi.multiCall({
+    abi: ABIS.balanceOf,
+    calls: treasuryAddresses.map(t => ({ target: vaultAddress, params: [t] })),
+  });
 
-    const totalBalance = balances.reduce((sum, bal) => sum + BigInt(bal), BigInt(0));
-    if (totalBalance === BigInt(0)) return fees;
+  const totalBalance = balances.reduce((sum, bal) => sum + BigInt(bal), BigInt(0));
+  if (totalBalance === BigInt(0)) return fees;
 
-    const [oldRate, newRate] = await Promise.all([
-      fromApi.call({ abi: ABIS.convertToAssets, target: vaultAddress, params: [ONE_SHARE.toString()] }),
-      toApi.call({ abi: ABIS.convertToAssets, target: vaultAddress, params: [ONE_SHARE.toString()] }),
-    ]);
+  const [oldRate, newRate] = await Promise.all([
+    fromApi.call({ abi: ABIS.convertToAssets, target: vaultAddress, params: [ONE_SHARE.toString()] }),
+    toApi.call({ abi: ABIS.convertToAssets, target: vaultAddress, params: [ONE_SHARE.toString()] }),
+  ]);
 
-    const rateDelta = BigInt(newRate) - BigInt(oldRate);
-    const yieldAmount = (rateDelta * totalBalance) / ONE_SHARE;
-    fees.add(underlyingToken, yieldAmount);
-  } catch (e) {}
+  const rateDelta = BigInt(newRate) - BigInt(oldRate);
+  const yieldAmount = (rateDelta * totalBalance) / ONE_SHARE;
+  fees.add(underlyingToken, yieldAmount);
 
   return fees;
 }
@@ -192,16 +192,14 @@ async function fetchCDFacilityRevenue(options: FetchOptions) {
 async function fetchCDLendingRevenue(options: FetchOptions) {
   const fees = options.createBalances();
 
-  try {
-    const logs = await options.getLogs({
-      target: CHAIN_CONFIG.ethereum.cdLending,
-      eventAbi: EVENTS.cdLendingRepaid,
-    });
+  const logs = await options.getLogs({
+    target: CHAIN_CONFIG.ethereum.cdLending,
+    eventAbi: EVENTS.cdLendingRepaid,
+  });
 
-    for (const log of logs) {
-      fees.add(CHAIN_CONFIG.ethereum.usds, BigInt(log.interest));
-    }
-  } catch (e) {}
+  for (const log of logs) {
+    fees.add(CHAIN_CONFIG.ethereum.usds, BigInt(log.interest));
+  }
 
   return fees;
 }
@@ -217,46 +215,86 @@ async function fetchUniV3POLFees(
 ) {
   const fees = options.createBalances();
 
-  try {
-    const collectLogs = await options.getLogs({
+  const [collectLogs, decreaseLogs] = await Promise.all([
+    options.getLogs({
       target: positionManager,
       eventAbi: EVENTS.uniV3Collect,
+      entireLog: true,
+    }),
+    options.getLogs({
+      target: positionManager,
+      eventAbi: EVENTS.uniV3DecreaseLiquidity,
+      entireLog: true,
+    }),
+  ]);
+
+  const withdrawnMap = new Map<string, { amount0: bigint; amount1: bigint }>();
+
+  for (const log of decreaseLogs) {
+    const { transactionHash, args } = log as any;
+    const key = `${transactionHash?.toLowerCase()}-${args.tokenId}`;
+    const existing = withdrawnMap.get(key) || { amount0: 0n, amount1: 0n };
+
+    withdrawnMap.set(key, {
+      amount0: existing.amount0 + BigInt(args.amount0 || 0),
+      amount1: existing.amount1 + BigInt(args.amount1 || 0),
     });
+  }
 
-    const positionIdSet = positionIds ? new Set(positionIds.map(String)) : null;
-    const treasuryCollects = collectLogs.filter((log: any) => 
-      treasuryAddresses.includes(log.recipient.toLowerCase()) && 
-      (!positionIdSet || positionIdSet.has(String(log.tokenId)))
-    );
+  const positionIdSet = positionIds ? new Set(positionIds.map(String)) : null;
+  const treasuryCollects = collectLogs
+    .filter((log: any) =>
+      treasuryAddresses.includes(log.args.recipient.toLowerCase()) &&
+      (!positionIdSet || positionIdSet.has(String(log.args.tokenId)))
+    )
+    .map((log: any) => {
+      const { transactionHash, args } = log;
+      const key = `${transactionHash?.toLowerCase()}-${args.tokenId}`;
+      const withdrawn = withdrawnMap.get(key);
 
-    const positionCache = new Map<string, { token0: string; token1: string }>();
-    const uniqueTokenIds = [...new Set(treasuryCollects.map((log: any) => String(log.tokenId)))];
+      let amount0 = BigInt(args.amount0 || 0);
+      let amount1 = BigInt(args.amount1 || 0);
 
-    if (uniqueTokenIds.length > 0) {
-      try {
-        const positions = await options.api.multiCall({
-          abi: ABIS.positions,
-          calls: uniqueTokenIds.map(tokenId => ({ target: positionManager, params: [tokenId] })),
-        });
-        positions.forEach((position: any, i: number) => {
-          if (position) {
-            positionCache.set(uniqueTokenIds[i], { token0: position.token0, token1: position.token1 });
-          }
-        });
-      } catch (e) {}
-    }
-
-    for (const log of treasuryCollects) {
-      const positionData = positionCache.get(String(log.tokenId));
-      if (positionData) {
-        if (BigInt(log.amount0) > 0) fees.add(positionData.token0, log.amount0);
-        if (BigInt(log.amount1) > 0) fees.add(positionData.token1, log.amount1);
+      if (withdrawn) {
+        amount0 = amount0 > withdrawn.amount0 ? amount0 - withdrawn.amount0 : 0n;
+        amount1 = amount1 > withdrawn.amount1 ? amount1 - withdrawn.amount1 : 0n;
       }
-    }
-  } catch (e) {}
 
+      return {
+        transactionHash,
+        tokenId: args.tokenId,
+        recipient: args.recipient,
+        amount0,
+        amount1,
+      };
+    })
+    .filter((log: any) => log.amount0 > 0n || log.amount1 > 0n);
+
+  const positionCache = new Map<string, { token0: string; token1: string }>();
+  const uniqueTokenIds = [...new Set(treasuryCollects.map((log: any) => String(log.tokenId)))];
+
+  if (uniqueTokenIds.length > 0) {
+    const positions = await options.api.multiCall({
+      abi: ABIS.positions,
+      calls: uniqueTokenIds.map(tokenId => ({ target: positionManager, params: [tokenId] })),
+    });
+    positions.forEach((position: any, i: number) => {
+      if (position) {
+        positionCache.set(uniqueTokenIds[i], { token0: position.token0, token1: position.token1 });
+      }
+    });
+  }
+
+  for (const log of treasuryCollects) {
+    const positionData = positionCache.get(String(log.tokenId));
+    if (positionData) {
+      if (log.amount0 > 0n) fees.add(positionData.token0, log.amount0.toString());
+      if (log.amount1 > 0n) fees.add(positionData.token1, log.amount1.toString());
+    }
+  }
   return fees;
 }
+
 
 /**
  * Fetch Camelot V2 POL fees on Arbitrum
@@ -267,27 +305,25 @@ async function fetchUniV3POLFees(
 async function fetchCamelotV2Fees(options: FetchOptions) {
   const fees = options.createBalances();
 
-  try {
-    const swapLogs = await options.getLogs({
-      target: CHAIN_CONFIG.arbitrum.camelotV2Pool,
-      eventAbi: EVENTS.camelotV2Swap,
-    });
+  const swapLogs = await options.getLogs({
+    target: CHAIN_CONFIG.arbitrum.camelotV2Pool,
+    eventAbi: EVENTS.camelotV2Swap,
+  });
 
-    const FEE_RATE = BigInt(25); // 0.25% LP share (25 bps)
-    const BPS = BigInt(10000);
+  const FEE_RATE = BigInt(25); // 0.25% LP share (25 bps)
+  const BPS = BigInt(10000);
 
-    for (const log of swapLogs) {
-      const amount0In = BigInt(log.amount0In);
-      const amount1In = BigInt(log.amount1In);
+  for (const log of swapLogs) {
+    const amount0In = BigInt(log.amount0In);
+    const amount1In = BigInt(log.amount1In);
 
-      if (amount0In > 0) {
-        fees.add(CHAIN_CONFIG.arbitrum.weth, (amount0In * FEE_RATE) / BPS);
-      }
-      if (amount1In > 0) {
-        fees.add(CHAIN_CONFIG.arbitrum.ohm, (amount1In * FEE_RATE) / BPS);
-      }
+    if (amount0In > 0) {
+      fees.add(CHAIN_CONFIG.arbitrum.weth, (amount0In * FEE_RATE) / BPS);
     }
-  } catch (e) {}
+    if (amount1In > 0) {
+      fees.add(CHAIN_CONFIG.arbitrum.ohm, (amount1In * FEE_RATE) / BPS);
+    }
+  }
 
   return fees;
 }
