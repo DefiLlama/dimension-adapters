@@ -61,7 +61,6 @@ const fetch = async (timestamp: number) => {
   return {
     dailyVolume: totalVolume,
     dailyBridgeVolume: bridgeVol,
-    dailySwapVolume: swapVol,
     dailyFees: totalFees,
     dailyRevenue: totalRevenue,
     timestamp: dayTimestamp,
