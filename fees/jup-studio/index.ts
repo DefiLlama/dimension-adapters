@@ -2,6 +2,7 @@ import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
+import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
 
 interface IData {
     quote_mint: string;
@@ -109,28 +110,41 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
+    const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
 
     const accepted_quote_mints = [
         'So11111111111111111111111111111111111111112',
         'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
     ]
-    console.log(data);
     data.forEach(row => {
         if (!accepted_quote_mints.includes(row.quote_mint)) return;
         const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees) + Number(row.damm_v2_fees);
-        dailyFees.add(row.quote_mint, Number(totalFees));
-        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees));
-        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees) + Number(row.damm_v2_fees));
+
+        dailyFees.add(row.quote_mint, Number(totalFees), JUPITER_METRICS.JupStudioFees);
+        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees), JUPITER_METRICS.JupStudioFeesToReferrals);
+      
+      
+        const revenue = options.createBalances();
+        revenue.add(row.quote_mint, Number(row.total_trading_fees) + Number(row.damm_v2_fees))
+        dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
+      
+        const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
+        const revenueHolders = revenue.clone(buybackRatio);
+        const revenueProtocol = revenue.clone(1 - buybackRatio);
+        dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupStudioFeesToJupiter);
+        dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
     });
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyProtocolRevenue,
+        dailyRevenue,
         dailyProtocolRevenue,
         dailySupplySideRevenue,
+        dailyHoldersRevenue,
     };
 };
 
@@ -144,8 +158,26 @@ const adapter: SimpleAdapter = {
     methodology: {
         Fees: "Trading fees paid by users.",
         Revenue: "Fees collected by Jup Studio.",
-        ProtocolRevenue: "Fees collected by Jup Studio.",
         SupplySideRevenue: "Fees collected by referrals.",
+        ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
+        HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+    },
+    breakdownMethodology: {
+        Fees: {
+            [JUPITER_METRICS.JupStudioFees]: 'Trading fees paid by users.',
+        },
+        Revenue: {
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'All token trading and launching fees are revenue.',
+        },
+        ProtocolRevenue: {
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
+        },
+        SupplySideRevenue: {
+            [JUPITER_METRICS.JupStudioFeesToReferrals]: 'Fees collected by referrals.',
+        },
+        HoldersRevenue: {
+            [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+        },
     }
 }
 
