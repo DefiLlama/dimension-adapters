@@ -26,8 +26,15 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  const volume = BigNumber(volumeStr).div(1e8).toNumber();
-  dailyVolume.addCGToken('bitcoin', volume);
+  const volumeSats = BigNumber(volumeStr);
+  if (volumeSats.isNaN()) {
+    return {
+      dailyVolume,
+    }
+  }
+  const volumeBTC = volumeSats.div(1e8);
+
+  dailyVolume.addCGToken('bitcoin', volumeBTC.toNumber());
 
   return {
     dailyVolume,
