@@ -83,6 +83,8 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 
     if (chain === CHAIN.TON)
       block = await getTonBlock(timestamp)
+    else if (chain === CHAIN.SPARK)
+      block = getSparkBlock(timestamp)
     else
       block = await sdk.blocks.getBlockNumber(chain, timestamp)
   } catch (e) {
@@ -123,6 +125,20 @@ async function getHydrationBlock(unixTs: number) {
     "only_head": true
   })
   return data.data.block_num
+}
+
+function getSparkBlock(unixTs: number): number {
+  // Obtained from Sparkscan docs
+  const startingBlockNumber = 0 as const;
+  // Block period in milliseconds (2^16 = 65536 ms ≈ 65.5 seconds, around a minute)
+  const blockPeriodMs = 1 << 16;
+  // Time skew delay in milliseconds (5 seconds) to account for clock synchronization differences
+  const timeSkewDelayMs = 5000 as const;
+
+  const delayedTimestampMs = Math.max(unixTs * 1000 - timeSkewDelayMs, 0);
+  const calculatedBlockNumber = Math.floor(delayedTimestampMs / blockPeriodMs);
+
+  return Math.max(calculatedBlockNumber - startingBlockNumber, 0);
 }
 
 export {
