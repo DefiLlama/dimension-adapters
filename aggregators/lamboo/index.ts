@@ -155,8 +155,10 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     WHERE token IN (
       '0x1::aptos_coin::AptosCoin',
       '0xa',
+      '${APT_TOKEN}',
       '0x5fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2',
-      '0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2'
+      '0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2',
+      '${USD1_TOKEN}'
     )
     GROUP BY 1, 2;
   `;
