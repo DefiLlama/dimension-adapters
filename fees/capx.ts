@@ -10,9 +10,25 @@ const methodology = {
   SupplySideRevenue: "10% of the fees (0.1% of volume) is distributed to liquidity providers",
 }
 
+const breakdownMethodology = {
+  UserFees: {
+    "Trading fees": "1% fee charged on each token swap transaction",
+  },
+  Revenue: {
+    "Protocol fees": "90% of trading fees allocated to the protocol treasury (0.9% of swap volume)",
+  },
+  ProtocolRevenue: {
+    "Protocol fees": "90% of trading fees deposited into the protocol treasury at 0x87b8F64BE420353d927aBF149EA62B68d45e8CE8",
+  },
+  SupplySideRevenue: {
+    "LP fees": "10% of trading fees distributed to liquidity providers (0.1% of swap volume)",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.CAPX]: {
       fetch: getUniV2LogAdapter({

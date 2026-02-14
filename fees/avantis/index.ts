@@ -18,6 +18,24 @@ interface IData {
 
 const API_URL = "https://api.avantisfi.com/v1";
 
+const methodology = {
+	Fees: "Avantis collects fees from perpetual trading activities including position opening fees, position closing fees, and rollover fees for maintaining open positions",
+	UserFees: "All fees are paid directly by traders",
+};
+
+const breakdownMethodology = {
+	Fees: {
+		"Opening Fees": "Fees charged when traders open new perpetual positions",
+		"Closing Fees": "Fees charged when traders close their perpetual positions",
+		"Rollover Fees": "Fees charged for maintaining open positions over time (funding/borrowing costs)",
+	},
+	UserFees: {
+		"Opening Fees": "Fees charged when traders open new perpetual positions",
+		"Closing Fees": "Fees charged when traders close their perpetual positions",
+		"Rollover Fees": "Fees charged for maintaining open positions over time (funding/borrowing costs)",
+	},
+};
+
 const fetch =async (timestamp: number): Promise<FetchResultFees> => {
 	const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
 
@@ -43,13 +61,15 @@ const fetch =async (timestamp: number): Promise<FetchResultFees> => {
 };
 
 const adapter: SimpleAdapter = {
+	version: 1,
 	adapter: {
 		[CHAIN.BASE]: {
 			fetch,
 			start: '2024-01-27',
 		},
 	},
-	version: 1
+	methodology,
+	breakdownMethodology,
 };
 
 export default adapter;

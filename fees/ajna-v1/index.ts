@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { CallsParams } from "@defillama/sdk/build/types";
+import { METRIC } from "../../helpers/metrics";
 
 const ABI = {
   reserveInfo: "function reservesInfo() view returns (uint256, uint256, uint256, uint256)",
@@ -34,12 +35,12 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress: string, p
 
       const totalInterestEarnedByLenders = reserveInfoEnd[i][reserveInfoIndex] - reserveInfoStart[i][reserveInfoIndex]
       if (totalInterestEarnedByLenders > 0) {
-        dailySupplySideRevenue.add(quoteToken[i], totalInterestEarnedByLenders / quoteTokenScale[i])
+        dailySupplySideRevenue.add(quoteToken[i], totalInterestEarnedByLenders / quoteTokenScale[i], METRIC.BORROW_INTEREST)
       }
 
       const poolReserves = poolReserveInfoEnd[i][0] - poolReserveInfoStart[i][0];
       if (poolReserves > 0) {
-        dailyFees.add(quoteToken[i], poolReserves / quoteTokenScale[i])
+        dailyFees.add(quoteToken[i], poolReserves / quoteTokenScale[i], "Reserve accumulation")
       }
       const hasBurn = currentBurnEpochEnd[i][0] - currentBurnEpochStart[i][0];
       if (hasBurn) {
@@ -65,7 +66,7 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress: string, p
     poolsWithBurn.forEach((_, i) => {
       const totalBurn = burnAmountsNow[i][2] - burnAmountsBefore[i][2]
       if (totalBurn > 0) {
-        dailyHoldersRevenue.add(AJNA_TOKEN, totalBurn, { skipChain: true })
+        dailyHoldersRevenue.add(AJNA_TOKEN, totalBurn, METRIC.TOKEN_BUY_BACK)
       }
     })
   }
@@ -88,6 +89,23 @@ const fetch = async (options: FetchOptions) => {
   return fetchAjna(options, FACTORY, POOL_UTILS, 3)
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers for loans, with approximately 85-90% distributed to lenders",
+    "Reserve accumulation": "Portion of borrow interest accumulated in pool reserves, approximately 10-15% of total interest, held for future token burns",
+    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns executed through reserve auctions, reducing circulating supply"
+  },
+  Revenue: {
+    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns funded by accumulated reserves through periodic auctions"
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "Interest distributed to lenders who supply liquidity to lending pools"
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns that reduce circulating supply, benefiting all token holders"
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
@@ -100,6 +118,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: "Accumulated fees in reserves are used for token burns by utilizing auctions",
     dailySupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
   },
+  breakdownMethodology,
 };
 
 export default adapter;

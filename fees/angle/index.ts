@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import { BorrowFee, BorrowFeeQuery, BorrowResult, ChainEndpoint, CoreFee, CoreFeeQuery, CoreResult, veANGLEQuery } from "./types";
+import { METRIC } from "../../helpers/metrics";
 
 
 const commonPrefixTheGraph = "https://api.thegraph.com/subgraphs/name/guillaumenervoxs/angle";
@@ -199,20 +200,98 @@ function aggregateFee(
 
 
 const fetch = async (options: FetchOptions) => {
-    const timestamp = options.startOfDay
+    const timestamp = options.startOfDay;
     const borrowFees = await getBorrowFees(endpoints[options.chain] as string, timestamp, timestamp - DAY);
     const coreFees = await getCoreFees(endpoints[options.chain] as string, timestamp, timestamp - DAY);
     const veANGLEInterest = await getVEANGLERevenues(endpoints[options.chain] as string, timestamp);
 
-    const daily = aggregateFee("deltaFees", coreFees, borrowFees);
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+
+    // Add borrow-related fees
+    if (borrowFees.deltaFees.surplusFromInterests) {
+        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromInterests, METRIC.BORROW_INTEREST);
+        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromInterests, METRIC.BORROW_INTEREST);
+    }
+    if (borrowFees.deltaFees.surplusFromBorrowFees) {
+        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromBorrowFees, "Borrow opening fees");
+        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromBorrowFees, "Borrow opening fees");
+    }
+    if (borrowFees.deltaFees.surplusFromRepayFees) {
+        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromRepayFees, "Repay fees");
+        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromRepayFees, "Repay fees");
+    }
+    if (borrowFees.deltaFees.surplusFromLiquidationSurcharges) {
+        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromLiquidationSurcharges, METRIC.LIQUIDATION_FEES);
+        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromLiquidationSurcharges, METRIC.LIQUIDATION_FEES);
+    }
+
+    // Add core protocol fees and interests
+    if (coreFees.deltaFees.totalProtocolFees) {
+        dailyFees.addGasToken(coreFees.deltaFees.totalProtocolFees, "Protocol swap fees");
+        dailyRevenue.addGasToken(coreFees.deltaFees.totalProtocolFees, "Protocol swap fees");
+    }
+    if (coreFees.deltaFees.totalProtocolInterests) {
+        dailyFees.addGasToken(coreFees.deltaFees.totalProtocolInterests, "Protocol interest");
+        dailyRevenue.addGasToken(coreFees.deltaFees.totalProtocolInterests, "Protocol interest");
+    }
+
+    // Add SLP (Stablecoin Liquidity Provider) fees - these are paid to LPs, not protocol revenue
+    if (coreFees.deltaFees.totalSLPFees) {
+        dailyFees.addGasToken(coreFees.deltaFees.totalSLPFees, "SLP swap fees");
+    }
+    if (coreFees.deltaFees.totalSLPInterests) {
+        dailyFees.addGasToken(coreFees.deltaFees.totalSLPInterests, "SLP interest");
+    }
+
+    // Add keeper fees - paid to keepers, not protocol revenue
+    if (coreFees.deltaFees.totalKeeperFees) {
+        dailyFees.addGasToken(coreFees.deltaFees.totalKeeperFees, "Keeper fees");
+    }
+
+    // Add veANGLE revenue distributions (tokenholder revenue)
+    if (veANGLEInterest.deltaInterest) {
+        dailyFees.addGasToken(veANGLEInterest.deltaInterest, "veANGLE fee distributions");
+        dailyRevenue.addGasToken(veANGLEInterest.deltaInterest, "veANGLE fee distributions");
+    }
 
     return {
-        dailyFees: (daily.totalFees + veANGLEInterest.deltaInterest).toString(),
-        dailyRevenue: (daily.totalRevenue + veANGLEInterest.deltaInterest).toString(),
+        dailyFees,
+        dailyRevenue,
     };
 }
 
+const methodology = {
+    Fees: "All fees collected by the protocol including borrow interest, liquidation fees, swap fees, and fees paid to SLPs and keepers",
+    Revenue: "Portion of fees retained by the protocol and distributed to veANGLE holders, including borrow interest, liquidation fees, protocol swap fees, and veANGLE fee distributions"
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.BORROW_INTEREST]: "Interest paid by borrowers on their outstanding debt positions",
+        "Borrow opening fees": "Fees charged when users open new borrow positions",
+        "Repay fees": "Fees charged when users repay their debt positions",
+        [METRIC.LIQUIDATION_FEES]: "Fees collected from liquidations of undercollateralized positions",
+        "Protocol swap fees": "Swap fees retained by the protocol from trading activities",
+        "Protocol interest": "Interest income retained by the protocol from lending activities",
+        "SLP swap fees": "Swap fees distributed to Stablecoin Liquidity Providers",
+        "SLP interest": "Interest income distributed to Stablecoin Liquidity Providers",
+        "Keeper fees": "Fees paid to keepers for maintaining protocol operations",
+        "veANGLE fee distributions": "Fees distributed to veANGLE token holders from protocol revenue"
+    },
+    Revenue: {
+        [METRIC.BORROW_INTEREST]: "Interest paid by borrowers on their outstanding debt positions",
+        "Borrow opening fees": "Fees charged when users open new borrow positions",
+        "Repay fees": "Fees charged when users repay their debt positions",
+        [METRIC.LIQUIDATION_FEES]: "Fees collected from liquidations of undercollateralized positions",
+        "Protocol swap fees": "Swap fees retained by the protocol from trading activities",
+        "Protocol interest": "Interest income retained by the protocol from lending activities",
+        "veANGLE fee distributions": "Fees distributed to veANGLE token holders from protocol revenue"
+    }
+};
+
 const adapter: SimpleAdapter = {
+    version: 2,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
@@ -235,7 +314,8 @@ const adapter: SimpleAdapter = {
             start: '2023-01-01',
         },
     },
-    version: 2
-}
+    methodology,
+    breakdownMethodology,
+};
 
 export default adapter;

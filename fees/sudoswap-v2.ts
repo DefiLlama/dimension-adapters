@@ -2,6 +2,9 @@ import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryIndexer } from "../helpers/indexer";
 
+const PROTOCOL_FEE_LABEL = "Protocol fees";
+const ROYALTY_FEE_LABEL = "Creator royalties";
+
 const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -45,10 +48,25 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
           SUM(min_value) AS royalties_fees
         FROM MinValues;
         `, options);
-  dailyFees.addGasToken(eth_transfer_logs[0].eth_value)
-  dailyFees.addGasToken(royalties[0].royalties_fees)
-  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value)
+  dailyFees.addGasToken(eth_transfer_logs[0].eth_value, PROTOCOL_FEE_LABEL)
+  dailyFees.addGasToken(royalties[0].royalties_fees, ROYALTY_FEE_LABEL)
+  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value, PROTOCOL_FEE_LABEL)
   return { dailyFees, dailyRevenue, timestamp }
+}
+
+const methodology = {
+  Fees: "Protocol fees and creator royalties collected on NFT trades",
+  Revenue: "Protocol fees retained by sudoswap, excluding creator royalties paid to NFT creators"
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [PROTOCOL_FEE_LABEL]: "Protocol fees charged on NFT trades through sudoswap v2 AMM pools",
+    [ROYALTY_FEE_LABEL]: "Creator royalties paid to NFT collection creators on secondary sales"
+  },
+  Revenue: {
+    [PROTOCOL_FEE_LABEL]: "Protocol fees retained by sudoswap from NFT trades"
+  }
 }
 
 const adapter: Adapter = {
@@ -58,6 +76,8 @@ const adapter: Adapter = {
       start: '2023-05-21'
     },
   },
+  methodology,
+  breakdownMethodology
 };
 
 export default adapter;

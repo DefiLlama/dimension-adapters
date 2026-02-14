@@ -1,6 +1,7 @@
 import ADDRESSES from './coreAssets.json'
 import { FetchOptions, } from "../adapters/types";
 import { filterPools2 } from './uniswap';
+import { METRIC } from './metrics';
 
 const TOPIC_Notify = 'event NotifyReward(address indexed from, address indexed reward, uint indexed epoch, uint amount)';
 
@@ -58,9 +59,9 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
       const voterGauge = voterGauges[idx].toLowerCase()
       e.forEach((l: any) => {
         if (l.from.toLowerCase() !== voterGauge)
-          dailyBribesRevenue.add(l.reward, l.amount)
+          dailyBribesRevenue.add(l.reward, l.amount, "Bribes from other protocols")
         else
-          dailyRevenue.add(l.reward, l.amount)
+          dailyRevenue.add(l.reward, l.amount, "Gauge emissions")
 
       })
     })
@@ -70,8 +71,8 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
       const token1 = token1s[index]
       tradefeeLogs[index]
         .map((p: any) => {
-          dailyFees.add(token0, p.amount0)
-          dailyFees.add(token1, p.amount1)
+          dailyFees.add(token0, p.amount0, METRIC.SWAP_FEES)
+          dailyFees.add(token1, p.amount1, METRIC.SWAP_FEES)
         })
     });
 

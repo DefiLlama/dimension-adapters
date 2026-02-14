@@ -1,5 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
+import { METRIC } from "../helpers/metrics";
 
 const curatorConfig: CuratorConfig = {
   vaults: {
@@ -11,4 +12,19 @@ const curatorConfig: CuratorConfig = {
   }
 }
 
-export default getCuratorExport(curatorConfig)
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Total interest earned from deposited assets in all curated Euler vaults',
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: 'Portion of interest retained by Alpha Growth as curator fees',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Portion of interest distributed to vault depositors after curator fees',
+  }
+};
+
+const adapter = getCuratorExport(curatorConfig);
+adapter.breakdownMethodology = breakdownMethodology;
+
+export default adapter;

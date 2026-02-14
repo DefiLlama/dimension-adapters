@@ -1,5 +1,7 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
+import { uniV2Exports } from "../helpers/uniswap";
 
 const FACTORY_ADDRESS = '0x01f43d2a7f4554468f77e06757e707150e39130c';
 
@@ -12,7 +14,11 @@ const methodology = {
   SupplySideRevenue: "0% of trading fees are distributed among liquidity providers."
 }
 
-import { uniV2Exports } from "../helpers/uniswap";
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Trading fees charged on all token swaps, including Flash Loans"
+  }
+};
 
 const adapters: SimpleAdapter = uniV2Exports({
   [CHAIN.FANTOM]: { factory: FACTORY_ADDRESS, },
@@ -21,4 +27,5 @@ const adapters: SimpleAdapter = uniV2Exports({
 })
 
 adapters.methodology = methodology;
+adapters.breakdownMethodology = breakdownMethodology;
 export default adapters;

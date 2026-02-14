@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import { query } from "./query";
 import { BLACKLIST } from "./blacklist";
+import { METRIC } from "../../helpers/metrics";
 
 const config = {
   [CHAIN.ETHEREUM]: [
@@ -102,18 +103,22 @@ async function fetch(_timestamp: number, _t: any, options: FetchOptions) {
   const borrowables: IBorrowable[] = await getChainBorrowables(options.chain as any);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   borrowables.forEach((b: IBorrowable) => {
     const { dailyFees: df, dailyRevenue: dr } = calculate(b);
     const decimals = Number(b.underlying.decimals);
-    dailyFees.add(b.underlying.id, df * (10 ** decimals));
-    dailyRevenue.add(b.underlying.id, dr * (10 ** decimals));
+    dailyFees.add(b.underlying.id, df * (10 ** decimals), METRIC.BORROW_INTEREST);
+    dailyRevenue.add(b.underlying.id, dr * (10 ** decimals), METRIC.PROTOCOL_FEES);
+    const supplySideAmount = (df - dr) * (10 ** decimals);
+    dailySupplySideRevenue.add(b.underlying.id, supplySideAmount, 'Lender Interest');
   })
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -123,11 +128,24 @@ const methodology = {
   ProtocolRevenue: "Percentage of interest going to treasury, based on each lending pool's reserve factor.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers on their outstanding loans, accrued daily based on borrow rate and total borrows',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Portion of borrow interest retained by protocol treasury, determined by each lending pool\'s reserve factor',
+  },
+  SupplySideRevenue: {
+    'Lender Interest': 'Portion of borrow interest distributed to lenders who supply capital to the lending pools',
+  },
+};
+
 
 const adapter: Adapter = {
   runAtCurrTime: true,
   fetch,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-10-23', },
     [CHAIN.POLYGON]: { start: '2023-10-23', },

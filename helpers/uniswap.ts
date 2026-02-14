@@ -142,12 +142,12 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const response: any = { dailyVolume, dailyFees }
 
     if (revenueRatio || revenueRatio === 0) {
-      response.dailyRevenue = dailyFees.clone(revenueRatio)
-      response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
+      response.dailyRevenue = dailyFees.clone(revenueRatio, 'Protocol fees')
+      response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio, 'LP fees')
     }
-    if (v2Config.hasOwnProperty('userFeesRatio')) response.dailyUserFees = dailyFees.clone(userFeesRatio)
-    if (v2Config.hasOwnProperty('protocolRevenueRatio')) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
-    if (v2Config.hasOwnProperty('holdersRevenueRatio')) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
+    if (v2Config.hasOwnProperty('userFeesRatio')) response.dailyUserFees = dailyFees.clone(userFeesRatio, 'Trading fees')
+    if (v2Config.hasOwnProperty('protocolRevenueRatio')) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio, 'Protocol fees')
+    if (v2Config.hasOwnProperty('holdersRevenueRatio')) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio, 'Tokenholder fees')
 
     return response
   }
@@ -228,12 +228,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     const response: any = { dailyVolume, dailyFees }
 
     if (revenueRatio || revenueRatio === 0) {
-      response.dailyRevenue = dailyFees.clone(revenueRatio)
-      response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio)
+      response.dailyRevenue = dailyFees.clone(revenueRatio, 'Protocol fees')
+      response.dailySupplySideRevenue = dailyFees.clone(1 - revenueRatio, 'LP fees')
     }
-    if (userFeesRatio || userFeesRatio === 0) response.dailyUserFees = dailyFees.clone(userFeesRatio)
-    if (protocolRevenueRatio || protocolRevenueRatio === 0) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
-    if (holdersRevenueRatio || holdersRevenueRatio === 0) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
+    if (userFeesRatio || userFeesRatio === 0) response.dailyUserFees = dailyFees.clone(userFeesRatio, 'Trading fees')
+    if (protocolRevenueRatio || protocolRevenueRatio === 0) response.dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio, 'Protocol fees')
+    if (holdersRevenueRatio || holdersRevenueRatio === 0) response.dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio, 'Tokenholder fees')
 
     return response
   }

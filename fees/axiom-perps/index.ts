@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderCodeRevenue } from "../../helpers/hyperliquid";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { METRIC } from "../../helpers/metrics";
 
 const HL_BUILDER_ADDRESS = '0x1cc34f6af34653c515b47a83e1de70ba9b0cda1f';
 
@@ -16,12 +17,25 @@ const methodology = {
   HoldersRevenue: 'No fees distributed to token holders',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Builder code referral fees earned from users trading perpetuals on Hyperliquid through Axiom frontend",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "Builder code referral fees earned from users trading perpetuals on Hyperliquid through Axiom frontend",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "Builder code referral fees earned from users trading perpetuals on Hyperliquid through Axiom frontend",
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  methodology,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-06-08',
+  methodology,
+  breakdownMethodology,
   doublecounted: true,
 };
 

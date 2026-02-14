@@ -1,6 +1,7 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { uniV3Exports } from "../helpers/uniswap";
+import { METRIC } from "../helpers/metrics";
 
 const poolFactoryAddress = '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24';
 
@@ -13,6 +14,12 @@ const methodology = {
   SupplySideRevenue: "The portion of trading fees paid to liquidity providers."
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Trading fees paid by users on each swap (variable rate set per pool), plus any flash loan fees charged when users borrow assets temporarily within a single transaction"
+  }
+}
+
 const adapters: SimpleAdapter = uniV3Exports({
   [CHAIN.FANTOM]: { factory: poolFactoryAddress, },
   //[CHAIN.BSC]: { factory: "0x5C0a9661E0bC1294bB87686C472F7C699831B1ea", }, //different
@@ -21,5 +28,6 @@ const adapters: SimpleAdapter = uniV3Exports({
 })
 
 adapters.methodology = methodology;
+adapters.breakdownMethodology = breakdownMethodology;
 export default adapters;
 

@@ -4,6 +4,7 @@ import { CHAIN, } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { secondsInDay } from "../../utils/date";
+import { METRIC } from "../../helpers/metrics";
 
 type TAddress = {
   [s: string | Chain]: string;
@@ -40,8 +41,23 @@ const methodology = {
   UserFees: "DBR spent by borrowers.",
   Fees: "DBR spent by borrowers.",
   Revenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
-  ProtocolRevenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",  
+  ProtocolRevenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
   HoldersRevenue: "DBR streamed to INV stakers."
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'DBR tokens spent by DOLA borrowers to maintain their debt positions, based on 1 DBR per 1 DOLA debt per year',
+  },
+  Revenue: {
+    'INV staker rewards': 'DBR tokens distributed to INV stakers as staking rewards',
+    'DOLA Savings Account yield': 'DBR tokens allocated to DOLA Savings Account depositors as yield',
+    'Virtual auction revenue': 'DBR sold through the Virtual XY=K auction mechanism',
+    'Forced replenishment fees': 'Net fees from forcing DBR replenishment for borrowers in deficit (replenishment cost minus replenisher reward)',
+  },
+  HoldersRevenue: {
+    'INV staker rewards': 'DBR tokens distributed to INV stakers as staking rewards',
+  }
 }
 
 const getMarkets = async () => {

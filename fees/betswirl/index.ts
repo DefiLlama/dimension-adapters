@@ -100,20 +100,23 @@ function graphs() {
         let tokenKey = token.id.split(':')[0];
         const { dividendAmount, bankAmount, partnerAmount, treasuryAmount, teamAmount, affiliateAmount } = token
 
-        dailyFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
-        dailySupplySideRevenue.add(tokenKey,  +bankAmount + +partnerAmount)
-        dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
-        dailyHoldersRevenue.add(tokenKey, +dividendAmount)
-        dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
+        dailyFees.add(tokenKey, +dividendAmount + +bankAmount + +partnerAmount + +treasuryAmount + +teamAmount + +affiliateAmount, "House edge fees from winning bets")
+        dailySupplySideRevenue.add(tokenKey,  +bankAmount, "Bank fees")
+        dailySupplySideRevenue.add(tokenKey,  +partnerAmount, "Partner fees")
+        dailyProtocolRevenue.add(tokenKey,  +treasuryAmount, "Treasury allocation")
+        dailyProtocolRevenue.add(tokenKey,  +teamAmount, "Team allocation")
+        dailyHoldersRevenue.add(tokenKey, +dividendAmount, "Token holder dividends")
+        dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount, "Total protocol revenue")
       }
       for (const token of graphPvPRes.todayPvPTokens) {
         let tokenKey = token.id.split(':')[0];
         const { dividendAmount, initiatorAmount, treasuryAmount, teamAmount, affiliateAmount } = token
-        dailyFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount + +affiliateAmount)
-        dailySupplySideRevenue.add(tokenKey,  +initiatorAmount)
-        dailyProtocolRevenue.add(tokenKey,  +treasuryAmount + +teamAmount)
-        dailyHoldersRevenue.add(tokenKey, +dividendAmount)
-        dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount)
+        dailyFees.add(tokenKey, +dividendAmount + +initiatorAmount + +treasuryAmount + +teamAmount + +affiliateAmount, "House edge fees from PvP games")
+        dailySupplySideRevenue.add(tokenKey,  +initiatorAmount, "PvP game host fees")
+        dailyProtocolRevenue.add(tokenKey,  +treasuryAmount, "Treasury allocation")
+        dailyProtocolRevenue.add(tokenKey,  +teamAmount, "Team allocation")
+        dailyHoldersRevenue.add(tokenKey, +dividendAmount, "Token holder dividends")
+        dailyRevenue.add(tokenKey,  +treasuryAmount + +teamAmount + +dividendAmount, "Total protocol revenue")
       }
 
       for (const token of graphRes.yesterdayTokens) {
@@ -157,8 +160,31 @@ const info = {
   },
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "House edge fees from winning bets": "House edge fees (2.4%-4% of payout) charged on winning bets from regular betting games, split between Bank, Partner, Dividends, Treasury, and Team",
+    "House edge fees from PvP games": "House edge fees (3.5%-7%) charged on PvP game prize pools, split between Dividends, Host, Treasury, and Team",
+  },
+  Revenue: {
+    "Total protocol revenue": "Combined allocation to treasury, team, and token holder dividends from all betting activities",
+  },
+  ProtocolRevenue: {
+    "Treasury allocation": "Portion of house edge fees allocated to the protocol treasury",
+    "Team allocation": "Portion of house edge fees allocated to the team",
+  },
+  HoldersRevenue: {
+    "Token holder dividends": "Portion of house edge fees distributed as dividends to token holders",
+  },
+  SupplySideRevenue: {
+    "Bank fees": "Fees allocated to the house bank that provides liquidity for betting games",
+    "Partner fees": "Fees allocated to partners who support the platform",
+    "PvP game host fees": "Fees allocated to hosts who initiate and manage PvP games",
+  },
+};
+
 const adapter: Adapter = {
   methodology: info.methodology,
+  breakdownMethodology,
   version: 2,
   adapter: {
     [CHAIN.BSC]: {

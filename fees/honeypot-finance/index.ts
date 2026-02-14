@@ -6,4 +6,16 @@ const methodology = {
   ProtocolRevenue: "All the revenue goes to the protocol",
 };
 
-export default getBuilderExports({ broker_id: "honeypot", start: "2025-11-01", methodology })
+const breakdownMethodology = {
+  Fees: {
+    "Builder fees": "Fees collected by Honeypot Finance as a builder on Orderly Network, earned from trading activity routed through their interface"
+  },
+  ProtocolRevenue: {
+    "Builder fees": "100% of builder fees are retained by Honeypot Finance protocol"
+  }
+};
+
+const adapter = getBuilderExports({ broker_id: "honeypot", start: "2025-11-01", methodology });
+adapter.breakdownMethodology = breakdownMethodology;
+
+export default adapter;

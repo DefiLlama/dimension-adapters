@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 /**
  * Address of the BasisOS Data Provider contract that stores vault addresses
@@ -60,11 +61,11 @@ const fetch = async (options: FetchOptions) => {
 
     // Sort events by block number for chronological processing
     const sortedStates = vaultStates.sort((a, b) => a.blockNumber - b.blockNumber);
-    const allFeeEvents = [...vaultManagementFeesLogs, ...vaultPerformanceFeesLogs]
-      .sort((a, b) => a.blockNumber - b.blockNumber);
 
-    // Calculate total fee shares collected
-    const totalFeeShares = allFeeEvents.reduce((sum, event) =>
+    // Calculate separate fee shares for each type
+    const managementFeeShares = vaultManagementFeesLogs.reduce((sum, event) =>
+      sum + Number(event[1]), 0);
+    const performanceFeeShares = vaultPerformanceFeesLogs.reduce((sum, event) =>
       sum + Number(event[1]), 0);
 
     let sharePrice: number | undefined;
@@ -110,9 +111,11 @@ const fetch = async (options: FetchOptions) => {
     // Calculate and add fees if we determined a valid share price
     if (sharePrice !== undefined) {
       // Convert fee shares to underlying asset amount using the determined share price
-      const totalFeeInAssets = totalFeeShares * sharePrice;
+      const managementFeeInAssets = managementFeeShares * sharePrice;
+      const performanceFeeInAssets = performanceFeeShares * sharePrice;
 
-      dailyFees.add(assetAddress, totalFeeInAssets);
+      dailyFees.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
+      dailyFees.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
     }
   }
 
@@ -127,15 +130,22 @@ const fetch = async (options: FetchOptions) => {
  */
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-04-26',
-    },
-  },
+  chains: [CHAIN.ARBITRUM],
+  fetch,
+  start: '2024-04-26',
   methodology: {
     Fees: "Sum of management and performance fees collected from all vaults",
     Revenue: "Sum of management and performance fees collected from all vaults",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.MANAGEMENT_FEES]: 'Ongoing fees charged by vaults for managing deposited assets, collected as shares of the vault',
+      [METRIC.PERFORMANCE_FEES]: 'Fees charged based on vault performance gains, collected as shares when vaults generate positive returns',
+    },
+    Revenue: {
+      [METRIC.MANAGEMENT_FEES]: 'Ongoing fees charged by vaults for managing deposited assets, collected as shares of the vault',
+      [METRIC.PERFORMANCE_FEES]: 'Fees charged based on vault performance gains, collected as shares when vaults generate positive returns',
+    },
   },
 };
 

@@ -99,7 +99,7 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
   );
 
   govFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.PROTOCOL_FEES));
-  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, 'Refferal Fees'));
+  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, 'Referral Fees'));
   triggerFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.OPERATORS_FEES));
   stakingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.STAKING_REWARDS));
   gTokenFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.LP_FEES));
@@ -156,6 +156,19 @@ const adapter: Adapter = {
       'Referral Fees': "Trading fees distributed to referrers who onboard new traders",
       [METRIC.LP_FEES]: "Fees earned by gToken vault depositors who provide trading liquidity",
       'Borrowing Fees': "Fees charged to traders for maintaining open leveraged positions",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "Fees allocated to protocol governance and development fund (treasury)",
+      [METRIC.STAKING_REWARDS]: "Portion of trading fees distributed to GNS token stakers",
+    },
+    HoldersRevenue: {
+      [METRIC.STAKING_REWARDS]: "Trading fees distributed to GNS token stakers as rewards",
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_FEES]: "Fees distributed to gToken vault depositors who provide trading liquidity",
+      'Referral Fees': "Trading fees distributed to referrers who onboard new traders",
+      [METRIC.OPERATORS_FEES]: "Fees paid to bots that execute limit orders and liquidations",
+      'Borrowing Fees': "Fees charged to traders for maintaining open leveraged positions, distributed to liquidity providers",
     },
   },
 };

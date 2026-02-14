@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { METRIC } from "../helpers/metrics";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
@@ -19,6 +20,27 @@ const methodology = {
   SupplySideRevenue: "60% of all collected fees are distributed to BLT stakers",
   Revenue:
     "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MINT_REDEEM_FEES]: 'Fees from minting and burning BLT tokens based on the token balance in the liquidity pool',
+    [METRIC.MARGIN_FEES]: 'Fees from opening and closing margin positions (0.1% of position size) and liquidation penalties',
+    [METRIC.SWAP_FEES]: 'Fees from token swaps ranging from 0.2% to 0.8% based on pool composition and trading pair',
+  },
+  UserFees: {
+    [METRIC.MARGIN_FEES]: 'Fees from opening and closing margin positions (0.1% of position size) and liquidation penalties paid by traders',
+    [METRIC.SWAP_FEES]: 'Fees from token swaps ranging from 0.2% to 0.8% paid by users',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: '40% of all collected fees, distributed to BMX/wBLT LP stakers and BMX stakers',
+  },
+  HoldersRevenue: {
+    [METRIC.PROTOCOL_FEES]: '40% of all collected fees, distributed to BMX/wBLT LP stakers and BMX stakers (same as Revenue)',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: '60% of all collected fees distributed to BLT stakers who provide liquidity to the pools',
+  },
 };
 
 const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
@@ -69,6 +91,7 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
 const adapter: Adapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch: graphs,

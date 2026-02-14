@@ -4,6 +4,7 @@ import type { ChainEndpoints } from "../../adapters/types";
 import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import { Adapter } from "../../adapters/types";
+import { METRIC } from "../../helpers/metrics";
 
 const endpoints = {
   [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/e66b06ce96d2/bufferfinance/v2.5-arbitrum-mainnet/api",
@@ -47,6 +48,20 @@ const graphs = (baseUrls: ChainEndpoints) => {
   };
 };
 
+const methodology = {
+  Fees: "Trading fees collected from options trading on the Buffer protocol",
+  Revenue: "Protocol revenue from trading fees retained by Buffer"
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Fees paid by traders on options trading transactions',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Portion of trading fees retained by the Buffer protocol',
+  }
+};
+
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
@@ -55,6 +70,8 @@ const adapter: Adapter = {
     },
   },
   version: 1,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

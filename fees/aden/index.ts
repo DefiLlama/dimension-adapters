@@ -57,6 +57,18 @@ const methodology = {
   ProtocolRevenue: "All the revenue go to the protocol",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Builder fees": "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
+  },
+  Revenue: {
+    "Builder fees": "All builder fees are retained as protocol revenue",
+  },
+  ProtocolRevenue: {
+    "Builder fees": "100% of builder fees go to the protocol treasury",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -64,6 +76,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   start: '2025-07-19',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

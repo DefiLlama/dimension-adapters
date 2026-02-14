@@ -21,6 +21,27 @@ const methodology = {
   SupplySideRevenue: '80% of trading fees go to liquidity providers.',
 };
 
+const breakdownMethodology = {
+  UserFees: {
+    'Trading fees': 'Dynamic fees paid by users on each swap, typically ranging from 0.05% to 1% of trade volume depending on market conditions',
+  },
+  Fees: {
+    'Trading fees': 'Total trading fees collected from all swaps on Camelot V3 pools using Algebra\'s dynamic fee model',
+  },
+  Revenue: {
+    'Protocol fees': 'Combined protocol-controlled revenue (20% of trading fees) split between protocol treasury (3%) and xGRAIL holders (17%)',
+  },
+  ProtocolRevenue: {
+    'Protocol fees': 'Portion of trading fees allocated to the protocol treasury, equal to 3% of total swap fees',
+  },
+  HoldersRevenue: {
+    'Tokenholder fees': 'Portion of trading fees distributed to xGRAIL holders through Real Yield Staking, equal to 17% of total swap fees',
+  },
+  SupplySideRevenue: {
+    'LP fees': 'Portion of trading fees distributed to liquidity providers who supply capital to the pools, equal to 80% of total swap fees',
+  },
+};
+
 // Fee split ratios
 const REVENUE_RATIO = 0.2; // 20% total protocol-controlled
 const USER_FEES_RATIO = 1; // Users pay 100% of fees
@@ -38,6 +59,7 @@ const adapterConfig = {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.APECHAIN]: {
       fetch: getUniV3LogAdapter({

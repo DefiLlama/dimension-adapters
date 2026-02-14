@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
@@ -64,19 +65,29 @@ function getAmountsForReceiver(transactions: any[], receiver: string, assetId: n
   return amounts;
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Trading fees paid by users on Alpha Arcade platform',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'All trading fees are retained by the protocol as revenue',
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: 'All trading fees are collected by Alpha Arcade protocol treasury',
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ALGORAND]: {
-      fetch: fetch,
-      start: '2025-03-30',
-    }
-  },
+  chains: [CHAIN.ALGORAND],
+  fetch,
+  start: '2025-03-30',
   methodology: {
     Fees: 'Trading fees paid by users.',
     Revenue: 'All trading fees are revenue.',
     ProtocolRevenue: 'All trading fees are collected by Alpha Arcade.',
-  }
+  },
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -440,6 +440,20 @@ const adapter: Adapter = {
       [MetricLabels.MANAGEMENT_FEES]: 'Management fees from liquid vault products',
       [MetricLabels.WITHDRAW_FEES]: 'Withdrawal fees from vault operations',
     },
+    Revenue: {
+      [MetricLabels.ETH_STAKING_REWARDS]: 'Protocol share of core ETH staking rewards (approximately 10%)',
+      [MetricLabels.EIGEN_STAKING_REWARDS]: 'Protocol share of EigenLayer restaking rewards (approximately 11%) plus miscellaneous staking income',
+      [MetricLabels.stETH_STAKING_REWARDS]: 'Protocol share of stETH rebasing rewards (2.5%)',
+      [MetricLabels.SSV_STAKING_REWARDS]: 'SSV token rewards earned by running SSV-based validators, fully retained by protocol',
+      [MetricLabels.OBOL_STAKING_REWARDS]: 'Obol token rewards earned by running Obol-based validators, fully retained by protocol',
+      [MetricLabels.MANAGEMENT_FEES]: 'Annual management fees charged on liquid vault assets under management',
+      [MetricLabels.WITHDRAW_FEES]: 'Fees charged on vault withdrawals, fully retained by protocol',
+    },
+    SupplySideRevenue: {
+      [MetricLabels.ETH_STAKING_REWARDS]: 'Staker share of core ETH staking rewards (approximately 90%)',
+      [MetricLabels.EIGEN_STAKING_REWARDS]: 'Staker share of EigenLayer restaking rewards (approximately 89%)',
+      [MetricLabels.stETH_STAKING_REWARDS]: 'Staker share of stETH rebasing rewards (97.5%)',
+    },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: 'ETHFI token buybacks executed by ether.fi from protocol revenue',
     },

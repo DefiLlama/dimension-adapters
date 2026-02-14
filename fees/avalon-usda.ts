@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
+import { METRIC } from '../helpers/metrics'
 
 const configs: any = {
 	ethereum: {
@@ -62,7 +63,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 		target: poolAddress,
 	})
 
-	dailyFees.add(feeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore))
+	dailyFees.add(feeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore), METRIC.BORROW_INTEREST)
 
 	// @dev Ethereum has both V1 and V2 pools, so we need to add the fees from the V1 pool
 	if (options.chain === 'ethereum') {
@@ -77,7 +78,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 			target: v1PoolAddress,
 		})
 
-		dailyFees.add(v1FeeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore))
+		dailyFees.add(v1FeeTokenAddress, Number(protocolProfitAccumulateAfter) - Number(protocolProfitAccumulateBefore), METRIC.BORROW_INTEREST)
 	}
 
 	return {
@@ -93,7 +94,20 @@ const methodology = {
 	ProtocolRevenue: 'All interest paid by borrowers were collected by Avalon.',
 }
 
+const breakdownMethodology = {
+	Fees: {
+		[METRIC.BORROW_INTEREST]: 'Interest paid by borrowers to maintain their borrow positions, collected from both V1 (FBTC <> USDT) and V2 (FBTC <> USDa) pools',
+	},
+	Revenue: {
+		[METRIC.BORROW_INTEREST]: 'All borrow interest is retained by the Avalon protocol treasury',
+	},
+	ProtocolRevenue: {
+		[METRIC.BORROW_INTEREST]: 'All borrow interest is retained by the Avalon protocol treasury',
+	},
+}
+
 const adapter: Adapter = {
+	version: 2,
 	adapter: Object.fromEntries(
 		Object.entries(configs).map(([chain, config]) => [
 			chain,
@@ -103,8 +117,8 @@ const adapter: Adapter = {
 			},
 		])
 	),
-	version: 2,
 	methodology,
+	breakdownMethodology,
 }
 
 export default adapter

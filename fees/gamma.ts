@@ -49,12 +49,25 @@ const fetchFees = (chain: string) => {
   }
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'LP management fees': 'Performance and management fees charged on liquidity provider positions managed by Gamma across all integrated DEXs'
+  },
+  Revenue: {
+    'Protocol revenue': 'All management fees collected are retained by Gamma Protocol'
+  },
+  ProtocolRevenue: {
+    'Protocol revenue': 'All management fees collected are retained by Gamma Protocol'
+  }
+};
+
 const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All yields are generated from liquidity providers.',
     Revenue: 'All yields are distributed to Gamma Protocol.',
     ProtocolRevenue: 'All yields are distributed to Gamma Protocol.',
   },
+  breakdownMethodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees("ethereum"),

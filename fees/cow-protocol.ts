@@ -105,7 +105,7 @@ const breakdownMethodology = {
     'MEV Blocker Fees': 'MEV blockers fee for CoW protocol.',
   },
   SupplySideRevenue: {
-    'Partner Fees for CoW': 'Share of partner fees for partners.',
+    'Partner Fees for Partners': 'Share of partner fees for partners.',
     'MEV Blocker Fees': 'MEV blockers fee for block builders.',
   },
 }

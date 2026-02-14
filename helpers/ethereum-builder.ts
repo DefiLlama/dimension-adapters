@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { queryIndexer } from "./indexer";
 import { getETHReceived } from "./token";
+import { METRIC } from "./metrics";
 
 const KnownValidatorsMevRecipients = [
   '0x388c818ca8b9251b393131c08a736a67ccb19297', // Lido MEV Vault
@@ -32,6 +33,19 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
       Fees: 'Total transactions fees and MEV rewards collected by building blocks on Ethereum blockchain.',
       Revenue: 'Earning from total fees minus total priority rewards paid to validators.',
       ProtocolRevenue: 'Earning from total fees minus total priority rewards paid to validators.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        [METRIC.TRANSACTION_GAS_FEES]: 'Transaction fees collected from building blocks on Ethereum (total fees minus base fees burnt)',
+        [METRIC.MEV_REWARDS]: 'MEV (Maximum Extractable Value) rewards from direct ETH transfers received by the block builder',
+      },
+      SupplySideRevenue: {
+        'Validator priority rewards': 'Priority fees and MEV rewards paid to validators for proposing blocks',
+      },
+      Revenue: {
+        [METRIC.TRANSACTION_GAS_FEES]: 'Net transaction fees retained after paying validator rewards',
+        [METRIC.MEV_REWARDS]: 'Net MEV rewards retained after paying validator rewards',
+      },
     },
     fetch: async (options: FetchOptions) => {
       const dailyFees = options.createBalances();
@@ -77,15 +91,19 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
       const totalPriority = options.createBalances();
       totalPriority.addGasToken((fees as any)[0].total_fees_priority); // amount paid to validators
       totalPriority.addGasToken((fees as any)[0].total_fees_transactions); // transactions fees paid
-      
-      dailyFees.add(totalFees);
-      dailyFees.add(mevFees);
-      
-      const dailyRevenue = dailyFees.clone(1);
+
+      dailyFees.addBalances(totalFees, METRIC.TRANSACTION_GAS_FEES);
+      dailyFees.addBalances(mevFees, METRIC.MEV_REWARDS);
+
+      const dailySupplySideRevenue = options.createBalances();
+      dailySupplySideRevenue.addBalances(totalPriority, 'Validator priority rewards');
+
+      const dailyRevenue = dailyFees.clone();
       dailyRevenue.subtract(totalPriority);
       
       return {
         dailyFees,
+        dailySupplySideRevenue,
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
       };

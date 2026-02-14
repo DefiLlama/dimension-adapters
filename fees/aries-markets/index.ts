@@ -40,19 +40,38 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "Interest paid by borrowers across all lending markets (USDT and USDC).",
+  Revenue: "Portion of borrow interest kept by Aries Markets (20% of total interest).",
+  SupplySideRevenue: "Interest distributed to lenders who supply assets (80% of total interest).",
+  ProtocolRevenue: "Portion of borrow interest kept by Aries Markets treasury (20% of total interest).",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Borrow Interest': 'Interest accrued from borrowers on USDT and USDC reserves, calculated from daily borrow APR and total borrowed amounts',
+  },
+  Revenue: {
+    'Protocol Share': 'Aries Markets keeps 20% of all borrow interest as protocol revenue',
+  },
+  ProtocolRevenue: {
+    'Protocol Share': 'Aries Markets keeps 20% of all borrow interest as protocol revenue',
+  },
+  SupplySideRevenue: {
+    'Lender Interest': 'Lenders receive 80% of borrow interest as yield on their supplied assets',
+  },
+};
+
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,
       start: "2025-06-15",
     },
   },
-  methodology: {
-    Fees: "Interest earned by the protocol.",
-    Revenue: "Amount of fees go to Aries Markets treasury.",
-    SupplySideRevenue: "Amount of fees distributed to suppliers.",
-    ProtocolRevenue: "Amount of fees go to Aries Markets treasury.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

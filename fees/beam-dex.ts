@@ -31,6 +31,15 @@ const methodology = {
   HoldersRevenue: "Holders of $BEAM receive trading fees and bribes from the reward pool that they vote for each week.",
 };
 
+const breakdownMethodology = {
+  UserFees: {
+    'Trading fees': 'Fees paid by users on each swap transaction, with dynamic rates based on market conditions',
+  },
+  SupplySideRevenue: {
+    'LP fees': 'All swap fees distributed to liquidity providers who supply assets to the pools',
+  },
+};
+
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
@@ -42,6 +51,7 @@ const adapter: BreakdownAdapter = {
     }
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

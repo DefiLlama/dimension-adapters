@@ -5,6 +5,7 @@ import type { BreakdownAdapter, ChainEndpoints, FetchOptions } from "../adapters
 import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { METRIC } from "../helpers/metrics";
 
 const v1Endpoints = {
   [CHAIN.ETHEREUM]:
@@ -157,8 +158,24 @@ const methodology = {
   SupplySideRevenue: "A small percentage of the trade paid by traders to pool LPs",
 }
 
+const breakdownMethodology = {
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Trading fees paid by users on swaps, ranging from 0.0001% to 10% depending on pool configuration"
+  },
+  Fees: {
+    [METRIC.SWAP_FEES]: "Total swap fees collected from all trades. V1: 100% goes to LPs. V2: Split between protocol (10% initially, then 50% after governance vote) and LPs"
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "Protocol's share of swap fees. V1: 0% (all fees go to LPs). V2: 10% of swap fees initially, increased to 50% after governance vote in March 2023"
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "Liquidity provider share of swap fees. V1: 100% of swap fees. V2: 90% of swap fees initially, reduced to 50% after governance vote in March 2023"
+  }
+}
+
 const adapter: BreakdownAdapter = {
   methodology,
+  breakdownMethodology,
   version: 2,
   breakdown: {
     v1: {

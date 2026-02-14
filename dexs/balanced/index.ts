@@ -1,6 +1,13 @@
 import { CHAIN } from '../../helpers/chains'
 import { FetchOptions } from '../../adapters/types'
 import { httpGet } from '../../utils/fetchURL'
+import { METRIC } from '../../helpers/metrics'
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.LP_FEES]: 'Fees paid by traders on token swaps, distributed to liquidity providers',
+  }
+}
 
 export default {
   version: 2,
@@ -9,6 +16,7 @@ export default {
     TVL: 'TVL: The total liquidity held on the Balanced exchange and used as collateral for bnUSD.',
     DataSource: 'Data is sourced from the Balanced Network API and ICON Tracker RPC Node. It is processed to calculate trading fees and volume accrued over a 24-hour period. Stats can be verified at https://stats.balanced.network/'
   },
+  breakdownMethodology,
   runAtCurrTime: true,
   start: '2023-11-14',
   adapter: {
@@ -20,8 +28,8 @@ export default {
         data.forEach((pool: any) => {
           dailyVolume.add(pool.base_address, pool.base_volume_24h * (10 ** pool.base_decimals))
           dailyVolume.add(pool.quote_address, pool.quote_volume_24h * (10 ** pool.quote_decimals))
-          dailyFees.add(pool.base_address, pool.base_lp_fees_24h * (10 ** pool.base_decimals))
-          dailyFees.add(pool.quote_address, pool.quote_lp_fees_24h * (10 ** pool.quote_decimals))
+          dailyFees.add(pool.base_address, pool.base_lp_fees_24h * (10 ** pool.base_decimals), METRIC.LP_FEES)
+          dailyFees.add(pool.quote_address, pool.quote_lp_fees_24h * (10 ** pool.quote_decimals), METRIC.LP_FEES)
         })
         return { dailyVolume, dailyFees, }
       },
