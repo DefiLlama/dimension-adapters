@@ -1,8 +1,3 @@
-/**
- * GroypFi DEX Aggregator Adapter for DefiLlama (/dexs)
- * Uses GroypFi Supabase Edge Function returning nanoTON strings.
- */
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet, httpPost } from "../../utils/fetchURL";
@@ -12,24 +7,16 @@ const ENDPOINT =
 
 const TON_API = "https://tonapi.io/v2";
 
-// Optional: DON'T hardcode secrets in public repo
+// Optional (don’t hardcode in public repo)
 const API_KEY = process.env.GROYPFI_SUPABASE_ANON_KEY;
 
 type Resp = {
-  success?: boolean;
   totalVolumeNano?: string; // nanoTON string
-  swapCount?: number;
-  terminalCount?: number;
 };
 
 const fetch = async (options: FetchOptions) => {
-  // dimension-adapters test harness reliably provides these:
   const start = options.startTimestamp;
   const end = options.endTimestamp;
-
-  if (!Number.isFinite(start) || !Number.isFinite(end)) {
-    throw new Error("GroypFi dexs: startTimestamp/endTimestamp missing");
-  }
 
   const startISO = new Date(start * 1000).toISOString();
   const endISO = new Date(end * 1000).toISOString();
@@ -58,10 +45,7 @@ const fetch = async (options: FetchOptions) => {
   const volumeTON = Number(volumeNano) / 1e9;
   const dailyVolume = volumeTON * tonPriceUSD;
 
-  return {
-    dailyVolume,
-    dailySwapCount: (res.swapCount ?? 0) + (res.terminalCount ?? 0),
-  };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
