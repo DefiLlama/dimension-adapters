@@ -1,7 +1,6 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import ADDRESSES from "../../helpers/coreAssets.json";
 
 const INTEGRATOR_ADDRESS = "0xc6cc6a4f294c4cab2b749721afc56e9f7e4ad695d44d470cdfa57321fe7205a1";
 
@@ -51,7 +50,17 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     final_volume AS (
       SELECT
         date_trunc('day', faa.block_date) AS day,
-        faa.asset_type AS token,
+        CASE
+          WHEN faa.asset_type IN ('0x1::aptos_coin::AptosCoin', '0xa', '${APT_TOKEN}')
+            THEN '0x1::aptos_coin::AptosCoin'
+          WHEN faa.asset_type IN (
+            '0x5fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2',
+            '0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2',
+            '${USD1_TOKEN}'
+          )
+            THEN '${USD1_TOKEN}'
+          ELSE faa.asset_type
+        END AS token,
         ABS(SUM(
           CASE
             WHEN faa.event_type = '0x1::fungible_asset::Deposit' THEN faa.amount
