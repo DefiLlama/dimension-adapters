@@ -1,84 +1,77 @@
+/**
+ * GroypFi DEX Aggregator Adapter for DefiLlama (/dexs)
+ *
+ * Uses GroypFi's Supabase Edge Function (authoritative accounting)
+ * to fetch daily swap volume in nanoTON for a given UTC range [start, end).
+ */
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpPost } from "../../utils/fetchURL";
 
-const FEE_RECIPIENT =
-  "0:eee00893fff24abaa4f46678ded11a1721030f723e2e20661999edd42b884594";
+const ENDPOINT =
+  "https://rcuesqclhdghrqrmwjlk.supabase.co/functions/v1/swap-fee-revenue";
 
-const toBigInt = (v: any) => {
-  if (v === null || v === undefined) return 0n;
-  if (typeof v === "string") return BigInt(v);
-  if (typeof v === "number") return BigInt(Math.trunc(v));
-  return 0n;
+// Optional: if you must pass an anon key, use env (DO NOT hardcode in public repo)
+const API_KEY = process.env.GROYPFI_SUPABASE_ANON_KEY;
+
+type Resp = {
+  success?: boolean;
+  totalVolumeNano?: string; // nanoTON as string
+  swapCount?: number;
+  terminalCount?: number;
 };
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const startISO = new Date(options.startOfDay * 1000).toISOString();
+  const endISO = new Date(options.endOfDay * 1000).toISOString();
 
-  const start = options.startTimestamp;
-  const end = options.endTimestamp;
+  const res: Resp = await httpPost(
+    ENDPOINT,
+    { startOfDay: startISO, endOfDay: endISO },
+    API_KEY
+      ? {
+          headers: {
+            "content-type": "application/json",
+            apikey: API_KEY,
+          },
+        }
+      : {
+          headers: {
+            "content-type": "application/json",
+          },
+        }
+  );
 
-  let total = 0n;
-  let before_lt: string | undefined;
-
-  while (true) {
-    const url =
-      `https://tonapi.io/v2/blockchain/accounts/${FEE_RECIPIENT}/transactions` +
-      `?limit=1000&sort_order=desc` +
-      (before_lt ? `&before_lt=${before_lt}` : "");
-
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      // If TonAPI errors mid-pagination, keep what we already accumulated
-      // (partial day is better than throwing and returning nothing)
-      break;
-    }
-
-    const txs = data?.transactions ?? [];
-    if (!txs.length) break;
-
-    for (const tx of txs) {
-      // stop early if we've paged past the window
-      if (tx.utime < start) {
-        txs.length = 0;
-        break;
-      }
-      if (tx.utime > end) continue;
-      if (!tx.success) continue;
-
-      // only count inbound to this wallet
-      if (tx.in_msg?.destination === FEE_RECIPIENT) {
-        total += toBigInt(tx.in_msg?.value);
-      }
-    }
-
-    if (!txs.length) break;
-
-    // paginate using last tx's lt
-    before_lt = String(txs[txs.length - 1].lt);
-
-    // small delay to reduce rate-limit risk
-    await sleep(120);
+  if (!res || typeof res.totalVolumeNano !== "string") {
+    throw new Error("GroypFi: invalid response (missing totalVolumeNano)");
   }
 
-  dailyFees.addGasToken(total.toString());
+  // Convert nanoTON -> TON number
+  // NOTE: Dex adapters typically return USD volume. We convert TON->USD via DefiLlama pricing helpers.
+  // If your framework doesn't support getUSDValue, replace with createBalances + return token volume (depends on repo conventions).
+  const volumeNano = BigInt(res.totalVolumeNano);
+
+  // Most DefiLlama dex adapters return USD volume:
+  // getUSDValue(chain, amountInNativeSmallestUnitAsString)
+  const dailyVolume = options.getUSDValue(CHAIN.TON, volumeNano.toString());
+
+  const dailySwapCount = (res.swapCount ?? 0) + (res.terminalCount ?? 0);
 
   return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyVolume,
+    dailySwapCount,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch,
-  chains: [CHAIN.TON],
-  start: "2025-01-04",
+  adapter: {
+    [CHAIN.TON]: {
+      fetch,
+      start: 1735689600, // 2025-01-01 UTC (adjust if needed)
+    },
+  },
 };
 
 export default adapter;
