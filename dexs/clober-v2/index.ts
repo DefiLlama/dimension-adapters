@@ -41,7 +41,8 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   }
 
   for (const event of takeEvents) {
-    const book = await api.call({ abi: abi.getBookKey, target: event.address, params: [event.bookId] })
+    const target = (event.address || event.source).toLowerCase()
+    const book = await api.call({ abi: abi.getBookKey, target, params: [event.bookId] })
     const quoteAmount = Number(event.unit) * Number(book.unitSize)
     dailyVolume.add(book.quote, quoteAmount)
     const { bps, usesQuote } = parseFeeInfo(BigInt(book.takerPolicy))
