@@ -35,12 +35,11 @@ const CATEGORIES = ["regular", "fwogtok", "fwogcasts", "x"] as const;
 
 function addByCategory(
     balances: ReturnType<FetchOptions["createBalances"]>,
-    data: StatsBlock | undefined,
+    data: StatsBlock,
 ) {
-    if (!data) return;
     for (const cat of CATEGORIES) {
         const val = data[cat].sol;
-        if (val != null && val > 0) {
+        if (val > 0) {
             balances.addCGToken("solana", val, cat);
         }
     }
