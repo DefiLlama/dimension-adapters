@@ -2,6 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
+import { METRIC } from '../../helpers/metrics';
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
@@ -31,13 +32,13 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
   buyLogs.forEach((log) => {
     const amount = log.amountBase;
     const fee = (amount * SWAP_FEE) / DIVISOR;
-    totalFees.add(HONEY, fee);
+    totalFees.add(HONEY, fee, "Bonding curve buy fees");
   });
 
   sellLogs.forEach((log) => {
     const amount = log.amountToken;
     const fee = (amount * SWAP_FEE) / DIVISOR;
-    totalFees.add(BERO, fee);
+    totalFees.add(BERO, fee, "Bonding curve sell fees");
   });
 }
 
@@ -50,7 +51,7 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
   borrowLogs.forEach((log) => {
     const amount = log.amount;
     const fee = (amount * BORROW_FEE) / DIVISOR;
-    totalFees.add(HONEY, fee);
+    totalFees.add(HONEY, fee, METRIC.BORROW_INTEREST);
   });
 }
 
@@ -75,7 +76,7 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
     });
 
     logs.forEach((log) => {
-      totalFees.add(log.rewardToken, log.reward);
+      totalFees.add(log.rewardToken, log.reward, "Bribes from external protocols");
     });
   }
 }
@@ -100,7 +101,7 @@ async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
   });
 
   for (const log of logs) {
-    balances.add(BGT_ADDRESS, log.amount);
+    balances.add(BGT_ADDRESS, log.amount, "BGT staking rewards");
   }
 }
 
@@ -122,6 +123,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return { dailyFees, dailyBribesRevenue, dailyHoldersRevenue };
 }
 
+const breakdownMethodology = {
+  Fees: {
+    "Bonding curve buy fees": "Fees paid when buying BERO token through the bonding curve mechanism, charged at 0.3% of purchase amount",
+    "Bonding curve sell fees": "Fees paid when selling BERO token through the bonding curve mechanism, charged at 0.3% of sale amount",
+    [METRIC.BORROW_INTEREST]: "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount",
+  },
+  BribesRevenue: {
+    "Bribes from external protocols": "Incentives paid by external protocols to veToken holders to direct emissions and liquidity to specific pools",
+  },
+  HoldersRevenue: {
+    "BGT staking rewards": "BGT rewards distributed through the Beradrome Reward Vault to token holders who are automatically staked",
+  },
+};
+
 const adapter: Adapter = {
   adapter: {
     berachain: {
@@ -136,6 +151,7 @@ const adapter: Adapter = {
     HoldersRevenue:
       "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;

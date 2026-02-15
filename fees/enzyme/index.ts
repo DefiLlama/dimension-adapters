@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpPost } from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
 const LIST_URL = "https://api.enzyme.finance/enzyme.enzyme.v1.EnzymeService/GetVaultList";
 const ENZYME_FEE_TRACKER = "0xe97980f1D43C4CD4F1EeF0277a2DeA7ddBc2Cd13";
@@ -36,7 +37,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     let index = 0;
     for (const [vaultAddress, dailyFeePaid] of vaultFeePaidMap.entries()) {
-        dailyFees.addUSDValue((dailyFeePaid / (10 ** vaultDecimals[index])) * (vaultPriceMap.get(vaultAddress.toLowerCase()) || 0));
+        dailyFees.addUSDValue((dailyFeePaid / (10 ** vaultDecimals[index])) * (vaultPriceMap.get(vaultAddress.toLowerCase()) || 0), METRIC.MANAGEMENT_FEES);
         index++;
     }
 
@@ -54,10 +55,23 @@ const methodology = {
     ProtocolRevenue: "All the fees go to protocol treasury"
 }
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.MANAGEMENT_FEES]: 'Fees charged by vault managers for managing user assets in Enzyme vaults',
+    },
+    Revenue: {
+        [METRIC.MANAGEMENT_FEES]: 'All management fees are collected as protocol revenue',
+    },
+    ProtocolRevenue: {
+        [METRIC.MANAGEMENT_FEES]: 'Management fees allocated to the protocol treasury',
+    }
+}
+
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.ETHEREUM],
     methodology,
+    breakdownMethodology,
     runAtCurrTime: true,
 };
 

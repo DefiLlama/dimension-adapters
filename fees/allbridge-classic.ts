@@ -85,6 +85,18 @@ const methodology = {
   SupplySideRevenue: "80% of the collected bridge fee is used for rewards to the stakers",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Bridge Fees": "Fees charged to users for each cross-chain token transfer on the source chain.",
+  },
+  ProtocolRevenue: {
+    "Bridge Fees": "20% of bridge fees collected by the protocol treasury.",
+  },
+  SupplySideRevenue: {
+    "Bridge Fees": "80% of bridge fees distributed as rewards to stakers who provide liquidity.",
+  },
+};
+
 const adapter: Adapter = {
   version: 1,
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
@@ -97,4 +109,5 @@ const adapter: Adapter = {
 }
 
 adapter.methodology = methodology;
+adapter.breakdownMethodology = breakdownMethodology;
 export default adapter;

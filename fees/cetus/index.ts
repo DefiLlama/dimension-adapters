@@ -1,5 +1,6 @@
 import { Adapter, FetchResultV2, FetchV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { METRIC } from '../../helpers/metrics';
 import fetchURL from '../../utils/fetchURL';
 
 const cetusApiURL = 'https://api-sui.cetus.zone/v3/sui/daily-fees';
@@ -16,6 +17,18 @@ const methodology = {
   Revenue: 'Protocol fees charged from the swap fees.',
   SupplySideRevenue: 'Amount of swap fees are distributed to LPs.',
   ProtocolRevenue: 'Protocol fees charged from the swap fees.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'All swap fees paid by users when trading on Cetus DEX',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Portion of swap fees retained by the Cetus protocol treasury',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: 'Portion of swap fees distributed to liquidity providers',
+  },
 };
 
 const fetchCetusStats: FetchV2 = async ({
@@ -44,6 +57,7 @@ const adapter: Adapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

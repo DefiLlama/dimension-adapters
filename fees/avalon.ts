@@ -1,6 +1,7 @@
 import { SimpleAdapter } from "../adapters/types";
 import { aaveExport, AaveLendingPoolConfig, } from "../helpers/aave";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const AvalonMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.MERLIN]: [
@@ -293,8 +294,40 @@ const AvalonMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   ],
 }
 
+const methodology = {
+  Fees: 'Include borrow interest, flashloan fees, and liquidation fees paid by borrowers.',
+  Revenue: 'Amount of fees collected by Avalon protocol treasury.',
+  SupplySideRevenue: 'Amount of fees distributed to lenders.',
+  ProtocolRevenue: 'Amount of fees collected by Avalon protocol treasury.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers across all Avalon lending markets.',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation penalties and bonuses paid during collateral liquidations.',
+    [METRIC.FLASHLOAN_FEES]: 'Fees paid by users executing flashloans from Avalon markets.',
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: 'Portion of borrow interest retained by Avalon protocol treasury.',
+    [METRIC.LIQUIDATION_FEES]: 'Portion of liquidation penalties and bonuses retained by Avalon protocol.',
+    [METRIC.FLASHLOAN_FEES]: 'Portion of flashloan fees retained by Avalon protocol treasury.',
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Portion of borrow interest distributed to lenders who supply liquidity.',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses distributed to liquidators for maintaining protocol health.',
+    [METRIC.FLASHLOAN_FEES]: 'Portion of flashloan fees distributed to lenders.',
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Portion of borrow interest retained by Avalon protocol treasury.',
+    [METRIC.LIQUIDATION_FEES]: 'Portion of liquidation penalties retained by Avalon protocol treasury.',
+    [METRIC.FLASHLOAN_FEES]: 'Portion of flashloan fees retained by Avalon protocol treasury.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
+  breakdownMethodology,
   adapter: {
     ...aaveExport({
       [CHAIN.ETHEREUM]: {

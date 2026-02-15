@@ -2,6 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import type { Adapter, FetchOptions } from "../../adapters/types";
+import { METRIC } from "../../helpers/metrics";
 
 const ONE_DAY = 24 * 60 * 60;
 //solv market only
@@ -72,6 +73,7 @@ async function fetchFees({ fromTimestamp, toTimestamp, createBalances, chain }: 
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
   const todaysReserves: V3Reserve[] = await fetchReserves(todaysTimestamp, chain);
   const yesterdaysReserves: V3Reserve[] = await fetchReserves(yesterdaysTimestamp, chain);
@@ -99,33 +101,51 @@ async function fetchFees({ fromTimestamp, toTimestamp, createBalances, chain }: 
     }
 
     if (depositorInterest > 0) {
-      dailyFees.addToken(tokenAddress, depositorInterest);
+      dailyFees.addToken(tokenAddress, depositorInterest, METRIC.BORROW_INTEREST);
+      dailySupplySideRevenue.addToken(tokenAddress, depositorInterest, METRIC.BORROW_INTEREST);
     }
-    
+
     if (treasuryIncome > 0) {
-      dailyFees.addToken(tokenAddress, treasuryIncome);
-      dailyRevenue.addToken(tokenAddress, treasuryIncome);
+      dailyFees.addToken(tokenAddress, treasuryIncome, "Reserve factor income");
+      dailyRevenue.addToken(tokenAddress, treasuryIncome, "Reserve factor income");
     }
   }
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
   };
 }
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetchFees,
-      start: '2024-05-13'
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetchFees,
-      start: '2024-12-30'
-    }
+const methodology = {
+  Fees: "Interest paid by borrowers on outstanding loans",
+  Revenue: "Portion of interest income retained by protocol treasury via reserve factor",
+  SupplySideRevenue: "Interest income distributed to depositors/lenders who supply capital"
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers to lenders, accrued daily",
+    "Reserve factor income": "Portion of borrow interest allocated to protocol treasury via reserve factor mechanism"
   },
-  version: 2
+  Revenue: {
+    "Reserve factor income": "Protocol treasury income from reserve factor applied to borrow interest"
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "Interest income earned by depositors who supply assets to the lending pool"
+  }
+};
+
+const adapter: Adapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.BSC]: { start: '2024-05-13' },
+    [CHAIN.SONIC]: { start: '2024-12-30' }
+  },
+  fetch: fetchFees,
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

@@ -1,6 +1,7 @@
 import { httpPost } from "../utils/fetchURL";
 import { FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import * as sdk from '@defillama/sdk'
 
 
@@ -22,6 +23,16 @@ const fetch = async (): Promise<FetchResult> => {
   };
 };
 
+const methodology = {
+  Fees: "Swap fees collected from all AMM pools on Aftermath Finance"
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Trading fees charged on token swaps across all Aftermath Finance AMM pools"
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -31,6 +42,8 @@ const adapter: SimpleAdapter = {
       start: '2023-07-20'
     },
   },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -1,13 +1,11 @@
 import { Adapter, FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { nullAddress } from '../../helpers/token';
+import { METRIC } from '../../helpers/metrics';
 
 const BREAD_CONTRACT_ADDRESS = "0x0003eEDFdd020bf60D10cf684ABAc7C4534B7eAd";
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.BERACHAIN]: {
-      fetch: async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
         const dailyFees = options.createBalances()
 
         const logs = await options.getLogs({
@@ -23,20 +21,32 @@ const adapter: Adapter = {
         logs
           .filter(log => log.to.toLowerCase() === feeAddress.toLowerCase())
           .forEach(log => {
-            dailyFees.add(nullAddress, log.amount)
+            dailyFees.add(nullAddress, log.amount, METRIC.PROTOCOL_FEES)
           });
 
-        return {
-          dailyFees,
-        }
-      },
+  return {
+    dailyFees,
+  }
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.PROTOCOL_FEES]: 'Fees collected by the protocol treasury from BREAD contract operations',
+  }
+};
+
+const adapter: Adapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.BERACHAIN]: {
+      fetch,
       start: '2025-03-17',
     }
   },
-  version: 2,
   methodology: {
     Fees: "All fees are captured by monitoring SendBera events to breadTreasury",
-  }
+  },
+  breakdownMethodology,
 };
 
 export default adapter;

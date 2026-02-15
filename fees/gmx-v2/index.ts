@@ -218,6 +218,43 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
     };
 };
 
+const methodology = {
+    Fees: "Fees from opening/closing perpetual positions, swap fees, liquidation fees, and borrowing fees",
+    UserFees: "Fees from opening/closing perpetual positions, swap fees, and liquidation fees paid by traders",
+    Revenue: "37% of all collected fees - split between protocol treasury (10%) and GMX token holders (27%)",
+    ProtocolRevenue: "10% of all fees goes to the protocol treasury",
+    HoldersRevenue: "27% of all fees goes to GMX token stakers",
+    SupplySideRevenue: "63% of all fees goes to GM token liquidity providers"
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.MARGIN_FEES]: "Fees from opening/closing perpetual positions and borrowing fees charged to maintain leveraged positions",
+        [METRIC.SWAP_FEES]: "Fees charged when swapping tokens through GMX v2 markets",
+        [METRIC.LIQUIDATION_FEES]: "Fees collected when positions are liquidated due to insufficient collateral"
+    },
+    Revenue: {
+        [METRIC.MARGIN_FEES]: "37% of margin and borrowing fees retained by protocol",
+        [METRIC.SWAP_FEES]: "37% of swap fees retained by protocol",
+        [METRIC.LIQUIDATION_FEES]: "37% of liquidation fees retained by protocol"
+    },
+    ProtocolRevenue: {
+        [METRIC.MARGIN_FEES]: "10% of margin and borrowing fees to protocol treasury",
+        [METRIC.SWAP_FEES]: "10% of swap fees to protocol treasury",
+        [METRIC.LIQUIDATION_FEES]: "10% of liquidation fees to protocol treasury"
+    },
+    HoldersRevenue: {
+        [METRIC.MARGIN_FEES]: "27% of margin and borrowing fees distributed to GMX token stakers",
+        [METRIC.SWAP_FEES]: "27% of swap fees distributed to GMX token stakers",
+        [METRIC.LIQUIDATION_FEES]: "27% of liquidation fees distributed to GMX token stakers"
+    },
+    SupplySideRevenue: {
+        [METRIC.MARGIN_FEES]: "63% of margin and borrowing fees distributed to GM token liquidity providers",
+        [METRIC.SWAP_FEES]: "63% of swap fees distributed to GM token liquidity providers",
+        [METRIC.LIQUIDATION_FEES]: "63% of liquidation fees distributed to GM token liquidity providers"
+    }
+};
+
 const adapter: Adapter = {
     version: 1,
     dependencies: [Dependencies.DUNE],
@@ -231,6 +268,8 @@ const adapter: Adapter = {
             start: '2023-08-24',
         },
     },
+    methodology,
+    breakdownMethodology,
     isExpensiveAdapter: true,
 };
 export default adapter;

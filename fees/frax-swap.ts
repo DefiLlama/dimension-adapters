@@ -2,6 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { FetchOptions, Adapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
+import { METRIC } from "../helpers/metrics";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
 
@@ -51,9 +52,22 @@ const methodology = {
   Revenue: "No revenue"
 }
 
+const breakdownMethodology = {
+  UserFees: {
+    [METRIC.SWAP_FEES]: "0.3% fee paid by users on each token swap"
+  },
+  Fees: {
+    [METRIC.SWAP_FEES]: "0.3% fee collected from each token swap"
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "100% of swap fees distributed to liquidity providers"
+  }
+}
+
 const adapter: Adapter = {
   version: 1,
   methodology,
+  breakdownMethodology,
   chains: [CHAIN.ARBITRUM, CHAIN.AURORA, CHAIN.AVAX, CHAIN.BOBA, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.FANTOM, CHAIN.FRAXTAL, CHAIN.HARMONY, CHAIN.MOONBEAM, CHAIN.MOONRIVER, CHAIN.OPTIMISM, CHAIN.POLYGON],
   fetch,
   adapter: {}

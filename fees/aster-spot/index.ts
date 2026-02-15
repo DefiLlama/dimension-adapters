@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token"
+import { addTokensReceived } from "../../helpers/token";
+import { METRIC } from "../../helpers/metrics";
 
 async function fetch(options: FetchOptions) {
     const buybackWallet = '0x5E4969C41ca9F9831468B98328A370b7AbD5a397';
@@ -23,12 +24,19 @@ const methodology = {
     HoldersRevenue: "Aster token strategic buybacks from platform fees"
 }
 
+const breakdownMethodology = {
+    HoldersRevenue: {
+        [METRIC.TOKEN_BUY_BACK]: 'Aster tokens purchased by the protocol treasury through TWAP contract for strategic buybacks, funded by accumulated platform fees',
+    }
+};
+
 const adapter: Adapter = {
     version: 2,
     fetch,
     chains: [CHAIN.BSC],
     start: '2026-01-19',
     methodology,
+    breakdownMethodology,
 }
 
 export default adapter;

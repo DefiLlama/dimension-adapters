@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from '../../helpers/token';
+import { METRIC } from '../../helpers/metrics';
 
 // As per: https://docs.gyro.finance/deployed-contracts/pools.html#fees-receiver
 const config = {

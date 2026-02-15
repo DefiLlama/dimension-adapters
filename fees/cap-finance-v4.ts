@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { addTokensReceived } from '../helpers/token';
+import { METRIC } from '../helpers/metrics';
 
 const chainConfig: { [chain: string]: { treasury: string, start: string } } = {
   [CHAIN.ARBITRUM]: {
@@ -11,11 +12,15 @@ const chainConfig: { [chain: string]: { treasury: string, start: string } } = {
 
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
+  const { createBalances } = options;
 
-  const dailyFees = await addTokensReceived({
+  const rawFees = await addTokensReceived({
     options,
     target: config.treasury,
   });
+
+  const dailyFees = createBalances();
+  dailyFees.addBalances(rawFees, METRIC.TRADING_FEES);
 
   return {
     dailyFees,
@@ -30,11 +35,24 @@ const methodology = {
   ProtocolRevenue: 'fee inflows in treasury address.',
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Trading fees paid by users on perpetual and futures contracts',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees collected by the protocol treasury',
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees deposited into the protocol treasury address',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   adapter: chainConfig,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

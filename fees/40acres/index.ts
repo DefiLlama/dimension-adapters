@@ -1,6 +1,7 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
+import { METRIC } from "../../helpers/metrics";
 
 const feeCollector = ['0xfF16fd3D147220E6CC002a8e4a1f942ac41DBD23'];
 const LOAN_ADDRESS: any = {
@@ -21,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
 
   logs.forEach(log => {
     const amount = log.amount / BigInt(10 ** 6)
-    dailySupplySideRevenue.addUSDValue(amount)
+    dailySupplySideRevenue.addUSDValue(amount, "Lender rewards")
   });
 
   const dailyRevenue = await addTokensReceived({
@@ -31,8 +32,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyFees = options.createBalances();
-  dailyFees.add(dailyRevenue);
-  dailyFees.add(dailySupplySideRevenue);
+  dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
+  dailyFees.addBalances(dailySupplySideRevenue, "Lender rewards");
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
@@ -42,22 +43,34 @@ const methodology = {
   Revenue: 'Amount of fees that go to 40acres treasury.',
   SupplySideRevenue: 'Amount of fees that go to lenders.',
   ProtocolRevenue: 'Amount of fees that go to 40acres treasury.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.PROTOCOL_FEES]: '0.8% fee to open a line of credit plus 5% of voting rewards directed to protocol treasury',
+    "Lender rewards": '1% fee on rewards plus 20% of voting rewards directed to lenders',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: '0.8% fee to open a line of credit plus 5% of voting rewards directed to protocol treasury',
+  },
+  SupplySideRevenue: {
+    "Lender rewards": '1% fee on rewards plus 20% of voting rewards directed to lenders',
+  },
 }; 
 
 export default {
   version: 2,
+  fetch,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.BASE]: {
-      fetch,
       start: "2025-02-13",
     },
     [CHAIN.OPTIMISM]: {
-      fetch,
       start: "2025-03-06",
     },
     [CHAIN.AVAX]: {
-      fetch,
       start: "2025-07-02",
     }
   }

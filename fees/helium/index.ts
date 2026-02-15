@@ -29,9 +29,19 @@ const methodology = {
     HoldersRevenue: 'Data credits are minted by burning HNT',
 };
 
+const breakdownMethodology = {
+    Fees: {
+        'Data Credits Burned': 'Fees paid by users to access Helium network services (IoT data transfer, 5G coverage, etc.), paid by burning Data Credits which are minted by burning HNT tokens',
+    },
+    HoldersRevenue: {
+        'HNT Token Burns': 'All network fees result in HNT token burns (deflationary mechanism), as Data Credits are minted by burning HNT. This creates value for HNT holders through supply reduction',
+    }
+};
+
 const adapters: SimpleAdapter = {
     fetch,
     methodology,
+    breakdownMethodology,
     chains: [CHAIN.SOLANA],
     dependencies: [Dependencies.DUNE],
     start: '2023-04-18',

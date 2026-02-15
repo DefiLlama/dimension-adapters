@@ -1,19 +1,27 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
+import { METRIC } from "../../helpers/metrics";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await addTokensReceived({
+  const rawFees = await addTokensReceived({
     options,
     target: "0xFee97c6f9Bce786A08b1252eAc9223057508c760",
     fromAdddesses: ["0x3F37C7d8e61C000085AAc0515775b06A3412F36b"],
   });
+
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(rawFees, METRIC.TRADING_FEES);
+
+  const dailyHoldersRevenue = options.createBalances();
+  dailyHoldersRevenue.addBalances(rawFees, "Staking Rewards");
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: '0',
-    dailyHoldersRevenue: dailyFees,
+    dailyHoldersRevenue,
   };
 };
 
@@ -24,51 +32,25 @@ const methodology = {
   HoldersRevenue: "Holders revenue represents 100% of the trading fees which are distributed to stakers.",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Trading fees from perpetual positions (0.05% for correlated pairs, 0.25% for non-correlated pairs), automation fees for take-profit/stop-loss orders, and flash loan fees',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees from perpetual positions (0.05% for correlated pairs, 0.25% for non-correlated pairs), automation fees for take-profit/stop-loss orders, and flash loan fees',
+  },
+  HoldersRevenue: {
+    "Staking Rewards": '100% of trading fees distributed to token stakers',
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.SCROLL, CHAIN.XDAI, CHAIN.AVAX, CHAIN.LINEA, CHAIN.POLYGON, CHAIN.BSC],
+  fetch,
+  start: "2024-11-05",
   methodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.XDAI]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: "2024-11-05",
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: "2024-11-05",
-    },
-  },
+  breakdownMethodology,
 };
 
 export default adapter;

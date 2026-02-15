@@ -2,6 +2,7 @@ import { Chain } from "../../adapters/types";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
 const abis = {
   allTokens: "address[]:getAllTokens",
@@ -59,10 +60,11 @@ export async function swapMetrics(options: FetchOptions): Promise<{
     const nativeAmount = BigInt(tx.amountNativeIn) + BigInt(tx.amountNativeOut);
     const fee = (nativeAmount * lpFee) / scaleFactor;
     const protocolRevenue = (nativeAmount * factoryFee) / scaleFactor;
-    dailyFees.addGasToken(fee + protocolRevenue);
-    dailyRevenue.addGasToken(protocolRevenue);
-    dailyProtocolRevenue.addGasToken(protocolRevenue);
-    dailySupplySideRevenue.addGasToken(fee);
+    dailyFees.addGasToken(fee, METRIC.LP_FEES);
+    dailyFees.addGasToken(protocolRevenue, METRIC.PROTOCOL_FEES);
+    dailyRevenue.addGasToken(protocolRevenue, METRIC.PROTOCOL_FEES);
+    dailyProtocolRevenue.addGasToken(protocolRevenue, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.addGasToken(fee, METRIC.LP_FEES);
     dailyVolume.addGasToken(nativeAmount);
   });
 

@@ -1,4 +1,5 @@
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
+import { METRIC } from "../helpers/metrics";
 
 const curatorConfig: CuratorConfig = {
   vaults: {
@@ -20,4 +21,22 @@ const curatorConfig: CuratorConfig = {
   }
 }
 
-export default getCuratorExport(curatorConfig)
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields generated from assets deposited in all curated Morpho and Euler vaults',
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees and management fees collected by 9summits as vault curator',
+  },
+  ProtocolRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees and management fees collected by 9summits as vault curator',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Yields distributed to vault depositors/investors after curator fees',
+  }
+}
+
+const adapter = getCuratorExport(curatorConfig);
+adapter.breakdownMethodology = breakdownMethodology;
+
+export default adapter

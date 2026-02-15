@@ -8,7 +8,20 @@ const methodology = {
   ProtocolRevenue: "All the revenue go to the protocol",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Builder Fees': 'Fees collected from Orderly Network for order flow, charged at 0.3 basis points on taker volume'
+  },
+  Revenue: {
+    'Builder Fees': 'All builder fees are retained as revenue'
+  },
+  ProtocolRevenue: {
+    'Builder Fees': 'All revenue goes to the protocol treasury'
+  }
+}
+
 const adapter = getBuilderExports({ broker_id: 'baumz-1024', start: '2025-11-08', methodology }) as SimpleAdapter
+adapter.breakdownMethodology = breakdownMethodology
 
 adapter.adapter = {
   [CHAIN.ORDERLY]: { 

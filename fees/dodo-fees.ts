@@ -11,6 +11,21 @@ query FetchDashboardPairs($where: Dashboardrate24h_filter) {
 }
 `
 
+const methodology = {
+  Fees: "All swap fees collected from DODO trading pairs across all pools",
+  Revenue: "20% of swap fees retained by the protocol treasury",
+  SupplySideRevenue: "80% of swap fees distributed to liquidity providers"
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Swap fees": "Fees charged on token swaps across all DODO trading pairs, excluding pairs with TVL under $1,000"
+  },
+  Revenue: {
+    "Protocol fees": "20% of swap fees allocated to the DODO protocol treasury"
+  }
+}
+
 const adapter: Adapter = {
   version: 1,
   adapter: ["ethereum", "bsc", "polygon", "arbitrum", "aurora", "boba"].reduce((all, chain)=>({
@@ -32,7 +47,9 @@ const adapter: Adapter = {
       },
       runAtCurrTime: true,
           }
-  }), {} as any)
+  }), {} as any),
+  methodology,
+  breakdownMethodology
 };
 
 export default adapter

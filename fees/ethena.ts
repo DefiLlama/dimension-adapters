@@ -137,7 +137,7 @@ const adapters = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: fetch,
+      fetch,
       start: '2023-11-24',
     },
   },

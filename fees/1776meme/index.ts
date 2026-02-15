@@ -1,6 +1,7 @@
 import { parseEther } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // Addresses
 const memeCenterAddr = "0xDFcB2aB25b7978C112E9E08a2c70d52b035F1776";
@@ -26,8 +27,8 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
     eventAbi: launchAbi,
   });
   const launchFee = parseEther("0.001776") * BigInt(launchLogs.length);
-  dailyFees.addGasToken(launchFee);
-  dailyProtocolRevenue.addGasToken(launchFee);
+  dailyFees.addGasToken(launchFee, "Token launch fees");
+  dailyProtocolRevenue.addGasToken(launchFee, "Token launch fees");
 
   // buy/sell events from MemeCenter contract
   const buySellLogs = (await Promise.all([
@@ -37,11 +38,11 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   for (const log of buySellLogs) {
       // Total 1% baseToken swap amount
-      dailyFees.addToken(log.baseToken, log.totalFee);
+      dailyFees.addToken(log.baseToken, log.totalFee, METRIC.TRADING_FEES);
       // Protocols - 60% total fee
-      dailyProtocolRevenue.addToken(log.baseToken, log.totalFee * 60n / 100n);
+      dailyProtocolRevenue.addToken(log.baseToken, log.totalFee * 60n / 100n, "Trading fees to protocol");
       // Creator - 40% total fee
-      dailySupplySideRevenue.addToken(log.baseToken, log.totalFee * 40n / 100n);
+      dailySupplySideRevenue.addToken(log.baseToken, log.totalFee * 40n / 100n, METRIC.CREATOR_FEES);
   }
 
   // graduate events from MemeCenter contract
@@ -52,11 +53,11 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const log of graduateLogs) {
       // Total 7% baseToken raised amount
       const graduateFee = log.baseTokenAmount * 7n / 93n;
-      dailyFees.addToken(log.baseToken, graduateFee);
+      dailyFees.addToken(log.baseToken, graduateFee, "Token graduation fees");
       // Protocols - 5% raised amount
-      dailyProtocolRevenue.addToken(log.baseToken, graduateFee * 5n / 7n);
+      dailyProtocolRevenue.addToken(log.baseToken, graduateFee * 5n / 7n, "Graduation fees to protocol");
       // Creator - 2% raised amount
-      dailySupplySideRevenue.addToken(log.baseToken, graduateFee * 2n / 7n);
+      dailySupplySideRevenue.addToken(log.baseToken, graduateFee * 2n / 7n, "Graduation fees to creator");
   }
 
   return { dailyFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
@@ -69,15 +70,30 @@ const methodology = {
   Fees: "All fees comes from the user."
 }
 
+const breakdownMethodology = {
+  Fees: {
+    "Token launch fees": "Fixed 0.001776 ETH fee charged when a new token is launched on the platform",
+    [METRIC.TRADING_FEES]: "1% fee on all token buy and sell transactions",
+    "Token graduation fees": "7% fee on the total raised amount when a token graduates to DEX liquidity"
+  },
+  Revenue: {
+    "Token launch fees": "100% of the 0.001776 ETH launch fee goes to protocol",
+    "Trading fees to protocol": "60% of the 1% trading fee goes to protocol treasury",
+    "Graduation fees to protocol": "5/7ths (71.4%) of the graduation fee goes to protocol treasury"
+  },
+  SupplySideRevenue: {
+    [METRIC.CREATOR_FEES]: "40% of the 1% trading fee goes to token creator",
+    "Graduation fees to creator": "2/7ths (28.6%) of the graduation fee goes to token creator"
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
-      start: '2025-06-24',
-    }
-  },
-  methodology
+  fetch: fetchFees,
+  start: '2025-06-24',
+  chains: [CHAIN.ETHEREUM],
+  methodology,
+  breakdownMethodology
 };
 
 export default adapter;

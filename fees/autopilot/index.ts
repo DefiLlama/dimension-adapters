@@ -5,6 +5,7 @@ import type {
     SimpleAdapter,
 } from "../../adapters/types";
 import ADDRESSES from '../../helpers/coreAssets.json'
+import { METRIC } from "../../helpers/metrics";
 
 const ABI = {
     FEE_COLLECTED: "event FeeCollected (uint256 amount,address indexed treasury)",
@@ -34,15 +35,15 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     });
 
     feeCollectedLogs.forEach((feeCollected: any) => {
-        dailyRevenue.add(ADDRESSES.base.USDC, feeCollected.amount)
+        dailyRevenue.add(ADDRESSES.base.USDC, feeCollected.amount, METRIC.PROTOCOL_FEES)
     });
 
     rewardLogs.forEach((reward: any) => {
-        dailySupplySideRevenue.add(ADDRESSES.base.USDC, reward.reward_amount)
+        dailySupplySideRevenue.add(ADDRESSES.base.USDC, reward.reward_amount, METRIC.STAKING_REWARDS)
     });
 
     const dailyFees = dailyRevenue.clone();
-    dailyFees.add(dailySupplySideRevenue);
+    dailyFees.addBalances(dailySupplySideRevenue, METRIC.STAKING_REWARDS);
 
     return {
         dailyFees,
@@ -59,12 +60,28 @@ const methodology = {
     SupplySideRevenue: "Rewards post fee claimable by veAero stakers"
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.STAKING_REWARDS]: 'Weekly Aerodrome rewards earned from veAero tokens staked in the Autopilot pool',
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: '5% performance fee on Aerodrome rewards, collected by protocol treasury',
+    },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: '5% performance fee on Aerodrome rewards, collected by protocol treasury',
+    },
+    SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: '95% of Aerodrome rewards distributed to veAero stakers after protocol fee',
+    }
+};
+
 const adapter: SimpleAdapter = {
     version: 1, //rewards are weekly once
     fetch,
     chains: [CHAIN.BASE],
     start: '2025-07-24',
-    methodology
+    methodology,
+    breakdownMethodology
 }
 
 export default adapter;

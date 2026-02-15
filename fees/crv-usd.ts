@@ -113,10 +113,12 @@ const fetch = async (options: FetchOptions) => {
   }
   
   const dailyRevenue = dailyProtocolRevenue.clone(1)
-  dailyRevenue.addBalances(dailyHoldersRevenue, METRIC.STAKING_REWARDS);
-  
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
+  dailyRevenue.addBalances(dailyHoldersRevenue);
+
+  const dailySupplySideRevenue = createBalances();
+  const tempBalance = dailyFees.clone();
+  tempBalance.subtract(dailyRevenue);
+  dailySupplySideRevenue.addBalances(tempBalance, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,
@@ -141,10 +143,17 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Borrow interest fees collected and distributed through the FeeSplitter contract (post Oct 2024) and from controller contracts via CollectFees events (pre FeeSplitter).',
-      [METRIC.MANAGEMENT_FEES]: 'Uncollected admin fees accrued in controller contracts between start and end of the period.',
-      [METRIC.PROTOCOL_FEES]: '10% of DAO-collected fees allocated to the protocol treasury via the Fee Allocator (post June 2025).',
-      [METRIC.STAKING_REWARDS]: '90% of DAO-collected fees distributed to veCRV holders via the Fee Allocator (post June 2025) and before the FeeSplitter deployment.',
+      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers on their crvUSD loans, collected through controller contracts and distributed via the FeeSplitter (post Oct 2024).',
+      [METRIC.MANAGEMENT_FEES]: 'Uncollected admin fees accrued in controller contracts between the start and end of the period (pre Oct 2024).',
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: '10% of DAO-collected fees allocated to the protocol treasury via the Fee Allocator (active from June 2025 onwards).',
+    },
+    HoldersRevenue: {
+      [METRIC.STAKING_REWARDS]: 'Fees distributed to veCRV holders: 90% post-June 2025 via Fee Allocator, 100% of DAO-collected fees pre-June 2025.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: 'Portion of borrow interest distributed to scrvUSD stakers (savings vault depositors), representing the majority of fee revenue.',
     },
   }
 };

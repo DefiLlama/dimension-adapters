@@ -50,6 +50,9 @@ const adapter: SimpleAdapter = {
     Fees: {
       [METRIC.STAKING_REWARDS]: "Rewards claimed on the RewardsCoordinator contract by EigenLayer stakers and operators.",
     },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: "Rewards claimed on the RewardsCoordinator contract by EigenLayer stakers and operators.",
+    },
   },
 };
 

@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
+import { METRIC } from "../helpers/metrics";
 
 const BASED_APP_BUILDER_ADD = "0x1924b8561eef20e70ede628a296175d358be80e5";
 
@@ -25,11 +26,24 @@ const methodology = {
   ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Builder code referral fees earned from users trading on Hyperliquid perpetual markets through based.app frontend",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "Builder code referral fees earned from users trading on Hyperliquid perpetual markets through based.app frontend",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "Builder code referral fees earned from users trading on Hyperliquid perpetual markets through based.app frontend",
+  }
+};
+
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: "2025-07-08",
   methodology,
+  breakdownMethodology,
   doublecounted: true,
 };
 

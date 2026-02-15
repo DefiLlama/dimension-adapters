@@ -44,7 +44,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
       logs.forEach((log: any) => {
         const hop_contract = contract_bond[index]
         const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-        dailyFees.add(token_l2[hop_contract], log.bonderFee, { label: 'cctp-bonder-fees' })
+        dailyFees.add(token_l2[hop_contract], log.bonderFee, 'CCTP bonder fees')
       })
     })
 
@@ -52,7 +52,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
       logs.forEach((log: any) => {
         const hop_contract = contract_bond[index]
         const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-        dailyFees.add(token_l2[hop_contract], log.relayerFee, { label: 'l1-relayer-fees' })
+        dailyFees.add(token_l2[hop_contract], log.relayerFee, 'L1 relayer fees')
       })
     })
     return { dailyFees };
@@ -100,7 +100,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     logs.forEach((log: any) => {
       const hop_contract = contract_bond[index]
       const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-      dailyFees.add(token_l2[hop_contract], log.relayerFee, { label: 'l2-relayer-fees' })
+      dailyFees.add(token_l2[hop_contract], log.relayerFee, 'L2 relayer fees')
     })
   })
 
@@ -109,7 +109,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     logs.forEach((log: any) => {
       const hop_contract = contract_bond[index]
       const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-      dailyFees.add(token_l2[hop_contract], log.bonderFee, { label: 'cctp-bonder-fees' })
+      dailyFees.add(token_l2[hop_contract], log.bonderFee, 'CCTP bonder fees')
     })
   })
 
@@ -118,7 +118,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     logs.forEach((log: any) => {
       const hop_contract = contract_bond[index]
       const token_l2: any = mapping_token.find((e: any) => e[hop_contract])
-      dailyFees.add(token_l2[hop_contract], log.bonderFee, { label: 'transfer-bonder-fees' })
+      dailyFees.add(token_l2[hop_contract], log.bonderFee, 'Transfer bonder fees')
     })
   })
   
@@ -139,10 +139,10 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'cctp-bonder-fees': 'Bonder fees collected from CCTP (Cross-Chain Transfer Protocol) bridge transfers.',
-      'l1-relayer-fees': 'Relayer fees collected from L1 transfer events sent to L2.',
-      'l2-relayer-fees': 'Relayer fees collected from transfers completed from L1 on L2 chains.',
-      'transfer-bonder-fees': 'Bonder fees collected from standard Hop bridge transfers on L2 chains.',
+      'CCTP bonder fees': 'Bonder fees collected from CCTP (Cross-Chain Transfer Protocol) bridge transfers, paid to bonders who front capital for fast transfers.',
+      'L1 relayer fees': 'Relayer fees collected from L1 transfer events sent to L2, paid to relayers who facilitate cross-chain messaging.',
+      'L2 relayer fees': 'Relayer fees collected from transfers completed from L1 on L2 chains, paid to relayers who complete the bridging process.',
+      'Transfer bonder fees': 'Bonder fees collected from standard Hop bridge transfers on L2 chains, paid to bonders who provide instant liquidity.',
     },
   },
 }

@@ -37,6 +37,12 @@ const adapter: Adapter = {
       [METRIC.TRADING_FEES]: "Creator/subject fees collected in ETH from share trades and club key buy/sell trades, paid to key holders.",
       [METRIC.PROTOCOL_FEES]: "Protocol fees collected in ETH from share trades and club key buy/sell trades on Friend Tech.",
     },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "Protocol fees collected in ETH from share trades and club key buy/sell trades retained by Friend Tech.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: "Protocol fees collected in ETH from share trades and club key buy/sell trades allocated to Friend Tech treasury.",
+    },
   },
 }
 

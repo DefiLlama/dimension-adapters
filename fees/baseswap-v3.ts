@@ -1,6 +1,12 @@
-
+import { METRIC } from "../helpers/metrics";
 import adapter from '../dexs/baseswap'
 const { breakdown,  ...rest } = adapter
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Variable swap fees paid by users on each trade, ranging from 0.008% to 1% depending on the pool. According to protocol design, 36% goes to LPs and 64% to treasury, though revenue split is not tracked in current implementation.',
+  }
+};
 
 export default {
   ...rest,
@@ -11,5 +17,6 @@ export default {
     ProtocolRevenue: "Treasury receives 64% of each swap",
     Fees: "All fees come from the user.",
   },
+  breakdownMethodology,
   adapter: breakdown['v3'],
 }

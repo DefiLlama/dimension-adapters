@@ -1,11 +1,24 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { getBuilderExports } from "../../helpers/orderly";
 
 const methodology = {
   Fees: "Builder Fees collected from Orderly Network",
   Revenue: "All the fees collected",
   ProtocolRevenue: "All the revenue goes to the protocol",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Builder fees collected from perpetual trading activity on Orderly Network, including maker and taker fees from position changes"
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "All builder fees are retained as protocol revenue"
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "100% of builder fees allocated to the protocol treasury"
+  }
 };
 
 const adapter = getBuilderExports({
@@ -25,5 +38,7 @@ adapter.adapter = {
     },
   },
 };
+
+adapter.breakdownMethodology = breakdownMethodology;
 
 export default adapter;

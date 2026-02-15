@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
 import * as sdk from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
 const queryManagerFeeMinteds = `
       query managerFeeMinteds($startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
@@ -127,7 +128,7 @@ const calculateDaoFees = (data: any): number =>
     return acc + result;
   }, 0);
 
-const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
+const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: FetchOptions) => {
   const config = PROVIDER_CONFIG[chain];
   if (!config) throw new Error(`Unsupported chain: ${chain}`);
 
@@ -135,30 +136,53 @@ const fetch = async ({ chain, endTimestamp, startTimestamp }: FetchOptions) => {
   const dailyEntryFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryEntryFeeMinteds, 'entryFeeMinteds', startTimestamp, endTimestamp);
   const dailyExitFeesEvents = await fetchHistoricalFees(chain as CHAIN, queryExitFeeMenteds, 'exitFeeMinteds', startTimestamp, endTimestamp);
 
-  const dailyManagerFees = calculateManagerFees(dailyManagerFeesEvents);
-  const dailyEntryFees = calculateEntryFees(dailyEntryFeesEvents);
-  const dailyExitFees = calculateExitFees(dailyExitFeesEvents);
-  const dailyFees = dailyManagerFees + dailyEntryFees + dailyExitFees;
+  const dailyManagerFeesAmount = calculateManagerFees(dailyManagerFeesEvents);
+  const dailyEntryFeesAmount = calculateEntryFees(dailyEntryFeesEvents);
+  const dailyExitFeesAmount = calculateExitFees(dailyExitFeesEvents);
+  const dailyDaoFeesAmount = calculateDaoFees(dailyManagerFeesEvents);
 
-  const dailyDaoFees = calculateDaoFees(dailyManagerFeesEvents);
+  const dailyFees = createBalances();
+  dailyFees.addUSDValue(dailyManagerFeesAmount, METRIC.MANAGEMENT_FEES);
+  dailyFees.addUSDValue(dailyEntryFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
+  dailyFees.addUSDValue(dailyExitFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
+
+  const dailyRevenue = createBalances();
+  dailyRevenue.addUSDValue(dailyDaoFeesAmount, METRIC.PROTOCOL_FEES);
+
+  const dailySupplySideRevenue = createBalances();
+  const managerFeesForManagers = dailyManagerFeesAmount - dailyDaoFeesAmount;
+  dailySupplySideRevenue.addUSDValue(managerFeesForManagers, "Manager fees");
 
   return {
     dailyFees,
-    dailyRevenue: dailyDaoFees,
-    dailyProtocolRevenue: dailyDaoFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     timestamp: endTimestamp,
   };
 }
 
-const info = {
-  methodology: {
-    Fees: 'All fees generated from dHEDGE vaults.',
-    Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
-  }
-}
+const methodology = {
+  Fees: 'All fees generated from dHEDGE vaults.',
+  Revenue: 'All revenue collected by the dHEDGE protocol from fees generated.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MANAGEMENT_FEES]: 'Fees paid to vault managers for actively managing investment strategies, split between protocol and managers',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees charged when users deposit into or withdraw from vaults',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Protocol\'s share of management fees retained by the dHEDGE DAO',
+  },
+  SupplySideRevenue: {
+    'Manager fees': 'Portion of management fees distributed to vault managers for their portfolio management services',
+  },
+};
 
 const adapter: SimpleAdapter = {
-  methodology: info.methodology,
+  methodology,
+  breakdownMethodology,
   fetch,
   adapter: {
     [CHAIN.OPTIMISM]: { start: '2021-12-02', },

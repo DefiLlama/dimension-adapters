@@ -64,10 +64,24 @@ const fetch = async (timestamp: number, _: any, { chain}: FetchOptions) => {
   return { timestamp, dailyFees: totalFeesUsdValue, dailyRevenue: totalFeesUsdValue }
 }
 
+const methodology = {
+  Fees: "Alchemix generates revenue from various lending and yield optimization activities across its protocol",
+  Revenue: "All protocol revenue is retained by the Alchemix treasury"
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Protocol revenue": "Aggregate protocol revenue tracked by Alchemix, including fees from self-repaying loans, yield optimization, and other protocol activities"
+  },
+  Revenue: {
+    "Protocol revenue": "Total protocol revenue retained by Alchemix treasury"
+  }
+}
+
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [CHAIN.ETHEREUM]: { 
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2021-02-28'
     },
@@ -79,7 +93,9 @@ const adapter: Adapter = {
       fetch,
       start: '2021-02-28'
     }
-  }
+  },
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

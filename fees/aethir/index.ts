@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 const AETHIR_ENDPOINT = "https://dashboard-api.aethir.com/protocol/demand-metrics/historical-network-revenue";
@@ -26,11 +27,27 @@ const methodology = {
     SupplySideRevenue: "80% of the service fees goes to GPU service providers"
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SERVICE_FEES]: "Service fees paid by developers for GPU compute resources on the Aethir network"
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: "20% of service fees retained by Aethir protocol"
+    },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: "All protocol revenue goes to Aethir treasury"
+    },
+    SupplySideRevenue: {
+        [METRIC.OPERATORS_FEES]: "80% of service fees distributed to GPU service providers (operators) who supply compute resources"
+    }
+};
+
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.ARBITRUM],
     start: '2024-07-22',
     methodology,
+    breakdownMethodology,
 }
 
 export default adapter;

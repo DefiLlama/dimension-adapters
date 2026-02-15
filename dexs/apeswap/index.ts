@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
+import { METRIC } from "../../helpers/metrics";
 
 const methodology = {
   UserFees: "Users pays 0.2% of each swap",
@@ -9,6 +10,24 @@ const methodology = {
   ProtocolRevenue: "A 0.05% (bsc and ethereum) or 0.15% (polygon) or 0.0375% (telos) of the fees goes to treasury",
   HoldersRevenue: "Of all DEX trading fees earned by ApeSwap, 50% are used to buy back and burn BANANA on a quarterly basis",
   SupplySideRevenue: "A 0.15% (bsc and ethereum) or 0.05% (polygon and telos) is distributed proportionally to all APE-LP token holders",
+}
+
+const breakdownMethodology = {
+  UserFees: {
+    [METRIC.SWAP_FEES]: 'All swap fees (0.2% of trade volume) paid by users when trading on ApeSwap DEX',
+  },
+  Fees: {
+    [METRIC.SWAP_FEES]: 'All swap fees (0.2% of trade volume) collected from trades on the DEX',
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: '15% of swap fees (0.03% of trade volume) goes to protocol treasury and token buybacks',
+  },
+  HoldersRevenue: {
+    [METRIC.SWAP_FEES]: '50% of protocol revenue used for quarterly BANANA token buybacks and burns',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: '85% of swap fees (0.17% of trade volume) distributed to liquidity providers holding APE-LP tokens',
+  },
 }
 
 const getUniV2LogAdapterConfig = {
@@ -22,6 +41,7 @@ const getUniV2LogAdapterConfig = {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.BSC]: { fetch: getUniV2LogAdapter({ factory: '0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6', ...getUniV2LogAdapterConfig }), start: 1613273226 },
     [CHAIN.POLYGON]: { fetch: getUniV2LogAdapter({ factory: '0xcf083be4164828f00cae704ec15a36d711491284', ...getUniV2LogAdapterConfig }), start: 1623814026 },
