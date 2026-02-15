@@ -63,6 +63,8 @@ const graphsV2 = getChainVolume({
 const uniV2LogAdapters = uniV2Exports({
   [CHAIN.BSC]: { factory: '0x4f8bdc85e3eec5b9de67097c3f59b6db025d9986', start: '2022-10-04', fees: TOTAL_FEES, revenueRatio: PROTOCOL_FEES/TOTAL_FEES, holdersRevenueRatio: PROTOCOL_FEES/TOTAL_FEES, },
   [CHAIN.AVAX]: { factory: '0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10', start: '2021-08-09', fees: TOTAL_FEES, revenueRatio: PROTOCOL_FEES/TOTAL_FEES, holdersRevenueRatio: PROTOCOL_FEES/TOTAL_FEES, },
+  // [CHAIN.ARBITRUM]: { factory: '0xaE4EC9901c3076D0DdBe76A520F9E90a6227aCB7', start: '2022-11-22', fees: TOTAL_FEES, revenueRatio: PROTOCOL_FEES/TOTAL_FEES, holdersRevenueRatio: PROTOCOL_FEES/TOTAL_FEES, allowReadPairs: true, },
+  // [CHAIN.MONAD]: { factory: '0xe32D45C2B1c17a0fE0De76f1ebFA7c44B7810034', start: '2025-10-31', fees: TOTAL_FEES, revenueRatio: PROTOCOL_FEES/TOTAL_FEES, holdersRevenueRatio: PROTOCOL_FEES/TOTAL_FEES, },
 }, { runAsV1: true,})
 
 const adapter: BreakdownAdapter = {
@@ -74,10 +76,10 @@ const adapter: BreakdownAdapter = {
       //   fetch: fetchV1,
       //   start: '2021-08-09',
       // },
-      [CHAIN.ARBITRUM]: {
-        fetch: fetchV1,
-        start: '2022-10-04',
-      },
+      // [CHAIN.ARBITRUM]: {
+      //   fetch: fetchV1,
+      //   start: '2022-10-04',
+      // },
     },
     v2: {
       [CHAIN.AVAX]: {
