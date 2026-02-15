@@ -32,7 +32,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
 
-  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, })
+  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true, })
   let swapEvents = []
   let feeCollectedEvents = []
   if(routerGatewayContract[typedChain]) {
@@ -41,9 +41,8 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   }
 
   for (const event of takeEvents) {
-    const target = (event.address || event.source).toLowerCase()
-    const book = await api.call({ abi: abi.getBookKey, target, params: [event.bookId] })
-    const quoteAmount = Number(event.unit) * Number(book.unitSize)
+    const book = await api.call({ abi: abi.getBookKey, target: event.address, params: [event.args.bookId] })
+    const quoteAmount = Number(event.args.unit) * Number(book.unitSize)
     dailyVolume.add(book.quote, quoteAmount)
     const { bps, usesQuote } = parseFeeInfo(BigInt(book.takerPolicy))
     if (usesQuote) {
