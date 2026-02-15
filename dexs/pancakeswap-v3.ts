@@ -195,9 +195,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     })
   }
   
-  await dailyVolume.getUSDJSONs({ debug: true })
-  await dailyFees.getUSDJSONs({ debug: true })
-  
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
 }
 
@@ -289,10 +286,10 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology,
   adapter: {
-    // [CHAIN.SOLANA]: {
-    //   fetch: fetchSolanaV3,
-    //   start: '2025-07-11',
-    // },
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolanaV3,
+      start: '2025-07-11',
+    },
   },
 };
 
