@@ -70,6 +70,7 @@ const adapter: Adapter = {
     fetch,
     chains: [CHAIN.ETHEREUM],
     start: '2023-10-06',
+    methodology,
     breakdownMethodology,
 }
 
