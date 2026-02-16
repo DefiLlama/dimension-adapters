@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const PRINTR_CONTRACT = "0xb77726291b125515d0a7affeea2b04f2ff243172";
 
@@ -94,6 +95,26 @@ const adapter: SimpleAdapter = {
         SupplySideRevenue:
             "25% of trading fees go to token creators.",
     },
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.SWAP_FEES]: "Printr charges a 1% fee on all bonding curve swaps.",
+        },
+        Revenue: {
+            [METRIC.PROTOCOL_FEES]: "10% of trading fees go to the Printr team.",
+            [METRIC.TOKEN_BUY_BACK]: "40% of trading fees are used for buybacks, benefiting token holders.",
+            'Memecoin Reserve': "25% of trading fees go to the protocol-controlled memecoin reserve fund (allocated via community voting for liquidity, listings, and growth).",
+        },
+        ProtocolRevenue: {
+            [METRIC.PROTOCOL_FEES]: "10% of trading fees go to the Printr team.",
+            'Memecoin Reserve': "25% of trading fees go to the protocol-controlled memecoin reserve fund (allocated via community voting for liquidity, listings, and growth).",
+        },
+        HoldersRevenue: {
+            [METRIC.TOKEN_BUY_BACK]: "40% of trading fees are used for buybacks, benefiting token holders.",
+        },
+        SupplySideRevenue: {
+            [METRIC.CREATOR_FEES]: "25% of trading fees go to token creators.",
+        }
+    }
 };
 
 export default adapter;
