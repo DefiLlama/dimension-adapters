@@ -29,6 +29,10 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
     {
       vault: '0x75333830E7014e909535389a6E5b0C02aA62ca27',
       accountantAbiVersion: 2,
+    },
+    {
+      vault: '0xb33c8F0b0816fd147FCF896C594a3ef408845e2C',
+      accountantAbiVersion: 2,
     }
   ],
 }
