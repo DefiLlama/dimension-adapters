@@ -24,7 +24,7 @@ const adapter: BreakdownAdapter = {
     }, {}),
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: getUniV3LogAdapter({ factory: '0x38015d05f4fec8afe15d7cc0386a126574e8077b' }),
+        fetch: getUniV3LogAdapter({ factory: '0x38015d05f4fec8afe15d7cc0386a126574e8077b', revenueRatio: 0.64 }),
         start: '2023-07-28',
       };
       return acc;
