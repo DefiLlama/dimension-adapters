@@ -24,7 +24,7 @@ const prefetch = async (options: FetchOptions) => {
 };
 
 // Fetch function - processes prefetched data
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const results: IDepositResult[] = options.preFetchedResults || [];
   const dailyRevenue = results[0]?.revenue || 0;
 
@@ -42,7 +42,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.APTOS]: { fetch, start: "2026-02-15" },
