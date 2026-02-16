@@ -33,9 +33,10 @@ const fetch = async (options: FetchOptions) => {
     target: savBtc,
   })
   daily_rewards.forEach((log) => {
-    dailyFees.add(avBtc, log.amount, METRIC.ASSETS_YIELDS);
+    const protocolCut = Number(log.amount) / 9
+    dailyFees.add(avBtc, Number(log.amount) + protocolCut, METRIC.ASSETS_YIELDS);
     dailySupplySideRevenue.add(avBtc, log.amount, METRIC.ASSETS_YIELDS);
-    dailyRevenue.add(avBtc, Number(log.amount) / 9, METRIC.PERFORMANCE_FEES)
+    dailyRevenue.add(avBtc, protocolCut, METRIC.PERFORMANCE_FEES)
   });
 
   return {
