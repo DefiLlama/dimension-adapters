@@ -106,6 +106,7 @@ const methodology = {
 const adapter: Adapter = {
   runAtCurrTime: true,
   fetch,
+  deadFrom: "2026-02-04",
   methodology,
   adapter: {
     [CHAIN.BASE]: { start: '2023-10-23', },
