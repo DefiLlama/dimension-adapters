@@ -7,5 +7,6 @@ export default liquityV1Exports({
     redemptionEvent: 'event Redemption(uint256 _attemptedTHUSDAmount, uint256 _actualTHUSDAmount, uint256 _collateralSent, uint256 _ETHFee)',
     borrowingEvent: 'event THUSDBorrowingFeePaid(address indexed _borrower, uint256 _LUSDFee)',
     stableCoin: '0xCFC5bD99915aAa815401C5a41A927aB7a38d29cf',
+    protocolRevenuePercentage: 100,
   }
 })
