@@ -8,7 +8,8 @@ const event_order_filled = 'event OrderFilled(bytes32 indexed orderUUID,string o
 const ALL_ROUTERS = [
   '0x98888e2e040944cee3d7c8da22368aef18f5a3f4', // Router v1 (Dec 2025 - Jan 2026)
   '0x90000069af5a354cf1dC438dEFbF8e0469d87F02', // Router v2 (Jan 2026)
-  '0x900000D231B9C5c2374415f0974C1F8a377757E9', // Router v3 (Jan 2026 - present)
+  '0x900000D231B9C5c2374415f0974C1F8a377757E9', // Router v3 (Jan 2026 - Feb 2026)
+  '0x4b000001c0be947f4238620f57cbd07421007f43', // Router v4 (Feb 2026 - present)
 ];
 
 const chainConfig = {
