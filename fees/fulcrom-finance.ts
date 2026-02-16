@@ -4,10 +4,11 @@ import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { METRIC } from "../helpers/metrics";
+import * as sdk from "@defillama/sdk";
 
 const endpoints: Record<string, string> = {
   [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
-  [CHAIN.ERA]: "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
+  [CHAIN.ERA]: "4nAamZ3MZqSegV9CfN3fRpcu5j415JDLZJdBsn6CZX91",
   [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
 };
 
@@ -31,8 +32,9 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
       swap
     }
   }`;
+  const endpoint = chain === CHAIN.ERA ? sdk.graph.modifyEndpoint(endpoints[chain]) : endpoints[chain]
 
-  const graphRes = await request(endpoints[chain], graphQuery);
+  const graphRes = await request(endpoint, graphQuery);
 
   const dailyFees = options.createBalances()
   dailyFees.addUSDValue(graphRes.feeStat?.mint / 1e30, METRIC.MINT_REDEEM_FEES)
