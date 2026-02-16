@@ -175,14 +175,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     })
 
     const exchangeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[3]) : Number(getAccountantState[4])
-    const paltformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
+    const platformFeeRate = vault.accountantAbiVersion === 1 ? Number(getAccountantState[9]) : Number(getAccountantState[10])
 
     const totalDeposited = Number(totalSupply) * Number(exchangeRate) / vaultRateBase
 
     // platform fees changred by Solid Yield per year of total assets in vault
     const yearInSecs = 365 * 24 * 60 * 60
     const timespan = options.toApi.timestamp && options.fromApi.timestamp ? Number(options.toApi.timestamp) - Number(options.fromApi.timestamp) : 86400
-    const platformFee = totalDeposited * (paltformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
+    const platformFee = totalDeposited * (platformFeeRate / AccountantFeeRateBase) * timespan / yearInSecs
 
     dailyFees.add(token, platformFee)
     dailyProtocolRevenue.add(token, platformFee)
