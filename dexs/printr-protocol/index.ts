@@ -55,10 +55,10 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
 
     // Derive fee breakdown from volume
     const dailyFees = dailyVolume.clone(FEE_RATE); // 1% total fee
-    const dailyRevenue = dailyFees.clone(0.5); // team (10%) + buyback (40%) = 50%
-    const dailyProtocolRevenue = dailyFees.clone(0.1); // 10% team
+    const dailyRevenue = dailyFees.clone(0.75); // team (10%) + buyback (40%) + memecoin reserve (25%) = 75%
+    const dailyProtocolRevenue = dailyFees.clone(0.35); // 10% team + 25% memecoin reserve = 35%
     const dailyHoldersRevenue = dailyFees.clone(0.4); // 40% buyback
-    const dailySupplySideRevenue = dailyFees.clone(0.5); // 25% creator + 25% memecoin reserve
+    const dailySupplySideRevenue = dailyFees.clone(0.25); // 25% creator 
 
     return {
         dailyVolume,
@@ -86,12 +86,13 @@ const adapter: SimpleAdapter = {
             "Total trading volume from bonding curve buys and sells on the Printr protocol, tracked via on-chain TokenTrade events. Each trade's cost is denominated in the curve's base pair token (e.g. USDC, WETH, BNB).",
         Fees: "Printr charges a 1% fee on all bonding curve swaps.",
         Revenue:
-            "Revenue includes the team (10%) and buyback (40%) portions of the 1% trading fee.",
-        ProtocolRevenue: "10% of trading fees go to the Printr team.",
+            "75% of trading fees: team (10%), protocol-controlled memecoin reserve (25%), and buyback (40%).",
+        ProtocolRevenue:
+            "35% of trading fees: 10% to the Printr team and 25% to the protocol-controlled memecoin reserve fund (allocated via community voting for liquidity, listings, and growth).",
         HoldersRevenue:
-            "40% of trading fees are used for buybacks, benefiting Printr token holders.",
+            "40% of trading fees are used for buybacks, benefiting token holders.",
         SupplySideRevenue:
-            "25% of trading fees go to token creators and 25% to the memecoin reserve for community growth.",
+            "25% of trading fees go to token creators.",
     },
 };
 
