@@ -8,7 +8,7 @@ const fetch = async (_a: any) => {
   const oi = data.reduce((a: number, b: { open_interest: string, mark: string }) => a + (Number(b.open_interest) * Number(b.mark)), 0)
 
   return {
-    dailyVolume: volume,
+    dailyVolume: volume/2,
     openInterestAtEnd: oi,
   };
 }
