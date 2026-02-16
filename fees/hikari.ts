@@ -24,6 +24,8 @@ const REWARD_CLAIMED_EVENT =
 const KATANA_CLAIMED_EVENT =
   "event KatanaClaimed(address sender, address vault, uint256 tokens, uint256 acc)";
 
+const FLOOR_RECEIVED_EVENT = "event FloorYield(uint256 floorYield)";
+
 const fetch = async (options: FetchOptions) => {
   const dailyUserFees = options.createBalances();
   const dailyFees = options.createBalances();
@@ -33,6 +35,11 @@ const fetch = async (options: FetchOptions) => {
   const stakedLogs = await options.getLogs({
     target: hikariStaking,
     eventAbi: STAKED_EVENT,
+  });
+
+  const floorYieldLogs = await options.getLogs({
+    target: FLOOR,
+    eventAbi: FLOOR_RECEIVED_EVENT,
   });
 
   const feesLogs = await options.getLogs({
@@ -58,17 +65,21 @@ const fetch = async (options: FetchOptions) => {
 
   rewardClaimedLogs.forEach((rewardClaimedLog) => {
     const rewardClaimed = Number(rewardClaimedLog.ausd) / 1e6;
-    const totalFees = rewardClaimed / 0.03;
-    const userFees = totalFees * 0.7;
-    dailyUserFees.addUSDValue(userFees);
-    dailyRevenue.addUSDValue(userFees);
-    dailyHoldersRevenue.add(AUSD_TOKEN, rewardClaimedLog.ausd);
-    dailyFees.addUSDValue(userFees);
+    dailyHoldersRevenue.addUSDValue(rewardClaimed);
+  });
+
+  floorYieldLogs.forEach((floorYieldLog) => {
+    const floorYield = Number(floorYieldLog.floorYield) / 1e6;
+    dailyUserFees.addUSDValue(floorYield);
+    dailyFees.addUSDValue(floorYield);
+    dailyRevenue.addUSDValue(floorYield);
   });
 
   katanaLogs.forEach((katanaLog) => {
     const katana = Number(katanaLog.tokens);
     dailyHoldersRevenue.add(KATANA_TOKEN, katana);
+    dailyRevenue.add(KATANA_TOKEN, katana);
+    dailyFees.add(KATANA_TOKEN, katana);
   });
 
   return {
@@ -82,11 +93,12 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   methodology: {
-    Fees: "Fees collected from the Hikari pool's Concentrated Liquidity.",
+    Fees: "Fees collected from the yield collected from the staking contract. In addition, fee collected from the protocol's concentrated liquidity.",
     Revenue: "Revenue collected from fees and yield from the staking contract.",
-    UserFees: "User fees collected from the staking contract.",
-    SupplySideRevenue:
-      "Supply side revenue collected from the staking contract in Katana tokens and AUSD tokens.",
+    UserFees:
+      "User fees collected from the staking contract. 70% of the revenue is distributed to floor.",
+    HoldersRevenue:
+      "Revenue collected from the staking contract. 30% of the revenue is distributed to the holders.",
   },
   version: 2,
   adapter: {
