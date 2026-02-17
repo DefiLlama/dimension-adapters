@@ -29,9 +29,14 @@ const DSA_CONTRACTS: TAddress = {
   [CHAIN.ETHEREUM]: '0xE5f24791E273Cb96A1f8E5B67Bc2397F0AD9B8B4',
 }
 
+const INV_BUY_BACK_AUCTION_CONTRACT: TAddress = {
+  [CHAIN.ETHEREUM]: '0x7Cac7f6BE1f74D00d874BBAcb98b531FA889D613',
+}
+
 const DBR_DISTRIBUTOR_START_BLOCK = 17272667;
 const DSA_START_BLOCK = 19084053;
 const DBR_AUCTION_START_BLOCK = 18940487;
+const INV_BUY_BACK_START_BLOCK = 24418905;
 
 // borrower has a deficit in DBR and is force-replenished
 const FORCED_REPLENISHMENT_EVENT = 'event ForceReplenish(address indexed account, address indexed replenisher, address indexed market, uint amount, uint replenishmentCost, uint replenisherReward)';
@@ -39,9 +44,9 @@ const FORCED_REPLENISHMENT_EVENT = 'event ForceReplenish(address indexed account
 const methodology = {
   UserFees: "DBR spent by borrowers.",
   Fees: "DBR spent by borrowers.",
-  Revenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
-  ProtocolRevenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",  
-  HoldersRevenue: "DBR streamed to INV stakers."
+  Revenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
+  ProtocolRevenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",  
+  HoldersRevenue: "DBR streamed to INV stakers and for INV buybacks."
 }
 
 const getMarkets = async () => {
@@ -65,6 +70,7 @@ const fetch = (chain: Chain) => {
     const dbr = DBR_CONTRACTS[chain];
     const dola = DOLA_CONTRACTS[chain];
     const dbrAuction = DBR_AUCTION_CONTRACTS[chain];
+    const invBuyBackAuction = INV_BUY_BACK_AUCTION_CONTRACT[chain];
     const block = await getFromBlock();
 
     let annualizedFees = 0
@@ -107,6 +113,17 @@ const fetch = (chain: Chain) => {
         calls: [{ target: dbrAuction }],
       })
       annualizedRevenues += toDbrUSDValue(BigNumber(virtualAuctionDbrRatePerYear[0]), dbrHistoPrice)
+    }
+
+    // INV buybacks auction revenue
+    if (block >= INV_BUY_BACK_START_BLOCK) {
+      const invBuyBacksDbrRatePerYear = await api.multiCall({
+        abi: 'function dbrRatePerYear() public view returns (uint)',
+        calls: [{ target: invBuyBackAuction }],
+      })
+      const invBuyBackAnnualizedRevenues = toDbrUSDValue(BigNumber(invBuyBacksDbrRatePerYear[0]), dbrHistoPrice)
+      annualizedRevenues += invBuyBackAnnualizedRevenues;
+      holderAnnualizedRevenue += invBuyBackAnnualizedRevenues;
     }
 
     // DOLA Savings Account revenue
