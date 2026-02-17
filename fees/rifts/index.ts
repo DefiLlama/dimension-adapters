@@ -13,7 +13,6 @@ const V1_PROGRAM = '9qomJJ5jMzaKu9JXgMzbA3KEyQ3kqcW7hN3xq3tMEkww';
 
 // Rift account offsets: fees_vault (168), withheld_vault (200)
 const FEES_VAULT_OFFSET = 168;
-const WITHHELD_VAULT_OFFSET = 200;
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 
 function extractPubkey(base64Data: string, offset: number): string {
