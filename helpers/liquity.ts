@@ -131,7 +131,7 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
       start: chainConfig.start,
     }
   })
-  return { adapter: exportObject, version: 2, methodology: defaultV2methodology, breakdownMethodology: defaultV2BreakdownMethodology } as SimpleAdapter
+  return { adapter: exportObject, version: 2, methodology: defaultV2methodology, breakdownMethodology: defaultV2BreakdownMethodology, pullHourly: true, } as SimpleAdapter
 }
 
 const RedemptionEvent = 'event Redemption(uint _attemptedLUSDAmount, uint _actualLUSDAmount, uint _ETHSent, uint _ETHFee)'
@@ -261,7 +261,15 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
   return fetch
 }
 
-export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
+const defaultV1methodology = {
+  Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
+  Revenue: 'Total fees distributed to protocol and token holders',
+  HoldersRevenue: 'Total fees distributed to holders',
+  SupplySideRevenue: 'Total gas compensation to liquidators and liquidation profit to stability pool stakers.',
+  ProtocolRevenue: 'Total fees distributed to protocol',
+}
+
+export function liquityV1Exports(config: IJSON<LiquityV1Config>, overrides?: Partial<SimpleAdapter>) {
   const exportObject: BaseAdapter = {}
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
@@ -270,26 +278,328 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>) {
     }
   })
   return {
+    pullHourly: true,
     version: 2,
     adapter: exportObject,
-    methodology: {
-      Fees: 'Total interest, redemption fees paid by borrowers and liquidation profit',
-      Revenue: 'Total fees distributed to protocol and token holders',
-      HoldersRevenue: 'Total fees distributed to holders',
-      SupplySideRevenue: 'Total gas compensation to liquidators and liquidation profit to stability pool stakers.',
-      ProtocolRevenue: 'Total fees distributed to protocol',
-    },
+    methodology: defaultV1methodology,
+    ...overrides,
   } as SimpleAdapter
 }
 
 
+const v2ExportsConfig = {
+  felix:{
+    [CHAIN.HYPERLIQUID]: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
+  },
+  mustang:{
+    [CHAIN.SAGA]: { collateralRegistry: '0xF39bdCfB55374dDb0948a28af00b6474A566Ac22', stabilityPoolRatio: 1, start: '2025-11-28' }
+  },
+  nerite:{
+    [CHAIN.ARBITRUM]: { collateralRegistry: '0x7f7fbc2711c0d6e8ef757dbb82038032dd168e68', stabilityPoolRatio: 1, start: '2025-07-11' }
+  },
+  "orki-finance":{
+    [CHAIN.SWELLCHAIN]: { collateralRegistry: '0xce9f80a0dcd51fb3dd4f0d6bec3afdcaea10c912', stabilityPoolRatio: 1, start: '2025-05-13' }
+  },
+  "quill-fi":{
+    scroll: { collateralRegistry: '0xcc4f29f9d1b03c8e77fc0057a120e2c370d6863d', stabilityPoolRatio: 1, start: '2025-01-23' }
+  },
+  "defi-dollar-cdp":{
+    [CHAIN.ETHEREUM]: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', stabilityPoolRatio: 1, start: '2025-07-04' }
+  },
+  "ebisu-ebusd":{
+    [CHAIN.ETHEREUM]: { collateralRegistry: '0x5e159fAC2D137F7B83A12B9F30ac6aB2ba6d45E7', stabilityPoolRatio: 1, start: '2025-06-05' },
+    [CHAIN.PLASMA]: { collateralRegistry: '0x602096a2f43b43d11dcb3713702dda963c45adc6', stabilityPoolRatio: 1, start: '2025-10-15' },
+  },
+  "enosys-loans":{
+    [CHAIN.FLARE]: { collateralRegistry: '0x9474206bc035D03d142264fd9913d1D51246d3AC', stabilityPoolRatio: 1, start: '2025-12-09' }
+  },
+}
 
+const v1Entries: Record<string, any> = {
+  "threshold-thusd": {
+    [CHAIN.ETHEREUM]: {
+      troveManager: '0xfC7d41A684b7dB7c817A9dDd028f9A31c2F6f893',
+      redemptionEvent: 'event Redemption(uint256 _attemptedTHUSDAmount, uint256 _actualTHUSDAmount, uint256 _collateralSent, uint256 _ETHFee)',
+      borrowingEvent: 'event THUSDBorrowingFeePaid(address indexed _borrower, uint256 _LUSDFee)',
+      stableCoin: '0xCFC5bD99915aAa815401C5a41A927aB7a38d29cf',
+      protocolRevenuePercentage: 100,
+    },
+  },
+  "teddy-cash": {
+    [CHAIN.AVAX]: {
+      troveManager: '0xd22b04395705144Fd12AfFD854248427A2776194',
+      stableCoin: '0x4fbf0429599460D327BD5F55625E30E4fC066095',
+    },
+  },
+  liquity: {
+    chainConfig: {
+      [CHAIN.ETHEREUM]: {
+        start: '2021-04-06',
+        troveManager: '0xA39739EF8b0231DbFA0DcdA07d7e29faAbCf4bb2',
+        stableCoin: '0x5f98805A4E8be255a32880FDeC7F6728C6568bA0',
+        holderRevenuePercentage: 100,
+        protocolRevenuePercentage: 0,
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to LUSD stability pool and LQTY stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to LUSD stability pool and LQTY stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for Liquity protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+        'Liquidation Profit': 'On liquidations, there are an amount of profit from ETH collaterals are distributed to stability pool stakers.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to LUSD stability pool and LQTY stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to LUSD stability pool and LQTY stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+        'Liquidation Profit': 'On liquidations, there are an amount of profit from ETH collaterals are distributed to stability pool stakers.',
+      },
+      ProtocolRevenue: 'No revenue for Liquity protocol.',
+    },
+  },
+  "liquidloans-io": {
+    chainConfig: {
+      [CHAIN.PULSECHAIN]: {
+        troveManager: '0xD79bfb86fA06e8782b401bC0197d92563602D2Ab',
+        redemptionEvent: 'event Redemption(uint256 _attemptedUSDLAmount, uint256 _actualUSDLAmount, uint256 _PLSSent, uint256 _ETHFee)',
+        borrowingEvent: 'event USDLBorrowingFeePaid(address indexed _borrower, uint256 _LUSDFee)',
+        stableCoin: '0x0deed1486bc52aa0d3e6f8849cec5add6598a162',
+        holderRevenuePercentage: 100,
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to USDL stability pool and LOAN stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to USDL stability pool and LOAN stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to USDL stability pool and LOAN stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to USDL stability pool and LOAN stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      ProtocolRevenue: 'No revenue for protocol.',
+    },
+  },
+  "orby-network": {
+    chainConfig: {
+      [CHAIN.CRONOS]: {
+        troveManager: '0x7a47cf15a1fcbad09c66077d1d021430eed7ac65',
+        redemptionEvent: 'event Redemption(uint256 _attemptedUSCAmount, uint256 _actualUSCAmount, uint256 _CollSent, uint256 _ETHFee)',
+        borrowingEvent: 'event USCBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)',
+        stableCoin: '0xD42E078ceA2bE8D03cd9dFEcC1f0d28915Edea78',
+        holderRevenuePercentage: 100,
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to USC stability pool and ORB stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to USC stability pool and ORB stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for Orby Network protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to USC stability pool and ORB stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to USC stability pool and ORB stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      ProtocolRevenue: 'No revenue for Orby Network protocol.',
+    },
+  },
+  "powercity-earn-protocols": {
+    chainConfig: {
+      [CHAIN.PULSECHAIN]: {
+        troveManager: '0x118b7CF595F6476a18538EAF4Fbecbf594338B39',
+        stableCoin: '0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408',
+        holderRevenuePercentage: 100,
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to PXDC stability pool and EARN stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to PXDC stability pool and EARN stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for POWERCITY Earn Protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to PXDC stability pool and EARN stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to PXDC stability pool and EARN stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      ProtocolRevenue: 'No revenue for POWERCITY Earn Protocol.',
+    },
+  },
+  "powercity-flex-protocols": {
+    chainConfig: {
+      [CHAIN.PULSECHAIN]: {
+        troveManager: '0xC2D0720721d48cE85e20Dc9E01B8449D7eDd14CE',
+        stableCoin: '0x1fe0319440a672526916c232eaee4808254bdb00',
+        holderRevenuePercentage: 100,
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to HEXDC stability pool and FLEX stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to HEXDC stability pool and FLEX stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for Powercity Flex Protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to HEXDC stability pool and FLEX stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to HEXDC stability pool and FLEX stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      ProtocolRevenue: 'No revenue for Powercity Flex Protocol.',
+    },
+  },
+  "sable-finance": {
+    chainConfig: {
+      [CHAIN.BSC]: {
+        troveManager: '0xEC035081376ce975Ba9EAF28dFeC7c7A4c483B85',
+        redemptionEvent: 'event Redemption(uint256 _attemptedUSDSAmount, uint256 _actualUSDSAmount, uint256 _BNBSent, uint256 _ETHFee)',
+        stableCoin: '0x0c6Ed1E73BA73B8441868538E210ebD5DD240FA0',
+        holderRevenuePercentage: 100,
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to USDS stability pool and SABLE stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to USDS stability pool and SABLE stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for Liquity protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to USDS stability pool and SABLE stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to USDS stability pool and SABLE stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      ProtocolRevenue: 'No revenue for Liquity protocol.',
+    },
+  },
+  bookusd: {
+    chainConfig: {
+      [CHAIN.BSC]: {
+        troveManager: '0xFe5D0aBb0C4Addbb57186133b6FDb7E1FAD1aC15',
+        stableCoin: '0xc28957E946AC244612BcB205C899844Cbbcb093D',
+        holderRevenuePercentage: 100,
+        collateralCoin: '0xc9ad421f96579ace066ec188a7bba472fb83017f',
+      },
+    },
+    methodology: {
+      Fees: 'Total one-time paid borrow fees, redemption fees paid by borrowers, liquidation gas compensations.',
+      Revenue: 'Borrow fees, redemption fees are distibuted to BUD stability pool and BOOK stakers.',
+      HoldersRevenue: 'Borrow fees, redemption fees are distibuted to BUD stability pool and BOOK stakers.',
+      SupplySideRevenue: 'Liquidation gas compensations are distributed supply-side.',
+      ProtocolRevenue: 'No revenue for protocol.',
+    },
+    breakdownMethodology: {
+      Fees: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      Revenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers.',
+      },
+      HoldersRevenue: {
+        'Borrow Fees': 'One-time paid borrow fees paid by borrowers distributed to BUD stability pool and BOOK stakers.',
+        'Redemption Fees': 'Redemption fees paid by borrowers distributed to BUD stability pool and BOOK stakers.',
+      },
+      SupplySideRevenue: {
+        'Gas Compensation': 'Gas compensations paid to liquidator when trigger liquidations.',
+      },
+      ProtocolRevenue: 'No revenue for protocol.',
+    },
+  },
+}
 
 // Define all protocols
-const protocols = {
-  'felix': liquityV2Exports({
-    [CHAIN.HYPERLIQUID]: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
-  }),
-} as const;
+const protocols = {} as any;
+Object.entries(v2ExportsConfig).forEach(([protocolName, config]) => {
+  protocols[protocolName] = liquityV2Exports(config)
+})
+Object.entries(v1Entries).forEach(([protocolName, entry]: [string, any]) => {
+  if (entry.chainConfig) {
+    const { chainConfig, ...overrides } = entry
+    protocols[protocolName] = liquityV1Exports(chainConfig, overrides)
+  } else {
+    protocols[protocolName] = liquityV1Exports(entry)
+  }
+})
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);
