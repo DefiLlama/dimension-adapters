@@ -1,6 +1,7 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import CoreAssets from "../helpers/coreAssets.json";
+import { METRIC } from "../helpers/metrics";
 
 // FeeManager contract addresses per chain
 const FEE_MANAGER: Record<string, string> = {
@@ -34,6 +35,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   const token = PAYMENT_TOKEN[options.chain];
 
@@ -60,11 +62,12 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       ? totalFee * (FULL_PERCENT - performanceFee) / performanceFee
       : 0n;
 
-    dailyFees.add(token, ecosystemFee);
-    dailyFees.add(token, protocolFee);
-    dailyRevenue.add(token, protocolFee);
-    dailyHoldersRevenue.add(token, ecosystemFee);
-    dailySupplySideRevenue.add(token, supplySide);
+    dailyFees.add(token, supplySide + protocolFee + ecosystemFee, METRIC.BORROW_INTEREST)
+    dailyRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES);
+    dailyRevenue.add(token, ecosystemFee, "Ecosystem fees");
+    dailyProtocolRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES);
+    dailyHoldersRevenue.add(token, ecosystemFee, "Ecosystem fees");
+    dailySupplySideRevenue.add(token, supplySide, METRIC.BORROW_INTEREST);
   }
 
   return {
@@ -103,6 +106,24 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology: {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "The total amount of interest paid by borrowers",
+  },
+  Revenue: {
+    [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
+    "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders"
+  },
+  ProtocolRevenue: {
+    [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
+  },
+  HoldersRevenue: {
+    "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders"
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "Interest earned by lenders after performance fees are deducted"
+  }
+}
 };
 
 export default adapter;
