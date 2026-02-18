@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import {addTokensReceived, getSolanaReceived, getSolanaReceivedDune} from "../../helpers/token";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { addTokensReceived, getSolanaReceived } from "../../helpers/token";
+import { queryDuneSql } from "../../helpers/dune";
 
 type ChainKey = "solana" | "base" | "polygon" | "tron" | "xrpl";
 
@@ -145,6 +146,106 @@ async function fetchSolanaInflows(options: FetchOptions) {
   return dailyFees;
 }
 
+
+async function fetchTronInflowsDune(options: FetchOptions) {
+  const dailyFees = options.createBalances();
+
+  // TRON no dataset tokens.transfers costuma vir em formato hex (0x...)
+  const targets = normalizeTargets(WALLETS.tron);
+  if (!targets.length) return dailyFees;
+
+  // tokens TRC20 habilitados (endereço de contrato)
+  const tokenAddrs = enabledAssets("tron")
+      .filter((a) => a.address !== "native")
+      .map((a) => a.address);
+
+  // fallback: USDT TRC20 (TR7N...)
+  const tokens = tokenAddrs.length ? tokenAddrs : ["TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"];
+
+  const targetList = targets.map((t) => `LOWER('${t}')`).join(",");
+
+  const trc20List = tokens.map((t) => `LOWER('${t}')`).join(",");
+
+  // 1) TRX nativo (token_standard='native')
+  const nativeSql = `
+    SELECT
+      SUM(amount) AS amount
+    FROM tokens.transfers
+    WHERE blockchain = 'tron'
+      AND block_time >= to_timestamp(${options.fromTimestamp})
+      AND block_time <  to_timestamp(${options.toTimestamp})
+      AND token_standard = 'native'
+      AND "to" IN (${targetList})
+  `;
+
+  const nativeRows: any[] = await queryDuneSql(options, nativeSql);
+  const nativeAmount = nativeRows?.[0]?.amount;
+  if (nativeAmount != null) {
+    // padrão DefiLlama: pode usar 'tron' ou 'tron:TRX' dependendo do seu adapter
+    dailyFees.add("tron", nativeAmount);
+  }
+
+  // 2) TRC20 (token_standard != native) filtrando por contract_address
+  const trc20Sql = `
+    SELECT
+      contract_address AS token_address,
+      SUM(amount) AS amount
+    FROM tokens.transfers
+    WHERE blockchain = 'tron'
+      AND block_time >= to_timestamp(${options.fromTimestamp})
+      AND block_time <  to_timestamp(${options.toTimestamp})
+      AND token_standard <> 'native'
+      AND "to" IN (${targetList})
+      AND contract_address IN (${trc20List})
+    GROUP BY 1
+  `;
+
+  const trc20Rows: any[] = await queryDuneSql(options, trc20Sql);
+  trc20Rows?.forEach((r) => {
+    if (!r?.token_address || r?.amount == null) return;
+    dailyFees.add(`tron:${String(r.token_address).toLowerCase()}`, r.amount);
+  });
+
+  return dailyFees;
+}
+
+async function fetchXrplInflowsDune(options: FetchOptions) {
+  const dailyFees = options.createBalances();
+
+  const targets = normalizeTargets(WALLETS.xrpl);
+  if (!targets.length) return dailyFees;
+
+  const rlusdIssuer = enabledAssets("xrpl").find((a) => a.symbol === "RLUSD")?.address;
+  const targetList = targets.map((t) => `'${t}'`).join(",");
+
+  const sql = `
+    SELECT
+      amount.currency AS currency,
+      amount.issuer   AS issuer,
+      SUM(CAST(amount.value AS DOUBLE)) AS amount
+    FROM xrpl.transactions
+    WHERE _event_created_at >= to_timestamp(${options.fromTimestamp})
+      AND _event_created_at <  to_timestamp(${options.toTimestamp})
+      AND transaction_type = 'Payment'
+      AND destination IN (${targetList})
+      ${rlusdIssuer ? `AND amount.currency = 'RLUSD' AND amount.issuer = '${rlusdIssuer}'` : ""}
+    GROUP BY 1,2
+  `;
+
+  const rows: any[] = await queryDuneSql(options, sql);
+  rows?.forEach((r) => {
+    if (!r?.currency || r?.amount == null) return;
+
+    // XRPL amounts are decimal; normalize to 6-decimal base units for stablecoins by default.
+    const baseUnits = Math.round(Number(r.amount) * 1e6);
+    const issuer = r.issuer || "native";
+    dailyFees.add(`xrpl:${r.currency}:${issuer}`, baseUnits);
+  });
+
+  return dailyFees;
+}
+
+
 async function fetchStub(options: FetchOptions) {
   return options.createBalances();
 }
@@ -168,9 +269,9 @@ const fetch = async (...args: any[]) => {
   } else if (options.chain === CHAIN.SOLANA && CONFIG.solana.status) {
     dailyFees = await fetchSolanaInflows(options);
   } else if (options.chain === CHAIN.TRON && CONFIG.tron.status) {
-    dailyFees = await fetchStub(options);
-  } else if ((options.chain as any) === (CHAIN as any).XRPL && CONFIG.xrpl.status) {
-    dailyFees = await fetchStub(options);
+    dailyFees = await fetchTronInflowsDune(options);
+  } else if (options.chain === CHAIN.XRPL && CONFIG.xrpl.status) {
+    dailyFees = await fetchXrplInflowsDune(options);
   }
 
   return {
@@ -183,6 +284,7 @@ const fetch = async (...args: any[]) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  dependencies: [Dependencies.DUNE],
   fetch,
   adapter: {
     [CHAIN.BASE]: { start: "2025-01-01" },
