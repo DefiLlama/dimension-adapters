@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../adapters/types";
+import { AdapterType, SimpleAdapter } from "../adapters/types";
 import deadAdapters from './deadAdapters.json'
 export { deadAdapters}
 
@@ -43,13 +43,13 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'helpers/balancer',
     'helpers/friend-tech',
     'helpers/solidly',
-    'uniV2',
     'uniV2:fees',
-    'uniV3',
     'uniV3:fees',
+    'uniV2',
+    'uniV3',
     'blockscout',
-    'hyperliquid',
     'hyperliquid:fees',
+    'hyperliquid',
     'symmio:fees',
     'compoundV2',
     'orderly:fees',
@@ -60,10 +60,10 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'dexs': [
     'helpers/balancer',
-    'uniV2:fees',
     'uniV2',
-    'uniV3:fees',
     'uniV3',
+    'uniV2:fees',
+    'uniV3:fees',
     'hyperliquid',
     'symmio',
     'orderly',
@@ -89,6 +89,8 @@ export function getAdapterFromHelpers(
   adapterType: string,
   protocolName: string
 ): { adapter: SimpleAdapter; factoryName: string } | null {
+  if (adapterType ===  AdapterType.DERIVATIVES) 
+    adapterType = AdapterType.DEXS; // for now, we are putting derivatives in dexs, so we need to check there as well
 
   if ((deadAdapters as any)[adapterType]?.[protocolName]) {
     return {
