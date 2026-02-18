@@ -19,8 +19,8 @@ async function run() {
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
-  for (const folderPath of ADAPTER_TYPES)
-    await addAdapterType(folderPath)
+   for (const folderPath of ADAPTER_TYPES)
+     await addAdapterType(folderPath)
 
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
@@ -55,7 +55,7 @@ async function run() {
     // Get all protocols from factory registry
     const factoryProtocols = listHelperProtocols();
 
-    for (const { protocolName, factoryName, adapterType, sourcePath } of factoryProtocols) {
+    for (const { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
       }
@@ -68,9 +68,11 @@ async function run() {
 
       try {
         // Import based on source path
-        const helperModule = sourcePath.startsWith('factory/')
+        let helperModule = sourcePath.startsWith('factory/')
           ? await import(`../${sourcePath.replace('.ts', '')}`)
           : await import(`../helpers/${factoryName}`);
+
+        if (exportName) helperModule = helperModule[exportName];
 
         const adapter = helperModule.getAdapter(protocolName);
 

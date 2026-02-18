@@ -128,6 +128,7 @@ const adapter: Adapter = {
   runAtCurrTime: true,
   fetch,
   methodology,
+  deadFrom: "2026-02-04",
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2023-10-23', },
     [CHAIN.POLYGON]: { start: '2023-10-23', },

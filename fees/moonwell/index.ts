@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
 const comptrollerABI = {
     underlying: "address:underlying",
@@ -21,14 +22,17 @@ const optimismUnitroller = "0xCa889f40aae37FFf165BccF69aeF1E82b5C511B9";
 async function getFees(market: string, { createBalances, api, getLogs, }: FetchOptions, {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     abis = {},
 }: {
     dailyFees?: sdk.Balances,
     dailyRevenue?: sdk.Balances,
+    dailySupplySideRevenue?: sdk.Balances,
     abis?: any
 }) {
     if (!dailyFees) dailyFees = createBalances()
     if (!dailyRevenue) dailyRevenue = createBalances()
+    if (!dailySupplySideRevenue) dailySupplySideRevenue = createBalances()
     let markets
     try {
         markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
@@ -81,23 +85,23 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     logs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
-        dailyFees!.add(underlying, log.interestAccumulated);
-        dailyRevenue!.add(underlying, log.interestAccumulated * Number(reserveFactors[marketIndex]) / 1e18);
-    })
-
-    reservesAddedLogs.forEach((log: any) => {
-        const marketIndex = log.marketIndex;
-        const underlying = underlyings[marketIndex]
-        dailyRevenue!.add(underlying, log.addAmount);
+        const reserveShare = log.interestAccumulated * Number(reserveFactors[marketIndex]) / 1e18;
+        const lenderShare = log.interestAccumulated - reserveShare;
+        dailyFees!.add(underlying, log.interestAccumulated, METRIC.BORROW_INTEREST);
+        dailyRevenue!.add(underlying, reserveShare, METRIC.BORROW_INTEREST);
+        dailySupplySideRevenue!.add(underlying, lenderShare, METRIC.BORROW_INTEREST);
     })
 
     liquidateBorrowLogs.forEach((log: any) => {
         const marketIndex = log.marketIndex;
         const underlying = underlyings[marketIndex]
-        dailyFees!.add(underlying, (log.seizeTokens * ((liquidationIncentiveMantissa / 1e18) - 1) * (exchangeRatesCurrent[marketIndex] / 1e18)));
+        const liquidationIncentive = (log.seizeTokens * ((liquidationIncentiveMantissa / 1e18) - 1) * (exchangeRatesCurrent[marketIndex] / 1e18))
+        dailyFees!.add(underlying, liquidationIncentive, METRIC.LIQUIDATION_FEES);
+        dailyRevenue.add(underlying, liquidationIncentive * 0.3, METRIC.LIQUIDATION_FEES);
+        dailySupplySideRevenue.add(underlying, liquidationIncentive * 0.7, METRIC.LIQUIDATION_FEES);
     })
 
-    return { dailyFees, dailyRevenue }
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
 const methodology = {
@@ -105,7 +109,7 @@ const methodology = {
     Revenue: "Protocol's share of interest treasury",
     ProtocolRevenue: "Protocol's share of interest into treasury",
     HoldersRevenue: "No revenue for WELL holders.",
-    SupplySideRevenue: "Interest paid to lenders in liquidity pools"
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools and liquidation incentives"
 }
 
 function moonwellExport(config: IJSON<string>) {
@@ -113,18 +117,32 @@ function moonwellExport(config: IJSON<string>) {
     Object.entries(config).map(([chain, market]) => {
         exportObject[chain] = {
             fetch: (async (options: FetchOptions) => {
-                const { dailyFees, dailyRevenue } = await getFees(market, options, {})
-                const dailySupplySideRevenue = options.createBalances()
-                dailySupplySideRevenue.addBalances(dailyFees)
-                Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
-                    dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
-                })
+                const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getFees(market, options, {})
                 return { dailyFees, dailyRevenue, dailyHoldersRevenue: 0, dailySupplySideRevenue }
             }),
         }
     })
     // dailySupplySideRevenue could be negative if protocol revenue exceeds total fees, though unlikely in normal conditions(like bad liquidations)
-    return { adapter: exportObject, version: 2, allowNegativeValue: true, methodology, } as SimpleAdapter
+    return {
+        adapter: exportObject,
+        version: 2,
+        allowNegativeValue: true,
+        methodology,
+        breakdownMethodology: {
+            Fees: {
+                [METRIC.BORROW_INTEREST]: "Interest accrued daily by borrowers across all lending markets",
+                [METRIC.LIQUIDATION_FEES]: "The Liquidation Incentive is equivalent to 10% of the outstanding borrow amount",
+            },
+            Revenue: {
+                [METRIC.BORROW_INTEREST]: "Portion of borrow interest directed to protocol reserves, determined by each market's reserve factor",
+                [METRIC.LIQUIDATION_FEES]: "3% of the liquidation incentive goes to the protocol reserves of the liquidated collateral",
+            },
+            SupplySideRevenue: {
+                [METRIC.BORROW_INTEREST]: "Share of borrow interest distributed to lenders who supply assets to the lending pools",
+                [METRIC.LIQUIDATION_FEES]: "7% of the Liquidation Incentive is awarded to the liquidator as a bonus",
+            },
+        },
+    } as SimpleAdapter
 }
 
 export default moonwellExport({ base: baseUnitroller, moonbeam: moonbeamUnitroller, moonriver: moonriverUnitroller, optimism: optimismUnitroller });
