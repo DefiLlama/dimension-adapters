@@ -69,7 +69,7 @@ const fetch = async (options: FetchOptions) => {
   // Yield Formula: (EndTVL - StartTVL) - (Deposits - Withdrawals) + (AdminReductions)
   const deltaNav = Number(navEnd) - Number(navStart);
   const totalReserveReductionsUSD = await totalReserveReductions.getUSDValue();
-  const grossYield = deltaNav - netUserFlows + totalReserveReductionsUSD;
+  const grossYield = deltaNav - netUserFlows + (totalReserveReductionsUSD * WAD);
 
   // 5. Calculate Fees/Revenue Components
   // Performance Fee = GrossYield * reserveBps
