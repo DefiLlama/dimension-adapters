@@ -13,6 +13,7 @@ const fetch = async (options: FetchOptions) => {
     options,
     balances: dailyFees,
     target: FEE_COLLECTOR_WALLET,
+    mints: ["So11111111111111111111111111111111111111112"],  // native SOL only
   });
 
   // 100% of fees go to protocol (no token holders):
