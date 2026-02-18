@@ -30,6 +30,7 @@ console.log("=".repeat(80));
 const allTypes = new Set([...Object.keys(safe), ...Object.keys(current)]);
 const ignoredModules = [
   'canto-dex',
+  'auragi',
   'dyorswap',
   'swapmode-v2',
   'viperswap',
