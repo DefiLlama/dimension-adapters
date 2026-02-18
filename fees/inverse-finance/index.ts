@@ -33,10 +33,15 @@ const INV_BUY_BACK_AUCTION_CONTRACT: TAddress = {
   [CHAIN.ETHEREUM]: '0x7Cac7f6BE1f74D00d874BBAcb98b531FA889D613',
 }
 
+const JRDOLA_AUCTION_CONTRACT: TAddress = {
+  [CHAIN.ETHEREUM]: '0x633821B8e003344e5223509277F2084EA809A452',
+}
+
 const DBR_DISTRIBUTOR_START_BLOCK = 17272667;
 const DSA_START_BLOCK = 19084053;
 const DBR_AUCTION_START_BLOCK = 18940487;
 const INV_BUY_BACK_START_BLOCK = 24418905;
+const JR_DOLA_START_BLOCK = 24443253;
 
 // borrower has a deficit in DBR and is force-replenished
 const FORCED_REPLENISHMENT_EVENT = 'event ForceReplenish(address indexed account, address indexed replenisher, address indexed market, uint amount, uint replenishmentCost, uint replenisherReward)';
@@ -44,8 +49,8 @@ const FORCED_REPLENISHMENT_EVENT = 'event ForceReplenish(address indexed account
 const methodology = {
   UserFees: "DBR spent by borrowers.",
   Fees: "DBR spent by borrowers.",
-  Revenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
-  ProtocolRevenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",  
+  Revenue: "DBR distributed to INV stakers, jrDOLA, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
+  ProtocolRevenue: "DBR distributed to INV stakers, jrDOLA, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",  
   HoldersRevenue: "DBR streamed to INV stakers and for INV buybacks."
 }
 
@@ -113,6 +118,29 @@ const fetch = (chain: Chain) => {
         calls: [{ target: dbrAuction }],
       })
       annualizedRevenues += toDbrUSDValue(BigNumber(virtualAuctionDbrRatePerYear[0]), dbrHistoPrice)
+    }
+
+    // jrDOLA auction revenue
+    if (block >= JR_DOLA_START_BLOCK) {
+      const jrDolaParams = { target: JRDOLA_AUCTION_CONTRACT[chain], chain }
+      const [yearlyBudget, totalAssets, maxRatioBps] = await api.batchCall([
+        {
+          abi: 'function yearlyRewardBudget() public view returns (uint)',
+          ...jrDolaParams,
+        },
+        {
+          abi: 'function totalAssets() public view returns (uint)',
+          ...jrDolaParams,
+        },
+        {
+          abi: 'function maxDolaDbrRatioBps() public view returns (uint)',
+          ...jrDolaParams,
+        },
+      ])
+
+      const maxBudget = BigNumber(maxRatioBps).multipliedBy(BigNumber(totalAssets)).dividedBy(1e4)
+      const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget      
+      annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)      
     }
 
     // INV buybacks auction revenue
