@@ -20,9 +20,6 @@ const feesConfigs: Record<string, Config> = {
   "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
   "what-exchange": { broker_id: "what_exchange", start: "2024-06-13" },
   "woofi-pro-perp": { broker_id: "woofi_pro", start: "2023-10-26" },
-};
-
-const dexsConfigs: Record<string, Config> = {
   "oklong": {
     broker_id: "oklong",
     start: "2025-10-22",
@@ -76,10 +73,4 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   feesProtocols[name] = getBuilderExports(config);
 }
 
-const dexsProtocols: Record<string, any> = {};
-for (const [name, config] of Object.entries(dexsConfigs)) {
-  dexsProtocols[name] = getBuilderExports(config);
-}
-
-export const { protocolList, getAdapter } = createFactoryExports(dexsProtocols);
-export const fees = createFactoryExports(feesProtocols);
+export const { protocolList, getAdapter } = createFactoryExports(feesProtocols);
