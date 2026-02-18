@@ -63,7 +63,8 @@ async function discoverVaultAddresses(): Promise<string[]> {
 
   for (const programId of [V2_PROGRAM, V1_PROGRAM]) {
     try {
-      const response = await httpPost(getEnv("SOLANA_RPC"), {
+      const rpcUrl = getEnv("SOLANA_RPC");
+      const response = await httpPost(rpcUrl, {
         jsonrpc: "2.0",
         id: 1,
         method: "getProgramAccounts",
@@ -86,8 +87,14 @@ async function discoverVaultAddresses(): Promise<string[]> {
         if (feesVault !== SYSTEM_PROGRAM) vaults.add(feesVault);
         if (withheldVault !== SYSTEM_PROGRAM) vaults.add(withheldVault);
       }
-    } catch (_e) {
-      // Continue if one program fails
+    } catch (error: any) {
+      // Log error with context but continue to next programId
+      const rpcUrl = getEnv("SOLANA_RPC");
+      console.error(
+        `Failed to discover vault addresses for program ${programId} via RPC ${rpcUrl}:`,
+        error?.message || error?.toString() || error,
+        error?.response ? `Response: ${JSON.stringify(error.response)}` : ''
+      );
     }
   }
 
