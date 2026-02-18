@@ -273,7 +273,7 @@ type UniV3Config = {
   blacklistPools?: Array<string>,
 }
 
-export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {}) {
+export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pullHourly = true, ...otherRootOptions } = {}) {
   const exportObject: BaseAdapter = {}
   const exportObjectV1: BaseAdapter = {}
 
@@ -292,13 +292,14 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false } = {
     return { adapter: exportObjectV1, version: 1 } as SimpleAdapter
 
 
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
 }
 
-export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swapEvent, pullHourly = false, }: {
+export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swapEvent, pullHourly = true, ...otherRootOptions}: {
   runAsV1?: boolean,
   swapEvent?: string,
   pullHourly?: boolean,
+  [key: string]: any
 } = {}) {
   const exportObject: BaseAdapter = {}
   const exportObjectV1: BaseAdapter = {}
@@ -318,7 +319,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
     return { adapter: exportObjectV1, version: 1 } as SimpleAdapter
 
 
-  return { adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
+  return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
 }
 
 
