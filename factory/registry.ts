@@ -46,6 +46,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV3',
     'uniV3:fees',  // overwrites with fees export if same key is there in both exports
     'blockscout',
+    'hyperliquid:fees',
   ],
   'dexs': [
     'helpers/balancer',
@@ -53,9 +54,12 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV2',      // overwrites with dex export if same key is there in both exports
     'uniV3:fees',
     'uniV3',      // overwrites with dex export if same key is there in both exports
+    'hyperliquid',
   ],
   'aggregators': [],
-  'open-interest': [],
+  'open-interest': [
+    'hyperliquid:oi',
+  ],
   'normalized-volume': [
     'normalizedVolume', // Factory in factory/ folder
   ]
