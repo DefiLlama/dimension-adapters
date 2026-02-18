@@ -15,13 +15,17 @@ const fetch = async (options: FetchOptions) => {
     target: FEE_COLLECTOR_WALLET,
     mints: ["So11111111111111111111111111111111111111112"],  // native SOL only
   });
-
+  
+  const dailyUserFees = dailyFees.clone(1);
+  const dailyRevenue = dailyFees.clone(1);
+  const dailyProtocolRevenue = dailyFees.clone(1);
+  
   // 100% of fees go to protocol (no token holders):
   return {
     dailyFees,                    // 10% of total sol rent reclaimed
-    dailyUserFees: dailyFees,     // Users "paid" via rent reclamation - Same as above.
-    dailyRevenue: dailyFees,      // 10% fee = protocol revenue - Same as above.
-    dailyProtocolRevenue: dailyFees, // All revenue goes to treasury - Same as above.
+    dailyUserFees,               // Users "paid" via rent reclamation - Same as above.
+    dailyRevenue,                // 10% fee = protocol revenue - Same as above.
+    dailyProtocolRevenue,        // All revenue goes to treasury - Same as above.
   };
 };
 
