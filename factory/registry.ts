@@ -42,19 +42,32 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'helpers/friend-tech',
     'helpers/solidly',
     'uniV2',
-    'uniV2:fees',  // overwrites with fees export if same key is there in both exports
+    'uniV2:fees',
     'uniV3',
-    'uniV3:fees',  // overwrites with fees export if same key is there in both exports
+    'uniV3:fees',
     'blockscout',
     'hyperliquid:fees',
+    'symmio:fees',
+    'compoundV2',
+    'orderly:fees',
+    'gmxV1',
+    'chainTxFees',
+    'curators',
+    'saddle',
   ],
   'dexs': [
     'helpers/balancer',
     'uniV2:fees',
-    'uniV2',      // overwrites with dex export if same key is there in both exports
+    'uniV2',
     'uniV3:fees',
-    'uniV3',      // overwrites with dex export if same key is there in both exports
+    'uniV3',
     'hyperliquid',
+    'symmio',
+    'orderly',
+    'gmxV1',
+    'polymarket',
+    'saddle',
+    'alliumSolanaDex',
   ],
   'aggregators': [],
   'open-interest': [
@@ -104,21 +117,22 @@ export function getAdapterFromHelpers(
 /**
  * List all protocols available in factories for a given adapter type
  */
-export function listHelperProtocols(adapterType?: string): Array<{ 
-  protocolName: string; 
+export function listHelperProtocols(adapterType?: string): Array<{
+  protocolName: string;
   factoryName: string;
   adapterType: string;
   sourcePath: string;
+  exportName?: string;
 }> {
   const protocols: any[] = [];
-  
-  const typesToCheck = adapterType 
+
+  const typesToCheck = adapterType
     ? { [adapterType]: factoriesByAdapterType[adapterType] }
     : factoriesByAdapterType;
-  
+
   for (const [type, factories] of Object.entries(typesToCheck)) {
     if (!factories) continue;
-    
+
     for (const factoryPath of factories) {
       try {
         const { importPath, factoryName, exportName } = resolveFactoryPath(factoryPath);
@@ -130,22 +144,24 @@ export function listHelperProtocols(adapterType?: string): Array<{
         const factory = (exportName ? factoryModule[exportName] : factoryModule) as FactoryAdapter;
 
         if (!factory.protocolList) continue;
-        
+
         factory.protocolList.forEach(protocolName => {
           protocols.push({
             protocolName,
             factoryName,
             adapterType: type,
-            sourcePath
+            sourcePath,
+            exportName,
           });
         });
       } catch (error) {
         // Skip if factory doesn't exist or has errors
+        console.log(`Error loading factory ${factoryPath}:`, error);
         continue;
       }
     }
   }
-  
+
   return protocols;
 }
 

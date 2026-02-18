@@ -9,3 +9,4 @@ test.js
 
 cli/dimensionModules.json
 wash/
+*.log
