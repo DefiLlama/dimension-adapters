@@ -93,8 +93,8 @@ const fetch = async (options: FetchOptions) => {
 
   // 6. Aggregate Metrics
 
-  // Fees: Gross Yield - Performance Fee + All Redemption Fees
-  const totalFees = grossYield - performanceFee + redemptionFeesTotal;
+  // Fees: Gross Yield  + All Redemption Fees
+  const totalFees = grossYield + redemptionFeesTotal;
 
   // Protocol Revenue: Performance Fee + Redemption Fees Reserve
   const protocolRevenue = performanceFee + redemptionFeesReserve;
