@@ -3,7 +3,6 @@ import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
 import { getAdapterFromHelpers} from "../factory/registry";
 
 const volumeAdapter = getAdapterFromHelpers('dexs', 'verse')?.adapter as any;
-console.log("Volume adapter for Verse: ", volumeAdapter);
 
 const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
