@@ -45,6 +45,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV2:fees',  // overwrites with fees export if same key is there in both exports
     'uniV3',
     'uniV3:fees',  // overwrites with fees export if same key is there in both exports
+    'blockscout',
   ],
   'dexs': [
     'helpers/balancer',
