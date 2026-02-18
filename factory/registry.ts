@@ -52,7 +52,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'hyperliquid',
     'symmio:fees',
     'compoundV2',
-    'orderly:fees',
+    'orderly',
     'gmxV1',
     'chainTxFees',
     'curators',
