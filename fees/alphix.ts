@@ -118,10 +118,9 @@ async function fetch(options: FetchOptions) {
   // For lending yield: 30% protocol, 70% supply side (net of protocol cut)
   if (lendingYieldUsd > 0) {
     const protocolCutUsd = Math.floor(lendingYieldUsd * 0.3 * 1e6)
-    const supplySideCutUsd = Math.floor(lendingYieldUsd * 0.3 * 1e6)
     dailyProtocolRevenue.add(TOKENS.USDC, protocolCutUsd)
     // Subtract the protocol's 30% from supply side (it was already added via dailyFees)
-    dailySupplySideRevenue.add(TOKENS.USDC, -supplySideCutUsd)
+    dailySupplySideRevenue.add(TOKENS.USDC, -protocolCutUsd)
   }
 
   return {
