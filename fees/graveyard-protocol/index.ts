@@ -27,6 +27,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Users pay service fees equal to 10% of total rent reclaimed by closing ATAs.",
+  UserFees: "Users pay service fees equal to 10% of total rent reclaimed by closing ATAs.",
   Revenue: "100% of fees is collected as protocol revenue.",
   ProtocolRevenue: "100% of fees is collected as protocol revenue.",
 };
