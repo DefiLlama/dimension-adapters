@@ -21,23 +21,17 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [startBlock, endBlock] = await Promise.all([
-    options.getStartBlock(),
-    options.getEndBlock(),
-  ]);
-
   let redemptionFeesTotal = 0;
   let redemptionFeesReserve = 0;
   let totalDeposits = 0;
   let totalWithdrawals = 0;
-  let totalReserveReductions = 0;
 
   // 1. Get NAV (TVL) and ReserveBps
   // NAV here represents the Total Value Locked (Strategy Assets)
   const [navStart, navEnd, reserveBps] = await Promise.all([
-    options.api.call({ target: ACCOUNTING, abi: "function nav() view returns (uint256)", block: startBlock }),
-    options.api.call({ target: ACCOUNTING, abi: "function nav() view returns (uint256)", block: endBlock }),
-    options.api.call({ target: ACCOUNTING, abi: "function reserveBps() view returns (uint256)", block: endBlock }),
+    options.fromApi.call({ target: ACCOUNTING, abi: "function nav() view returns (uint256)" }),
+    options.toApi.call({ target: ACCOUNTING, abi: "function nav() view returns (uint256)" }),
+    options.api.call({ target: ACCOUNTING, abi: "function reserveBps() view returns (uint256)" }),
   ]);
 
   // 2. Get User Flows (Deposits/Withdrawals) to calculate Net Flows
@@ -65,33 +59,22 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: RESERVE_REDUCED_EVENT,
   });
 
+  const totalReserveReductions = options.createBalances();
+
   for (const log of reserveLogs) {
-    if (log.token.toLowerCase() === USDE.toLowerCase()) {
-      totalReserveReductions += Number(log.amount);
-    } else {
-      // Convert to base assets if the reserve token is different (e.g. sUSDe)
-      const assets = await options.api.call({
-        target: STRATEGY,
-        abi: "function convertToAssets(address,uint256,uint8) view returns (uint256)",
-        params: [log.token, log.amount, 0]
-      });
-      totalReserveReductions += Number(assets);
-    }
+    totalReserveReductions.add(log.token, log.amount);
   }
 
   // 4. Calculate Gross Underlying Yield
   // Yield Formula: (EndTVL - StartTVL) - (Deposits - Withdrawals) + (AdminReductions)
   const deltaNav = Number(navEnd) - Number(navStart);
-  let grossYield = deltaNav - netUserFlows + totalReserveReductions;
-
-  // Handle negative yield (losses) - clamp to 0 for revenue reporting
-  // If yield is negative, it means the strategy lost value, so no fees is charged
-  if (grossYield < 0) grossYield = 0;
+  const totalReserveReductionsUSD = await totalReserveReductions.getUSDValue();
+  const grossYield = deltaNav - netUserFlows + totalReserveReductionsUSD;
 
   // 5. Calculate Fees/Revenue Components
   // Performance Fee = GrossYield * reserveBps
   // reserveBps is 1e18 based (0.05e18 = 5%)
-  const performanceFee = (grossYield * reserveBps) / WAD;
+  const performanceFee = grossYield > 0 ? (grossYield * reserveBps) / WAD : 0;
 
   // Redemption Fees (tracked via FeeAccrued events)
   const feeLogs = await options.getLogs({
@@ -148,6 +131,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: '2025-10-05',
   methodology,
+  allowNegativeValue: true,
 }
 
 export default adapter;
