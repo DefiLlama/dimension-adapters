@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 
-// 🔑 REPLACE WITH YOUR ACTUAL PROJECT WALLET ADDRESS
 const FEE_COLLECTOR_WALLET = "GRAVEbqZNUN1K7WBgvwgWUYs69M51eprZbSkeXWbQjjE";
 
 const fetch = async (options: FetchOptions) => {
