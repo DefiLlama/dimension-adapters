@@ -15,12 +15,49 @@ const V1_PROGRAM = '9qomJJ5jMzaKu9JXgMzbA3KEyQ3kqcW7hN3xq3tMEkww';
 const FEES_VAULT_OFFSET = 168;
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 
+// Base58 validation regex for Solana addresses
+const BASE58_REGEX = /^[1-9A-HJ-NP-Za-km-z]+$/;
+
+/**
+ * Extracts a Solana public key from base64-encoded account data at the specified offset.
+ * 
+ * @param base64Data - Base64-encoded account data containing the public key
+ * @param offset - Byte offset where the 32-byte public key starts
+ * @returns Base58-encoded Solana public key address
+ */
 function extractPubkey(base64Data: string, offset: number): string {
   const buffer = Buffer.from(base64Data, 'base64');
   const pubkeyBytes = new Uint8Array(buffer.slice(offset, offset + 32));
   return encodeBase58(pubkeyBytes);
 }
 
+/**
+ * Validates if a string is a valid Base58-encoded Solana address.
+ * 
+ * Checks that the address:
+ * - Is a string type
+ * - Has length between 32 and 44 characters (typical Solana address range)
+ * - Contains only valid Base58 characters (excludes 0, O, I, l to avoid confusion)
+ * 
+ * @param address - The address string to validate
+ * @returns True if the address is valid, false otherwise
+ */
+function isValidBase58Address(address: string): boolean {
+  return typeof address === 'string' && 
+         address.length >= 32 && 
+         address.length <= 44 && 
+         BASE58_REGEX.test(address);
+}
+
+/**
+ * Discovers fee vault addresses from on-chain Rift program accounts.
+ * 
+ * Queries both V1 and V2 Rift programs to find all Rift accounts, then extracts
+ * the fees_vault and withheld_vault addresses from each account's data.
+ * Only non-system-program vaults are included in the result.
+ * 
+ * @returns Array of unique vault addresses (Base58-encoded Solana addresses)
+ */
 async function discoverVaultAddresses(): Promise<string[]> {
   const vaults = new Set<string>();
 
@@ -57,16 +94,40 @@ async function discoverVaultAddresses(): Promise<string[]> {
   return Array.from(vaults);
 }
 
+/**
+ * Fetches daily fees, revenue, and volume data for the Rifts Protocol.
+ * 
+ * Discovers vault addresses dynamically from on-chain Rift accounts, then queries
+ * Dune Analytics to aggregate:
+ * - Fees: Wrap/unwrap fees and Token-2022 transfer fees collected in vaults
+ * - Revenue: All collected fees (same as fees)
+ * - Protocol Revenue: All collected fees (same as fees)
+ * - Volume: USD value of token transfers in wrap/unwrap operations
+ * 
+ * @param _a - Unused adapter parameter (kept for compatibility)
+ * @param _b - Unused adapter parameter (kept for compatibility)
+ * @param options - Fetch options containing time range and Dune query utilities
+ * @returns Object containing dailyFees, dailyRevenue, dailyProtocolRevenue, and dailyVolume
+ */
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const vaultAddresses = await discoverVaultAddresses();
-  if (vaultAddresses.length === 0) {
+  
+  // Validate and sanitize vault addresses (Base58 format, 32-44 chars)
+  const validatedVaultAddresses = vaultAddresses.filter(isValidBase58Address);
+  if (validatedVaultAddresses.length === 0) {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyVolume: 0 };
   }
 
-  const programList = [V2_PROGRAM, V1_PROGRAM].map(p => `'${p}'`).join(', ');
-  const vaultValues = vaultAddresses.map(v => `('${v}')`).join(', ');
+  // Validate program IDs (should always be valid, but validate for safety)
+  const programs = [V2_PROGRAM, V1_PROGRAM].filter(isValidBase58Address);
+  if (programs.length === 0) {
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyVolume: 0 };
+  }
+
+  const programList = programs.map(p => `'${p}'`).join(', ');
+  const vaultValues = validatedVaultAddresses.map(v => `('${v}')`).join(', ');
 
   const query = `
     WITH vault_addrs AS (
