@@ -48,6 +48,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV3',
     'uniV3:fees',
     'blockscout',
+    'hyperliquid',
     'hyperliquid:fees',
     'symmio:fees',
     'compoundV2',
@@ -120,6 +121,16 @@ export function getAdapterFromHelpers(
       continue;
     }
   }
+
+  // iterate through AdapterTypes to see if it matches anything else
+  for (const deadProtocols of Object.values((deadAdapters as any))) {
+    if ((deadProtocols as any)[protocolName])
+      return {
+        factoryName: 'deadAdapter',
+        adapter: (deadProtocols as any)[protocolName]
+       }
+  }
+
 
   return null;
 }
