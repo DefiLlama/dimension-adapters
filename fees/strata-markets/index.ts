@@ -99,8 +99,8 @@ const fetch = async (options: FetchOptions) => {
   // Protocol Revenue: Performance Fee + Redemption Fees Reserve
   const protocolRevenue = performanceFee + redemptionFeesReserve;
 
-  // Total Revenue: Performance Fee + Redemption Fees Total
-  const totalRevenue = performanceFee + redemptionFeesTotal;
+  // Total Revenue: Performance Fee + Redemption Fees Reserve
+  const totalRevenue = performanceFee + redemptionFeesReserve;
 
   // SupplySide Revenue: Gross Yield - 2*Performance Fees + Redemption Fees kept by Tranche
   const supplySideRevenue = (grossYield - (2 * performanceFee)) + redemptionFeesTranche;
