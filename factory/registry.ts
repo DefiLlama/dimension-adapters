@@ -21,18 +21,37 @@ export function createFactoryExports<T extends { [key: string]: SimpleAdapter }>
   };
 }
 
+// Resolve factory path into import path, factory name, and optional named export
+// Supports: 'helpers/name', 'name', 'name:export' (named export from factory file)
+function resolveFactoryPath(factoryPath: string) {
+  const [pathPart, exportName] = factoryPath.split(':');
+  const isHelper = pathPart.startsWith('helpers/');
+  const factoryName = isHelper ? pathPart.replace('helpers/', '') : pathPart;
+  const importPath = isHelper ? `../helpers/${factoryName}` : `./${factoryName}`;
+  return { importPath, factoryName, exportName };
+}
+
 // Simple mapping: adapter type -> array of factory filenames
 // Factory files are stored in factory/{filename}.ts
 // Legacy helpers are stored in helpers/{filename}.ts (marked with 'helpers/' prefix)
+// Use 'name:export' to reference a named export (e.g. 'uniV2:fees')
 const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'fees': [
     'helpers/liquity',
     'helpers/balancer',
     'helpers/friend-tech',
     'helpers/solidly',
+    'uniV2',
+    'uniV2:fees',  // overwrites with fees export if same key is there in both exports
+    'uniV3',
+    'uniV3:fees',  // overwrites with fees export if same key is there in both exports
   ],
   'dexs': [
     'helpers/balancer',
+    'uniV2:fees',
+    'uniV2',      // overwrites with dex export if same key is there in both exports
+    'uniV3:fees',
+    'uniV3',      // overwrites with dex export if same key is there in both exports
   ],
   'aggregators': [],
   'open-interest': [],
@@ -54,16 +73,14 @@ export function getAdapterFromHelpers(
 
   for (const factoryPath of factories) {
     try {
-      // Determine import path and factory name
-      const isHelper = factoryPath.startsWith('helpers/');
-      const factoryName = isHelper ? factoryPath.replace('helpers/', '') : factoryPath;
-      const importPath = isHelper ? `../helpers/${factoryName}` : `./${factoryName}`;
-      
+      const { importPath, factoryName, exportName } = resolveFactoryPath(factoryPath);
+
       // Dynamically import the factory
-      const factory = require(importPath) as FactoryAdapter;
-      
+      const factoryModule = require(importPath);
+      const factory = (exportName ? factoryModule[exportName] : factoryModule) as FactoryAdapter;
+
       if (!factory.protocolList || !factory.getAdapter) continue;
-      
+
       if (factory.protocolList.includes(protocolName)) {
         const adapter = factory.getAdapter(protocolName);
         if (adapter) {
@@ -75,7 +92,7 @@ export function getAdapterFromHelpers(
       continue;
     }
   }
-  
+
   return null;
 }
 
@@ -99,15 +116,14 @@ export function listHelperProtocols(adapterType?: string): Array<{
     
     for (const factoryPath of factories) {
       try {
-        // Determine import path and factory name
+        const { importPath, factoryName, exportName } = resolveFactoryPath(factoryPath);
         const isHelper = factoryPath.startsWith('helpers/');
-        const factoryName = isHelper ? factoryPath.replace('helpers/', '') : factoryPath;
-        const importPath = isHelper ? `../helpers/${factoryName}` : `./${factoryName}`;
         const sourcePath = isHelper ? `helpers/${factoryName}.ts` : `factory/${factoryName}.ts`;
-        
+
         // Dynamically import the factory
-        const factory = require(importPath) as FactoryAdapter;
-        
+        const factoryModule = require(importPath);
+        const factory = (exportName ? factoryModule[exportName] : factoryModule) as FactoryAdapter;
+
         if (!factory.protocolList) continue;
         
         factory.protocolList.forEach(protocolName => {
