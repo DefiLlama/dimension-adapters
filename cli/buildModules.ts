@@ -3,7 +3,7 @@
 import { readdir, writeFile } from "fs/promises";
 import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
-import { listHelperProtocols } from "../factory/registry";
+import { listHelperProtocols, deadAdapters } from "../factory/registry";
 
 const extensions = ['ts', 'md', 'js']
 
@@ -24,6 +24,7 @@ async function run() {
 
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
+  addDeadAdapters()
 
   await writeFile(outputFile, JSON.stringify(dimensionsImports))
 
@@ -111,6 +112,20 @@ async function run() {
     } catch (error: any) {
       console.log(`Error creating module for ${path} in ${adapterType}:`, error.message)
       return ''
+    }
+  }
+
+  function addDeadAdapters() {
+    for (const [adapterType, adapters] of Object.entries(deadAdapters)) {
+      if (!dimensionsImports[adapterType]) {
+        dimensionsImports[adapterType] = {};
+      }
+      for (const [protocolName, adapterInfo] of Object.entries(adapters as any)) {
+        if (dimensionsImports[adapterType][protocolName])
+          continue;
+
+        dimensionsImports[adapterType][protocolName] = adapterInfo;
+      }
     }
   }
 }
