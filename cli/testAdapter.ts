@@ -183,7 +183,7 @@ let usedHelper: string | null | undefined = null;
       const batch = jobs.slice(i, i + MAX_PARALLEL)
 
       const results = await Promise.all(
-        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true }))
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60 }))
       )
 
       results.forEach((res: any, idx) => {
