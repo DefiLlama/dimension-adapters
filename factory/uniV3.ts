@@ -1,3 +1,4 @@
+import { CHAIN } from "../helpers/chains";
 import { uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
 
@@ -213,6 +214,9 @@ const configs: Record<string, Record<string, any>> = {
   "moai-v3": {
     xrplevm: { factory: '0x678100B9095848FCD4AE6C79A7D29c11815D07fe', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
+  "prism-dex": {
+    [CHAIN.MEGAETH]: { factory: '0x1adb8f973373505bb206e0e5d87af8fb1f5514ef', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, start: '2026-02-09' },
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -224,6 +228,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "prism-dex": {
+    Volume: "Swap volume from all Prism DEX V3 pools deployed via the Prism DEX V3 factory.",
+    Fees: "Users pay each pool's configured V3 fee tier on every swap.",
+    UserFees: "Equals total swap fees paid by users.",
+    Revenue: "When protocol fees are enabled on a pool, 25% of swap fees are counted as protocol revenue.",
+    ProtocolRevenue: "When protocol fees are enabled on a pool, 25% of swap fees are counted as protocol revenue.",
+    SupplySideRevenue: "When protocol fees are enabled on a pool, 75% of swap fees are distributed to LPs.",
+  },
   "maia-v3": {
     UserFees: "User pays 0.01%, 0.05%, 0.30%, or 1% on each swap.",
     ProtocolRevenue: "Protocol receives 10% of fees.",
