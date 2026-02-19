@@ -25,7 +25,7 @@ const CHAINS = {
 const DAY_IN_MILLIS = 86_400_000;
 
 const fetch = async (options: FetchOptions) => {
-  const chain = CHAINS[options.chain];
+  const chain = (CHAINS as any)[options.chain];
   const timestampMillis = options.toTimestamp * 1_000;
   const dayBeforeMillis = timestampMillis - DAY_IN_MILLIS;
   const dailyVolume = await fetchURL(
@@ -38,6 +38,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.entries(CHAINS).reduce(
     (acc, [defillamaChain, _]) => {
       acc[defillamaChain] = {

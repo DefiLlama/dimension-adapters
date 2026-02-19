@@ -35,6 +35,7 @@ const adapter: SimpleAdapter = {
   start: '2025-06-16',
   dependencies: [Dependencies.ALLIUM],
   methodology,
+  pullHourly: true,
 };
 
 export default adapter;
