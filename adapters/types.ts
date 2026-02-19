@@ -45,7 +45,7 @@ export type FetchOptions = {
   getEndBlock: () => Promise<number>,
   dateString: string,
   preFetchedResults?: any,
-  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching
+  moduleUID?: string, // randomly generated unique identifier for the module, useful for caching
   startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
 }
 
@@ -119,7 +119,6 @@ export type AdapterBase = {
   prefetch?: FetchV2;
   runAtCurrTime?: boolean;
   start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
-  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results
   pullHourly?: boolean;
 }
 
