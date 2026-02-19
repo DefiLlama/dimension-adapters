@@ -15,6 +15,17 @@ function getUnixTimeNow() {
   return Math.floor(Date.now() / 1000)
 }
 
+function genUID(length: number = 10): string {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length))
+  }
+  return result
+}
+
+const adapterRunResponseCache = {} as any
+
 export async function setModuleDefaults(module: SimpleAdapter) {
   const { chains = [], fetch, start, runAtCurrTime } = module
   const rootConfig: any = {}
@@ -22,6 +33,8 @@ export async function setModuleDefaults(module: SimpleAdapter) {
   if (fetch) rootConfig.fetch = fetch
   if (start) rootConfig.start = start
   if (runAtCurrTime) rootConfig.runAtCurrTime = runAtCurrTime
+
+  if (!module._randomUID) module._randomUID = genUID(10)
 
   let adapterObject: BaseAdapter = module.adapter || {}
   module.adapter = adapterObject
@@ -77,17 +90,32 @@ type AdapterRunOptions = {
   name?: string,
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
-  cacheResults?: boolean, // deprecated/no longer used. if true, caches the results in adapterRunResponseCache
+  cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
   runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module,  } = options
+  const { module, cacheResults = false } = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
-  return _runAdapter(options)
+  if (!cacheResults) return _runAdapter(options)
+
+  const runKey = getRunKey(options)
+
+  if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
+  else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
+  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
+
+  function clone(obj: any) {
+    return JSON.parse(JSON.stringify(obj))
+  }
+}
+
+function getRunKey(options: AdapterRunOptions) {
+  const randomUID = options.module._randomUID ?? genUID(10)
+  return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
@@ -109,6 +137,7 @@ async function _runAdapter({
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
+  const moduleUID = module._randomUID
   // const isHourly = isHourlyAdapter(module)
   // const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
   const WINDOW_SECONDS = runWindowInSeconds
@@ -148,7 +177,7 @@ async function _runAdapter({
   if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
-      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, windowSize: WINDOW_SECONDS, });
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
     }
   }
@@ -201,7 +230,7 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
-      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, windowSize: WINDOW_SECONDS, })
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
       }
@@ -292,7 +321,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize = ONE_DAY_IN_SECONDS, }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize?: number, }): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize = ONE_DAY_IN_SECONDS, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize?: number, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
@@ -399,6 +428,7 @@ async function _runAdapter({
       getStartBlock,
       getEndBlock,
       dateString: getDateString(startOfDay),
+      moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
       streamLogs,
     }

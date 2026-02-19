@@ -117,6 +117,7 @@ async function moveAdapter(info: DeadAdapterInfo): Promise<boolean> {
     if (!module.default) return false
 
     await setModuleDefaults(module.default)
+    delete module.default._randomUID
 
     // Initialize adapter type in deadAdapters if not exists
     if (!deadAdapters[info.adapterType]) {
