@@ -9,12 +9,15 @@ const MARKETPLACE_PACKAGE = "0xdad0749c40a7adfbdd1b9e46d2f24d6cfec2dfc3a5ead61c6
 // On-chain config (from mainnet Marketplace object)
 const GGSUI_SHARE_PCT = 15; // 15% of commission → ggSUI staking rewards
 
-// Safe wrapper: queryEvents crashes on empty results (data[data.length-1] is undefined)
+// Safe wrapper: queryEvents crashes on empty results (data[data.length-1].timestampMs is undefined)
 async function safeQueryEvents(params: any): Promise<any[]> {
   try {
     return await queryEvents(params);
-  } catch {
-    return [];
+  } catch (e: any) {
+    if (e?.message?.includes("Cannot read properties of undefined") || e instanceof TypeError) {
+      return [];
+    }
+    throw e;
   }
 }
 

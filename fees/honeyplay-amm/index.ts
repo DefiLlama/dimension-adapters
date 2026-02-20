@@ -6,12 +6,15 @@ import { METRIC } from "../../helpers/metrics";
 // AMM package
 const AMM_PACKAGE = "0xb8874ad9153a01efc9f048bd94f79b13b1cac473a086165d0739b2352d2e475e";
 
-// Safe wrapper: queryEvents crashes on empty results (data[data.length-1] is undefined)
+// Safe wrapper: queryEvents crashes on empty results (data[data.length-1].timestampMs is undefined)
 async function safeQueryEvents(params: any): Promise<any[]> {
   try {
     return await queryEvents(params);
-  } catch {
-    return [];
+  } catch (e: any) {
+    if (e?.message?.includes("Cannot read properties of undefined") || e instanceof TypeError) {
+      return [];
+    }
+    throw e;
   }
 }
 
@@ -96,19 +99,21 @@ const fetch = async (options: FetchOptions) => {
   });
 
   for (const e of flashLoanEvents) {
-    const typeX = "0x" + e.type_x?.name;
-    const typeY = "0x" + e.type_y?.name;
+    const typeXName = e.type_x?.name;
+    const typeYName = e.type_y?.name;
     const totalFeeX = Number(e.total_x_fee);
     const totalFeeY = Number(e.total_y_fee);
     const protocolFeeX = Number(e.x_protocol_fee);
     const protocolFeeY = Number(e.y_protocol_fee);
 
-    if (totalFeeX > 0) {
+    if (totalFeeX > 0 && typeXName) {
+      const typeX = "0x" + typeXName;
       dailyFees.add(typeX, totalFeeX, METRIC.FLASHLOAN_FEES);
       dailySupplySideRevenue.add(typeX, totalFeeX - protocolFeeX, METRIC.LP_FEES);
       dailyRevenue.add(typeX, protocolFeeX, METRIC.PROTOCOL_FEES);
     }
-    if (totalFeeY > 0) {
+    if (totalFeeY > 0 && typeYName) {
+      const typeY = "0x" + typeYName;
       dailyFees.add(typeY, totalFeeY, METRIC.FLASHLOAN_FEES);
       dailySupplySideRevenue.add(typeY, totalFeeY - protocolFeeY, METRIC.LP_FEES);
       dailyRevenue.add(typeY, protocolFeeY, METRIC.PROTOCOL_FEES);
@@ -126,19 +131,21 @@ const fetch = async (options: FetchOptions) => {
 
 /** Shared helper for liquidity add/remove events (same field structure) */
 function addLiquidityFees(e: any, dailyFees: any, dailyRevenue: any, dailySupplySideRevenue: any) {
-  const typeX = "0x" + e.type_x?.name;
-  const typeY = "0x" + e.type_y?.name;
+  const typeXName = e.type_x?.name;
+  const typeYName = e.type_y?.name;
   const totalFeeX = Number(e.total_x_fee);
   const totalFeeY = Number(e.total_y_fee);
   const protocolFeeX = Number(e.x_protocol_fee);
   const protocolFeeY = Number(e.y_protocol_fee);
 
-  if (totalFeeX > 0) {
+  if (totalFeeX > 0 && typeXName) {
+    const typeX = "0x" + typeXName;
     dailyFees.add(typeX, totalFeeX, METRIC.SWAP_FEES);
     dailySupplySideRevenue.add(typeX, totalFeeX - protocolFeeX, METRIC.LP_FEES);
     dailyRevenue.add(typeX, protocolFeeX, METRIC.PROTOCOL_FEES);
   }
-  if (totalFeeY > 0) {
+  if (totalFeeY > 0 && typeYName) {
+    const typeY = "0x" + typeYName;
     dailyFees.add(typeY, totalFeeY, METRIC.SWAP_FEES);
     dailySupplySideRevenue.add(typeY, totalFeeY - protocolFeeY, METRIC.LP_FEES);
     dailyRevenue.add(typeY, protocolFeeY, METRIC.PROTOCOL_FEES);

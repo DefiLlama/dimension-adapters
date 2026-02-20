@@ -1,16 +1,20 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryEvents } from "../../helpers/sui";
+import { METRIC } from "../../helpers/metrics";
 
 // ggSUI Vault package
 const GGSUI_PACKAGE = "0x578faf35a355a272711f97f4cbb77d8060e35dd4042c0b13da9fdf7b640dbc58";
 
-// Safe wrapper: queryEvents crashes on empty results (data[data.length-1] is undefined)
+// Safe wrapper: queryEvents crashes on empty results (data[data.length-1].timestampMs is undefined)
 async function safeQueryEvents(params: any): Promise<any[]> {
   try {
     return await queryEvents(params);
-  } catch {
-    return [];
+  } catch (e: any) {
+    if (e?.message?.includes("Cannot read properties of undefined") || e instanceof TypeError) {
+      return [];
+    }
+    throw e;
   }
 }
 
@@ -42,11 +46,11 @@ const fetch = async (options: FetchOptions) => {
 
     if (grossRewards > 0) {
       // dailyFees = total staking rewards generated (GROSS, before protocol cut)
-      dailyFees.addGasToken(grossRewards);
+      dailyFees.addGasToken(grossRewards, METRIC.STAKING_REWARDS);
       // dailyRevenue = protocol fee (10% of staking rewards)
-      dailyRevenue.addGasToken(protocolFee);
+      dailyRevenue.addGasToken(protocolFee, METRIC.PROTOCOL_FEES);
       // dailySupplySideRevenue = net rewards to ggSUI holders
-      dailySupplySideRevenue.addGasToken(grossRewards - protocolFee);
+      dailySupplySideRevenue.addGasToken(grossRewards - protocolFee, METRIC.STAKING_REWARDS);
     }
   }
 
@@ -60,8 +64,8 @@ const fetch = async (options: FetchOptions) => {
   for (const e of instantUnstakeEvents) {
     const fee = Number(e.redemption_fees);
     if (fee > 0) {
-      dailyFees.addGasToken(fee);
-      dailySupplySideRevenue.addGasToken(fee);
+      dailyFees.addGasToken(fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailySupplySideRevenue.addGasToken(fee, METRIC.STAKING_REWARDS);
     }
   }
 
