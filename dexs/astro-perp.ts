@@ -1,7 +1,8 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "../helpers/env";
+import { METRIC } from "../helpers/metrics";
 
 const BASE_URL = "https://llama.astros.ag/api/third/info";
 
@@ -15,9 +16,9 @@ const getHeaders = () => ({
   "api-key": getEnv("ASTROS_PERP_API_KEY"),
 });
 
-const fetch = async () => {
+const fetch = async (_a: any, _t: any, options: FetchOptions) => {
   let dailyVolume = 0
-  let dailyFees = 0
+  const dailyFees = options.createBalances()
   
   const pairs = await httpGet(`${BASE_URL}/pairs`, { headers: getHeaders() })
 
@@ -32,7 +33,7 @@ const fetch = async () => {
     dailyVolume += Number(ticker.data.amount)
     
     const feeRate = (Number(pair.takerTradeFeeRate) + Number(pair.makerTradeFeeRate)) / 100;
-    dailyFees += feeRate * Number(ticker.data.amount)
+    dailyFees.addUSDValue(feeRate * Number(ticker.data.amount), METRIC.TRADING_FEES)
   }
 
   return {
@@ -44,6 +45,14 @@ const fetch = async () => {
 
 const adapter: SimpleAdapter = {
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: "Trading fees paid by users"
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: "Trading fees paid by users are revenue"
+    }
+  },
   adapter: {
     [CHAIN.SUI]: {
       fetch,

@@ -3,7 +3,7 @@
 import { readdir, writeFile } from "fs/promises";
 import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
-import { listHelperProtocols } from "../factory/registry";
+import { listHelperProtocols, deadAdapters } from "../factory/registry";
 
 const extensions = ['ts', 'md', 'js']
 
@@ -19,11 +19,12 @@ async function run() {
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
-  for (const folderPath of ADAPTER_TYPES)
-    await addAdapterType(folderPath)
+   for (const folderPath of ADAPTER_TYPES)
+     await addAdapterType(folderPath)
 
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
+  addDeadAdapters()
 
   await writeFile(outputFile, JSON.stringify(dimensionsImports))
 
@@ -53,31 +54,33 @@ async function run() {
   async function addFactoryAdapters() {
     // Get all protocols from factory registry
     const factoryProtocols = listHelperProtocols();
-    
-    for (const { protocolName, factoryName, adapterType, sourcePath } of factoryProtocols) {
+
+    for (const { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
       }
-      
+
       // Guard: Skip if file-based adapter already exists (file-based takes precedence)
       if (dimensionsImports[adapterType][protocolName]) {
         // console.log(`Skipping factory adapter ${protocolName} in ${adapterType} - file-based adapter already exists`);
         continue;
       }
-      
+
       try {
         // Import based on source path
-        const helperModule = sourcePath.startsWith('factory/') 
+        let helperModule = sourcePath.startsWith('factory/')
           ? await import(`../${sourcePath.replace('.ts', '')}`)
           : await import(`../helpers/${factoryName}`);
-        
+
+        if (exportName) helperModule = helperModule[exportName];
+
         const adapter = helperModule.getAdapter(protocolName);
-        
+
         if (!adapter) continue;
-        
+
         await setModuleDefaults(adapter);
         const mockedAdapter = mockFunctions({ default: adapter });
-        
+
         dimensionsImports[adapterType][protocolName] = {
           moduleFilePath: `${adapterType}/${protocolName}`,
           codePath: sourcePath,
@@ -109,6 +112,20 @@ async function run() {
     } catch (error: any) {
       console.log(`Error creating module for ${path} in ${adapterType}:`, error.message)
       return ''
+    }
+  }
+
+  function addDeadAdapters() {
+    for (const [adapterType, adapters] of Object.entries(deadAdapters)) {
+      if (!dimensionsImports[adapterType]) {
+        dimensionsImports[adapterType] = {};
+      }
+      for (const [protocolName, adapterInfo] of Object.entries(adapters as any)) {
+        if (dimensionsImports[adapterType][protocolName])
+          continue;
+
+        dimensionsImports[adapterType][protocolName] = adapterInfo;
+      }
     }
   }
 }
