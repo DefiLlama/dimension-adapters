@@ -1,21 +1,20 @@
-// DefiLlama Fees Adapter for RoyalBet
-// File path in dimension-adapters repo: fees/royalbet.ts
-//
-// This adapter tracks platform fees collected by the RoyalBet Telegram bot
-// on Solana. The bot charges a 3% platform fee on each betting match pot,
-// which is sent to the treasury wallet.
-
 import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
+import { METRIC } from "../helpers/metrics";
 
 const TREASURY_ADDRESS = "MoEcUAUh3zC8gGMh2wiRJx3ShbAoHqpxLKeGfJ1KFcm";
 
 const fetch = async (_timestamp: number, _: any, options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({
+  const { createBalances } = options;
+  const dailyFees = createBalances();
+  
+  const received = await getSolanaReceived({
     options,
     target: TREASURY_ADDRESS,
   });
+  
+  dailyFees.addBalances(received, METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
@@ -24,14 +23,23 @@ const fetch = async (_timestamp: number, _: any, options: FetchOptions) => {
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SERVICE_FEES]: "Platform commission charged on each betting match pot, calculated as 3% of the total pot value. Collected when betting matches conclude and transferred to the protocol treasury.",
+  },
+  Revenue: {
+    [METRIC.SERVICE_FEES]: "All betting platform fees are retained by the protocol as there are no intermediaries or supply-side participants to pay out.",
+  },
+  ProtocolRevenue: {
+    [METRIC.SERVICE_FEES]: "100% of betting platform fees are collected by the protocol treasury to fund operations and development.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2025-02-20",
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2025-02-20",
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
@@ -39,6 +47,7 @@ const adapter: SimpleAdapter = {
     Revenue: "All fees are protocol revenue.",
     ProtocolRevenue: "All fees are collected by the protocol treasury.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;
