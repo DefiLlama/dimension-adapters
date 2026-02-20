@@ -1,7 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from '../../helpers/chains'
 import { queryDuneSql } from '../../helpers/dune'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 
 const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -114,6 +114,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
   methodology: {
     // https://docs.zapzy.io/sections/zapzy/fees-and-rewards#before-bonding-1-25%25
     Fees: "Fees are collected from users and distributed to coin creators and the protocol.",
