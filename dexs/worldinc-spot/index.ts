@@ -4,11 +4,10 @@ import { CHAIN } from "../../helpers/chains";
 // Composite Exchange contract address
 const COMPOSITE_EXCHANGE = "0x5e3Ae52EbA0F9740364Bd5dd39738e1336086A8b";
 
-// Starting block for orderbook discovery
+// Starting block (used only for fetch block range; discovery is contract-based)
 const EXCHANGE_START_BLOCK = 7274995;
 
-// Event signatures for spot orderbook registration and trades
-const SPOT_ORDERBOOK_REGISTERED = "event OrderBookRegistered(address orderBook, uint32 buyTokenId, uint32 payTokenId)";
+// Event signature for spot trade
 const SPOT_PERP_TRADE_EVENT = "event NewTrade(uint64 indexed buyer, uint64 indexed seller, uint256 spotMatchQuantities, uint256 spotMatchData)";
 
 // Helper function to parse spot match quantities
@@ -60,13 +59,15 @@ function parseSpotPerpVolume(
 
   const quoteDecimals = orderbookConfig.quoteId ? (tokenDecimals[orderbookConfig.quoteId] || 8) : 8;
   const baseDecimals = orderbookConfig.baseId ? (tokenDecimals[orderbookConfig.baseId] || 8) : 8;
+  const quoteFactor = 10n ** BigInt(quoteDecimals);
+  const baseFactor = 10n ** BigInt(baseDecimals);
 
   let volume = 0;
 
   if (qtyData.toQuantity > 0n) {
-    volume = Number(qtyData.toQuantity) / Math.pow(10, quoteDecimals);
+    volume = Number(qtyData.toQuantity / quoteFactor) + Number(qtyData.toQuantity % quoteFactor) / Number(quoteFactor);
   } else if (qtyData.fromQuantity > 0n) {
-    const baseAmount = Number(qtyData.fromQuantity) / Math.pow(10, baseDecimals);
+    const baseAmount = Number(qtyData.fromQuantity / baseFactor) + Number(qtyData.fromQuantity % baseFactor) / Number(baseFactor);
     volume = baseAmount * price;
   }
 
@@ -98,39 +99,52 @@ function decodeVaultTokenConfig(vtc: bigint) {
   };
 }
 
-// Discover spot orderbooks only
+// Discover spot orderbooks via contract view getSpotOrderBook(token1, token2) (same as example/points-indexer/fetch_metadata.js)
 async function getSpotOrderbooks(
-  getLogs: any,
+  _getLogs: any,
   api: any,
   exchangeAddress: string,
-  fromBlock: number
+  _fromBlock: number
 ): Promise<{
   orderbooks: string[];
   tokenDecimals: Record<number, number>;
   orderbookConfigs: Record<string, { baseId?: number; quoteId?: number; type: string }>;
 }> {
-  const spotLogs = await getLogs({
+  const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+  const highestTokenId = await api.call({
+    abi: "function getHighestTokenId() external view returns (uint32)",
     target: exchangeAddress,
-    eventAbi: SPOT_ORDERBOOK_REGISTERED,
-    fromBlock: fromBlock,
-    cacheInCloud: false,
-    skipIndexer: true,
+  });
+  const maxId = Number(highestTokenId);
+
+  const spotCalls: Array<{ target: string; params: [number, number] }> = [];
+  for (let token1 = 1; token1 <= maxId; token1++) {
+    for (let token2 = 1; token2 <= maxId; token2++) {
+      if (token1 === token2) continue;
+      spotCalls.push({ target: exchangeAddress, params: [token1, token2] });
+    }
+  }
+
+  const spotResults = await api.multiCall({
+    abi: "function getSpotOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)",
+    calls: spotCalls,
+    permitFailure: true,
   });
 
   const orderbooks = new Set<string>();
   const orderbookConfigs: Record<string, { baseId?: number; quoteId?: number; type: string }> = {};
   const tokenIds = new Set<number>();
 
-  spotLogs.forEach((log: any) => {
-    const orderbookAddr = String(log.orderBook || log.orderbook || log.args?.orderBook).toLowerCase();
-    const buyTokenId = Number(log.buyTokenId || log.args?.buyTokenId);
-    const payTokenId = Number(log.payTokenId || log.args?.payTokenId);
-    if (orderbookAddr && buyTokenId && payTokenId) {
-      orderbooks.add(orderbookAddr);
-      orderbookConfigs[orderbookAddr] = { baseId: buyTokenId, quoteId: payTokenId, type: "SPOT" };
-      tokenIds.add(buyTokenId);
-      tokenIds.add(payTokenId);
-    }
+  spotResults.forEach((result: any, index: number) => {
+    if (!result || result[0] == null) return;
+    const addr = String(result[0]).toLowerCase();
+    if (addr === ZERO_ADDRESS || addr === "0x") return;
+    const buyToken = Number(result[1]);
+    const payToken = Number(result[2]);
+    orderbooks.add(addr);
+    orderbookConfigs[addr] = { baseId: buyToken, quoteId: payToken, type: "SPOT" };
+    tokenIds.add(buyToken);
+    tokenIds.add(payToken);
   });
 
   const finalOrderbooks = Array.from(orderbooks);
@@ -159,7 +173,7 @@ async function getSpotOrderbooks(
   return { orderbooks: finalOrderbooks, tokenDecimals, orderbookConfigs };
 }
 
-const fetch = async ({ getLogs, api }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ({ getLogs, api, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultVolume> => {
   let orderbookData: {
     orderbooks: string[];
     tokenDecimals: Record<number, number>;
@@ -178,30 +192,41 @@ const fetch = async ({ getLogs, api }: FetchOptions): Promise<FetchResultVolume>
     return { dailyVolume: 0 };
   }
 
-  const spotLogs = await getLogs({
-    targets: orderbookAddresses,
-    eventAbi: SPOT_PERP_TRADE_EVENT,
-    entireLog: true,
-    fromBlock: EXCHANGE_START_BLOCK,
-    cacheInCloud: false,
-    skipIndexer: true,
-  });
+  const fromBlock = await getFromBlock();
+  const toBlock = await getToBlock();
+  if (fromBlock == null || toBlock == null) {
+    return { dailyVolume: 0 };
+  }
 
-  const volumes = spotLogs.map((log: any) => {
-    const eventData = log.args || log.parsedLog?.args || log;
-    if (!eventData.spotMatchQuantities && !eventData.spotMatchData) {
-      return 0;
-    }
+  try {
+    const spotLogs = await getLogs({
+      targets: orderbookAddresses,
+      eventAbi: SPOT_PERP_TRADE_EVENT,
+      entireLog: true,
+      fromBlock,
+      toBlock,
+      cacheInCloud: false,
+      skipIndexer: true,
+    });
 
-    const orderbookAddr = (log.address || log.srcAddress || log.target)?.toLowerCase();
-    const orderbookConfig = orderbookConfigs[orderbookAddr] || { type: "UNKNOWN" };
+    const volumes = spotLogs.map((log: any) => {
+      const eventData = log.args || log.parsedLog?.args || log;
+      if (!eventData.spotMatchQuantities && !eventData.spotMatchData) {
+        return 0;
+      }
 
-    return parseSpotPerpVolume(eventData, orderbookConfig, tokenDecimals);
-  });
+      const orderbookAddr = (log.address || log.srcAddress || log.target)?.toLowerCase();
+      const orderbookConfig = orderbookConfigs[orderbookAddr] || { type: "UNKNOWN" };
 
-  const dailyVolume = volumes.reduce((sum, volume) => sum + volume, 0);
+      return parseSpotPerpVolume(eventData, orderbookConfig, tokenDecimals);
+    });
 
-  return { dailyVolume };
+    const dailyVolume = volumes.reduce((sum, volume) => sum + volume, 0);
+
+    return { dailyVolume };
+  } catch (e) {
+    return { dailyVolume: 0 };
+  }
 };
 
 const adapter: SimpleAdapter = {
