@@ -41,9 +41,6 @@ function parsePrice59EN5(p: bigint): number {
   const denom = 10n ** BigInt(exponent);
   const intPart = mantissa / denom;
   const rem = mantissa % denom;
-  if (intPart > BigInt(Number.MAX_SAFE_INTEGER)) {
-    return Number(mantissa) * Math.pow(10, -exponent);
-  }
   const frac = Number(rem) / Math.pow(10, exponent);
   return Number(intPart) + frac;
 }
