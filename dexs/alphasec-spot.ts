@@ -1,18 +1,19 @@
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
 const API_URL = "https://api.alphasec.trade/api/v1/defillama/stats";
 
-const fetch = async () => {
-  const data = await httpGet(API_URL);
+const fetch = async (_ts: number, _cb: any, options: FetchOptions) => {
+  const url = `${API_URL}?startOfDay=${options.startOfDay}`;
+  const data = await httpGet(url);
   const stats = data.result;
 
   return {
-    dailyVolume: stats.volume.daily,
-    dailyFees: stats.fees.daily,
-    dailyRevenue: stats.revenue.daily,
-    dailySupplySideRevenue: stats.supplySideRevenue.daily,
+    dailyVolume: stats.dailyVolume,
+    dailyFees: stats.dailyFees,
+    dailyRevenue: stats.dailyRevenue,
+    dailySupplySideRevenue: stats.dailySupplySideRevenue,
   };
 };
 
@@ -21,7 +22,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ALPHASEC]: {
       fetch,
-      runAtCurrTime: true,
+      start: 1764720000,
     },
   },
   methodology: {
