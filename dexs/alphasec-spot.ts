@@ -1,10 +1,10 @@
-import { SimpleAdapter, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, ChainBlocks } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
 const API_URL = "https://api.alphasec.trade/api/v1/defillama/stats";
 
-const fetch = async (_ts: number, _cb: any, options: FetchOptions) => {
+const fetch = async (_ts: number, _: ChainBlocks, options: FetchOptions) => {
   const url = `${API_URL}?startOfDay=${options.startOfDay}`;
   const data = await httpGet(url);
   const stats = data.result;
