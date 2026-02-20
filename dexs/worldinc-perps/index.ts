@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 // Composite Exchange contract address
 const COMPOSITE_EXCHANGE = "0x5e3Ae52EbA0F9740364Bd5dd39738e1336086A8b";
 
-// Starting block for orderbook discovery (used only for fallback event-based discovery)
+// Composite exchange deployment block; clamp trade log range so we never request blocks before the exchange existed
 const EXCHANGE_START_BLOCK = 7274994;
 
 // Event signatures for perp orderbook registration and trades
@@ -33,12 +33,19 @@ function parseSpotMatchData(smd: bigint) {
   return { tradeSeq, sellerOrderId, buyerOrderId, priceRaw, buyerIsMaker };
 }
 
-// Helper function to parse price
+// Helper function to parse price (BigInt arithmetic to avoid precision loss; mantissa can be up to 59 bits)
 function parsePrice59EN5(p: bigint): number {
   const PRICE_EXP_MASK = BigInt("0x1F");
   const exponent = Number(p & PRICE_EXP_MASK);
   const mantissa = p >> 5n;
-  return Number(mantissa) * Math.pow(10, -exponent);
+  const denom = 10n ** BigInt(exponent);
+  const intPart = mantissa / denom;
+  const rem = mantissa % denom;
+  if (intPart > BigInt(Number.MAX_SAFE_INTEGER)) {
+    return Number(mantissa) * Math.pow(10, -exponent);
+  }
+  const frac = Number(rem) / Math.pow(10, exponent);
+  return Number(intPart) + frac;
 }
 
 // Helper function to parse volume from perp trade event
@@ -103,8 +110,7 @@ function decodeVaultTokenConfig(vtc: bigint) {
 async function getPerpOrderbooks(
   _getLogs: any,
   api: any,
-  exchangeAddress: string,
-  _fromBlock: number
+  exchangeAddress: string
 ): Promise<{
   orderbooks: string[];
   tokenDecimals: Record<number, number>;
@@ -181,7 +187,7 @@ const fetch = async ({ getLogs, api, getFromBlock, getToBlock }: FetchOptions): 
   } | null = null;
 
   try {
-    orderbookData = await getPerpOrderbooks(getLogs, api, COMPOSITE_EXCHANGE, EXCHANGE_START_BLOCK);
+    orderbookData = await getPerpOrderbooks(getLogs, api, COMPOSITE_EXCHANGE);
   } catch (e) {
     return { dailyVolume: 0 };
   }
@@ -192,11 +198,12 @@ const fetch = async ({ getLogs, api, getFromBlock, getToBlock }: FetchOptions): 
     return { dailyVolume: 0 };
   }
 
-  const fromBlock = await getFromBlock();
+  let fromBlock = await getFromBlock();
   const toBlock = await getToBlock();
   if (fromBlock == null || toBlock == null) {
     return { dailyVolume: 0 };
   }
+  fromBlock = Math.max(fromBlock, EXCHANGE_START_BLOCK);
 
   try {
     const perpLogs = await getLogs({
