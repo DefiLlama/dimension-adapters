@@ -94,7 +94,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
@@ -158,41 +158,58 @@ const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed r
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
-
-    if (!chain) throw new Error('Wrong version?')
-
-    // Determine which event to use based on parameters
-    // If poolCreatedEvent is explicitly passed, use it
-    // Otherwise, use algebra default for algebra or standard default for others
-    const eventToUse = poolCreatedEvent ?? (isAlgebraV3 ? defaultAlgebraV3PoolCreatedEvent : defaultPoolCreatedEvent)
-
-    factory = factory.toLowerCase()
-    const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
-    const iface = new ethers.Interface([eventToUse])
-    let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
-    if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
-
-    logs = logs.map((log: any) => iface.parseLog(log)?.args)
-
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
 
-    logs.forEach((log: any) => {
-      pairObject[log.pool] = [log.token0, log.token1]
-      fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
-    })
+    if (!chain) throw new Error('Wrong version?')
 
-    if (isAlgebraV3) {
-      let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-      _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
+    if (factory) {
+
+      // Determine which event to use based on parameters
+      // If poolCreatedEvent is explicitly passed, use it
+      // Otherwise, use algebra default for algebra or standard default for others
+      const eventToUse = poolCreatedEvent ?? (isAlgebraV3 ? defaultAlgebraV3PoolCreatedEvent : defaultPoolCreatedEvent)
+
+      factory = factory.toLowerCase()
+      const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
+      const iface = new ethers.Interface([eventToUse])
+      let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
+      if (!logs?.length) throw new Error('No pairs found, is there TVL adapter for this already?')
+
+      logs = logs.map((log: any) => iface.parseLog(log)?.args)
+
+
+      logs.forEach((log: any) => {
+        pairObject[log.pool] = [log.token0, log.token1]
+        fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
+      })
+
+      if (isAlgebraV3) {
+        let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
+        _fees.filter(fee => fee !== null).forEach((fee: any, i: number) => fees[logs[i].pool] = fee / 1e6)
+      }
+      if (isAlgebraV2) {
+        let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
+        _states.filter(state => state !== null).forEach((state: any, i: number) => fees[logs[i].pool] = Number(state.fee) / 1e6)
+      }
+    } else if (Array.isArray(pools)) {
+
+      pools = pools.map(i => i.toLowerCase())
+      const _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: pools, permitFailure: true })
+      const token0s = await api.multiCall({ abi: 'address:token0', calls: pools, permitFailure: true })
+      const token1s = await api.multiCall({ abi: 'address:token1', calls: pools, permitFailure: true })
+      pools.forEach((pool: string, i: number) => {
+        if (!token0s[i] || !token1s[i] || !_fees[i]) return; // skip if any call failed
+        fees[pool] = _fees[i] / 1e6
+        pairObject[pool] = [token0s[i], token1s[i]]
+      })
+    } else {
+      throw new Error('Either factory or pools must be provided in the config')
     }
-    if (isAlgebraV2) {
-      let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-      _states.filter(state => state !== null).forEach((state: any, i: number) => fees[logs[i].pool] = Number(state.fee) / 1e6)
-    }
+
     const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
     const dailyVolume = createBalances()
     const dailyFees = createBalances()
@@ -207,7 +224,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i=> i.toLowerCase())) : null
+    const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairs = Object.keys(filteredPairs)
     const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
     allLogs.map((logs: any, index) => {
@@ -271,6 +288,7 @@ type UniV3Config = {
   holdersRevenueRatio?: number,
   start?: number | string,
   blacklistPools?: Array<string>,
+  pools?: string[], // alternative to providing factory
 }
 
 export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pullHourly = true, ...otherRootOptions } = {}) {
@@ -295,7 +313,7 @@ export function uniV2Exports(config: IJSON<UniV2Config>, { runAsV1 = false, pull
   return { ...otherRootOptions, adapter: exportObject, version: 2, pullHourly, } as SimpleAdapter
 }
 
-export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swapEvent, pullHourly = true, ...otherRootOptions}: {
+export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swapEvent, pullHourly = true, ...otherRootOptions }: {
   runAsV1?: boolean,
   swapEvent?: string,
   pullHourly?: boolean,

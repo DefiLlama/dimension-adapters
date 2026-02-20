@@ -7,50 +7,40 @@
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql } from "graphql-request";
+import * as sdk from "@defillama/sdk"
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const ENVIO_GRAPHQL_URL = "https://kby-hasura.up.railway.app/v1/graphql";
+const fetch = async (options: FetchOptions) => {
+  let { pools } = await sdk.cache.cachedFetch({
+    endpoint: 'https://exchange.kumbaya.xyz/api/v1/pools/metrics?chainId=4326&limit=500&sortBy=fees24h&sortOrder=desc&minTvlETH=1',
+    key: `kumbaya/pools-${options.chain}`,
+    writeCacheOptions: {
+      skipR2CacheWrite: false, // save in cloud
+    }
+  })
+  pools = pools.filter((i: any) => +i.totalValueLockedUSD > 5000)
+  
+  const timeNow = Math.floor(Date.now() / 1000)
+  const isCloseToCurrentTime = Math.abs(timeNow - options.toTimestamp) < 3600 * 6 // 6 hour
 
-const query = gql`
-  query DailyStats($startDate: Int!, $endDate: Int!) {
-    UniswapDayData(
-      where: { chainId: { _eq: 4326 }, date: { _gte: $startDate, _lt: $endDate } }
-      order_by: { date: desc }
-      limit: 1
-    ) {
-      date
-      volumeUSD
-      feesUSD
-      tvlUSD
+  if (isCloseToCurrentTime) {
+    let dailyFees = pools.reduce((acc:any, i: any) => acc + +i.fees24hUSD, 0)
+    let dailyVolume = pools.reduce((acc:any, i: any) => acc + +i.volume24hUSD, 0)
+    return {
+      dailyFees,
+      dailyVolume,
+      dailySupplySideRevenue: dailyFees,
+      dailyRevenue: 0, // protocol fees are 0 until they enable it
+      dailyProtocolRevenue: 0,
     }
   }
-`;
 
-/**
- * Fetches daily volume and fees from the Kumbaya indexer.
- * Queries UniswapDayData for the specified day range.
- */
-const fetch = async (options: FetchOptions) => {
-  const { startOfDay } = options;
-  const startDate = startOfDay;
-  const endDate = startOfDay + 86400;
-
-  const data = await request(ENVIO_GRAPHQL_URL, query, { startDate, endDate });
-  const dayData = data.UniswapDayData?.[0];
-
-  const dailyVolume = dayData?.volumeUSD ? parseFloat(dayData.volumeUSD) : 0;
-  const dailyFees = dayData?.feesUSD ? parseFloat(dayData.feesUSD) : 0;
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees * 0.5, // 50% protocol fee when enabled
-    dailySupplySideRevenue: dailyFees * 0.5, // 50% to LPs
-  };
+  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), revenueRatio:0, })(options)
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: false,
   fetch,
   chains: [CHAIN.MEGAETH],
   start: '2025-12-21',
