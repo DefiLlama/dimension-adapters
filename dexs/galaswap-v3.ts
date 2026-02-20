@@ -38,6 +38,7 @@ const methodology = {
 export default {
   fetch,
   start: '2025-09-03',
+  runAtCurrTime: true,
   chains: [CHAIN.GALA],
   methodology,
 }

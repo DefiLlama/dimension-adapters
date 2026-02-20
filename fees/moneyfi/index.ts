@@ -144,6 +144,7 @@ const adapter: SimpleAdapter = {
     ),
     [CHAIN.APTOS]: {
       fetch: fetchAptos,
+      runAtCurrTime: true,
       start: "2025-05-27",
     }
   },

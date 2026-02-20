@@ -6,6 +6,7 @@ const adapter: SimpleAdapter = {
     adapter: {
         "near": {
           start: '2024-09-09',
+          runAtCurrTime: true,
           fetch: async () => {
             const fee_result = await httpGet(api_fee);
             const revenue_result = await httpGet(api_revenue);
