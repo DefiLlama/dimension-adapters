@@ -1,47 +1,61 @@
+// Graveyard Protocol - Solana ATA Rent Reclamation Service
+// Users can reclaim SOL rent from closed Associated Token Accounts (ATAs)
+// Protocol charges 10% service fee on reclaimed rent, 100% goes to treasury
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
+import { METRIC } from "../../helpers/metrics";
 
 const FEE_COLLECTOR_WALLET = "GRAVEbqZNUN1K7WBgvwgWUYs69M51eprZbSkeXWbQjjE";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  
-  // Track SOL inflows to fee collector wallet
-  // This captures the fees = 10% of rent reclaim 
-  await getSolanaReceived({
+  const feesCollected = await getSolanaReceived({
     options,
-    balances: dailyFees,
     target: FEE_COLLECTOR_WALLET,
-    mints: ["So11111111111111111111111111111111111111112"],  // native SOL only
+    mints: ["So11111111111111111111111111111111111111112"],
   });
   
-  const dailyUserFees = dailyFees.clone(1);
-  const dailyRevenue = dailyFees.clone(1);
-  const dailyProtocolRevenue = dailyFees.clone(1);
-  
-  // 100% of fees go to protocol (no token holders):
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(feesCollected, METRIC.SERVICE_FEES);
+
   return {
-    dailyFees,                    // 10% of total sol rent reclaimed
-    dailyUserFees,               // Users "paid" via rent reclamation - Same as above.
-    dailyRevenue,                // 10% fee = protocol revenue - Same as above.
-    dailyProtocolRevenue,        // All revenue goes to treasury - Same as above.
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const methodology = {
-  Fees: "Users pay service fees equal to 10% of total rent reclaimed by closing ATAs.",
-  UserFees: "Users pay service fees equal to 10% of total rent reclaimed by closing ATAs.",
-  Revenue: "100% of fees is collected as protocol revenue.",
-  ProtocolRevenue: "100% of fees is collected as protocol revenue.",
+  Fees: "Service fees charged for ATA rent reclamation, calculated as 10% of total SOL rent reclaimed when users close Associated Token Accounts",
+  UserFees: "Service fees paid by users for the ATA rent reclamation service, equal to 10% of the SOL rent they reclaim",
+  Revenue: "All service fees collected are retained as protocol revenue, as there are no liquidity providers or token holders to distribute to",
+  ProtocolRevenue: "100% of service fees flow to the protocol treasury to fund operations and development",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SERVICE_FEES]: "Service fees charged to users for reclaiming SOL rent from closed Associated Token Accounts, calculated as 10% of the total rent amount reclaimed per transaction",
+  },
+  UserFees: {
+    [METRIC.SERVICE_FEES]: "Service fees paid by users for the ATA rent reclamation service, equal to 10% of the SOL rent they reclaim when closing unused token accounts",
+  },
+  Revenue: {
+    [METRIC.SERVICE_FEES]: "All service fees collected from the rent reclamation service, retained as protocol revenue with no distribution to external parties",
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: "100% of service fee revenue allocated to the protocol treasury to fund operations, development, and future protocol enhancements",
+  },
 };
 
 const adapter: SimpleAdapter = {
-  version: 2, // Recommended: supports arbitrary time ranges
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-02-01",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
