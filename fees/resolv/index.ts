@@ -63,7 +63,11 @@ const fetch = async (options: FetchOptions) => {
     options.api.call({ abi: WST_USR_ABI, target: WST_USR, params: ['1000000000000000000'] }),
   ])
 
-  const dailyYield = ((((rlpPriceToday - rlpPriceYesterday) * rlpSupply) + ((wstPriceToday - wstPriceYesterday) * stUsrSupply))) / 1e18;
+  let dailyYield = 0;
+  const rlpPriceIncrease = rlpPriceToday - rlpPriceYesterday;
+  const wstPriceIncrease = wstPriceToday - wstPriceYesterday;
+  if (rlpPriceIncrease > 0) dailyYield += rlpPriceIncrease * rlpSupply / 1e18;
+  if (wstPriceIncrease > 0) dailyYield += wstPriceIncrease * stUsrSupply / 1e18;
 
   // https://resolv.xyz/blog/closing-the-loop-activating-resolv-s-protocol-fee
   let revenueRatio = 0
