@@ -2,6 +2,7 @@ import { uniV2Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
 
 const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
+const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
 
 const configs: Record<string, Record<string, any>> = {
   "flowswap-v2": {
@@ -399,6 +400,311 @@ const configs: Record<string, Record<string, any>> = {
   "parity-dex": {
     monad: { factory: '0x6DBb0b5B201d02aD74B137617658543ecf800170', start: '2026-02-11', stableFees: 0.0004, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0.9 },
   },
+  "swyrl-legacy": {
+    monad: { factory: '0xD158CDfeC90E9429A290c3144Afeb72E8C23603a' },
+  },
+  "purps": {
+    monad: { factory: '0xAfE4d3eB898591ACe6285176b26f0F5BEb894447', userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
+  },
+  "hunnyswap": {
+    avax: { factory: '0x0c6A0061F9D0afB30152b8761a273786e51bec6d', start: '2022-06-06', userFeesRatio: 1, revenueRatio: 0.12 / 0.3, protocolRevenueRatio: 0.02 / 0.3, holdersRevenueRatio: 0.1 / 0.3 },
+  },
+  "hybra-v2": {
+    hyperliquid: { factory: '0x9c7397c9C5ecC400992843408D3A283fE9108009', start: '2025-05-22', fees: 0.0025, stableFees: 0.0002, userFeesRatio: 1, revenueRatio: 0.12, protocolRevenueRatio: 0.12 },
+  },
+  "superswap-v2": {
+    optimism: { factory: '0x22505cb4d5d10b2c848a9d75c57ea72a66066d8c', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
+  },
+  "madness-finance": {
+    monad: { factory: '0x93d71152A93619c0b10A2EFc856AC46120FD01Ab', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "currentx": {
+    megaeth: { factory: '0xC60940F182F7699522970517f6d753A560546937', start: '2026-02-05', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "daoaas-swap": {
+    eni: { factory: '0x548C0E26CE90B333c07abb6d55546304D46d269d', start: '2025-06-01' },
+  },
+  "mute.io": {
+    era: { factory: '0x40be1cba6c5b47cdf9da7f963b6f761f4c60627d', start: 1679529600, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
+  },
+  "archly-finance": {
+    telos: { factory: '0x39fdd4Fec9b41e9AcD339a7cf75250108D32906c' },
+  },
+  "pandoraswap": {
+    astar: { factory: '0x8D4f9b98FC21787382647BFCfC9ce75C08B50481', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "auraswap": {
+    polygon: { factory: '0x015DE3ec460869eb5ceAe4224Dc7112ac0a39303', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "solarflare": {
+    moonbeam: { factory: '0x19B85ae92947E0725d5265fFB3389e7E4F191FDa', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.12, holdersRevenueRatio: 0.2 },
+  },
+  "swappi": {
+    conflux: { factory: '0xe2a6f7c0ce4d5d300f97aa7e125455f5cd3342f5', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.12, holdersRevenueRatio: 0.2 },
+  },
+  "sushiswap-classic": {
+    ethereum: { factory: '0xc0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac', start: '2020-09-05', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    avax: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-10', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    fuse: { factory: '0x43eA90e2b786728520e4f930d2A71a477BF2737C', start: '2021-09-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    arbitrum: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-04-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    polygon: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    bsc: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    core: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2023-11-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    blast: { factory: '0x42fa929fc636e657ac568c0b5cf38e203b67ac2b', start: '2024-03-03', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    katana: { factory: '0x72d111b4d6f31b38919ae39779f570b747d6acd9', start: '2025-04-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    xdai: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-03-01', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    optimism: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-16', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    base: { factory: '0x71524b4f93c58fcbf659783284e38825f0622859', start: '2023-08-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    sonic: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    celo: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    linea: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    metis: { factory: '0x580ED43F3BBa06555785C81c2957efCCa71f7483', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+  },
+  "camelot": {
+    apechain: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-10-15', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    arbitrum: { factory: '0x6EcCab422D763aC031210895C81787E87B43A652', start: '2022-11-22', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    gravity: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-07-04', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    rari: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-05', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    reya: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-20', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    sanko: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-04-17', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+  },
+  "apeswap": {
+    bsc: { factory: '0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6', start: 1613273226, fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
+    polygon: { factory: '0xcf083be4164828f00cae704ec15a36d711491284', start: 1623814026, fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
+    ethereum: { factory: '0xBAe5dc9B19004883d0377419FeF3c2C8832d7d7B', start: 1652239626, fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
+    arbitrum: { factory: '0xCf083Be4164828f00cAE704EC15a36D711491284', start: 1678406400, fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
+  },
+  "jetswap": {
+    bsc: { factory: '0x0eb58E5c8aA63314ff5547289185cC4583DfCBD5', userFeesRatio: 1, revenueRatio: 0.05 / 0.3, protocolRevenueRatio: 0.05 / 0.3, blacklistedAddresses: ['0x81eE41C232e2c7fba40c9EaC02ae1eAE33570382'] },
+    polygon: { factory: '0x668ad0ed2622C62E24f0d5ab6B6Ac1b9D2cD4AC7', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5 },
+    fantom: { factory: '0xf6488205957f0b4497053d6422F49e27944eE3Dd', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5 },
+  },
+  "spookyswap": {
+    fantom: { factory: '0x152eE697f2E276fA89E96742e9bB9aB1F2E61bE3', start: '2021-04-18', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
+    sonic: { factory: '0xEE4bC42157cf65291Ba2FE839AE127e3Cc76f741', start: '2024-12-12', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
+  },
+  "biswap": {
+    bsc: { factory: '0x858e3312ed3a876947ea49d572a7c42de08af7ee', start: '2021-05-24', fees: 0.002 },
+  },
+  "honeyswap": {
+    polygon: { factory: '0x03daa61d8007443a6584e3d8f85105096543c19c', start: 1622173831 },
+    xdai: { factory: '0xa818b4f111ccac7aa31d0bcc0806d64f2e0737d7', start: 1599191431 },
+  },
+  "echodex": {
+    linea: { factory: '0x6D1063F2187442Cc9adbFAD2f55A96B846FCB399', start: 1689638400, swapEvent: echodexSwapEvent },
+  },
+  "elk": {
+    xdai: { factory: '0xCB018587dA9590A18f49fFE2b85314c33aF3Ad3B', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    polygon: { factory: '0xE3BD06c7ac7E1CeB17BdD2E5BA83E40D1515AF2a', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    fantom: { factory: '0x7Ba73c99e6f01a37f3e33854c8F544BbbadD3420', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    bsc: { factory: '0x31aFfd875e9f68cd6Cd12Cee8943566c9A4bBA13', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    avax: { factory: '0x091d35d7F63487909C863001ddCA481c6De47091', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    moonriver: { factory: '0xd45145f10fD4071dfC9fC3b1aefCd9c83A685e77', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    ethereum: { factory: '0x6511eBA915fC1b94b2364289CCa2b27AE5898d80', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    optimism: { factory: '0xedfad3a0F42A8920B011bb0332aDe632e552d846', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    arbitrum: { factory: '0xA59B2044EAFD15ee4deF138D410d764c9023E1F0', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    metis: { factory: '0xfbb4E52FEcc90924c79F980eb24a9794ae4aFFA4', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    base: { factory: '0xfbb4E52FEcc90924c79F980eb24a9794ae4aFFA4', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    linea: { factory: '0xfbb4E52FEcc90924c79F980eb24a9794ae4aFFA4', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "empiredex": {
+    bsc: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    cronos: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    xdai: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    polygon: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    fantom: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    avax: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    ethereum: { factory: '0xd674b01E778CF43D3E6544985F893355F46A74A5', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    kava: { factory: '0x06530550A48F990360DFD642d2132354A144F31d', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "swapr": {
+    ethereum: { factory: '0xd34971BaB6E5E356fd250715F5dE0492BB070452', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+    arbitrum: { factory: '0x359f20ad0f42d75a5077e65f30274cabe6f4f01a', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+    xdai: { factory: '0x5d48c95adffd4b40c1aaadc4e08fc44117e02179', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+  },
+  "swapsicle": {
+    avax: { factory: '0x9c60c867ce07a3c403e2598388673c10259ec768', userFeesRatio: 1, revenueRatio: 0 },
+    polygon: { factory: '0x735ab9808d792B5c8B54e31196c011c26C08b4ce', userFeesRatio: 1, revenueRatio: 0 },
+    bsc: { factory: '0xEe673452BD981966d4799c865a96e0b92A8d0E45', userFeesRatio: 1, revenueRatio: 0 },
+    fantom: { factory: '0x98F23162E3a7FE610aC89C88E4217a599A15858F', userFeesRatio: 1, revenueRatio: 0 },
+    arbitrum: { factory: '0x2f0c7c98462651bb2102f6cd05acdad333e031b0', userFeesRatio: 1, revenueRatio: 0 },
+    ethereum: { factory: '0x2f0c7c98462651bb2102f6cd05acdad333e031b0', userFeesRatio: 1, revenueRatio: 0 },
+    optimism: { factory: '0x2f0c7c98462651bb2102f6cd05acdad333e031b0', userFeesRatio: 1, revenueRatio: 0 },
+    telos: { factory: '0xB630F53DF13645BFF0Ef55eB44a8a490a7DD4514', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "dackieswap-v2": {
+    base: { factory: '0x591f122d1df761e616c13d265006fcbf4c6d6551', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+    optimism: { factory: '0xaedc38bd52b0380b2af4980948925734fd54fbf4', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+    arbitrum: { factory: '0x507940c2469e6e3b33032f1d4ff8d123bdde2f5c', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+    blast: { factory: '0xf5190e64db4cbf7ee5e72b55cc5b2297e20264c2', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+    mode: { factory: '0x757cd583004400ee67e5cc3c7a60c6a62e3f6d30', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+    linea: { factory: '0x9790713770039cefcf4faaf076e2846c9b7a4630', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+  },
+  "tethys-finance": {
+    metis: { factory: '0x2CdFB20205701FF01689461610C9F321D1d00F80', start: '2021-12-18', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.3, protocolRevenueRatio: 0, holdersRevenueRatio: 0.3 },
+  },
+  "sphynx": {
+    bsc: { factory: '0x8BA1a4C24DE655136DEd68410e222cCA80d43444', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    cronos: { factory: '0x5019EF5dd93A7528103BB759Bb2F784D065b826a', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "sparkdex-v2": {
+    flare: { factory: '0x16b619B04c961E8f4F06C10B42FDAbb328980A89', start: '2024-06-27', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "hyperswap-v2": {
+    hyperliquid: { factory: '0x724412C00059bf7d6ee7d4a1d0D5cd4de3ea1C48', start: '2025-02-18', userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.08, holdersRevenueRatio: 0.32 },
+  },
+  "enosys-v2": {
+    flare: { factory: '0x28b70f6Ed97429E40FE9a9CD3EB8E86BCBA11dd4', start: '2023-09-05', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+    songbird: { factory: '0x7a39408809441814469A8Fb3F5CFea1aA2774fB6', start: '2021-11-19', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+  },
+  "fenix-finance": {
+    blast: { factory: '0xa19c51d91891d3df7c13ed22a2f89d328a82950f', fees: 0.001, stableFees: 0.0003, userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+  },
+  "dystopia": {
+    polygon: { factory: '0x1d21Db6cde1b18c7E47B0F7F42f4b3F68b9beeC9', start: 1652932015, fees: 0.002, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "wingswap": {
+    fantom: { factory: '0xc0719a9A35a2D9eBBFdf1C6d383a5E8E7b2ef7a8', start: 1637452800, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "complus-network": {
+    polygon: { factory: '0x973c934137dd687eca67bdd1c5a8b74286964ac6', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    bsc: { factory: '0xdf97982bf70be91df4acd3d511c551f06a0d19ec', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+    avax: { factory: '0x5c02e78a3969d0e64aa2cfa765acc1d671914ac0', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "gravis": {
+    bsc: { factory: '0x4a3b76860c1b76f0403025485de7bfa1f08c48fd', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+    polygon: { factory: '0x17c1d25d5a2d833c266639de5fbe8896bdbeb234', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "zkswap": {
+    era: { factory: '0xeeE1Af1CE68D280e9cAfD861B7d4af776798F18d', userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 1 },
+  },
+  "titano-swych": {
+    bsc: { factory: '0x80f112CD8Ac529d6993090A0c9a04E01d495BfBf', start: 1648005393, fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "zebra-v1": {
+    scroll: { factory: '0xa63eb44c67813cad20A9aE654641ddc918412941', start: 1698364800, userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
+  "zipswap": {
+    arbitrum: { factory: '0x9e343Bea27a12B23523ad88333a1B0f68cc1F05E', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "autoshark": {
+    bsc: { factory: '0xe759Dd4B9f99392Be64f1050a6A8018f73B53a13', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "blue-planet": {
+    bsc: { factory: '0xa053582601214FEb3778031a002135cbBB7DBa18', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "cometh": {
+    polygon: { factory: '0x800b052609c355cA8103E06F022aA30647eAd60a', start: 1622518288, fees: 0.005, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "crodex": {
+    cronos: { factory: '0xe9c29cB475C0ADe80bE0319B74AD112F1e80058F', start: '2021-12-01', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "dinosaur-eggs": {
+    bsc: { factory: '0x73d9f93d53505cb8c4c7f952ae42450d9e859d10', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "gravity-finance": {
+    polygon: { factory: '0x3ed75AfF4094d2Aaa38FaFCa64EF1C152ec1Cf20', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "hakuswap": {
+    avax: { factory: '0x2Db46fEB38C57a6621BCa4d97820e1fc1de40f41', fees: 0.002, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "huckleberry": {
+    moonriver: { factory: '0x017603C8f29F7f6394737628a93c57ffBA1b7256', start: '2021-09-26', userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "ocelex-v1": {
+    zircuit: { factory: '0xdd018347c29a27088eb2d0bf0637d9a05b30666c', start: '2024-10-25', fees: 0.0018, stableFees: 0.0004, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 1 },
+  },
+  "oolongswap": {
+    boba: { factory: '0x7DDaF116889D655D1c486bEB95017a8211265d29', start: 1635938988, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
+  "pandora": {
+    bsc: { factory: '0xFf9A4E72405Df3ca3D909523229677e6B2b8dC71', start: 1652757593, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "protofi": {
+    fantom: { factory: '0x39720E5Fe53BEEeb9De4759cb91d8E7d42c17b76', fees: 0.003, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "alienfi": {
+    arbitrum: { factory: '0xac9d019B7c8B7a4bbAC64b2Dbf6791ED672ba98B', start: 1676505600, fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "benswap": {
+    bsc: { factory: '0x4dC6048552e2DC6Eb1f82A783E859157d40FA193', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+    smartbch: { factory: '0x8d973bAD782c1FFfd8FcC9d7579542BA7Dd0998D', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
+  "subzero-zswap": {
+    avax: { factory: '0xcDE3F9e6D452be6d955B1C7AaAEE3cA397EAc469', start: 1675814400, fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "carbonswap": {
+    energyweb: { factory: '0x17854c8d5a41d5A89B275386E24B2F38FD0AfbDd', start: 1618446893 },
+  },
+  "cone": {
+    bsc: { factory: '0x0EFc2D2D054383462F2cD72eA2526Ef7687E1016', start: 1626677527 },
+  },
+  "padswap": {
+    bsc: { factory: '0xB836017ACf10b8A7c6c6C9e99eFE0f5B0250FC45', start: 1620518400 },
+    moonriver: { factory: '0x760d2Bdb232027aB3b1594405077F9a1b91C04c1', start: 1635638400 },
+    moonbeam: { factory: '0x663a07a2648296f1A3C02EE86A126fE1407888E5', start: 1642032000 },
+  },
+  "pegasys": {
+    syscoin: { factory: '0x7Bbbb6abaD521dE677aBe089C85b29e3b2021496' },
+  },
+  "pinkswap": {
+    bsc: { factory: '0x7D2Ce25C28334E40f37b2A068ec8d5a59F11Ea54' },
+  },
+  "polycat": {
+    polygon: { factory: '0x477Ce834Ae6b7aB003cCe4BC4d8697763FF456FA' },
+  },
+  "ultronswap": {
+    ultron: { factory: '0xe1F0D4a5123Fd0834Be805d84520DFDCd8CF00b7', start: 1659323793 },
+  },
+  "ampleswap": {
+    bsc: { factory: '0x381fefadab5466bff0e8e96842e8e76a143e8f73', start: '2021-09-10' },
+  },
+  "bxh": {
+    bsc: { factory: '0x7897c32cbda1935e97c0b59f244747562d4d97c1' },
+    ethereum: { factory: '0x8d0fCA60fDf50CFE65e3E667A37Ff3010D6d1e8d' },
+    avax: { factory: '0xDeC9231b2492ccE6BA01376E2cbd2bd821150e8C' },
+  },
+  "dao-swap": {
+    bsc: { factory: '0x940BEb635cbEeC04720AC97FADb97205676e6aa4', start: 1663921255 },
+  },
+  "netswap": {
+    metis: { factory: '0x70f51d68D16e8f9e418441280342BD43AC9Dff9f', start: 1638760703, fees: 0.003, userFeesRatio: 1, revenueRatio: 0.05 / 0.3, protocolRevenueRatio: 1 },
+  },
+  "revoswap": {
+    xlayer: { factory: '0xa38498983e7b31DE851e36090bc9D1D8fB96BE5E', start: 1713225600, userFeesRatio: 1 },
+  },
+  "spartacus-exchange": {
+    fantom: { factory: '0x535646cf57E4155Df723bb24625f356d98ae9D2F', start: 1650883041 },
+  },
+  "tetu": {
+    polygon: { factory: '0x684d8c187be836171a1af8d533e4724893031828', start: 1634863038 },
+  },
+  "knightswap-finance": {
+    bsc: { factory: '0xf0bc2E21a76513aa7CC2730C7A1D6deE0790751f', start: '2021-10-28' },
+    fantom: { factory: '0x7d82F56ea0820A9d42b01C3C28F1997721732218', start: '2021-11-25' },
+  },
+  "radioshack": {
+    polygon: { factory: '0xB581D0A3b7Ea5cDc029260e989f768Ae167Ef39B' },
+    bsc: { factory: '0x98957ab49b8bc9f7ddbCfD8BcC83728085ecb238' },
+    avax: { factory: '0xa0fbfda09b8815dd42ddc70e4f9fe794257cd9b6' },
+  },
+  "shimmersea": {
+    shimmer_evm: { factory: '0x4fb5d3a06f5de2e88ce490e2e11d22b840d5ac47', start: '2023-10-04' },
+  },
+  "whaleswap": {
+    bsc: { factory: '0xabc26f8364cc0dd728ac5c23fa40886fda3dd121', start: '2021-10-28' },
+    fantom: { factory: '0xabc26f8364cc0dd728ac5c23fa40886fda3dd121', start: '2021-11-25' },
+  },
+  "reservoir-tools-amm": {
+    abstract: { factory: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    ink: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    zero: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "hyperjump": {
+    bsc: { factory: '0xac653ce27e04c6ac565fd87f18128ad33ca03ba2', start: '2020-11-10' },
+    fantom: { factory: '0x991152411A7B5A14A8CF0cDDE8439435328070dF', start: '2021-04-19' },
+    metis: { factory: '0xAA1504c878B158906B78A471fD6bDbf328688aeB', start: '2022-05-04' },
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -438,6 +744,324 @@ const methodologyMap: Record<string, any> = {
     HoldersRevenue: "User fees are distributed among holders. 75% of collected fees. (is probably right because the distribution is dynamic.)",
     SupplySideRevenue: "20% of collected fees are distributed among LPs. (is probably right because the distribution is dynamic.)",
   },
+  "purps": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    SupplySideRevenue: '80% swap fees distributed to LPs.',
+    Revenue: '20% swap fees collected by Purps.',
+    ProtocolRevenue: '20% swap fees collected by Purps.',
+  },
+  "hunnyswap": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    SupplySideRevenue: '0.18% swap fees distributed to LPs.',
+    Revenue: '0.12% swap fees goes to protocol and holders',
+    ProtocolRevenue: '0.02% swap fees goes to treasury',
+    HoldersRevenue: '0.1%  swap fees goes to LOVE and gXOXO token stakers',
+  },
+  "hybra-v2": {
+    Volume: 'Total swap volume collected from factory 0x9c7397c9C5ecC400992843408D3A283fE9108009',
+    Fees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs.',
+    UserFees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs.',
+    Revenue: '12% swap fees collected by protocol Treasury.',
+    ProtocolRevenue: '12% swap fees collected by protocol Treasury.',
+    SupplySideRevenue: '88% swap fees distributed to LPs.',
+  },
+  "superswap-v2": {
+    Fees: "User pays 0.3% fees on each swap.",
+    UserFees: "User pays 0.3% fees on each swap.",
+    SupplySideRevenue: "LPs receive 20% of swap fees.",
+    ProtocolRevenue: "Treasury receives 80% of swap fees.",
+    Revenue: "Treasury receives 80% of swap fees.",
+  },
+  "madness-finance": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "archly-finance": {
+    Fees: "The trading fees are 0.05%, and can be adjusted from 0.01% up to 0.1%.",
+    UserFees: "Currently users pay a trading fee of 0.05%.",
+    HoldersRevenue: "veArc voters receive all protocol fees.",
+    Revenue: "All trading fees are paid to veArc voters.",
+    SupplySideRevenue: "LPs do not earn any revenue from trading fees, only Arc emission decided by veArc voters.",
+    ProtocolRevenue: "Treasury does not earn any revenue from trading fees.",
+  },
+  "pandoraswap": {
+    Fees: 'Users pay fees per swap.',
+    UserFees: 'Users pay fees per swap.',
+    Revenue: 'No revenue.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "auraswap": {
+    Fees: 'Users pay 03% per swap.',
+    UserFees: 'Users pay 03% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "solarflare": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'Solarflare collects 20% swap fees for FLARE buy back.',
+    ProtocolRevenue: 'No revenue for Solarflare protocol.',
+    HoldersRevenue: 'Solarflare collects 20% swap fees for FLARE buy back.',
+    SupplySideRevenue: 'Solarflare distributes 80% swap fees to LPs.',
+  },
+  "swappi": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'Swappi collects 32% swap fees for protocol treasury and PPI buy back.',
+    ProtocolRevenue: 'Swappi collects 12% swap fees for protocol treasury.',
+    HoldersRevenue: 'Swappi collects 20% swap fees for PPI buy back.',
+    SupplySideRevenue: 'Swappi distributes 68% swap fees to LPs.',
+  },
+  "sushiswap-classic": {
+    Fees: "SushiSwap charges a flat 0.3% fee",
+    UserFees: "Users pay a 0.3% fee on each trade",
+    Revenue: "A 0.05% of each trade goes to treasury",
+    HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get 5/6 of all trades in their pools",
+  },
+  "camelot": {
+    Fees: 'Trading fees charged on swaps. Camelot V2 is a Uniswap V2 fork with 0.3% swap fee.',
+    UserFees: 'Users pay 0.3% fee on each swap.',
+    Revenue: 'Portion of trading fees that goes to the protocol (17.5%) and xGRAIL holders (22.5%), totaling 40% of swap fees.',
+    ProtocolRevenue: '17.5% of trading fees (5% operating expenses + 12.5% GRAIL buyback/burn).',
+    HoldersRevenue: '22.5% of trading fees go to xGRAIL holders via Real Yield Staking.',
+    SupplySideRevenue: '60% of trading fees go to liquidity providers.',
+  },
+  "apeswap": {
+    UserFees: "Users pays 0.2% of each swap",
+    Fees: "A 0.2% trading fee is collected",
+    Revenue: "A 0.05% (bsc and ethereum) or 0.15% (polygon and telos) of the fees goes to treasury, 50% of that fee is used to buyback and burn BANANA, on Telos 25% of the collected fees goes to Telos",
+    ProtocolRevenue: "A 0.05% (bsc and ethereum) or 0.15% (polygon) or 0.0375% (telos) of the fees goes to treasury",
+    HoldersRevenue: "Of all DEX trading fees earned by ApeSwap, 50% are used to buy back and burn BANANA on a quarterly basis",
+    SupplySideRevenue: "A 0.15% (bsc and ethereum) or 0.05% (polygon and telos) is distributed proportionally to all APE-LP token holders",
+  },
+  "jetswap": {
+    Fees: 'Users pay 0.3% on BSC, 0.1% on Fantom, Polygon per swap.',
+    UserFees: 'Users pay 0.3% on BSC, 0.1% on Fantom, Polygon per swap.',
+    Revenue: 'Protocol collects 16% swap fees on BSC and 50% swap fees on Fantom, Polygon.',
+    ProtocolRevenue: 'Protocol collects 16% swap fees on BSC and 50% swap fees on Fantom, Polygon.',
+    SupplySideRevenue: '84% swap fees on BSC and 50% swap fees on Fantom, Polygon distributed to LPs.',
+  },
+  "spookyswap": {
+    Fees: "SpookySwap charges a flat 0.2% fee",
+    UserFees: "Users pay a 0.2% fee on each trade",
+    Revenue: "A 0.03% of each trade goes to treasury",
+    HoldersRevenue: "Share of swap fee goes to xBOO stakers.",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get 0.17% of all trades in their pools",
+  },
+  "elk": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "empiredex": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "swapr": {
+    Fees: 'Swap fees paid by users.',
+    UserFees: 'Swap fees paid by users.',
+    Revenue: '10% swap fees collected by Swapr protocol.',
+    ProtocolRevenue: '10% swap fees collected by Swapr protocol.',
+    SupplySideRevenue: '90% swap fees distributed to LPs.',
+  },
+  "swapsicle": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "dackieswap-v2": {
+    Fees: "All fees comes from the user.",
+    UserFees: "User pays 0.25% fees on each swap.",
+    SupplySideRevenue: "LPs receive 0.17% of each swap.",
+    Revenue: "Treasury receives 0.08% of each swap.",
+    ProtocolRevenue: "Treasury receives 0.08% of each swap.",
+  },
+  "tethys-finance": {
+    Fees: 'Users pay 0.2% per swap',
+    UserFees: 'Users pay 0.2% per swap',
+    SupplySideRevenue: '70% swap fees distributed to LPs.',
+    Revenue: '30% of fees generated from swaps are converted to METIS and distributed to staked TETHYS tokens',
+    ProtocolRevenue: 'Protocol collects no revenue',
+    HoldersRevenue: '30% of fees generated from swaps are converted to METIS and distributed to staked TETHYS tokens',
+  },
+  "sphynx": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "sparkdex-v2": {
+    Volume: 'Total swap volume',
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue.',
+    SupplySideRevenue: 'All swap fees are distributed to LPs.',
+  },
+  "hyperswap-v2": {
+    Fees: "Total swap fees paid by users.",
+    Revenue: "8% protocol revenue share and 32% holders revenue share.",
+    ProtocolRevenue: "8% of fees collected by the protocol.",
+    SupplySideRevenue: "60% of fees distributed to LPs.",
+    HoldersRevenue: "32% of fees used for buy-back and burn.",
+    UserFees: "Total swap fees paid by users.",
+  },
+  "fenix-finance": {
+    Fees: 'Users pay 0.1% per swap for volitile pools and 0.03% per swap for stable pools.',
+    UserFees: 'Users pay 0.1% per swap.',
+    Revenue: 'Protocol collects 10% swap fees.',
+    ProtocolRevenue: 'Protocol collects 10% swap fees.',
+    SupplySideRevenue: '90% swap fees distributes to LPs.',
+  },
+  "dystopia": {
+    Fees: 'Users pay 0.2% per swap.',
+    UserFees: 'Users pay 0.2% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "complus-network": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "gravis": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "zkswap": {
+    Fees: "Total swap fees paided by users.",
+    Revenue: "Revenue collected from 100% swap fees.",
+    ProtocolRevenue: "Revenue for HyperSwap from 100% swap fees.",
+    SupplySideRevenue: "No fees distributed to LPs.",
+    UserFees: "Total swap fees paided by users.",
+  },
+  "titano-swych": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'All swap fees distributes to LPs.',
+  },
+  "zebra-v1": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'Zebra collects 25% revenue from swap fees.',
+    ProtocolRevenue: 'Zebra collects 25% revenue from swap fees.',
+    SupplySideRevenue: 'Zebra distributes 75% swap fees to LPs.',
+  },
+  "zipswap": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "autoshark": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "blue-planet": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "cometh": {
+    Fees: 'Users pay 0.5% per swap for most of pairs, 0.01% for stable pairs.',
+    UserFees: 'Users pay 0.5% per swap for most of pairs, 0.01% for stable pairs.',
+    Revenue: 'No revenue.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "crodex": {
+    Fees: 'Users pay 0.3% per swap for most of pairs, 0.01% for stable pairs.',
+    UserFees: 'Users pay 0.3% per swap for most of pairs, 0.01% for stable pairs.',
+    Revenue: 'No revenue.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "dinosaur-eggs": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "gravity-finance": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "hakuswap": {
+    Fees: 'Users pay 0.2% per swap.',
+    UserFees: 'Users pay 0.2% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "huckleberry": {
+    Fees: 'Users pay 0.3% fees per swap.',
+    UserFees: 'Users pay 0.3% fees per swap.',
+    Revenue: 'No protocol revenue.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "ocelex-v1": {
+    Fees: 'Users pay 0.18% per swap for most of pairs, 0.04% for stable pairs.',
+    UserFees: 'Users pay 0.18% per swap for most of pairs, 0.04% for stable pairs.',
+    Revenue: 'Protocol collects all swap fees.',
+    ProtocolRevenue: 'Protocol collects all swap fees.',
+    SupplySideRevenue: 'No swap fees are distributed to LPs.',
+  },
+  "oolongswap": {
+    Fees: 'Users pay 0.3% per swap for most of pairs, 0.01% for stable pairs.',
+    UserFees: 'Users pay 0.3% per swap for most of pairs, 0.01% for stable pairs.',
+    Revenue: 'Oolongswap collects 1/6 swap fees for protocol treasury.',
+    ProtocolRevenue: 'Oolongswap collects 1/6 swap fees for protocol treasury.',
+    SupplySideRevenue: 'Oolongswap distributes 5/6 swap fees to LPs.',
+  },
+  "protofi": {
+    Fees: 'Users pay 0.3% per swap.',
+    UserFees: 'Users pay 0.3% per swap.',
+    Revenue: 'No revenue',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "alienfi": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "benswap": {
+    Fees: 'Users pay 0.2% per swap.',
+    UserFees: 'Users pay 0.2% per swap.',
+    Revenue: 'Protocol collects 25% swap fees.',
+    ProtocolRevenue: 'Protocol collects 25% swap fees.',
+    SupplySideRevenue: '75% swap fees distributed to LPs.',
+  },
+  "subzero-zswap": {
+    Fees: 'Users pay 0.25% per swap.',
+    UserFees: 'Users pay 0.25% per swap.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "pandora": {
+    Fees: 'Users pay 0.3% fees per swap.',
+    UserFees: 'Users pay 0.3% fees per swap.',
+    Revenue: 'No protocol revenue.',
+    SupplySideRevenue: 'Swap fees distributed to LPs.',
+  },
+  "reservoir-tools-amm": {
+    Fees: 'Swap fees paid by users on each trade.',
+    UserFees: 'User pays fees on each swap.',
+    Revenue: 'Protocol has no revenue.',
+    ProtocolRevenue: 'Protocol has no revenue.',
+    SupplySideRevenue: 'All user fees are distributed among LPs.',
+    HoldersRevenue: 'Holders have no revenue.',
+  },
 }
 
 const deadFromMap: Record<string, string> = {
@@ -476,6 +1100,26 @@ const feesConfigs: Record<string, Record<string, any>> = {
   "nuri-exchange-v1": {
     scroll: { factory: '0xAAA16c016BF556fcD620328f0759252E29b1AB57' },
   },
+  "capx": {
+    capx: { factory: '0x5C5A750681708599A77057Fe599c1a7942dcc086', fees: 0.01, revenueRatio: 0.9, protocolRevenueRatio: 0.9, allowReadPairs: true, start: 1763329513 },
+  },
+  "beamswap": {
+    moonbeam: { factory: '0x985BcA32293A7A496300a48081947321177a86FD', userFeesRatio: 1, revenueRatio: 0.13 / 0.30, protocolRevenueRatio: 0.13 / 0.30 },
+  },
+  "fwx-dex": {
+    avax: { factory: '0x2131Bdb0E0B451BC1C5A53F2cBC80B16D43634Fa', fees: 0.001, start: '2024-06-06' },
+    base: { factory: '0x3512DA8F30D9AE6528e8e0787663C14Fe263Fbea', fees: 0.0025, start: '2024-09-04' },
+  },
+  "honeyswap": {
+    polygon: { factory: '0x03daa61d8007443a6584e3d8f85105096543c19c', start: '2021-05-28' },
+    xdai: { factory: '0xa818b4f111ccac7aa31d0bcc0806d64f2e0737d7', start: '2020-09-04' },
+  },
+  "shibaswap": {
+    ethereum: { factory: '0x115934131916c8b277dd010ee02de363c09d037c', start: '2021-07-06' },
+  },
+  "biswap": {
+    bsc: { factory: '0x858e3312ed3a876947ea49d572a7c42de08af7ee', fees: 0.002, start: '2021-05-24' },
+  },
 }
 
 const feesMethodologyMap: Record<string, any> = {
@@ -486,6 +1130,13 @@ const feesMethodologyMap: Record<string, any> = {
     ProtocolRevenue: "100% of the trading fee is collected by Protocol Treasury.",
     HoldersRevenue: "100% of Trade Fees is used to buyback ELITE.",
     SupplySideRevenue: "0% of trading fees are distributed among liquidity providers.",
+  },
+  "capx": {
+    UserFees: "Users pay 1% of each swap",
+    Fees: "A 1% trading fee is collected on all swaps",
+    Revenue: "90% of the fees (0.9% of volume) goes to protocol treasury",
+    ProtocolRevenue: "0.9% of trading volume goes to protocol treasury at 0x87b8F64BE420353d927aBF149EA62B68d45e8CE8",
+    SupplySideRevenue: "10% of the fees (0.1% of volume) is distributed to liquidity providers",
   },
 }
 

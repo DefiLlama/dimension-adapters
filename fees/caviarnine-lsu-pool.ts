@@ -33,7 +33,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,
       start: '2023-11-05',
-      // runAtCurrTime: true
+      runAtCurrTime: true,
     }
   }
 }
