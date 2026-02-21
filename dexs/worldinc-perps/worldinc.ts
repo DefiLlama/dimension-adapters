@@ -5,11 +5,11 @@ import CoreAssets from "../../helpers/coreAssets.json";
 // Composite Exchange contract address
 const COMPOSITE_EXCHANGE = "0x5e3Ae52EbA0F9740364Bd5dd39738e1336086A8b";
 
-// Composite exchange deployment block; clamp trade log range so we never request blocks before the exchange existed
-const EXCHANGE_START_BLOCK = 7274994;
-
 // Event signatures for perp orderbook registration and trades
 const SPOT_PERP_TRADE_EVENT = "event NewTrade(uint64 indexed buyer, uint64 indexed seller, uint256 spotMatchQuantities, uint256 spotMatchData)";
+const ABI_GET_PERPS = 'function getPerpOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)';
+const ABI_GET_SPOT = 'function getSpotOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)';
+const ABI_GET_TOKEN_CONFIGS = 'function readTokenConfig(uint32 tokenId) external view returns (uint256)';
 
 interface OrderbookMarket {
   type: 'PERPS' | 'SPOT';
@@ -133,7 +133,7 @@ async function getOrderbooks(options: FetchOptions, type: 'PERPS' | 'SPOT'): Pro
   }
   
   const tokenIds = new Set<number>();
-  const abi = type === 'PERPS' ? 'function getPerpOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)' : 'function getSpotOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)'
+  const abi = type === 'PERPS' ? ABI_GET_PERPS : ABI_GET_SPOT;
   const callResults = await options.api.multiCall({
     abi: abi,
     calls: calls,
@@ -161,7 +161,7 @@ async function getOrderbooks(options: FetchOptions, type: 'PERPS' | 'SPOT'): Pro
   }));
 
   const tokenConfigs = await options.api.multiCall({
-    abi: "function readTokenConfig(uint32 tokenId) external view returns (uint256)",
+    abi: ABI_GET_TOKEN_CONFIGS,
     calls: tokenConfigCalls,
     permitFailure: true,
   });
@@ -182,7 +182,7 @@ function getFetch(type: 'PERPS' | 'SPOT') {
   return async (options: FetchOptions): Promise<FetchResultVolume> => {
     const orderbooks = await getOrderbooks(options, type);
   
-    if (Object.keys(orderbooks).length === 0) {
+    if (Object.keys(orderbooks.markets).length === 0) {
       return { dailyVolume: 0 };
     }
     
