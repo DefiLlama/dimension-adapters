@@ -220,6 +220,97 @@ const configs: Record<string, Record<string, any>> = {
   "parity-dex-cl": {
     [CHAIN.MONAD]: { factory: '0x2A6CE23C5017aF1b07B9c4E4014442aDE18Bd404', start: '2026-02-11' },
   },
+  "swyrl-cl": {
+    monad: { factory: '0x02a898F85a6984213Ac6d2577ff3406394172abf' },
+  },
+  "satsuma": {
+    citrea: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, start: "2026-01-17" },
+  },
+  "currentx-v3": {
+    megaeth: { factory: '0x09cF8A0b9e8C89bff6d1ACbe1467e8E335Bdd03E', start: "2026-02-05", userFeesRatio: 0.75, revenueRatio: 0.25 },
+  },
+  "juiceswap": {
+    citrea: { factory: '0xd809b1285aDd8eeaF1B1566Bf31B2B4C4Bba8e82', start: "2026-01-29", userFeesRatio: 1, revenueRatio: 0 },
+  },
+  "koi-finance-cl": {
+    era: { factory: '0x488A92576DA475f7429BC9dec9247045156144D3', start: 1679529600, userFeesRatio: 1 },
+  },
+  "zebra-v2": {
+    scroll: { factory: '0x96a7F53f7636c93735bf85dE416A4Ace94B56Bd9', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
+  "hybra-v3": {
+    hyperliquid: { factory: '0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
+  "superswap-v3": {
+    optimism: { factory: '0xe52a36Bb76e8f40e1117db5Ff14Bd1f7b058B720', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
+  },
+  "archfi": {
+    btnx: { factory: '0x57Fd247Ce7922067710452923806F52F4b1c2D34', isAlgebraV3: true, start: "2025-06-29", userFeesRatio: 1, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent },
+  },
+  "echodex-v3": {
+    linea: { factory: '0x559Fa53Be355835a038aC303A750E8788668636B', swapEvent: protocolFeesSwapEvent },
+  },
+  "butterxyz": {
+    mantle: { factory: '0xEECa0a86431A7B42ca2Ee5F479832c3D4a4c2644', start: '2023-12-12' },
+  },
+  "firefly": {
+    manta: { factory: '0x8666EF9DC0cA5336147f1B11f2C4fC2ecA809B95', start: '2024-04-01' },
+  },
+  "horiza": {
+    arbitrum: { factory: '0x5b1C257B88537d1Ce2AF55a1760336288CcD28B6', start: '2024-01-07' },
+  },
+  "sparkdex-v3": {
+    flare: { factory: '0xb3fB4f96175f6f9D716c17744e5A6d4BA9da8176', userFeesRatio: 1, revenueRatio: 0.075, protocolRevenueRatio: 0.025, holdersRevenueRatio: 0.05 },
+  },
+  "reservoir-tools-clmm": {
+    abstract: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    ink: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    zero_network: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "enosys": {
+    flare: { factory: '0x17AA157AC8C54034381b840Cb8f6bf7Fc355f0de', start: "2025-03-03", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+    songbird: { factory: '0x416F1CcBc55033Ae0133DA96F9096Fe8c2c17E7d', start: "2024-09-24", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+  },
+  "gliquid": {
+    hyperliquid: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, userFeesRatio: 1, revenueRatio: 0.13, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0 },
+  },
+  "hx-finance": {
+    hyperliquid: { factory: '0x41ba59415eC75AC4242dd157F2a7A282F1e75652', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.13, protocolRevenueRatio: 0.13 },
+  },
+  "swapsicle-v2": {
+    mantle: { factory: '0xC848bc597903B4200b9427a3d7F61e3FF0553913', isAlgebraV3: true, start: 1697155200, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
+    telos: { factory: '0xA09BAbf9A48003ae9b9333966a8Bda94d820D0d9', isAlgebraV3: true, start: 1698105600, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
+    taiko: { factory: '0xBa90FC740a95A6997306255853959Bb284cb748a', isAlgebraV3: true, start: 1724943360, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
+  },
+  "fenix-finance-v3": {
+    blast: { factory: '0x7a44CD060afC1B6F4c80A2B9b37f4473E74E25Df', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+  },
+  "wagmi": {
+    fantom: { factory: '0xaf20f5f19698f1D19351028cd7103B63D30DE7d7', start: "2023-04-12", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    ethereum: { factory: '0xB9a14EE1cd3417f3AcC988F61650895151abde24', start: "2023-09-30", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    metis: { factory: '0x8112E18a34b63964388a3B2984037d6a2EFE5B8A', start: "2023-12-18", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    kava: { factory: '0x0e0Ce4D450c705F8a0B6Dd9d5123e3df2787D16B', start: "2023-09-12", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    sonic: { factory: '0x56CFC796bC88C9c7e1b38C2b0aF9B7120B079aef', start: "2024-12-11", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    base: { factory: '0x576A1301B42942537d38FB147895fE83fB418fD4', start: "2024-05-10", userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  "spookyswap-v3": {
+    fantom: { factory: '0x7928a2c48754501f3a8064765ECaE541daE5c3E6', start: '2023-11-22', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    sonic: { factory: '0x3D91B700252e0E3eE7805d12e048a988Ab69C8ad', start: '2024-12-12', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
+  "omni-exchange-v3": {
+    base: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+    arbitrum: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+    bsc: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+    avax: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+    optimism: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+    sonic: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+    plasma: { factory: '0xd6Ab0566e7E60B67c50AC73ddFf4e3DdcB829EC2', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
+  },
+  "syncswap-v3": {
+    era: { factory: '0x9d63d318143cf14ff05f8aaa7491904a494e6f13', isAlgebraV3: true, start: '2023-03-23', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    linea: { factory: '0xc5916f6cf441c72daa2e2c48afc7ce642eee6690', isAlgebraV3: true, start: '2023-07-19', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    sophon: { factory: '0x0f6e27007e257e74c86522387bd071d561ba3c97', isAlgebraV3: true, start: '2024-12-16', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -281,10 +372,123 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "User fees minus Protocol fees.",
     HoldersRevenue: "ELITE Holders benefit from Protocol Revenue.",
   },
+  "koi-finance-cl": {
+    Fees: "Total swap fees paid by users.",
+    UserFees: "Total swap fees paid by users.",
+  },
+  "zebra-v2": {
+    Fees: "Users pay dynamic amount of fees per swap.",
+    UserFees: "Users pay dynamic amount of fees per swap.",
+    Revenue: "Zebra collects 25% revenue from swap fees.",
+    ProtocolRevenue: "Zebra collects 25% revenue from swap fees.",
+    SupplySideRevenue: "Zebra distributes 75% swap fees to LPs.",
+  },
+  "hybra-v3": {
+    Volume: "Total swap volume collected from factory 0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E",
+    Fees: "Users paid 0.02%, 0.25% or 1% per swap.",
+    UserFees: "Users paid 0.02%, 0.25% or 1% per swap.",
+    Revenue: "25% swap fees collected by protocol Treasury.",
+    ProtocolRevenue: "25% swap fees collected by protocol Treasury.",
+    SupplySideRevenue: "75% swap fees distributed to LPs.",
+  },
+  "superswap-v3": {
+    Fees: "User pays 0.3% fees on each swap.",
+    UserFees: "User pays 0.3% fees on each swap.",
+    SupplySideRevenue: "LPs receive 20% of swap fees.",
+    ProtocolRevenue: "Treasury receives 80% of swap fees.",
+    Revenue: "Treasury receives 80% of swap fees.",
+  },
+  "sparkdex-v3": {
+    Volume: "Total swap volume",
+    Fees: "Swap fees paid by users.",
+    UserFees: "Swap fees paid by users.",
+    Revenue: "7.5% of the fees go to the protocol.",
+    ProtocolRevenue: "2.5% of the fees go to the SparkDEX Foundation",
+    HoldersRevenue: "5% of the fees are used in buybacks and burns of $SPRK",
+    SupplySideRevenue: "87.5% of swap fees are distributed to LPs and 5% is distributed to $SPRK stakers",
+  },
+  "reservoir-tools-clmm": {
+    Fees: "Swap fees paid by users on each trade.",
+    UserFees: "User pays fees on each swap.",
+    Revenue: "Protocol has no revenue.",
+    ProtocolRevenue: "Protocol has no revenue.",
+    SupplySideRevenue: "All user fees are distributed among LPs.",
+    HoldersRevenue: "Holders have no revenue.",
+  },
+  "gliquid": {
+    Volume: "Total users swap volume.",
+    Fees: "Swap fees paid by users.",
+    UserFees: "Swap fees paid by users.",
+    Revenue: "13% swap fees distributed to Gliquid and Algebra team.",
+    ProtocolRevenue: "Gliquid team collects 10% swap fees.",
+    SupplySideRevenue: "87% swap fees distributed to LPs",
+    HoldersRevenue: "No revenue for token holders.",
+  },
+  "hx-finance": {
+    Volume: "Total trading volume on HX Finance DEX",
+    Fees: "Trading fees collected from swap transactions",
+    UserFees: "Trading fees collected from swap transactions",
+    Revenue: "Protocol revenue from trading fees (13% or pool-specific community fee)",
+    ProtocolRevenue: "Protocol revenue from trading fees (13% or pool-specific community fee)",
+    SupplySideRevenue: "Fees distributed to liquidity providers (87% or remainder after protocol fee)",
+  },
+  "swapsicle-v2": {
+    Fees: "Users pay 0.25% per swap.",
+    UserFees: "Users pay 0.25% per swap.",
+    Revenue: "Protocol collects 32% swap fees for protocol treasury and tokens buy back.",
+    ProtocolRevenue: "Protocol collects 12% swap fees for protocol treasury.",
+    HoldersRevenue: "Protocol collects 20% swap fees for token buy back.",
+    SupplySideRevenue: "Protocol distributes 68% swap fees to LPs.",
+  },
+  "fenix-finance-v3": {
+    Fees: "Users pay fees per swap.",
+    UserFees: "Users pay 0.1% per swap.",
+    Revenue: "Protocol collects 10% swap fees.",
+    ProtocolRevenue: "Protocol collects 10% swap fees.",
+    SupplySideRevenue: "90% swap fees distributes to LPs.",
+  },
+  "wagmi": {
+    Fees: "Users paid 0.05%, 0.15%, 0.30%, or 1% per swap.",
+    UserFees: "Users paid 0.05%, 0.15%, 0.30%, or 1% per swap.",
+    SupplySideRevenue: "All swap fees go to LPs.",
+    Revenue: "No revenue from swap fees.",
+    ProtocolRevenue: "No revenue from swap fees.",
+  },
+  "spookyswap-v3": {
+    Fees: "Each pool charge between 0.01% to 1% fee",
+    UserFees: "Users pay between 0.01% to 1% fee",
+    Revenue: "0 to 15% of the fee goes to treasury",
+    HoldersRevenue: "Share of swap fee goes to xBOO stakers.",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get most of the fees of all trades in their pools",
+  },
+  "omni-exchange-v3": {
+    Fees: "swap fees paid by users.",
+    UserFees: "swap fees paid by users.",
+    Revenue: "Protocol share from swap fees",
+    ProtocolRevenue: "Protocol share from swap fees",
+    HoldersRevenue: "No Holder Revenue",
+    SupplySideRevenue: "Liquidity providers share fromswap fees",
+  },
+  "syncswap-v3": {
+    Fees: "Swap fees from paid by users.",
+    UserFees: "User pays fees on each swap.",
+    Revenue: "Protocol have no revenue.",
+    ProtocolRevenue: "Protocol have no revenue.",
+    SupplySideRevenue: "All user fees are distributed among LPs.",
+    HoldersRevenue: "Holders have no revenue.",
+  },
 }
 
 const startMap: Record<string, string | number> = {
   "lynex": '2023-08-07',
+  "zebra-v2": '2023-11-16',
+  "hybra-v3": '2025-06-23',
+  "echodex-v3": '2023-04-09',
+  "sparkdex-v3": '2024-06-27',
+  "gliquid": '2025-02-06',
+  "hx-finance": '2025-08-01',
+  "omni-exchange-v3": '2025-07-15',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -335,6 +539,8 @@ const feesProtocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(feesConfigs)) {
   const adapter = uniV3Exports(config)
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
+  if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
+  if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   feesProtocols[name] = adapter
 }
 

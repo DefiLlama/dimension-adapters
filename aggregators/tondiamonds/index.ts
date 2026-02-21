@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const statisticsEndpoint = "https://ton.diamonds/api/v2/dex/stats"
 
-const fetch: FetchV2 = async ({startTimestamp}) => {
+const fetch: FetchV2 = async () => {
     const statistics = await httpGet(statisticsEndpoint)
 
     return {
@@ -18,6 +18,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.TON]: {
             fetch,
+            runAtCurrTime: true,
             start: '2024-09-01',
         },
     }

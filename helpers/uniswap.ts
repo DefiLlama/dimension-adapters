@@ -326,7 +326,7 @@ export function uniV3Exports(config: IJSON<UniV3Config>, { runAsV1 = false, swap
   Object.entries(config).map(([chain, chainConfig]) => {
     if (swapEvent) chainConfig.swapEvent = swapEvent
     const fetch: any = getUniV3LogAdapter(chainConfig)
-    exportObject[chain] = { fetch }
+    exportObject[chain] = { fetch, start: chainConfig.start }
     exportObjectV1[chain] = {
       fetch: async (_: any, _1: any, options: FetchOptions) => fetch(options),
       start: chainConfig.start,

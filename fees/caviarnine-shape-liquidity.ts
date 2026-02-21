@@ -1,4 +1,3 @@
-import { time } from "console";
 import fetchURL from "../utils/fetchURL";
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -35,7 +34,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,
       start: '2023-11-05',
-      // runAtCurrTime: true
+      runAtCurrTime: true,
     }
   }
 }

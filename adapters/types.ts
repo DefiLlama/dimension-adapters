@@ -87,6 +87,10 @@ export type BaseAdapterChainConfig = {
   runAtCurrTime?: boolean;
 }
 
+export const whitelistedBaseAdapterKeys = new Set([
+  'start', 'deadFrom', 'fetch', 'runAtCurrTime'
+])
+
 export type BaseAdapter = {
   [chain: string]: BaseAdapterChainConfig
 };

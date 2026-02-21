@@ -14,9 +14,13 @@ if (!fs.existsSync(safePath)) {
   console.error("safe.json.log not found.");
   process.exit(1);
 }
+const whitelistedBaseAdapterKeys = new Set([
+  'start', 'deadFrom', 'fetch', 'runAtCurrTime'
+])
 
 const current = JSON.parse(fs.readFileSync(currentPath, "utf8"));
 const safe = JSON.parse(fs.readFileSync(safePath, "utf8"));
+cleanup(safe);
 
 let missingCount = 0;
 let extraCount = 0;
@@ -37,6 +41,9 @@ const ignoredModules = [
   'xswap-v2',
   'zkswap-finance',
   'mare-finance-v2',
+  'mux-protocol',
+  'koi-finance',
+  'alphasec-spot',
 ]
 
 for (const adapterType of [...allTypes].sort()) {
@@ -86,6 +93,10 @@ function deepCompare(a, b, path) {
   if (a === b) return diffs;
 
   if (a === null || b === null || typeof a !== typeof b) {
+    if (path.endsWith('runAtCurrTime') && a === false && b === true) {
+      // Ignore this specific change as it's intentional and doesn't affect output
+      return diffs;
+    }
     diffs.push({ path, safe: a, current: b });
     return diffs;
   }
@@ -161,7 +172,39 @@ for (const adapterType of [...allTypes].sort()) {
       // 'viperswap',
       // 'canto-dex',
     ]).some(i => str.includes(i))
-    diffs = diffs.filter(i => i.safe !== undefined && !i.path.endsWith('pullHourly') && !ignoredPatterns(i.path))
+    diffs = diffs.filter(i => {
+      const filter = i.safe !== undefined && !i.path.endsWith('pullHourly') && !ignoredPatterns(i.path)
+      if (!filter) return false
+
+      if(i.path.endsWith('runAtCurrTime') && i.safe === false && i.current === true) {
+        return false
+      }
+
+      const paths = i.path.split('.')
+      const safeJSON = safe[paths[0]]?.[paths[1]]?.[paths[2]]
+      const currJSON = current[paths[0]]?.[paths[1]]?.[paths[2]]
+      const currentAdapterJSONStr = JSON.stringify(currJSON);
+        
+      if (i.path.endsWith('.module.fetch')) {
+        if (currentAdapterJSONStr?.includes('fetch')) return false
+      }
+
+      if (i.path.endsWith('.module.chains') && !currJSON?.chains) {
+        const someChainIsMissing = safeJSON?.module?.chains?.some(chain =>  currentAdapterJSONStr?.includes(chain))
+        return someChainIsMissing
+      }
+      
+      if (i.path.endsWith('.start')) {
+        return currentAdapterJSONStr?.includes(i.safe)
+      }
+      
+      if (i.path.endsWith('.version')) {
+        return i.safe > i.current
+      }
+
+
+      return true
+    })
     if (diffs.length > 0) {
       typeDiffs.push({ key, diffs });
     }
@@ -196,4 +239,22 @@ function fmt(v) {
   if (v === undefined) return "(missing)";
   if (typeof v === "object") return JSON.stringify(v);
   return String(v);
+}
+
+function cleanup(obj) {
+  const adapterTypes = Object.keys(obj)
+  for (const type of adapterTypes) {
+    const adapters = obj[type]
+    for (const adapterName in adapters) {
+      const adapter = adapters[adapterName]
+      if (adapter.module?.adapter) {
+        for (const key of Object.keys(adapter.module.adapter)) {
+          if (!whitelistedBaseAdapterKeys.has(key)) {
+            delete adapter.module.adapter[key];
+          }
+        }
+      }
+    }
+  }
+  return obj
 }

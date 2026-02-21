@@ -1,7 +1,7 @@
 // console.log("Building import files for tvl/dimensions/emissions/liquidations adapters")
 
 import { readdir, writeFile } from "fs/promises";
-import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
+import { ADAPTER_TYPES, AdapterType, whitelistedBaseAdapterKeys } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
 import { listHelperProtocols, deadAdapters } from "../factory/registry";
 
@@ -75,6 +75,18 @@ async function run() {
         if (exportName) helperModule = helperModule[exportName];
 
         const adapter = helperModule.getAdapter(protocolName);
+
+        if (adapter.adapter) {
+          Object.keys(adapter.adapter).forEach(chain => {
+            const obj = adapter.adapter[chain]
+            const keys = Object.keys(obj)
+            for (const key of keys) {
+              if (!whitelistedBaseAdapterKeys.has(key)) {
+                delete obj[key] // remove non base adapter keys to avoid confusion, we only want the fetch/start/runAtCurrTime keys for the dimension modules
+              }
+            }
+          })
+        }
 
         if (!adapter) continue;
 
