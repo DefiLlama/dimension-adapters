@@ -8,6 +8,14 @@ const fetch = univ2Adapter2({
   },
   factoriesName: "pulseXFactories",
   totalVolume: "totalVolumeUSD",
+  feeConfig: {
+    totalFees: 0.0029,
+    protocolFees: 0.0029 * 0.1439,
+    supplySideRevenue: 0,
+    holdersRevenue: 0.0029 * 0.8561,
+    revenue: 0.0029,
+    userFees: 0.0029,
+  },
 })
 
 const adapter: SimpleAdapter = {

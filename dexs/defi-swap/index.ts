@@ -9,6 +9,9 @@ const fetch = univ2Adapter2({
   },
   factoriesName: "factories",
   totalVolume: "totalVolumeUSD",
+  feeConfig: {
+    totalFees: 0.003,
+  }
 })
 
 const adapter: SimpleAdapter = {

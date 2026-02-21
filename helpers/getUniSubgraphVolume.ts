@@ -1,10 +1,37 @@
 import { Chain } from "../adapters/types";
 import { request, gql } from "graphql-request";
-import { BaseAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { SimpleAdapter } from "../adapters/types";
+import {  FetchOptions, FetchResultV2 } from "../adapters/types";
 import { DEFAULT_DATE_FIELD } from "./getStartTimestamp";
 import { Balances } from "@defillama/sdk";
+import BigNumber from "bignumber.js";
 
+interface IGetChainFeeParams {
+  totalFees?: number,
+  protocolFees?: number,
+  revenue?: number,
+  userFees?: number,
+  supplySideRevenue?: number,
+  holdersRevenue?: number,
+}
+
+function handleFeeConfig(feeConfig: IGetChainFeeParams, response: FetchResultV2) {
+  const chainDailyVolume = response.dailyVolume as number;
+  if (chainDailyVolume !== undefined) {
+    if (feeConfig.totalFees !== undefined)
+      response["dailyFees"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.totalFees).toString()
+    if (feeConfig.userFees !== undefined)
+      response["dailyUserFees"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.userFees).toString()
+    if (feeConfig.revenue !== undefined)
+      response["dailyRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.revenue).toString()
+    if (feeConfig.holdersRevenue !== undefined)
+      response["dailyHoldersRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.holdersRevenue).toString()
+    if (feeConfig.supplySideRevenue !== undefined)
+      response["dailySupplySideRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.supplySideRevenue).toString()
+    if (feeConfig.protocolFees !== undefined)
+      response["dailyProtocolRevenue"] = new BigNumber(chainDailyVolume).multipliedBy(feeConfig.protocolFees).toString()
+  }
+  return response
+}
 
 const getUniqStartOfTodayTimestamp = (date = new Date()) => {
   var date_utc = Date.UTC(
@@ -28,6 +55,11 @@ const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
 const DEFAULT_DAILY_VOLUME_FACTORY = "uniswapDayData";
 const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolumeUSD";
 const DEFAULT_DAILY_DATE_FIELD = "date";
+const DEFAULT_TOTAL_FEES_FACTORY = "factories";
+const DEFAULT_TOTAL_FEES_FIELD = "totalFeesUSD";
+
+const DEFAULT_DAILY_FEES_FACTORY = "uniswapDayData";
+const DEFAULT_DAILY_FEES_FIELD = "feesUSD";
 
 interface IGetChainVolumeFilterParams {
   name: string,
@@ -311,6 +343,7 @@ function univ2Adapter2({
   totalVolume = DEFAULT_TOTAL_VOLUME_FIELD,
   totalFeesField = null as string | null,
   gasToken = null as string | null,
+  feeConfig = undefined as IGetChainFeeParams | undefined,
 }) {
   const graphs = (gasToken === null ? getChainVolume2 : getChainVolumeWithGasToken2 as typeof getChainVolume2)({
     graphUrls: endpoints,
@@ -322,7 +355,11 @@ function univ2Adapter2({
     priceToken: gasToken
   } as any);
   return async (options: FetchOptions) => {
-    return graphs(options.chain)(options)
+    const response = await graphs(options.chain)(options);
+    if (feeConfig) {
+      handleFeeConfig(feeConfig, response);
+    }
+    return response;
   }
 }
 
@@ -338,4 +375,8 @@ export {
   DEFAULT_TOTAL_VOLUME_FIELD,
   DEFAULT_DAILY_VOLUME_FACTORY,
   DEFAULT_DAILY_VOLUME_FIELD,
+  DEFAULT_TOTAL_FEES_FACTORY,
+  DEFAULT_TOTAL_FEES_FIELD,
+  DEFAULT_DAILY_FEES_FACTORY,
+  DEFAULT_DAILY_FEES_FIELD,
 };

@@ -59,6 +59,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'saddle',
     'solLst',
     'joeLiquidityBook',
+    'curve',
   ],
   'dexs': [
     'helpers/balancer',
@@ -74,6 +75,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'saddle',
     'alliumSolanaDex',
     'joeLiquidityBook',
+    'curve',
   ],
   'aggregators': [],
   'open-interest': [

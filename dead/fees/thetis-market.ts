@@ -1,7 +1,7 @@
-import { Adapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
-import fetchURL from "../utils/fetchURL";
+import { Adapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import fetchURL from "../../utils/fetchURL";
 
 const endpoint = "https://api.thetis.market/indexer/v1/stats/fee-daily";
 
