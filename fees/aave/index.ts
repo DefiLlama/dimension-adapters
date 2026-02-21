@@ -202,6 +202,13 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       dataProvider: '0x9588b453A4EE24a420830CB3302195cA7aA3b403',
     },
   ],
+  [CHAIN.MANTLE]: [
+    {
+      version: 3,
+      lendingPoolProxy: '0x458F293454fE0d67EC0655f3672301301DD51422',
+      dataProvider: '0x487c5c669D9eee6057C44973207101276cf73b68',
+    },
+  ],
 }
 
 const info = {
@@ -332,6 +339,10 @@ const adapter: BreakdownAdapter = {
       [CHAIN.MEGAETH]: {
         pools: AaveMarkets[CHAIN.MEGAETH],
         start: '2026-02-10',
+      },
+      [CHAIN.MANTLE]: {
+        pools: AaveMarkets[CHAIN.MANTLE],
+        start: '2026-01-16',
       },
     }),
   }
