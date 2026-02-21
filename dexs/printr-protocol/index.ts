@@ -113,7 +113,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   start: '2025-10-14',
-  chains: [CHAIN.OPTIMISM, CHAIN.POLYGON, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.AVAX, CHAIN.MANTLE, CHAIN.MONAD],
+  chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.AVAX, CHAIN.MANTLE, CHAIN.MONAD, CHAIN.BSC, CHAIN.ETHEREUM],
   methodology,
   breakdownMethodology,
 };
