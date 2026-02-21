@@ -144,6 +144,7 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
 export function joeLiquidityBookExport(config: ExportConfig, feesConfig?: ExportFeesConfig): SimpleAdapter {
   const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {},
   }
 
