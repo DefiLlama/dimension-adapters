@@ -57,6 +57,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'chainTxFees',
     'curators',
     'saddle',
+    'solLst',
   ],
   'dexs': [
     'helpers/balancer',
