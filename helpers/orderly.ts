@@ -10,11 +10,12 @@ const defaulyBuilderMethodology = {
   ProtocolRevenue: "All the revenue go to the protocol",
 }
 
-export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocolRevenueRatio = 1, methodology = defaulyBuilderMethodology }: {
+export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocolRevenueRatio = 1, methodology = defaulyBuilderMethodology, holderRevenueRatio }: {
   broker_id: string
   start?: string
   revenueRatio?: number,
   protocolRevenueRatio?: number,
+  holderRevenueRatio?: number,
   methodology?: any
 }): Adapter {
 
@@ -46,6 +47,9 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
 
     if (protocolRevenueRatio < 1)
       response.dailyHoldersRevenue = dailyRevenue - dailyProtocolRevenue
+
+    if (holderRevenueRatio === 0)
+      response.dailyHoldersRevenue = 0
 
     return response
   }

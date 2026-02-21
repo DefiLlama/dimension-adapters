@@ -15,7 +15,7 @@ interface CaviarNinePool {
   };
 }
 
-const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
+const fetchFees = async (): Promise<FetchResultFees> => {
   const url = 'https://api-core.caviarnine.com/v1.0/stats/product/shapeliquidity';
   const response: CaviarNinePool = (await fetchURL(url)).summary;
   const dailyFees = Number(response.protocol_fees.interval_1d.usd) + Number(response.lp_revenue.interval_1d.usd);
@@ -25,7 +25,6 @@ const fetchFees = async (timestamp: number): Promise<FetchResultFees> => {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue: supplySideRevenue,
-    timestamp
   }
 }
 const adapters: SimpleAdapter = {

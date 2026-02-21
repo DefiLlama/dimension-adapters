@@ -5,6 +5,7 @@ type Config = {
   broker_id: string;
   start: string;
   methodology?: Record<string, string>;
+  holderRevenueRatio?: number;
 };
 
 const feesConfigs: Record<string, Config> = {
@@ -64,6 +65,46 @@ const feesConfigs: Record<string, Config> = {
       Fees: "Trading fees collected from Orderly Network",
       Revenue: "Revenue represents the portion of trading fees accrued to the Velto broker.",
       ProtocolRevenue: "All the revenue go to the protocol",
+    },
+  },
+  "baumz": {
+    broker_id: "baumz-1024",
+    start: "2025-11-08",
+    holderRevenueRatio: 0,
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network(0.3 bps on taker volume)",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue go to the protocol",
+    },
+  },
+  "bd-perps": {
+    broker_id: "baby_doge",
+    start: "2025-09-26",
+    holderRevenueRatio: 0,
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "clober-perp": {
+    broker_id: "clober_dex",
+    start: "2025-11-26",
+    holderRevenueRatio: 0,
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "salsadex": {
+    broker_id: "salsadex",
+    start: "2025-10-01",
+    holderRevenueRatio: 0,
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
 };
