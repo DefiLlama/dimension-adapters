@@ -881,7 +881,7 @@ const doublezeroAdapter = (() => {
 })();
 
 // jito-staked-sol: has commented-out revenue logic, only returns dailyFees + dailySupplySideRevenue
-const jitoAdapter = (() => {
+/* const jitoAdapter = (() => {
   const cfg = configs["jito-staked-sol"];
 
   const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -931,7 +931,7 @@ const jitoAdapter = (() => {
 
   return adapter;
 })();
-
+ */
 // --- Build all adapters ---
 
 const protocols: Record<string, SimpleAdapter> = {};
@@ -944,7 +944,7 @@ for (const [name, config] of Object.entries(configs)) {
 
 // Add custom adapters
 protocols["doublezero-staked-sol"] = doublezeroAdapter;
-protocols["jito-staked-sol"] = jitoAdapter;
+// protocols["jito-staked-sol"] = jitoAdapter;
 
 // Export factory interface
 const { protocolList, getAdapter } = createFactoryExports(protocols);
