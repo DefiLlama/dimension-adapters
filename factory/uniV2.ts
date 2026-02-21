@@ -5,6 +5,12 @@ const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed t
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
 
 const configs: Record<string, Record<string, any>> = {
+  "megaswap": {
+    megaeth: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
+  },
+  "warpx-v2": {
+    megaeth: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
+  },
   "flowswap-v2": {
     flow: { factory: '0x681D1bFE03522e0727730Ba02a05CD3C0a08fa30' },
   },

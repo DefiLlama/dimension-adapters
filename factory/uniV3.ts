@@ -8,6 +8,9 @@ const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexe
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
 const configs: Record<string, Record<string, any>> = {
+  "warpx-v3": {
+    megaeth: { factory: '0xf67cF9d6FC433e97Ec39Ae4b7E4451B56B171C8a' },
+  },
   "mintswap": {
     mint: { factory: '0x1f88BB455E02646224A0a65f3eb4B2FCb4fb8e49' },
   },
