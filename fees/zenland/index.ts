@@ -38,10 +38,10 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     const feeAmount = log.feeAmount;
 
     // Add to fees
-    dailyFees.add(token, feeAmount);
+    dailyFees.add(token, feeAmount, "Escrow creation fees");
     
     // All protocol fees go to treasury = protocol revenue
-    dailyRevenue.add(token, feeAmount);
+    dailyRevenue.add(token, feeAmount, "Escrow creation fees");
   });
 
   return {
@@ -68,6 +68,14 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology: {
+    Fees: {
+      "Escrow creation fees": "Fees paid by users when creating escrows"
+    },
+    Revenue: {
+      "Escrow creation fees": "All the fees are sent to the DAO treasury"
+    }
+  }
 };
 
 export default adapter;
