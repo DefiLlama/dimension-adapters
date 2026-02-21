@@ -55,11 +55,14 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
   }
 
   // Derive fee breakdown from volume
-  const dailyFees = dailyVolume.clone(FEE_RATE); // 1% total fee
-  const dailyRevenue = dailyFees.clone(0.75); // team (10%) + buyback (40%) + memecoin reserve (25%) = 75%
-  const dailyProtocolRevenue = dailyFees.clone(0.35); // 10% team + 25% memecoin reserve = 35%
-  const dailyHoldersRevenue = dailyFees.clone(0.4); // 40% buyback
-  const dailySupplySideRevenue = dailyFees.clone(0.25); // 25% creator 
+  const dailyFees = dailyVolume.clone(FEE_RATE, METRIC.SWAP_FEES); // 1% total fee
+  const dailyRevenue = dailyVolume.clone(FEE_RATE * 0.1, METRIC.PROTOCOL_FEES);
+  dailyRevenue.add(dailyVolume.clone(FEE_RATE * 0.25, 'Memecoin Reserve'));
+  dailyRevenue.add(dailyVolume.clone(FEE_RATE * 0.4, METRIC.TOKEN_BUY_BACK));
+  const dailyProtocolRevenue = dailyVolume.clone(FEE_RATE * 0.1, METRIC.PROTOCOL_FEES);
+  dailyProtocolRevenue.add(dailyVolume.clone(FEE_RATE * 0.25, 'Memecoin Reserve'));
+  const dailyHoldersRevenue = dailyVolume.clone(FEE_RATE * 0.4, METRIC.TOKEN_BUY_BACK);
+  const dailySupplySideRevenue = dailyVolume.clone(FEE_RATE * 0.25, METRIC.CREATOR_FEES);
 
   return {
     dailyVolume,
