@@ -186,12 +186,14 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees: dailyFees || 0,
     dailyRevenue: dailyFees || 0,
+    dailyProtocolRevenue: dailyFees || 0,
   };
 };
 
 const methodology = {
   Fees: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
   Revenue: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
+  ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking and between 0.25% and 0.125% depending on how much BIM is held is charged for every swap or bridge.`,
 };
 
 const adapter: SimpleAdapter = {
