@@ -25,6 +25,8 @@ function parsePoolType(type: string): { coinX: string; coinY: string } {
   throw new Error(`Cannot find type separator in pool type: ${type}`);
 }
 
+const poolCache: Record<string, { coinX: string; coinY: string }> = {};
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const events = await queryEvents({
     eventType: CLMM_SWAP_EVENT,
@@ -33,10 +35,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const dailyVolume = options.createBalances();
 
-  const uniquePoolIds = [...new Set(events.map((e: any) => e.pool_id))];
-  const poolObjects = await Promise.all(uniquePoolIds.map((id: string) => getObject(id)));
-  const poolCache: Record<string, { coinX: string; coinY: string }> = {};
-  uniquePoolIds.forEach((id, i) => {
+  const newPoolIds = [...new Set(events.map((e: any) => e.pool_id))].filter((id) => !poolCache[id]);
+  const poolObjects = await Promise.all(newPoolIds.map((id: string) => getObject(id)));
+  newPoolIds.forEach((id, i) => {
     poolCache[id] = parsePoolType(poolObjects[i].type);
   });
 
