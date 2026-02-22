@@ -157,34 +157,20 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         AND tx_id IN (SELECT tx_id FROM rifts_txns)
         AND TIME_RANGE
       GROUP BY token_mint_address
-    ),
-    volume AS (
-      SELECT COALESCE(SUM(amount_usd), 0) AS daily_volume
-      FROM tokens_solana.transfers
-      WHERE tx_id IN (SELECT tx_id FROM rifts_txns)
-        AND TIME_RANGE
     )
-    SELECT 'volume' AS row_type, NULL AS mint, NULL AS fee_amount, daily_volume FROM volume
-    UNION ALL
-    SELECT 'fee' AS row_type, mint, amount AS fee_amount, NULL AS daily_volume FROM fee_transfers
+    SELECT mint, amount AS fee_amount, NULL AS daily_volume FROM fee_transfers
   `;
 
   const results = await queryDuneSql(options, query);
 
-  let dailyVolume = 0;
   for (const row of results) {
-    if (row.row_type === 'volume') {
-      dailyVolume = Number(row.daily_volume) || 0;
-    } else if (row.row_type === 'fee') {
-      dailyFees.add(row.mint, row.fee_amount);
-    }
+    dailyFees.add(row.mint, row.fee_amount);
   }
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailyVolume,
   };
 };
 
@@ -192,7 +178,6 @@ const methodology = {
   Fees: "Total fees collected across all Rifts, including wrap fees, unwrap fees (in underlying tokens), and Token-2022 transfer fees (withheld in rift tokens). Vault addresses are discovered dynamically from on-chain Rift accounts.",
   Revenue: "All collected fees constitute protocol revenue, distributed to treasury and partners.",
   ProtocolRevenue: "All collected fees go to the protocol treasury and optional partner wallets.",
-  Volume: "Total USD value of token transfers in wrap/unwrap operations across all Rifts.",
 };
 
 const adapter: SimpleAdapter = {
