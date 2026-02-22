@@ -18,31 +18,39 @@ const chainIdMap: Record<number, CHAIN> = {
   8453: CHAIN.BASE,
   9745: CHAIN.PLASMA,
   42161: CHAIN.ARBITRUM,
-  999003: CHAIN.SOLANA
 };
 
 const fetchBridgeAndSwapTokens = (): Promise<Record<string, string[]>> => {
   if (!cachedTokensPromise) {
     cachedTokensPromise = (async () => {
       const tokens: Record<string, string[]> = {};
-      let page = 0;
-      let last = false;
       const size = 100;
 
-      while (!last) {
-        const response = await fetchURL(`${tokenChainsEndpoint}?page=${page}&size=${size}`);
+      const processPage = (response: any) => {
         for (const item of response.content) {
           const chain = chainIdMap[item.chainId];
           if (!chain) continue;
           if (!tokens[chain]) tokens[chain] = [];
           tokens[chain].push(item.address);
         }
-        last = response.last;
-        page++;
+      };
+
+      const firstPage = await fetchURL(`${tokenChainsEndpoint}?page=0&size=${size}`);
+      processPage(firstPage);
+
+      if (!firstPage.last) {
+        const remaining = Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
+          fetchURL(`${tokenChainsEndpoint}?page=${i + 1}&size=${size}`)
+        );
+        const pages = await Promise.all(remaining);
+        pages.forEach(processPage);
       }
 
       return tokens;
-    })();
+    })().catch((e) => {
+      cachedTokensPromise = null;
+      throw e;
+    });
   }
   return cachedTokensPromise;
 };
@@ -135,7 +143,10 @@ const fetchVaults = (): Promise<any[]> => {
         throw new Error("No vault data found");
       }
       return data;
-    })();
+    })().catch((e) => {
+      cachedVaultsPromise = null;
+      throw e;
+    });
   }
   return cachedVaultsPromise;
 };
