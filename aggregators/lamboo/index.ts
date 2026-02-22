@@ -107,73 +107,9 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     GROUP BY 1, 2;
   `;
 
-  const feeQuery = `
-    SELECT
-      date_trunc('day', block_date) AS day,
-      CASE
-        WHEN token IN (${APT_TOKEN_TYPES})
-          THEN '${APT_CANONICAL}'
-        WHEN token IN (${USD1_TOKEN_TYPES})
-          THEN '${USD1_TOKEN}'
-        ELSE token
-      END AS token,
-      SUM(fee_amount) AS amount
-    FROM (
-      SELECT
-        block_date,
-        event_type,
-        CASE
-          WHEN event_type = '${ROUTER_FEE_EVENT}'
-            THEN JSON_EXTRACT_SCALAR(data, '$.fee_asset')
-          WHEN event_type = '${PANORA_INTEGRATOR_FEE_EVENT}'
-            THEN JSON_EXTRACT_SCALAR(data, '$.token_address')
-          WHEN event_type = '${BOOSTER_FEE_EVENT}'
-            THEN JSON_EXTRACT_SCALAR(data, '$.fee_asset')
-          WHEN event_type = '${LAMBOO_FEE_EVENT}'
-            THEN JSON_EXTRACT_SCALAR(data, '$.fee_asset')
-        END AS token,
-        CASE
-          WHEN event_type = '${ROUTER_FEE_EVENT}'
-            THEN CAST(JSON_EXTRACT_SCALAR(data, '$.partner_fee_amount') AS DOUBLE)
-          WHEN event_type = '${PANORA_INTEGRATOR_FEE_EVENT}'
-            THEN CAST(JSON_EXTRACT_SCALAR(data, '$.token_amount') AS DOUBLE)
-          WHEN event_type = '${BOOSTER_FEE_EVENT}'
-            THEN CAST(JSON_EXTRACT_SCALAR(data, '$.fee_amount') AS DOUBLE)
-          WHEN event_type = '${LAMBOO_FEE_EVENT}'
-            THEN CAST(JSON_EXTRACT_SCALAR(data, '$.fee_amount') AS DOUBLE)
-        END AS fee_amount
-      FROM aptos.events
-      WHERE block_date >= from_unixtime(${options.startTimestamp})
-        AND block_date < from_unixtime(${options.endTimestamp})
-        AND event_type IN (${FEE_EVENT_TYPES})
-        AND (
-          (event_type = '${ROUTER_FEE_EVENT}'
-            AND JSON_EXTRACT_SCALAR(data, '$.fee_receiver') = '${INTEGRATOR_ADDRESS}')
-          OR
-          (event_type = '${PANORA_INTEGRATOR_FEE_EVENT}'
-            AND JSON_EXTRACT_SCALAR(data, '$.integrator_address') = '${INTEGRATOR_ADDRESS}')
-          OR
-          (event_type = '${BOOSTER_FEE_EVENT}'
-            AND JSON_EXTRACT_SCALAR(data, '$.fee_receiver') = '${INTEGRATOR_ADDRESS}')
-          OR
-          (event_type = '${LAMBOO_FEE_EVENT}'
-            AND JSON_EXTRACT_SCALAR(data, '$.fee_receiver') = '${INTEGRATOR_ADDRESS}')
-        )
-    ) base_events
-    WHERE token IN (
-      ${TRACKED_TOKEN_TYPES}
-    )
-    GROUP BY 1, 2;
-  `;
-
-  const [volumeRows, feeRows] = await Promise.all([
-    queryDuneSql(options, volumeQuery),
-    queryDuneSql(options, feeQuery, { extraUIDKey: "fees" }),
-  ]);
+  const volumeRows = await queryDuneSql(options, volumeQuery)
 
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-
   for (const row of volumeRows ?? []) {
     const token = String(row.token ?? "");
     const amount = Number(row.amount ?? 0);
@@ -181,17 +117,7 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     dailyVolume.add(token, amount);
   }
 
-  for (const row of feeRows ?? []) {
-    const token = String(row.token ?? "");
-    const amount = Number(row.amount ?? 0);
-    if (!token || !Number.isFinite(amount) || amount <= 0) continue;
-    dailyFees.add(token, amount);
-  }
-
-  return {
-    dailyVolume,
-    dailyFees,
-  };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
@@ -205,9 +131,7 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume: "Volume is calculated by summing the amounts from fee-related transactions involving the integrator address.",
-    Fees: "Fees are calculated by aggregating the fees collected from transactions associated with the integrator address.",
   },
-  isExpensiveAdapter: true,
 };
 
 export default adapter;
