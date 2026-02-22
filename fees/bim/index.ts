@@ -7,7 +7,7 @@ import fetchURL from "../../utils/fetchURL";
 const tokenChainsEndpoint = "https://ugcs4scwc8wwckcc40os4oso.bim.finance/token-chains";
 const bridgeAndSwapTarget = "0x1895108f64033F4c0A1fEd0669Adc93e7E017f3C";
 
-let cachedTokens: Record<string, string[]> | null = null;
+let cachedTokensPromise: Promise<Record<string, string[]>> | null = null;
 
 const chainIdMap: Record<number, CHAIN> = {
   1: CHAIN.ETHEREUM,
@@ -21,32 +21,35 @@ const chainIdMap: Record<number, CHAIN> = {
   999003: CHAIN.SOLANA
 };
 
-const fetchBridgeAndSwapTokens = async (): Promise<Record<string, string[]>> => {
-  if (cachedTokens) return cachedTokens;
-  const tokens: Record<string, string[]> = {};
-  let page = 0;
-  let last = false;
-  const size = 100;
+const fetchBridgeAndSwapTokens = (): Promise<Record<string, string[]>> => {
+  if (!cachedTokensPromise) {
+    cachedTokensPromise = (async () => {
+      const tokens: Record<string, string[]> = {};
+      let page = 0;
+      let last = false;
+      const size = 100;
 
-  while (!last) {
-    const response = await fetchURL(`${tokenChainsEndpoint}?page=${page}&size=${size}`);
-    for (const item of response.content) {
-      const chain = chainIdMap[item.chainId];
-      if (!chain) continue;
-      if (!tokens[chain]) tokens[chain] = [];
-      tokens[chain].push(item.address);
-    }
-    last = response.last;
-    page++;
+      while (!last) {
+        const response = await fetchURL(`${tokenChainsEndpoint}?page=${page}&size=${size}`);
+        for (const item of response.content) {
+          const chain = chainIdMap[item.chainId];
+          if (!chain) continue;
+          if (!tokens[chain]) tokens[chain] = [];
+          tokens[chain].push(item.address);
+        }
+        last = response.last;
+        page++;
+      }
+
+      return tokens;
+    })();
   }
-
-  cachedTokens = tokens;
-  return tokens;
+  return cachedTokensPromise;
 };
 
 const stakingTarget = "0xcc0516d2B5D8E156890D894Ee03a42BaC7176972";
 const vaultsEndpoint = "https://staking-api.bim.finance/vaults";
-let cachedVaults: any[] | null = null;
+let cachedVaultsPromise: Promise<any[]> | null = null;
 
 type ChainConfigType = {
   tokens: string[];
@@ -124,17 +127,17 @@ const baseAdapter: BaseAdapter = {
   },
 };
 
-const fetchVaults = async (): Promise<any[]> => {
-  if (cachedVaults) return cachedVaults;
-
-  const data = await fetchURL(vaultsEndpoint);
-  if (!data || !data.length) {
-    throw new Error("No vault data found");
+const fetchVaults = (): Promise<any[]> => {
+  if (!cachedVaultsPromise) {
+    cachedVaultsPromise = (async () => {
+      const data = await fetchURL(vaultsEndpoint);
+      if (!data || !data.length) {
+        throw new Error("No vault data found");
+      }
+      return data;
+    })();
   }
-
-  cachedVaults = data;
-
-  return data;
+  return cachedVaultsPromise;
 };
 
 const getStakingFromAddresses = async (chain: CHAIN): Promise<string[]> => {
