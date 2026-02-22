@@ -34,9 +34,7 @@ const fetchBridgeAndSwapTokens = async (): Promise<Record<string, string[]>> => 
       const chain = chainIdMap[item.chainId];
       if (!chain) continue;
       if (!tokens[chain]) tokens[chain] = [];
-      if (!tokens[chain].includes(item.address)) {
-        tokens[chain].push(item.address);
-      }
+      tokens[chain].push(item.address);
     }
     last = response.last;
     page++;
@@ -130,7 +128,7 @@ const fetchVaults = async (): Promise<any[]> => {
   if (cachedVaults) return cachedVaults;
 
   const data = await fetchURL(vaultsEndpoint);
-  if (!data || !data.length || data == null || data == undefined) {
+  if (!data || !data.length) {
     throw new Error("No vault data found");
   }
 
@@ -184,9 +182,9 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addBalances(await dailyBridgeAndSwapFeesPromise);
 
   return {
-    dailyFees: dailyFees || 0,
-    dailyRevenue: dailyFees || 0,
-    dailyProtocolRevenue: dailyFees || 0,
+    dailyFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
