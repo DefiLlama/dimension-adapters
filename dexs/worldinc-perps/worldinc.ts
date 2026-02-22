@@ -1,14 +1,17 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import CoreAssets from "../../helpers/coreAssets.json";
-
-const COMPOSITE_EXCHANGE = "0x5e3Ae52EbA0F9740364Bd5dd39738e1336086A8b";
-const EXCHANGE_START_BLOCK = 7274994;
-
-const SPOT_PERP_TRADE_EVENT = "event NewTrade(uint64 indexed buyer, uint64 indexed seller, uint256 spotMatchQuantities, uint256 spotMatchData)";
-const ABI_GET_PERPS = "function getPerpOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)";
-const ABI_GET_SPOT = "function getSpotOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)";
-const ABI_GET_TOKEN_CONFIGS = "function readTokenConfig(uint32 tokenId) external view returns (uint256)";
+import {
+  ABI_GET_PERPS,
+  ABI_GET_SPOT,
+  ABI_GET_TOKEN_CONFIGS,
+  COMPOSITE_EXCHANGE,
+  EXCHANGE_START_BLOCK,
+  SPOT_PERP_TRADE_EVENT,
+  ZERO_ADDRESS,
+  decodeVaultTokenConfig,
+  parseSpotMatchQuantities,
+  positionRawToErc20Raw,
+} from "./shared";
 
 interface OrderbookMarket {
   type: "PERPS" | "SPOT";
@@ -21,32 +24,6 @@ interface Orderbooks {
   tokenDecimals: Record<number, number>;
   tokenErc20Decimals: Record<number, number>;
   tokenAddresses: Record<number, string>;
-}
-
-function parseSpotMatchQuantities(smq: bigint) {
-  const MASK_64 = BigInt("0xFFFFFFFFFFFFFFFF");
-  const fromFee = smq & MASK_64;
-  const toFee = (smq >> 64n) & MASK_64;
-  const fromQuantity = (smq >> 128n) & MASK_64;
-  const toQuantity = (smq >> 192n) & MASK_64;
-  return { fromFee, toFee, fromQuantity, toQuantity };
-}
-
-function positionRawToErc20Raw(raw: bigint, positionDecimals: number, erc20Decimals: number): bigint {
-  if (positionDecimals === erc20Decimals) return raw;
-  if (erc20Decimals >= positionDecimals) return raw * 10n ** BigInt(erc20Decimals - positionDecimals);
-  return raw / 10n ** BigInt(positionDecimals - erc20Decimals);
-}
-
-function decodeVaultTokenConfig(vtc: bigint) {
-  const vtcBigInt = BigInt(vtc);
-  const addressMask = (1n << 160n) - 1n;
-  const tokenAddress = "0x" + (vtcBigInt & addressMask).toString(16).padStart(40, "0");
-  const positionDecimals = Number((vtcBigInt >> 168n) & 0xffn);
-  const vaultDecimals = Number((vtcBigInt >> 176n) & 0xffn);
-  const erc20Decimals = Number((vtcBigInt >> 184n) & 0xffn);
-  const tokenId = Number((vtcBigInt >> 200n) & 0xffffffffn);
-  return { tokenAddress, positionDecimals, vaultDecimals, erc20Decimals, tokenId };
 }
 
 async function getOrderbooks(options: FetchOptions, type: "PERPS" | "SPOT"): Promise<Orderbooks> {
@@ -82,7 +59,7 @@ async function getOrderbooks(options: FetchOptions, type: "PERPS" | "SPOT"): Pro
   callResults.forEach((result: any) => {
     if (!result || result[0] == null) return;
     const addr = String(result[0]).toLowerCase();
-    if (addr === CoreAssets.null || addr === "0x") return;
+    if (addr === ZERO_ADDRESS || addr === "0x") return;
     const buyToken = Number(result[1]);
     const payToken = Number(result[2]);
     orderbooks.markets[addr] = { type, baseTokenId: buyToken, quoteTokenId: payToken };
@@ -106,7 +83,7 @@ async function getOrderbooks(options: FetchOptions, type: "PERPS" | "SPOT"): Pro
       const config = decodeVaultTokenConfig(BigInt(tokenConfigs[index]));
       orderbooks.tokenDecimals[tokenId] = config.positionDecimals;
       orderbooks.tokenErc20Decimals[tokenId] = config.erc20Decimals || config.positionDecimals;
-      if (config.tokenAddress && config.tokenAddress !== CoreAssets.null) {
+      if (config.tokenAddress && config.tokenAddress !== ZERO_ADDRESS) {
         orderbooks.tokenAddresses[tokenId] = config.tokenAddress;
       }
     } else {
@@ -176,11 +153,10 @@ function getFetch(type: "PERPS" | "SPOT") {
         }
       }
 
-      const ZERO = CoreAssets.null ?? "0x0000000000000000000000000000000000000000";
       for (const [tokenIdStr, raw] of Object.entries(volumeByTokenIdRaw)) {
         const tokenId = Number(tokenIdStr);
         const addr = orderbooks.tokenAddresses[tokenId];
-        if (!addr || addr === ZERO || raw === 0n) continue;
+        if (!addr || addr === ZERO_ADDRESS || raw === 0n) continue;
         dailyVolume.add(addr, raw);
       }
 

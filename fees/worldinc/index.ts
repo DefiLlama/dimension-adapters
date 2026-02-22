@@ -11,11 +11,16 @@
  */
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import {
+  COMPOSITE_EXCHANGE,
+  EXCHANGE_START_BLOCK,
+  SPOT_PERP_TRADE_EVENT,
+  ZERO_ADDRESS as ZERO,
+  decodeVaultTokenConfig,
+  parseSpotMatchQuantities,
+  positionRawToErc20Raw,
+} from "../../dexs/worldinc-perps/shared";
 
-const COMPOSITE_EXCHANGE = "0x5e3Ae52EbA0F9740364Bd5dd39738e1336086A8b";
-const EXCHANGE_START_BLOCK = 7274994;
-const SPOT_PERP_TRADE_EVENT =
-  "event NewTrade(uint64 indexed buyer, uint64 indexed seller, uint256 spotMatchQuantities, uint256 spotMatchData)";
 const INTEREST_PAID_EVENT = "event InterestPaid(uint64 indexed positionId, uint256 interestAndFees)";
 // LendPositionClosed/Changed carry LendMatch or LendingEventData so we can get tokenId (readLendingPosition returns 0 for closed positions)
 const LEND_POSITION_CLOSED_EVENT = "event LendPositionClosed(uint64 indexed positionId, uint256 lendMatch)";
@@ -27,12 +32,6 @@ const MASK_64 = BigInt("0xFFFFFFFFFFFFFFFF");
 const MASK_32 = BigInt("0xFFFFFFFF");
 const MASK_128 = (1n << 128n) - 1n;
 const USDM_TOKEN_ID = 1;
-
-function parseSpotMatchQuantities(smq: bigint) {
-  const fromFee = smq & MASK_64;
-  const toFee = (smq >> 64n) & MASK_64;
-  return { fromFee, toFee };
-}
 
 /** InterestPaidData: lower 128 bits = interest, upper 128 bits = fees (PublicStruct.sol). */
 function parseInterestPaidData(interestAndFees: bigint) {
@@ -54,26 +53,6 @@ function tokenIdFromLendMatch(lendMatchRaw: bigint): number {
 /** LendingEventData: token at bits 96-127 (PublicStruct.sol BitFormat comment). */
 function tokenIdFromLendingEventData(lendingEventDataRaw: bigint): number {
   return Number((lendingEventDataRaw >> 96n) & MASK_32);
-}
-
-const ZERO = "0x0000000000000000000000000000000000000000";
-
-/** VaultTokenConfig: tokenAddress 0-159, positionDecimals 168, vaultDecimals 176, erc20Decimals 184, tokenId 200 (PublicStruct.sol). */
-function decodeVaultTokenConfig(vtc: bigint) {
-  const vtcBigInt = BigInt(vtc);
-  const tokenAddress = "0x" + (vtcBigInt & ((1n << 160n) - 1n)).toString(16).padStart(40, "0");
-  const positionDecimals = Number((vtcBigInt >> 168n) & 0xffn);
-  const vaultDecimals = Number((vtcBigInt >> 176n) & 0xffn);
-  const erc20Decimals = Number((vtcBigInt >> 184n) & 0xffn);
-  const tokenId = Number((vtcBigInt >> 200n) & 0xffffffffn);
-  return { tokenAddress, positionDecimals, vaultDecimals, erc20Decimals, tokenId };
-}
-
-/** Convert position-denominated raw amount to ERC20 raw (smallest unit). */
-function positionRawToErc20Raw(raw: bigint, positionDecimals: number, erc20Decimals: number): bigint {
-  if (positionDecimals === erc20Decimals) return raw;
-  if (erc20Decimals >= positionDecimals) return raw * 10n ** BigInt(erc20Decimals - positionDecimals);
-  return raw / 10n ** BigInt(positionDecimals - erc20Decimals);
 }
 
 /** Convert vault-denominated raw amount to ERC20 raw (smallest unit). */
@@ -119,7 +98,6 @@ async function discoverSpotAndPerpOrderbooks(api: any, exchangeAddress: string) 
     }),
   ]);
 
-  const ZERO = "0x0000000000000000000000000000000000000000";
   for (const result of spotResults as any[]) {
     if (!result?.[0]) continue;
     const addr = String(result[0]).toLowerCase();
