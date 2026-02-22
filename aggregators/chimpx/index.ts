@@ -6,8 +6,7 @@ import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/t
 const VOLUME_REGISTRY = "0x8327839597934e1490f90D06F2b0A549dFC7edeB";
 
 // VolumeRegistered(address indexed user, uint8 indexed actionType, uint256 volumeUsd, bytes32 txRef, uint256 timestamp)
-const EVENT_ABI =
-  "event VolumeRegistered(address indexed user, uint8 indexed actionType, uint256 volumeUsd, bytes32 txRef, uint256 timestamp)";
+const EVENT_ABI = "event VolumeRegistered(address indexed user, uint8 indexed actionType, uint256 volumeUsd, bytes32 txRef, uint256 timestamp)";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = options.createBalances();
@@ -31,14 +30,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch,
-      start: 82131810,
-      meta: {
-        methodology: {
-          Volume:
-            "Volume is tracked via VolumeRegistered events emitted by the ChimpXVolumeRegistry contract on BNB Chain. It covers USD volume across swaps, bridges, lending, borrowing, staking, unstaking, and perpetuals (long/short) executed through the ChimpX AI-powered DeFi agent.",
-        },
-      },
+      start: '2026-02-19',
     },
+  },
+  methodology: {
+    Volume: "Volume is tracked via VolumeRegistered events emitted by the ChimpXVolumeRegistry contract on BNB Chain. It covers USD volume across swaps, bridges, lending, borrowing, staking, unstaking, and perpetuals (long/short) executed through the ChimpX AI-powered DeFi agent.",
   },
 };
 
