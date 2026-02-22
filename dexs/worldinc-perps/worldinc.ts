@@ -2,30 +2,27 @@ import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/t
 import { CHAIN } from "../../helpers/chains";
 import CoreAssets from "../../helpers/coreAssets.json";
 
-// Composite Exchange contract address
 const COMPOSITE_EXCHANGE = "0x5e3Ae52EbA0F9740364Bd5dd39738e1336086A8b";
+const EXCHANGE_START_BLOCK = 7274994;
 
-// Event signatures for perp orderbook registration and trades
 const SPOT_PERP_TRADE_EVENT = "event NewTrade(uint64 indexed buyer, uint64 indexed seller, uint256 spotMatchQuantities, uint256 spotMatchData)";
-const ABI_GET_PERPS = 'function getPerpOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)';
-const ABI_GET_SPOT = 'function getSpotOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)';
-const ABI_GET_TOKEN_CONFIGS = 'function readTokenConfig(uint32 tokenId) external view returns (uint256)';
+const ABI_GET_PERPS = "function getPerpOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)";
+const ABI_GET_SPOT = "function getSpotOrderBook(uint32 token1, uint32 token2) external view returns (address, uint32 buyToken, uint32 payToken)";
+const ABI_GET_TOKEN_CONFIGS = "function readTokenConfig(uint32 tokenId) external view returns (uint256)";
 
 interface OrderbookMarket {
-  type: 'PERPS' | 'SPOT';
+  type: "PERPS" | "SPOT";
   baseTokenId: number;
   quoteTokenId: number;
 }
 
 interface Orderbooks {
-  // market address => market config
   markets: Record<string, OrderbookMarket>;
-  
-  // token id => token decimals
   tokenDecimals: Record<number, number>;
+  tokenErc20Decimals: Record<number, number>;
+  tokenAddresses: Record<number, string>;
 }
 
-// Helper function to parse spot match quantities
 function parseSpotMatchQuantities(smq: bigint) {
   const MASK_64 = BigInt("0xFFFFFFFFFFFFFFFF");
   const fromFee = smq & MASK_64;
@@ -35,93 +32,35 @@ function parseSpotMatchQuantities(smq: bigint) {
   return { fromFee, toFee, fromQuantity, toQuantity };
 }
 
-// Helper function to parse spot match data
-function parseSpotMatchData(smd: bigint) {
-  const MASK_32 = BigInt("0xFFFFFFFF");
-  const MASK_64 = BigInt("0xFFFFFFFFFFFFFFFF");
-  const MASK_1 = BigInt("1");
-  const tradeSeq = smd & MASK_32;
-  const sellerOrderId = (smd >> 32n) & MASK_64;
-  const buyerOrderId = (smd >> 96n) & MASK_64;
-  const priceRaw = (smd >> 160n) & MASK_64;
-  const buyerIsMaker = ((smd >> 224n) & MASK_1) !== 0n;
-  return { tradeSeq, sellerOrderId, buyerOrderId, priceRaw, buyerIsMaker };
+function positionRawToErc20Raw(raw: bigint, positionDecimals: number, erc20Decimals: number): bigint {
+  if (positionDecimals === erc20Decimals) return raw;
+  if (erc20Decimals >= positionDecimals) return raw * 10n ** BigInt(erc20Decimals - positionDecimals);
+  return raw / 10n ** BigInt(positionDecimals - erc20Decimals);
 }
 
-// Helper function to parse price (BigInt arithmetic to avoid precision loss; mantissa can be up to 59 bits)
-function parsePrice59EN5(p: bigint): number {
-  const PRICE_EXP_MASK = BigInt("0x1F");
-  const exponent = Number(p & PRICE_EXP_MASK);
-  const mantissa = p >> 5n;
-  const denom = 10n ** BigInt(exponent);
-  const intPart = mantissa / denom;
-  const rem = mantissa % denom;
-  const frac = Number(rem) / Math.pow(10, exponent);
-  return Number(intPart) + frac;
-}
-
-// Helper function to decode token config
 function decodeVaultTokenConfig(vtc: bigint) {
   const vtcBigInt = BigInt(vtc);
   const addressMask = (1n << 160n) - 1n;
-  const tokenAddressRaw = vtcBigInt & addressMask;
-  const tokenAddress = "0x" + tokenAddressRaw.toString(16).padStart(40, "0");
-
-  const sequestrationMultiplier = Number((vtcBigInt >> 160n) & 0xffn);
+  const tokenAddress = "0x" + (vtcBigInt & addressMask).toString(16).padStart(40, "0");
   const positionDecimals = Number((vtcBigInt >> 168n) & 0xffn);
   const vaultDecimals = Number((vtcBigInt >> 176n) & 0xffn);
   const erc20Decimals = Number((vtcBigInt >> 184n) & 0xffn);
-  const tokenType = Number((vtcBigInt >> 192n) & 0xffn);
   const tokenId = Number((vtcBigInt >> 200n) & 0xffffffffn);
-
-  return {
-    tokenAddress,
-    sequestrationMultiplier,
-    positionDecimals,
-    vaultDecimals,
-    erc20Decimals,
-    tokenType,
-    tokenId,
-  };
+  return { tokenAddress, positionDecimals, vaultDecimals, erc20Decimals, tokenId };
 }
 
-// Helper function to parse volume from perp trade event
-function parseVolumeValue(spotMatchQuantities: any, spotMatchData: any, orderbooks: Orderbooks, marketAddress: string): number {
-  const orderbookConfig = orderbooks.markets[marketAddress];
-
-  if (!orderbookConfig || !spotMatchQuantities || !spotMatchData) {
-    return 0;
-  }
-
-  const qtyData = parseSpotMatchQuantities(BigInt(spotMatchQuantities));
-  const metaData = parseSpotMatchData(BigInt(spotMatchData));
-  const price = parsePrice59EN5(metaData.priceRaw);
-
-  const quoteDecimals = orderbookConfig.quoteTokenId ? (orderbooks.tokenDecimals[orderbookConfig.quoteTokenId] || 8) : 8;
-  const baseDecimals = orderbookConfig.baseTokenId ? (orderbooks.tokenDecimals[orderbookConfig.baseTokenId] || 8) : 8;
-  const quoteFactor = 10n ** BigInt(quoteDecimals);
-  const baseFactor = 10n ** BigInt(baseDecimals);
-
-  let volume = 0;
-
-  if (qtyData.toQuantity > 0n) {
-    volume = Number(qtyData.toQuantity / quoteFactor) + Number(qtyData.toQuantity % quoteFactor) / Number(quoteFactor);
-  } else if (qtyData.fromQuantity > 0n) {
-    const baseAmount = Number(qtyData.fromQuantity / baseFactor) + Number(qtyData.fromQuantity % baseFactor) / Number(baseFactor);
-    volume = baseAmount * price;
-  }
-
-  return volume;
-}
-
-// Discover perp orderbooks via contract view getPerpOrderBook(token1, token2)
-async function getOrderbooks(options: FetchOptions, type: 'PERPS' | 'SPOT'): Promise<Orderbooks> {
+async function getOrderbooks(options: FetchOptions, type: "PERPS" | "SPOT"): Promise<Orderbooks> {
   const orderbooks: Orderbooks = {
     markets: {},
     tokenDecimals: {},
+    tokenErc20Decimals: {},
+    tokenAddresses: {},
   };
-  
-  const highestTokenId = await options.api.call({abi: "function getHighestTokenId() external view returns (uint32)", target: COMPOSITE_EXCHANGE });
+
+  const highestTokenId = await options.api.call({
+    abi: "function getHighestTokenId() external view returns (uint32)",
+    target: COMPOSITE_EXCHANGE,
+  });
   const maxId = Number(highestTokenId);
 
   const calls: Array<{ target: string; params: [number, number] }> = [];
@@ -131,26 +70,22 @@ async function getOrderbooks(options: FetchOptions, type: 'PERPS' | 'SPOT'): Pro
       calls.push({ target: COMPOSITE_EXCHANGE, params: [token1, token2] });
     }
   }
-  
+
   const tokenIds = new Set<number>();
-  const abi = type === 'PERPS' ? ABI_GET_PERPS : ABI_GET_SPOT;
+  const abi = type === "PERPS" ? ABI_GET_PERPS : ABI_GET_SPOT;
   const callResults = await options.api.multiCall({
-    abi: abi,
-    calls: calls,
+    abi,
+    calls,
     permitFailure: true,
   });
 
-  callResults.forEach((result: any, index: number) => {
+  callResults.forEach((result: any) => {
     if (!result || result[0] == null) return;
     const addr = String(result[0]).toLowerCase();
     if (addr === CoreAssets.null || addr === "0x") return;
     const buyToken = Number(result[1]);
     const payToken = Number(result[2]);
-    orderbooks.markets[addr] = {
-      type: type,
-      baseTokenId: buyToken,
-      quoteTokenId: payToken,
-    }
+    orderbooks.markets[addr] = { type, baseTokenId: buyToken, quoteTokenId: payToken };
     tokenIds.add(buyToken);
     tokenIds.add(payToken);
   });
@@ -170,50 +105,102 @@ async function getOrderbooks(options: FetchOptions, type: 'PERPS' | 'SPOT'): Pro
     if (tokenConfigs[index] && tokenConfigs[index] !== 0n) {
       const config = decodeVaultTokenConfig(BigInt(tokenConfigs[index]));
       orderbooks.tokenDecimals[tokenId] = config.positionDecimals;
+      orderbooks.tokenErc20Decimals[tokenId] = config.erc20Decimals || config.positionDecimals;
+      if (config.tokenAddress && config.tokenAddress !== CoreAssets.null) {
+        orderbooks.tokenAddresses[tokenId] = config.tokenAddress;
+      }
     } else {
       orderbooks.tokenDecimals[tokenId] = 8;
+      orderbooks.tokenErc20Decimals[tokenId] = 8;
     }
   });
-  
+
   return orderbooks;
 }
 
-function getFetch(type: 'PERPS' | 'SPOT') {
+function getFetch(type: "PERPS" | "SPOT") {
   return async (options: FetchOptions): Promise<FetchResultVolume> => {
+    const { getLogs, getFromBlock, getToBlock, createBalances } = options;
+    const dailyVolume = createBalances();
+
     const orderbooks = await getOrderbooks(options, type);
-  
     if (Object.keys(orderbooks.markets).length === 0) {
-      return { dailyVolume: 0 };
+      return { dailyVolume };
     }
-    
+
     const marketAddresses = Object.keys(orderbooks.markets);
-    const marketLogs = await options.getLogs({
-      targets: marketAddresses,
-      eventAbi: SPOT_PERP_TRADE_EVENT,
-      flatten: false,
-    });
-    
-    let dailyVolume = 0;
-    for (let i = 0; i < marketAddresses.length; i++) {
-      for (const log of marketLogs[i]) {
-        dailyVolume += parseVolumeValue(log[2], log[3], orderbooks, marketAddresses[i]);
-      }
+    let fromBlock = await getFromBlock();
+    const toBlock = await getToBlock();
+    if (fromBlock == null || toBlock == null) {
+      return { dailyVolume };
     }
-    
-    return { dailyVolume };
-  }
+    fromBlock = Math.max(fromBlock, EXCHANGE_START_BLOCK);
+
+    try {
+      const logs = await getLogs({
+        targets: marketAddresses,
+        eventAbi: SPOT_PERP_TRADE_EVENT,
+        fromBlock,
+        toBlock,
+        entireLog: true,
+      });
+
+      const volumeByTokenIdRaw: Record<number, bigint> = {};
+      function addVolumeRaw(tokenId: number, rawErc20: bigint) {
+        if (!volumeByTokenIdRaw[tokenId]) volumeByTokenIdRaw[tokenId] = 0n;
+        volumeByTokenIdRaw[tokenId] += rawErc20;
+      }
+
+      // One leg pays base (fromQuantity), one pays quote (toQuantity); different assets, not double-counting.
+      for (const log of logs as any[]) {
+        const eventData = log.args ?? log.parsedLog?.args ?? log;
+        if (!eventData?.spotMatchQuantities) continue;
+
+        const marketAddr = (log.address ?? log.srcAddress ?? log.target)?.toLowerCase();
+        const config = orderbooks.markets[marketAddr];
+        if (!config) continue;
+
+        const baseId = config.baseTokenId;
+        const quoteId = config.quoteTokenId;
+        const basePosD = orderbooks.tokenDecimals[baseId] ?? 8;
+        const quotePosD = orderbooks.tokenDecimals[quoteId] ?? 8;
+        const baseErc = orderbooks.tokenErc20Decimals[baseId] ?? basePosD;
+        const quoteErc = orderbooks.tokenErc20Decimals[quoteId] ?? quotePosD;
+
+        const qty = parseSpotMatchQuantities(BigInt(eventData.spotMatchQuantities));
+        if (qty.fromQuantity > 0n) {
+          addVolumeRaw(baseId, positionRawToErc20Raw(qty.fromQuantity, basePosD, baseErc));
+        }
+        if (qty.toQuantity > 0n) {
+          addVolumeRaw(quoteId, positionRawToErc20Raw(qty.toQuantity, quotePosD, quoteErc));
+        }
+      }
+
+      const ZERO = CoreAssets.null ?? "0x0000000000000000000000000000000000000000";
+      for (const [tokenIdStr, raw] of Object.entries(volumeByTokenIdRaw)) {
+        const tokenId = Number(tokenIdStr);
+        const addr = orderbooks.tokenAddresses[tokenId];
+        if (!addr || addr === ZERO || raw === 0n) continue;
+        dailyVolume.add(addr, raw);
+      }
+
+      return { dailyVolume };
+    } catch (e) {
+      return { dailyVolume };
+    }
+  };
 }
 
 export const perpsAdapter: SimpleAdapter = {
   version: 2,
-  fetch: getFetch('PERPS'),
+  fetch: getFetch("PERPS"),
   chains: [CHAIN.MEGAETH],
   start: "2026-02-09",
 };
 
 export const spotAdapter: SimpleAdapter = {
   version: 2,
-  fetch: getFetch('SPOT'),
+  fetch: getFetch("SPOT"),
   chains: [CHAIN.MEGAETH],
   start: "2026-02-09",
 };
