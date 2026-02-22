@@ -6,10 +6,10 @@ import { httpGet } from "../../utils/fetchURL";
 const API_URL = "https://api.mainnet.aptoslabs.com/decibel/api/v1/daily_stats";
 
 interface DailyStatsResponse {
-  dailyVolume: number;
-  dailyFees: number;
-  dailyRevenue: number;
-  openInterest: number;
+  daily_volume: number;
+  daily_fees: number;
+  daily_revenue: number;
+  open_interest: number;
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -19,9 +19,9 @@ const fetch = async (options: FetchOptions) => {
   });
 
   return {
-    dailyFees: data.dailyFees,
-    dailyUserFees: data.dailyFees,
-    dailyRevenue: data.dailyRevenue,
+    dailyFees: data.daily_fees,
+    dailyUserFees: data.daily_fees,
+    dailyRevenue: data.daily_revenue,
   };
 };
 
