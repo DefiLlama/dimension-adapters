@@ -134,6 +134,7 @@ export const chainConfigMap: any = {
   [CHAIN.OMAX]: { CGToken: 'omax-token', explorer: 'https://omaxscan.com/' },
   [CHAIN.Q_PROTOCOL]: { CGToken: 'q-protocol', explorer: 'https://explorer.q.org/' },
   [CHAIN.VINUCHAIN]: { CGToken: 'vinuchain', explorer: 'https://vinuexplorer.org/' },
+  [CHAIN.ENI]: { CGToken: 'wrapped-egas', explorer: 'https://scan.eniac.network/', start: '2025-06-01' },
 }
 
 function getTimeString(timestamp: number) {
