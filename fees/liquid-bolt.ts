@@ -38,6 +38,7 @@ const fetch = async (_a: number, _b: any, options: FetchOptions) => {
 const adapter: Adapter = {
   methodology,
   fetch,
+  runAtCurrTime: true,
   chains: [CHAIN.FANTOM, CHAIN.ARBITRUM, CHAIN.BSC],
 };
 

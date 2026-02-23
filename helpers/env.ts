@@ -18,6 +18,7 @@ const DEFAULTS: any = {
   HYPERLIQUID_RPC: 'https://rpc.purroofgroup.com',
   FUSE_RPC: 'https://explorer.fuse.io/api/eth-rpc',
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
+  PULSECHAIN_ARCHIVAL_RPC: 'https://api.scan.pulsechain.com/api/eth-rpc',
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
@@ -30,6 +31,7 @@ const DEFAULTS: any = {
   SAUCERSWAP_API_KEY: 'api262369f52fef0cf082bc1a24d89c5',
   ASTROS_PERP_API_KEY: 'jkb6GHJD65f5suygdf6sghfvfVSjc8A',
   HYDRADX_BLOCK_LOW: '7036666',
+  DERIVE_API_KEY: '0485a970adfdf963bca' + '126b3ddbc52eb6570aa3' + '5169fa6a2157dd76cbfacd1bb',
 }
 
 export const ENV_KEYS = new Set([
@@ -75,6 +77,7 @@ export const ENV_KEYS = new Set([
   'TREADTOOLS_API_KEY',
   'CLICKHOUSE_CONFIG',
   'PROXY_AUTH',
+  'DERIVE_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
