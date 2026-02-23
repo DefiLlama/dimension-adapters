@@ -2,7 +2,7 @@ import { CHAIN } from '../../helpers/chains';
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { queryAllium } from '../../helpers/allium'
 
-async function fetch(_t: any, _a: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const query = `
     select
       sum(usd_amount) as volume 
@@ -18,7 +18,8 @@ async function fetch(_t: any, _a: any, options: FetchOptions) {
 }
 
 const adapter : SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2021-05-28",

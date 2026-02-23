@@ -1,6 +1,8 @@
 import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
-import volumeAdapter from "../dexs/verse";
+import { getAdapterFromHelpers} from "../factory/registry";
+
+const volumeAdapter = getAdapterFromHelpers('dexs', 'verse')?.adapter as any;
 
 const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
@@ -36,7 +38,8 @@ const baseAdapter: BaseAdapter = {
 const adapter: Adapter = {
   methodology,
   adapter: baseAdapter,
-  version: 2
+  version: 2,
+  pullHourly: true,
 };
 
 export default adapter;

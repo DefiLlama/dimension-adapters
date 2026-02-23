@@ -2,6 +2,7 @@ import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { getSolanaReceived } from "../helpers/token";
+import { METRIC } from "../helpers/metrics";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
 
@@ -61,44 +62,31 @@ const fetch = async (_a: any, _ts: any, options: FetchOptions) => {
       targets: SOLANA_FEE_ADDRESSES,
       blacklists: SOLANA_BLACKLIST,
     });
-    
-    return {
-      dailyFees: solanaFees,
-      dailyUserFees: solanaFees,
-      dailyRevenue: solanaFees,
-      dailyProtocolRevenue: solanaFees,
-    };
+
+    dailyFees.addBalances(solanaFees, METRIC.TRADING_FEES);
+
+    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
 
   // Handle EVM chains with Dune query
   const preFetchedResults = options.preFetchedResults || [];
   const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
-  
+
   if (!dune_chain) {
     console.log(`No Dune mapping found for chain ${options.chain}`);
-    return {
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
+    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
-  
+
   const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
 
   if (data) {
     const usdcFees = data.total_amount_usdc || 0;
-    dailyFees.addUSDValue(usdcFees);
-  } else { 
+    dailyFees.addUSDValue(usdcFees, METRIC.TRADING_FEES);
+  } else {
     console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
   }
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  }
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const methodology = {
@@ -108,12 +96,19 @@ const methodology = {
   ProtocolRevenue: 'Fees are distributed to Definitive',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses',
+  },
+}
+
 const adapter: Adapter = {
   fetch,
   adapter: chainConfig,
   prefetch,
   dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 

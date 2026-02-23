@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
+import { METRIC } from '../helpers/metrics'
 
 /**
  * Ankr Liquid Staking Fee Adapter
@@ -76,9 +77,9 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     const exchangeRateChange = (exchangeRateAfter - exchangeRateBefore)
     const df = (totalSupply * exchangeRateChange)
 
-    dailyFees.add(token, Number(df))
-    dailyRevenue.add(token, Number(df) * chainConfig[options.chain].feeRates[i])
-    dailySupplySideRevenue.add(token, Number(df) * (1 - chainConfig[options.chain].feeRates[i]))
+    dailyFees.add(token, Number(df), METRIC.STAKING_REWARDS)
+    dailyRevenue.add(token, Number(df) * chainConfig[options.chain].feeRates[i], METRIC.PROTOCOL_FEES)
+    dailySupplySideRevenue.add(token, Number(df) * (1 - chainConfig[options.chain].feeRates[i]), METRIC.STAKING_REWARDS)
   }
 
   return {
@@ -94,6 +95,21 @@ const methodology = {
   Revenue: 'Protocol fee collected by Ankr from Liquid Staking (10% on most chains, 15% on FTM, 5% on POL).',
   ProtocolRevenue: 'All Liquid Staking fees go to Ankr protocol operations.',
   SupplySideRevenue: 'Staking rewards distributed to liquid staking token holders after fees.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Total staking rewards earned from Liquid Staking before protocol commission.',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Commission taken by Ankr from staking rewards (10-15% depending on chain).',
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: 'Commission taken by Ankr from staking rewards (10-15% depending on chain).',
+  },
+  SupplySideRevenue: {
+    [METRIC.STAKING_REWARDS]: 'Net staking rewards distributed to liquid staking token holders after protocol commission.',
+  },
 }
 
 const adapter: Adapter = {
@@ -130,6 +146,7 @@ const adapter: Adapter = {
     // },
   },
   methodology,
+  breakdownMethodology,
   allowNegativeValue: true,
 }
 

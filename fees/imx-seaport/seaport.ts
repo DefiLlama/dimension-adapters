@@ -15,6 +15,7 @@ export const config: any = {
 export const fetch = async ({ createBalances, getLogs, chain }: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const { seaports = defaultSeaports, fees_collectors = defaultFeeCollectors } = config[chain]
   const feeCollectorSet = new Set(fees_collectors.map((i: any) => i.toLowerCase()));
 
@@ -30,11 +31,12 @@ export const fetch = async ({ createBalances, getLogs, chain }: FetchOptions): P
       dailyFees.add(consideration.token, consideration.amount)
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
         dailyRevenue.add(consideration.token, consideration.amount)
+      } else {
+        dailySupplySideRevenue.add(consideration.token, consideration.amount)
       }
     })
   })
-
   return {
-    dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue.clone(0.2), dailyProtocolRevenue: dailyRevenue.clone(0.8),
+    dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue: dailyRevenue.clone(0.2), dailyProtocolRevenue: dailyRevenue.clone(0.8),
   }
-} 
+}

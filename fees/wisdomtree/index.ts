@@ -41,6 +41,7 @@ const onchainData: Record<string, Record<string, string>> = {
 
 const NASDAQ_API_URL = "https://api.nasdaq.com/api/quote";
 const STELLAR_API_URL = "https://api.stellar.expert/explorer/public/asset"
+const PYTH_1M_TBILL_YIELD_URL = "https://hermes.pyth.network/v2/updates/price/latest?ids%5B%5D=0x60076f4fc0dfd634a88b5c3f41e7f8af80b403ca365442b81e582ceb8fc421a2";
 const headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
 };
@@ -100,10 +101,9 @@ async function prefetch(options: FetchOptions): Promise<any> {
                 const result = await httpGet(`${NASDAQ_API_URL}/${fund}/info?assetclass=${fundDetails.assetClass}`, { headers });
                 fundDetails.nav = +(result.data.primaryData.lastSalePrice.slice(1));
             }
-
             if (fundDetails.type === "yield") {
-                const result = await httpGet(`${NASDAQ_API_URL}/${fund}/summary?assetclass=${fundDetails.assetClass}`, { headers });
-                fundDetails.netYield = + (result.data.summaryData.SevenDayYield.value);
+                const result = await httpGet(PYTH_1M_TBILL_YIELD_URL); //Money market yeilds are almost equivalent to tbill yields
+                fundDetails.netYield = result.parsed[0].price.price / 1e8;
             }
 
             if (fundDetails.type === "crypto") {
@@ -125,7 +125,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const calculateFeeAndRevenue = (aum: number, fundDetail: FundData) => {
         if (fundDetail.netYield) {
-            const returns = calculateReturnsOrExpenseForPeriod(aum, fundDetail.netYield)
+            const returns = calculateReturnsOrExpenseForPeriod(aum, fundDetail.netYield - fundDetail.expenseRatio)
             dailyFees.addUSDValue(returns, METRIC.ASSETS_YIELDS)
             dailySupplySideRevenue.addUSDValue(returns, METRIC.ASSETS_YIELDS);
         }
@@ -186,6 +186,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.ARBITRUM]: { start: '2025-01-28' }, [CHAIN.ETHEREUM]: { start: '2024-09-14' },
         [CHAIN.OFF_CHAIN]: { start: '2024-01-11' }, [CHAIN.PLUME]: { start: '2025-10-21' }, [CHAIN.STELLAR]: { start: '2023-01-19' }
     },
+    runAtCurrTime: true,
     methodology
 }
 

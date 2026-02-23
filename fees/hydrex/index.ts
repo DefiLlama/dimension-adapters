@@ -10,21 +10,27 @@ const event_create_bribe = 'event CreateBribe(address indexed bribe, string brib
 const event_reward_added = 'event RewardAdded(address indexed rewardToken, uint256 reward, uint256 startTimestamp)';
 
 const fetch = async (options: FetchOptions) => {
+  const { createBalances, getLogs, getToBlock, api } = options;
 
-  const dailyFees = options.createBalances();
-  const dailyBribesRevenue = options.createBalances();
+  const dailyFees = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+  const dailyBribesRevenue = createBalances();
 
-  const exerciseLogs = await options.getLogs({
+  // 1. Get options revenue from Option Exercise events (goes to Strategic Protocol Reserve/treasury)
+  const exerciseLogs = await getLogs({
     target: OPTION_EXERCISE_CONTRACT,
     eventAbi: event_exercise,
   });
 
   exerciseLogs.forEach((log: any) => {
     dailyFees.add(ADDRESSES.base.USDC, log.paymentAmount);
+    dailyProtocolRevenue.add(ADDRESSES.base.USDC, log.paymentAmount);
   });
 
-  const toBlock = await options.getToBlock();
-  const createBribeLogs = await options.getLogs({
+  // 2. Get all bribe contracts from CreateBribe events (cache from start to avoid re-querying all history)
+  const toBlock = await getToBlock();
+  const createBribeLogs = await getLogs({
     target: BRIBE_FACTORY,
     eventAbi: event_create_bribe,
     fromBlock: 35273788, // Earlier block for Hydrex on Base
@@ -35,21 +41,50 @@ const fetch = async (options: FetchOptions) => {
 
   const bribeContracts: string[] = createBribeLogs.map((e: any) => e.bribe.toLowerCase());
 
+  // Query TYPE() on each bribe contract to determine if internal or external
+  const bribeTypes = await api.multiCall({
+    abi: 'function TYPE() view returns (string)',
+    calls: bribeContracts,
+  });
+
+  // Map contracts to their types (external if contains "Bribe", otherwise internal)
+  const isExternalBribe = new Map<string, boolean>();
+  bribeContracts.forEach((contract, i) => {
+    const typeStr = (bribeTypes[i] || '').toLowerCase();
+    const isExternal = typeStr.includes('bribe');
+    isExternalBribe.set(contract, isExternal);
+  });
+
+  // 3. Get all RewardAdded events from bribe contracts (DEX fees, Omni fees, and external bribes)
+  // Fetch logs per contract to know which address emitted each event
   for (const contract of bribeContracts) {
-    const logs = await options.getLogs({
+    const isExternal = isExternalBribe.get(contract);
+
+    const logs = await getLogs({
       target: contract,
       eventAbi: event_reward_added,
     });
 
     logs.forEach((log: any) => {
-      dailyBribesRevenue.add(log.rewardToken, log.reward);      
+      dailyFees.add(log.rewardToken, log.reward);
+
+      if (isExternal) {
+        dailyBribesRevenue.add(log.rewardToken, log.reward);
+      } else {
+        dailyHoldersRevenue.add(log.rewardToken, log.reward);
+      }
     });
   }
 
+  const dailyRevenue = createBalances();
+  dailyRevenue.addBalances(dailyProtocolRevenue);
+  dailyRevenue.addBalances(dailyHoldersRevenue);
+
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
     dailyBribesRevenue,
   };
 };
@@ -60,10 +95,11 @@ const adapter: SimpleAdapter = {
   fetch,
   start: '2025-09-08',
   methodology: {
-    Fees: "Total fees from DEX fees, option exercises, Omni Liquidity fees.",
-    Revenue: "Protocol revenue from DEX fees, option exercises, and Omni Liquidity fees",
+    Fees: "Total fees from DEX fees, option exercises, Omni Liquidity fees, and external bribes.",
+    Revenue: "Protocol revenue from DEX fees (to holders), option exercises (to Strategic Protocol Reserve/treasury), and Omni Liquidity fees (to holders). External bribes are tracked separately in BribesRevenue.",
     ProtocolRevenue: "Revenue from option exercises allocated to the Strategic Protocol Reserve (treasury).",
-    BribesRevenue: "bribes paid to governance token holders as incentives from DEX fees and Omni Liquidity fees.",
+    HoldersRevenue: "Protocol-generated revenue from DEX fees and Omni Liquidity fees distributed to governance token holders (excludes external bribes which are tracked in BribesRevenue).",
+    BribesRevenue: "External bribes paid to governance token holders as incentives (tracked separately from protocol-generated HoldersRevenue).",
   }
 };
 
