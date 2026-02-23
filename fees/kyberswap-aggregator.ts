@@ -41,6 +41,9 @@ const blacklistedTokens = [
 
   // MAGA
   '0xda2e903b0b67f30bf26bd3464f9ee1a383bbbe5f',
+  
+  // TARA
+  '0x2F42b7d686ca3EffC69778B6ED8493A7787b4d6E',
 ]
 
 const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
