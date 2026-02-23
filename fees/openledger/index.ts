@@ -25,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
     chunks.push({ start, end });
   }
 
-  await PromisePool.withConcurrency(5)
+  const { errors } = await PromisePool.withConcurrency(5)
     .for(chunks)
     .process(async ({ start, end }) => {
 
@@ -57,6 +57,10 @@ const fetch = async (options: FetchOptions) => {
         );
       });
     });
+
+  if (errors?.length) {
+    throw errors[0];
+  }
 
   return {
     dailyFees,
