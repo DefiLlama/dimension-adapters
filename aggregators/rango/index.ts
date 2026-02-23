@@ -44,7 +44,7 @@ const RangoChains: Record<string, ChainInfo> = {
   [CHAIN.TON]: { code: 'TON', start: '2024-11-01' },
   [CHAIN.BERACHAIN]: { code: 'BERACHAIN', start: '2025-04-01' },
   [CHAIN.AURORA]: { code: 'AURORA', start: '2022-08-01' },
-  [CHAIN.XRPL]: { code: 'XRPL', start: '2025-09-01' },
+  [CHAIN.RIPPLE]: { code: 'XRPL', start: '2025-09-01' },
   [CHAIN.HYPERLIQUID]: { code: 'HYPERLIQUID', start: '2025-10-01' },
   [CHAIN.MONAD]: { code: 'MONAD', start: '2025-11-01' },
   [CHAIN.UNICHAIN]: { code: 'UNICHAIN', start: '2025-08-01' },
