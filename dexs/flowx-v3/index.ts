@@ -1,8 +1,9 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getObject, queryEvents } from "../../helpers/sui";
+import { queryDuneSql } from "../../helpers/dune";
+import { getObject } from "../../helpers/sui";
 
-const CLMM_SWAP_EVENT =
+const SWAP_EVENT =
   "0x25929e7f29e0a30eb4e692952ba1b5b65a3a4d65ab5f2a32e1ba3edcb587f26d::pool::Swap";
 
 function parsePoolType(type: string): { coinX: string; coinY: string } {
@@ -28,28 +29,51 @@ function parsePoolType(type: string): { coinX: string; coinY: string } {
 const poolCache: Record<string, { coinX: string; coinY: string }> = {};
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const events = await queryEvents({
-    eventType: CLMM_SWAP_EVENT,
-    options,
-  });
+  const query = `
+    SELECT
+      json_extract_scalar(event_json, '$.pool_id') as pool_id,
+      SUM(CASE WHEN json_extract_scalar(event_json, '$.x_for_y') = 'true'
+        THEN CAST(json_extract_scalar(event_json, '$.amount_x') AS DECIMAL(38,0))
+        ELSE 0 END) as volume_x,
+      SUM(CASE WHEN json_extract_scalar(event_json, '$.x_for_y') = 'false'
+        THEN CAST(json_extract_scalar(event_json, '$.amount_y') AS DECIMAL(38,0))
+        ELSE 0 END) as volume_y
+    FROM sui.events
+    WHERE event_type = '${SWAP_EVENT}'
+      AND date >= from_unixtime(${options.startTimestamp})
+      AND date <= from_unixtime(${options.endTimestamp})
+      AND timestamp_ms >= ${options.startTimestamp * 1000}
+      AND timestamp_ms < ${options.endTimestamp * 1000}
+    GROUP BY 1
+  `;
 
+  const results: any[] = await queryDuneSql(options, query);
   const dailyVolume = options.createBalances();
 
-  const newPoolIds = [...new Set(events.map((e: any) => e.pool_id))].filter((id) => !poolCache[id]);
-  const poolObjects = await Promise.all(newPoolIds.map((id: string) => getObject(id)));
-  newPoolIds.forEach((id, i) => {
-    poolCache[id] = parsePoolType(poolObjects[i].type);
-  });
+  // Resolve pool types for uncached pools via Sui RPC
+  const newPoolIds = results
+    .map((r: any) => r.pool_id)
+    .filter((id: string) => id && !poolCache[id]);
 
-  for (const event of events) {
-    const { pool_id, amount_x, amount_y, x_for_y } = event;
-    const { coinX, coinY } = poolCache[pool_id];
+  if (newPoolIds.length > 0) {
+    const poolResults = await Promise.allSettled(
+      newPoolIds.map((id: string) => getObject(id))
+    );
+    newPoolIds.forEach((id: string, i: number) => {
+      const result = poolResults[i];
+      if (result.status === "fulfilled" && result.value?.type) {
+        try {
+          poolCache[id] = parsePoolType(result.value.type);
+        } catch {}
+      }
+    });
+  }
 
-    if (x_for_y) {
-      dailyVolume.add(coinX, amount_x);
-    } else {
-      dailyVolume.add(coinY, amount_y);
-    }
+  for (const row of results) {
+    const pool = poolCache[row.pool_id];
+    if (!pool) continue;
+    if (row.volume_x > 0) dailyVolume.add(pool.coinX, row.volume_x);
+    if (row.volume_y > 0) dailyVolume.add(pool.coinY, row.volume_y);
   }
 
   return { dailyVolume };
@@ -63,6 +87,8 @@ const adapter: SimpleAdapter = {
       start: "2024-05-10",
     },
   },
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
