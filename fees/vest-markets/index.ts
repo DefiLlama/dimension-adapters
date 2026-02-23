@@ -6,26 +6,48 @@ import pLimit from "p-limit";
 const VEST_MARKETS_API = 'https://server-prod.hz.vestmarkets.com/v2';
 const limit = pLimit(10);
 
-//https://docs.vestmarkets.com/trading/fees
+//https://docs.vestmarkets.com/trading/fees 
 
 const WEEKEND_FOREX_FEE_RATE = 0.025 / 100;
 const OVERNIGHT_STOCK_FEE_RATE = 0.05 / 100;
 const CRYPTO_FEE_RATE = 0.01 / 100;
-const WEEKEND_STOCK_FEE_RATE = 1 / 100;
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const today = new Date(options.startOfDay * 1000).getDay();
     const isWeekend = today === 6 || today === 0;
     const { symbols } = await fetchURL(`${VEST_MARKETS_API}/exchangeInfo`);
 
+    const WEEKEND_STOCK_FEE_RATE = (options.startOfDay >= 1764374400 ? 0.1 : 1) / 100;
+
     const symbolsByCategory = symbols.reduce((acc: any, curr: any) => {
         acc[curr.asset].push(curr.symbol);
         return acc;
     }, { stock: [], crypto: [], forex: [] });
 
-    const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchURL(`${VEST_MARKETS_API}/ticker/24hr?symbols=${symbolsByCategory[category].join(',')}`)));
 
-    const getQuoteTotalVolume = (tradeData: any) => tradeData.tickers.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
+    const fetchInChunks = async (category: string) => {
+        const symbols = symbolsByCategory[category];
+        const MAX_SYMBOLS_PER_REQUEST = 100;
+        const chunks = []
+        for (let i = 0; i < symbols.length; i += MAX_SYMBOLS_PER_REQUEST)
+            chunks.push(symbols.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
+
+        const results = [];
+
+        for (const chunk of chunks) {
+            const url = `${VEST_MARKETS_API}/ticker/24hr?symbols=${chunk.join(",")}`;
+
+            const { tickers } = await fetchURL(url);
+            results.push(...tickers);
+        }
+
+        return results;
+    }
+
+    const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchInChunks(category)));
+    console.log(" ");
+
+    const getQuoteTotalVolume = (tradeData: any) => tradeData.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
 
     const cryptoPerpFees = getQuoteTotalVolume(cryptoTradeData) * CRYPTO_FEE_RATE;
 

@@ -13,12 +13,14 @@ const OBEXECUTOR_FEE_MODULE: Record<string, string[]> = {
 	],
 	[CHAIN.HYPERLIQUID]: ["0x53A8EC5a42106FC8B2AB1468c3DA363F1bA49266"],
 	[CHAIN.MONAD]: ["0x8577D77C67A77E5C55592Ede1fa117306E7C0757"],
+	[CHAIN.BOTANIX]: ["0xdF90E29d435E492f26CAc53a52fc4cDe6327E63E"],
 };
 
 const OBROUTER: Record<string, string> = {
 	[CHAIN.BERACHAIN]: "0xFd88aD4849BA0F729D6fF4bC27Ff948Ab1Ac3dE7",
 	[CHAIN.HYPERLIQUID]: "0x5fbD1B5AA82d09359C05428647871fe9aDd3F411",
 	[CHAIN.MONAD]: "0x5fbD1B5AA82d09359C05428647871fe9aDd3F411",
+	[CHAIN.BOTANIX]: "0x417fBC387fa853AEd674d62Ca1b21E3cE54C0F85",
 };
 
 const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
@@ -75,5 +77,6 @@ export default {
 		[CHAIN.BERACHAIN]: { fetch, start: "2025-01-27" },
 		[CHAIN.HYPERLIQUID]: { fetch, start: "2025-08-01" },
 		[CHAIN.MONAD]: { fetch, start: "2025-11-24" },
+		[CHAIN.BOTANIX]: { fetch, start: "2025-10-16" },
 	},
 };

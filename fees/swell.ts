@@ -26,11 +26,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   
   const totalDeposited = BigInt(totalSupply) * BigInt(exchangeRateBefore) / BigInt(1e18)
   
-  // swell distribute 90% rewards to stakers post protocol revenue and node operators cute
+  // swell distribute 90% rewards to stakers post protocol revenue and node operators cut
   // 90% to stakers, 5% to node operators, 5% to Swell treasury
   const df = Number(totalDeposited) * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
 
-  const swellTreasuryRewards = df * 0.5
+  const swellTreasuryRewards = df * 0.05
   const supplySideRewards = df - swellTreasuryRewards
   
   dailyFees.addGasToken(df)

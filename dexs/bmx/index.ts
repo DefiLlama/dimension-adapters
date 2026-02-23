@@ -10,7 +10,7 @@ const startTimestamps: { [chain: string]: number } = {
 };
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.1/gn",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.2/gn",
   [CHAIN.MODE]:
     "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
 };

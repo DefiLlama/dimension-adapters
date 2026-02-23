@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 
@@ -22,13 +22,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    fetch,
+    chains: [CHAIN.ETHEREUM, CHAIN.BASE],
+    dependencies: [Dependencies.ALLIUM],
     methodology: {
         Fees: 'All fees paid by users for using Interface App.',
         Revenue: 'Fees collected by Interafce.',
         ProtocolRevenue: 'Fees collected by Interafce.',
     },
-    fetch: fetch,
-    chains: [CHAIN.ETHEREUM, CHAIN.BASE],
 };
 
 export default adapter;

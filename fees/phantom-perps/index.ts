@@ -21,7 +21,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-07-08',
   methodology,
-  // isExpensiveAdapter: true
+  doublecounted: true,
 };
 
 export default adapter;

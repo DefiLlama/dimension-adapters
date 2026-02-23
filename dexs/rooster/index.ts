@@ -28,6 +28,7 @@ const fetch = async (options: FetchOptions) => {
     target: factory,
     fromBlock: factoryFromBlock,
     eventAbi: mavV2PoolCreated,
+    cacheInCloud: true,
   });
 
   const pools = [...new Set(logs.map((log: any) => log.poolAddress))];

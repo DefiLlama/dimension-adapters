@@ -71,12 +71,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(retainedBalances.getBalances());
 
+  const dailySupplySideRevenue = options.createBalances()
+  dailySupplySideRevenue.addBalances(distributedBalances.getBalances())
+
   const dailyHoldersRevenue = await addTokensReceived({ token: RENZO_TOKEN, options, target: BUYBACK_BOT })
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue
   };
 }
@@ -93,6 +97,7 @@ const adapter: SimpleAdapter = {
     Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
     ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+    SupplySideRevenue: "Value distributed to stakers and depositors",
     HoldersRevenue: "75-100% of revenue directed to buyback bot of which 90% goes to burn and 10% to stakers"
   },
 }

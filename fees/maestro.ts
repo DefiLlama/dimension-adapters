@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { SimpleAdapter, FetchOptions, } from "../adapters/types";
+import { SimpleAdapter, FetchOptions, Dependencies, } from "../adapters/types";
 import { addTokensReceived, getETHReceived, getSolanaReceived } from "../helpers/token";
 
 const dispatcher: any = {
@@ -57,6 +57,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true
 }
 

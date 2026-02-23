@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "../../adapters/types";
-import { getBlock } from "../../helpers/getBlock";
 import BigNumber from 'bignumber.js';
 
 interface IGraph {
@@ -11,13 +10,8 @@ interface IGraph {
   dayID: string;
 }
 
-interface IProtocol {
-  totalTradeVolumeUSD: string;
-}
-
 interface IData {
   protocolDayData: IGraph;
-  protocols: IProtocol[];
 }
 
 // Updated using studio
@@ -32,16 +26,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(
     new Date(startTimestamp * 1000)
   );
-  const todaysBlock = await getBlock(dayTimestamp, options.chain, {});
   const dayID = dayTimestamp / 86400;
   const query = gql`
     {
         protocolDayData(id: "${dayID}") {
             dayID
             dailyTradeVolumeUSD
-        },
-        protocols(block: { number: ${todaysBlock} }) {
-          totalTradeVolumeUSD
         }
     }`;
   const response: IData = await request(endpoints[options.chain], query);

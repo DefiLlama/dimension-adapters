@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
-import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const START_TIME = 1659312000;
 const historicalVolumeEndpoint = () => `https://api.carbon.network/carbon/marketstats/v1/stats`;
@@ -13,8 +12,7 @@ interface IVolumeall {
 }
 
 const fetch = (market_type: string) => {
-  return async (timestamp: number) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  return async () => {
     const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint()))?.marketstats;
 
     const volume =
@@ -24,7 +22,6 @@ const fetch = (market_type: string) => {
 
     return {
       dailyVolume: volume,
-      timestamp: dayTimestamp,
     };
   };
 };
@@ -34,12 +31,14 @@ const adapters: BreakdownAdapter = {
     demex: {
       [CHAIN.CARBON]: {
         fetch: fetch("spot"),
+        runAtCurrTime: true,
         start: START_TIME,
       },
     },
     "demex-perp": {
       [CHAIN.CARBON]: {
         fetch: fetch("futures"),
+        runAtCurrTime: true,
         start: START_TIME,
       },
     }

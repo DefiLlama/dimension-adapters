@@ -26,6 +26,7 @@ export const config: any = {
 export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const { seaports = defaultSeaports, fees_collectors = defaltFeeCollectors } = config[chain]
   const feeCollectorSet = new Set(fees_collectors.map((i: any) => i.toLowerCase()));
 
@@ -37,16 +38,19 @@ export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) =
     const biggestValue = recipients.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
 
     recipients.forEach((consideration: any) => {
-      if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, rest are fees
+      if (consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, doesn't include fees
       dailyFees.add(consideration.token, consideration.amount)
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
         dailyRevenue.add(consideration.token, consideration.amount)
+      }
+      else {
+        dailySupplySideRevenue.add(consideration.token, consideration.amount)
       }
     })
   })
 
   return {
-    dailyFees, dailyRevenue,
+    dailyFees, dailyRevenue, dailySupplySideRevenue
   }
 
 }

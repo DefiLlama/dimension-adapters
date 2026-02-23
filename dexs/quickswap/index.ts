@@ -78,19 +78,17 @@ const v3GraphsUni = graphDimensionFetch({
   },
 });
 
-const fetchLiquidityHub = async (_a: any) => {
+const fetchLiquidityHub = async (_a: any, _:any, options: FetchOptions) => {
   let dailyResult = await fetchURL(
     "https://hub.orbs.network/analytics-daily/v1",
   );
 
-  let rows = dailyResult.result.rows;
-  let lastDay = rows[rows.length - 1];
-  let dailyVolume = lastDay.daily_total_calculated_value;
-  let totalVolume = (await fetchURL(`https://hub.orbs.network/analytics/v1`))
-    .result.rows[0].total_calculated_value;
+  let dailyVolume = dailyResult.result.rows.find((row: any) => row.key === options.dateString)?.daily_total_calculated_value
+  if (!dailyVolume) 
+    throw new Error(`No data found for date ${options.dateString}`);
 
   return {
-    dailyVolume: dailyVolume,
+    dailyVolume,
   };
 };
 

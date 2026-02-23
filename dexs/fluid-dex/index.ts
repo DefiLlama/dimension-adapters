@@ -21,6 +21,12 @@ interface SwapEventArgs {
   revenueCut: bigint;
 }
 
+const FLUID_DEX_METRICS = {
+  SwapFees: METRIC.SWAP_FEES,
+  SwapFeesToSuppliers: 'Swap Fees To LPs',
+  SwapFeesToTreasury: 'Swap Fees To Treasury',
+}
+
 const dexReservesResolver = (chain: string) => {
   switch (chain) {
     case CHAIN.ETHEREUM: 
@@ -106,12 +112,12 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
       const revenueCollected = feesCollected * revenueCut / 100n
       if (isSwap0to1) {
         dailyVolume.add(token0, amountIn);
-        dailyFees.add(token0, feesCollected, METRIC.SWAP_FEES);
-        dailyRevenue.add(token0, revenueCollected, METRIC.SWAP_FEES);
+        dailyFees.add(token0, feesCollected, FLUID_DEX_METRICS.SwapFees);
+        dailyRevenue.add(token0, revenueCollected, FLUID_DEX_METRICS.SwapFeesToTreasury);
       } else {
         dailyVolume.add(token1, amountIn);
-        dailyFees.add(token1, feesCollected, METRIC.SWAP_FEES);
-        dailyRevenue.add(token1, revenueCollected, METRIC.SWAP_FEES);
+        dailyFees.add(token1, feesCollected, FLUID_DEX_METRICS.SwapFees);
+        dailyRevenue.add(token1, revenueCollected, FLUID_DEX_METRICS.SwapFeesToTreasury);
       }
     });
   };
@@ -119,8 +125,8 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
   processSwapEvents(swapEvents0to1, true);
   processSwapEvents(swapEvents1to0, false);
 
-  const dailySupplySideRevenue = dailyFees.clone(1, METRIC.SWAP_FEES)
-  dailySupplySideRevenue.subtract(dailyRevenue, METRIC.SWAP_FEES)
+  const dailySupplySideRevenue = dailyFees.clone(1, FLUID_DEX_METRICS.SwapFeesToSuppliers)
+  dailySupplySideRevenue.subtract(dailyRevenue, FLUID_DEX_METRICS.SwapFeesToSuppliers)
 
   return { 
     dailyVolume,
@@ -143,19 +149,16 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: 'Total swap fees paid by users.',
-  },
-  UserFees: {
-    [METRIC.SWAP_FEES]: 'Users pay fees per swap.',
+    [FLUID_DEX_METRICS.SwapFees]: 'Total swap fees paid by users.',
   },
   Revenue: {
-    [METRIC.SWAP_FEES]: 'Fluid takes a portion of swap fees.',
+    [FLUID_DEX_METRICS.SwapFeesToTreasury]: 'Fluid takes a portion of swap fees.',
   },
   ProtocolRevenue: {
-    [METRIC.SWAP_FEES]: 'Fluid takes a portion of swap fees.',
+    [FLUID_DEX_METRICS.SwapFeesToTreasury]: 'Fluid takes a portion of swap fees.',
   },
   SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: 'Amount of swap fees distributed to LPs.',
+    [FLUID_DEX_METRICS.SwapFeesToSuppliers]: 'Amount of swap fees distributed to LPs.',
   },
 }
 

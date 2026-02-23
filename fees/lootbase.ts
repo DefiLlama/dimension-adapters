@@ -27,7 +27,6 @@ const adapter: SimpleAdapter = {
   start: '2025-02-05',
   methodology,
   doublecounted: true,
-  // isExpensiveAdapter: true,
 }
 
 export default adapter;

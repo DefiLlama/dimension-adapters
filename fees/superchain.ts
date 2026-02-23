@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { addGasTokensReceived, evmReceivedGasAndTokens, getETHReceived } from "../helpers/token"
 
 // https://github.com/ethereum-optimism/op-analytics/blob/main/op_collective_economics/opcollective_feesplit/inputs/op_collective_feesplit_config.csv
 // https://github.com/ethereum-optimism/op-analytics/blob/main/src/op_analytics/configs/revshare_to_addresses.yaml

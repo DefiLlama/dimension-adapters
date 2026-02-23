@@ -25,6 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchIthacaVolumeData,
+      runAtCurrTime: true,
       start: '2024-04-15',
     },
   },

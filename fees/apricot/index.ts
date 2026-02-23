@@ -34,12 +34,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: Adapter = {
   methodology,
   dependencies: [Dependencies.DUNE],
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2021-08-25',
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2021-08-25',
 };
 
 export default adapter;

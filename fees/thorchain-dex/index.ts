@@ -90,6 +90,14 @@ const getFetchForChain = (chainShortName: string) => {
     await sleep(2000);
     const pools = await fetchCacheURL(poolsUrl);
     await sleep(2000);
+    
+    // Only fetch affiliate earnings for THOR chain
+    let affiliateEarnings: any | null = null;
+    if (chainShortName === 'THOR') {
+      const affiliateUrl = `https://midgard.ninerealms.com/v2/history/affiliate?from=${options.startTimestamp}&to=${options.endTimestamp}`;
+      affiliateEarnings = await fetchCacheURL(affiliateUrl);
+      await sleep(2000);
+    }
 
     const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
     const selectedRevenueInterval = findInterval(startOfDay, revenue.intervals);
@@ -115,6 +123,12 @@ const getFetchForChain = (chainShortName: string) => {
       return acum.plus(totalLiquidityFees);
     }, BigNumber(0));
 
+    // Add affiliate earnings to dailyFees only for THOR chain
+    const affiliateTotalEarningsUSD = (chainShortName === 'THOR' && affiliateEarnings && affiliateEarnings.intervals && affiliateEarnings.intervals.length > 0) 
+      ? BigNumber(affiliateEarnings.intervals[0].volumeUSD).div(1e2) 
+      : BigNumber(0);
+    const dailyFeesWithAffiliates = dailyFees.plus(affiliateTotalEarningsUSD);
+
     const dailySupplysideRevenue = poolsByChainEarnings.reduce((acum, pool) => {
       const liquidityFeesPerPoolInDollars = BigNumber(pool.totalLiquidityFeesRune).div(1e8).times(BigNumber(selectedEarningInterval.runePriceUSD));
       const saverLiquidityFeesPerPoolInDollars = BigNumber(pool.saverEarning).div(1e8).times(BigNumber(selectedEarningInterval.runePriceUSD));
@@ -129,8 +143,8 @@ const getFetchForChain = (chainShortName: string) => {
     // if (dailyFees.isZero()) throw new Error("No fees found for this day");
 
       return {
-        dailyFees,
-        dailyUserFees: dailyFees,
+        dailyFees: dailyFeesWithAffiliates,
+        dailyUserFees: dailyFeesWithAffiliates,
         dailyRevenue: `${dailyHoldersRevenue.plus(protocolRevenueByChainInDollars)}`,
         dailyProtocolRevenue: protocolRevenueByChainInDollars.gt(0) ? protocolRevenueByChainInDollars : 0,
         dailyHoldersRevenue: dailyHoldersRevenue,

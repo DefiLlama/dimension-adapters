@@ -11,7 +11,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     "x-api-key": "N73XLD3QT7WJ5E14MHP41MOH8D6MWSN"
   };
 
-  const transaction_counts = await httpGet("https://emu.mainnet.prod.tzstats.trili.tech/series/block?columns=time,fee,burned_supply&end_date=now&fill=none&collapse=1d&limit=365", { headers: myHeaders })
+  const transaction_counts = await httpGet("https://emu.mainnet.prod.tzstats.trili.tech/series/block?columns=time,fee,burned_supply&end_date=now&fill=none&collapse=1d&limit=1000", { headers: myHeaders })
 
   const daily_transactions = transaction_counts.find((txs: any) =>
     txs[0] === timestamp

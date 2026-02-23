@@ -1,7 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://api.oraidex.io/v1/pools/"
 
@@ -10,8 +9,7 @@ interface IVolumeall {
   volume24Hour: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async () => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
   const dailyVolume = historicalVolume
     .filter(e => Number(e.volume24Hour)/1e6 < 100_000_000) // prev pool volume spike
@@ -19,7 +17,6 @@ const fetch = async (timestamp: number) => {
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 
@@ -28,6 +25,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ORAI]: {
       fetch,
+      runAtCurrTime: true,
       start: '2022-11-24',
     },
   },

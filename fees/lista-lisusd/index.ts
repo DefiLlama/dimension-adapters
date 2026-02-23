@@ -13,6 +13,8 @@ import { CHAIN } from "../../helpers/chains";
  * https://bscscan.com/address/0x34b504a5cf0ff41f8a480580533b6dda687fa3da#tokentxns
  */
 
+const newTreasuryActivationTime = 1727222400 //2024-09-25;
+
 const oldTreasury =
   "0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6";
 const newTreasury =
@@ -39,38 +41,24 @@ const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const usdt = ADDRESSES.bsc.USDT;
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const treasury = options.startOfDay>=newTreasuryActivationTime?newTreasury:oldTreasury;
 
   // eth staking profit - helioETHProvider and CeETHVault
-  const ethStakingEthOld = await options.getLogs({
+  const ethStakingEth = await options.getLogs({
     target: eth,
     topics: [
       transferHash,
       "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
-      oldTreasury,
+      treasury,
     ],
   });
-  const ethStakingEthNew = await options.getLogs({
-    target: eth,
-    topics: [
-      transferHash,
-      "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
-      newTreasury,
-    ],
-  });
-  const ethStakingWbethOld = await options.getLogs({
+
+  const ethStakingWbeth = await options.getLogs({
     target: wbeth,
     topics: [
       transferHash,
       "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
-      oldTreasury,
-    ],
-  });
-  const ethStakingWbethNew = await options.getLogs({
-    target: wbeth,
-    topics: [
-      transferHash,
-      "0x000000000000000000000000a230805c28121cc97b348f8209c79bebea3839c0",
-      newTreasury,
+      treasury,
     ],
   });
 
@@ -78,23 +66,15 @@ const fetch = async (options: FetchOptions) => {
   // No fees charged for now
 
   // bnb liquid staking profit - SnBnbYieldConverterStrategy
-  const bnbLiquidStakingProfitOld = await options.getLogs({
+  const bnbLiquidStakingProfit = await options.getLogs({
     target: slisBNB,
-    topics: [transferHash, SnBnbYieldConverterStrategy, oldTreasury],
-  });
-  const bnbLiquidStakingProfitNew = await options.getLogs({
-    target: slisBNB,
-    topics: [transferHash, SnBnbYieldConverterStrategy, newTreasury],
+    topics: [transferHash, SnBnbYieldConverterStrategy, treasury],
   });
 
   // borrow lisUSD interest
   const borrowLisUSDInterest = await options.getLogs({
     target: lisUSD,
-    topics: [transferHash, zeroAddress, oldTreasury],
-  });
-  const borrowLisUSDInterestNew = await options.getLogs({
-    target: lisUSD,
-    topics: [transferHash, zeroAddress, newTreasury],
+    topics: [transferHash, zeroAddress, treasury],
   });
 
   // veLista early claim penalty
@@ -103,15 +83,7 @@ const fetch = async (options: FetchOptions) => {
     topics: [
       transferHash,
       "0x000000000000000000000000d0c380d31db43cd291e2bbe2da2fd6dc877b87b3",
-      oldTreasury,
-    ],
-  });
-  const veListaEarlyClaimPenaltyNew = await options.getLogs({
-    target: lista,
-    topics: [
-      transferHash,
-      "0x000000000000000000000000d0c380d31db43cd291e2bbe2da2fd6dc877b87b3",
-      newTreasury,
+      treasury,
     ],
   });
 
@@ -132,15 +104,7 @@ const fetch = async (options: FetchOptions) => {
     topics: [
       transferHash,
       "0x00000000000000000000000008e83a96f4da5decc0e6e9084dde049a3e84ca04",
-      oldTreasury,
-    ],
-  });
-  const liquidationBotNew = await options.getLogs({
-    target: lisUSD,
-    topics: [
-      transferHash,
-      "0x00000000000000000000000008e83a96f4da5decc0e6e9084dde049a3e84ca04",
-      newTreasury,
+      treasury,
     ],
   });
 
@@ -207,28 +171,28 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  [...ethStakingEthOld, ...ethStakingEthNew].forEach((log) => {
+  [ ...ethStakingEth].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(eth, amount);
   });
-  [...ethStakingWbethOld, ...ethStakingWbethNew].forEach((log) => {
+  [...ethStakingWbeth].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(wbeth, amount);
   });
 
-  [...bnbLiquidStakingProfitOld, ...bnbLiquidStakingProfitNew].forEach(
+  [ ...bnbLiquidStakingProfit].forEach(
     (log) => {
       const amount = Number(log.data);
 
       dailyFees.add(slisBNB, amount);
     }
   );
-  [...borrowLisUSDInterest, ...borrowLisUSDInterestNew].forEach((log) => {
+  [...borrowLisUSDInterest].forEach((log) => {
     const amount = Number(log.data);
 
     dailyFees.add(lisUSD, amount);
   });
-  [...veListaEarlyClaimPenalty, ...veListaEarlyClaimPenaltyNew].forEach(
+  [...veListaEarlyClaimPenalty].forEach(
     (log) => {
       const amount = Number(log.data);
 
@@ -245,7 +209,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(lista, amount);
   });
 
-  [...liquidationBot, ...liquidationBotNew].forEach((log) => {
+  [...liquidationBot].forEach((log) => {
     const amount = Number(log.data);
     dailyFees.add(lisUSD, amount);
   });

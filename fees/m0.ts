@@ -3,12 +3,8 @@ import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { addTokensReceived } from "../helpers/token";
 
-const AUCTION_FEES = 'Auction Fees'; // Fees collected by auction proceeds
-const FAILED_PROPOSAL_FEES = 'Failed Proposal Fees'; //Governance fees collected when proposal dails
-const PENALTY_FEES = 'Penalty Fees'; //Penalty fees
-
 const methodology = {
-  Fees: 'Total minter fees,penalty fees paid by borrowers, auction proceeds and failed proposals fee',
+  Fees: 'Total minter fees, penalty fees paid by borrowers, auction proceeds and failed proposals fee',
   Revenue: 'Total fees earned by distribution vault(Excess yields, auction proceeds and failed proposals fee',
   SupplySideRevenue: 'Yields earned by whitelisted earners',
   HoldersRevenue: 'All the revenue goes to ZERO governanace token holders',
@@ -18,18 +14,12 @@ const methodology = {
 const breakdownMethodology = {
   Revenue: {
     [METRIC.ASSETS_YIELDS]: 'Excess yields due to rounding, interest rate spreads',
-    [PENALTY_FEES]: 'Charges imposed on minters for missed collateral updates or undercollateralization',
-    [AUCTION_FEES]: 'The Power token contract auctions off newly inflated tokens in non-voting epochs, with proceeds directed to the vault.',
-    [FAILED_PROPOSAL_FEES]: 'Fees submitted with proposals in the StandardGovernor flow to the Distribution Vault if the proposal fails.'
   },
   SupplySideRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Treasury yields earned from collateral assets',
   },
   HoldersRevenue: {
     [METRIC.ASSETS_YIELDS]: 'Excess yields due to rounding, interest rate spreads',
-    [PENALTY_FEES]: 'Charges imposed on minters for missed collateral updates or undercollateralization',
-    [AUCTION_FEES]: 'The Power token contract auctions off newly inflated tokens in non-voting epochs, with proceeds directed to the vault.',
-    [FAILED_PROPOSAL_FEES]: 'Fees submitted with proposals in the StandardGovernor flow to the Distribution Vault if the proposal fails.'
   }
 }
 const TokenM = '0x866a2bf4e572cbcf37d5071a7a58503bfb36be1b';

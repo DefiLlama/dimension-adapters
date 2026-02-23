@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getSolanaReceived } from '../helpers/token';
 
@@ -39,6 +39,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.ALLIUM],
   start: '2024-03-20',
   methodology: {
     Fees: 'User pays 0.5%-1% fee on each trade. Lender pays 30% of the interest they receive.',

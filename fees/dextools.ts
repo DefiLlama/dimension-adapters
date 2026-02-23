@@ -32,10 +32,10 @@ The discount is valid only if applied at payment and while it is displayed in th
 For Tokens created with https://creator.dextools.io, enter "//TOKENCREATOR//" as the payment code. Entering the token creator's payment code without creating the token through the creator will mark your update request as spam.
 */
 
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { addTokensReceived,getETHReceived, getSolanaReceived } from '../helpers/token';
+import { addTokensReceived, getETHReceived, getSolanaReceived } from '../helpers/token';
 
 const tokens = {
     ethereum: [
@@ -62,7 +62,7 @@ const target_even: any = {
     [CHAIN.BASE]: ['0x997Cc123cF292F46E55E6E63e806CD77714DB70f'],
 }
 
-const sol = async (_a:any,_b:any,options: FetchOptions) => {
+const sol = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = await getSolanaReceived({
         options, targets: [
             '4sdKYA9NLD1XHThXGPTmFE973mNs1UeVkCH4dFL3Wgho',
@@ -70,15 +70,15 @@ const sol = async (_a:any,_b:any,options: FetchOptions) => {
             'Hz77efVEvgUHUN55WAY97BiEEFg3DbgYBiCNo4UrQx9r'
         ]
     })
-    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
 }
 
-const fetchEvm = async (_a:any,_b:any,options: FetchOptions) => {
+const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     if (tokens[options.chain].length > 0) {
         await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
     }
-    const dailyHoldersRevenue =options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
     if (options.chain === CHAIN.ETHEREUM)
         await addTokensReceived({ options, token: DEXT, targets: target_even[options.chain], balances: dailyHoldersRevenue })
     await getETHReceived({ options, balances: dailyFees, targets: target_even[options.chain] })
@@ -86,16 +86,17 @@ const fetchEvm = async (_a:any,_b:any,options: FetchOptions) => {
 }
 
 const methodology = {
-        Fees: 'All fees paid by users for token profile listing.',
-        Revenue: 'All fees collected by DexTools.',
-        ProtocolRevenue: 'All fees collected by DexTools.',
-        HoldersRevenue: 'All the social update fees paid in DEXT are burnt',
+    Fees: 'All fees paid by users for token profile listing.',
+    Revenue: 'All fees collected by DexTools.',
+    ProtocolRevenue: 'All fees collected by DexTools.',
+    HoldersRevenue: 'All the social update fees paid in DEXT are burnt',
 }
 
 const adapter: Adapter = {
     methodology,
     version: 1,
     isExpensiveAdapter: true,
+    dependencies: [Dependencies.ALLIUM],
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({
         ...all,
         [chain]: {
