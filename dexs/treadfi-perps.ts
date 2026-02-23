@@ -77,23 +77,16 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
 
 const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
   const treadToolsData = options.preFetchedResults;
   const paradexData = treadToolsData.data?.paradex;
 
   if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
-    const volume = paradexData.dailyVolume;
-    const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addCGToken("usd-coin", paradexData.dailyVolume);
   }
 
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
   };
 };
 
