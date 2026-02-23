@@ -64,7 +64,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       if (result.status === "fulfilled" && result.value?.type) {
         try {
           poolCache[id] = parsePoolType(result.value.type);
-        } catch {}
+        } catch (e: any) {
+          console.error(`[flowx-v3] Failed to parse pool type for ${id}: ${e?.message}`);
+        }
       }
     });
   }
@@ -72,8 +74,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const row of results) {
     const pool = poolCache[row.pool_id];
     if (!pool) continue;
-    if (row.volume_x > 0) dailyVolume.add(pool.coinX, row.volume_x);
-    if (row.volume_y > 0) dailyVolume.add(pool.coinY, row.volume_y);
+    if (row.volume_x > 0) dailyVolume.add(pool.coinX, String(row.volume_x));
+    if (row.volume_y > 0) dailyVolume.add(pool.coinY, String(row.volume_y));
   }
 
   return { dailyVolume };
