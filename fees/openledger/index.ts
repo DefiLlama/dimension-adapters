@@ -39,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
       creditLogs.forEach((log: any) => {
         dailyFees.addCGToken(
           "openledger-2",
-          Number(log.amountPaid) / 1e18
+          Number(BigInt(log.amountPaid) / BigInt(1e18))
         );
       });
 
@@ -53,7 +53,7 @@ const fetch = async (options: FetchOptions) => {
       datanetLogs.forEach((log: any) => {
         dailyFees.addCGToken(
           "openledger-2",
-          Number(log.amount) / 1e18
+          Number(BigInt(log.amount) / BigInt(1e18))
         );
       });
     });
