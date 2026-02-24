@@ -35,12 +35,6 @@ const graphs = (graphUrls: ChainEndpoints) => {
         const totalMarketStats = (
           await graphQLClient.request(totalTradingVolumeQuery)
         ).marketStats as Array<MarketStat>;
-        const totalVolume =
-          totalMarketStats.reduce(
-            (accum: number, t: MarketStat) =>
-              accum + parseInt(t.totalTradingVolume),
-            0 as number
-          ) / 1e30;
 
         const chunkSize = 10;
         const splitMarket: MarketStat[][] = [];

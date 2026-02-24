@@ -7,7 +7,30 @@ import { filterPools } from '../helpers/uniswap';
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import axios from "axios";
-import { getBscTokenLists } from "./pancakeswap/bscv2";
+import { getConfig } from "../helpers/cache";
+
+function formatAddress(address: any): string {
+  return String(address).toLowerCase();
+}
+
+async function getBscTokenLists(): Promise<Array<string>> {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+  const lists = [
+    'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+    'https://tokens.pancakeswap.finance/ondo-rwa-tokens.json',
+    'https://tokens.coingecko.com/binance-smart-chain/all.json',
+  ];
+  let tokens: Array<string> = [];
+  for (const url of lists) {
+    const data = await getConfig(`pcs-token-list-bsc-${url}`, url);
+    tokens = tokens.concat(
+      data.tokens
+        .filter((token: any) => Number(token.chainId) === 56)
+        .map((token: any) => formatAddress(token.address))
+    );
+  }
+  return tokens.filter((token: string) => !blacklisted.includes(token))
+}
 
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'

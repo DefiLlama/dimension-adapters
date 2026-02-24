@@ -1,6 +1,6 @@
 import { request, gql } from "graphql-request";
 import { BaseAdapter, FetchOptions, FetchResultGeneric, IJSON, SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_DAILY_FEES_FACTORY, DEFAULT_DAILY_FEES_FIELD, DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphFees";
+import { DEFAULT_DAILY_FEES_FACTORY, DEFAULT_DAILY_FEES_FIELD, DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphVolume";
 import BigNumber from "bignumber.js";
 import { getUniqStartOfTodayTimestamp, getUniswapDateId, handle200Errors } from "./utils";
 import { getStartTimestamp } from "../getStartTimestamp";
