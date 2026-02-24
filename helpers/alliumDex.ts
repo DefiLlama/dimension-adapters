@@ -4,7 +4,7 @@ import { CHAIN } from "./chains"
 
 
 export function alliumSolanaDexExport(dex_id: string, protocol: string, start: string) {
-  const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const fetch = async (options: FetchOptions) => {
     const query = `
       SELECT 
         SUM(usd_amount) as dailyvolume
@@ -21,6 +21,8 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
   }
 
   return {
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.SOLANA],
     start,

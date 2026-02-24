@@ -117,6 +117,10 @@ const chainConfig = {
     pools: AaveMarkets[CHAIN.MEGAETH],
     start: '2026-02-09',
   },
+  [CHAIN.MANTLE]: {
+    pools: AaveMarkets[CHAIN.MEGAETH],
+    start: '2026-01-16',
+  },
 }
 
 const fetch = async (options: FetchOptions) => {

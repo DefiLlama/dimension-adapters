@@ -12,17 +12,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   );
 
   dailyFees.addCGToken("cardano", Number(daily.totalRevenueByAsset.ADA));
-  dailySupplySideRevenue.addCGToken("cardano", Number(daily.liquidationRevenueByAsset.ADA), METRIC.LIQUIDATION_FEES)
-  dailySupplySideRevenue.addCGToken("cardano", Number(daily.tradingRevenueByAsset.ADA), METRIC.LP_FEES)
-  dailySupplySideRevenue.addCGToken("cardano", Number(daily.lpOpenFeesByAsset.ADA), METRIC.OPEN_CLOSE_FEES)
-  dailyHoldersRevenue.addCGToken("cardano", Number(daily.stakingOpenFeesByAsset.ADA), METRIC.OPEN_CLOSE_FEES);
+  dailySupplySideRevenue.addCGToken("cardano", Number(daily.liquidationRevenueByAsset.ADA || 0), METRIC.LIQUIDATION_FEES)
+  dailySupplySideRevenue.addCGToken("cardano", Number(daily.tradingRevenueByAsset.ADA || 0), METRIC.LP_FEES)
+  dailySupplySideRevenue.addCGToken("cardano", Number(daily.lpOpenFeesByAsset.ADA || 0), METRIC.OPEN_CLOSE_FEES)
+  dailyHoldersRevenue.addCGToken("cardano", Number(daily.stakingOpenFeesByAsset.ADA || 0), METRIC.OPEN_CLOSE_FEES);
 
   if (daily.totalRevenueByAsset.SNEK) {
     dailyFees.addCGToken("snek", Number(daily.totalRevenueByAsset.SNEK));
-    dailySupplySideRevenue.addCGToken("snek", Number(daily.liquidationRevenueByAsset.SNEK), METRIC.LIQUIDATION_FEES)
-    dailySupplySideRevenue.addCGToken("snek", Number(daily.tradingRevenueByAsset.SNEK), METRIC.LP_FEES)
-    dailySupplySideRevenue.addCGToken("snek", Number(daily.lpOpenFeesByAsset.SNEK), METRIC.OPEN_CLOSE_FEES)
-    dailyHoldersRevenue.addCGToken("snek", Number(daily.stakingOpenFeesByAsset.SNEK), METRIC.OPEN_CLOSE_FEES);
+    dailySupplySideRevenue.addCGToken("snek", Number(daily.liquidationRevenueByAsset.SNEK || 0), METRIC.LIQUIDATION_FEES)
+    dailySupplySideRevenue.addCGToken("snek", Number(daily.tradingRevenueByAsset.SNEK || 0), METRIC.LP_FEES)
+    dailySupplySideRevenue.addCGToken("snek", Number(daily.lpOpenFeesByAsset.SNEK || 0), METRIC.OPEN_CLOSE_FEES)
+    dailyHoldersRevenue.addCGToken("snek", Number(daily.stakingOpenFeesByAsset.SNEK || 0), METRIC.OPEN_CLOSE_FEES);
   }
 
   return {

@@ -50,6 +50,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  runAtCurrTime: true,
   chains: [CHAIN.BSC],
   dependencies: [Dependencies.ALLIUM],
   methodology: {

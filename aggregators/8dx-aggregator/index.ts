@@ -19,18 +19,16 @@ const fetch = async (options: FetchOptions) => {
 
   const target = CONTRACTS[options.chain];
   if (!target) return { dailyVolume };
-  const logs = await options.getLogs({
-    target,
-    eventAbi: EVENT_SWAP_EXECUTED,
-  });
+  const logs = await options.getLogs({ target, eventAbi: EVENT_SWAP_EXECUTED, });
   logs.forEach((log) => {
-    addOneToken({ balances:dailyVolume, chain: options.chain, token0: log.srcToken, amount0: log.spentAmount, token1: log.dstToken, amount1: log.returnAmount })
+    addOneToken({ balances: dailyVolume, chain: options.chain, token0: log.srcToken, amount0: log.spentAmount, token1: log.dstToken, amount1: log.returnAmount })
   });
 
   return { dailyVolume };
 }
 
 const adapter: SimpleAdapter = {
+  pullHourly: true,
   version: 2,
   adapter: Object.keys(CONTRACTS).reduce((acc, chain) => {
     return {

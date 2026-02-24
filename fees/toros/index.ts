@@ -169,7 +169,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { start: '2023-12-20', },
     [CHAIN.ETHEREUM]: { start: '2025-08-10', },
   },
-  version: 2
+  version: 2,
+  doublecounted: true,
 }
 
 export default adapter;
