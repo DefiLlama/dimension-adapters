@@ -37,12 +37,12 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: v3Graphs,
       start: '2023-02-20',
-      meta: { methodology },
     },
   },
 };
