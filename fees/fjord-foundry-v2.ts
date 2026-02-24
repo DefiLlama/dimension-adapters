@@ -1,8 +1,52 @@
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import fetchURL from "../utils/fetchURL";
+import { CHAIN } from "../helpers/chains";
 
-import adapter from './fjord-foundry'
-const { breakdown,  ...rest } = adapter
+const feeEndpoint = "https://fjord-api.vercel.app/api/daily-stats?version=2";
 
-export default {
-  ...rest,
-  adapter: breakdown['v2'],
+const v2ChainIDs: any = {
+    [CHAIN.ETHEREUM]: 1,
+    [CHAIN.POLYGON]: 137,
+    [CHAIN.ARBITRUM]: 42161,
+    [CHAIN.AVAX]: 43114,
+    [CHAIN.BASE]: 8453,
+    [CHAIN.BLAST]: 81457,
+    [CHAIN.BSC]: 56,
+};
+
+const getV2Data = async (endTimestamp: number, chainId: number) => {
+    const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
+    const historicalFees = (await fetchURL(feeEndpoint))
+
+    const chainData = [...historicalFees.stats.evm, ...historicalFees.stats.svm].find(cd => cd.chainId === chainId);
+
+    const dailyFee = chainData.stats
+        .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.fees
+
+    return {
+        dailyFees: dailyFee,
+        dailyRevenue: dailyFee,
+    };
+};
+
+const methodology = {
+    Fees: "Fees collected from user trading fees",
+    Revenue: "Revenue is 100% fee of each swap which goes to treasury",
+};
+
+const adapter: SimpleAdapter = {
+    version: 2,
+    methodology,
+    adapter: Object.keys(v2ChainIDs).reduce((acc, chain) => {
+        return {
+            ...acc,
+            [chain]: {
+                fetch: async ({ startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
+                start: '2023-12-18',
+            },
+        }
+    }, {}),
 }
+
+export default adapter;

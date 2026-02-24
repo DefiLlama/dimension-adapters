@@ -1,16 +1,14 @@
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
-import type { FetchV2 } from "../adapters/types";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: Record<string, string> = {
   [CHAIN.ARBITRUM]: "https://subgraph.satsuma-prod.com/3a60064481e5/1lxclx3pz4zrusx6414nvj/arbitrum-one-stats/api",
   [CHAIN.BLAST]: "https://api.studio.thegraph.com/query/45963/blast-mainnet-stats/version/latest",
 };
 
-const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-  const floorDayTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
+const fetch = async (_t: any, _b: any, { chain, startOfDay }: any) => {
+  const floorDayTimestamp = startOfDay;
   const dailyFeeQuery = gql`
     {
       dailyFeesStat(id: "${floorDayTimestamp}") {
@@ -63,7 +61,7 @@ const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,

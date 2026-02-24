@@ -116,6 +116,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
 export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
   const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: Object.keys(configs).reduce((acc, chain) => {
       return {
         ...acc,

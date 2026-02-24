@@ -1,7 +1,6 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "../../adapters/types";
 import BigNumber from 'bignumber.js';
 
@@ -21,12 +20,8 @@ const endpoints: Record<Chain, string> = {
 
 const feesRatio = 0.0004;
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { startTimestamp } = options;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(startTimestamp * 1000)
-  );
-  const dayID = dayTimestamp / 86400;
+const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+  const dayID = options.startOfDay / 86400;
   const query = gql`
     {
         protocolDayData(id: "${dayID}") {
@@ -45,7 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.KLAYTN]: {
       fetch,

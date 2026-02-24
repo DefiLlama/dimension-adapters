@@ -1,8 +1,60 @@
+import { SimpleAdapter, FetchResultVolume } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { gql, request } from "graphql-request";
+import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraph/utils";
 
-import adapter from './lexer'
-const { breakdown,  ...rest } = adapter
+const apiEndPoints = [
+  "https://api.studio.thegraph.com/query/50217/synth-stat-v2-arb-mainnet/version/latest",
+  "https://api.studio.thegraph.com/query/50217/core-stat-v2-arb-mainnet/version/latest",
+];
 
-export default {
-  ...rest,
-  adapter: breakdown['derivatives'],
+interface VolumeStatsQuery {
+  swap: string;
+  mint: string;
+  burn: string;
+  liquidation: string;
+  margin: string;
 }
+
+const historicalDataDerivatives = gql`
+  query get_volume($period: String!, $id: String!) {
+    volumeStats(where: { period: $period, id: $id }) {
+      liquidation
+      margin
+    }
+  }
+`;
+
+const fetchDerivativesValue = async (timestamp: number): Promise<FetchResultVolume> => {
+  let dailyVolume = 0;
+  const t = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  for (const api of apiEndPoints) {
+    const derivatives: VolumeStatsQuery[] = (
+      await request(api, historicalDataDerivatives, {
+        id: String(t),
+        period: "daily",
+      })
+    ).volumeStats as VolumeStatsQuery[];
+    dailyVolume += derivatives.length ? Number(
+      Object.values(derivatives[0] || {}).reduce((sum, element) =>
+        String(Number(sum) + Number(element))
+      )
+    ) : 0
+  }
+  dailyVolume /= 1e30;
+  return {
+    timestamp,
+    dailyVolume: String(dailyVolume),
+  };
+}
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchDerivativesValue,
+      start: '2024-01-09',
+    }
+  }
+};
+
+export default adapter;

@@ -1,9 +1,15 @@
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
-import adapter from './predy-finance'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch: async () => ({}),
+      start: '2023-07-04',
+    },
+  },
   deadFrom: '2024-12-14',
-  adapter: breakdown['v320'],
-}
+};
+
+export default adapter;

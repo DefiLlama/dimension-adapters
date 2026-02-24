@@ -20,6 +20,7 @@ async function fetch(fetchOptions: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ETHEREUM],
   fetch,
   start: '2020-06-20',

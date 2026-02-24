@@ -1,9 +1,14 @@
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
-import adapter from './smbswap'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
+const adapter: SimpleAdapter = {
+  version: 2,
   deadFrom: '2025-04-01',
-  adapter: breakdown['v3'],
-}
+  adapter: {
+    [CHAIN.BSC]: {
+      fetch: () => ({} as any),
+    },
+  },
+};
+
+export default adapter;

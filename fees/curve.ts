@@ -42,6 +42,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: dexAdapter.methodology,
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
     all[chain] = {

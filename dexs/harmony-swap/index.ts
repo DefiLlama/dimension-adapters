@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphFees";
+import { DEFAULT_TOTAL_VOLUME_FIELD } from "../../helpers/getUniSubgraphVolume";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 import { SimpleAdapter } from "../../adapters/types";
 

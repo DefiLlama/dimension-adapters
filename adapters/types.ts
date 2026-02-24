@@ -131,13 +131,7 @@ export type SimpleAdapter = AdapterBase & {
   adapter?: BaseAdapter
 }
 
-export type BreakdownAdapter = AdapterBase & {  // do not use this, this is deprecated
-  breakdown: {
-    [version: string]: BaseAdapter
-  };
-};
-
-export type Adapter = SimpleAdapter | BreakdownAdapter;
+export type Adapter = SimpleAdapter;
 export type FetchResponseValue = string | number | Balances;
 
 /**
