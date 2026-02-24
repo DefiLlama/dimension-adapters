@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { BreakdownAdapter, FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, GraphQLClient } from "graphql-request";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
+import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 
 interface ChainConfig{
     api: string,
@@ -124,19 +124,14 @@ const v2graphs = async (_t: any, _tt: any ,options: FetchOptions): Promise<Fetch
     }
 }
 
-const graphParams = {
+const v1graphs = getChainVolume2({
+    graphUrls: {
+        [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('A1ibaGVUkqdLeBG7VeeSB8jm9QNmS8phSz8iooXR8puv')
+    },
     totalVolume: {
         factory: "swaapProtocols",
         field: "totalSwapVolume",
     },
-    hasDailyVolume: false,
-}
-
-const v1graphs = getChainVolume({
-    graphUrls: {
-        [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('A1ibaGVUkqdLeBG7VeeSB8jm9QNmS8phSz8iooXR8puv')
-    },
-    ...graphParams,
 });
 
 const adapter: BreakdownAdapter = {
@@ -145,7 +140,7 @@ const adapter: BreakdownAdapter = {
         v1: {
             [CHAIN.POLYGON]: {
                 fetch: async (_t: any, _tt: any ,options: FetchOptions) => {
-                    const { dailyVolume }  = await v1graphs(options.chain)(_t, _tt, options)
+                    const { dailyVolume }  = await v1graphs(options.chain)(options)
                     return  {
                         dailyVolume,
                     }
