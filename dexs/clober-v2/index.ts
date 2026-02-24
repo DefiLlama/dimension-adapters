@@ -1,12 +1,14 @@
 import type { SimpleAdapter } from "../../adapters/types";
 import { FetchOptions, FetchResultV2, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+
 const abi = {
   getBookKey: "function getBookKey(uint192 id) view returns ((address base, uint64 unitSize, address quote, uint24 makerPolicy, address hooks, uint24 takerPolicy))",
   take: 'event Take(uint192 indexed bookId, address indexed user, int24 tick, uint64 unit)',
   swap: 'event Swap(address indexed user, address indexed inToken, address indexed outToken, uint256 amountIn, uint256 amountOut, address router, bytes4 method)',
   feeCollected: 'event FeeCollected(address indexed recipient, address indexed token, uint256 amount)'
 }
+
 const bookManagerContracts: Record<string, string[]> = {
   [CHAIN.BASE]: ['0x382CCccbD3b142D7DA063bF68cd0c89634767F76', '0x8ca3a6f4a6260661fcb9a25584c796a1fa380112'],
   [CHAIN.ERA]: ['0xAaA0e933e1EcC812fc075A81c116Aa0a82A5bbb8'],
@@ -32,56 +34,54 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
 
-  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true, })
-  const contractAddressToBookId = new Map<string, Set<bigint>>();
-  for (const event of takeEvents) {
-    const target = (event.address || event.source)?.toLowerCase()
-    const bookId = event.args?.bookId
-    if (!target || bookId === undefined) {
-      throw new Error(`Malformed take event in ${typedChain}: missing target or bookId`)
-    }
-    const bookIds = contractAddressToBookId.get(target) || new Set<bigint>();
-    bookIds.add(bookId);
-    contractAddressToBookId.set(target, bookIds);
-  }
-  let swapEvents = []
-  let feeCollectedEvents = []
-  if (routerGatewayContract[typedChain]) {
-    swapEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.swap, })
-    feeCollectedEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.feeCollected, })
-  }
+  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true })
 
-  const books = await api.multiCall({
-    abi: abi.getBookKey,
-    calls: Array.from(contractAddressToBookId.entries()).flatMap(([address, bookIds]) =>
-      Array.from(bookIds).map(bookId => ({ target: address, params: [bookId.toString()] }))
-    ),
-    withMetadata: true,
-  })
-
-  const booksByTargetAndId = new Map(
-    books
-      .filter((book) => book?.output && book?.input?.target && book?.input?.params?.[0] !== undefined)
-      .map(book => {
-        const target = book.input.target.toLowerCase()
-        const bookId = String(book.input.params[0])
-        return [`${target}-${bookId}`, { quote: book.output.quote, unitSize: book.output.unitSize, takerPolicy: book.output.takerPolicy }]
-      })
-  )
+  // deduplicate (contract, bookId) pairs to avoid collisions when
+  // the same bookId exists across multiple contracts (e.g. BASE has two managers)
+  const seen = new Set<string>()
+  const calls: { target: string; params: string[] }[] = []
 
   for (const event of takeEvents) {
     const target = (event.address || event.source)?.toLowerCase()
     const bookId = event.args?.bookId?.toString()
-    if (!target || !bookId) {
-      throw new Error(`Malformed take event in ${typedChain}: missing target or bookId`)
-    }
-    let book = booksByTargetAndId.get(`${target}-${bookId}`);
-    if (!book) {
-      const fetchedBook = await api.call({ abi: abi.getBookKey, target, params: [bookId] })
-      if (!fetchedBook) throw new Error(`Book not found for ${typedChain} ${target} ${bookId}`)
-      book = { quote: fetchedBook.quote, unitSize: fetchedBook.unitSize, takerPolicy: fetchedBook.takerPolicy }
-      booksByTargetAndId.set(`${target}-${bookId}`, book)
-    }
+    if (!target || !bookId) continue
+    const key = `${target}-${bookId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    calls.push({ target, params: [bookId] })
+  }
+
+  let swapEvents: any[] = []
+  let feeCollectedEvents: any[] = []
+  if (routerGatewayContract[typedChain]) {
+    swapEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.swap })
+    feeCollectedEvents = await getLogs({ target: routerGatewayContract[typedChain], eventAbi: abi.feeCollected })
+  }
+
+  const books = await api.multiCall({
+    abi: abi.getBookKey,
+    calls,
+    permitFailure: true,
+  })
+
+  // map composite key -> book metadata, parallel to calls[]
+  const booksByKey = new Map<string, { quote: string; unitSize: string; takerPolicy: string }>()
+  calls.forEach((call, i) => {
+    const book = books[i]
+    if (!book) return
+    booksByKey.set(`${call.target}-${call.params[0]}`, {
+      quote: book.quote,
+      unitSize: book.unitSize,
+      takerPolicy: book.takerPolicy,
+    })
+  })
+
+  for (const event of takeEvents) {
+    const target = (event.address || event.source)?.toLowerCase()
+    const bookId = event.args?.bookId?.toString()
+    if (!target || !bookId) continue
+    const book = booksByKey.get(`${target}-${bookId}`)
+    if (!book) continue
     const quoteAmount = Number(event.args.unit) * Number(book.unitSize)
     dailyVolume.add(book.quote, quoteAmount)
     const { bps, usesQuote } = parseFeeInfo(BigInt(book.takerPolicy))
@@ -93,8 +93,8 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   swapEvents.forEach((i) => dailyVolume.add(i.outToken, Number(i.amountOut)))
   feeCollectedEvents.forEach((i) => dailyFees.add(i.token, Number(i.amount)))
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: '0' };
-};
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: '0' }
+}
 
 const adapter: SimpleAdapter = {
   methodology: {
@@ -117,6 +117,6 @@ const adapter: SimpleAdapter = {
       start: '2025-11-24',
     },
   }
-};
+}
 
-export default adapter;
+export default adapter
