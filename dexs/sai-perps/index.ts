@@ -16,7 +16,7 @@ export async function fetch(options: FetchOptions) {
   const response: {
     accrued_trading_fees_24h: number;
     accrued_trading_fees_all_time: number;
-    open_interest: number;
+    open_interest: number; // total (longs and shorts) open interest in USD
     total_trades_24h: number;
     total_trades_all_time: number;
     total_users_24h: number;
@@ -32,6 +32,7 @@ export async function fetch(options: FetchOptions) {
   return {
     dailyVolume: response.trading_volume_24h,
     dailyFees: response.accrued_trading_fees_24h,
+    openInterestAtEnd: response.open_interest,
   };
 }
 
