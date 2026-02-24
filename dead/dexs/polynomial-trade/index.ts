@@ -1,7 +1,7 @@
-import { SimpleAdapter } from "../../adapters/types";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { SimpleAdapter } from "../../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../../utils/date";
 import axios from "axios";
-import { CHAIN } from "../../helpers/chains";
+import { CHAIN } from "../../../helpers/chains";
 
 const polynomialAPI = "https://perps-api-mainnet.polynomial.finance/trade-stats"
 
@@ -28,6 +28,7 @@ const fetch = async (timestamp: number) => {
   };
 
   const adapter: SimpleAdapter = {
+    deadFrom: '2026-02-13',
     adapter: {
       [CHAIN.POLYNOMIAL]: {
         fetch,
