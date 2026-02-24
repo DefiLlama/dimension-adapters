@@ -82,16 +82,16 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
     if (!target || !bookId) continue
     const book = booksByKey.get(`${target}-${bookId}`)
     if (!book) continue
-    const quoteAmount = Number(event.args.unit) * Number(book.unitSize)
+    const quoteAmount = BigInt(event.args.unit) * BigInt(book.unitSize)
     dailyVolume.add(book.quote, quoteAmount)
     const { bps, usesQuote } = parseFeeInfo(BigInt(book.takerPolicy))
     if (usesQuote) {
-      dailyFees.add(book.quote, (quoteAmount * bps) / 10000)
+      dailyFees.add(book.quote, (quoteAmount * BigInt(bps)) / 10000n)
     }
   }
 
-  swapEvents.forEach((i) => dailyVolume.add(i.outToken, Number(i.amountOut)))
-  feeCollectedEvents.forEach((i) => dailyFees.add(i.token, Number(i.amount)))
+  for (const i of swapEvents) { dailyVolume.add(i.outToken, Number(i.amountOut)) }
+  for (const i of feeCollectedEvents) { dailyFees.add(i.token, Number(i.amount)) }
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: '0' }
 }
