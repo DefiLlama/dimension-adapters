@@ -104,7 +104,7 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
       token,
       SUM(amount) AS amount
     FROM final_volume
-    GROUP BY 1, 2;
+    GROUP BY 1, 2
   `;
 
   const volumeRows = await queryDuneSql(options, volumeQuery)
