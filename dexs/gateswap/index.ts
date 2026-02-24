@@ -99,9 +99,9 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: `Gate Layer volume is computed from factory pairs and AMM Swap logs. Other EVM chains compute volume strictly from onchain router execution events emitted by GateSwap routers (first matching ABI per router), and underlying pool events are not directly counted there to avoid overlap.
 
-**Note on Router Event ABI:**  
-This adapter uses a best-effort set of candidate router event ABIs to extract swap volume from router logs across chains.  
-If the actual GateSwap router emits a different or more specific event signature, we will update \`ROUTER_SWAP_EVENT_ABIS\` accordingly to pin the exact event and improve accuracy.`,
+Note on Router Event ABI:
+This adapter uses a best-effort set of candidate router event ABIs to extract swap volume from router logs across chains.
+If the actual GateSwap router emits a different or more specific event signature, we will update ROUTER_SWAP_EVENT_ABIS accordingly to pin the exact event and improve accuracy.`,
   },
   adapter: {
     [CHAIN.GATE_LAYER]: { fetch: GATE_LAYER_FETCH },
