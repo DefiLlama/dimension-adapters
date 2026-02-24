@@ -32,12 +32,17 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
 
-  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true, })
+  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true, parseLog: true })
   const contractAddressToBookId = new Map<string, Set<bigint>>();
   for (const event of takeEvents) {
-    const bookIds = contractAddressToBookId.get(event.address) || new Set<bigint>();
-    bookIds.add(event.args.bookId);
-    contractAddressToBookId.set(event.address, bookIds);
+    const target = (event.address || event.source)?.toLowerCase()
+    const bookId = event.args?.bookId
+    if (!target || bookId === undefined) {
+      throw new Error(`Malformed take event in ${typedChain}: missing target or bookId`)
+    }
+    const bookIds = contractAddressToBookId.get(target) || new Set<bigint>();
+    bookIds.add(bookId);
+    contractAddressToBookId.set(target, bookIds);
   }
   let swapEvents = []
   let feeCollectedEvents = []
@@ -54,11 +59,29 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
     withMetadata: true,
   })
 
-  const bookIdsToQuote = new Map(books.map(book => [book.input.params[0], { quote: book.output.quote, unitSize: book.output.unitSize, takerPolicy: book.output.takerPolicy }]))
+  const booksByTargetAndId = new Map(
+    books
+      .filter((book) => book?.output && book?.input?.target && book?.input?.params?.[0] !== undefined)
+      .map(book => {
+        const target = book.input.target.toLowerCase()
+        const bookId = String(book.input.params[0])
+        return [`${target}-${bookId}`, { quote: book.output.quote, unitSize: book.output.unitSize, takerPolicy: book.output.takerPolicy }]
+      })
+  )
 
   for (const event of takeEvents) {
-    const book = bookIdsToQuote.get(event.args.bookId.toString());
-    if (!book) throw new Error(`Book not found for bookId: ${event.args.bookId}`);
+    const target = (event.address || event.source)?.toLowerCase()
+    const bookId = event.args?.bookId?.toString()
+    if (!target || !bookId) {
+      throw new Error(`Malformed take event in ${typedChain}: missing target or bookId`)
+    }
+    let book = booksByTargetAndId.get(`${target}-${bookId}`);
+    if (!book) {
+      const fetchedBook = await api.call({ abi: abi.getBookKey, target, params: [bookId] })
+      if (!fetchedBook) throw new Error(`Book not found for ${typedChain} ${target} ${bookId}`)
+      book = { quote: fetchedBook.quote, unitSize: fetchedBook.unitSize, takerPolicy: fetchedBook.takerPolicy }
+      booksByTargetAndId.set(`${target}-${bookId}`, book)
+    }
     const quoteAmount = Number(event.args.unit) * Number(book.unitSize)
     dailyVolume.add(book.quote, quoteAmount)
     const { bps, usesQuote } = parseFeeInfo(BigInt(book.takerPolicy))
@@ -82,6 +105,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: "No Holders Revenue",
   },
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.BASE]: {

@@ -43,6 +43,8 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'helpers/balancer',
     'helpers/friend-tech',
     'helpers/solidly',
+    'helpers/ethereum-l2',
+    'helpers/ethereum-builder',
     'uniV2:fees',
     'uniV3:fees',
     'uniV2',
@@ -57,6 +59,9 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'chainTxFees',
     'curators',
     'saddle',
+    'solLst',
+    'joeLiquidityBook',
+    'curve',
   ],
   'dexs': [
     'helpers/balancer',
@@ -71,6 +76,8 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'polymarket',
     'saddle',
     'alliumSolanaDex',
+    'joeLiquidityBook',
+    'curve',
   ],
   'aggregators': [],
   'open-interest': [

@@ -68,6 +68,12 @@ const feesConfigs: Record<string, Config> = {
   "mare-finance-v2": {
     comptrollers: { kava: "0xFcD7D41D5cfF03C7f6D573c9732B0506C72f5C72" },
   },
+  "quantus": {
+    comptrollers: {
+      monad: '0xFc57bF0733e5e65d8549fc2922919Cfb97e62D5f',
+      megaeth: '0x1F1416EbbeAb7a13fC5B6111A1E77696Be600413',
+    },
+  },
 };
 
 const feesProtocols: Record<string, any> = {};

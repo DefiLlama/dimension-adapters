@@ -1,14 +1,13 @@
 import { gql, GraphQLClient } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
-import { Adapter, FetchOptions, FetchV2 } from "../adapters/types";
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
+import { Adapter, FetchOptions } from "../adapters/types";
 
 const endpoints: Record<string, string> = {
   [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/metis-andromeda-prod-stats",
 };
 
-const fetch: FetchV2 = async (options: FetchOptions) => {
-  const floorDayTimestamp = getTimestampAtStartOfDayUTC(options.startTimestamp);
+const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+  const floorDayTimestamp = options.startOfDay;
   const dailyFeeQuery = gql`
       {
         dailyFeesStat(id: "${floorDayTimestamp}") {
@@ -63,7 +62,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.METIS]: {
       fetch,

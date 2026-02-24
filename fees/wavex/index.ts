@@ -1,8 +1,6 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import type { FetchV2 } from "../../adapters/types";
 import axios from "axios";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints: any = {
   [CHAIN.SONEIUM]: "https://wavex-indexer-serve-mainnet.up.railway.app",
@@ -15,8 +13,8 @@ const methodology = {
     "Until waveX’s tokenomics and governance framework are fully established, the remaining 50% of fees will go to the Treasury.",
 };
 
-const fetch: FetchV2 = async ({ chain, endTimestamp }) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp);
+const fetch = async (_t: any, _b: any, { chain, startOfDay }: any) => {
+  const todaysTimestamp = startOfDay;
 
   const res = await axios.get(
     `${endpoints[chain]}/stats/fees?timestamp=${todaysTimestamp}`
@@ -41,7 +39,7 @@ const fetch: FetchV2 = async ({ chain, endTimestamp }) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   methodology,
   adapter: {
     [CHAIN.SONEIUM]: {

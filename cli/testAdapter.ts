@@ -1,7 +1,7 @@
 require('dotenv').config()
 import { execSync } from 'child_process';
 import * as path from 'path';
-import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types';
+import { AdapterType, SimpleAdapter, } from '../adapters/types';
 import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
@@ -142,7 +142,6 @@ let usedHelper: string | null | undefined = null;
   console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
   console.info(`---------------------------------------------------\n`)
 
-  if ((adapterModule as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   // Get adapter
   const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
   const volumes: any = await runAdapter({
@@ -165,8 +164,6 @@ let usedHelper: string | null | undefined = null;
 
   async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
 
-    if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
-
     const dailyByChain: Record<string, Record<string, number>> = {}
     const aggregatedDaily: any = {}
     const jobs: { hour: number, startTimestamp: number, endTimestamp: number }[] = []
@@ -183,7 +180,7 @@ let usedHelper: string | null | undefined = null;
       const batch = jobs.slice(i, i + MAX_PARALLEL)
 
       const results = await Promise.all(
-        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true }))
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60 }))
       )
 
       results.forEach((res: any, idx) => {
