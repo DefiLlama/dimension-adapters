@@ -84,6 +84,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.PLUME_LEGACY]: {
       fetch: async () => ({}),
       start: factories[CHAIN.PLUME_LEGACY].start,
+      deadFrom: "2025-06-25",
     },
   },
 };

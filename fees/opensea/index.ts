@@ -7,10 +7,10 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {
-      [CHAIN.ETHEREUM]: { fetch: async () => ({}), }
+      [CHAIN.ETHEREUM]: { fetch: async () => ({}), deadFrom: "2023-08-24", }
     },
     v2: {
-      [CHAIN.ETHEREUM]: { fetch: async () => ({}), }
+      [CHAIN.ETHEREUM]: { fetch: async () => ({}), deadFrom: "2023-08-24", }
     },
     seaport: Object.keys(config).reduce((acc: any, chain) => {
       acc[chain] = seaportConfig

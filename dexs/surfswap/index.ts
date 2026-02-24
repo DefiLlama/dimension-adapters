@@ -16,6 +16,7 @@ const adapter: BreakdownAdapter = {
       [CHAIN.KAVA]: {
         fetch: () => ({} as any),
         start: '2022-06-30',
+        deadFrom: "2025-03-19",
       },
     },
   }

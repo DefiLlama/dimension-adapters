@@ -6,7 +6,7 @@ const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v1: {
-      [CHAIN.BSC]: { fetch: async () => ({}), },
+      [CHAIN.BSC]: { fetch: async () => ({}), deadFrom: "2025-03-21", },
     },
     v2: {
       [CHAIN.BSC]: {
@@ -16,11 +16,13 @@ const adapter: BreakdownAdapter = {
     v3: {
       [CHAIN.BSC]: {
         fetch: () => ({} as any),
+        deadFrom: "2025-03-21",
       }
     },
     stableswap: {
       [CHAIN.BSC]: {
         fetch: () => ({} as any),
+        deadFrom: "2025-03-21",
       }
     },
   },

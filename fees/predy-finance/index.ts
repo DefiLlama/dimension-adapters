@@ -430,10 +430,10 @@ const adapter: BreakdownAdapter = {
   version: 1,
   breakdown: {
     v3: {
-      [CHAIN.ARBITRUM]: { fetch: async () => ({}), },
+      [CHAIN.ARBITRUM]: { fetch: async () => ({}), deadFrom: "2023-08-02", },
     },
     v320: {
-      [CHAIN.ARBITRUM]: { fetch: async () => ({}), },
+      [CHAIN.ARBITRUM]: { fetch: async () => ({}), deadFrom: "2023-08-02", },
     },
     v5: {
       [CHAIN.ARBITRUM]: {

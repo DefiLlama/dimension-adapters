@@ -1,7 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, BreakdownAdapter } from "../../adapters/types";
-import { getUniV3LogAdapter } from "../../helpers/uniswap";
-
 
 const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const dailyVolume = createBalances()
@@ -33,7 +31,8 @@ const adapter: BreakdownAdapter = {
         },
         CL: {
           [CHAIN.BLAST]: {
-            fetch: () => ({} as any)
+            fetch: () => ({} as any),
+            deadFrom: "2025-03-21",
           }
         }
     },
