@@ -1,9 +1,18 @@
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
-import adapter from './hydradex'
-const { breakdown, ...rest } = adapter
-
-export default {
-  ...rest,
+const adapter: SimpleAdapter = {
+  version: 2,
   deadFrom: '2023-07-09',
-  adapter: breakdown['v2'],
-}
+  adapter: {
+    [CHAIN.HYDRA]: {
+      fetch: async (timestamp: number) => {
+        return {
+          timestamp
+        }
+      },
+    },
+  },
+};
+
+export default adapter;

@@ -314,11 +314,7 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const optionsMap: Record<string, any> = {
-  "squadswap-v3": { pullHourly: true },
-  "9mm": { swapEvent: protocolFeesSwapEvent, pullHourly: true },
-  "lynex": { runAsV1: true },
-  "datadex": { runAsV1: true },
-  "swapmode-v3": { runAsV1: true },
+  "9mm": { swapEvent: protocolFeesSwapEvent, },
 }
 
 const methodologyMap: Record<string, any> = {

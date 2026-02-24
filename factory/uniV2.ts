@@ -718,9 +718,6 @@ const configs: Record<string, Record<string, any>> = {
 const optionsMap: Record<string, any> = {
   // replaced with pullHourly
   // "dyorswap": { runAsV1: true },
-  // "canto-dex": { runAsV1: true },
-  // "viperswap": { runAsV1: true },
-  // "swapmode-v2": { runAsV1: true },
 }
 
 const methodologyMap: Record<string, any> = {

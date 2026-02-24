@@ -27,7 +27,7 @@ interface DeadAdapterInfo {
   path: string
   fileKey: string
   fullPath: string
-  imports: string[] // list of imported adapter paths (e.g., "dexs/uniswap")
+  // imports: string[] // list of imported adapter paths (e.g., "dexs/uniswap")
 }
 const deadAdapterInfos: Map<string, DeadAdapterInfo> = new Map()
 
@@ -103,13 +103,13 @@ async function moveAdapter(info: DeadAdapterInfo): Promise<boolean> {
     return false // Already moved
   }
 
-  // First, move any dead dependencies
-  for (const importPath of info.imports) {
-    if (deadAdapterInfos.has(importPath) && !movedAdapters.has(importPath)) {
-      const depInfo = deadAdapterInfos.get(importPath)!
-      await moveAdapter(depInfo)
-    }
-  }
+  // First, move any dead dependencies -- no longer needed as there is no more breakdown adapters
+  // for (const importPath of info.imports) {
+  //   if (deadAdapterInfos.has(importPath) && !movedAdapters.has(importPath)) {
+  //     const depInfo = deadAdapterInfos.get(importPath)!
+  //     await moveAdapter(depInfo)
+  //   }
+  // }
 
   try {
     const importPath = `../${info.adapterType}/${info.fileKey}`
@@ -145,6 +145,7 @@ async function moveAdapter(info: DeadAdapterInfo): Promise<boolean> {
     movedAdapters.add(moduleKey)
     return true
   } catch (error: any) {
+    console.log(error)
     // Skip modules that fail to import
   }
   return false
@@ -164,15 +165,23 @@ async function scanAdapter(adapterType: string, path: string): Promise<DeadAdapt
     if (!module.default) return null
 
     await setModuleDefaults(module.default)
+    const adapterChainExports = Object.values(module.default.adapter || {})
+    let allChainsAreDead = false
+    if (adapterChainExports.length > 0 && adapterChainExports.every((chainExport: any) => chainExport.deadFrom))
+      allChainsAreDead = true
 
-    if (module.default.deadFrom !== undefined) {
-      const imports = extractImports(fullPath)
+    if (allChainsAreDead)
+      console.log(`Scanned ${moduleKey}, all chains dead: ${allChainsAreDead}`)
+
+
+    if (module.default.deadFrom !== undefined || allChainsAreDead) {
+      // const imports = extractImports(fullPath)
       return {
         adapterType,
         path,
         fileKey,
         fullPath,
-        imports
+        // imports
       }
     }
   } catch (error: any) {
