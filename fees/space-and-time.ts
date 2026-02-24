@@ -55,6 +55,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFees.addCGToken('space-and-time', Number(queryRouterFeesEthereum) / 1e18);
   dailyFees.addCGToken('space-and-time', Number(queryRouterFeesBase) / 1e18);
   dailyRevenue.addCGToken('space-and-time', Number(payPortalFees) / 1e18);
+  dailyRevenue.addCGToken('space-and-time', Number(queryRouterFeesEthereum) / 1e18);
+  dailyRevenue.addCGToken('space-and-time', Number(queryRouterFeesBase) / 1e18);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
