@@ -34,8 +34,8 @@ WITH
                     executing_account=CONST.PERP_PROGRAM_ID
                     AND bytearray_substring (data, 9, 8)=CONST.ADD_LIQUIDITY_EVENT
                     AND tx_success=TRUE
-                    AND block_time>=CONST.start_time
-                    AND block_time<CONST.end_time
+                    AND block_time>=FROM_UNIXTIME({{start}})
+                    AND block_time<=FROM_UNIXTIME({{end}})
                 UNION ALL
                 -- Withdrawals
                 SELECT
@@ -63,11 +63,11 @@ WITH
                     executing_account=CONST.PERP_PROGRAM_ID
                     AND bytearray_substring (data, 9, 8)=CONST.REMOVE_LIQUIDITY_EVENT
                     AND tx_success=TRUE
-                    AND block_time>=CONST.start_time
-                    AND block_time<CONST.end_time
+                    AND block_time>=FROM_UNIXTIME({{start}})
+                    AND block_time<FROM_UNIXTIME({{end}})
             ) sub
     ),
-    -- Aggregate pool fees by day with early aggregation
+    -- Aggregate pool fees by day
     pool_fees_daily AS (
         SELECT
             day,
@@ -77,6 +77,7 @@ WITH
         GROUP BY
             1
     ),
+    -- Optimized swap fees with early date filtering
     jup_perp_swaps_mat AS (
         SELECT
             to_base58 (bytearray_substring (data, 1+16, 32)) as custody_key_in,
@@ -114,14 +115,12 @@ WITH
             and dp.total_holders_ever>5000
         WHERE
             executing_account='PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
-            -- AND bytearray_substring(data,1,8) = 0xe445a52e51cb9a1d
             AND bytearray_substring (data, 1+8, 8)=0x286bd41adf8827dc -- PoolSwapEvent
             AND tx_success=true
-            -- AND block_time >= DATE_TRUNC('day', NOW() - INTERVAL '90' day)
-            -- AND tx_id = 'vXNpQ1z5dbqh97xHK3uMsiH5PZR5ERSAKdpLRb3ehKKXBWUnLeaWuPAQaWycLWUYKV3eefXrks1cmYacVkkkTGu'
-            -- and block_slot = 241516777
+            AND block_time>=FROM_UNIXTIME({{start}})
+            AND block_time<FROM_UNIXTIME({{end}})
     ),
-    -- Pre-filtered swap fees with early date filtering
+    -- Swap fees by day
     swap_fees_daily AS (
         SELECT
             date_trunc('day', block_time) AS day,
@@ -129,172 +128,41 @@ WITH
                 price*(amount_out-amount_out_post_fee)/POW(10, decimals)
             ) AS swap_fees
         FROM
-            jup_perp_swaps_mat,
-            CONST
-        WHERE
-            block_time>=CONST.start_time
-            AND block_time<CONST.end_time
+            jup_perp_swaps_mat
         GROUP BY
             1
     ),
-    jup_perp_position_change_volume AS (
-        SELECT
-            'increase' AS position_change,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+291, 8))
-            )/1e6 as size_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+299, 8))
-            )/1e6 as collateral_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+307, 8))
-            ) as collateral_token,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+340, 8))
-            )/1e6 as fee_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+315, 8))
-            )/1e6 as price_usd,
-            null as liq_fee_usd,
-            null as pnl_direction,
-            null as pnl_usd,
-            to_base58 (bytearray_substring (data, 1+227, 32)) as owner,
-            to_base58 (bytearray_substring (data, 1+16, 32)) as position_key,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+16+32, 1))
-            ) as position_side,
-            to_base58 (bytearray_substring (data, 1+16+32+1, 32)) as custody_position_key,
-            to_base58 (bytearray_substring (data, 1+16+32+1+32, 32)) as custody_collateral_key,
-            block_slot,
-            block_time,
-            tx_id
-        FROM
-            solana.instruction_calls
-        WHERE
-            executing_account='PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
-            AND bytearray_substring (data, 1+8, 8)=0xf5715534d6bb9984 -- IncreasePosition
-            AND tx_success=true
-        UNION ALL
-        SELECT
-            'decrease' AS position_change,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+292, 8))
-            )/1e6 as size_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+300, 8))
-            )/1e6 as collateral_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+309, 8))
-            ) as collateral_token,
-            case
-                when bytearray_to_bigint (
-                    bytearray_reverse (bytearray_substring (data, 1+325, 1))
-                )=1 then bytearray_to_bigint (
-                    bytearray_reverse (bytearray_substring (data, 1+334, 8))
-                )/1e6
-                else bytearray_to_bigint (
-                    bytearray_reverse (bytearray_substring (data, 1+326, 8))
-                )/1e6
-            end as fee_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+317, 8))
-            )/1e6 as price_usd,
-            null as liq_fee_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+219, 1))
-            ) as pnl_direction,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+220, 8))
-            )/1e6 as pnl_usd,
-            to_base58 (bytearray_substring (data, 1+228, 32)) as owner,
-            to_base58 (bytearray_substring (data, 1+16, 32)) as position_key,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+16+32, 1))
-            ) as position_side,
-            to_base58 (bytearray_substring (data, 1+16+32+1, 32)) as custody_position_key,
-            to_base58 (bytearray_substring (data, 1+16+32+1+32, 32)) as custody_collateral_key,
-            block_slot,
-            block_time,
-            tx_id
-        FROM
-            solana.instruction_calls
-        WHERE
-            executing_account='PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
-            AND bytearray_substring (data, 1+8, 8)=0x409c2b4a6d83107f -- DecreasePosition
-            AND tx_success=true
-        UNION ALL
-        -- LiquidatePositionEvent (there is also a LiquidateFullPositionEvent)
-        SELECT
-            'liquidate' AS position_change,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+177, 8))
-            )/1e6 as size_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+258, 8))
-            )/1e6 as collateral_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+266, 8))
-            ) as collateral_token,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+282, 8))
-            )/1e6 as fee_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+274, 8))
-            )/1e6 as price_usd,
-            case
-                when bytearray_substring (data, 1+8, 8)=0x806547a880485654 then bytearray_to_bigint (
-                    bytearray_reverse (bytearray_substring (data, 1+290, 8))
-                )/1e6
-                else 0
-            end as liq_fee_usd,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+185, 1))
-            ) as pnl_direction,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+186, 8))
-            )/1e6 as pnl_usd,
-            to_base58 (bytearray_substring (data, 1+194, 32)) as owner,
-            to_base58 (bytearray_substring (data, 1+16, 32)) as position_key,
-            bytearray_to_bigint (
-                bytearray_reverse (bytearray_substring (data, 1+16+32, 1))
-            ) as position_side,
-            to_base58 (bytearray_substring (data, 1+16+32+1, 32)) as custody_position_key,
-            to_base58 (bytearray_substring (data, 1+16+32+1+32, 32)) as custody_collateral_key,
-            block_slot,
-            block_time,
-            tx_id
-        FROM
-            solana.instruction_calls
-        WHERE
-            executing_account='PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
-            AND bytearray_substring (data, 1+8, 8) IN (0x68452084d423bf2f, 0x806547a880485654) --LiquidatePosition, LiquidateFullPosition
-            AND tx_success=true
-    ),
-    -- Pre-filtered main query data with early date filtering
-    main_fees AS (
+    -- Position fees using decoded events table
+    position_fees_daily AS (
         SELECT
             date_trunc('day', block_time) AS day,
-            SUM(liq_fee_usd) AS liq_fees,
-            SUM(fee_usd) AS other_fees
+            SUM(CASE WHEN position_change = 'liquidate' THEN liq_fee_usd ELSE 0 END) AS liq_fees,
+            SUM(CASE WHEN position_change IN ('increase', 'decrease') THEN fee_usd ELSE 0 END) AS other_fees
         FROM
-            jup_perp_position_change_volume,
-            CONST
+            jupiter_solana.perp_events
         WHERE
-            block_time>=CONST.start_time
-            AND block_time<CONST.end_time
+            block_time>=FROM_UNIXTIME({{start}})
+            AND block_time<FROM_UNIXTIME({{end}})
         GROUP BY
             1
     )
 SELECT
-    COALESCE(m.day, p.day, s.day) as day,
+    COALESCE(pf.day, sf.day, posf.day) as day,
+    COALESCE(pf.pool_fees, 0) AS pool_fees,
+    COALESCE(sf.swap_fees, 0) AS swap_fees,
+    COALESCE(posf.liq_fees, 0) AS liquidation_fees,
+    COALESCE(posf.other_fees, 0) AS position_fees,
     (
-        COALESCE(m.liq_fees, 0)+COALESCE(m.other_fees, 0)+COALESCE(p.pool_fees, 0)+COALESCE(s.swap_fees, 0)
+        COALESCE(pf.pool_fees, 0) + 
+        COALESCE(sf.swap_fees, 0) + 
+        COALESCE(posf.liq_fees, 0) + 
+        COALESCE(posf.other_fees, 0)
     ) AS total_fees
 FROM
-    main_fees m
-    FULL OUTER JOIN pool_fees_daily p ON m.day=p.day
-    FULL OUTER JOIN swap_fees_daily s ON m.day=s.day
+    pool_fees_daily pf
+    FULL OUTER JOIN swap_fees_daily sf ON pf.day = sf.day
+    FULL OUTER JOIN position_fees_daily posf ON COALESCE(pf.day, sf.day) = posf.day
 WHERE
-    COALESCE(m.day, p.day, s.day) IS NOT NULL
+    COALESCE(pf.day, sf.day, posf.day) IS NOT NULL
 ORDER BY
-    day;
+    day

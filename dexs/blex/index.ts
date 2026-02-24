@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { BreakdownAdapter, Fetch, SimpleAdapter } from "../../adapters/types";
+import { BreakdownAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -41,20 +41,11 @@ interface IGraphResponse {
       id:  "daily:"+ String(dayTimestamp),
       period: 'daily',
     })
-    const totalData: IGraphResponse = await request(endpoints[chain], query, {
-      id: 'total',
-      period: 'total',
-    })
 
     return {
-      timestamp: dayTimestamp,
       dailyVolume:
         dailyData.summaries.length == 1
           ? String(Number(Object.values(dailyData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10  ** -18)
-          : undefined,
-      totalVolume:
-        totalData.summaries.length == 1
-          ? String(Number(Object.values(totalData.summaries[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -18)
           : undefined,
     }
   }

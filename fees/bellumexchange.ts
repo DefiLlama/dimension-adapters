@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const FACTORIES = [
   '0x9f383e31aA37b6a4F0F57033558C54c37B5De45F',
@@ -13,25 +14,39 @@ const FACTORIES = [
 
 const FEE = BigInt(100);
 
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const logs = await options.getLogs({
+    targets: FACTORIES,
+    eventAbi: "event BellumSwap(address indexed token, address indexed sender, uint amount0In, uint amount0Out, uint amount1In, uint amount1Out)",
+  })
+  logs.map((tx: any) => {
+    dailyFees.addGasToken((tx.amount1In + tx.amount1Out) / FEE, METRIC.TRADING_FEES)
+    dailyRevenue.addGasToken((tx.amount1In + tx.amount1Out) / FEE, METRIC.TRADING_FEES)
+  })
+  return { dailyFees, dailyRevenue }
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: 'Trading fees charged on token swaps executed through BellumExchange.',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees collected by BellumExchange from swaps.',
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.AVAX]: {
-      fetch: (async (options: FetchOptions) => {
-        const dailyFees = options.createBalances();
-        const logs = await options.getLogs({
-          targets: FACTORIES,
-          eventAbi: "event BellumSwap(address indexed token, address indexed sender, uint amount0In, uint amount0Out, uint amount1In, uint amount1Out)",
-        })
-        logs.map((tx: any) => {
-          dailyFees.addGasToken((tx.amount1In + tx.amount1Out) / FEE)
-        })
-        return { dailyFees, dailyRevenue: dailyFees }
-      }) as any,
-      start: '2024-08-11'
-    },
+  fetch,
+  chains: [CHAIN.AVAX],
+  start: '2024-08-11',
+  methodology: {
+    Fees: "Trading fees paid by users.",
+    Revenue: "Trading fees paid by users.",
   },
-
+  breakdownMethodology,
 }
 
 export default adapter;

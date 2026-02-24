@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/types";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -65,12 +65,9 @@ function get_fetch_for_network(chain: Chain) {
       body: JSON.stringify(getRequestBody(chainId, options.fromTimestamp, options.toTimestamp))
     }).then((response) => response.json());
 
-    const total_res = await fetchTotalVolumeCached(chainId)
-
     const dailyVolume = Math.trunc(daily_res["entries"][0]["get"]["from_volume"] / 100)
-    const totalVolume = Math.trunc(total_res["entries"][0]["get"]["from_volume"] / 100)
 
-    return { dailyVolume, totalVolume }
+    return { dailyVolume, }
   }
 }
 

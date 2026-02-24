@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
@@ -17,6 +17,11 @@ const adapter: Adapter = {
       fetch: graph(CHAIN.ETHEREUM),
       start: '2023-01-16',
     },
+  },
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'Swap fees paid by users.',
+    HoldersRevenue: 'All swap fees distributed to token holders.',
   }
 }
 

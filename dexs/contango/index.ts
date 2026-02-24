@@ -1,136 +1,128 @@
-import * as sdk from "@defillama/sdk";
-import request from "graphql-request";
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
-import { wrapGraphError } from "../../helpers/getUniSubgraph";
-import { Chain } from "@defillama/sdk/build/general";
+import { queryDuneSql } from "../../helpers/dune";
 
-type IEndpoint = {
-  [chain: string]: string;
-}
+const chainMap: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "mainnet",
+  [CHAIN.XDAI]: "gnosis",
+  [CHAIN.AVAX]: "avalanche",
+  [CHAIN.BSC]: "bsc",
+};
 
-const endpoint: IEndpoint = {
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('BmHqxUxxLuMoDYgbbXU6YR8VHUTGPBf9ghD7XH6RYyTQ'),
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('PT2TcgYqhQmx713U3KVkdbdh7dJevgoDvmMwhDR29d5'),
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('FSn2gMoBKcDXEHPvshaXLPC1EJN7YsfCP78swEkXcntY'),
-  [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('5t3rhrAYt79iyjm929hgwyiaPLk9uGxQRMiKEasGgeSP'),
-  [CHAIN.BASE]: "https://graph.contango.xyz:18000/subgraphs/name/contango-xyz/v2-base",
-  [CHAIN.XDAI]: sdk.graph.modifyEndpoint('9h1rHUKJK9CGqztdaBptbj4Q9e2zL9jABuu9LpRQ1XkC'),
-}
+const fetch = async (_a: number, _: any, options: FetchOptions) => {
+  const { chain, fromTimestamp, toTimestamp } = options;
+  const mappedChain = chainMap[chain] ?? chain
+  const query = `
+    WITH volume AS (
+      SELECT SUM(ABS(QUANTITY_USD)) AS VOL_USD 
+      FROM DUNE.CONTANGO_XYZ.RESULT_V2_ALL_TRADES
+      WHERE TIMESTAMP >= from_unixtime(${fromTimestamp}) AND TIMESTAMP <= from_unixtime(${toTimestamp}) AND chain = '${mappedChain}'
+    ), 
+    oi as (
+      with LONG_OI_DELTA as (
+        SELECT DATE_TRUNC('day', T.TIMESTAMP) AS TIMESTAMP, T.BASE AS ASSET, SUM(T.QUANTITY) AS DELTA
+        FROM DUNE.CONTANGO_XYZ.V2_TRANSACTIONS AS T
+        WHERE T.chain = '${mappedChain}' AND T.DIRECTION = 'Long'
+        GROUP BY 1, 2
+      ),
+      SHORT_OI_DELTA as (
+        SELECT DATE_TRUNC('day', T.TIMESTAMP) AS TIMESTAMP, T.BASE AS ASSET, SUM(T.QUANTITY) * -1 AS DELTA
+        FROM DUNE.CONTANGO_XYZ.V2_TRANSACTIONS AS T
+        WHERE T.chain = '${mappedChain}' AND T.DIRECTION = 'Short'
+        GROUP BY 1, 2
+    ), 
+    OI_DELTA as (
+      SELECT COALESCE(L.TIMESTAMP, S.TIMESTAMP) AS TIMESTAMP, COALESCE(L.ASSET, S.ASSET) AS ASSET, COALESCE(L.DELTA, 0) + COALESCE(S.DELTA, 0) AS DELTA
+      FROM LONG_OI_DELTA L
+      LEFT JOIN SHORT_OI_DELTA S ON (S.TIMESTAMP = L.TIMESTAMP AND S.ASSET = L.ASSET)
+    ),
+    ASSETS as (
+      SELECT distinct ASSET
+      FROM OI_DELTA
+    ),
+    OI_DIRTY as (
+      SELECT TS.TIMESTAMP AS TIMESTAMP, A.ASSET AS ASSET, SUM(OI_DELTA.DELTA) OVER (PARTITION BY A.ASSET ORDER BY TS.TIMESTAMP) AS OI
+      FROM DUNE.CONTANGO_XYZ.RESULT_DAILY_TIMESTAMPS TS
+      CROSS JOIN ASSETS A
+      LEFT JOIN OI_DELTA ON OI_DELTA.TIMESTAMP = TS.TIMESTAMP AND OI_DELTA.ASSET = A.ASSET
+      WHERE TS.TIMESTAMP <= DATE_TRUNC('day', from_unixtime(${toTimestamp}))
+    ),
+    OI as (
+      SELECT TIMESTAMP, ASSET, 
+      CASE
+        WHEN OI < 0 THEN 0
+        ELSE OI
+      END AS OI
+      FROM OI_DIRTY
+    ), 
+    OI_USD as (
+      SELECT OI.TIMESTAMP, OI.OI * PRICE.PRICE AS OI_USD
+      FROM OI
+      INNER JOIN DUNE.CONTANGO_XYZ.RESULT_V2_DAILY_PRICES_USD AS PRICE 
+      ON (PRICE.ASSET = OI.ASSET AND PRICE.TIMESTAMP = OI.TIMESTAMP)
+    )
+      SELECT '${mappedChain}' AS chain, TIMESERIES.TIMESTAMP AS TIMESTAMP, COALESCE(SUM(OI.OI_USD), 0) AS OI_USD
+      FROM DUNE.CONTANGO_XYZ.RESULT_DAILY_TIMESTAMPS AS TIMESERIES
+      LEFT JOIN OI_USD as OI ON OI.TIMESTAMP = TIMESERIES.TIMESTAMP
+      WHERE TIMESERIES.TIMESTAMP > DATE_TRUNC('day', from_unixtime(${fromTimestamp})) AND TIMESERIES.TIMESTAMP <= DATE_TRUNC('day', from_unixtime(${toTimestamp}))
+      GROUP BY 1, 2
+    )
+    SELECT volume.VOL_USD, oi.OI_USD, oi.TIMESTAMP
+    FROM volume CROSS JOIN oi
+  `;
 
-interface IAssetTotals {
-  id: string;
-  symbol: string;
-  totalVolume: string;
-  openInterest: string;
-  totalFees: string;
-}
-interface IResponse {
-  today: IAssetTotals[];
-  yesterday: IAssetTotals[];
-}
-interface IAsset {
-  id: string;
-  volume: number;
-  openInterest: number;
-  fees: number;
-}
-const fetchVolume = (chain: Chain) => {
-  return async (timestamp: number, _: ChainBlocks, { getFromBlock, getToBlock, createBalances, api, }: FetchOptions) => {
-    const query = `
-    {
-      today:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getToBlock()}}) {
-        id
-        symbol
-        totalVolume
-        openInterest
-        totalFees
-      },
-      yesterday:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getFromBlock()}}) {
-        id
-        symbol
-        totalVolume
-        openInterest
-        totalFees
-      }
-    }
-    `;
-    let response: IResponse
-    try {
-      response = await request(endpoint[chain], query)
-    } catch (error) {
-      console.error('Error fetching contango data', wrapGraphError(error as Error).message);
-      return { timestamp };
-    }
+  const response = await queryDuneSql(options, query);
 
-    const dailyOpenInterest = createBalances();
-    const dailyFees = createBalances();
-    const dailyVolume = createBalances();
-    const totalFees = createBalances();
-    const totalVolume = createBalances();
-
-    const tokens = response.today.map((asset) => asset.id);
-    const decimals = await api.multiCall({  abi: 'erc20:decimals', calls: tokens})
-
-    const data: IAsset[] = response.today.map((asset, index: number) => {
-      const yesterday = response.yesterday.find((e: IAssetTotals) => e.id === asset.id);
-      const totalVolume = Number(asset.totalVolume) - Number(yesterday?.totalVolume || 0);
-      const totalFees = Number(asset.totalFees) - Number(yesterday?.totalFees || 0);
-      const openInterest = Math.abs(Number(asset.openInterest));
-      const multipliedBy = 10 ** Number(decimals[index]);
-      return {
-        id: asset.id,
-        openInterest: openInterest * multipliedBy,
-        fees: totalFees * multipliedBy,
-        volume: totalVolume * multipliedBy,
-      } as IAsset
-    })
-    data.map(({ volume, id, openInterest, fees }) => {
-      dailyVolume.add(id, +volume)
-      dailyOpenInterest.add(id, +openInterest)
-      dailyFees.add(id, +fees)
-    });
-    response.today.map(({ totalFees: tf, id, totalVolume: tv, }, index) => {
-      const multipliedBy = 10 ** Number(decimals[index]);
-      totalFees.add(id, +tf * multipliedBy)
-      totalVolume.add(id, +tv * multipliedBy)
-    });
-
-    return {
-      dailyOpenInterest, dailyFees, dailyVolume,
-      // totalFees, totalVolume,
-      timestamp
-    };
-  }
-}
+  return {
+    dailyVolume: Number(response[0].VOL_USD ? response[0].VOL_USD : 0),
+    openInterestAtEnd: Number(response[0].OI_USD ? response[0].OI_USD : 0),
+  };
+};
 
 const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: fetchVolume(CHAIN.ARBITRUM),
-      start: '2023-10-03',
+      fetch,
+      start: "2023-10-03",
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetchVolume(CHAIN.OPTIMISM),
-      start: '2023-10-02',
+      fetch,
+      start: "2023-10-02",
     },
     [CHAIN.ETHEREUM]: {
-      fetch: fetchVolume(CHAIN.ETHEREUM),
-      start: '2023-10-03',
+      fetch,
+      start: "2023-10-03",
     },
     [CHAIN.POLYGON]: {
-      fetch: fetchVolume(CHAIN.POLYGON),
-      start: '2023-10-13',
+      fetch,
+      start: "2023-10-13",
     },
     [CHAIN.BASE]: {
-      fetch: fetchVolume(CHAIN.BASE),
-      start: '2023-10-09',
+      fetch,
+      start: "2023-10-09",
     },
     [CHAIN.XDAI]: {
-      fetch: fetchVolume(CHAIN.XDAI),
-      start: '2023-10-06',
+      fetch,
+      start: "2023-10-06",
     },
-  }
+    [CHAIN.AVAX]: {
+      fetch,
+      start: "2024-08-11",
+    },
+    [CHAIN.LINEA]: {
+      fetch,
+      start: "2024-08-11",
+    },
+    [CHAIN.BSC]: {
+      fetch,
+      start: "2024-06-07",
+    },
+    [CHAIN.SCROLL]: {
+      fetch,
+      start: "2024-08-11",
+    },
+  },
 };
 export default adapter;

@@ -1,112 +1,116 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import asyncRetry from "async-retry";
 
-const URL = "https://vooi-rebates.fly.dev/";
-const endpoint = "defillama/volumes";
-const startTimestampArbitrum = 1714608000; // 02.05.2024
-const startTimestampBlast = 1719792000; // 01.07.2024
-const startTimestampOpBNB = 1717200000; // 01.06.2024
-const startTimestampBase = 1722470400; // 01.08.2024
-const startTimestampHyperliquid = 1730678400; // 04.11.2024
-
-const fetchArbitrum = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
-    // const timestamp = options.toTimestamp
-    const fetchData = await fetchURL(`${URL}${endpoint}?ts=${options.startOfDay}`) // returns data for the day before
-    let orderlyItem = fetchData.find(((item) => item.protocol == "orderly"))
-    if (!orderlyItem) {
-        orderlyItem = {dailyVolume: 0, totalVolume: 0}
+async function fetchStatistics(startOfDay: number) {
+  const data = await asyncRetry(
+    async () => fetchURL(`https://vooi-rebates.fly.dev/defillama/volumes?ts=${startOfDay}`),
+    {
+      retries: 3,
+      minTimeout: 1000,
+      maxTimeout: 5000,
+      factor: 2,
     }
-    let synfuturesItem = fetchData.filter(((item) => item.protocol == "synfutures"))
-    if (!synfuturesItem) {
-        synfuturesItem = [{dailyVolume: 0, totalVolume: 0}]
+  );
+  return data.map((item: any) => ({
+    ...item,
+    dailyVolume: Number(item.dailyVolume),
+  }));
+}
+
+const getItems: Record<string, (items: Array<any>) => Array<any>> = {
+  [CHAIN.ARBITRUM]: (items: Array<any>): Array<any> => {
+    return items.filter(item => ['ostium'].includes(item.protocol) || (['gmx', 'gains', 'synfutures'].includes(item.protocol) && item.network === 'arbitrum'))
+  },
+  [CHAIN.ORDERLY]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol === 'orderly')
+  },
+  [CHAIN.HYPERLIQUID]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol === 'hyperliquid')
+  },
+  [CHAIN.BSC]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && (item.network === 'bnb' || item.network === null))
+  },
+  [CHAIN.BASE]: (items: Array<any>): Array<any> => {
+    return items.filter(item => ['synfutures', 'kiloex'].includes(item.protocol) && item.network === 'base')
+  },
+  [CHAIN.BLAST]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && item.network === 'blast')
+  },
+  [CHAIN.TAIKO]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'synfutures' && item.network === 'taiko')
+  },
+  [CHAIN.MANTA]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && item.network === 'manta')
+  },
+  [CHAIN.OP_BNB]: (items: Array<any>): Array<any> => {
+    return items.filter(item => item.protocol == 'kiloex' && item.network === 'opbnb')
+  },
+  [CHAIN.OFF_CHAIN]: (items: Array<any>): Array<any> => {
+    return items.filter(item => ['aster', 'lighter'].includes(item.protocol))
+  },
+}
+
+const prefetch = async (options: FetchOptions): Promise<any> => {
+  return await fetchStatistics(options.startOfDay);
+}
+
+const fetch = async (_a: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+  const results = options.preFetchedResults;
+
+  const items = getItems[options.chain](results)
+
+  let dailyVolume = 0;
+  for (const item of items) {
+    // reported wrong - spike volume on this day on ostium
+    if (options.chain === CHAIN.ARBITRUM && options.startOfDay === 1768003200 && item.protocol === 'ostium') {
+      dailyVolume += 0;
+    } else {
+      dailyVolume += item.dailyVolume;
     }
-    let kiloexItem = fetchData.filter(((item) => item.protocol == "kiloex"))
-    if (!kiloexItem) {
-        kiloexItem = [{dailyVolume: 0, totalVolume: 0}]
-    }
-    let ostiumItem = fetchData.find(((item) => item.protocol == "ostium"))
-    if (!ostiumItem) {
-      ostiumItem = {dailyVolume: 0, totalVolume: 0}
-    }
-    let hyperliquidItem = fetchData.find(((item) => item.protocol == "hyperliquid"))
-    if (!hyperliquidItem) {
-        hyperliquidItem = {dailyVolume: 0, totalVolume: 0}
-    }
+  }
 
-    let dailyVolume = Number(orderlyItem.dailyVolume) + Number(ostiumItem.dailyVolume) + Number(hyperliquidItem.dailyVolume)
-    let totalVolume = Number(orderlyItem.totalVolume) + Number(ostiumItem.totalVolume) + Number(hyperliquidItem.totalVolume)
-
-    for (let i in synfuturesItem){
-        dailyVolume = Number(dailyVolume) + Number(synfuturesItem[i].dailyVolume)
-        totalVolume = Number(totalVolume) + Number(synfuturesItem[i].totalVolume)
-    }
-    for (let i in kiloexItem){
-        dailyVolume = Number(dailyVolume) + Number(kiloexItem[i].dailyVolume)
-        totalVolume = Number(totalVolume) + Number(kiloexItem[i].totalVolume)
-    }
-    return {
-        dailyVolume,
-        totalVolume,
-        timestamp
-    };
-};
-
-const fetchHyperliquid = async (timestamp: number, _t: any, options: FetchOptions): Promise<FetchResult> => {
-    return {
-        dailyVolume: 0,
-        totalVolume: 0,
-        timestamp
-    };
-};
-
-
-const fetchOpBNB = async (timestamp: number): Promise<FetchResult> => {
-    return {
-        dailyVolume: 0,
-        totalVolume: 0,
-        timestamp
-    };
-};
-
-const fetchBlast = async (timestamp: number): Promise<FetchResult> => {
-    return {
-        dailyVolume: 0,
-        totalVolume: 0,
-        timestamp
-    };
-};
-
-const fetchBase = async (timestamp: number): Promise<FetchResult> => {
-    return {
-        dailyVolume: 0,
-        totalVolume: 0,
-        timestamp
-    };
-};
+  return { dailyVolume }
+}
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.ARBITRUM]: {
-            fetch: fetchArbitrum,
-            start: startTimestampArbitrum
-        },
-        [CHAIN.OP_BNB]: {
-            fetch: fetchOpBNB,
-            start: startTimestampOpBNB
-        },
-        [CHAIN.BLAST]: {
-            fetch: fetchBlast,
-            start: startTimestampBlast
-        },
-        [CHAIN.BASE]: {
-            fetch: fetchBase,
-            start: startTimestampBase
-        },
-        [CHAIN.HYPERLIQUID]: {
-            fetch: fetchHyperliquid,
-            start: startTimestampHyperliquid
-        }
+  version: 1,
+  fetch,
+  prefetch,
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      start: "2024-05-02",
     },
-}
-export default adapter
+    [CHAIN.ORDERLY]: {
+      start: "2024-05-02",
+    },
+    [CHAIN.BSC]: {
+      start: "2024-06-01",
+    },
+    [CHAIN.BASE]: {
+      start: "2024-08-01",
+    },
+    [CHAIN.HYPERLIQUID]: {
+      start: "2024-11-04",
+    },
+    [CHAIN.TAIKO]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.MANTA]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.BLAST]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.OP_BNB]: {
+      start: "2025-10-20",
+    },
+    [CHAIN.OFF_CHAIN]: {
+      start: '2025-11-01'
+    }
+  },
+  doublecounted: true,
+};
+
+export default adapter;

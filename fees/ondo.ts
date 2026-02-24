@@ -2,9 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import * as sdk from '@defillama/sdk'
 import * as solana from '../helpers/solana'
-import { getBlockNumber } from "@defillama/sdk/build/util/blocks"
 import axios from "axios"
-import { APTOS_PRC, getCoinSupply } from "../helpers/aptops"
+import { getCoinSupply } from "../helpers/aptos"
 import { getObject } from '../helpers/sui'
 
 /**
@@ -20,6 +19,8 @@ import { getObject } from '../helpers/sui'
 
 const methodology = {
   Fees: 'Total yields were collected by investment assets.',
+  Revenue: 'Total yields were distributed to investors and Ondo protocol.',
+  PerotocolRevenue: 'Total yields were collected by Ondo protocol.',
   SupplySideRevenue: 'Total yields were distributed to investors.',
 }
 
@@ -42,7 +43,7 @@ const OndoContracts: any = {
     USDY: '0x5bE26527e817998A7206475496fDE1E68957c5A6',
   },
   [CHAIN.APTOS]: {
-    USDY: '0xcfea864b32833f157f042618bd845145256b1bf4c0da34a7013b76e42daa53cc',
+    USDY: '0xcfea864b32833f157f042618bd845145256b1bf4c0da34a7013b76e42daa53cc::usdy::USDY',
   },
   [CHAIN.ARBITRUM]: {
     USDY: '0x35e050d3C0eC2d29D269a8EcEa763a183bDF9A9D',
@@ -66,7 +67,7 @@ async function getPrices(timestamp: number): Promise<{
   OUSG: number;
   USDY: number;
 }> {
-  const blockNumber = await getBlockNumber(CHAIN.ETHEREUM, timestamp)
+  const blockNumber = await sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, timestamp)
 
   const [ousgPriceData, usdyPriceData] = await sdk.api2.abi.multiCall({
     chain: CHAIN.ETHEREUM,
@@ -138,81 +139,56 @@ async function getSupply(useChainApi: sdk.ChainApi): Promise<{
 
 const fetch: any = async (options: FetchOptions) => {
   // USD value
-  let dailyFees = 0
+  const dailyFees = options.createBalances()
 
   const oldPrices = await getPrices(options.fromTimestamp)
   const newPrices = await getPrices(options.toTimestamp)
 
   const supply = await getSupply(options.api)
 
-  dailyFees += supply.OUSG * (newPrices.OUSG - oldPrices.OUSG)
-  dailyFees += supply.USDY * (newPrices.USDY - oldPrices.USDY)
+  dailyFees.addUSDValue(supply.OUSG * (newPrices.OUSG - oldPrices.OUSG))
+  dailyFees.addUSDValue(supply.USDY * (newPrices.USDY - oldPrices.USDY))
 
-  return { 
+  return {
     dailyFees,
     dailySupplySideRevenue: dailyFees,
     dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology,
+  runAtCurrTime: true,
   adapter: {
-    [CHAIN.ETHEREUM]: { 
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2023-04-26',
-      meta: {
-        methodology,
-      }
     },
-    [CHAIN.SOLANA]: { 
+    [CHAIN.SOLANA]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.POLYGON]: { 
+    [CHAIN.POLYGON]: {
       fetch,
       start: '2023-06-03',
-      meta: {
-        methodology,
-      }
     },
-    [CHAIN.MANTLE]: { 
+    [CHAIN.MANTLE]: {
       fetch,
       start: '2023-10-25',
-      meta: {
-        methodology,
-      }
     },
-    [CHAIN.APTOS]: { 
+    [CHAIN.APTOS]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.ARBITRUM]: { 
+    [CHAIN.ARBITRUM]: {
       fetch: fetch,
       start: '2024-08-08',
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.SUI]: { 
+    [CHAIN.SUI]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
-    [CHAIN.NOBLE]: { 
+    [CHAIN.NOBLE]: {
       fetch: fetch,
-      runAtCurrTime: true,
-      meta: {
-        methodology,
-      },
     },
   },
 }

@@ -1,44 +1,45 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
 
-interface Statistics {
-  all: PeriodStats;
-  pastYear: PeriodStats;
-  pastMonth: PeriodStats;
-  pastWeek: PeriodStats;
-  pastDay: PeriodStats;
-}
+const rainHistoricalFeesUrl = 'https://api-v3.rain.fi/api/dirty/historical-apys?days=30';
 
-interface PeriodStats {
-  totalInterest: number;
-  totalProfit: number;
-  totalLoss: number;
-}
-
-const rainFeesUrl = "https://api-v3.rain.fi/api/dirty/all-lender-profit"
-
-const fethcFeesSolana = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = await getSolanaReceived({ options, target: 'H3RFN3GbDfwGhZc5QPqzW6U4cwhuk9vgPhEfFbcPDrm5' })
-  const stats: Statistics = (await fetchURL(rainFeesUrl));
+  const stats: any = (await fetchURL(rainHistoricalFeesUrl));
 
-  const dailyFees = stats.pastDay.totalInterest + stats.pastDay.totalProfit + stats.pastDay.totalLoss
-  const totalFees = stats.all.totalInterest + stats.all.totalProfit + stats.all.totalLoss
+  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
 
-  return { dailyFees, totalFees, dailyRevenue }
+  let dailyFees = dailyRevenue.clone()
+  for (const market of stats.result) {
+    for (const dateData of market.data) {
+      if (dateData.date === dateString) {
+        dailyFees.addUSDValue(Number(dateData.interest))
+      }
+    }
+  }
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
+
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-01-01',
+  // runAtCurrTime: true,
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      runAtCurrTime: true,
-      fetch: fethcFeesSolana,
-      start: '2025-01-01',
-    },
+  methodology: {
+    Fees: 'Interest paid by borrowers.',
+    Revenue: 'Amount of intertest collected by Rain protocol.',
+    SupplySideRevenue: 'Amount of intertest distributed to lenders.',
+    ProtocolRevenue: 'Amount of intertest collected by Rain protocol.',
   }
 }
 

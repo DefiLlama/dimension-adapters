@@ -56,11 +56,9 @@ const adapter: Adapter = {
     [CHAIN.SUI]: {
       fetch: fetchScallopStats,
       start: '2023-12-31',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

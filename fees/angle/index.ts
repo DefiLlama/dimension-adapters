@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import { getTimestampAtStartOfPreviousDayUTC, getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { BorrowFee, BorrowFeeQuery, BorrowResult, ChainEndpoint, CoreFee, CoreFeeQuery, CoreResult, veANGLEQuery } from "./types";
 
 
@@ -199,46 +198,40 @@ function aggregateFee(
 }
 
 
-const graph = (graphUrls: ChainEndpoint) => {
-    return (chain: CHAIN) => {
-        return async ({ endTimestamp, startTimestamp }: FetchOptions) => {
-            const borrowFees = await getBorrowFees(graphUrls[chain] as string, endTimestamp, startTimestamp);
-            const coreFees = await getCoreFees(graphUrls[chain] as string, endTimestamp, startTimestamp);
-            const veANGLEInterest = await getVEANGLERevenues(graphUrls[chain] as string, endTimestamp);
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay
+    const borrowFees = await getBorrowFees(endpoints[options.chain] as string, timestamp, timestamp - DAY);
+    const coreFees = await getCoreFees(endpoints[options.chain] as string, timestamp, timestamp - DAY);
+    const veANGLEInterest = await getVEANGLERevenues(endpoints[options.chain] as string, timestamp);
 
-            const total = aggregateFee("totalFees", coreFees, borrowFees);
-            const daily = aggregateFee("deltaFees", coreFees, borrowFees);
+    const daily = aggregateFee("deltaFees", coreFees, borrowFees);
 
-            return {
-                totalFees: (total.totalFees + veANGLEInterest.totalInterest).toString(),
-                dailyFees: (daily.totalFees + veANGLEInterest.deltaInterest).toString(),
-                totalRevenue: (total.totalRevenue + veANGLEInterest.totalInterest).toString(),
-                dailyRevenue: (daily.totalRevenue + veANGLEInterest.deltaInterest).toString(),
-            };
-        }
-    }
-};
+    return {
+        dailyFees: (daily.totalFees + veANGLEInterest.deltaInterest).toString(),
+        dailyRevenue: (daily.totalRevenue + veANGLEInterest.deltaInterest).toString(),
+    };
+}
 
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ARBITRUM]: {
-            fetch: graph(endpoints)(CHAIN.ARBITRUM),
+            fetch,
             start: '2023-01-01',
         },
         [CHAIN.AVAX]: {
-            fetch: graph(endpoints)(CHAIN.AVAX),
+            fetch,
             start: '2023-01-01',
         },
         [CHAIN.ETHEREUM]: {
-            fetch: graph(endpoints)(CHAIN.ETHEREUM),
+            fetch,
             start: '2023-01-01',
         },
         [CHAIN.OPTIMISM]: {
-            fetch: graph(endpoints)(CHAIN.OPTIMISM),
+            fetch,
             start: '2023-01-01',
         },
         [CHAIN.POLYGON]: {
-            fetch: graph(endpoints)(CHAIN.POLYGON),
+            fetch,
             start: '2023-01-01',
         },
     },

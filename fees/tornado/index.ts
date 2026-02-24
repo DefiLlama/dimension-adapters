@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -12,7 +13,7 @@ const TORNADO_CONTRACTS = {
                 "0x910cbd523d972eb0a6f4cae4618ad62622b39dbf", // 10 ETH
                 "0xa160cdab225685da1d56aa342ad8841c3b53f291", // 100 ETH
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native ETH
+            token: ADDRESSES.null // Native ETH
         },
         DAI: {
             pools: [
@@ -21,7 +22,7 @@ const TORNADO_CONTRACTS = {
                 "0x07687e702b410fa43f4cb4af7fa097918ffd2730", // 10,000 DAI
                 "0x23773E65ed146A459791799d01336DB287f25334", // 100,000 DAI
             ],
-            token: "0x6b175474e89094c44da98b954eedeac495271d0f"
+            token: ADDRESSES.ethereum.DAI
         },
         cDAI: {
             pools: [
@@ -37,14 +38,14 @@ const TORNADO_CONTRACTS = {
                 "0x4736dCf1b7A3d580672CcE6E7c65cd5cc9cFBa9D", // 100 USDC
                 "0xd96f2B1c14Db8458374d9Aca76E26c3D18364307", // 1,000 USDC
             ],
-            token: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+            token: ADDRESSES.ethereum.USDC
         },
         USDT: {
             pools: [
                 "0x169AD27A470D064DEDE56a2D3ff727986b15D52B", // 100 USDT
                 "0x0836222F2B2B24A3F36f98668Ed8F0B38D1a872f", // 1,000 USDT
             ],
-            token: "0xdac17f958d2ee523a2206206994597c13d831ec7"
+            token: ADDRESSES.ethereum.USDT
         },
         WBTC: {
             pools: [
@@ -52,7 +53,7 @@ const TORNADO_CONTRACTS = {
                 "0x610B717796ad172B316836AC95a2ffad065CeaB4", // 1 WBTC
                 "0xbB93e510BbCD0B7beb5A853875f9eC60275CF498", // 10 WBTC
             ],
-            token: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+            token: ADDRESSES.ethereum.WBTC
         }
     },
     [CHAIN.ARBITRUM]: {
@@ -63,7 +64,7 @@ const TORNADO_CONTRACTS = {
                 "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 ETH
                 "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 ETH
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native ETH
+            token: ADDRESSES.null // Native ETH
         }
     },
     [CHAIN.OPTIMISM]: {
@@ -74,7 +75,7 @@ const TORNADO_CONTRACTS = {
                 "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 ETH
                 "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 ETH
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native ETH
+            token: ADDRESSES.null // Native ETH
         }
     },
     [CHAIN.BSC]: {
@@ -85,7 +86,7 @@ const TORNADO_CONTRACTS = {
                 "0x330bdFADE01eE9bF63C209Ee33102DD334618e0a", // 10 BNB
                 "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 BNB
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native BNB
+            token: ADDRESSES.null // Native BNB
         }
     },
     [CHAIN.XDAI]: {
@@ -96,7 +97,7 @@ const TORNADO_CONTRACTS = {
                 "0xaf4c0B70B2Ea9FB7487C7CbB37aDa259579fe040", // 10,000 xDAI
                 "0xa5C2254e4253490C54cef0a4347fddb8f75A4998", // 100,000 xDAI
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native xDAI
+            token: ADDRESSES.null // Native xDAI
         }
     },
     [CHAIN.POLYGON]: {
@@ -107,7 +108,7 @@ const TORNADO_CONTRACTS = {
                 "0xaf4c0B70B2Ea9FB7487C7CbB37aDa259579fe040", // 10,000 MATIC
                 "0xa5C2254e4253490C54cef0a4347fddb8f75A4998", // 100,000 MATIC
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native MATIC
+            token: ADDRESSES.null // Native MATIC
         }
     },
     [CHAIN.AVAX]: {
@@ -117,7 +118,7 @@ const TORNADO_CONTRACTS = {
                 "0x1E34A77868E19A6647b1f2F47B51ed72dEDE95DD", // 100 AVAX
                 "0xaf8d1839c3c67cf571aa74B5c12398d4901147B3", // 500 AVAX
             ],
-            token: "0x0000000000000000000000000000000000000000" // Native AVAX
+            token: ADDRESSES.null // Native AVAX
         }
     }
 };
@@ -127,7 +128,7 @@ interface TornadoPoolData {
     token: string;
 }
 
-const getFees = async ({getLogs, chain, createBalances}: FetchOptions) => {
+const getFees = async ({ getLogs, chain, createBalances }: FetchOptions) => {
     const fees: { [token: string]: number } = {};
 
     for (const [token, data] of Object.entries(TORNADO_CONTRACTS[chain]) as [string, TornadoPoolData][]) {
@@ -142,60 +143,26 @@ const getFees = async ({getLogs, chain, createBalances}: FetchOptions) => {
     for (const [token, fee] of Object.entries(fees)) {
         dailyFees.add(token, fee);
     }
-    
-    return {dailyFees};
+
+    return {
+      dailyFees,
+      dailySupplySideRevenue: dailyFees,
+      dailyRevenue: 0,
+    };
 }
 
 const methodology = {
-    dailyFees: "All fees that are paid by users"
+    Fees: "All fees that are paid by users from withdrawal to relayers.",
+    SupplySideRevenue: "All fees that are paid by users from withdrawal to relayers.",
+    Revenue: "No revenue.",
 }
 
 const adapter: SimpleAdapter = {
+    methodology,
+    fetch: getFees,
     version: 2,
-    adapter: {
-        [CHAIN.ETHEREUM]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.BSC]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.AVAX]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.OPTIMISM]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.ARBITRUM]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.POLYGON]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        },
-        [CHAIN.XDAI]: {
-            fetch: getFees,
-            meta: {
-                methodology
-            }
-        }
-    },
+    chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
+    adapter: {},
     isExpensiveAdapter: true
 };
 

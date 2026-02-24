@@ -1,4 +1,3 @@
-import getLogs from "@defillama/sdk/build/util/logs";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { id, zeroPadValue } from "ethers";
@@ -74,20 +73,10 @@ const fetch: any = async (options: FetchOptions) => {
 
 export default {
   version: 2,
+  methodology,
+  fetch,
   adapter: {
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: 1737456148,
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: 1736511443,
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.POLYGON]: { start: '2025-01-21', },
+    [CHAIN.ETHEREUM]: { start: '2025-01-10', },
   },
 };

@@ -28,11 +28,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: {
       fetch: fetch,
       start: '2024-12-09',
-      meta: {
-        methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
-      }
     },
-  }
+  },
+  methodology: 'Volume is calculated by summing the quote token volume of all trades on the protocol.',
 };
 
 export default adapter;

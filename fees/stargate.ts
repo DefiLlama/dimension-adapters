@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import {
   Adapter,
   ChainBlocks,
@@ -139,7 +139,15 @@ const fetch = (chain: Chain) => {
   };
 };
 
+const info = {
+  methodology: {
+    Fees: 'Total bridge fees paid by users',
+    Revenue: 'Total bridge fees paid by users',
+  }
+}
+
 const adapter: Adapter = {
+  methodology: info.methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),

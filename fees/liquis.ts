@@ -33,6 +33,12 @@ const adapter: Adapter = {
       start: '2023-08-30',
     },
   },
+  methodology: {
+    Fees: "Liquidity management fees paid by users",
+    Revenue: "25% liquidity management fees paid by users",
+    HoldersRevenue: "30% share of revenue to token holders",
+    SupplySideRevenue: "75% fees share to liquidity providers",
+  }
 
 }
 

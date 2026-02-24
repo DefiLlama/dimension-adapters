@@ -3,8 +3,6 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-
-
 interface IMarkets {
   market_id: number;
   quote_account_address: number;
@@ -48,24 +46,18 @@ const fetch = async (timestamp: number) => {
   }, { daily: 0, total: 0 });
 
   let res = {
-    totalVolume: `${volumes.total}`,
     dailyVolume: `${volumes.daily}`,
     dailyFees: `${fees.daily}`,
-    totalFees: `${fees.total}`,
-    timestamp: dayTimestamp,
   };
 
   return res;
 };
 
-const getStartTimestamp = async () => {
-  return (new Date('2023-11-23T00:00:00.000Z').getTime() / 1000);
-}
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetch,
-      start: getStartTimestamp,
+      fetch,
+      start: '2023-11-23',
     }
   },
 };

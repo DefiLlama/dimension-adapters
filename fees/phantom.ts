@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
 
@@ -14,46 +14,62 @@ const solana_fee_wallet_addresses = [
   'D1NJy3Qq3RKBG29EDRj28ozbGwnhmM5yBUp8PonSYUnm',
 ];
 
+const solana_blacklist_mints = [
+  'DWxU1Ew5yjFebSui8xzRYPE3FwgGzp8F1iKcQFyUezJX',
+  '2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F'
+];
+
 // ETH fee wallet addresses
 const eth_fee_wallet_addresses = [
   '0x1bcc58d165e5374d7b492b21c0a572fd61c0c2a0',
-  '0x7afa9d836d2fccf172b66622625e56404e465dbd'
+  '0x7afa9d836d2fccf172b66622625e56404e465dbd',
+  '0x2cffed5d56eb6a17662756ca0fdf350e732c9818',
 ];
 
 // Solana fetch function
-const fetchSolana = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ 
-    options, 
-    targets: solana_fee_wallet_addresses, 
-    blacklist_signers: solana_fee_wallet_addresses 
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+  // throw new Error('Fix bug that inflates fees')
+  const dailyFees = await getSolanaReceived({
+    options,
+    targets: solana_fee_wallet_addresses,
+    blacklist_signers: solana_fee_wallet_addresses,
+    blacklist_mints: solana_blacklist_mints,
   });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 // ETH fetch function for each chain
-const fetchETH = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  // throw new Error('Fix bug that inflates fees')
   const dailyFees = await getETHReceived({
     options,
-    targets: eth_fee_wallet_addresses
+    targets: eth_fee_wallet_addresses,
+
+    // Phantom uses Matcha to sell their tokens for ETH
+    // we must exclude ETH transferred from Matcha Router contracts
+    notFromSenders: [
+      '0x8331f9ACcE69b02C281F40a00706f758665ccE77',
+      '0x07d889ebae9E9203a0443EdBa3cB5ca499c4ceF1',
+    ],
   });
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
+const methodology = {
+  Fees: 'All fees paid by users for swapping, bridging in Phantom wallet.',
+  Revenue: 'Fees collected by Phantom.',
+  ProtocolRevenue: 'Fees collected by Phantom.',
+}
+
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
+  dependencies: [Dependencies.ALLIUM],
+  methodology,
   adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchETH,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchETH,
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchETH,
-    }
+    [CHAIN.SOLANA]: { fetch: fetchSolana },
+    [CHAIN.ETHEREUM]: { fetch },
+    [CHAIN.BASE]: { fetch },
+    [CHAIN.POLYGON]: { fetch },
   },
   isExpensiveAdapter: true
 };

@@ -1,18 +1,21 @@
 import { gql, request } from 'graphql-request';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 const RECORDS = {
     [CHAIN.ETHEREUM]: {
         tokens: {
             '0x5553444300000000000000000000000000000000000000000000000000000000':
-                '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+                ADDRESSES.ethereum.USDC, // USDC
             '0x5742544300000000000000000000000000000000000000000000000000000000':
-                '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', // WBTC
+                ADDRESSES.ethereum.WBTC, // WBTC
             '0x4554480000000000000000000000000000000000000000000000000000000000':
-                '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
+                ADDRESSES.ethereum.WETH, // WETH
             '0x61786c46494c0000000000000000000000000000000000000000000000000000':
                 '0x6A7b717aE5Ed65F85BA25403D5063D368239828e', // axlFIL
+            '0x4a50594300000000000000000000000000000000000000000000000000000000':
+                '0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29', // JPYC Stablecoin
         },
         subgraphEndpoint:
             'https://api.studio.thegraph.com/query/64582/sf-prd-mainnet/version/latest',
@@ -20,11 +23,11 @@ const RECORDS = {
     [CHAIN.ARBITRUM]: {
         tokens: {
             '0x5553444300000000000000000000000000000000000000000000000000000000':
-                '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC
+                ADDRESSES.arbitrum.USDC_CIRCLE, // USDC
             '0x5742544300000000000000000000000000000000000000000000000000000000':
-                '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', // WBTC
+                ADDRESSES.arbitrum.WBTC, // WBTC
             '0x4554480000000000000000000000000000000000000000000000000000000000':
-                '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', // WETH
+                ADDRESSES.arbitrum.WETH, // WETH
         },
         subgraphEndpoint:
             'https://api.studio.thegraph.com/query/64582/sf-prd-arbitrum-one/version/latest',

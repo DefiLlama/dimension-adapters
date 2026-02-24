@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
 const chains: Record<string, { duneChain: string; start: string }> = {
@@ -13,6 +13,14 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.LINEA]: { duneChain: "linea", start: "2023-12-14" },
   [CHAIN.SONIC]: { duneChain: "sonic", start: "2025-01-01" },
   [CHAIN.UNICHAIN]: { duneChain: "unichain", start: "2025-01-01" },
+  [CHAIN.HYPERLIQUID]: { duneChain: "hyperevm", start: "2025-01-01" },
+  [CHAIN.KATANA]: { duneChain: "katana", start: "2025-01-01" },
+  [CHAIN.PLUME]: { duneChain: "plume", start: "2025-01-01" },
+  [CHAIN.ZKSYNC]: { duneChain: "zksync", start: "2025-01-01" },
+  [CHAIN.AVAX]: { duneChain: "avalanche_c", start: "2023-01-01" },
+  [CHAIN.XDAI]: { duneChain: "gnosis", start: "2023-01-01" },
+  [CHAIN.PLASMA]: { duneChain: "plasma", start: "2025-10-01" },
+  [CHAIN.MONAD]: { duneChain: "monad", start: "2025-11-01" },
 };
 
 // Prefetch function that will run once before any fetch calls
@@ -95,6 +103,7 @@ const fetchVolume = async (_: any, _1: any, options: FetchOptions) => {
 const adapter: any = {
   version: 1,
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   adapter: Object.fromEntries(
     Object.entries(chains).map(([chain, { start }]) => [
       chain,

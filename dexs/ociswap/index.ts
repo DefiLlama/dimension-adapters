@@ -1,4 +1,4 @@
-import { BreakdownAdapter, FetchResultVolume, SimpleAdapter } from "../../adapters/types"
+import { BreakdownAdapter, FetchResultVolume, } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import fetchURL from "../../utils/fetchURL"
 
@@ -17,18 +17,15 @@ interface PoolStatistics {
 }
 
 const fetchVolume = (poolType: 'basic' | 'precision') => {
-    return async (timestamp: number): Promise<FetchResultVolume> => {
+    return async (): Promise<FetchResultVolume> => {
         const response: Array<PoolStatistics> = await fetchURL('http://api.ociswap.com/statistics/pool-types');
 
         const index = response.findIndex(pool => pool.pool_type === poolType);
 
         const dailyVolume = Number(response[index].volume.usd["24h"]);
-        const totalVolume = Number(response[index].volume.usd.total);
 
         return {
             dailyVolume: dailyVolume,
-            totalVolume: totalVolume,
-            timestamp
         };
     };
 };
@@ -40,14 +37,14 @@ const adapters: BreakdownAdapter = {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchVolume('basic'),
                 start: '2023-10-01',
-                // runAtCurrTime: true
+                runAtCurrTime: true,
             }
         },
         precision: {
             [CHAIN.RADIXDLT]: {
                 fetch: fetchVolume('precision'),
                 start: '2023-10-01',
-                // runAtCurrTime: true
+                runAtCurrTime: true,
             }
         }
     }

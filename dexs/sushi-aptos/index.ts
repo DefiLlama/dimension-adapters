@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { APTOS_PRC, getResources } from '../../helpers/aptops';
+import { APTOS_RPC, getResources } from '../../helpers/aptos';
 import { httpGet } from "../../utils/fetchURL";
 const plimit = require('p-limit');
 const limits = plimit(1);
@@ -51,14 +51,14 @@ const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: numbe
   let start = Math.max(pool.swap_events.counter - limit, 0);
   while (true) {
     if (start < 0) break;
-    const getEventByCreation = `${APTOS_PRC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
+    const getEventByCreation = `${APTOS_RPC}/v1/accounts/${account}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
     try {
       const event: any[] = await httpGet(getEventByCreation);
       const listSequence: number[] = event.map(e => Number(e.sequence_number));
       const lastMin = Math.min(...listSequence);
       if (!isFinite(lastMin)) break;
       const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
-      const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastVision}`;
+      const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastVision}`;
       const block = await httpGet(urlBlock);
       const lastTimestamp = toUnixTime(block.block_timestamp);
       const lastTimestampNumber = lastTimestamp;

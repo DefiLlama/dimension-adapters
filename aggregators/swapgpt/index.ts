@@ -1,27 +1,25 @@
-import { httpGet } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 interface IVolumeall {
-  totalVolumeUSD: string;
   dailyVolumeUSD: Array<{
     startDateTime: string;
     dailyVolumeUSD: string;
   }>
 }
 
-const baseUrl = "https://stats-api.panora.exchange";
-const endpoint = "getDefiLlamaStats";
+const url = "https://stats-api.panora.exchange/getDefiLlamaStats";
 
 const fetch = async (options: FetchOptions) => {
   const timestamp = options.startOfDay
   const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
-  const response: IVolumeall = (await httpGet(`${baseUrl}/${endpoint}`));
-  const totalVolume = response.totalVolumeUSD;
+  const response: IVolumeall = await fetchURL(url);
+
   const dailyVolume = response.dailyVolumeUSD.find((d) => d.startDateTime.split('T')[0] === dateStr);
+
   return {
-    dailyVolume: dailyVolume?.dailyVolumeUSD,
-    totalVolume
+    dailyVolume: dailyVolume?.dailyVolumeUSD || '0'
   }
 };
 

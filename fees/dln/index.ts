@@ -1,43 +1,40 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, Chain, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-type IRequest = {
-  [key: string]: Promise<any>;
+const chainConfig: Record<Chain, { chainId: number, start: string }> = {
+  [CHAIN.SOLANA]: { chainId: 7565164, start: '2023-03-31' },
+  [CHAIN.ETHEREUM]: { chainId: 1, start: '2023-03-31' },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2023-03-31' },
+  [CHAIN.AVAX]: { chainId: 43114, start: '2023-03-31' },
+  [CHAIN.BSC]: { chainId: 56, start: '2023-03-31' },
+  [CHAIN.POLYGON]: { chainId: 137, start: '2023-03-31' },
+  [CHAIN.LINEA]: { chainId: 59144, start: '2023-03-31' },
+  [CHAIN.BASE]: { chainId: 8453, start: '2023-03-31' },
+  [CHAIN.OPTIMISM]: { chainId: 10, start: '2023-03-31' },
+  [CHAIN.FANTOM]: { chainId: 250, start: '2023-03-31' },
+  [CHAIN.NEON]: { chainId: 100000001, start: '2023-03-31' },
+  [CHAIN.XDAI]: { chainId: 100000002, start: '2023-03-31' },
+  [CHAIN.METIS]: { chainId: 100000004, start: '2024-06-05' },
+  [CHAIN.SONIC]: { chainId: 100000014, start: '2024-12-26' },
+  [CHAIN.CRONOS_ZKEVM]: { chainId: 100000010, start: '2025-01-21' },
+  [CHAIN.ABSTRACT]: { chainId: 100000017, start: '2025-01-27' },
+  [CHAIN.BERACHAIN]: { chainId: 100000020, start: '2025-02-06' },
+  [CHAIN.STORY]: { chainId: 100000013, start: '2025-02-13' },
+  [CHAIN.HYPERLIQUID]: { chainId: 100000022, start: '2025-02-20' },
+  [CHAIN.ZIRCUIT]: { chainId: 100000015, start: '2025-03-07' },
+  [CHAIN.FLOW]: { chainId: 100000009, start: '2025-03-26' },
+  [CHAIN.BOB]: { chainId: 100000021, start: '2025-04-03' },
+  [CHAIN.MANTLE]: { chainId: 100000023, start: '2025-04-17' },
+  [CHAIN.PLUME]: { chainId: 100000024, start: '2025-06-05' },
+  [CHAIN.SOPHON]: { chainId: 100000025, start: '2025-06-06' },
+  [CHAIN.SEI]: { chainId: 100000027, start: '2025-07-01' },
+  [CHAIN.TRON]: { chainId: 100000026, start: '2025-08-26' },
+  [CHAIN.PLASMA]: { chainId: 100000028, start: '2025-09-25' },
+  [CHAIN.INJECTIVE]: { chainId: 100000029, start: '2025-11-11' },
+  [CHAIN.MONAD]: { chainId: 100000030, start: '2025-11-24' },
+  [CHAIN.CRONOS]: { chainId: 100000019, start: '2025-12-17' }
 }
-const requests: IRequest = {}
-
-const fetchCacheURL = (url: string) => {
-  const key = url;
-  if (!requests[key]) {
-      requests[key] = fetchURL(url);
-  }
-  return requests[key];
-}
-
-const fetch = (chainId: number) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
-    const dateFrom = formatTimestampAsDate(todaysTimestamp);
-    const dateTo = dateFrom;
-    const url = `https://stats-api.dln.trade/api/Satistics/getDaily?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-    const response = await fetchCacheURL(url);
-    const dailyDatas = response.dailyData;
-    let fees = 0;
-    for (const dailyData of dailyDatas) {
-      if (dailyData.giveChainId.bigIntegerValue === chainId) {
-        fees += Number(dailyData.totalProtocolFeeUsd);
-      }
-    }
-
-    return {
-      dailyFees: String(fees),
-      dailyRevenue: String(fees),
-      timestamp,
-    } as FetchResultFees;
-  };
-};
 
 function pad(s: number) {
   return s < 10 ? "0" + s : s;
@@ -50,86 +47,68 @@ function formatTimestampAsDate(timestamp: number) {
   )}`;
 }
 
+const prefetch = async (options: FetchOptions) => {
+  const dateFrom = formatTimestampAsDate(options.startOfDay);
+  const data = await fetchURL(`https://stats-api.dln.trade/api/Satistics/getDaily?dateFrom=${dateFrom}&dateTo=${dateFrom}`);
+  return data.dailyData;
+}
+
+const fetchHoldersRevenue = async (options: FetchOptions) => {
+  if (options.chain !== CHAIN.SOLANA) {
+    return '0'
+  }
+  const dateFrom = formatTimestampAsDate(options.startOfDay);
+  const url = `https://treasury-api.debridge.foundation/reserves/accumulation?aggregationType=incremental&startDate=2024-01-01&endDate=${dateFrom}`;
+  const data = await fetchURL(url);
+  const holderRevenue = data.reduce((acc: number, item: any) => {
+    if (item.date === dateFrom) {
+      return acc + item.amount;
+    }
+    return acc;
+  }, 0);
+  const dailyHoldersRevenue = options.createBalances();
+  dailyHoldersRevenue.addCGToken('debridge', holderRevenue);
+
+  return dailyHoldersRevenue;
+}
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyDatas = options.preFetchedResults || [];
+
+  let dailyFees = 0;
+  const chainId = chainConfig[options.chain].chainId;
+  for (const dailyData of dailyDatas) {
+    if (dailyData.giveChainId.bigIntegerValue === chainId) {
+      dailyFees += Number(dailyData.totalProtocolFeeUsd);
+    }
+  }
+  // buyback started from 20th june 2025
+  const dailyProtocolRevenue = options.startTimestamp <= 1750550400 ? dailyFees : '0';
+  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  };
+};
+
+
+const methodology = {
+  Fees: 'All fees paid by users for swap and bridge tokens via deBridge.',
+  Revenue: 'Fees are distributed to deBridge protocol.',
+  ProtocolRevenue: 'Fee goes to protocol treasury from 20th june 2025.',
+  HoldersRevenue: 'Protocol revenue is used for buyback(started from 20th june 2025).',
+}
+
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(1),
-      start: '2023-03-31',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(42161),
-      start: '2023-03-31',
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(43114),
-      start: '2023-03-31',
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(56),
-      start: '2023-03-31',
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(137),
-      start: '2023-03-31',
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetch(7565164),
-      start: '2023-03-31',
-    },
-    [CHAIN.LINEA]: {
-      fetch: fetch(59144),
-      start: '2023-03-31',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(8453),
-      start: '2023-03-31',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(10),
-      start: '2023-03-31',
-    },
-    [CHAIN.FANTOM]: {
-      fetch: fetch(250),
-      start: '2023-03-31',
-    },
-    [CHAIN.NEON]: {
-      fetch: fetch(100000001),
-      start: '2023-03-31',
-    },
-    [CHAIN.METIS]: {
-      fetch: fetch(100000004),
-      start: '2024-06-05',
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch(100000014),
-      start: '2024-12-26',
-    },
-    [CHAIN.CRONOS_ZKEVM]: {
-      fetch: fetch(100000010),
-      start: '2025-01-21',
-    },
-    [CHAIN.ABSTRACT]: {
-      fetch: fetch(100000017),
-      start: '2025-01-27',
-    },
-    [CHAIN.BERACHAIN]: {
-      fetch: fetch(100000020),
-      start: '2025-02-06',
-    },
-    [CHAIN.STORY]: {
-      fetch: fetch(100000013),
-      start: '2025-02-13',
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch: fetch(100000022),
-      start: '2025-02-20',
-    },
-    [CHAIN.ZIRCUIT]: {
-      fetch: fetch(100000015),
-      start: '2025-03-07',
-    },
-  },
+  fetch,
+  adapter: chainConfig,
+  methodology,
+  prefetch
 };
 
 export default adapter;

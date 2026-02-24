@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const contract_address = {
@@ -7,7 +7,8 @@ const contract_address = {
 };
 const usdt = 'tether'
 const event_order_settled = 'event OrderSettled(uint128 indexed marketId,uint128 indexed accountId,uint256 fillPrice,int256 pnl,int256 accruedFunding,int128 sizeDelta,int128 newSize,uint256 totalFees,uint256 referralFees,uint256 collectedFees,uint256 settlementReward,bytes32 indexed trackingCode,address settler)'
-const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const logs = await options.getLogs({
     target: contract_address[options.chain],
@@ -19,20 +20,17 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
     dailyVolume.addCGToken(usdt, volume)
   });
 
-  return {
-    dailyVolume: dailyVolume,
-    timestamp
-  }
+  return { dailyVolume }
 }
 
 const adapters: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
-      fetch: fetchFees,
+      fetch,
       start: '2024-01-13',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetchFees,
+      fetch,
       start: '2024-06-24',
     }
   }

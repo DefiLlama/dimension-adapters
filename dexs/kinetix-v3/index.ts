@@ -1,61 +1,59 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { gql, request } from "graphql-request";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
-import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
+import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const endpointsV3 = {
-  [CHAIN.KAVA]:
-    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/v3-subgraph",
-  // [CHAIN.BASE]:
-  //   "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
+const endpoints = {
+  // [CHAIN.KAVA]: "https://the-graph.kava.io/subgraphs/name/kinetixfi/v3-subgraph", // subgraph stale since April 2024, protocol winding down
+  [CHAIN.BASE]:
+    "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
 };
 
-const v3Graphs = getGraphDimensions2({
-  graphUrls: endpointsV3,
-  totalVolume: {
-    factory: "factories",
-    field: "totalVolumeUSD",
-  },
-  feesPercent: {
-    type: "fees",
-    ProtocolRevenue: 0,
-    HoldersRevenue: 0,
-    UserFees: 100, // User fees are 100% of collected fees
-    SupplySideRevenue: 100, // 100% of fees are going to LPs
-    Revenue: 0, // Set revenue to 0 as protocol fee is not set for all pools for now
-  },
-});
+const fetch = (endpoint: string) => {
+  return async (timestamp: number) => {
+    const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+    const dayId = Math.floor(dayTimestamp / 86400);
 
-const startTimeV3: { [key: string]: number } = {
-  [CHAIN.KAVA]: 1693267200,
-  [CHAIN.BASE]: 1715126400,
+    const graphQuery = gql`{
+      uniswapDayData(id: "${dayId}") {
+        date
+        volumeUSD
+        feesUSD
+      }
+    }`;
+
+    const response = await request(endpoint, graphQuery);
+    const dayData = response.uniswapDayData;
+
+    return {
+      timestamp: dayTimestamp,
+      dailyVolume: dayData?.volumeUSD || "0",
+      dailyFees: dayData?.feesUSD || "0",
+    };
+  };
 };
-
-const v3 = Object.keys(endpointsV3).reduce(
-  (acc, chain) => ({
-    ...acc,
-    [chain]: {
-      fetch: v3Graphs(chain as Chain),
-      start: startTimeV3[chain],
-      meta: {
-        methodology: {
-          Fees: "Each pool charge between 0.01% to 1% fee",
-          UserFees: "Users pay between 0.01% to 1% fee",
-          Revenue: "0 to 1/4 of the fee goes to treasury",
-          HoldersRevenue: "None",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue:
-            "Liquidity providers get most of the fees of all trades in their pools",
-        },
-      },
-    },
-  }),
-  {}
-);
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: v3
+  version: 1,
+  adapter: {
+    // [CHAIN.KAVA]: {
+    //   fetch: fetch(endpoints[CHAIN.KAVA]),
+    //   start: "2023-08-15",
+    // },
+    [CHAIN.BASE]: {
+      fetch: fetch(endpoints[CHAIN.BASE]),
+      start: "2024-05-19", // When subgraph started indexing
+    },
+  },
+  methodology: {
+    Fees: "Each pool charge between 0.01% to 1% fee",
+    UserFees: "Users pay between 0.01% to 1% fee",
+    Revenue: "0 to 1/4 of the fee goes to treasury",
+    HoldersRevenue: "None",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue:
+      "Liquidity providers get most of the fees of all trades in their pools",
+  },
 };
 
 export default adapter;

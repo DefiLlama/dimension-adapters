@@ -1,29 +1,25 @@
-import type { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { httpGet } from "../../utils/fetchURL";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL from "../../utils/fetchURL";
 
 const api = 'https://api.deltatrade.ai/api/home/data'
 
-async function fetchVolume(chain: string) {
-  const timestamp = getUniqStartOfTodayTimestamp();
-  const res = await httpGet(`${api}?chain=${chain}`);
-  const { total_24h, total } = res.data;
+async function fetch(_a: any, _b: any, options: FetchOptions) {
+  const res = await fetchURL(`${api}?chain=${options.chain}`);
+  const { total_24h } = res.data;
 
   return {
-    timestamp,
     dailyVolume: total_24h,
-    totalVolume: total,
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     near: {
-      fetch: () => fetchVolume('near'),
+      fetch,
       runAtCurrTime: true,
     },
     solana: {
-      fetch: () => fetchVolume('solana'),
+      fetch,
       runAtCurrTime: true,
     },
   },

@@ -2,6 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { request, } from "graphql-request";
 import { CHAIN } from "../helpers/chains";
 import type { FetchV2, Adapter } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint("71DeFz7cWQPvf8zibkLUovwaeT67xNUZp3A5xecbpiz5"),
@@ -39,8 +40,8 @@ const fetch: FetchV2 = async ({ chain, startTimestamp, ...restOpts }) => {
   const dailyFees = restOpts.createBalances();
   const dailyRevenue = restOpts.createBalances();
 
-  dailyFees.addGasToken(dayItem.cumulativeFeesBNB);
-  dailyRevenue.addGasToken(dayItem.cumulativeRevenueBNB);
+  dailyFees.addGasToken(dayItem?.cumulativeFeesBNB || 0, METRIC.TRADING_FEES);
+  dailyRevenue.addGasToken(dayItem?.cumulativeRevenueBNB || 0, METRIC.PROTOCOL_FEES);
 
   return {
     dailyFees,
@@ -53,16 +54,21 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.BSC]: {
       start: '2024-09-27',
-      fetch,
-      meta: { methodology }
     },
     [CHAIN.ETHEREUM]: {
       start: "2024-11-28",
-      fetch,
-      meta: { methodology },
     },
   },
-
+  fetch,
+  methodology,
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: "Fees collected in native gas token from the Token Sale Factory smart contract.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "Revenue collected in native gas token from the Token Sale Factory smart contract.",
+    },
+  },
 }
 
 export default adapter;

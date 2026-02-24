@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
           dailySupplySideRevenue,
         }
       },
-      start: 1642982400,
+      start: '2022-01-24',
     },
   },
 };

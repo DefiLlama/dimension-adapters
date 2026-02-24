@@ -14,10 +14,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   logs.forEach((log: any) => {
-
-
-    dailyFees.add(log.collateralToken, log.amount);
-
+    dailyFees.add('0xEDB5180661F56077292C92Ab40B1AC57A279a396', log.amount);
   });
 
   return {
@@ -30,7 +27,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BERACHAIN]: {
       fetch,
-      start: 1746482400,
+      start: '2025-05-06',
     },
   },
   version: 2,

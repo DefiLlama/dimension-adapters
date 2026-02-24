@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import type { ChainEndpoints } from "../../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import BigNumber from "bignumber.js";
 import { Adapter } from "../../adapters/types";
 

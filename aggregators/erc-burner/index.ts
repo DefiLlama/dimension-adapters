@@ -18,29 +18,24 @@ const BURNER_CONTRACTS = {
 const burnSuccessAbi = "event BurnSuccess(address indexed user, uint256 totalAmountOut, uint256 feeAmount)";
 
 // Function to fetch volume and fees for a specific chain
-const fetchChainData = async (chain: string, options: any) => {
-  const { createBalances, getLogs } = options;
+const fetch = async (options: any) => {
+  const { createBalances, getLogs, chain } = options;
   const dailyVolume = createBalances()
 
-  try {
-    // Get logs for BurnSuccess events
-    const logs = await getLogs({
-      target: BURNER_CONTRACTS[chain],
-      eventAbi: burnSuccessAbi,
-    });
+  // Get logs for BurnSuccess events
+  const logs = await getLogs({
+    target: BURNER_CONTRACTS[chain],
+    eventAbi: burnSuccessAbi,
+  });
 
-    // Process logs to calculate volume and fees
-    logs.forEach((log: any) => {
-      const totalAmountOut = log.totalAmountOut;
+  // Process logs to calculate volume and fees
+  logs.forEach((log: any) => {
+    const totalAmountOut = log.totalAmountOut;
 
-      // Add to volume (total amount + fee)
-      dailyVolume.addGasToken(totalAmountOut);
+    // Add to volume (total amount + fee)
+    dailyVolume.addGasToken(totalAmountOut);
 
-    });
-  } catch (error) {
-    console.log(`Error fetching logs for ${chain}:`, error);
-  }
-
+  });
   return {
     dailyVolume
   };
@@ -48,20 +43,13 @@ const fetchChainData = async (chain: string, options: any) => {
 
 // Create adapter for each chain
 const adapter: SimpleAdapter = {
+  methodology: {
+    Volume: "Volume is calculated by tracking the total amount of native tokens (ETH, AVAX, etc.) processed through the Burner contracts' swapExactInputMultiple function"
+  },
+  start: '2025-02-23', // Current date as specified
+  fetch,
   version: 2,
-  adapter: Object.keys(BURNER_CONTRACTS).reduce((acc, chain) => {
-    // For other chains, use the standard approach
-    acc[chain] = {
-      fetch: async (options: any) => fetchChainData(chain, options),
-      start: 1740330000, // Current date as specified
-      meta: {
-        methodology: {
-          Volume: "Volume is calculated by tracking the total amount of native tokens (ETH, AVAX, etc.) processed through the Burner contracts' swapExactInputMultiple function"
-        },
-      },
-    };
-    return acc;
-  }, {}),
+  chains: Object.keys(BURNER_CONTRACTS),
 };
 
 export default adapter;

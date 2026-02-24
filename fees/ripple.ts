@@ -16,7 +16,7 @@ const adapter: Adapter = {
         }
         return result;
       },
-      start: 1338508800
+      start: '2012-06-01'
     }
   },
   protocolType: ProtocolType.CHAIN

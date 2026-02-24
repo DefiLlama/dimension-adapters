@@ -5,7 +5,7 @@ import {
   SimpleAdapter,
 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { Balances } from "@defillama/sdk";
 
@@ -83,7 +83,7 @@ async function limitOrder(
     if (ytToSy[fill.YT.toLowerCase()]) {
       balances.add(ytToSy[fill.YT.toLowerCase()], fill.notionalVolume);
     } else {
-      console.log(fill.YT, ytToSy[fill.YT.toLowerCase()]);
+      // console.log(fill.YT, ytToSy[fill.YT.toLowerCase()]);
     }
   });
 }
@@ -112,7 +112,7 @@ const adapter: SimpleAdapter = {
 };
 
 Object.keys(chains).map((chain) => {
-  adapter.adapter[chain] = {
+  adapter.adapter![chain] = {
     fetch: fetch(chain),
     start: chains[chain].start,
   };

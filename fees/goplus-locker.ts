@@ -21,52 +21,30 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const feeRecipient = FEE_RECIPIENTS[options.chain as keyof typeof FEE_RECIPIENTS];
 
-  await addTokensReceived({ 
-    balances: dailyFees, 
-    target: feeRecipient, 
+  await addTokensReceived({
+    balances: dailyFees,
+    target: feeRecipient,
     options,
   });
 
-  return { 
-    dailyFees, 
-    dailyRevenue: dailyFees, 
-    dailyProtocolRevenue: dailyFees 
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees
   };
 };
 
 const adapter: Adapter = {
+  methodology,
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { 
-      fetch, 
-      start: '2024-09-20',
-      meta: { methodology } 
-    },
-    [CHAIN.BSC]: { 
-      fetch, 
-      start: '2024-09-19',
-      meta: { methodology } 
-    },
-    [CHAIN.BASE]: { 
-      fetch, 
-      start: '2024-09-20',
-      meta: { methodology } 
-    },
-    [CHAIN.ARBITRUM]: { 
-      fetch, 
-      start: '2024-11-28',
-      meta: { methodology } 
-    },
-    [CHAIN.GRAVITY]: { 
-      fetch, 
-      start: '2024-12-11',
-      meta: { methodology } 
-    },
-    [CHAIN.MORPH]: { 
-      fetch, 
-      start: '2024-12-11',
-      meta: { methodology } 
-    },
+    [CHAIN.ETHEREUM]: { start: '2024-09-20', },
+    [CHAIN.BSC]: { start: '2024-09-19', },
+    [CHAIN.BASE]: { start: '2024-09-20', },
+    [CHAIN.ARBITRUM]: { start: '2024-11-28', },
+    [CHAIN.GRAVITY]: { start: '2024-12-11', },
+    // [CHAIN.MORPH]: {     //   start: '2024-12-11',    // },
   }
 };
 

@@ -4,3 +4,11 @@ node_modules
 .env
 .idea
 yarn.lock
+test.py
+test.js
+
+cli/dimensionModules.json
+wash/
+*.log
+
+.claude

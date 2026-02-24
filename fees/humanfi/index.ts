@@ -17,13 +17,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.WC]: {
       fetch: fetch,
       start: "2025-04-19",
-      meta: {
-        methodology: {
-          dailyFees: "Fees are computed based on the 1% (FEE_BPS) cut taken from the input amount.",
-          dailyRevenue: "Revenue is equal to the fees collected by the protocol.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Fees are computed based on the 1% (FEE_BPS) cut taken from the input amount.",
+    Revenue: "Revenue is equal to the fees collected by the protocol.",
   },
 };
 

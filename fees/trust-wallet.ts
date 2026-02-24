@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
@@ -15,6 +16,8 @@ const chains = [
 const targets: any = {
   [CHAIN.ETHEREUM]: [
     "0x9cdFbB62C42767E911b696292eF7179Df66bEE27",
+    "0x74379aD026eF386679a27B320841224A08722C66",
+    "0x92f980a7aae3574cfe45e30a21d6aa14d08f7c7d",
     "0xe020C8934B23E5bCcA1E7EEcdb6f39674029Fe47",
     "0xaD01C20d5886137e056775af56915de824c8fCe5",
     "0x19cd4F3820E7BBed45762a30BFA37dFC6c9C145b",
@@ -24,7 +27,9 @@ const targets: any = {
     "0xcA868ef1dF9e52d7d5AC79f7e52F492e619f2bAB",
     "0xb27028fcd9cb9d621646bb1e769ab9b6a4bf69f3",
     "0x37815fC86c61b06eff53EC7c4DEA59784499d74A",
-    "0xf2eF6cDFd963091b3fDd2097299f90C8e18DC379"
+    "0xf2eF6cDFd963091b3fDd2097299f90C8e18DC379",
+    "0xc84f14C250128357C82E1b737Bf19e6Efb1111bc",
+    "0xab28e2d6e4713dc0f6F1aDdf74abc3d2313445cc"
   ],
   [CHAIN.OPTIMISM]: [
     '0xaD01C20d5886137e056775af56915de824c8fCe5',
@@ -54,26 +59,26 @@ const targets: any = {
 
 const tokens: any = {
   [CHAIN.ETHEREUM]: [
-    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    ADDRESSES.ethereum.USDC,
   ],
   [CHAIN.OPTIMISM]: [
-    '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-    '0xEB466342C4d449BC9f53A865D5Cb90586f405215'
+    ADDRESSES.optimism.USDC_CIRCLE,
+    ADDRESSES.kava.axlUSDC
   ],
   [CHAIN.ARBITRUM]: [
-    '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-    '0xEB466342C4d449BC9f53A865D5Cb90586f405215'
+    ADDRESSES.arbitrum.USDC_CIRCLE,
+    ADDRESSES.kava.axlUSDC
   ],
   [CHAIN.BASE]: [
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "0xEB466342C4d449BC9f53A865D5Cb90586f405215"
+    ADDRESSES.base.USDC,
+    ADDRESSES.kava.axlUSDC
   ],
   [CHAIN.POLYGON]: [
-    "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    ADDRESSES.polygon.USDC_CIRCLE,
     "0x750e4C4984a9e0f12978eA6742Bc1c5D248f40ed"
   ],
   [CHAIN.AVAX]: [
-    "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+    ADDRESSES.avax.USDC,
     "0x750e4C4984a9e0f12978eA6742Bc1c5D248f40ed"
   ],
   [CHAIN.BSC]: [
@@ -83,22 +88,22 @@ const tokens: any = {
 
 const tokens_type_percent: any = {
   [CHAIN.ETHEREUM]: [
-    "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    ADDRESSES.ethereum.USDT,
   ],
   [CHAIN.OPTIMISM]: [
-    '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58'
+    ADDRESSES.optimism.USDT
   ],
   [CHAIN.ARBITRUM]: [
-    '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'
+    ADDRESSES.arbitrum.USDT
   ],
   [CHAIN.POLYGON]: [
-    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+    ADDRESSES.polygon.USDT
   ],
   [CHAIN.AVAX]: [
-    "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+    ADDRESSES.polygon.USDT
   ],
   [CHAIN.BSC]: [
-    '0x55d398326f99059fF775485246999027B3197955'
+    ADDRESSES.bsc.USDT
   ]
 }
 const targets_type_percent: any = {
@@ -144,7 +149,9 @@ const fromAdddesses_type_percent: any = {
 
 const fromAdddesses: any = {
   [CHAIN.ETHEREUM]: [
-    "0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146"
+    "0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146",
+    "0xCE99790A72037EDcFEDCd667bA837FfF29DFf969",
+    "0x790D46F47a1934229452D8C1e6aF1De2c1326Ed3"
   ],
 }
 
@@ -188,6 +195,11 @@ const adapter: SimpleAdapter = {
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'All fees paid by users for swapping, bridging in Trust wallet.',
+    Revenue: 'Fees collected by Trust Wallet.',
+    ProtocolRevenue: 'Fees collected by Trust Wallet.',
+  }
 };
 
 export default adapter;

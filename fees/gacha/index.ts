@@ -60,24 +60,23 @@ const fetch: FetchV2 = async ({ api, getLogs, createBalances, fromApi, toApi, }:
   }
 
   // daily revenue equals to daily fees
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    Volumes:
+      "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",
+    Fees:
+      "Fees are computed as a percentage (feeBPS from the contract config) of the Gacha ticket purchase volume.",
+    Revenue: "Revenue is equal to the fees collected.",
+    ProtocolRevenue: "Revenue is equal to the fees collected.",
+  },
+  fetch,
   adapter: {
     [CHAIN.ABSTRACT]: {
-      fetch,
       start: "2025-02-10",
-      meta: {
-        methodology: {
-          dailyVolume:
-            "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",
-          dailyFees:
-            "Fees are computed as a percentage (feeBPS from the contract config) of the Gacha ticket purchase volume.",
-          dailyRevenue: "Revenue is equal to the fees collected.",
-        },
-      },
     },
   },
 };

@@ -1,11 +1,35 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const methodology = {
   Fees: 'Total yields from deposited assets across all vaults',
   SupplySideRevenue: 'Total yields are distributed to depositors',
-  ProtocolRevenue: 'Performance and management fees to Yearn treasury',
+  Revenue: 'Performance and management fees to Yearn treasury',
+  ProtocolRevenue: '10% of the performance and management fees go to Yearn treasury',
+  HoldersRevenue: '90% of the protocol revenue goes to stYFI stakers since 2026-02-05'
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields from deposited assets across all vaults',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: 'Total yields are distributed to depositors',
+  },
+  Revenue: {
+    [METRIC.ASSETS_YIELDS]: 'Performance fees to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: 'Management fees to Yearn treasury',
+  },
+  ProtocolRevenue: {
+    [METRIC.ASSETS_YIELDS]: '10% of the Performance fees go to Yearn treasury',
+    [METRIC.MANAGEMENT_FEES]: '10% of the Management fees go to Yearn treasury',
+  },
+  HoldersRevenue: {
+    [METRIC.ASSETS_YIELDS]: '90% of the Performance fees go to stYFI stakers',
+    [METRIC.MANAGEMENT_FEES]: '90% of the Management fees go to stYFI stakers',
+  },
 }
 
 const vaultListApi = (chainId: number) => `https://ydaemon.yearn.finance/vaults/all?chainids=${chainId}&limit=100000`
@@ -41,6 +65,10 @@ const YearnVaultsV1: Array<string> = [
   '0x96Ea6AF74Af09522fCB4c28C269C26F59a31ced6',
 ]
 
+const BlacklistVaults = [
+  String('0xb0154f71912866Bb69fE26fFc44779D99B9CAE85').toLowerCase(),
+];
+
 const ContractAbis = {
   token: 'address:token',
   totalSupply: 'uint256:totalSupply',
@@ -49,9 +77,10 @@ const ContractAbis = {
   pricePerShare: 'uint256:pricePerShare',
   performanceFee: 'uint16:performanceFee',
   managementFee: 'uint16:managementFee',
+  decimals: 'uint8:decimals',
 }
 
-const ChainIds: {[key: string]: number} = {
+const ChainIds: { [key: string]: number } = {
   [CHAIN.ETHEREUM]: 1,
   [CHAIN.OPTIMISM]: 10,
   [CHAIN.POLYGON]: 137,
@@ -64,15 +93,20 @@ interface IVault {
   token: string;
   priceShareBefore: number;
   priceShareAfter: number;
-  totalAssets: number;
+  totalSupply: number;
   performanceFeeRate: number;
   managementFeeRate: number;
+  decimals: number;
+  isV1: boolean;
 }
+
+const stYFILaunch = 1770249600 // 2026-02-05
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
 
   const vaults: Array<IVault> = []
 
@@ -98,6 +132,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       calls: YearnVaultsV1,
       permitFailure: true,
     })
+    const vaultDecimals = await options.api.multiCall({
+      abi: ContractAbis.decimals,
+      calls: YearnVaultsV1,
+      permitFailure: true,
+    })
 
     if (vaultTokens) {
       for (let idx = 0; idx < YearnVaultsV1.length; idx++) {
@@ -110,13 +149,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           vaults.push({
             vault: YearnVaultsV1[idx],
             token: token,
-            totalAssets: totalSupply * priceShareBefore / 1e18,
+            totalSupply,
             priceShareBefore: priceShareBefore,
             priceShareAfter: priceShareAfter,
 
             // v1 fees docs: https://github.com/yearn/yearn-docs/blob/master/yearn-finance/yvaults/overview.md
             performanceFeeRate: 0.2, // 20%
             managementFeeRate: 0.02, // 2% per year
+            decimals: vaultDecimals[idx],
+            isV1: true
           })
         }
       }
@@ -125,8 +166,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // get v2, v3 vaults data
   const configs = await getConfig(`yearn/vaults-${options.chain}`, vaultListApi(ChainIds[options.chain]))
-  const vaultTotalAssets = await options.api.multiCall({
-    abi: ContractAbis.totalAssets,
+  const vaultTotalSupply = await options.api.multiCall({
+    abi: ContractAbis.totalSupply,
     calls: configs.map((config: any) => config.address),
     permitFailure: true,
   })
@@ -150,10 +191,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     calls: configs.map((config: any) => config.address),
     permitFailure: true,
   })
-  if (vaultTotalAssets) {
+  const vaultDecimals = await options.api.multiCall({
+    abi: ContractAbis.decimals,
+    calls: configs.map((config: any) => config.address),
+    permitFailure: true,
+  })
+  if (vaultTotalSupply) {
     for (let idx = 0; idx < configs.length; idx++) {
       const token = configs[idx].token.address
-      const totalAssets = vaultTotalAssets[idx]
+      const totalSupply = vaultTotalSupply[idx]
       const priceShareBefore = vaultPriceShareBefore[idx]
       const priceShareAfter = vaultPriceShareAfter[idx]
       const performanceFeesRate = vaultPerformanceFees[idx]
@@ -161,74 +207,64 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       vaults.push({
         vault: configs[idx].address,
         token: token,
-        totalAssets: totalAssets,
+        totalSupply,
         priceShareBefore: priceShareBefore,
         priceShareAfter: priceShareAfter,
         performanceFeeRate: Number(performanceFeesRate) / 1e4,
         managementFeeRate: vaultManagementFees[idx] ? Number(vaultManagementFees[idx]) / 1e4 : 0,
+        decimals: vaultDecimals[idx],
+        isV1: false,
       })
     }
   }
 
   // sum fees
   for (const vault of vaults) {
-    const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
-    const totalFees = vault.totalAssets * priceShareGrowth / 1e18
+    if (BlacklistVaults.includes(vault.vault.toLowerCase())) {
+      continue;
+    }
 
-    const performanceFees = totalFees * vault.performanceFeeRate
-    const managementFees = totalFees * vault.managementFeeRate
+    const priceShareGrowth = vault.priceShareAfter - vault.priceShareBefore
+    const priceDecimals = vault.isV1 ? 18 : vault.decimals;
+    const tf = vault.totalSupply * priceShareGrowth / (10 ** priceDecimals)
+
+    const performanceFees = tf * vault.performanceFeeRate
+    const managementFees = tf * vault.managementFeeRate
     const protocolFees = performanceFees + managementFees
 
-    dailyFees.add(vault.token, totalFees)
-    dailySupplySideRevenue.add(vault.token, totalFees - protocolFees)
-    dailyProtocolRevenue.add(vault.token, protocolFees)
+    dailyFees.add(vault.token, tf, METRIC.ASSETS_YIELDS)
+    dailySupplySideRevenue.add(vault.token, tf - protocolFees, METRIC.ASSETS_YIELDS)
+    dailyProtocolRevenue.add(vault.token, performanceFees, METRIC.ASSETS_YIELDS)
+    dailyProtocolRevenue.add(vault.token, managementFees, METRIC.MANAGEMENT_FEES)
   }
+  if (options.fromTimestamp >= stYFILaunch) {
+    dailyHoldersRevenue.addBalances(dailyProtocolRevenue)
+    dailyProtocolRevenue.resizeBy(0.1)
+    dailyHoldersRevenue.resizeBy(0.9)
+  }
+  const dailyRevenue = dailyProtocolRevenue.clone()
+  dailyRevenue.addBalances(dailyHoldersRevenue)
 
   return {
     dailyFees,
     dailySupplySideRevenue,
+    dailyRevenue,
     dailyProtocolRevenue,
+    dailyHoldersRevenue
   }
 }
 
 const adapter: Adapter = {
+  methodology,
+  breakdownMethodology,
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2020-07-27',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch,
-      start: '2024-01-01',
-      meta: {
-        methodology,
-      }
-    },
+    [CHAIN.ETHEREUM]: { start: '2020-07-27', },
+    [CHAIN.POLYGON]: { start: '2024-01-01', },
+    [CHAIN.OPTIMISM]: { start: '2024-01-01', },
+    [CHAIN.ARBITRUM]: { start: '2024-01-01', },
+    [CHAIN.BASE]: { start: '2024-01-01', },
   },
 };
 

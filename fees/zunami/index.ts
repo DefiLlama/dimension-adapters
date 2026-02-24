@@ -6,7 +6,6 @@ const API_ENDPOINT = "https://api.zunami.app/llama/revenue";
 
 interface RevenueData {
   dailyRevenue: number;
-  totalRevenue: number;
 }
 
 const fetchData: FetchV2 = async () => {
@@ -14,27 +13,26 @@ const fetchData: FetchV2 = async () => {
 
   return {
     dailyFees: data.dailyRevenue,
-    totalFees: data.totalRevenue,
     dailyRevenue: data.dailyRevenue,
-    totalRevenue: data.totalRevenue,
   };
 };
 
 const methodology = {
   Fees: "Protocol collects fees from ETH/USD/BTC Omnipool rewards, APS performance fees, and redemption fees for zunStable swaps.",
   Revenue: "100% of collected fees are distributed to pool token holders.",
+  HoldersRevenue: "100% of collected fees are distributed to pool token holders.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      start: 1717654523,
+      start: '2024-06-06',
       fetch: fetchData,
       runAtCurrTime: true,
-      meta: { methodology },
     },
   },
+  methodology,
 };
 
 export default adapter;

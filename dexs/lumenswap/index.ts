@@ -15,15 +15,10 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
 
-  const totalVolume = historicalVolume
-  .filter(volItem => (new Date(volItem.periodTime.split('T')[0]).getTime() / 1000) <= dayTimestamp)
-  .reduce((acc, { volume }) => acc + Number(volume), 0)
-
 const dailyVolume = historicalVolume
   .find(dayItem => (new Date(dayItem.periodTime.split('T')[0]).getTime() / 1000) === dayTimestamp)?.volume
 
   return {
-    totalVolume: `${totalVolume / 10 ** 7}`,
     dailyVolume: dailyVolume ? `${Number(dailyVolume) / 10 ** 7}` : undefined,
     timestamp: dayTimestamp,
   };

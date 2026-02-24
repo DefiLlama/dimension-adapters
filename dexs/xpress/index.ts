@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const ENDPOINTS = {
-  [CHAIN.SONIC]: "https://api.studio.thegraph.com/query/61208/onchain-lob-graph/version/latest"
+  [CHAIN.SONIC]: "https://api.studio.thegraph.com/query/61208/onchain-clob-sonic/version/latest"
 }
 
 interface IData {
@@ -30,11 +30,9 @@ const getData = async (chain: string, timestamp: number) => {
 
   const data: IGraph = await request(ENDPOINTS[chain], query);
 
-  const totalVolume = Number(data.totalVolumes[0].volumeUsd);
   const dailyVolume = Number(data.dailyVolume?.volumeUsd ?? "0");
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
@@ -43,7 +41,6 @@ const getData = async (chain: string, timestamp: number) => {
 export const fetchVolume = async (_: any, _t: any, options: FetchOptions) => {
   const data = await getData(options.chain, options.startOfDay);
   return {
-    totalVolume: data.totalVolume,
     dailyVolume: data.dailyVolume,
     timestamp: data.timestamp,
   };

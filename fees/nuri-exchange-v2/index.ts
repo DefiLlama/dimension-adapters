@@ -14,10 +14,12 @@ const adapter: SimpleAdapter = {
       fetch: async (options: FetchOptions) => {
         const res: FetchResultV2 = await (graphql.adapter[CHAIN.SCROLL].fetch as FetchV2)(options)
         const fees = res.dailyFees as Balances
-        const dailyRevenue = fees.clone()
-        dailyRevenue.resizeBy(0.8);
+        const dailyRevenue = fees.clone(0.8)
+        const dailySupplySideRevenue = fees.clone(0.2)
+        
         return {
           dailyFees: fees,
+          dailySupplySideRevenue,
           dailyRevenue,
         }
       },

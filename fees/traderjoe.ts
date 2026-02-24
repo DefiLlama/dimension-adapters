@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getEnv } from "../helpers/env";
 import { httpGet } from "../utils/fetchURL";
 
 interface IData {
@@ -15,7 +16,7 @@ const graph = async (_t: any, _tt: any, options: FetchOptions) => {
     const end = start + 24 * 60 * 60;
       const url = `https://api.traderjoexyz.dev/v1/dex/analytics/${mapChain(options.chain)}?startTime=${start}&endTime=${end}`
     const historical: IData[] = (await httpGet(url, { headers: {
-      'x-traderjoe-api-key': process.env.TRADERJOE_API_KEY
+      'x-traderjoe-api-key': getEnv('TRADERJOE_API_KEY')
     }}));
     const dailyFees =
       historical.find((dayItem) => dayItem.timestamp === dayTimestamp)

@@ -3,7 +3,7 @@ import { FetchResultV2, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 
 const url: any = {
-  [CHAIN.SUI]: `https://api.interestlabs.io/v1/movement/mainnet/curve/metrics`,
+  [CHAIN.MOVE]: `https://api.interestlabs.io/v1/movement/mainnet/curve/metrics`,
 };
 
 interface Summary {
@@ -56,7 +56,7 @@ async function fetch(
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.SUI]: {
+    [CHAIN.MOVE]: {
       fetch,
       runAtCurrTime: true,
       start: '2025-03-03',

@@ -14,16 +14,21 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: 'Fees paid by users for using Kerberus services.',
+    Revenue: 'All fees collected by Kerberus.',
+  },
+  fetch,
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2024-09-25', },
-    [CHAIN.BASE]: { fetch, start: '2024-09-25', },
-    [CHAIN.ARBITRUM]: { fetch, start: '2024-09-25', },
-    [CHAIN.BSC]: { fetch, start: '2024-09-25', },
-    [CHAIN.POLYGON]: { fetch, start: '2024-09-25', },
-    [CHAIN.ERA]: { fetch, start: '2024-09-25', },
-    [CHAIN.OPTIMISM]: { fetch, start: '2024-09-25', },
-    [CHAIN.AVAX]: { fetch, start: '2024-09-25', },
+    [CHAIN.ETHEREUM]: { start: '2024-09-25', },
+    [CHAIN.BASE]: { start: '2024-09-25', },
+    [CHAIN.ARBITRUM]: { start: '2024-09-25', },
+    [CHAIN.BSC]: { start: '2024-09-25', },
+    [CHAIN.POLYGON]: { start: '2024-09-25', },
+    [CHAIN.ERA]: { start: '2024-09-25', },
+    [CHAIN.OPTIMISM]: { start: '2024-09-25', },
+    [CHAIN.AVAX]: { start: '2024-09-25', },
   },
 };
 export default adapter;

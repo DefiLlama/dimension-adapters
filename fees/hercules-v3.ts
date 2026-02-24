@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import request from "graphql-request";
 import { FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";

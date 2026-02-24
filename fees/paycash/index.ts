@@ -28,10 +28,6 @@ const fetch = async (timestamp: number, _, options: FetchOptions) => {
   const dailyVolume = historicalVolume
     .find(dayItem => (new Date(dayItem.timestamp).getTime() / 1000) === dayTimestamp)?.value;
 
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.timestamp).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + Number(value), 0)
-
   const dailyFees = Number(dailyVolume) * 0.0025;
   const dailyLiquidityProviderFee = Number(dailyVolume) * 0.002;
   const dailyBurnFee = Number(dailyVolume) * 0.0005;
@@ -40,13 +36,6 @@ const fetch = async (timestamp: number, _, options: FetchOptions) => {
   const dailyProtocolRevenue = 0; // Assuming no separate protocol revenue
   const dailyRevenue = dailyHoldersRevenue + dailyProtocolRevenue;
 
-  const totalFees = totalVolume * 0.0025;
-  const totalLiquidityProviderFee = totalVolume * 0.002;
-  const totalBurnFee = totalVolume * 0.0005;
-  const totalHoldersRevenue = totalBurnFee;
-  const totalProtocolRevenue = 0; // Assuming no separate protocol revenue
-  const totalRevenue = totalHoldersRevenue + totalProtocolRevenue;
-
   return {
     dailyFees,
     dailyRevenue,
@@ -54,23 +43,22 @@ const fetch = async (timestamp: number, _, options: FetchOptions) => {
     dailyProtocolRevenue: dailyProtocolRevenue,
     dailyHoldersRevenue: dailyHoldersRevenue,
     dailySupplySideRevenue: dailyLiquidityProviderFee,
-    totalFees,
-    totalUserFees: totalFees,
-    totalRevenue: totalRevenue,
-    totalProtocolRevenue: totalProtocolRevenue,
-    totalSupplySideRevenue: totalLiquidityProviderFee
   };
 };
 
 const adapter: Adapter = {
+  methodology: {
+    Fees: 'Fees are calculated based on a 0.25% commission on each exchange operation, distributed as 0.2% to liquidity providers and 0.05% for token burning.',
+    Revenue: 'Fees amount distributed to suppliers and holders.',
+    SupplySideRevenue: '0.2% of commission to liquidity providers.',
+    HoldersRevenue: '0.05% of commission for token burning.',
+    ProtocolRevenue: 'No fees for protocol.',
+  },
   version: 1,
   adapter: {
     [CHAIN.EOS]: {
       fetch,
       start: '2021-04-14',
-      meta: {
-        methodology: "Fees are calculated based on a 0.25% commission on each exchange operation, distributed as 0.2% to liquidity providers and 0.05% for token burning."
-      }
     },
   },
 };

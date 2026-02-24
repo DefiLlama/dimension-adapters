@@ -1,8 +1,6 @@
-import { Chain } from "@defillama/sdk/build/general";
 import { gql, GraphQLClient } from "graphql-request";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import customBackfill from "../../helpers/customBackfill";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const getDailyVolume = () => {
@@ -31,9 +29,6 @@ interface IGraphResponse {
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
   const response: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).dailyDexes.nodes;
-  const totalVolume = response
-    .filter(volItem => (new Date(volItem.timestamp.split('T')[0]).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { dailyTradeVolumeUSD }) => acc + Number(dailyTradeVolumeUSD) / 1e18, 0)
 
   const dailyVolume = response
     .find(dayItem => (new Date(dayItem.timestamp.split('T')[0]).getTime() / 1000) === dayTimestamp)?.dailyTradeVolumeUSD
@@ -41,7 +36,6 @@ const fetch = async (timestamp: number) => {
   return {
     timestamp: dayTimestamp,
     dailyVolume: dailyVolume ? (Number(dailyVolume)/1e18).toString() : "0",
-    totalVolume: totalVolume.toString(),
   }
 }
 
@@ -50,7 +44,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.KARURA]: {
       fetch: fetch,
       start: '2022-07-03',
-      customBackfill: customBackfill(CHAIN.KARURA as Chain, () => fetch)
     },
   },
 };

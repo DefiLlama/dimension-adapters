@@ -1,10 +1,3 @@
-// import { Chain } from "@defillama/sdk/build/general"
-// import { FetchResultFees, SimpleAdapter } from "../adapters/types"
-// import { getBlock } from "../helpers/getBlock"
-// import * as sdk from "@defillama/sdk";
-// import { CHAIN } from "../helpers/chains";
-// import { getPrices } from "../utils/prices";
-
 import { FetchResultFees, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
@@ -50,12 +43,18 @@ const fetchFees = (chain: string) => {
     return {
       dailyFees,
       dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
       timestamp
     }
   }
 }
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: 'All yields are generated from liquidity providers.',
+    Revenue: 'All yields are distributed to Gamma Protocol.',
+    ProtocolRevenue: 'All yields are distributed to Gamma Protocol.',
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees("ethereum"),

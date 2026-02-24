@@ -1,8 +1,6 @@
 import fetchURL from "../../utils/fetchURL";
-import {FetchOptions, FetchResult, SimpleAdapter} from "../../adapters/types";
-import {CHAIN} from "../../helpers/chains";
-import axios from "axios";
-
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const chains: Record<string, string> = {
   [CHAIN.SOLANA]: 'solana',
@@ -38,10 +36,10 @@ const chains: Record<string, string> = {
   [CHAIN.MODE]: 'mode',
   [CHAIN.MERLIN]: 'merlin',
   [CHAIN.CORE]: 'core',
-  [CHAIN.TAIKO]: 'taiko',
+  // [CHAIN.TAIKO]: 'taiko',
   [CHAIN.ZKLINK]: 'zklink',
   [CHAIN.BITLAYER]: 'bitlayer',
-  [CHAIN.BERACHAIN]: 'berachain',
+  // [CHAIN.BERACHAIN]: 'berachain',
   [CHAIN.TON]: 'ton',
   [CHAIN.SUI]: 'sui',
   [CHAIN.UNICHAIN]: 'unichain',
@@ -51,17 +49,18 @@ const chains: Record<string, string> = {
   [CHAIN.SONEIUM]: 'soneium',
   [CHAIN.GRAVITY]: 'gravity',
   [CHAIN.ROOTSTOCK]: 'rootstock',
-  [CHAIN.KROMA]: 'kroma',
+  // [CHAIN.KROMA]: 'kroma',
   [CHAIN.XLAYER]: 'xlayer',
   [CHAIN.SEI]: 'sei',
-  [CHAIN.EON]: 'horizen-eon',
+  // [CHAIN.EON]: 'horizen-eon',   // chain is dead
   [CHAIN.BAHAMUT]: 'bahamut',
   [CHAIN.KLAYTN]: 'klaytn',
   // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
   [CHAIN.VELAS]: 'velas',
   [CHAIN.SYSCOIN]: 'syscoin',
-  [CHAIN.BOBA_BNB]: 'boba-bsc',
-  [CHAIN.FLARE]: 'flare'
+  // [CHAIN.BOBA_BNB]: 'boba-bsc',
+  [CHAIN.FLARE]: 'flare',
+  [CHAIN.HEMI]: 'hemi'
 };
 
 interface ApiResponse {
@@ -75,47 +74,29 @@ async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time * 1000))
 }
 
-async function fetchAndRetry(url: string): Promise<ApiResponse> {
-  do {
-    const response = await axios.get(url, {
-      validateStatus: (status: number) => status === 200 || status === 429
-    })
-    if (response.status === 200) {
-      return response.data as ApiResponse
-    } else {
-      await sleep(5)
-    }
-  } while(true)
-}
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  await sleep(Math.floor(Math.random() * 5) + 1)
 
-const fetch = (chain: string) => async (options: FetchOptions): Promise<FetchResult> => {
-  await sleep(2)
-  const response: ApiResponse = (
-    await fetchAndRetry(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chain}`)
-  );
+  const data: ApiResponse = await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chains[options.chain]}`);
 
   return {
-    dailyVolume: response?.daily_volume_in_usd || '0',
-    totalVolume: response?.total_volume_in_usd || '0',
-    timestamp: options.startTimestamp,
+    dailyVolume: data?.daily_volume_in_usd || '0',
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    ...Object.entries(chains).reduce((acc, chain) => {
-      const [key, value] = chain;
-
+    ...Object.entries(chains).reduce((acc, [key]) => {
       return {
         ...acc,
         [key]: {
-          fetch: fetch(value),
-          start: '2023-01-01', // 01.01.2023
+          fetch,
+          start: '2023-01-01',
         },
       };
     }, {}),
   },
-  version: 2
 };
 
 export default adapter;

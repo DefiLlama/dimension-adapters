@@ -1,13 +1,11 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const URL = 'https://routerv2.akka.finance';
 
 interface IAPIResponse {
   dailyVolume: string;
-  totalVolume: string;
 }
 
 const chainIds = {
@@ -18,25 +16,22 @@ const chainIds = {
 };
 
 const startTimestamps = {
-  [CHAIN.CORE]: 1717200000,// 6/1/2024
-  [CHAIN.XDC]: 1730160000,// 29/10/2024
-  [CHAIN.BITLAYER]: 1730160000,// 29/10/2024
-  [CHAIN.BSQUARED]: 1730160000,// 29/10/2024
+  [CHAIN.CORE]: '2024-06-01',
+  [CHAIN.XDC]: '2024-10-29',
+  [CHAIN.BITLAYER]: '2024-10-29',
+  [CHAIN.BSQUARED]: '2024-10-29',
 };
 
-const fetch = async (timestamp: number, _: any, { chain }: FetchOptions): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const chainId = chainIds[chain];
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+  const chainId = chainIds[options.chain];
 
-  const endpoint = `/v2/${ chainId }/statistics/dappradar`;
-  const response = await fetchURL(`${ URL }${ endpoint }`);
+  const endpoint = `/v2/${chainId}/statistics/dappradar`;
+  const response = await fetchURL(`${URL}${endpoint}`);
 
-  const { dailyVolume, totalVolume }: IAPIResponse = response;
+  const { dailyVolume }: IAPIResponse = response;
 
   return {
-    dailyVolume,
-    totalVolume,
-    timestamp: dayTimestamp,
+    dailyVolume
   };
 };
 

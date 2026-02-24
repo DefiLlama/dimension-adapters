@@ -67,12 +67,10 @@ const adapter: SimpleAdapter = {
         [CHAIN.POLYGON]: {
             fetch,
             start: '2022-12-08',
-            meta: {
-                methodology: {
-                    fees: "MEV fees paid by searchers to validators for priority transaction inclusion (bundles) on the Polygon network.",
-                }
-            }
         },
+    },
+    methodology: {
+        Fees: "MEV fees paid by searchers to validators for priority transaction inclusion (bundles) on the Polygon network.",
     }
 };
 

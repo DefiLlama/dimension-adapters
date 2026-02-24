@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ZeroAddress } from "ethers";
@@ -6,7 +7,7 @@ const SocketGatewayAbis = {
   SocketFeesDeducted: 'event SocketFeesDeducted (uint256 fees, address feesTaker, address feesToken)',
 }
 
-export const SocketGatewayContracts: {[key: string]: string} = {
+export const SocketGatewayContracts: { [key: string]: string } = {
   [CHAIN.AURORA]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.ARBITRUM]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.OPTIMISM]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
@@ -35,14 +36,14 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   })
   for (const event of feeEvents) {
     let token = event.feesToken
-    if (String(token).toLowerCase() === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'.toLowerCase()) {
+    if (String(token).toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
       token = ZeroAddress
     }
 
     dailyFees.add(token, event.fees)
   }
 
-  return {dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: 0}
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: 0 }
 };
 
 const adapter: SimpleAdapter = {
@@ -50,9 +51,16 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(SocketGatewayContracts).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: '2023-08-10', }
+      [chain]: {
+        fetch, start: '2023-08-10',
+      }
     }
-  }, {})
+  }, {}),
+  methodology: {
+    Fees: 'Total fees paid by users for bridging tokens.',
+    Revenue: 'Total fees paid are distributed to SOCKET inetrgations.',
+    ProtocolRevenue: 'SOCKET takes 0 fees.',
+  }
 };
 
 export default adapter;

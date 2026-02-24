@@ -82,20 +82,11 @@ const fetchVolume = () => {
       }
     `;
 
-    // Fetch total volume data
-    const dataTotal = await request(info.bsc.subgraph, graphQLTotal);
-
     // Fetch daily volume data
     const dataDaily = await request(info.bsc.subgraph, graphQlDaily);
 
     // Process the fetched data and compute the response
 
-    const totalVolume = formatAmount(
-      dataTotal.volumeStats[0]?.margin || 0,
-      30,
-      0,
-      true
-    );
     const dailyVolume = formatAmount(
       dataDaily.volumeStats[0]?.margin || 0,
       30,
@@ -104,7 +95,6 @@ const fetchVolume = () => {
     );
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: totdayTimestamp,
     };

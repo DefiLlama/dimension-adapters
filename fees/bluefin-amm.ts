@@ -1,40 +1,83 @@
 import fetchURL from "../utils/fetchURL"
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 
+const fetch = async (_: any) => {
+  const allPools: any[] = [];
+  let page = 1;
+  let hasMore = true;
+  const maxPoolsPerPage = 100;
 
-const fetch_sui = async (timestamp: number): Promise<FetchResultFees> => {
-    const exchangeInfo = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/info");
-    const pools = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/v1/pools/info");
-    const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
-    let spotFees = 0;
-    for (const pool of pools) {
-        spotFees += Number(pool.day.fee);
+  while (hasMore) {
+    const response = await fetchURL(`https://swap.api.sui-prod.bluefin.io/api/v1/pools/info?page=${page}&limit=${maxPoolsPerPage}`);
+
+    // Handle different response structures
+    // If response is an array, use it directly
+    // If response has a data property, use that
+    const pools = Array.isArray(response) ? response : (response.data || response.pools || []);
+
+    if (pools.length === 0) {
+      hasMore = false;
+      break;
     }
-    const spotTotalFees = Number(exchangeInfo.totalFee);
-    const dailyRevenue = (spotFees * 0.2) + Number(rfqStats.feesUsd);
-    const totalRevenue = (spotTotalFees * 0.2) + Number(rfqStats.feesUsd);
-    const dailyFees = spotFees + Number(rfqStats.feesUsd);
-    const totalFees = Number(spotTotalFees) + Number(exchangeInfo.rfqTotalFee);
-    return {
-        dailyFees,
-        totalFees,
-        dailyRevenue,
-        totalRevenue: totalRevenue,
-        timestamp: timestamp,
-    };
+
+    allPools.push(...pools);
+
+    // Check if there are more pages
+    // If we got fewer than maxPoolsPerPage pools, we've reached the end
+    if (pools.length < maxPoolsPerPage) {
+      hasMore = false;
+    } else {
+      // Check for nextPage indicator in response
+      const nextPage = response.nextPage || (response.data && response.data.nextPage);
+      if (!nextPage) {
+        hasMore = false;
+      }
+    }
+    page++;
+  }
+
+  const rfqStats = await fetchURL("https://swap.api.sui-prod.bluefin.io/api/rfq/stats?interval=1d");
+
+  let spotFees = 0;
+  let spotRevenue = 0;
+
+  for (const pool of allPools) {
+    const poolFees = Number(pool.day.fee);
+    spotFees += poolFees;
+
+    // Use protocolFee from each pool instead of hardcoded 0.2
+    // protocolFee is a decimal (e.g., 0.2 represents 20%)
+    const protocolFee = pool.protocolFee ? Number(pool.protocolFee) : 0.2; // fallback to 0.2 if not present
+    spotRevenue += poolFees * protocolFee;
+  }
+
+  const dailyRevenue = spotRevenue + Number(rfqStats.feesUsd);
+  const dailyFees = spotFees + Number(rfqStats.feesUsd);
+
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    adapter: {
-        [CHAIN.SUI]: {
-            fetch: fetch_sui,
-            start: '2024-11-19',
-            runAtCurrTime: true,
-        },
-    },
+  version: 2,
+  chains: [CHAIN.SUI],
+  fetch,
+  start: '2024-11-19',
+  runAtCurrTime: true,
+  methodology: {
+    Fees: "spot and rfq trading fees",
+    Revenue: "protocol fees from spot and rfq trading",
+    ProtocolRevenue: "protocol fees from spot and rfq trading",
+    SupplySideRevenue: "fees earned by liquidity providers",
+  }
 };
 
 export default adapter;

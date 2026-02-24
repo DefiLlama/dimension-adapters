@@ -10,7 +10,6 @@ const fetch = async (options: FetchOptions) => {
   const res = await fetchURL(`${endpoint}startTime=${startTime}&endTime=${endTime}`)
   return {
     dailyVolume: parseInt(res['dailyVolume']),
-    totalVolume: parseInt(res['totalVolume']),
   };
 };
 

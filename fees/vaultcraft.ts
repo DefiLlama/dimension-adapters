@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from '../helpers/token';
@@ -12,7 +13,7 @@ const token_fees: any = {
     [CHAIN.OPTIMISM]: '0x297E1fCb68A7D1EDB7c9d2fDC782797E1c01E68e'
 }
 const fetchFees = async (options: FetchOptions) => {
-    const _dailyFees = await addTokensReceived({ options, tokens: [token_fees[options.chain]], fromAddressFilter: '0x0000000000000000000000000000000000000000' , target: fees_contract[options.chain] })
+    const _dailyFees = await addTokensReceived({ options, tokens: [token_fees[options.chain]], fromAddressFilter: ADDRESSES.null , target: fees_contract[options.chain] })
     const dailyFees = options.createBalances()
     Object.values(_dailyFees._balances).forEach(i => dailyFees.addGasToken(i))
     if (options.chain === CHAIN.ETHEREUM) {
@@ -20,7 +21,7 @@ const fetchFees = async (options: FetchOptions) => {
         const burn = await addTokensReceived({ 
             options, 
             token: '0xcE246eEa10988C495B4A90a905Ee9237a0f91543',
-            targets: ['0x0000000000000000000000000000000000000000', '0x000000000000000000000000000000000000dEaD']
+            targets: [ADDRESSES.null, '0x000000000000000000000000000000000000dEaD']
         })
         Object.values(burn._balances).forEach(i => dailyFees.addCGToken('vaultcraft', Number(i)/1e18))
     }

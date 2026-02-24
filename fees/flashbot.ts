@@ -1,10 +1,11 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
-const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
-  
+
   // https://dune.com/queries/4742045
   const sql = getSqlFromFile('helpers/queries/flashbots.sql', {
     start: options.startTimestamp,
@@ -14,21 +15,31 @@ const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
   const res = await queryDuneSql(options, sql);
 
   const dayItem = res[0]
-  dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0)
+  dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0, METRIC.MEV_REWARDS)
 
   return {
-    dailyFees
+    dailyFees,
+    dailyRevenue: dailyFees,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchFees,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: 'Total ETH fees paid to block proposers by users.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
+    },
+    Revenue: {
+      [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
     },
   },
-  isExpensiveAdapter: true,
 }
 
 export default adapter;

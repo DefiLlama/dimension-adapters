@@ -1,6 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { BaseAdapter, FetchResultVolume, IJSON, SimpleAdapter } from '../../adapters/types';
-import type { Chain } from "@defillama/sdk/build/general";
+import { BaseAdapter, Chain, FetchResultVolume, IJSON, SimpleAdapter } from '../../adapters/types';
 import fetchURL from '../../utils/fetchURL';
 
 interface ChainData {

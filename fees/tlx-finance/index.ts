@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { OPTIMISM } from "../../helpers/chains";
 
 const STAKER = "0xc30877315f3b621a8f7bcda27819ec29429f3817";
 const DONATE_EVENT = "event DonatedRewards(address indexed account, uint256 amount)";
-const token = "0x8c6f28f2F1A3C87F0f938b96d27520d9751ec8d9"
+const token = ADDRESSES.optimism.sUSD
 
 const getFees = async (options: FetchOptions) => {
   const { getLogs } = options;

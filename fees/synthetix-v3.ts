@@ -1,6 +1,6 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../adapters/types";
 
 const methodology = {
   UserFees: "Users pay fees to trade on derivatives markets.",
@@ -32,12 +32,10 @@ const fetchFees = async (timestamp: number, _: ChainBlocks, options: FetchOption
   logs.forEach((log: any) => {
     const totalFees = Number(log.totalFees)
     const collectedFees = Number(log.collectedFees)
-    const referralFees = Number(log.referralFees)
-    const settlementReward = Number(log.settlementReward)
     dailyFees.addCGToken(usdt, totalFees / 1e18)
     dailyRevenue.addCGToken(usdt, collectedFees / 1e18)
     dailyHoldersRevenue.addCGToken(usdt, collectedFees / 1e18)
-    const supplySideRevenue = Number(totalFees) - Number(collectedFees) - Number(referralFees) - Number(settlementReward)
+    const supplySideRevenue = Number(totalFees) - Number(collectedFees)
     dailySupplySideRevenue.addCGToken(usdt, supplySideRevenue / 1e18)
   });
 
@@ -55,17 +53,12 @@ const adapters: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-01-13',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetchFees,
       start: '2024-08-15',
-      meta: {
-        methodology
-      }
     },
-  }
+  },
+  methodology,
 }
 export default adapters

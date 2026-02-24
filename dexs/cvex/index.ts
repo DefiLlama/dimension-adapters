@@ -14,14 +14,13 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      start: 1736328600,
+      start: '2025-01-08',
       runAtCurrTime: true,
       fetch: async () => {
         const data = await api(API_SERVICE_URL)
 
         return {
           dailyVolume: data.daily_volume,
-          totalVolume: data.total_volume,
         }
       }
     }

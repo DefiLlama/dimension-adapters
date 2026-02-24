@@ -1,7 +1,7 @@
 import BigNumber from "bignumber.js";
 import { ChainBlocks, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN, } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { secondsInDay } from "../../utils/date";
 
@@ -29,9 +29,20 @@ const DSA_CONTRACTS: TAddress = {
   [CHAIN.ETHEREUM]: '0xE5f24791E273Cb96A1f8E5B67Bc2397F0AD9B8B4',
 }
 
+const INV_BUY_BACK_AUCTION_CONTRACT: TAddress = {
+  [CHAIN.ETHEREUM]: '0x7Cac7f6BE1f74D00d874BBAcb98b531FA889D613',
+}
+
+const JRDOLA_AUCTION_CONTRACT: TAddress = {
+  [CHAIN.ETHEREUM]: '0x633821B8e003344e5223509277F2084EA809A452',
+}
+
 const DBR_DISTRIBUTOR_START_BLOCK = 17272667;
 const DSA_START_BLOCK = 19084053;
 const DBR_AUCTION_START_BLOCK = 18940487;
+const INV_BUY_BACK_START_BLOCK = 24418905;
+const JR_DOLA_START_BLOCK = 24443253;
+const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 
 // borrower has a deficit in DBR and is force-replenished
 const FORCED_REPLENISHMENT_EVENT = 'event ForceReplenish(address indexed account, address indexed replenisher, address indexed market, uint amount, uint replenishmentCost, uint replenisherReward)';
@@ -39,13 +50,13 @@ const FORCED_REPLENISHMENT_EVENT = 'event ForceReplenish(address indexed account
 const methodology = {
   UserFees: "DBR spent by borrowers.",
   Fees: "DBR spent by borrowers.",
-  Revenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
-  ProtocolRevenue: "DBR distributed to INV stakers, the DOLA Savings Account, revenue from the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",  
-  HoldersRevenue: "DBR streamed to INV stakers."
+  Revenue: "DBR distributed to INV stakers, jrDOLA, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
+  ProtocolRevenue: "DBR distributed to INV stakers, jrDOLA, the DOLA Savings Account, revenue from INV buybacks, the DBR Virtual XY=K auction, and DBR forced replenishments to borrowers in DBR deficit.",
+  HoldersRevenue: "DBR streamed to INV stakers and for INV buybacks."
 }
 
 const getMarkets = async () => {
-  const url = "https://www.inverse.finance/api/defillama/simple-market-list"  
+  const url = "https://www.inverse.finance/api/defillama/simple-market-list"
   const data = await fetchURL(url, 3);
   return data.markets;
 }
@@ -61,10 +72,11 @@ const toDbrUSDValue = (bn: BigNumber, dbrHistoPrice: number) => {
 }
 
 const fetch = (chain: Chain) => {
-  return async ({ toTimestamp, createBalances, getLogs, getFromBlock, api }: FetchOptions) => {
+  return async ({ toTimestamp, createBalances, getLogs, getFromBlock, api, fromTimestamp }: FetchOptions) => {
     const dbr = DBR_CONTRACTS[chain];
     const dola = DOLA_CONTRACTS[chain];
     const dbrAuction = DBR_AUCTION_CONTRACTS[chain];
+    const invBuyBackAuction = INV_BUY_BACK_AUCTION_CONTRACT[chain];
     const block = await getFromBlock();
 
     let annualizedFees = 0
@@ -97,7 +109,7 @@ const fetch = (chain: Chain) => {
       });
 
       holderAnnualizedRevenue += toDbrUSDValue(invStakerRewardRate[0], dbrHistoPrice) * secondsInDay * 365
-      annualizedRevenues += holderAnnualizedRevenue      
+      annualizedRevenues += holderAnnualizedRevenue
     }
 
     // Virtual XY=K auction revenue
@@ -107,6 +119,41 @@ const fetch = (chain: Chain) => {
         calls: [{ target: dbrAuction }],
       })
       annualizedRevenues += toDbrUSDValue(BigNumber(virtualAuctionDbrRatePerYear[0]), dbrHistoPrice)
+    }
+
+    // jrDOLA auction revenue
+    if (block >= JR_DOLA_START_BLOCK) {
+      const jrDolaParams = { target: JRDOLA_AUCTION_CONTRACT[chain], chain }
+      const [yearlyBudget, totalAssets, maxRatioBps] = await api.batchCall([
+        {
+          abi: 'function yearlyRewardBudget() public view returns (uint)',
+          ...jrDolaParams,
+        },
+        {
+          abi: 'function totalAssets() public view returns (uint)',
+          ...jrDolaParams,
+        },
+        {
+          abi: 'function maxDolaDbrRatioBps() public view returns (uint)',
+          ...jrDolaParams,
+        },
+      ])
+
+      const maxBudget = BigNumber(maxRatioBps).multipliedBy(BigNumber(totalAssets)).dividedBy(1e4)
+      const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget
+      annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)
+    }
+
+    // INV buybacks auction revenue
+    if (block >= INV_BUY_BACK_START_BLOCK) {
+      const invBuyBacksDbrRatePerYear = await api.call({
+        abi: 'function dbrRatePerYear() public view returns (uint)',
+        target: invBuyBackAuction,
+      })
+
+      const invBuyBackAnnualizedRevenues = toDbrUSDValue(BigNumber(invBuyBacksDbrRatePerYear), dbrHistoPrice)
+      annualizedRevenues += invBuyBackAnnualizedRevenues;
+      holderAnnualizedRevenue += invBuyBackAnnualizedRevenues;
     }
 
     // DOLA Savings Account revenue
@@ -128,37 +175,37 @@ const fetch = (chain: Chain) => {
       ])
 
       const maxBudget = BigNumber(maxDbrPerDola).multipliedBy(BigNumber(totalSupply)).dividedBy(1e18)
-      const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget      
-      annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)      
-    }    
+      const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget
+      annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)
+    }
 
     totalDebts.forEach(d => {
-      if(d) {
+      if (d) {
         annualizedFees += toDbrUSDValue(BigNumber(d), dbrHistoPrice)
-      }      
+      }
     });
-     
-    let dailyRevenue = annualizedRevenues / 365;    
-    const dailyHoldersRevenue = holderAnnualizedRevenue / 365;
-    const dailyFees = annualizedFees / 365;
+
+    let dailyRevenue = (annualizedRevenues / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
+    const dailyHoldersRevenue = (holderAnnualizedRevenue / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
+    const dailyFees = (annualizedFees / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
 
     // forced replenishments
     const replenishmentEvents = await getLogs({
       eventAbi: FORCED_REPLENISHMENT_EVENT,
       target: dbr,
-    });    
+    });
 
     replenishmentEvents.forEach(e => {
       replenishmentRevenue.add(dola, e.replenishmentCost)
       replenishmentRevenue.subtractToken(dola, e.replenisherReward)
     })
 
-    dailyRevenue += (await replenishmentRevenue.getUSDValue())    
+    dailyRevenue += (await replenishmentRevenue.getUSDValue())
 
     return {
       dailyFees,
       dailyRevenue,
-      dailyHoldersRevenue,      
+      dailyHoldersRevenue,
     }
   }
 }
@@ -169,11 +216,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2022-12-11',
-      meta: {
-        methodology,
-      },
     },
-  }
+  },
+  methodology,
 };
 
 export default adapter;

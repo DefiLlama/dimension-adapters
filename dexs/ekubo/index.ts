@@ -1,57 +1,66 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { httpGet } from "../../utils/fetchURL";
-import * as sdk from "@defillama/sdk";
+import { httpGet } from "../../utils/fetchURL";
+import BigNumber from "bignumber.js";
 
-const toki = (n: any) => "starknet:0x" + BigInt(n).toString(16).padStart("049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7".length, "0")
-
-const fetch = async (timestamp: number) => {
-  const balances = new sdk.Balances({ chain: CHAIN.STARKNET, timestamp })
-  const response = ((await fetchURL("https://mainnet-api.ekubo.org/overview")).volumeByToken_24h as any[])
-    .map(t => ({ token: toki(t.token), vol: t.volume }))
-  response.map((token) => {
-    balances.add(token.token, token.vol, { skipChain: true })
-  })
-  return {
-    timestamp: timestamp,
-    dailyVolume: await balances.getUSDString(),
-  };
+const chainConfig: Record<string, { start: string, chainId: String }> = {
+  [CHAIN.STARKNET]: { start: '2023-09-19', chainId: "23448594291968334" },
+  [CHAIN.ETHEREUM]: { start: '2025-01-31', chainId: "1" }
 }
 
-const tokenMap: any = {
-  '1248875146012964071876423320777688075155124985543': '0xdac17f958d2ee523a2206206994597c13d831ec7',
-  '917551056842671309452305380979543736893630245704': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-  '262709962604544': '0x0000000000000000000000000000000000000000',
-  '1163022888421719912899836930504565803122825180095': '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599'
+function toAddress(numberString: string): string {
+  return numberString === '0' ? ADDRESSES.null : `0x${new BigNumber(numberString).toString(16)}`;
 }
 
-const fetchEVM = async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances()
-  const response: any[] = (await httpGet('https://eth-mainnet-api.ekubo.org/overview/volume')).volumeByTokenByDate
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const chainId = chainConfig[options.chain].chainId
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
-  response.filter((t) => t.date.split('T')[0] === dateStr).map((t) => {
-    if (!tokenMap[t.token]) return;
-    dailyVolume.add(tokenMap[t.token], t.volume)
+
+  const responseVolumes: any[] = (await httpGet('https://prod-api.ekubo.org/overview/volume?chainId=' + chainId)).volumeByTokenByDate
+  const responseRevenue: any[] = (await httpGet('https://prod-api.ekubo.org/overview/revenue?chainId=' + chainId)).revenueByTokenByDate
+
+  responseVolumes.filter((t) => t.date.split('T')[0] === dateStr).map((t) => {
+    const token = toAddress(t.token)
+    dailyVolume.add(token, t.volume)
+    dailyFees.add(token, t.fees)
   })
 
+  responseRevenue.filter((t) => t.date.split('T')[0] === dateStr).map((t) => {
+    // add withdrawal fees to fees too
+    dailyFees.add(toAddress(t.token), t.revenue)
+    dailyRevenue.add(toAddress(t.token), t.revenue)
+  })
+
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
+
   return {
-    timestamp: timestamp,
-    dailyVolume: dailyVolume,
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
+    dailyProtocolRevenue: dailyRevenue,
   };
+}
+
+const methodology = {
+  Fees: 'Swap fees paid by users per swap.',
+  Revenue: 'A partition of swap fees and withdrawal fees charged by Ekubo.',
+  SupplySideRevenue: 'Amount of fees distributed to liquidity providers.',
+  HoldersRevenue: 'Amount of fees used to buy back and burn EKUBO tokens on Starknet.',
+  ProtocolRevenue: 'Ekubo protocol collects revenue on Ethereum.',
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.STARKNET]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: '2023-09-19'
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchEVM,
-      start: '2025-01-31'
-    }
-  }
+  version: 1,
+  fetch,
+  adapter: chainConfig,
+  methodology,
 }
 
 export default adapter;

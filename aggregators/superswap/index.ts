@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
@@ -5,11 +6,11 @@ const address = '0x5839389261D1F38aac7c8E91DcDa85646bEcB414'
 const event_route = 'event Route(address indexed from,address to,address indexed tokenIn,address indexed tokenOut,uint256 amountIn,uint256 amountOutMin,uint256 amountOut)'
 
 const tokenMapping = {
-  '0xF1815bd50389c46847f0Bda824eC8da914045D14': {
+  [ADDRESSES.flow.stgUSDC]: {
     id:'usd-coin',
     decimals: 6
   },
-  '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE': {
+  [ADDRESSES.GAS_TOKEN_2]: {
     id: 'ethereum',
     decimals: 18
   },
@@ -17,7 +18,7 @@ const tokenMapping = {
     id: 'tether',
     decimals: 6
   },
-  '0x4200000000000000000000000000000000000006': {
+  [ADDRESSES.optimism.WETH_1]: {
     id: 'ethereum',
     decimals: 18
   },

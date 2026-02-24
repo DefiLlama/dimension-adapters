@@ -15,13 +15,12 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       runAtCurrTime: true,
-      start: 1736328600,
+      start: '2025-01-08',
       fetch: async () => {
         const data = await api(API_SERVICE_URL)
 
         return {
           dailyFees: data.daily_fee,
-          totalFees: data.total_fee,
         }
       }
     }

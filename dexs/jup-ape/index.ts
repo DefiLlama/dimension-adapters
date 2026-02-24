@@ -9,13 +9,13 @@
  *    inputAmount without quote amounts, which would require additional token price lookups
  */
 
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
-    total_volume: number
+    daily_volume: number
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -36,6 +36,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             SELECT *
             FROM dex_solana.trades
             WHERE tx_id IN (SELECT tx_id FROM ape_pro_txs)
+            AND TIME_RANGE
         ),
         ape_pro_detailed_txs AS (
             SELECT 
@@ -47,11 +48,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 ON t.tx_id = l.tx_id
         )
         SELECT 
-            SUM(f.amount_usd) as total_volume
+            SUM(f.amount_usd) as daily_volume
         FROM ape_pro_detailed_txs as f
     `)
-
-    const dailyVolume = data.total_volume
+    const dailyVolume = data.daily_volume || 0
 
     return { 
         dailyVolume
@@ -59,13 +59,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2024-09-13'
-        }
-    },
     version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2024-09-13',
     isExpensiveAdapter: true
 }
 

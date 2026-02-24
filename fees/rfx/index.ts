@@ -29,12 +29,10 @@ _:any, _1:any, options: FetchOptions
     throw new Error("Unexpected number of results");
   }
   let dailyFees = Number(dailyData.revenueInfos[0].totalFeeUsd) * 1e-30;
-  let totalFees = Number(dailyData.revenueInfos[0].cumulativeTotalFeeUsd) * 1e-30;
 
   return {
     timestamp: options.startOfDay,
     dailyFees,
-    totalFees,
     dailyRevenue: dailyFees,
   };
 };
@@ -42,7 +40,7 @@ _:any, _1:any, options: FetchOptions
 const adapter: Adapter = {
   adapter: {
     [CHAIN.ZKSYNC]: {
-      start: 1733356800,
+      start: '2024-12-05',
       fetch: fetchFees,
     },
   },

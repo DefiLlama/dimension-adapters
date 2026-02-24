@@ -10,6 +10,7 @@ interface IEdgeXFeeResponse {
   data: {
     dayTimestamp: number;
     fee: string;
+    revenue: string;
   }[];
   msg: string | null;
   errorParam: string | null;
@@ -31,11 +32,13 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
   }
 
   const dailyFees = dayData.fee;
-  const dailyRevenue = dayData.fee;
+  const dailyRevenue = dayData.revenue;
+  const dailySupplySideRevenue = Number(dailyFees) - Number(dailyRevenue)
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     timestamp: options.startOfDay,
   };
 };
@@ -43,7 +46,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.EDGEX]: {
       fetch,
       start: '2025-02-25',
     },

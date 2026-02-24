@@ -1,10 +1,69 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { getSolanaReceived } from "../helpers/token";
+import ADDRESSES from '../helpers/coreAssets.json'
+// source: https://dune.com/queries/4966713/8220253
 
-const fetchFees = async (options: FetchOptions) => {
-  const dailyFees = await getSolanaReceived({ options, targets: ['7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM']})
-  return { dailyFees, dailyRevenue: dailyFees }
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from '../helpers/metrics';
+
+const methodology = {
+    Fees: "All trading fees paid by users while using Bloom Trading bot.",
+    Revenue: "Trading fees are collected by Bloom protocol.",
+}
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.TRADING_FEES]: "Trading fees are collected by Bloom protocol.",
+    },
+    Revenue: {
+        [METRIC.TRADING_FEES]: "Trading fees are collected by Bloom protocol.",
+    },
+}
+
+const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
+
+const fetchFees = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
+  const query = `
+    WITH
+    allFeePayments AS (
+      SELECT
+        tx_id,
+        balance_change / 1e9 AS fee_token_amount
+      FROM
+        solana.account_activity
+      WHERE
+        TIME_RANGE
+        AND tx_success
+        AND address = '7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM'
+        AND balance_change > 0 
+    ),
+    botTrades AS (
+      SELECT
+        trades.tx_id,
+        MAX(fee_token_amount) AS fee
+      FROM
+        dex_solana.trades AS trades
+        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+      WHERE
+        TIME_RANGE
+        AND trades.trader_id != '7HeD6sLLqAnKVRuSfc1Ko3BSPMNKWgGTiWLKXJF31vKM'
+      GROUP BY trades.tx_id
+    )
+    SELECT
+      SUM(fee) AS fee
+    FROM
+      botTrades
+  `;
+
+  const fees = await queryDuneSql(options, query);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.add(ADDRESSES.solana.SOL, fees[0].fee * 1e9, METRIC.TRADING_FEES);
+
+  return { dailyFees, dailyRevenue }
 }
 
 const contract: any = {
@@ -57,39 +116,44 @@ const contract: any = {
     // '0x4198fdc83f4c47b79d5ce84927a758bc85b9b3ec',
   ]
 }
-const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
-const fetchMVE = async (options: FetchOptions) => {
+
+const fetchEVM = async (_a: any, _b: any, options: FetchOptions) => {
   const logs = await options.getLogs({
     topics: [topic],
     targets: [...new Set(contract[options.chain])] as string[], 
     flatten: true
   })
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   logs.forEach((log: any) => {
     const data = log.data.replace('0x', '');
     const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
-    dailyFees.addGasToken(fees_amount);
+    dailyFees.addGasToken(fees_amount, METRIC.TRADING_FEES);
+    dailyRevenue.addGasToken(fees_amount, METRIC.TRADING_FEES);
   })
-  return { dailyFees, dailyRevenue: dailyFees } 
+  return { dailyFees, dailyRevenue } 
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFees,
-      start: '2024-10-01'
+      start: '2024-10-01',
     },
     [CHAIN.BSC]: {
-      fetch: fetchMVE,
-      start: '2024-12-12'
+      fetch: fetchEVM,
+      start: '2024-12-12',
     },
     [CHAIN.BASE]: {
-      fetch: fetchMVE,
-      start: '2024-12-12'
+      fetch: fetchEVM,
+      start: '2024-12-12',
     }
   },
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

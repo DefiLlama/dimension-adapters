@@ -39,14 +39,9 @@ const fetch = async (_t: any, _tt: any, options: FetchOptions) => {
     (accum: number, t: MarketDailyStat) => accum + parseInt(t.tradingVolume) / 1e30,
     0 as number
   );
-  const totalVolume = data.marketStats.reduce(
-    (accum: number, t: MarketStat) => accum + parseInt(t.totalTradingVolume) / 1e30,
-    0 as number
-  );
   return {
     timestamp: options.startOfDay,
     dailyVolume: dailyVolume,
-    totalVolume: totalVolume,
   }
 }
 

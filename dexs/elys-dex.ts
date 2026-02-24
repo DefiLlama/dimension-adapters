@@ -16,7 +16,8 @@ const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ELYS]: {
-      fetch, start: "2024-12-22",
+      fetch,
+      start: "2024-12-22",
     },
   },
 };

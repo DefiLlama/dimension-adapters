@@ -10,7 +10,7 @@ const startTimestamps: { [chain: string]: number } = {
 };
 const endpoints: { [key: string]: string } = {
   [CHAIN.BASE]:
-    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.1/gn",
+    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.2/gn",
   [CHAIN.MODE]:
     "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
 };
@@ -82,13 +82,9 @@ const getFetch =
       id: String(dayTimestamp) + ":daily",
       period: "daily",
     });
-    const totalData: IGraphResponse = await request(endpoints[chain], query, {
-      id: "total",
-      period: "total",
-    });
-    let dailyOpenInterest = 0;
-    let dailyLongOpenInterest = 0;
-    let dailyShortOpenInterest = 0;
+    let openInterestAtEnd = 0;
+    let longOpenInterestAtEnd = 0;
+    let shortOpenInterestAtEnd = 0;
 
     if (query === historicalDataDerivatives) {
       const tradingStats: IGraphResponseOI = await request(
@@ -99,27 +95,26 @@ const getFetch =
           period: "daily",
         }
       );
-      dailyOpenInterest =
+      openInterestAtEnd =
         Number(tradingStats.tradingStats[0]?.longOpenInterest || 0) +
         Number(tradingStats.tradingStats[0]?.shortOpenInterest || 0);
-      dailyLongOpenInterest = Number(
+      longOpenInterestAtEnd = Number(
         tradingStats.tradingStats[0]?.longOpenInterest || 0
       );
-      dailyShortOpenInterest = Number(
+      shortOpenInterestAtEnd = Number(
         tradingStats.tradingStats[0]?.shortOpenInterest || 0
       );
     }
 
     return {
-      timestamp: dayTimestamp,
-      dailyLongOpenInterest: dailyLongOpenInterest
-        ? String(dailyLongOpenInterest * 10 ** -30)
+      longOpenInterestAtEnd: longOpenInterestAtEnd
+        ? String(longOpenInterestAtEnd * 10 ** -30)
         : undefined,
-      dailyShortOpenInterest: dailyShortOpenInterest
-        ? String(dailyShortOpenInterest * 10 ** -30)
+      shortOpenInterestAtEnd: shortOpenInterestAtEnd
+        ? String(shortOpenInterestAtEnd * 10 ** -30)
         : undefined,
-      dailyOpenInterest: dailyOpenInterest
-        ? String(dailyOpenInterest * 10 ** -30)
+      openInterestAtEnd: openInterestAtEnd
+        ? String(openInterestAtEnd * 10 ** -30)
         : undefined,
       dailyVolume:
         dailyData.volumeStats.length == 1
@@ -131,18 +126,7 @@ const getFetch =
               ) *
                 10 ** -30
             )
-          : undefined,
-      totalVolume:
-        totalData.volumeStats.length == 1
-          ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-                10 ** -30
-            )
-          : undefined,
+          : 0,
     };
   };
 

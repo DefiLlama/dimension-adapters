@@ -7,9 +7,9 @@ const limits = plimit(1);
 
 const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://omni.apex.exchange/api/v3/klines?end=${endTime}&interval=D&start=1718380800&symbol=${symbol}&limit=10`
 const allTiker = (symbol: string) => `https://omni.apex.exchange/api/v3/ticker?symbol=${symbol}`
-const getSumbols = async ()=>{
+const getSumbols = async () => {
     const res = await fetchURL('https://omni.apex.exchange/api/v3/all-open-tickers')
-    const symbol = res?.data?.map((i: any)=>i?.ticker_id)
+    const symbol = res?.data?.map((i: any) => i?.ticker_id)
     return symbol || []
 }
 interface IVolumeall {
@@ -26,7 +26,7 @@ interface IOpenInterest {
     lastPrice: string;
 }
 
-const getVolume = async (timestamp: number) => {
+const fetch = async (timestamp: number) => {
     const symbol = (await getSumbols());
 
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
@@ -35,7 +35,7 @@ const getVolume = async (timestamp: number) => {
         .map((e: any) => { return { timestamp: e.t / 1000, volume: e.v, price: e.c } });
     const openInterestHistorical: IOpenInterest[] = (await Promise.all(symbol.map((coins: string) => limits(() => httpGet(allTiker(coins), { timeout: 10000 })))))
         .map((e: any) => e.data).flat().map((e: any) => { return { id: e.symbol, openInterest: e.openInterest, lastPrice: e.lastPrice } });
-    const dailyOpenInterest = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
+    const openInterestAtEnd = openInterestHistorical.reduce((a: number, { openInterest, lastPrice }) => a + Number(openInterest) * Number(lastPrice), 0);
     const historicalUSD = historical.map((e: IVolumeall) => {
         return {
             ...e,
@@ -44,20 +44,17 @@ const getVolume = async (timestamp: number) => {
     });
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-    const totalVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp <= dayTimestamp)
-        .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
 
     return {
-        totalVolume: totalVolume,
-        dailyOpenInterest: dailyOpenInterest,
         dailyVolume: dailyVolume,
+        openInterestAtEnd,
     };
 };
 
 const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.ETHEREUM]: {
-            fetch: getVolume,
+            fetch,
             start: '2024-06-14',
         }
     },

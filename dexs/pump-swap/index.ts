@@ -1,110 +1,82 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 import { FetchOptions } from "../../adapters/types";
 
-// const queryId = "4900425"; // removed direct query so changes in query don't affect the data, and better visibility
-
 interface IData {
-    quoteAmountOutorIn: number;
-    lpFee: number;
-    protocolFee: number;
-    quoteMint: string;
+  clean_volume: number;
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const data: IData[] = await queryDuneSql(options, `WITH
-        decoded_pool AS (
-            SELECT
-                to_base58 (bytearray_substring (data, 182, 32)) AS pool,
-                to_base58 (bytearray_substring (data, 91, 32)) AS quoteMint
-            FROM
-                solana.instruction_calls
-            WHERE
-                varbinary_starts_with (data, 0xe445a52e51cb9a1db1310cd2a076a774)
-                AND executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
-        ),
-        decoded_swap AS (
-            SELECT
-                tx_id,
-                block_time,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 73, 8))
-                ) AS quoteAmountOutorIn,
-                to_base58 (bytearray_substring (data, 129, 32)) AS pool
-            FROM
-                solana.instruction_calls
-            WHERE
-                tx_success = TRUE
-                AND inner_executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
-                AND (
-                    VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d3e2f370aa503dc2a)
-                    OR VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d67f4521f2cf57777)
-                )
-                AND TIME_RANGE
-        ),
-        pumpswap_trades AS (
-            SELECT
-                s.block_time,
-                DATE_TRUNC('day', s.block_time) AS dt,
-                s.quoteAmountOutorIn,
-                p.quoteMint
-            FROM
-                decoded_swap s
-                JOIN decoded_pool p ON s.pool = p.pool
-            WHERE
-                s.block_time >= TIMESTAMP '2025-03-15'
-                AND p.quoteMint IN (
-                    'So11111111111111111111111111111111111111112',
-                    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-                    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-                    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
-                    'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
-                )
-                AND TIME_RANGE
-        ),
-        daily_volume AS (
-            SELECT
-                dt AS date,
-                quoteMint,
-                SUM(quoteAmountOutorIn) AS quoteAmountOutorIn
-            FROM
-                pumpswap_trades
-            WHERE
-                quoteAmountOutorIn IS NOT NULL
-            GROUP BY
-                dt,
-                quoteMint
-        )
-    SELECT
-        date,
-        quoteAmountOutorIn,
-        quoteMint
-    FROM
-        daily_volume
-    ORDER BY
-        date DESC
-    `)
-    const dailyVolume = options.createBalances()
+  const data: IData[] = await queryAllium(
+    `WITH volume_data AS (
+      SELECT 
+        pool,
+        sender_token_acc,
+        SUM(usd_amount) as volume_usd
+      FROM solana.dex.trades
+      WHERE project = 'pumpswap'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+        AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      GROUP BY pool, sender_token_acc
+    ),
+    pool_volume AS (
+      SELECT 
+        pool,
+        SUM(volume_usd) as total_volume_usd,
+        COUNT(DISTINCT sender_token_acc) as unique_senders
+      FROM volume_data
+      GROUP BY pool
+    ),
+    pool_info AS (
+      SELECT DISTINCT
+        liquidity_pool_address,
+        token0_address,
+        token0_vault,
+        token1_address,
+        token1_vault
+      FROM solana.dex.pools
+      WHERE project = 'pumpswap'
+        AND liquidity_pool_address IN (SELECT pool FROM pool_volume)
+    ),
+    pool_tvl AS (
+      SELECT 
+        pi.liquidity_pool_address,
+        COALESCE(b0.usd_balance_current, 0) + COALESCE(b1.usd_balance_current, 0) as total_tvl_usd
+      FROM pool_info pi
+      LEFT JOIN solana.assets.balances_latest b0 
+        ON pi.token0_vault = b0.address 
+        AND pi.token0_address = b0.mint
+      LEFT JOIN solana.assets.balances_latest b1 
+        ON pi.token1_vault = b1.address 
+        AND pi.token1_address = b1.mint
+    )
+    SELECT 
+      SUM(CASE 
+        WHEN pt.total_tvl_usd >= 5000 AND pv.unique_senders >= 50 THEN pv.total_volume_usd 
+        ELSE 0 
+      END) as clean_volume
+    FROM pool_volume pv
+    INNER JOIN pool_tvl pt ON pv.pool = pt.liquidity_pool_address
+  `);
+  const dailyVolume = options.createBalances()
+  dailyVolume.addCGToken('tether', data[0].clean_volume);
 
-    for (const item of data) {
-        dailyVolume.add(item.quoteMint, item.quoteAmountOutorIn)
-    }
-
-    return { 
-        dailyVolume
-    }
+  return {
+    dailyVolume,
+  }
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-03-15'
-        }
-    },
-    version: 1,
-    isExpensiveAdapter: true
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-02-20',
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
+  methodology: {
+    Volume: "Volume is the total volume of all pools on PumpSwap, excluding pools with TVL < $5,000 or fewer than 50 unique traders.",
+  }
 }
 
 export default adapter

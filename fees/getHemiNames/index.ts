@@ -40,11 +40,9 @@ const adapter: Adapter = {
         return { dailyFees, dailyRevenue: dailyFees, }
       }) as any,
       start: '2025-03-17',
-      meta: {
-        methodology
-      }
     },
   },
+  methodology,
 
 }
 

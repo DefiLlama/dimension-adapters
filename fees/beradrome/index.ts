@@ -1,12 +1,13 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
-
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
 const BERO = "0x7838CEc5B11298Ff6a9513Fa385621B765C74174";
 const DEPLOYMENT_BLOCK = 784968;
 
-const HONEY = "0xFCBD14DC51f0A4d49d5E53C2E0950e0bC26d0Dce";
+const HONEY = ADDRESSES.berachain.HONEY;
 
 const SWAP_FEE = 30n;
 const BORROW_FEE = 250n;
@@ -15,7 +16,6 @@ const PROVIDER_FEE = 2000n;
 const DIVISOR = 10000n;
 
 async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
-
   const buyLogs = await options.getLogs({
     target: BERO,
     eventAbi:
@@ -42,7 +42,6 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
-
   const borrowLogs = await options.getLogs({
     target: VOTER,
     eventAbi: "event TOKEN__Borrow(address indexed borrower, uint256 amount)",
@@ -56,7 +55,6 @@ async function addBorrowFees(options: FetchOptions, totalFees: Balances) {
 }
 
 async function addBribes(options: FetchOptions, totalFees: Balances) {
-
   const plugins = await options.api.call({
     target: VOTER,
     abi: "address[]:getPlugins",
@@ -82,19 +80,28 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
   }
 }
 
+const BERACHAIN_DISTRIBUTOR = "0xD2f19a79b026Fb636A7c300bF5947df113940761";
 const BERADROME_REWARD_VAULT = "0x63233e055847eD2526d9275a6cD1d01CAAFC09f0";
 const BGT_ADDRESS = "0x656b95E550C07a9ffe548bd4085c72418Ceb1dba";
+const DISTRIBUTED_TOPIC_0 =
+  "0x027042b00b5da1362792832f3775452610369da8ce2c07af183cdabd276e3a11";
 
 async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
-
   const logs = await options.getLogs({
-    target: BERADROME_REWARD_VAULT,
-    eventAbi: "event RewardAdded(uint256 reward)",
+    target: BERACHAIN_DISTRIBUTOR,
+    eventAbi:
+      "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
+    topics: [
+      DISTRIBUTED_TOPIC_0,
+      null,
+      null,
+      ethers.zeroPadValue(BERADROME_REWARD_VAULT, 32),
+    ],
   });
 
-  logs.forEach((log) => {
-    balances.add(BGT_ADDRESS, log.reward);
-  });
+  for (const log of logs) {
+    balances.add(BGT_ADDRESS, log.amount);
+  }
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
@@ -123,6 +130,12 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  methodology: {
+    Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
+    BribesRevenue: "Bribes from plugins distributed to holders.",
+    HoldersRevenue:
+      "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
+  },
 };
 
 export default adapter;

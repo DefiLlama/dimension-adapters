@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { request, gql } from "graphql-request";
@@ -5,9 +6,7 @@ import BigNumber from "bignumber.js";
 
 export interface ValidatorProgramFees {
   dailyProtocolRevenue: Balances;
-  totalProtocolRevenue: Balances;
   dailyHoldersRevenue: Balances;
-  totalHoldersRevenue: Balances;
 }
 
 interface IGraphEarlyStageFeesResponse {
@@ -19,7 +18,7 @@ interface IGraphEarlyStageFeesResponse {
   }[]
 }
 
-const wavaxToken = '0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7'
+const wavaxToken = ADDRESSES.avax.WAVAX
 
 const queryValidatorProgramFees = gql
   `query ValidatorProgramFees($timestampFrom: BigInt!, $timestampTo: BigInt!) {
@@ -43,9 +42,7 @@ export async function validatorProgramFees(
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   let dailyProtocolRevenue = createBalances()
-  let totalProtocolRevenue = createBalances()
   let dailyHoldersRevenue = createBalances()
-  let totalHoldersRevenue = createBalances()
 
   try {
     const res: IGraphEarlyStageFeesResponse = await request(stakingV3SubgraphEndpoint, queryValidatorProgramFees, {
@@ -58,19 +55,12 @@ export async function validatorProgramFees(
       dailyHoldersRevenue.add(wavaxToken, res.rewards[0].amount)
     }
 
-    if (res.rewardPerTokenPerCategories[0] !== undefined) {
-      totalProtocolRevenue.add(wavaxToken, new BigNumber(res.rewardPerTokenPerCategories[0].amountTotal).div(0.7).multipliedBy(0.3).toFixed(0))
-      totalHoldersRevenue.add(wavaxToken, res.rewardPerTokenPerCategories[0].amountTotal)
-    }
-
   } catch (e) {
     console.error(e);
   }
 
   return {
     dailyProtocolRevenue,
-    totalProtocolRevenue,
     dailyHoldersRevenue,
-    totalHoldersRevenue
   }
 }

@@ -1,38 +1,39 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const URL = "https://stats.fibrous.finance/volume";
+const chainConfig: Record<string, { id: number, start: string }> = {
+  [CHAIN.BASE]: { id: 8453, start: '2025-04-04' },
+  [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-09-08' },
+  [CHAIN.STARKNET]: {id:23448594291968336, start: '2024-03-02'},
+  [CHAIN.CITREA]: {id:4114, start: '2026-01-27'},
+  [CHAIN.MONAD]: {id:143, start: '2025-11-26'}
+
+};
+
+const URL = "https://graph.fibrous.finance/volume/daily";
 
 interface IAPIResponse {
   status: number;
   data: {
     dailyVolume: string;
-    totalVolume: string;
   };
   message: string;
 }
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-  const response: IAPIResponse = await fetchURL(URL);
+
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+  const response: IAPIResponse = await fetchURL(URL + `?chainId=${chainConfig[options.chain].id}`);
   const dailyVolume = response.data.dailyVolume;
-  const totalVolume = response.data.totalVolume;
   return {
-    dailyVolume,
-    totalVolume,
-    timestamp: dayTimestamp,
+    dailyVolume: dailyVolume,
   };
 };
 
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STARKNET]: {
-      fetch,
-      start: '2023-05-06',
-      runAtCurrTime: true
-    },
-  },
+const adapter = {
+  adapter: chainConfig,
+  fetch,
+  runAtCurrTime: true,
+  version: 1,
 };
 
 export default adapter;

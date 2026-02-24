@@ -1,10 +1,10 @@
 import * as sdk from "@defillama/sdk";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { httpGet } from "../../utils/fetchURL";
 
 
 const endpoints: Record<Chain, string> = {
@@ -21,6 +21,8 @@ const endpoints: Record<Chain, string> = {
   [CHAIN.MANTLE]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-mantle",
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint('7dkVEmyCHvjnYYUJ9DR1t2skkZrdbfSWpK6wpMbF9CEk'),
   [CHAIN.BERACHAIN]: sdk.graph.modifyEndpoint('FGF5X13mGLYu2GN7pK4LYuMeS95WENHAgPDP8JDCJyTy'),
+  [CHAIN.HYPERLIQUID]: "https://woofi-subgraph.mer1in.com/subgraphs/name/woonetwork/woofi-hyperevm",
+  [CHAIN.MONAD]: sdk.graph.modifyEndpoint('B5oecz9PHofaQmUMP8ws2iYsNTxXhEtcghsA2jMSsJAP'),
 };
 
 type TStartTime = {
@@ -40,26 +42,10 @@ const startTime: TStartTime = {
   [CHAIN.MANTLE]: 1706659200,
   [CHAIN.SONIC]: 1734480000,
   [CHAIN.BERACHAIN]: 1742256000,
+  [CHAIN.SOLANA]: 1740528000,
+  [CHAIN.HYPERLIQUID]: 1751328000,
+  [CHAIN.MONAD]: 1764201600,
 };
-
-const TOTAL_VOLUME_FACTORY = "globalVariables";
-const TOTAL_VOLUME_FIELD = "totalVolumeUSD";
-
-const DAILY_VOLUME_FACTORY = "dayData";
-const DAILY_VOLUME_FIELD = "volumeUSD";
-
-const graphs = getChainVolume({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: TOTAL_VOLUME_FACTORY,
-    field: TOTAL_VOLUME_FIELD,
-  },
-  dailyVolume: {
-    factory: DAILY_VOLUME_FACTORY,
-    field: DAILY_VOLUME_FIELD,
-    dateField: 'timestamp'
-  },
-});
 
 interface FetchResult {
   dayData: {
@@ -86,7 +72,20 @@ const fetchVolume = async (_t: any, _c: any,options: FetchOptions) => {
   return {
     timestamp: start,
     dailyVolume: Number(response?.dayData?.volumeUSD || 0) / 1e18,
-    totalVolume: Number(response?.globalVariables[0]?.totalVolumeUSD || 0) / 1e18,
+  }
+}
+
+const fetchSolanaVolume = async (timestamp: number) => {
+  const apiURL = "https://api.woofi.com/stat?period=all&network=solana";
+  const response = await httpGet(apiURL);
+
+  const startOfDayUTC = getTimestampAtStartOfDayUTC(timestamp);
+
+  const result = response?.data?.find((item) => item.timestamp === startOfDayUTC.toString());
+
+  return {
+    timestamp: timestamp,
+    dailyVolume: result ? Number(result.volume_usd) / 1e18 : 0,
   }
 }
 
@@ -100,6 +99,11 @@ const volume = Object.keys(endpoints).reduce(
   }),
   {}
 );
+
+volume[CHAIN.SOLANA] = {
+  fetch: fetchSolanaVolume,
+  start: startTime[CHAIN.SOLANA],
+}
 
 const adapter: SimpleAdapter = {
   version: 1,

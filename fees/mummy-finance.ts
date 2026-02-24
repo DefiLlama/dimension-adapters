@@ -1,10 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import customBackfill from "../helpers/customBackfill";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const endpoints: { [key: string]: string } = {
@@ -12,23 +10,6 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('6dZD4zDx9bGZfRdgoUBsZjWBygYVXAe4G41LjTLNJWk1'),
 };
 
-const historicalDataSwap = gql`
-  query get_volume($period: String!, $id: String!) {
-    volumeStats(where: { period: $period, id: $id }) {
-      swap
-    }
-  }
-`;
-
-interface IGraphResponse {
-  volumeStats: Array<{
-    burn: string;
-    liquidation: string;
-    margin: string;
-    mint: string;
-    swap: string;
-  }>;
-}
 
 const graphs = (chain: Chain) => {
     return async (timestamp: number) => {

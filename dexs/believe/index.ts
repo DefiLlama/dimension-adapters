@@ -1,4 +1,5 @@
-import { SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -18,7 +19,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                 WHERE
                     executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
                     AND tx_signer = '5qWya6UjwWnGVhdSBL3hyZ7B45jbk6Byt1hwd7ohEGXE'
-                    AND account_arguments[4] <> 'So11111111111111111111111111111111111111112'
+                    AND account_arguments[4] <> '${ADDRESSES.solana.SOL}'
                     AND tx_success = TRUE
                     AND NOT is_inner
             ),
@@ -63,13 +64,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
+    version: 1,
+    dependencies: [Dependencies.DUNE],
     adapter: {
         [CHAIN.SOLANA]: {
             fetch,
             start: '2025-04-27'
         }
     },
-    version: 1,
     isExpensiveAdapter: true
 }
 

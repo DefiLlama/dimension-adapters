@@ -1,4 +1,3 @@
-import customBackfill from "../../helpers/customBackfill";
 import {
   DEFAULT_TOTAL_VOLUME_FACTORY,
   DEFAULT_TOTAL_VOLUME_FIELD,
@@ -6,8 +5,7 @@ import {
   DEFAULT_DAILY_VOLUME_FIELD,
 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import type { BaseAdapter, BreakdownAdapter, ChainEndpoints } from "../../adapters/types";
-import type { Chain } from "@defillama/sdk/build/general";
+import type { BaseAdapter, BreakdownAdapter, ChainEndpoints, Chain, } from "../../adapters/types";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
 
 const v2Endpoints: ChainEndpoints = {
@@ -59,41 +57,22 @@ const v3Graphs = getGraphDimensions2({
   },
 });
 
-const v2Methodology = {
-  UserFees: "User pays 0.3% fees on each swap.",
-  SupplySideRevenue: "LPs receive 0.06% of each swap.",
-  ProtocolRevenue: "Treasury receives 0.24% of each swap.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees come from the user.",
-};
-
-const v3Methodology = {
-  UserFees:
-    "User pays a variable percentage on each swap depending on the pool. Minimum: 0.008%, maximum: 1%.",
-  SupplySideRevenue: "LPs receive 36% of the current swap fee",
-  ProtocolRevenue: "Treasury receives 64% of the swap fee",
-  Fees: "All fees come from the user.",
-};
-
 const adapter: BreakdownAdapter = {
   version: 2,
   breakdown: {
     v2: Object.keys(v2Endpoints).reduce((acc, chain) => {
-      return {
+      return {  
         ...acc,
         [chain]: {
-          fetch: v2Graph(chain as Chain),
-          start: 1727099513,
-          customBackfill: customBackfill(chain, v2Graph),
-          meta: { methodology: v2Methodology },
+          fetch: v2Graph,
+          start: '2024-09-23',
         },
       };
     }, {} as BaseAdapter),
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
-        fetch: v3Graphs(chain as Chain),
-        start: 1725563255,
-        meta: { methodology: v3Methodology },
+        fetch: v3Graphs,
+        start: '2024-09-05',
       };
       return acc;
     }, {} as BaseAdapter),

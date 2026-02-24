@@ -8,7 +8,7 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.SEI]: {
             fetch: getFees as any,
-            start: 1719432193,
+            start: '2024-07-01',
         },
     },
 };
@@ -18,10 +18,10 @@ export default adapter;
 const STABLE_FEES = 0.0004;
 const VOLATILE_FEES = 0.0018;
 const PROTOCOL_FEE_RATE = 0.12;
-const endpoint = "https://api.goldsky.com/api/public/project_cltwdng5fw97s01x16mntew1i/subgraphs/yaka-finance/1.0.0/gn"
+const endpoint = "https://api.studio.thegraph.com/query/106608/yaka-finance/version/latest"
 const blocksEndpoint = "https://api.studio.thegraph.com/query/82132/sei-blocks/version/latest"
 
-async function getBlocks(timestamps) {
+async function getBlocks(timestamps: Array<number>) {
     let queryString = 'query blocks {'
     queryString += timestamps.map((timestamp) => {
         return `t${timestamp}:blocks(first: 1, orderBy: timestamp, orderDirection: desc, where: { timestamp_gt: ${timestamp}, timestamp_lt: ${timestamp + 600} }) {
@@ -73,6 +73,7 @@ async function getFees({ startTimestamp, endTimestamp }: FetchOptions) {
     return {
         dailyFees: dailyFee,
         dailyRevenue: dailyFee.times(PROTOCOL_FEE_RATE),
+        dailySupplySideRevenue: dailyFee.times(1 - PROTOCOL_FEE_RATE),
         dailyHoldersRevenue: dailyFee.minus(dailyFee.times(PROTOCOL_FEE_RATE)),
     };
 };

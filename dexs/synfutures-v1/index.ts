@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 // SynFutures v1 volume
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from '@defillama/sdk/build/general';
+import { Chain } from  "../../adapters/types";
 const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {

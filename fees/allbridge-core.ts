@@ -1,7 +1,9 @@
-import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Balances } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
+import { Chain, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
+import { queryEvents } from '../helpers/sui';
+import { METRIC } from "../helpers/metrics";
 
 type TChainAddress = {
   [s: Chain | string]: string[];
@@ -10,11 +12,13 @@ type TChainAddress = {
 const lpTokenAddresses: TChainAddress = {
   [CHAIN.ETHEREUM]: [
     '0xa7062bbA94c91d565Ae33B893Ab5dFAF1Fc57C4d',
-    '0x7DBF07Ad92Ed4e26D5511b4F285508eBF174135D'
+    '0x7DBF07Ad92Ed4e26D5511b4F285508eBF174135D',
+    '0xcaB34d4D532A9c9929f4f96D239653646351Abad',
   ],
   [CHAIN.BSC]: [
     '0x8033d5b454Ee4758E4bD1D37a49009c1a81D8B10',
-    '0xf833afA46fCD100e62365a0fDb0734b7c4537811'
+    '0xf833afA46fCD100e62365a0fDb0734b7c4537811',
+    '0x731822532CbC1c7C48462c9e5Dc0c04A1Ff29953',
   ],
   [CHAIN.POLYGON]: [
     '0x58Cc621c62b0aa9bABfae5651202A932279437DA',
@@ -24,27 +28,43 @@ const lpTokenAddresses: TChainAddress = {
   [CHAIN.ARBITRUM]: [
     '0x690e66fc0F8be8964d40e55EdE6aEBdfcB8A21Df',
     '0x47235cB71107CC66B12aF6f8b8a9260ea38472c7',
+    '0x2B5E5E6008742Cd9D139c6ADd9CaC57679C59D6d',
   ],
   [CHAIN.AVAX]: [
     '0xe827352A0552fFC835c181ab5Bf1D7794038eC9f',
     '0x2d2f460d7a1e7a4fcC4Ddab599451480728b5784',
   ],
   [CHAIN.BASE]: [
-    '0xDA6bb1ec3BaBA68B26bEa0508d6f81c9ec5e96d5'
+    '0xDA6bb1ec3BaBA68B26bEa0508d6f81c9ec5e96d5',
   ],
   [CHAIN.OPTIMISM]: [
     '0x3B96F88b2b9EB87964b852874D41B633e0f1f68F',
     '0xb24A05d54fcAcfe1FC00c59209470d4cafB0deEA',
+  ],
+  [CHAIN.CELO]: [
+    '0xfb2C7c10e731EBe96Dabdf4A96D656Bfe8e2b5Af',
+  ],
+  [CHAIN.SONIC]: [
+    '0xCA0dc31BdA6B7588590a742b2Ae6A4F67b43c71F',
+  ],
+  [CHAIN.UNICHAIN]: [
+    '0xBA2FBA24B0dD81a67BBdD95bB7a9d0336ea094D7',
+    '0xD0a1Ff86C2f1c3522f183400fDE355f6B3d9fCE1',
   ],
   [CHAIN.TRON]: [
     'TAC21biCBL9agjuUyzd4gZr356zRgJq61b'
   ]
 }
 
+const SUI_EVENT_TYPES = [
+  "0x83d6f864a6b0f16898376b486699aa6321eb6466d1daf6a2e3764a51908fe99d::events::SwappedToVUsdEvent",
+  "0x83d6f864a6b0f16898376b486699aa6321eb6466d1daf6a2e3764a51908fe99d::events::SwappedFromVUsdEvent",
+];
+
 const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
 const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
 
-const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<number> => {
+const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<Balances> => {
   const balances = createBalances();
   const pools = lpTokenAddresses[chain]
   const logs_fromUSD = await getLogs({ targets: pools, eventAbi: event_swap_fromUSD, flatten: false, })
@@ -56,104 +76,118 @@ const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions):
 
   function addLogs(logs: any, index: number) {
     const token = tokens[index]
-    logs.forEach((log: any) => balances.add(token, log.fee))
+    // if (!token) return;
+    if (!token){
+      logs.forEach((log: any) => balances.addGasToken(log.fee, METRIC.SWAP_FEES));
+    }else {
+      logs.forEach((log: any) => balances.add(token, log.fee, METRIC.SWAP_FEES))
+    }
   }
-  return balances.getUSDValue();
+  return balances;
 };
 
-const fetchFeesTron = async ({ chain, createBalances, toTimestamp, fromTimestamp, api, }: FetchOptions): Promise<number> => {
+const fetchFeesSui = async (options: FetchOptions): Promise<Balances> => {
+  const { createBalances } = options;
   const balances = createBalances();
-  const pools = lpTokenAddresses[chain]
-  const minBlockTimestampMs = fromTimestamp * 1000;
-  const maxBlockTimestampMs = toTimestamp * 1000;
 
-  const logs_fromUSD = (await Promise.all(pools.map(async (lpTokenAddress: string) => {
-    return getTronLogs(lpTokenAddress, 'SwappedFromVUsd', minBlockTimestampMs, maxBlockTimestampMs);
-  })))
-  const logs_toUSD = (await Promise.all(pools.map(async (lpTokenAddress: string) => {
-    return getTronLogs(lpTokenAddress, 'SwappedToVUsd', minBlockTimestampMs, maxBlockTimestampMs);
-  })))
-  const tokens = await api.multiCall({ abi: "address:token", calls: pools });
-
-  logs_fromUSD.forEach(addLogs)
-  logs_toUSD.forEach(addLogs)
-
-  function addLogs(logs: any, index: number) {
-    const token = tokens[index]
-    logs.forEach((log: any) => balances.add(token, log.result.fee))
+  for (const eventType of SUI_EVENT_TYPES) {
+    const events = await queryEvents({
+      eventType,
+      options,
+    });
+    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee, METRIC.SWAP_FEES));
   }
-  return balances.getUSDValue()
+
+  return balances;
 };
 
-const tronRpc = `https://api.trongrid.io`
-const getTronLogs = async (address: string, eventName: string, minBlockTimestamp: number, maxBlockTimestamp: number) => {
-  const url = `${tronRpc}/v1/contracts/${address}/events?event_name=${eventName}&min_block_timestamp=${minBlockTimestamp}&max_block_timestamp=${maxBlockTimestamp}&limit=200`;
-  const res = await httpGet(url);
-  return res.data;
+export async function fetchFeesAmountFromAnalyticsApi(
+  chainCode: string,
+  options: FetchOptions,
+): Promise<Balances> {
+  const { createBalances, startOfDay, toTimestamp } = options;
+  const balances = createBalances();
+
+  const eventData = await getEventsFromAnalyticsApi(chainCode, startOfDay * 1000, toTimestamp * 1000);
+  eventData.map((data) => balances.add(data.token, data.fee, METRIC.SWAP_FEES));
+
+  return balances;
+}
+
+interface AnalyticsEvent {
+  token: string;
+  fee: string;
+}
+
+export async function getEventsFromAnalyticsApi(
+  chainCode: string,
+  fromTimestampMs: number,
+  toTimestampMs: number,
+): Promise<AnalyticsEvent[]> {
+  const from = new Date(fromTimestampMs).toISOString();
+  const to = new Date(toTimestampMs).toISOString();
+  return await httpGet(`https://core.api.allbridgecoreapi.net/analytics/inflows?chain=${chainCode}&from=${from}&to=${to}`);
 }
 
 const fetch: any = async (options: FetchOptions) => {
-  let dailyFees = await (options.chain === CHAIN.TRON ? fetchFeesTron(options) : fetchFees(options));
-  const dailyRevenue = dailyFees * 0.2;
-  const dailySupplySideRevenue = dailyFees * 0.8;
+  let dailyFees: Balances;
+  if (options.chain === CHAIN.TRON) {
+    dailyFees = await fetchFeesAmountFromAnalyticsApi('TRX', options);
+  } else if (options.chain === CHAIN.SUI) {
+    dailyFees = await fetchFeesSui(options);
+  } else if (options.chain === CHAIN.STELLAR) {
+    dailyFees = await fetchFeesAmountFromAnalyticsApi('SRB', options);
+  } else {
+    dailyFees = await fetchFees(options);
+  }
+  const dailySupplySideRevenue = dailyFees.clone();
+  dailySupplySideRevenue.resizeBy(0.8);
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.resizeBy(0.2);
   return {
     dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailySupplySideRevenue,
   };
 };
 
-const meta = {
-  methodology: {
-    Fees: "A 0.3% fee is charged for token swaps",
-    SupplySideRevenue: "A 0.24% of each swap is distributed to liquidity providers",
-    Revenue: "A 0.06% of each swap goes to governance",
-  }
+const methodology = {
+  Fees: "A 0.3% fee is charged for token swaps",
+  SupplySideRevenue: "80% of the swap fees are distributed to liquidity providers",
+  Revenue: "20% of the swap fees goes to governance",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Fees collected from cross-chain token swaps at a 0.3% rate.',
+  },
+  SupplySideRevenue: {
+    [METRIC.SWAP_FEES]: '80% of swap fees distributed to liquidity providers.',
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: '20% of swap fees going to protocol governance.',
+  },
 };
 
 const adapters: SimpleAdapter = {
   version: 2,
+  methodology,
+  breakdownMethodology,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-05-14',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2023-05-14',
-      meta,
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2023-05-14',
-      meta,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-06-27',
-      meta,
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: '2023-10-23',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2024-02-01',
-      meta,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2023-12-18',
-      meta,
-    },
-    [CHAIN.TRON]: {
-      fetch,
-      start: '2023-05-26',
-      meta,
-    },
+    [CHAIN.ETHEREUM]: { start: '2023-05-14', },
+    [CHAIN.BSC]: { start: '2023-05-14', },
+    [CHAIN.POLYGON]: { start: '2023-05-14', },
+    [CHAIN.ARBITRUM]: { start: '2023-06-27', },
+    [CHAIN.AVAX]: { start: '2023-10-23', },
+    [CHAIN.BASE]: { start: '2024-02-01', },
+    [CHAIN.OPTIMISM]: { start: '2023-12-18', },
+    [CHAIN.CELO]: { start: '2024-05-13', },
+    [CHAIN.SONIC]: { start: '2025-05-27', },
+    [CHAIN.UNICHAIN]: { start: '2025-08-26', },
+    [CHAIN.TRON]: { start: '2023-05-26', },
+    [CHAIN.SUI]: { start: "2025-01-24", },
+    [CHAIN.STELLAR]: { start: "2024-04-16", },
   },
 };
 

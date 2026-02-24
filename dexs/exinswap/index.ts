@@ -19,17 +19,11 @@ const fetch = async (timestamp: number) => {
     } as IAPIResponse
   });
 
-  const totalVolume = response
-    .filter(volItem => Number(volItem.time) <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0)
-
   const dailyVolume = response
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time * 1000))) === dayTimestamp)?.volume
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 

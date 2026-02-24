@@ -45,6 +45,11 @@ const adapter: Adapter = {
     },
   },
   allowNegativeValue: true, // High CPI Peg Costs, Temporary Losses, Operational or Arbitrage Costs, Yield Insufficiency
+  methodology: {
+    Fees: 'Fees paid by users.',
+    Revenue: 'Revenue from fees, after expenses.',
+    ProtocolRevenue: 'All revenue collected by Frax.',
+  }
 }
 
 export default adapter;

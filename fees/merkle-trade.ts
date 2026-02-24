@@ -1,6 +1,6 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getResources, APTOS_PRC } from '../helpers/aptops';
+import { getResources, APTOS_RPC } from '../helpers/aptos';
 import { httpGet } from "../utils/fetchURL";
 
 // Constants
@@ -46,10 +46,8 @@ const toUnixTime = (timestamp: string): number =>
 
 const calculateFees = (log: ILogs) => {
   const dev = Number(log.dev_amount);
-  const lp = Number(log.lp_amount);
   const stake = Number(log.stake_amount);
   return {
-    totalFees: (dev + lp + stake) / USDC_DECIMALS,
     revenue: (dev + stake) / USDC_DECIMALS
   };
 };
@@ -61,7 +59,7 @@ const getEventLogs = async (pool: Pool, fromTimestamp: number, toTimestamp: numb
 
   while (start >= 0) {
     try {
-      const getEventByCreation = `${APTOS_PRC}/v1/accounts/${ACCOUNT}/events/${pool.swap_events.creation_num}?start=${start}&limit=${LIMIT}`;
+      const getEventByCreation = `${APTOS_RPC}/v1/accounts/${ACCOUNT}/events/${pool.swap_events.creation_num}?start=${start}&limit=${LIMIT}`;
       const events: any[] = await httpGet(getEventByCreation);
       
       if (!events.length) break;
@@ -74,7 +72,7 @@ const getEventLogs = async (pool: Pool, fromTimestamp: number, toTimestamp: numb
       const lastEvent = events.find(e => Number(e.sequence_number) === lastMin);
       if (!lastEvent?.version) break;
 
-      const urlBlock = `${APTOS_PRC}/v1/blocks/by_version/${lastEvent.version}`;
+      const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastEvent.version}`;
       const block = await httpGet(urlBlock);
       const lastTimestamp = toUnixTime(block.block_timestamp);
 
@@ -98,7 +96,7 @@ const getEventLogs = async (pool: Pool, fromTimestamp: number, toTimestamp: numb
   }));
 };
 
-const fetchFees: FetchV2 = async (options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const resources = await getResources(ACCOUNT);
   const filterEvents = resources.filter((e: EventResource) => 
     e.type?.includes('fee_distributor::FeeDistributorEvents')
@@ -123,8 +121,8 @@ const fetchFees: FetchV2 = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
 
   logs.flat().forEach((log: ILogs) => {
-    const { totalFees, revenue } = calculateFees(log);
-    dailyFees.addCGToken('usd-coin', totalFees);
+    const { revenue } = calculateFees(log);
+    dailyFees.addCGToken('usd-coin', revenue);
     dailyRevenue.addCGToken('usd-coin', revenue);
   });
 
@@ -135,7 +133,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.APTOS]: {
-      fetch: fetchFees,
+      fetch,
       start: '2024-02-27',
     }
   }

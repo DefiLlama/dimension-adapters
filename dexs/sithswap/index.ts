@@ -28,7 +28,6 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
     const volume = response.find((data: DayData) => data.id === dayID.toString());
     return {
         dailyVolume: volume?.dailyVolumeUSD ? `${volume.dailyVolumeUSD}` : undefined,
-        totalVolume: volume?.totalVolumeUSD ? `${volume.totalVolumeUSD}` : undefined,
         timestamp: dayTimestamp,
     };
 }

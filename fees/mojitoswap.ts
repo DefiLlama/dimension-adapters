@@ -1,3 +1,4 @@
+import { BaseAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
 
@@ -27,7 +28,7 @@ const adapter = univ2DimensionAdapter2({
   }
 });
 
-adapter.adapter.kcc.start = 1634200191;
+(adapter.adapter as BaseAdapter).kcc.start = 1634200191;
 
 
 export default adapter

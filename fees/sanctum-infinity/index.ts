@@ -13,7 +13,11 @@ Total revenue is what goes to Sanctum: 10% of total fees
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import {
+  Dependencies,
+  FetchOptions,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -21,44 +25,42 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
-        SELECT
-            cast(sum(token_balance_change) * 10 as BIGINT) as daily_fees
-        FROM
-            solana.account_activity
-        WHERE
-            address IN (
-                select
-                    fee_account
-                from
-                    dune.sanctumso.result_infinity_fee_accounts
-            )
-            AND block_time >= from_unixtime(${options.startTimestamp})
-            AND block_time <= from_unixtime(${options.endTimestamp})
+      SELECT
+          cast(sum(token_balance_change) * 10 as BIGINT) as daily_fees
+      FROM
+          solana.account_activity
+      WHERE
+          address IN (
+              select
+                  fee_account
+              from
+                  dune.sanctumso.result_infinity_fee_accounts
+          )
+          AND token_balance_change > 0
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time <= from_unixtime(${options.endTimestamp})
     `
   );
 
   const dailyFees = options.createBalances();
   dailyFees.addCGToken("solana", fees[0].daily_fees);
 
-  return { dailyFees, dailyRevenue: dailyFees.clone(0.1) };
+  return { dailyFees, dailyRevenue: dailyFees.clone(0.1), dailySupplySideRevenue: dailyFees.clone(0.9) };
 };
 
 const methodology = {
   Fees: "Total Infinity trading fees (LPs + Sanctum)",
   Revenue: "Infinity trading fees going to Sanctum (10% of total)",
+  SupplySideRevenue: "Infinity trading fees going to stakers"
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2024-01-01", // First unstake transaction
-      meta: {
-        methodology,
-      },
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2024-01-01", // First unstake transaction
+  methodology,
   isExpensiveAdapter: true,
 };
 

@@ -101,15 +101,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   ]);
 
   const user_usd = feeRes?.results?.find((res: any) => res.alias === "User Fee").matrix?.samples?.[0]?.values;
-  const totalFees = user_usd.at(-1).value;
-  const userFees = totalFees - user_usd.at(0).value;
+  const tf = user_usd.at(-1).value;
+  const userFees = tf - user_usd.at(0).value;
 
   const protocol_fee_usd = feeRes?.results?.find((res: any) => res.alias === "Protocol Fee").matrix
     ?.samples?.[0]?.values;
   const protocolFees = protocol_fee_usd.at(-1).value;
 
   return {
-    totalFees: totalFees + protocolFees,
     dailyFees: userFees + protocolFees,
     dailyRevenue: protocolFees,
     dailySupplySideRevenue: userFees,
@@ -123,11 +122,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SUI]: {
       fetch,
       start: "2025-01-20",
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import request, { gql } from "graphql-request";
 import { getBlock } from "../../helpers/getBlock";
@@ -52,11 +52,9 @@ const v2Graphs = (chain: Chain) => {
     }`;
 
     const graphRes: IPoolSnapshot = (await request(endpoints[chain], graphQuery));
-    const totalVolume = graphRes.totalVolumes.length == 0 ? 0 : Number(graphRes.totalVolumes[0].volume) - Number(graphRes.totalVolumes[0].volumeOfReverted);
     const dailyVolume = graphRes.daySnapshots.length == 0 ? 0 : Number(graphRes.daySnapshots[0].volume);
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };

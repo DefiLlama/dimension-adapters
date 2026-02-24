@@ -1,6 +1,6 @@
 import { BreakdownAdapter, FetchOptions, FetchResultVolume, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { adapter_trade } from './nlx-trade/index'
 
 interface ILog {

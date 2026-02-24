@@ -24,31 +24,17 @@ const fetch = async (timestamp: number) => {
     const dayFeesData = await httpGet(dayEndpoint, config_rule)
     const dailyFees = dayFeesData.filter((a: IFeeData) => a.timestamp >= amnisFeeStartDate).reduce((partialSum: number, a: IFeeData) => partialSum + a.value, 0);
 
-    const totalEndpoint = `${api_url}?timestamp=${timestamp}&type=FEE_ALL`;
-    const totalFeesData = await httpGet(totalEndpoint, config_rule)
-
-    const totalFees = totalFeesData.filter((a: IFeeData) => a.timestamp >= amnisFeeStartDate).reduce((partialSum: number, a: IFeeData) => partialSum + a.value, 0);
-   
     const dailyUserFees = timestamp >= amnisFeeStartDate ? dailyFees * 0.07 : 0;
-    const totalUserFees = timestamp >= amnisFeeStartDate ? totalFees * 0.07 : 0;
-
     const dailySupplySideRevenue = dailyFees - dailyUserFees;
-    const totalSupplySideRevenue = totalFees - totalUserFees;
 
     return {
-        timestamp,
         dailyUserFees: dailyUserFees,
-        totalUserFees: totalUserFees,
-        totalFees: totalFees,
         dailyFees: dailyFees,
-        totalRevenue: totalUserFees,
         dailyRevenue: dailyUserFees,
         dailyProtocolRevenue: dailyUserFees,
-        totalProtocolRevenue: totalUserFees,
         dailySupplySideRevenue: dailySupplySideRevenue,
-        totalSupplySideRevenue: totalSupplySideRevenue,
         dailyHoldersRevenue: 0,
-      };
+    };
 }
 
 const adapter: Adapter = {
@@ -56,17 +42,16 @@ const adapter: Adapter = {
         [CHAIN.APTOS]: {
             fetch,
             start: '2023-10-18',
-            meta: {
-                methodology: {
-                    UserFees: "Amnis Finance takes 7% fee on users staking rewards",
-                    Fees: "Staking rewards earned by all staked APT",
-                    Revenue: "Staking rewards",
-                    ProtocolRevenue: "Amnis Finance applies a 7% fee on staking rewards to the DAO Treasury",
-                    SupplySideRevenue: "Staking rewards earned by stAPT holders",
-                }
-            }
         },
+    },
+    methodology: {
+        UserFees: "Amnis Finance takes 7% fee on users staking rewards",
+        Fees: "Staking rewards earned by all staked APT",
+        Revenue: "Staking rewards",
+        ProtocolRevenue: "Amnis Finance applies a 7% fee on staking rewards to the DAO Treasury",
+        HoldersRevenue: "Noo fees for token holders",
+        SupplySideRevenue: "Staking rewards earned by stAPT holders",
     }
-  }
-  
-  export default adapter;
+}
+
+export default adapter;

@@ -1,101 +1,47 @@
-import { Chain } from "@defillama/sdk/build/general"
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
+import { fetch, configs } from "../aggregators/metamask";
+import { getSolanaReceivedDune } from "../helpers/token";
 import { CHAIN } from "../helpers/chains";
-import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types";
-import { queryFlipside } from "../helpers/flipsidecrypto";
 
-interface IVolume {
-  amount: number;
-  tokenAddress: string;
-  tx: string;
+async function fetchEVM(_a: any, _b: any, options: FetchOptions) {
+  return await fetch(options);
 }
 
-type TAddress = {
-  [s: string | Chain]: string;
-}
-
-const address: TAddress = {
-  [CHAIN.ETHEREUM]: '0x881d40237659c251811cec9c364ef91dc08d300c',
-  [CHAIN.POLYGON]: '0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31',
-  [CHAIN.BSC]: '0x1a1ec25dc08e98e5e93f1104b5e5cdd298707d31',
-  [CHAIN.ARBITRUM]: '0x9dda6ef3d919c9bc8885d5560999a3640431e8e6'
-}
-type TKeyArray = {
-  [s: string | Chain]: string[];
-}
-const blackList: TKeyArray = {
-  [CHAIN.BSC]: ['0xc342774492b54ce5f8ac662113ed702fc1b34972'],
-  [CHAIN.ETHEREUM]: [],
-  [CHAIN.POLYGON]: [],
-  [CHAIN.ARBITRUM]: []
-}
-
-const graph = (chain: Chain) => {
-  return async (timestamp: number , _: ChainBlocks, { createBalances, getFromBlock, getToBlock, }: FetchOptions): Promise<FetchResultFees> => {
-
-    const query = `
-        select
-          input_data,
-          TX_HASH
-        from
-          ${chain}.core.fact_transactions
-        WHERE
-        BLOCK_NUMBER > ${await getFromBlock()} AND BLOCK_NUMBER < ${await getToBlock()}
-        and to_address = '${address[chain]}'
-        and TX_SUCCEEDED = TRUE
-      `
-
-
-    const value: string[][] = (await queryFlipside(query, 260))
-    const rawData = value.map((a: string[]) => {
-      const data = a[0].replace('0x5f575529', '');
-      const address = data.slice(64, 128);
-      const amount = Number('0x' + data.slice(128, 192));
-      const tokenAddress = '0x' + address.slice(24, address.length);
-      return {
-        amount: amount,
-        tokenAddress: tokenAddress,
-        tx: a[1]
-      } as IVolume
-    })
-    const dailyFees = createBalances()
-
-    rawData.map((e: IVolume) => {
-      dailyFees.add(e.tokenAddress, e.amount)
-    })
-
-    dailyFees.resizeBy(0.0085)
-
-    return {
-      dailyFees,
-      dailyProtocolRevenue: dailyFees,
-      dailyRevenue: dailyFees,
-      timestamp
-    }
-
+async function fetchSol(_a: any, _b: any, options: FetchOptions) {
+  const dailyFees = await getSolanaReceivedDune({
+    options,
+    targets: [
+      '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i',
+      'HbBHuvgWoChfztoqz2izLRF5mSoLKQXfU68kueBmhcmL',
+    ]
+  })
+  
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: graph(CHAIN.ETHEREUM),
-      start: '2023-01-01',
-    },
-    [CHAIN.POLYGON]: {
-      fetch: graph(CHAIN.POLYGON),
-      start: '2023-01-01',
-    },
-    [CHAIN.BSC]: {
-      fetch: graph(CHAIN.BSC),
-      start: '2023-01-01',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: graph(CHAIN.ARBITRUM),
-      start: '2023-01-01',
-      runAtCurrTime: true,
-    }
-  },
-  isExpensiveAdapter: true,
+const methodology = {
+  Volume: 'Total token swap volumes by users using Metamask wallet.',
+  Fees: 'All fees paid by users for trading, swapping, bridging in Metamask wallet.',
+  Revenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
+  ProtocolRevenue: 'Fees collected by Metamask paid by users for trading, swapping, bridging in Metamask wallet.',
 }
+
+const adapter: Adapter = {
+  version: 1,
+  fetch: fetchEVM,
+  dependencies: [Dependencies.DUNE],
+  adapter: {
+    ...configs,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSol,
+      start: '2025-08-12',
+    },
+  },
+  methodology,
+};
 
 export default adapter;

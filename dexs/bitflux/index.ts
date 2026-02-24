@@ -1,126 +1,92 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getPrices } from "../../utils/prices";
-import { request } from "graphql-request";
 
-const endpoints = {
-  [CHAIN.CORE]: "https://thegraph.coredao.org/subgraphs/name/bitflux"
-};
+interface IPool {
+  address: string;
+  tokens: Array<string>;
+  swapFeeRate: number;
+  adminFeeRate: number; // how many percentage of swap fee
+}
 
-const FEE_PERCENT = 0.0005; // 0.05%
-const PROTOCOL_SHARE = 0.5; // 50% of fees
+const Pools: Array<IPool> = [
+  {
+    address: '0x4bcb9ea3dacb8ffe623317e0b102393a3976053c',
+    tokens: ['0x5B1Fb849f1F76217246B8AAAC053b5C7b15b7dc3', '0x9410e8052Bc661041e5cB27fDf7d9e9e842af2aa', '0x5832f53d147b3d6Cd4578B9CBD62425C7ea9d0Bd'],
+    swapFeeRate: 0.0005, // 0.05% per swap
+    adminFeeRate: 0.5, // 50% swap fees
+  },
+  {
+    address: '0x6a63cbf00D15137756189c29496B14998b259254',
+    tokens: ['0x8BB97A618211695f5a6a889faC3546D1a573ea77', '0x7A6888c85eDBA8E38F6C7E0485212da602761C08', '0x5a2aa871954eBdf89b1547e75d032598356caad5'],
+    swapFeeRate: 0.0005, // 0.05% per swap
+    adminFeeRate: 0.5, // 50% swap fees
+  },
+  {
+    address: '0xE7E1b1F216d81a4b2c018657f26Eda8FE2F91e26',
+    tokens: ['0xe04d21d999FaEDf1e72AdE6629e20A11a1ed14FA', '0xe85411C030fB32A9D8b14Bbbc6CB19417391F711', '0x7A6888c85eDBA8E38F6C7E0485212da602761C08'],
+    swapFeeRate: 0.0005, // 0.05% per swap
+    adminFeeRate: 0.5, // 50% swap fees
+  },
+  {
+    address: '0x7C59fd4348261348de72be3e40fA87252E778CA3',
+    tokens: ['0x5832f53d147b3d6Cd4578B9CBD62425C7ea9d0Bd', '0x7A6888c85eDBA8E38F6C7E0485212da602761C08'],
+    swapFeeRate: 0.0005, // 0.05% per swap
+    adminFeeRate: 0.5, // 50% swap fees
+  },
+]
 
-async function fetchAllPages(endpoint: string, query: string, recordName: string, skip = 0, allRecords: any[] = []): Promise<any[]> {
-  const paginatedQuery = query.replace(
-    `${recordName} {`,
-    `${recordName}(first: 1000, skip: ${skip}) {`
-  );
+const SwapEvent = 'event TokenSwap(address indexed buyer, uint256 tokensSold, uint256 tokensBought, uint128 soldId, uint128 boughtId)';
 
-  const response = await request(endpoint, paginatedQuery);
-  const records = response[recordName];
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
 
-  if (records.length === 0) {
-    return allRecords;
+  for (const pool of Pools) {
+    const swapEvents = await options.getLogs({
+      target: pool.address,
+      eventAbi: SwapEvent,
+    });
+    for (const event of swapEvents) {
+      dailyVolume.add(pool.tokens[event.soldId], event.tokensSold);
+
+      const feeAmount = Number(event.tokensSold) * pool.swapFeeRate;
+      dailyFees.add(pool.tokens[event.soldId], feeAmount);
+      dailyRevenue.add(pool.tokens[event.soldId], feeAmount * pool.adminFeeRate);
+    }
   }
 
-  const newRecords = [...allRecords, ...records];
+  const dailySupplySideRevenue = dailyFees.clone()
+  dailySupplySideRevenue.subtract(dailyRevenue)
 
-  if (records.length === 1000) {
-    return fetchAllPages(endpoint, query, recordName, skip + 1000, newRecords);
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+
+    // no holders revenue
+    dailyHoldersRevenue: 0,
   }
-
-  return newRecords;
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.CORE]: {
-      fetch: async (options: any) => {
-        const dailyExchangeQuery = `{
-          tokenExchanges(where: {timestamp_gte: ${options.startTimestamp}, timestamp_lt: ${options.endTimestamp}}) {
-            tokensSold
-            tokensBought
-            timestamp
-          }
-        }`;
-
-        const dailyExchangeUnderlyingQuery = `{
-          tokenExchangeUnderlyings(where: {timestamp_gte: ${options.startTimestamp}, timestamp_lt: ${options.endTimestamp}}) {
-            tokensSold
-            tokensBought
-            timestamp
-          }
-        }`;
-
-        const totalVolumeQuery = `{
-          dailyVolumes {
-            volume
-          }
-        }`;
-
-        const [dailyExchanges, dailyExchangeUnderlyings, allVolumes] = await Promise.all([
-          request(endpoints[CHAIN.CORE], dailyExchangeQuery),
-          request(endpoints[CHAIN.CORE], dailyExchangeUnderlyingQuery),
-          fetchAllPages(endpoints[CHAIN.CORE], totalVolumeQuery, "dailyVolumes")
-        ]);
-
-        let dailyVolumeBTC = 0;
-        dailyExchanges.tokenExchanges.forEach((exchange: any) => {
-          dailyVolumeBTC += parseFloat(exchange.tokensSold);
-        });
-
-        dailyExchangeUnderlyings.tokenExchangeUnderlyings.forEach((exchange: any) => {
-          dailyVolumeBTC += parseFloat(exchange.tokensSold);
-        });
-
-        const totalVolumeBTC = allVolumes.reduce(
-          (sum: number, entry: any) => sum + parseFloat(entry.volume),
-          0
-        );
-
-        const btcPrice = (await getPrices(["coingecko:bitcoin"], options.endTimestamp))["coingecko:bitcoin"].price;
-
-        const dailyVolumeUSD = dailyVolumeBTC * btcPrice;
-        const totalVolumeUSD = totalVolumeBTC * btcPrice;
-
-        const dailyFees = dailyVolumeUSD * FEE_PERCENT;
-        const protocolRevenue = dailyFees * PROTOCOL_SHARE;
-        const supplySideRevenue = dailyFees * PROTOCOL_SHARE;
-
-        const blocksQuery = `{
-          _meta {
-            block {
-              number
-            }
-          }
-        }`;
-
-        const metaData = await request(endpoints[CHAIN.CORE], blocksQuery);
-        const block = metaData._meta.block.number;
-
-        return {
-          dailyVolume: dailyVolumeUSD,
-          totalVolume: totalVolumeUSD,
-          dailyFees,
-          dailyRevenue: protocolRevenue,
-          dailyProtocolRevenue: protocolRevenue,
-          dailySupplySideRevenue: supplySideRevenue,
-          block
-        };
-      },
+      fetch: fetch,
       start: '2024-11-06',
-      meta: {
-        methodology: {
-          UserFees: "User pays a 0.05% fee on each swap.",
-          Fees: "A 0.05% of each swap is collected as trading fees",
-          Revenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
-          ProtocolRevenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
-          SupplySideRevenue: "0.025% of the swap fee is distributed to LPs (50% of total fees)",
-          HoldersRevenue: "No direct revenue to token holders",
-        }
-      }
     }
+  },
+  methodology: {
+    UserFees: "User pays a 0.05% fee on each swap.",
+    Fees: "A 0.05% of each swap is collected as trading fees",
+    Revenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
+    ProtocolRevenue: "Protocol receives 0.025% of the swap fee (50% of total fees)",
+    SupplySideRevenue: "0.025% of the swap fee is distributed to LPs (50% of total fees)",
+    HoldersRevenue: "No direct revenue to token holders",
   }
 };
 

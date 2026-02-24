@@ -1,6 +1,7 @@
 import { graph } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { univ2DimensionAdapter2 } from "../helpers/getUniSubgraph";
+import { BaseAdapter } from "../adapters/types";
 
 const adapter = univ2DimensionAdapter2({
   graphUrls: {
@@ -28,6 +29,7 @@ const adapter = univ2DimensionAdapter2({
     Revenue: "Governance revenue is 0.05% trading fees",
   }
 });
+(adapter.adapter as BaseAdapter).avax.start = 1612828800;
 
 
 export default adapter;

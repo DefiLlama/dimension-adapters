@@ -1,70 +1,61 @@
-// https://docs.superstate.co/ustb/income-fees-and-yield
-// https://docs.superstate.co/uscc/income-fees-and-yield
-
-import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import * as sdk from "@defillama/sdk";
 
-const _fundsAddresses: string[] = [
-  "0x43415eb6ff9db7e26a15b704e7a3edce97d31c4e",
-  "0x14d60e7fdc0d71d8611742720e4c50e7a974020c",
-];
+const USTB = {
+  ethereum: "0x43415eB6ff9DB7E26A15b704e7A3eDCe97d31C4e",
+  plume_mainnet: "0xe4fa682f94610ccd170680cc3b045d77d9e528a8",
+};
+const USTB_CHAINLINK_ORACLE = "0xE4fA682f94610cCd170680cc3B045d77D9E528a8";
+const PRICING_ABI = "function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
 
-function formatDate(date: Date): string {
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  return `${month}/${day}/${year}`;
+async function getPrices(timestamp: number): Promise<number> {
+  const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp })
+  await api.getBlock()
+
+  const price = await api.call({
+    abi: PRICING_ABI,
+    target: USTB_CHAINLINK_ORACLE,
+  });
+  return price[1] / 1e6;
 }
 
-function findDailyData(data: any[], targetDate: string) {
-  return data.find((item: any) => item.net_asset_value_date === targetDate);
-}
+const fetch = async (options: FetchOptions) => {
+  const priceYesterday = await getPrices(options.fromTimestamp);
+  const priceToday = await getPrices(options.toTimestamp);
 
-async function getFundsFees(timestamp: number, _: any, options: FetchOptions): Promise<FetchResultFees> {
-  let ustbTotalFees: number = 0;
-  let usccTotalFees: number = 0;
+  let totalSupply = await options.api.call({
+    abi: "uint256:totalSupply",
+    target: USTB[options.chain],
+  });
 
-  const targetDate = formatDate(new Date(options.startOfDay * 1000));
+  totalSupply /= 1e6;
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(totalSupply * (priceToday - priceYesterday));
 
-  const [ustbRes, usccRes] = await Promise.all([
-    httpGet("https://api.superstate.co/v1/funds/1/nav-daily"),
-    httpGet("https://api.superstate.co/v1/funds/2/nav-daily"),
-  ])
-
-  const ustbDailyData = findDailyData(ustbRes, targetDate);
-  const usccDailyData = findDailyData(usccRes, targetDate);
-
-  if (ustbDailyData) {
-    const { assets_under_management } = ustbDailyData;
-    if (assets_under_management > 200 * 1e6) {
-      // no fees until 200 MM AUM
-      ustbTotalFees = (assets_under_management * 0.15) / 100; // 0.15bps
-    }
-  }
-
-  if (usccDailyData) {
-    const { assets_under_management } = usccDailyData;
-    if (assets_under_management > 50 * 1e6) {
-      // no fees until 50 MM AUM
-      usccTotalFees = (assets_under_management * 0.75) / 100; // 0.75bps
-    }
-  }
+  const dailyRevenue = options.createBalances();
+  const oneYear = 365 * 24 * 60 * 60;
+  const timeFrame = options.toTimestamp - options.fromTimestamp;
+  dailyRevenue.addUSDValue((totalSupply * priceToday * 0.0015 * timeFrame) / oneYear);
+  dailyFees.add(dailyRevenue);
 
   return {
-    timestamp,
-    dailyFees: (ustbTotalFees + usccTotalFees) / 365,
-    totalFees: ustbTotalFees + usccTotalFees,
+    dailyFees,
+    dailyRevenue,
   };
-}
+};
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: getFundsFees,
-      start: '2024-03-01',
-    },
-  },
+const methodology = {
+  Fees: "Total Yields from RWA Yields",
+  Revenue: "0.15% Annual Management fee collected by superstate",
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  methodology,
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.PLUME],
+  start: "2024-02-14",
 };
 
 export default adapter;

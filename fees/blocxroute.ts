@@ -1,9 +1,10 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import ADDRESSES from '../helpers/coreAssets.json'
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { getETHReceived } from "../helpers/token";
 
-const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
   WITH sol_payments_total AS (
       SELECT
@@ -43,7 +44,7 @@ const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
           to_owner = 'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL' OR
           to_owner = '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT'
         )
-        AND token_mint_address = 'So11111111111111111111111111111111111111112'
+        AND token_mint_address = '${ADDRESSES.solana.SOL}'
         AND TIME_RANGE
     ),
     sol_collections_total AS (
@@ -72,7 +73,7 @@ const fetch: any = async (_a:any, _b:any, options: FetchOptions) => {
 }
 
 // https://docs.bloxroute.com/bsc-and-eth/apis/transaction-bundles/bundle-submission/bsc-bundle-submission
-const fetchBSC: any = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchBSC: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({
     options,
     target: '0x74c5F8C6ffe41AD4789602BDB9a48E6Cad623520',
@@ -85,23 +86,17 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      meta: {
-        methodology: {
-          fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
-        }
-      }
     },
     [CHAIN.BSC]: {
       fetch: fetchBSC,
       start: '2024-04-15',
-      meta:{
-        methodology: {
-          fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
-        }
-      }
     }
   },
-  isExpensiveAdapter: true
+  isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
+  methodology: {
+    Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+  }
 };
 
 export default adapter;

@@ -74,13 +74,14 @@ const adapter: Adapter = {
     [CHAIN.BLAST]: {
       fetch,
       start: '2024-03-01',
-      meta: {
-        methodology:
-          "Applied to strategies at the team's discretion and always noted on the vault page. It is charged upon entering the strategy, typically ranging from 0.5% to 2%.",
-      },
     },
   },
   version: 2,
+  methodology: {
+    Fees: "Applied to strategies at the team's discretion and always noted on the vault page. It is charged upon entering the strategy, typically ranging from 0.5% to 2%.",
+    Revenue: "Applied to strategies at the team's discretion and always noted on the vault page. It is charged upon entering the strategy, typically ranging from 0.5% to 2%.",
+    HoldersRevenue: "No revenue distributed to token holders.",
+  },
 };
 
 export default adapter;

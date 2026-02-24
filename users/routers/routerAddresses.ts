@@ -292,43 +292,43 @@ export default (
       name: "KyberSwap",
       addresses: {
         ethereum: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         polygon: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         avax: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         bsc: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         arbitrum: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         optimism: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         fantom: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
         cronos: [
-          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //Meta Aggregation Router
-          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //Meta Aggregation Router v2
+          "0x617Dee16B86534a5d792A4d7A62FB491B544111E", //MetaAggregation Router
+          "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5", //MetaAggregation Router v2
           "0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83", //Elastic Router
         ],
       },
@@ -2434,5 +2434,15 @@ export default (
         etlk: ["0x0c532e1e916219007f244e2d8Ef46f8530Ec75DE"],
       },
     },
+    {
+      id: "7139",
+      name: "Anome",
+      addresses: {
+        bsc: [
+          "0x210d75B7C94aDf9FC1a2bCd047D76890479234e3"
+        ],
+      },
+    },
+
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
