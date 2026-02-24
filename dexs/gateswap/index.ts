@@ -217,7 +217,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { fetch: EVM_ROUTER_FETCH, start: '2025-09-27' },
     [(CHAIN as any).AVALANCHE ?? CHAIN.AVAX]: { fetch: EVM_ROUTER_FETCH, start: '2025-09-27' },
     [(CHAIN as any).ZKSYNC_ERA ?? CHAIN.ZKSYNC]: { fetch: EVM_ROUTER_FETCH, start: '2025-09-27' },
-    [(CHAIN as any).WORLDCHAIN ?? 'worldchain']: { fetch: EVM_ROUTER_FETCH, start: '2025-09-27' },
+    [CHAIN.WC]: { fetch: EVM_ROUTER_FETCH, start: '2025-09-27' },
     [CHAIN.BERACHAIN]: { fetch: EVM_ROUTER_FETCH, start: '2025-09-27' },
     [CHAIN.SOLANA]: { fetch: SOLANA_FETCH, start: '2025-09-27' },
   },
