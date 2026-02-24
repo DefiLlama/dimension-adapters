@@ -97,7 +97,7 @@ const EVM_ROUTER_FETCH: FetchV2 = async (fetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   methodology: {
-    Volume: 'Gate Layer volume is computed from factory pairs and Swap logs. Other EVM chains compute aggregator volume from onchain router swap execution logs emitted by both GateSwap routers, using the first matching swap ABI per router to prevent overlap.',
+    Volume: 'Gate Layer volume is computed from factory pairs and AMM Swap logs. Other EVM chains compute volume strictly from onchain router execution events emitted by GateSwap routers (first matching ABI per router), and underlying pool events are not directly counted there to avoid overlap.',
   },
   adapter: {
     [CHAIN.GATE_LAYER]: { fetch: GATE_LAYER_FETCH },
@@ -107,8 +107,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { fetch: EVM_ROUTER_FETCH },
     [CHAIN.POLYGON]: { fetch: EVM_ROUTER_FETCH },
     [CHAIN.BSC]: { fetch: EVM_ROUTER_FETCH },
-    [(CHAIN as any).AVALANCHE ?? CHAIN.AVAX]: { fetch: EVM_ROUTER_FETCH },
-    [(CHAIN as any).ZKSYNC_ERA ?? CHAIN.ZKSYNC]: { fetch: EVM_ROUTER_FETCH },
+    [CHAIN.AVAX]: { fetch: EVM_ROUTER_FETCH },
+    [CHAIN.ZKSYNC]: { fetch: EVM_ROUTER_FETCH },
     [CHAIN.WC]: { fetch: EVM_ROUTER_FETCH },
     [CHAIN.BERACHAIN]: { fetch: EVM_ROUTER_FETCH },
   },
