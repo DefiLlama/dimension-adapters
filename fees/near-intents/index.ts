@@ -11,7 +11,7 @@ import fetchURL from "../../utils/fetchURL";
  * Returns daily fee data aggregated by the NEAR Intents platform
  */
 
-const feeSwitchDate = 1771804799
+const feeSwitchDate = '2026-02-23'
 
 interface FeeData {
     fee: number;
@@ -43,7 +43,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
         throw new Error(`No fee data found for date: ${dateString}`);
 
     dailyFees.addUSDValue(item.fee);
-    if (options.startTimestamp >= feeSwitchDate) {
+    if (dateString >= feeSwitchDate) {
         dailySupplySideRevenue.addUSDValue(item.fee / 2)
         dailyRevenue.addUSDValue(item.fee / 2)
     }
