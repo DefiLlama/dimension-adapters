@@ -75,8 +75,8 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
       }
 
       const totalPriority = options.createBalances();
-      totalPriority.addGasToken((fees as any)[0].total_fees_priority); // amount paid to validators
-      totalPriority.addGasToken((fees as any)[0].total_fees_transactions); // transactions fees paid
+      totalPriority.addGasToken((fees as any)[0].total_fees_priority || 0); // amount paid to validators
+      totalPriority.addGasToken((fees as any)[0].total_fees_transactions || 0); // transactions fees paid
       
       dailyFees.add(totalFees);
       dailyFees.add(mevFees);
