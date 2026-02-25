@@ -9,12 +9,19 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
     const data = await httpGet(`${url}?start_date=${options.dateString}&end_date=${options.dateString}`, { headers: headers})
     const dailyFees = options.createBalances()
     const dailyRevenue = options.createBalances()
-    const response = data.data[0]
-    const fees = Number(response.base_fee_burn) 
-    + Number(response.overestimation_burn)
-    + Number(response.precommit_batch_fee_burn)
-    + Number(response.provecommit_batch_fee_burn) 
-    + Number(response.penalty_fee_burn)
+    const response = data?.data?.[0]
+    if (!response) throw new Error(`No data returned from SpaceScope for date ${options.dateString}`)
+    const fees = [
+        response.base_fee_burn,
+        response.overestimation_burn,
+        response.precommit_batch_fee_burn,
+        response.provecommit_batch_fee_burn,
+        response.penalty_fee_burn,
+    ].reduce((acc, current) => {
+        const value = Number(current)
+        if (isNaN(value)) throw new Error(`Unexpected NaN for a fee field in SpaceScope response`)
+        return acc + value
+    }, 0)
 
   dailyFees.addCGToken('filecoin', fees)
   dailyRevenue.addCGToken('filecoin', fees)
@@ -34,7 +41,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: 'Transaction fees paid by users',
     Revenue: 'Transaction fees paid by users',
-    HoldersRevenue: 'Transaction base fees paid by users were burned',
+    HoldersRevenue: 'Transaction fees paid by users were burned',
   }
 }
 
