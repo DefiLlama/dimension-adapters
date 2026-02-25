@@ -1,5 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
+import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "../helpers/env";
@@ -7,27 +8,10 @@ import { getEnv } from "../helpers/env";
 // https://www.tread.fi/
 const HL_BUILDER_ADDRESS = "0x999a4b5f268a8fbf33736feff360d462ad248dbf";
 const EXTENDED_BUILDER_NAME = "Tread.fi";
-const EXTENDED_API_URL = "https://api.starknet.extended.exchange/api/v1/info/builder/dashboard";
 const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
 
 // Fee rate for TreadTools venues (2 bps)
 const TREADTOOLS_FEE_RATE = 0.0002;
-
-interface ExtendedDailyData {
-  date: string;
-  builderName: string;
-  volume: string;
-  extendedFees: string;
-  activeUsers: number;
-}
-
-interface ExtendedApiResponse {
-  status: string;
-  data: {
-    total: any[];
-    daily: ExtendedDailyData[];
-  };
-}
 
 interface TreadToolsApiResponse {
   status: string;
@@ -81,26 +65,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-
-  // Convert startOfDay timestamp to YYYY-MM-DD format
-  const date = new Date(options.startOfDay * 1000);
-  const dateStr = date.toISOString().split("T")[0];
-
-  const response: ExtendedApiResponse = await httpGet(EXTENDED_API_URL);
-
-  // Find Tread.fi data for the requested date
-  const dayData = response.data.daily.find(
-    (entry) => entry.builderName === EXTENDED_BUILDER_NAME && entry.date === dateStr
-  );
-
-  if (dayData) {
-    const volume = parseFloat(dayData.volume);
-    const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
-  }
+  const { dailyVolume, dailyFees } = await fetchBuilderData({ options, builderName: EXTENDED_BUILDER_NAME, builderFeeRate: TREADTOOLS_FEE_RATE });
 
   return {
     dailyVolume,

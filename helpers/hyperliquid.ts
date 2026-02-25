@@ -488,11 +488,14 @@ export const exportHIP3DeployerAdapter = (
 
 export const exportBuilderAdapter = (
   builderAddresses: Array<string>,
-  props: { start?: string; methodology?: any },
+  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any> },
 ) => {
+  const extraFields = props.extraReturnFields || {};
+  const startDate = props.start ? props.start : "2025-08-01";
   const adapter: SimpleAdapter = {
     version: 1,
     doublecounted: true, // all metrics are double-counted to hyperliquid
+    start: startDate,
     adapter: {
       [CHAIN.HYPERLIQUID]: {
         fetch: async function (_1: number, _: any, options: FetchOptions) {
@@ -517,9 +520,10 @@ export const exportBuilderAdapter = (
             dailyFees,
             dailyRevenue,
             dailyProtocolRevenue,
+            ...extraFields,
           };
         },
-        start: props.start ? props.start : "2025-08-01",
+        start: startDate,
       },
     },
     methodology: props.methodology
@@ -533,6 +537,8 @@ export const exportBuilderAdapter = (
             "Builder code revenue from Hyperliquid Perps Trades.",
         },
   };
+
+  if (props.deadFrom) adapter.deadFrom = props.deadFrom;
 
   return adapter;
 };

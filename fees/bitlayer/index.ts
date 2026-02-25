@@ -5,7 +5,6 @@ import {
 } from "../../adapters/types";
 import { httpPost } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { time } from "console";
 
 export async function getFeeUSD({ startOfDay, createBalances }: FetchOptions, url: string) {
     const dailyFees = createBalances()
