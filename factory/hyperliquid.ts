@@ -11,6 +11,71 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "dreamcash": {
+    addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
+    start: "2025-06-12",
+    methodology: {
+      Fees: "builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "axiom-perps": {
+    addresses: ["0x1cc34f6af34653c515b47a83e1de70ba9b0cda1f"],
+    start: "2025-06-08",
+    methodology: {
+      Fees: "Builder Code Fees paid by users for perps.",
+      Revenue: "Builder Code Fees collected by Axiom from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder Code Fees collected by Axiom from Hyperliquid Perps.",
+      HoldersRevenue: "No fees distributed to token holders",
+    },
+    extraReturnFields: { dailyHoldersRevenue: "0" },
+  },
+  "metamask-perps": {
+    addresses: ["0xe95a5e31904e005066614247d309e00d8ad753aa"],
+    start: "2025-10-07",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "based-app": {
+    addresses: ["0x1924b8561eef20e70ede628a296175d358be80e5"],
+    start: "2025-07-08",
+    methodology: {
+      Fees: "builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "insilico": {
+    addresses: ["0x2868fc0d9786a740b491577a43502259efa78a39"],
+    start: "2024-10-27",
+    methodology: {
+      Fees: "builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
+  "phantom-perps": {
+    addresses: ["0xb84168cf3be63c6b8dad05ff5d755e97432ff80b"],
+    start: "2025-07-08",
+    methodology: {
+      Fees: "trading fees paid by users for perps in Phantom wallet.",
+      Revenue: "Builder Code Fees collected by Phantom from Hyperliquid Perps as Frontend Fees.",
+      ProtocolRevenue: "Builder Code Fees collected by Phantom from Hyperliquid Perps.",
+    },
+  },
+  "perpmate": {
+    addresses: ["0xE4FEa748ECa48F44b1e042775F0C2363be1A2d80"],
+    start: "2025-09-04",
+    methodology: {
+      Fees: "builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
   "arena-perps": { addresses: ["0x7056a6bc0a962b6ca37bc5da4c4c5127c81b7af3"], start: "2026-01-23" },
   "minaraai-perps": { addresses: ["0x5a3bc60b0a99a7f4fbf0d15554fa5fe88e7628c2"], start: "2025-12-22" },
   "apexliquid-perps": { addresses: ["0xe1f55f2f25884c2ddc86b6f7efa5f45b2ef04221"], start: "2025-07-06" },
