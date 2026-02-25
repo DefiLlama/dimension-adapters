@@ -25,6 +25,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ENI],
   fetch,
   start: "2025-06-09",

@@ -24,6 +24,7 @@ const fetchFees = async (options: FetchOptions) => {
 }
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,

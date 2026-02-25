@@ -130,6 +130,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
     BribesRevenue: "Bribes from plugins distributed to holders.",

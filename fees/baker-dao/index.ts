@@ -34,6 +34,7 @@ const adapter: Adapter = {
     }
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "All fees are captured by monitoring SendBera events to breadTreasury",
   }

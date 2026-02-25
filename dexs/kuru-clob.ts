@@ -112,6 +112,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   start: '2025-11-23',
   chains: [CHAIN.MONAD],
