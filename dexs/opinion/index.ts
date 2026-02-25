@@ -117,6 +117,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   methodology,
+  allowNegativeValue: true,  // Fees can be negative if rebate fees exceed trade fees in a given hour
   chains: [CHAIN.BSC],
   start: '2025-10-22',
 }
