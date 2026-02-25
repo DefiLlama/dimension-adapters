@@ -117,6 +117,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
