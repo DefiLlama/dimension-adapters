@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: "All FLOCK token fees sent to the FLOCK token contract.",
+    Fees: "All FLOCK token fees collected by the protocol.",
     Revenue: "All FLOCK token fees collected by the protocol.",
     ProtocolRevenue: "All FLOCK token fees collected by the protocol.",
   },
