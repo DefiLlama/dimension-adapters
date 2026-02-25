@@ -150,6 +150,10 @@ const EVENTS = {
 const RAY = BigInt(10) ** BigInt(27);
 const ONE_SHARE = BigInt(10) ** BigInt(18);
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+// ERC-20 Transfer event topic (keccak256("Transfer(address,address,uint256)"))
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+// Zero address padded to 32 bytes for use as RPC topic filter
+const ZERO_ADDRESS_TOPIC = "0x" + "0".repeat(64);
 
 function getTreasuryAddresses(chain: string): string[] {
   const config: Record<string, string[]> = {
@@ -390,7 +394,6 @@ async function fetchIBGTSales(options: FetchOptions) {
     // Filter by Transfer event + `from` (opsWallet) at the RPC level.
     // topics[0] = Transfer event signature (required — SDK does not auto-insert it).
     // topics[1] = indexed `from` address, padded to 32 bytes.
-    const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
     const opsWalletTopic = "0x" + CHAIN_CONFIG.berachain.opsWallet.slice(2).toLowerCase().padStart(64, "0");
     const transferLogs = await options.getLogs({
       target: CHAIN_CONFIG.berachain.iBGT,
@@ -464,8 +467,6 @@ async function fetchOBeroExercises(options: FetchOptions) {
     // Filter by Transfer event + `to` (zero address) at RPC level — burns only.
     // topics[0] = Transfer event signature (required — SDK does not auto-insert it).
     // topics[1] = null (any `from`), topics[2] = indexed `to` = zero address.
-    const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    const ZERO_ADDRESS_TOPIC = "0x" + "0".repeat(64);
     const burnLogs = await options.getLogs({
       target: CHAIN_CONFIG.berachain.oBERO,
       eventAbi: EVENTS.erc20Transfer,
@@ -507,30 +508,37 @@ async function fetchBeraIBeraSales(options: FetchOptions) {
     { address: CHAIN_CONFIG.berachain.iBERA, symbol: "iBERA" },
   ];
 
-  // Fetch both token logs in parallel
+  // Filter Transfer events at RPC level by `from` = treasury wallet addresses.
+  // topics[0] = Transfer event signature (required).
+  // topics[1] = indexed `from` address, padded to 32 bytes.
+  // One getLogs call per (token, treasury wallet) pair, all in parallel.
+  const treasuryAddresses = getTreasuryAddresses(CHAIN.BERACHAIN);
+  const fetchPairs = tokensToTrack.flatMap(token =>
+    treasuryAddresses.map(wallet => ({ token, walletTopic: "0x" + wallet.slice(2).toLowerCase().padStart(64, "0") }))
+  );
+
   const logResults = await Promise.all(
-    tokensToTrack.map(token =>
+    fetchPairs.map(({ token, walletTopic }) =>
       options.getLogs({
         target: token.address,
         eventAbi: EVENTS.erc20Transfer,
+        topics: [TRANSFER_TOPIC, walletTopic],
       }).catch(() => [] as any[])
     )
   );
 
-  for (let i = 0; i < tokensToTrack.length; i++) {
+  for (let i = 0; i < fetchPairs.length; i++) {
+    const { token } = fetchPairs[i];
     for (const log of logResults[i]) {
-      const from = (log as any).from?.toLowerCase() ?? "";
       const to = (log as any).to?.toLowerCase() ?? "";
       const amount = (log as any).value ?? BigInt(0);
 
-      // Only outgoing from our treasury wallets
-      if (!treasurySet.has(from)) continue;
       // Exclude intra-treasury transfers
       if (treasurySet.has(to)) continue;
       // Exclude burns to zero address (iBERA unstaking queue entries)
       if (to === ZERO_ADDRESS) continue;
 
-      fees.add(tokensToTrack[i].address, amount);
+      fees.add(token.address, amount);
     }
   }
 
