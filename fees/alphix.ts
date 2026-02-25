@@ -2,6 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import axios from "axios";
+import { METRIC } from "../helpers/metrics";
 
 const POOL_MANAGER = '0x498581ff718922c3f8e6a244956af099b2652b2b'
 const SWAP_TOPIC = '0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f'
@@ -34,44 +35,45 @@ function decodeInt128(hex: string): bigint {
   return val >= (1n << 127n) ? val - (1n << 128n) : val
 }
 
-async function calculateLendingYield(fromApi: any, toApi: any, ethPrice: number, usdsPrice: number): Promise<number> {
-  let totalYieldUsd = 0
+async function calculateLendingYield(fromApi: any, toApi: any): Promise<{
+  ethAmount: number;
+  usdcAmount: number;
+}> {
+  let ethAmount = 0;
+  let usdcAmount = 0;
   const oneShare = (10n ** 18n).toString()
 
   for (const wrapper of WRAPPERS) {
     for (const hook of HOOKS) {
-      try {
-        const sharesEnd = await toApi.call({ abi: 'erc20:balanceOf', target: wrapper.address, params: [hook] })
-        if (BigInt(sharesEnd) === 0n) continue
+      const sharesEnd = await toApi.call({ abi: 'erc20:balanceOf', target: wrapper.address, params: [hook] })
+      if (BigInt(sharesEnd) === 0n) continue
 
-        const [priceStart, priceEnd] = await Promise.all([
-          fromApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [oneShare] }),
-          toApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [oneShare] }),
-        ])
+      const [priceStart, priceEnd] = await Promise.all([
+        fromApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [oneShare] }),
+        toApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [oneShare] }),
+      ])
 
-        if (Number(priceStart) === 0) continue
-        const appreciationRate = (Number(priceEnd) - Number(priceStart)) / Number(priceStart)
+      if (Number(priceStart) === 0) continue
+      const appreciationRate = (Number(priceEnd) - Number(priceStart)) / Number(priceStart)
 
-        const assetsEnd = await toApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [sharesEnd] })
-        const decimals = await toApi.call({ abi: 'function decimals() view returns (uint8)', target: wrapper.address })
-        const assetsInTokens = Number(assetsEnd) / (10 ** Number(decimals))
+      const assetsEnd = await toApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [sharesEnd] })
+      const decimals = await toApi.call({ abi: 'function decimals() view returns (uint8)', target: wrapper.address })
+      const assetsInTokens = Number(assetsEnd) / (10 ** Number(decimals))
 
-        let assetsUsd = assetsInTokens
-        if (wrapper.underlying.toLowerCase() === TOKENS.WETH.toLowerCase()) assetsUsd = assetsInTokens * ethPrice
-        else if (wrapper.underlying.toLowerCase() === TOKENS.USDS.toLowerCase()) assetsUsd = assetsInTokens * usdsPrice
-
-        const yieldUsd = assetsUsd * appreciationRate
-        if (yieldUsd > 0) totalYieldUsd += yieldUsd
-      } catch {}
+      let assetsUsd = assetsInTokens
+      if (wrapper.underlying.toLowerCase() === TOKENS.WETH.toLowerCase()) ethAmount = assetsInTokens * appreciationRate;
+      else if (wrapper.underlying.toLowerCase() === TOKENS.USDS.toLowerCase()) usdcAmount = assetsInTokens * appreciationRate;
     }
   }
 
-  return totalYieldUsd
+  return { ethAmount, usdcAmount };
 }
 
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
 
   const ethPriceRaw = await options.api.call({ abi: 'function latestAnswer() view returns (int256)', target: ETH_USD_FEED })
   const ethPrice = Number(ethPriceRaw) / 1e8
@@ -99,29 +101,22 @@ async function fetch(options: FetchOptions) {
       const absAmount0 = amount0 > 0n ? amount0 : -amount0
 
       dailyVolume.add(pool.token, absAmount0)
-      dailyFees.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n)
+      dailyFees.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n, METRIC.SWAP_FEES)
+      dailySupplySideRevenue.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n, METRIC.SWAP_FEES)
     }
   }
 
-  const lendingYieldUsd = await calculateLendingYield(options.fromApi, options.toApi, ethPrice, usdsPrice)
-  if (lendingYieldUsd > 0) {
-    dailyFees.add(TOKENS.USDC, Math.floor(lendingYieldUsd * 1e6))
-  }
-
+  const { ethAmount, usdcAmount } = await calculateLendingYield(options.fromApi, options.toApi)
+  dailyFees.add(TOKENS.WETH, ethAmount * 1e18, METRIC.ASSETS_YIELDS)
+  dailyFees.add(TOKENS.USDC, usdcAmount * 1e6, METRIC.ASSETS_YIELDS)
+  
+  // 70% yields to LPs
+  dailySupplySideRevenue.add(TOKENS.WETH, ethAmount * 1e18 * 0.7, METRIC.ASSETS_YIELDS)
+  dailySupplySideRevenue.add(TOKENS.USDC, usdcAmount * 1e6 * 0.7, METRIC.ASSETS_YIELDS)
+  
   // Protocol takes 30% of lending yield as revenue
-  const dailyProtocolRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-
-  // Swap fees go entirely to supply side (LPs)
-  dailySupplySideRevenue.addBalances(dailyFees)
-
-  // For lending yield: 30% protocol, 70% supply side (net of protocol cut)
-  if (lendingYieldUsd > 0) {
-    const protocolCutUsd = Math.floor(lendingYieldUsd * 0.3 * 1e6)
-    dailyProtocolRevenue.add(TOKENS.USDC, protocolCutUsd)
-    // Subtract the protocol's 30% from supply side (it was already added via dailyFees)
-    dailySupplySideRevenue.add(TOKENS.USDC, -protocolCutUsd)
-  }
+  dailyProtocolRevenue.add(TOKENS.WETH, ethAmount * 1e18 * 0.7, METRIC.ASSETS_YIELDS)
+  dailyProtocolRevenue.add(TOKENS.USDC, usdcAmount * 1e6 * 0.7, METRIC.ASSETS_YIELDS)
 
   return {
     dailyVolume,
@@ -139,6 +134,28 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch,
       start: '2025-02-09',
+    },
+  },
+  methodology: {
+    Fees: 'Total swap fees from Uniswap pools + yields from deployed lending strategies.',
+    SupplySideRevenue: 'All swap fees from Uniswap pools + 70% yields from deployed lending strategies.',
+    Revenue: 'Share of 30% yields from deployed lending strategies to Alphix.',
+    ProtocolRevenue: 'Share of 30% yields from deployed lending strategies to Alphix.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Total swap fees from Uniswap pools.',
+      [METRIC.ASSETS_YIELDS]: 'Total yields from deployed lending strategies.',
+    },
+    SupplySideRevenue: {
+      [METRIC.SWAP_FEES]: 'All swap fees from Uniswap pools.',
+      [METRIC.ASSETS_YIELDS]: 'Share of 70% yields from deployed lending strategies.',
+    },
+    Revenue: {
+      [METRIC.ASSETS_YIELDS]: 'Share of 30% yields from deployed lending strategies to Alphix.',
+    },
+    ProtocolRevenue: {
+      [METRIC.ASSETS_YIELDS]: 'Share of 30% yields from deployed lending strategies to Alphix.',
     },
   },
 }
