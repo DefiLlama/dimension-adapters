@@ -4,7 +4,10 @@ import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const HL_BUILDER_ADDRESS = "0x5eb46BFBF7C6004b59D67E56749e89e83c2CaF82";
-const EXTENDED_BUILDER_NAME = "0x5eb46bfbf7c6004b59d67e56749e89e83c2caf82";
+const EXTENDED_BUILDER_NAMES = [
+  '0x5eb46bfbf7c6004b59d67e56749e89e83c2caf82',
+  'Miracle',
+];
 
 // https://docs.miracletrade.com/integrations-and-fees
 const EXTENDED_BUILDER_FEE_RATE = 0.00035;
@@ -22,7 +25,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,
-      builderName: EXTENDED_BUILDER_NAME,
+      builderNames: EXTENDED_BUILDER_NAMES,
       builderFeeRate: EXTENDED_BUILDER_FEE_RATE
     });
 

@@ -4,7 +4,10 @@ import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const HL_BUILDER_ADDRESS = "0x8af3545a3988b7a46f96f9f1ae40c0e64fa493c2";
-const EXTENDED_BUILDER_NAME = "0x8af3545a3988b7a46f96f9f1ae40c0e64fa493c2";
+const EXTENDED_BUILDER_NAMES = [
+  '0x8af3545a3988b7a46f96f9f1ae40c0e64fa493c2',
+  'HyperSignals',
+];
 
 // https://biconomy.gitbook.io/hypersignals/terminal-trading-manual#fees-manual-trading
 const EXTENDED_BUILDER_FEE_RATE = 0.0001;
@@ -22,7 +25,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,
-      builderName: EXTENDED_BUILDER_NAME,
+      builderNames: EXTENDED_BUILDER_NAMES,
       builderFeeRate: EXTENDED_BUILDER_FEE_RATE
     });
 
