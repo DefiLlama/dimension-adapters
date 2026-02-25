@@ -7,7 +7,7 @@ import { getEnv } from "../helpers/env";
 
 // https://www.tread.fi/
 const HL_BUILDER_ADDRESS = "0x999a4b5f268a8fbf33736feff360d462ad248dbf";
-const EXTENDED_BUILDER_NAME = "Tread.fi";
+const EXTENDED_BUILDER_NAMES = ["Tread.fi"];
 const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
 
 // Fee rate for TreadTools venues (2 bps)
@@ -65,7 +65,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees } = await fetchBuilderData({ options, builderName: EXTENDED_BUILDER_NAME, builderFeeRate: TREADTOOLS_FEE_RATE });
+  const { dailyVolume, dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: TREADTOOLS_FEE_RATE });
 
   return {
     dailyVolume,

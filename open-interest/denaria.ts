@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 
 const DENARIA_PERP_PAIR_OLD = '0xd07822ee341c11a193869034d7e5f583c4a94872';
 const DENARIA_PERP_PAIR_NEW = '0xb4e7516844de6590a3b49c7dcb231a92bf022556';
-const DENARIA_PERP_PAIR_NEW_DEPLOY_BLOCK = 29081146;
+const DENARIA_PERP_PAIR_NEW_DEPLOY_BLOCK = 29101654;
 
 async function fetch(options: FetchOptions) {
   const toBlock = await options.getToBlock();

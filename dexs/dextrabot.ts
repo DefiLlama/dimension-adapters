@@ -4,7 +4,7 @@ import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const HL_BUILDER_ADDRESS = "0x49ae63056b3a0be0b166813ee687309ab653c07c";
-const EXTENDED_BUILDER_NAME = "DextraBot";
+const EXTENDED_BUILDER_NAMES = ['DextraBot'];
 
 // https://docs.dextrabot.com/dextrabot/fees#quick-overview
 const EXTENDED_BUILDER_FEE_RATE = 0.0002;
@@ -22,7 +22,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,
-      builderName: EXTENDED_BUILDER_NAME,
+      builderNames: EXTENDED_BUILDER_NAMES,
       builderFeeRate: EXTENDED_BUILDER_FEE_RATE
     });
 
