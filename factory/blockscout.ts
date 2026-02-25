@@ -18,7 +18,6 @@ const protocolChainMap: Record<string, string> = {
   "ethereumclassic": "ethereumclassic",
   "etherlink": "etlk",
   "fantom": "fantom",
-  "filecoin": "filecoin",
   "flare": "flare",
   "fuse": "fuse",
   "gravity": "gravity",
