@@ -1,11 +1,18 @@
 name: Alert
 
 on:
+  workflow_run:
+    workflows: ["Build dimensionModules and upload artifact"]  # only make alert after build modules
+    types:
+      - completed
+
   push:
     branches: [ master ]
 
 jobs:
   deploy:
+    # optionally only run if b succeeded:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
