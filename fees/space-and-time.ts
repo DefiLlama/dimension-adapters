@@ -39,6 +39,7 @@ const getQueryRouterFees = async (startTimestamp: number, endTimestamp: number, 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances()
 
   // gas fees paid on space and time blockchain
   const gasBurned = await getGasBurned(options.startTimestamp, options.endTimestamp);
@@ -57,14 +58,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyRevenue.addCGToken('space-and-time', Number(payPortalFees) / 1e18);
   dailyRevenue.addCGToken('space-and-time', Number(queryRouterFeesEthereum) / 1e18);
   dailyRevenue.addCGToken('space-and-time', Number(queryRouterFeesBase) / 1e18);
+  dailySupplySideRevenue.addCGToken('space-and-time', Number(gasBurned) / 1e18);
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
   Fees: "Gas fees paid on the Space and Time chain for verifiable compute queries, plus transfer fees from PayPortal on Base.",
   Revenue: "PayPortal transfer fees on Base. Gas fees on Space and Time are distributed to validators, not retained as protocol revenue.",
   ProtocolRevenue: "100% of PayPortal fees on Base go to the protocol treasury.",
+  SupplySideRevenue: "Gas fees on Space and Time are distributed to validators"
 };
 
 const adapter: SimpleAdapter = {
