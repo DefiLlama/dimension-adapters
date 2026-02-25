@@ -11,6 +11,7 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "test-alerts-perps": { addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"] },
   "dreamcash": {
     addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
     start: "2025-06-12",
