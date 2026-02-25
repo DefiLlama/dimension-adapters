@@ -94,3 +94,13 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
   
   return adapter;
 }
+
+const builderProtocols: Record<string, SimpleAdapter> = {
+  'beaverbuild': ethereumBlockBuilderExport({ builderAddress: '0x95222290dd7278aa3ddd389cc1e1d165cc4bafe5' }),
+  'titan-builder': ethereumBlockBuilderExport({ builderAddress: '0x4838B106FCe9647Bdf1E7877BF73cE8B0BAD5f97' }),
+  'shimmerblocks': ethereumBlockBuilderExport({ builderAddress: '0xa28b0ac939fc6baaadc79a94f425345c60463417', start: '2025-12-26' }),
+  'quasar-builder': ethereumBlockBuilderExport({ builderAddress: '0x396343362be2A4dA1cE0C1C210945346fb82Aa49', start: '2025-01-10' }),
+};
+
+export const protocolList = Object.keys(builderProtocols);
+export const getAdapter = (name: string) => builderProtocols[name];

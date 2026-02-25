@@ -1,9 +1,8 @@
 import request, { gql } from "graphql-request";
-import { Adapter, ChainEndpoints, FetchV2 } from "../../adapters/types";
+import { Adapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
-const endpoints = {
+const endpoints: any = {
   [CHAIN.LINEA]:
     "https://api.studio.thegraph.com/query/55804/linehub-trade/version/latest",
 };
@@ -14,13 +13,11 @@ interface IVolumeStat {
   id: string;
 }
 
-const graphs = (graphUrls: ChainEndpoints) => {
-  const fetch: FetchV2 = async ({ chain, startTimestamp }) => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(startTimestamp);
+const fetch = async (_: any, _1: any, { chain, startOfDay }: any) => {
 
-    const graphQuery = gql`
+  const graphQuery = gql`
     query MyQuery {
-      volumeStats(where: {timestamp: ${todaysTimestamp}, period: "daily"}) {
+      volumeStats(where: {timestamp: ${startOfDay}, period: "daily"}) {
         cumulativeVolumeUsd
         volumeUsd
         id
@@ -28,23 +25,20 @@ const graphs = (graphUrls: ChainEndpoints) => {
     }
   `;
 
-    const graphRes = await request(graphUrls[chain], graphQuery);
-    const volumeStats: IVolumeStat[] = graphRes.volumeStats;
+  const graphRes = await request(endpoints[chain], graphQuery);
+  const volumeStats: IVolumeStat[] = graphRes.volumeStats;
 
-    let dailyVolumeUSD = BigInt(0);
+  let dailyVolumeUSD = BigInt(0);
 
-    volumeStats.forEach((vol) => {
-      dailyVolumeUSD += BigInt(vol.volumeUsd);
-    });
+  volumeStats.forEach((vol) => {
+    dailyVolumeUSD += BigInt(vol.volumeUsd);
+  });
 
-    const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
+  const finalDailyVolume = parseInt(dailyVolumeUSD.toString()) / 1e18;
 
-    return {
-      dailyVolume: finalDailyVolume.toString(),
-      timestamp: todaysTimestamp,
-    };
+  return {
+    dailyVolume: finalDailyVolume.toString(),
   };
-  return fetch;
 };
 
 const methodology = {
@@ -53,11 +47,11 @@ const methodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   methodology,
   adapter: {
     [CHAIN.LINEA]: {
-      fetch: graphs(endpoints),
+      fetch,
       start: '2024-07-02',
     },
   },

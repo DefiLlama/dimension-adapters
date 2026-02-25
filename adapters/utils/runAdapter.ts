@@ -2,7 +2,7 @@ import * as sdk from '@defillama/sdk';
 import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
 import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 

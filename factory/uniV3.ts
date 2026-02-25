@@ -314,14 +314,13 @@ const configs: Record<string, Record<string, any>> = {
     linea: { factory: '0xc5916f6cf441c72daa2e2c48afc7ce642eee6690', isAlgebraV3: true, start: '2023-07-19', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     sophon: { factory: '0x0f6e27007e257e74c86522387bd071d561ba3c97', isAlgebraV3: true, start: '2024-12-16', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
+  'doma-dex-v3': {
+    doma: { factory: '0x2e50b586d5bcD04cb6125E028A6a669f7f3cF1C2', start: '2025-10-19', userFeesRatio: 1, revenueRatio: 0, },
+  },
 }
 
 const optionsMap: Record<string, any> = {
-  "squadswap-v3": { pullHourly: true },
-  "9mm": { swapEvent: protocolFeesSwapEvent, pullHourly: true },
-  "lynex": { runAsV1: true },
-  "datadex": { runAsV1: true },
-  "swapmode-v3": { runAsV1: true },
+  "9mm": { swapEvent: protocolFeesSwapEvent, },
 }
 
 const methodologyMap: Record<string, any> = {

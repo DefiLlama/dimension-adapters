@@ -10,14 +10,14 @@ import { CHAIN } from "../../helpers/chains";
  * - Fee is transferred directly to DAO treasury
  * 
  * Contracts (Ethereum Mainnet):
- * - EscrowFactory: 0x11c6bb595824014e1c11c6b4a6ad2095cf7d22ab
- * - FeeManager: 0x9c364b9b5020bc63e074d43f7c68493c0bbdb0cd
- * - AgentRegistry: 0xb528f6ba2d75c383dfe6cdab9957a6cd6b45d90d
- * - Treasury: 0xcF3f26F73AEc469dfc5a0940b157214fD730B0FB
+ * - EscrowFactory: 0xba2c6322fd59e2703a28d82db572950297600129
+ * - FeeManager: 0x14f582bd5ddbc3e8416b9d3a9e5f0d3b6ce4206f
+ * - AgentRegistry: 0x3406c744958b182d6edd2615ff9e53f0fbc60802
+ * - Treasury: 0xa9790ac657bd38c8ef2568c1642b02d2b96f20dd
  */
 
 // Contract addresses
-const ESCROW_FACTORY = "0x11c6bb595824014e1c11c6b4a6ad2095cf7d22ab";
+const ESCROW_FACTORY = "0xba2c6322fd59e2703a28d82db572950297600129";
 
 // Event ABI - matches EscrowEvents.sol exactly
 const ProtocolFeePaidEvent = "event ProtocolFeePaid(address indexed payer, address indexed token, uint256 feeAmount)";
@@ -64,7 +64,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
-      start: "2026-02-10",
+      start: "2026-02-24",
     },
   },
   methodology,

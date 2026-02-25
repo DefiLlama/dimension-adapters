@@ -750,6 +750,20 @@
         "runAtCurrTime": false
       }
     },
+    "bladeswap-CL": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/bladeswap-CL.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "blast": {
+            "fetch": "_f",
+            "deadFrom": "2025-03-21"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "blitz": {
       "modulePath": "-",
       "codePath": "dead/dexs/blitz",
@@ -1625,6 +1639,23 @@
         "runAtCurrTime": false
       }
     },
+    "litx": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/litx",
+      "module": {
+        "deadFrom": "2026-02-22",
+        "version": 1,
+        "adapter": {
+          "bsc": {
+            "start": 1687305600
+          },
+          "pulse": {
+            "start": 1686096000
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "logx": {
       "modulePath": "-",
       "codePath": "dead/dexs/logx",
@@ -1992,9 +2023,9 @@
             "start": "2023-04-01"
           }
         },
+        "deadFrom": "2023-07-03",
         "version": 1,
-        "runAtCurrTime": false,
-        "deadFrom": "2023-07-03"
+        "runAtCurrTime": false
       }
     },
     "penguin": {
@@ -2106,6 +2137,34 @@
         "runAtCurrTime": false
       }
     },
+    "smbswap-stableswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/smbswap-stableswap.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "deadFrom": "2025-03-21"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "smbswap-v1": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/smbswap-v1.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "deadFrom": "2025-03-21"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "smbswap-v3": {
       "modulePath": "-",
       "codePath": "dead/dexs/smbswap-v3.ts",
@@ -2133,6 +2192,21 @@
         },
         "version": 1,
         "runAtCurrTime": true
+      }
+    },
+    "surfswap-stable-amm": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/surfswap-stable-amm.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": "2022-06-30",
+            "deadFrom": "2025-03-19"
+          }
+        },
+        "runAtCurrTime": false
       }
     },
     "swych": {
@@ -2543,6 +2617,26 @@
             "start": "2024-10-24"
           }
         },
+        "runAtCurrTime": false
+      }
+    },
+    "yodeswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/yodeswap",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "dogechain"
+        ],
+        "start": 1630000000,
+        "deadFrom": "2024-03-26",
+        "adapter": {
+          "dogechain": {
+            "fetch": "_f",
+            "start": 1630000000
+          }
+        },
+        "version": 1,
         "runAtCurrTime": false
       }
     },
@@ -4183,6 +4277,27 @@
     }
   },
   "options": {
+    "lyra": {
+      "modulePath": "-",
+      "codePath": "dead/options/lyra",
+      "module": {
+        "version": 2,
+        "fetch": "_f",
+        "adapter": {
+          "optimism": {
+            "start": "2021-11-12",
+            "deadFrom": "2025-03-06",
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "start": "2023-01-12",
+            "deadFrom": "2023-12-29",
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "smilee-finance": {
       "modulePath": "-",
       "codePath": "dead/options/smilee-finance",
