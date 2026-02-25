@@ -11,6 +11,8 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "arena-perps": { addresses: ["0x7056a6bc0a962b6ca37bc5da4c4c5127c81b7af3"], start: "2026-01-23" },
+  "minaraai-perps": { addresses: ["0x5a3bc60b0a99a7f4fbf0d15554fa5fe88e7628c2"], start: "2025-12-22" },
   "apexliquid-perps": { addresses: ["0xe1f55f2f25884c2ddc86b6f7efa5f45b2ef04221"], start: "2025-07-06" },
   "coin98-perps": { addresses: ["0x3342ee6851ef0ec3cf42658c2be3b28a905271aa"], start: "2025-09-26" },
   "coinpilot-perps": {
@@ -23,7 +25,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
   },
   "echosync-perps": { addresses: ["0x831ad7eb3e600a3ab8df851ce27df8d8dd6b5d9c"], start: "2025-11-07" },
-  "flowbot-perps": { addresses: ["0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36"], start: "2025-11-27" },
+  // "flowbot-perps": { addresses: ["0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36"], start: "2025-11-27" },
   "fomo-perps": { addresses: ["0xb838e4d1c8bcf71fa8e63299d5aa3258c83d6adb"] },
   "gemwallet-perps": {
     addresses: ["0x0d9dab1a248f63b0a48965ba8435e4de7497a3dc"],
@@ -54,7 +56,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Fees collected by Metascalp from Hyperliquid Perps as Builder Revenue.",
     },
   },
-  "miracletrade": { addresses: ["0x5eb46BFBF7C6004b59D67E56749e89e83c2CaF82"], start: "2025-09-11" },
+  // "miracletrade": { addresses: ["0x5eb46BFBF7C6004b59D67E56749e89e83c2CaF82"], start: "2025-09-11" },
   "moontrader-perps": { addresses: ["0x38b176c674cd9a3b97a59b0a7045ba26a13783cb"], start: "2025-09-01" },
   "onekey-perps": {
     addresses: ["0x9b12e858da780a96876e3018780cf0d83359b0bb"],
@@ -158,15 +160,15 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
-  "dextrabot": {
-    addresses: ["0x49ae63056b3a0be0b166813ee687309ab653c07c"],
-    start: "2025-02-16",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
+  // "dextrabot": {
+  //   addresses: ["0x49ae63056b3a0be0b166813ee687309ab653c07c"],
+  //   start: "2025-02-16",
+  //   methodology: {
+  //     Fees: "builder code revenue from Hyperliquid Perps Trades.",
+  //     Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+  //     ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+  //   },
+  // },
   "dreamcash": {
     addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
     start: "2025-06-12",
@@ -185,15 +187,15 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
-  "hypersignals": {
-    addresses: ["0x8af3545a3988b7A46f96F9F1AE40c0e64Fa493C2"],
-    start: "2025-07-29",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
-  },
+  // "hypersignals": {
+  //   addresses: ["0x8af3545a3988b7A46f96F9F1AE40c0e64Fa493C2"],
+  //   start: "2025-07-29",
+  //   methodology: {
+  //     Fees: "builder code revenue from Hyperliquid Perps Trades.",
+  //     Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+  //     ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+  //   },
+  // },
   "infinex-perps": {
     addresses: ["0xcf56dd84ed85eb4929e0a76a0f2f04049b4ffc1a"],
     start: "2025-08-18",
