@@ -38,3 +38,16 @@ jobs:
           name: Latest dimensionModules
           artifacts: cli/dimensionModules.json
           allowUpdates: true
+  alert-unlisted:
+    needs: build-and-upload  # waits for build-and-upload to succeed first
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Update unlisted
+      run: |
+        curl --fail https://born-to-llama.herokuapp.com/refresh
+        exit $?
+    - name: Deploy to server
+      run: |
+        curl --fail https://born-to-llama.herokuapp.com/rebuild-server
+        exit $?

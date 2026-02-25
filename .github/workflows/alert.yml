@@ -1,24 +1,19 @@
-name: Alert
+# name: Alert
 
-on:
-  workflow_run:
-    workflows: ["Build dimensionModules and upload artifact"]  # only make alert after build modules
-    types:
-      - completed
+# on:
+#   push:
+#     branches: [ master ]
 
-  # push:
-  #   branches: [ master ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Update unlisted
-      run: |
-        curl --fail https://born-to-llama.herokuapp.com/refresh
-        exit $?
-    - name: Deploy to server
-      run: |
-        curl --fail https://born-to-llama.herokuapp.com/rebuild-server
-        exit $?
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v2
+#     - name: Update unlisted
+#       run: |
+#         curl --fail https://born-to-llama.herokuapp.com/refresh
+#         exit $?
+#     - name: Deploy to server
+#       run: |
+#         curl --fail https://born-to-llama.herokuapp.com/rebuild-server
+#         exit $?
