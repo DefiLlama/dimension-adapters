@@ -60,7 +60,6 @@ async function calculateLendingYield(fromApi: any, toApi: any): Promise<{
       const decimals = await toApi.call({ abi: 'function decimals() view returns (uint8)', target: wrapper.address })
       const assetsInTokens = Number(assetsEnd) / (10 ** Number(decimals))
 
-      let assetsUsd = assetsInTokens
       if (wrapper.underlying.toLowerCase() === TOKENS.WETH.toLowerCase()) ethAmount = assetsInTokens * appreciationRate;
       else if (wrapper.underlying.toLowerCase() === TOKENS.USDS.toLowerCase()) usdcAmount = assetsInTokens * appreciationRate;
     }
@@ -70,19 +69,9 @@ async function calculateLendingYield(fromApi: any, toApi: any): Promise<{
 }
 
 async function fetch(options: FetchOptions) {
-  const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
-
-  const ethPriceRaw = await options.api.call({ abi: 'function latestAnswer() view returns (int256)', target: ETH_USD_FEED })
-  const ethPrice = Number(ethPriceRaw) / 1e8
-
-  let usdsPrice = 1.0
-  try {
-    const res = await axios.get(`https://coins.llama.fi/prices/historical/${options.endTimestamp}/base:${TOKENS.USDS}`)
-    usdsPrice = res.data?.coins?.[`base:${TOKENS.USDS}`]?.price || 1.0
-  } catch {}
 
   for (const pool of POOLS) {
     const logs = await sdk.getEventLogs({
@@ -100,7 +89,6 @@ async function fetch(options: FetchOptions) {
       const fee = Number(BigInt('0x' + data.slice(320, 384)))
       const absAmount0 = amount0 > 0n ? amount0 : -amount0
 
-      dailyVolume.add(pool.token, absAmount0)
       dailyFees.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n, METRIC.SWAP_FEES)
       dailySupplySideRevenue.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n, METRIC.SWAP_FEES)
     }
@@ -119,7 +107,6 @@ async function fetch(options: FetchOptions) {
   dailyProtocolRevenue.add(TOKENS.USDC, usdcAmount * 1e6 * 0.7, METRIC.ASSETS_YIELDS)
 
   return {
-    dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailySupplySideRevenue,
