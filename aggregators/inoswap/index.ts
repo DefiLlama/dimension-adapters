@@ -2,12 +2,11 @@ import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const STATS_URL = "https://inoswap.org/api/stats";
+const LLAMA_URL = "https://inoswap.org/api/llama/metrics";
 
 const fetch = async () => {
-  const stats: any = await fetchURL(STATS_URL);
-  const dailyVolume = Number(stats?.totalVolumeUsd || 0);
-
+  const m: any = await fetchURL(LLAMA_URL);
+  const dailyVolume = Number(m?.dailyVolumeUsd || 0);
   return {
     dailyVolume: dailyVolume.toString(),
   };
