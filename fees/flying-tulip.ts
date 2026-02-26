@@ -39,6 +39,10 @@ const TREASURY = '0x1118e1c057211306a40A4d7006C040dbfE1370Cb';
 // stETH on Ethereum mainnet
 const STETH = '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84';
 
+// ETH cost basis for initial stETH acquisition (2192.99 ETH sent to CoWSwap)
+// Used as baseline when start-of-period balance is 0 (acquisition day)
+const STETH_COST_BASIS = BigInt('2192990000000000000000');
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
 
@@ -67,7 +71,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees.add(log.underlying, log.amount, METRIC.ASSETS_YIELDS);
   });
 
-  // Track daily stETH yield via period delta (end balance - start balance)
+  // Track daily stETH yield via period delta
+  // When start balance is 0 (day of acquisition), use STETH_COST_BASIS as baseline
+  // so only the conversion gain counts as yield, not the full deposit
   const stethBalanceEnd = await options.api.call({
     abi: 'erc20:balanceOf',
     target: STETH,
@@ -78,7 +84,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     target: STETH,
     params: [TREASURY],
   });
-  const stethYield = BigInt(stethBalanceEnd) - BigInt(stethBalanceStart);
+  const baseline = BigInt(stethBalanceStart) > 0n ? BigInt(stethBalanceStart) : STETH_COST_BASIS;
+  const stethYield = BigInt(stethBalanceEnd) - baseline;
   if (stethYield > 0n) {
     dailyFees.add(STETH, stethYield, METRIC.ASSETS_YIELDS);
   }
@@ -99,6 +106,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

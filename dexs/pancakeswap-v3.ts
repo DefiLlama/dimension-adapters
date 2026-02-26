@@ -7,6 +7,30 @@ import { filterPools } from '../helpers/uniswap';
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import axios from "axios";
+import { getConfig } from "../helpers/cache";
+
+function formatAddress(address: any): string {
+  return String(address).toLowerCase();
+}
+
+async function getBscTokenLists(): Promise<Array<string>> {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+  const lists = [
+    'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+    'https://tokens.pancakeswap.finance/ondo-rwa-tokens.json',
+    'https://tokens.coingecko.com/binance-smart-chain/all.json',
+  ];
+  let tokens: Array<string> = [];
+  for (const url of lists) {
+    const data = await getConfig(`pcs-token-list-bsc-${url}`, url);
+    tokens = tokens.concat(
+      data.tokens
+        .filter((token: any) => Number(token.chainId) === 56)
+        .map((token: any) => formatAddress(token.address))
+    );
+  }
+  return tokens.filter((token: string) => !blacklisted.includes(token))
+}
 
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
@@ -57,16 +81,17 @@ const factories: {[key: string]: Ifactory} = {
   }
 }
 
-export const PANCAKESWAP_V3_QUERY = (fromTime: number, toTime: number, blacklistTokens: Array<string>) => {
+export const PANCAKESWAP_V3_QUERY = async (fromTime: number, toTime: number) => {
+  const tokens = await getBscTokenLists();
   return `
     SELECT
         project_contract_address AS pool
         , SUM(
           CASE 
-              WHEN token_sold_address NOT IN (${blacklistTokens.toString()})
-              AND token_bought_address NOT IN (${blacklistTokens.toString()})
+              WHEN token_sold_address IN (${tokens.toString()})
+              AND token_bought_address IN (${tokens.toString()})
               THEN amount_usd
-              ELSE 0 
+              ELSE 0
           END
         ) AS clean_volume_usd
         , SUM(amount_usd) AS total_volume_usd 
@@ -140,7 +165,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (options.chain === CHAIN.BSC) {
     const poolsAndVolumes = await queryDune('3996608',{
-      fullQuery: PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp, factories[options.chain].blacklistTokens as Array<string>),
+      fullQuery: await PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp),
     }, options);
 
     const poolFees = await options.api.multiCall({

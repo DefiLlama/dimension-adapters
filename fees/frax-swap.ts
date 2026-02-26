@@ -1,7 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, Adapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
 
@@ -27,9 +26,9 @@ interface IHistory {
   intervalTimestamp: number;
 }
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (_: number, _a: any, options: FetchOptions) => {
   const chain = chains[options.chain];
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+  const dayTimestamp = options.startOfDay
   const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
   const historicalVolume = historical
     .filter(e => e.chain.toLowerCase() === chain.toLowerCase());
@@ -39,13 +38,16 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailyFees,
     dailyRevenue: "0",
   };
 };
 
 const methodology = {
   UserFees: "Users pay 0.3% swap fees",
-  Fees: "A 0.3% fee is collected from each swap"
+  Fees: "A 0.3% fee is collected from each swap",
+  SupplySideRevenue: "All fees go to LPs",
+  Revenue: "No revenue"
 }
 
 const adapter: Adapter = {

@@ -40,27 +40,35 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     balances: pkstrTokenTreasuryRevenue,
     options
   });
+  commonTokenTreasuryRevenue.resizeBy(1.25) // to adjust for 80% fee receieved in contract address
+  pkstrTokenTreasuryRevenue.resizeBy(1.25)
 
-  // Total fees = all ETH received by all token contracts (80% fee share)
+  // Total fees = all ETH received by all token contracts
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(commonTokenTreasuryRevenue);
-  dailyFees.addBalances(pkstrTokenTreasuryRevenue);
-  dailyFees.resizeBy(1.2); // to adjust for 80% fee receieved in contract address
+  dailyFees.addBalances(commonTokenTreasuryRevenue, METRIC.SWAP_FEES);
+  dailyFees.addBalances(pkstrTokenTreasuryRevenue, METRIC.SWAP_FEES);
+
 
   // PKSTR: 10% of tax goes to token-works treasury (protocol revenue)
   // PKSTR: another 10% of tax goes to token-works investors counted as supply side revenue
-  const dailyRevenue = await pkstrTokenTreasuryRevenue.clone(0.1);
+  // 10% of the common tokens tax is used to buy and burn $PNKSTR
+  const dailyRevenue = pkstrTokenTreasuryRevenue.clone(0.1, "Team");
+  dailyRevenue.addBalances(pkstrTokenTreasuryRevenue.clone(0.8), "CryptoPunks")
+  const dailyProtocolRevenue = dailyRevenue.clone(1)
+  const dailyHoldersRevenue = commonTokenTreasuryRevenue.clone(0.1, METRIC.TOKEN_BUY_BACK)
+  dailyRevenue.addBalances(dailyHoldersRevenue)
 
   // royalty fees(10% of token tax)
-  const dailySupplySideRevenue = await commonTokenTreasuryRevenue.clone(0.1);
-  dailySupplySideRevenue.addBalances(dailyRevenue);
+  const dailySupplySideRevenue = commonTokenTreasuryRevenue.clone(0.1, METRIC.CREATOR_FEES);
+  dailySupplySideRevenue.addBalances(commonTokenTreasuryRevenue.clone(0.8), "Strategy funding")
+  dailySupplySideRevenue.addBalances(pkstrTokenTreasuryRevenue.clone(0.1, "FundingWorks NFT holders"))
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
+    dailyHoldersRevenue,
   }
 }
 
@@ -71,14 +79,31 @@ export default {
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: '10% buy/sell tax collected from strategy tokens trading from main uni-v4 pools',
-    Revenue: '10% of PKSTR token tax goes to token-works team.',
-    ProtocolRevenue: '10% of PKSTR token tax goes to token-works team.',
-    SupplySideRevenue: '10% of token tax will be distributed to NFT creators as royalty(10% of token tax from PNKSTR Pool goes to token-works investors).',
-    HoldersRevenue: 'No holders revenue at the moment.',
+    Revenue: '10% of PKSTR token tax goes to token-works team and 80% is used to buy CryptoPunks for the protocol.',
+    ProtocolRevenue: '10% of PKSTR token tax goes to token-works team and 80% is used to buy CryptoPunks for the protocol.',
+    SupplySideRevenue: '10% of token tax is distributed to NFT creators as royalties and 10% of the PKSTR tax is gifted to FundingWorks NFT holders.',
+    HoldersRevenue: '10% of the common tokens tax is used to buy and burn $PNKSTR',
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.CREATOR_FEES]: '10% token buy/sell tax distributed to NFT creators.',
+      [METRIC.SWAP_FEES]: '10% token buy/sell tax on all swaps.',
+    },
+    Revenue: {
+      'Team': '10% of the PunkStrategy fees go to the TokenWorks team',
+      'CryptoPunks': '80% of the PunkStrategy fees are used to buy CryptoPunks for the protocol',
+      [METRIC.TOKEN_BUY_BACK]: '10% of the common token fees are used to buy and burn $PNKSTR.',
+    },
+    ProtocolRevenue: {
+      'Team': '10% of the PunkStrategy fees go to the TokenWorks team',
+      'CryptoPunks': '80% of the PunkStrategy fees are used to buy CryptoPunks for the protocol',
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: '10% of the common token fees are used to buy and burn $PNKSTR.',
+    },
+    SupplySideRevenue: {
+      'Strategy funding': '80% of the common token fees go to the token contract to execute its Strategy',
+      'FundingWorks NFT holders': '10% of the PunkStrategy fees gifted to FundingWorks NFT holders',
+      [METRIC.CREATOR_FEES]: '10% of the common token fees go to the token creator.',
     }
   },
 }

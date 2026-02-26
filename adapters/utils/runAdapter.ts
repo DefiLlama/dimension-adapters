@@ -2,7 +2,7 @@ import * as sdk from '@defillama/sdk';
 import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
 import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 
@@ -24,7 +24,7 @@ function genUID(length: number = 10): string {
   return result
 }
 
-const adapterRunResponseCache = {} as any
+// const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
   const { chains = [], fetch, start, runAtCurrTime } = module
@@ -100,6 +100,10 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   setModuleDefaults(module)
 
+  return _runAdapter(options)
+
+/*  Disable caching run results
+
   if (!cacheResults) return _runAdapter(options)
 
   const runKey = getRunKey(options)
@@ -111,12 +115,15 @@ export default async function runAdapter(options: AdapterRunOptions) {
   function clone(obj: any) {
     return JSON.parse(JSON.stringify(obj))
   }
-}
 
+
+   */
+}
+/* 
 function getRunKey(options: AdapterRunOptions) {
   const randomUID = options.module._randomUID ?? genUID(10)
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
-}
+} */
 
 const startOfDayIdCache: { [key: string]: string } = {}
 
@@ -335,7 +342,7 @@ async function _runAdapter({
     const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const problematicChains = new Set(['sei', 'xlayer'])
+    const problematicChains = new Set(['sei',])
 
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
 

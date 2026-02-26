@@ -23,6 +23,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "2.5% of money raised in juicebox goes to buyback JBX upon withdrawal (money sent from one juicebox to another is not counted)",
     Revenue: "All fees on Juicebox are revenue.",

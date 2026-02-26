@@ -255,8 +255,7 @@ export enum CHAIN {
   LENS = "lens",
   SSEED = "sseed",
   AO = "ao",
-  XRPL = "xrpl",
-  XRPL_EVM = "xrplevm",
+  XRPL_EVM = "xrplevm", // for XRPL chain, please using RIPPLE
   KATANA = "katana",
   SOON = "soon",
   SOON_BSC = "soon_bsc",
@@ -339,4 +338,5 @@ export enum CHAIN {
   IOTA = "iota",
   MEGAETH = "megaeth",
   ENI = "eni",
+  SPARK = "spark",
 }

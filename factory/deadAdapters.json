@@ -1,0 +1,4337 @@
+{
+  "aggregator-derivatives": {
+    "bitoro": {
+      "modulePath": "-",
+      "codePath": "dead/aggregator-derivatives/bitoro",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-03-24"
+          },
+          "injective": {
+            "fetch": "_f",
+            "start": "2024-06-13"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "perpie": {
+      "modulePath": "-",
+      "codePath": "dead/aggregator-derivatives/perpie",
+      "module": {
+        "deadFrom": "2024-11-24",
+        "isExpensiveAdapter": true,
+        "dependencies": [
+          "dune"
+        ],
+        "adapter": {
+          "arbitrum": {
+            "start": "2023-10-11",
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "rage-trade": {
+      "modulePath": "-",
+      "codePath": "dead/aggregator-derivatives/rage-trade",
+      "module": {
+        "deadFrom": "2025-10-01",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-11-30"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-11-30"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-11-30"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "sharpe-perp": {
+      "modulePath": "-",
+      "codePath": "dead/aggregator-derivatives/sharpe-perp",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-05-03",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-04-01"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "unidex-agg-perp": {
+      "modulePath": "-",
+      "codePath": "dead/aggregator-derivatives/unidex-agg-perp",
+      "module": {
+        "deadFrom": "2025-05-30",
+        "methodology": {
+          "dailyVolume": "Sum of cumulativeVolumeUsd for all products on the specified chain for the given day"
+        },
+        "adapter": {
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "metis": {
+            "fetch": "_f",
+            "start": "2023-06-27"
+          },
+          "evmos": {
+            "fetch": "_f",
+            "start": "2023-11-16"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    }
+  },
+  "aggregators": {
+    "7k-aggregator": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/7k-aggregator",
+      "module": {
+        "version": 2,
+        "deadFrom": "2024-06-03",
+        "adapter": {
+          "sui": {
+            "fetch": "_f",
+            "start": "2024-06-28"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "aperture-swap": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/aperture-swap",
+      "module": {
+        "deadFrom": "2024-06-01",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-07-18"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-07-10"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2023-10-07"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-10-13"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-10-10"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-10-09"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-10-09"
+          },
+          "manta": {
+            "fetch": "_f",
+            "start": "2023-09-19"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2023-12-16"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "arcane-dex": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/arcane-dex",
+      "module": {
+        "deadFrom": "2025-02-11",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-11-16"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "deflex": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/deflex",
+      "module": {
+        "deadFrom": "2024-01-01",
+        "adapter": {
+          "algorand": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "dexible": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/dexible",
+      "module": {
+        "deadFrom": "2023-02-21",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f"
+          },
+          "avax": {
+            "fetch": "_f"
+          },
+          "bsc": {
+            "fetch": "_f"
+          },
+          "fantom": {
+            "fetch": "_f"
+          },
+          "optimism": {
+            "fetch": "_f"
+          },
+          "polygon": {
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "dforce": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/dforce",
+      "module": {
+        "deadFrom": "2025-07-24",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-03-18",
+            "runAtCurrTime": true
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-03-18",
+            "runAtCurrTime": true
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-03-18",
+            "runAtCurrTime": true
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-03-18",
+            "runAtCurrTime": true
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-03-18",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "hop-aggregator": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/hop-aggregator",
+      "module": {
+        "deadFrom": "2025-01-25",
+        "adapter": {
+          "sui": {
+            "fetch": "_f",
+            "start": "2024-04-28"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "lumia": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/lumia",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-07-16",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          },
+          "op_bnb": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "moki": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/moki",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-05-29",
+        "adapter": {
+          "ton": {
+            "start": "2024-09-30",
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "plexus": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/plexus",
+      "module": {
+        "deadFrom": "2025-03-02",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "xdai": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "polygon_zkevm": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "kava": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "klaytn": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "aurora": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "starbase": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/starbase",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-03-11",
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2025-01-10"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "thetis-market": {
+      "modulePath": "-",
+      "codePath": "dead/aggregators/thetis-market",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "deadFrom": "2025-09-09",
+        "chains": [
+          "aptos"
+        ],
+        "start": "2024-08-09",
+        "adapter": {
+          "aptos": {
+            "fetch": "_f",
+            "start": "2024-08-09"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    }
+  },
+  "bridge-aggregators": {
+    "teleswap": {
+      "modulePath": "-",
+      "codePath": "dead/bridge-aggregators/teleswap",
+      "module": {
+        "deadFrom": "2025-04-16",
+        "adapter": {
+          "bitcoin": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "ethereum": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "sui": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "tron": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "base": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "bsc": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "tara": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "avax": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "litecoin": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "arbitrum": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "near": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "polygon": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "ton": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          },
+          "solana": {
+            "runAtCurrTime": true,
+            "fetch": "_f",
+            "start": "2024-09-18"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    }
+  },
+  "dexs": {
+    "aldrin": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/aldrin",
+      "module": {
+        "deadFrom": "2022-11-12",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2022-01-26"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "algofi": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/algofi",
+      "module": {
+        "deadFrom": "2023-07-09",
+        "adapter": {
+          "algorand": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "alkimiya": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/alkimiya.ts",
+      "module": {
+        "version": 2,
+        "fetch": "_f",
+        "chains": [
+          "base"
+        ],
+        "start": "2025-04-03",
+        "deadFrom": "2025-10-01",
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2025-04-03"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "apex": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/apex",
+      "module": {
+        "deadFrom": "2025-04-26",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2022-10-05"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "aquabot": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/aquabot",
+      "module": {
+        "fetch": "_f",
+        "deadFrom": "2025-09-13",
+        "chains": [
+          "solana"
+        ],
+        "start": "2025-08-11",
+        "methodology": {
+          "Fees": "Users pay trade fees on each swap. Every user has a fee receiver and they are used to do regular payments on campaigns and referral programs.",
+          "Revenue": "All swap fees goes to the protocol",
+          "UserFees": "Users pay trade fees on each swap. Every user has a fee receiver and they are used to do regular payments on campaigns and referral programs.",
+          "ProtocolRevenue": "All swap fees goes to the protocol",
+          "HoldersRevenue": "No Holders Revenue"
+        },
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2025-08-11"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "artexswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/artexswap",
+      "module": {
+        "deadFrom": "2025-03-25",
+        "adapter": {
+          "artela": {
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "ascent": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/ascent",
+      "module": {
+        "deadFrom": "2025-05-05",
+        "version": 2,
+        "breakdown": {
+          "v2": {
+            "eon": {
+              "fetch": "_f",
+              "start": "2023-11-01"
+            }
+          },
+          "v3": {
+            "eon": {
+              "fetch": "_f",
+              "start": "2023-11-08"
+            }
+          }
+        },
+        "adapter": {},
+        "runAtCurrTime": false
+      }
+    },
+    "ascent-v2": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/ascent-v2.ts",
+      "module": {
+        "deadFrom": "2025-05-05",
+        "version": 2,
+        "adapter": {
+          "eon": {
+            "fetch": "_f",
+            "start": "2023-11-01"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "ascent-v3": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/ascent-v3.ts",
+      "module": {
+        "deadFrom": "2025-05-05",
+        "version": 2,
+        "adapter": {
+          "eon": {
+            "fetch": "_f",
+            "start": "2023-11-08"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "astroport": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/astroport",
+      "module": {
+        "deadFrom": "2022-02-04",
+        "adapter": {
+          "terra": {
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "based-markets": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/based-markets",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2023-12-31"
+          }
+        },
+        "deadFrom": "2025-02-01",
+        "runAtCurrTime": false
+      }
+    },
+    "beamex-beamex-perps": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/beamex-beamex-perps.ts",
+      "module": {
+        "deadFrom": "2025-05-30",
+        "methodology": {
+          "Fees": "Fees from open/close position (0.2%), liquidations, swap (0.2% to 0.4%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.02%)",
+          "UserFees": "Fees from open/close position (0.2%), swap (0.2% to 0.4%) and borrow fee ((assets borrowed)/(total assets in pool)*0.04%)",
+          "HoldersRevenue": "30% of all collected fees are distributed to $stGLINT stakers",
+          "SupplySideRevenue": "70% of all collected fees will be distributed to BLP stakers. Currently they are distributed to treasury",
+          "Revenue": "70% of all collected fees are distributed to the treasury",
+          "ProtocolRevenue": "70% of all collected fees are distributed to the treasury"
+        },
+        "adapter": {
+          "moonbeam": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "beralis-v3": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/beralis-v3",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-02-15",
+        "adapter": {
+          "berachain": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "bladeswap-CL": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/bladeswap-CL.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "blast": {
+            "fetch": "_f",
+            "deadFrom": "2025-03-21"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "blitz": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/blitz",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "breakdown": {
+          "swap": {
+            "blast": {
+              "fetch": "_f",
+              "start": 1710259200
+            }
+          },
+          "derivatives": {
+            "blast": {
+              "fetch": "_f",
+              "start": 1710259200
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "blitz-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/blitz-derivatives.ts",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "blast": {
+            "fetch": "_f",
+            "start": 1710259200
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "blitz-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/blitz-swap.ts",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "blast": {
+            "fetch": "_f",
+            "start": 1710259200
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "capricorn-finance": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/capricorn-finance",
+      "module": {
+        "version": 1,
+        "deadFrom": "2023-07-09",
+        "fetch": "_f",
+        "chains": [
+          "cube"
+        ],
+        "start": 1632326400,
+        "adapter": {
+          "cube": {
+            "fetch": "_f",
+            "start": 1632326400
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "clober": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/clober",
+      "module": {
+        "deadFrom": "2023-11-23",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-05-06"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-05-06"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-05-06"
+          },
+          "polygon_zkevm": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-05-06"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "covo-v2": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/covo-v2",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "breakdown": {
+          "swap": {
+            "polygon": {
+              "fetch": "_f",
+              "start": 1678855134
+            }
+          },
+          "derivatives": {
+            "polygon": {
+              "fetch": "_f",
+              "start": 1678855134
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "covo-v2-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/covo-v2-derivatives.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "polygon": {
+            "fetch": "_f",
+            "start": 1678855134
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "covo-v2-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/covo-v2-swap.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "polygon": {
+            "fetch": "_f",
+            "start": 1678855134
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "croswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/croswap",
+      "module": {
+        "version": 1,
+        "deadFrom": "2023-08-12",
+        "fetch": "_f",
+        "chains": [
+          "cronos"
+        ],
+        "start": "2022-09-28",
+        "adapter": {
+          "cronos": {
+            "fetch": "_f",
+            "start": "2022-09-28"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "deepbook-sui": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/deepbook-sui",
+      "module": {
+        "deadFrom": "2025-02-25",
+        "adapter": {
+          "sui": {
+            "fetch": "_f",
+            "start": "2023-06-27"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "dydx": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/dydx",
+      "module": {
+        "deadFrom": "2025-02-02",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2021-02-25"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "el-dorado-exchange": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/el-dorado-exchange",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "breakdown": {
+          "swap": {
+            "arbitrum": {
+              "fetch": "_f",
+              "start": 1678118400
+            }
+          },
+          "derivatives": {
+            "arbitrum": {
+              "fetch": "_f",
+              "start": 1678118400
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "el-dorado-exchange-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/el-dorado-exchange-derivatives.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1678118400
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "el-dorado-exchange-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/el-dorado-exchange-swap.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1678118400
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "equation": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/equation",
+      "module": {
+        "version": 2,
+        "methodology": {
+          "DailyVolume": "Volume from the sum of the open/close/liquidation of positions and liquidity positions."
+        },
+        "deadFrom": "2025-04-06",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-10-20"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "equation-v2": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/equation-v2",
+      "module": {
+        "deadFrom": "2025-04-06",
+        "methodology": {
+          "DailyVolume": "Volume from the sum of the open/close/liquidation of positions and liquidity positions."
+        },
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-01-26"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "equation-v3": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/equation-v3",
+      "module": {
+        "version": 2,
+        "methodology": {
+          "DailyVolume": "Volume from the sum of the open/close/liquidation of positions and liquidity positions."
+        },
+        "deadFrom": "2025-04-06",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-05-13"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "fairyswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/fairyswap",
+      "module": {
+        "deadFrom": "2023-09-12",
+        "version": 2,
+        "adapter": {
+          "findora": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "fibonacci-dex": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/fibonacci-dex.ts",
+      "module": {
+        "deadFrom": "2025-08-15",
+        "adapter": {
+          "formnetwork": {
+            "fetch": "_f",
+            "start": "2024-10-29"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "filament": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/filament",
+      "module": {
+        "deadFrom": "2025-04-19",
+        "adapter": {
+          "sei": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "forge": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/forge",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-03-22",
+        "adapter": {
+          "evmos": {
+            "fetch": "_f",
+            "start": "2023-04-03"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "gmx-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/gmx-derivatives.ts",
+      "module": {
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1630368000
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": 1640131200
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false,
+        "deadFrom": "2025-07-09"
+      }
+    },
+    "gmx-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/gmx-swap.ts",
+      "module": {
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1630368000
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": 1640131200
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false,
+        "deadFrom": "2025-07-09"
+      }
+    },
+    "grizzly-trade": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/grizzly-trade",
+      "module": {
+        "deadFrom": "2024-02-02",
+        "breakdown": {
+          "swap": {
+            "bsc": {
+              "fetch": "_f",
+              "start": 1689897600
+            }
+          },
+          "derivatives": {
+            "bsc": {
+              "fetch": "_f",
+              "start": 1689897600
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "grizzly-trade-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/grizzly-trade-derivatives.ts",
+      "module": {
+        "deadFrom": "2024-02-02",
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": 1689897600
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "grizzly-trade-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/grizzly-trade-swap.ts",
+      "module": {
+        "deadFrom": "2024-02-02",
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": 1689897600
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "humble-defi": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/humble-defi",
+      "module": {
+        "deadFrom": "2025-06-01",
+        "adapter": {
+          "algorand": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "hydradex-v2": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/hydradex-v2.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "hydra": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false,
+        "deadFrom": "2023-07-09"
+      }
+    },
+    "hyperionx": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/hyperionx",
+      "module": {
+        "adapter": {
+          "zkfair": {
+            "fetch": "_f",
+            "start": "2024-01-31"
+          }
+        },
+        "deadFrom": "2024-10-31",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "idex-classic": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/idex-classic",
+      "module": {
+        "deadFrom": "2024-05-02",
+        "fetch": "_f",
+        "adapter": {
+          "ethereum": {
+            "start": "2020-10-20",
+            "fetch": "_f"
+          },
+          "polygon": {
+            "start": "2021-12-26",
+            "fetch": "_f"
+          },
+          "bsc": {
+            "start": "2021-01-23",
+            "fetch": "_f"
+          }
+        },
+        "isExpensiveAdapter": true,
+        "methodology": {
+          "Volume": "Idex classic trade volume",
+          "Fees": "Maker fees,Taker fees and protocol fees paid by traders",
+          "UserFees": "Maker fees,Taker fees and protocol paid by traders",
+          "Revenue": "All the fees except pool fee",
+          "ProtocolRevenue": "All the fees except pool fee",
+          "HoldersRevenue": "No Holder Revenue",
+          "SupplySideRevenue": "Pool fee paid by traders"
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "idex-v1": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/idex-v1",
+      "module": {
+        "deadFrom": "2020-10-20",
+        "fetch": "_f",
+        "chains": [
+          "ethereum"
+        ],
+        "dependencies": [
+          "dune"
+        ],
+        "isExpensiveAdapter": true,
+        "methodology": {
+          "Volume": "Idex trade volume",
+          "Fees": "Maker and Taker fees paid by traders",
+          "UserFees": "Maker and Taker fees paid by traders",
+          "ProtocolRevenue": "Maker and Taker fees paid by traders",
+          "Revenue": "Maker and Taker fees paid by traders",
+          "HoldersRevenue": "No Holder Revenue"
+        },
+        "start": "2018-05-13",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2018-05-13"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kaidex": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kaidex",
+      "module": {
+        "deadFrom": "2026-01-15",
+        "version": 2,
+        "adapter": {
+          "kardia": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "kinetix-derivative": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kinetix-derivative",
+      "module": {
+        "deadFrom": "2025-08-19",
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": 1693267200
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kinetix-derivatives-v2": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kinetix-derivatives-v2",
+      "module": {
+        "deadFrom": "2025-08-19",
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": "2024-02-02"
+          }
+        },
+        "methodology": {
+          "dailyVolume": "Total cumulativeVolumeUsd for specified chain for the given day"
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kizuna": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kizuna",
+      "module": {
+        "version": 2,
+        "methodology": {
+          "Fees": "Users pay 0.3% fees per swap.",
+          "UserFees": "Users pay 0.3% fees per swap.",
+          "Revenue": "No protocol revenue.",
+          "SupplySideRevenue": "Swap fees distributed to LPs."
+        },
+        "fetch": "_f",
+        "chains": [
+          "mode"
+        ],
+        "start": "2021-09-26",
+        "deadFrom": "2024-06-01",
+        "adapter": {
+          "mode": {
+            "fetch": "_f",
+            "start": "2021-09-26"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "kperp-exchange": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kperp-exchange",
+      "module": {
+        "deadFrom": "2023-02-24",
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": 2578000,
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "kuswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kuswap",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-07-28",
+        "fetch": "_f",
+        "chains": [
+          "kcc"
+        ],
+        "start": "2021-06-27",
+        "adapter": {
+          "kcc": {
+            "fetch": "_f",
+            "start": "2021-06-27"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "kyberswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kyberswap",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-01-01",
+        "breakdown": {
+          "classic": {
+            "optimism": {
+              "fetch": "_f"
+            },
+            "arbitrum": {
+              "fetch": "_f"
+            },
+            "fantom": {
+              "fetch": "_f"
+            },
+            "avax": {
+              "fetch": "_f"
+            },
+            "bsc": {
+              "fetch": "_f"
+            },
+            "polygon": {
+              "fetch": "_f"
+            },
+            "ethereum": {
+              "fetch": "_f"
+            },
+            "era": {
+              "fetch": "_f"
+            },
+            "linea": {
+              "fetch": "_f"
+            },
+            "scroll": {
+              "fetch": "_f"
+            }
+          },
+          "elastic": {
+            "optimism": {
+              "fetch": "_f"
+            },
+            "arbitrum": {
+              "fetch": "_f"
+            },
+            "fantom": {
+              "fetch": "_f"
+            },
+            "avax": {
+              "fetch": "_f"
+            },
+            "bsc": {
+              "fetch": "_f"
+            },
+            "polygon": {
+              "fetch": "_f"
+            },
+            "ethereum": {
+              "fetch": "_f"
+            },
+            "linea": {
+              "fetch": "_f"
+            },
+            "base": {
+              "fetch": "_f"
+            },
+            "scroll": {
+              "fetch": "_f"
+            }
+          }
+        },
+        "adapter": {},
+        "runAtCurrTime": false
+      }
+    },
+    "kyberswap-classic": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kyberswap-classic.ts",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "optimism": {
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f"
+          },
+          "fantom": {
+            "fetch": "_f"
+          },
+          "avax": {
+            "fetch": "_f"
+          },
+          "bsc": {
+            "fetch": "_f"
+          },
+          "polygon": {
+            "fetch": "_f"
+          },
+          "ethereum": {
+            "fetch": "_f"
+          },
+          "era": {
+            "fetch": "_f"
+          },
+          "linea": {
+            "fetch": "_f"
+          },
+          "scroll": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "kyberswap-elastic": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/kyberswap-elastic.ts",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "optimism": {
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f"
+          },
+          "fantom": {
+            "fetch": "_f"
+          },
+          "avax": {
+            "fetch": "_f"
+          },
+          "bsc": {
+            "fetch": "_f"
+          },
+          "polygon": {
+            "fetch": "_f"
+          },
+          "ethereum": {
+            "fetch": "_f"
+          },
+          "linea": {
+            "fetch": "_f"
+          },
+          "base": {
+            "fetch": "_f"
+          },
+          "scroll": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "lifinity": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/lifinity",
+      "module": {
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "deadFrom": "2025-11-21",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "lighter": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/lighter",
+      "module": {
+        "deadFrom": "2024-03-04",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-03-04"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "litx": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/litx",
+      "module": {
+        "deadFrom": "2026-02-22",
+        "version": 1,
+        "adapter": {
+          "bsc": {
+            "start": 1687305600
+          },
+          "pulse": {
+            "start": 1686096000
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "logx": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/logx",
+      "module": {
+        "deadFrom": "2025-09-10",
+        "adapter": {
+          "logx_network": {
+            "fetch": "_f",
+            "start": 1725580800
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "makiswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/makiswap",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "heco": {
+            "fetch": "_f",
+            "start": 1630000000
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "mango-v4": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/mango-v4",
+      "module": {
+        "breakdown": {
+          "spot": {
+            "solana": {
+              "fetch": "_f",
+              "runAtCurrTime": true
+            }
+          },
+          "perp": {
+            "solana": {
+              "fetch": "_f",
+              "runAtCurrTime": true
+            }
+          }
+        },
+        "protocolType": "protocol",
+        "deadFrom": "2025-02-05",
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "mango-v4-perp": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/mango-v4-perp.ts",
+      "module": {
+        "protocolType": "protocol",
+        "deadFrom": "2025-02-05",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "mango-v4-spot": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/mango-v4-spot.ts",
+      "module": {
+        "protocolType": "protocol",
+        "deadFrom": "2025-02-05",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "mantis": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/mantis",
+      "module": {
+        "deadFrom": "2025-03-05",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2024-11-30"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-11-30"
+          }
+        },
+        "methodology": "Sum of all executed intents with Solana as input or output",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "merlin": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/merlin",
+      "module": {
+        "deadFrom": "2023-04-25",
+        "chains": [
+          "era"
+        ],
+        "fetch": "_f",
+        "start": 1680274800,
+        "adapter": {
+          "era": {
+            "fetch": "_f",
+            "start": 1680274800
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "metatdex": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/metatdex",
+      "module": {
+        "deadFrom": "2024-12-30",
+        "adapter": {
+          "polygon": {
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "metropolis": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/metropolis",
+      "module": {
+        "version": 1,
+        "deadFrom": "2024-09-12",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": 1673827200
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "morphex": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/morphex",
+      "module": {
+        "deadFrom": "2025-01-27",
+        "breakdown": {
+          "swap": {
+            "fantom": {
+              "fetch": "_f",
+              "start": 1690020000
+            },
+            "bsc": {
+              "fetch": "_f",
+              "start": 1686783600
+            }
+          },
+          "derivatives": {
+            "fantom": {
+              "fetch": "_f",
+              "start": 1690020000
+            },
+            "bsc": {
+              "fetch": "_f",
+              "start": 1686783600
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "morphex-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/morphex-derivatives.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": 1690020000
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": 1686783600
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "morphex-old": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/morphex-old",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "breakdown": {
+          "swap": {
+            "fantom": {
+              "fetch": "_f",
+              "start": 1677883020
+            }
+          },
+          "derivatives": {
+            "fantom": {
+              "fetch": "_f",
+              "start": 1677883020
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "morphex-old-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/morphex-old-derivatives.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": 1677883020
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "morphex-old-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/morphex-old-swap.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": 1677883020
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "morphex-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/morphex-swap.ts",
+      "module": {
+        "deadFrom": "2024-02-21",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": 1690020000
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": 1686783600
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "nether-fi": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/nether-fi",
+      "module": {
+        "deadFrom": "2025-01-28",
+        "breakdown": {
+          "swap": {
+            "base": {
+              "fetch": "_f",
+              "start": 1693526400
+            }
+          },
+          "derivatives": {
+            "base": {
+              "fetch": "_f",
+              "start": 1693526400
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "nether-fi-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/nether-fi-derivatives.ts",
+      "module": {
+        "deadFrom": "2025-01-28",
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": 1693526400
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "nether-fi-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/nether-fi-swap.ts",
+      "module": {
+        "deadFrom": "2025-01-28",
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": 1693526400
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "onepunch": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/onepunch",
+      "module": {
+        "fetch": "_f",
+        "deadFrom": "2025-01-01",
+        "chains": [
+          "bsc"
+        ],
+        "start": 1671580800,
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": 1671580800
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "pancakeswap-v1": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/pancakeswap-v1.ts",
+      "module": {
+        "dependencies": [
+          "dune"
+        ],
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-04-01"
+          }
+        },
+        "deadFrom": "2023-07-03",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "penguin": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/penguin",
+      "module": {
+        "deadFrom": "2024-07-01",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "rabbitx": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/rabbitx",
+      "module": {
+        "deadFrom": "2025-08-10",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-11-17"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "reax-one-dex": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/reax-one-dex",
+      "module": {
+        "version": 2,
+        "deadFrom": "2024-10-08",
+        "adapter": {
+          "mantle": {
+            "fetch": "_f",
+            "start": "2023-07-18"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "rollup-finace": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/rollup-finace",
+      "module": {
+        "breakdown": {
+          "derivatives": {
+            "era": {
+              "fetch": "_f",
+              "start": 1682035200
+            }
+          }
+        },
+        "deadFrom": "2024-09-31",
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "rollup-finace-perps": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/rollup-finace-perps.ts",
+      "module": {
+        "deadFrom": "2024-09-31",
+        "adapter": {
+          "era": {
+            "fetch": "_f",
+            "start": 1682035200
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "satoshi-perps": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/satoshi-perps",
+      "module": {
+        "deadFrom": "2025-03-15",
+        "adapter": {
+          "core": {
+            "fetch": "_f",
+            "start": 1734914400
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "serum": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/serum",
+      "module": {
+        "deadFrom": "2023-09-12",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "smbswap-stableswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/smbswap-stableswap.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "deadFrom": "2025-03-21"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "smbswap-v1": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/smbswap-v1.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "deadFrom": "2025-03-21"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "smbswap-v3": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/smbswap-v3.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "bsc": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false,
+        "deadFrom": "2025-04-01"
+      }
+    },
+    "surfone": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/surfone",
+      "module": {
+        "deadFrom": "2026-01-23",
+        "adapter": {
+          "merlin": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "surfswap-stable-amm": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/surfswap-stable-amm.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": "2022-06-30",
+            "deadFrom": "2025-03-19"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "swych": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/swych",
+      "module": {
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-12-04"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "syrup-finance": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/syrup-finance",
+      "module": {
+        "deadFrom": "2023-09-12",
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": "2022-12-30"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "tegro": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/tegro",
+      "module": {
+        "version": 1,
+        "deadFrom": "2024-01-26",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "templedao-trade": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/templedao-trade",
+      "module": {
+        "version": 2,
+        "deadFrom": "2023-10-01",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2022-10-01"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "terraswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/terraswap",
+      "module": {
+        "deadFrom": "2023-12-01",
+        "adapter": {
+          "terra": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "thetis-market": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/thetis-market",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "deadFrom": "2025-09-09",
+        "chains": [
+          "aptos"
+        ],
+        "start": "2024-08-09",
+        "adapter": {
+          "aptos": {
+            "fetch": "_f",
+            "start": "2024-08-09"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "unidex-perps": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/unidex-perps.ts",
+      "module": {
+        "deadFrom": "2025-05-30",
+        "adapter": {
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-06-22"
+          },
+          "metis": {
+            "fetch": "_f",
+            "start": "2023-06-27"
+          },
+          "evmos": {
+            "fetch": "_f",
+            "start": "2023-11-16"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "unifi": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/unifi",
+      "module": {
+        "deadFrom": "2023-06-23",
+        "adapter": {
+          "avax": {
+            "fetch": "_f"
+          },
+          "bittorrent": {
+            "fetch": "_f"
+          },
+          "tron": {
+            "fetch": "_f"
+          },
+          "ontology_evm": {
+            "fetch": "_f"
+          },
+          "harmony": {
+            "fetch": "_f"
+          },
+          "bsc": {
+            "fetch": "_f"
+          },
+          "ethereum": {
+            "fetch": "_f"
+          },
+          "icon": {
+            "fetch": "_f"
+          },
+          "iotex": {
+            "fetch": "_f"
+          },
+          "polygon": {
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "vela": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/vela",
+      "module": {
+        "deadFrom": "2024-10-24",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-06-26"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-09-04"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "veniceswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/veniceswap",
+      "module": {
+        "deadFrom": "2023-09-12",
+        "fetch": "_f",
+        "chains": [
+          "findora"
+        ],
+        "start": "2023-01-30",
+        "adapter": {
+          "findora": {
+            "fetch": "_f",
+            "start": "2023-01-30"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "vertex-protocol": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/vertex-protocol",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "breakdown": {
+          "swap": {
+            "arbitrum": {
+              "fetch": "_f",
+              "start": 1682514000
+            },
+            "mantle": {
+              "fetch": "_f",
+              "start": 1682514000
+            },
+            "sei": {
+              "fetch": "_f",
+              "start": 1723547681
+            },
+            "base": {
+              "fetch": "_f",
+              "start": 1725476671
+            },
+            "sonic": {
+              "fetch": "_f",
+              "start": 1734543997
+            },
+            "abstract": {
+              "fetch": "_f",
+              "start": 1738158858
+            },
+            "avax": {
+              "fetch": "_f",
+              "start": 1742994000
+            }
+          },
+          "derivatives": {
+            "arbitrum": {
+              "fetch": "_f",
+              "start": "2024-06-20"
+            },
+            "mantle": {
+              "fetch": "_f",
+              "start": "2024-06-20"
+            },
+            "sei": {
+              "fetch": "_f",
+              "start": 1723547681
+            },
+            "base": {
+              "fetch": "_f",
+              "start": 1725476671
+            },
+            "sonic": {
+              "fetch": "_f",
+              "start": 1734543997
+            },
+            "abstract": {
+              "fetch": "_f",
+              "start": 1738158858
+            },
+            "avax": {
+              "fetch": "_f",
+              "start": 1742994000
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "vertex-protocol-derivatives": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/vertex-protocol-derivatives.ts",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-06-20"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2024-06-20"
+          },
+          "sei": {
+            "fetch": "_f",
+            "start": 1723547681
+          },
+          "base": {
+            "fetch": "_f",
+            "start": 1725476671
+          },
+          "sonic": {
+            "fetch": "_f",
+            "start": 1734543997
+          },
+          "abstract": {
+            "fetch": "_f",
+            "start": 1738158858
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": 1742994000
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "vertex-protocol-swap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/vertex-protocol-swap.ts",
+      "module": {
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1682514000
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": 1682514000
+          },
+          "sei": {
+            "fetch": "_f",
+            "start": 1723547681
+          },
+          "base": {
+            "fetch": "_f",
+            "start": 1725476671
+          },
+          "sonic": {
+            "fetch": "_f",
+            "start": 1734543997
+          },
+          "abstract": {
+            "fetch": "_f",
+            "start": 1738158858
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": 1742994000
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "vortex-protocol": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/vortex-protocol",
+      "module": {
+        "deadFrom": "2024-11-24",
+        "adapter": {
+          "tezos": {
+            "fetch": "_f",
+            "start": 1647604761
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "wagmi_ton": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/wagmi_ton",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-08-01",
+        "adapter": {
+          "ton": {
+            "fetch": "_f",
+            "start": "2024-10-24"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "yodeswap": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/yodeswap",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "dogechain"
+        ],
+        "start": 1630000000,
+        "deadFrom": "2024-03-26",
+        "adapter": {
+          "dogechain": {
+            "fetch": "_f",
+            "start": 1630000000
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "zigzag": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/zigzag",
+      "module": {
+        "deadFrom": "2025-04-07",
+        "adapter": {
+          "zksync": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-03-22"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "zklite": {
+      "modulePath": "-",
+      "codePath": "dead/dexs/zklite",
+      "module": {
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "zksync": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-04-10"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    }
+  },
+  "fees": {
+    "0vix": {
+      "modulePath": "-",
+      "codePath": "dead/fees/0vix.ts",
+      "module": {
+        "deadFrom": "2023-12-14",
+        "adapter": {
+          "polygon": {
+            "fetch": "_f",
+            "start": "2022-03-24"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "4cast": {
+      "modulePath": "-",
+      "codePath": "dead/fees/4cast",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-03-20",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2024-07-17"
+          }
+        },
+        "methodology": {
+          "Fees": "Tokens trading and launching fees paid by users."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "alkimiya": {
+      "modulePath": "-",
+      "codePath": "dead/fees/alkimiya.ts",
+      "module": {
+        "version": 2,
+        "start": "2025-04-03",
+        "deadFrom": "2025-10-01",
+        "fetch": "_f",
+        "chains": [
+          "base"
+        ],
+        "methodology": {
+          "Fees": "Fill fees charged by the SilicaPools contract when users fill orders for hashpower derivatives.",
+          "Revenue": "All fill fees accrue as protocol revenue."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Trading Fees": "Fees paid by users when filling orders in Alkimiya silica pools, collected as marketplace fees for trading hashpower derivatives."
+          }
+        },
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2025-04-03"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "apex": {
+      "modulePath": "-",
+      "codePath": "dead/fees/apex.ts",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-04-26",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-08-31"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "ascent-v2": {
+      "modulePath": "-",
+      "codePath": "dead/fees/ascent-v2.ts",
+      "module": {
+        "deadFrom": "2025-05-05",
+        "version": 2,
+        "adapter": {
+          "eon": {
+            "fetch": "_f",
+            "start": "2023-11-01"
+          }
+        },
+        "methodology": {
+          "UserFees": "User pays 0.05%, 0.30%, or 1% on each swap."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "ascent-v3": {
+      "modulePath": "-",
+      "codePath": "dead/fees/ascent-v3.ts",
+      "module": {
+        "deadFrom": "2024-03-04",
+        "version": 2,
+        "adapter": {
+          "eon": {
+            "fetch": "_f",
+            "start": "2023-11-08"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "auragi": {
+      "modulePath": "-",
+      "codePath": "dead/fees/auragi.ts",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-06-01",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-04-04"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "based-markets": {
+      "modulePath": "-",
+      "codePath": "dead/fees/based-markets.ts",
+      "module": {
+        "deadFrom": "2025-02-01",
+        "version": 2,
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2023-08-06"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "blazebot": {
+      "modulePath": "-",
+      "codePath": "dead/fees/blazebot.ts",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "base"
+        ],
+        "start": "2023-09-08",
+        "deadFrom": "2024-03-12",
+        "methodology": {
+          "Fees": "All trading fees paid by users while using trading bot.",
+          "Revenue": "All trading fees paid by users while using trading bot."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Trading Fees": "Fees collected in native gas token from users executing swaps through the BlazeBot trading bot."
+          },
+          "Revenue": {
+            "Trading Fees": "Revenue collected in native gas token from users executing swaps through the BlazeBot trading bot."
+          }
+        },
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2023-09-08"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "blitz": {
+      "modulePath": "-",
+      "codePath": "dead/fees/blitz.ts",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "blast": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-03-12"
+          }
+        },
+        "allowNegativeValue": true,
+        "runAtCurrTime": true
+      }
+    },
+    "demented-games": {
+      "modulePath": "-",
+      "codePath": "dead/fees/demented-games",
+      "module": {
+        "version": 2,
+        "deadFrom": "2024-07-08",
+        "adapter": {
+          "fuse": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-07-08"
+          }
+        },
+        "methodology": {
+          "Fees": "Sum of all fees from each game on the Demented Games platform."
+        },
+        "runAtCurrTime": true
+      }
+    },
+    "dydx": {
+      "modulePath": "-",
+      "codePath": "dead/fees/dydx.ts",
+      "module": {
+        "version": 1,
+        "deadFrom": "2024-12-14",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-11-18"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "eden": {
+      "modulePath": "-",
+      "codePath": "dead/fees/eden.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "start": "2022-09-15",
+        "deadFrom": "2025-05-28",
+        "chains": [
+          "ethereum"
+        ],
+        "dependencies": [
+          "dune"
+        ],
+        "isExpensiveAdapter": true,
+        "methodology": {
+          "Fees": "Total MEV Tips for Eden Builders"
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "MEV Rewards": "ETH rewards from MEV tips sent to Eden block builders"
+          }
+        },
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2022-09-15"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "el-dorado-exchange": {
+      "modulePath": "-",
+      "codePath": "dead/fees/el-dorado-exchange.ts",
+      "module": {
+        "version": 1,
+        "deadFrom": "2024-12-14",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-03-07"
+          }
+        },
+        "methodology": {
+          "Fees": "All mint, burn, margin and liquidation and swap fees are collected",
+          "UserFees": "Users pay swap fees and margin and liquidation fees",
+          "Revenue": "Revenue is calculated as 30% of the total fee."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "elixir": {
+      "modulePath": "-",
+      "codePath": "dead/fees/elixir",
+      "module": {
+        "version": 2,
+        "fetch": "_f",
+        "chains": [
+          "ethereum"
+        ],
+        "methodology": {
+          "Fees": "Yields generated by sdeUsd",
+          "SupplySideRevenue": "100% of the yields go to sdeUsd holders",
+          "Revenue": "No revenue",
+          "ProtocolRevenue": "No protocol revenue"
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Assets Yields": "Yields generated by sdeUsd"
+          }
+        },
+        "start": "2024-07-16",
+        "deadFrom": "2025-11-02",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-07-16"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "equation": {
+      "modulePath": "-",
+      "codePath": "dead/fees/equation",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-04-06",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-10-20"
+          }
+        },
+        "methodology": {
+          "Fees": "Fees from open/close position and placed limit order (0.05%),  with invitation code (0.045%)",
+          "Revenue": "Revenue is 50% of all collected fees",
+          "ProtocolRevenue": "Revenue is 50% of all collected fees"
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "equation-v2": {
+      "modulePath": "-",
+      "codePath": "dead/fees/equation-v2",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-04-06",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-01-26"
+          }
+        },
+        "methodology": {
+          "Fees": "Fees from open/close position and placed limit order (0.05%),  with invitation code (0.045%)",
+          "Revenue": "Revenue is 50% of all collected fees",
+          "ProtocolRevenue": "Revenue is 50% of all collected fees"
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "equation-v3": {
+      "modulePath": "-",
+      "codePath": "dead/fees/equation-v3",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-04-06",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-05-13"
+          }
+        },
+        "methodology": {
+          "Fees": "Fees from open/close position and placed limit order (0.05%),  with invitation code (0.045%)",
+          "Revenue": "Revenue is 50% of all collected fees",
+          "ProtocolRevenue": "Revenue is 50% of all collected fees"
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "filament": {
+      "modulePath": "-",
+      "codePath": "dead/fees/filament",
+      "module": {
+        "deadFrom": "2025-04-19",
+        "version": 2,
+        "adapter": {
+          "sei": {
+            "fetch": "_f",
+            "start": "2023-01-21"
+          }
+        },
+        "methodology": {
+          "totalFees": "Tracks the cumulative fees (borrowing fees + trading fees) generated by all transactions.",
+          "dailyFees": "Tracks the fees (borrowing fees + trading fees) generated by transactions on a daily basis."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "firebird-finance": {
+      "modulePath": "-",
+      "codePath": "dead/fees/firebird-finance.ts",
+      "module": {
+        "methodology": {
+          "Fees": "Fees collected from user trading fees",
+          "Revenue": "Revenue is 100% fee of each swap which goes to treasury"
+        },
+        "deadFrom": "2024-02-29",
+        "version": 1,
+        "adapter": {
+          "avax": {
+            "fetch": "_f",
+            "start": "2022-08-08"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2022-06-07"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2022-08-25"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2022-07-08"
+          },
+          "cronos": {
+            "fetch": "_f",
+            "start": "2022-06-28"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-01-10"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "forge": {
+      "modulePath": "-",
+      "codePath": "dead/fees/forge.ts",
+      "module": {
+        "deadFrom": "2025-03-22",
+        "version": 2,
+        "adapter": {
+          "evmos": {
+            "fetch": "_f",
+            "start": "2023-04-03"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "geist-finance": {
+      "modulePath": "-",
+      "codePath": "dead/fees/geist-finance",
+      "module": {
+        "deadFrom": "2023-12-14",
+        "version": 1,
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": "2021-10-06"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "ghostmarket": {
+      "modulePath": "-",
+      "codePath": "dead/fees/ghostmarket",
+      "module": {
+        "deadFrom": "2024-12-14",
+        "methodology": {
+          "Fees": "Users pay 2% fees on each trade",
+          "UserFees": "Users pay 2% fees on each trade",
+          "ProtocolRevenue": "Protocol gets 2% of each trade",
+          "Revenue": "Revenue is 2% of each trade",
+          "HoldersRevenue": "20% of user fees goes to GFUND single stake pool"
+        },
+        "fetch": "_f",
+        "version": 2,
+        "adapter": {
+          "neo": {
+            "start": "2021-08-24",
+            "fetch": "_f"
+          },
+          "bsc": {
+            "start": "2022-05-30",
+            "fetch": "_f"
+          },
+          "avax": {
+            "start": "2022-05-30",
+            "fetch": "_f"
+          },
+          "polygon": {
+            "start": "2022-05-30",
+            "fetch": "_f"
+          },
+          "ethereum": {
+            "start": "2022-05-13",
+            "fetch": "_f"
+          },
+          "phantasma": {
+            "start": "2019-12-30",
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2023-08-10",
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "grizzly-trade": {
+      "modulePath": "-",
+      "codePath": "dead/fees/grizzly-trade.ts",
+      "module": {
+        "deadFrom": "2024-12-14",
+        "methodology": {
+          "Fees": "Fees from open/close position (0.1%), swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+          "UserFees": "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+          "HoldersRevenue": "10% goes to MVX stakers and 25% are buyback and burn of GHNY",
+          "SupplySideRevenue": "50% of all collected fees goes to GLL holders",
+          "Revenue": "15% Protocol revenue, 10% goes to MVX stakers and 25% are buyback and burn of GHNY",
+          "ProtocolRevenue": "10% of all collected fees goes to Grizzly.fi treasury and 5% goes to marketing"
+        },
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-07-21"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "hydradex-v2": {
+      "modulePath": "-",
+      "codePath": "dead/fees/hydradex-v2.ts",
+      "module": {
+        "version": 2,
+        "deadFrom": "2023-07-09",
+        "adapter": {
+          "hydra": {
+            "fetch": "_f"
+          }
+        },
+        "methodology": {
+          "UserFees": "User pays 0.3% fees on each swap.",
+          "ProtocolRevenue": "Protocol have no revenue.",
+          "SupplySideRevenue": "All user fees are distributed among LPs.",
+          "HoldersRevenue": "Holders have no revenue."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "hyperionx": {
+      "modulePath": "-",
+      "codePath": "dead/fees/hyperionx",
+      "module": {
+        "adapter": {
+          "zkfair": {
+            "fetch": "_f",
+            "start": "2024-01-31"
+          }
+        },
+        "deadFrom": "2024-10-31",
+        "version": 2,
+        "runAtCurrTime": false
+      }
+    },
+    "impermax-finance": {
+      "modulePath": "-",
+      "codePath": "dead/fees/impermax-finance",
+      "module": {
+        "runAtCurrTime": true,
+        "fetch": "_f",
+        "methodology": {
+          "Fees": "Fees is the interest rate paid by borrowers",
+          "Revenue": "Percentage of interest going to treasury, based on each lending pool's reserve factor.",
+          "ProtocolRevenue": "Percentage of interest going to treasury, based on each lending pool's reserve factor."
+        },
+        "deadFrom": "2026-02-04",
+        "adapter": {
+          "ethereum": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "polygon": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "arbitrum": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "fantom": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "base": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "scroll": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "optimism": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "avax": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "sonic": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "blast": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "linea": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "zksync": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1
+      }
+    },
+    "impermax-finance-v3": {
+      "modulePath": "-",
+      "codePath": "dead/fees/impermax-finance-v3",
+      "module": {
+        "runAtCurrTime": true,
+        "fetch": "_f",
+        "deadFrom": "2026-02-04",
+        "methodology": {
+          "Fees": "Fees is the interest rate paid by borrowers",
+          "Revenue": "Percentage of interest going to treasury, based on each lending pool's reserve factor.",
+          "ProtocolRevenue": "Percentage of interest going to treasury, based on each lending pool's reserve factor."
+        },
+        "adapter": {
+          "base": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "unichain": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "hyperliquid": {
+            "start": "2023-10-23",
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1
+      }
+    },
+    "junoswap": {
+      "modulePath": "-",
+      "codePath": "dead/fees/junoswap.ts",
+      "module": {
+        "deadFrom": "2023-02-02",
+        "adapter": {
+          "juno": {
+            "fetch": "_f",
+            "start": "2022-03-09"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kinetix": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kinetix",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-08-19",
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": "2023-08-29"
+          }
+        },
+        "methodology": "All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined. Daily revenue is calculated as 30% of the total fee.",
+        "runAtCurrTime": false
+      }
+    },
+    "kinetix-derivatives-v2": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kinetix-derivatives-v2",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-08-19",
+        "adapter": {
+          "kava": {
+            "fetch": "_f",
+            "start": "2024-02-02"
+          }
+        },
+        "methodology": "All treasury, pool and keeper fees are collected",
+        "runAtCurrTime": false
+      }
+    },
+    "kinto-xyz": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kinto-xyz",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "hyperliquid"
+        ],
+        "start": "2024-12-24",
+        "methodology": {
+          "Fees": "builder code revenue from Hyperliquid Perps Trades.",
+          "Revenue": "builder code revenue from Hyperliquid Perps Trades.",
+          "ProtocolRevenue": "builder code revenue from Hyperliquid Perps Trades."
+        },
+        "doublecounted": true,
+        "deadFrom": "2025-09-07",
+        "adapter": {
+          "hyperliquid": {
+            "fetch": "_f",
+            "start": "2024-12-24"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kperp-exchange": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kperp-exchange.ts",
+      "module": {
+        "deadFrom": "2023-02-24",
+        "adapter": {
+          "kava": {
+            "fetch": "_f"
+          }
+        },
+        "methodology": "All mint, burn, marginAndLiquidation and swap fees are collected and the daily fee amount is determined. Daily revenue is calculated as 30% of the total fee.",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kwenta": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kwenta.ts",
+      "module": {
+        "deadFrom": "2024-12-14",
+        "adapter": {
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-04-22"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kyberswap": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kyberswap.ts",
+      "module": {
+        "deadFrom": "2025-01-01",
+        "breakdown": {
+          "classic": {
+            "aurora": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "optimism": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "arbitrum": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "fantom": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "avax": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "bsc": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "polygon": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "ethereum": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "cronos": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "era": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "linea": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "polygon_zkevm": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "bittorrent": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "scroll": {
+              "fetch": "_f",
+              "start": "_f"
+            }
+          },
+          "elastic": {
+            "optimism": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "arbitrum": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "fantom": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "avax": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "bsc": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "polygon": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "ethereum": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "linea": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "bittorrent": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "base": {
+              "fetch": "_f",
+              "start": "_f"
+            },
+            "scroll": {
+              "fetch": "_f",
+              "start": "_f"
+            }
+          }
+        },
+        "adapter": {},
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kyberswap-classic": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kyberswap-classic.ts",
+      "module": {
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "aurora": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "cronos": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "polygon_zkevm": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "bittorrent": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "methodology": {
+          "UserFees": "Users pay a dynamic fee based on market conditions",
+          "Fees": "Kyberswap Classic collects a dynamic fee that increases with market volatility and decreases with stable market conditions",
+          "Revenue": "Currently 100% of the dao rewards (10% of the collected fees) goes to all voters (KNC stakers)",
+          "ProtocolRevenue": "Treasury have no revenue",
+          "HoldersRevenue": "Holders who stake and participate in the KyberDAO get their share of the fees designated for rewards, currently set at 10% of trading fees",
+          "SupplySideRevenue": "Liquidity providers earn 90% fees of trading routed through their pool and selected price range"
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kyberswap-elastic": {
+      "modulePath": "-",
+      "codePath": "dead/fees/kyberswap-elastic.ts",
+      "module": {
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "optimism": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "bittorrent": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "_f"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "methodology": {
+          "UserFees": "Users pay trading fees based pool fee setting: 0.008%, 0.01%, 0.04%, 0.3% and 1%",
+          "Fees": "Each pool can have different fees set from the following tires: 0.008%, 0.01%, 0.04%, 0.3% and 1%",
+          "Revenue": "Currently 100% of the dao rewards (10% of the collected fees) goes to all voters (KNC stakers)",
+          "ProtocolRevenue": "Treasury have no revenue",
+          "HoldersRevenue": "Holders who stake and participate in the KyberDAO get their share of the fees designated for rewards, currently set at 10% of trading fees",
+          "SupplySideRevenue": "Liquidity providers earn 90% fees of trading routed through their pool and selected price range"
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "lifinity": {
+      "modulePath": "-",
+      "codePath": "dead/fees/lifinity.ts",
+      "module": {
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "_f"
+          }
+        },
+        "methodology": {
+          "UserFees": "Base trading fee differs on each pool",
+          "Fees": "All fees generated from trading fees",
+          "SupplySideRevenue": "LPs currently receive 0% of trading fees",
+          "ProtocolRevenue": "100% of trading fees is retained as a protocol fee",
+          "Revenue": "100% of trading fees is retained as a protocol fee",
+          "HoldersRevenue": "Holders have no revenue from trading fees"
+        },
+        "deadFrom": "2025-11-21",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "liondex": {
+      "modulePath": "-",
+      "codePath": "dead/fees/liondex",
+      "module": {
+        "deadFrom": "2024-12-14",
+        "version": 2,
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-06-13"
+          }
+        },
+        "methodology": {
+          "Fees": "Daily fees collected from user trading fees"
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "logx": {
+      "modulePath": "-",
+      "codePath": "dead/fees/logx",
+      "module": {
+        "deadFrom": "2025-09-10",
+        "adapter": {
+          "logx_network": {
+            "start": "2024-09-11",
+            "fetch": "_f"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "mango-v4": {
+      "modulePath": "-",
+      "codePath": "dead/fees/mango-v4.ts",
+      "module": {
+        "deadFrom": "2025-02-05",
+        "adapter": {
+          "solana": {
+            "runAtCurrTime": true,
+            "fetch": "_f"
+          }
+        },
+        "methodology": {
+          "Fees": "CLOB maker/taker fees are -0.02%/0.04%. Swap fees are 0.1%, with a fee of 0.2% for stop-loss swaps. Perp maker/taker fees are -0.03%/0.1%. Stop-loss orders have a fee of 0.2%. Borrows have an origination fee of 0.05%-0.2%, based on token liquidity. Liquidations have fees ranging from 5-20%.",
+          "UserFees": "CLOB maker/taker fees are -0.02%/0.04%. Swap fees are 0.1%, with a fee of 0.2% for stop-loss swaps. Perp maker/taker fees are -0.03%/0.1%. Stop-loss orders have a fee of 0.2%. Borrows have an origination fee of 0.05%-0.2%, based on token liquidity. Liquidations have fees ranging from 5-20%.",
+          "Revenue": "All fees collected accrue to the Mango DAO treasury.",
+          "ProtocolRevenue": "All fees collected accrue to the Mango DAO treasury."
+        },
+        "allowNegativeValue": true,
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "memewe": {
+      "modulePath": "-",
+      "codePath": "dead/fees/memewe",
+      "module": {
+        "deadFrom": "2025-03-01",
+        "version": 1,
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": "2024-11-28"
+          }
+        },
+        "methodology": {
+          "Fees": "Tokens trading and launching fees paid by users.",
+          "Revenue": "All fees are revenue.",
+          "ProtocolRevenue": "All revenue collected by protocol."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "meowl": {
+      "modulePath": "-",
+      "codePath": "dead/fees/meowl",
+      "module": {
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-05-29"
+          }
+        },
+        "deadFrom": "2024-05-29",
+        "version": 2,
+        "methodology": {
+          "Fees": "Fees paid by users while using Meowl Discord bot.",
+          "Revenue": "All fees are revenue."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "merlin": {
+      "modulePath": "-",
+      "codePath": "dead/fees/merlin.ts",
+      "module": {
+        "deadFrom": "2023-12-14",
+        "adapter": {
+          "era": {
+            "fetch": "_f",
+            "start": "2023-03-31"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "milkyway": {
+      "modulePath": "-",
+      "codePath": "dead/fees/milkyway.ts",
+      "module": {
+        "adapter": {
+          "osmosis": {
+            "fetch": "_f",
+            "start": "2024-04-30"
+          }
+        },
+        "deadFrom": "2026-01-15",
+        "version": 2,
+        "methodology": {
+          "UserFees": "MilkyWay takes 10% fee on users staking rewards",
+          "Fees": "Staking rewards earned by all staked TIA",
+          "Revenue": "MilkyWay takes 10% fee on users staking rewards",
+          "ProtocolRevenue": "MilkyWay takes 10% fee on users staking rewards",
+          "SuplySideRevenue": "Staking rewards earned by milkTIA holders"
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "morphex": {
+      "modulePath": "-",
+      "codePath": "dead/fees/morphex.ts",
+      "module": {
+        "deadFrom": "2025-01-27",
+        "methodology": {
+          "Fees": "Fees from open/close position (0.1%), liquidations, swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+          "UserFees": "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+          "HoldersRevenue": "30% of all collected fees are distributed to MPX stakers",
+          "SupplySideRevenue": "60% of all collected fees are distributed to MLP stakers",
+          "Revenue": "Governance revenue is 30% of all collected fees, which are distributed to MPX stakers",
+          "ProtocolRevenue": "10% of all collected fees are distributed to the treasury"
+        },
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-07-22"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-06-15"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "morphex-old": {
+      "modulePath": "-",
+      "codePath": "dead/fees/morphex-old.ts",
+      "module": {
+        "deadFrom": "2025-01-27",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-03-03"
+          }
+        },
+        "methodology": {
+          "Fees": "Fees from open/close position (0.1%), liquidations, swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+          "UserFees": "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+          "HoldersRevenue": "30% of all collected fees are distributed to MPX stakers",
+          "SupplySideRevenue": "60% of all collected fees are distributed to MLP stakers",
+          "Revenue": "Governance revenue is 30% of all collected fees, which are distributed to MPX stakers",
+          "ProtocolRevenue": "10% of all collected fees are distributed to the treasury"
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "nether-fi": {
+      "modulePath": "-",
+      "codePath": "dead/fees/nether-fi",
+      "module": {
+        "version": 1,
+        "deadFrom": "2025-01-28",
+        "adapter": {
+          "base": {
+            "fetch": "_f",
+            "start": 1693526400
+          }
+        },
+        "methodology": {
+          "Fees": "Open/Close position: 0.1% | Swap: 0.2% to 0.8% | Mint and Burn: 0% to 0.85% (based on tokens balance in the pool) | Borrow Fee: `(assets borrowed) / (total assets in pool) * 0.01%`",
+          "UserFees": "Open/Close position: 0.1% | Swap: 0.2% to 0.8% | Borrow Fee: (assets borrowed) / (total assets in pool) * 0.01%",
+          "HoldersRevenue": "30% of all collected fees goes to NFI and esNFI stakers",
+          "SupplySideRevenue": "70% of all collected fees goes to NLP holders",
+          "Revenue": "Revenue is 30% of all collected fees, which goes to NFI and esNFI stakers",
+          "ProtocolRevenue": "Treasury has no revenue"
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "nftearth": {
+      "modulePath": "-",
+      "codePath": "dead/fees/nftearth.ts",
+      "module": {
+        "deadFrom": "2024-01-01",
+        "adapter": {
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-01-30"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-02-14"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-01-30"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "none-trading-bot": {
+      "modulePath": "-",
+      "codePath": "dead/fees/none-trading-bot.ts",
+      "module": {
+        "deadFrom": "2024-12-14",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-07-30"
+          }
+        },
+        "methodology": {
+          "Fees": "NFT trading fees paid by users.",
+          "Revenue": "NFT trading fees paid by users."
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "opensea-v1": {
+      "modulePath": "-",
+      "codePath": "dead/fees/opensea-v1.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false,
+        "deadFrom": "2022-06-12"
+      }
+    },
+    "opensea-v2": {
+      "modulePath": "-",
+      "codePath": "dead/fees/opensea-v2.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false,
+        "deadFrom": "2024-12-14"
+      }
+    },
+    "plenty": {
+      "modulePath": "-",
+      "codePath": "dead/fees/plenty.ts",
+      "module": {
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "tezos": {
+            "fetch": "_f",
+            "start": "2023-01-01",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "plexus": {
+      "modulePath": "-",
+      "codePath": "dead/fees/plexus.ts",
+      "module": {
+        "deadFrom": "2025-03-02",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "kava": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "klaytn": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          },
+          "aurora": {
+            "fetch": "_f",
+            "start": "2023-02-01"
+          }
+        },
+        "methodology": {
+          "Fees": "Swap fees paid by users."
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "predy-finance-v320": {
+      "modulePath": "-",
+      "codePath": "dead/fees/predy-finance-v320.ts",
+      "module": {
+        "version": 1,
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false,
+        "deadFrom": "2024-12-14"
+      }
+    },
+    "rollup-finace": {
+      "modulePath": "-",
+      "codePath": "dead/fees/rollup-finace.ts",
+      "module": {
+        "adapter": {
+          "era": {
+            "fetch": "_f",
+            "start": "2023-04-21"
+          }
+        },
+        "deadFrom": "2024-09-31",
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "surfone": {
+      "modulePath": "-",
+      "codePath": "dead/fees/surfone",
+      "module": {
+        "deadFrom": "2026-01-23",
+        "version": 1,
+        "adapter": {
+          "merlin": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "runAtCurrTime": true
+      }
+    },
+    "swych": {
+      "modulePath": "-",
+      "codePath": "dead/fees/swych",
+      "module": {
+        "methodology": {
+          "Fees": "Swych collects fees from different transactions done on the Perpetual Exchange."
+        },
+        "version": 2,
+        "deadFrom": "2025-01-01",
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-12-04"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "thetis-market": {
+      "modulePath": "-",
+      "codePath": "dead/fees/thetis-market.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "aptos"
+        ],
+        "deadFrom": "2025-09-09",
+        "start": "2024-11-26",
+        "methodology": {
+          "Fees": "All fees for adding/removing liquidity, margin, liquidation, and swaps are collected",
+          "SupplySideRevenue": "SupplySideRevenue is 80% of the total fees, which are distributed to LP stakers",
+          "Revenue": "Revenue is 20% of the total fees"
+        },
+        "adapter": {
+          "aptos": {
+            "fetch": "_f",
+            "start": "2024-11-26"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "umoja": {
+      "modulePath": "-",
+      "codePath": "dead/fees/umoja",
+      "module": {
+        "deadFrom": "2025-04-22",
+        "methodology": {
+          "Fees": "All fees comes from synthetic option activation, which are about 1% of the notional value of option."
+        },
+        "fetch": "_f",
+        "chains": [
+          "arbitrum"
+        ],
+        "start": "2024-02-05",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-02-05"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "unlimited-network": {
+      "modulePath": "-",
+      "codePath": "dead/fees/unlimited-network.ts",
+      "module": {
+        "deadFrom": "2024-01-30",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-05-22"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "vela": {
+      "modulePath": "-",
+      "codePath": "dead/fees/vela",
+      "module": {
+        "deadFrom": "2024-10-24",
+        "version": 1,
+        "methodology": {
+          "Fees": "Daily fees collected from user trading fees"
+        },
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-06-26"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-09-04"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "vertex-protocol": {
+      "modulePath": "-",
+      "codePath": "dead/fees/vertex-protocol.ts",
+      "module": {
+        "allowNegativeValue": true,
+        "deadFrom": "2025-07-18",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-04-26"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2023-04-26"
+          },
+          "sei": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-08-13"
+          },
+          "base": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-09-04"
+          },
+          "sonic": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-12-18"
+          },
+          "abstract": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2025-01-29"
+          },
+          "avax": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2025-03-26"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
+    "xoxno": {
+      "modulePath": "-",
+      "codePath": "dead/fees/xoxno",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "elrond": {
+            "fetch": "_f",
+            "start": "2023-05-12"
+          }
+        },
+        "deadFrom": "2024-10-01",
+        "runAtCurrTime": false
+      }
+    }
+  },
+  "options": {
+    "lyra": {
+      "modulePath": "-",
+      "codePath": "dead/options/lyra",
+      "module": {
+        "version": 2,
+        "fetch": "_f",
+        "adapter": {
+          "optimism": {
+            "start": "2021-11-12",
+            "deadFrom": "2025-03-06",
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "start": "2023-01-12",
+            "deadFrom": "2023-12-29",
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "smilee-finance": {
+      "modulePath": "-",
+      "codePath": "dead/options/smilee-finance",
+      "module": {
+        "version": 2,
+        "deadFrom": "2024-09-15",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-03-14"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "umoja": {
+      "modulePath": "-",
+      "codePath": "dead/options/umoja",
+      "module": {
+        "deadFrom": "2025-04-22",
+        "fetch": "_f",
+        "chains": [
+          "arbitrum"
+        ],
+        "start": "2024-02-05",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-02-05"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    }
+  }
+}

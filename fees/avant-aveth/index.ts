@@ -34,9 +34,10 @@ const fetch = async (options: FetchOptions) => {
   })
 
   daily_rewards.forEach((log) => {
-    dailyFees.add(avEth, log.amount, METRIC.ASSETS_YIELDS);
+    const protocolCut = Number(log.amount) / 9
+    dailyFees.add(avEth, Number(log.amount) + protocolCut, METRIC.ASSETS_YIELDS);
     dailySupplySideRevenue.add(avEth, log.amount, METRIC.ASSETS_YIELDS);
-    dailyRevenue.add(avEth, Number(log.amount) / 9, METRIC.PERFORMANCE_FEES)
+    dailyRevenue.add(avEth, protocolCut, METRIC.PERFORMANCE_FEES)
   });
 
   return {
@@ -49,6 +50,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2025-08-11',

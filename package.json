@@ -6,6 +6,7 @@
   "scripts": {
     "test": "ts-node --transpile-only cli/testAdapter.ts",
     "build": "ts-node --transpile-only cli/buildModules.ts",
+    "migrate-dead": "ts-node --transpile-only cli/migrateDeadProjects.ts",
     "ts-check": "tsc --project tsconfig.json",
     "ts-check-cli": "tsc --project tsconfig.cli.json",
     "use-token-labels": "node helpers/useTokenLabels.js",
@@ -24,7 +25,7 @@
   "homepage": "https://github.com/DefiLlama/adapters#readme",
   "dependencies": {
     "@clickhouse/client": "^1.15.0",
-    "@defillama/sdk": "^5.0.206",
+    "@defillama/sdk": "^5.0.208",
     "@supercharge/promise-pool": "^3.1.0",
     "@types/async-retry": "^1.4.8",
     "async-retry": "^1.3.3",

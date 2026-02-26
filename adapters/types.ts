@@ -45,7 +45,7 @@ export type FetchOptions = {
   getEndBlock: () => Promise<number>,
   dateString: string,
   preFetchedResults?: any,
-  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching
+  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching (used only for batch processing dune queries for now)
   startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
 }
 
@@ -87,6 +87,10 @@ export type BaseAdapterChainConfig = {
   runAtCurrTime?: boolean;
 }
 
+export const whitelistedBaseAdapterKeys = new Set([
+  'start', 'deadFrom', 'fetch', 'runAtCurrTime'
+])
+
 export type BaseAdapter = {
   [chain: string]: BaseAdapterChainConfig
 };
@@ -119,7 +123,7 @@ export type AdapterBase = {
   prefetch?: FetchV2;
   runAtCurrTime?: boolean;
   start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
-  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results
+  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results - We stopped caching these results but left as is as it is used in batching dune queries, we can re-use it later if needed
   pullHourly?: boolean;
 }
 
@@ -127,13 +131,7 @@ export type SimpleAdapter = AdapterBase & {
   adapter?: BaseAdapter
 }
 
-export type BreakdownAdapter = AdapterBase & {  // do not use this, this is deprecated
-  breakdown: {
-    [version: string]: BaseAdapter
-  };
-};
-
-export type Adapter = SimpleAdapter | BreakdownAdapter;
+export type Adapter = SimpleAdapter;
 export type FetchResponseValue = string | number | Balances;
 
 /**
@@ -150,6 +148,7 @@ export type FetchResultVolume = FetchResultBase & {
   dailyBridgeVolume?: FetchResponseValue
   totalBridgeVolume?: FetchResponseValue
   dailyNormalizedVolume?: FetchResponseValue
+  dailyActiveLiquidity?: FetchResponseValue
 };
 
 // FEES
@@ -219,7 +218,7 @@ export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggre
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume',
+  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume', 'dailyActiveLiquidity',
   'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
   'tokenIncentives',
   'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',

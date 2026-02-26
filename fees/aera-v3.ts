@@ -160,7 +160,7 @@ const fetch = async (options: FetchOptions) => {
       (BigInt(totalSupply) * unitPriceDelta) / BigInt(10 ** decimals);
 
     // dailyFees represents net vault yield (can be positive or negative)
-    dailyFees.add(numeraireToken, yieldAmount);
+    dailyFees.add(numeraireToken, yieldAmount, METRIC.ASSETS_YIELDS);
 
     // Protocol revenue is always a fixed share of yield, including negative days
     // This prevents inflating protocol revenue by excluding loss days
@@ -218,6 +218,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-05-28' },

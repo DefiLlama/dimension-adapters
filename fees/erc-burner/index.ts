@@ -53,6 +53,7 @@ const fetchChainData = async (chain: string, options: any) => {
 // Create adapter for each chain
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(BURNER_CONTRACTS).reduce((acc, chain) => {
     // For other chains, use the standard approach
     acc[chain] = {
