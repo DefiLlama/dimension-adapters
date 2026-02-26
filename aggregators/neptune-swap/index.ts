@@ -37,6 +37,7 @@ const methodology = {
 
 const adapter: any = {
     version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.CRONOS],
     methodology,

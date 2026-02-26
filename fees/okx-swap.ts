@@ -113,6 +113,7 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   methodology: {
     Fees: 'Total comission fees from every trade.',

@@ -28,6 +28,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'All priority/boost ETH fees paid transactions by users.',
     Revenue: 'All fees go to Arbitrum protocol treasury.',

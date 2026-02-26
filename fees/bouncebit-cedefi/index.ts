@@ -1,7 +1,7 @@
 import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 
 const bbscanApiURL = "https://api-portal.bouncebit.io/api/fee/stats";
 

@@ -87,6 +87,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,

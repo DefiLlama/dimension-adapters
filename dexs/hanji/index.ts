@@ -137,6 +137,7 @@ async function fetch({ getLogs, createBalances, chain, fromApi, toApi, api }: Fe
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: config,
 }
