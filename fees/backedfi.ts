@@ -1,11 +1,16 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
-import fetchURL from "../../utils/fetchURL";
+import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
+import fetchURL from "../utils/fetchURL";
 
 // Source: https://docs.backed.fi/backed-platform/issuance-and-redemption
 // Fees are charged on issuance (minting) and redemption (burning) of backed tokens
-// Fee structure: No information available yet
+// Management Fee The tracker charges no management fee at present.
+// Fee structure: https://assets.backed.fi/legal-documentation/product-database
+// Issuance / Redemption Fee : Up to 0.50% of your investment's value when entering and exiting the investment
+// Management Fee The tracker charges no management fee at present.
+// A fee of up to 0.25% per annum may be introduced in the future.
 
 interface ApiDeployment {
   address: string;
@@ -47,6 +52,7 @@ const CHAIN_NAME_MAP: Record<string, string> = {
   [CHAIN.BSC]: 'BinanceSmartChain',
   [CHAIN.BASE]: 'Base',
   [CHAIN.MANTLE]: 'Mantle',
+  [CHAIN.SOLANA]: 'Solana',
 };
 
 let cachedProducts: ApiProduct[] | null = null;
@@ -91,7 +97,7 @@ const prefetch = async (options: FetchOptions) => {
   return await getProducts();
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a:any, _b:any, options: FetchOptions) => {
   const products = await options.preFetchedResults;
   const tokens = await getAddressesByChain(products, options.chain);
   if (tokens.length === 0) return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
@@ -120,7 +126,7 @@ const fetch = async (options: FetchOptions) => {
     parseLog: true,
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      null,
+      null as any,
       '0x0000000000000000000000000000000000000000000000000000000000000000',
     ]
   })
@@ -134,8 +140,73 @@ const fetch = async (options: FetchOptions) => {
   }
 };
 
+interface IData {
+  token_mint_address: string;
+  amount: number;
+}
+
+const fetchSolana: any = async (_a:any, _b:any, options: FetchOptions) => {
+  const products = await options.preFetchedResults;
+  const dailyFees = options.createBalances()
+
+  const tokens = await getAddressesByChain(products, options.chain);
+  if (tokens.length === 0) return { dailyFees, dailyRevenue: dailyFees };
+
+
+  const tokensClause = tokens
+    .map(address => `'${address}'`)
+    .join(', ');
+
+  const sql = `
+    WITH target_tokens AS (
+      SELECT token_mint_address
+      FROM tokens_solana.fungible
+      WHERE token_version = 'spl_token'
+        AND token_mint_address IN (${tokensClause})
+    ),
+    mints AS (
+      SELECT
+        account_mint AS token_mint_address,
+        CAST(amount AS DOUBLE) AS amount
+      FROM spl_token_solana.spl_token_call_mintto
+      WHERE call_block_time >= from_unixtime(${options.startTimestamp})
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND account_mint IN (SELECT token_mint_address FROM target_tokens)
+    ),
+    burns AS (
+      SELECT
+        account_mint AS token_mint_address,
+        CAST(amount AS DOUBLE) AS amount
+      FROM spl_token_solana.spl_token_call_burn
+      WHERE call_block_time >= from_unixtime(${options.startTimestamp})
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND account_mint IN (SELECT token_mint_address FROM target_tokens)
+    )
+    SELECT
+      token_mint_address,
+      SUM(amount) AS amount
+    FROM (
+      SELECT * FROM mints
+      UNION ALL
+      SELECT * FROM burns
+    ) combined
+    GROUP BY token_mint_address
+  `;
+  
+  const results: IData[] = await queryDuneSql(options, sql);
+
+  for (const r of results) {
+    dailyFees.addToken(r.token_mint_address, Number(r.amount) * 0.005, METRIC.MINT_REDEEM_FEES);
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+  }
+};
+
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2022-12-22' },
@@ -146,8 +217,10 @@ const adapters: SimpleAdapter = {
     [CHAIN.BSC]: { start: '2023-08-10' },
     [CHAIN.BASE]: { start: '2023-08-30' },
     [CHAIN.MANTLE]: { start: '2025-11-27' },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: '2025-06-10' },
   },
   prefetch: prefetch as any,
+  dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: "Up to 0.50% of your investment's value is charged when entering and exiting the investment",
     Revenue: 'All fees are revenue for the protocol',
@@ -161,4 +234,5 @@ const adapters: SimpleAdapter = {
     }
   }
 };
+
 export default adapters;
