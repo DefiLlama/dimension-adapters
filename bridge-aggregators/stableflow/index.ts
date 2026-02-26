@@ -45,7 +45,7 @@ const fetch: Fetch = async (_timestamp, _chainBlocks, options): Promise<FetchRes
     });
 
     return {
-        dailyVolume: record?.volume || 0,
+        dailyBridgeVolume: record?.volume || 0,
     };
 };
 
