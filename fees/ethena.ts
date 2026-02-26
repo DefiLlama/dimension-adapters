@@ -135,6 +135,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,

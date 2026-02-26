@@ -35,6 +35,7 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BSC, CHAIN.OPTIMISM, CHAIN.MANTLE],
   start: '2023-06-02',

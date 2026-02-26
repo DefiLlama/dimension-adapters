@@ -34,6 +34,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.POLYGON]: { start: "2022-10-12" },

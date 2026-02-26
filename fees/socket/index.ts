@@ -48,6 +48,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(SocketGatewayContracts).reduce((acc, chain) => {
     return {
       ...acc,

@@ -18,7 +18,6 @@ const protocolChainMap: Record<string, string> = {
   "ethereumclassic": "ethereumclassic",
   "etherlink": "etlk",
   "fantom": "fantom",
-  "filecoin": "filecoin",
   "flare": "flare",
   "fuse": "fuse",
   "gravity": "gravity",
@@ -114,6 +113,7 @@ const protocolChainMap: Record<string, string> = {
   "endurance": "endurance",
   "exsat": "xsat",
   "kroma": "kroma",
+  "eni": "eni",
 }
 
 const deadFromMap: Record<string, string> = {

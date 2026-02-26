@@ -74,6 +74,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
 
   methodology: {
     Fees: "All swap fees paid by users.",

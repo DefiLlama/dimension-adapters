@@ -1,4 +1,8 @@
+import * as sdk from "@defillama/sdk";
+import { CHAIN } from "../helpers/chains";
 import { uniV2Exports } from "../helpers/uniswap";
+import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
+import { SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 
 const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
@@ -472,7 +476,7 @@ const configs: Record<string, Record<string, any>> = {
     gravity: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-07-04', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     rari: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-05', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
     reya: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-06-20', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
-    sanko: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-04-17', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
+    // sanko: { factory: '0x7d8c6B58BA2d40FC6E34C25f9A488067Fe0D2dB4', start: '2024-04-17', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.175, holdersRevenueRatio: 0.225 },
   },
   "apeswap": {
     bsc: { factory: '0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6', start: 1613273226, fees: 0.002, userFeesRatio: 1, revenueRatio: 0.15, protocolRevenueRatio: 0, holdersRevenueRatio: 0.15 },
@@ -545,6 +549,10 @@ const configs: Record<string, Record<string, any>> = {
     blast: { factory: '0xf5190e64db4cbf7ee5e72b55cc5b2297e20264c2', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
     mode: { factory: '0x757cd583004400ee67e5cc3c7a60c6a62e3f6d30', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
     linea: { factory: '0x9790713770039cefcf4faaf076e2846c9b7a4630', userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32 },
+  },
+  "traderjoe-v1": {
+    [CHAIN.BSC]: { factory: '0x4f8bdc85e3eec5b9de67097c3f59b6db025d9986', start: '2022-10-04', fees: 0.003, revenueRatio: 0.0005 / 0.003, holdersRevenueRatio: 0.0005 / 0.003, },
+    [CHAIN.AVAX]: { factory: '0x9Ad6C38BE94206cA50bb0d90783181662f0Cfa10', start: '2021-08-09', fees: 0.003, revenueRatio: 0.0005 / 0.003, holdersRevenueRatio: 0.0005 / 0.003, },
   },
   "tethys-finance": {
     metis: { factory: '0x2CdFB20205701FF01689461610C9F321D1d00F80', start: '2021-12-18', fees: 0.002, userFeesRatio: 1, revenueRatio: 0.3, protocolRevenueRatio: 0, holdersRevenueRatio: 0.3 },
@@ -716,9 +724,6 @@ const configs: Record<string, Record<string, any>> = {
 const optionsMap: Record<string, any> = {
   // replaced with pullHourly
   // "dyorswap": { runAsV1: true },
-  // "canto-dex": { runAsV1: true },
-  // "viperswap": { runAsV1: true },
-  // "swapmode-v2": { runAsV1: true },
 }
 
 const methodologyMap: Record<string, any> = {
@@ -1100,6 +1105,9 @@ const feesConfigs: Record<string, Record<string, any>> = {
   "equilibre-exchange": {
     kava: { factory: '0xA138FAFc30f6Ec6980aAd22656F2F11C38B56a95' },
   },
+  'tomb-swap': {
+    [CHAIN.FANTOM]: { factory: '0xE236f6890F1824fa0a7ffc39b1597A5A6077Cfe9' },
+  },
   "pearlfi": {
     polygon: { factory: '0xEaF188cdd22fEEBCb345DCb529Aa18CA9FcB4FBd' },
   },
@@ -1146,6 +1154,432 @@ const feesMethodologyMap: Record<string, any> = {
   },
 }
 
+// --- Subgraph-based adapter configs ---
+// These use univ2Adapter2 (subgraph queries) instead of on-chain log parsing.
+// Each entry maps a protocol name to its subgraph configuration.
+interface SubgraphProtocolConfig {
+  endpoints: { [chain: string]: string };
+  factoriesName?: string;
+  totalVolume?: string;
+  totalFeesField?: string | null;
+  feeConfig?: {
+    totalFees?: number;
+    protocolFees?: number;
+    revenue?: number;
+    userFees?: number;
+    supplySideRevenue?: number;
+    holdersRevenue?: number;
+  };
+  start?: string | number;
+  perChainStart?: { [chain: string]: string | number };
+  methodology?: any;
+  deadFrom?: string;
+}
+
+const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
+  "minerswap": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: "https://subgraph.minerswap.fi/subgraphs/name/pancakeswap/exchange",
+    },
+    factoriesName: "pancakeFactories",
+  },
+  "mojitoswap": {
+    endpoints: {
+      [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
+    },
+    start: 1634200191,
+  },
+  "neby-dex": {
+    endpoints: {
+      [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex",
+    },
+    factoriesName: "factories",
+  },
+  "pyeswap": {
+    endpoints: {
+      [CHAIN.BSC]: sdk.graph.modifyEndpoint('56dMe6VDoxCisTvkgXw8an3aQbGR8oGhR292hSu6Rh3K'),
+    },
+    factoriesName: "pyeFactories",
+    start: 1660893036,
+  },
+  "savmswap": {
+    endpoints: {
+      [CHAIN.SVM]: "https://subgraph.8gr.xyz/subgraphs/name/savmswap/savmswap",
+    },
+    start: 1711411200,
+  },
+  "sharkswap": {
+    endpoints: {
+      [CHAIN.SX]: "https://rollup-graph.sx.technology/subgraphs/name/sharkswap/exchange",
+    },
+    factoriesName: "factories",
+    totalVolume: "volumeUSD",
+  },
+  "solidlydex": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('4GX8RE9TzEWormbkayeGj4NQmmhYE46izVVUvXv8WPDh'),
+    },
+    start: 1672444800,
+  },
+  "sonic-market-cpmm": {
+    endpoints: {
+      [CHAIN.SONIC]: "https://subgraph.satsuma-prod.com/f6a8c4889b7b/clober/cpmm-v2-subgraph-sonic-mainnet/api",
+    },
+  },
+  "stellaswap-v3": {
+    endpoints: {
+      [CHAIN.MOONBEAM]: sdk.graph.modifyEndpoint('85R1ZetugVABa7BiqKFqE2MewRuJ8b2SaLHffyTHDAht'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: 1672876800,
+  },
+  "step-exchange": {
+    endpoints: {
+      [CHAIN.STEP]: "https://graph.step.network/subgraphs/name/stepapp/stepex",
+    },
+    factoriesName: "stepExFactories",
+  },
+  "ubeswap": {
+    endpoints: {
+      [CHAIN.CELO]: sdk.graph.modifyEndpoint('JWDRLCwj4H945xEkbB6eocBSZcYnibqcJPJ8h9davFi'),
+    },
+    factoriesName: "ubeswapFactories",
+    start: 1614574153,
+  },
+  "wanswap-dex": {
+    endpoints: {
+      [CHAIN.WAN]: "https://thegraph.one/subgraphs/name/wanswap/wanswap-subgraph-3",
+    },
+    start: 1632268798,
+  },
+  "yokaiswap": {
+    endpoints: {
+      [CHAIN.GODWOKEN]: "https://v0.yokaiswap.com/subgraphs/name/yokaiswap/exchange",
+      [CHAIN.GODWOKEN_V1]: "https://www.yokaiswap.com/subgraphs/name/yokaiswap/exchange",
+    },
+    factoriesName: "yokaiFactories",
+  },
+  "zircon-gamma": {
+    endpoints: {
+      [CHAIN.MOONRIVER]: "https://api.thegraph.com/subgraphs/name/reshyresh/zircon-alpha",
+    },
+    start: 1663200000,
+  },
+  "aktionariat": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2ZoJCp4S7YP7gbYN2ndsYNjPeZBV1PMti7BBoPRRscNq'),
+      [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('3QfEXbPfP23o3AUzcmjTfRtUUd4bfrFj3cJ4jET57CTX'),
+      [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('7camBLZckE5TLKha372tqawpDs8Lkez6yYiri7PykRak'),
+    },
+    factoriesName: "registries",
+    totalVolume: "totalVolumeUSD",
+  },
+  "canary": {
+    endpoints: {
+      [CHAIN.AVAX]: sdk.graph.modifyEndpoint('An3x5Mz4YXEERomXYC4AhGgNhRthPFXNYDnrMCjrAJe'),
+    },
+    factoriesName: "canaryFactories",
+  },
+  "candyswap": {
+    endpoints: {
+      [CHAIN.MEER]: "https://subgraph.candyswap.exchange/subgraphs/name/exchange",
+    },
+    factoriesName: "pancakeFactories",
+    start: 1662940800,
+  },
+  "cytoswap": {
+    endpoints: {
+      [CHAIN.HELA]: "https://subgraph.snapresearch.xyz/subgraphs/name/cytoswap-mainnet",
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: 1715299200,
+  },
+  "dfx-finance": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: "https://api.goldsky.com/api/public/project_clasdk93949ub0h10a9lf9pkq/subgraphs/dfx-v2/latest/gn",
+      [CHAIN.POLYGON]: "https://api.goldsky.com/api/public/project_clasdk93949ub0h10a9lf9pkq/subgraphs/dfx-v2-polygon/latest/gn",
+    },
+    factoriesName: "dfxfactoryV2S",
+    totalVolume: "totalVolumeUSD",
+    start: 1621418717,
+  },
+  "energiswap": {
+    endpoints: {
+      [CHAIN.ENERGI]: "https://graph.energi.network/http/subgraphs/name/energi/energiswap",
+    },
+    factoriesName: "energiswapFactories",
+    totalVolume: "totalVolumeUSD",
+  },
+  "fathom-dex": {
+    endpoints: {
+      [CHAIN.XDC]: "https://xinfin-graph.fathom.fi/subgraphs/name/dex-subgraph",
+    },
+    factoriesName: "fathomSwapFactories",
+    start: 1682640000,
+  },
+  "fwx-dex": {
+    endpoints: {
+      [CHAIN.AVAX]: "https://subgraphs.fwx.finance/avac/subgraphs/name/fwx-exchange-avac",
+      [CHAIN.BASE]: "https://subgraphs.fwx.finance/base/subgraphs/name/fwx-exchange-base-prod",
+    },
+    factoriesName: "pancakeDayDatas",
+    start: 1717632000,
+  },
+  "fx-swap": {
+    endpoints: {
+      [CHAIN.FUNCTIONX]: "https://graph-node.functionx.io/subgraphs/name/subgraphFX2",
+    },
+    factoriesName: "fxswapFactories",
+  },
+  "glide-finance": {
+    endpoints: {
+      [CHAIN.ELASTOS]: "https://api.glidefinance.io/subgraphs/name/glide/exchange",
+    },
+    factoriesName: "glideFactories",
+    start: 1635479215,
+  },
+  "hercules": {
+    endpoints: {
+      [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/amm-subgraph-andromeda/",
+    },
+    start: 1710115200,
+  },
+  "hiveswap-v3": {
+    endpoints: {
+      [CHAIN.MAP]: "https://graph.mapprotocol.io/subgraphs/name/hiveswap/exchange-v3",
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: 1706585489,
+  },
+  "hiveswap": {
+    endpoints: {
+      [CHAIN.MAP]: "https://makalu-graph.maplabs.io/subgraphs/name/map/hiveswap2",
+    },
+    start: 1657929600,
+  },
+  "levinswap": {
+    endpoints: {
+      [CHAIN.XDAI]: sdk.graph.modifyEndpoint('2gNP6y1kTvg6aAhus8DU8DyGS1cn5TvGD3S6VjjXCZZC'),
+    },
+    start: 1610767793,
+  },
+  "lif3-swap": {
+    endpoints: {
+      [CHAIN.TOMBCHAIN]: "https://graph-node.lif3.com/subgraphs/name/lifeswap",
+    },
+  },
+  "katana": {
+    endpoints: {
+      [CHAIN.RONIN]: "https://defillama.axiedao.org/graphql/katana",
+    },
+    factoriesName: "katanaFactories",
+    totalVolume: "totalVolumeUSD",
+    feeConfig: {
+      totalFees: 0.003,
+      protocolFees: 0.0005,
+      supplySideRevenue: 0.0025,
+      revenue: 0.0005,
+      userFees: 0.003,
+    },
+    start: '2021-11-01',
+  },
+  "defi-swap": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('G7W3G1JGcFbWseucNkHHvQorxyjQLEQt7vt9yPN97hri'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    feeConfig: {
+      totalFees: 0.003,
+    },
+    start: '2021-09-21',
+  },
+  "pulsex-v2": {
+    endpoints: {
+      [CHAIN.PULSECHAIN]: "https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2",
+    },
+    factoriesName: "pulseXFactories",
+    feeConfig: {
+      totalFees: 0.0029,
+      protocolFees: 0.0007 * 0.1439,
+      supplySideRevenue: 0.0022,
+      holdersRevenue: 0.0007 * 0.8561,
+      revenue: 0.0007,
+      userFees: 0.0029,
+    },
+    start: '2023-05-25',
+  },
+  "pulsex-v1": {
+    endpoints: {
+      [CHAIN.PULSECHAIN]: "https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsex",
+    },
+    factoriesName: "pulseXFactories",
+    totalVolume: "totalVolumeUSD",
+    feeConfig: {
+      totalFees: 0.0029,
+      protocolFees: 0.0029 * 0.1439,
+      supplySideRevenue: 0,
+      holdersRevenue: 0.0029 * 0.8561,
+      revenue: 0.0029,
+      userFees: 0.0029,
+    },
+    start: '2023-05-13',
+  },
+  "pulsex-stableswap": {
+    endpoints: {
+      [CHAIN.PULSECHAIN]: "https://graph.pulsechain.com/subgraphs/name/pulsechain/stableswap",
+    },
+    factoriesName: "pulseXFactories",
+    totalVolume: "totalVolumeUSD",
+    feeConfig: {
+      totalFees: 0.0004,
+      protocolFees: 0.0002 * 0.1439,
+      supplySideRevenue: 0.0002,
+      holdersRevenue: 0.0002 * 0.8561,
+      revenue: 0.0002,
+      userFees: 0.0004,
+    },
+    start: '2024-09-13',
+  },
+  "snap-v3": {
+    endpoints: {
+      [CHAIN.TAC]: "https://api.goldsky.com/api/public/project_cltyhthusbmxp01s95k9l8a1u/subgraphs/cl-analytics-tac/v1.0.1/gn",
+    },
+    factoriesName: "factories",
+    totalFeesField: "totalFeesUSD",
+  },
+  "cypher-v2": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('BTCmD66QoqG2f3pirgYmKWgc2LWgw4F4bEavsupxkS2h'),
+    },
+    totalVolume: "totalVolumeUSD",
+    totalFeesField: "totalFeeUSD",
+    start: '2025-11-22',
+  },
+  "cypher-v4": {
+    endpoints: {
+      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('8knsFRJjoEtsRECVSdxhfbvidipCMdBjXx1hQmMRujHx'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    totalFeesField: "totalFeesUSD",
+    start: '2025-11-22',
+  },
+  "kura-v2": {
+    endpoints: {
+      [CHAIN.SEI]: "https://api.goldsky.com/api/public/project_cm9ghm7cnxuaa01x5g6pfchp7/subgraphs/sei/2/gn",
+    },
+    factoriesName: "legacyFactories",
+    totalFeesField: "totalFeeUSD",
+  },
+  "ramses-exchange-v2": {
+    endpoints: {
+      [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('ATQTt3wRTgXy4canCh6t1yeczAz4ZuEkFQL2mrLXEMyQ'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: '2023-05-31',
+  },
+  "thena-integral": {
+    endpoints: {
+      [CHAIN.BSC]: sdk.graph.modifyEndpoint('BoHp9H2rGzVFPiqc56PJ1Gw7EPDaiHMcupsUuksMGp2K'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: '2024-11-18',
+  },
+  "thena-v3": {
+    endpoints: {
+      [CHAIN.BSC]: sdk.graph.modifyEndpoint('Hnjf3ipVMCkQze3jmHp8tpSMgPmtPnXBR38iM4ix1cLt'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: '2023-04-13',
+  },
+  "thena": {
+    endpoints: {
+      [CHAIN.BSC]: sdk.graph.modifyEndpoint('FKEt2N5VmSdEYcz7fYLPvvnyEUkReQ7rvmXzs6tiKCz1'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: '2023-01-04',
+  },
+  "vvs-finance": {
+    endpoints: {
+      [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange",
+    },
+    factoriesName: "vvsFactories",
+    totalVolume: "totalVolumeUSD",
+    start: '2021-09-19',
+  },
+  "h2-finance-v3": {
+    endpoints: {
+      [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/h2-exchange-v3-cronos-zkevm/latest/gn",
+    },
+    factoriesName: "factories",
+    start: '2024-08-14',
+  },
+  "h2-finance": {
+    endpoints: {
+      [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/h2-exchange-v2-cronos-zkevm/latest/gn",
+    },
+    factoriesName: "vvsFactories",
+    totalVolume: "totalVolumeUSD",
+    start: '2024-08-14',
+  },
+  "hercules-v3": {
+    endpoints: {
+      [CHAIN.METIS]: "https://metisapi.0xgraph.xyz/subgraphs/name/cryptoalgebra/analytics",
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: '2023-11-03',
+  },
+  "pangolin": {
+    endpoints: {
+      avax: sdk.graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq'),
+    },
+    factoriesName: "pangolinFactories",
+    totalVolume: "totalVolumeUSD",
+    start: '2022-01-21',
+  },
+  "pharaoh-exchange": {
+    endpoints: {
+      [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),
+    },
+    factoriesName: "factories",
+    totalVolume: "totalVolumeUSD",
+    start: '2023-12-12',
+  },
+}
+
+// Build subgraph-based adapters into SimpleAdapter format
+function buildSubgraphAdapter(config: SubgraphProtocolConfig): SimpleAdapter {
+  const chains = Object.keys(config.endpoints)
+  const fetch = univ2Adapter2({
+    endpoints: config.endpoints,
+    factoriesName: config.factoriesName,
+    totalVolume: config.totalVolume,
+    totalFeesField: config.totalFeesField ?? undefined as any,
+    feeConfig: config.feeConfig,
+  })
+
+  const adapter: SimpleAdapter = {
+    version: 2,
+    fetch,
+    chains,
+  }
+
+  if (config.start) (adapter as any).start = config.start
+  if (config.methodology) (adapter as any).methodology = config.methodology
+  if (config.deadFrom) (adapter as any).deadFrom = config.deadFrom
+
+  return adapter
+}
+
 // Build dex protocols
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
@@ -1153,6 +1587,11 @@ for (const [name, config] of Object.entries(configs)) {
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
   protocols[name] = adapter
+}
+
+// Build subgraph dex protocols
+for (const [name, config] of Object.entries(subgraphConfigs)) {
+  protocols[name] = buildSubgraphAdapter(config)
 }
 
 // Build fees protocols

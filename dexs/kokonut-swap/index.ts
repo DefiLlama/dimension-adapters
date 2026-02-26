@@ -47,12 +47,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: () => ({} as any),
       start: '2023-06-19',
-      runAtCurrTime: true
+      runAtCurrTime: true,
+      deadFrom: "2025-03-21",
     },
     [CHAIN.BASE]: {
       fetch: () => ({} as any),
       start: '2023-08-09',
-      runAtCurrTime: true
+      runAtCurrTime: true,
+      deadFrom: "2025-03-21",
     },
   },
 };

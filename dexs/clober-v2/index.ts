@@ -32,7 +32,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, api }: FetchOpti
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
 
-  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true, })
+  const takeEvents = await getLogs({ targets: bookManagerContracts[typedChain], eventAbi: abi.take, entireLog: true, parseLog: true })
   const contractAddressToBookId = new Map<string, Set<bigint>>();
   for (const event of takeEvents) {
     const target = (event.address || event.source)?.toLowerCase()
@@ -105,6 +105,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: "No Holders Revenue",
   },
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.BASE]: {

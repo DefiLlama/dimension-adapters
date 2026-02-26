@@ -65,6 +65,7 @@ const fetch: FetchV2 = async ({ api, getLogs, createBalances, fromApi, toApi, }:
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volumes:
       "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",

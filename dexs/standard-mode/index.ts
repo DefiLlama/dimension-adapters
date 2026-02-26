@@ -46,6 +46,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.MODE]: options,
   },
   version: 2,
+  pullHourly: true,
 }
 
 export default adapters;

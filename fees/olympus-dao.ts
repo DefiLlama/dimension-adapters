@@ -404,6 +404,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   allowNegativeValue: true,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch: fetchEthereum, start: "2023-01-01" },

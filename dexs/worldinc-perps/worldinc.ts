@@ -356,6 +356,7 @@ function getFetch(type: 'PERPS' | 'SPOT') {
 
 export const perpsAdapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch: getFetch('PERPS'),
   chains: [CHAIN.MEGAETH],
   start: "2026-02-09",

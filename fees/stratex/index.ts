@@ -65,6 +65,7 @@ const fetch = async (options: FetchOptions) => {
 // Export adapter configuration for DeFiLlama dimension-adapters
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
