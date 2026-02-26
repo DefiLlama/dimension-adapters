@@ -59,7 +59,7 @@ export type FetchGetLogsOptions = {
   skipCacheRead?: boolean,
   skipCache?: boolean,
   skipIndexer?: boolean,
-  topics?: Array<string|null>,
+  topics?: string[],
   noTarget?: boolean,
   parseLog?: boolean,
 }
