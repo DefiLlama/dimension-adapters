@@ -93,7 +93,7 @@ async function getAddressesByChain(products: ApiProduct[], chainName: string): P
   return addresses;
 }
 
-const prefetch = async (options: FetchOptions) => {
+const prefetch = async (_: FetchOptions) => {
   return await getProducts();
 }
 
