@@ -10,8 +10,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       sum(amount_usd) as daily_volume
     from dex_solana.trades
     where TIME_RANGE
-      and block_time >= from_unixtime(${options.startTimestamp})
-      and block_time <= from_unixtime(${options.endTimestamp})
       and project = 'aquifer'
   `
   const data = await queryDuneSql(options, query)
