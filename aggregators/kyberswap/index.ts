@@ -26,6 +26,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.PLASMA]: { id: 9745, start: '2025-09-24' },
   [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
   [CHAIN.MONAD]: { id: 143, start: '2025-11-23' },
+  [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-09' },
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
