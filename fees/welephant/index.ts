@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import coreAssets from "../../helpers/coreAssets.json"
 
 const SwapProcessedEvent = "event SwapProcessed(uint256 ethSwapped, uint256 welephantReceived, uint256 ethRemaining)";
 
@@ -12,7 +13,7 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: SwapProcessedEvent,
   });
   data.forEach((log: any) => {
-    dailyFees.addCGToken('bnb', log.ethSwapped);
+    dailyFees.add(coreAssets.GAS_TOKEN_2, log.ethSwapped);
   });
   
   const dailyProtocolRevenue = dailyFees.clone(0.10);
