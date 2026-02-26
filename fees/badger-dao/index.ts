@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
+// Legacy Sett vaults (all sunset — see github.com/Badger-Finance/badger-legacy-sunset)
 const vaults = [
   "0x4b92d19c11435614CD49Af1b589001b7c08cD4D5", // WBTC yearn vault wrapper (SimpleWrapperGatedUpgradeable)
   "0x19D97D8fA813EE2f51aD4B4e04EA08bAf4DFfC28", // BADGER
@@ -20,17 +21,21 @@ const stETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
+  // eBTC ActivePool fees — redemption/liquidation fees in stETH sent to protocol fee recipient
   const activePoolFeeLogs = await options.getLogs({
-    target: "0x6dBDB6D420c110290431E863A1A978AE53F69ebC", // ActivePool 
+    target: "0x6dBDB6D420c110290431E863A1A978AE53F69ebC",
     eventAbi: "event FeeRecipientClaimableCollSharesIncreased(uint256 _coll, uint256 _fee)"
   })
   for (const log of activePoolFeeLogs) {
     dailyFees.add(stETH, log._fee, METRIC.MINT_REDEEM_FEES);
     dailyRevenue.add(stETH, log._fee, METRIC.MINT_REDEEM_FEES);
+    dailyProtocolRevenue.add(stETH, log._fee, METRIC.MINT_REDEEM_FEES);
   }
 
+  // Legacy vault yield tracking via pricePerFullShare growth
   const [controllers, tokens, totalSupplies] = await Promise.all([
     options.api.multiCall({ abi: 'address:controller', calls: vaults, permitFailure: true }),
     options.api.multiCall({ abi: 'address:token', calls: vaults, permitFailure: true }),
@@ -42,51 +47,59 @@ const fetch = async (options: FetchOptions) => {
     options.toApi.multiCall({ abi: getPricePerFullShareAbi, calls: vaults, permitFailure: true }),
   ]);
 
-  // remove wBTC wrapper for strategy calls
+  // WBTC wrapper (vaults[0]) has no controller→strategy pattern, skip it for strategy calls
   const strategyCalls = controllers.slice(1).map((controller: string, i: number) => ({
     target: controller,
     params: [tokens[i + 1]]
   }));
 
-  const [wbtcWithdrawalFee, strategies] = await Promise.all([
-    options.api.call({ target: vaults[0], abi: 'uint256:withdrawalFee' }),
-    options.api.multiCall({ abi: 'function strategies(address) view returns (address)', calls: strategyCalls, permitFailure: true }),
-  ]);
+  const strategies = await options.api.multiCall({
+    abi: 'function strategies(address) view returns (address)',
+    calls: strategyCalls,
+    permitFailure: true,
+  });
 
-  const [settWithdrawalFees, settPerformanceFeesGov, settPerformanceFeesStrat] = await Promise.all([
-    options.api.multiCall({ abi: 'uint256:withdrawalFee', calls: strategies, permitFailure: true }),
+  const [settPerformanceFeesGov, settPerformanceFeesStrat] = await Promise.all([
     options.api.multiCall({ abi: 'uint256:performanceFeeGovernance', calls: strategies, permitFailure: true }),
     options.api.multiCall({ abi: 'uint256:performanceFeeStrategist', calls: strategies, permitFailure: true }),
   ]);
 
-  // add WBTC wrapper fee values
-  const withdrawalFees = [wbtcWithdrawalFee, ...settWithdrawalFees];
+  // WBTC wrapper has no performance fees
   const performanceFeesGov = ['0', ...settPerformanceFeesGov];
   const performanceFeesStrat = ['0', ...settPerformanceFeesStrat];
 
+  // getPricePerFullShare() reflects values during harvest(), performance fees are deducted 
+  // before yield increases the share price.
+  // priceShareGrowth gives net yield so we calculate gross yield to get total fees.
   for (let i = 0; i < vaults.length; i++) {
     if (!tokens[i] || !totalSupplies[i] || !fromPrices[i] || !toPrices[i]) continue;
     const priceShareGrowth = BigInt(toPrices[i]) - BigInt(fromPrices[i]);
 
-    const totalYield = (BigInt(totalSupplies[i]) * priceShareGrowth) / BigInt(1e18);
+    // Allow negative yield (no skip on negative priceShareGrowth)
+    const netYield = (BigInt(totalSupplies[i]) * priceShareGrowth) / BigInt(1e18);
 
-    const performanceFeeRate = (Number(performanceFeesGov[i] || 0) + Number(performanceFeesStrat[i] || 0)) / 10000;
-    const withdrawalFeeRate = Number(withdrawalFees[i] || 0) / 10000;
+    const perfFeeGovRate = Number(performanceFeesGov[i] || 0) / 10000;
+    const perfFeeStratRate = Number(performanceFeesStrat[i] || 0) / 10000;
+    const totalPerfFeeRate = perfFeeGovRate + perfFeeStratRate;
 
-    const performanceFees = Number(totalYield) * performanceFeeRate;
-    const withdrawalFeesAmount = Number(totalYield) * withdrawalFeeRate;
-    const supplySideYield = Number(totalYield) - performanceFees - withdrawalFeesAmount;
+    // grossYield = netYield / (1 - totalPerfFeeRate)
+    const grossYield = totalPerfFeeRate < 1
+      ? Number(netYield) / (1 - totalPerfFeeRate)
+      : Number(netYield);
 
-    dailyFees.add(tokens[i], Number(totalYield), METRIC.ASSETS_YIELDS);
-    dailyRevenue.add(tokens[i], performanceFees, METRIC.PERFORMANCE_FEES);
-    dailyRevenue.add(tokens[i], withdrawalFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
-    dailySupplySideRevenue.add(tokens[i], supplySideYield, METRIC.ASSETS_YIELDS);
+    const govFees = grossYield * perfFeeGovRate;     // DAO treasury
+    const stratFees = grossYield * perfFeeStratRate;  // strategist
+
+    dailyFees.add(tokens[i], grossYield, METRIC.ASSETS_YIELDS);
+    dailyRevenue.add(tokens[i], govFees + stratFees, METRIC.PERFORMANCE_FEES);
+    dailyProtocolRevenue.add(tokens[i], govFees, METRIC.PERFORMANCE_FEES);
+    dailySupplySideRevenue.add(tokens[i], Number(netYield), METRIC.ASSETS_YIELDS);
   }
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue
   };
 }
@@ -97,25 +110,26 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: "2024-03-15",
   methodology: {
-    Fees: "Yield generated from supplied assets in the Badger DAO vaults.",
-    UserFees: "Fees paid by users when interacting with Badger DAO contracts.",
-    Revenue: "All fees paid by users.",
-    SupplySideRevenue: "Yield earned by vault depositors.",
+    Fees: "Total yield generated by Badger DAO vault strategies (gross, before performance fees) and eBTC redemption/liquidation fees.",
+    Revenue: "Performance fees on vault yield (governance + strategist share) and eBTC protocol fees.",
+    ProtocolRevenue: "Performance fees sent to the DAO treasury (governance share only) and eBTC protocol fees. Excludes strategist share.",
+    SupplySideRevenue: "Net yield earned by vault depositors after performance fees are deducted.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: "Yield generated from supplied assets in the Badger DAO vaults.",
-      [METRIC.MINT_REDEEM_FEES]: "Fees charged on eBTC redemptions.",
-      [METRIC.PERFORMANCE_FEES]: "Performance fees on generated yield in the vault strategies.",
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees charged on vault withdrawals.",
+      [METRIC.ASSETS_YIELDS]: "Gross yield generated by vault strategies before performance fees.",
+      [METRIC.MINT_REDEEM_FEES]: "Fees from eBTC redemptions and liquidations (stETH collateral).",
     },
     Revenue: {
-      [METRIC.MINT_REDEEM_FEES]: "Fees collected from eBTC redemptions.",
-      [METRIC.PERFORMANCE_FEES]: "Fees collected from performance fees in the vault strategies.",
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees collected from vault withdrawals.",
+      [METRIC.PERFORMANCE_FEES]: "Performance fees on vault yield (governance + strategist share).",
+      [METRIC.MINT_REDEEM_FEES]: "eBTC redemption/liquidation fees sent to protocol fee recipient.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PERFORMANCE_FEES]: "Governance performance fees sent to DAO treasury.",
+      [METRIC.MINT_REDEEM_FEES]: "eBTC fees sent to protocol fee recipient.",
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: "Yield earned by vault depositors.",
+      [METRIC.ASSETS_YIELDS]: "Net yield earned by vault depositors after performance fees.",
     }
   },
   allowNegativeValue: true,
