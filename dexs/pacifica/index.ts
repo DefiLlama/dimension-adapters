@@ -19,7 +19,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       const todaysData = data.data.filter((kline: any) => kline.t == options.startOfDay * 1000);
       const volume = (todaysData[0].v * +todaysData[0].c) / 2; // They include taker + maker in ohlcv candles
       dailyVolume += volume;
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 1000));
     })
 
   if (errors.length > 0) {
