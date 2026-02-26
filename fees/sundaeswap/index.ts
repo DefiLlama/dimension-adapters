@@ -37,6 +37,7 @@ const addFee = (
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
     const start = formatDate(options.startTimestamp);
@@ -65,22 +66,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         const richEntries = pool?.ticks?.rich ?? [];
 
         for (const entry of richEntries) {
-            const { txFees, lpFees, protocolFees } = entry;
+            const { lpFees, protocolFees } = entry;
 
-            if (txFees?.asset?.id)
-                addFee(dailyFees, txFees.asset.id, txFees.quantity);
-
-            if (lpFees?.asset?.id)
+            if (lpFees?.asset?.id) {
                 addFee(dailyFees, lpFees.asset.id, lpFees.quantity);
+                addFee(dailySupplySideRevenue, lpFees.asset.id, lpFees.quantity);
+            }
 
             if (protocolFees?.asset?.id) {
+                addFee(dailyFees, protocolFees.asset.id, protocolFees.quantity);
                 addFee(dailyRevenue, protocolFees.asset.id, protocolFees.quantity);
-                addFee(dailyProtocolRevenue, protocolFees.asset.id, protocolFees.quantity);
+                addFee(dailyProtocolRevenue, protocolFees.asset.id, protocolFees.quantity)
             }
         }
     }
 
-    return { dailyFees, dailyRevenue, dailyProtocolRevenue };
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
 };
 
 const adapter: Adapter = {
@@ -88,14 +89,15 @@ const adapter: Adapter = {
     adapter: {
         [CHAIN.CARDANO]: {
             fetch,
-            start: "2025-05-16",
+            start: "2022-01-20",
         },
     },
     allowNegativeValue: false,
     methodology: {
-        Fees: "Total trading fees paid by users (LP + protocol)",
-        Revenue: "Protocol share of trading fees",
-        ProtocolRevenue: "Protocol share of trading fees",
+        Fees: "The total trading fees paid by users, excluding L1 transaction fees",
+        Revenue: "A fixed ADA cost per transaction that is collected by the protocol",
+        dailySupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
+        ProtocolRevenue: "A fixed ADA cost per transaction that is collected by the protocol",
     },
 };
 
