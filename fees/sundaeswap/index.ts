@@ -49,7 +49,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         popular {
           ticks(start: $start, end: $end, interval: All) {
             rich {
-              txFees { quantity asset { id } }
               protocolFees { quantity asset { id } }
               lpFees(unit: Natural) { quantity asset { id } }
             }
