@@ -32,6 +32,7 @@ async function fetch({ getLogs, api, createBalances, }: FetchOptions) {
 export default {
   fetch,
   version: 2,
+  pullHourly: true,
   start: '2025-06-27',
   chains: [CHAIN.XRPL_EVM],
   methodology: {

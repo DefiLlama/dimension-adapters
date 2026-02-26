@@ -34,6 +34,7 @@ const fetch: any = async ({ getLogs, api,}: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,

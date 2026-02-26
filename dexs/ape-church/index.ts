@@ -46,6 +46,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch: fetch,
   chains: [CHAIN.APECHAIN],
   start: "2025-09-11", // "YYYY-MM-DD" format

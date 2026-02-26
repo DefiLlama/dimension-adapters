@@ -31,6 +31,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }: FetchOptions):
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Fees are calculated as the difference between the total bet amount and the total payout amount',
     Revenue: 'Revenue is the same as fees'

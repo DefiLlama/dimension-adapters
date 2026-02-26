@@ -59,6 +59,7 @@ const methodology = {
 
 const adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   fetch,
   adapter: chainConfig

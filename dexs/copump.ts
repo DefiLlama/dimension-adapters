@@ -48,6 +48,7 @@ async function fetch({ chain, createBalances, api, getLogs }: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {}
 }
 

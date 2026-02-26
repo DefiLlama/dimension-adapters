@@ -15,6 +15,7 @@ const blacklists = [
 
 export default {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: async ({ getLogs, createBalances, }: FetchOptions) => {
