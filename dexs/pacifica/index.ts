@@ -16,7 +16,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     .for(tickers)
     .process(async (ticker) => {
       const data = await fetchURLAutoHandleRateLimit(`https://api.pacifica.fi/api/v1/kline?symbol=${ticker}&interval=1d&start_time=${(options.startOfDay) * 1000}`)
-      const todaysData = data.data.filter((kline: any) => kline.t >= options.startTimestamp * 1000 && kline.T <= options.endTimestamp * 1000);
+      const todaysData = data.data.filter((kline: any) => kline.t == options.startOfDay * 1000);
       if (todaysData.length === 0) return;
       dailyVolume += (todaysData[0].v * +todaysData[0].c) / 2; // They include taker + maker in ohlcv candles
     })
