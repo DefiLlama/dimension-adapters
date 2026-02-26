@@ -1,8 +1,16 @@
+import type { SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
-import adapter from './orderly-network'
-const { breakdown,  ...rest } = adapter
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.NEAR]: {
+      fetch: async (timestamp: number) => {
+        return {
+          timestamp: timestamp,
+        };
+      },
+    },
+  },
+};
 
-export default {
-  ...rest,
-  adapter: breakdown['orderly-network'],
-}
+export default adapter;

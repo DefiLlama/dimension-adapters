@@ -254,6 +254,7 @@ function cleanup(obj) {
           }
         }
       }
+      if (adapter.module?.breakdown)  delete adapters[adapterName] // Remove breakdown adapters entirely since they are no longer used at all
     }
   }
   return obj

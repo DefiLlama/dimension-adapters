@@ -1,9 +1,20 @@
+import { Dependencies, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
-import adapter from './pancakeswap'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
+const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
+  adapter: {
+    [CHAIN.BSC]: {
+      fetch: async (_t: any, _a: any, { startTimestamp }: any) => {
+        return {
+          totalVolume: 103394400000,
+          timestamp: startTimestamp
+        }
+      },
+      start: '2023-04-01',
+    }
+  },
   deadFrom: '2023-07-03',
-  adapter: breakdown['v1'],
 }
+
+export default adapter;
