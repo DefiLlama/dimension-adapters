@@ -237,7 +237,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ZK_LIGHTER],
-  start: '2025-10-22',
+  start: '2025-06-22',
   methodology,
   breakdownMethodology,
 }
