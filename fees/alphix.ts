@@ -1,12 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import axios from "axios";
 import { METRIC } from "../helpers/metrics";
 
 const POOL_MANAGER = '0x498581ff718922c3f8e6a244956af099b2652b2b'
 const SWAP_TOPIC = '0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f'
-const ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
 
 const TOKENS = {
   WETH: '0x4200000000000000000000000000000000000006',
@@ -24,6 +22,7 @@ const HOOKS = [
   '0x0e4b892df7c5bcf5010faf4aa106074e555660c0',
 ]
 
+// Wrappers are shared across pools — yields are computed once, not per-pool
 const WRAPPERS = [
   { address: '0xf62bca61Fe33f166791c3c6989b0929CCaaDA5B2', underlying: TOKENS.USDC },
   { address: '0x59f5245129faBEde6FC4243518B74b1DF78A2D9E', underlying: TOKENS.WETH },
@@ -35,12 +34,10 @@ function decodeInt128(hex: string): bigint {
   return val >= (1n << 127n) ? val - (1n << 128n) : val
 }
 
-async function calculateLendingYield(fromApi: any, toApi: any): Promise<{
-  ethAmount: number;
-  usdcAmount: number;
-}> {
-  let ethAmount = 0;
-  let usdcAmount = 0;
+// Returns lending yield per underlying token across all hooks
+// Wrappers are shared between pools, so we sum across hooks but compute once globally
+async function calculateLendingYield(fromApi: any, toApi: any): Promise<Record<string, number>> {
+  const yieldByToken: Record<string, number> = {}
   const oneShare = (10n ** 18n).toString()
 
   for (const wrapper of WRAPPERS) {
@@ -55,17 +52,19 @@ async function calculateLendingYield(fromApi: any, toApi: any): Promise<{
 
       if (Number(priceStart) === 0) continue
       const appreciationRate = (Number(priceEnd) - Number(priceStart)) / Number(priceStart)
+      if (appreciationRate <= 0) continue
 
       const assetsEnd = await toApi.call({ abi: 'function convertToAssets(uint256 shares) view returns (uint256)', target: wrapper.address, params: [sharesEnd] })
       const decimals = await toApi.call({ abi: 'function decimals() view returns (uint8)', target: wrapper.address })
       const assetsInTokens = Number(assetsEnd) / (10 ** Number(decimals))
+      const yieldTokens = assetsInTokens * appreciationRate
 
-      if (wrapper.underlying.toLowerCase() === TOKENS.WETH.toLowerCase()) ethAmount = assetsInTokens * appreciationRate;
-      else if (wrapper.underlying.toLowerCase() === TOKENS.USDS.toLowerCase()) usdcAmount = assetsInTokens * appreciationRate;
+      const token = wrapper.underlying
+      yieldByToken[token] = (yieldByToken[token] || 0) + yieldTokens
     }
   }
 
-  return { ethAmount, usdcAmount };
+  return yieldByToken
 }
 
 async function fetch(options: FetchOptions) {
@@ -73,6 +72,7 @@ async function fetch(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
 
+  // 1. Swap fees from pools
   for (const pool of POOLS) {
     const logs = await sdk.getEventLogs({
       chain: options.chain,
@@ -88,23 +88,27 @@ async function fetch(options: FetchOptions) {
       const amount0 = decodeInt128('0x' + data.slice(32, 64))
       const fee = Number(BigInt('0x' + data.slice(320, 384)))
       const absAmount0 = amount0 > 0n ? amount0 : -amount0
+      const feeAmount = (absAmount0 * BigInt(fee)) / 1000000n
 
-      dailyFees.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n, METRIC.SWAP_FEES)
-      dailySupplySideRevenue.add(pool.token, (absAmount0 * BigInt(fee)) / 1000000n, METRIC.SWAP_FEES)
+      dailyFees.add(pool.token, feeAmount, METRIC.SWAP_FEES)
+      dailySupplySideRevenue.add(pool.token, feeAmount, METRIC.SWAP_FEES)
     }
   }
 
-  const { ethAmount, usdcAmount } = await calculateLendingYield(options.fromApi, options.toApi)
-  dailyFees.add(TOKENS.WETH, ethAmount * 1e18, METRIC.ASSETS_YIELDS)
-  dailyFees.add(TOKENS.USDC, usdcAmount * 1e6, METRIC.ASSETS_YIELDS)
-  
-  // 70% yields to LPs
-  dailySupplySideRevenue.add(TOKENS.WETH, ethAmount * 1e18 * 0.7, METRIC.ASSETS_YIELDS)
-  dailySupplySideRevenue.add(TOKENS.USDC, usdcAmount * 1e6 * 0.7, METRIC.ASSETS_YIELDS)
-  
-  // Protocol takes 30% of lending yield as revenue
-  dailyProtocolRevenue.add(TOKENS.WETH, ethAmount * 1e18 * 0.7, METRIC.ASSETS_YIELDS)
-  dailyProtocolRevenue.add(TOKENS.USDC, usdcAmount * 1e6 * 0.7, METRIC.ASSETS_YIELDS)
+  // 2. Lending yields (computed once — wrappers are shared across pools)
+  const yieldByToken = await calculateLendingYield(options.fromApi, options.toApi)
+
+  for (const [token, yieldTokens] of Object.entries(yieldByToken)) {
+    if (yieldTokens <= 0) continue
+    const decimals = token.toLowerCase() === TOKENS.USDC.toLowerCase() ? 6 : 18
+    const rawAmount = Math.floor(yieldTokens * (10 ** decimals))
+
+    dailyFees.add(token, rawAmount, METRIC.ASSETS_YIELDS)
+    // 70% yields to LPs
+    dailySupplySideRevenue.add(token, Math.floor(rawAmount * 0.7), METRIC.ASSETS_YIELDS)
+    // 30% yields to protocol
+    dailyProtocolRevenue.add(token, Math.floor(rawAmount * 0.3), METRIC.ASSETS_YIELDS)
+  }
 
   return {
     dailyFees,
@@ -117,7 +121,6 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
