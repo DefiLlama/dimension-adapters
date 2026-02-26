@@ -96,7 +96,7 @@ const adapter: Adapter = {
     methodology: {
         Fees: "The total trading fees paid by users, excluding L1 transaction fees",
         Revenue: "A fixed ADA cost per transaction that is collected by the protocol",
-        dailySupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
+        SupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
         ProtocolRevenue: "A fixed ADA cost per transaction that is collected by the protocol",
     },
 };
