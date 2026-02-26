@@ -112,7 +112,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
       '0x0000000000000000000000000000000000000000000000000000000000000000',
-      '0x0000000000000000000000005F7A4c11bde4f218f0025Ef444c369d838ffa2aD'
     ]
   })
   for (const event of mintEvents) {
