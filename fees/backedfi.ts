@@ -97,7 +97,7 @@ const prefetch = async (options: FetchOptions) => {
   return await getProducts();
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const products = await options.preFetchedResults;
   const tokens = await getAddressesByChain(products, options.chain);
   if (tokens.length === 0) return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
@@ -116,7 +116,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     ]
   })
   for (const event of mintEvents) {
-    dailyFees.addToken(event.address, Number(event.args.value) * 0.000, METRIC.MINT_REDEEM_FEES);
+    dailyFees.addToken(event.address, Number(event.args.value) * 0.005, METRIC.MINT_REDEEM_FEES);
   }
 
   const burnEvents: Array<any> = await options.getLogs({
@@ -131,7 +131,7 @@ const fetch = async (_a:any, _b:any, options: FetchOptions) => {
     ]
   })
   for (const event of burnEvents) {
-    dailyFees.addToken(event.address, Number(event.args.value) * 0.000, METRIC.MINT_REDEEM_FEES);
+    dailyFees.addToken(event.address, Number(event.args.value) * 0.005, METRIC.MINT_REDEEM_FEES);
   }
 
   return {
@@ -145,7 +145,7 @@ interface IData {
   amount: number;
 }
 
-const fetchSolana: any = async (_a:any, _b:any, options: FetchOptions) => {
+const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
   const products = await options.preFetchedResults;
   const dailyFees = options.createBalances()
 
@@ -192,7 +192,7 @@ const fetchSolana: any = async (_a:any, _b:any, options: FetchOptions) => {
     ) combined
     GROUP BY token_mint_address
   `;
-  
+
   const results: IData[] = await queryDuneSql(options, sql);
 
   for (const r of results) {
