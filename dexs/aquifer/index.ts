@@ -5,27 +5,27 @@ import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const query = `
+    const query = `
     select
-      sum(amount_usd) as daily_volume
+      coalesce(sum(amount_usd), 0) as daily_volume
     from dex_solana.trades
     where TIME_RANGE
       and project = 'aquifer'
   `
-  const data = await queryDuneSql(options, query)
+    const data = await queryDuneSql(options, query)
 
-  return {
-    dailyVolume: Number(data?.[0]?.daily_volume) || 0,
-  }
+    return {
+        dailyVolume: data[0].daily_volume,
+    }
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
-  start: '2025-09-07',
+    version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    isExpensiveAdapter: true,
+    start: '2025-09-07',
 }
 
 export default adapter
