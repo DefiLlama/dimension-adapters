@@ -88,6 +88,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     start: "2025-04-02",
     methodology: {

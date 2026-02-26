@@ -122,6 +122,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
       Fees: "10% fee on mints and burns (WFLR), 1% fee on transfers and LP swaps (BANK).",
       UserFees: "Users pay all fees: 10% on mint/burn, 1% on transfer/swap.",

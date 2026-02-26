@@ -87,6 +87,7 @@ const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Fees paid by traders while trade NFT on Element market.',
     Revenue: 'Share of trading fees to Element.',

@@ -36,6 +36,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Interest accrued from lending pools, collected as fees.",
     Revenue:

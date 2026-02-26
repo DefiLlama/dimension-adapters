@@ -23,6 +23,7 @@ const fetchVolume = async (options: FetchOptions) => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.CELO]: {
       fetch: fetchVolume,

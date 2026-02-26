@@ -9,6 +9,7 @@ export default {
   chains: [CHAIN.HYPERLIQUID],
   fetch,
   version: 2,
+  pullHourly: true,
   start: '2025-08-17',
   methodology: {
     Fees: "0.3% trading fees on all trades.",

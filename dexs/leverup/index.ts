@@ -16,10 +16,6 @@ const closeTradeSuccessfulV2Abi =
 const executeCloseSuccessfulV2Abi =
   'event ExecuteCloseSuccessfulV2(address indexed user, bytes32 indexed tradeHash, uint8 executionType, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
 
-const pairsV4Abi =
-  'function pairsV4() view returns ((string name, address base, uint16 basePosition, uint8 pairType, uint8 status, uint256 maxLongOiUsd, uint256 maxShortOiUsd, uint256 fundingFeePerSecondP, uint256 minFundingFeeR, uint256 maxFundingFeeR, (uint256 notionalUsd, uint16 maxLeverage, uint16 initialLostP, uint16 liqLostP)[] leverageMargins, uint16 slippageConfigIndex, uint16 slippagePosition, (string name, uint256 onePercentDepthAboveUsd, uint256 onePercentDepthBelowUsd, uint16 openSlippageP, uint16 closeSlippageP, uint16 longPutSlippageP, uint16 shortPutSlippageP) slippageConfig, uint16 feeConfigIndex, uint16 feePosition, (uint16 openFeeP, uint16 closeFeeP, uint24 shareP, uint24 minCloseFeeP, uint24 lvTokenDiscountP) feeConfig, uint40 longHoldingFeeRate, uint40 shortHoldingFeeRate)[])';
-const getMarketInfosAbi =
-  'function getMarketInfos(address[] pairBases) view returns ((address pairBase, uint256 longQty, uint256 shortQty, uint128 lpLongAvgPrice, uint128 lpShortAvgPrice, int256 fundingFeeRate)[])';
 
 const fetch = async (options: FetchOptions) => {
   // We calculate volume in USD directly
@@ -101,58 +97,21 @@ const fetch = async (options: FetchOptions) => {
   closeLogs.forEach(processCloseLog);
   executeLogs.forEach(processCloseLog);
 
-  // Fetch Open Interest
-  const pairs = await options.api.call({
-    target: LEVERUP_DIAMOND,
-    abi: pairsV4Abi,
-  });
-
-  const pairBases = pairs.map((p: any) => p.base);
-
-  const marketInfos = await options.api.call({
-    target: LEVERUP_DIAMOND,
-    abi: getMarketInfosAbi,
-    params: [pairBases],
-  });
-
-  let longOpenInterest = 0;
-  let shortOpenInterest = 0;
-
-  marketInfos.forEach((info: any) => {
-    // Qty is 1e10
-    // Price is 1e18 (lpLongAvgPrice / lpShortAvgPrice)
-
-    const lQty = parseFloat(info.longQty);
-    const sQty = parseFloat(info.shortQty);
-    const lPrice = parseFloat(info.lpLongAvgPrice);
-    const sPrice = parseFloat(info.lpShortAvgPrice);
-
-    const lOi = (lQty * lPrice) / 1e28;
-    const sOi = (sQty * sPrice) / 1e28;
-
-    longOpenInterest += lOi;
-    shortOpenInterest += sOi;
-  });
-
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees, // Assuming all fees are paid by users
-    openInterestAtEnd: longOpenInterest + shortOpenInterest,
-    longOpenInterestAtEnd: longOpenInterest,
-    shortOpenInterestAtEnd: shortOpenInterest,
-    timestamp: options.startOfDay,
+    dailyUserFees: dailyFees,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.MONAD],
   start: '2025-11-23',
   methodology: {
     Volume: 'Volume is calculated by summing the notional value (qty * entryPrice) of all OpenMarketTrade events.',
-    OpenInterest: 'Open Interest is calculated by summing the long and short open interest of all pairs.',
     Fees: 'Fees are calculated by summing the open fees, execution fees, close fees, holding fees, and user-paid funding fees.',
   },
 };

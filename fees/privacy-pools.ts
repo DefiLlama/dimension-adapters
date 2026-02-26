@@ -27,6 +27,7 @@ const config = {
 const adapters: SimpleAdapter = {
   adapter: {},
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Fees paid by users using privicy services."
   },

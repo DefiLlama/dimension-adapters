@@ -75,6 +75,7 @@ const adapter: SimpleAdapter = {
     Revenue: 'Revenue is the same as fees'
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ABSTRACT]: {
       fetch,

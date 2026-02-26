@@ -104,6 +104,7 @@ const adapter: SimpleAdapter = {
     OffchainTransition: "Protocol transitioned from on-chain to off-chain execution on Sept 25, 2025. V1 uses LimitOrderFilled events from BTC_MARKET and PUMP_MARKET contracts. V2 uses CycleSettled events from OPTFUN_CONTRACT for aggregated off-chain volume reporting.",
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,

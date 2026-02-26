@@ -43,6 +43,7 @@ const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.WC]: {
       fetch: fetch,

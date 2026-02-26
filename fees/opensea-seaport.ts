@@ -58,6 +58,7 @@ const seaportConfig = { fetch, start: '2022-06-12', }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(config).reduce((acc: any, chain) => {
     acc[chain] = seaportConfig
     return acc

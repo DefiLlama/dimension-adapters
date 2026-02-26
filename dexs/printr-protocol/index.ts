@@ -111,6 +111,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   start: '2025-10-14',
   chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.AVAX, CHAIN.MANTLE, CHAIN.MONAD, CHAIN.BSC, CHAIN.ETHEREUM],

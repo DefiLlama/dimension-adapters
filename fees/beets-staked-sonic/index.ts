@@ -22,4 +22,5 @@ export default {
     },
   },
   version: 2,
+  pullHourly: true,
 } as Adapter

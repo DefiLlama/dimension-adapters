@@ -151,6 +151,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Total fees collected from all Rank Factory and Strategy contracts, including platform fees, creator fees, performance fees, RAN token costs, and general service payments.",
     UserFees:

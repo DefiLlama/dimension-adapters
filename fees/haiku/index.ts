@@ -43,6 +43,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "All fees paid by users for swap and bridge tokens via Haiku.",
     Revenue: "Fees are distributed to Haiku.",

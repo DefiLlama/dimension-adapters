@@ -44,6 +44,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(routers).reduce((acc, chain) => {
     const { startBlock } = routers[chain];
 

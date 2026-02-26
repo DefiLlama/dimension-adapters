@@ -63,6 +63,7 @@ const fetch = (chain: Chain) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.CORE]: {
       fetch: fetch(CHAIN.CORE),

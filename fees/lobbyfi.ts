@@ -59,6 +59,7 @@ const adapter: Adapter = {
   methodology,
   fetch,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2024-01-26', },
     [CHAIN.ERA]: { start: '2024-06-27', },
