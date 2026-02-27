@@ -19,10 +19,13 @@ import { CHAIN } from "../helpers/chains";
  *      We do NOT index silo contracts or silo PNL events directly.
  *
  * DefiLlama mapping:
- *   - dailyFees           = gross yield + entry/exit fees + T3trisProfit
+ *   - dailyFees             = gross yield + entry/exit fees + T3trisProfit
  *   - dailySupplySideRevenue = net yield to depositors
- *   - dailyRevenue         = vault fees (to feeRecipient) + T3trisProfit (to treasury)
- *   - dailyProtocolRevenue  = T3trisProfit only (assets sent to t3treasury)
+ *   - dailyRevenue           = T3trisProfit only (assets sent to t3treasury)
+ *   - dailyProtocolRevenue   = T3trisProfit only (= dailyRevenue)
+ *
+ *   Vault fees (perf/mgmt/entry/exit) are in dailyFees but NOT in dailyRevenue.
+ *   They go to each vault's feeRecipient, not to the protocol.
  *
  * Factory address is deterministic (CREATE3) — same on all chains.
  */
@@ -213,9 +216,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const grossYield = netYield + performanceFees + managementFees;
     dailyFees.add(token, grossYield);
 
-    // Vault fees go to feeRecipient (vault manager), NOT protocol treasury
-    // They are still "revenue" in the DL sense (someone earns them)
-    dailyRevenue.add(token, performanceFees + managementFees);
+    // Vault fees go to feeRecipient (vault manager) — tracked as fees only,
+    // NOT as revenue. Revenue = T3trisProfit (t3treasury) exclusively.
   }
 
   // 7. Track entry fees from DepositsSettled events → feeRecipient
@@ -235,7 +237,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
         dailyFees.add(token, entryFeeAssets);
-        dailyRevenue.add(token, entryFeeAssets); // → feeRecipient
+        // NOT added to dailyRevenue — goes to feeRecipient, not protocol
       }
     }
   }
@@ -257,7 +259,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
         dailyFees.add(token, exitFeeAssets);
-        dailyRevenue.add(token, exitFeeAssets); // → feeRecipient
+        // NOT added to dailyRevenue — goes to feeRecipient, not protocol
       }
     }
   }
@@ -299,13 +301,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees:
-    "Total value generated: gross yield from strategies (net yield + performance/management fees) + entry/exit fees on deposits/withdrawals + T3trisProfit (assets sent to t3treasury).",
+    "Total value generated: gross yield from strategies (net yield + performance/management fees) + entry/exit fees on deposits/withdrawals + T3trisProfit (assets sent to t3treasury). Vault fees (perf/mgmt/entry/exit) go to each vault's feeRecipient.",
   SupplySideRevenue:
     "Net yield earned by vault depositors after performance and management fees are deducted via share dilution.",
   Revenue:
-    "Sum of vault fees (performance, management, entry, exit — sent to the vault's feeRecipient) and T3trisProfit (sent to t3treasury).",
+    "T3trisProfit only — assets transferred to the t3treasury. Vault fees (perf/mgmt/entry/exit) are NOT included in revenue; they are fees collected by each vault's feeRecipient.",
   ProtocolRevenue:
-    "T3trisProfit only — assets transferred to the t3treasury. Tracked via the T3trisProfit(uint256 profit) event emitted by each vault. Vault fees (perf/mgmt/entry/exit) are NOT protocol revenue — they go to each vault's feeRecipient.",
+    "Same as Revenue. T3trisProfit(uint256 profit) events emitted by each vault when assets are sent to t3treasury.",
   HoldersRevenue: "No direct revenue share to token holders.",
 };
 
