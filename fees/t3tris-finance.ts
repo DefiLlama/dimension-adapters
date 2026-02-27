@@ -209,15 +209,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
-    // Supply side = net yield to depositors
+    // Supply side = net yield to depositors (after all fees deducted)
     dailySupplySideRevenue.add(token, netYield);
 
-    // Total fees = gross yield = net yield + vault fees (perf + mgmt)
-    const grossYield = netYield + performanceFees + managementFees;
-    dailyFees.add(token, grossYield);
-
-    // Vault fees go to feeRecipient (vault manager) — tracked as fees only,
-    // NOT as revenue. Revenue = T3trisProfit (t3treasury) exclusively.
+    // Vault fees paid to feeRecipient (performance + management)
+    // These are tracked in dailyFees but NOT in dailyRevenue
+    dailyFees.add(token, performanceFees + managementFees);
   }
 
   // 7. Track entry fees from DepositsSettled events → feeRecipient
@@ -301,13 +298,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees:
-    "Total value generated: gross yield from strategies (net yield + performance/management fees) + entry/exit fees on deposits/withdrawals + T3trisProfit (assets sent to t3treasury). Vault fees (perf/mgmt/entry/exit) go to each vault's feeRecipient.",
+    "Vault fees collected by each vault's feeRecipient: performance fees (on profit above HWM) + management fees (annual % of TVL) + entry fees (on deposits) + exit fees (on withdrawals). Also includes T3trisProfit (assets sent to t3treasury). Does NOT include depositor yield.",
   SupplySideRevenue:
-    "Net yield earned by vault depositors after performance and management fees are deducted via share dilution.",
+    "Net yield earned by vault depositors after all fees are deducted.",
   Revenue:
-    "T3trisProfit only — assets transferred to the t3treasury. Vault fees (perf/mgmt/entry/exit) are NOT included in revenue; they are fees collected by each vault's feeRecipient.",
+    "T3trisProfit only — assets transferred to the t3treasury. Vault fees (perf/mgmt/entry/exit) are NOT included in revenue.",
   ProtocolRevenue:
-    "Same as Revenue. T3trisProfit(uint256 profit) events emitted by each vault when assets are sent to t3treasury.",
+    "Same as Revenue. T3trisProfit(uint256 profit) events from each vault.",
   HoldersRevenue: "No direct revenue share to token holders.",
 };
 
