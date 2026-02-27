@@ -28,6 +28,7 @@ const chainConfig: Record<string, { start: string, fee: string }> = {
   [CHAIN.BITLAYER]: { start: "2025-08-03", fee: '0x5722c0B501e7B9880F9bB13A14217851e45C454f' },
   [CHAIN.CRONOS]: { start: "2025-08-03", fee: '0x0C15c845C4A970b284c0dd61Bcf01c4DC1117d0F' },
   [CHAIN.MONAD]: { start: "2025-11-23", fee: '0x787C474B8A86354d0F5f19FB599a5FC7662A265f' },
+  [CHAIN.MEGAETH]: { start: "2025-12-30", fee: '0x91748773c5c52bA497ff4a1Cf681aEa9dbF4267f' },
 }
 
 async function fetch(options: FetchOptions) {
