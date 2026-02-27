@@ -79,19 +79,25 @@ export async function proxiedFetch(url: string) {
 
   const [host, username, password] = authInfo.split(':')
 
-  const client = axios.create({
-    httpsAgent: new https.Agent({
-      rejectUnauthorized: false,
-    }),
-  });
-  const { data } = await client
-    .get(url.toString(), {
-      proxy: {
-        protocol: "https",
-        host,
-        port: 8000,
-        auth: { username, password },
-      },
-    })
-  return data
+  try {
+
+    const client = axios.create({
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
+    });
+    const { data } = await client
+      .get(url.toString(), {
+        proxy: {
+          protocol: "https",
+          host,
+          port: 8000,
+          auth: { username, password },
+        },
+      })
+    return data
+  } catch (error) {
+    console.error(`Error fetching ${url} through proxy:`, error)
+    return httpGet(url)
+  }
 }
