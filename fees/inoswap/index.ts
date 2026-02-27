@@ -1,25 +1,36 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
 
-const LLAMA_URL = "https://inoswap.org/api/llama/metrics";
+const ROUTERS = [
+  "0x025f45a3ec6e90e8e1db1492554c9b10539ef2fc", // AggregationRouterV2 (current)
+  "0x95E8f3227eCc2F35213B6fD6fEce6B8854A77dB5", // legacy router (if still emitting)
+];
 
-const fetch = async (_: FetchOptions): Promise<FetchResultV2> => {
-  const m: any = await fetchURL(LLAMA_URL);
+const SWAP_EXECUTED_EVENT =
+  "event SwapExecuted(address indexed user, address indexed router, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, uint256 actualSlippage, uint8 swapType)";
 
-  const dailyFees = Number(m?.dailyFeesUsd || 0);
-  const dailyRevenue = Number(m?.dailyRevenueUsd || 0);
-  const dailyProtocolRevenue = Number(m?.dailyProtocolRevenueUsd || 0);
-  const dailySupplySideRevenue = Number(m?.dailySupplySideRevenueUsd || 0);
-  const dailyUserFees = Number(m?.dailyUserFeesUsd || 0);
+const fetch = async ({ getLogs, createBalances }: FetchOptions): Promise<FetchResultV2> => {
+  const dailyFees = createBalances();
 
+  const logs = await getLogs({
+    targets: ROUTERS,
+    eventAbi: SWAP_EXECUTED_EVENT,
+  });
+
+  logs.forEach((log: any) => {
+    if (!log?.tokenIn || !log?.fee) return;
+    dailyFees.add(log.tokenIn, log.fee);
+  });
+
+  // Onchain-first historical accounting from SwapExecuted fees.
+  // Revenue fields mirror fee stream until treasury/supply split is emitted onchain as separate events.
   return {
-    dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyRevenue.toString(),
-    dailyProtocolRevenue: dailyProtocolRevenue.toString(),
-    dailySupplySideRevenue: dailySupplySideRevenue.toString(),
-    dailyUserFees: dailyUserFees.toString(),
-  };
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: createBalances(),
+    dailyUserFees: dailyFees,
+  } as any;
 };
 
 const adapter: SimpleAdapter = {
@@ -27,15 +38,15 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CRONOS]: {
       fetch,
-      runAtCurrTime: true,
       start: "2026-02-01",
+      runAtCurrTime: true,
       metadata: {
         methodology: {
-          Fees: "Estimated from daily executed aggregator volume and configured fee bps.",
-          Revenue: "Net protocol revenue from aggregator fees.",
-          ProtocolRevenue: "Treasury share of protocol revenue.",
-          SupplySideRevenue: "Distributor/partner side share from fees.",
-          UserFees: "Fees directly paid by users on executed aggregator routes.",
+          Fees: "Onchain: sum of `fee` from InoSwap router `SwapExecuted` events.",
+          Revenue: "Mirrors onchain fee stream from `SwapExecuted` until explicit treasury split events are indexed.",
+          ProtocolRevenue: "Mirrors onchain fee stream from `SwapExecuted` until explicit treasury split events are indexed.",
+          SupplySideRevenue: "Set to 0 onchain until explicit partner/supply-side distribution events are emitted.",
+          UserFees: "Onchain user-paid fees from `SwapExecuted.fee`.",
         },
       },
     },
