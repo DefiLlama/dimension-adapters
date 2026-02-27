@@ -42,8 +42,7 @@ const ABI = {
   decimals: "uint8:decimals",
   totalAssets: "uint256:totalAssets",
   totalSupply: "uint256:totalSupply",
-  convertToAssets:
-    "function convertToAssets(uint256) view returns (uint256)",
+  convertToAssets: "function convertToAssets(uint256) view returns (uint256)",
   getPerfFee: "function getPerfFee() external view returns (uint16)",
   getManagementFee:
     "function getManagementFee() external view returns (uint16 managementFeeBps, uint32 managementFeeDays)",
@@ -55,8 +54,7 @@ const EVENT_ABI = {
   redemptionsSettled:
     "event RedemptionsSettled(uint256 indexed requestId, uint256 sharesToRedeem, uint256 assetsWithdrawn, uint256 sharesBurned, uint256 exitFeeAssets, uint256 unclaimedSharesFee, uint256 feeRecipientAmount)",
   // Assets transferred to t3treasury — the ONLY event tracking protocol revenue
-  t3trisProfit:
-    "event T3trisProfit(uint256 profit)",
+  t3trisProfit: "event T3trisProfit(uint256 profit)",
 };
 
 // Supported chains (will expand as T3tris deploys)
@@ -193,9 +191,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // Performance fee: perfFeeAmount = netYield × perfBps / (10000 - perfBps)
     const perfFeeBps = perfFees[i] ? Number(perfFees[i]) : 0;
     const performanceFees =
-      perfFeeBps > 0
-        ? (netYield * perfFeeBps) / (10000 - perfFeeBps)
-        : 0;
+      perfFeeBps > 0 ? (netYield * perfFeeBps) / (10000 - perfFeeBps) : 0;
 
     // Management fee: totalAssets × mgmtBps / 10000 × (timespan / (mgmtDays × 86400))
     let managementFees = 0;
@@ -229,7 +225,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (entryFeeAssets > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
-        (v: string) => v.toLowerCase() === vaultAddr
+        (v: string) => v.toLowerCase() === vaultAddr,
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
@@ -251,7 +247,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (exitFeeAssets > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
-        (v: string) => v.toLowerCase() === vaultAddr
+        (v: string) => v.toLowerCase() === vaultAddr,
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
@@ -276,7 +272,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     if (profit > 0) {
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
-        (v: string) => v.toLowerCase() === vaultAddr
+        (v: string) => v.toLowerCase() === vaultAddr,
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
@@ -297,8 +293,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees:
-    "Vault fees collected by each vault's feeRecipient: performance fees (on profit above HWM) + management fees (annual % of TVL) + entry fees (on deposits) + exit fees (on withdrawals). Also includes T3trisProfit (assets sent to t3treasury). Does NOT include depositor yield.",
+  Fees: "Vault fees collected by each vault's feeRecipient: performance fees (on profit above HWM) + management fees (annual % of TVL) + entry fees (on deposits) + exit fees (on withdrawals). Also includes T3trisProfit (assets sent to t3treasury). Does NOT include depositor yield.",
   SupplySideRevenue:
     "Net yield earned by vault depositors after all fees are deducted.",
   Revenue:
@@ -318,7 +313,7 @@ const adapter: SimpleAdapter = {
         start: chainConfig[chain].start,
       },
     }),
-    {}
+    {},
   ),
   methodology,
 };
