@@ -87,6 +87,9 @@ const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyVolume,
+    dailyFees: 0,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   };
 };
 
