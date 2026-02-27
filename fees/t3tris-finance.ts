@@ -1,19 +1,27 @@
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 /**
  * T3tris Finance — Fees & Revenue Adapter
  *
- * T3tris is a vault protocol with ERC4626 vaults deployed via a factory.
- * Revenue comes from:
- *   - Performance fees (% of profit above high-water mark)
- *   - Management fees (annual % of TVL, prorated by managementFeeDays)
- *   - Entry fees on deposits (from DepositsSettled events)
- *   - Exit fees on withdrawals (from RedemptionsSettled events)
+ * Revenue model:
+ *   1. **Vault fees** (→ feeRecipient per vault, i.e. vault manager):
+ *      - Performance fees: % of profit above high-water mark (share dilution)
+ *      - Management fees:  annual % of TVL, prorated (share dilution)
+ *      - Entry fees:       bps on deposits (from DepositsSettled events)
+ *      - Exit fees:        bps on withdrawals (from RedemptionsSettled events)
  *
- * Yield is tracked via share price growth (convertToAssets rate delta).
- * Entry/exit fees are tracked via on-chain events emitted by each vault.
+ *   2. **Silo PNL** (→ t3treasury, i.e. protocol revenue):
+ *      User assets sit in yield-bearing silos (ERC4626 wrappers around strategies
+ *      like AAVE) between operations. The yield earned above the tracked deposit
+ *      amount is protocol profit, realized via T3trisProfit events.
+ *      Sources: depositSilo PNL, redeemSilo PNL, syncSilo PNL.
+ *
+ * DefiLlama mapping:
+ *   - dailyFees           = gross yield + entry/exit fees + silo PNL
+ *   - dailySupplySideRevenue = net yield to depositors
+ *   - dailyRevenue         = vault fees (to feeRecipient) + silo PNL (to treasury)
+ *   - dailyProtocolRevenue  = silo PNL only (to t3treasury)
  *
  * Factory address is deterministic (CREATE3) — same on all chains.
  */
@@ -42,6 +50,9 @@ const EVENT_ABI = {
     "event DepositsSettled(uint256 indexed requestId, uint256 assetsDeposited, uint256 sharesMinted, uint256 entryFees, uint256 unclaimedFees)",
   redemptionsSettled:
     "event RedemptionsSettled(uint256 indexed requestId, uint256 sharesToRedeem, uint256 assetsWithdrawn, uint256 sharesBurned, uint256 exitFeeAssets, uint256 unclaimedSharesFee, uint256 feeRecipientAmount)",
+  // Silo PNL realized and sent to t3treasury
+  t3trisProfit:
+    "event T3trisProfit(uint256 profit)",
 };
 
 // Supported chains (will expand as T3tris deploys)
@@ -69,6 +80,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   // 1. Discover all vaults from factory
   let count: number;
@@ -150,7 +162,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }),
   ]);
 
-  // 6. Calculate daily yield and split into fee categories
+  // 6. Calculate daily yield and fee splits
+  //    Vault fees (perf/mgmt) → feeRecipient (vault manager)
+  //    Net yield → depositors (supply side)
   const timespan = options.endTimestamp - options.startTimestamp;
 
   for (let i = 0; i < vaults.length; i++) {
@@ -167,21 +181,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const rateGrowth = Number(rateAfter) - Number(rateBefore);
 
     // Net yield to shareholders = totalSupply × delta(PPS) / unit
-    // This already has perf/mgmt fees deducted (they dilute PPS via share minting)
+    // PPS already has perf/mgmt fees deducted (they dilute PPS via share minting)
     const netYield = (Number(supply) * rateGrowth) / unit;
 
     if (netYield <= 0) continue;
 
-    // Performance fee: if perfFeeBps = 2000 (20%), gross yield ≈ netYield / (1 - 0.20)
-    // perfFeeAmount = grossYield - netYield = netYield * perfFeeBps / (10000 - perfFeeBps)
+    // Performance fee: perfFeeAmount = netYield × perfBps / (10000 - perfBps)
     const perfFeeBps = perfFees[i] ? Number(perfFees[i]) : 0;
     const performanceFees =
       perfFeeBps > 0
         ? (netYield * perfFeeBps) / (10000 - perfFeeBps)
         : 0;
 
-    // Management fee: annual fee prorated to the observation period
-    // mgmtFeeDaily = totalAssets × mgmtFeeBps / 10000 × (timespan / (managementFeeDays × 86400))
+    // Management fee: totalAssets × mgmtBps / 10000 × (timespan / (mgmtDays × 86400))
     let managementFees = 0;
     if (mgmtFees[i] && tvl) {
       const mgmtFeeBps = Number(mgmtFees[i].managementFeeBps || 0);
@@ -193,29 +205,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       }
     }
 
-    // Record breakdown
     // Supply side = net yield to depositors
-    dailySupplySideRevenue.add(token, netYield, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.add(token, netYield);
 
-    // Total fees = gross yield = net yield + perf fees + mgmt fees
-    dailyFees.add(token, netYield, METRIC.ASSETS_YIELDS);
-    if (performanceFees > 0) {
-      dailyFees.add(token, performanceFees, METRIC.PERFORMANCE_FEES);
-    }
-    if (managementFees > 0) {
-      dailyFees.add(token, managementFees, METRIC.MANAGEMENT_FEES);
-    }
+    // Total fees = gross yield = net yield + vault fees (perf + mgmt)
+    const grossYield = netYield + performanceFees + managementFees;
+    dailyFees.add(token, grossYield);
 
-    // Protocol revenue = perf fees + mgmt fees (to T3tris treasury)
-    if (performanceFees > 0) {
-      dailyRevenue.add(token, performanceFees, METRIC.PERFORMANCE_FEES);
-    }
-    if (managementFees > 0) {
-      dailyRevenue.add(token, managementFees, METRIC.MANAGEMENT_FEES);
-    }
+    // Vault fees go to feeRecipient (vault manager), NOT protocol treasury
+    // They are still "revenue" in the DL sense (someone earns them)
+    dailyRevenue.add(token, performanceFees + managementFees);
   }
 
-  // 7. Track entry fees from DepositsSettled events
+  // 7. Track entry fees from DepositsSettled events → feeRecipient
   const depositLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.depositsSettled,
@@ -225,20 +227,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const log of depositLogs) {
     const entryFeeAssets = Number(log.entryFees);
     if (entryFeeAssets > 0) {
-      // Find which vault emitted this to get its underlying asset
       const vaultAddr = (log as any).address?.toLowerCase();
       const vaultIndex = vaults.findIndex(
         (v: string) => v.toLowerCase() === vaultAddr
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
-        dailyFees.add(token, entryFeeAssets, METRIC.DEPOSIT_WITHDRAW_FEES);
-        dailyRevenue.add(token, entryFeeAssets, METRIC.DEPOSIT_WITHDRAW_FEES);
+        dailyFees.add(token, entryFeeAssets);
+        dailyRevenue.add(token, entryFeeAssets); // → feeRecipient
       }
     }
   }
 
-  // 8. Track exit fees from RedemptionsSettled events
+  // 8. Track exit fees from RedemptionsSettled events → feeRecipient
   const redeemLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.redemptionsSettled,
@@ -254,8 +255,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       );
       const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
       if (token) {
-        dailyFees.add(token, exitFeeAssets, METRIC.DEPOSIT_WITHDRAW_FEES);
-        dailyRevenue.add(token, exitFeeAssets, METRIC.DEPOSIT_WITHDRAW_FEES);
+        dailyFees.add(token, exitFeeAssets);
+        dailyRevenue.add(token, exitFeeAssets); // → feeRecipient
+      }
+    }
+  }
+
+  // 9. Track silo PNL via T3trisProfit events → t3treasury (protocol revenue)
+  //    Silo PNL = yield earned on user assets sitting in yield-bearing silos
+  //    (depositSilo, redeemSilo, syncSilo) between operations.
+  const profitLogs = await options.getLogs({
+    targets: vaults,
+    eventAbi: EVENT_ABI.t3trisProfit,
+    flatten: true,
+  });
+
+  for (const log of profitLogs) {
+    const profit = Number(log.profit);
+    if (profit > 0) {
+      const vaultAddr = (log as any).address?.toLowerCase();
+      const vaultIndex = vaults.findIndex(
+        (v: string) => v.toLowerCase() === vaultAddr
+      );
+      const token = vaultIndex >= 0 ? assets[vaultIndex] : null;
+      if (token) {
+        dailyFees.add(token, profit);
+        dailyRevenue.add(token, profit);
+        dailyProtocolRevenue.add(token, profit); // ONLY silo PNL goes to protocol
       }
     }
   }
@@ -264,50 +290,21 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
   Fees:
-    "Total value generated by T3tris vaults, including yield distributed to depositors, performance fees, management fees, and entry/exit fees on deposits and withdrawals.",
+    "Total value generated: gross yield from strategies (net yield + performance/management fees) + entry/exit fees on deposits/withdrawals + silo PNL (yield earned on assets in silos between operations).",
   SupplySideRevenue:
-    "Net yield earned by vault depositors after performance and management fees are deducted.",
+    "Net yield earned by vault depositors after performance and management fees are deducted via share dilution.",
   Revenue:
-    "Performance fees (on profits above high-water mark), management fees (annual % of TVL), and entry/exit fees collected by the T3tris protocol.",
+    "Sum of vault fees (performance, management, entry, exit — sent to the vault's feeRecipient) and silo PNL (sent to t3treasury).",
   ProtocolRevenue:
-    "Same as Revenue — all protocol fees flow to the T3tris treasury and fee recipients.",
+    "Silo PNL only — yield earned on user assets sitting in yield-bearing silos (depositSilo, redeemSilo, syncSilo) between operations. This is the protocol's own revenue, sent to the t3treasury. Vault fees (perf/mgmt/entry/exit) are NOT protocol revenue — they go to each vault's feeRecipient.",
   HoldersRevenue: "No direct revenue share to token holders.",
-};
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.ASSETS_YIELDS]:
-      "Yield generated from underlying strategies (e.g., AAVE) distributed to vault depositors.",
-    [METRIC.PERFORMANCE_FEES]:
-      "Performance fees charged on vault profits above the high-water mark.",
-    [METRIC.MANAGEMENT_FEES]:
-      "Management fees charged as an annual percentage of vault TVL.",
-    [METRIC.DEPOSIT_WITHDRAW_FEES]:
-      "Entry fees on deposits and exit fees on withdrawals, charged at settlement time.",
-  },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]:
-      "Net yield distributed to vault depositors after all fees.",
-  },
-  Revenue: {
-    [METRIC.PERFORMANCE_FEES]: "Performance fees collected by T3tris treasury.",
-    [METRIC.MANAGEMENT_FEES]: "Management fees collected by T3tris treasury.",
-    [METRIC.DEPOSIT_WITHDRAW_FEES]:
-      "Entry and exit fees collected at deposit/withdrawal settlement.",
-  },
-  ProtocolRevenue: {
-    [METRIC.PERFORMANCE_FEES]: "Performance fees collected by T3tris treasury.",
-    [METRIC.MANAGEMENT_FEES]: "Management fees collected by T3tris treasury.",
-    [METRIC.DEPOSIT_WITHDRAW_FEES]:
-      "Entry and exit fees collected at deposit/withdrawal settlement.",
-  },
 };
 
 const adapter: SimpleAdapter = {
@@ -323,7 +320,6 @@ const adapter: SimpleAdapter = {
     {}
   ),
   methodology,
-  breakdownMethodology,
 };
 
 export default adapter;
