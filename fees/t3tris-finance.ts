@@ -11,17 +11,18 @@ import { CHAIN } from "../helpers/chains";
  *      - Entry fees:       bps on deposits (from DepositsSettled events)
  *      - Exit fees:        bps on withdrawals (from RedemptionsSettled events)
  *
- *   2. **Silo PNL** (→ t3treasury, i.e. protocol revenue):
- *      User assets sit in yield-bearing silos (ERC4626 wrappers around strategies
- *      like AAVE) between operations. The yield earned above the tracked deposit
- *      amount is protocol profit, realized via T3trisProfit events.
- *      Sources: depositSilo PNL, redeemSilo PNL, syncSilo PNL.
+ *   2. **T3trisProfit** (→ t3treasury, i.e. protocol revenue):
+ *      The T3trisProfit(uint256 profit) event is emitted every time the vault
+ *      transfers assets to the t3treasury address. This is the ONLY event that
+ *      tracks protocol revenue — it captures the exact amount sent to treasury,
+ *      regardless of origin (silo yield, pending fees, etc.).
+ *      We do NOT index silo contracts or silo PNL events directly.
  *
  * DefiLlama mapping:
- *   - dailyFees           = gross yield + entry/exit fees + silo PNL
+ *   - dailyFees           = gross yield + entry/exit fees + T3trisProfit
  *   - dailySupplySideRevenue = net yield to depositors
- *   - dailyRevenue         = vault fees (to feeRecipient) + silo PNL (to treasury)
- *   - dailyProtocolRevenue  = silo PNL only (to t3treasury)
+ *   - dailyRevenue         = vault fees (to feeRecipient) + T3trisProfit (to treasury)
+ *   - dailyProtocolRevenue  = T3trisProfit only (assets sent to t3treasury)
  *
  * Factory address is deterministic (CREATE3) — same on all chains.
  */
@@ -50,7 +51,7 @@ const EVENT_ABI = {
     "event DepositsSettled(uint256 indexed requestId, uint256 assetsDeposited, uint256 sharesMinted, uint256 entryFees, uint256 unclaimedFees)",
   redemptionsSettled:
     "event RedemptionsSettled(uint256 indexed requestId, uint256 sharesToRedeem, uint256 assetsWithdrawn, uint256 sharesBurned, uint256 exitFeeAssets, uint256 unclaimedSharesFee, uint256 feeRecipientAmount)",
-  // Silo PNL realized and sent to t3treasury
+  // Assets transferred to t3treasury — the ONLY event tracking protocol revenue
   t3trisProfit:
     "event T3trisProfit(uint256 profit)",
 };
@@ -261,9 +262,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  // 9. Track silo PNL via T3trisProfit events → t3treasury (protocol revenue)
-  //    Silo PNL = yield earned on user assets sitting in yield-bearing silos
-  //    (depositSilo, redeemSilo, syncSilo) between operations.
+  // 9. Track T3trisProfit events — assets actually transferred to t3treasury
+  //    This is the sole source of protocol revenue. We do NOT index silo
+  //    contracts or silo PNL events directly; T3trisProfit captures the exact
+  //    amount sent to the treasury regardless of origin.
   const profitLogs = await options.getLogs({
     targets: vaults,
     eventAbi: EVENT_ABI.t3trisProfit,
@@ -281,7 +283,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       if (token) {
         dailyFees.add(token, profit);
         dailyRevenue.add(token, profit);
-        dailyProtocolRevenue.add(token, profit); // ONLY silo PNL goes to protocol
+        dailyProtocolRevenue.add(token, profit); // ONLY T3trisProfit goes to protocol
       }
     }
   }
@@ -297,13 +299,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees:
-    "Total value generated: gross yield from strategies (net yield + performance/management fees) + entry/exit fees on deposits/withdrawals + silo PNL (yield earned on assets in silos between operations).",
+    "Total value generated: gross yield from strategies (net yield + performance/management fees) + entry/exit fees on deposits/withdrawals + T3trisProfit (assets sent to t3treasury).",
   SupplySideRevenue:
     "Net yield earned by vault depositors after performance and management fees are deducted via share dilution.",
   Revenue:
-    "Sum of vault fees (performance, management, entry, exit — sent to the vault's feeRecipient) and silo PNL (sent to t3treasury).",
+    "Sum of vault fees (performance, management, entry, exit — sent to the vault's feeRecipient) and T3trisProfit (sent to t3treasury).",
   ProtocolRevenue:
-    "Silo PNL only — yield earned on user assets sitting in yield-bearing silos (depositSilo, redeemSilo, syncSilo) between operations. This is the protocol's own revenue, sent to the t3treasury. Vault fees (perf/mgmt/entry/exit) are NOT protocol revenue — they go to each vault's feeRecipient.",
+    "T3trisProfit only — assets transferred to the t3treasury. Tracked via the T3trisProfit(uint256 profit) event emitted by each vault. Vault fees (perf/mgmt/entry/exit) are NOT protocol revenue — they go to each vault's feeRecipient.",
   HoldersRevenue: "No direct revenue share to token holders.",
 };
 
