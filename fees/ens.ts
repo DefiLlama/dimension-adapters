@@ -76,6 +76,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2023-02-23',

@@ -17,6 +17,7 @@ const fetchFees = async ({ createBalances, getLogs, }: FetchOptions) => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,

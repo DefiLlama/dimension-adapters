@@ -113,6 +113,7 @@ const config: any = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {},
 };
 

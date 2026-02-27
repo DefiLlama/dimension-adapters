@@ -1,21 +1,39 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
-const fetch = async (_a: any) => {
-  const { data } = await fetchURL('https://api.pacifica.fi/api/v1/info/prices')
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const data = await fetchURL('https://api.pacifica.fi/api/v1/info')
+  if (!data.data){
+    throw new Error('Tickers are unavailable, please try again later');
+  }
 
-  const volume = data.reduce((a: number, b: { volume_24h: string }) => a + Number(b.volume_24h), 0)
-  const oi = data.reduce((a: number, b: { open_interest: string, mark: string }) => a + (Number(b.open_interest) * Number(b.mark)), 0)
+  const tickers = data.data.map((tradeSummary: any) => tradeSummary.symbol)
+  let dailyVolume = 0;
 
-  return {
-    dailyVolume: volume,
-    openInterestAtEnd: oi,
-  };
+  const { errors } = await PromisePool.withConcurrency(1)
+    .for(tickers)
+    .process(async (ticker) => {
+      const data = await fetchURLAutoHandleRateLimit(`https://api.pacifica.fi/api/v1/kline?symbol=${ticker}&interval=1d&start_time=${(options.startOfDay) * 1000}`)
+      const todaysData = data.data.filter((kline: any) => kline.t == options.startOfDay * 1000);
+      const volume = (todaysData[0].v * +todaysData[0].c) / 2; // They include taker + maker in ohlcv candles
+      dailyVolume += volume;
+      await new Promise(r => setTimeout(r, 1000));
+    })
+
+  if (errors.length > 0) {
+    throw new Error(`Failed to fetch data for ${errors.length} ticker(s): ${errors.map(e => e.message).join(', ')}`);
+  }
+
+  return { dailyVolume }
 }
 
-export default {
-  version: 2,
+const adapter: SimpleAdapter = {
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  runAtCurrTime: true
+  start: '2025-06-09'
 }
+
+export default adapter;

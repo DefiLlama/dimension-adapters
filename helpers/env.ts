@@ -78,6 +78,8 @@ export const ENV_KEYS = new Set([
   'CLICKHOUSE_CONFIG',
   'PROXY_AUTH',
   'DERIVE_API_KEY',
+  'DECIBEL_API_KEY',
+  'SPACESCOPE_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

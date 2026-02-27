@@ -51,6 +51,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.MONAD]: { start: '2025-11-17' },

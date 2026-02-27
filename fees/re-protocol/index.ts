@@ -78,6 +78,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter : SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE],
     allowNegativeValue: true,

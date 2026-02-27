@@ -140,6 +140,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Protocol fees are generated from Bonding Curve token actions (create, buy, sell, graduate) and from post-graduation LP manager fee collections.",
     Revenue:

@@ -27,6 +27,7 @@ Object.keys(config).forEach(chain => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: adapters,
 }
 

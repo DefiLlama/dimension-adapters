@@ -21,6 +21,7 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-07-09' },
   [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
   [CHAIN.MONAD]: { id: 143, start: '2025-11-23' },
+  [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-09' },
   // [CHAIN.CRONOS]: { id: 25, start: '2021-06-01' },
   // [CHAIN.MANTLE]: { id: 5000, start: '2023-07-17' },
   // [CHAIN.BLAST]: {id: 81457, start: '2024-02-29'},

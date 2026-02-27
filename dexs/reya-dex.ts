@@ -122,6 +122,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume: "Notional volume of trades.",
     Fees: "All fees paid by traders, including the APY earned by stakers.",

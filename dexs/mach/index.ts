@@ -37,6 +37,7 @@ for (const [chain, { start }] of Object.entries(DEPLOYMENTS)) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: adapters,
 }
 

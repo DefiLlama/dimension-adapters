@@ -82,6 +82,7 @@ async function fetch({
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     ...Object.entries(mangrove).reduce((acc, [key, config]) => {
       acc[key] = {

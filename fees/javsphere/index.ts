@@ -48,6 +48,7 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchRe
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,

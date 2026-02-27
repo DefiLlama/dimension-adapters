@@ -4,7 +4,7 @@ import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const HL_BUILDER_ADDRESS = "0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36";
-const EXTENDED_BUILDER_NAME = "FlowBot";
+const EXTENDED_BUILDER_NAMES = ['FlowBot'];
 const EXTENDED_BUILDER_FEE_RATE = 0.00001;
 
 const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
@@ -20,7 +20,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,
-      builderName: EXTENDED_BUILDER_NAME,
+      builderNames: EXTENDED_BUILDER_NAMES,
       builderFeeRate: EXTENDED_BUILDER_FEE_RATE
     });
 
