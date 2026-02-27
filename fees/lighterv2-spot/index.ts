@@ -41,6 +41,20 @@ async function fetchExchangeMetricByMarket(kind: string, symbol: string, startOf
   return metric?.data || 0
 }
 
+async function fetchExchangeMetricGlobal(kind: string, startOfDay: number): Promise<number> {
+  const response: ExchangeMetricResponse = await fetchURL(
+    `${API_BASE}/exchangeMetrics?period=all&kind=${kind}`
+  )
+  
+  if (!response?.metrics || !Array.isArray(response.metrics)) {
+    return 0
+  }
+
+  // Find the metric matching the startOfDay timestamp
+  const metric = response.metrics.find(m => m.timestamp === startOfDay)
+  return metric?.data || 0
+}
+
 async function getActiveSpotMarkets(api: any): Promise<OrderBookDetail[]> {
   const response: OrderBookDetailsResponse = await fetchURL(`${API_BASE}/orderBookDetails`)
   
@@ -63,32 +77,25 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
   const markets = await getActiveSpotMarkets(options.api)
   
   // Calculate concurrency based on rate limit
-  // 5 fee types per market, 200 requests per minute limit
-  // Use concurrency of 30 to be safe (30 * 5 = 150 requests per batch)
-  const concurrency = 5
+  // 2 fee types per market, 200 requests per minute limit
+  const concurrency = 1
   const batchSize = concurrency
-  const delayBetweenBatches = 60000 / (RATE_LIMIT_PER_MINUTE / 5) * batchSize // milliseconds
+  const delayBetweenBatches = 60000 / (RATE_LIMIT_PER_MINUTE / 2) * batchSize // milliseconds
   
   let totalMakerFee = 0
   let totalTakerFee = 0
-  let totalTransferFee = 0
-  let totalWithdrawFee = 0
   let processedCount = 0
 
   await PromisePool.withConcurrency(concurrency)
     .for(markets)
     .process(async (market: OrderBookDetail) => {
-      const [makerFee, takerFee, transferFee, withdrawFee] = await Promise.all([
+      const [makerFee, takerFee] = await Promise.all([
         fetchExchangeMetricByMarket('maker_fee', market.symbol, options.startOfDay),
         fetchExchangeMetricByMarket('taker_fee', market.symbol, options.startOfDay),
-        fetchExchangeMetricByMarket('transfer_fee', market.symbol, options.startOfDay),
-        fetchExchangeMetricByMarket('withdraw_fee', market.symbol, options.startOfDay),
       ])
 
       totalMakerFee += makerFee
       totalTakerFee += takerFee
-      totalTransferFee += transferFee
-      totalWithdrawFee += withdrawFee
       
       processedCount++
       
@@ -97,6 +104,12 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
         await new Promise(resolve => setTimeout(resolve, delayBetweenBatches))
       }
     })
+
+  // Fetch global fees once
+  const [totalTransferFee, totalWithdrawFee] = await Promise.all([
+    fetchExchangeMetricGlobal('transfer_fee', options.startOfDay),
+    fetchExchangeMetricGlobal('withdraw_fee', options.startOfDay),
+  ])
 
   const tradingFees = totalMakerFee + totalTakerFee
 
