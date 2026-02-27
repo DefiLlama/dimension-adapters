@@ -1,19 +1,23 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
-import { httpPost } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (_: number, _block: any, { startOfDayId }: FetchOptions) => {
-  const query = `query { traderJoeDayData(id: ${startOfDayId}) { volumeUSD feesUSD } }`;
-  const { data: { traderJoeDayData: { volumeUSD, feesUSD } } } = await httpPost('https://sonic-graph-b.metropolis.exchange/subgraphs/name/metropolis/sonic-lb-v22-2-w-v', { query })
+const FEES_CHANGE_TIMESTAMP = 1770163200 // 2026-02-04
+
+const fetch = async (_: number, _block: any, { startOfDayId, chain, fromTimestamp }: FetchOptions) => {
+  const { volumeUSD, feesUSD } = await fetchURL(`https://api-b.metropolis.exchange/api/v1/defilama/daily-stats/${chain}/${startOfDayId}`)
+  const feeDailyProtocolRevenue: number = fromTimestamp >= FEES_CHANGE_TIMESTAMP ? 0 : 0.05
+  const feeDailyHoldersRevenue: number = fromTimestamp >= FEES_CHANGE_TIMESTAMP ? 0.2 : 0.15
+
   const dailyVolume = +volumeUSD
   const dailyFees = +feesUSD
   return {
     dailyVolume,
     dailyFees,
-    dailySupplySideRevenue: dailyFees * 0.8,
     dailyRevenue: dailyFees * 0.2,
-    dailyProtocolRevenue: dailyFees * 0.05,
-    dailyHoldersRevenue: dailyFees * 0.15,
+    dailyProtocolRevenue: dailyFees * feeDailyProtocolRevenue,
+    dailySupplySideRevenue: dailyFees * 0.8,
+    dailyHoldersRevenue: dailyFees * feeDailyHoldersRevenue,
   }
 };
 
@@ -21,9 +25,9 @@ const fetch = async (_: number, _block: any, { startOfDayId }: FetchOptions) => 
 const methodology = {
   Fees: "Swap fees",
   Revenue: "20% of the swap fees",
-  ProtocolRevenue: "5% of the swap fees",
+  ProtocolRevenue: "0% of the swap fees",
   SupplySideRevenue: "80% of the swap fees",
-  HoldersRevenue: "15% of the swap fees",
+  HoldersRevenue: "20% of the swap fees",
 };
 
 export default {
