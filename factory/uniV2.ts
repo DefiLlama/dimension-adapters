@@ -407,7 +407,7 @@ const configs: Record<string, Record<string, any>> = {
   "swapmode-v2": {
     mode: { factory: '0xfb926356BAf861c93C3557D7327Dbe8734A71891', start: '2024-02-02', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
-  "parity-dex": {
+  "parity": {
     monad: { factory: '0x6DBb0b5B201d02aD74B137617658543ecf800170', start: '2026-02-11', stableFees: 0.0004, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0.9 },
   },
   "swyrl-legacy": {

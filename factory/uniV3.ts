@@ -220,7 +220,7 @@ const configs: Record<string, Record<string, any>> = {
   "prism-dex": {
     [CHAIN.MEGAETH]: { factory: '0x1adb8f973373505bb206e0e5d87af8fb1f5514ef', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, start: '2026-02-09' },
   },
-  "parity-dex-cl": {
+  "parity": {
     [CHAIN.MONAD]: { factory: '0x2A6CE23C5017aF1b07B9c4E4014442aDE18Bd404', start: '2026-02-11' },
   },
   "swyrl-cl": {
