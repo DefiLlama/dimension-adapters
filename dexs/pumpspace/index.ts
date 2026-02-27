@@ -6,12 +6,11 @@ import { Interface } from "ethers";
 
 /**
  * PumpSpace DEX Adapter (Avalanche)
- * - V2: Uniswap V2 fork (factory Pair Swap logs)
+ * - V2: Uniswap V2 fork (factory pair Swap logs)
  * - V3: Trident concentrated liquidity (PoolLogger Swap logs)
  *
- * Notes:
- * - DefiLlama counts DEX volume on ONE side of a swap (to avoid double counting).
- * - For V3 fees, fee is charged on amountIn (input token).
+ * Pricing for wrapper stables (bUSDC/bAUSD) is handled via defillama-server tokenMapping,
+ * so this adapter does NOT include any wrapper-to-underlying remapping.
  */
 
 // --------------------
@@ -27,29 +26,6 @@ const V3_POOL_LOGGER = "0x77c8dfFE4130FE58e5C3c02a2E7ab6DB7f4F474f";
 const V3_SWAP_EVENT =
   "event Swap(address indexed pool, bool zeroForOne, uint256 amountIn, uint256 amountOut)";
 
-// --------------------
-// Stable-like wrapped tokens (PumpSpace)
-// (Workaround for missing pricing: map to underlying well-priced stables)
-// --------------------
-// const bUSDt = "0x3C594084dC7AB1864AC69DFd01AB77E8f65B83B7";
-const bUSDC = "0x038Dbe3D967bB8389190446DACdfE7B95b44F73D";
-const bAUSD = "0xd211b17Dfe8288D4Fb0dd8EEFF07A6C48fC679D5";
-
-// Underlying stables (Avalanche) - used ONLY for pricing fallback in this adapter
-// If your underlying AUSD differs, replace AVAX_AUSD with the correct token address.
-// const AVAX_USDT = "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7";
-const AVAX_USDC = "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E";
-const AVAX_AUSD = "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a";
-
-const STABLE_UNDERLYING_MAP: Record<string, string> = {
-  // [bUSDt.toLowerCase()]: AVAX_USDT,
-  [bUSDC.toLowerCase()]: AVAX_USDC,
-  [bAUSD.toLowerCase()]: AVAX_AUSD,
-};
-
-const isStableLike = (token: string) =>
-  STABLE_UNDERLYING_MAP[token.toLowerCase()] !== undefined;
-
 const unwrapCallResult = (r: any) => {
   if (r === null || r === undefined) return null;
   if (typeof r === "object" && "output" in r) return (r as any).output;
@@ -64,35 +40,19 @@ const toBigInt = (v: any): bigint => {
   return BigInt(v.toString());
 };
 
-const pow10 = (exp: number): bigint => 10n ** BigInt(exp);
+// Pool address can appear as bytes32-topic-like (0x + 64 hex chars) in some environments.
+// Convert to 20-byte address when needed.
+const normalizePoolAddress = (raw: any): string | null => {
+  if (!raw) return null;
+  let s = raw.toString();
 
-const scaleAmount = (amount: bigint, fromDecimals: number, toDecimals: number): bigint => {
-  if (amount === 0n) return 0n;
-  if (fromDecimals === toDecimals) return amount;
-  if (fromDecimals > toDecimals) return amount / pow10(fromDecimals - toDecimals);
-  return amount * pow10(toDecimals - fromDecimals);
-};
+  // If bytes32 topic: 0x000...000<20-byte-address> (66 chars including 0x)
+  if (s.startsWith("0x") && s.length === 66) s = "0x" + s.slice(26);
+  // If no 0x prefix but 40 hex chars
+  if (!s.startsWith("0x") && s.length === 40) s = "0x" + s;
 
-const addWithStableMapping = (
-  balances: any,
-  token: string,
-  amount: bigint,
-  decimalsMap: Map<string, number>
-) => {
-  if (!token || amount <= 0n) return;
-
-  const key = token.toLowerCase();
-  const mapped = STABLE_UNDERLYING_MAP[key];
-  if (!mapped) {
-    balances.add(token, amount);
-    return;
-  }
-
-  const fromDec = decimalsMap.get(key) ?? 18;
-  const toDec = decimalsMap.get(mapped.toLowerCase()) ?? 18;
-  const adjAmount = scaleAmount(amount, fromDec, toDec);
-
-  if (adjAmount > 0n) balances.add(mapped, adjAmount);
+  if (s.startsWith("0x") && s.length === 42) return s.toLowerCase();
+  return null;
 };
 
 // --------------------
@@ -127,12 +87,8 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
       abi: "function defaultProtocolFee() view returns (uint256)",
     });
     protocolFeeBps = BigInt(v.toString());
-  } catch (e) {
-    // keep fallback (2000 bps)
-    console.warn(
-      `[pumpspace/v3] failed to read defaultProtocolFee() from ${V3_POOL_FACTORY}, using fallback 2000 bps`,
-      e
-    );
+  } catch {
+    // keep fallback
   }
 
   // 10,000 bps = 100%
@@ -146,19 +102,23 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
 
   const iface = new Interface([V3_SWAP_EVENT]);
 
-  const loadLogs = async (skipIndexer?: boolean) =>
-    getLogs({
-      target: V3_POOL_LOGGER,
-      eventAbi: V3_SWAP_EVENT,
-      fromBlock,
-      toBlock,
-      entireLog: true,
-      cacheInCloud: true,
-      ...(skipIndexer ? { skipIndexer: true } : {}),
-    });
+  const loadLogs = async (skipIndexer?: boolean) => {
+    try {
+      return (await getLogs({
+        target: V3_POOL_LOGGER,
+        eventAbi: V3_SWAP_EVENT,
+        fromBlock,
+        toBlock,
+        entireLog: true,
+        cacheInCloud: true,
+        ...(skipIndexer ? { skipIndexer: true } : {}),
+      })) as any[];
+    } catch {
+      return [] as any[];
+    }
+  };
 
-  // 1) Try default (may use indexer/cache)
-  // 2) If empty, fallback to direct RPC mode
+  // Try indexer/cached first, then fallback to RPC if needed
   let logs: any[] = await loadLogs(false);
   if (!logs.length) logs = await loadLogs(true);
 
@@ -174,33 +134,8 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
     };
   }
 
-  // Pre-fetch decimals for stable-like tokens (source + underlying)
-  const stableTokenList = Array.from(
-    new Set([
-      ...Object.keys(STABLE_UNDERLYING_MAP),
-      ...Object.values(STABLE_UNDERLYING_MAP).map((t) => t.toLowerCase()),
-    ])
-  );
-  const decimalsMap = new Map<string, number>();
-  try {
-    const decRes = await api.multiCall({
-      abi: "uint8:decimals",
-      calls: stableTokenList,
-      permitFailure: true,
-    });
-    for (let i = 0; i < stableTokenList.length; i++) {
-      const d = unwrapCallResult(decRes[i]);
-      if (d === null || d === undefined) continue;
-      const n = Number(d.toString());
-      if (!Number.isNaN(n)) decimalsMap.set(stableTokenList[i].toLowerCase(), n);
-    }
-  } catch (e) {
-    // non-fatal; we'll default to 18 if missing
-    console.warn("[pumpspace/v3] decimals multicall failed (non-fatal)", e);
-  }
-
-  // Parse logs & collect pools
   type Swap = {
+    poolKey: string;
     pool: string;
     zeroForOne: boolean;
     amountIn: bigint;
@@ -211,30 +146,32 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
   const poolSet = new Set<string>();
 
   for (const l of logs) {
-    // If getLogs already returns parsed args, l might contain fields directly.
-    // If it returns raw logs, parseLog will decode pool as address.
-    const args: any = iface.parseLog(l)?.args ?? l?.args ?? l;
+    // Parse raw log if possible; fallback to already-parsed fields if present
+    let parsedArgs: any = null;
+    try {
+      if (l?.topics && l?.data) parsedArgs = iface.parseLog(l)?.args ?? null;
+    } catch {
+      parsedArgs = null;
+    }
+
+    const args: any = parsedArgs ?? l?.args ?? l;
     if (!args) continue;
 
-    const poolRaw = args.pool ?? args[0] ?? l.pool;
-    if (!poolRaw) continue;
+    const poolRaw =
+      args.pool ??
+      args[0] ??
+      l.pool ??
+      (l?.topics && l.topics.length > 1 ? l.topics[1] : null);
 
-    // pool may appear as bytes32 topic-like string in some environments → normalize to address
-    const poolStr = poolRaw.toString();
-    const pool =
-      poolStr.length === 42
-        ? poolStr
-        : poolStr.length === 66
-          ? ("0x" + poolStr.slice(26))
-          : null;
+    const pool = normalizePoolAddress(poolRaw);
     if (!pool) continue;
 
-    const zeroForOne = Boolean(args.zeroForOne ?? args[1]);
-    const amountIn = toBigInt(args.amountIn ?? args[2]);
-    const amountOut = toBigInt(args.amountOut ?? args[3]);
+    const zeroForOne = Boolean(args.zeroForOne ?? args[1] ?? l.zeroForOne);
+    const amountIn = toBigInt(args.amountIn ?? args[2] ?? l.amountIn);
+    const amountOut = toBigInt(args.amountOut ?? args[3] ?? l.amountOut);
 
-    swaps.push({ pool, zeroForOne, amountIn, amountOut });
-    poolSet.add(pool.toLowerCase());
+    swaps.push({ pool, poolKey: pool, zeroForOne, amountIn, amountOut });
+    poolSet.add(pool);
   }
 
   const pools = [...poolSet];
@@ -251,17 +188,9 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
   }
 
   // Read pool metadata (IConcentratedLiquidityPool)
-  const [token0s, token1s, swapFees] = await Promise.all([
-    api.multiCall({
-      abi: "address:token0",
-      calls: pools,
-      permitFailure: true,
-    }),
-    api.multiCall({
-      abi: "address:token1",
-      calls: pools,
-      permitFailure: true,
-    }),
+  const [token0sRaw, token1sRaw, swapFeesRaw] = await Promise.all([
+    api.multiCall({ abi: "address:token0", calls: pools, permitFailure: true }),
+    api.multiCall({ abi: "address:token1", calls: pools, permitFailure: true }),
     api.multiCall({
       abi: "function swapFee() view returns (uint24)",
       calls: pools,
@@ -271,68 +200,47 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
 
   const meta = new Map<string, { token0: string; token1: string; feePips: bigint }>();
   for (let i = 0; i < pools.length; i++) {
-    const token0 = unwrapCallResult(token0s[i]);
-    const token1 = unwrapCallResult(token1s[i]);
-    const fee = unwrapCallResult(swapFees[i]);
+    const token0 = unwrapCallResult(token0sRaw[i]);
+    const token1 = unwrapCallResult(token1sRaw[i]);
+    const fee = unwrapCallResult(swapFeesRaw[i]);
 
     if (!token0 || !token1) continue;
 
     const feePips = fee === null || fee === undefined ? 0n : BigInt(fee.toString());
-    meta.set(pools[i], { token0, token1, feePips });
+    meta.set(pools[i], { token0: String(token0), token1: String(token1), feePips });
   }
 
   // Aggregate balances
   for (const s of swaps) {
-    const m = meta.get(s.pool.toLowerCase());
+    const m = meta.get(s.poolKey);
     if (!m) continue;
 
-    // tokenIn/tokenOut by direction
-    const tokenIn = s.zeroForOne ? m.token0 : m.token1;
-    const tokenOut = s.zeroForOne ? m.token1 : m.token0;
-
-    // token0/token1 absolute amounts exchanged in this swap
+    // Per-token exchanged amounts
+    // zeroForOne: token0 -> token1
     const amount0 = s.zeroForOne ? s.amountIn : s.amountOut;
     const amount1 = s.zeroForOne ? s.amountOut : s.amountIn;
 
-    // ---- Volume: count on core-asset side to avoid double counting
-    // If neither side is core, prefer stable-like side; else fallback to token1
-    let baseToken: string;
-    let baseAmount: bigint;
+    // ---- Volume: count on core-asset side (avoid double counting)
+    // If token0 is core asset -> use token0 side, else use token1 side (common DefiLlama approach)
+    const useToken0 = isCoreAsset(chain, m.token0);
+    const volumeToken = useToken0 ? m.token0 : m.token1;
+    const volumeAmount = useToken0 ? amount0 : amount1;
 
-    if (isCoreAsset(chain, m.token0)) {
-      baseToken = m.token0;
-      baseAmount = amount0;
-    } else if (isCoreAsset(chain, m.token1)) {
-      baseToken = m.token1;
-      baseAmount = amount1;
-    } else if (isStableLike(m.token0)) {
-      baseToken = m.token0;
-      baseAmount = amount0;
-    } else if (isStableLike(m.token1)) {
-      baseToken = m.token1;
-      baseAmount = amount1;
-    } else {
-      baseToken = m.token1;
-      baseAmount = amount1;
-    }
+    if (volumeAmount > 0n) dailyVolume.add(volumeToken, volumeAmount);
 
-    addWithStableMapping(dailyVolume, baseToken, baseAmount, decimalsMap);
+    // ---- Fees: charged on INPUT (amountIn)
+    const inputToken = s.zeroForOne ? m.token0 : m.token1;
+    const feeAmount = (s.amountIn * m.feePips) / SWAP_FEE_DENOMINATOR;
+    if (feeAmount <= 0n) continue;
 
-    // ---- Fees: charged on amountIn (input token)
-    if (m.feePips > 0n && s.amountIn > 0n) {
-      const feeAmount = (s.amountIn * m.feePips) / SWAP_FEE_DENOMINATOR;
-      if (feeAmount > 0n) {
-        addWithStableMapping(dailyFees, tokenIn, feeAmount, decimalsMap);
+    dailyFees.add(inputToken, feeAmount);
 
-        const protocolFeeAmount = (feeAmount * protocolFeeBps) / PROTOCOL_FEE_DENOMINATOR;
-        const lpFeeAmount = feeAmount - protocolFeeAmount;
+    // Split fees: protocol vs LPs
+    const protocolFeeAmount = (feeAmount * protocolFeeBps) / PROTOCOL_FEE_DENOMINATOR;
+    const lpFeeAmount = feeAmount - protocolFeeAmount;
 
-        if (protocolFeeAmount > 0n)
-          addWithStableMapping(dailyProtocolRevenue, tokenIn, protocolFeeAmount, decimalsMap);
-        if (lpFeeAmount > 0n)
-          addWithStableMapping(dailySupplySideRevenue, tokenIn, lpFeeAmount, decimalsMap);
-      }
-    }
+    if (protocolFeeAmount > 0n) dailyProtocolRevenue.add(inputToken, protocolFeeAmount);
+    if (lpFeeAmount > 0n) dailySupplySideRevenue.add(inputToken, lpFeeAmount);
   }
 
   return {
@@ -404,9 +312,9 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume:
       "DEX swap volume on PumpSpace (V2 + Trident V3) on Avalanche. " +
-      "V2 uses pair Swap logs from the V2 factory. " +
-      "V3 uses PoolLogger Swap(pool, zeroForOne, amountIn, amountOut) logs and reads token0/token1/swapFee from each concentrated liquidity pool. " +
-      "Volume is counted on a single side (core-asset side; fallback to stable-like bUSDt/bUSDC/bAUSD) to avoid double counting.",
+      "V2 uses UniswapV2-style pair Swap logs from the V2 factory. " +
+      "V3 uses PoolLogger Swap(pool, zeroForOne, amountIn, amountOut) logs and reads token0/token1/swapFee from each CL pool. " +
+      "Volume is counted on a single side (core-asset side) to avoid double counting.",
     Fees:
       "V2 charges 0.5% per swap split 50% LP / 50% protocol treasury. " +
       "V3 fees are computed on amountIn using each pool's swapFee() (pips where 1e6 = 100%).",
