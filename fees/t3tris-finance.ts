@@ -58,6 +58,7 @@ const chainConfig: Record<string, { start: string }> = {
   [CHAIN.BLAST]: { start: "2025-01-01" },
   [CHAIN.MANTLE]: { start: "2025-01-01" },
   [CHAIN.MODE]: { start: "2025-01-01" },
+  [CHAIN.XDAI]: { start: "2025-01-01" },
   [CHAIN.FANTOM]: { start: "2025-01-01" },
   [CHAIN.SONIC]: { start: "2025-01-01" },
 };
