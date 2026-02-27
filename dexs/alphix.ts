@@ -56,7 +56,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: "2025-02-09",
+      start: "2026-02-10",
     },
   },
   doublecounted: true,

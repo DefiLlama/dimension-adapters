@@ -121,11 +121,10 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2025-02-09',
+      start: '2026-02-10',
     },
   },
   methodology: {
