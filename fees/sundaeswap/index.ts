@@ -33,6 +33,8 @@ const addFee = (
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const start = formatDate(options.startTimestamp);
@@ -68,6 +70,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
       if (protocolFees?.asset?.id) {
         addFee(dailyRevenue, protocolFees.asset.id, protocolFees.quantity);
+        addFee(dailyHoldersRevenue, protocolFees.asset.id, String(protocolFees.quantity * 0.15));
+        addFee(dailyProtocolRevenue, protocolFees.asset.id, String(protocolFees.quantity * 0.85));
       }
     }
   }
@@ -79,7 +83,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -87,7 +92,8 @@ const methodology = {
   Fees: "The total trading fees paid by users, excluding L1 transaction fees",
   Revenue: "A fixed ADA cost per transaction that is collected by the protocol",
   SupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
-  ProtocolRevenue: "A fixed ADA cost per transaction that is collected by the protocol",
+  ProtocolRevenue: "A percentage cut of the fixed ADA cost per transaction that is collected by the protocol",
+  HoldersRevenue: "A percentage cut of the fixed ADA cost per transaction that is collected by the protocol"
 };
 
 const breakdownMethodology = {
