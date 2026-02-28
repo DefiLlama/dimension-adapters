@@ -87,7 +87,7 @@ const getTransactions = async (fromBlock: number, toBlock: number, api: ChainApi
   return { transactions: allTransactions, totalPayment };
 };
 
-const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances, api, getLogs, }: FetchOptions) => {
+const fetch = async ({ getFromBlock, getToBlock, createBalances, api, getLogs, }: FetchOptions) => {
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
   const dailyRevenue = createBalances()
   const dailyGas = createBalances()
@@ -109,7 +109,8 @@ const fetch = async (_: any, _1: any, { getFromBlock, getToBlock, createBalances
 
 const adapter: SimpleAdapter = {
   allowNegativeValue: true, // Chainlink VRF nodes collect LINK fees and pay ETH gas to fulfill randomness.
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
