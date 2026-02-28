@@ -2,8 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const DENARIA_PERP_PAIR_OLD = '0xd07822ee341c11a193869034d7e5f583c4a94872';
-const DENARIA_PERP_PAIR_NEW = '0xb4e7516844de6590a3b49c7dcb231a92bf022556';
-const DENARIA_PERP_PAIR_NEW_DEPLOY_BLOCK = 29101654;
+const DENARIA_PERP_PAIR_NEW = '0xc4def9ef12b822bd71addd6ace624984afe598c7';
+const DENARIA_PERP_PAIR_NEW_DEPLOY_BLOCK = 29250034;
 
 async function fetch(options: FetchOptions) {
   const toBlock = await options.getToBlock();
