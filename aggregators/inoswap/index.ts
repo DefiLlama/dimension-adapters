@@ -1,53 +1,51 @@
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addTokensReceived } from "../../helpers/token";
 
 const ROUTERS = [
-    "0x025f45a3ec6e90e8e1db1492554c9b10539ef2fc", // current
-    "0x95E8f3227eCc2F35213B6fD6fEce6B8854A77dB5", // legacy
-];
+  '0xf514ec27666f2e9669837f4f9eca6405ba38ac64', // current prod router
+  '0x025f45a3ec6e90e8e1db1492554c9b10539ef2fc', // previous v2 router
+  '0x95e8f3227ecc2f35213b6fd6fece6b8854a77db5', // legacy router
+]
 
-const SWAP_EXECUTED_EVENT =
-    "event SwapExecuted(address indexed user, address indexed router, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, uint256 actualSlippage, uint8 swapType)";
+const FEE_RECIPIENT = '0x53a7fcdbb5d9a8d6a9f2b83d6e70cd1efdaf76c6'
+const PROTOCOL_FEE_BPS = 10 // 0.10%
 
 const fetch = async (options: FetchOptions) => {
-    const dailyVolume = options.createBalances();
-    const dailyFees = options.createBalances();
+  const dailyFees = await addTokensReceived({
+    options,
+    target: FEE_RECIPIENT,
+    fromAdddesses: ROUTERS,
+  })
 
-    const swapLogs = await options.getLogs({
-        targets: ROUTERS,
-        eventAbi: SWAP_EXECUTED_EVENT,
-    });
+  const dailyVolume = dailyFees.clone(10000 / PROTOCOL_FEE_BPS)
 
-    for (const log of swapLogs) {
-        dailyVolume.add(log.tokenIn, log.amountIn);
-        dailyFees.add(log.tokenIn, log.fee);
-    }
-
-    return {
-        dailyVolume,
-        dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
-        dailyUserFees: dailyFees,
-        dailySupplySideRevenue: 0,
-    };
-};
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue: 0,
+  }
+}
 
 const methodology = {
-    Fees: "Onchain: sum of `fee` from InoSwap router `SwapExecuted` events.",
-    Revenue: "Mirrors onchain fee stream from `SwapExecuted` until explicit treasury split events are indexed.",
-    ProtocolRevenue: "Mirrors onchain fee stream from `SwapExecuted` until explicit treasury split events are indexed.",
-    SupplySideRevenue: "Set to 0 onchain until explicit partner/supply-side distribution events are emitted.",
-    UserFees: "Onchain user-paid fees from `SwapExecuted.fee`.",
+  Fees: "Onchain Transfer accounting: sum ERC20 transfers sent from InoSwap routers to feeRecipient.",
+  Revenue: "Mirrors fee stream collected in feeRecipient wallet.",
+  ProtocolRevenue: "Mirrors fee stream collected in feeRecipient wallet.",
+  SupplySideRevenue: "Set to 0 until explicit partner/supply-side distribution events are emitted.",
+  UserFees: "Protocol fees paid by users, inferred from feeRecipient inflows.",
+  Volume: "Inferred from feeRecipient inflows using fixed protocol fee 0.10% (volume = fees / 0.001).",
 }
 
 const adapter: any = {
-    version: 2,
-    pullHourly: true,
-    fetch,
-    chains: [CHAIN.CRONOS],
-    start: "2026-02-01",
-    methodology,
-};
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.CRONOS],
+  start: "2026-02-01",
+  methodology,
+}
 
 export default adapter;
