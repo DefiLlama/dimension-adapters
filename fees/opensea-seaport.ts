@@ -1,4 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
 const contract_v1_4 = '0x00000000000001ad428e4906ae43d8f9852d0dd6';
 const contract_v1_5 = '0x00000000000000adc04c56bf30ac9d3c0aaf14dc';
@@ -9,18 +10,18 @@ const defaltFeeCollectors = ['0x0000a26b00c1f0df003000390027140000faa719']
 const event_order_fulfilled = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)"
 
 const config: any = {
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     fees_collectors: [...defaltFeeCollectors, '0x31314e41E743A638FD485d537F4a2B5F57D662bb', '0x1208e7F7AED9d39Ed25ef582B8933e4a1D0DA6af']
   },
-  arbitrum: {},
-  avax: {},
-  base: {},
-  blast: {},
-  klaytn: {},
-  optimism: {},
-  polygon: {},
-  zora: {},
-  hyperliquid: {},
+  [CHAIN.ARBITRUM]: {},
+  [CHAIN.AVAX]: {},
+  [CHAIN.BASE]: {},
+  [CHAIN.BLAST]: {},
+  [CHAIN.KLAYTN]: {},
+  [CHAIN.OPTIMISM]: {},
+  [CHAIN.POLYGON]: {},
+  [CHAIN.ZORA]: {},
+  [CHAIN.HYPERLIQUID]: {},
 }
 
 const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {

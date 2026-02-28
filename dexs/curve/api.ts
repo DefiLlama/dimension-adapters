@@ -1,3 +1,4 @@
+import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const CURVE_API_BASE = "https://prices.curve.finance/v1/chains/fees";
@@ -45,7 +46,7 @@ export async function fetchCurveApiData(startTimestamp: number, endTimestamp: nu
 
 // Map DefiLlama chain names to Curve API chain names
 const chainMap: Record<string, string> = {
-  'avax': 'avalanche',
+  [CHAIN.AVAX]: 'avalanche',
 };
 
 export function getChainDataFromApiResponse(response: CurveFeesResponse, chain: string): CurveChainFees | undefined {

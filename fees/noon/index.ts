@@ -2,11 +2,11 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
-const SUSN = {
-    ethereum: "0xE24a3DC889621612422A64E6388927901608B91D",
-    sophon: "0xb87dbe27db932bacaaa96478443b6519d52c5004",
-    era: "0xB6a09d426861c63722Aa0b333a9cE5d5a9B04c4f",
-    tac: "0x5Ced7F73B76A555CCB372cc0F0137bEc5665F81E"
+const SUSN: Record<string, string> = {
+    [CHAIN.ETHEREUM]: "0xE24a3DC889621612422A64E6388927901608B91D",
+    [CHAIN.SOPHON]: "0xb87dbe27db932bacaaa96478443b6519d52c5004",
+    [CHAIN.ERA]: "0xB6a09d426861c63722Aa0b333a9cE5d5a9B04c4f",
+    [CHAIN.TAC]: "0x5Ced7F73B76A555CCB372cc0F0137bEc5665F81E"
 };
 
 const SUSN_RATE_PROVIDER = "0x3A89f87EA1D5B9fd0FEde73b5098678190D2EEaa";

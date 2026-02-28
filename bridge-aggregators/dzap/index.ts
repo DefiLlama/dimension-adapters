@@ -100,7 +100,7 @@ interface ApiResponse {
 }
 
 const prefetch = async (options: FetchOptions) => {
-  const data = {};
+  const data: Record<string, any> = {};
   for (const chain of Object.keys(chains)) {
     await new Promise((resolve) => setTimeout(resolve, 13000));
     data[chain] = await httpGet(

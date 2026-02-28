@@ -26,7 +26,7 @@ const contract: IContract = {
   [CHAIN.XDAI]: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
 }
 
-const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = createBalances();
   const data: any[] = await getLogs({
     target: contract[chain],

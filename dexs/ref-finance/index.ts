@@ -1,4 +1,5 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 // const dateToTs = (date: string) => new Date(date).getTime() / 1000
@@ -12,7 +13,7 @@ const getPools = async () => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    "near":{
+    [CHAIN.NEAR]:{
       // start: async()=>{
       //   const data = await httpGet(api)
       //   return dateToTs(data[0].date)

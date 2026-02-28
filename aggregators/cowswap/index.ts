@@ -18,12 +18,12 @@ const fetch = async (_:any, _1: any, { createBalances, getLogs, }: FetchOptions)
 const adapter: any = {
   fetch,
   adapter: {
-    ethereum: { start: '2023-05-31', },
-    xdai: { start: '2023-05-31', },
-    arbitrum: { start: '2024-04-26', },
-    base: { start: '2024-12-10', },
-    polygon: { start: '2023-12-10', },
-    avax: { start: '2025-03-10', },
+    [CHAIN.ETHEREUM]: { start: '2023-05-31', },
+    [CHAIN.XDAI]: { start: '2023-05-31', },
+    [CHAIN.ARBITRUM]: { start: '2024-04-26', },
+    [CHAIN.BASE]: { start: '2024-12-10', },
+    [CHAIN.POLYGON]: { start: '2023-12-10', },
+    [CHAIN.AVAX]: { start: '2025-03-10', },
     [CHAIN.LENS]: { start: '2025-06-16', },
     [CHAIN.BSC]: { start: '2025-09-04', },
   },

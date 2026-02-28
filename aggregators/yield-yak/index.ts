@@ -1,8 +1,9 @@
 import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const routers: any = {
-  arbitrum: "0xb32C79a25291265eF240Eb32E9faBbc6DcEE3cE3",
-  avax: "0xC4729E56b831d74bBc18797e0e17A295fA77488c",
+  [CHAIN.ARBITRUM]: "0xb32C79a25291265eF240Eb32E9faBbc6DcEE3cE3",
+  [CHAIN.AVAX]: "0xC4729E56b831d74bBc18797e0e17A295fA77488c",
 }
 
 const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, getLogs, chain, }: FetchOptions) => {
@@ -17,8 +18,8 @@ const fetch = async (timestamp: number , _: ChainBlocks, { createBalances, getLo
 
 const adapter: any = {
   adapter: {
-    avax: { fetch, start: '2023-05-31', },
-    arbitrum: { fetch, start: '2023-05-31', },
+    [CHAIN.AVAX]: { fetch, start: '2023-05-31', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-05-31', },
   },
 };
 
