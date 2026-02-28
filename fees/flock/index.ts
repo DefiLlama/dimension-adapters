@@ -1,11 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 
 const FLOCK_TOKEN = "0x5ab3d4c385b400f3abb49e80de2faf6a88a7b691";
 
-const FACTORY_ADDRESS = "0x5c415570e4A9C49e64Ea640180f91161b47a1502";
-const MAIN_CONTRACT = "0x29d4ecea4b1fcac239bf4b4dc3b42829c2e69fed";
+const AI_ARENA_FACTORY_ADDRESS = "0x5c415570e4A9C49e64Ea640180f91161b47a1502";
+const AI_ARENA_CONTRACT = "0x29d4ecea4b1fcac239bf4b4dc3b42829c2e69fed";
 const DEPLOYMENT_BLOCK = 30563420;
 
 const FOMO_CONTRACT = "0x6f39Fe20f19103A215BcC444A64f78AE7797F0b1";
@@ -26,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
 
     // Get pool addresses
     const poolCreationLogs = await getLogs({
-        target: FACTORY_ADDRESS,
+        target: AI_ARENA_FACTORY_ADDRESS,
         eventAbi: CREATE_MINI_POOL_EVENT,
         fromBlock: DEPLOYMENT_BLOCK,
         cacheInCloud: true,
@@ -34,8 +33,13 @@ const fetch = async (options: FetchOptions) => {
 
     const pools = poolCreationLogs.map((log) => log.pool);
 
-    const mainContractAndPoolsFees = await getLogs({
-        targets: [MAIN_CONTRACT, ...pools],
+    const aiArenaFees = await getLogs({
+        targets: [AI_ARENA_CONTRACT],
+        eventAbi: COLLECT_FEE_EVENT,
+    });
+
+    const poolFees = await getLogs({
+        targets: pools,
         eventAbi: COLLECT_FEE_EVENT,
     });
 
@@ -64,19 +68,23 @@ const fetch = async (options: FetchOptions) => {
         ? feeConfigLogs[feeConfigLogs.length - 1].launchCreationFee
         : BigInt(32768) * BigInt(10 ** 18);
 
-    mainContractAndPoolsFees.forEach((log) => {
-        dailyFees.add(FLOCK_TOKEN, log._amount, "Main and Pools Fees");
+    aiArenaFees.forEach((log) => {
+        dailyFees.add(FLOCK_TOKEN, log._amount, "AI Arena: Task Manager Fees");
+    });
+
+    poolFees.forEach((log) => {
+        dailyFees.add(FLOCK_TOKEN, log._amount, "AI Arena: Delegation Pools Fees");
     });
 
     purchasedLogs.forEach((log) => {
-        dailyFees.add(FLOCK_TOKEN, log.protocolFee, METRIC.PROTOCOL_FEES);
-        dailyFees.add(FLOCK_TOKEN, log.creatorFee, METRIC.CREATOR_FEES);
-        dailyFees.add(FLOCK_TOKEN, log.antiSniperFee, "Anti Sniper Fee");
+        dailyFees.add(FLOCK_TOKEN, log.protocolFee, "FOMO: Trading Fees");
+        dailyFees.add(FLOCK_TOKEN, log.creatorFee, "FOMO: Trading Fees");
+        dailyFees.add(FLOCK_TOKEN, log.antiSniperFee, "FOMO: Trading Fees");
     });
 
     const launchCount = launchCreatedLogs.length;
     if (launchCount > 0) {
-        dailyFees.add(FLOCK_TOKEN, BigInt(launchCreationFee) * BigInt(launchCount), "Launch Creation Fee");
+        dailyFees.add(FLOCK_TOKEN, BigInt(launchCreationFee) * BigInt(launchCount), "FOMO: Launch Creation Fees");
     }
 
     return {
@@ -87,32 +95,29 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: "All FLOCK token fees collected via CollectFee events from the main contract and MiniPools, plus protocol/creator/antiSniper fees from Purchased events and launch creation fees (from FeeConfigUpdated) per LaunchCreated event.",
+    Fees: "All FLOCK token fees collected via CollectFee events from AI Arena and Delegation Pools, plus protocol/creator/antiSniper fees from Purchased events and launch creation fees from LaunchCreated events in the FOMO launchpad.",
     Revenue: "All FLOCK token fees collected by the protocol.",
     ProtocolRevenue: "All FLOCK token fees collected by the protocol.",
 };
 
 const breakdownMethodology = {
     Fees: {
-        "Main and Pools Fees": "Main and Pools fees collected by the protocol.",
-        [METRIC.PROTOCOL_FEES]: "Protocol fees collected by the protocol.",
-        [METRIC.CREATOR_FEES]: "Creator fees collected by the protocol.",
-        "Anti Sniper Fee": "Anti sniper fees collected by the protocol.",
-        "Launch Creation Fee": "Launch creation fees collected by the protocol.",
+        "AI Arena: Task Manager Fees": "Fees collected from task manager on AI Arena by the protocol.",
+        "AI Arena: Delegation Pools Fees": "Fees collected from delegation pools on AI Arena by the protocol.",
+        "FOMO: Launch Creation Fees": "Fees collected from launch creation in the FOMO launchpad by the protocol.",
+        "FOMO: Trading Fees": "Fees collected from trading in the FOMO launchpad by the protocol.",
     },
     Revenue: {
-        "Main and Pools Fees": "Main and Pools fees collected by the protocol.",
-        [METRIC.PROTOCOL_FEES]: "Protocol fees collected by the protocol.",
-        [METRIC.CREATOR_FEES]: "Creator fees collected by the protocol.",
-        "Anti Sniper Fee": "Anti sniper fees collected by the protocol.",
-        "Launch Creation Fee": "Launch creation fees collected by the protocol.",
+        "AI Arena: Task Manager Fees": "Fees collected from task manager on AI Arena by the protocol.",
+        "AI Arena: Delegation Pools Fees": "Fees collected from delegation pools on AI Arena by the protocol.",
+        "FOMO: Launch Creation Fees": "Fees collected from launch creation in the FOMO launchpad by the protocol.",
+        "FOMO: Trading Fees": "Fees collected from trading in the FOMO launchpad by the protocol.",
     },
     ProtocolRevenue: {
-        "Main and Pools Fees": "Main and Pools fees collected by the protocol.",
-        [METRIC.PROTOCOL_FEES]: "Protocol fees collected by the protocol.",
-        [METRIC.CREATOR_FEES]: "Creator fees collected by the protocol.",
-        "Anti Sniper Fee": "Anti sniper fees collected by the protocol.",
-        "Launch Creation Fee": "Launch creation fees collected by the protocol.",
+        "AI Arena: Task Manager Fees": "Fees collected from task manager on AI Arena by the protocol.",
+        "AI Arena: Delegation Pools Fees": "Fees collected from delegation pools on AI Arena by the protocol.",
+        "FOMO: Launch Creation Fees": "Fees collected from launch creation in the FOMO launchpad by the protocol.",
+        "FOMO: Trading Fees": "Fees collected from trading in the FOMO launchpad by the protocol.",
     },
 };
 
