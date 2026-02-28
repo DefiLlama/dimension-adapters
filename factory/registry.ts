@@ -45,6 +45,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'helpers/solidly',
     'helpers/ethereum-l2',
     'helpers/ethereum-builder',
+    'helpers/aave',
     'uniV2:fees',
     'uniV3:fees',
     'uniV2',
