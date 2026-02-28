@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSolanaReceived } from "../../helpers/token";
+import { getSolanaReceivedDune } from "../../helpers/token";
 
 // Express Relay DAO fee collection address
 // Collects both SOL and USDC from MEV auctions
@@ -8,7 +8,7 @@ const EXPRESS_RELAY_DAO_ADDRESS = "69ib85nGQS2Hzr4tQ8twbkGh76gKFUfWJFeJfQ37R3hW"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   // Track all tokens (SOL and USDC) received by the DAO address
-  const dailyFees = await getSolanaReceived({
+  const dailyFees = await getSolanaReceivedDune({
     options,
     target: EXPRESS_RELAY_DAO_ADDRESS,
   });
@@ -23,8 +23,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2024-01-01",
-  dependencies: [Dependencies.ALLIUM],
+  start: "2025-01-01",
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Fees collected from Express Relay MEV auctions (SOL and USDC)",
