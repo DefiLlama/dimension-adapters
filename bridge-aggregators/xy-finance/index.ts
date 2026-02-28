@@ -139,7 +139,7 @@ const xyRouterContractEventAbi = `event XYRouterRequested(
         ) dstChainAction,
         address indexed affiliate)`
 
-const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBalances, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume  = createBalances();
   try {
     const yBridgeContract = contract[chain].yBridge;

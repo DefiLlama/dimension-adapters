@@ -301,7 +301,7 @@ const v2ExportsConfig = {
     [CHAIN.SWELLCHAIN]: { collateralRegistry: '0xce9f80a0dcd51fb3dd4f0d6bec3afdcaea10c912', stabilityPoolRatio: 1, start: '2025-05-13' }
   },
   "quill-fi":{
-    scroll: { collateralRegistry: '0xcc4f29f9d1b03c8e77fc0057a120e2c370d6863d', stabilityPoolRatio: 1, start: '2025-01-23' }
+    [CHAIN.SCROLL]: { collateralRegistry: '0xcc4f29f9d1b03c8e77fc0057a120e2c370d6863d', stabilityPoolRatio: 1, start: '2025-01-23' }
   },
   "defi-dollar-cdp":{
     [CHAIN.ETHEREUM]: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', stabilityPoolRatio: 1, start: '2025-07-04' }

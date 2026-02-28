@@ -41,7 +41,7 @@ import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
 
 const CHAIN_CONFIG = {
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     treasuryV1: "0xa8687A15D4BE32CC8F0a8a7B9704a4C3993D9613",
     treasuryV2: "0x9A315BdF513367C0377FB36545857d12e85813Ef",
     treasuryMultisig: "0x245cc372C84B3645Bf0Ffe6538620B04a217988B",
@@ -57,12 +57,12 @@ const CHAIN_CONFIG = {
     usde: ADDRESSES.ethereum.USDe,
     dai: ADDRESSES.ethereum.DAI,
   },
-  base: {
+  [CHAIN.BASE]: {
     treasury: "0x18a390bd45bcc92652b9a91ad51aed7f1c1358f5",
     uniV3PositionManager: "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
     positionIds: [1872809],
   },
-  arbitrum: {
+  [CHAIN.ARBITRUM]: {
     treasury: "0x012bbf0481b97170577745d2167ee14f63e2ad4c",
     camelotV2Pool: "0x8acd42e4b5a5750b44a28c5fb50906ebff145359", // V2 LP WETH/OHM
     weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
@@ -93,12 +93,12 @@ const ONE_SHARE = BigInt(10) ** BigInt(18);
 function getTreasuryAddresses(chain: string): string[] {
   const config: Record<string, string[]> = {
     [CHAIN.ETHEREUM]: [
-      CHAIN_CONFIG.ethereum.treasuryV1,
-      CHAIN_CONFIG.ethereum.treasuryV2,
-      CHAIN_CONFIG.ethereum.treasuryMultisig,
+      CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryV1,
+      CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryV2,
+      CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryMultisig,
     ],
-    [CHAIN.BASE]: [CHAIN_CONFIG.base.treasury],
-    [CHAIN.ARBITRUM]: [CHAIN_CONFIG.arbitrum.treasury],
+    [CHAIN.BASE]: [CHAIN_CONFIG[CHAIN.BASE].treasury],
+    [CHAIN.ARBITRUM]: [CHAIN_CONFIG[CHAIN.ARBITRUM].treasury],
   };
   return (config[chain] || []).map(a => a.toLowerCase());
 }
@@ -111,7 +111,7 @@ async function fetchCoolerLoanInterest(options: FetchOptions) {
   const fees = createBalances();
 
   try {
-    const monoCooler = CHAIN_CONFIG.ethereum.monoCooler;
+    const monoCooler = CHAIN_CONFIG[CHAIN.ETHEREUM].monoCooler;
     const [accBefore, accAfter, debtBefore, debtAfter] = await Promise.all([
       fromApi.call({ abi: ABIS.interestAccumulatorRay, target: monoCooler }),
       toApi.call({ abi: ABIS.interestAccumulatorRay, target: monoCooler }),
@@ -124,7 +124,7 @@ async function fetchCoolerLoanInterest(options: FetchOptions) {
 
     if (avgDebt > 0) {
       const interest = (avgDebt * accDelta) / RAY;
-      fees.add(CHAIN_CONFIG.ethereum.usds, interest);
+      fees.add(CHAIN_CONFIG[CHAIN.ETHEREUM].usds, interest);
     }
   } catch (e) { }
 
@@ -172,7 +172,7 @@ async function fetchCDFacilityRevenue(options: FetchOptions) {
 
   try {
     const logs = await options.getLogs({
-      target: CHAIN_CONFIG.ethereum.cdFacility,
+      target: CHAIN_CONFIG[CHAIN.ETHEREUM].cdFacility,
       eventAbi: EVENTS.cdClaimedYield,
     });
 
@@ -193,12 +193,12 @@ async function fetchCDLendingRevenue(options: FetchOptions) {
   const fees = options.createBalances();
 
   const logs = await options.getLogs({
-    target: CHAIN_CONFIG.ethereum.cdLending,
+    target: CHAIN_CONFIG[CHAIN.ETHEREUM].cdLending,
     eventAbi: EVENTS.cdLendingRepaid,
   });
 
   for (const log of logs) {
-    fees.add(CHAIN_CONFIG.ethereum.usds, BigInt(log.interest));
+    fees.add(CHAIN_CONFIG[CHAIN.ETHEREUM].usds, BigInt(log.interest));
   }
 
   return fees;
@@ -308,7 +308,7 @@ async function fetchCamelotV2Fees(options: FetchOptions) {
   const fees = options.createBalances();
 
   const swapLogs = await options.getLogs({
-    target: CHAIN_CONFIG.arbitrum.camelotV2Pool,
+    target: CHAIN_CONFIG[CHAIN.ARBITRUM].camelotV2Pool,
     eventAbi: EVENTS.camelotV2Swap,
   });
 
@@ -320,10 +320,10 @@ async function fetchCamelotV2Fees(options: FetchOptions) {
     const amount1In = BigInt(log.amount1In);
 
     if (amount0In > 0) {
-      fees.add(CHAIN_CONFIG.arbitrum.weth, (amount0In * FEE_RATE) / BPS);
+      fees.add(CHAIN_CONFIG[CHAIN.ARBITRUM].weth, (amount0In * FEE_RATE) / BPS);
     }
     if (amount1In > 0) {
-      fees.add(CHAIN_CONFIG.arbitrum.ohm, (amount1In * FEE_RATE) / BPS);
+      fees.add(CHAIN_CONFIG[CHAIN.ARBITRUM].ohm, (amount1In * FEE_RATE) / BPS);
     }
   }
 
@@ -338,19 +338,19 @@ async function fetchEthereum(options: FetchOptions) {
     fetchCoolerLoanInterest(options),
     fetchERC4626Yield(
       options,
-      CHAIN_CONFIG.ethereum.sUSDS,
-      CHAIN_CONFIG.ethereum.usds,
-      [CHAIN_CONFIG.ethereum.treasuryV1, CHAIN_CONFIG.ethereum.treasuryV2, CHAIN_CONFIG.ethereum.treasuryMultisig, CHAIN_CONFIG.ethereum.cdFacility]
+      CHAIN_CONFIG[CHAIN.ETHEREUM].sUSDS,
+      CHAIN_CONFIG[CHAIN.ETHEREUM].usds,
+      [CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryV1, CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryV2, CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryMultisig, CHAIN_CONFIG[CHAIN.ETHEREUM].cdFacility]
     ),
     fetchERC4626Yield(
       options,
-      CHAIN_CONFIG.ethereum.sUSDe,
-      CHAIN_CONFIG.ethereum.usde,
-      [CHAIN_CONFIG.ethereum.treasuryV1, CHAIN_CONFIG.ethereum.treasuryV2, CHAIN_CONFIG.ethereum.treasuryMultisig]
+      CHAIN_CONFIG[CHAIN.ETHEREUM].sUSDe,
+      CHAIN_CONFIG[CHAIN.ETHEREUM].usde,
+      [CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryV1, CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryV2, CHAIN_CONFIG[CHAIN.ETHEREUM].treasuryMultisig]
     ),
     fetchCDFacilityRevenue(options),
     fetchCDLendingRevenue(options),
-    fetchUniV3POLFees(options, CHAIN_CONFIG.ethereum.uniV3PositionManager, treasuryAddresses, CHAIN_CONFIG.ethereum.positionIds),
+    fetchUniV3POLFees(options, CHAIN_CONFIG[CHAIN.ETHEREUM].uniV3PositionManager, treasuryAddresses, CHAIN_CONFIG[CHAIN.ETHEREUM].positionIds),
   ]);
 
   dailyFees.addBalances(coolerInterest);
@@ -361,7 +361,7 @@ async function fetchEthereum(options: FetchOptions) {
   // Handle sUSDS yield and CD Facility revenue to avoid double counting.
   // CD Facility holds sUSDS internally; when yield is claimed via ClaimedYield events,
   // it transfers to treasury as USDS. Subtract CD-claimed USDS from sUSDS yield calculation.
-  const usdsAddressKey = `ethereum:${CHAIN_CONFIG.ethereum.usds.toLowerCase()}`;
+  const usdsAddressKey = `ethereum:${CHAIN_CONFIG[CHAIN.ETHEREUM].usds.toLowerCase()}`;
   const cdBalances = cdFacilityRevenue.getBalances();
   const cdClaimedUsds = BigInt(cdBalances[usdsAddressKey] || 0);
 
@@ -369,7 +369,7 @@ async function fetchEthereum(options: FetchOptions) {
     const susdsBalances = susdsYield.getBalances();
     const susdsUsdsYield = BigInt(susdsBalances[usdsAddressKey] || 0);
     const netSusdsYield = susdsUsdsYield - cdClaimedUsds;
-    dailyFees.add(CHAIN_CONFIG.ethereum.usds, netSusdsYield);
+    dailyFees.add(CHAIN_CONFIG[CHAIN.ETHEREUM].usds, netSusdsYield);
     dailyFees.addBalances(cdFacilityRevenue);
   } else {
     dailyFees.addBalances(susdsYield);
@@ -383,9 +383,9 @@ async function fetchBase(options: FetchOptions) {
   const treasuryAddresses = getTreasuryAddresses(CHAIN.BASE);
   const dailyFees = await fetchUniV3POLFees(
     options,
-    CHAIN_CONFIG.base.uniV3PositionManager,
+    CHAIN_CONFIG[CHAIN.BASE].uniV3PositionManager,
     treasuryAddresses,
-    CHAIN_CONFIG.base.positionIds
+    CHAIN_CONFIG[CHAIN.BASE].positionIds
   );
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };

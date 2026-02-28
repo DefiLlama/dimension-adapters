@@ -1,4 +1,5 @@
 import { FetchResultFees, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL, { postURL } from "../../utils/fetchURL"
 import * as sdk from "@defillama/sdk"
 import PromisePool from "@supercharge/promise-pool";
@@ -113,7 +114,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
 
 const adapter: SimpleAdapter = {
   adapter: {
-    solana: {
+    [CHAIN.SOLANA]: {
       fetch: graphs,
       runAtCurrTime: true,
       start: '2022-08-15',

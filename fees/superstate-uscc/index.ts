@@ -4,9 +4,9 @@ import { getTokenSupply } from "../../helpers/solana";
 import * as sdk from "@defillama/sdk";
 
 const USCC: Record<string, string> = {
-    ethereum: "0x14d60e7fdc0d71d8611742720e4c50e7a974020c",
-    plume_mainnet: "0x4c21b7577c8fe8b0b0669165ee7c8f67fa1454cf",
-    solana: "BTRR3sj1Bn2ZjuemgbeQ6SCtf84iXS81CS7UDTSxUCaK",
+    [CHAIN.ETHEREUM]: "0x14d60e7fdc0d71d8611742720e4c50e7a974020c",
+    [CHAIN.PLUME]: "0x4c21b7577c8fe8b0b0669165ee7c8f67fa1454cf",
+    [CHAIN.SOLANA]: "BTRR3sj1Bn2ZjuemgbeQ6SCtf84iXS81CS7UDTSxUCaK",
 };
 const USCC_CHAINLINK_ORACLE = "0xAfFd8F5578E8590665de561bdE9E7BAdb99300d9";
 
@@ -26,14 +26,14 @@ const fetch = async (options: FetchOptions) => {
     const priceYesterday = await getPrices(options.fromTimestamp)
 
     let totalSupply =
-        options.chain === "solana"
+        options.chain === CHAIN.SOLANA
             ? await getTokenSupply(USCC[options.chain])
             : await options.api.call({
                 abi: "uint256:totalSupply",
                 target: USCC[options.chain],
             });
 
-    totalSupply /= options.chain == "solana" ? 1 : 1e6;
+    totalSupply /= options.chain == CHAIN.SOLANA ? 1 : 1e6;
     const rate = priceToday - priceYesterday;
 
     const dailyFees = options.createBalances();

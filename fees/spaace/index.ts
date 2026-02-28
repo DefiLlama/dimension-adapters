@@ -8,9 +8,9 @@ const event_order_fulfilled = "event OrderFulfilled(bytes32 orderHash, address i
 
 
 export const config: any = {
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     fees_collectors: [...defaltFeeCollectors]
-  },  
+  },
 }
 
 export const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {

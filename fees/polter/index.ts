@@ -24,7 +24,7 @@ const endpoints: any = {
 };
 
 const tokens: any = {
-	sonic: {
+	[CHAIN.SONIC]: {
 		"0x44bd4f79a95cf04505f2dc5c8e2e4043f67c7b07": {
 			gecko: "polter-finance",
 			decimals: 18,
@@ -46,7 +46,7 @@ const tokens: any = {
 			decimals: 6,
 		},
 	},
-	fantom: {
+	[CHAIN.FANTOM]: {
 		"0x5c725631fd299703d0a74c23f89a55c6b9a0c52f": {
 			gecko: "polter-finance",
 			decimals: 18,
@@ -88,7 +88,7 @@ const tokens: any = {
 			decimals: 18,
 		},
 	},
-	base: {
+	[CHAIN.BASE]: {
 		"0xa0820613976b441e2c6a90e4877e2fb5f7d72552": {
 			gecko: "polter-finance",
 			decimals: 18,
