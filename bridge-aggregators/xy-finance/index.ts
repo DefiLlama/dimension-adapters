@@ -1,5 +1,5 @@
 import { Chain } from "../../adapters/types";
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type Contract = {
@@ -139,7 +139,7 @@ const xyRouterContractEventAbi = `event XYRouterRequested(
         ) dstChainAction,
         address indexed affiliate)`
 
-const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBalances, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
   const dailyVolume  = createBalances();
   try {
     const yBridgeContract = contract[chain].yBridge;
@@ -171,11 +171,12 @@ const fetch: any = async (timestamp: number, _: any, { chain, getLogs, createBal
   } catch (error) {
     console.error(`XY Finance fetch chain ${chain} error: ${JSON.stringify(error)}`);
   } finally {
-    return { dailyBridgeVolume: dailyVolume , timestamp, } as any;
+    return { dailyBridgeVolume: dailyVolume };
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,

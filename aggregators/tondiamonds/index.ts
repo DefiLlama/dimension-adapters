@@ -1,10 +1,10 @@
-import { Adapter, FetchV2 } from "../../adapters/types";
+import { Adapter } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 const statisticsEndpoint = "https://ton.diamonds/api/v2/dex/stats"
 
-const fetch: FetchV2 = async () => {
+const fetch = async () => {
     const statistics = await httpGet(statisticsEndpoint)
 
     return {
@@ -14,7 +14,7 @@ const fetch: FetchV2 = async () => {
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.TON]: {
             fetch,

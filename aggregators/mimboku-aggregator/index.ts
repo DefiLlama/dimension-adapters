@@ -1,5 +1,5 @@
 import { gql, request } from "graphql-request";
-import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const URL_V3 = 'https://graph-api.tentou.tech/subgraphs/name/mimboku'
@@ -52,7 +52,7 @@ async function getTotalVolumeV2(block: number): Promise<number> {
   }
 }
 
-const fetch: FetchV2 = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const startBlock = await options.getStartBlock();

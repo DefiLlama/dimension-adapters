@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
@@ -124,8 +124,6 @@ const abis = {
 };
 
 const fetch = async (
-  timestamp: number,
-  _: ChainBlocks,
   { createBalances, getLogs, chain }: FetchOptions
 ) => {
   const dailyVolume = createBalances();
@@ -138,7 +136,7 @@ const fetch = async (
   logs.forEach((log: any) => {
     dailyVolume.add(log.fromToken, log.fromAmount);
   });
-  return { timestamp, dailyVolume };
+  return { dailyVolume };
 };
 
 const adapter_agg = {
@@ -150,6 +148,7 @@ Object.keys(config).forEach(
 );
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: adapter_agg.adapter,
 };
 
