@@ -1,6 +1,7 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 
 const VOTER = "0xd7ea36ECA1cA3E73bC262A6D05DB01E60AE4AD47";
@@ -62,7 +63,7 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
 
   const bribes = await options.api.multiCall({
     abi: "function getBribe() returns (address)",
-    calls: plugins.map((plugin) => ({
+    calls: plugins.map((plugin: any) => ({
       target: plugin,
     })),
   });
@@ -124,7 +125,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   adapter: {
-    berachain: {
+    [CHAIN.BERACHAIN]: {
       fetch,
       start: "2025-02-06",
     },

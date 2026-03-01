@@ -22,9 +22,9 @@ const pinataApiSecret: string = getEnv('ALCHEMIX_SECRET')
 const ipfs: string = 'https://ipfs.imimim.info/ipfs/'
 
 const CONFIG: IRecipient = {
-  ethereum: '0x8392..e225',
-  optimism: '0xC224..A94a',
-  arbitrum: '0x7e10..A043'
+  [CHAIN.ETHEREUM]: '0x8392..e225',
+  [CHAIN.OPTIMISM]: '0xC224..A94a',
+  [CHAIN.ARBITRUM]: '0x7e10..A043'
 }
 
 async function getPinataHash(pinataFileName: string): Promise<string> {

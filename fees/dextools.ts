@@ -38,15 +38,15 @@ import ADDRESSES from "../helpers/coreAssets.json";
 import { addTokensReceived, getETHReceived, getSolanaReceived } from '../helpers/token';
 
 const tokens = {
-    ethereum: [
+    [CHAIN.ETHEREUM]: [
         "0xfb7b4564402e5500db5bb6d63ae671302777c75a", // DEXT
         ADDRESSES.ethereum.USDC,
         ADDRESSES.ethereum.USDT,
     ],
-    bsc: [
+    [CHAIN.BSC]: [
         "0xe91a8d2c584ca93c7405f15c22cdfe53c29896e3", // DEXT
     ],
-    base: []
+    [CHAIN.BASE]: []
 } as any;
 
 const DEXT = "0xfb7b4564402e5500db5bb6d63ae671302777c75a";

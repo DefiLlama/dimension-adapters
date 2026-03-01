@@ -6,7 +6,7 @@ import * as sdk from "@defillama/sdk";
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "../helpers/env";
 import { queryDune } from "../helpers/dune";
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../helpers/lists";
 import { getConfig } from "../helpers/cache";
 
 // --- Fee config (shared V2 rates) ---
@@ -151,25 +151,6 @@ function formatAddress(address: any): string {
   return String(address).toLowerCase();
 }
 
-async function getBscTokenLists(): Promise<Array<string>> {
-  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
-  const lists = [
-    'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
-    'https://tokens.pancakeswap.finance/ondo-rwa-tokens.json',
-    'https://tokens.coingecko.com/binance-smart-chain/all.json',
-  ];
-  let tokens: Array<string> = [];
-  for (const url of lists) {
-    const data = await getConfig(`pcs-token-list-bsc-${url}`, url);
-    tokens = tokens.concat(
-      data.tokens
-        .filter((token: any) => Number(token.chainId) === 56)
-        .map((token: any) => formatAddress(token.address))
-    );
-  }
-  return tokens.filter((token: string) => !blacklisted.includes(token))
-}
-
 const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelistedTokens: Array<string>) => {
   return `
     SELECT
@@ -195,7 +176,7 @@ const PANCAKESWAP_V2_QUERY = (fromTime: number, toTime: number, whitelistedToken
 
 async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances()
-  const whitelistedTokens = await getBscTokenLists()
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain });
 
   const tokensAndAmounts = await queryDune('3996608', {
     fullQuery: PANCAKESWAP_V2_QUERY(options.fromTimestamp, options.toTimestamp, whitelistedTokens),

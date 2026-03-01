@@ -312,6 +312,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {},
   // prefetch: prefetchWithDune,
   methodology: {

@@ -35,11 +35,11 @@ const config_v3: Record<string, { datasource: string, url: string, start: string
     url: sdk.graph.modifyEndpoint("3L5Y5brtgvzDoAFGaPs63xz27KdviCdzRuY12spLSBGU"),
     start: '2023-03-27',
   },
-  [CHAIN.SONEIUM]: {
-    datasource: 'algebra',
-    url: sdk.graph.modifyEndpoint("3GsT6AiuDiSzh2fXbFxUKtBxT8rBEGVdQCgHSsKMPHiu"),
-    start: '2025-01-10',
-  },
+  // [CHAIN.SONEIUM]: {
+  //   datasource: 'algebra',
+  //   url: sdk.graph.modifyEndpoint("3GsT6AiuDiSzh2fXbFxUKtBxT8rBEGVdQCgHSsKMPHiu"),
+  //   start: '2025-01-10',
+  // },
   [CHAIN.IMX]: {
     datasource: 'v3',
     url: "https://api.goldsky.com/api/public/project_clo2p14by0j082owzfjn47bag/subgraphs/quickswap-IMX/prod/gn",

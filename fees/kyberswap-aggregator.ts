@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
 const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.ETHEREUM]: { id: 1, start: '2021-06-01' },
@@ -52,7 +53,9 @@ const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
 async function fetch(options: FetchOptions) {
   // MISSING INTERNAL ETH TRANSFERS!
   const dailyFees = await addTokensReceived({ target: feeCollector, options })
+  const defaultBlacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   blacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
+  defaultBlacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
   /*     const { usdTokenBalances, usdTvl, rawTokenBalances, } = await dailyFees.getUSDJSONs()
     console.log({ chain: options.chain, usdTvl })
     const tokens = Object.keys(rawTokenBalances).map(t => t.split(':')[1])

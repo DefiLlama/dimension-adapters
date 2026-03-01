@@ -1,8 +1,9 @@
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 
 const config: any = {
-  bsc: {
+  [CHAIN.BSC]: {
     wom: "0xAD6742A35fB341A9Cc6ad674738Dd8da98b94Fb1",
     veWom: "0x3DA62816dD31c56D9CdF22C6771ddb892cB5b0Cc",
     pools: {
@@ -36,7 +37,7 @@ const config: any = {
       USDV: "0xC897a2Ae2E45f0D7ba8cbE397208C3e9f8914A9f",
     },
   },
-  arbitrum: {
+  [CHAIN.ARBITRUM]: {
     wom: "0x7b5eb3940021ec0e8e463d5dbb4b7b09a89ddf96",
     veWom: "0x488B34F704a601DAeEf14135146a3dA79F2d3EFC",
     pools: {
@@ -59,7 +60,7 @@ const config: any = {
       sFRAX: "0xaBF19eAdb08693278FdbAD35Cb4E3c1D6484c8Bb",
     },
   },
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     wom: "0xc0B314a8c08637685Fc3daFC477b92028c540CFB",
     veWom: "0xEF0B4d9Dba6ea82B59437Fe5E37b16A2896aAF94",
     pools: {
@@ -73,14 +74,14 @@ const config: any = {
     },
   },
   // does not have wom yet
-  scroll: {
+  [CHAIN.SCROLL]: {
     wom: "",
     veWom: "",
     pools: {
       crossChainPool: "0x80f088ae72DB6d1AC337340cd6Aa0EB1F67337CE",
     },
   },
-  avax: {
+  [CHAIN.AVAX]: {
     wom: "0xa15E4544D141aa98C4581a1EA10Eb9048c3b3382",
     veWom: "0x34E2F923bBa206358EcE221af73E8d121837F873",
     pools: {
@@ -90,7 +91,7 @@ const config: any = {
       ggAVAX: "0xBbA43749efC1bC29eA434d88ebaf8A97DC7aEB77",
     },
   },
-  base: {
+  [CHAIN.BASE]: {
     wom: "0xD9541B08B375D58ae104EC247d7443D2D7235D64",
     veWom: "0x34E2F923bBa206358EcE221af73E8d121837F873",
     pools: {
@@ -98,7 +99,7 @@ const config: any = {
       USDS: "0x20d7B9Ed2c4E2DCC55F9B463975b21bBf2A6eCd1",
     },
   },
-  optimism: {
+  [CHAIN.OPTIMISM]: {
     wom: "0xd2612b256f6f76fea8c6fbca0bf3166d0d13a668",
     veWom: "0xE91cfd7f8e5A5a1EA4803FcF781e1C8d6FfCa279",
     pools: {
