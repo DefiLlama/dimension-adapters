@@ -7,6 +7,7 @@ import { filterPools, getUniV3LogAdapter } from "../helpers/uniswap";
 import { addOneToken } from "../helpers/prices";
 import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
 import { queryDune } from "../helpers/dune";
+import { formatAddress } from "../utils/utils";
 
 const v3Endpoints = {
   // [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('5AXe97hGLfjgFAc6Xvg6uDpsD5hqpxrxcma9MoxG7j7h'),
@@ -129,7 +130,6 @@ const adapter: SimpleAdapter = {
 };
 
 const okuChains = [
-  CHAIN.ETHEREUM,
   CHAIN.OPTIMISM,
   CHAIN.POLYGON,
   CHAIN.ERA,
@@ -146,7 +146,6 @@ const okuChains = [
   CHAIN.BOB,
   CHAIN.CORN,
   CHAIN.GOAT,
-  CHAIN.BSC,
   CHAIN.HEMI,
   CHAIN.XDC,
   CHAIN.LIGHTLINK_PHOENIX,
@@ -158,6 +157,9 @@ const okuChains = [
   CHAIN.ETHERLINK,
   CHAIN.SAGA,
   CHAIN.LENS,
+  
+  // CHAIN.ETHEREUM,
+  // CHAIN.BSC,
 
   // CHAIN.BLAST,
   // CHAIN.LISK,
@@ -207,20 +209,21 @@ okuChains.forEach(chain => {
   },
 };
 
-// (adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
-//   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
-//     const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
-//     const response = await adapter(options)
-//     return response;
-//   },
-// };
+(adapter.adapter as BaseAdapter)[CHAIN.NIBIRU] = {
+  fetch: async (_t: any, _tb: any, options: FetchOptions) => {
+    const adapter = getUniV3LogAdapter({ factory: "0x346239972d1fa486FC4a521031BC81bFB7D6e8a4", ...uniLogAdapterConfig })
+    const response = await adapter(options)
+    return response;
+  },
+};
 
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)';
 
-async function customUniswapGetLogsAdapter(props: { options: FetchOptions, factory: string, fromBlock: number, getRevenueShare?: (fee: number) => number }) {
-  const { options, factory, fromBlock, getRevenueShare } = props;
+async function customUniswapGetLogsAdapter(props: { options: FetchOptions, factory: string, fromBlock: number, getRevenueShare?: (fee: number) => number, onlyWhitelisedTokens?: boolean }) {
+  const { options, factory, fromBlock, getRevenueShare, onlyWhitelisedTokens } = props;
   
+  const whitelistedTokens: Array<string> | undefined = onlyWhitelisedTokens ? await getDefaultDexTokensWhitelisted({ chain: options.chain }) : undefined;
   const poolCreatedLogs = await props.options.getLogs({
     target: factory,
     eventAbi: poolCreatedEvent,
@@ -233,6 +236,9 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
   const revenueShares: any = {}
 
   poolCreatedLogs.forEach((log: any) => {
+    // filter out pools without whitelisted tokens
+    if (whitelistedTokens && (!whitelistedTokens.includes(formatAddress(log.token0)) || !whitelistedTokens.includes(formatAddress(log.token1)))) return;
+    
     pairObject[log.pool] = [log.token0, log.token1]
     fees[log.pool] = (log.fee?.toString() || 0) / 1e6
     revenueShares[log.pool] = getRevenueShare ? getRevenueShare(Number(log.fee?.toString() || 0) / 1e6) : 0
@@ -244,8 +250,6 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
-
-  if (!Object.keys(filteredPairs).length) return { dailyVolume, dailyFees }
 
   const allLogs = await options.getLogs({ targets: Object.keys(filteredPairs), eventAbi: poolSwapEvent, flatten: false })
   allLogs.map((logs: any, index) => {
@@ -284,12 +288,13 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
   },
 };
 
-(adapter.adapter as BaseAdapter)[CHAIN.ARBITRUM] = {
+(adapter.adapter as BaseAdapter)[CHAIN.BSC] = {
   fetch: async (_t: any, _tb: any, options: FetchOptions) => {
     return await customUniswapGetLogsAdapter({
       options,
-      factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-      fromBlock: 165,
+      factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
+      fromBlock: 26324014,
+      onlyWhitelisedTokens: true,
     })
   },
 };
