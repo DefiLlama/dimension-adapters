@@ -132,6 +132,7 @@ const ChainConfigs: { [key: string]: ChainTokenConfig } = {
   [CHAIN.ARBITRUM]: {
     chainId: 42161,
     tokenListUrls: [
+      'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
       'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/arbitrum.json',
     ],
   },
@@ -146,6 +147,7 @@ const ChainConfigs: { [key: string]: ChainTokenConfig } = {
   [CHAIN.BASE]: {
     chainId: 8453,
     tokenListUrls: [
+      'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
       'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/base.json'
     ],
   },
