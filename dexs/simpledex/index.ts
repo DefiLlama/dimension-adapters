@@ -21,7 +21,6 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     chains: [CHAIN.PROTON],
-    start: "2026-02-15",
     runAtCurrTime: true,
 };
 
