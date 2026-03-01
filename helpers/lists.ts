@@ -1,5 +1,5 @@
-import { httpGet } from "../utils/fetchURL";
 import { formatAddress } from "../utils/utils";
+import { getConfig } from "./cache";
 import { CHAIN } from "./chains";
 
 export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
@@ -119,51 +119,47 @@ export function getAllDexTokensBlacklisted(): Array<string> {
 
 interface ChainTokenConfig {
   chainId: number;
-  tokenListUrl: string;
+  tokenListUrls: Array<string>;
 }
 
 const ChainConfigs: { [key: string]: ChainTokenConfig } = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
-    tokenListUrl: "https://tokens.coingecko.com/ethereum/all.json",
+    tokenListUrls: [
+      'https://tokens.coingecko.com/ethereum/all.json',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     chainId: 42161,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/arbitrum.json",
+    tokenListUrls: [
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/arbitrum.json',
+    ],
   },
   [CHAIN.BSC]: {
     chainId: 56,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/pancakeswap/token-list/main/lists/coingecko.json",
+    tokenListUrls: [
+      'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+      'https://tokens.pancakeswap.finance/ondo-rwa-tokens.json',
+      'https://tokens.coingecko.com/binance-smart-chain/all.json',
+    ],
   },
   [CHAIN.BASE]: {
     chainId: 8453,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/base.json",
+    tokenListUrls: [
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/base.json'
+    ],
   },
   [CHAIN.AVAX]: {
     chainId: 43114,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json",
+    tokenListUrls: [
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json',
+    ],
   },
 };
 
-export async function getDefaultDexTokensWhitelisted({
-  chain,
-}: {
-  chain: string;
-}): Promise<Array<string>> {
+export async function getDefaultDexTokensWhitelisted({ chain }: { chain: string }): Promise<Array<string>> {
   if (ChainConfigs[chain]) {
-    const blacklisted = getDefaultDexTokensBlacklisted(chain);
-    const data = await httpGet(ChainConfigs[chain].tokenListUrl);
-    const tokens = data.tokens ? data.tokens : data;
-    return tokens
-      .filter(
-        (token: any) => Number(token.chainId) === ChainConfigs[chain].chainId,
-      )
-      .map((token: any) => formatAddress(token.address))
-      .filter((token: string) => !blacklisted.includes(token));
+    return await getTokenLists({ chain: chain, chainId: ChainConfigs[chain].chainId, lists: ChainConfigs[chain].tokenListUrls })
   }
 
   return [];
@@ -345,3 +341,26 @@ export const DefaultVaultsBlacklisted: Record<string, Array<string>> = {
     '0xaf2e837150e941b87296ed7dca4a0c0b83c4242a',
   ],
 };
+
+interface GetTokenListsOptions {
+  chain: string;
+  chainId: number;
+  lists: Array<string>;
+  includeBlacklisted?: boolean;
+}
+
+async function getTokenLists(options: GetTokenListsOptions): Promise<Array<string>> {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+  const tokens = new Set();
+  for (const url of options.lists) {
+    const data = await getConfig(`token-list-${url}`, url);
+    const items = data.tokens ? data.tokens : data;
+    for (const item of items) {
+      if (item.chainId === options.chainId) {
+        tokens.add(formatAddress(item.address));
+      }
+    }
+  }
+  const tokenAddresses: Array<string> = Array.from(tokens) as Array<string>;
+  return tokenAddresses.filter((token: string) => options.includeBlacklisted || !blacklisted.includes(token))
+}
