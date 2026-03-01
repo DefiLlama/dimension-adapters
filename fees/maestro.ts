@@ -13,7 +13,7 @@ const dispatcher: any = {
 const feesAddress = '0xB0999731f7c2581844658A9d2ced1be0077b7397'
 // const TONFeeAddress = 'TXNP92LYmnPZzqnXwwsmotizTcNyPGxxEv'
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   // const have_dispatcher = Object.keys(dispatcher).includes(options.chain)
 
@@ -28,7 +28,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
-const fetchSolana: any = async (_timestamp: number, _1: any, options: FetchOptions) => {
+const fetchSolana: any = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: ['MaestroUL88UBnZr3wfoN7hqmNWFi3ZYCGqZoJJHE36', 'FRMxAnZgkW58zbYcE7Bxqsg99VWpJh6sMP5xLzAWNabN'] })
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
@@ -40,7 +40,8 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2022-07-01', },
