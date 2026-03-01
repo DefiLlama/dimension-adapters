@@ -4,14 +4,14 @@ import { getETHReceived } from '../helpers/token';
 
 const FEE_WALLET = '0xC542C2F197c4939154017c802B0583C596438380';
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({ options, target: FEE_WALLET });
   
-  return { dailyFees }
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
 }
 
 const adapters: SimpleAdapter = {
-  version: 2,
+  version: 1, // fee wallet received ETH on weekly basic, no need to use version 2
   fetch,
   start: '2025-05-21',
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.XDAI],
