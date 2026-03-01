@@ -23,7 +23,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `;
   const data = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(data[0].dailyFees);
+  dailyFees.addUSDValue(data[0].dailyFees, "BonkBot Fees");
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
@@ -40,6 +40,17 @@ const adapter: SimpleAdapter = {
     Fees: "All trading fees paid by users while using bot.",
     Revenue: "Trading fees are collected by Bonk Bot protocol.",
     ProtocolRevenue: "Trading fees are collected by Bonk Bot protocol.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "BonkBot Fees": "All trading fees paid by BonkBot users"
+    },
+    Revenue: {
+      "BonkBot Fees": "All the fees paid by BonkBot users are revenue"
+    },
+    ProtocolRevenue: {
+      "BonkBot Fees": "All the fees paid by BonkBot users are revenue"
+    }
   }
 }
 

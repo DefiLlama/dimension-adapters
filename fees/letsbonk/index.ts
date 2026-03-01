@@ -35,7 +35,6 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 import { CHAIN } from '../../helpers/chains'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getSolanaReceived } from '../../helpers/token'
-import { METRIC } from '../../helpers/metrics';
 
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
@@ -67,17 +66,17 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
     }
 
     const dailyFees = options.createBalances()
-    const dailySupplySideRevenue = creatorFees.clone(1, METRIC.CREATOR_FEES)
+    const dailySupplySideRevenue = creatorFees.clone(1, "BonkFun Creator Fees")
 
-    dailyFees.addBalances(platformFees, METRIC.TRADING_FEES)
-    dailyFees.addBalances(creatorFees, METRIC.CREATOR_FEES)
+    dailyFees.addBalances(platformFees, "BonkFun Trading Fees")
+    dailyFees.addBalances(creatorFees, "BonkFun Creator Fees")
 
     const graphitePortion = platformFees.clone( 1 - letsbonkTotalPercentage)
-    dailySupplySideRevenue.addBalances(graphitePortion, "Graphite's share")
+    dailySupplySideRevenue.addBalances(graphitePortion, "Graphite's share of BonkFun fees")
 
-    const dailyRevenue = platformFees.clone(letsbonkTotalPercentage, METRIC.TRADING_FEES)
-    const dailyProtocolRevenue = platformFees.clone(letsbonkProtocolRevenuePercentage, METRIC.TRADING_FEES)
-    const dailyHoldersRevenue = platformFees.clone(letsbonkHoldersRevenuePercentage, METRIC.TRADING_FEES)
+    const dailyRevenue = platformFees.clone(letsbonkTotalPercentage, "BonkFun Trading Fees")
+    const dailyProtocolRevenue = platformFees.clone(letsbonkProtocolRevenuePercentage, "BonkFun Trading Fees")
+    const dailyHoldersRevenue = platformFees.clone(letsbonkHoldersRevenuePercentage, "BonkFun Trading Fees")
 
     return {
         dailyFees,
@@ -104,21 +103,21 @@ const adapter: SimpleAdapter = {
     },
     breakdownMethodology: {
         Fees: {
-            [METRIC.TRADING_FEES]: "Platform trading fees collected by LetsBONK.",
-            [METRIC.CREATOR_FEES]: "Fees paid to coin creators.",
+            "BonkFun Trading Fees": "Platform trading fees collected by LetsBONK.",
+            "BonkFun Creator Fees": "Fees paid to coin creators.",
         },
         Revenue: {
-            [METRIC.TRADING_FEES]: "The portion of trading fees kept by LetsBONK.",
+            "BonkFun Trading Fees": "The portion of trading fees kept by LetsBONK.",
         },
         ProtocolRevenue: {
-            [METRIC.TRADING_FEES]: "The portion of trading fees kept by LetsBONK.",
+            "BonkFun Trading Fees": "The portion of trading fees kept by LetsBONK.",
         },
         SupplySideRevenue: {
-            [METRIC.CREATOR_FEES]: "Fees paid to coin creators.",
-            "Graphite's share": "Graphite Protocol's share of platform fees (BONKsol staking, hiring/growth, development, GP reserve, and partial marketing)."
+            "BonkFun Creator Fees": "Fees paid to coin creators.",
+            "Graphite's share of BonkFun fees": "Graphite Protocol's share of platform fees (BONKsol staking, hiring/growth, development, GP reserve, and partial marketing)."
         },
         HoldersRevenue: {
-            [METRIC.TRADING_FEES]: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%).",
+            "BonkFun Trading Fees": "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%).",
         }
     },
 };
