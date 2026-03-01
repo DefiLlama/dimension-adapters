@@ -17,6 +17,7 @@
  *   - kyros (completely different SQL and data model)
  *   - crypto-com-lst (multi-chain with EVM logic on Cronos)
  *   - hylo-lst (queries two separate stake pools)
+ *   - bonk-staked-sol (custom metrics)
  */
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -422,19 +423,6 @@ const configs: Record<string, SolLstConfig> = {
       },
     },
   },
-
-  "bonk-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "5htyN73FSd1dvv8LEHrmy4EiDkXtrGn5EXv5ZizqVF3X",
-    stakePoolWithdrawAuthority: "9LcmMfufi8YUcx83RALwF9Y9BPWZ7SqGy4D9VLe2nhhA",
-    lstFeeTokenAccount: "2azKdTLTd7xBF3mKjVBrrpj5jgJHoCRXLNpFjhfgzXwv",
-    lstMint: "BonK1YhkXEGLZzwtcvRTip3gAL9nCeQD7ppZBLXhtTs",
-    start: "2024-07-17",
-    methodology: {
-      Fees: "Staking rewards from staked SOL on Bonk staked solana",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
-      ProtocolRevenue: "Revenue going to treasury/team",
-    },
-  }),
 
   "bybit-staked-sol": {
     stakePoolReserveAccount: "7huMsYqSXb1m4okiAJgQLPTamgHD2GvWhAou7vhzF51r",
