@@ -66,6 +66,7 @@ function getAmountsForReceiver(transactions: any[], receiver: string, assetId: n
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ALGORAND]: {
       fetch: fetch,
