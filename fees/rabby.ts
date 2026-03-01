@@ -52,6 +52,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     chains,
+    pullHourly: true,
     isExpensiveAdapter: true,
     dependencies: [Dependencies.ALLIUM],
     methodology: {
