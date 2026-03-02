@@ -96,7 +96,7 @@ const methodology = {
   Revenue: "A fixed ADA cost per transaction that is collected by the protocol",
   SupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
   ProtocolRevenue: "A percentage cut of the fixed ADA cost per transaction that is collected by the protocol",
-  HoldersRevenue: "A percentage cut of the fixed ADA cost per transaction that is collected by the protocol"
+  HoldersRevenue: "A percentage cut of the fixed ADA cost per transaction that is going to holders"
 };
 
 const breakdownMethodology = {
