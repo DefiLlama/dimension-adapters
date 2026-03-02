@@ -1,57 +1,41 @@
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
-import { request, gql } from "graphql-request";
-import fetchURL from "../../utils/fetchURL";
+
+// Colony StakingV3 contract
+const STAKING_CONTRACT =
+  "0x62685d3EAacE96D6145D35f3B7540d35f482DE5b";
+
+const REWARD_ADDED_EVENT =
+  "event RewardAdded(address indexed token, uint8 category, uint256 amount, uint256 duration)";
 
 export interface Airdrops {
   dailyHoldersRevenue: Balances;
 }
 
-interface IGraphAirdropsResponse {
-  rewards: {
-    token: {
-      id: string
-    }
-    amount: string
-  }[]
-}
-
-const queryAirdrops = gql
-  `query Airdrops($timestampFrom: BigInt!, $timestampTo: BigInt!) {
-    rewards(
-      where: {createdAt_gte: $timestampFrom, createdAt_lt: $timestampTo, categoryId_in: [3, 4]}
-    ) {
-      token {
-        id
-      }
-      amount
-    }
-  }`;
-
 export async function airdrops(
   options: FetchOptions,
-  stakingV3SubgraphEndpoint: string,
 ): Promise<Airdrops> {
-  const { createBalances, startTimestamp, endTimestamp } = options;
+  const { getLogs, createBalances } = options;
 
-  let dailyHoldersRevenue = createBalances()
+  const dailyHoldersRevenue = createBalances();
 
-  try {
-    const res: IGraphAirdropsResponse = await request(stakingV3SubgraphEndpoint, queryAirdrops, {
-      timestampFrom: startTimestamp,
-      timestampTo: endTimestamp
-    });
+  const logs = await getLogs({
+    target: STAKING_CONTRACT,
+    eventAbi: REWARD_ADDED_EVENT,
+    topic: '0x76f4be3e874cc10b0db82373976a4b261a91b466d6a1f4db6563e5bd25ebba9e'
+  });
 
-    if (res.rewards.length > 0) {
-      for (const airdrop of res.rewards) {
-        dailyHoldersRevenue.add(airdrop.token.id, airdrop.amount)
-      }
+  for (const log of logs) {
+    const category = Number(log.category);
+    if (category === 3 || category === 4) {
+      dailyHoldersRevenue.add(
+        log.token,
+        log.amount
+      );
     }
-  } catch (e) {
-    console.error(e);
   }
 
   return {
     dailyHoldersRevenue,
-  }
+  };
 }

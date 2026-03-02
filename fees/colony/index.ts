@@ -16,6 +16,7 @@ const dexSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colony-de
 const earlystageSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colony/earlystage-avalanche-production';
 const masterChefSubgraphEndpoint = 'https://graph.colonylab.io/subgraphs/name/colony-dex/masterchef-avalanche-production'
 
+
 const methodology = {
   Fees: 'total fees paid by users from Colony DEX activities.',
   Revenue: "Revenue distributed to token stakers includes 100% from CLY staking and unstaking fees, 50% of CAI fees, 8% of early-stage activity fees (ceTokens), and 70% of Validator Program activity revenues. This distribution creates a strong APY for CLY stakers, incentivizing protocol staking and long-term involvement in Colony's protocol.",
@@ -29,39 +30,36 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const stakingResult = await stakingFees(
     options,
-    stakingSubgraphEndpoint,
     ColonyGovernanceToken
   );
 
-  const dexResult = await dexFees(
+  /*const dexResult = await dexFees(
     options,
     dexSubgraphEndpoint
-  );
+  );*/
 
-  const earlystageResult = await earlyStageFees(
+  /*const earlystageResult = await earlyStageFees(
     options,
     earlystageSubgraphEndpoint,
-  );
+  );*/
 
   const caiResult = await caiFees(
     options
   );
 
   const validatorProgramResult = await validatorProgramFees(
-    options,
-    stakingSubgraphEndpoint
+    options
   );
 
   const airdropsResult = await airdrops(
-    options,
-    stakingSubgraphEndpoint
+    options
   );
 
-  const masterChefResults = await masterChef(
+  /*const masterChefResults = await masterChef(
     options,
     masterChefSubgraphEndpoint,
     earlystageSubgraphEndpoint
-  );
+  );*/
 
   let dailyFees = createBalances();
   let dailyRevenue = createBalances();
@@ -71,20 +69,20 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // --- Holders Revenue
   dailyHoldersRevenue.addBalances(stakingResult.dailyHoldersRevenue)
-  dailyHoldersRevenue.addBalances(earlystageResult.dailyHoldersRevenue)
+  //dailyHoldersRevenue.addBalances(earlystageResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(caiResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(validatorProgramResult.dailyHoldersRevenue)
   dailyHoldersRevenue.addBalances(airdropsResult.dailyHoldersRevenue)
 
   // --- Protocol Revenue
-  dailyProtocolRevenue.addBalances(earlystageResult.dailyProtocolRevenue)
+  //dailyProtocolRevenue.addBalances(earlystageResult.dailyProtocolRevenue)
   dailyProtocolRevenue.addBalances(caiResult.dailyProtocolRevenue)
   dailyProtocolRevenue.addBalances(validatorProgramResult.dailyProtocolRevenue)
-  dailyProtocolRevenue.addBalances(dexResult.dailyProtocolRevenue)
+  //dailyProtocolRevenue.addBalances(dexResult.dailyProtocolRevenue)
 
   // --- Supply Side Revenue
-  dailySupplySideRevenue.addBalances(dexResult.dailySupplySideRevenue)
-  dailySupplySideRevenue.addBalances(masterChefResults.dailySupplySideRevenue)
+  //dailySupplySideRevenue.addBalances(dexResult.dailySupplySideRevenue)
+  //dailySupplySideRevenue.addBalances(masterChefResults.dailySupplySideRevenue)
 
   // --- Revenue
   dailyRevenue.addBalances(dailyProtocolRevenue)
@@ -95,7 +93,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.addBalances(dailySupplySideRevenue)
 
   return {
-    dailyVolume: dexResult.dailyVolume,
+    //dailyVolume: dexResult.dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,
