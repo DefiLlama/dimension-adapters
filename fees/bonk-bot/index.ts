@@ -25,7 +25,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `;
   const data = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
-  if(!inflatedFees.includes(options.fromTimestamp))
+  
+  if (!inflatedFees.includes(options.fromTimestamp))
     dailyFees.addUSDValue(data[0].dailyFees);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }

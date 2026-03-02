@@ -38,13 +38,13 @@ const fetch = async (_a, _b, options: FetchOptions) => {
       "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY")
     }
   })
-  
+
   let dailyVolume = 0;
-  if(!inflatedFees[options.chain] || !inflatedFees[options.chain].includes(options.fromTimestamp))
+  if (!inflatedFees[options.chain] || !inflatedFees[options.chain].includes(options.fromTimestamp))
     dailyVolume = data.data.data.volume;
 
-    return {
-      dailyVolume,
+  return {
+    dailyVolume,
   }
 };
 
