@@ -99,7 +99,7 @@ const prefetch = async (_: FetchOptions) => {
   return await getProducts();
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, _options: FetchOptions) => {
   // const products = await options.preFetchedResults;
   // const tokens = await getAddressesByChain(products, options.chain);
   // if (tokens.length === 0) return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances() };
@@ -146,7 +146,7 @@ interface IData {
   amount: number;
 }
 
-const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana: any = async (_a: any, _b: any, _options: FetchOptions) => {
   // const products = await options.preFetchedResults;
   // const dailyFees = options.createBalances()
 
