@@ -135,6 +135,8 @@ export const chainConfigMap: any = {
   [CHAIN.Q_PROTOCOL]: { CGToken: 'q-protocol', explorer: 'https://explorer.q.org/' },
   [CHAIN.VINUCHAIN]: { CGToken: 'vinuchain', explorer: 'https://vinuexplorer.org/' },
   [CHAIN.PULSECHAIN]: { CGToken: 'pulsechain', explorer: 'https://api.scan.pulsechain.com', start: '2023-05-13' },
+  [CHAIN.XDC]: { CGToken: 'xdce-crowd-sale', explorer: 'https://xdc.blocksscan.io', start: '2019-06-01' },
+  [CHAIN.MERLIN]: { CGToken: 'bitcoin', explorer: 'https://scan.merlinchain.io', start: '2024-02-08' },
 }
 
 function getTimeString(timestamp: number) {

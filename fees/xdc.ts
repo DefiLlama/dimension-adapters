@@ -1,7 +1,4 @@
-import { blockHeaderFeeAdapter } from "../helpers/blockHeaderFees";
+import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
 import { CHAIN } from "../helpers/chains";
 
-export default blockHeaderFeeAdapter({
-  chain: CHAIN.XDC,
-  start: "2019-06-01",
-});
+export default blockscoutFeeAdapter2(CHAIN.XDC);
