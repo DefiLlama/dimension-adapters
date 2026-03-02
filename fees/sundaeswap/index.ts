@@ -5,6 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const ADA_ID = "ada.lovelace";
 const endpoint = "https://api.sundae.fi/graphql";
+const HOLDERS_REVENUE_START_TIMESTAMP = 1715212800; //2024-05-09
 
 const formatDate = (ts: number) => {
   return new Date(ts * 1000).toISOString().replace('T', ' ').substring(0, 19);
@@ -40,6 +41,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const start = formatDate(options.startTimestamp);
   const end = formatDate(options.endTimestamp);
 
+  const protocolRevenueShare = options.startTimestamp >= HOLDERS_REVENUE_START_TIMESTAMP ? 0.85 : 1;
+
   const query = `
     query fetchPools($start: String!, $end: String!) {
       pools {
@@ -70,8 +73,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
       if (protocolFees?.asset?.id) {
         addFee(dailyRevenue, protocolFees.asset.id, protocolFees.quantity);
-        addFee(dailyHoldersRevenue, protocolFees.asset.id, String(protocolFees.quantity * 0.15));
-        addFee(dailyProtocolRevenue, protocolFees.asset.id, String(protocolFees.quantity * 0.85));
+        addFee(dailyHoldersRevenue, protocolFees.asset.id, String(protocolFees.quantity * (1 - protocolRevenueShare)));
+        addFee(dailyProtocolRevenue, protocolFees.asset.id, String(protocolFees.quantity * protocolRevenueShare));
       }
     }
   }
