@@ -140,11 +140,14 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "A 1% fee is charged on swaps via LP pools",
     [METRIC.TRADING_FEES]: "A 1% fee is charged on peer-to-peer BANK transfers",
   },
+  HoldersRevenue: {
+    [METRIC.MINT_REDEEM_FEES]: "80% of the fees are paid as dividends to BANK holders",
+    [METRIC.SWAP_FEES]: "80% of the fees are paid as dividends to BANK holders"
+  }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   fetch,
   chains: [CHAIN.FLARE],
   start: "2025-02-13",
