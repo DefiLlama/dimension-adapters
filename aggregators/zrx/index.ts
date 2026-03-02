@@ -28,14 +28,23 @@ const CHAINS: TChain = {
   [CHAIN.MONAD]: 143,
 };
 
+const inflatedFees = {
+  [CHAIN.ETHEREUM]: [1772323199,] //2026-03-02 -> 2B volume vs 30m on previous days
+}
+
 const fetch = async (_a, _b, options: FetchOptions) => {
   const data = await axios.get(`https://api.0x.org/stats/volume/daily?timestamp=${options.startOfDay}&chainId=${CHAINS[options.chain]}`, {
     headers: {
       "0x-api-key": getEnv("AGGREGATOR_0X_API_KEY")
     }
   })
-  return {
-    dailyVolume: data.data.data.volume
+  
+  let dailyVolume = 0;
+  if(!inflatedFees[options.chain] || !inflatedFees[options.chain].includes(options.fromTimestamp))
+    dailyVolume = data.data.data.volume;
+
+    return {
+      dailyVolume,
   }
 };
 
