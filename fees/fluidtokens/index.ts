@@ -39,8 +39,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   if (
     !response?.stats ||
     typeof response.stats.totalFeesAda !== "number" ||
+    !Number.isFinite(response.stats.totalFeesAda) ||
+    response.stats.totalFeesAda < 0 ||
     response.date !== dateString ||
-    !Number.isFinite(response.stats.totalFeesAda)
+    response.status !== "final" ||
+    response.hoursCovered < response.hoursExpected
   ) {
     throw new Error(`Fees data not found for FluidTokens on ${dateString}`);
   }
