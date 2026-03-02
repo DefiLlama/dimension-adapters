@@ -20,11 +20,9 @@ interface Token {
 
 const getTokenPricesMap = async () => {
   const {
-    data: { tokens },
+    tokens,
   }: {
-    data: {
-      tokens: Token[];
-    };
+    tokens: Token[];
   } = await fetchURL(tokensURL);
 
   const tokenPricesMap: { [tokenContract: string]: number } = {};
@@ -50,7 +48,7 @@ const getTokenDailyVolume = ({
 
 const fetch = async (): Promise<FetchResult> => {
   const dayTimestamp = getUniqStartOfTodayTimestamp();
-  const { data: tickers }: { data: Ticker[] } = await fetchURL(tickersURL);
+  const tickers: Ticker[] = await fetchURL(tickersURL);
   const tokensPriceMap = await getTokenPricesMap();
 
   let dailyVolume = 0;
