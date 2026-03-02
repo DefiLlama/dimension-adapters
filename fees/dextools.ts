@@ -62,7 +62,7 @@ const target_even: any = {
     [CHAIN.BASE]: ['0x997Cc123cF292F46E55E6E63e806CD77714DB70f'],
 }
 
-const sol = async (_a: any, _b: any, options: FetchOptions) => {
+const sol = async (options: FetchOptions) => {
     const dailyFees = await getSolanaReceived({
         options, targets: [
             '4sdKYA9NLD1XHThXGPTmFE973mNs1UeVkCH4dFL3Wgho',
@@ -73,7 +73,7 @@ const sol = async (_a: any, _b: any, options: FetchOptions) => {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
 }
 
-const fetchEvm = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchEvm = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     if (tokens[options.chain].length > 0) {
         await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
@@ -94,7 +94,8 @@ const methodology = {
 
 const adapter: Adapter = {
     methodology,
-    version: 1,
+    version: 2,
+    pullHourly: true,
     isExpensiveAdapter: true,
     dependencies: [Dependencies.ALLIUM],
     adapter: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.BSC].reduce((all, chain) => ({

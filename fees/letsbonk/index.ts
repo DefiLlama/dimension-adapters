@@ -35,49 +35,82 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 import { CHAIN } from '../../helpers/chains'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getSolanaReceived } from '../../helpers/token'
-import { METRIC } from '../../helpers/metrics';
+import fetchURL from '../../utils/fetchURL';
+import { getTimestampAtStartOfDayUTC } from '../../utils/date'
 
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
 const PLATFORM_FEE_WALLET = '56XVRVAsgWv6ADaxzoNnbL38LMoWKM5WiSAhrAWUbd2p';
 const CREATOR_FEE_WALLET = '9sHpTfmVpCfP2zexRNK6j38NBchMv1RWpdXPK5NEcZan';
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+const getLetsbonkPercentages = (timestamp: number) => {
+    if (timestamp >= PERCENTAGE_CHANGE_TIMESTAMP) {
+        return { holdersRevenuePercentage: 0.58, protocolRevenuePercentage: 0.02, totalPercentage: 0.60 };
+    }
+        return { holdersRevenuePercentage: 0.43, protocolRevenuePercentage: 0.02, totalPercentage: 0.45 };
+};
+
+const fetchFromApi = async (timestamp: any, _b: any, options: FetchOptions) => {
+    const data = await fetchURL("https://revenue.letsbonk.fun/api/revenue");
+    const targetDate = new Date(getTimestampAtStartOfDayUTC(timestamp) * 1000);
+    const targetDateStr = targetDate.toISOString().split('T')[0];
+    const prevDate = new Date(getTimestampAtStartOfDayUTC(timestamp - 86400) * 1000);
+    const prevDateStr = prevDate.toISOString().split('T')[0];
+
+    const currentEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === targetDateStr);
+    const prevEntry = data.find((entry: any) => entry.timestamp.split('T')[0] === prevDateStr);
+    if (!currentEntry) {
+        throw new Error('No data found for the current date');
+    }
+    if (!prevEntry) {
+        throw new Error('No data found for the previous date');
+    }
+    const { holdersRevenuePercentage, protocolRevenuePercentage, totalPercentage } = getLetsbonkPercentages(timestamp);
+    const dailyRevenueSol = currentEntry.solRevenue - (prevEntry?.solRevenue || 0);
+
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
+    const dailyHoldersRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    dailyFees.addCGToken("solana", dailyRevenueSol, "BonkFun Trading Fees");
+    dailyRevenue.addCGToken("solana", dailyRevenueSol * totalPercentage, "BonkFun Trading Fees");
+    dailyHoldersRevenue.addCGToken("solana", dailyRevenueSol * holdersRevenuePercentage, "BonkFun Trading Fees");
+    dailyProtocolRevenue.addCGToken("solana", dailyRevenueSol * protocolRevenuePercentage, "BonkFun Trading Fees");
+    dailySupplySideRevenue.addCGToken("solana", dailyRevenueSol * (1 - totalPercentage), "Graphite's share of BonkFun fees");
+
+    return {
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue,
+        dailyHoldersRevenue,
+        dailySupplySideRevenue,
+    };
+}
+
+const fetchAllium = async (timestamp: any, _b: any, options: FetchOptions) => {
     const platformFees = options.createBalances()
     const creatorFees = options.createBalances()
 
     await getSolanaReceived({ options, balances: platformFees, target: PLATFORM_FEE_WALLET })
     await getSolanaReceived({ options, balances: creatorFees, target: CREATOR_FEE_WALLET })
 
-    // Determine Letsbonk's share based on timestamp
-    let letsbonkHoldersRevenuePercentage: number;
-    let letsbonkProtocolRevenuePercentage: number;
-    let letsbonkTotalPercentage: number;
-
-    if (timestamp >= PERCENTAGE_CHANGE_TIMESTAMP) {
-        // After percentage change: Letsbonk gets Buy/Burn 50% + SBR 4% + BonkRewards 4% + Marketing 2% = 60%
-        letsbonkHoldersRevenuePercentage = 0.58;
-        letsbonkProtocolRevenuePercentage = 0.02;
-        letsbonkTotalPercentage = 0.60;
-    } else {
-        // Before percentage change: Letsbonk gets Buy/Burn 35% + SBR 4% + BonkRewards 4% + Marketing 2% = 45%
-        letsbonkHoldersRevenuePercentage = 0.43;
-        letsbonkProtocolRevenuePercentage = 0.02;
-        letsbonkTotalPercentage = 0.45;
-    }
+    const { holdersRevenuePercentage, protocolRevenuePercentage, totalPercentage } = getLetsbonkPercentages(timestamp);
 
     const dailyFees = options.createBalances()
-    const dailySupplySideRevenue = creatorFees.clone(1, METRIC.CREATOR_FEES)
+    const dailySupplySideRevenue = creatorFees.clone(1, "BonkFun Creator Fees")
 
-    dailyFees.addBalances(platformFees, METRIC.TRADING_FEES)
-    dailyFees.addBalances(creatorFees, METRIC.CREATOR_FEES)
+    dailyFees.addBalances(platformFees, "BonkFun Trading Fees")
+    dailyFees.addBalances(creatorFees, "BonkFun Creator Fees")
 
-    const graphitePortion = platformFees.clone( 1 - letsbonkTotalPercentage)
-    dailySupplySideRevenue.addBalances(graphitePortion, "Graphite's share")
+    const graphitePortion = platformFees.clone(1 - totalPercentage)
+    dailySupplySideRevenue.addBalances(graphitePortion, "Graphite's share of BonkFun fees")
 
-    const dailyRevenue = platformFees.clone(letsbonkTotalPercentage, METRIC.TRADING_FEES)
-    const dailyProtocolRevenue = platformFees.clone(letsbonkProtocolRevenuePercentage, METRIC.TRADING_FEES)
-    const dailyHoldersRevenue = platformFees.clone(letsbonkHoldersRevenuePercentage, METRIC.TRADING_FEES)
+    const dailyRevenue = platformFees.clone(totalPercentage, "BonkFun Trading Fees")
+    const dailyProtocolRevenue = platformFees.clone(protocolRevenuePercentage, "BonkFun Trading Fees")
+    const dailyHoldersRevenue = platformFees.clone(holdersRevenuePercentage, "BonkFun Trading Fees")
 
     return {
         dailyFees,
@@ -88,6 +121,11 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
         dailySupplySideRevenue,
     };
 };
+
+const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+    return timestamp >= 1755475200 ? fetchAllium(timestamp, _b, options) : fetchFromApi(timestamp, _b, options)
+}
+
 
 const adapter: SimpleAdapter = {
     version: 1,
@@ -104,21 +142,21 @@ const adapter: SimpleAdapter = {
     },
     breakdownMethodology: {
         Fees: {
-            [METRIC.TRADING_FEES]: "Platform trading fees collected by LetsBONK.",
-            [METRIC.CREATOR_FEES]: "Fees paid to coin creators.",
+            "BonkFun Trading Fees": "Platform trading fees collected by LetsBONK.",
+            "BonkFun Creator Fees": "Fees paid to coin creators.",
         },
         Revenue: {
-            [METRIC.TRADING_FEES]: "The portion of trading fees kept by LetsBONK.",
+            "BonkFun Trading Fees": "The portion of trading fees kept by LetsBONK.",
         },
         ProtocolRevenue: {
-            [METRIC.TRADING_FEES]: "The portion of trading fees kept by LetsBONK.",
+            "BonkFun Trading Fees": "The portion of trading fees kept by LetsBONK.",
         },
         SupplySideRevenue: {
-            [METRIC.CREATOR_FEES]: "Fees paid to coin creators.",
-            "Graphite's share": "Graphite Protocol's share of platform fees (BONKsol staking, hiring/growth, development, GP reserve, and partial marketing)."
+            "BonkFun Creator Fees": "Fees paid to coin creators.",
+            "Graphite's share of BonkFun fees": "Graphite Protocol's share of platform fees (BONKsol staking, hiring/growth, development, GP reserve, and partial marketing)."
         },
         HoldersRevenue: {
-            [METRIC.TRADING_FEES]: "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%).",
+            "BonkFun Trading Fees": "Before 10th jun 2025: 43% of total fees (Buy/burn 35% + SBR 4% + BonkRewards 4%). After 10th jun 2025: 58% of total fees (Buy/burn 50% + SBR 4% + BonkRewards 4%).",
         }
     },
 };
