@@ -123,7 +123,7 @@ const fetchAllium = async (timestamp: any, _b: any, options: FetchOptions) => {
 };
 
 const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
-    return timestamp >= PERCENTAGE_CHANGE_TIMESTAMP ? fetchAllium(timestamp, _b, options) : fetchFromApi(timestamp, _b, options)
+    return timestamp >= 1755475200 ? fetchAllium(timestamp, _b, options) : fetchFromApi(timestamp, _b, options)
 }
 
 
