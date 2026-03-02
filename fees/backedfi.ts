@@ -223,7 +223,7 @@ const adapters: SimpleAdapter = {
   //prefetch: prefetch as any,
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: "Up to 0.50% of your investment's value is charged when entering and exiting the investment",
+    Fees: "Up to 0.50% of your investment's value is charged when entering and exiting the investment (0 fees as of now)",
     Revenue: 'All fees are revenue for the protocol',
   },
   breakdownMethodology: {
