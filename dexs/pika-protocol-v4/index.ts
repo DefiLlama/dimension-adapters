@@ -1,65 +1,50 @@
-import * as sdk from "@defillama/sdk";
-import { Chain } from "../../adapters/types";
-import BigNumber from "bignumber.js";
-import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees, FetchResultVolume } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { getBlock } from "../../helpers/getBlock";
 
-interface IData {
-  date: number;
-  cumulativeVolume: string;
-}
+const PIKA_PERP = "0x8c9b6a4a4e61f4635e8e375e05ff98db5516d25e";
 
-type IURL = {
-  [l: string | Chain]: string;
-}
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
-interface IValume {
-  vaultDayData: IData;
-  vaults: IData[];
-}
+  const [newPositionLogs, closePositionLogs] = await Promise.all([
+    options.getLogs({
+      target: PIKA_PERP,
+      eventAbi: "event NewPosition(uint256 indexed positionId, address indexed user, uint256 indexed productId, bool isLong, uint256 price, uint256 oraclePrice, uint256 margin, uint256 leverage, uint256 fee, int256 funding)",
+    }),
+    options.getLogs({
+      target: PIKA_PERP,
+      eventAbi: "event ClosePosition(uint256 indexed positionId, address indexed user, uint256 indexed productId, uint256 price, uint256 entryPrice, uint256 margin, uint256 leverage, uint256 fee, int256 pnl, int256 fundingPayment, bool wasLiquidated)",
+    }),
+  ]);
 
-const endpoints: IURL = {
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('6Z7dcfhWCWxvM5EWYtS9ZRmJSKmButFjuTvvDoCWEef')
-}
-
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultVolume> => {
-    const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-    const block = (await getBlock(todayTimestamp, chain, {}));
-    const graphQuery = gql
-      `
-      {
-        vaultDayData(id: ${dateId}) {
-          date
-          id
-          cumulativeVolume
-        }
-        vaults(block: { number: ${block} }) {
-          cumulativeVolume
-        }
-      }
-    `;
-
-    const res: IValume = (await request(endpoints[chain], graphQuery));
-    const dailyVolume = Number(res.vaultDayData.cumulativeVolume) / 10 ** 8;
-
-    return {
-      timestamp,
-      dailyVolume: dailyVolume.toString(),
-    };
+  for (const log of newPositionLogs) {
+    // volume = margin * leverage / 1e8 (both in 8-decimal internal representation)
+    dailyVolume.addUSDValue(Number(log.margin) * Number(log.leverage) / 1e16);
+    dailyFees.addUSDValue(Number(log.fee) / 1e8);
   }
-}
 
-const adapter: Adapter = {
+  for (const log of closePositionLogs) {
+    dailyVolume.addUSDValue(Number(log.margin) * Number(log.leverage) / 1e16);
+    dailyFees.addUSDValue(Number(log.fee) / 1e8);
+  }
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees.clone(0.5),
+    dailyProtocolRevenue: dailyFees.clone(0.5),
+    dailySupplySideRevenue: dailyFees.clone(0.5),
+  };
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-06-28',
+      fetch,
+      start: "2023-06-28",
     },
   },
 };
