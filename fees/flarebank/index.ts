@@ -140,6 +140,10 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "A 1% fee is charged on swaps via LP pools",
     [METRIC.TRADING_FEES]: "A 1% fee is charged on peer-to-peer BANK transfers",
   },
+  ProtocolRevenue: {
+    [METRIC.MINT_REDEEM_FEES]: "15% of fees go to the team and 5% to the DAO",
+    [METRIC.SWAP_FEES]: "15% of fees go to the team and 5% to the DAO"
+  },
   HoldersRevenue: {
     [METRIC.MINT_REDEEM_FEES]: "80% of the fees are paid as dividends to BANK holders",
     [METRIC.SWAP_FEES]: "80% of the fees are paid as dividends to BANK holders"
