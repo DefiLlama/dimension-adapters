@@ -2,6 +2,8 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
+const inflatedFees = [1712275200] // 2024-04-05, Inflated fees (22M fees for 48M volume)
+
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
     WITH botTrades AS (
@@ -23,7 +25,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `;
   const data = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(data[0].dailyFees, "BonkBot Fees");
+
+  if (!inflatedFees.includes(options.startOfDay))
+    dailyFees.addUSDValue(data[0].dailyFees);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
