@@ -1,3 +1,4 @@
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -120,38 +121,35 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "10% fee on mints and burns (denominated in WFLR), 1% fee on transfers and LP swaps (denominated in BANK).",
+  UserFees: "Users pay all fees: 10% on mint/burn, 1% on transfer/swap.",
+  Revenue: "100% of fees are distributed as revenue: 80% to BANK token holders as dividends, and 20% to the protocol (15% team wallet, 5% DAO treasury).",
+  ProtocolRevenue: "20% of all fees: 15% to team wallet, 5% to DAO treasury.",
+  HoldersRevenue: "80% of all fees distributed as dividends to BANK token holders.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MINT_REDEEM_FEES]: "A 10% fee is charged when minting and redeeming WFLR",
+    [METRIC.SWAP_FEES]: "A 1% fee is charged on swaps via LP pools (Enosys, SparkDex, Blazeswap)",
+    [METRIC.TRADING_FEES]: "A 1% fee is charged on peer-to-peer BANK transfers",
+  },
+  Revenue: {
+    [METRIC.MINT_REDEEM_FEES]: "A 10% fee is charged when minting and redeeming WFLR",
+    [METRIC.SWAP_FEES]: "A 1% fee is charged on swaps via LP pools",
+    [METRIC.TRADING_FEES]: "A 1% fee is charged on peer-to-peer BANK transfers",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.FLARE]: {
-      fetch,
-      start: "2025-02-13",
-      meta: {
-        methodology: {
-          Fees: "10% fee on mints and burns (denominated in WFLR), 1% fee on transfers and LP swaps (denominated in BANK).",
-          UserFees:
-            "Users pay all fees: 10% on mint/burn, 1% on transfer/swap.",
-          Revenue:
-            "100% of fees are distributed as revenue: 80% to BANK token holders as dividends, and 20% to the protocol (15% team wallet, 5% DAO treasury).",
-          ProtocolRevenue: "20% of all fees: 15% to team wallet, 5% to DAO treasury.",
-          HoldersRevenue:
-            "80% of all fees distributed as dividends to BANK token holders.",
-        },
-        breakdownMethodology: {
-          Fees: {
-            [METRIC.MINT_REDEEM_FEES]: "A 10% fee is charged when minting and redeeming WFLR",
-            [METRIC.SWAP_FEES]: "A 1% fee is charged on swaps via LP pools (Enosys, SparkDex, Blazeswap)",
-            [METRIC.TRADING_FEES]: "A 1% fee is charged on peer-to-peer BANK transfers",
-          },
-          Revenue: {
-            [METRIC.MINT_REDEEM_FEES]: "A 10% fee is charged when minting and redeeming WFLR",
-            [METRIC.SWAP_FEES]: "A 1% fee is charged on swaps via LP pools",
-            [METRIC.TRADING_FEES]: "A 1% fee is charged on peer-to-peer BANK transfers",
-          },
-        },
-      },
-    },
-  },
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.FLARE],
+  start: "2025-02-13",
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
