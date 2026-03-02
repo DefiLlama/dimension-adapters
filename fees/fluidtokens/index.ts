@@ -46,11 +46,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     throw new Error(`Fees data not found for FluidTokens on ${dateString}`);
   }
 
+  if (
+    response.status !== "final" ||
+    response.hoursCovered < response.hoursExpected
+  ) {
+    return {};
+  }
 
   const dailyFees = options.createBalances();
   dailyFees.addCGToken("cardano", Number(response.stats.totalFeesAda));
 
-  return { dailyFees };
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+  };
 };
 
 const adapter: Adapter = {
