@@ -4,13 +4,13 @@ import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
 
 const url: any = {
-  [CHAIN.SUI]: "https://app.sentio.xyz/api/v1/insights/typus/typus_perp_mainnet/query",
+  [CHAIN.SUI]: "https://app.sentio.xyz/api/v1/insights/typus/typus_perp/query",
 };
 
 const options = {
   headers: {
     "Content-Type": "application/json",
-    "api-key": "ffJa6FwxeJNrQP8NZ5doEMXqdSA7XM6mT",
+    "api-key": "hCsD8shJaUbbiNLMKBG3oKhr9PL3H5EJ5",
   },
 };
 
