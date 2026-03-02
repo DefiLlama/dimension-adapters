@@ -35,12 +35,12 @@ const fetch = async (options: FetchOptions) => {
   const mintLogs = await options.getLogs({
     target: FLAREBANK_ADDRESS,
     eventAbi:
-      "event onTokenPurchase(address indexed customerAddress, uint256 incomingEthereum, uint256 tokensMinted, address indexed referredBy)",
+      "event TokenPurchase(address indexed user, address indexed referredBy, uint256 ethIncoming, uint256 minted)",
   });
 
   mintLogs.forEach((log: any) => {
-    const incomingWFLR = BigInt(log.incomingEthereum);
-    // incomingEthereum is the gross amount BEFORE the 10% fee
+    const incomingWFLR = BigInt(log.ethIncoming);
+    // ethIncoming is the gross amount BEFORE the 10% fee
     // fee = 10% of gross
     const fee = incomingWFLR / 10n;
     dailyFees.add(WFLR_ADDRESS, fee, METRIC.MINT_REDEEM_FEES);
@@ -52,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
   const burnLogs = await options.getLogs({
     target: FLAREBANK_ADDRESS,
     eventAbi:
-      "event onTokenSell(address indexed customerAddress, uint256 tokensBurned, uint256 ethEarned)",
+      "event TokenSell(address indexed user, uint256 burned, uint256 ethEarned)",
   });
 
   burnLogs.forEach((log: any) => {
