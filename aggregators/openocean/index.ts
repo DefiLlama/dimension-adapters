@@ -53,7 +53,7 @@ const NON_EVM_CHAINS: Record<string, string> = {
   [CHAIN.STARKNET]: "2025-05-17",
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   if (NON_EVM_CHAINS[options.chain]) {
     const { data } = await fetchURL(`${URL}/${options.chain}/getDailyVolume?timestamp=${options.startOfDay}`);
     const { dailyVolume } = data || { dailyVolume: 0 };
@@ -79,7 +79,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     ...Object.entries(EVM_CHAIN_ADDRESSES).reduce((acc, [chain, _]) => {
       return {

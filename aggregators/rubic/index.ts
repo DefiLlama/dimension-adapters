@@ -74,7 +74,7 @@ async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time * 1000))
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   await sleep(Math.floor(Math.random() * 5) + 1)
 
   const data: ApiResponse = await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chains[options.chain]}`);
@@ -85,7 +85,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     ...Object.entries(chains).reduce((acc, [key]) => {
       return {
