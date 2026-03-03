@@ -27,16 +27,11 @@ async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
 
   const dataMap = await statsCache;
   const data = dataMap[dateString];
-
-  if (!data) {
-    throw new Error("Data missing for date: " + dateString);
-  }
-
   const builderStats = await httpGet(builderStatsUrl);
   const dailyActiveUsers = builderStats?.data?.connected_user ?? 0;
 
-  const dailyVolume = +data.takerVolume + +data.makerVolume;
-  const dailyFees = +data.builderFee;
+  const dailyVolume = data ? +data.takerVolume + +data.makerVolume : 0;
+  const dailyFees = data ? +data.builderFee : 0;
   const dailyRevenue = dailyFees;
   const dailyProtocolRevenue = dailyRevenue;
 
