@@ -719,6 +719,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.FANTOM]: { factory: '0x991152411A7B5A14A8CF0cDDE8439435328070dF', start: '2021-04-19' },
     [CHAIN.METIS]: { factory: '0xAA1504c878B158906B78A471fD6bDbf328688aeB', start: '2022-05-04' },
   },
+  "tideswap": {
+    [CHAIN.INK]: { factory: '0x2ebE0528aDED9fA8d745B7C7082fb90d7C7B6Ec8', start: '2026-02-20' },
+  },
 }
 
 const optionsMap: Record<string, any> = {
