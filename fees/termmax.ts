@@ -4,43 +4,18 @@ import { METRIC } from "../helpers/metrics";
 import { ethers } from "ethers";
 
 /**
- * TermMax Protocol Fees Adapter
- *
- * TermMax is a fixed-rate lending protocol that enables users to borrow/lend at fixed rates.
- * Docs: https://docs.ts.finance/
- *
- * Fee Collection Mechanism:
- * - All protocol fees are collected via ERC20 Transfer events TO the treasury address
- * - We track all token transfers sent to the treasury within the time range
- *
- * Fee Types (distinguished by the source of the transfer):
- * 1. Protocol Fees: Fees from trading orders (borrow/lend transactions)
- *    - Source: FT (Fixed-rate Token) contracts associated with a market
- *    - Detected when: marketAddress lookup succeeds (transfer came from an FT token)
- *    - Valued in: Underlying/debt token, discounted using swap event data
- *    - Discount method: Match each FT fee Transfer to the Swap event in the same tx,
- *      compute feeValue using taker/maker fee split formula for all 4 swap types
- *    - Fallback: If no matching swap found (e.g. issueFt mint fees),
- *      apply a conservative 5% annual simple-interest discount based on time-to-maturity
- *
- * 2. Liquidation Penalties: Fees charged when undercollateralized positions are liquidated
- *    - Source: GT (Gearing Token) contracts
- *    - Detected when: gtConfig lookup succeeds (transfer came from a GT token)
- *    - Valued in: Collateral token
- *
- * 3. Performance Fees: Fees charged on yield earned by passive depositors
- *    - Source: Performance Fee Manager contract
- *    - Detected when: transfer originates from the PERFORMANCE_FEE_MANAGER address
- *    - Valued in: The transferred token (typically the vault's underlying asset)
+ * TermMax - Fixed-rate lending protocol
+ * 
+ * Tracks all Transfer events to treasury and classifies by source:
+ * 1. Protocol Fees: From FT token contracts (borrow/lend fees, discounted to underlying value)
+ * 2. Liquidation Fees: From GT contracts (liquidation penalties)
+ * 3. Performance Fees: From performance fee manager (vault yield fees)
  */
 
-// Treasury addresses per chain
 const DEFAULT_TREASURY = "0x719e77027952929ed3060dbFFC5D43EC50c1cf79";
 const TREASURY: Record<string, string> = {
   [CHAIN.BSQUARED]: "0x70e992E94474e4E9B2D964F6876c05cDE45f8E89",
 };
-
-// Performance Fee Manager address - used to identify performance fee transfers
 const PERFORMANCE_FEE_MANAGER = "0xEEC1238f2191978528e31dFf120bB8030fc62ff2";
 
 // FT Redeemer address - transfers from this address are redeemed FT proceeds,
@@ -54,22 +29,17 @@ async function getTransfers(
   fromBlock: number,
   toBlock: number,
 ) {
-  const eventAbi =
-    "event Transfer (address indexed from, address indexed to, uint256 value)";
+  const eventAbi = "event Transfer (address indexed from, address indexed to, uint256 value)";
   const from = _from ? ethers.zeroPadValue(_from, 32) : null;
   const to = _to ? ethers.zeroPadValue(_to, 32) : null;
   return await options.getLogs({
     eventAbi,
-    topics: [
-      // Transfer(address,address,uint256)
-      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-      from as any,
-      to as any,
-    ],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", from as any, to as any],
     fromBlock,
     toBlock,
     entireLog: true,
     noTarget: true,
+    parseLog: true,
   });
 }
 
@@ -92,15 +62,9 @@ async function handleLogs(
   toBlock: number,
 ) {
   const dailyUserFees = options.createBalances();
+  const froms = logs.map(log => log.args.from);
+  const addresses = logs.map(log => log.address);
 
-  const froms = [];
-  const addresses = [];
-  for (const log of logs) {
-    froms.push(log.args.from);
-    addresses.push(log.address);
-  }
-
-  // Helper: multiCall with permitFailure that won't throw on SDK errors
   async function safeMultiCall(params: { abi: string; calls: any[]; permitFailure: true }): Promise<any[]> {
     try {
       return await options.api.multiCall(params);
@@ -124,37 +88,23 @@ async function handleLogs(
 
   const tuples = [];
   for (let i = 0; i < logs.length; i++) {
-    // Skip redeemed FT proceeds to avoid double-counting with FT fees
     if (froms[i].toLowerCase() === FT_REDEEMER.toLowerCase()) continue;
 
-    const [tokenAddress, gtConfig, marketAddress, balance] = [
-      addresses[i],
-      gtConfigs[i],
-      marketAddresses[i],
-      logs[i].args.value,
-    ];
+    const tokenAddress = addresses[i];
+    const gtConfig = gtConfigs[i];
+    const marketAddress = marketAddresses[i];
+    const balance = logs[i].args.value;
+
     if (gtConfig) {
-      // GT contract -> Liquidation penalty (valued in collateral token)
       dailyUserFees.add(gtConfig.collateral, balance, METRIC.LIQUIDATION_FEES);
     } else if (marketAddress) {
-      const log = logs[i];
-      tuples.push({ log, marketAddress, orderAddress: froms[i] });
-    } else if (
-      froms[i].toLowerCase() === PERFORMANCE_FEE_MANAGER.toLowerCase()
-    ) {
-      // Transfers from the operator address are performance fees (valued in the transferred token)
+      tuples.push({ log: logs[i], marketAddress, orderAddress: froms[i] });
+    } else if (froms[i].toLowerCase() === PERFORMANCE_FEE_MANAGER.toLowerCase()) {
       dailyUserFees.add(tokenAddress, balance, METRIC.PERFORMANCE_FEES);
     }
-    // Transfers from unknown sources are ignored (not TermMax protocol fees)
   }
 
   if (tuples.length > 0) {
-    // Fetch tokens (for FT/XT/underlying addresses) and swap events in parallel
-    const SWAP_EXACT_ABI =
-      "event SwapExactTokenToToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtIn, uint128 netTokenOut, uint128 feeAmt)";
-    const SWAP_TO_EXACT_ABI =
-      "event SwapTokenToExactToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtOut, uint128 netTokenIn, uint128 feeAmt)";
-
     const [allTokens, swapExactLogs, swapToExactLogs] = await Promise.all([
       // tokens(): [FT, XT, GT, collateral, underlying]
       safeMultiCall({
@@ -163,14 +113,14 @@ async function handleLogs(
         permitFailure: true,
       }),
       options.getLogs({
-        eventAbi: SWAP_EXACT_ABI,
+        eventAbi: "event SwapExactTokenToToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtIn, uint128 netTokenOut, uint128 feeAmt)",
         fromBlock,
         toBlock,
         entireLog: true,
         noTarget: true,
       }),
       options.getLogs({
-        eventAbi: SWAP_TO_EXACT_ABI,
+        eventAbi: "event SwapTokenToExactToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtOut, uint128 netTokenIn, uint128 feeAmt)",
         fromBlock,
         toBlock,
         entireLog: true,
@@ -186,7 +136,6 @@ async function handleLogs(
       permitFailure: true,
     });
 
-    // Build address sets and lookups
     const ftAddressSet = new Set<string>();
     const xtAddressSet = new Set<string>();
     const ftToMarket = new Map<string, string>();
@@ -213,10 +162,6 @@ async function handleLogs(
       }
     }
 
-    // Build discount multiplier maps keyed by:
-    //   txHash:orderAddress (precise match for order-based fees)
-    //   txHash (fallback for minted fees where from=0x0)
-    // Multiplier = feeValue_in_underlying / feeAmt, scaled by PRECISION
     const PRECISION = BigInt(1e18);
     const multByTxOrder = new Map<string, bigint>();
     const multByTx = new Map<string, bigint>();
@@ -242,7 +187,6 @@ async function handleLogs(
       netTokenOut: bigint,
       feeAmt: bigint,
     ): bigint | null {
-      // Identify swap type and find market fee config
       let market: string | undefined;
       let isLend: boolean;
 
@@ -267,18 +211,10 @@ async function handleLogs(
       }
 
       const feeConfig = market ? marketToFeeConfig.get(market) : null;
-      // feeConfig: [lendTaker, lendMaker, borrowTaker, borrowMaker, ...]
-      const takerRate = BigInt(
-        feeConfig ? (isLend ? feeConfig[0] : feeConfig[2]) : 0,
-      );
-      const makerRate = BigInt(
-        feeConfig ? (isLend ? feeConfig[3] : feeConfig[1]) : 0,
-      );
-
-      // takerPortion = feeAmt × takerRate / (takerRate + makerRate)
+      const takerRate = BigInt(feeConfig ? (isLend ? feeConfig[0] : feeConfig[2]) : 0);
+      const makerRate = BigInt(feeConfig ? (isLend ? feeConfig[3] : feeConfig[1]) : 0);
       const totalRate = takerRate + makerRate;
-      const takerPortion =
-        totalRate > 0n ? (feeAmt * takerRate) / totalRate : 0n;
+      const takerPortion = totalRate > 0n ? (feeAmt * takerRate) / totalRate : 0n;
 
       let numerator: bigint;
       let denominator: bigint;
@@ -315,8 +251,7 @@ async function handleLogs(
         BigInt(log.args.netTokenOut),
         BigInt(log.args.feeAmt),
       );
-      if (mult !== null)
-        storeMult(log.transactionHash, log.address, mult);
+      if (mult !== null) storeMult(log.transactionHash, log.address, mult);
     }
 
     for (const log of swapToExactLogs) {
@@ -327,8 +262,7 @@ async function handleLogs(
         BigInt(log.args.tokenAmtOut),
         BigInt(log.args.feeAmt),
       );
-      if (mult !== null)
-        storeMult(log.transactionHash, log.address, mult);
+      if (mult !== null) storeMult(log.transactionHash, log.address, mult);
     }
 
     // Fixed-rate fallback for fees without a matching swap event (e.g. issueFt mints).
@@ -380,7 +314,6 @@ async function handleLogs(
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyRevenue = options.createBalances();
   const treasury = TREASURY[options.chain] ?? DEFAULT_TREASURY;
 
   const [fromBlock, toBlock] = await Promise.all([
@@ -389,51 +322,27 @@ const fetch = async (options: FetchOptions) => {
   ]);
   const logs = await getTransfers(options, null, treasury, fromBlock, toBlock);
   const { dailyUserFees } = await handleLogs(options, logs, fromBlock, toBlock);
-  dailyRevenue.add(dailyUserFees);
 
   return {
     dailyUserFees,
     dailyFees: dailyUserFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyUserFees,
+    dailyProtocolRevenue: dailyUserFees,
   };
 };
 
 const methodology = {
-  Fees: "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
-  UserFees:
-    "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
-  Revenue:
-    "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
-  ProtocolRevenue:
-    "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
+  Fees: "Tracks Transfer events to treasury: protocol fees (FT discounted to underlying), liquidation fees (GT collateral), and performance fees.",
+  Revenue: "Tracks Transfer events to treasury: protocol fees (FT discounted to underlying), liquidation fees (GT collateral), and performance fees.",
+  ProtocolRevenue: "Tracks Transfer events to treasury: protocol fees (FT discounted to underlying), liquidation fees (GT collateral), and performance fees.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
-    [METRIC.PERFORMANCE_FEES]:
-      "The performance fee charged for passive earn yield on TermMax.",
-  },
-  UserFees: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
-    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
-    [METRIC.PERFORMANCE_FEES]:
-      "The performance fee charged for passive earn yield on TermMax.",
-  },
-  Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
-    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
-    [METRIC.PERFORMANCE_FEES]:
-      "The performance fee charged for passive earn yield on TermMax.",
-  },
-  ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
-    [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
-    [METRIC.PERFORMANCE_FEES]:
-      "The performance fee charged for passive earn yield on TermMax.",
-  },
+    [METRIC.PERFORMANCE_FEES]: "The performance fee charged for passive earn yield on TermMax.",
+  }
 };
 
 const adapter: SimpleAdapter = {
