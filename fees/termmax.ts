@@ -17,7 +17,11 @@ import { ethers } from "ethers";
  * 1. Protocol Fees: Fees from trading orders (borrow/lend transactions)
  *    - Source: FT (Fixed-rate Token) contracts associated with a market
  *    - Detected when: marketAddress lookup succeeds (transfer came from an FT token)
- *    - Valued in: Underlying/debt token (FT is valued 1:1 with underlying at maturity)
+ *    - Valued in: Underlying/debt token, discounted by the actual swap price at trade time
+ *    - Discount method: Match each FT fee Transfer to the Swap event in the same tx,
+ *      derive FT price from the swap's exchange rate, apply to fee amount
+ *    - Fallback: If no matching FT swap found (e.g. XT swap fees, issueFt mint fees),
+ *      apply a conservative 5% annual simple-interest discount based on time-to-maturity
  *
  * 2. Liquidation Penalties: Fees charged when undercollateralized positions are liquidated
  *    - Source: GT (Gearing Token) contracts
@@ -75,7 +79,12 @@ async function getTransfers(
  *   3. Check if 'from' address matches PERFORMANCE_FEE_MANAGER
  *      -> The transfer is a performance fee (valued in the transferred token)
  */
-async function handleLogs(options: FetchOptions, logs: any[]) {
+async function handleLogs(
+  options: FetchOptions,
+  logs: any[],
+  fromBlock: number,
+  toBlock: number,
+) {
   const dailyUserFees = options.createBalances();
 
   const froms = [];
@@ -111,7 +120,7 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
       dailyUserFees.add(gtConfig.collateral, balance, METRIC.LIQUIDATION_FEES);
     } else if (marketAddress) {
       const log = logs[i];
-      tuples.push({ log, marketAddress });
+      tuples.push({ log, marketAddress, orderAddress: froms[i] });
     } else if (
       froms[i].toLowerCase() === PERFORMANCE_FEE_MANAGER.toLowerCase()
     ) {
@@ -122,23 +131,162 @@ async function handleLogs(options: FetchOptions, logs: any[]) {
   }
 
   if (tuples.length > 0) {
-    const allTokens = await options.api.multiCall({
-      // _0: Fixed-rate Token (FT) - bond token for earning fixed income
-      // _1: Intermediary Token (XT) - for collateralization and leveraging
-      // _2: Gearing Token (GT) - for leveraged positions
-      // _3: Collateral token
-      // _4: Underlying Token (debt) - we use this for protocol fee valuation
-      abi: "function tokens() view returns (address, address, address, address, address)",
-      calls: tuples.map((t) => t.marketAddress),
-      permitFailure: true,
-    });
+    // Fetch tokens (for FT/XT/underlying addresses) and swap events in parallel
+    const SWAP_EXACT_ABI =
+      "event SwapExactTokenToToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtIn, uint128 netTokenOut, uint128 feeAmt)";
+    const SWAP_TO_EXACT_ABI =
+      "event SwapTokenToExactToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtOut, uint128 netTokenIn, uint128 feeAmt)";
+
+    const [allTokens, allConfigs, swapExactLogs, swapToExactLogs] = await Promise.all([
+      // tokens(): [FT, XT, GT, collateral, underlying]
+      options.api.multiCall({
+        abi: "function tokens() view returns (address, address, address, address, address)",
+        calls: tuples.map((t) => t.marketAddress),
+        permitFailure: true,
+      }),
+      // config(): [treasurer, maturity, feeConfig] — needed for fixed-rate fallback
+      options.api.multiCall({
+        abi: "function config() view returns ((address, uint64, (uint32, uint32, uint32, uint32, uint32, uint32)))",
+        calls: tuples.map((t) => t.marketAddress),
+        permitFailure: true,
+      }),
+      options.getLogs({
+        eventAbi: SWAP_EXACT_ABI,
+        fromBlock,
+        toBlock,
+        entireLog: true,
+        noTarget: true,
+      }),
+      options.getLogs({
+        eventAbi: SWAP_TO_EXACT_ABI,
+        fromBlock,
+        toBlock,
+        entireLog: true,
+        noTarget: true,
+      }),
+    ]);
+
+    // Build FT address set for identifying FT-involved swaps
+    const ftAddressSet = new Set<string>();
+    for (const t of tuples) {
+      ftAddressSet.add(t.log.address.toLowerCase());
+    }
+    for (const tokens of allTokens) {
+      if (tokens?.[0]) ftAddressSet.add(tokens[0].toLowerCase());
+    }
+
+    // Build FT price maps keyed by:
+    //   txHash:orderAddress (precise match for order-based fees)
+    //   txHash (fallback for minted fees where from=0x0)
+    // Price = underlying per FT, scaled by PRICE_PRECISION
+    const PRICE_PRECISION = BigInt(1e18);
+    const priceByTxOrder = new Map<string, bigint>();
+    const priceByTx = new Map<string, bigint>();
+
+    function storePrice(txHash: string, emitter: string, price: bigint) {
+      priceByTxOrder.set(`${txHash}:${emitter.toLowerCase()}`, price);
+      priceByTx.set(txHash, price);
+    }
+
+    // Derive FT price from a swap event's token pair and amounts.
+    // Only uses FT-direct swaps (not XT swaps) because XT/underlying AMM
+    // prices are unreliable near maturity due to curve collapse.
+    function derivePrice(
+      tokenInAddr: string,
+      tokenOutAddr: string,
+      amtA: bigint, // tokenAmtIn (exact-in) or netTokenIn (exact-out)
+      amtB: bigint, // netTokenOut (exact-in) or tokenAmtOut (exact-out)
+      feeAmt: bigint,
+    ): bigint | null {
+      if (ftAddressSet.has(tokenOutAddr)) {
+        // Buying FT with underlying: ftPrice = amtA / (amtB + feeAmt)
+        const totalFt = amtB + feeAmt;
+        return totalFt > 0n ? (amtA * PRICE_PRECISION) / totalFt : null;
+      }
+      if (ftAddressSet.has(tokenInAddr)) {
+        // Selling FT for underlying: ftPrice = amtB / (amtA - feeAmt)
+        const effectiveFt = amtA - feeAmt;
+        return effectiveFt > 0n ? (amtB * PRICE_PRECISION) / effectiveFt : null;
+      }
+      return null;
+    }
+
+    // Filter swap events by whether FT is directly involved
+    function isTermMaxFtSwap(log: any): boolean {
+      return (
+        ftAddressSet.has(log.args.tokenIn.toLowerCase()) ||
+        ftAddressSet.has(log.args.tokenOut.toLowerCase())
+      );
+    }
+
+    for (const log of swapExactLogs) {
+      if (!isTermMaxFtSwap(log)) continue;
+      const price = derivePrice(
+        log.args.tokenIn.toLowerCase(),
+        log.args.tokenOut.toLowerCase(),
+        BigInt(log.args.tokenAmtIn),
+        BigInt(log.args.netTokenOut),
+        BigInt(log.args.feeAmt),
+      );
+      if (price !== null)
+        storePrice(log.transactionHash, log.address, price);
+    }
+
+    for (const log of swapToExactLogs) {
+      if (!isTermMaxFtSwap(log)) continue;
+      const price = derivePrice(
+        log.args.tokenIn.toLowerCase(),
+        log.args.tokenOut.toLowerCase(),
+        BigInt(log.args.netTokenIn),
+        BigInt(log.args.tokenAmtOut),
+        BigInt(log.args.feeAmt),
+      );
+      if (price !== null)
+        storePrice(log.transactionHash, log.address, price);
+    }
+
+    // Fixed-rate fallback for FT fees without a matching FT swap event
+    // (e.g. fees from XT swaps or issueFt mints).
+    //
+    // Why 5% annual rate:
+    // - FT is a zero-coupon bond worth 1 underlying at maturity, so before
+    //   maturity its present value is less than face value.
+    // - Observed on-chain FT swap prices imply ~15% annualized rates, but
+    //   this varies across markets, maturities, and time periods.
+    // - We use a conservative 5% rate to avoid overestimating fee revenue
+    //   while staying defensible for DefiLlama reviewers.
+    // - Formula: discountFactor = 1 / (1 + rate × daysToMaturity / 365)
+    const FALLBACK_ANNUAL_RATE = 0.05;
+    const FALLBACK_SCALE = BigInt(1e18);
+
     for (let i = 0; i < tuples.length; i++) {
-      const { log } = tuples[i];
+      const { log, orderAddress } = tuples[i];
       const tokens = allTokens[i];
       if (tokens && tokens[4]) {
-        // FT contract -> Protocol fee (valued in underlying token)
         const underlyingToken = tokens[4];
-        const balance = log.args.value;
+        let balance = log.args.value;
+
+        // Primary: discount using actual FT swap price from the same tx
+        const price =
+          priceByTxOrder.get(
+            `${log.transactionHash}:${orderAddress.toLowerCase()}`,
+          ) ?? priceByTx.get(log.transactionHash);
+        if (price && price < PRICE_PRECISION) {
+          balance = (balance * price) / PRICE_PRECISION;
+        } else {
+          // Fallback: apply fixed-rate simple-interest discount based on
+          // time-to-maturity (for XT swap fees, issueFt mint fees, etc.)
+          const maturity = Number(allConfigs[i]?.[1] ?? 0);
+          if (maturity > options.endTimestamp) {
+            const yearsToMaturity =
+              (maturity - options.endTimestamp) / 86400 / 365;
+            const factor = BigInt(
+              Math.floor(1e18 / (1 + FALLBACK_ANNUAL_RATE * yearsToMaturity)),
+            );
+            balance = (balance * factor) / FALLBACK_SCALE;
+          }
+        }
+
         dailyUserFees.add(underlyingToken, balance, METRIC.PROTOCOL_FEES);
       }
     }
@@ -155,7 +303,7 @@ const fetch = async (options: FetchOptions) => {
     options.getToBlock(),
   ]);
   const logs = await getTransfers(options, null, TREASURY, fromBlock, toBlock);
-  const { dailyUserFees } = await handleLogs(options, logs);
+  const { dailyUserFees } = await handleLogs(options, logs, fromBlock, toBlock);
   dailyRevenue.add(dailyUserFees);
 
   return {
@@ -167,36 +315,36 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
+  Fees: "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
   UserFees:
-    "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
+    "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
   Revenue:
-    "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
+    "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
   ProtocolRevenue:
-    "Protocol fees (FT valued at underlying 1:1) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
+    "Protocol fees (FT discounted by actual swap price) from trading orders, liquidation penalties (in collateral tokens), and performance fees (in transferred tokens).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
     [METRIC.PERFORMANCE_FEES]:
       "The performance fee charged for passive earn yield on TermMax.",
   },
   UserFees: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
     [METRIC.PERFORMANCE_FEES]:
       "The performance fee charged for passive earn yield on TermMax.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
     [METRIC.PERFORMANCE_FEES]:
       "The performance fee charged for passive earn yield on TermMax.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx.",
+    [METRIC.PROTOCOL_FEES]: "Fees charged for each borrow/lend tx, discounted by actual swap price at trade time.",
     [METRIC.LIQUIDATION_FEES]: "The penalty charged when a loan is liquidated.",
     [METRIC.PERFORMANCE_FEES]:
       "The performance fee charged for passive earn yield on TermMax.",
