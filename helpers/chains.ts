@@ -56,7 +56,8 @@ export enum CHAIN {
   KARDIA = "kardia",
   TOMBCHAIN = "tombchain",
   CONFLUX = "conflux",
-  TERRA = "terra",
+  TERRA = "terra", // terra classic
+  TERRA2 = "terra2", // terra2
   METER = "meter",
   GODWOKEN = "godwoken",
   GODWOKEN_V1 = "godwoken_v1",
@@ -339,4 +340,9 @@ export enum CHAIN {
   MEGAETH = "megaeth",
   ENI = "eni",
   SPARK = "spark",
+  CHIHUAHUA = "chihuahua",
+  DYMENSION = "dymension",
+  KUJIRA = "kujira",
+  MIGALOO = "migaloo",
+  BITROCK = "bitrock",
 }

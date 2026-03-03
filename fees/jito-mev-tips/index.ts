@@ -7,6 +7,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSolanaReceived } from "../../helpers/token"
+import { METRIC } from "../../helpers/metrics"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const targets = [
@@ -19,7 +20,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
     '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
   ]
-  const dailyFees = await getSolanaReceived({ options, targets, })
+  const receivedBalances = await getSolanaReceived({ options, targets, })
+  const dailyFees = options.createBalances()
+  dailyFees.addBalances(receivedBalances, METRIC.MEV_REWARDS)
   return { dailyFees }
 }
 
@@ -32,7 +35,12 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     fees: 'MEV/tips paid by users/searchers',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.MEV_REWARDS]: 'MEV/tips paid by users/searchers',
+    },
+  },
 }
 
 export default adapter

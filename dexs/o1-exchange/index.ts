@@ -3,6 +3,7 @@ import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
 
 // source: https://dune.com/queries/5682491
+// NOTICE: when copy from dune, replace block_time with TIME_RANGE
 
 const sql = `
 WITH solana_transfers AS (
@@ -13,7 +14,7 @@ WITH solana_transfers AS (
   FROM tokens_solana.transfers
   WHERE
     to_owner = 'FUzZ2SPwLPAKaHubxQzRsk9K8dXb4YBMR6hTrYEMFFZc'
-    AND block_time >= TRY_CAST('2025-07-01' AS TIMESTAMP)
+    AND TIME_RANGE
   GROUP BY
     block_date
 ), base_transfers AS (
@@ -23,11 +24,9 @@ WITH solana_transfers AS (
     SUM(amount_usd) * 100 AS trading_volume_usd
   FROM tokens_base.transfers
   WHERE
-    (
-      "to" IN (0x1E493E7CF969FD7607A8ACe7198f6C02e5eF85A4, 0xc98218Df72975EE1472919d2685e5BD215Baaad4)
-      AND block_time > TRY_CAST('2025-08-01' AS TIMESTAMP)
-      AND tx_from <> "to"
-    )
+    "to" IN (0x1E493E7CF969FD7607A8ACe7198f6C02e5eF85A4, 0xc98218Df72975EE1472919d2685e5BD215Baaad4)
+    AND TIME_RANGE
+    AND tx_from <> "to"
   GROUP BY
     block_date
 ), bnb_transfers AS (
@@ -37,12 +36,10 @@ WITH solana_transfers AS (
     SUM(amount_usd) * 100 AS trading_volume_usd
   FROM tokens.transfers
   WHERE
-    (
-      blockchain = 'bnb'
-      AND "to" IN (0x68AF11c8A93B373BA97217963878B097083726f0)
-      AND block_time > TRY_CAST('2026-02-01' AS TIMESTAMP)
-      AND tx_from <> "to"
-    )
+    blockchain = 'bnb'
+    AND "to" IN (0x68AF11c8A93B373BA97217963878B097083726f0)
+    AND TIME_RANGE
+    AND tx_from <> "to"
   GROUP BY
     block_date
 )

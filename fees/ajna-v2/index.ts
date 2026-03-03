@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchAjna } from "../ajna-v1";
+import { METRIC } from "../../helpers/metrics";
 
 const RESERVE_INFO_ABI = "function reservesInfo() view returns (uint256, uint256, uint256, uint256, uint256)"
 
@@ -81,6 +82,23 @@ const fetch = async (options: FetchOptions) => {
   return fetchAjna(options, chainConfig[options.chain].factory, chainConfig[options.chain].poolUtils, 4, RESERVE_INFO_ABI)
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers for loans, with approximately 85-90% distributed to lenders",
+    "Reserve accumulation": "Portion of borrow interest accumulated in pool reserves, approximately 10-15% of total interest, held for future token burns",
+    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns executed through reserve auctions, reducing circulating supply"
+  },
+  Revenue: {
+    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns funded by accumulated reserves through periodic auctions"
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "Interest distributed to lenders who supply liquidity to lending pools"
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "AJNA token burns that reduce circulating supply, benefiting all token holders"
+  }
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
@@ -92,6 +110,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: "Accumulated fees in reserves are used for token burns by utilizing auctions",
     dailySupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
   },
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -47,8 +47,4 @@ jobs:
       run: |
         curl --fail https://born-to-llama.herokuapp.com/refresh
         exit $?
-    - name: Deploy to server
-      run: |
-        curl --fail https://born-to-llama.herokuapp.com/rebuild-server
-        exit $?
           

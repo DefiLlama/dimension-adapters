@@ -50,12 +50,9 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.CHAINFLIP]: {
-      fetch,
-      start: "2023-11-23", // Protocol start date
-    },
-  },
+  chains: [CHAIN.CHAINFLIP],
+  fetch,
+  start: "2023-11-23", // Protocol start date
   methodology: {
     Fees: "Includes Swap, Broker, Ingress, Egress and Network Fees for Buy/Burn Mechanism",
     Revenue:

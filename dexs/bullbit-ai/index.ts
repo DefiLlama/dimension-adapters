@@ -31,6 +31,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.BSC],
+  pullHourly: true,
   start: '2025-08-16',
   dependencies: [Dependencies.ALLIUM],
   methodology: {

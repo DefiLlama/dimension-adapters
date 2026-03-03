@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
+import { METRIC } from "../helpers/metrics";
 
 const feeWallets = [
   '0x2fE8D03556FDb94A0ce1e46bbb5945794a50a046',
@@ -31,7 +32,7 @@ const fetch = async (options: FetchOptions) => {
   
   const dailyFees = options.createBalances();
   dailyFees.add(subscriptionsFees, 'Club Membership Subscriptions');
-  dailyFees.add(creatorFees, 'Clanker Creator Fees');
+  dailyFees.add(creatorFees, METRIC.CREATOR_FEES);
   
   return {
     dailyFees,
@@ -54,12 +55,16 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'Club Membership Subscriptions': 'All fees come from membership subscriptions paid in $BNKR tokens.',
-      'Clanker Creator Fees': 'All creator fees from Clanker.',
+      'Club Membership Subscriptions': 'Recurring membership subscriptions paid in $BNKR tokens for access to Bankr Bot club features and services',
+      [METRIC.CREATOR_FEES]: 'Creator fees earned from tokens launched via Clanker integration, paid in WETH',
     },
     Revenue: {
-      'Club Membership Subscriptions': 'All fees come from membership subscriptions paid in $BNKR tokens.',
-      'Clanker Creator Fees': 'All creator fees from Clanker.',
+      'Club Membership Subscriptions': 'Recurring membership subscriptions paid in $BNKR tokens for access to Bankr Bot club features and services',
+      [METRIC.CREATOR_FEES]: 'Creator fees earned from tokens launched via Clanker integration, paid in WETH',
+    },
+    ProtocolRevenue: {
+      'Club Membership Subscriptions': 'Recurring membership subscriptions paid in $BNKR tokens for access to Bankr Bot club features and services',
+      [METRIC.CREATOR_FEES]: 'Creator fees earned from tokens launched via Clanker integration, paid in WETH',
     },
   }
 };
