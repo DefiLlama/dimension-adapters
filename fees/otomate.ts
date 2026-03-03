@@ -9,7 +9,7 @@ const fetch = async ({ getLogs }: FetchOptions) => {
     target: OFFCHAIN_EXCHANGE,
     eventAbi:
       "event BuilderFeePayment(bytes32 indexed subaccount, uint32 indexed builder, uint32 indexed productId, bytes32 digest, int128 feeAmount, int128 feeRate, int128 quoteAmount)",
-    topics: [undefined, undefined, BUILDER_ID_PADDED],
+    topics: [null as any, null as any, BUILDER_ID_PADDED],
   });
 
   let dailyFees = 0;
