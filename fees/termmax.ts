@@ -96,13 +96,22 @@ async function handleLogs(
     addresses.push(log.address);
   }
 
+  // Helper: multiCall with permitFailure that won't throw on SDK errors
+  async function safeMultiCall(params: { abi: string; calls: any[]; permitFailure: true }): Promise<any[]> {
+    try {
+      return await options.api.multiCall(params);
+    } catch (_) {
+      return new Array(params.calls.length).fill(null);
+    }
+  }
+
   const [gtConfigs, marketAddresses] = await Promise.all([
-    options.api.multiCall({
+    safeMultiCall({
       abi: "function getGtConfig() view returns ((address collateral, address debtToken, address ft, address treasurer, uint64 maturity, (address oracle, uint32 liquidationLtv, uint32 maxLtv, bool liquidatable) loanConfig))",
       calls: froms,
       permitFailure: true,
     }),
-    options.api.multiCall({
+    safeMultiCall({
       abi: "address:marketAddr",
       calls: addresses,
       permitFailure: true,
@@ -141,7 +150,7 @@ async function handleLogs(
 
     const [allTokens, swapExactLogs, swapToExactLogs] = await Promise.all([
       // tokens(): [FT, XT, GT, collateral, underlying]
-      options.api.multiCall({
+      safeMultiCall({
         abi: "function tokens() view returns (address, address, address, address, address)",
         calls: tuples.map((t) => t.marketAddress),
         permitFailure: true,
@@ -165,14 +174,11 @@ async function handleLogs(
     // config() for maturity — separated from main Promise.all because the
     // complex struct ABI may fail on some SDK versions or market contracts.
     // If it fails, the fixed-rate fallback is skipped (FT valued 1:1).
-    let allConfigs: any[] = [];
-    try {
-      allConfigs = await options.api.multiCall({
-        abi: "function config() view returns ((address, uint64, (uint32, uint32, uint32, uint32, uint32, uint32)))",
-        calls: tuples.map((t) => t.marketAddress),
-        permitFailure: true,
-      });
-    } catch (_) {}
+    const allConfigs = await safeMultiCall({
+      abi: "function config() view returns ((address, uint64, (uint32, uint32, uint32, uint32, uint32, uint32)))",
+      calls: tuples.map((t) => t.marketAddress),
+      permitFailure: true,
+    });
 
     // Build FT address set for identifying FT-involved swaps
     const ftAddressSet = new Set<string>();
