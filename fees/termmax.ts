@@ -34,9 +34,11 @@ import { ethers } from "ethers";
  *    - Valued in: The transferred token (typically the vault's underlying asset)
  */
 
-// Treasury address - same address used across all supported chains
-// Supported chains: ethereum, arbitrum, bsc, berachain
-const TREASURY = "0x719e77027952929ed3060dbFFC5D43EC50c1cf79";
+// Treasury addresses per chain
+const DEFAULT_TREASURY = "0x719e77027952929ed3060dbFFC5D43EC50c1cf79";
+const TREASURY: Record<string, string> = {
+  [CHAIN.BSQUARED]: "0x70e992E94474e4E9B2D964F6876c05cDE45f8E89",
+};
 
 // Performance Fee Manager address - used to identify performance fee transfers
 const PERFORMANCE_FEE_MANAGER = "0xEEC1238f2191978528e31dFf120bB8030fc62ff2";
@@ -303,12 +305,13 @@ async function handleLogs(
 
 const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
+  const treasury = TREASURY[options.chain] ?? DEFAULT_TREASURY;
 
   const [fromBlock, toBlock] = await Promise.all([
     options.getFromBlock(),
     options.getToBlock(),
   ]);
-  const logs = await getTransfers(options, null, TREASURY, fromBlock, toBlock);
+  const logs = await getTransfers(options, null, treasury, fromBlock, toBlock);
   const { dailyUserFees } = await handleLogs(options, logs, fromBlock, toBlock);
   dailyRevenue.add(dailyUserFees);
 
@@ -365,6 +368,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { start: "2025-03-27" },
     [CHAIN.BSC]: { start: "2025-05-28" },
     [CHAIN.BERACHAIN]: { start: "2025-07-08" },
+    [CHAIN.BSQUARED]: { start: "2026-02-15" },
   },
   methodology,
   breakdownMethodology,
