@@ -16,7 +16,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResul
   if (typeof feesData?.feeOfDate !== "string") throw new Error("No fee data");
 
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(Number(feesData.feeOfDate), METRIC.TRADING_FEES);
+  dailyFees.addUSDValue(Number(feesData.feeOfDate), METRIC.TRADING_FEES);
 
   // 50% to holders via buybacks, 50% to vault depositors
   const dailyRevenue = dailyFees.clone(0.5, METRIC.TOKEN_BUY_BACK);

@@ -12,9 +12,9 @@ const endpoints: { [key: string]: string } = {
 const methodology = {
   Fees: "Fees from open/close position (0.1%), liquidations, swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
   UserFees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
-  Revenue: "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
-  HoldersRevenue: "10% of all collected fees are distributed to BMX stakers",
-  SupplySideRevenue: "60% of all collected fees are distributed to BLT stakers",
+  Revenue: "Revenue is 40% of all collected fees, distributed to BMX/wBLT LP stakers and BMX stakers. Note: actual fee splits vary by product (Classic: 20%, Freestyle/Carousel: 60%, Deli Swap: 3%)",
+  HoldersRevenue: "40% of all collected fees distributed to BMX stakers and BMX/wBLT LP stakers. Note: actual split varies by product",
+  SupplySideRevenue: "60% of all collected fees distributed to BLT liquidity providers",
 };
 
 const breakdownMethodology = {

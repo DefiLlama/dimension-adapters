@@ -47,11 +47,11 @@ const fetch = async (timestamp: number, _:any, options: FetchOptions) => {
 
   const dayFeesQuery = (await fetchURL(config[options.chain].fees(timestamp, "1D")))?.data;
   const feesValue = sumValues(dayFeesQuery);
-  dailyFees.addGasToken(feesValue, 'Lending Fees');
+  dailyFees.addUSDValue(Number(feesValue), 'Lending Fees');
 
   const dayRevenueQuery = (await fetchURL(config[options.chain].revenue(timestamp, "1D")))?.data;
   const revenueValue = sumValues(dayRevenueQuery);
-  dailyRevenue.addGasToken(revenueValue, 'Protocol Share');
+  dailyRevenue.addUSDValue(Number(revenueValue), 'Protocol Share');
 
   return {
     dailyFees,

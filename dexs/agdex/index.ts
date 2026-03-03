@@ -11,7 +11,7 @@ const fetch = async (_timestamp: number, _t: any, options: FetchOptions) => {
   const data = res.data;
   const dailyFees = options.createBalances();
 
-  dailyFees.addGasToken(data.syncSqlResponse.result.rows[0].dailyFee, METRIC.SWAP_FEES);
+  dailyFees.addUSDValue(Number(data.syncSqlResponse.result.rows[0].dailyFee), METRIC.SWAP_FEES);
 
   return {
     dailyVolume: `${

@@ -11,7 +11,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const v = (await res).find((v: { date: string }) => v.date === startTime)
 
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(+v.txFee);
+  dailyFees.addUSDValue(+v.txFee);
 
   return { dailyFees };
 };

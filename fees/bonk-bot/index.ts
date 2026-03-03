@@ -29,7 +29,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   if (!inflatedFees.includes(options.startOfDay)){
-    dailyFees.addGasToken(Number(data[0].dailyFees), METRIC.TRADING_FEES);
+    dailyFees.addUSDValue(Number(data[0].dailyFees), METRIC.TRADING_FEES);
   }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }

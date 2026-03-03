@@ -40,7 +40,7 @@ const fetch = async (_t: any, _b: any, options: FetchOptions) => {
   const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
 
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(dailyFee, METRIC.SWAP_FEES);
+  dailyFees.addUSDValue(Number(dailyFee), METRIC.SWAP_FEES);
 
   const dailyRevenue = dailyFees.clone(0.3, METRIC.PROTOCOL_FEES);
 

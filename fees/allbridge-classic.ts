@@ -46,7 +46,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const df = await getFees(chainCode, dateString, dateString);
 
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(df, 'Bridge Fees');
+  dailyFees.addUSDValue(df, 'Bridge Fees');
   const dailyRevenue = dailyFees.clone(0.2, 'Bridge Fees');
   const dailySupplySideRevenue = dailyFees.clone(0.8, 'Bridge Fees');
 

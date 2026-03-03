@@ -8,7 +8,7 @@ const url_sui = "https://dapi.api.sui-prod.bluefin.io/marketData/fees"
 const fetch = async (_a: number, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
   const result = await fetchURL(url_sui);
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('usd-coin', result.last24HoursFees || 0, METRIC.TRADING_FEES);
+  dailyFees.addUSDValue(Number(result.last24HoursFees), METRIC.TRADING_FEES);
 
   return {
     dailyFees,
