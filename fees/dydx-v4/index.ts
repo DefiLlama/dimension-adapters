@@ -1,12 +1,13 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { httpGet } from '../../utils/fetchURL'
 import { METRIC } from '../../helpers/metrics'
+import { CHAIN } from '../../helpers/chains'
 
 interface IFees {
   day: string
   sum_tradingfeecollection: string
 }
-const fetchFees  = async (_: number, _t: ChainBlocks ,options: FetchOptions) => {
+const fetch = async (_: number, _t: ChainBlocks, options: FetchOptions) => {
   const url = 'https://public-dydx-api.numia.xyz/dydx/transparency/trading-fees'
   const res = await httpGet(url)
   delete res['latestTen']
@@ -44,12 +45,10 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    "dydx": {
-      fetch: fetchFees,
-      start: '2023-11-12',
-    }
-  },
+  version: 1,
+  chains: ['dydx'],
+  fetch,
+  start: '2023-11-12',
   methodology,
   breakdownMethodology
 }

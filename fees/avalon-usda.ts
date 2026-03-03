@@ -99,12 +99,6 @@ const breakdownMethodology = {
 	Fees: {
 		[METRIC.BORROW_INTEREST]: 'Interest paid by borrowers to maintain their borrow positions, collected from both V1 (FBTC <> USDT) and V2 (FBTC <> USDa) pools',
 	},
-	Revenue: {
-		[METRIC.BORROW_INTEREST]: 'All borrow interest is retained by the Avalon protocol treasury',
-	},
-	ProtocolRevenue: {
-		[METRIC.BORROW_INTEREST]: 'All borrow interest is retained by the Avalon protocol treasury',
-	},
 }
 
 const adapter: Adapter = {

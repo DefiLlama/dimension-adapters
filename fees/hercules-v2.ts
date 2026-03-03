@@ -34,7 +34,7 @@ const fetch: FetchV2 = async (options) => {
   dailyFees.addCGToken('usd-coin', totalFeesUSD, METRIC.SWAP_FEES)
 
   const dailyProtocolRevenue = dailyFees.clone(0.05, METRIC.PROTOCOL_FEES)
-  const dailyHoldersRevenue = dailyFees.clone(0.35, "HERC token holder distributions")
+  const dailyHoldersRevenue = dailyFees.clone(0.35, METRIC.STAKING_REWARDS)
   const dailyRevenue = createBalances()
   dailyRevenue.addBalances(dailyProtocolRevenue)
   dailyRevenue.addBalances(dailyHoldersRevenue)
@@ -63,7 +63,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.PROTOCOL_FEES]: 'Portion of swap fees allocated to protocol treasury (5% of total fees)',
-    "HERC token holder distributions": 'Portion of swap fees distributed to HERC token holders (35% of total fees)',
+    [METRIC.STAKING_REWARDS]: 'Portion of swap fees distributed to HERC token holders (35% of total fees)',
   },
   SupplySideRevenue: {
     [METRIC.LP_FEES]: 'Portion of swap fees distributed to liquidity providers (60% of total fees)',

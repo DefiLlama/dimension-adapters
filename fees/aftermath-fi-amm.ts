@@ -1,23 +1,30 @@
 import { httpPost } from "../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import * as sdk from '@defillama/sdk'
 
-
-const fetch = async (): Promise<FetchResult> => {
+const fetch = async ({ createBalances }: FetchOptions): Promise<FetchResult> => {
   const pools = await httpPost('https://aftermath.finance/api/pools', {})
   const poolObjectIds = pools.map((pool: any) => pool.objectId)
   const chunks = sdk.util.sliceIntoChunks(poolObjectIds, 42)
+
   let i = 0
-  let dailyVolume = 0
-  let dailyFees = 0
+  let volumeUsd = 0
+  let feesUsd = 0
+
   for (const chunk of chunks) {
-    const result = await httpPost('https://aftermath.finance/api/pools/stats', { poolIds: chunk})
+    const result = await httpPost('https://aftermath.finance/api/pools/stats', { poolIds: chunk })
     i++
-    dailyVolume += result.reduce((acc: number, pool: any) => acc + pool.volume, 0)
-    dailyFees += result.reduce((acc: number, pool: any) => acc + pool.fees, 0)
+    volumeUsd += result.reduce((acc: number, pool: any) => acc + pool.volume, 0)
+    feesUsd += result.reduce((acc: number, pool: any) => acc + pool.fees, 0)
   }
+
+  const dailyFees = createBalances();
+  dailyFees.addUSDValue(feesUsd, METRIC.SWAP_FEES);
+  const dailyVolume = createBalances();
+  dailyVolume.addUSDValue(volumeUsd);
+
   return {
     dailyFees, dailyVolume
   };
@@ -35,13 +42,10 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-07-20'
-    },
-  },
+  chains: [CHAIN.SUI],
+  fetch,
+  start: '2023-07-20',
+  runAtCurrTime: true,
   methodology,
   breakdownMethodology,
 };

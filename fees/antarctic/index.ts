@@ -12,24 +12,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data = (await httpGet(url)) as { data: { totalFee: number } };
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken('usd-coin', data.data.totalFee || 0, METRIC.TRADING_FEES);
+  dailyFees.addUSDValue(data.data.totalFee || 0, METRIC.TRADING_FEES);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
   };
 }
 
 const methodology = {
   Fees: "Total trading fees collected from perpetual futures trading on Antarctic Exchange",
-  Revenue: "All trading fees are retained by the Antarctic Exchange protocol",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "All trading fees paid by traders when opening, closing, or modifying perpetual futures positions on Antarctic Exchange",
-  },
-  Revenue: {
     [METRIC.TRADING_FEES]: "All trading fees paid by traders when opening, closing, or modifying perpetual futures positions on Antarctic Exchange",
   },
 }

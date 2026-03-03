@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniV3LogAdapter } from "../helpers/uniswap";
 import { METRIC } from "../helpers/metrics";
 
-const customLogic = ({ dailyVolume, dailyFees, filteredPairs, fetchOptions }: any) => {
+const customLogic = ({ dailyVolume, dailyFees, fetchOptions }: any) => {
   // Label the fees for breakdown - all fees are swap fees
   const labeledDailyFees = fetchOptions.createBalances();
   labeledDailyFees.addBalances(dailyFees, METRIC.SWAP_FEES);
@@ -47,12 +47,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-05-09',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2023-05-09',
   methodology,
   breakdownMethodology,
 };

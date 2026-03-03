@@ -8,15 +8,23 @@ const AETHIR_ENDPOINT = "https://dashboard-api.aethir.com/protocol/demand-metric
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
     const today = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
     const result = (await fetchURL(AETHIR_ENDPOINT)).dailyRevenue;
-    const dailyFees = result.find((entry: any) => entry.date === today).usdValue;
+    const df = result.find((entry: any) => entry.date === today).usdValue;
 
-    const dailyRevenue = dailyFees * 0.2;
+    const dr = df * 0.2;
+
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    dailyFees.addUSDValue(df, METRIC.SERVICE_FEES);
+    dailyRevenue.addUSDValue(dr, METRIC.PROTOCOL_FEES);
+    dailySupplySideRevenue.addUSDValue(df - dr, METRIC.OPERATORS_FEES);
 
     return {
         dailyFees,
-        dailyRevenue,
+        dailyRevenue: dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
-        dailySupplySideRevenue: dailyFees * 0.8,
+        dailySupplySideRevenue: dailySupplySideRevenue,
     }
 }
 
@@ -34,15 +42,13 @@ const breakdownMethodology = {
     Revenue: {
         [METRIC.PROTOCOL_FEES]: "20% of service fees retained by Aethir protocol"
     },
-    ProtocolRevenue: {
-        [METRIC.PROTOCOL_FEES]: "All protocol revenue goes to Aethir treasury"
-    },
     SupplySideRevenue: {
         [METRIC.OPERATORS_FEES]: "80% of service fees distributed to GPU service providers (operators) who supply compute resources"
     }
 };
 
 const adapter: SimpleAdapter = {
+    version: 1,
     fetch,
     chains: [CHAIN.ARBITRUM],
     start: '2024-07-22',

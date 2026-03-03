@@ -143,22 +143,15 @@ const fetch = async ({ chain, endTimestamp, startTimestamp, createBalances }: Fe
 
   const dailyFees = createBalances();
   dailyFees.addUSDValue(dailyManagerFeesAmount, METRIC.MANAGEMENT_FEES);
-  dailyFees.addUSDValue(dailyEntryFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
-  dailyFees.addUSDValue(dailyExitFeesAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
+  dailyFees.addUSDValue(Number(dailyEntryFeesAmount) + Number(dailyExitFeesAmount), METRIC.DEPOSIT_WITHDRAW_FEES);
 
   const dailyRevenue = createBalances();
   dailyRevenue.addUSDValue(dailyDaoFeesAmount, METRIC.PROTOCOL_FEES);
-
-  const dailySupplySideRevenue = createBalances();
-  const managerFeesForManagers = dailyManagerFeesAmount - dailyDaoFeesAmount;
-  dailySupplySideRevenue.addUSDValue(managerFeesForManagers, "Manager fees");
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-    timestamp: endTimestamp,
   };
 }
 
@@ -173,10 +166,7 @@ const breakdownMethodology = {
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Entry and exit fees charged when users deposit into or withdraw from vaults',
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'Protocol\'s share of management fees retained by the dHEDGE DAO',
-  },
-  SupplySideRevenue: {
-    'Manager fees': 'Portion of management fees distributed to vault managers for their portfolio management services',
+    [METRIC.PROTOCOL_FEES]: "Protocol share of management fees retained by the dHEDGE DAO",
   },
 };
 

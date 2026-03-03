@@ -40,13 +40,22 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
   if (dailyFee === undefined) return { timestamp }
 
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(dailyFee, METRIC.SWAP_FEES);
+  const dailyUserFees = options.createBalances();
+  dailyUserFees.addUSDValue(dailyFee, METRIC.SWAP_FEES);
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(dailyFee.multipliedBy(0.16), METRIC.PROTOCOL_FEES);
+  dailyRevenue.addUSDValue(dailyFee.multipliedBy(0.02), 'Token holder distributions');
+  const dailyProtocolRevenue = options.createBalances();
+
   return {
-    dailyFees: dailyFee.toString(),
-    dailyUserFees: dailyFee.toString(),
-    dailyRevenue: dailyFee.multipliedBy(0.16).toString(),
-    dailyProtocolRevenue: dailyFee.multipliedBy(0.16).toString(),
-    dailyHoldersRevenue: dailyFee.multipliedBy(0.02).toString(),
-    dailySupplySideRevenue: dailyFee.multipliedBy(0.84).toString(),
+    dailyFees,
+    dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue: dailyFees.clone(0.84),
   };
 }
 
@@ -70,25 +79,13 @@ const breakdownMethodology = {
     [METRIC.PROTOCOL_FEES]: "16% of swap fees retained by the protocol treasury",
     "Token holder distributions": "2% of swap fees distributed to governance token holders",
   },
-  ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "16% of swap fees retained by the protocol treasury",
-  },
-  HoldersRevenue: {
-    "Token holder distributions": "2% of swap fees distributed to governance token holders",
-  },
-  SupplySideRevenue: {
-    [METRIC.LP_FEES]: "84% of swap fees distributed to liquidity providers",
-  },
 };
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.MOONBEAM]: {
-      fetch,
-      start: '2023-05-18',
-    },
-  },
+  fetch,
+  chains: [CHAIN.MOONBEAM],
+  start: '2023-05-18',
   methodology,
   breakdownMethodology,
 };

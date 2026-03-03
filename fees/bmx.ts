@@ -1,25 +1,20 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { FetchV2 } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { METRIC } from "../helpers/metrics";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.BASE]:
-    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.2/gn",
-  [CHAIN.MODE]:
-    "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
+  [CHAIN.BASE]: "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-base-stats/0.0.2/gn",
+  [CHAIN.MODE]: "https://api.goldsky.com/api/public/project_cm2x72f7p4cnq01x5fuy95ihm/subgraphs/bmx-mode-stats/0.0.1/gn",
 };
 
 const methodology = {
   Fees: "Fees from open/close position (0.1%), liquidations, swap (0.2% to 0.8%), mint and burn (based on tokens balance in the pool) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
-  UserFees:
-    "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  UserFees: "Fees from open/close position (0.1%), swap (0.2% to 0.8%) and borrow fee ((assets borrowed)/(total assets in pool)*0.01%)",
+  Revenue: "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
   HoldersRevenue: "10% of all collected fees are distributed to BMX stakers",
   SupplySideRevenue: "60% of all collected fees are distributed to BLT stakers",
-  Revenue:
-    "Revenue is 40% of all collected fees, which are distributed to BMX/wBLT LP stakers and BMX stakers",
 };
 
 const breakdownMethodology = {
@@ -28,23 +23,10 @@ const breakdownMethodology = {
     [METRIC.MARGIN_FEES]: 'Fees from opening and closing margin positions (0.1% of position size) and liquidation penalties',
     [METRIC.SWAP_FEES]: 'Fees from token swaps ranging from 0.2% to 0.8% based on pool composition and trading pair',
   },
-  UserFees: {
-    [METRIC.MARGIN_FEES]: 'Fees from opening and closing margin positions (0.1% of position size) and liquidation penalties paid by traders',
-    [METRIC.SWAP_FEES]: 'Fees from token swaps ranging from 0.2% to 0.8% paid by users',
-  },
-  Revenue: {
-    [METRIC.PROTOCOL_FEES]: '40% of all collected fees, distributed to BMX/wBLT LP stakers and BMX stakers',
-  },
-  HoldersRevenue: {
-    [METRIC.PROTOCOL_FEES]: '40% of all collected fees, distributed to BMX/wBLT LP stakers and BMX stakers (same as Revenue)',
-  },
-  SupplySideRevenue: {
-    [METRIC.LP_FEES]: '60% of all collected fees distributed to BLT stakers who provide liquidity to the pools',
-  },
 };
 
-const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp);
+const fetch = async (options: FetchOptions) => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.endTimestamp);
   const searchTimestamp = todaysTimestamp + ":daily";
 
   const graphQuery = gql`{
@@ -56,9 +38,9 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
         }
       }`;
 
-  const graphRes = await request(endpoints[chain], graphQuery);
+  const res = await request(endpoints[options.chain], graphQuery);
 
-  if (!graphRes.feeStat) {
+  if (!res.feeStat) {
     return {
       dailyFees: 0,
       dailyUserFees: 0,
@@ -68,39 +50,33 @@ const graphs: FetchV2 = async ({ chain, endTimestamp }) => {
     }
   }
 
-  const dailyFee =
-    parseInt(graphRes.feeStat.mint) +
-    parseInt(graphRes.feeStat.burn) +
-    parseInt(graphRes.feeStat.marginAndLiquidation) +
-    parseInt(graphRes.feeStat.swap);
-  const finalDailyFee = dailyFee / 1e30;
-  const userFee =
-    parseInt(graphRes.feeStat.marginAndLiquidation) +
-    parseInt(graphRes.feeStat.swap);
-  const finalUserFee = userFee / 1e30;
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(Number(res.feeStat.mint + res.feeStat.burn)/1e30, METRIC.MINT_REDEEM_FEES);
+  dailyFees.addUSDValue(Number(res.feeStat.marginAndLiquidation)/1e30, METRIC.MARGIN_FEES);
+  dailyFees.addUSDValue(Number(res.feeStat.swap)/1e30, METRIC.SWAP_FEES);
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(dailyFees.clone(0.4));
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addBalances(dailyFees.clone(0.6));
 
   return {
-    dailyFees: finalDailyFee.toString(),
-    dailyUserFees: finalUserFee.toString(),
-    dailyRevenue: (finalDailyFee * 0.4).toString(),
-    dailyHoldersRevenue: (finalDailyFee * 0.4).toString(),
-    dailySupplySideRevenue: (finalDailyFee * 0.6).toString(),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const adapter: Adapter = {
   version: 2,
+  fetch,
   methodology,
   breakdownMethodology,
   adapter: {
-    [CHAIN.BASE]: {
-      fetch: graphs,
-      start: '2023-09-10',
-    },
-    [CHAIN.MODE]: {
-      fetch: graphs,
-      start: '2024-07-10',
-    },
+    [CHAIN.BASE]: { start: '2023-09-10' },
+    [CHAIN.MODE]: { start: '2024-07-10' },
   },
 };
 

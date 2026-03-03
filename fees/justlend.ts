@@ -32,7 +32,7 @@ const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, fromTi
   const dailySupplySideRevenue = createBalances();
   const tempBalance = dailyProtocolFees.clone();
   tempBalance.subtract(dailyProtocolRevenue);
-  dailySupplySideRevenue.addBalances(tempBalance, 'Lender Interest');
+  dailySupplySideRevenue.addBalances(tempBalance, 'Borrow Interest');
   return {
     timestamp,
     dailyFees: dailyProtocolFees,
@@ -188,7 +188,7 @@ const adapter: Adapter = {
       'Protocol Reserve Share': 'Portion of borrow interest kept by the protocol based on each market\'s reserve factor',
     },
     SupplySideRevenue: {
-      'Lender Interest': 'Borrow interest distributed to lenders (total interest minus protocol reserve share)',
+      'Borrow Interest': 'Borrow interest distributed to lenders (total interest minus protocol reserve share)',
     },
   }
 };

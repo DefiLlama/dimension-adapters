@@ -62,7 +62,7 @@ interface IGraphResponse {
 
 const HoldersStartDate = 1753401600 // After TGE "2025-07-25" stakers are receiving revenue
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (_a: number, _b: any, options: FetchOptions) => {
   const { startOfDay, chain, createBalances } = options;
   const dayTimestamp = startOfDay;
   const chainInfo = chainConfig[chain];
@@ -94,14 +94,14 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
     const marginFeesUSD = Number(stats.margin) * 10 ** -30;
     const liquidationFeesUSD = Number(stats.liquidation) * 10 ** -30;
 
-    dailyFees.addCGToken("usd-coin", swapFeesUSD, METRIC.SWAP_FEES);
-    dailyFees.addCGToken("usd-coin", marginFeesUSD, METRIC.MARGIN_FEES);
-    dailyFees.addCGToken("usd-coin", liquidationFeesUSD, METRIC.LIQUIDATION_FEES);
+    dailyFees.addUSDValue(swapFeesUSD, METRIC.SWAP_FEES);
+    dailyFees.addUSDValue(marginFeesUSD, METRIC.MARGIN_FEES);
+    dailyFees.addUSDValue(liquidationFeesUSD, METRIC.LIQUIDATION_FEES);
 
     if(dayTimestamp >= HoldersStartDate){
       // After TGE: 70% to LPs, 30% to AMPED stakers
       dailySupplySideRevenue.addBalances(dailyFees.clone(0.7), METRIC.LP_FEES);
-      dailyHoldersRevenue.addBalances(dailyFees.clone(0.3), "Staking Rewards");
+      dailyHoldersRevenue.addBalances(dailyFees.clone(0.3), METRIC.STAKING_REWARDS);
     } else {
       // Before TGE: 100% to LPs
       dailySupplySideRevenue.addBalances(dailyFees, METRIC.LP_FEES);
@@ -136,7 +136,7 @@ const breakdownMethodology = {
     [METRIC.LP_FEES]: "Portion of fees distributed to liquidity providers (100% before TGE on July 25, 2025; 70% after TGE)",
   },
   HoldersRevenue: {
-    "Staking Rewards": "Portion of fees distributed to AMPED token stakers (0% before TGE on July 25, 2025; 30% after TGE)",
+    [METRIC.STAKING_REWARDS]: "Portion of fees distributed to AMPED token stakers (0% before TGE on July 25, 2025; 30% after TGE)",
   },
 };
 

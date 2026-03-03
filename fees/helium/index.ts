@@ -12,13 +12,17 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
     ) as fees`;
     const queryResults = await queryDuneSql(options, query);
     const feesInUsd = queryResults.length > 0 ? queryResults[0].fees : 0;
-    const dailyFees = feesInUsd;
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+
+    dailyFees.addUSDValue(feesInUsd, 'Data Credits Burned');
+    dailyRevenue.addUSDValue(feesInUsd, 'HNT Token Burns');
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
+        dailyRevenue,
         dailyProtocolRevenue: '0',
-        dailyHoldersRevenue: dailyFees,
+        dailyHoldersRevenue: dailyRevenue,
     };
 }
 
@@ -39,6 +43,7 @@ const breakdownMethodology = {
 };
 
 const adapters: SimpleAdapter = {
+    version: 1,
     fetch,
     methodology,
     breakdownMethodology,

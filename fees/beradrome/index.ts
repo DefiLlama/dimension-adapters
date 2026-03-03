@@ -33,13 +33,13 @@ async function addBondigCurveFees(options: FetchOptions, totalFees: Balances) {
   buyLogs.forEach((log) => {
     const amount = log.amountBase;
     const fee = (amount * SWAP_FEE) / DIVISOR;
-    totalFees.add(HONEY, fee, "Bonding curve buy fees");
+    totalFees.add(HONEY, fee, METRIC.TRADING_FEES);
   });
 
   sellLogs.forEach((log) => {
     const amount = log.amountToken;
     const fee = (amount * SWAP_FEE) / DIVISOR;
-    totalFees.add(BERO, fee, "Bonding curve sell fees");
+    totalFees.add(BERO, fee, METRIC.TRADING_FEES);
   });
 }
 
@@ -95,8 +95,8 @@ async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
       "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
     topics: [
       DISTRIBUTED_TOPIC_0,
-      null,
-      null,
+      null as any,
+      null as any,
       ethers.zeroPadValue(BERADROME_REWARD_VAULT, 32),
     ],
   });
@@ -126,8 +126,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const breakdownMethodology = {
   Fees: {
-    "Bonding curve buy fees": "Fees paid when buying BERO token through the bonding curve mechanism, charged at 0.3% of purchase amount",
-    "Bonding curve sell fees": "Fees paid when selling BERO token through the bonding curve mechanism, charged at 0.3% of sale amount",
+    [METRIC.TRADING_FEES]: "Fees paid when buying/selling BERO token through the bonding curve mechanism, charged at 0.3% of trading amount",
     [METRIC.BORROW_INTEREST]: "Fees paid by borrowers when borrowing HONEY, charged at 2.5% of borrowed amount",
   },
   BribesRevenue: {
@@ -139,19 +138,15 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.BERACHAIN]: {
-      fetch,
-      start: "2025-02-06",
-    },
-  },
   version: 2,
+  fetch,
+  chains: [CHAIN.BERACHAIN],
+  start: "2025-02-06",
   pullHourly: true,
   methodology: {
     Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
     BribesRevenue: "Bribes from plugins distributed to holders.",
-    HoldersRevenue:
-      "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
+    HoldersRevenue: "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
   },
   breakdownMethodology,
 };

@@ -8,12 +8,13 @@ async function fetch(options: FetchOptions) {
     const twapContract = '0xa6F7444D2b92Aa9F94a2165c77aAF2B671e63994';
     const asterToken = '0x000ae314e2a2172a039b26378814c252734f556a';
 
-    const dailyHoldersRevenue = await addTokensReceived({
+    const rev = await addTokensReceived({
         options,
         targets: [buybackWallet],
         fromAddressFilter: twapContract,
         token: asterToken,
     });
+    const dailyHoldersRevenue = rev.clone(1, METRIC.TOKEN_BUY_BACK);
 
     return {
         dailyHoldersRevenue,

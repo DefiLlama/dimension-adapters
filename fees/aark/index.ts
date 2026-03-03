@@ -29,6 +29,7 @@ const fetch = async (options: FetchOptions) => {
   closeData.forEach((log: any) => {
     dailyFees.add(usdcAddress, log.closeFee, METRIC.OPEN_CLOSE_FEES);
   });
+
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 };
 };
 
@@ -41,12 +42,6 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.OPEN_CLOSE_FEES]: 'Fees paid by traders when opening and closing perpetual positions, including execution fees, open fees, and close fees',
-  },
-  Revenue: {
-    [METRIC.OPEN_CLOSE_FEES]: 'All trading fees are retained by the protocol as revenue',
-  },
-  ProtocolRevenue: {
-    [METRIC.OPEN_CLOSE_FEES]: 'All trading fees go to the protocol treasury',
   },
 }
 

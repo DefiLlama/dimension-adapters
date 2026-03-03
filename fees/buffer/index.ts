@@ -1,9 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
-import type { ChainEndpoints } from "../../adapters/types";
-import { Chain } from "../../adapters/types";
-import BigNumber from "bignumber.js";
-import { Adapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 
 const endpoints = {
@@ -28,23 +25,21 @@ export function _getDayId(timestamp: number): string {
   return dayTimestamp.toString();
 }
 
-const graphs = (baseUrls: ChainEndpoints) => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const dateId = _getDayId(timestamp);
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dateId = _getDayId(options.startOfDay);
 
-      const url = new URL(baseUrls[chain]);
-      url.searchParams.append("day", dateId);
+  const url = new URL(endpoints[options.chain]);
+  url.searchParams.append("day", dateId);
 
-      const response = await request(baseUrls[chain], query, { startTimestamp: timestamp - 86400, endTimestamp: timestamp });
-      const dailyFee = response.defillamaFeeStats[0]?.fee / 1000000 || 0;
+  const response = await request(url.toString(), query, { startTimestamp: options.startOfDay - 86400, endTimestamp: options.startOfDay });
+  const dailyFee = response.defillamaFeeStats[0]?.fee / 1000000 || 0;
 
-      return {
-        timestamp,
-        dailyFees: dailyFee.toString(),
-        dailyRevenue: dailyFee.toString(),
-      };
-    };
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(Number(dailyFee), METRIC.TRADING_FEES);
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
@@ -57,19 +52,13 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Fees paid by traders on options trading transactions',
   },
-  Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'Portion of trading fees retained by the Buffer protocol',
-  }
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: graphs(endpoints)(CHAIN.ARBITRUM),
-      start: '2023-01-29',
-    },
-  },
   version: 1,
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2023-01-29',
   methodology,
   breakdownMethodology,
 };

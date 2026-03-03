@@ -1,9 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import type {
-    FetchOptions,
-    FetchResult,
-    SimpleAdapter,
-} from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { METRIC } from "../../helpers/metrics";
 
@@ -21,7 +17,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const swapper = await options.api.call({
         target: REWARDS_DISTRIBUTOR,
-        abi:"address:swapper_contract_address"
+        abi: "address:swapper_contract_address"
     });
 
     const feeCollectedLogs = await options.getLogs({
@@ -76,7 +72,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1, //rewards are weekly once
+    version: 1,
     fetch,
     chains: [CHAIN.BASE],
     start: '2025-07-24',

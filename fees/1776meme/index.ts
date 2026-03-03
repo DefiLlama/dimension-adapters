@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       // Total 1% baseToken swap amount
       dailyFees.addToken(log.baseToken, log.totalFee, METRIC.TRADING_FEES);
       // Protocols - 60% total fee
-      dailyProtocolRevenue.addToken(log.baseToken, log.totalFee * 60n / 100n, "Trading fees to protocol");
+      dailyProtocolRevenue.addToken(log.baseToken, log.totalFee * 60n / 100n, METRIC.TRADING_FEES);
       // Creator - 40% total fee
       dailySupplySideRevenue.addToken(log.baseToken, log.totalFee * 40n / 100n, METRIC.CREATOR_FEES);
   }
@@ -78,7 +78,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     "Token launch fees": "100% of the 0.001776 ETH launch fee goes to protocol",
-    "Trading fees to protocol": "60% of the 1% trading fee goes to protocol treasury",
+    [METRIC.TRADING_FEES]: "60% of the 1% trading fee goes to protocol treasury",
     "Graduation fees to protocol": "5/7ths (71.4%) of the graduation fee goes to protocol treasury"
   },
   SupplySideRevenue: {

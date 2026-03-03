@@ -11,28 +11,24 @@ const breakdownMethodology = {
   Fees: {
     'Aggregator fees': 'Fees charged by Bungee on swap and bridge transactions routed through Socket Gateway contracts',
   },
-  Revenue: {
-    'Integration fees': 'Fees distributed to Bungee integration partners (frontends, wallets, dApps) that use Bungee for cross-chain transactions',
-  }
 }
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
   const { dailyFees } = await fetchBungeeData(options, { fees: true })
-  const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(dailyFees, 'Integration fees');
+
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
     dailyProtocolRevenue: 0,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  methodology,
-  breakdownMethodology,
   fetch,
   start: '2023-08-10',
+  methodology,
+  breakdownMethodology,
   chains: fetchBungeeChains()
 };
 

@@ -157,19 +157,6 @@ const adapter: Adapter = {
       [METRIC.LP_FEES]: "Fees earned by gToken vault depositors who provide trading liquidity",
       'Borrowing Fees': "Fees charged to traders for maintaining open leveraged positions",
     },
-    Revenue: {
-      [METRIC.PROTOCOL_FEES]: "Fees allocated to protocol governance and development fund (treasury)",
-      [METRIC.STAKING_REWARDS]: "Portion of trading fees distributed to GNS token stakers",
-    },
-    HoldersRevenue: {
-      [METRIC.STAKING_REWARDS]: "Trading fees distributed to GNS token stakers as rewards",
-    },
-    SupplySideRevenue: {
-      [METRIC.LP_FEES]: "Fees distributed to gToken vault depositors who provide trading liquidity",
-      'Referral Fees': "Trading fees distributed to referrers who onboard new traders",
-      [METRIC.OPERATORS_FEES]: "Fees paid to bots that execute limit orders and liquidations",
-      'Borrowing Fees': "Fees charged to traders for maintaining open leveraged positions, distributed to liquidity providers",
-    },
   },
 };
 

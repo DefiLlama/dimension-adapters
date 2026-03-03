@@ -66,7 +66,7 @@ export const fetchAjna = async (options: FetchOptions, factoryAddress: string, p
     poolsWithBurn.forEach((_, i) => {
       const totalBurn = burnAmountsNow[i][2] - burnAmountsBefore[i][2]
       if (totalBurn > 0) {
-        dailyHoldersRevenue.add(AJNA_TOKEN, totalBurn, METRIC.TOKEN_BUY_BACK)
+        dailyHoldersRevenue.add(AJNA_TOKEN, totalBurn, { label: METRIC.TOKEN_BUY_BACK, skipChain: true })
       }
     })
   }

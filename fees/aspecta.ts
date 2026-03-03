@@ -4,43 +4,18 @@
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
+import { addGasTokensReceived } from "../helpers/token";
 
 const ASPECTA_FEE_COLLECTOR = "0x38799Ce388a9b65EC6bA7A47c1efb9cF1A7068e4";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const df = await addGasTokensReceived({
+    options,
+    multisig: ASPECTA_FEE_COLLECTOR,
+  })
 
-  const batchSize = 5000;
-  const allLogs: any[] = [];
-  let batchLogs: any[];
-  let offset = 0;
-  const fromBlock = (await options.getFromBlock()) - 200;
-  const toBlock = (await options.getToBlock()) - 200;
-
-  for (;;) {
-    batchLogs = await sdk.indexer.getLogs({
-      chain: options.chain,
-      targets: [ASPECTA_FEE_COLLECTOR],
-      topics: ['0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d'],
-      onlyArgs: true,
-      eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
-      fromBlock,
-      toBlock,
-      limit: batchSize,
-      offset,
-      all: false
-    });
-    allLogs.push(...batchLogs);
-    if (batchLogs.length < batchSize) break;
-    offset += batchSize;
-  }
-
-  allLogs.forEach(log => {
-    if (log.sender?.toLowerCase?.()) {
-      dailyFees.addGasToken(log.value, "BuildKey trading fees");
-    }
-  });
+  dailyFees.addBalances(df, 'BuildKey trading fees')
 
   return {
     dailyFees,
@@ -54,14 +29,8 @@ const breakdownMethodology = {
   Fees: {
     "BuildKey trading fees": "2.5% fee charged on every BuildKey trade, paid in BNB by users",
   },
-  UserFees: {
-    "BuildKey trading fees": "2.5% fee charged on every BuildKey trade, paid in BNB by users",
-  },
   Revenue: {
     "BuildKey trading fees": "All BuildKey trading fees are retained by the protocol",
-  },
-  ProtocolRevenue: {
-    "BuildKey trading fees": "Protocol-controlled revenue from BuildKey trading fees",
   },
 };
 

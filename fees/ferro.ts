@@ -10,7 +10,7 @@ interface IVolume {
   volume: string;
 }
 
-const fetchVolume = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const query = gql`
     {
       dailyVolumes(where:{timestamp: "${options.startOfDay}"}){
@@ -62,12 +62,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.CRONOS]: {
-      fetch: fetchVolume,
-      start: '2022-08-29',
-    },
-  },
+  chains: [CHAIN.CRONOS],
+  fetch,
+  start: '2022-08-29',
   methodology,
   breakdownMethodology,
 };

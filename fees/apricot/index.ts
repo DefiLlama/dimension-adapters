@@ -21,7 +21,7 @@ const breakdownMethodology = {
     [METRIC.PROTOCOL_FEES]: '20% of all borrow interest, farming performance fees, and recursive loan fees retained by the protocol treasury',
   },
   SupplySideRevenue: {
-    'Depositor Interest': '80% of borrow interest distributed to depositors who supply liquidity to the lending pool',
+    [METRIC.BORROW_INTEREST]: '80% of borrow interest distributed to depositors who supply liquidity to the lending pool',
   }
 };
 
@@ -34,8 +34,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   });
 
   // Since protocol takes 20% as revenue, 80% goes to depositors
-  const dailyRevenue = dailyFees.clone(0.2, METRIC.PROTOCOL_FEES);
-  const dailySupplySideRevenue = dailyFees.clone(0.8, 'Depositor Interest');
+  const dpr = dailyFees.clone(0.2, METRIC.PROTOCOL_FEES);
+  const dssr = dailyFees.clone(0.8, METRIC.BORROW_INTEREST);
+
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  dailyRevenue.addBalances(dpr, METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addBalances(dssr, METRIC.BORROW_INTEREST);
 
   return {
     dailyFees,

@@ -4,7 +4,7 @@ import { METRIC } from "../../helpers/metrics";
 const axios = require("axios");
 const { CHAIN } = require("../../helpers/chains");
 
-const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
+const fetch = async (_: any, _1: any, { dateString, createBalances }: FetchOptions) => {
   const url = `https://api.alkimi.org/api/v1/public/data?startDate=${dateString}&endDate=${dateString}`;
   const resp = await axios.get(url);
   const entry = resp.data?.data?.[0];
@@ -13,11 +13,18 @@ const fetch = async (_: any, _1: any, { dateString }: FetchOptions) => {
 
   const revenueUsd = parseFloat(entry.alkimi_revenue || "0");
 
+  const dailyFees = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+
+  dailyFees.addUSDValue(revenueUsd, 'Ad exchange fees');
+  dailyHoldersRevenue.addUSDValue(revenueUsd, METRIC.TOKEN_BUY_BACK);
+
   return {
-    dailyFees: revenueUsd,
-    dailyRevenue: revenueUsd,
-    dailyHoldersRevenue: revenueUsd,
-    dailyProtocolRevenue: "0",
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
   };
 };
 

@@ -19,14 +19,14 @@ const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResul
   dailyFees.addGasToken(Number(feesData.feeOfDate), METRIC.TRADING_FEES);
 
   // 50% to holders via buybacks, 50% to vault depositors
-  const dailyHoldersRevenue = dailyFees.clone(0.5, METRIC.TOKEN_BUY_BACK);
-  const dailySupplySideRevenue = dailyFees.clone(0.5, "Vault depositor rewards");
+  const dailyRevenue = dailyFees.clone(0.5, METRIC.TOKEN_BUY_BACK);
+  const dailySupplySideRevenue = dailyFees.clone(0.5, "Vault Yield");
 
   return {
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
+    dailyHoldersRevenue: dailyRevenue,
     dailySupplySideRevenue,
   }
 }
@@ -58,24 +58,27 @@ const breakdownMethodology = {
     [METRIC.TOKEN_BUY_BACK]: "50% of trading fees allocated to weekly APEX token buybacks for token holders",
   },
   SupplySideRevenue: {
-    "Vault depositor rewards": "50% of trading fees distributed to users who deposit assets into protocol vaults",
+    "Vault Yield": "50% of trading fees distributed to users who deposit assets into protocol vaults",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-08-31',
+  // adapter: {
+  //   [CHAIN.ETHEREUM]: {
+  //     fetch,
+  //     start: '2023-08-31',
+  //   },
+  //   // [CHAIN.ARBITRUM]: {
+  //   //   fetch: fetchRevenue,
+  //   //   start: '2025-10-02',
+  //   // }
+  // },
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-08-31',
-    },
-    // [CHAIN.ARBITRUM]: {
-    //   fetch: fetchRevenue,
-    //   start: '2025-10-02',
-    // }
-  }
 }
 
 export default adapter;

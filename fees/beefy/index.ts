@@ -298,8 +298,9 @@ const fetch = async (options: FetchOptions) => {
 
   // scale revenue up to include strategist and call fees
   const dailyFees = dailyRevenue.clone(totalFee / revenueFee, METRIC.PERFORMANCE_FEES);
-  const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100, 'Treasury share');
-  const dailyHoldersRevenue = dailyRevenue.clone(holderShare / 100, 'Staker distributions');
+  const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100, METRIC.PROTOCOL_FEES);
+  const dailyHoldersRevenue = dailyRevenue.clone(holderShare / 100, METRIC.STAKING_REWARDS);
+
   return {
     dailyFees,
     dailyRevenue,
@@ -320,10 +321,10 @@ const breakdownMethodology = {
     [METRIC.PERFORMANCE_FEES]: `${totalFee}% performance fee charged on vault harvest yields, paid by vault depositors when yields are compounded`,
   },
   ProtocolRevenue: {
-    'Treasury share': `${protocolShare}% of revenue allocated to protocol treasury after deducting strategist and harvester fees`,
+    [METRIC.PROTOCOL_FEES]: `${protocolShare}% of revenue allocated to protocol treasury after deducting strategist and harvester fees`,
   },
   HoldersRevenue: {
-    'Staker distributions': `${holderShare}% of revenue distributed to BIFI token stakers`,
+    [METRIC.STAKING_REWARDS]: `${holderShare}% of revenue distributed to BIFI token stakers`,
   },
 };
 

@@ -69,13 +69,13 @@ const adapter: Adapter = {
       [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers across all lending markets.',
     },
     Revenue: {
-      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury (typically 10% of total interest).',
+      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury.',
     },
     ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury (typically 10% of total interest).',
+      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Lender portion of borrow interest distributed to cToken holders who supply liquidity (typically 90% of total interest).',
+      [METRIC.BORROW_INTEREST]: 'Lender portion of borrow interest distributed to cToken holders who supply liquidity.',
     },
   }
 }

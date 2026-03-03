@@ -210,49 +210,49 @@ const fetch = async (options: FetchOptions) => {
 
     // Add borrow-related fees
     if (borrowFees.deltaFees.surplusFromInterests) {
-        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromInterests, METRIC.BORROW_INTEREST);
-        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromInterests, METRIC.BORROW_INTEREST);
+        dailyFees.addUSDValue(borrowFees.deltaFees.surplusFromInterests, METRIC.BORROW_INTEREST);
+        dailyRevenue.addUSDValue(borrowFees.deltaFees.surplusFromInterests, METRIC.BORROW_INTEREST);
     }
     if (borrowFees.deltaFees.surplusFromBorrowFees) {
-        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromBorrowFees, "Borrow opening fees");
-        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromBorrowFees, "Borrow opening fees");
+        dailyFees.addUSDValue(borrowFees.deltaFees.surplusFromBorrowFees, "Borrow opening fees");
+        dailyRevenue.addUSDValue(borrowFees.deltaFees.surplusFromBorrowFees, "Borrow opening fees");
     }
     if (borrowFees.deltaFees.surplusFromRepayFees) {
-        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromRepayFees, "Repay fees");
-        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromRepayFees, "Repay fees");
+        dailyFees.addUSDValue(borrowFees.deltaFees.surplusFromRepayFees, "Repay fees");
+        dailyRevenue.addUSDValue(borrowFees.deltaFees.surplusFromRepayFees, "Repay fees");
     }
     if (borrowFees.deltaFees.surplusFromLiquidationSurcharges) {
-        dailyFees.addGasToken(borrowFees.deltaFees.surplusFromLiquidationSurcharges, METRIC.LIQUIDATION_FEES);
-        dailyRevenue.addGasToken(borrowFees.deltaFees.surplusFromLiquidationSurcharges, METRIC.LIQUIDATION_FEES);
+        dailyFees.addUSDValue(borrowFees.deltaFees.surplusFromLiquidationSurcharges, METRIC.LIQUIDATION_FEES);
+        dailyRevenue.addUSDValue(borrowFees.deltaFees.surplusFromLiquidationSurcharges, METRIC.LIQUIDATION_FEES);
     }
 
     // Add core protocol fees and interests
     if (coreFees.deltaFees.totalProtocolFees) {
-        dailyFees.addGasToken(coreFees.deltaFees.totalProtocolFees, "Protocol swap fees");
-        dailyRevenue.addGasToken(coreFees.deltaFees.totalProtocolFees, "Protocol swap fees");
+        dailyFees.addUSDValue(coreFees.deltaFees.totalProtocolFees, "Protocol swap fees");
+        dailyRevenue.addUSDValue(coreFees.deltaFees.totalProtocolFees, "Protocol swap fees");
     }
     if (coreFees.deltaFees.totalProtocolInterests) {
-        dailyFees.addGasToken(coreFees.deltaFees.totalProtocolInterests, "Protocol interest");
-        dailyRevenue.addGasToken(coreFees.deltaFees.totalProtocolInterests, "Protocol interest");
+        dailyFees.addUSDValue(coreFees.deltaFees.totalProtocolInterests, "Protocol interest");
+        dailyRevenue.addUSDValue(coreFees.deltaFees.totalProtocolInterests, "Protocol interest");
     }
 
     // Add SLP (Stablecoin Liquidity Provider) fees - these are paid to LPs, not protocol revenue
     if (coreFees.deltaFees.totalSLPFees) {
-        dailyFees.addGasToken(coreFees.deltaFees.totalSLPFees, "SLP swap fees");
+        dailyFees.addUSDValue(coreFees.deltaFees.totalSLPFees, "SLP swap fees");
     }
     if (coreFees.deltaFees.totalSLPInterests) {
-        dailyFees.addGasToken(coreFees.deltaFees.totalSLPInterests, "SLP interest");
+        dailyFees.addUSDValue(coreFees.deltaFees.totalSLPInterests, "SLP interest");
     }
 
     // Add keeper fees - paid to keepers, not protocol revenue
     if (coreFees.deltaFees.totalKeeperFees) {
-        dailyFees.addGasToken(coreFees.deltaFees.totalKeeperFees, "Keeper fees");
+        dailyFees.addUSDValue(coreFees.deltaFees.totalKeeperFees, "Keeper fees");
     }
 
     // Add veANGLE revenue distributions (tokenholder revenue)
     if (veANGLEInterest.deltaInterest) {
-        dailyFees.addGasToken(veANGLEInterest.deltaInterest, "veANGLE fee distributions");
-        dailyRevenue.addGasToken(veANGLEInterest.deltaInterest, "veANGLE fee distributions");
+        dailyFees.addUSDValue(veANGLEInterest.deltaInterest, "veANGLE fee distributions");
+        dailyRevenue.addUSDValue(veANGLEInterest.deltaInterest, "veANGLE fee distributions");
     }
 
     return {
@@ -292,27 +292,13 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    fetch,
     adapter: {
-        [CHAIN.ARBITRUM]: {
-            fetch,
-            start: '2023-01-01',
-        },
-        [CHAIN.AVAX]: {
-            fetch,
-            start: '2023-01-01',
-        },
-        [CHAIN.ETHEREUM]: {
-            fetch,
-            start: '2023-01-01',
-        },
-        [CHAIN.OPTIMISM]: {
-            fetch,
-            start: '2023-01-01',
-        },
-        [CHAIN.POLYGON]: {
-            fetch,
-            start: '2023-01-01',
-        },
+        [CHAIN.ARBITRUM]: { start: '2023-01-01' },
+        [CHAIN.AVAX]: { start: '2023-01-01' },
+        [CHAIN.ETHEREUM]: { start: '2023-01-01' },
+        [CHAIN.OPTIMISM]: { start: '2023-01-01' },
+        [CHAIN.POLYGON]: { start: '2023-01-01' },
     },
     methodology,
     breakdownMethodology,

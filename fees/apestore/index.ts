@@ -16,12 +16,6 @@ const breakdownMethodology = {
     Fees: {
         'Token launchpad fees': 'Fees paid by users for creating and trading tokens on the ApeStore platform',
     },
-    Revenue: {
-        'Token launchpad fees': 'Fees paid by users for creating and trading tokens, all retained by the protocol',
-    },
-    ProtocolRevenue: {
-        'Token launchpad fees': 'All fees from token creation and trading go to the protocol treasury',
-    }
 };
 
 const adapter: Adapter = {

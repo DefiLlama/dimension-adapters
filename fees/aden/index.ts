@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 // // Previously it was Orderly Network(0.4 bps on taker volume) and Aster Exchange(0.4 bps on taker volume)
@@ -42,12 +43,19 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
     throw new Error("Data missing for date: " + options.dateString);
   }
 
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(Number(data.fees), 'Builder fees');
+  dailyVolume.addUSDValue(Number(data.volume));
+
   return {
     dailyVolume: data.volume,
-    dailyFees: data.fees,
-    dailyRevenue: data.fees,
-    dailyProtocolRevenue: data.fees,
-    dailyHoldersRevenue: 0,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue,
   };
 }
 
@@ -60,12 +68,6 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     "Builder fees": "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
-  },
-  Revenue: {
-    "Builder fees": "All builder fees are retained as protocol revenue",
-  },
-  ProtocolRevenue: {
-    "Builder fees": "100% of builder fees go to the protocol treasury",
   },
 };
 

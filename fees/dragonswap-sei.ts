@@ -23,52 +23,40 @@ const breakdownMethodology = {
   Revenue: {
     [METRIC.PROTOCOL_FEES]: '30% of swap fees retained by protocol treasury for user benefits and development',
   },
-  SupplySideRevenue: {
-    [METRIC.LP_FEES]: '70% of swap fees distributed to liquidity providers',
-  }
 }
 
-const graphs = async (_t: any, _b: any, options: FetchOptions) => {
-      const dayID = Math.floor(options.startOfDay / 86400);
-      const query =gql`
-      {
-          uniswapDayData(id:${dayID}) {
-              id
-              dailyVolumeUSD
-              dailyFeesUSD
-          }
+const fetch = async (_t: any, _b: any, options: FetchOptions) => {
+  const dayID = Math.floor(options.startOfDay / 86400);
+  const query = gql`
+    {
+      uniswapDayData(id:${dayID}) {
+        id
+        dailyVolumeUSD
+        dailyFeesUSD
+      }
+    }`;
+  const url = "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-prod/1.0.0/gn";
+  const req = await request(url, query);
+  const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
 
-      }`;
-      const url = "https://api.goldsky.com/api/public/project_clu1fg6ajhsho01x7ajld3f5a/subgraphs/dragonswap-prod/1.0.0/gn";
-      const req = await request(url, query);
-      const dailyFee = Number(req.uniswapDayData.dailyFeesUSD);
+  const dailyFees = options.createBalances();
+  dailyFees.addGasToken(dailyFee, METRIC.SWAP_FEES);
 
-      const dailyFees = options.createBalances();
-      dailyFees.addGasToken(dailyFee, METRIC.SWAP_FEES);
+  const dailyRevenue = dailyFees.clone(0.3, METRIC.PROTOCOL_FEES);
 
-      const dailyRevenue = dailyFees.clone(0.3, METRIC.PROTOCOL_FEES);
-
-      const dailySupplySideRevenue = options.createBalances();
-      const lpFees = dailyFees.clone();
-      lpFees.subtract(dailyRevenue);
-      dailySupplySideRevenue.addBalances(lpFees, METRIC.LP_FEES);
-
-      return {
-        timestamp: options.startOfDay,
-        dailyFees,
-        dailyRevenue,
-        dailySupplySideRevenue,
-      };
+  return {
+    dailyFees,
+    dailyRevenue,
+    // dailySupplySideRevenue,
+  };
 };
 
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SEI]: {
-      fetch: graphs,
-    }
-  },
+  chains: [CHAIN.SEI],
+  fetch,
+  start: '2024-04-25',
   methodology,
   breakdownMethodology,
 }

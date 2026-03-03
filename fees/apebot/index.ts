@@ -28,15 +28,6 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Fees charged by the trading bot for executing swaps on behalf of users',
   },
-  UserFees: {
-    [METRIC.TRADING_FEES]: 'Fees paid by users to the trading bot for swap execution services',
-  },
-  Revenue: {
-    [METRIC.TRADING_FEES]: 'All trading fees are retained by the protocol',
-  },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: '100% of trading fees go to the protocol treasury',
-  },
 };
 
 const adapter: SimpleAdapter = {

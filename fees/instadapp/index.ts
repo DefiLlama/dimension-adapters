@@ -79,6 +79,8 @@ Object.keys(instaFlashAggregators).forEach((chain: Chain) => {
   };
 });
 
-adapter.methodology = "Counts the 0.05% fee taken on flashswaps.";
+adapter.methodology = {
+  Fees: "Counts the 0.05% fee taken on flashswaps.",
+};
 adapter.breakdownMethodology = breakdownMethodology;
 export default adapter;

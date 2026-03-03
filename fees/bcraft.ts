@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 
 const fetch: FetchV2 = async ({ getLogs, createBalances }) => {
   const dailyFees = createBalances();
-  const dailyRevenue = createBalances();
+
   const coinBuyLogs = await getLogs({
     target: "0x7BaEA50509d5d742909592CF045101526b306bE4",
     eventAbi:
@@ -11,7 +11,6 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }) => {
   });
   coinBuyLogs.map((e: any) => {
     dailyFees.addGasToken(e.cost, "Mine upgrade fees");
-    dailyRevenue.addGasToken(e.cost, "Mine upgrade fees");
   });
   const buySharesLogs = await getLogs({
     target: "0x0De0D0cF717af57D2101F6Be0962fA890c1FBeC6",
@@ -20,7 +19,6 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }) => {
   });
   buySharesLogs.map((e: any) => {
     dailyFees.addGasToken(e.protocolFee, "Clan share buy fees");
-    dailyRevenue.addGasToken(e.protocolFee, "Clan share buy fees");
   });
 
   const sellSharesLogs = await getLogs({
@@ -30,10 +28,9 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }) => {
   });
   sellSharesLogs.map((e: any) => {
     dailyFees.addGasToken(e.protocolFee, "Clan share sell fees");
-    dailyRevenue.addGasToken(e.protocolFee, "Clan share sell fees");
   });
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: Adapter = {
@@ -51,16 +48,6 @@ const adapter: Adapter = {
       "Mine upgrade fees": "Fees paid by users to upgrade their mine level in the game",
       "Clan share buy fees": "Protocol fees collected when users buy clan shares",
       "Clan share sell fees": "Protocol fees collected when users sell clan shares",
-    },
-    Revenue: {
-      "Mine upgrade fees": "Fees paid by users to upgrade their mine level in the game, retained by protocol",
-      "Clan share buy fees": "Protocol fees collected when users buy clan shares, retained by protocol",
-      "Clan share sell fees": "Protocol fees collected when users sell clan shares, retained by protocol",
-    },
-    ProtocolRevenue: {
-      "Mine upgrade fees": "Fees paid by users to upgrade their mine level in the game, retained by protocol",
-      "Clan share buy fees": "Protocol fees collected when users buy clan shares, retained by protocol",
-      "Clan share sell fees": "Protocol fees collected when users sell clan shares, retained by protocol",
     },
   },
 };

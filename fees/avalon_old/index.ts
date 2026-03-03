@@ -67,7 +67,7 @@ const fetchReserves = async (timestamp: number, chain: string): Promise<V3Reserv
   return reserves;
 }
 
-async function fetchFees({ fromTimestamp, toTimestamp, createBalances, chain }: FetchOptions) {
+async function fetch({ fromTimestamp, toTimestamp, createBalances, chain }: FetchOptions) {
   const todaysTimestamp = toTimestamp;
   const yesterdaysTimestamp = fromTimestamp;
 
@@ -143,7 +143,7 @@ const adapter: Adapter = {
     [CHAIN.BSC]: { start: '2024-05-13' },
     [CHAIN.SONIC]: { start: '2024-12-30' }
   },
-  fetch: fetchFees,
+  fetch,
   methodology,
   breakdownMethodology,
 }

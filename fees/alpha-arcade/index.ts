@@ -4,7 +4,7 @@ import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
-  let dailyFees = 0;
+  let df = 0;
   const { startTimestamp, endTimestamp } = options;
 
   // Convert UNIX timestamps to RFC 3339 format
@@ -29,17 +29,20 @@ const fetch = async (options: FetchOptions) => {
     const amounts = getAmountsForReceiver(txns, TARGET_RECEIVER, TARGET_ASSET_ID);
     for (const amount of amounts) {
       if (typeof amount === 'number' && !isNaN(amount)) {
-        dailyFees += amount;
+        df += amount;
       }
     }
 
     nextToken = response['next-token'];
   } while (nextToken);
 
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(Number(df) / 1e6, METRIC.TRADING_FEES);
+
   return {
-    dailyFees: dailyFees / 1e6, // Convert from microUSDC
-    dailyRevenue: dailyFees / 1e6, // Convert from microUSDC
-    dailyProtocolRevenue: dailyFees / 1e6,  // Convert from microUSDC
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -69,12 +72,6 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Trading fees paid by users on Alpha Arcade platform',
   },
-  Revenue: {
-    [METRIC.TRADING_FEES]: 'All trading fees are retained by the protocol as revenue',
-  },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'All trading fees are collected by Alpha Arcade protocol treasury',
-  }
 };
 
 const adapter: SimpleAdapter = {

@@ -17,21 +17,12 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Fees paid by users for trading and launching tokens on the platform',
   },
-  Revenue: {
-    [METRIC.TRADING_FEES]: 'All trading and launching fees are retained by the protocol',
-  },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'All revenue goes to the protocol treasury',
-  }
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch: fetch,
-    },
-  },
+  chains: [CHAIN.BASE],
+  fetch,
   methodology: {
     Fees: "Tokens trading and launching fees paid by users.",
     Revenue: "All fees are revenue.",

@@ -6,7 +6,7 @@ import type { FetchOptions } from "../adapters/types"
 import { METRIC } from "../helpers/metrics";
 
 
-const endpoints = {
+const endpoints: Record<string, string> = {
   [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('ktva51TWWq7t1hLnTGb88toXYtpxFo6gZfUC5NRnd9m'),
   [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('CnY2wTox8Pxh5t1UskQahPhMQdmuTmTAgwU62scUA8uM'),
   [CHAIN.AVAX]: sdk.graph.modifyEndpoint('Ak8GFBj7XruiuMd4nV3vfNzButNsj3pF7ogSBq6qdKcq'),
@@ -60,8 +60,9 @@ const fetch = async ({ getFromBlock, getToBlock, createBalances, chain}: FetchOp
 
   const dailySupplySideRevenue = createBalances();
   const tempBalance = dailyFees.clone();
+
   tempBalance.subtract(dailyRevenue);
-  dailySupplySideRevenue.addBalances(tempBalance, 'Lender Interest');
+  dailySupplySideRevenue.addBalances(tempBalance, METRIC.BORROW_INTEREST);
 
   return {
     dailyFees,
@@ -84,35 +85,16 @@ const breakdownMethodology = {
     [METRIC.PROTOCOL_FEES]: '50% of total borrow interest retained by the Abracadabra protocol',
   },
   SupplySideRevenue: {
-    'Lender Interest': '50% of total borrow interest distributed to MIM lenders (users who supply liquidity)',
+    [METRIC.BORROW_INTEREST]: '50% of total borrow interest distributed to MIM lenders (users who supply liquidity)',
   },
 };
 
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-        fetch,
-        start: '2021-09-01',
-    },
-    [CHAIN.FANTOM]: {
-        fetch,
-        start: '2021-09-01',
-    },
-    [CHAIN.AVAX]: {
-        fetch,
-        start: '2021-09-01',
-    },
-    [CHAIN.BSC]: {
-        fetch,
-        start: '2021-09-01',
-    },
-    [CHAIN.ARBITRUM]: {
-        fetch,
-        start: '2021-09-01',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.FANTOM, CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM],
+  start: '2021-09-01',
   methodology,
   breakdownMethodology,
 }

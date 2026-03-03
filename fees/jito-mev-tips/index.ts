@@ -35,7 +35,12 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     fees: 'MEV/tips paid by users/searchers',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.MEV_REWARDS]: 'MEV/tips paid by users/searchers',
+    },
+  },
 }
 
 export default adapter

@@ -14,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addBalances(rawFees, METRIC.TRADING_FEES);
 
   const dailyHoldersRevenue = options.createBalances();
-  dailyHoldersRevenue.addBalances(rawFees, "Staking Rewards");
+  dailyHoldersRevenue.addBalances(rawFees, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,
@@ -40,14 +40,14 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: 'Trading fees from perpetual positions (0.05% for correlated pairs, 0.25% for non-correlated pairs), automation fees for take-profit/stop-loss orders, and flash loan fees',
   },
   HoldersRevenue: {
-    "Staking Rewards": '100% of trading fees distributed to token stakers',
+    [METRIC.STAKING_REWARDS]: '100% of trading fees distributed to token stakers',
   }
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.SCROLL, CHAIN.XDAI, CHAIN.AVAX, CHAIN.LINEA, CHAIN.POLYGON, CHAIN.BSC],
   fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.SCROLL, CHAIN.XDAI, CHAIN.AVAX, CHAIN.LINEA, CHAIN.POLYGON, CHAIN.BSC],
   start: "2024-11-05",
   methodology,
   breakdownMethodology,

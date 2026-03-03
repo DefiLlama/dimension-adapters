@@ -39,12 +39,6 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Trading fees paid by users on perpetual and futures contracts',
   },
-  Revenue: {
-    [METRIC.TRADING_FEES]: 'Trading fees collected by the protocol treasury',
-  },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'Trading fees deposited into the protocol treasury address',
-  },
 };
 
 const adapter: SimpleAdapter = {

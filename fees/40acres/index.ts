@@ -22,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
 
   logs.forEach(log => {
     const amount = log.amount / BigInt(10 ** 6)
-    dailySupplySideRevenue.addUSDValue(amount, "Lender rewards")
+    dailySupplySideRevenue.addUSDValue(Number(amount), METRIC.BORROW_INTEREST)
   });
 
   const dailyRevenue = await addTokensReceived({
@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
-  dailyFees.addBalances(dailySupplySideRevenue, "Lender rewards");
+  dailyFees.addBalances(dailySupplySideRevenue, METRIC.BORROW_INTEREST);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
@@ -48,13 +48,13 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.PROTOCOL_FEES]: '0.8% fee to open a line of credit plus 5% of voting rewards directed to protocol treasury',
-    "Lender rewards": '1% fee on rewards plus 20% of voting rewards directed to lenders',
+    [METRIC.BORROW_INTEREST]: '1% fee on rewards plus 20% of voting rewards directed to lenders',
   },
   Revenue: {
     [METRIC.PROTOCOL_FEES]: '0.8% fee to open a line of credit plus 5% of voting rewards directed to protocol treasury',
   },
   SupplySideRevenue: {
-    "Lender rewards": '1% fee on rewards plus 20% of voting rewards directed to lenders',
+    [METRIC.BORROW_INTEREST]: '1% fee on rewards plus 20% of voting rewards directed to lenders',
   },
 }; 
 

@@ -1,4 +1,4 @@
-import { FetchResultV2 } from '../../adapters/types';
+import { FetchOptions, FetchResultV2 } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains'
 import { postURL } from "../../utils/fetchURL"
 import { METRIC } from '../../helpers/metrics';
@@ -35,7 +35,7 @@ query GetAssets {
 // LPs get 80% of fees
 const FEES_PERCENT_TO_LP = 0.8;
 
-const fetch = async (_a: any): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
   const assetsList = (await postURL(GRAPHQL_ENDPOINT, {
     query: ASSETS_QUERY,
     operationName: 'GetAssets'
@@ -71,12 +71,19 @@ const fetch = async (_a: any): Promise<FetchResultV2> => {
       + right.price * Number(pool.fees[1]) / Math.pow(10, right.decimals)) / 2;
   }
 
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(swapFees, METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(swapFees * (1 - FEES_PERCENT_TO_LP), METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addUSDValue(swapFees * FEES_PERCENT_TO_LP, METRIC.LP_FEES);
 
   return {
-    dailyUserFees: swapFees,
-    dailyFees: swapFees,
-    dailySupplySideRevenue: swapFees * FEES_PERCENT_TO_LP,
-    dailyRevenue: swapFees * (1 - FEES_PERCENT_TO_LP)
+    dailyUserFees: dailyFees,
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
   }
 }
 
@@ -87,14 +94,11 @@ const methodology = {
 }
 
 const breakdownMethodology = {
-  UserFees: {
+  Fees: {
     [METRIC.SWAP_FEES]: "Fees paid by users on token swaps, ranging from 0.1% to 1% depending on the liquidity pool"
   },
-  Fees: {
-    [METRIC.SWAP_FEES]: "Total swap fees collected from all token swaps across DeDust liquidity pools"
-  },
   Revenue: {
-    "DUST staker rewards": "20% of swap fees distributed to DUST token stakers as protocol revenue"
+    [METRIC.PROTOCOL_FEES]: "20% of swap fees distributed to DUST token stakers as protocol revenue"
   },
   SupplySideRevenue: {
     [METRIC.LP_FEES]: "80% of swap fees distributed to liquidity providers who supply capital to pools"

@@ -39,11 +39,11 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
         const amount = row.amount;
 
         // Add to total fees
-        dailyFees.add(ADDRESSES.solana.USDC, amount, 'Compute service fees');
+        dailyFees.add(ADDRESSES.solana.USDC, amount, METRIC.SERVICE_FEES);
 
         // Separate between holders revenue (treasury PDA) and supply side revenue (workers)
         if (row.to_owner === TREASURY_PDA) {
-            dailyHoldersRevenue.add(ADDRESSES.solana.USDC, amount, 'Treasury distributions');
+            dailyHoldersRevenue.add(ADDRESSES.solana.USDC, amount, METRIC.STAKING_REWARDS);
         } else {
             dailySupplySideRevenue.add(ADDRESSES.solana.USDC, amount, 'Worker node rewards');
         }
@@ -62,13 +62,13 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
 
 const breakdownMethodology = {
     Fees: {
-        'Compute service fees': 'USDC payments from users for decentralized compute services provided by the Beamable Network',
+        [METRIC.SERVICE_FEES]: 'USDC payments from users for decentralized compute services provided by the Beamable Network',
     },
     SupplySideRevenue: {
         'Worker node rewards': 'USDC payments distributed to worker nodes that provide compute resources and execute tasks',
     },
     HoldersRevenue: {
-        'Treasury distributions': 'USDC sent to the treasury PDA for distribution to BMB token stakers',
+        [METRIC.STAKING_REWARDS]: 'USDC sent to the treasury PDA for distribution to BMB token stakers',
     }
 };
 

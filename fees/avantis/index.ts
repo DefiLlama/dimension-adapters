@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
-import { SimpleAdapter, FetchResultFees } from "../../adapters/types";
+import { SimpleAdapter, FetchResultFees, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { METRIC } from "../../helpers/metrics";
 
 interface IData {
 	success: boolean;
@@ -25,22 +25,13 @@ const methodology = {
 
 const breakdownMethodology = {
 	Fees: {
-		"Opening Fees": "Fees charged when traders open new perpetual positions",
-		"Closing Fees": "Fees charged when traders close their perpetual positions",
-		"Rollover Fees": "Fees charged for maintaining open positions over time (funding/borrowing costs)",
-	},
-	UserFees: {
-		"Opening Fees": "Fees charged when traders open new perpetual positions",
-		"Closing Fees": "Fees charged when traders close their perpetual positions",
-		"Rollover Fees": "Fees charged for maintaining open positions over time (funding/borrowing costs)",
+		[METRIC.TRADING_FEES]: "Fees charged when traders open/close perpetual positions + rollover fees for maintaining open positions",
 	},
 };
 
-const fetch =async (timestamp: number): Promise<FetchResultFees> => {
-	const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch =async (_a: number, _b:any, options: FetchOptions): Promise<FetchResultFees> => {
 
-	// Convert timestamp to Date object and format to YYYY-MM-DD in UTC
-	const date = new Date(todaysTimestamp * 1000);
+	const date = new Date(options.startOfDay * 1000);
 	const dateStr = date.toISOString().split("T")[0];
 
 	// Find difference in days between today and the timestamp
@@ -52,22 +43,21 @@ const fetch =async (timestamp: number): Promise<FetchResultFees> => {
 	const value: IData = await fetchURL(url);
 	if (!value.success) throw new Error("Failed to fetch data");
 
-	const dailyFee = value.history.find((d) => d.date === dateStr)?.totalFees;
+	const df = value.history.find((d) => d.date === dateStr)?.totalFees;
+	const dailyFees = options.createBalances();
+	dailyFees.addUSDValue(df, METRIC.TRADING_FEES);
 
 	return {
-		dailyUserFees: dailyFee,
-		dailyFees: dailyFee,
+		dailyFees,
+		dailyUserFees: dailyFees,
 	};
 };
 
 const adapter: SimpleAdapter = {
 	version: 1,
-	adapter: {
-		[CHAIN.BASE]: {
-			fetch,
-			start: '2024-01-27',
-		},
-	},
+	fetch,
+	chains: [CHAIN.BASE],
+	start: '2024-01-27',
 	methodology,
 	breakdownMethodology,
 };

@@ -22,17 +22,14 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
         const isDiscounted = Number(balances[i]) > discountThreshold
         const ratio = isDiscounted ? discount : fee;
         const feeAmount = Number(log.tokenAmount) * ratio / 1e18;
-        dailyFees.addGasToken(feeAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
+        dailyFees.addUSDValue(feeAmount, METRIC.DEPOSIT_WITHDRAW_FEES);
     })
-
-    const dailyHoldersRevenue = dailyFees.clone(1, METRIC.DEPOSIT_WITHDRAW_FEES);
-    const dailyProtocolRevenue = dailyFees.clone(1, METRIC.DEPOSIT_WITHDRAW_FEES);
 
     return {
         dailyFees,
-        // 100% of the revenue going to holders, hence, fees = revenue, fees = holdersRevenue
-        dailyHoldersRevenue,
-        dailyProtocolRevenue
+        dailyRevenue: dailyFees,
+        dailyHoldersRevenue: dailyFees,
+        dailyProtocolRevenue: 0
     };
 };
 
@@ -40,12 +37,12 @@ const breakdownMethodology = {
     Fees: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Fees charged on deposits to the 0x0 privacy protocol, either 0.9% (standard) or 0.45% (discounted for users holding 1M+ 0x0 tokens)',
     },
+    Revenue: {
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: '100% of deposit fees go to the token holders',
+    },
     HoldersRevenue: {
         [METRIC.DEPOSIT_WITHDRAW_FEES]: '100% of deposit fees are distributed to 0x0 token holders',
     },
-    ProtocolRevenue: {
-        [METRIC.DEPOSIT_WITHDRAW_FEES]: '100% of deposit fees go to the protocol treasury',
-    }
 };
 
 const adapter: Adapter = {

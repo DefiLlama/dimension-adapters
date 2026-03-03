@@ -32,9 +32,10 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   protocolAmount.resizeBy(protocol_fees / 100)
   dailyRevenue.addBalances(protocolAmount, METRIC.PROTOCOL_FEES)
 
-  dailyFees.addBalances(totalFeeAmount, "User payments")
+  dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES)
+  dailyFees.addBalances(dailySupplySideRevenue, METRIC.CREATOR_FEES)
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapterFees: SimpleAdapter = {
@@ -49,7 +50,8 @@ const adapterFees: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "User payments": 'Total fees paid by users for creating and interacting with collaborative artwork on BasePaint',
+      [METRIC.CREATOR_FEES]: 'Total fees paid by users for creating and interacting with collaborative artwork on BasePaint',
+      [METRIC.PROTOCOL_FEES]: 'Protocol revenue retained by BasePaint, equal to 10% of total fees',
     },
     Revenue: {
       [METRIC.PROTOCOL_FEES]: 'Protocol revenue retained by BasePaint, equal to 10% of total fees',

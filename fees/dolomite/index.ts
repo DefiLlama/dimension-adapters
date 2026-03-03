@@ -45,7 +45,7 @@ const fetchArbitrum = async ({ createBalances, api, chain, fromApi, toApi }: Fet
     const dailySupplySideRevenue = createBalances()
     const tempBalance = dailyFees.clone()
     tempBalance.subtract(dailyRevenue)
-    dailySupplySideRevenue.addBalances(tempBalance, METRIC.LP_FEES)
+    dailySupplySideRevenue.addBalances(tempBalance, METRIC.BORROW_INTEREST)
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
@@ -93,7 +93,8 @@ const fetch = async ({ createBalances, api, chain, fromApi, toApi }: FetchOption
     const dailySupplySideRevenue = createBalances()
     const tempBalance = dailyFees.clone()
     tempBalance.subtract(dailyRevenue)
-    dailySupplySideRevenue.addBalances(tempBalance, METRIC.LP_FEES)
+    dailySupplySideRevenue.addBalances(tempBalance, METRIC.BORROW_INTEREST)
+
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
@@ -110,9 +111,6 @@ const breakdownMethodology = {
     Revenue: {
         [METRIC.PROTOCOL_FEES]: 'Portion of borrow interest retained by the protocol treasury, determined by the earnings rate (typically 5-15% of total interest)'
     },
-    SupplySideRevenue: {
-        [METRIC.LP_FEES]: 'Portion of borrow interest distributed to lenders who supply liquidity to the protocol'
-    }
 }
 
 const adapters: Adapter = {

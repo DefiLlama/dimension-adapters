@@ -59,12 +59,6 @@ const breakdownMethodology = {
     Fees: {
         [METRIC.MANAGEMENT_FEES]: 'Fees charged by vault managers for managing user assets in Enzyme vaults',
     },
-    Revenue: {
-        [METRIC.MANAGEMENT_FEES]: 'All management fees are collected as protocol revenue',
-    },
-    ProtocolRevenue: {
-        [METRIC.MANAGEMENT_FEES]: 'Management fees allocated to the protocol treasury',
-    }
 }
 
 const adapter: SimpleAdapter = {
