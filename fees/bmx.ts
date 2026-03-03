@@ -51,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(Number(res.feeStat.mint + res.feeStat.burn)/1e30, METRIC.MINT_REDEEM_FEES);
+  dailyFees.addUSDValue((Number(res.feeStat.mint) + Number(res.feeStat.burn))/1e30, METRIC.MINT_REDEEM_FEES);
   dailyFees.addUSDValue(Number(res.feeStat.marginAndLiquidation)/1e30, METRIC.MARGIN_FEES);
   dailyFees.addUSDValue(Number(res.feeStat.swap)/1e30, METRIC.SWAP_FEES);
 

@@ -79,15 +79,16 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp, chain }: Fetc
     let tenPcFeeTimestamp = 0;
     let fiftyPcFeeTimestamp = 0;
 
-    if (chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) {
+    if ((chain === CHAIN.ETHEREUM || chain === CHAIN.POLYGON || chain === CHAIN.ARBITRUM) && 
+        graphRes["tenPcFeeChange"] && graphRes["fiftyPcFeeChange"]) {
       tenPcFeeTimestamp = graphRes["tenPcFeeChange"]["timestamp"]
       fiftyPcFeeTimestamp = graphRes["fiftyPcFeeChange"]["timestamp"]
     }
 
     // 10% gov vote enabled: https://vote.balancer.fi/#/proposal/0xf6238d70f45f4dacfc39dd6c2d15d2505339b487bbfe014457eba1d7e4d603e3
     // 50% gov vote change: https://vote.balancer.fi/#/proposal/0x03e64d35e21467841bab4847437d4064a8e4f42192ce6598d2d66770e5c51ace
-    const df = toTimestamp < tenPcFeeTimestamp ? "0" : (
-      toTimestamp < fiftyPcFeeTimestamp ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
+    const df = (tenPcFeeTimestamp > 0 && toTimestamp < tenPcFeeTimestamp) ? dailySwapFee : (
+      (fiftyPcFeeTimestamp > 0 && toTimestamp < fiftyPcFeeTimestamp) ? dailyProtocolFee.multipliedBy(10) : dailyProtocolFee.multipliedBy(2))
 
     const dailyFees = createBalances();
     const dailyRevenue = createBalances();

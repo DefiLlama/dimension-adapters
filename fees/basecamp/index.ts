@@ -8,7 +8,7 @@ const fetch: any = async (options: FetchOptions) => {
   const tokenReceived = await addTokensReceived({ options, tokens: [ADDRESSES.optimism.WETH_1], targets: ["0xbcb4a982d3c2786e69a0fdc0f0c4f2db1a04e875"] })
 
   const dailyFees = options.createBalances();
-  dailyFees.add(tokenReceived, METRIC.TRADING_FEES);
+  dailyFees.addBalances(tokenReceived, METRIC.TRADING_FEES);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
