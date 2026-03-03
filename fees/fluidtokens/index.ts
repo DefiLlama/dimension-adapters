@@ -18,6 +18,10 @@ interface FluidTokensFeesResponse {
   stats: {
     totalFeesLovelace: number;
     totalFeesAda: number;
+    totalRevenueLovelace: number;
+    totalRevenueAda: number;
+    totalProtocolRevenueLovelace: number;
+    totalProtocolRevenueAda: number;
     adaDirectLovelace: number;
     adaDirectAda: number;
     adaFromTokensLovelace: number;
@@ -39,26 +43,34 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   if (
     !response?.stats ||
     typeof response.stats.totalFeesAda !== "number" ||
+    typeof response.stats.totalRevenueAda !== "number" ||
+    typeof response.stats.totalProtocolRevenueAda !== "number" ||
     !Number.isFinite(response.stats.totalFeesAda) ||
+    !Number.isFinite(response.stats.totalRevenueAda) ||
+    !Number.isFinite(response.stats.totalProtocolRevenueAda) ||
     response.stats.totalFeesAda < 0 ||
+    response.stats.totalRevenueAda < 0 ||
+    response.stats.totalProtocolRevenueAda < 0 ||
     response.date !== dateString
   ) {
     throw new Error(`Fees data not found for FluidTokens on ${dateString}`);
   }
 
-  if (
-    response.status !== "final" ||
-    response.hoursCovered < response.hoursExpected
-  ) {
-    return {};
-  }
-
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+
   dailyFees.addCGToken("cardano", Number(response.stats.totalFeesAda));
+  dailyRevenue.addCGToken("cardano", Number(response.stats.totalRevenueAda));
+  dailyProtocolRevenue.addCGToken(
+    "cardano",
+    Number(response.stats.totalProtocolRevenueAda)
+  );
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
@@ -67,12 +79,16 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: "2026-02-28",
+      start: "2026-03-02",
     },
   },
   methodology: {
     Fees:
-      "Gross value received by the FluidTokens fee address, sourced from the FluidTokens daily fees endpoint and denominated in ADA.",
+      "Gross value received by the FluidTokens treasury-only fee address, sourced from the FluidTokens daily fees endpoint and denominated in ADA.",
+    Revenue:
+      "All value received by the treasury-only FluidTokens fee address is treated as protocol revenue.",
+    ProtocolRevenue:
+      "Because the tracked address is treasury-only, all recorded revenue is classified as protocol treasury revenue.",
   },
 };
 
