@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { FetchOptions, } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { queryIndexer, toByteaArray } from "../helpers/indexer";
 import { CHAIN } from './chains';
@@ -136,4 +136,47 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 	dailyRevenue.addGasToken(feesResult[0].total_revenue * 1e18, METRIC.TRANSACTION_GAS_FEES); // all from above list has 18 decimals
 
 	return { dailyFees, dailyRevenue };
-}; 
+};
+
+function l2FeesDuneAdapter(chain: string, start: string, chainName?: string, methodology?: Record<string, string>): Adapter {
+	const fetch = async (_a: any, _b: any, options: FetchOptions) => fetchL2FeesWithDune(options, chainName);
+	return {
+		version: 1, fetch, chains: [chain], start,
+		protocolType: ProtocolType.CHAIN, dependencies: [Dependencies.DUNE],
+		isExpensiveAdapter: true, allowNegativeValue: true,
+		...(methodology ? { methodology } : {}),
+	};
+}
+
+const l2FeesDuneProtocols: Record<string, Adapter> = {
+	'abstract': l2FeesDuneAdapter(CHAIN.ABSTRACT, '2024-10-25'),
+	'arbitrum': l2FeesDuneAdapter(CHAIN.ARBITRUM, '2021-08-10'),
+	'base': l2FeesDuneAdapter(CHAIN.BASE, '2023-06-23'),
+	'blast': l2FeesDuneAdapter(CHAIN.BLAST, '2024-02-24', undefined, {
+		Fees: 'Transaction fees paid by users',
+		Revenue: 'Total revenue on Blast, calculated by subtracting the L1 Batch Costs from the total gas fees',
+	}),
+	'boba': l2FeesDuneAdapter(CHAIN.BOBA, '2021-08-13'),
+	'mantle': l2FeesDuneAdapter(CHAIN.MANTLE, '2023-07-02', undefined, {
+		Fees: 'Transaction fees paid by users',
+		Revenue: 'Total revenue on Mantle, calculated by subtracting the L1 Batch Costs from the total gas fees',
+	}),
+	'op-bnb': l2FeesDuneAdapter(CHAIN.OP_BNB, '2023-08-14', 'opbnb'),
+	'optimism': l2FeesDuneAdapter(CHAIN.OPTIMISM, '2020-08-29'),
+	'polygon-zkevm': l2FeesDuneAdapter(CHAIN.POLYGON_ZKEVM, '2023-03-24', 'zkevm', {
+		Fees: 'Total transaction fees paid by users',
+		Revenue: 'Total revenue on Polygon ZkEVM, calculated by subtracting the L1 Batch Costs from the total gas fees',
+	}),
+	'scroll': l2FeesDuneAdapter(CHAIN.SCROLL, '2023-10-10', undefined, {
+		Fees: 'Transaction fees paid by users',
+		Revenue: 'Total revenue on Scroll, calculated by subtracting the L1 Batch Costs from the total gas fees',
+	}),
+	'zksync-era': l2FeesDuneAdapter(CHAIN.ERA, '2023-02-14', 'zksync'),
+	'zora-chain': l2FeesDuneAdapter(CHAIN.ZORA, '2023-06-13', undefined, {
+		Fees: 'Transaction fees paid by users',
+		Revenue: 'Total revenue on Zora, calculated by subtracting the L1 Batch Costs from the total gas fees',
+	}),
+};
+
+export const protocolList = Object.keys(l2FeesDuneProtocols);
+export const getAdapter = (name: string) => l2FeesDuneProtocols[name];

@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { elastic, log } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
+import { CHAIN } from "./chains";
 
 const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0] ?? "L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"
 
@@ -225,10 +226,10 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
 }
 
 const tableName = {
-  bsc: "bnb",
-  ethereum: "ethereum",
-  base: "base",
-  avax: "avalanche_c"
+  [CHAIN.BSC]: "bnb",
+  [CHAIN.ETHEREUM]: "ethereum",
+  [CHAIN.BASE]: "base",
+  [CHAIN.AVAX]: "avalanche_c"
 } as any
 
 export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { extraUIDKey?: string } = {}) => {

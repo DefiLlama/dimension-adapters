@@ -37,12 +37,10 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2021-08-10',
-    },
-  },
+  chains: [CHAIN.ARBITRUM],
+  fetch,
+  start: '2021-08-10',
+  pullHourly: true,
   methodology: {
     Fees: 'All priority/boost ETH fees paid transactions by users.',
     Revenue: 'All fees go to Arbitrum protocol treasury.',

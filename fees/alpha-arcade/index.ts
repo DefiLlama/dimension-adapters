@@ -82,6 +82,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ALGORAND],
   fetch,
   start: '2025-03-30',
+  pullHourly: true,
   methodology: {
     Fees: 'Trading fees paid by users.',
     Revenue: 'All trading fees are revenue.',

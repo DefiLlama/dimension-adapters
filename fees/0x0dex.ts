@@ -53,6 +53,7 @@ const adapter: Adapter = {
     chains: [CHAIN.ETHEREUM],
     fetch,
     start: '2023-05-29',
+    pullHourly: true,
     methodology: {
         Fees: "0x0 collects a 0.9% fee on deposits",
         Revenue: "0x0 collects a 0.9% fee on deposits and distributed to token holders",

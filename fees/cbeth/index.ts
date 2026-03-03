@@ -72,6 +72,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  pullHourly: true,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {

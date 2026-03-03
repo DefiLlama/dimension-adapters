@@ -1,6 +1,7 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 import { METRIC } from '../../helpers/metrics';
 
@@ -63,7 +64,7 @@ async function addBribes(options: FetchOptions, totalFees: Balances) {
 
   const bribes = await options.api.multiCall({
     abi: "function getBribe() returns (address)",
-    calls: plugins.map((plugin) => ({
+    calls: plugins.map((plugin: any) => ({
       target: plugin,
     })),
   });
@@ -139,12 +140,13 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   adapter: {
-    berachain: {
+    [CHAIN.BERACHAIN]: {
       fetch,
       start: "2025-02-06",
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
     BribesRevenue: "Bribes from plugins distributed to holders.",

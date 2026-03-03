@@ -98,6 +98,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {},
   doublecounted: true, // all volume and fees are on Curve DEX

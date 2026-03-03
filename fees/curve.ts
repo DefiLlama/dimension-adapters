@@ -66,6 +66,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: dexAdapter.methodology,
   breakdownMethodology,
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {

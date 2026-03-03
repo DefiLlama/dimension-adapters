@@ -1,6 +1,5 @@
 import { Adapter, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 const fetch: FetchV2 = async ({ getLogs, createBalances }) => {
   const dailyFees = createBalances();
@@ -39,12 +38,9 @@ const fetch: FetchV2 = async ({ getLogs, createBalances }) => {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: 0,
-    },
-  },
+  chains: [CHAIN.BASE],
+  fetch,
+  pullHourly: true,
   methodology: {
     Fees: "Tokens trading and launching fees paid by users.",
     Revenue: "All fees are revenue.",

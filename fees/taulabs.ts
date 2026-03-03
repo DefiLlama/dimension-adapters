@@ -193,6 +193,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2025-08-12' },
     [CHAIN.FLOW]: { fetch, start: '2025-06-20' },

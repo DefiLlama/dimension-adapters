@@ -37,6 +37,7 @@ const methodology = {
 const adapter: Adapter = {
   fetch, methodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2023-03-18', },
     [CHAIN.BSC]: { start: '2023-03-26', },

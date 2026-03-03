@@ -13,7 +13,7 @@ const launchAbi = "event TokenDeployed(address indexed creator, string symbol, s
 const graduateAbi = "event LiquidityMigrated(address indexed token, address indexed baseToken, uint256 lpTokenId, address locker, uint256 tokenAmount, uint256 baseTokenAmount)";
 
 
-const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const {getLogs, createBalances} = options;
 
   const dailyFees = createBalances();
@@ -89,11 +89,12 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch: fetchFees,
+  fetch,
   start: '2025-06-24',
   chains: [CHAIN.ETHEREUM],
   methodology,
-  breakdownMethodology
+  breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;

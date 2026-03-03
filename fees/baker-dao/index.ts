@@ -6,23 +6,23 @@ import { METRIC } from '../../helpers/metrics';
 const BREAD_CONTRACT_ADDRESS = "0x0003eEDFdd020bf60D10cf684ABAc7C4534B7eAd";
 
 const fetch = async (options: FetchOptions) => {
-        const dailyFees = options.createBalances()
+  const dailyFees = options.createBalances()
 
-        const logs = await options.getLogs({
-          target: BREAD_CONTRACT_ADDRESS,
-          eventAbi: 'event SendBera(address to, uint256 amount)'
-        });
+  const logs = await options.getLogs({
+    target: BREAD_CONTRACT_ADDRESS,
+    eventAbi: 'event SendBera(address to, uint256 amount)'
+  });
 
-        const feeAddress = await options.api.call({
-          target: BREAD_CONTRACT_ADDRESS,
-          abi: 'function breadTreasury() view returns (address)'
-        });
+  const feeAddress = await options.api.call({
+    target: BREAD_CONTRACT_ADDRESS,
+    abi: 'function breadTreasury() view returns (address)'
+  });
 
-        logs
-          .filter(log => log.to.toLowerCase() === feeAddress.toLowerCase())
-          .forEach(log => {
-            dailyFees.add(nullAddress, log.amount, METRIC.PROTOCOL_FEES)
-          });
+  logs
+    .filter(log => log.to.toLowerCase() === feeAddress.toLowerCase())
+    .forEach(log => {
+      dailyFees.add(nullAddress, log.amount, METRIC.PROTOCOL_FEES)
+    });
 
   return {
     dailyFees,
@@ -37,12 +37,10 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BERACHAIN]: {
-      fetch,
-      start: '2025-03-17',
-    }
-  },
+  chains: [CHAIN.BERACHAIN],
+  fetch,
+  start: '2025-03-17',
+  pullHourly: true,
   methodology: {
     Fees: "All fees are captured by monitoring SendBera events to breadTreasury",
   },

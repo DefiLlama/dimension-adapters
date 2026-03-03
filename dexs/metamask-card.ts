@@ -48,7 +48,7 @@ async function retry(chain: string, fromBlock: number, toBlock: number, addresse
   return [];
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   const limit = configs[options.chain].getTrasnactionLimit;
@@ -75,7 +75,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyVolume };
 };
 
-const fetchSol = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSol = async (options: FetchOptions) => {
   const dailyVolume = await getSolanaReceived({
     options,
     target: 'BHEKb1J4oRJP3A8XTCgvB9opPDGD5L9wDQPpUf3oPK1N',
@@ -89,6 +89,8 @@ const fetchSol = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   dependencies: [Dependencies.ALLIUM],
   adapter: {

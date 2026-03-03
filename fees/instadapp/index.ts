@@ -70,7 +70,7 @@ const breakdownMethodology = {
   }
 };
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, };
 
 Object.keys(instaFlashAggregators).forEach((chain: Chain) => {
   adapter.adapter![chain] = {

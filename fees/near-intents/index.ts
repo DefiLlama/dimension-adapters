@@ -6,10 +6,12 @@ import fetchURL from "../../utils/fetchURL";
  * NEAR Intents Fees Adapter for DefiLlama
  * 
  * Data Source: https://platform.data.defuse.org/api/public/fees
- * Swagger UI: https://platform.data.defuse.org//swagger-ui/#/public/get_fees
+ * Swagger UI: https://platform.data.defuse.org/swagger-ui/#/public/get_fees
  * 
  * Returns daily fee data aggregated by the NEAR Intents platform
  */
+
+const feeSwitchDate = '2026-02-23'
 
 interface FeeData {
     fee: number;
@@ -26,6 +28,8 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     const { dateString, createBalances } = options;
 
     const dailyFees = createBalances();
+    const dailySupplySideRevenue = createBalances();
+    const dailyRevenue = createBalances();
 
     if (!data)
         data = fetchURL("https://platform.data.defuse.org/api/public/fees")
@@ -39,7 +43,14 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
         throw new Error(`No fee data found for date: ${dateString}`);
 
     dailyFees.addUSDValue(item.fee);
-    return { dailyFees, };
+    if (dateString >= feeSwitchDate) {
+        dailySupplySideRevenue.addUSDValue(item.fee / 2)
+        dailyRevenue.addUSDValue(item.fee / 2)
+    }
+    else {
+        dailySupplySideRevenue.addUSDValue(item.fee)
+    }
+    return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue};
 };
 
 const adapter: SimpleAdapter = {
@@ -52,6 +63,9 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "Total fees collected by NEAR Intents platform.",
+        SupplySideRevenue: "Distribution fees set by NEAR Intents partners, split 50/50 with the protocol since 2026-02-23",
+        Revenue: "The protocol collects half of the distribution fees since 2026-02-23",
+        ProtocolRevenue: "The protocol collects half of the distribution fees since 2026-02-23"
     },
 };
 

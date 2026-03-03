@@ -105,6 +105,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
 	version: 2,
+	pullHourly: true,
 	adapter: Object.keys(config).reduce((acc, chain) => {
 		const { start } = config[chain];
 		(acc as any)[chain] = {

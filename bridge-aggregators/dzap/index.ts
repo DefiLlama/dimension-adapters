@@ -100,7 +100,7 @@ interface ApiResponse {
 }
 
 const prefetch = async (options: FetchOptions) => {
-  const data = {};
+  const data: Record<string, any> = {};
   for (const chain of Object.keys(chains)) {
     await new Promise((resolve) => setTimeout(resolve, 13000));
     data[chain] = await httpGet(
@@ -110,7 +110,7 @@ const prefetch = async (options: FetchOptions) => {
   return data;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data: ApiResponse = options.preFetchedResults[options.chain];
 
   return {
@@ -119,7 +119,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: Object.keys(chains),
   start: "2023-01-01",

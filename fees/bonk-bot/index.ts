@@ -1,7 +1,8 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { METRIC } from "../../helpers/metrics";
+
+const inflatedFees = [1712275200] // 2024-04-05, Inflated fees (22M fees for 48M volume)
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
@@ -24,23 +25,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   `;
   const data = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(data[0].dailyFees, METRIC.TRADING_FEES);
+
+  if (!inflatedFees.includes(options.startOfDay))
+    dailyFees.addGasToken(data[0].dailyFees, 'BonkBot Fees');
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.TRADING_FEES]: 'Fees charged by Bonk Bot for executing trades on behalf of users on Solana',
-  },
-  Revenue: {
-    [METRIC.TRADING_FEES]: 'All trading fees are retained by the Bonk Bot protocol',
-  },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'All trading fees are retained by the Bonk Bot protocol',
-  },
-};
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -54,7 +45,17 @@ const adapter: SimpleAdapter = {
     Revenue: "Trading fees are collected by Bonk Bot protocol.",
     ProtocolRevenue: "Trading fees are collected by Bonk Bot protocol.",
   },
-  breakdownMethodology,
+  breakdownMethodology: {
+    Fees: {
+      "BonkBot Fees": "All trading fees paid by BonkBot users"
+    },
+    Revenue: {
+      "BonkBot Fees": "All the fees paid by BonkBot users are revenue"
+    },
+    ProtocolRevenue: {
+      "BonkBot Fees": "All the fees paid by BonkBot users are revenue"
+    }
+  }
 }
 
 export default adapter;

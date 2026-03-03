@@ -1,4 +1,5 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
 
@@ -48,24 +49,23 @@ const adapter: SimpleAdapter = {
   version: 2,
   runAtCurrTime: true,
   fetch,
-  adapter: {
-    terra2: {
-      start: '2022-12-16',
-    },
-    // deprecated: https://github.com/DefiLlama/dimension-adapters/issues/5116#issuecomment-3660619459
-    // [CHAIN.INJECTIVE]: {
-    //   start: '2023-XX-XX',
-    // },
-    neutron: {
-      start: '2023-08-01',
-    },
-    // [CHAIN.SEI]: {
-    //   start: '2023-XX-XX',
-    // },
-    // [CHAIN.OSMOSIS]: {
-    //   start: '2023-XX-XX',
-    // },
-  },
+  chains: [CHAIN.TERRA2, CHAIN.NEUTRON],
+  // adapter: {
+  //   [CHAIN.TERRA2]: {
+  //   },
+  //   // deprecated: https://github.com/DefiLlama/dimension-adapters/issues/5116#issuecomment-3660619459
+  //   // [CHAIN.INJECTIVE]: {
+  //   //   start: '2023-XX-XX',
+  //   // },
+  //   [CHAIN.NEUTRON]: {
+  //   },
+  //   // [CHAIN.SEI]: {
+  //   //   start: '2023-XX-XX',
+  //   // },
+  //   // [CHAIN.OSMOSIS]: {
+  //   //   start: '2023-XX-XX',
+  //   // },
+  // },
   methodology,
   breakdownMethodology,
 };

@@ -41,6 +41,7 @@ const fetch: FetchV2 = async (fetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume: 'Total swap volume collected from factory 0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2',
   },

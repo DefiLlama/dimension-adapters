@@ -35,4 +35,5 @@ export default {
     },
   },
   breakdownMethodology,
+  pullHourly: true,
 } as Adapter

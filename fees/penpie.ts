@@ -125,6 +125,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BSC],
   version: 2,
+  pullHourly: true,
   adapter: {}
 };
 

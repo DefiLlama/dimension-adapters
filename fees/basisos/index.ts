@@ -15,10 +15,11 @@ const VAULT_STATE_BLOCK_LIMIT = 330229681;
 /**
  * Fetches daily fees and revenue for BasisOS vaults
  * @param options - SDK options containing API access and helper functions
- * @returns Object containing daily fees and revenue
+ * @returns Object containing daily fees and revenue with breakdown by fee type
  */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   // Get list of all vaults from data provider
   const vaults = await options.api.call({
@@ -59,29 +60,31 @@ const fetch = async (options: FetchOptions) => {
       toBlock
     }) || [];
 
-    // Sort events by block number for chronological processing
+    // Sort vault states by block number for chronological processing
     const sortedStates = vaultStates.sort((a, b) => a.blockNumber - b.blockNumber);
 
-    // Calculate separate fee shares for each type
+    // Calculate fee shares for management fees
     const managementFeeShares = vaultManagementFeesLogs.reduce((sum, event) =>
-      sum + Number(event[1]), 0);
+      sum + Number(event.feeShares), 0);
+
+    // Calculate fee shares for performance fees
     const performanceFeeShares = vaultPerformanceFeesLogs.reduce((sum, event) =>
-      sum + Number(event[1]), 0);
+      sum + Number(event.feeShares), 0);
 
     let sharePrice: number | undefined;
 
     // Determine share price based on the number of states found in the daily range
     if (sortedStates.length > 1) {
       // If multiple states, calculate average share price
-      const totalSharePrice = sortedStates.reduce((sum, state) => {
-        const sp = Number(state[0]) / Number(state[1]);
+      const totalSharePrice = sortedStates.reduce((sum, state: any) => {
+        const sp = Number(state.totalAssets) / Number(state.totalSupply);
         return sum + sp;
       }, 0);
       sharePrice = totalSharePrice / sortedStates.length;
     } else if (sortedStates.length === 1) {
       // If only one state, use its share price
-      const state = sortedStates[0];
-      sharePrice = Number(state[0]) / Number(state[1]);
+      const state: any = sortedStates[0];
+      sharePrice = Number(state.totalAssets) / Number(state.totalSupply);
     } else {
       // If no states in current period, search backwards for the latest state
       let currentBlock = fromBlock;
@@ -104,7 +107,8 @@ const fetch = async (options: FetchOptions) => {
       }
 
       if (latestState) {
-        sharePrice = Number(latestState[0]) / Number(latestState[1]);
+        const state: any = latestState;
+        sharePrice = Number(state.totalAssets) / Number(state.totalSupply);
       }
     }
 
@@ -114,15 +118,36 @@ const fetch = async (options: FetchOptions) => {
       const managementFeeInAssets = managementFeeShares * sharePrice;
       const performanceFeeInAssets = performanceFeeShares * sharePrice;
 
+      // Add management fees with metric
       dailyFees.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
+      dailyRevenue.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
+
+      // Add performance fees with metric
       dailyFees.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
     }
   }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees, // All fees are revenue
+    dailyRevenue,
   };
+};
+
+const methodology = {
+  Fees: "Sum of management and performance fees collected from all vaults",
+  Revenue: "Sum of management and performance fees collected from all vaults",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees calculated as a percentage of total assets under management, collected periodically",
+    [METRIC.PERFORMANCE_FEES]: "Performance fees calculated as a percentage of profits earned by the vault strategy",
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: "Management fees collected from all vaults",
+    [METRIC.PERFORMANCE_FEES]: "Performance fees collected from all vaults",
+  },
 };
 
 /**
@@ -130,23 +155,12 @@ const fetch = async (options: FetchOptions) => {
  */
 const adapter: Adapter = {
   version: 2,
-  chains: [CHAIN.ARBITRUM],
   fetch,
+  chains: [CHAIN.ARBITRUM],
   start: '2024-04-26',
-  methodology: {
-    Fees: "Sum of management and performance fees collected from all vaults",
-    Revenue: "Sum of management and performance fees collected from all vaults",
-  },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.MANAGEMENT_FEES]: 'Ongoing fees charged by vaults for managing deposited assets, collected as shares of the vault',
-      [METRIC.PERFORMANCE_FEES]: 'Fees charged based on vault performance gains, collected as shares when vaults generate positive returns',
-    },
-    Revenue: {
-      [METRIC.MANAGEMENT_FEES]: 'Ongoing fees charged by vaults for managing deposited assets, collected as shares of the vault',
-      [METRIC.PERFORMANCE_FEES]: 'Fees charged based on vault performance gains, collected as shares when vaults generate positive returns',
-    },
-  },
+  pullHourly: true,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

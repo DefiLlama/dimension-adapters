@@ -1,15 +1,9 @@
-import { METRIC } from "../helpers/metrics";
-import adapter from '../dexs/baseswap'
-const { breakdown,  ...rest } = adapter
+import { SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniV3LogAdapter } from "../helpers/uniswap";
 
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.SWAP_FEES]: 'Variable swap fees paid by users on each trade, ranging from 0.008% to 1% depending on the pool. According to protocol design, 36% goes to LPs and 64% to treasury, though revenue split is not tracked in current implementation.',
-  }
-};
-
-export default {
-  ...rest,
+const adapter: SimpleAdapter = {
+  version: 2,
   methodology: {
     UserFees:
       "User pays a variable percentage on each swap depending on the pool. Minimum: 0.008%, maximum: 1%.",
@@ -17,6 +11,12 @@ export default {
     ProtocolRevenue: "Treasury receives 64% of each swap",
     Fees: "All fees come from the user.",
   },
-  breakdownMethodology,
-  adapter: breakdown['v3'],
-}
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch: getUniV3LogAdapter({ factory: '0x38015d05f4fec8afe15d7cc0386a126574e8077b', revenueRatio: 0.64 }),
+      start: '2023-07-28',
+    },
+  },
+};
+
+export default adapter;

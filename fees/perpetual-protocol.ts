@@ -37,6 +37,7 @@ const breakdownMethodology = {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchFees,

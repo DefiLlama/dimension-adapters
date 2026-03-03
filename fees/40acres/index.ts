@@ -61,6 +61,7 @@ const breakdownMethodology = {
 export default {
   version: 2,
   fetch,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   adapter: {

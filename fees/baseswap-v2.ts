@@ -1,33 +1,22 @@
-import { METRIC } from "../helpers/metrics";
-import adapter from '../dexs/baseswap'
-const { breakdown,  ...rest } = adapter
+import { SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniV2LogAdapter } from "../helpers/uniswap";
 
-const methodology = {
-  UserFees: "User pays 0.25% fees on each swap.",
-  SupplySideRevenue: "LPs receive 0.17% of each swap.",
-  ProtocolRevenue: "Treasury receives 0.08% of each swap.",
-  Revenue: "All revenue generated comes from user fees.",
-  Fees: "All fees come from the user.",
+const adapter: SimpleAdapter = {
+  version: 2,
+  methodology: {
+    UserFees: "User pays 0.25% fees on each swap.",
+    SupplySideRevenue: "LPs receive 0.17% of each swap.",
+    ProtocolRevenue: "Treasury receives 0.08% of each swap.",
+    Revenue: "All revenue generated comes from user fees.",
+    Fees: "All fees come from the user.",
+  },
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch: getUniV2LogAdapter({ factory: '0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB', revenueRatio: 0 }),
+      start: '2023-07-28',
+    },
+  },
 };
 
-const breakdownMethodology = {
-  UserFees: {
-    [METRIC.SWAP_FEES]: 'Users pay 0.25% fee on each swap transaction'
-  },
-  Fees: {
-    [METRIC.SWAP_FEES]: 'Total swap fees collected from all trades, calculated as 0.25% of swap volume'
-  },
-  Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'Protocol treasury receives 0.08% of each swap (32% of total fees)'
-  },
-  SupplySideRevenue: {
-    [METRIC.LP_FEES]: 'Liquidity providers receive 0.17% of each swap (68% of total fees)'
-  }
-};
-
-export default {
-  ...rest,
-  methodology,
-  breakdownMethodology,
-  adapter: breakdown['v2'],
-}
+export default adapter;
