@@ -11,7 +11,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.PULSECHAIN]: {
       fetch: async (options: FetchOptions) => {
-        const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+        const dateStr = new Date((options.startTimestamp + 43200) * 1000).toISOString().slice(0, 10);
 
         // Total fees (base + tips) from explorer
         const fees = await httpGet(
