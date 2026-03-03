@@ -9,7 +9,7 @@
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived, addGasTokensReceived } from "../../helpers/token";
+import { addTokensReceived } from "../../helpers/token";
 
 const TREASURY = "0x647128722e6aC0FDF10C1c5bEB9d37C66cE6f907";
 const FEE_BPS = 5; // 0.05% = 5 bps
@@ -21,6 +21,8 @@ const INK_TOKENS = [
 ];
 
 const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+
   // Get fee amounts received by treasury
   const dailyFees = await addTokensReceived({
     options,
@@ -28,20 +30,24 @@ const fetch = async (options: FetchOptions) => {
     targets: [TREASURY],
   });
 
-  await addGasTokensReceived({
-    options,
-    multisigs: [TREASURY],
-    balances: dailyFees,
-  });
+  // await getETHReceived({
+  //   options,
+  //   target: TREASURY,
+  //   balances: dailyFees,
+  // });
 
   // Back-calculate volume: volume = fees / 0.0005 = fees * 2000
-  const dailyVolume = options.createBalances();
   const feeEntries = dailyFees.getBalances();
   for (const [token, amount] of Object.entries(feeEntries)) {
     dailyVolume.add(token, BigInt(amount) * BigInt(10000) / BigInt(FEE_BPS));
   }
 
-  return { dailyVolume };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 const adapter: SimpleAdapter = {
@@ -50,13 +56,14 @@ const adapter: SimpleAdapter = {
     [CHAIN.INK]: {
       fetch,
       start: "2025-02-22",
-      meta: {
-        methodology: {
-          Volume: "Aggregated swap volume on Ink L2, back-calculated from the 0.05% integrator fee collected by the TideSwap treasury on 0x-routed swaps.",
-        },
-      },
     },
   },
+  methodology: {
+    Volume: "Aggregated swap volume on Ink L2, back-calculated from the 0.05% integrator fee collected by the TideSwap treasury on 0x-routed swaps.",
+    Fees: "TideSwap charges a 0.05% integrator fee on swaps routed through 0x. LI.FI-routed swaps have no TideSwap fee.",
+    Revenue: "100% of fees go to the TideSwap treasury (Gnosis Safe).",
+    ProtocolRevenue: "All revenue is protocol revenue.",
+  }
 };
 
 export default adapter;
