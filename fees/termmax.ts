@@ -17,10 +17,10 @@ import { ethers } from "ethers";
  * 1. Protocol Fees: Fees from trading orders (borrow/lend transactions)
  *    - Source: FT (Fixed-rate Token) contracts associated with a market
  *    - Detected when: marketAddress lookup succeeds (transfer came from an FT token)
- *    - Valued in: Underlying/debt token, discounted by the actual swap price at trade time
+ *    - Valued in: Underlying/debt token, discounted using swap event data
  *    - Discount method: Match each FT fee Transfer to the Swap event in the same tx,
- *      derive FT price from the swap's exchange rate, apply to fee amount
- *    - Fallback: If no matching FT swap found (e.g. XT swap fees, issueFt mint fees),
+ *      compute feeValue using taker/maker fee split formula for all 4 swap types
+ *    - Fallback: If no matching swap found (e.g. issueFt mint fees),
  *      apply a conservative 5% annual simple-interest discount based on time-to-maturity
  *
  * 2. Liquidation Penalties: Fees charged when undercollateralized positions are liquidated
@@ -178,96 +178,160 @@ async function handleLogs(
       }),
     ]);
 
-    // config() for maturity — separated from main Promise.all because the
-    // complex struct ABI may fail on some SDK versions or market contracts.
-    // If it fails, the fixed-rate fallback is skipped (FT valued 1:1).
+    // config() for maturity and fee rates — separated because the complex
+    // struct ABI may fail on some SDK versions or market contracts.
     const allConfigs = await safeMultiCall({
       abi: "function config() view returns ((address, uint64, (uint32, uint32, uint32, uint32, uint32, uint32)))",
       calls: tuples.map((t) => t.marketAddress),
       permitFailure: true,
     });
 
-    // Build FT address set for identifying FT-involved swaps
+    // Build address sets and lookups
     const ftAddressSet = new Set<string>();
+    const xtAddressSet = new Set<string>();
+    const ftToMarket = new Map<string, string>();
+    const xtToMarket = new Map<string, string>();
+    const marketToFeeConfig = new Map<string, any>();
+
     for (const t of tuples) {
       ftAddressSet.add(t.log.address.toLowerCase());
     }
-    for (const tokens of allTokens) {
-      if (tokens?.[0]) ftAddressSet.add(tokens[0].toLowerCase());
+    for (let i = 0; i < tuples.length; i++) {
+      const tokens = allTokens[i];
+      const config = allConfigs[i];
+      const market = tuples[i].marketAddress.toLowerCase();
+      if (tokens?.[0]) {
+        ftAddressSet.add(tokens[0].toLowerCase());
+        ftToMarket.set(tokens[0].toLowerCase(), market);
+      }
+      if (tokens?.[1]) {
+        xtAddressSet.add(tokens[1].toLowerCase());
+        xtToMarket.set(tokens[1].toLowerCase(), market);
+      }
+      if (config?.[2]) {
+        marketToFeeConfig.set(market, config[2]);
+      }
     }
 
-    // Build FT price maps keyed by:
+    // Build discount multiplier maps keyed by:
     //   txHash:orderAddress (precise match for order-based fees)
     //   txHash (fallback for minted fees where from=0x0)
-    // Price = underlying per FT, scaled by PRICE_PRECISION
-    const PRICE_PRECISION = BigInt(1e18);
-    const priceByTxOrder = new Map<string, bigint>();
-    const priceByTx = new Map<string, bigint>();
+    // Multiplier = feeValue_in_underlying / feeAmt, scaled by PRECISION
+    const PRECISION = BigInt(1e18);
+    const multByTxOrder = new Map<string, bigint>();
+    const multByTx = new Map<string, bigint>();
 
-    function storePrice(txHash: string, emitter: string, price: bigint) {
-      priceByTxOrder.set(`${txHash}:${emitter.toLowerCase()}`, price);
-      priceByTx.set(txHash, price);
+    function storeMult(txHash: string, emitter: string, mult: bigint) {
+      multByTxOrder.set(`${txHash}:${emitter.toLowerCase()}`, mult);
+      multByTx.set(txHash, mult);
     }
 
-    // Derive FT price from a swap event's token pair and amounts.
-    // Only uses FT-direct swaps (not XT swaps) because XT/underlying AMM
-    // prices are unreliable near maturity due to curve collapse.
-    function derivePrice(
+    // Compute FT fee discount multiplier from swap event data.
+    //
+    // Uses taker/maker fee split formula for precise valuation:
+    //   Case 1 (FT -> DebtToken):  mult = netTokenOut / (tokenAmtIn - feeAmt × tr/(tr+mr))
+    //   Case 2 (DebtToken -> FT):  mult = tokenAmtIn  / (netTokenOut - feeAmt × tr/(tr+mr))
+    //   Case 3 (XT -> DebtToken):  mult = (tokenAmtIn - netTokenOut) / (tokenAmtIn - feeAmt × tr/(tr+mr))
+    //   Case 4 (DebtToken -> XT):  mult = (netTokenOut - tokenAmtIn) / (netTokenOut - feeAmt × tr/(tr+mr))
+    //
+    // where tr = takerFeeRate, mr = makerFeeRate (direction-dependent)
+    function computeMultiplier(
       tokenInAddr: string,
       tokenOutAddr: string,
-      amtA: bigint, // tokenAmtIn (exact-in) or netTokenIn (exact-out)
-      amtB: bigint, // netTokenOut (exact-in) or tokenAmtOut (exact-out)
+      tokenAmtIn: bigint,
+      netTokenOut: bigint,
       feeAmt: bigint,
     ): bigint | null {
-      if (ftAddressSet.has(tokenOutAddr)) {
-        // Buying FT with underlying: ftPrice = amtA / (amtB + feeAmt)
-        const totalFt = amtB + feeAmt;
-        return totalFt > 0n ? (amtA * PRICE_PRECISION) / totalFt : null;
-      }
-      if (ftAddressSet.has(tokenInAddr)) {
-        // Selling FT for underlying: ftPrice = amtB / (amtA - feeAmt)
-        const effectiveFt = amtA - feeAmt;
-        return effectiveFt > 0n ? (amtB * PRICE_PRECISION) / effectiveFt : null;
-      }
-      return null;
-    }
+      // Identify swap type and find market fee config
+      let market: string | undefined;
+      let isLend: boolean;
 
-    // Filter swap events by whether FT is directly involved
-    function isTermMaxFtSwap(log: any): boolean {
-      return (
-        ftAddressSet.has(log.args.tokenIn.toLowerCase()) ||
-        ftAddressSet.has(log.args.tokenOut.toLowerCase())
+      if (ftAddressSet.has(tokenInAddr)) {
+        // Case 1: sell FT (borrow)
+        market = ftToMarket.get(tokenInAddr);
+        isLend = false;
+      } else if (ftAddressSet.has(tokenOutAddr)) {
+        // Case 2: buy FT (lend)
+        market = ftToMarket.get(tokenOutAddr);
+        isLend = true;
+      } else if (xtAddressSet.has(tokenInAddr)) {
+        // Case 3: sell XT (lend)
+        market = xtToMarket.get(tokenInAddr);
+        isLend = true;
+      } else if (xtAddressSet.has(tokenOutAddr)) {
+        // Case 4: buy XT (borrow)
+        market = xtToMarket.get(tokenOutAddr);
+        isLend = false;
+      } else {
+        return null;
+      }
+
+      const feeConfig = market ? marketToFeeConfig.get(market) : null;
+      // feeConfig: [lendTaker, lendMaker, borrowTaker, borrowMaker, ...]
+      const takerRate = BigInt(
+        feeConfig ? (isLend ? feeConfig[0] : feeConfig[2]) : 0,
       );
+      const makerRate = BigInt(
+        feeConfig ? (isLend ? feeConfig[3] : feeConfig[1]) : 0,
+      );
+
+      // takerPortion = feeAmt × takerRate / (takerRate + makerRate)
+      const totalRate = takerRate + makerRate;
+      const takerPortion =
+        totalRate > 0n ? (feeAmt * takerRate) / totalRate : 0n;
+
+      let numerator: bigint;
+      let denominator: bigint;
+
+      if (ftAddressSet.has(tokenInAddr)) {
+        // Case 1: FT -> DebtToken
+        numerator = netTokenOut;
+        denominator = tokenAmtIn - takerPortion;
+      } else if (ftAddressSet.has(tokenOutAddr)) {
+        // Case 2: DebtToken -> FT
+        numerator = tokenAmtIn;
+        denominator = netTokenOut - takerPortion;
+      } else if (xtAddressSet.has(tokenInAddr)) {
+        // Case 3: XT -> DebtToken
+        numerator = tokenAmtIn - netTokenOut;
+        denominator = tokenAmtIn - takerPortion;
+      } else {
+        // Case 4: DebtToken -> XT
+        numerator = netTokenOut - tokenAmtIn;
+        denominator = netTokenOut - takerPortion;
+      }
+
+      if (denominator <= 0n || numerator <= 0n) return null;
+      const mult = (numerator * PRECISION) / denominator;
+      // Sanity: multiplier should be <= 1.0 (fee can't be worth more than face value)
+      return mult <= PRECISION ? mult : null;
     }
 
     for (const log of swapExactLogs) {
-      if (!isTermMaxFtSwap(log)) continue;
-      const price = derivePrice(
+      const mult = computeMultiplier(
         log.args.tokenIn.toLowerCase(),
         log.args.tokenOut.toLowerCase(),
         BigInt(log.args.tokenAmtIn),
         BigInt(log.args.netTokenOut),
         BigInt(log.args.feeAmt),
       );
-      if (price !== null)
-        storePrice(log.transactionHash, log.address, price);
+      if (mult !== null)
+        storeMult(log.transactionHash, log.address, mult);
     }
 
     for (const log of swapToExactLogs) {
-      if (!isTermMaxFtSwap(log)) continue;
-      const price = derivePrice(
+      const mult = computeMultiplier(
         log.args.tokenIn.toLowerCase(),
         log.args.tokenOut.toLowerCase(),
         BigInt(log.args.netTokenIn),
         BigInt(log.args.tokenAmtOut),
         BigInt(log.args.feeAmt),
       );
-      if (price !== null)
-        storePrice(log.transactionHash, log.address, price);
+      if (mult !== null)
+        storeMult(log.transactionHash, log.address, mult);
     }
 
-    // Fixed-rate fallback for FT fees without a matching FT swap event
-    // (e.g. fees from XT swaps or issueFt mints).
+    // Fixed-rate fallback for fees without a matching swap event (e.g. issueFt mints).
     //
     // Why 5% annual rate:
     // - FT is a zero-coupon bond worth 1 underlying at maturity, so before
@@ -278,7 +342,6 @@ async function handleLogs(
     //   while staying defensible for DefiLlama reviewers.
     // - Formula: discountFactor = 1 / (1 + rate × daysToMaturity / 365)
     const FALLBACK_ANNUAL_RATE = 0.05;
-    const FALLBACK_SCALE = BigInt(1e18);
 
     for (let i = 0; i < tuples.length; i++) {
       const { log, orderAddress } = tuples[i];
@@ -287,16 +350,16 @@ async function handleLogs(
         const underlyingToken = tokens[4];
         let balance = log.args.value;
 
-        // Primary: discount using actual FT swap price from the same tx
-        const price =
-          priceByTxOrder.get(
+        // Primary: discount using swap-derived multiplier from the same tx
+        const mult =
+          multByTxOrder.get(
             `${log.transactionHash}:${orderAddress.toLowerCase()}`,
-          ) ?? priceByTx.get(log.transactionHash);
-        if (price && price < PRICE_PRECISION) {
-          balance = (balance * price) / PRICE_PRECISION;
+          ) ?? multByTx.get(log.transactionHash);
+        if (mult && mult <= PRECISION) {
+          balance = (balance * mult) / PRECISION;
         } else {
           // Fallback: apply fixed-rate simple-interest discount based on
-          // time-to-maturity (for XT swap fees, issueFt mint fees, etc.)
+          // time-to-maturity (for issueFt mint fees without matching swap)
           const maturity = Number(allConfigs[i]?.[1] ?? 0);
           if (maturity > options.endTimestamp) {
             const yearsToMaturity =
@@ -304,7 +367,7 @@ async function handleLogs(
             const factor = BigInt(
               Math.floor(1e18 / (1 + FALLBACK_ANNUAL_RATE * yearsToMaturity)),
             );
-            balance = (balance * factor) / FALLBACK_SCALE;
+            balance = (balance * factor) / PRECISION;
           }
         }
 
