@@ -507,7 +507,7 @@ async function fetchOBeroExercises(options: FetchOptions) {
     const burnLogs = await options.getLogs({
       target: CHAIN_CONFIG[CHAIN.BERACHAIN].oBERO,
       eventAbi: EVENTS.erc20Transfer,
-      topics: [TRANSFER_TOPIC, null, ZERO_ADDRESS_TOPIC],
+      topics: [TRANSFER_TOPIC, '', ZERO_ADDRESS_TOPIC],
     });
 
     for (const log of burnLogs) {
