@@ -22,6 +22,7 @@ const ADDRESSES: any = {
         excludeWallets: [
           '0xf37856a029d87dbc53cf751c4864edab919b4702',
           '0x2aB1a0477504d243fD9801c94dB5181104BDa38A',
+          '0x7Ca0192f401712A663E824a3A5220f5fB9E26855',
         ],
     },
     [CHAIN.AVAX]: {
