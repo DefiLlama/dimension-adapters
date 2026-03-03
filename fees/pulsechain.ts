@@ -17,7 +17,7 @@ const adapter: Adapter = {
         const fees = await httpGet(
           `https://api.scan.pulsechain.com/api?module=stats&action=totalfees&date=${dateStr}`
         );
-        if (!fees?.result && fees?.result !== "0")
+        if (fees?.result === undefined || fees?.result === null)
           throw new Error(`PulseChain: no fee data for ${dateStr} (status=${fees?.status}, message=${fees?.message})`);
 
         const dailyFees = options.createBalances();

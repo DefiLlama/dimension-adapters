@@ -6,7 +6,8 @@ function parseEthToWei(feeStr: string): bigint {
   const s = String(feeStr);
   if (!/^\d+(\.\d+)?$/.test(s)) throw new Error(`Botanix: malformed fee value "${s}"`);
   const [whole = "0", frac = ""] = s.split(".");
-  return BigInt(whole + frac.padEnd(18, "0").slice(0, 18));
+  if (frac.length > 18) throw new Error(`Botanix: fee has >18 decimals "${s}"`);
+  return BigInt(whole + frac.padEnd(18, "0"));
 }
 
 const adapter: Adapter = {
