@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 interface MarinadeAmounts {
@@ -10,8 +10,9 @@ interface MarinadeAmounts {
   dailyProtocolRevenue: string;
   dailySupplySideRevenue: string;
 }
+const buybacksStart = 1757030400; // 2025-09-05
 
-const fetch = async ({ createBalances }: FetchOptions) => {
+const fetch = async (_a: any, _b: any, { createBalances, fromTimestamp }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).liquid
   const coin = ADDRESSES.solana.SOL
@@ -20,12 +21,18 @@ const fetch = async ({ createBalances }: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
   dailyFees.add(coin, amounts.dailyFees);
   dailyUserFees.add(coin, amounts.dailyUserFees);
   dailyRevenue.add(coin, amounts.dailyRevenue);
-  dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
   dailySupplySideRevenue.add(coin, amounts.dailySupplySideRevenue);
+  if (fromTimestamp >= buybacksStart) {
+    dailyProtocolRevenue.add(coin, Number(amounts.dailyRevenue) * 0.5);
+    dailyHoldersRevenue.add(coin, Number(amounts.dailyRevenue) * 0.5);
+  } else {
+    dailyProtocolRevenue.add(coin, amounts.dailyProtocolRevenue);
+  }
 
   return {
     dailyFees,
@@ -33,19 +40,21 @@ const fetch = async ({ createBalances }: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 1,
   methodology: {
     // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
     UserFees: 'Marinade management fee 6% on staking rewards',
     Fees: 'Staking rewards',
     Revenue: 'Amount of 6% staking rewards',
-    ProtocolRevenue: 'Amount of 6% staking rewards collected by Marinade',
-    SupplySideRevenue: 'Amount of 94% staking rewards are distributed to stakers'
+    ProtocolRevenue: '50% of the revenue is collected by Marinade',
+    SupplySideRevenue: 'Amount of 94% staking rewards are distributed to stakers',
+    HoldersRevenue: '50% of the revenue is used on MNDE Buybacks since 2025-09-05.',
   },
-  version: 2,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,

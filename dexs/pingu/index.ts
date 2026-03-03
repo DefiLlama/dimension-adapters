@@ -7,30 +7,52 @@ import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume
 
 interface IGraph {
 	volume: string;
+	totalFees: string;
 	id: string;
 }
 
-const URL = sdk.graph.modifyEndpoint('9btrLusatbsmZPPkhH8aKc3xypbD7i4xsprS22SFwNxF');
-const assets = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
+const ARBITRUM_URL = 'https://api.studio.thegraph.com/query/75208/pingu-arb-2/0.0.1/';
+const ARBITRUM_ASSETS = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
 
-const fetch = async (timestamp: number, _: any, { createBalances }: FetchOptions): Promise<FetchResult> => {
-	const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+const MONAD_URL = 'https://api.studio.thegraph.com/query/75208/pingu-mon/0.0.2/';
+const MONAD_USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
+const MONAD_ASSETS = [MONAD_USDC, ADDRESSES.null];
+
+const CONFIGS: Record<string, any> = {
+  [CHAIN.ARBITRUM]: {
+    graph: ARBITRUM_URL,
+    assets: ARBITRUM_ASSETS,
+  },
+  [CHAIN.MONAD]: {
+    graph: MONAD_URL,
+    assets: MONAD_ASSETS,
+  },
+}
+
+const fetch = async (timestamp: number, _: any, { chain, createBalances }: FetchOptions): Promise<FetchResult> => { 
+  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  
 	const dailyVolume = createBalances()
-	for (const asset of assets) {
+	const dailyFees = createBalances()
+	
+	for (const asset of CONFIGS[chain].assets) {
 		const query = gql`
-    		{
+     	{
 				dayAssetData(id: "${dayTimestamp * 1000}-${asset.toLowerCase()}") {
 					volume
+					totalFees
 				}
 			}`;
-		const response: IGraph = (await request(URL, query)).dayAssetData;
-		if (response){
-			const element = response;
-			dailyVolume.add(asset, element.volume);	
+		const response: IGraph = (await request(CONFIGS[chain].graph, query)).dayAssetData;
+		const element = response;
+		if (element && element.volume) {
+			dailyVolume.add(asset, element.volume);
+			dailyFees.add(asset, element.totalFees);
 		}
 	}
 	return {
 		dailyVolume,
+		dailyFees,
 		timestamp: dayTimestamp,
 	};
 }
@@ -40,6 +62,10 @@ const adapter: SimpleAdapter = {
 		[CHAIN.ARBITRUM]: {
 			fetch: fetch,
 			start: '2024-01-10',
+		},
+		[CHAIN.MONAD]: {
+			fetch: fetch,
+			start: '2025-11-24',
 		},
 	},
 };

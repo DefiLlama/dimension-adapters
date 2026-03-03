@@ -1,10 +1,7 @@
 import { CHAIN } from "../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
-
-const chains = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.ERA, CHAIN.POLYGON, CHAIN.BASE, CHAIN.BSC, CHAIN.LINEA, CHAIN.SCROLL, CHAIN.AVAX, CHAIN.FANTOM, CHAIN.PLASMA
-  // disabled chains: CHAIN.MANTLE, CHAIN.BLAST, CHAIN.CRONOS, CHAIN.POLYGON_ZKEVM,
-]
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 
 const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.ETHEREUM]: { id: 1, start: '2021-06-01' },
@@ -24,6 +21,8 @@ const chainConfig: Record<string, { id: number, start: string }> = {
   [CHAIN.UNICHAIN]: { id: 130, start: '2025-02-11' },
   [CHAIN.HYPERLIQUID]: { id: 999, start: '2025-07-09' },
   [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02' },
+  [CHAIN.MONAD]: { id: 143, start: '2025-11-23' },
+  [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-09' },
   // [CHAIN.CRONOS]: { id: 25, start: '2021-06-01' },
   // [CHAIN.MANTLE]: { id: 5000, start: '2023-07-17' },
   // [CHAIN.BLAST]: {id: 81457, start: '2024-02-29'},
@@ -44,6 +43,9 @@ const blacklistedTokens = [
 
   // MAGA
   '0xda2e903b0b67f30bf26bd3464f9ee1a383bbbe5f',
+  
+  // TARA
+  '0x2F42b7d686ca3EffC69778B6ED8493A7787b4d6E',
 ]
 
 const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
@@ -51,7 +53,9 @@ const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
 async function fetch(options: FetchOptions) {
   // MISSING INTERNAL ETH TRANSFERS!
   const dailyFees = await addTokensReceived({ target: feeCollector, options })
+  const defaultBlacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   blacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
+  defaultBlacklistedTokens.forEach(t => dailyFees.removeTokenBalance(t))
   /*     const { usdTokenBalances, usdTvl, rawTokenBalances, } = await dailyFees.getUSDJSONs()
     console.log({ chain: options.chain, usdTvl })
     const tokens = Object.keys(rawTokenBalances).map(t => t.split(':')[1])

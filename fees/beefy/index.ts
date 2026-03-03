@@ -42,6 +42,26 @@ function makeErc20BlacklistFromFilter(blacklistedFromAddresses: string[],): (log
  * we can comment out real, scroll, fantom, zkevm, kava, canto etc. after backfill
  */
 const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
+  [CHAIN.MONAD]: {
+    start: '2025-11-25',
+    contract: beefyRevenueBridgeAddress,
+    stables: [ADDRESSES.monad.USDT],
+  },
+  [CHAIN.PLASMA]: {
+    start: '2025-09-27',
+    contract: beefyRevenueBridgeAddress,
+    stables: [ADDRESSES.plasma.USDT0],
+  },
+  [CHAIN.HYPERLIQUID]: {
+    start: '2025-06-05',
+    contract: beefyRevenueBridgeAddress,
+    stables: [ADDRESSES.hyperliquid.USDT0],
+  },
+  // [CHAIN.SAGA]: {
+  //   start: '2025-04-16',
+  //   contract: beefyRevenueBridgeAddress,
+  //   stables: [ADDRESSES.saga.USDC],
+  // },
   // [CHAIN.REAL]: {
   //   start: '2024-07-17',
   //   contract: beefyRevenueBridgeAddress,

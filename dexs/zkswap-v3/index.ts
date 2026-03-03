@@ -28,6 +28,7 @@ import { addOneToken } from "../../helpers/prices";
 const factories: { [key: string]: string } = {
   [CHAIN.ERA]: '0x88add6a7e3c221e02f978b388a092c9fd8cd7850',
   [CHAIN.SONIC]: '0x6d977fcc945261b80d128a5a91cbf9a9148032a4',
+  [CHAIN.MONAD]: '0xf5Cf2b71B8B368c84C4C4903AF453E790d392285',
 }
 
 function getRevenueRatio(fee: number): number {
@@ -99,7 +100,8 @@ const adapters: SimpleAdapter = {
   fetch,
   adapter: {
     [CHAIN.ERA]: { start: '2024-11-18', },
-    [CHAIN.SONIC]: { start: '2025-04-09', }
+    [CHAIN.SONIC]: { start: '2025-04-09', },
+    [CHAIN.MONAD]: { start: '2025-11-24', }
   }
 }
 export default adapters;

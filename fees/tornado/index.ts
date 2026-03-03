@@ -144,11 +144,17 @@ const getFees = async ({ getLogs, chain, createBalances }: FetchOptions) => {
         dailyFees.add(token, fee);
     }
 
-    return { dailyFees };
+    return {
+      dailyFees,
+      dailySupplySideRevenue: dailyFees,
+      dailyRevenue: 0,
+    };
 }
 
 const methodology = {
-    Fees: "All fees that are paid by users",
+    Fees: "All fees that are paid by users from withdrawal to relayers.",
+    SupplySideRevenue: "All fees that are paid by users from withdrawal to relayers.",
+    Revenue: "No revenue.",
 }
 
 const adapter: SimpleAdapter = {
@@ -157,7 +163,8 @@ const adapter: SimpleAdapter = {
     version: 2,
     chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
     adapter: {},
-    isExpensiveAdapter: true
+    isExpensiveAdapter: true,
+    pullHourly: true,
 };
 
 export default adapter;

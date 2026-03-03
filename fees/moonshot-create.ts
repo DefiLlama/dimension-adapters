@@ -19,16 +19,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     })
     const data: IData[] = await queryDuneSql(options, query)
     const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     data.forEach(row => {
         const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees);
         dailyFees.add(row.quote_mint, Number(totalFees));
-        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees));
+        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees));
+        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees) + Number(row.total_trading_fees));
     });
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
+        dailySupplySideRevenue,
         dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
     };
@@ -44,6 +47,7 @@ const adapter: SimpleAdapter = {
     isExpensiveAdapter: true,
     methodology: {
         Fees: "Trading fees paid by users.",
+        SupplySideRevenue: "Referral fees.",
         Revenue: "Fees collected by moonshot protocol.",
         ProtocolRevenue: "Fees collected by moonshot protocol."
     }

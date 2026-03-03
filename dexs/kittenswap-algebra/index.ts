@@ -16,6 +16,7 @@ const fetch = async (options: FetchOptions) => {
   let logs = await options.getLogs({
     target: factory,
     eventAbi: poolEvent,
+    cacheInCloud: true,
     fromBlock: fromBlock,
     entireLog: true,
   });
@@ -114,6 +115,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   methodology

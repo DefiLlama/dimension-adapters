@@ -53,6 +53,7 @@ const adapter: SimpleAdapter = {
       start: '2025-04-20',
     },
   },
+  allowNegativeValue: true, // Streamflow buy back more than revenue, so revenue can be negative
 }
 
 export default adapter;

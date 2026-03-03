@@ -85,6 +85,8 @@ const Configs: Record<string, IUniswapConfig> = {
     start: '2025-01-24',
     blacklistPoolIds: [
       '0x78f394840909614a7a1213503e4207d7e62f4a07af85561fc420e7ee6d22d6ce',
+      '0xaf2ad381e7ea687d397077f93d4f71352247cc8975e0a96a15aff9d2ea19716e', //TARA/USDT
+      '0xab3c835c894b0fabcf7d2f44a6322217deceb6b6e5f7b0a7706a9d085935539f', //TARA/USDC
     ],
   },
   [CHAIN.UNICHAIN]: {
@@ -159,6 +161,18 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0x7a4a5c919ae2541aed11041a1aeee68f1287f95b',
     start: '2025-01-24',
   },
+  [CHAIN.MONAD]: {
+    poolManager: '0x188d586ddcf52439676ca21a244753fa19f9ea8e',
+    source: 'LOGS',
+    positionManager: '0x5b7eC4a94fF9beDb700fb82aB09d5846972F4016',
+    start: '2025-11-23',
+  },
+  [CHAIN.XLAYER]: {
+    poolManager: '0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32',
+    source: 'LOGS',
+    positionManager: '0xcf1eafc6928dc385a342e7c6491d371d2871458b',
+    start: '2026-01-07'
+  }
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {
@@ -232,7 +246,7 @@ async function fetch(options: FetchOptions) {
     if (events.length > 0) {
       const pools: {[key: string]: IPool | null} = {}
       for (const event of events) {
-        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id)) {
+        if (config.blacklistPoolIds && config.blacklistPoolIds.includes(event.id.toLowerCase())) {
           // ignore blacklist pools
           continue;
         }
@@ -298,6 +312,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {},
   // prefetch: prefetchWithDune,
   methodology: {

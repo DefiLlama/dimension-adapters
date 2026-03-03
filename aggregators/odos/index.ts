@@ -101,6 +101,7 @@ async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
 const start = '2023-07-14'
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "All fees paid by users for using Odos services.",
     UserFees: "All fees paid by users for using Odos services.",

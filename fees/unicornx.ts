@@ -74,7 +74,7 @@ const adapter: SimpleAdapter = {
       start: "2025-03-30",
     },
   },
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {
     Fees: "All trading fees paid by users while using UnicornX app and website.",

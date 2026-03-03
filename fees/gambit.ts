@@ -50,7 +50,9 @@ const fetch = (addressList: string[]) => {
       );
     const dailyFees = createBalances();
     const dailyRevenue = createBalances();
+    const dailySupplySideRevenue = createBalances();
     dailyRevenue.add(USDC, devFeeVol + ssFeeVol);
+    dailySupplySideRevenue.add(USDC, referralFeeVol);
     dailyFees.add(
       USDC,
       devFeeVol + ssFeeVol + referralFeeVol + usdcVaultFeeVol
@@ -61,6 +63,7 @@ const fetch = (addressList: string[]) => {
       dailyFees,
       dailyRevenue,
       dailyHoldersRevenue: dailyRevenue,
+      dailySupplySideRevenue,
     } as FetchResultFees;
   };
 };

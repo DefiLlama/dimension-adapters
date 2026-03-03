@@ -1,4 +1,5 @@
 import { FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
 const totalFee = 12; // 10% performance + 2% management
@@ -14,12 +15,12 @@ const methodology = {
 };
 
 const config: any = {
-  ethereum: { 
-    start: '2024-10-23',  
+  [CHAIN.ETHEREUM]: {
+    start: '2024-10-23',
     tokens: ['0x9847c14FCa377305c8e2D10A760349c667c367d4'],  // maxETH vault token
     targets: ['0x5000Ba796Fd84a0f929AF80Cfe27301f0358F268']  // Treasury
   },
-  polygon: {
+  [CHAIN.POLYGON]: {
     start: '2024-10-23',  
     tokens: [
       '0xA02aA8774E8C95F5105E33c2f73bdC87ea45BD29',  // maxETH vault token

@@ -5,8 +5,10 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { getETHReceived } from '../helpers/token';
+import { METRIC } from '../helpers/metrics';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -62,22 +64,51 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   `;
 
   const fees = await queryDuneSql(options, query);
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
 
   return { dailyFees, dailyRevenue: dailyFees, }
+}
+
+const feeCollector = '0xb8159ba378904F803639D274cEc79F788931c9C8'
+
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+
+  const ethReceived = await getETHReceived({ options: options, target: feeCollector})
+  dailyFees.addBalances(ethReceived, METRIC.TRADING_FEES);
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+  }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.SOLANA],
-  start: '2024-03-20',
+  adapter: {
+    [CHAIN.BSC]: {
+      start: '2024-12-02'
+    },
+     [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: '2024-03-20'
+     }
+  },
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.DUNE],
+  dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   methodology: {
     Fees: "All trading fees paid by users while using GMGN AI bot.",
     Revenue: "Trading fees are collected by GMGN AI protocol."
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: "Fees paid by users while using GMGN bot.",
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: "Trading fees are collected by GMGN AI protocol.",
+    },
+  },
 };
 
 export default adapter;

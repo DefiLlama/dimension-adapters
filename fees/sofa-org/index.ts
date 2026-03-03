@@ -200,6 +200,7 @@ function burnBatchDualLog(data: any, product: any) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   fetch,
   adapter: {
@@ -207,7 +208,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { start: startTimestamp[CHAIN.ARBITRUM], },
     [CHAIN.BSC]: { start: startTimestamp[CHAIN.BSC], },
     [CHAIN.POLYGON]: { start: startTimestamp[CHAIN.POLYGON], },
-    [CHAIN.SEI]: { start: startTimestamp[CHAIN.SEI], },
+    // [CHAIN.SEI]: { start: startTimestamp[CHAIN.SEI], },
   }
 }
 
