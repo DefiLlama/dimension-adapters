@@ -7,7 +7,13 @@ const FEE_WALLET = '0xC542C2F197c4939154017c802B0583C596438380';
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getETHReceived({ options, target: FEE_WALLET });
   
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, }
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue: 0,
+  }
 }
 
 const adapters: SimpleAdapter = {
@@ -20,6 +26,7 @@ const adapters: SimpleAdapter = {
     UserFees: "Users pay 0.15%-0.25% per swap while swap tokens using Aave frontend.",
     Revenue: "All swap fees are collected as revenue.",
     ProtocolRevenue: "All revenue are collected by Aave Labs.",
+    HoldersRevenue: "No revenue share to AAVE token holders.",
   },
 }
 export default adapters;
