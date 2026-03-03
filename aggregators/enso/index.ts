@@ -19,6 +19,8 @@ const chains: Record<string, { duneChain: string; start: string }> = {
   [CHAIN.ZKSYNC]: { duneChain: "zksync", start: "2025-01-01" },
   [CHAIN.AVAX]: { duneChain: "avalanche_c", start: "2023-01-01" },
   [CHAIN.XDAI]: { duneChain: "gnosis", start: "2023-01-01" },
+  [CHAIN.PLASMA]: { duneChain: "plasma", start: "2025-10-01" },
+  [CHAIN.MONAD]: { duneChain: "monad", start: "2025-11-01" },
 };
 
 // Prefetch function that will run once before any fetch calls

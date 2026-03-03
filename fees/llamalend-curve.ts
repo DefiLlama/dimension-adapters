@@ -68,6 +68,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     eventAbi: EventNewVault,
     target: OneWayLendingFactories[options.chain].address,
     fromBlock: OneWayLendingFactories[options.chain].fromBlock,
+    cacheInCloud: true,
   });
   const ammFees = await options.api.multiCall({
     abi: 'uint256:fee',
@@ -166,6 +167,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   adapter: {},
 };

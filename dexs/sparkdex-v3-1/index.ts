@@ -1,7 +1,7 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getGraphDimensions2 } from "../../helpers/getUniSubgraph";
-import { BreakdownAdapter, SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 
 const endpointsV3 = {
   [CHAIN.FLARE]:

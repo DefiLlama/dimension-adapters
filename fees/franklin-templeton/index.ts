@@ -49,8 +49,8 @@ const fetch = async (
   const dailyFees = createBalances();
   let supply: number = 0;
 
-  if (api.chain === "polygon") supply = await polygonAUM(token, api);
-  if (api.chain === "stellar") supply = await stellarAUM(token);
+  if (api.chain === CHAIN.POLYGON) supply = await polygonAUM(token, api);
+  if (api.chain === CHAIN.STELLAR) supply = await stellarAUM(token);
 
   const expenseRatio =
     endTimestamp < EXPENSE_LIMITATION_TIMESTAMP

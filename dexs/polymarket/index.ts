@@ -60,6 +60,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         where b.evt_block_number > 50505492
             and evt_block_time >= from_unixtime(${options.startTimestamp})
             and evt_block_time < from_unixtime(${options.endTimestamp})
+
         UNION ALL
 
         SELECT
@@ -86,10 +87,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             )
             AND pl.block_number >= 4023680
             AND pl.contract_address in (
-                SELECT
-                *
-                FROM
-                markets
+                SELECT * FROM markets
             )
             and pl.block_time >= from_unixtime(${options.startTimestamp})
             and pl.block_time < from_unixtime(${options.endTimestamp})
@@ -99,7 +97,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   options.api.log(data);
 
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(data[0].total_volume_usd);
+
+  // Polymarket emits two OrderFilled events per trade (maker + taker), so summing them directly double-counts volume. Dividing by 2 converts this into true one-sided volume. This also normalizes swaps and merge/split fills, where maker and taker amounts can differ but still represent the same underlying trade, preventing inflated totals
+
+  dailyVolume.addUSDValue(data[0].total_volume_usd / 2);
 
   return { dailyVolume }
 }

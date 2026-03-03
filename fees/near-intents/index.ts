@@ -1,43 +1,72 @@
-import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import fetchURL from "../../utils/fetchURL";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
-    const dailyFees = options.createBalances();
-    const today = new Date(options.startOfDay * 1000).toISOString().slice(0, 16);
+/**
+ * NEAR Intents Fees Adapter for DefiLlama
+ * 
+ * Data Source: https://platform.data.defuse.org/api/public/fees
+ * Swagger UI: https://platform.data.defuse.org/swagger-ui/#/public/get_fees
+ * 
+ * Returns daily fee data aggregated by the NEAR Intents platform
+ */
 
-    const query = `SELECT
-        date_at,
-        COALESCE(SUM(TRY_CAST(fee AS DOUBLE)), 0) AS daily_fee
-            FROM dune.near.dataset_near_intents_fees
-            GROUP BY
-        date_at`;
+const feeSwitchDate = '2026-02-23'
 
-    const queryResults = await queryDuneSql(options, query);
-    const feeToday = queryResults.find((result: { daily_fee: number, date_at: string }) => result.date_at === today)?.daily_fee ?? 0;
-
-    dailyFees.addUSDValue(feeToday);
-
-    return {
-        dailyFees,
-        // dailyRevenue: dailyFees,
-        // dailyProtocolRevenue: dailyFees,
-    }
+interface FeeData {
+    fee: number;
+    date_at: string; // Format: "YYYY-MM-DD"
 }
 
-const methodology = {
-    Fees: "Protocol fees, org fees and api fees collected by Near Intents platform.",
-    // Revenue: "All fees are revenue.",
-    // ProtocolRevenue: "All revenue is protocol revenue.",
+interface APIResponse {
+    fees: FeeData[];
+}
+
+let data: any
+
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
+    const { dateString, createBalances } = options;
+
+    const dailyFees = createBalances();
+    const dailySupplySideRevenue = createBalances();
+    const dailyRevenue = createBalances();
+
+    if (!data)
+        data = fetchURL("https://platform.data.defuse.org/api/public/fees")
+    // Fetch fee data for the specific period using query parameters
+    const response: APIResponse = await data
+
+    if (!response || !response.fees || !Array.isArray(response.fees))
+        throw new Error("Invalid API response format");
+    const item = response.fees.find(feeEntry => feeEntry.date_at === dateString);
+    if (!item)
+        throw new Error(`No fee data found for date: ${dateString}`);
+
+    dailyFees.addUSDValue(item.fee);
+    if (dateString >= feeSwitchDate) {
+        dailySupplySideRevenue.addUSDValue(item.fee / 2)
+        dailyRevenue.addUSDValue(item.fee / 2)
+    }
+    else {
+        dailySupplySideRevenue.addUSDValue(item.fee)
+    }
+    return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue};
 };
 
 const adapter: SimpleAdapter = {
-    fetch,
-    methodology,
-    chains: [CHAIN.NEAR],
-    start: '2025-03-27',
-    dependencies: [Dependencies.DUNE],
-    isExpensiveAdapter: true,
+    version: 1,
+    start: '2025-05-06', // First date with data in the API
+    adapter: {
+        [CHAIN.NEAR]: {
+            fetch: fetch,
+        },
+    },
+    methodology: {
+        Fees: "Total fees collected by NEAR Intents platform.",
+        SupplySideRevenue: "Distribution fees set by NEAR Intents partners, split 50/50 with the protocol since 2026-02-23",
+        Revenue: "The protocol collects half of the distribution fees since 2026-02-23",
+        ProtocolRevenue: "The protocol collects half of the distribution fees since 2026-02-23"
+    },
 };
 
 export default adapter;

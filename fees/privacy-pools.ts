@@ -9,12 +9,25 @@ const config = {
       '0x6818809eefce719e480a7526d76bd3e561526b46',
     ]
   },
+
+  [CHAIN.ARBITRUM]: {
+    pools: [
+      '0x44192215FEd782896BE2CE24E0Bfbf0BF825d15E',
+    ]
+  },
+
+  [CHAIN.OPTIMISM]: {
+    pools: [
+      '0x44192215FEd782896BE2CE24E0Bfbf0BF825d15E',
+    ]
+  },
 }
 
 
 const adapters: SimpleAdapter = {
   adapter: {},
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Fees paid by users using privicy services."
   },

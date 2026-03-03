@@ -13,15 +13,15 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Spot Fees': 'Spot trade fees collected as revenue, excluding perp fees.',
-    'Unit Revenue': 'Spot trade share for unit protocol fees, excluding perp fees.',
+    'Spot Fees': 'Fees collected on all spot trades, excluding trades on markets with Unit assets (eg bridged BTC).',
+    'Spot fees on Unit markets': 'Fees from spot trades on markets that include an asset deployed by Unit, in these spot markets all fees go to Unit.',
   },
   Revenue: {
     'Spot Fees': '99% of spot trade fees, excluding perp fees and unit protocol fees.',
   },
   SupplySideRevenue: {
-    'Unit Revenue': 'Spot fees share for unit protocol.',
-    'HLP': '1% of the fpot fees go to HLP vault (used to be 3% before 30 Aug 2025)',
+    'Unit Revenue': 'All fees earned on Unit spot markets go to Unit',
+    'HLP': '1% of the spot fees go to HLP vault (used to be 3% before 30 Aug 2025)',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "99% of spot trade fees (excluding perp fees and unit protocol fees) for buy back HYPE tokens."
@@ -41,6 +41,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
     const dailyHoldersRevenue = options.createBalances()
 
     dailyFees.add(result.dailySpotFees, 'Spot Fees')
+    dailyRevenue.add(result.dailySpotFees.clone(holdersShare), 'Spot Fees')
     dailySupplySideRevenue.add(result.dailySpotFees.clone(hlpShare), 'HLP')
     dailyHoldersRevenue.add(result.dailySpotFees.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
@@ -64,16 +65,14 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
 
     // all spot fees
     dailyFees.add(result.dailySpotRevenue, 'Spot Fees')
-    dailyFees.add(result.dailyUnitRevenue, 'Unit Revenue')
-
-    // spot fees - unit revenue
-    dailyRevenue.add(result.dailySpotRevenue, 'Spot Fees')
+    dailyFees.add(result.dailyUnitRevenue, 'Spot fees on Unit markets')
 
     // unit revenue + 1% spot revenue
     dailySupplySideRevenue.add(result.dailySpotRevenue.clone(hlpShare), 'HLP')
     dailySupplySideRevenue.add(result.dailyUnitRevenue, 'Unit Revenue')
     
-    // 99% of revenue
+    // 99% of spot fees
+    dailyRevenue.add(result.dailySpotRevenue.clone(holdersShare), 'Spot Fees')
     dailyHoldersRevenue.add(result.dailySpotRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
 
     return {

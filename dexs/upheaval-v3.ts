@@ -9,7 +9,7 @@ const methodology = {
 };
 const graphs = getGraphDimensions2({
   graphUrls: {
-    [CHAIN.HYPERLIQUID]: 'https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v3',
+    [CHAIN.HYPERLIQUID]: 'https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v3-fixed',
   },
   totalVolume: {
     factory: 'factories',
