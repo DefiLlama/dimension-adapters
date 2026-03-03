@@ -1,22 +1,16 @@
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { isCoreAsset } from "../../helpers/prices";
 import { Interface } from "ethers";
 
 /**
  * PumpSpace DEX Adapter (Avalanche)
- * - V2: Uniswap V2 fork (factory pair Swap logs)
  * - V3: Trident concentrated liquidity (PoolLogger Swap logs)
- *
- * Pricing for wrapper stables (bUSDC/bAUSD) is handled via defillama-server tokenMapping,
- * so this adapter does NOT include any wrapper-to-underlying remapping.
  */
 
 // --------------------
 // Addresses
 // --------------------
-const V2_FACTORY = "0x26B42c208D8a9d8737A2E5c9C57F4481484d4616";
 
 // PumpSpace Trident V3 mainnet (Avalanche)
 const V3_POOL_FACTORY = "0xE749c1cA2EA4f930d1283ad780AdE28625037CeD";
@@ -56,21 +50,9 @@ const normalizePoolAddress = (raw: any): string | null => {
 };
 
 // --------------------
-// V2 fetch (as-is)
-// --------------------
-const fetchV2 = getUniV2LogAdapter({
-  factory: V2_FACTORY,
-  fees: 0.005, // total user fees = 0.5%
-  userFeesRatio: 1,
-  revenueRatio: 0.5, // 50% of total fees go to protocol (0.25% of volume)
-  protocolRevenueRatio: 0.5,
-  supplySideRevenueRatio: 0.5,
-});
-
-// --------------------
 // V3 fetch (PoolLogger-based, Trident CL)
 // --------------------
-const fetchV3: FetchV2 = async (options: FetchOptions) => {
+const fetch: FetchV2 = async (options: FetchOptions) => {
   const { createBalances, getLogs, api, chain } = options;
 
   const dailyVolume = createBalances();
@@ -254,78 +236,24 @@ const fetchV3: FetchV2 = async (options: FetchOptions) => {
   };
 };
 
-// --------------------
-// V2 + V3 merge
-// --------------------
-const fetch: FetchV2 = async (options: FetchOptions) => {
-  const [v2, v3] = await Promise.all([fetchV2(options), fetchV3(options)]);
-
-  const outDailyVolume = options.createBalances();
-  const outDailyFees = options.createBalances();
-  const outDailyUserFees = options.createBalances();
-  const outDailyRevenue = options.createBalances();
-  const outDailyProtocolRevenue = options.createBalances();
-  const outDailySupplySideRevenue = options.createBalances();
-  const outDailyHoldersRevenue = options.createBalances();
-
-  const merge = (dst: any, src: any) => {
-    if (!src) return;
-    if (typeof src === "object" && typeof dst.addBalances === "function") dst.addBalances(src);
-  };
-
-  merge(outDailyVolume, v2.dailyVolume);
-  merge(outDailyVolume, v3.dailyVolume);
-
-  merge(outDailyFees, v2.dailyFees);
-  merge(outDailyFees, v3.dailyFees);
-
-  merge(outDailyUserFees, v2.dailyUserFees);
-  merge(outDailyUserFees, v3.dailyUserFees);
-
-  merge(outDailyRevenue, v2.dailyRevenue);
-  merge(outDailyRevenue, v3.dailyRevenue);
-
-  merge(outDailyProtocolRevenue, v2.dailyProtocolRevenue);
-  merge(outDailyProtocolRevenue, v3.dailyProtocolRevenue);
-
-  merge(outDailySupplySideRevenue, v2.dailySupplySideRevenue);
-  merge(outDailySupplySideRevenue, v3.dailySupplySideRevenue);
-
-  merge(outDailyHoldersRevenue, v2.dailyHoldersRevenue);
-  merge(outDailyHoldersRevenue, v3.dailyHoldersRevenue);
-
-  return {
-    dailyVolume: outDailyVolume,
-    dailyFees: outDailyFees,
-    dailyUserFees: outDailyUserFees,
-    dailyRevenue: outDailyRevenue,
-    dailyProtocolRevenue: outDailyProtocolRevenue,
-    dailySupplySideRevenue: outDailySupplySideRevenue,
-    dailyHoldersRevenue: outDailyHoldersRevenue,
-  };
-};
-
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.AVAX],
-  start: "2024-12-23",
+  start: "2025-8-20",
   methodology: {
     Volume:
-      "DEX swap volume on PumpSpace (V2 + Trident V3) on Avalanche. " +
-      "V2 uses UniswapV2-style pair Swap logs from the V2 factory. " +
+      "DEX swap volume on PumpSpace (Trident V3) on Avalanche. " +
       "V3 uses PoolLogger Swap(pool, zeroForOne, amountIn, amountOut) logs and reads token0/token1/swapFee from each CL pool. " +
       "Volume is counted on a single side (core-asset side) to avoid double counting.",
     Fees:
-      "V2 charges 0.5% per swap split 50% LP / 50% protocol treasury. " +
       "V3 fees are computed on amountIn using each pool's swapFee() (pips where 1e6 = 100%).",
-    UserFees: "Users pay V2 0.5% and V3 swapFee() per swap.",
+    UserFees: "Users pay V3 swapFee() per swap.",
     Revenue:
-      "Protocol-side fees. V2: 50% of total fees. " +
       "V3: protocol share is determined by MiningPoolFactory.defaultProtocolFee() (bps, currently 2000 = 20% of fees).",
     ProtocolRevenue:
-      "Treasury share of fees. V2: 50% of fees. V3: defaultProtocolFee() share (currently 20% of fees).",
+      "Treasury share of fees. V3: defaultProtocolFee() share (currently 20% of fees).",
     SupplySideRevenue:
-      "Liquidity providers' share of fees. V2: 50%. V3: remaining share after protocol fee (currently 80% of fees).",
+      "Liquidity providers' share of fees. V3: remaining share after protocol fee (currently 80% of fees).",
   },
   fetch,
 };
