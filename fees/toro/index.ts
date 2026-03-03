@@ -7,9 +7,11 @@ const methodology = {
   Fees: "Trading fees collected by the protocol",
   Revenue: "All the fees collected",
   ProtocolRevenue: "All the revenue goes to the protocol",
+  ActiveUsers: "Number of connected users on the platform",
 };
 
 const url = "https://toro-api.vercel.app/api/v1/broker/daily-stats";
+const builderStatsUrl = "https://toro-api.vercel.app/api/v1/broker/builder-stats";
 let statsCache: any = null;
 
 async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
@@ -30,6 +32,9 @@ async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
     throw new Error("Data missing for date: " + dateString);
   }
 
+  const builderStats = await httpGet(builderStatsUrl);
+  const dailyActiveUsers = builderStats?.data?.connected_user ?? 0;
+
   const dailyVolume = +data.takerVolume + +data.makerVolume;
   const dailyFees = +data.builderFee;
   const dailyRevenue = dailyFees;
@@ -40,6 +45,7 @@ async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
+    dailyActiveUsers,
   };
 }
 
