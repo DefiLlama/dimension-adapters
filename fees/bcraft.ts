@@ -41,6 +41,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Tokens trading and launching fees paid by users.",
     Revenue: "All fees are revenue.",

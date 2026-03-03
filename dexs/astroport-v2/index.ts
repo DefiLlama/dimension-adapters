@@ -1,4 +1,5 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 let res: any
@@ -19,14 +20,14 @@ const adapter: SimpleAdapter = {
   version: 2,
   runAtCurrTime: true,
   adapter: {
-    terra2: {
+    [CHAIN.TERRA2]: {
       fetch: fetch("phoenix-1"),
     },
     // deprecated: https://github.com/DefiLlama/dimension-adapters/issues/5116#issuecomment-3660619459
     // [CHAIN.INJECTIVE]: {
     //   fetch: fetch("injective-1"),
     // },
-    neutron: {
+    [CHAIN.NEUTRON]: {
       fetch: fetch("neutron-1"),
     },
     // [CHAIN.SEI]: {

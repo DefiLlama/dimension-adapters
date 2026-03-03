@@ -48,7 +48,7 @@ async function fetch(options: FetchOptions) {
         const fees = Number(log.totalFees)
         dailyFees.add(polygon, rewards)
         dailyProtocolRevenue.add(polygon, fees * 0.375)
-        dailyFees.addBalances(dailyProtocolRevenue)
+        dailyFees.add(polygon, fees * 0.375)
         dailySupplySideRevenue.add(polygon, rewards)
     })
     stLinkSDL.forEach(log => {
@@ -81,6 +81,7 @@ const methodology = {
 
 const adapter : SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.ETHEREUM],
     start: "2022-12-05",

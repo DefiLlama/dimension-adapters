@@ -185,6 +185,7 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
     const dailyRevenue = options.createBalances()
     const dailyProtocolRevenue = options.createBalances()
     const dailyHoldersRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
 
     for (const item of fees) {
         dailyFees.addUSDValue(item.margin_fees_usd, METRIC.MARGIN_FEES)
@@ -202,6 +203,10 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
         dailyHoldersRevenue.addUSDValue(item.margin_fees_usd * 0.27, METRIC.MARGIN_FEES)
         dailyHoldersRevenue.addUSDValue(item.swap_fees_usd * 0.27, METRIC.SWAP_FEES)
         dailyHoldersRevenue.addUSDValue(item.liquidation_fee_usd * 0.27, METRIC.LIQUIDATION_FEES)
+
+        dailySupplySideRevenue.addUSDValue(item.margin_fees_usd * 0.63, METRIC.MARGIN_FEES)
+        dailySupplySideRevenue.addUSDValue(item.swap_fees_usd * 0.63, METRIC.SWAP_FEES)
+        dailySupplySideRevenue.addUSDValue(item.liquidation_fee_usd * 0.63, METRIC.LIQUIDATION_FEES)
     }
 
     return {
@@ -209,6 +214,7 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
         dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
+        dailySupplySideRevenue
     };
 };
 

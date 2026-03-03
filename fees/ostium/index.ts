@@ -87,6 +87,7 @@ const adapter: SimpleAdapter = {
         SupplySideRevenue: "Supply side (MMV) revenue consists of 50% of opening fees, 100% of liquidation fees, rollover fees"
     },
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: fetchFees as any,

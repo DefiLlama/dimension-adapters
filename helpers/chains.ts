@@ -56,7 +56,8 @@ export enum CHAIN {
   KARDIA = "kardia",
   TOMBCHAIN = "tombchain",
   CONFLUX = "conflux",
-  TERRA = "terra",
+  TERRA = "terra", // terra classic
+  TERRA2 = "terra2", // terra2
   METER = "meter",
   GODWOKEN = "godwoken",
   GODWOKEN_V1 = "godwoken_v1",
@@ -255,8 +256,7 @@ export enum CHAIN {
   LENS = "lens",
   SSEED = "sseed",
   AO = "ao",
-  XRPL = "xrpl",
-  XRPL_EVM = "xrplevm",
+  XRPL_EVM = "xrplevm", // for XRPL chain, please using RIPPLE
   KATANA = "katana",
   SOON = "soon",
   SOON_BSC = "soon_bsc",
@@ -320,6 +320,7 @@ export enum CHAIN {
   CROSS = "cross",
   PROM = "prom",
   GRX = "grx",
+  N1 = "n1",
   ZILLIQA = "zilliqa",
   SONGBIRD = "songbird",
   MATCHAIN = "matchain",
@@ -337,4 +338,11 @@ export enum CHAIN {
   VALUECHAIN = "valuechain",
   IOTA = "iota",
   MEGAETH = "megaeth",
+  ENI = "eni",
+  SPARK = "spark",
+  CHIHUAHUA = "chihuahua",
+  DYMENSION = "dymension",
+  KUJIRA = "kujira",
+  MIGALOO = "migaloo",
+  BITROCK = "bitrock",
 }

@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { addTokensReceived } from "../helpers/token";
 
 // https://aquabank.gitbook.io/aquabank/english/aquabank/contracts
@@ -38,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
   // Protocol retains 15% of yield (10% buyback + 5% liquidity)
   // Derive total yield and calculate 85% for depositors (supply-side)
   const feeFromYield = dailyProtocolRevenue.clone();
-  feeFromYield.add(dailyHoldersRevenue);
+  feeFromYield.addBalances(dailyHoldersRevenue, METRIC.TOKEN_BUY_BACK);
   const dailySupplySideRevenue = feeFromYield.clone(85 / 15);
 
   // Track exit fee wallet - 0.2% withdrawal fee in USDT
@@ -50,10 +51,10 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyRevenue = dailyHoldersRevenue.clone();
-  dailyRevenue.add(dailyProtocolRevenue);
+  dailyRevenue.addBalances(dailyProtocolRevenue, METRIC.PROTOCOL_FEES);
 
   const dailyFees = dailyRevenue.clone();
-  dailyFees.add(dailySupplySideRevenue);
+  dailyFees.addBalances(dailySupplySideRevenue, METRIC.ASSETS_YIELDS);
 
   return {
     dailyFees,
@@ -73,15 +74,34 @@ const methodology = {
   SupplySideRevenue: "85% of yield distributed to depositors (derived from 15% protocol retention rate).",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TOKEN_BUY_BACK]: '10% of protocol yield distributed to CORAL token holders via buyback and burn',
+    [METRIC.PROTOCOL_FEES]: '5% of protocol yield reserved for liquidity reinvestment plus 0.2% withdrawal exit fees collected in USDT',
+    [METRIC.ASSETS_YIELDS]: '85% of total yield distributed to depositors as supply-side revenue',
+  },
+  Revenue: {
+    [METRIC.TOKEN_BUY_BACK]: '10% of protocol yield distributed to CORAL token holders via buyback and burn',
+    [METRIC.PROTOCOL_FEES]: '5% of protocol yield reserved for liquidity reinvestment plus 0.2% withdrawal exit fees collected in USDT',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: '10% of protocol yield distributed to CORAL token holders via buyback and burn',
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: '5% of protocol yield reserved for liquidity reinvestment plus 0.2% withdrawal exit fees collected in USDT',
+  },
+  SupplySideRevenue: {
+    [METRIC.ASSETS_YIELDS]: '85% of total yield distributed to depositors as supply-side revenue',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.AVAX]: {
-      fetch,
-      start: "2025-08-28",
-    },
-  },
+  fetch,
+  chains: [CHAIN.AVAX],
+  start: "2025-08-28",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
