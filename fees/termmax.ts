@@ -43,6 +43,10 @@ const TREASURY: Record<string, string> = {
 // Performance Fee Manager address - used to identify performance fee transfers
 const PERFORMANCE_FEE_MANAGER = "0xEEC1238f2191978528e31dFf120bB8030fc62ff2";
 
+// FT Redeemer address - transfers from this address are redeemed FT proceeds,
+// not new fee income. Excluding to avoid double-counting with FT fees.
+const FT_REDEEMER = "0x79f5f259662Bc24E9C87DE00a1b866f5CA4b5A96";
+
 async function getTransfers(
   options: FetchOptions,
   _from: string | null,
@@ -120,6 +124,9 @@ async function handleLogs(
 
   const tuples = [];
   for (let i = 0; i < logs.length; i++) {
+    // Skip redeemed FT proceeds to avoid double-counting with FT fees
+    if (froms[i].toLowerCase() === FT_REDEEMER.toLowerCase()) continue;
+
     const [tokenAddress, gtConfig, marketAddress, balance] = [
       addresses[i],
       gtConfigs[i],
