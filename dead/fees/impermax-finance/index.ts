@@ -1,9 +1,9 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { Adapter, FetchOptions } from "../../../adapters/types";
+import { CHAIN } from "../../../helpers/chains";
 import { request } from "graphql-request";
 import { query } from "./query";
 import { BLACKLIST } from "./blacklist";
-import { METRIC } from "../helpers/metrics";
+import { METRIC } from "../../../helpers/metrics";
 
 const config = {
   [CHAIN.ETHEREUM]: [
