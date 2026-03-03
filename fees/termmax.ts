@@ -118,6 +118,7 @@ async function handleLogs(
         toBlock,
         entireLog: true,
         noTarget: true,
+        parseLog: true,
       }),
       options.getLogs({
         eventAbi: "event SwapTokenToExactToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtOut, uint128 netTokenIn, uint128 feeAmt)",
@@ -125,6 +126,7 @@ async function handleLogs(
         toBlock,
         entireLog: true,
         noTarget: true,
+        parseLog: true,
       }),
     ]);
 
@@ -350,10 +352,10 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2025-03-27" },
-    [CHAIN.ARBITRUM]: { start: "2025-03-27" },
-    [CHAIN.BSC]: { start: "2025-05-28" },
-    [CHAIN.BERACHAIN]: { start: "2025-07-08" },
-    [CHAIN.BSQUARED]: { start: "2026-02-15" },
+    // [CHAIN.ARBITRUM]: { start: "2025-03-27" },
+    // [CHAIN.BSC]: { start: "2025-05-28" },
+    // [CHAIN.BERACHAIN]: { start: "2025-07-08" },
+    // [CHAIN.BSQUARED]: { start: "2026-02-15" },
   },
   methodology,
   breakdownMethodology,
