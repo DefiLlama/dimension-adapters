@@ -14,15 +14,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     target: LIQUIDCORE_ROUTER,
     abi: "function getPools() external view returns (address[])",
   });
-
-  const logs = (await Promise.all(
-    pools.map((pool: string) => 
-      options.getLogs({
-        target: pool,
-        eventAbi: SwapEvent,
-      })
-    )
-  )).flat();
+  
+  const logs = await options.getLogs({
+    targets: pools,
+    eventAbi: SwapEvent,
+    flatten: true,
+  })
 
   for (const log of logs) {
     // Track volume using the input token amount
@@ -36,6 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -43,6 +41,7 @@ const methodology = {
   Volume: "Volume is calculated from the amountIn of all Swap events on LiquidCore pools.",
   Fees: "All swap fees collected by LiquidCore pools.",
   Revenue: "All swap fees go to protocol revenue (100% protocol-owned liquidity).",
+  ProtocolRevenue: "All swap fees go to protocol revenue (100% protocol-owned liquidity).",
 };
 
 const adapter: SimpleAdapter = {
