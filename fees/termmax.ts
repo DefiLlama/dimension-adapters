@@ -137,16 +137,10 @@ async function handleLogs(
     const SWAP_TO_EXACT_ABI =
       "event SwapTokenToExactToken(address indexed tokenIn, address indexed tokenOut, address caller, address recipient, uint128 tokenAmtOut, uint128 netTokenIn, uint128 feeAmt)";
 
-    const [allTokens, allConfigs, swapExactLogs, swapToExactLogs] = await Promise.all([
+    const [allTokens, swapExactLogs, swapToExactLogs] = await Promise.all([
       // tokens(): [FT, XT, GT, collateral, underlying]
       options.api.multiCall({
         abi: "function tokens() view returns (address, address, address, address, address)",
-        calls: tuples.map((t) => t.marketAddress),
-        permitFailure: true,
-      }),
-      // config(): [treasurer, maturity, feeConfig] — needed for fixed-rate fallback
-      options.api.multiCall({
-        abi: "function config() view returns ((address, uint64, (uint32, uint32, uint32, uint32, uint32, uint32)))",
         calls: tuples.map((t) => t.marketAddress),
         permitFailure: true,
       }),
@@ -165,6 +159,18 @@ async function handleLogs(
         noTarget: true,
       }),
     ]);
+
+    // config() for maturity — separated from main Promise.all because the
+    // complex struct ABI may fail on some SDK versions or market contracts.
+    // If it fails, the fixed-rate fallback is skipped (FT valued 1:1).
+    let allConfigs: any[] = [];
+    try {
+      allConfigs = await options.api.multiCall({
+        abi: "function config() view returns ((address, uint64, (uint32, uint32, uint32, uint32, uint32, uint32)))",
+        calls: tuples.map((t) => t.marketAddress),
+        permitFailure: true,
+      });
+    } catch (_) {}
 
     // Build FT address set for identifying FT-involved swaps
     const ftAddressSet = new Set<string>();
