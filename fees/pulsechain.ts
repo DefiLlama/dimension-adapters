@@ -21,7 +21,7 @@ const adapter: Adapter = {
           throw new Error(`PulseChain: no fee data for ${dateStr} (status=${fees?.status}, message=${fees?.message})`);
 
         const dailyFees = options.createBalances();
-        dailyFees.addCGToken("pulsechain", Number(fees.result) / 1e18);
+        dailyFees.addGasToken(fees.result);
 
         // Base fees (burned) from block headers for revenue breakdown
         const fromBlock = await options.getFromBlock();

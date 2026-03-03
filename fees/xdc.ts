@@ -14,7 +14,7 @@ const adapter: Adapter = {
         if (!fees?.result && fees?.result !== "0")
           throw new Error(`XDC: no fee data for ${dateStr} (status=${fees?.status}, message=${fees?.message})`);
         const dailyFees = options.createBalances();
-        dailyFees.addCGToken("xdce-crowd-sale", Number(fees.result) / 1e18);
+        dailyFees.addGasToken(fees.result);
         return { dailyFees };
       },
       start: "2019-06-01",
