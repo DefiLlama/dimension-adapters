@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet, httpPost } from "../../utils/fetchURL";
+import { httpPost } from "../../utils/fetchURL";
 
 const ENDPOINT = "https://rcuesqclhdghrqrmwjlk.supabase.co/functions/v1/swap-fee-revenue";
 
