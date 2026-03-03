@@ -1,54 +1,58 @@
-import request, { gql } from "graphql-request";
-import {
-  FetchOptions,
-  FetchResultVolume,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
 
-const baseEndpoint =
-  "https://api.goldsky.com/api/public/project_cm0bho0j0ji6001t8e26s0wv8/subgraphs/intentx-base-analytics-083/latest/gn";
-
-const queryBase = gql`
-  query stats($from: String!, $to: String!) {
-    dailyHistories(
-      where: {
-        timestamp_gte: $from
-        timestamp_lte: $to
-        accountSource: "0x39EcC772f6073242d6FD1646d81FA2D87fe95314"
-      }
-    ) {
-      tradeVolume
-    }
+async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+  const formatDate = () => {
+    const todayInUtc = new Date(options.startOfDay * 1000).toUTCString();
+    const parts = todayInUtc.split(' ');
+    return `${parts[0].replace(',', '')} ${parts[2]} ${parts[1]} ${parts[3]} 00:00:00 GMT+0000 (Coordinated Universal Time)`
   }
-`;
 
-interface IGraphResponse {
-  dailyHistories: Array<{
-    tradeVolume: string;
-  }>;
-}
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
+  const openInterestAtEnd = options.createBalances();
 
-const fetch = async (
-  _a: any,
-  _b: any,
-  options: FetchOptions
-): Promise<FetchResultVolume> => {
-  const response: IGraphResponse = await request(baseEndpoint, queryBase, {
-    from: String(options.startTimestamp),
-    to: String(options.endTimestamp),
+  const response = await fetchURL("https://app.carbon.inc/analytics");
+
+  const analyticsData = response.match(
+    /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/
+  );
+
+  const analyticsJson = JSON.parse(analyticsData[1]);
+  const { tradeVolumeFEData, revenueFEData, intentXFEOIAnalytics } = analyticsJson.props.pageProps;
+
+  const today = formatDate();
+
+  Object.values(tradeVolumeFEData).forEach((value: any) => {
+    const todaysVolumeData = value.find((data: any) => data.time === today).value;
+    dailyVolume.addUSDValue(todaysVolumeData);
   });
 
-  let dailyVolume = 0;
+  Object.values(revenueFEData).forEach((value: any) => {
+    const todaysRevenueData = value.find((data: any) => data.time === today).value;
+    dailyFees.addUSDValue(todaysRevenueData);
+  });
 
-  response.dailyHistories.forEach((data) => {
-    dailyVolume += Number(data.tradeVolume) / 1e18;
+  Object.values(intentXFEOIAnalytics).forEach((value: any) => {
+    const todaysOIData = +value.find((data: any) => data.date === options.dateString).totalOI;
+    openInterestAtEnd.addUSDValue(todaysOIData);
   });
 
   return {
     dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    openInterestAtEnd,
   };
 };
+
+const methodology = {
+  Fees: "Perp trading fees paid by users",
+  Revenue: "All the trading fees are revenue",
+  ProtocolRevenue: "All the trading fees go to protocol",
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -58,6 +62,7 @@ const adapter: SimpleAdapter = {
       start: "2023-11-01",
     },
   },
+  methodology,
 };
 
 export default adapter;

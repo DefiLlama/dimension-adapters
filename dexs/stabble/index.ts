@@ -1,6 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../../utils/date";
 import fetchURL from "../../utils/fetchURL";
 
 const volumeURL = "https://api.stabble.org/metric";
@@ -11,22 +10,20 @@ interface DailyStats {
   revenue: number;
 }
 
-const fetch: FetchV2 = async (options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(
-    options.endTimestamp
-  );
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const url = `${volumeURL}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`;
   const stats: DailyStats = await fetchURL(url);
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume: stats.volume,
+    dailyFees: stats.fees,
+    dailyRevenue: stats.revenue
   };
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,

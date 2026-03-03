@@ -13,7 +13,7 @@ const chainsMap: Record<string, string> = {
   [CHAIN.BASE]: 'base',
   [CHAIN.LINEA]: 'linea',
   [CHAIN.SONIC]: 'sonic',
-  // [CHAIN.ERA]: 'zksync',
+  [CHAIN.ERA]: 'zksync',
   [CHAIN.SOLANA]: 'solana',
   [CHAIN.PLASMA]: 'plasma'
 };
@@ -103,12 +103,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
   const results = options.preFetchedResults || [];
   const chainData = results.find((item: any) => item.blockchain === chainsMap[options.chain]);
 
-  if (!chainData) {
-    throw Error(`can not get data from query chain ${options.chain}`);
-  }
-  
   return {
-    dailyVolume: chainData.volume_24h,
+    dailyVolume: chainData ? chainData.volume_24h : 0,
   };
 };
 

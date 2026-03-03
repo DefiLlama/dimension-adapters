@@ -6,56 +6,12 @@ import { Adapter, Dependencies, FetchOptions, FetchResultFees } from "../../adap
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
-import request, { gql } from "graphql-request";
-
 
 interface IFee {
     time: string;
     margin_fees_usd: number;
     swap_fees_usd: number;
     liquidation_fee_usd: number;
-}
-
-const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
-    const targetDate = new Date(dayTimestamp * 1000).toISOString();
-    const query = gql`
-    {
-       feesRecordDailies(where: {timestamp_eq: "${targetDate}"}) {
-        tradeFees
-        swapFees
-      }
-    }
-  `
-    const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
-    const res = await request(url, query)
-
-    const dailyFees = options.createBalances()
-    const dailyRevenue = options.createBalances()
-    const dailyProtocolRevenue = options.createBalances()
-    const dailyHoldersRevenue = options.createBalances()
-    for (const record of res.feesRecordDailies) {
-        dailyFees.addUSDValue(record.tradeFees / 1e20, METRIC.MARGIN_FEES)
-        dailyFees.addUSDValue(record.swapFees / 1e20, METRIC.SWAP_FEES)
-
-        dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.MARGIN_FEES)
-        dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
-
-        dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.1, METRIC.MARGIN_FEES)
-        dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.1, METRIC.SWAP_FEES)
-
-        dailyHoldersRevenue.addUSDValue(record.tradeFees / 1e20 * 0.27, METRIC.MARGIN_FEES)
-        dailyHoldersRevenue.addUSDValue(record.swapFees / 1e20 * 0.27, METRIC.SWAP_FEES)
-    }
-
-    return {
-        timestamp: options.startOfDay,
-        dailyFees,
-        dailyRevenue,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue,
-    }
 }
 
 const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<FetchResultFees> => {
@@ -229,6 +185,7 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
     const dailyRevenue = options.createBalances()
     const dailyProtocolRevenue = options.createBalances()
     const dailyHoldersRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
 
     for (const item of fees) {
         dailyFees.addUSDValue(item.margin_fees_usd, METRIC.MARGIN_FEES)
@@ -246,6 +203,10 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
         dailyHoldersRevenue.addUSDValue(item.margin_fees_usd * 0.27, METRIC.MARGIN_FEES)
         dailyHoldersRevenue.addUSDValue(item.swap_fees_usd * 0.27, METRIC.SWAP_FEES)
         dailyHoldersRevenue.addUSDValue(item.liquidation_fee_usd * 0.27, METRIC.LIQUIDATION_FEES)
+
+        dailySupplySideRevenue.addUSDValue(item.margin_fees_usd * 0.63, METRIC.MARGIN_FEES)
+        dailySupplySideRevenue.addUSDValue(item.swap_fees_usd * 0.63, METRIC.SWAP_FEES)
+        dailySupplySideRevenue.addUSDValue(item.liquidation_fee_usd * 0.63, METRIC.LIQUIDATION_FEES)
     }
 
     return {
@@ -253,6 +214,7 @@ const fetch = async (_tt: number, _t: any, options: FetchOptions): Promise<Fetch
         dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
+        dailySupplySideRevenue
     };
 };
 
@@ -267,10 +229,6 @@ const adapter: Adapter = {
         [CHAIN.AVAX]: {
             fetch,
             start: '2023-08-24',
-        },
-        [CHAIN.SOLANA]: {
-            fetch: fetchSolana,
-            start: '2025-02-12',
         },
     },
     isExpensiveAdapter: true,

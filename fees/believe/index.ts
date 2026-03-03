@@ -27,7 +27,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     data.forEach(row => {
         const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees);
         dailyFees.add(row.quote_mint, Number(totalFees));
-        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees));
+        dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees) + Number(row.total_protocol_fees));
         dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees));
     });
 

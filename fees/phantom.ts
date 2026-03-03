@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getETHReceived, getSolanaReceived } from "../helpers/token";
 
@@ -27,11 +27,11 @@ const eth_fee_wallet_addresses = [
 ];
 
 // Solana fetch function
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   // throw new Error('Fix bug that inflates fees')
-  const dailyFees = await getSolanaReceived({ 
-    options, 
-    targets: solana_fee_wallet_addresses, 
+  const dailyFees = await getSolanaReceived({
+    options,
+    targets: solana_fee_wallet_addresses,
     blacklist_signers: solana_fee_wallet_addresses,
     blacklist_mints: solana_blacklist_mints,
   });
@@ -39,7 +39,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 // ETH fetch function for each chain
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // throw new Error('Fix bug that inflates fees')
   const dailyFees = await getETHReceived({
     options,
@@ -62,7 +62,9 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   methodology,
   adapter: {
     [CHAIN.SOLANA]: { fetch: fetchSolana },

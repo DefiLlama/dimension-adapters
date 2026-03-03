@@ -4,11 +4,11 @@ Helio Fee Account: FudPMePeNqmnjMX19zEKDfGXpbp6HAdW6ZGprB5gYRTZ
 Dao Fee Account: JBGUGPmKUEHCpxGGoMowQxoV4c7HyqxEnyrznVPxftqk
 */
 
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
-const fetch: any = async (_a:any,_b:any,options: FetchOptions) => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, target: 'FudPMePeNqmnjMX19zEKDfGXpbp6HAdW6ZGprB5gYRTZ' });
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
@@ -22,6 +22,7 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'Total fees paid by users.',
     Revenue: 'Total fees paid by users.',

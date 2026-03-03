@@ -31,8 +31,8 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
   const graphRes = await request(endpoints[options.chain], graphQuery);
 
   const dailyTotalRevenueUSD = Number(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD)
-  const dailySupplySideRevenueUSD = Number(graphRes.financialsDailySnapshot.dailySupplySideRevenueUSD)
   const dailyProtocolRevenueUSD = dailyTotalRevenueUSD * PROTOCOL_FEE_RATIO
+  const dailySupplySideRevenueUSD = dailyTotalRevenueUSD - dailyProtocolRevenueUSD
 
   // MEV and execution rewards
   const mevFeesETH = options.createBalances()
@@ -76,12 +76,9 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2020-12-19',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2020-12-19',
   methodology: {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",

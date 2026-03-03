@@ -1,9 +1,10 @@
-import { gql, request } from "graphql-request";
 import { SimpleAdapter, Fetch } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
 
-const GRAPH_URL = "https://graph-kasplex.kaspa.com/subgraphs/name/kasplex-kas-v2-core";
-const PAGE_SIZE = 1000;
+const BACKEND_API_URL = 'https://api-defi.kaspa.com/dex';
+const START_TIMESTAMP = 1758844800;
+const DAY_IN_SECONDS = 86400;
 
 const methodology = {
   Fees: "Trades incur a 1% swap fee that is entirely paid by users.",
@@ -14,39 +15,23 @@ const methodology = {
   HoldersRevenue: "No direct revenue share to token holders.",
 };
 
-const pairDayDataQuery = gql`
-  query ($date: Int!, $first: Int!, $skip: Int!) {
-    pairDayDatas(first: $first, skip: $skip, where: { date: $date }) {
-      dailyVolumeKAS
-    }
-  }
-`;
-
-const startQuery = gql`
-  query {
-    pairDayDatas(first: 1, orderBy: date, orderDirection: asc) {
-      date
-    }
-  }
-`;
-
 const fetch: Fetch = async (_timestamp, _chainBlocks, { startOfDay, createBalances }) => {
-  let skip = 0;
+  const minDate = startOfDay;
+  const maxDate = startOfDay + DAY_IN_SECONDS;
+
+  const url = `${BACKEND_API_URL}/most-traded/pairs?minDate=${minDate}&maxDate=${maxDate}`;
+  
+  const response = await fetchURL(url).catch(() => ({ pairs: [] }));
+  
+  const pairs = Array.isArray(response?.pairs) ? response.pairs : [];
+  
   let totalVolumeKas = 0;
-
-  while (true) {    
-    const response = await request<{
-      pairDayDatas: { dailyVolumeKAS: string }[];
-    }>(GRAPH_URL, pairDayDataQuery, { date: startOfDay, first: PAGE_SIZE, skip });
-
-    const { pairDayDatas } = response;
-    if (!pairDayDatas.length) break;
-
-    totalVolumeKas += pairDayDatas.reduce((acc, { dailyVolumeKAS }) => acc + Number(dailyVolumeKAS ?? 0), 0);
-
-    if (pairDayDatas.length < PAGE_SIZE) break;
-    skip += PAGE_SIZE;
-  }
+  pairs.forEach((entry) => {
+    const volumeKas = Number(entry.amountKAS);
+    if (Number.isFinite(volumeKas) && volumeKas > 0) {
+      totalVolumeKas += volumeKas;
+    }
+  });
 
   const dailyVolume = createBalances();
   dailyVolume.addCGToken("kaspa", totalVolumeKas);
@@ -73,19 +58,13 @@ const fetch: Fetch = async (_timestamp, _chainBlocks, { startOfDay, createBalanc
   };
 };
 
-const getStart = async () => {
-  const response = await request<{ pairDayDatas: { date: number }[] }>(GRAPH_URL, startQuery);
-  const earliest = response.pairDayDatas?.[0]?.date;
-  return earliest ?? 0;
-};
-
 const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   adapter: {
     [CHAIN.KASPLEX]: {
       fetch,
-      start: getStart,
+      start: START_TIMESTAMP,
     },
   },
 };

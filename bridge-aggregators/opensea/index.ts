@@ -3,7 +3,7 @@ import { queryDuneSql } from "../../helpers/dune";
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 
-const chainConfig = {
+const chainConfig: Record<string, any> = {
 	[CHAIN.ETHEREUM]: {dune_chain: 'ethereum'},
 	// [CHAIN.ABSTRACT]: {dune_chain: 'abstract'},
 	[CHAIN.APECHAIN]: {dune_chain: 'apechain'},
@@ -18,6 +18,7 @@ const chainConfig = {
 	// [CHAIN.SEI]: {dune_chain: 'sei'},
 	[CHAIN.UNICHAIN]: {dune_chain: 'unichain'},
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
+    [CHAIN.MONAD]: {dune_chain: 'monad'},
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -54,7 +55,7 @@ const prefetch = async (options: FetchOptions) => {
 };
 
 const fetch = async (_a:any, _b:any, options: FetchOptions) => {
-  const results = options.preFetchedResults || [];
+  const results: Array<any> = options.preFetchedResults || [];
   const chainData = results.find(
     (item) => chainConfig[options.chain].dune_chain === item.blockchain
   );

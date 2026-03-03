@@ -103,7 +103,7 @@ const adapter: SimpleAdapter = {
 
 export default adapter;
 
-// devide by 1e18
+// divide by 1e18
 function convertStringNumber(number: bigint) {
   const divisor = BigInt(1e18);
   let integerPart = number / divisor;

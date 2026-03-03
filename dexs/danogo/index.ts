@@ -1,4 +1,5 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { DanogoDimensions, } from "./types";
 
@@ -24,7 +25,7 @@ const fetchData = async (timestamp: number, _:ChainBlocks, { createBalances, }: 
 
 const adapter: SimpleAdapter = {
     adapter: {
-        cardano: {
+        [CHAIN.CARDANO]: {
             fetch: fetchData,
             start: DANOGO_START_TIMESTAMP,
         }

@@ -36,6 +36,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BSC],
   start: '2025-09-28',
