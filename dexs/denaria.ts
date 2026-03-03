@@ -2,8 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 // Old + new PerpPair (keep both for continuity across deployments)
-const DENARIA_PERP_PAIR_OLD = ['0xd07822ee341c11a193869034d7e5f583c4a94872', '0x8db6865e37105ddd230caa20af787dd89c382b72'];
-const DENARIA_PERP_PAIR_NEW = '0xc4def9ef12b822bd71addd6ace624984afe598c7';
+const DENARIA_PERP_PAIR_OLD = ['0xd07822ee341c11a193869034d7e5f583c4a94872', '0x8db6865e37105ddd230caa20af787dd89c382b72', '0xc4def9ef12b822bd71addd6ace624984afe598c7'];
+const DENARIA_PERP_PAIR_NEW = '0xb68396dd4230253d27589e2004ac37389836ae17';
 
 const DENARIA_PERP_PAIRS: Array<string> = [
   ...DENARIA_PERP_PAIR_OLD,
