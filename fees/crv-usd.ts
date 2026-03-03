@@ -113,10 +113,12 @@ const fetch = async (options: FetchOptions) => {
   }
   
   const dailyRevenue = dailyProtocolRevenue.clone(1)
-  dailyRevenue.addBalances(dailyHoldersRevenue, METRIC.STAKING_REWARDS);
-  
-  const dailySupplySideRevenue = dailyFees.clone(1)
-  dailySupplySideRevenue.subtract(dailyRevenue)
+  dailyRevenue.addBalances(dailyHoldersRevenue);
+
+  const dailySupplySideRevenue = createBalances();
+  const tempBalance = dailyFees.clone();
+  tempBalance.subtract(dailyRevenue);
+  dailySupplySideRevenue.addBalances(tempBalance, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,

@@ -7,6 +7,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { FetchOptions } from "../adapters/types";
+import { METRIC } from "../helpers/metrics";
 
 const LYNX = '0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af';
 const bveLYNX = '0xe8a4c9b6a2b79fd844c9e3adbc8dc841eece557b';
@@ -45,9 +46,9 @@ export const fees_bribes = async ({ getLogs, createBalances, getToBlock }: Fetch
   logs.map((e: any) => {
     // NOTE: bveLYNX is a derivative token 1:1 to LYNX and should be counted as LYNX as it is not tracked in coingecko
     if (e.rewardToken.toLowerCase() === bveLYNX)
-        dailyFees.add(LYNX, e.reward)
+        dailyFees.add(LYNX, e.reward, 'Bribes from external protocols')
     else
-        dailyFees.add(e.rewardToken, e.reward)
+        dailyFees.add(e.rewardToken, e.reward, 'Bribes from external protocols')
   })
   return dailyFees;
 }
@@ -84,6 +85,25 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
         };
 }
 
+const methodology = {
+    Fees: "Swap fees paid by traders on the Lynex DEX",
+    Revenue: "All swap fees are distributed to governance token holders",
+    HoldersRevenue: "Swap fees distributed to LYNX token holders plus bribes paid by external protocols to voters"
+}
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SWAP_FEES]: "Fees paid by users on token swaps through the Lynex DEX"
+    },
+    Revenue: {
+        [METRIC.SWAP_FEES]: "All swap fees are distributed to LYNX governance token holders"
+    },
+    HoldersRevenue: {
+        [METRIC.SWAP_FEES]: "Swap fees distributed to LYNX token holders",
+        'Bribes from external protocols': "Incentive tokens paid by external protocols to LYNX voters to direct liquidity gauge emissions"
+    }
+}
+
 const adapter: Adapter = {
     version: 2,
     adapter: {
@@ -92,6 +112,8 @@ const adapter: Adapter = {
             start: '2023-08-07',
         },
     },
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
