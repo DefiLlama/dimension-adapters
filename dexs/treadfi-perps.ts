@@ -56,16 +56,35 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 };
 
 const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
+  // Volume from TreadTools (MMBot orders only)
+  const dailyVolume = options.createBalances();
+  const treadToolsData = options.preFetchedResults;
+  const hlData = treadToolsData.data?.hyperliquid;
+  if (hlData && typeof hlData.dailyVolume === "number" && hlData.dailyVolume > 0) {
+    dailyVolume.addUSDValue(hlData.dailyVolume);
+  }
+
+  // Fees from builder API (actual builder fee revenue)
+  const { dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({
       options,
       builder_address: HL_BUILDER_ADDRESS,
     });
+
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
 const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: TREADTOOLS_FEE_RATE });
+  // Volume from TreadTools (MMBot orders only)
+  const dailyVolume = options.createBalances();
+  const treadToolsData = options.preFetchedResults;
+  const extendedData = treadToolsData.data?.extended;
+  if (extendedData && typeof extendedData.dailyVolume === "number" && extendedData.dailyVolume > 0) {
+    dailyVolume.addUSDValue(extendedData.dailyVolume);
+  }
+
+  // Fees from builder API (actual builder fee revenue)
+  const { dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: TREADTOOLS_FEE_RATE });
 
   return {
     dailyVolume,
@@ -82,7 +101,7 @@ const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
   const paradexData = treadToolsData.data?.paradex;
 
   if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", paradexData.dailyVolume);
+    dailyVolume.addUSDValue(paradexData.dailyVolume);
   }
 
   return {
@@ -104,8 +123,8 @@ const fetchInk = async (_a: any, _b: any, options: FetchOptions) => {
   if (nadoData && typeof nadoData.dailyVolume === "number" && nadoData.dailyVolume > 0) {
     const volume = nadoData.dailyVolume;
     const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addUSDValue(volume);
+    dailyFees.addUSDValue(fees);
   }
 
   return {
@@ -135,8 +154,8 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (totalVolume > 0) {
     const fees = totalVolume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", totalVolume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addUSDValue(totalVolume);
+    dailyFees.addUSDValue(fees);
   }
 
   return {
@@ -150,7 +169,6 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 // Aggregates Aster + Binance (both CEX copy-trading on BSC)
 const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
   const treadToolsData = options.preFetchedResults;
   const asterData = treadToolsData.data?.aster;
@@ -165,16 +183,14 @@ const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   }
 
   if (totalVolume > 0) {
-    const fees = totalVolume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", totalVolume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addUSDValue(totalVolume);
   }
 
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyFees: 0,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   };
 };
 
@@ -190,7 +206,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch: fetchHyperliquid,
-      start: "2025-08-01",
+      start: "2025-10-05",
     },
     [CHAIN.STARKNET]: {
       fetch: fetchExtended,
