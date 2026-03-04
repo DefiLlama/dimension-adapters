@@ -61,7 +61,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
   const treadToolsData = options.preFetchedResults;
   const hlData = treadToolsData.data?.hyperliquid;
   if (hlData && typeof hlData.dailyVolume === "number" && hlData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", hlData.dailyVolume);
+    dailyVolume.addUSDValue(hlData.dailyVolume);
   }
 
   // Fees from builder API (actual builder fee revenue)
@@ -80,7 +80,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   const treadToolsData = options.preFetchedResults;
   const extendedData = treadToolsData.data?.extended;
   if (extendedData && typeof extendedData.dailyVolume === "number" && extendedData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", extendedData.dailyVolume);
+    dailyVolume.addUSDValue(extendedData.dailyVolume);
   }
 
   // Fees from builder API (actual builder fee revenue)
@@ -101,7 +101,7 @@ const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
   const paradexData = treadToolsData.data?.paradex;
 
   if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", paradexData.dailyVolume);
+    dailyVolume.addUSDValue(paradexData.dailyVolume);
   }
 
   return {
@@ -123,8 +123,8 @@ const fetchInk = async (_a: any, _b: any, options: FetchOptions) => {
   if (nadoData && typeof nadoData.dailyVolume === "number" && nadoData.dailyVolume > 0) {
     const volume = nadoData.dailyVolume;
     const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addUSDValue(volume);
+    dailyFees.addUSDValue(fees);
   }
 
   return {
@@ -154,8 +154,8 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (totalVolume > 0) {
     const fees = totalVolume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", totalVolume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addUSDValue(totalVolume);
+    dailyFees.addUSDValue(fees);
   }
 
   return {
@@ -183,7 +183,7 @@ const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   }
 
   if (totalVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", totalVolume);
+    dailyVolume.addUSDValue(totalVolume);
   }
 
   return {
