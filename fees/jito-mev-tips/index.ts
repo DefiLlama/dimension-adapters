@@ -23,7 +23,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const receivedBalances = await getSolanaReceived({ options, targets, })
   const dailyFees = options.createBalances()
   dailyFees.addBalances(receivedBalances, METRIC.MEV_REWARDS)
-  return { dailyFees }
+  const dailySupplySideRevenue = dailyFees.clone(0.96);
+  const dailyRevenue = dailyFees.clone(0.04);
+  return {
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  }
 }
 
 const adapter: SimpleAdapter = {
@@ -34,11 +41,23 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {
-    fees: 'MEV/tips paid by users/searchers',
+    Fees: 'MEV/tips paid by users/searchers.',
+    Revenue: 'Jito collects 4% from fees as revenue.',
+    SupplySideRevenue: 'There are 96% MEV reward are distributed to users/searchers.',
+    ProtocolRevenue: 'Jito collects 4% from fees as revenue.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.MEV_REWARDS]: 'MEV/tips paid by users/searchers',
+    },
+    Revenue: {
+      [METRIC.MEV_REWARDS]: 'Jito collects 4% from fees as revenue',
+    },
+    SupplySideRevenue: {
+      [METRIC.MEV_REWARDS]: 'There are 96% MEV reward are distributed to users/searchers',
+    },
+    ProtocolRevenue: {
+      [METRIC.MEV_REWARDS]: 'Jito collects 4% from fees as revenue',
     },
   },
 }
