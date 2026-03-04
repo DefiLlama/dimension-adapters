@@ -37,11 +37,9 @@ const methodology = {
 
 export default {
   version: 2,
-  adapter: {
-    [CHAIN.INK]: {
-      fetch,
-      start: "2025-11-15",
-    },
-  },
+  chains: [CHAIN.INK],
+  fetch,
+  start: "2025-11-15",
   methodology,
+  doublecounted: true,
 } as Adapter;
