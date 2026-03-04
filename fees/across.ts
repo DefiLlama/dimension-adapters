@@ -43,14 +43,22 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const results: IResponse[] = options.preFetchedResults || [];
   const chainData = results.find(item => item.dst_chain === options.chain);
 
-  const dailyFees = (chainData?.relay_fees || 0) + (chainData?.lp_fees || 0);
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  if (chainData) {
+    dailyFees.addUSDValue(chainData.relay_fees, 'Relayer Fees');
+    dailyFees.addUSDValue(chainData.lp_fees, 'LP Fees');
+    dailySupplySideRevenue.addUSDValue(chainData.relay_fees, 'Relayer Fees');
+    dailySupplySideRevenue.addUSDValue(chainData.lp_fees, 'LP Fees');
+  }
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue,
   }
 }
 
@@ -61,30 +69,43 @@ const methodology = {
   SupplySideRevenue: "Total fees paid by users are distributed to liquidity providers and relayers.",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    'Relayer Fees': 'Fees paid to relayers who execute cross-chain bridge transactions on the destination chain',
+    'LP Fees': 'Fees paid to liquidity providers who supply capital for cross-chain transfers',
+  },
+  SupplySideRevenue: {
+    'Relayer Fees': 'Fees paid to relayers who execute cross-chain bridge transactions on the destination chain',
+    'LP Fees': 'Fees paid to liquidity providers who supply capital for cross-chain transfers',
+  },
+}
+
 const adapter: Adapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2021-11-03" },
-    [CHAIN.ARBITRUM]: { fetch, start: "2022-05-24" },
-    [CHAIN.OPTIMISM]: { fetch, start: "2022-05-10" },
-    [CHAIN.BOBA]: {fetch, start: "2022-05-05"},
-    [CHAIN.POLYGON]: { fetch, start: "2022-05-10" },
-    [CHAIN.ZKSYNC]: { fetch, start: "2023-08-10" },
-    [CHAIN.BASE]: { fetch, start: "2023-08-22" },
-    [CHAIN.LINEA]: { fetch, start: "2024-03-20" },
-    [CHAIN.BLAST]: { fetch, start: "2024-07-10" },
-    [CHAIN.SCROLL]: {fetch, start: "2024-07-31"},
-    [CHAIN.ZORA]: {fetch, start: "2024-08-15"},
-    [CHAIN.WC]: {fetch, start: "2024-10-10"},
-    [CHAIN.INK]: {fetch, start: "2025-01-02"},
-    [CHAIN.UNICHAIN]: { fetch, start: "2025-02-06" },
-    [CHAIN.LENS]: { fetch, start: "2025-03-28" },
-    [CHAIN.SOLANA]: { fetch, start: "2025-04-14" },
-    [CHAIN.BSC]: { fetch, start: "2025-05-03" },
+    [CHAIN.ETHEREUM]: { start: "2021-11-03" },
+    [CHAIN.ARBITRUM]: { start: "2022-05-24" },
+    [CHAIN.OPTIMISM]: { start: "2022-05-10" },
+    [CHAIN.BOBA]: { start: "2022-05-05" },
+    [CHAIN.POLYGON]: { start: "2022-05-10" },
+    [CHAIN.ZKSYNC]: { start: "2023-08-10" },
+    [CHAIN.BASE]: { start: "2023-08-22" },
+    [CHAIN.LINEA]: { start: "2024-03-20" },
+    [CHAIN.BLAST]: { start: "2024-07-10" },
+    [CHAIN.SCROLL]: { start: "2024-07-31" },
+    [CHAIN.ZORA]: { start: "2024-08-15" },
+    [CHAIN.WC]: { start: "2024-10-10" },
+    [CHAIN.INK]: { start: "2025-01-02" },
+    [CHAIN.UNICHAIN]: { start: "2025-02-06" },
+    [CHAIN.LENS]: { start: "2025-03-28" },
+    [CHAIN.SOLANA]: { start: "2025-04-14" },
+    [CHAIN.BSC]: { start: "2025-05-03" },
   },
+  fetch,
   prefetch,
   methodology,
+  breakdownMethodology,
   allowNegativeValue: true, // Gas Fee cost be higher than estimated
   isExpensiveAdapter: true,
 };

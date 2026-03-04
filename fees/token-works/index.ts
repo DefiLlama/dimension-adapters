@@ -74,6 +74,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   dependencies: [Dependencies.ALLIUM],

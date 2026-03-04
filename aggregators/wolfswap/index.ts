@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const abis = {
@@ -17,16 +17,17 @@ const contracts: Record<string, string> = {
   [CHAIN.ABSTRACT]: '0x74bAf6450B8E862Ed8daAE385E12704E4882927A',
 }
 
-const fetch = async (timestamp: number, _: ChainBlocks, { createBalances, getLogs, chain, api }: FetchOptions) => {
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   const dailyVolume = createBalances()
   const logs = await getLogs({ target: contracts[chain], eventAbi: abis.Swapped, })
   logs.forEach((log: any) => {
     dailyVolume.add(log.destinationToken, log.amountOut)
   })
-  return { timestamp, dailyVolume }
+  return { dailyVolume }
 };
 
 const adapter: any = {
+  version: 2,
   adapter: {
     [CHAIN.POLYGON]: { fetch, start: '2024-03-20', },
     [CHAIN.CRONOS]: { fetch, start: '2024-03-24', },

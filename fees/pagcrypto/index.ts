@@ -80,7 +80,7 @@ async function fetchSolanaInflows(options: FetchOptions) {
   return dailyFees;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances();
   if ([CHAIN.RIPPLE, CHAIN.TRON].includes(options.chain as CHAIN)) {
     throw new Error("Fetching fees for XRPL and TRON is not supported yet");
@@ -101,7 +101,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.BASE]: { start: "2025-01-01" },

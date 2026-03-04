@@ -13,13 +13,29 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
   const logs = await getLogs({ target: contract, eventAbi })
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const amounts = logs.map((e: any) => e.amount)
-  dailyFees.add(ethAddress, amounts, METRIC.CREATOR_FEES)
-  dailyFees.resizeBy(1 / 0.9) // 90% of the fees go to the artists
-  dailyRevenue.addBalances(dailyFees, METRIC.PROTOCOL_FEES)
-  dailyRevenue.resizeBy(protocol_fees / 100) // 10% of the fees go to the protocol
 
-  return { dailyFees, dailyRevenue }
+  // ArtistsEarned event tracks 90% that goes to artists
+  const artistEarnings = createBalances()
+  artistEarnings.add(ethAddress, amounts)
+
+  // Calculate total fees (100%) from the 90% artist amount
+  const totalFeeAmount = createBalances()
+  totalFeeAmount.addBalances(artistEarnings)
+  totalFeeAmount.resizeBy(1 / 0.9)
+
+  // Split into categories with labels
+  dailySupplySideRevenue.addBalances(artistEarnings, METRIC.CREATOR_FEES)
+
+  const protocolAmount = totalFeeAmount.clone()
+  protocolAmount.resizeBy(protocol_fees / 100)
+  dailyRevenue.addBalances(protocolAmount, METRIC.PROTOCOL_FEES)
+
+  dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES)
+  dailyFees.addBalances(dailySupplySideRevenue, METRIC.CREATOR_FEES)
+
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapterFees: SimpleAdapter = {
@@ -34,10 +50,14 @@ const adapterFees: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.CREATOR_FEES]: 'Sum of all earnings from the ArtistsEarned event, representing 90% artist payments and 10% protocol fees before revenue allocation',
+      [METRIC.CREATOR_FEES]: 'Total fees paid by users for creating and interacting with collaborative artwork on BasePaint',
+      [METRIC.PROTOCOL_FEES]: 'Protocol revenue retained by BasePaint, equal to 10% of total fees',
     },
     Revenue: {
-      [METRIC.PROTOCOL_FEES]: 'The 10% protocol revenue portion collected from total fees after deducting artist earnings',
+      [METRIC.PROTOCOL_FEES]: 'Protocol revenue retained by BasePaint, equal to 10% of total fees',
+    },
+    SupplySideRevenue: {
+      [METRIC.CREATOR_FEES]: 'Fees distributed to artists who contribute to the collaborative artwork, equal to 90% of total fees',
     },
   }
 }

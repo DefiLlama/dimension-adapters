@@ -2,6 +2,7 @@ import type { FetchOptions, } from "../adapters/types";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getEnv } from "../helpers/env";
+import { METRIC } from "../helpers/metrics";
 const axios = require('axios');
 
 type IRecipient = {
@@ -47,7 +48,7 @@ const timestampToDate = (timestamp: number): string => {
   return date.toISOString().split('T')[0];
 };
 
-const fetch = async (timestamp: number, _: any, { chain}: FetchOptions) => {
+const fetch = async (timestamp: number, _: any, { chain, createBalances }: FetchOptions) => {
   const recipient = CONFIG[chain]
   const apiDate = timestampToDate(timestamp)
 
@@ -61,25 +62,33 @@ const fetch = async (timestamp: number, _: any, { chain}: FetchOptions) => {
     return sum +  usdValue;
   }, 0);
 
-  return { timestamp, dailyFees: totalFeesUsdValue, dailyRevenue: totalFeesUsdValue }
+  const dailyFees = createBalances();
+  dailyFees.addUSDValue(totalFeesUsdValue, METRIC.PROTOCOL_FEES);
+
+  return { dailyFees, dailyRevenue: dailyFees }
+}
+
+const methodology = {
+  Fees: "Alchemix generates revenue from various lending and yield optimization activities across its protocol",
+  Revenue: "All protocol revenue is retained by the Alchemix treasury"
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.PROTOCOL_FEES]: "Aggregate protocol revenue tracked by Alchemix, including fees from self-repaying loans, yield optimization, and other protocol activities"
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "Total protocol revenue retained by Alchemix treasury"
+  }
 }
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: { 
-      fetch,
-      start: '2021-02-28'
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2021-02-28'
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2021-02-28'
-    }
-  }
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.OPTIMISM],
+  start: '2021-02-28',
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter;

@@ -239,7 +239,7 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
       eventAbi: SocketGatewayAbis.SocketFeesDeducted,
     })
     for (const event of feeEvents) {
-      dailyFees.add(formatToken(event.feesToken), event.fees)
+      dailyFees.add(formatToken(event.feesToken), event.fees, 'Aggregator fees')
     }
   }
 

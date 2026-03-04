@@ -4,6 +4,7 @@ import { CHAIN, } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { secondsInDay } from "../../utils/date";
+import { METRIC } from "../../helpers/metrics";
 
 type TAddress = {
   [s: string | Chain]: string;
@@ -55,6 +56,21 @@ const methodology = {
   HoldersRevenue: "DBR streamed to INV stakers and for INV buybacks."
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'DBR tokens spent by DOLA borrowers to maintain their debt positions, based on 1 DBR per 1 DOLA debt per year',
+  },
+  Revenue: {
+    'INV staker rewards': 'DBR tokens distributed to INV stakers as staking rewards',
+    'DOLA Savings Account yield': 'DBR tokens allocated to DOLA Savings Account depositors as yield',
+    'Virtual auction revenue': 'DBR sold through the Virtual XY=K auction mechanism',
+    'Forced replenishment fees': 'Net fees from forcing DBR replenishment for borrowers in deficit (replenishment cost minus replenisher reward)',
+  },
+  HoldersRevenue: {
+    'INV staker rewards': 'DBR tokens distributed to INV stakers as staking rewards',
+  }
+}
+
 const getMarkets = async () => {
   const url = "https://www.inverse.finance/api/defillama/simple-market-list"
   const data = await fetchURL(url, 3);
@@ -71,154 +87,151 @@ const toDbrUSDValue = (bn: BigNumber, dbrHistoPrice: number) => {
   return BigNumber(bn).dividedBy(1e18).multipliedBy(dbrHistoPrice).toNumber()
 }
 
-const fetch = (chain: Chain) => {
-  return async ({ toTimestamp, createBalances, getLogs, getFromBlock, api, fromTimestamp }: FetchOptions) => {
-    const dbr = DBR_CONTRACTS[chain];
-    const dola = DOLA_CONTRACTS[chain];
-    const dbrAuction = DBR_AUCTION_CONTRACTS[chain];
-    const invBuyBackAuction = INV_BUY_BACK_AUCTION_CONTRACT[chain];
-    const block = await getFromBlock();
+const fetch = async ({ chain, toTimestamp, createBalances, getLogs, getFromBlock, api, fromTimestamp }: FetchOptions) => {
+  const dbr = DBR_CONTRACTS[chain];
+  const dola = DOLA_CONTRACTS[chain];
+  const dbrAuction = DBR_AUCTION_CONTRACTS[chain];
+  const invBuyBackAuction = INV_BUY_BACK_AUCTION_CONTRACT[chain];
+  const block = await getFromBlock();
 
-    let annualizedFees = 0
-    let annualizedRevenues = 0
-    let holderAnnualizedRevenue = 0
-    const replenishmentRevenue = createBalances()
+  let annualizedFees = 0
+  let annualizedRevenues = 0
+  let holderAnnualizedRevenue = 0
+  const replenishmentRevenue = createBalances()
 
-    const [markets, dbrPrices] = await Promise.all([
-      getMarkets(),
-      // We use a custom api for DBR pricing as coingecko's pricing of DBR is/was usually not good due to missing the main Curve pools for DBR
-      getDbrPrices(),
-    ]);
+  const [markets, dbrPrices] = await Promise.all([
+    getMarkets(),
+    // We use a custom api for DBR pricing as coingecko's pricing of DBR is/was usually not good due to missing the main Curve pools for DBR
+    getDbrPrices(),
+  ]);
 
-    const dbrHistoPrice = dbrPrices.findLast(d => d.timestamp < (toTimestamp * 1000)).price;
+  const dbrHistoPrice = dbrPrices.findLast(d => d.timestamp < (toTimestamp * 1000)).price;
 
-    const existingMarkets = markets.filter(m => m.startingBlock <= block)
+  const existingMarkets = markets.filter(m => m.startingBlock <= block)
 
-    // 1 DOLA debt = 1 DBR spent per year by borrowers
-    const totalDebts = await api.multiCall({
-      permitFailure: true,
-      abi: 'function totalDebt() public view returns (uint)',
-      calls: existingMarkets.map(m => ({ target: m.address })),
+  // 1 DOLA debt = 1 DBR spent per year by borrowers
+  const totalDebts = await api.multiCall({
+    permitFailure: true,
+    abi: 'function totalDebt() public view returns (uint)',
+    calls: existingMarkets.map(m => ({ target: m.address })),
+  });
+
+  // DBR distributed to INV stakers
+  if (block >= DBR_DISTRIBUTOR_START_BLOCK) {
+    const invStakerRewardRate = await api.multiCall({
+      abi: 'function rewardRate() public view returns (uint)',
+      calls: [{ target: DBR_DISTRIBUTOR_CONTRACTS[chain] }],
     });
 
-    // DBR distributed to INV stakers
-    if (block >= DBR_DISTRIBUTOR_START_BLOCK) {
-      const invStakerRewardRate = await api.multiCall({
-        abi: 'function rewardRate() public view returns (uint)',
-        calls: [{ target: DBR_DISTRIBUTOR_CONTRACTS[chain] }],
-      });
+    holderAnnualizedRevenue += toDbrUSDValue(invStakerRewardRate[0], dbrHistoPrice) * secondsInDay * 365
+    annualizedRevenues += holderAnnualizedRevenue
+  }
 
-      holderAnnualizedRevenue += toDbrUSDValue(invStakerRewardRate[0], dbrHistoPrice) * secondsInDay * 365
-      annualizedRevenues += holderAnnualizedRevenue
-    }
+  // Virtual XY=K auction revenue
+  if (block >= DBR_AUCTION_START_BLOCK) {
+    const virtualAuctionDbrRatePerYear = await api.multiCall({
+      abi: 'function dbrRatePerYear() public view returns (uint)',
+      calls: [{ target: dbrAuction }],
+    })
+    annualizedRevenues += toDbrUSDValue(BigNumber(virtualAuctionDbrRatePerYear[0]), dbrHistoPrice)
+  }
 
-    // Virtual XY=K auction revenue
-    if (block >= DBR_AUCTION_START_BLOCK) {
-      const virtualAuctionDbrRatePerYear = await api.multiCall({
-        abi: 'function dbrRatePerYear() public view returns (uint)',
-        calls: [{ target: dbrAuction }],
-      })
-      annualizedRevenues += toDbrUSDValue(BigNumber(virtualAuctionDbrRatePerYear[0]), dbrHistoPrice)
-    }
+  // jrDOLA auction revenue
+  if (block >= JR_DOLA_START_BLOCK) {
+    const jrDolaParams = { target: JRDOLA_AUCTION_CONTRACT[chain], chain }
+    const [yearlyBudget, totalAssets, maxRatioBps] = await api.batchCall([
+      {
+        abi: 'function yearlyRewardBudget() public view returns (uint)',
+        ...jrDolaParams,
+      },
+      {
+        abi: 'function totalAssets() public view returns (uint)',
+        ...jrDolaParams,
+      },
+      {
+        abi: 'function maxDolaDbrRatioBps() public view returns (uint)',
+        ...jrDolaParams,
+      },
+    ])
 
-    // jrDOLA auction revenue
-    if (block >= JR_DOLA_START_BLOCK) {
-      const jrDolaParams = { target: JRDOLA_AUCTION_CONTRACT[chain], chain }
-      const [yearlyBudget, totalAssets, maxRatioBps] = await api.batchCall([
-        {
-          abi: 'function yearlyRewardBudget() public view returns (uint)',
-          ...jrDolaParams,
-        },
-        {
-          abi: 'function totalAssets() public view returns (uint)',
-          ...jrDolaParams,
-        },
-        {
-          abi: 'function maxDolaDbrRatioBps() public view returns (uint)',
-          ...jrDolaParams,
-        },
-      ])
+    const maxBudget = BigNumber(maxRatioBps).multipliedBy(BigNumber(totalAssets)).dividedBy(1e4)
+    const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget
+    annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)
+  }
 
-      const maxBudget = BigNumber(maxRatioBps).multipliedBy(BigNumber(totalAssets)).dividedBy(1e4)
-      const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget
-      annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)
-    }
-
-    // INV buybacks auction revenue
-    if (block >= INV_BUY_BACK_START_BLOCK) {
-      const invBuyBacksDbrRatePerYear = await api.call({
-        abi: 'function dbrRatePerYear() public view returns (uint)',
-        target: invBuyBackAuction,
-      })
-
-      const invBuyBackAnnualizedRevenues = toDbrUSDValue(BigNumber(invBuyBacksDbrRatePerYear), dbrHistoPrice)
-      annualizedRevenues += invBuyBackAnnualizedRevenues;
-      holderAnnualizedRevenue += invBuyBackAnnualizedRevenues;
-    }
-
-    // DOLA Savings Account revenue
-    if (block >= DSA_START_BLOCK) {
-      const dsaParams = { target: DSA_CONTRACTS[chain], chain }
-      const [yearlyBudget, totalSupply, maxDbrPerDola] = await api.batchCall([
-        {
-          abi: 'function yearlyRewardBudget() public view returns (uint)',
-          ...dsaParams,
-        },
-        {
-          abi: 'function totalSupply() public view returns (uint)',
-          ...dsaParams,
-        },
-        {
-          abi: 'function maxRewardPerDolaMantissa() public view returns (uint)',
-          ...dsaParams,
-        },
-      ])
-
-      const maxBudget = BigNumber(maxDbrPerDola).multipliedBy(BigNumber(totalSupply)).dividedBy(1e18)
-      const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget
-      annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)
-    }
-
-    totalDebts.forEach(d => {
-      if (d) {
-        annualizedFees += toDbrUSDValue(BigNumber(d), dbrHistoPrice)
-      }
-    });
-
-    let dailyRevenue = (annualizedRevenues / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
-    const dailyHoldersRevenue = (holderAnnualizedRevenue / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
-    const dailyFees = (annualizedFees / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
-
-    // forced replenishments
-    const replenishmentEvents = await getLogs({
-      eventAbi: FORCED_REPLENISHMENT_EVENT,
-      target: dbr,
-    });
-
-    replenishmentEvents.forEach(e => {
-      replenishmentRevenue.add(dola, e.replenishmentCost)
-      replenishmentRevenue.subtractToken(dola, e.replenisherReward)
+  // INV buybacks auction revenue
+  if (block >= INV_BUY_BACK_START_BLOCK) {
+    const invBuyBacksDbrRatePerYear = await api.call({
+      abi: 'function dbrRatePerYear() public view returns (uint)',
+      target: invBuyBackAuction,
     })
 
-    dailyRevenue += (await replenishmentRevenue.getUSDValue())
+    const invBuyBackAnnualizedRevenues = toDbrUSDValue(BigNumber(invBuyBacksDbrRatePerYear), dbrHistoPrice)
+    annualizedRevenues += invBuyBackAnnualizedRevenues;
+    holderAnnualizedRevenue += invBuyBackAnnualizedRevenues;
+  }
 
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyHoldersRevenue,
+  // DOLA Savings Account revenue
+  if (block >= DSA_START_BLOCK) {
+    const dsaParams = { target: DSA_CONTRACTS[chain], chain }
+    const [yearlyBudget, totalSupply, maxDbrPerDola] = await api.batchCall([
+      {
+        abi: 'function yearlyRewardBudget() public view returns (uint)',
+        ...dsaParams,
+      },
+      {
+        abi: 'function totalSupply() public view returns (uint)',
+        ...dsaParams,
+      },
+      {
+        abi: 'function maxRewardPerDolaMantissa() public view returns (uint)',
+        ...dsaParams,
+      },
+    ])
+
+    const maxBudget = BigNumber(maxDbrPerDola).multipliedBy(BigNumber(totalSupply)).dividedBy(1e18)
+    const actualYearlyBudget = BigNumber(yearlyBudget).gt(maxBudget) ? maxBudget.toString() : yearlyBudget
+    annualizedRevenues += toDbrUSDValue(BigNumber(actualYearlyBudget), dbrHistoPrice)
+  }
+
+  totalDebts.forEach(d => {
+    if (d) {
+      annualizedFees += toDbrUSDValue(BigNumber(d), dbrHistoPrice)
     }
+  });
+
+  let dailyRevenue = (annualizedRevenues / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
+  const dailyHoldersRevenue = (holderAnnualizedRevenue / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
+  const dailyFees = (annualizedFees / SECONDS_PER_YEAR) * (toTimestamp - fromTimestamp);
+
+  // forced replenishments
+  const replenishmentEvents = await getLogs({
+    eventAbi: FORCED_REPLENISHMENT_EVENT,
+    target: dbr,
+  });
+
+  replenishmentEvents.forEach(e => {
+    replenishmentRevenue.add(dola, e.replenishmentCost)
+    replenishmentRevenue.subtractToken(dola, e.replenisherReward)
+  })
+
+  dailyRevenue += (await replenishmentRevenue.getUSDValue())
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
   }
 }
 
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: '2022-12-11',
-    },
-  },
+  chains: [CHAIN.ETHEREUM],
+  fetch,
+  start: '2022-12-11',
   methodology,
+  // breakdownMethodology,
 };
 
 export default adapter;

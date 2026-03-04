@@ -1,6 +1,7 @@
 import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter, IStartTimestamp } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
 import { addOneToken } from "./prices";
+import { METRIC } from "./metrics";
 
 type FactoryVersion = 2 | 2.1 | 2.2;
 
@@ -99,9 +100,9 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
             // add core asset amount to volume
             addOneToken({ balances: dailyVolume, chain: options.chain, token0: tokenIn, token1: tokenOut, amount0: amountIn + fees, amount1: amountOut })
 
-            dailyFees.add(tokenIn, fees)
+            dailyFees.add(tokenIn, fees, METRIC.SWAP_FEES)
             if (pairs[pairAddress].protocolFeeShare) {
-              dailyRevenue.add(tokenIn, fees * pairs[pairAddress].protocolFeeShare)
+              dailyRevenue.add(tokenIn, fees * pairs[pairAddress].protocolFeeShare, METRIC.PROTOCOL_FEES)
             }
           } else {
             const { amountX: amountInX, amountY: amountInY } = getAmountsFromBytesString(swapEvent.args.amountsIn)
@@ -112,17 +113,19 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
             addOneToken({ balances: dailyVolume, chain: options.chain, token0: pairs[pairAddress].tokenX, token1: pairs[pairAddress].tokenY, amount0: amountInX, amount1: amountInY })
             addOneToken({ balances: dailyVolume, chain: options.chain, token0: pairs[pairAddress].tokenX, token1: pairs[pairAddress].tokenY, amount0: amountOutX, amount1: amountOutY })
 
-            dailyFees.add(pairs[pairAddress].tokenX, totalFeesX)
-            dailyFees.add(pairs[pairAddress].tokenY, totalFeesY)
-            dailyRevenue.add(pairs[pairAddress].tokenX, protocolFeesX)
-            dailyRevenue.add(pairs[pairAddress].tokenY, protocolFeesY)
+            dailyFees.add(pairs[pairAddress].tokenX, totalFeesX, METRIC.SWAP_FEES)
+            dailyFees.add(pairs[pairAddress].tokenY, totalFeesY, METRIC.SWAP_FEES)
+            dailyRevenue.add(pairs[pairAddress].tokenX, protocolFeesX, METRIC.PROTOCOL_FEES)
+            dailyRevenue.add(pairs[pairAddress].tokenY, protocolFeesY, METRIC.PROTOCOL_FEES)
           }
         }
       }
     }
 
-    const dailySupplySideRevenue = dailyFees.clone(1)
-    dailySupplySideRevenue.subtract(dailyRevenue)
+    const dailySupplySideRevenue = options.createBalances()
+    const tempBalance = dailyFees.clone(1)
+    tempBalance.subtract(dailyRevenue)
+    dailySupplySideRevenue.addBalances(tempBalance, METRIC.LP_FEES)
 
     const dailyProtocolRevenue = feesConfig && feesConfig.protocolRevenueFromRevenue ? dailyRevenue.clone(feesConfig.protocolRevenueFromRevenue) : undefined;
     const dailyHoldersRevenue = feesConfig && feesConfig.holdersRevenueFromRevenue ? dailyRevenue.clone(feesConfig.holdersRevenueFromRevenue) : undefined;
