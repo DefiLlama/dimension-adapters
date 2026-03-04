@@ -3,6 +3,17 @@ import { FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions } from "../adapters/types";
 
+const url_v1: any = {
+  [CHAIN.SUI]: "https://app.sentio.xyz/api/v1/insights/wayne/typus_perp_v1/query",
+};
+
+const options_v1 = {
+  headers: {
+    "Content-Type": "application/json",
+    "api-key": "EELeKBmbF8CkXmhWuunv3rKGOrmLHqEK1",
+  },
+};
+
 const url: any = {
   [CHAIN.SUI]: "https://app.sentio.xyz/api/v1/insights/typus/typus_perp/query",
 };
@@ -24,7 +35,7 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
   timeRange: {
     start: start.toString(),
     end: end.toString(),
-    step: 3600,
+    step: 3600 * 4,
   },
   queries: [
     {
@@ -69,9 +80,13 @@ const buildQueryPayload = (_metricName: string, start: number, end: number) => (
 });
 
 const fetch = async ({ startTimestamp, endTimestamp, chain }: FetchOptions): Promise<FetchResultV2> => {
-  const [feeRes] = await Promise.all([
-    postURL(url[chain], buildQueryPayload("", startTimestamp, endTimestamp), 3, options),
-  ]);
+  console.log(startTimestamp, endTimestamp);
+  const feeRes = await postURL(
+    startTimestamp < 1767225600 ? url_v1[chain] : url[chain],
+    buildQueryPayload("", startTimestamp, endTimestamp),
+    3,
+    startTimestamp < 1767225600 ? options_v1 : options,
+  );
 
   const tlp_fee_usd = feeRes?.results?.find((res: any) => res.alias === "tlp_fee_usd").matrix?.samples?.[0]
     ?.values;
@@ -95,7 +110,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch,
-      start: "2026-02-01",
+      start: "2025-04-01",
     },
   },
   methodology,
