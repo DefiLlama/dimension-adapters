@@ -21,7 +21,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyUserFees = options.createBalances();
 
   const clickLogs = await options.getLogs({
     target: GAME_CONTRACT,
@@ -31,11 +30,6 @@ const fetch = async (options: FetchOptions) => {
 
   const totalClicks = clickLogs.length;
   const totalSpend = BigInt(totalClicks) * BigInt(CLICK_PRICE);
-
-  // dailyUserFees = only direct ETH clicks (credit clicks were pre-paid)
-  const directClicks = clickLogs.filter((log: any) => !log.usedCredit);
-  const directSpend = BigInt(directClicks.length) * BigInt(CLICK_PRICE);
-  dailyUserFees.addGasToken(directSpend);
 
   // dailyFees = 15% of all clicks (10% treasury + 5% referral)
   const totalFeesAmount = (totalSpend * BigInt(15)) / BigInt(100);
@@ -51,20 +45,26 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
-    dailyUserFees,
   };
+};
+
+const methodology = {
+  Fees: "15% of the pot amount is charged as fees , 85% to winner",
+  Revenue: "10% of the pot amount is revenue",
+  ProtocolRevenue: "10% of the pot amount is protocol revenue",
+  SupplySideRevenue: "5% of the pot amount goes to the referrer",
 };
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.MEGAETH]: {
-      fetch,
-      start: 1771459200,
-    },
-  },
+  fetch,
+  chains: [CHAIN.MEGAETH],
+  start: "2026-02-19",
+  methodology,
 };
 
 export default adapter;
