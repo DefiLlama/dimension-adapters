@@ -164,7 +164,7 @@ const fetch = (_chain: Chain) => {
 };
 
 const methodology = {
-  Volume: "Aggregates trading volume from Napier AMM pools (Curve TwoCrypto + TokiHook/Uniswap V4) by tracking on-chain swap events.",
+  Volume: "Aggregates trading volume from Napier AMM pools by tracking on-chain swap events. Supports Curve AMM (TwoCrypto) pools via TokenExchange events and Napier AMM (TokiHook/Uniswap V4) pools via HookSwap events.",
 };
 
 const chainConfig: Record<Chain, { start: string }> = {
