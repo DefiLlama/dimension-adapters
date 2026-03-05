@@ -1,11 +1,13 @@
 import * as sdk from "@defillama/sdk";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import ADDRESSES from '../helpers/coreAssets.json';
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
+import { decode_bundle } from './helper/index'; // taken from https://github.com/SorellaLabs/angstrom-assembly-helper/tree/main
 
 interface IUniswapConfig {
   poolManager: string;
   positionManager: string;
+  hook: string;
   source: 'LOGS';
   start: string;
   poolIds: Array<string>;
@@ -25,6 +27,7 @@ const Configs: Record<string, IUniswapConfig> = {
   [CHAIN.ETHEREUM]: {
     poolManager: '0x000000000004444c5dc75cB358380D2e3dE08A90',
     positionManager: '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e',
+    hook: '0x0000000aa232009084Bd71A5797d089AA4Edfad4',
     source: 'LOGS',
     start: '2025-07-23',
     poolIds: [
@@ -39,12 +42,31 @@ function getPoolKey(poolId: string): string {
 }
 
 async function fetch(options: FetchOptions) {
+
+
+
   const dailyFees = options.createBalances()
   const dailyVolume = options.createBalances()
 
   const config = Configs[options.chain];
+
   if (!config) {
     throw Error(`config not found for chain ${options.chain}`);
+  }
+
+
+  const transactions = await sdk.indexer.getTransactions({
+    chain: options.chain,
+    transactionType: 'to',
+    addresses: [config.hook],
+    from_block: Number(options.fromApi.block),
+    to_block: Number(options.toApi.block),
+  })
+  if (transactions) {
+    let txns = transactions.filter((tx: any) => tx.input.startsWith('0x09c5eabe'))
+    const decoded = txns.map((tx: any) => decode_bundle(tx.input))
+    // console.log(transactions, transactions.length)
+    console.log(decoded[0])
   }
 
   if (config.source === 'LOGS') {
@@ -65,7 +87,7 @@ async function fetch(options: FetchOptions) {
       permitFailure: true,
     })
 
-    const pools: {[key: string]: IPool | null} = {}
+    const pools: { [key: string]: IPool | null } = {}
     for (let i = 0; i < config.poolIds.length; i++) {
       if (poolKeys[i] && (poolKeys[i].currency0 !== ADDRESSES.null || poolKeys[i].currency1 !== ADDRESSES.null)) {
         pools[config.poolIds[i]] = {
@@ -76,7 +98,7 @@ async function fetch(options: FetchOptions) {
         }
       }
     }
-    
+
     for (const event of events) {
       const poolId = String(event.id)
       if (pools[poolId] as IPool) {
