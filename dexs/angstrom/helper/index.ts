@@ -2,8 +2,6 @@ import { padPairs, Pair } from './pair'
 import { padAssets, Asset } from './asset'
 import { BinaryDecoder } from './binaryDecoder'
 import { hexDecode } from './utils'
-import { padTopOfBlocks, TopOfBlock } from './tob'
-import { padUserOrders, UserOrder } from './order'
 import { padPoolUpdates, PoolUpdate } from './pool'
 import { i32 } from './type/type'
 
@@ -11,21 +9,15 @@ export class AngstromBundle {
   assets: Map<i32, Asset>
   pairs: Map<i32, Pair>
   pool_updates: PoolUpdate[]
-  top_of_block_orders: TopOfBlock[]
-  user_orders: UserOrder[]
 
   constructor(
     assets: Map<i32, Asset>,
     pairs: Map<i32, Pair>,
     pool_updates: PoolUpdate[],
-    top_of_block_orders: TopOfBlock[],
-    user_orders: UserOrder[]
   ) {
     this.assets = assets
     this.pairs = pairs
     this.pool_updates = pool_updates
-    this.top_of_block_orders = top_of_block_orders
-    this.user_orders = user_orders
   }
 }
 
@@ -33,7 +25,7 @@ function decode_bundle(s: string): AngstromBundle {
   let hex_str = s
   if (s.length >= 2 && s.charAt(0) == '0' && s.charAt(1) == 'x') hex_str = s.slice(2)
   const bundle_bytes_ext = hexDecode(hex_str)
-  if (!bundle_bytes_ext) return new AngstromBundle(new Map<i32, Asset>(), new Map<i32, Pair>(), [], [], [])
+  if (!bundle_bytes_ext) return new AngstromBundle(new Map<i32, Asset>(), new Map<i32, Pair>(), [])
 
   let skip = 0
   if (hex_str.length > 8 && hex_str.slice(0, 8) == '09c5eabe') skip = 68
@@ -43,10 +35,9 @@ function decode_bundle(s: string): AngstromBundle {
   const assets = padAssets(decoder)
   const pairs = padPairs(decoder)
   const pool_updates = padPoolUpdates(decoder)
-  const top_of_block_orders = padTopOfBlocks(decoder)
-  const user_orders = padUserOrders(decoder)
+  // skip top_of_block_orders and user_orders sections (not needed)
 
-  return new AngstromBundle(assets, pairs, pool_updates, top_of_block_orders, user_orders)
+  return new AngstromBundle(assets, pairs, pool_updates)
 }
 
 export { decode_bundle, }
