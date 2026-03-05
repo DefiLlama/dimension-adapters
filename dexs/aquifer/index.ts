@@ -8,7 +8,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     // Workaround for dune indexing issue
     const now = Date.now()
     const tenHoursAgo = now - (10 * 60 * 60 * 1000)
-    if (options.endTimestamp && options.endTimestamp * 1000 < tenHoursAgo) {
+    if (options.endTimestamp && options.endTimestamp * 1000 > tenHoursAgo) {
         throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
     }
     
