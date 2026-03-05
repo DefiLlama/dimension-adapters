@@ -5,6 +5,13 @@ import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    // Workaround for dune indexing issue
+    const now = Date.now()
+    const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+    if (options.endTimestamp && options.endTimestamp * 1000 < tenHoursAgo) {
+        throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+    }
+    
     const query = `
     select
       coalesce(sum(amount_usd), 0) as daily_volume
