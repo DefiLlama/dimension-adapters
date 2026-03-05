@@ -5,7 +5,9 @@ import { getETHReceived } from '../helpers/token';
 const FEE_WALLET = '0xC542C2F197c4939154017c802B0583C596438380';
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyFees = await getETHReceived({ options, target: FEE_WALLET });
+  const fees = await getETHReceived({ options, target: FEE_WALLET });
+  const dailyFees = options.createBalances();
+  dailyFees.add(fees, 'CowSwap Partner Fees');
   
   return {
     dailyFees,
@@ -28,5 +30,16 @@ const adapters: SimpleAdapter = {
     ProtocolRevenue: "All revenue are collected by Aave Labs.",
     HoldersRevenue: "No revenue share to AAVE token holders.",
   },
+  breakdownMethodology: {
+    Fees: {
+      'CowSwap Partner Fees': 'Swap fees from CowSwap frontedn integration.',
+    },
+    Revenue: {
+      'CowSwap Partner Fees': 'Swap fees from CowSwap frontedn integration.',
+    },
+    ProtocolRevenue: {
+      'CowSwap Partner Fees': 'Swap fees from CowSwap frontedn integration.',
+    },
+  }
 }
 export default adapters;
