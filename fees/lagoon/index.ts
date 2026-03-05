@@ -63,7 +63,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const cumulativeIndexAfter = await options.toApi.multiCall({ abi: Abis.convertToAssets, calls: convertCalls, permitFailure: true, })
 
   for (let i = 0; i < vaults.length; i++) {
-    if (BLACKLISTED_VAULTS[options.chain]?.includes(vaults[i])) continue;
+    if (
+      BLACKLISTED_VAULTS[options.chain]?.some(
+        (address: string) => address.toLowerCase() === vaults[i].toLowerCase()
+      )
+    ) continue;
     if (assets[i] && balances[i] && cumulativeIndexBefore[i] && cumulativeIndexAfter[i]) {
       const cumulativeYield = (BigInt(cumulativeIndexAfter[i]) - BigInt(cumulativeIndexBefore[i])) * BigInt(balances[i]) / BigInt(1e18)
       
