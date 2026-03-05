@@ -14,13 +14,10 @@ const VERIFIER_CONTRACTS: Record<string, string[]> = {
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const verifiers = VERIFIER_CONTRACTS[options.chain]
   
-
   const dailyFees = await getETHReceived({
     options,
     targets: verifiers,
   })
-
-  console.log(dailyFees)
 
   return {
     dailyFees,
