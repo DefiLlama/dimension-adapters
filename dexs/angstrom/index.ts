@@ -42,10 +42,8 @@ function getPoolKey(poolId: string): string {
 }
 
 async function fetch(options: FetchOptions) {
-
-
-
   const dailyFees = options.createBalances()
+  const dailyUserFees = options.createBalances()
   const dailyVolume = options.createBalances()
 
   const config = Configs[options.chain];
@@ -54,7 +52,7 @@ async function fetch(options: FetchOptions) {
     throw Error(`config not found for chain ${options.chain}`);
   }
 
-
+  // --- Block auction fees from Angstrom bundles ---
   const transactions = await sdk.indexer.getTransactions({
     chain: options.chain,
     transactionType: 'to',
@@ -62,13 +60,33 @@ async function fetch(options: FetchOptions) {
     from_block: Number(options.fromApi.block),
     to_block: Number(options.toApi.block),
   })
+
   if (transactions) {
-    let txns = transactions.filter((tx: any) => tx.input.startsWith('0x09c5eabe'))
-    const decoded = txns.map((tx: any) => decode_bundle(tx.input))
-    // console.log(transactions, transactions.length)
-    console.log(decoded[0])
+    const bundleTxns = transactions.filter((tx: any) => tx.input.startsWith('0x09c5eabe'))
+    for (const tx of bundleTxns) {
+      const bundle = decode_bundle(tx.input)
+      for (const poolUpdate of bundle.pool_updates) {
+        const pair = bundle.pairs.get(poolUpdate.pair_index)
+        if (!pair) continue
+        const asset = bundle.assets.get(pair.index0)
+        if (!asset) continue
+        const token0 = asset.addr
+
+        let feeAmount: bigint
+        if (poolUpdate.rewards_update.isMultiTick) {
+          feeAmount = poolUpdate.rewards_update.quantities.reduce((sum: bigint, q: string) => sum + BigInt(q), 0n)
+        } else {
+          feeAmount = BigInt(poolUpdate.rewards_update.amount || '0')
+        }
+
+        if (feeAmount > 0n) {
+          dailyFees.add(token0, feeAmount, 'Auction Fees')
+        }
+      }
+    }
   }
 
+  // --- User swap fees from Uniswap v4 pool manager logs ---
   if (config.source === 'LOGS') {
     const events = await options.getLogs({
       target: config.poolManager,
@@ -103,16 +121,18 @@ async function fetch(options: FetchOptions) {
       const poolId = String(event.id)
       if (pools[poolId] as IPool) {
         const token = (pools[poolId] as IPool).currency0
-        dailyFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
+        dailyUserFees.add(token, Math.abs(Number(event.amount0)) * (Number(event.fee) / 1e6))
         dailyVolume.add(token, Math.abs(Number(event.amount0)))
       }
     }
   }
 
+  dailyFees.add(dailyUserFees, 'Swap Fees')
+
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailySupplySideRevenue: dailyFees,
   }
 }
@@ -120,11 +140,17 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  doublecounted: true,
+  // doublecounted: true,  // most of the fee come from the block auction
   methodology: {
-    Fees: 'Swap fees paid by users.',
-    UserFees: 'Swap fees paid by users.',
-    SupplySideRevenue: 'All fees are distributed to LPs.',
+    Fees: 'Includes user swap fees from Uniswap v4 pool swaps and block auction fees from Angstrom bundles distributed to LPs.',
+    UserFees: 'Swap fees paid by users on each trade.',
+    SupplySideRevenue: 'All fees (swap fees + block auction rewards) are distributed to LPs.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Swap Fees': 'Fee paid by the users on each swap',
+      'Auction Fees': 'Fees paid by the arbitrageurs who win the right to extract MEV from Angstrom bundles. These fees are distributed to LPs.',
+    },
   },
   chains: Object.keys(Configs),
   start: '2025-07-23',
