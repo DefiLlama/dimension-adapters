@@ -345,4 +345,5 @@ export enum CHAIN {
   KUJIRA = "kujira",
   MIGALOO = "migaloo",
   BITROCK = "bitrock",
+  QIEV3 = "qiev3",
 }
