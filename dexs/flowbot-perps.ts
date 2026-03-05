@@ -36,12 +36,21 @@ const getPlatformData = (options: FetchOptions, platform: string): PlatformData 
 };
 
 const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
-    await fetchBuilderCodeRevenue({
-      options,
-      builder_address: HL_BUILDER_ADDRESS,
-    });
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
+  try {
+    const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
+      await fetchBuilderCodeRevenue({
+        options,
+        builder_address: HL_BUILDER_ADDRESS,
+      });
+    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
+  } catch (e) {
+    return {
+      dailyVolume: options.createBalances(),
+      dailyFees: options.createBalances(),
+      dailyRevenue: options.createBalances(),
+      dailyProtocolRevenue: options.createBalances(),
+    };
+  }
 };
 
 const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
