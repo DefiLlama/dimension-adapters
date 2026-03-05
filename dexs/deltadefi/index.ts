@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
-      start: "2026-01-25",
+      start: "2026-01-26",
     },
   },
 };
