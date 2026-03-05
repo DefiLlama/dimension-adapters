@@ -26,41 +26,33 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyUserFees = options.createBalances();
 
-  // Get all Clicked events for the period
   const clickLogs = await options.getLogs({
     target: GAME_CONTRACT,
     eventAbi:
       "event Clicked(uint256 indexed round, address indexed player, string username, uint256 clickNumber, uint256 potAfter, bool usedCredit)",
   });
 
-  // Get all GameEnded events for the period
   const gameEndedLogs = await options.getLogs({
     target: GAME_CONTRACT,
     eventAbi:
       "event GameEnded(uint256 indexed round, address indexed winner, string winnerName, uint256 prize, uint256 totalClicks, uint256 totalPot)",
   });
 
-  // dailyUserFees = total ETH spent by users (clicks x 0.001 ETH)
   const totalClicks = clickLogs.length;
   const totalUserSpend = BigInt(totalClicks) * BigInt(CLICK_PRICE);
   dailyUserFees.addGasToken(totalUserSpend);
 
-  // dailyFees = 15% of each click + 15% of each pot at game end
   let totalFees = BigInt(0);
 
-  // Fee per click: 15% of 0.001 ETH
   const clickFees = (totalUserSpend * BigInt(15)) / BigInt(100);
   totalFees += clickFees;
 
-  // Fee per game end: 15% of totalPot goes to protocol
   for (const log of gameEndedLogs) {
     const protocolCut = (BigInt(log[5]) * BigInt(15)) / BigInt(100);
     totalFees += protocolCut;
   }
 
   dailyFees.addGasToken(totalFees);
-
-  // dailyRevenue = same as dailyFees (all fees go to protocol treasury)
   dailyRevenue.addGasToken(totalFees);
 
   return {
@@ -70,21 +62,12 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const methodology = {
-  dailyFees:
-    "15% protocol fee on each click (0.001 ETH per click) plus 15% protocol cut from each pot when a game ends.",
-  dailyRevenue:
-    "All protocol fees (click fees + pot cuts) go to the treasury for monthly USDm distributions.",
-  dailyUserFees:
-    "Total ETH spent by players clicking (number of clicks x 0.001 ETH per click).", };
-
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch,
-      start: 1771459200, // Feb 19, 2026 00:00:00 UTC
-      methodology,
+      start: 1771459200,
     },
   },
 };
