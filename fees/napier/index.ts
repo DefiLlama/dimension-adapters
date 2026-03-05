@@ -92,11 +92,11 @@ const fetch = (chain: Chain) => {
 };
 
 const methodology = {
-  UserFees: "Users pay fees on issuance, redemption, performance, post-settlement, and swaps.",
-  Fees: "Total daily fees across all Napier markets, computed from subgraph-indexed pool stats.",
-  Revenue: "Protocol revenue from fee splits (non-curator portion) plus reward tokens sent to treasury.",
-  ProtocolRevenue: "Protocol's share of fees based on splitFeePercentage, plus protocol reward tokens.",
-  SupplySideRevenue: "Curator's share of fees based on splitFeePercentage.",
+  UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
+  Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps), rehypothecation yield (LP capital deployed into ERC-4626 vaults), and PT/YT fees (issuance, redemption, performance).",
+  Revenue: "Revenue governed by two fee distribution ratios: LP-Curator ratio (applies to AMM trading fees, defined per market by curators) and Curator-Protocol/DAO ratio (defined by Napier governance). Plus reward tokens sent to treasury.",
+  ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio, plus protocol reward tokens.",
+  SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
 };
 
 const chainConfig: Record<Chain, Config> = {
