@@ -30,7 +30,7 @@ const adapter: Adapter = {
         let totalBaseFees = BigInt(0);
 
         const blocks: number[] = [];
-        for (let i = fromBlock; i < toBlock; i++) blocks.push(i);
+        for (let i = fromBlock; i <= toBlock; i++) blocks.push(i);
 
         const { errors } = await PromisePool
           .withConcurrency(CONCURRENCY)
