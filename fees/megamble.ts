@@ -1,5 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { Adapter, FetchOptions } from "../adapters/types"; import { CHAIN } from "../helpers/chains";
 
 /**
  * Megamble - Fully on-chain competitive game on MegaETH
@@ -20,7 +19,7 @@ import { CHAIN } from "../../helpers/chains";
  */
 
 const GAME_CONTRACT = "0x051B5a8B20F3e49E073Cf7A37F4fE2e5117Af3b6";
-const CLICK_PRICE = 1e15; // 0.001 ETH in wei
+const CLICK_PRICE = "1000000000000000"; // 0.001 ETH in wei
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -55,8 +54,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Fee per game end: 15% of totalPot goes to protocol
   for (const log of gameEndedLogs) {
-    const totalPot = log.totalPot;
-    const protocolCut = (BigInt(totalPot) * BigInt(15)) / BigInt(100);
+    const protocolCut = (BigInt(log[5]) * BigInt(15)) / BigInt(100);
     totalFees += protocolCut;
   }
 
@@ -72,24 +70,26 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  dailyFees:
+    "15% protocol fee on each click (0.001 ETH per click) plus 15% protocol cut from each pot when a game ends.",
+  dailyRevenue:
+    "All protocol fees (click fees + pot cuts) go to the treasury for monthly USDm distributions.",
+  dailyUserFees:
+    "Total ETH spent by players clicking (number of clicks x 0.001 ETH per click).", };
+
 const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.MEGAETH]: {
       fetch,
-      start: 1739952466, // Feb 19, 2026 - contract deployment
+      start: 1771459200, // Feb 19, 2026 00:00:00 UTC
       meta: {
-        methodology: {
-          dailyFees:
-            "15% protocol fee on each click (0.001 ETH per click) plus 15% protocol cut from each pot when a game ends.",
-          dailyRevenue:
-            "All protocol fees (click fees + pot cuts) go to the treasury for monthly USDm distributions.",
-          dailyUserFees:
-            "Total ETH spent by players clicking (number of clicks x 0.001 ETH per click).",
-        },
+        methodology,
       },
     },
   },
 };
 
 export default adapter;
+
