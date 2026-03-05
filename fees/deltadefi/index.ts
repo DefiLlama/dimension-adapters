@@ -4,19 +4,19 @@ import { httpGet } from "../../utils/fetchURL";
 
 const FEES_API = "https://api-internal-metrics.deltadefi.io/public/fees/daily";
 
-const fetch = async ({ startOfDay }: any) => {
-  const response = await httpGet(`${FEES_API}?timestamp=${startOfDay}`);
+const fetch = async (timestamp: number) => {
+  const response = await httpGet(`${FEES_API}?timestamp=${timestamp}`);
   const dailyFees = response.daily_fees_usd;
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    timestamp: startOfDay,
+    timestamp,
   };
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,
