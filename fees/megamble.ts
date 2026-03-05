@@ -38,17 +38,23 @@ const fetch = async (options: FetchOptions) => {
       "event GameEnded(uint256 indexed round, address indexed winner, string winnerName, uint256 prize, uint256 totalClicks, uint256 totalPot)",
   });
 
+  // All clicks generate fees (both direct and credit clicks)
   const totalClicks = clickLogs.length;
-  const totalUserSpend = BigInt(totalClicks) * BigInt(CLICK_PRICE);
-  dailyUserFees.addGasToken(totalUserSpend);
+  const totalSpend = BigInt(totalClicks) * BigInt(CLICK_PRICE);
 
+  // dailyUserFees = only direct ETH clicks (credit clicks were pre-paid)
+  const directClicks = clickLogs.filter((log: any) => !log.usedCredit);
+  const directSpend = BigInt(directClicks.length) * BigInt(CLICK_PRICE);
+  dailyUserFees.addGasToken(directSpend);
+
+  // dailyFees = 15% of ALL clicks + 15% of each pot at game end
   let totalFees = BigInt(0);
 
-  const clickFees = (totalUserSpend * BigInt(15)) / BigInt(100);
+  const clickFees = (totalSpend * BigInt(15)) / BigInt(100);
   totalFees += clickFees;
 
   for (const log of gameEndedLogs) {
-    const protocolCut = (BigInt(log[5]) * BigInt(15)) / BigInt(100);
+    const protocolCut = (BigInt(log.totalPot) * BigInt(15)) / BigInt(100);
     totalFees += protocolCut;
   }
 
