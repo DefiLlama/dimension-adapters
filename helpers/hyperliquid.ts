@@ -300,7 +300,7 @@ export async function queryHyperliquidIndexer(
     // add fees from perps trading
     for (const [coin, fees] of Object.entries(item.perpsFeeByTokens)) {
       if (CoinGeckoMaps[coin]) {
-        dailyPerpRevenue.addCGToken(CoinGeckoMaps[coin], fees);
+        dailyPerpRevenue.addCGToken(CoinGeckoMaps[coin], Number(fees || 0));
       }
     }
 
