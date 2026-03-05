@@ -5,14 +5,10 @@ import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/t
 import { CHAIN } from "../../helpers/chains";
 
 /**
- * Napier Finance Volume Adapter
+ * Napier Finance Volume Adapter - STAGING VERSION
  *
- * Tracks swap volume from Napier AMM pools by monitoring on-chain events.
- * Supports both Curve TwoCrypto pools (TokenExchange events) and
- * TokiHook/Uniswap V4 pools (HookSwap events).
- *
- * Pool addresses and types are fetched from napier-api to dynamically
- * detect which pools exist on each chain.
+ * Points to api-staging.napier.finance for internal testing.
+ * Staging API supports: Ethereum (1) and Arbitrum (42161) only.
  */
 
 const CURVE_POOL_ABI = {
@@ -37,7 +33,7 @@ interface Market {
   };
 }
 
-const API_BASE_URL = process.env.NAPIER_API_URL ?? "https://api-v2.napier.finance";
+const API_BASE_URL = "https://api-staging.napier.finance";
 
 async function fetchMarkets(api: ChainApi) {
   const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
@@ -45,8 +41,6 @@ async function fetchMarkets(api: ChainApi) {
 
   const curvePools: string[] = [];
   const poolToMarket = new Map<string, Market>();
-  // For TokiHook: pool.address is the singleton contract (same for all TOKI_HOOK markets on a chain)
-  // pool.poolId is the unique Uniswap V4 pool ID per market
   let tokiHookAddress: string | null = null;
   const poolIdToMarket = new Map<string, Market>();
 
@@ -72,7 +66,6 @@ const fetch = (_chain: Chain) => {
     const { curvePools, tokiHookAddress, poolIdToMarket, poolToMarket } = await fetchMarkets(options.api);
     const dailyVolume = createBalances();
 
-    // Track Curve TwoCrypto pool volume via TokenExchange events
     if (curvePools.length > 0) {
       const curveExchangeEvents = await getLogs({
         targets: curvePools,
@@ -98,7 +91,6 @@ const fetch = (_chain: Chain) => {
           const tokensSold = event.tokens_sold;
           const tokensBought = event.tokens_bought;
 
-          // Target token is always token index 1 in the Curve pool
           let targetAmount: bigint;
           if (soldId === 1n) {
             targetAmount = tokensSold;
@@ -108,15 +100,12 @@ const fetch = (_chain: Chain) => {
             continue;
           }
 
-          // Convert target token amount to asset token terms for pricing
           const assetAmount = targetAmount * BigInt(10 ** assetDecimals) / BigInt(10 ** targetDecimals);
           dailyVolume.add(assetToken, assetAmount);
         }
       }
     }
 
-    // Track TokiHook (Uniswap V4) pool volume via HookSwap events
-    // tokiHookAddress is the singleton contract derived from the API response (pool.address for TOKI_HOOK markets)
     if (tokiHookAddress && poolIdToMarket.size > 0) {
       const hookSwapEvents = await getLogs({
         target: tokiHookAddress,
@@ -141,21 +130,12 @@ const fetch = (_chain: Chain) => {
 };
 
 const methodology = {
-  Volume: "Aggregates trading volume from Napier AMM pools by tracking on-chain swap events. Supports Curve AMM (TwoCrypto) pools via TokenExchange events and Napier AMM (TokiHook/Uniswap V4) pools via HookSwap events.",
+  Volume: "[STAGING] Aggregates trading volume from Napier AMM pools via api-staging.napier.finance. Supports Ethereum and Arbitrum.",
 };
 
 const chainConfig: Record<Chain, { start: string }> = {
   [CHAIN.ETHEREUM]: { start: "2024-02-28" },
-  [CHAIN.BASE]: { start: "2024-02-27" },
-  [CHAIN.SONIC]: { start: "2024-03-07" },
   [CHAIN.ARBITRUM]: { start: "2024-03-11" },
-  [CHAIN.OPTIMISM]: { start: "2024-03-11" },
-  [CHAIN.FRAXTAL]: { start: "2024-03-11" },
-  [CHAIN.MANTLE]: { start: "2024-03-11" },
-  [CHAIN.BSC]: { start: "2024-03-11" },
-  [CHAIN.POLYGON]: { start: "2024-03-12" },
-  [CHAIN.AVAX]: { start: "2024-03-12" },
-  [CHAIN.HYPERLIQUID]: { start: "2024-03-13" },
 };
 
 const adapter: SimpleAdapter = {
