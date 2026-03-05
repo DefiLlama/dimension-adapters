@@ -1,26 +1,21 @@
-import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
+import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import { getEtherscanFees } from "../helpers/etherscanFees";
 
-const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.XDC]: {
-      fetch: async (options: FetchOptions) => {
-        const dateStr = new Date((options.startTimestamp + 43200) * 1000).toISOString().slice(0, 10);
-        const fees = await httpGet(
-          `https://xdc.blocksscan.io/api?module=stats&action=totalfees&date=${dateStr}`
-        );
-        if (fees?.result === undefined || fees?.result === null)
-          throw new Error(`XDC: no fee data for ${dateStr} (status=${fees?.status}, message=${fees?.message})`);
-        const dailyFees = options.createBalances();
-        dailyFees.addGasToken(fees.result);
-        return { dailyFees };
-      },
-      start: "2019-06-01",
-    },
-  },
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const amount = await getEtherscanFees(options, 'https://xdcscan.com/chart/transactionfee?output=csv')
+  const dailyFees = options.createBalances()
+  dailyFees.addCGToken('xdce-crowd-sale', amount / 1e18)
+
+  return { dailyFees };
+}
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.XDC],
+  start: '2019-06-01',
   protocolType: ProtocolType.CHAIN,
-};
+}
 
 export default adapter;
