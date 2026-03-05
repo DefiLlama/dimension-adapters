@@ -39,12 +39,12 @@ const fetch = (chain: Chain) => {
     const { createBalances } = options;
     const url = `${API_BASE_URL}/v1/market?chainIds=${options.api.chainId!}`;
 
-    let markets: Market[] = [];
+    let markets: Market[];
     try {
       const res = await axios.get<Market[]>(url);
       markets = Array.isArray(res.data) ? res.data : [];
     } catch (e: any) {
-      console.warn(`Failed to fetch markets for chain ${options.api.chainId}: ${e.message}`);
+      throw new Error(`Napier API fetch failed for chain ${chain} (chainId ${options.api.chainId}): ${e?.message ?? e}`);
     }
 
     const dailyFees = createBalances();
@@ -65,11 +65,14 @@ const fetch = (chain: Chain) => {
         (m.metrics?.underlyingRewards ?? []).map((r: any) => r.rewardToken.address)
       )
     )];
-    const dailyRevenue = await addTokensReceived({
-      options,
-      target: chainConfig[chain].treasury,
-      tokens: rewardTokens,
-    });
+    let dailyRevenue = createBalances();
+    if (rewardTokens.length > 0) {
+      dailyRevenue = await addTokensReceived({
+        options,
+        target: chainConfig[chain].treasury,
+        tokens: rewardTokens,
+      });
+    }
 
     // Add protocol's share of fees (non-curator portion)
     for (const market of markets) {
