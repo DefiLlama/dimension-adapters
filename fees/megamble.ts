@@ -84,9 +84,7 @@ const adapter: Adapter = {
     [CHAIN.MEGAETH]: {
       fetch,
       start: 1771459200, // Feb 19, 2026 00:00:00 UTC
-      meta: {
-        methodology,
-      },
+      methodology,
     },
   },
 };
