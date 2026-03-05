@@ -8,6 +8,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 const FLOWBOT_API = "https://flowbot.pro/api/dashboard/volume";
 const HL_BUILDER_ADDRESS = "0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36";
 const EXTENDED_BUILDER_NAMES = ["FlowBot"];
+const FLOWBOT_POLYMARKET_BUILDER_NAME = "FlowBot";
 const FLOWBOT_FEE_RATE = 0.0001;
 const NADO_FEE_RATE = 0.00002;
 
@@ -27,7 +28,11 @@ interface FlowbotResponse {
 }
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
-  return httpGet(`${FLOWBOT_API}?start=${options.startTimestamp}&end=${options.endTimestamp}`);
+  try {
+    return await httpGet(`${FLOWBOT_API}?start=${options.startTimestamp}&end=${options.endTimestamp}`);
+  } catch (e) {
+    return { platforms: {}, total_volume: 0, total_trades: 0, total_active_users: 0 };
+  }
 };
 
 const getPlatformData = (options: FetchOptions, platform: string): PlatformData | undefined => {
@@ -35,111 +40,57 @@ const getPlatformData = (options: FetchOptions, platform: string): PlatformData 
   return data?.platforms?.[platform];
 };
 
-const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
-  try {
-    const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
-      await fetchBuilderCodeRevenue({
-        options,
-        builder_address: HL_BUILDER_ADDRESS,
-      });
-    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
-  } catch (e) {
-    return {
-      dailyVolume: options.createBalances(),
-      dailyFees: options.createBalances(),
-      dailyRevenue: options.createBalances(),
-      dailyProtocolRevenue: options.createBalances(),
-    };
-  }
+const safeFetch = (fn: (options: FetchOptions) => Promise<any>, withFees = true) => {
+  return async (_: any, __: any, options: FetchOptions) => {
+    try {
+      return await fn(options);
+    } catch (e) {
+      if (!withFees) return { dailyVolume: options.createBalances() };
+      return {
+        dailyVolume: options.createBalances(),
+        dailyFees: options.createBalances(),
+        dailyRevenue: options.createBalances(),
+        dailyProtocolRevenue: options.createBalances(),
+      };
+    }
+  };
 };
 
-const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchHyperliquid = safeFetch(async (options) => {
+  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
+    await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
+});
+
+const fetchExtended = safeFetch(async (options) => {
   const { dailyVolume, dailyFees } =
-    await fetchBuilderData({
-      options,
-      builderNames: EXTENDED_BUILDER_NAMES,
-      builderFeeRate: FLOWBOT_FEE_RATE,
-    });
+    await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: FLOWBOT_FEE_RATE });
+  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+});
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
-};
+const fetchPolymarket = safeFetch(async (options) => {
+  return fetchPolymarketBuilderVolume({ options, builder: FLOWBOT_POLYMARKET_BUILDER_NAME });
+}, false);
 
-const fetchPolymarket = async (_a: any, _b: any, options: FetchOptions) => {
-  return fetchPolymarketBuilderVolume({
-    options,
-    builder: "FlowBot",
-  });
-};
-
-const fetchNado = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
-  const item = getPlatformData(options, "nado");
-  if (item && item.volume > 0) {
-    dailyVolume.addCGToken("usd-coin", item.volume);
-    if (item.fees && item.fees > 0) {
-      dailyFees.addCGToken("usd-coin", item.fees);
+const fetchFlowbotPlatform = (platform: string, feeRate?: number) => {
+  return async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyVolume = options.createBalances();
+    const item = getPlatformData(options, platform);
+    if (item && item.volume > 0) {
+      dailyVolume.addCGToken("usd-coin", item.volume);
     }
-    dailyRevenue.addCGToken("usd-coin", item.volume * NADO_FEE_RATE);
-  }
+    if (!feeRate) return { dailyVolume };
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-  };
-};
-
-const fetchPacifica = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
-  const item = getPlatformData(options, "pacifica");
-  if (item && item.volume > 0) {
-    dailyVolume.addCGToken("usd-coin", item.volume);
-    if (item.fees && item.fees > 0) {
-      dailyFees.addCGToken("usd-coin", item.fees);
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    if (item && item.volume > 0) {
+      if (item.fees && item.fees > 0) {
+        dailyFees.addCGToken("usd-coin", item.fees);
+      }
+      dailyRevenue.addCGToken("usd-coin", item.volume * feeRate);
     }
-    dailyRevenue.addCGToken("usd-coin", item.volume * FLOWBOT_FEE_RATE);
-  }
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
   };
-};
-
-const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-
-  const item = getPlatformData(options, "paradex");
-  if (item && item.volume > 0) {
-    dailyVolume.addCGToken("usd-coin", item.volume);
-  }
-
-  return { dailyVolume };
-};
-
-const fetchLighter = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-
-  const item = getPlatformData(options, "lighter");
-  if (item && item.volume > 0) {
-    dailyVolume.addCGToken("usd-coin", item.volume);
-  }
-
-  return { dailyVolume };
 };
 
 const methodology = {
@@ -164,19 +115,19 @@ const adapter: SimpleAdapter = {
       start: "2024-01-01",
     },
     [CHAIN.SOLANA]: {
-      fetch: fetchPacifica,
+      fetch: fetchFlowbotPlatform("pacifica", FLOWBOT_FEE_RATE),
       start: "2024-01-01",
     },
     [CHAIN.INK]: {
-      fetch: fetchNado,
+      fetch: fetchFlowbotPlatform("nado", NADO_FEE_RATE),
       start: "2024-01-01",
     },
     [CHAIN.PARADEX]: {
-      fetch: fetchParadex,
+      fetch: fetchFlowbotPlatform("paradex"),
       start: "2024-01-01",
     },
     [CHAIN.ZK_LIGHTER]: {
-      fetch: fetchLighter,
+      fetch: fetchFlowbotPlatform("lighter"),
       start: "2024-01-01",
     },
   },
