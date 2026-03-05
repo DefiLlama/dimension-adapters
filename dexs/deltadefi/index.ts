@@ -1,0 +1,25 @@
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
+
+const VOLUME_API = "https://api-internal-metrics.deltadefi.io/public/volume/daily";
+
+const fetch = async ({ startOfDay }: any) => {
+  const response = await httpGet(`${VOLUME_API}?timestamp=${startOfDay}`);
+  return {
+    dailyVolume: response.volume_usd,
+    timestamp: startOfDay,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.CARDANO]: {
+      fetch,
+      start: "2026-01-25",
+    },
+  },
+};
+
+export default adapter;
