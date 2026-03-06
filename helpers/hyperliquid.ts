@@ -47,9 +47,11 @@ export const fetchBuilderCodeRevenue = async ({
       `${endpoint}/v1/data/hourly?date=${dateString}&builder=${formatAddress(builder_address)}`,
     );
     for (const item of response.data) {
-      dailyFees.addCGToken("usd-coin", item.feeByTokens.USDC || 0);
-      dailyFees.addCGToken("ethena-usde", item.feeByTokens.USDE || 0);
-      dailyFees.addCGToken("usdh-2", item.feeByTokens.USDH || 0);
+      for (const [coin, fees] of Object.entries(item.feeByTokens)) {
+        if (CoinGeckoMaps[coin]) {
+          dailyFees.addCGToken(CoinGeckoMaps[coin], Number(fees || 0));
+        }
+      }
       dailyVolume.addCGToken("usd-coin", item.volumeUsd);
     }
 
@@ -203,6 +205,7 @@ export const CoinGeckoMaps: Record<string, string> = {
   USPYX: "sp500-xstock",
   UMOG: "mog-coin",
   USDH: "usdh-2",
+  USDA: "angle-usd",
 };
 
 export async function getUnitSeployedCoins(): Promise<Record<string, string>> {
@@ -295,14 +298,19 @@ export async function queryHyperliquidIndexer(
     dailySpotVolume.addCGToken("usd-coin", item.spotVolumeUsd);
 
     // add fees from perps trading
-    dailyPerpRevenue.addCGToken("usd-coin", item.perpsFeeByTokens.USDC);
+    for (const [coin, fees] of Object.entries(item.perpsFeeByTokens)) {
+      if (CoinGeckoMaps[coin]) {
+        dailyPerpRevenue.addCGToken(CoinGeckoMaps[coin], Number(fees || 0));
+      }
+    }
 
     // add builder fees
     for (const builder of Object.values(item.builders)) {
-      dailyBuildersRevenue.addCGToken(
-        "usd-coin",
-        Number((builder as any).feeByTokens.USDC || 0),
-      );
+      for (const [coin, fees] of Object.entries((builder as any).feeByTokens)) {
+        if (CoinGeckoMaps[coin]) {
+          dailyBuildersRevenue.addCGToken(CoinGeckoMaps[coin], Number(fees || 0));
+        }
+      }
     }
 
     // add fees from spot trading
