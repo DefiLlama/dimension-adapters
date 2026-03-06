@@ -1,37 +1,36 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
+import { Adapter } from "../adapters/types";
 
-/**
- * Fetch data for CHAIN.GATE_LAYER
- * This endpoint requires a date parameter to request data for a single date
- */
-async function fetchGateData(dateString: string): Promise<any> {
-  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${dateString}&broker=gate`;
+const START = "2025-10-15";
 
-  const data = await httpGet(endpointWithDate);
+async function fetchStats(date: string) {
+  const url = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${date}&broker=aden`;
 
-  if (!data) {
-    throw new Error("Data missing for date: " + dateString);
-  }
+  const { data } = await fetchURL(url);
 
   return {
-    dailyVolume: data.volume,
+    volume: Number(data?.volume ?? 0),
+    fees: Number(data?.fees ?? 0),
   };
 }
 
-const methodology = {};
-
-const adapter: SimpleAdapter = {
+const adapter: Adapter = {
   adapter: {
-    [CHAIN.GATE_LAYER]: {
-      start: "2025-10-15",
-      fetch: async (_: any, _1: any, options: FetchOptions) => {
-        return fetchGateData(options.dateString);
+    gateperps: {
+      start: async () => new Date(START).getTime() / 1000,
+
+      fetch: async (timestamp: number) => {
+        const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+
+        const stats = await fetchStats(date);
+
+        return {
+          dailyVolume: stats.volume,
+          dailyFees: stats.fees,
+        };
       },
     },
   },
-  methodology,
 };
 
-export default adapter; 
+export default adapter;
