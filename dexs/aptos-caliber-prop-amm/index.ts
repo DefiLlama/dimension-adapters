@@ -49,8 +49,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const data = await queryDuneSql(options, query)
 
   return {
-    dailyVolume: data[0].daily_volume,
-  }
+    dailyVolume: data[0]?.daily_volume ?? 0  }
 }
 
 const adapter: SimpleAdapter = {
