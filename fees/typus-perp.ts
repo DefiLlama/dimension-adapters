@@ -5,6 +5,7 @@ import { queryEvents } from "../helpers/sui";
 const PROTOCOL_FEE_SHARE = 0.3;
 const TLP_FEE_SHARE = 0.7;
 const USD_DECIMALS = 1e9;
+const CONTRACT_CHANGE_TIME = 1767225600; //2026-01-01
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const tlpFees = options.createBalances();
@@ -12,7 +13,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const minLpEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::MintLpEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::MintLpEvent",
     options,
@@ -23,7 +24,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const burnLpEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::BurnLpEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::BurnLpEvent",
     options,
@@ -34,7 +35,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const swapEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::SwapEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::SwapEvent",
     options,
@@ -47,7 +48,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const withdrawLendingEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::WithdrawLendingEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::WithdrawLendingEvent",
     options,
@@ -59,7 +60,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const liquidateEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::LiquidateEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::trading::LiquidateEvent",
     options,
@@ -72,7 +73,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const realizeOptionEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::RealizeOptionPositionEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::trading::RealizeOptionPositionEvent",
     options,
@@ -86,7 +87,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const orderFilledEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::position::OrderFilledEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::position::OrderFilledEvent",
     options,
@@ -100,7 +101,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const realizeFundingEvents = await queryEvents({
     eventType:
-      options.startTimestamp < 1767225600
+      options.startTimestamp < CONTRACT_CHANGE_TIME
         ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::position::RealizeFundingEvent"
         : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::position::RealizeFundingEvent",
     options,
@@ -126,8 +127,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees: "Typus Perp fees are charged from perp trading fees and liquidation fees.",
+  Revenue: "30% of perp trading/liquidation fees and all TLP mint/burn fees are included in the revenue.",
   ProtocolRevenue:
     "30% of perp trading/liquidation fees and all TLP mint/burn fees are included in the protocol revenue.",
+  SupplySideRevenue: "70% of fees goes to TLP holders (liquidity providers)",
 };
 
 const adapter: SimpleAdapter = {
