@@ -188,6 +188,9 @@ const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyVolume,
+    dailyFees: 0, // no fees
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   };
 };
 
