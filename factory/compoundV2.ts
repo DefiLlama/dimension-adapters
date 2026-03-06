@@ -46,6 +46,9 @@ const feesConfigs: Record<string, Config> = {
   "morpho-compound": {
     comptrollers: { [CHAIN.ETHEREUM]: "0x930f1b46e1d081ec1524efd95752be3ece51ef67" },
   },
+  "qie-lend": {
+    comptrollers: { [CHAIN.QIEV3]: "0x69a31E3D361C69B37463aa67Ef93067dC760fBD4"},
+  },
   "strike": {
     comptrollers: { [CHAIN.ETHEREUM]: "0xe2e17b2CBbf48211FA7eB8A875360e5e39bA2602" },
     options: { useExchangeRate: true, blacklists: ["0xc13fdf3af7ec87dca256d9c11ff96405d360f522", "0x1ebfd36223079dc79fefc62260db9e25f3f5e2c7"], protocolRevenueRatio: 1 },
