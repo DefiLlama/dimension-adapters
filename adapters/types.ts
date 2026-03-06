@@ -125,6 +125,7 @@ export type AdapterBase = {
   start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
   _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results - We stopped caching these results but left as is as it is used in batching dune queries, we can re-use it later if needed
   pullHourly?: boolean;
+  skipBreakdownValidation?: boolean; // this is to skip the validation that requires at least one of dailyRevenue, dailySupplySideRevenue or dailyProtocolRevenue to be present when dailyFees is present, this is useful for some adapters that have a breakdown in their dailyFees but dont have a clear way to attribute the fees to either supply side or protocol revenue
 }
 
 export type SimpleAdapter = AdapterBase & {

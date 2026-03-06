@@ -255,7 +255,7 @@ async function _runAdapter({
       const improbableValue = 2e11 // 200 billion
 
       // validate and inject missing record if any
-      validateAdapterResult(result)
+      validateAdapterResult(result, module)
 
       // add missing metrics if need
       addMissingMetrics(chain, result)
@@ -522,12 +522,12 @@ function subtractBalance(options: { balance: Balances, amount: FetchResponseValu
   }
 }
 
-function validateAdapterResult(result: any) {
+function validateAdapterResult(result: any, module: any) {
   // validate metrics
   //  this is to ensure that we do this validation only for the new adapters
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
     // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
-    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue && !module?.skipBreakdownValidation) {
       throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
     }
   }
