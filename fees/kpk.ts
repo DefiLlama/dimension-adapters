@@ -63,7 +63,7 @@ for (const [chain, chainCfg] of Object.entries(baseAdapter.adapter ?? {})) {
     const dailyRevenue: Balances = options.createBalances();
 
     // 2) Gearbox TreasurySplitter fees (ETH chain only)
-    if (chain === "ethereum") {
+    if (chain === CHAIN.ETHEREUM) {
       const gearboxDailyFees: Balances = await addTokensReceived({
         options,
         tokens: GEARBOX_FEE_TOKENS,

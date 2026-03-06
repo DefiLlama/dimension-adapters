@@ -2,7 +2,7 @@ import * as sdk from '@defillama/sdk';
 import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
 import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 
@@ -24,7 +24,7 @@ function genUID(length: number = 10): string {
   return result
 }
 
-const adapterRunResponseCache = {} as any
+// const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
   const { chains = [], fetch, start, runAtCurrTime } = module
@@ -100,6 +100,10 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   setModuleDefaults(module)
 
+  return _runAdapter(options)
+
+/*  Disable caching run results
+
   if (!cacheResults) return _runAdapter(options)
 
   const runKey = getRunKey(options)
@@ -111,12 +115,15 @@ export default async function runAdapter(options: AdapterRunOptions) {
   function clone(obj: any) {
     return JSON.parse(JSON.stringify(obj))
   }
-}
 
+
+   */
+}
+/* 
 function getRunKey(options: AdapterRunOptions) {
   const randomUID = options.module._randomUID ?? genUID(10)
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
-}
+} */
 
 const startOfDayIdCache: { [key: string]: string } = {}
 
@@ -248,7 +255,7 @@ async function _runAdapter({
       const improbableValue = 2e11 // 200 billion
 
       // validate and inject missing record if any
-      validateAdapterResult(result)
+      validateAdapterResult(result, module)
 
       // add missing metrics if need
       addMissingMetrics(chain, result)
@@ -335,7 +342,7 @@ async function _runAdapter({
     const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const problematicChains = new Set(['sei', 'xlayer'])
+    const problematicChains = new Set(['sei',])
 
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
 
@@ -344,10 +351,51 @@ async function _runAdapter({
 
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
+      const requestCount = targets ? targets.length : 1
+      if (api) api.addStat('logsRequests', requestCount)
 
       return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
+
+    const streamLogs = async (params: Parameters<typeof sdk.indexer.getLogs>[0] & {
+      targetsFilter?: string[] | Set<string>
+    }) => {
+
+
+      if (!sdk.indexer.supportedChainSet2.has(chain)) {
+        throw new Error(`streamLogs is not supported for ${chain} chain`)
+      }
+
+      const origProcessor = params.processor
+      let targetsFilter = params.targetsFilter
+
+      if (Array.isArray(targetsFilter))
+        targetsFilter = new Set(targetsFilter.map((t) => t.toLowerCase()))
+
+      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
+      if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
+      if (!params.hasOwnProperty('all')) params.all = true
+      if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
+      if (!params.hasOwnProperty('collect')) params.collect = false
+      if (!params.hasOwnProperty('onlyArgs') && !params.entireLog) params.onlyArgs = true
+
+      if (params.hasOwnProperty('processor')) params.processor = (chunk: any | any[]) => {
+        let swapLogs = Array.isArray(chunk) ? chunk : [chunk]
+
+        if (targetsFilter)
+          swapLogs = swapLogs.filter((log) => targetsFilter!.has(log.address.toLowerCase()))
+
+
+        origProcessor!(swapLogs)
+      }
+
+
+      const requestCount = params.targets ? params.targets.length : 1
+      if (api) api.addStat('streamLogs', requestCount)
+
+      return sdk.indexer.getLogs({ ...params, chain })
+    }
     // we intentionally add a delay to avoid fetching the same block before it is cached
     // await randomDelay()
 
@@ -365,6 +413,9 @@ async function _runAdapter({
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api
+
+    api.getLogs = () => { throw new Error('api.getLogs is disabled, use getLogs from options object instead') }
+    fromApi.getLogs = () => { throw new Error('fromApi.getLogs is disabled, use getLogs from options object instead') }
 
     return {
       createBalances,
@@ -386,6 +437,7 @@ async function _runAdapter({
       dateString: getDateString(startOfDay),
       moduleUID,
       startOfDayId: getStartOfDayId(startOfDay),
+      streamLogs,
     }
   }
 
@@ -470,12 +522,12 @@ function subtractBalance(options: { balance: Balances, amount: FetchResponseValu
   }
 }
 
-function validateAdapterResult(result: any) {
+function validateAdapterResult(result: any, module: any) {
   // validate metrics
   //  this is to ensure that we do this validation only for the new adapters
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
     // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
-    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue && !module?.skipBreakdownValidation) {
       throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
     }
   }

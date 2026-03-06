@@ -26,6 +26,7 @@ export interface CuratorConfig {
 interface Balances {
   dailyFees: sdk.Balances,
   dailyRevenue: sdk.Balances,
+  dailySupplySideRevenue?: sdk.Balances
 }
 
 interface VaultERC4626Info {
@@ -247,6 +248,7 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
 
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedBeforeFee, METRIC.ASSETS_YIELDS)
       balances.dailyRevenue.add(vaultInfo[i].asset, interestFee, METRIC.ASSETS_YIELDS)
+      if (balances.dailySupplySideRevenue) balances.dailySupplySideRevenue.add(vaultInfo[i].asset, interestEarnedBeforeFee - interestFee, METRIC.ASSETS_YIELDS)
     }
   }
 }
@@ -299,6 +301,17 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
     ProtocolRevenue: 'Yields are collected by curators.',
     SupplySideRevenue: 'Yields are distributed to vaults depositors/investors.',
   }
+  const breakdownMethodology = {
+    Fees: {
+      [METRIC.ASSETS_YIELDS]: 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
+    },
+    Revenue: {
+      [METRIC.ASSETS_YIELDS]: 'Portion of interest yields retained by vault curators as management and performance fees',
+    },
+    SupplySideRevenue: {
+      [METRIC.ASSETS_YIELDS]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
+    },
+  }
   const exportObject: BaseAdapter = {}
 
   Object.entries(curatorConfig.vaults).map(([chain, vaults]) => {
@@ -312,7 +325,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
 
         // morpho v2 vaults
         const morphoVaultsV2 = await getMorphoVaultsV2(options, vaults.morphoVaultV2Owners);
-        
+
         const eulerVaults = await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners);
 
         if (morphoVaults.length > 0) {
@@ -325,8 +338,10 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue }, eulerVaults)
         }
 
-        const dailySupplySideRevenue = dailyFees.clone(1, METRIC.ASSETS_YIELDS)
-        dailySupplySideRevenue.subtract(dailyRevenue, METRIC.ASSETS_YIELDS)
+        const dailySupplySideRevenue = options.createBalances()
+        const tempBalance = dailyFees.clone()
+        tempBalance.subtract(dailyRevenue)
+        dailySupplySideRevenue.addBalances(tempBalance, METRIC.ASSETS_YIELDS)
 
         return {
           dailyFees,
@@ -342,6 +357,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
   return {
     version: 2,
     methodology,
+    breakdownMethodology,
     adapter: exportObject,
   }
 }

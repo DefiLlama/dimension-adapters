@@ -18,7 +18,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   dailyFees.addGasToken((dayItem?.cum_proposer_revenue) * 1e18 || 0, METRIC.MEV_REWARDS)
 
   return {
-    dailyFees
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
   }
 }
 
@@ -30,10 +32,15 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'Total ETH fees paid to block proposers by users.',
+    Revenue: 'Flashbots gets no fees share.',
+    SupplySideRevenue: 'All ETH fees paid to block proposers.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
+    },
+    SupplySideRevenue: {
+      [METRIC.MEV_REWARDS]: "All ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
     },
   },
 }

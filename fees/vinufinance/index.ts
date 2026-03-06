@@ -40,6 +40,7 @@ const fetch = async ({ getLogs, createBalances, api }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.VINUCHAIN]: { fetch, start: '2023-10-01' }
   }

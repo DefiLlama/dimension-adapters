@@ -19,6 +19,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue: stakerFees
   };
 };
 
@@ -26,6 +27,7 @@ const methodology = {
   Fees: 'Fees paid by those minting and redeeming SpringSui Ecosystem LSTs + staking rewards',
   Revenue: 'Fees are collected by SpringSui Ecosystem.',
   ProtocolRevenue: 'Fees are collected by SpringSui Ecosystem.',
+  SupplySideRevenue: 'Staking rewards'
 }
 
 

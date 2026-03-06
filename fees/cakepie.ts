@@ -63,6 +63,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.ETHEREUM],
   methodology,

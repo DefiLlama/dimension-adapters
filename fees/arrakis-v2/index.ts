@@ -1,6 +1,7 @@
 import { Chain } from "../../adapters/types";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 type IVault = {
   helper: string;
@@ -77,14 +78,14 @@ async function getVaultsFees(
     if (token0 && prevFee0 && currFee0) {
       const dailyFee0 = BigInt(currFee0) - BigInt(prevFee0);
       if (dailyFee0 >= 0) {
-        dailyFees.add(token0, dailyFee0);
+        dailyFees.add(token0, dailyFee0, METRIC.MANAGEMENT_FEES);
       }
     }
 
     if (token1 && prevFee1 && currFee1) {
       const dailyFee1 = BigInt(currFee1) - BigInt(prevFee1);
       if (dailyFee1 >= 0) {
-        dailyFees.add(token1, dailyFee1);
+        dailyFees.add(token1, dailyFee1, METRIC.MANAGEMENT_FEES);
       }
     }
   });
@@ -92,10 +93,18 @@ async function getVaultsFees(
   return { dailyFees };
 }
 
-const adapter: Adapter = {
-  methodology: {
-    Fees: 'All yields are collected from deposited assets by liquidity providers.',
+const methodology = {
+  Fees: 'All yields are collected from deposited assets by liquidity providers.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MANAGEMENT_FEES]: 'Fees collected by Arrakis protocol for managing liquidity vault positions on behalf of depositors',
   },
+};
+
+const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: (options: FetchOptions) =>
@@ -103,7 +112,8 @@ const adapter: Adapter = {
       start: '2023-08-26',
     },
   },
-  version: 2,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

@@ -26,6 +26,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume: "Sum of amountIn from Swap events emitted by CORE_AGGREGATOR (tokenIn side).",
   },

@@ -1,3 +1,4 @@
+import { CHAIN } from "../../helpers/chains";
 import { uniV3Exports } from "../../helpers/uniswap";
 
 const customLogic = async ({ pairObject, dailyFees, fetchOptions, filteredPairs, }: any) => {
@@ -21,7 +22,7 @@ const customLogic = async ({ pairObject, dailyFees, fetchOptions, filteredPairs,
 }
 
 export default uniV3Exports({
-  scroll: {
+  [CHAIN.SCROLL]: {
     factory: '0x952aC46B2586737df679e836d9B980E43E12B2d8',
     customLogic,
   }

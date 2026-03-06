@@ -47,6 +47,7 @@ const info = {
 export default {
   fetch, methodology: info.methodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-07-04', },
     [CHAIN.ARBITRUM]: { start: '2025-07-04', },

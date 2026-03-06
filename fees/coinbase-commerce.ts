@@ -39,6 +39,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.POLYGON],
   start: '2023-11-14',
