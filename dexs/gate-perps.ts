@@ -17,6 +17,7 @@ async function fetchGateData(dateString: string): Promise<any> {
 
   return {
     dailyVolume: data.volume,
+    dailyFees: data.fees,
   };
 }
 
