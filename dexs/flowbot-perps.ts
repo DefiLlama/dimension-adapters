@@ -28,11 +28,7 @@ interface FlowbotResponse {
 }
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
-  try {
     return await httpGet(`${FLOWBOT_API}?start=${options.startTimestamp}&end=${options.endTimestamp}`);
-  } catch (e) {
-    return { platforms: {}, total_volume: 0, total_trades: 0, total_active_users: 0 };
-  }
 };
 
 const getPlatformData = (options: FetchOptions, platform: string): PlatformData | undefined => {
@@ -40,54 +36,38 @@ const getPlatformData = (options: FetchOptions, platform: string): PlatformData 
   return data?.platforms?.[platform];
 };
 
-const safeFetch = (fn: (options: FetchOptions) => Promise<any>, withFees = true) => {
-  return async (_: any, __: any, options: FetchOptions) => {
-    try {
-      return await fn(options);
-    } catch (e) {
-      if (!withFees) return { dailyVolume: options.createBalances() };
-      return {
-        dailyVolume: options.createBalances(),
-        dailyFees: options.createBalances(),
-        dailyRevenue: options.createBalances(),
-        dailyProtocolRevenue: options.createBalances(),
-      };
-    }
-  };
-};
-
-const fetchHyperliquid = safeFetch(async (options) => {
+const fetchHyperliquid = async(_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
-});
+};
 
-const fetchExtended = safeFetch(async (options) => {
+const fetchExtended = async(_a: any, _b: any, options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: FLOWBOT_FEE_RATE });
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-});
+};
 
-const fetchPolymarket = safeFetch(async (options) => {
+const fetchPolymarket = async(_a: any, _b: any, options: FetchOptions) => {
   return fetchPolymarketBuilderVolume({ options, builder: FLOWBOT_POLYMARKET_BUILDER_NAME });
-}, false);
+};
 
 const fetchFlowbotPlatform = (platform: string, feeRate?: number) => {
   return async (_a: any, _b: any, options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const item = getPlatformData(options, platform);
     if (item && item.volume > 0) {
-      dailyVolume.addCGToken("usd-coin", item.volume);
+      dailyVolume.addUSDValue(item.volume);
     }
-    if (!feeRate) return { dailyVolume };
+    if (!feeRate) return { dailyVolume, dailyFees: 0, dailyRevenue: 0, dailyProtocolRevenue: 0 };
 
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     if (item && item.volume > 0) {
       if (item.fees && item.fees > 0) {
-        dailyFees.addCGToken("usd-coin", item.fees);
+        dailyFees.addUSDValue(item.fees);
       }
-      dailyRevenue.addCGToken("usd-coin", item.volume * feeRate);
+      dailyRevenue.addUSDValue(item.volume * feeRate);
     }
     return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
   };
