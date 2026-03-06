@@ -112,23 +112,23 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.POLYGON]: {
       fetch: fetchPolymarket,
-      start: "2024-01-01",
+      start: "2026-01-18",
     },
     [CHAIN.SOLANA]: {
       fetch: fetchFlowbotPlatform("pacifica", FLOWBOT_FEE_RATE),
-      start: "2024-01-01",
+      start: "2025-12-08",
     },
     [CHAIN.INK]: {
       fetch: fetchFlowbotPlatform("nado", NADO_FEE_RATE),
-      start: "2024-01-01",
+      start: "2025-12-10",
     },
     [CHAIN.PARADEX]: {
       fetch: fetchFlowbotPlatform("paradex"),
-      start: "2024-01-01",
+      start: "2025-12-15",
     },
     [CHAIN.ZK_LIGHTER]: {
       fetch: fetchFlowbotPlatform("lighter"),
-      start: "2024-01-01",
+      start: "2025-12-08",
     },
   },
   methodology,
