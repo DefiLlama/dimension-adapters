@@ -20,22 +20,28 @@ const USDC_TOKEN =
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const query = `
-    WITH swaps AS (
+    WITH raw AS (
       SELECT
         block_time,
-        TRY_CAST(json_extract_scalar(json_parse(data), '$.amount_in') AS DOUBLE) AS amount_in,
-        TRY_CAST(json_extract_scalar(json_parse(data), '$.amount_out') AS DOUBLE) AS amount_out,
-        json_extract_scalar(json_parse(data), '$.token_in.inner') AS token_in,
-        json_extract_scalar(json_parse(data), '$.token_out.inner') AS token_out
+        json_parse(data) AS event_json
       FROM aptos.events
       WHERE event_type = '${SWAP_EVENT_TYPE}'
         AND TIME_RANGE
+    ),
+    swaps AS (
+      SELECT
+        block_time,
+        TRY_CAST(json_extract_scalar(event_json, '$.amount_in') AS DECIMAL(38,0)) AS amount_in,
+        TRY_CAST(json_extract_scalar(event_json, '$.amount_out') AS DECIMAL(38,0)) AS amount_out,
+        json_extract_scalar(event_json, '$.token_in.inner') AS token_in,
+        json_extract_scalar(event_json, '$.token_out.inner') AS token_out
+      FROM raw
     )
     SELECT
       COALESCE(SUM(
         CASE
-          WHEN token_in = '${USDC_TOKEN}' THEN amount_in / 1e6
-          WHEN token_out = '${USDC_TOKEN}' THEN amount_out / 1e6
+          WHEN token_in = '${USDC_TOKEN}' THEN amount_in / DECIMAL '1000000'
+          WHEN token_out = '${USDC_TOKEN}' THEN amount_out / DECIMAL '1000000'
         END
       ), 0) AS daily_volume
     FROM swaps
