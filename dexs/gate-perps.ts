@@ -20,7 +20,9 @@ const adapter: Adapter = {
       start: async () => new Date(START).getTime() / 1000,
 
       fetch: async (timestamp: number) => {
-        const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+        const date = new Date(timestamp * 1000)
+          .toISOString()
+          .slice(0, 10);
 
         const stats = await fetchStats(date);
 
