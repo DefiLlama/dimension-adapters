@@ -31,12 +31,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       WHERE timestamp >= from_unixtime(${options.startTimestamp})
         AND blockchain = 'solana'
     ),
-    with_prices AS (
+    volumes AS (
       SELECT
         GREATEST(
           COALESCE(bd.input_amount / POW(10, p_in.decimals) * p_in.price, 0),
           COALESCE(bd.output_amount / POW(10, p_out.decimals) * p_out.price, 0)
-        ) AS amount_usd
+        ) AS volume_usd
       FROM base_data bd
       LEFT JOIN prices p_in
         ON DATE_TRUNC('minute', bd.evt_block_time) = p_in.minute
@@ -45,9 +45,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         ON DATE_TRUNC('minute', bd.evt_block_time) = p_out.minute
         AND bd.output_mint = p_out.mint_address
     )
-    SELECT SUM(amount_usd) AS volume
-    FROM with_prices
-    WHERE amount_usd > 0
+    SELECT SUM(volume_usd) AS volume
+    FROM volumes
+    WHERE volume_usd > 0
   `,
   );
 
@@ -66,6 +66,7 @@ const adapter: SimpleAdapter = {
     dailyVolume:
       "Volume is calculated by summing the USD value of all trades routed through DFlow aggregator.",
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
