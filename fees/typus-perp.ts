@@ -1,11 +1,13 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryEvents } from "../helpers/sui";
+import { METRIC } from "../helpers/metrics"
 
 const PROTOCOL_FEE_SHARE = 0.3;
 const TLP_FEE_SHARE = 0.7;
 const USD_DECIMALS = 1e9;
 const CONTRACT_CHANGE_TIME = 1767225600; //2026-01-01
+const FUNDING_FEES = "Funding Fees";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const tlpFees = options.createBalances();
@@ -19,7 +21,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options,
   });
   for (const parsedJson of minLpEvents) {
-    protocolFees.addUSDValue(Number(parsedJson.mint_fee_usd) / USD_DECIMALS);
+    protocolFees.addUSDValue(Number(parsedJson.mint_fee_usd) / USD_DECIMALS, METRIC.MINT_REDEEM_FEES);
   }
 
   const burnLpEvents = await queryEvents({
@@ -30,7 +32,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options,
   });
   for (const parsedJson of burnLpEvents) {
-    protocolFees.addUSDValue(Number(parsedJson.burn_fee_usd) / USD_DECIMALS);
+    protocolFees.addUSDValue(Number(parsedJson.burn_fee_usd) / USD_DECIMALS, METRIC.MINT_REDEEM_FEES);
   }
 
   const swapEvents = await queryEvents({
@@ -42,8 +44,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
   for (const parsedJson of swapEvents) {
     const token_name = "0x" + parsedJson.from_token_type.name;
-    tlpFees.add(token_name, Number(parsedJson.fee_amount) * TLP_FEE_SHARE);
-    protocolFees.add(token_name, Number(parsedJson.fee_amount) * PROTOCOL_FEE_SHARE);
+    tlpFees.add(token_name, Number(parsedJson.fee_amount) * TLP_FEE_SHARE, METRIC.SWAP_FEES);
+    protocolFees.add(token_name, Number(parsedJson.fee_amount) * PROTOCOL_FEE_SHARE, METRIC.SWAP_FEES);
   }
 
   const withdrawLendingEvents = await queryEvents({
@@ -54,8 +56,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options,
   });
   for (const parsedJson of withdrawLendingEvents) {
-    protocolFees.add("0x" + parsedJson.c_token_type.name, Number(parsedJson.protocol_share));
-    protocolFees.add("0x" + parsedJson.r_token_type.name, Number(parsedJson.reward_protocol_share));
+    protocolFees.add("0x" + parsedJson.c_token_type.name, Number(parsedJson.protocol_share), METRIC.DEPOSIT_WITHDRAW_FEES);
+    protocolFees.add("0x" + parsedJson.r_token_type.name, Number(parsedJson.reward_protocol_share), METRIC.DEPOSIT_WITHDRAW_FEES);
   }
 
   const liquidateEvents = await queryEvents({
@@ -67,8 +69,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
   for (const parsedJson of liquidateEvents) {
     const collateral_token = "0x" + parsedJson.collateral_token.name;
-    protocolFees.add(collateral_token, Number(parsedJson.realized_liquidator_fee));
-    tlpFees.add(collateral_token, Number(parsedJson.realized_value_for_lp_pool));
+    protocolFees.add(collateral_token, Number(parsedJson.realized_liquidator_fee), METRIC.LIQUIDATION_FEES);
+    tlpFees.add(collateral_token, Number(parsedJson.realized_value_for_lp_pool), METRIC.LIQUIDATION_FEES);
   }
 
   const realizeOptionEvents = await queryEvents({
@@ -81,8 +83,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const parsedJson of realizeOptionEvents) {
     const collateral_token = "0x" + parsedJson.realize_balance_token_type.name;
     const fee_value = Number(parsedJson.fee_value);
-    protocolFees.add(collateral_token, fee_value * PROTOCOL_FEE_SHARE);
-    tlpFees.add(collateral_token, fee_value * TLP_FEE_SHARE);
+    protocolFees.add(collateral_token, fee_value * PROTOCOL_FEE_SHARE, METRIC.TRADING_FEES);
+    tlpFees.add(collateral_token, fee_value * TLP_FEE_SHARE, METRIC.TRADING_FEES);
   }
 
   const orderFilledEvents = await queryEvents({
@@ -95,8 +97,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const parsedJson of orderFilledEvents) {
     const collateral_token = "0x" + parsedJson.collateral_token.name;
     const realized_fee = Number(parsedJson.realized_trading_fee) + Number(parsedJson.realized_borrow_fee);
-    protocolFees.add(collateral_token, realized_fee * PROTOCOL_FEE_SHARE);
-    tlpFees.add(collateral_token, realized_fee * TLP_FEE_SHARE);
+    protocolFees.add(collateral_token, realized_fee * PROTOCOL_FEE_SHARE, METRIC.TRADING_FEES);
+    tlpFees.add(collateral_token, realized_fee * TLP_FEE_SHARE, METRIC.TRADING_FEES);
   }
 
   const realizeFundingEvents = await queryEvents({
@@ -110,7 +112,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const collateral_token = "0x" + parsedJson.collateral_token.name;
     const sign = parsedJson.realized_funding_sign ? 1 : -1;
     const realized_funding_fee = Number(parsedJson.realized_funding_fee) * sign;
-    tlpFees.add(collateral_token, realized_funding_fee);
+    tlpFees.add(collateral_token, realized_funding_fee, FUNDING_FEES);
   }
 
   // === Calculate total fees and revenues ===
@@ -133,6 +135,37 @@ const methodology = {
   SupplySideRevenue: "70% of fees goes to TLP holders (liquidity providers)",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.MINT_REDEEM_FEES]: "Mint and Burn fees based on tokens balance in the pool",
+    [METRIC.SWAP_FEES]: "Fees paid on swaps",
+    [METRIC.LIQUIDATION_FEES]: "Fees paid on liquidations",
+    [METRIC.TRADING_FEES]: "Fees paid on trading",
+    [FUNDING_FEES]: "Fees paid on funding",
+  },
+  Revenue: {
+    [METRIC.MINT_REDEEM_FEES]: "30% of the mint and burn fees are included in the revenue",
+    [METRIC.SWAP_FEES]: "30% of the swap fees are included in the revenue",
+    [METRIC.LIQUIDATION_FEES]: "30% of the liquidation fees are included in the revenue",
+    [METRIC.TRADING_FEES]: "30% of the trading fees are included in the revenue",
+    [FUNDING_FEES]: "30% of the funding fees are included in the revenue",
+  },
+  ProtocolRevenue: {
+    [METRIC.MINT_REDEEM_FEES]: "30% of the mint and burn fees are included in the protocol revenue",
+    [METRIC.SWAP_FEES]: "30% of the swap fees are included in the protocol revenue",
+    [METRIC.LIQUIDATION_FEES]: "30% of the liquidation fees are included in the protocol revenue",
+    [METRIC.TRADING_FEES]: "30% of the trading fees are included in the protocol revenue",
+    [FUNDING_FEES]: "30% of the funding fees are included in the protocol revenue",
+  },
+  SupplySideRevenue: {
+    [METRIC.MINT_REDEEM_FEES]: "70% of the mint and burn fees goes to TLP holders",
+    [METRIC.SWAP_FEES]: "70% of the swap fees goes to TLP holders",
+    [METRIC.LIQUIDATION_FEES]: "70% of the liquidation fees goes to TLP holders",
+    [METRIC.TRADING_FEES]: "70% of the trading fees goes to TLP holders",
+    [FUNDING_FEES]: "70% of the funding fees goes to TLP holders",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -142,6 +175,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
