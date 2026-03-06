@@ -1,9 +1,8 @@
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getEnv } from "../helpers/env";
 import fetchURL from "../utils/fetchURL";
 
-const URL = getEnv('GMTRADE_PAIRS_URL')
+const URL = "https://market-info-e33088ab.gmxsolana.io/api/v2/solana/pairs";
 
 const fetch = async (_a: any) => {
   const pairs = await fetchURL(URL)
