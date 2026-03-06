@@ -96,6 +96,7 @@ const EVM_ROUTER_FETCH: FetchV2 = async (fetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume: `Gate Layer volume is computed from factory pairs and AMM Swap logs. Other EVM chains compute volume strictly from onchain router execution events emitted by GateSwap routers (first matching ABI per router), and underlying pool events are not directly counted there to avoid overlap.
 

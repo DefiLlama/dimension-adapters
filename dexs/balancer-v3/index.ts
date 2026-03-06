@@ -12,6 +12,7 @@ const v3ChainMapping: any = {
   [CHAIN.BASE]: "BASE",
   [CHAIN.HYPERLIQUID]: "HYPEREVM",
   [CHAIN.PLASMA]: "PLASMA",
+  [CHAIN.MONAD]: "MONAD",
 };
 
 const HOLDERS_SHARE_OF_PROTOCOL = 0.825;

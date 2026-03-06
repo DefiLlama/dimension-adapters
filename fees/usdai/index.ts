@@ -11,6 +11,13 @@ const LOAN_ROUTER_SUBGRAPH_API = 'https://api.goldsky.com/api/public/project_clz
 const WRAPPED_M = '0x437cc33344a0B27A429f795ff6B469C72698B291';
 const CLAIMED_EVENT_ABI = 'event Claimed(address indexed account, address indexed recipient, uint240 yield)';
 
+// PYUSD
+const PYUSD = '0x46850aD61C2B7d64d08c9C754F45254596696984';
+
+// USDai
+const USDAI = '0x0A1a1A107E45b7Ced86833863f482BC5f4ed82EF';
+const HARVEST_EVENT_ABI = 'event Harvested(uint256 usdaiAmount)';
+
 // Staked USDai
 const SUSDAI = '0x0B2b2B2076d95dda7817e785989fE353fe955ef9';
 
@@ -50,15 +57,29 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Base yield from base token
-  const baseYieldLogs = await options.getLogs({
+  // Base yield from wrapped M (base token)
+  const wrappedMBaseYieldLogs = await options.getLogs({
     target: WRAPPED_M,
     eventAbi: CLAIMED_EVENT_ABI
   });
-  baseYieldLogs.filter((log: any) => log.recipient === SUSDAI).forEach((log: any) => {
+  wrappedMBaseYieldLogs.filter((log: any) => log.recipient === SUSDAI).forEach((log: any) => {
     dailyFees.add(WRAPPED_M, log.yield);
     dailyRevenue.add(WRAPPED_M, log.yield * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE);
     dailySupplySideRevenue.add(WRAPPED_M, log.yield * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE);
+  });
+
+  // Base yield from PYUSD (base token)
+  const pyusdBaseYieldLogs = await options.getLogs({
+    target: USDAI,
+    eventAbi: HARVEST_EVENT_ABI
+  });
+  pyusdBaseYieldLogs.forEach((log: any) => {
+    // Unscale USDai amount from 18 decimals to 6 decimals for PYUSD
+    const amount = BigInt(log.usdaiAmount) / BigInt(10 ** 12);
+
+    dailyFees.add(PYUSD, amount);
+    dailyRevenue.add(PYUSD, amount * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE);
+    dailySupplySideRevenue.add(PYUSD, amount * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE);
   });
 
   // Legacy pools for GPU-financing
@@ -95,7 +116,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.originationFee);
     dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.originationFee);
   }
-  
+
   // GPU-financing exit fee
   const gpuExitFeeLogs = await options.getLogs({
     target: LOAN_ROUTER,

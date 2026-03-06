@@ -5,7 +5,8 @@ const url = 'https://api.elexium.finance/pools'
 
 const fetchVolume = async () => {
   const res = await httpGet(url)
-  const dailyVolume = res.reduce((acc: number, pool: any) => {
+  const filteredPools = res.filter((pool: any) => pool.tvl >= 10_000)
+  const dailyVolume = filteredPools.reduce((acc: number, pool: any) => {
     return acc + pool.volume
   }, 0)
   return {

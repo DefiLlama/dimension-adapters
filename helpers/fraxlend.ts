@@ -84,6 +84,7 @@ const getFees = async (options: FetchOptions, configs: FraxlenExportConfigs) => 
 
 export function fraxlendExport(exportConfig: FraxlenExportConfigs) {
   const adapter: SimpleAdapter = {
+    pullHourly: true,
     version: 2,
     methodology: {
       Fees: 'Includes Lenders interest, liquidation fee and 10% interest fee',

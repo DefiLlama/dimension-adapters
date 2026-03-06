@@ -1,4 +1,4 @@
-import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { gql, request } from 'graphql-request';
 
@@ -31,7 +31,7 @@ const historicalDataSwap = gql`
 `;
 
 
-const fetch: FetchV2 = async ({ startOfDay }: FetchOptions) => {
+const fetch = async (_t: any, _b: any, { startOfDay }: FetchOptions) => {
     // TODO: get result from fetching api call
     let dailyFees = 0;
     for (const api of apiEndPoints) {
@@ -56,7 +56,7 @@ const adapter: SimpleAdapter = {
     methodology: {
         Fees: "Trading fees queried from api calls from grpahql",
     },
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.ARBITRUM]: {
             start: '2024-01-09',

@@ -1,30 +1,33 @@
+/*
+Futarchy AMM Volume
+
+Calculates total USDC-equivalent swap volume via the Futarchy AMM.
+- Buy swaps: volume = USDC input
+- Sell swaps: volume = USDC output
+
+Parameters:
+  {{start}} - Unix timestamp for start of period
+  {{end}} - Unix timestamp for end of period
+*/
+
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-
-  const query = `
+  const sql = `
     WITH futswap AS (
         SELECT
-            block_time,
-            tx_signer,
-            tx_id,
-            data,
             CASE
                 WHEN to_hex(SUBSTR(data, 105, 1)) = '00' THEN 'buy'
                 WHEN to_hex(SUBSTR(data, 105, 1)) = '01' THEN 'sell'
             END AS swap_type,
             from_big_endian_64(reverse(SUBSTR(data, 106, 8))) / 1e6 AS input_amount,
-            from_big_endian_64(reverse(SUBSTR(data, 114, 8))) / 1e6 AS output_amount,
-            CASE
-                WHEN LENGTH(data) = 406 THEN to_base58(SUBSTR(data, 279, 32))
-                WHEN LENGTH(data) = 670 THEN to_base58(SUBSTR(data, 543, 32))
-            END AS token
+            from_big_endian_64(reverse(SUBSTR(data, 114, 8))) / 1e6 AS output_amount
         FROM solana.instruction_calls
-        WHERE executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
+        WHERE TIME_RANGE
+          AND executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
           AND inner_executing_account = 'FUTARELBfJfQ8RDGhg1wdhddq1odMAJUePHFuBYfUxKq'
           AND account_arguments[1] = 'DGEympSS4qLvdr9r3uGHTfACdN8snShk4iGdJtZPxuBC'
           AND cardinality(account_arguments) = 1
@@ -34,57 +37,28 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           AND LENGTH(data) >= 300
           AND array_join(log_messages, ' ') LIKE '%SpotSwap%'
     )
-    SELECT
-        date_trunc('day', block_time) AS day,
-        SUM(
-            CASE WHEN swap_type = 'buy'
-                 THEN input_amount
-                 ELSE output_amount
-            END
-        ) AS volume,
-        SUM(
-            CASE WHEN swap_type = 'buy'
-                 THEN input_amount
-                 ELSE output_amount
-            END
-        ) * 0.0025 AS rev
+    SELECT 
+      SUM(CASE 
+        WHEN swap_type = 'buy' THEN input_amount 
+        ELSE output_amount 
+      END) AS volume
     FROM futswap
     WHERE swap_type IN ('buy', 'sell')
-    GROUP BY 1
-    ORDER BY 1;
-  `;
+  `
+  const result = await queryDuneSql(options, sql);
+  const volume = result[0]?.volume ?? 0;
+  dailyVolume.addUSDValue(volume);
 
-  const result = await queryDuneSql(options, query);
-  
-  const dayString = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
-  const dayItem = result.find((i: any) => i.day.split(' ')[0] === dayString)
-  if (dayItem) {
-    dailyVolume.addUSDValue(dayItem.volume);
-    dailyFees.addUSDValue(dayItem.rev);
-  } else {
-    throw Error(`can not found data for date ${dayString}`)
-  }
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-  };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2025-10-09',
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-10-09',
   dependencies: [Dependencies.DUNE],
-  methodology: {
-    Volume: "Volume represents total USDC-equivalent value swapped via Futarchy AMM SpotSwap events. For buys, volume = input_amount; for sells, volume = output_amount.",
-    Fees: "Fees is calculated as 0.25% of each swap's USDC-equivalent value (volume * 0.0025).",
-    Revenue: "Revenue is calculated as 0.25% of each swap's USDC-equivalent value (volume * 0.0025).",
-  },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

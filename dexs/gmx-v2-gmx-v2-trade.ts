@@ -6,53 +6,28 @@ import { getTimestampAtStartOfDayUTC } from "../utils/date";
 const volume_subgraphs: Record<string, string> = {
   [CHAIN.ARBITRUM]: "https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql",
   [CHAIN.AVAX]: "https://gmx.squids.live/gmx-synthetics-avalanche:prod/api/graphql",
-  [CHAIN.SOLANA]: "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql",
   [CHAIN.BOTANIX]: "https://gmx.squids.live/gmx-synthetics-botanix:prod/api/graphql",
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
   const query = gql`
-    query get_volume($period: String!){
-    positionsVolume(where: {period: $period}) {
-      volume
-    }}
+    query get_volume($id: String!) {
+      volumeInfos(where: {id_eq: $id, period_eq: "1d"}, limit: 2000) {
+        marginVolumeUsd
+      }
+    }
   `
   const dailyData = await request(volume_subgraphs[options.chain], query, {
-    period: '1d',
+    id: '1d:' + String(dayTimestamp),
   })
 
-  const dailyVolume = Object.values(dailyData.positionsVolume).length>0
-    ? Number(Object.values(dailyData.positionsVolume).reduce((sum, element:any) => String(Number(sum) + Number(element.volume)),0)) * 10 ** -30
+  const dailyVolume = dailyData.volumeInfos.length > 0
+    ? dailyData.volumeInfos.reduce((sum: number, element: any) => sum + Number(element.marginVolumeUsd), 0) * 10 ** -30
     : undefined
 
   return {
     dailyVolume
-  }
-}
-
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
-  const targetDate = new Date(dayTimestamp * 1000).toISOString();
-  const query = gql`
-    {
-      volumeRecordDailies(
-        where: {timestamp_lte: "${targetDate}"},
-        orderBy: timestamp_ASC 
-      ) {
-          timestamp
-          tradeVolume
-      }
-    }
-  `
-  const res = await request(volume_subgraphs[options.chain], query)
-
-  const dailyVolume = res.volumeRecordDailies
-    .filter((record: { timestamp: string }) => record.timestamp.split('T')[0] === targetDate.split('T')[0])
-    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
-  if (dailyVolume === 0) throw new Error('Not found daily data!.')
-
-  return {
-    dailyVolume: dailyVolume / (10 ** 20)
   }
 }
 
@@ -65,10 +40,6 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2021-08-31', },
     [CHAIN.AVAX]: { start: '2021-12-22', },
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2021-08-31',
-    },
     [CHAIN.BOTANIX]: { start: '2025-05-30', }
   }
 }

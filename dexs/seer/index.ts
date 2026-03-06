@@ -50,6 +50,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter : SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     start: "2024-08-04",
     chains: [CHAIN.XDAI, CHAIN.ETHEREUM]

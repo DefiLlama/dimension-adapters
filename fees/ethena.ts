@@ -135,12 +135,10 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2023-11-24',
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.ETHEREUM],
+  fetch,
+  start: '2023-11-24',
   methodology: {
     Fees: "Staking rewards + yield distribution + mint fees + extra fees",
     UserFees: "User pay fees when mint USDe using USDT, USDC or USDtb",

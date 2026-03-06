@@ -1,5 +1,6 @@
 import { FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getEnv } from "../helpers/env";
 import { httpGet } from "../utils/fetchURL";
 
 
@@ -27,7 +28,7 @@ const fetch = (instrument: string) => async (_: any, _1: any, options: FetchOpti
     `&duration=${durationSeconds}` +
     `&endTime=${encodeURIComponent(endTimeIso)}`;
 
-  const rows = (await httpGet(url)) as DailyFeesRow[];
+  const rows = (await httpGet(url, { headers: { 'Authorization': `Bearer ${getEnv('DERIVE_API_KEY')}` }})) as DailyFeesRow[];
 
   if (!rows || rows.length === 0)
     throw new Error(`No data returned from Derive fees endpoint for url: ${url}`);

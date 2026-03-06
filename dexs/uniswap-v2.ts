@@ -70,6 +70,12 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
     start: '2025-11-24',
     duneId: 'monad',
   },
+  [CHAIN.XLAYER]: {
+    factory: '0xDf38F24fE153761634Be942F9d859f3DBA857E95',
+    source: 'DUNE',
+    start: '2026-01-05',
+    duneId: 'xlayer'
+  },
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -93,8 +99,9 @@ const prefetch = async (options: FetchOptions) => {
     where d.project = 'uniswap' 
       and d.version = '2'
       and TIME_RANGE
-      and (d.blockchain, d.project_contract_address) in (
-        select blockchain, project_contract_address from tvl_pairs
+      and ((d.blockchain, d.project_contract_address) in (
+        select blockchain, project_contract_address from tvl_pairs)
+        or d.blockchain = 'xlayer' --xlayer isnt there in uniswap.tvl_daily
       )
     group by 1
   `
