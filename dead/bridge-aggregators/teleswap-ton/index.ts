@@ -1,6 +1,6 @@
-import { FetchOptions, SimpleAdapter } from '../../adapters/types';
-import { httpGet } from '../../utils/fetchURL';
-import { CHAIN } from '../../helpers/chains';
+import { FetchOptions, SimpleAdapter } from '../../../adapters/types';
+import { httpGet } from '../../../utils/fetchURL';
+import { CHAIN } from '../../../helpers/chains';
 
 const chains: Record<string, string> = {
   [CHAIN.BITCOIN]: 'bitcoin',
