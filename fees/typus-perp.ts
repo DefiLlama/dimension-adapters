@@ -132,7 +132,7 @@ const methodology = {
   Revenue: "30% of perp trading/liquidation fees and all TLP mint/burn fees are included in the revenue.",
   ProtocolRevenue:
     "30% of perp trading/liquidation fees and all TLP mint/burn fees are included in the protocol revenue.",
-  SupplySideRevenue: "70% of fees goes to TLP holders (liquidity providers)",
+  SupplySideRevenue: "70% of fees except for mint/burn fees goes to TLP holders (liquidity providers)",
 };
 
 const breakdownMethodology = {
@@ -144,21 +144,20 @@ const breakdownMethodology = {
     [FUNDING_FEES]: "Fees paid on funding",
   },
   Revenue: {
-    [METRIC.MINT_REDEEM_FEES]: "30% of the mint and burn fees are included in the revenue",
+    [METRIC.MINT_REDEEM_FEES]: "All the mint and burn fees are included in the revenue",
     [METRIC.SWAP_FEES]: "30% of the swap fees are included in the revenue",
     [METRIC.LIQUIDATION_FEES]: "30% of the liquidation fees are included in the revenue",
     [METRIC.TRADING_FEES]: "30% of the trading fees are included in the revenue",
     [FUNDING_FEES]: "30% of the funding fees are included in the revenue",
   },
   ProtocolRevenue: {
-    [METRIC.MINT_REDEEM_FEES]: "30% of the mint and burn fees are included in the protocol revenue",
+    [METRIC.MINT_REDEEM_FEES]: "All the mint and burn fees are included in the protocol revenue",
     [METRIC.SWAP_FEES]: "30% of the swap fees are included in the protocol revenue",
     [METRIC.LIQUIDATION_FEES]: "30% of the liquidation fees are included in the protocol revenue",
     [METRIC.TRADING_FEES]: "30% of the trading fees are included in the protocol revenue",
     [FUNDING_FEES]: "30% of the funding fees are included in the protocol revenue",
   },
   SupplySideRevenue: {
-    [METRIC.MINT_REDEEM_FEES]: "70% of the mint and burn fees goes to TLP holders",
     [METRIC.SWAP_FEES]: "70% of the swap fees goes to TLP holders",
     [METRIC.LIQUIDATION_FEES]: "70% of the liquidation fees goes to TLP holders",
     [METRIC.TRADING_FEES]: "70% of the trading fees goes to TLP holders",
