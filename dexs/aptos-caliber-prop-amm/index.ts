@@ -19,8 +19,7 @@ const USDC_TOKEN =
   "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const sql = `
+  const query = `
     WITH swaps AS (
       SELECT
         block_time,
@@ -40,21 +39,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         END
       ), 0) AS daily_volume
     FROM swaps
-  `;
-  const result = await queryDuneSql(options, sql);
-  const volume = Number(result[0]?.daily_volume ?? 0);
-  dailyVolume.addUSDValue(volume);
+  `
+  const data = await queryDuneSql(options, query)
 
-  return { dailyVolume };
-};
+  return {
+    dailyVolume: data[0].daily_volume,
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.APTOS],
-  start: "2026-03-02",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-};
+  start: '2026-03-02',
+}
 
 export default adapter;
