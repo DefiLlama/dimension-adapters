@@ -9,7 +9,6 @@ const DEFAULTS: any = {
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc.camp.raas.gelato.cloud',
   SVM_RPC: "https://rpc.cosvm.net",
-  GMTRADE_PAIRS_URL: 'https://market-info-e33088ab.gmxsolana.io/api/v2/solana/pairs',
   XLAYER_RPC: "https://xlayerrpc.okx.com",
   BITLAYER_RPC: "https://rpc.bitlayer.org,https://rpc.ankr.com/bitlayer,https://rpc.bitlayer-rpc.com,https://rpc-bitlayer.rockx.com",
   PLANQ_RPC: "https://planq-rpc.nodies.app,https://jsonrpc.planq.nodestake.top",
