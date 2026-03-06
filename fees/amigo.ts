@@ -20,8 +20,9 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
     fromBlock: DEPLOY_BLOCK,
   });
   const pools = poolLogs.map((log: any) => log.pool);
-  if (!pools.length) return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+  if (!pools.length) return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
+  // Fee params are currently uniform across all pools; fetching from pools[0] is sufficient
   const [swapLogs, feeParams] = await Promise.all([
     getLogs({ targets: pools, eventAbi: SwapEvent }),
     api.call({ target: ROUTER, abi: "function getTradeFeeParameters(address) view returns (address, uint96, address, uint96, address, uint96, address, uint96)", params: pools[0] }),
@@ -37,13 +38,18 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
     const fees = log.fees;
     const volume = log.isBuy ? log.price - fees : log.price + fees;
 
+    const protocolAmount = fees * BigInt(protocolFeeBPS) / BigInt(totalBPS);
+    const rewardsAmount = fees * BigInt(rewardsPoolBPS) / BigInt(totalBPS);
+    const creatorAmount = fees * BigInt(creatorShareBPS) / BigInt(totalBPS);
+    const referrerAmount = fees * BigInt(referrerShareBPS) / BigInt(totalBPS);
+
     dailyVolume.addGasToken(volume);
-    dailyFees.addGasToken(fees * BigInt(protocolFeeBPS) / BigInt(totalBPS), METRIC.TRADING_FEES);
-    dailyFees.addGasToken(fees * BigInt(rewardsPoolBPS) / BigInt(totalBPS), 'Rewards Pool Fees');
-    dailyFees.addGasToken(fees * BigInt(creatorShareBPS) / BigInt(totalBPS), METRIC.CREATOR_FEES);
-    dailyFees.addGasToken(fees * BigInt(referrerShareBPS) / BigInt(totalBPS), 'Referral Fees');
-    dailyRevenue.addGasToken(fees * BigInt(protocolFeeBPS) / BigInt(totalBPS));
-    dailySupplySideRevenue.addGasToken(fees * BigInt(creatorShareBPS + referrerShareBPS + rewardsPoolBPS) / BigInt(totalBPS));
+    dailyFees.addGasToken(protocolAmount, METRIC.TRADING_FEES);
+    dailyFees.addGasToken(rewardsAmount, 'Rewards Pool Fees');
+    dailyFees.addGasToken(creatorAmount, METRIC.CREATOR_FEES);
+    dailyFees.addGasToken(referrerAmount, 'Referral Fees');
+    dailyRevenue.addGasToken(protocolAmount);
+    dailySupplySideRevenue.addGasToken(creatorAmount + rewardsAmount + referrerAmount);
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
@@ -72,6 +78,9 @@ const adapter: Adapter = {
       'Referral Fees': "Fees paid to referrers",
     },
     Revenue: {
+      [METRIC.TRADING_FEES]: "Protocol treasury's share of trading fees",
+    },
+    ProtocolRevenue: {
       [METRIC.TRADING_FEES]: "Protocol treasury's share of trading fees",
     },
     SupplySideRevenue: {
