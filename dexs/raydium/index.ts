@@ -27,7 +27,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
         const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page + index}`)
         const data = response.data.data
         const validPoolCount = addPoolData(data)
-        if (data.length === 0 || validPoolCount === 0) {
+        if (data.length === 0) {
           hasMore = false
         }
         /* if (data.length) {
@@ -43,7 +43,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
 
     page += pullChunkSize
     sdk.log(`page: ${page} and valid pools: ${validPoolCount} and all pools: ${totalPoolCount}`);
-    await new Promise(r => setTimeout(r, 1000)) // 1s between chunks to avoid rate limits
+    await new Promise(r => setTimeout(r, 3000)) // 3s between chunks to avoid rate limits
   }
 
   function addPoolData(ammPoolStandard: any[]) {
