@@ -41,7 +41,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 export default {
   fetch,
   start: "2025-05-10",
-  runAtCurrTime: true,
   chains: [CHAIN.OFF_CHAIN],
   methodology: {
     Fees: "Total trading fees collected from perpetual futures trading on Antarctic Exchange",
