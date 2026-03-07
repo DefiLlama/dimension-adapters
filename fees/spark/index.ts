@@ -100,6 +100,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: '2023-03-08' },
     [CHAIN.XDAI]:     { fetch, start: '2023-09-06' }

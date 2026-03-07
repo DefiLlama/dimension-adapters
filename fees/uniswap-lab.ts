@@ -28,6 +28,7 @@ const adapters: SimpleAdapter = {
     }
   }), {}),
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "All trading fees paid by users while using Uniswap frontend.",
     UserFees: "All trading fees paid by users while using Uniswap frontend.",

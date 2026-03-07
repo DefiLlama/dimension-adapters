@@ -107,4 +107,6 @@ baseAdapter.methodology = {
   SupplySideRevenue: "Only from Morpho/Euler. Gearbox does not contribute supply-side revenue.",
 };
 
+baseAdapter.pullHourly = true;
+
 export default baseAdapter;

@@ -35,6 +35,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  pullHourly: true,
   fetch,
   dependencies: [Dependencies.ALLIUM],
   chains: [CHAIN.POLYGON, CHAIN.SOLANA],
