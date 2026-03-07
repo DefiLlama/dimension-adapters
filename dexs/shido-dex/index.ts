@@ -1,39 +1,44 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { request, gql } from "graphql-request";
 
-const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
-  const dayID = Math.floor(options.startOfDay / 86400);
-  const factoryQuery = `{
-    factories {
-      totalVolumeUSD
+const SUBGRAPH_URL = "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet";
+
+const fetch = async (options: FetchOptions) => {
+  // DefiLlama passes the Unix timestamp for the start of the day
+  // Subgraphs index daily data by dividing the timestamp by 86400 (seconds in a day)
+  const dayId = Math.floor(options.startOfDay / 86400);
+
+  const query = gql`
+    query getVolume($id: Int!) {
+      uniswapDayData(id: $id) {
+        volumeUSD
+      }
     }
-    uniswapDayData(id: ${dayID}) {
-      volumeUSD
-    }
-  }`;
+  `;
 
-  const response = await httpPost('https://ljd1t705przomdjt11587.cleavr.xyz/subgraphs/name/shido/mainnet', {
-    query: factoryQuery,
-  });
+  try {
+    const response = await request(SUBGRAPH_URL, query, { id: dayId });
+    
+    // Extract the volume, defaulting to 0 if no trades happened that day
+    const dailyVolume = response?.uniswapDayData?.volumeUSD || "0";
 
-  const dailyVolume = response.data.uniswapDayData.volumeUSD || "0";
-
-  const result = {
-    dailyVolume,
-    timestamp: options.startOfDay,
-  };
-
-  return result;
+    return {
+      dailyVolume: dailyVolume,
+      timestamp: options.startOfDay,
+    };
+  } catch (error) {
+    console.error("Subgraph query failed:", error);
+    throw error;
+  }
 };
 
-
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
-    [CHAIN.SHIDO]: {
-      fetch: fetchV2Data,
-      start: '2024-09-26',
-    }
+    shido: {
+      fetch,
+      start: 1726608494, // Sep 18, 2024
+    },
   },
 };
 
