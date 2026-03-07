@@ -37,8 +37,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     if (!queryResults[0] || !queryResults[0].ton_received ||!queryResults[0].ton_sent) {
       throw new Error('query Dune return null result');
     }
-    if(queryResults[0].ton_sent>queryResults[0].ton_received)
-      throw new Error("Rewards exceed payments, possibly due to more onchain redeems of offchain purchased stars");
     
     const dailyFees = options.createBalances();
     dailyFees.addCGToken("the-open-network", queryResults[0].ton_received);
@@ -70,6 +68,7 @@ const adapter: SimpleAdapter = {
     start: '2024-10-01',
     methodology,
     isExpensiveAdapter: true,
+    allowNegativeValue:true, // Revenue can be negative when rewards exceed payments, possibly due to more onchain redeems of offchain purchased stars
     dependencies: [Dependencies.DUNE]
 }
 
