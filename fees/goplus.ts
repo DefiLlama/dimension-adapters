@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     ProtocolRevenue: "The revenue of the agreement comes from users purchasing security services, and the total cost equals the revenue.",
-    Fees: "All fees comes from users for security service provided by GoPlus Network."
+    Fees: "All fees come from users for security service provided by GoPlus Network."
   }
 };
 

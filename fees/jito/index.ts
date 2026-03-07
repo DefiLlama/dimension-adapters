@@ -54,9 +54,9 @@ const adapter: SimpleAdapter = {
     }
   },
   methodology: {
-    Fees: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees, BAM Fees)',
-    Revenue: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees, BAM Fees)',
-    ProtocolRevenue: 'Fee accured to the jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees, BAM Fees)',
+    Fees: 'Fee accrued to the Jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees, BAM Fees)',
+    Revenue: 'Fee accrued to the Jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees, BAM Fees)',
+    ProtocolRevenue: 'Fee accrued to the Jito DAO (Withdrawal Fees, Interceptor Fees, Tip Router Fees, BAM Fees)',
     HoldersRevenue: 'Fee paid to token holders',
   }
 }

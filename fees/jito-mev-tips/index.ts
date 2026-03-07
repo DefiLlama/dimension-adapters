@@ -44,7 +44,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'MEV/tips paid by users/searchers.',
     Revenue: 'Jito collects 4% from fees as revenue.',
-    SupplySideRevenue: 'There are 96% MEV reward are distributed to users/searchers.',
+    SupplySideRevenue: '96% of MEV rewards are distributed to users/searchers.',
     ProtocolRevenue: 'Jito collects 4% from fees as revenue.',
   },
   breakdownMethodology: {

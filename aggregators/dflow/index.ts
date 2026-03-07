@@ -63,7 +63,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
   methodology: {
-    dailyVolume:
+    Volume:
       "Volume is calculated by summing the USD value of all trades routed through DFlow aggregator.",
   },
   isExpensiveAdapter: true,

@@ -27,7 +27,7 @@ const feesConfigs: Record<string, Config> = {
     methodology: {
       Fees: "Trading fees collected from Orderly Network",
       Revenue: "Revenue represents the portion of trading fees accrued to the Oklong broker.",
-      ProtocolRevenue: "All the revenue go to the protocol",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
   "orderly-broker-coin360": {
@@ -64,7 +64,7 @@ const feesConfigs: Record<string, Config> = {
     methodology: {
       Fees: "Trading fees collected from Orderly Network",
       Revenue: "Revenue represents the portion of trading fees accrued to the Velto broker.",
-      ProtocolRevenue: "All the revenue go to the protocol",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
   "baumz": {
@@ -74,7 +74,7 @@ const feesConfigs: Record<string, Config> = {
     methodology: {
       Fees: "Builder Fees collected from Orderly Network(0.3 bps on taker volume)",
       Revenue: "All the fees collected",
-      ProtocolRevenue: "All the revenue go to the protocol",
+      ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
   "bd-perps": {

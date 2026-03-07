@@ -93,7 +93,7 @@ const adapter: Adapter = {
     }, {} as BaseAdapter),
   },
   methodology: {
-    dailyVolume: "Sum of all offers taken in the last 24hrs",
+    Volume: "Sum of all offers taken in the last 24hrs",
   },
 };
 

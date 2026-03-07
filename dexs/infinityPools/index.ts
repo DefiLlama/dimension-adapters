@@ -94,6 +94,6 @@ const adapters: SimpleAdapter = {
       start: "2025-01-13",
     }
   },
-  methodology: {dailyVolume: "This adapter calculates the daily volume of spot trading by processing the Spot Swap related events emitted by InfinityPools smart contracts"}
+  methodology: {Volume: "This adapter calculates the daily volume of spot trading by processing the Spot Swap related events emitted by InfinityPools smart contracts"}
 };
 export default adapters;
