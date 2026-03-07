@@ -8,7 +8,7 @@ const FEE_VAULTS = [
   '4RNnWnJeyy6myqFW4anPDJtmhnZTdSMDo2HWjfBiDcLc',
 ];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const fees = await getSolanaReceived({ options, targets: FEE_VAULTS });
   dailyFees.addBalances(fees, METRIC.PROTOCOL_FEES);
@@ -20,6 +20,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {   

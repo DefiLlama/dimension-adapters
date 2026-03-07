@@ -9,7 +9,7 @@ import { CHAIN } from "../../helpers/chains"
 import { getSolanaReceived } from "../../helpers/token"
 import { METRIC } from "../../helpers/metrics"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const targets = [
     '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
     'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
@@ -34,12 +34,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2022-11-01',
   dependencies: [Dependencies.ALLIUM],
-  isExpensiveAdapter: true,
   methodology: {
     Fees: 'MEV/tips paid by users/searchers.',
     Revenue: 'Jito collects 4% from fees as revenue.',

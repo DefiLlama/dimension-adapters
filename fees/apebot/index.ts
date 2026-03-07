@@ -5,7 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const FEE_WALLET = "Bkfx4XwD9VuztHyimbKyte2zkv78eBRHyeq4CvG6RFdB";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const tempBalances = options.createBalances();
   await getSolanaReceived({
     options,
@@ -31,7 +31,8 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   fetch,
   chains: [CHAIN.SOLANA],

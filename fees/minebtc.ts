@@ -10,7 +10,7 @@ import { getSolanaReceived } from "../helpers/token";
 //       - 20% (1.8% of bets) -> team multisig (protocol)
 const SOL_TREASURY = "6rBKBaVK2m8rGjHXa65ohjWjD3B3VGDSKUpJrxraPmX1";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     // SOL treasury receives 9% of all bets placed (the other 1% goes to staker vault)
     const dailyRevenue = await getSolanaReceived({ options, target: SOL_TREASURY });
 
@@ -45,13 +45,13 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.SOLANA],
     start: "2025-12-16",
     methodology,
     dependencies: [Dependencies.ALLIUM],
-    isExpensiveAdapter: true,
 };
 
 export default adapter;
