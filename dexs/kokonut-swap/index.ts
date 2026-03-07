@@ -18,25 +18,6 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const fetchZKEVM = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const volume24hrOnlySwap = (await fetchURL('https://prod.kokonut-api.com/zkevm-24hr-volume'));
-  return {
-    dailyVolume: volume24hrOnlySwap,
-    timestamp: dayTimestamp,
-  };
-};
-
-const fetchBASE = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const volume24hrOnlySwap = (await fetchURL('https://prod.kokonut-api.com/base-24hr-volume'));
-  return {
-    dailyVolume: volume24hrOnlySwap,
-    timestamp: dayTimestamp,
-  };
-};
-
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.KLAYTN]: {
@@ -45,15 +26,13 @@ const adapter: SimpleAdapter = {
       runAtCurrTime: true
     },
     [CHAIN.POLYGON_ZKEVM]: {
-      fetch: () => ({} as any),
+      fetch: () => { throw new Error("No volume data available for polygon zkEVM") },
       start: '2023-06-19',
-      runAtCurrTime: true,
       deadFrom: "2025-03-21",
     },
     [CHAIN.BASE]: {
-      fetch: () => ({} as any),
+      fetch: () => { throw new Error("No volume data available for base") },
       start: '2023-08-09',
-      runAtCurrTime: true,
       deadFrom: "2025-03-21",
     },
   },
