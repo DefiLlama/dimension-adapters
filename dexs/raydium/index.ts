@@ -43,6 +43,7 @@ const graphs = async (timestamp: number): Promise<FetchResultVolume & FetchResul
 
     page += pullChunkSize
     sdk.log(`page: ${page} and valid pools: ${validPoolCount} and all pools: ${totalPoolCount}`);
+    await new Promise(r => setTimeout(r, 3000)) // 3s between chunks to avoid rate limits
   }
 
   function addPoolData(ammPoolStandard: any[]) {
