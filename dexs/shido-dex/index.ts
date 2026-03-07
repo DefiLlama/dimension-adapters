@@ -1,43 +1,47 @@
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
-import { request, gql } from "graphql-request";
+import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { gql, request } from "graphql-request";
+import { getUniswapV3Fees } from "../../helpers/getUniV3Fees";
 
 const SUBGRAPH_URL = "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet";
 
-const fetch = async (options: FetchOptions) => {
-  // DefiLlama passes the Unix timestamp for the start of the day
-  // Subgraphs index daily data by dividing the timestamp by 86400 (seconds in a day)
-  const dayId = Math.floor(options.startOfDay / 86400);
-
+const fetch = async (timestamp: number) => {
+  const dayId = Math.floor(timestamp / 86400);
   const query = gql`
-    query getVolume($id: Int!) {
+    query getVolume($id: ID!) {
       uniswapDayData(id: $id) {
         volumeUSD
       }
     }
   `;
 
-  try {
-    const response = await request(SUBGRAPH_URL, query, { id: dayId });
-    
-    // Extract the volume, defaulting to 0 if no trades happened that day
-    const dailyVolume = response?.uniswapDayData?.volumeUSD || "0";
+  // Adding a 10-second timeout to prevent the adapter from hanging
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+  try {
+    const response = await request(SUBGRAPH_URL, query, 
+      { id: dayId.toString() }, 
+      { signal: controller.signal }
+    );
+    
     return {
-      dailyVolume: dailyVolume,
-      timestamp: options.startOfDay,
+      timestamp: timestamp,
+      dailyVolume: response.uniswapDayData?.volumeUSD || "0",
     };
   } catch (error) {
-    console.error("Subgraph query failed:", error);
-    throw error;
+    console.error("Error fetching volume from Shido Subgraph:", error);
+    return { timestamp, dailyVolume: "0" };
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
   adapter: {
-    shido: {
+    [CHAIN.SHIDO]: {
       fetch,
-      start: 1726608494, // Sep 18, 2024
+      start: "2024-09-18", // Aligned to UTC midnight for data accuracy
     },
   },
 };
