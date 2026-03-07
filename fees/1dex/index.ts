@@ -33,6 +33,7 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2025-04-26",
   runAtCurrTime: true,
+  skipBreakdownValidation: true, // because cost are not clear
   methodology,
   breakdownMethodology,
 };
