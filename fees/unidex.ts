@@ -68,7 +68,7 @@ const methodology = {
   Fees: "Fees collected from user trading fees",
   Revenue: "Fees going to the treasury + holders",
   ProtocolRevenue: "Fees going to the treasury + holders",
-  HoldersRevneue: "Fees going to the token holders",
+  HoldersRevenue: "Fees going to the token holders",
   SupplySideRevenue: "Fees going to liquidity providers of the protocol",
 };
 

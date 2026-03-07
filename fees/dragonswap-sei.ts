@@ -12,8 +12,8 @@ const endpoints = {
 
 const methodology = {
   Fees: "DragonSwap protocol swap fee (0.3% per swap).",
-  LPProvidersRevenue: "Fees distributed to the LP providers (70% of total accumulated fees).",
-  ProtocolAccumulation: "Fees sent to the protocol wallet (30% of total accumulated fees), is used to provide benefits to users in custom ways."
+  SupplySideRevenue: "Fees distributed to the LP providers (70% of total accumulated fees).",
+  ProtocolRevenue: "Fees sent to the protocol wallet (30% of total accumulated fees), is used to provide benefits to users in custom ways."
 }
 
 const breakdownMethodology = {

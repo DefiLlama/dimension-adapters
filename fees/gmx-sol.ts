@@ -63,11 +63,11 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
 }
 
 const methodology = {
-  DailyFees: "Trade fees and swap fees paid by users",
-  DailyRevenue: "25% of the fees go to the protocol.",
-  DailyProtocolRevenue: "25% of the fees go to the protocol.",
-  DailySupplySideRevenue: "75% of the fees go to the supply side.",
-  DailyHoldersRevenue: "No revenue share to holders post 2026-01-16"
+  Fees: "Trade fees and swap fees paid by users",
+  Revenue: "25% of the fees go to the protocol.",
+  ProtocolRevenue: "25% of the fees go to the protocol.",
+  SupplySideRevenue: "75% of the fees go to the supply side.",
+  HoldersRevenue: "No revenue share to holders post 2026-01-16"
 }
 
 const adapter: Adapter = {
