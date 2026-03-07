@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
@@ -9,7 +9,7 @@ const DEPOSIT_SERVICE_FEE_EVENT = "event DepositServiceFee (address indexed deve
 
 const WITHDRAW_SERVICE_FEE_EVENT = "event WithdrawServiceFee (address indexed developer, uint64 nonce, uint256 amount)";
 
-async function fetch(options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
 
     const serviceFeeDepositLogs = await options.getLogs({
