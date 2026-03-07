@@ -38,10 +38,10 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
     const fees = log.fees;
     const volume = log.isBuy ? log.price - fees : log.price + fees;
 
-    const protocolAmount = fees * BigInt(protocolFeeBPS) / BigInt(totalBPS);
     const rewardsAmount = fees * BigInt(rewardsPoolBPS) / BigInt(totalBPS);
     const creatorAmount = fees * BigInt(creatorShareBPS) / BigInt(totalBPS);
     const referrerAmount = fees * BigInt(referrerShareBPS) / BigInt(totalBPS);
+    const protocolAmount = fees - rewardsAmount - creatorAmount - referrerAmount;
 
     dailyVolume.addGasToken(volume);
     dailyFees.addGasToken(protocolAmount, METRIC.TRADING_FEES);
