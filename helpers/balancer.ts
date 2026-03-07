@@ -109,8 +109,17 @@ type BalancerFeesChainConfig = {
   holderRevenueRatio?: number;
 }
 
+function hasRevenueRatio(config: BalancerFeesChainConfig) {
+  return (
+    config.revenueRatio != null ||
+    config.protocolRevenueRatio != null ||
+    config.holderRevenueRatio != null
+  )
+}
+
 function balancerFeesExports(config: IJSON<BalancerFeesChainConfig>, overrides?: Partial<SimpleAdapter>) {
   const exportObject: BaseAdapter = {}
+  const anyChainHasRevenueRatio = Object.values(config).some(hasRevenueRatio)
   Object.entries(config).map(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: getFeesExport(chainConfig.vault, {
@@ -121,7 +130,13 @@ function balancerFeesExports(config: IJSON<BalancerFeesChainConfig>, overrides?:
       start: chainConfig.start,
     }
   })
-  return { version: 2, adapter: exportObject, pullHourly: true, ...overrides } as SimpleAdapter
+  return {
+    version: 2,
+    adapter: exportObject,
+    pullHourly: true,
+    ...(anyChainHasRevenueRatio ? {} : { skipBreakdownValidation: true }),
+    ...overrides,
+  } as SimpleAdapter
 }
 
 const balancerEntries: Record<string, any> = {
