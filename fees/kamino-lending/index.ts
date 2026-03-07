@@ -9,10 +9,9 @@ const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-
 const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) =>  {
     const historicalFeesRes = await fetchURL(AllezLabsKaminoFeeEndpoint)
     const record = historicalFeesRes['data'].find((row: any) => row.day === options.dateString)
-    if (!record) throw new Error(`No data found for date: ${options.dateString}`)
 
-    const dailyFee = record.KlendFeesUSD
-    const dailyRevenue = record.KaminoRevenueUSD
+    const dailyFee = record?.KlendFeesUSD
+    const dailyRevenue = record?.KaminoRevenueUSD
     
     return {
         dailyFees: dailyFee,
