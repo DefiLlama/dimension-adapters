@@ -29,9 +29,10 @@ const adapter: SimpleAdapter = {
           l1_costs AS (
             select
               'l1_cost' as currency,
-              COALESCE(SUM(gas_used * gas_price) / 1e18, 0) as total_daily_fee
-            from ethereum.transactions
-            where to = 0xc662c410c0ecf747543f5ba90660f6abebd9c8c4
+              COALESCE(SUM(tx_fee), 0) as total_daily_fee
+            from gas.fees
+            where blockchain = 'ethereum'
+              and tx_to = 0xc662c410c0ecf747543f5ba90660f6abebd9c8c4
               and block_time >= from_unixtime(${options.startTimestamp})
               and block_time <= from_unixtime(${options.endTimestamp - 1})
           )
