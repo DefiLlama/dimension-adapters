@@ -47,8 +47,12 @@ const fetch = async ({ createBalances, getLogs, api }: FetchOptions) => {
     dailyFees.addGasToken(rewardsAmount, 'Rewards Pool Fees');
     dailyFees.addGasToken(creatorAmount, METRIC.CREATOR_FEES);
     dailyFees.addGasToken(referrerAmount, 'Referral Fees');
-    dailyRevenue.addGasToken(protocolAmount);
-    dailySupplySideRevenue.addGasToken(creatorAmount + rewardsAmount + referrerAmount);
+
+    dailyRevenue.addGasToken(protocolAmount, METRIC.TRADING_FEES);
+
+    dailySupplySideRevenue.addGasToken(creatorAmount, METRIC.CREATOR_FEES);
+    dailySupplySideRevenue.addGasToken(rewardsAmount, 'Rewards Pool Fees');
+    dailySupplySideRevenue.addGasToken(referrerAmount, 'Referral Fees');
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
