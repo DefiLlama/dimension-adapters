@@ -35,10 +35,12 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
 
   const records = await queryDuneSql(options, sql)
   for (const record of records) {
-    dailyFees.addUSDValue(record.fees, getLabel(record.protocol_name, {}));
-    dailyRevenue.addUSDValue(record.revenue, getLabel(record.protocol_name, { r: true }));
-    
+    const fees = Number(record.fees || 0)
+    const revenue = Number(record.revenue || 0)
     const ssr = Number(record.fees) - Number(record.revenue);
+    
+    dailyFees.addUSDValue(fees, getLabel(record.protocol_name, {}));
+    dailyRevenue.addUSDValue(revenue, getLabel(record.protocol_name, { r: true }));
     dailySupplySideRevenue.addUSDValue(ssr, getLabel(record.protocol_name, { ssr: true }));
   }
   
