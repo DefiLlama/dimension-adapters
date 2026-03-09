@@ -124,6 +124,9 @@ const configs: Record<string, Record<string, any>> = {
   "mistswap": {
     [CHAIN.SMARTBCH]: { factory: '0x6008247F53395E7be698249770aa1D2bfE265Ca0' },
   },
+  "gateswap": {
+    [CHAIN.GATE_LAYER]: { factory: '0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2', start: '2025-09-28', },
+  },
   "nearpad": {
     [CHAIN.AURORA]: { factory: '0x34484b4E416f5d4B45D4Add0B6eF6Ca08FcED8f1' },
   },
