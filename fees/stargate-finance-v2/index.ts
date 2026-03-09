@@ -9,7 +9,7 @@ type IAddress = {
 
 interface withdrawalLog {
   address: string;
-  amountSD: number;
+  amountSD: bigint;
 }
 
 const abi = {
@@ -121,17 +121,17 @@ async function getPoolFees(
     api.multiCall({ calls: contracts, abi: abi.token, permitFailure: true }),
     fromApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
     toApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
-    getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
+    api.chain === CHAIN.SEI
+      ? contracts.map(() => [])
+      : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
   ]);
   assets.forEach((asset, index) => {
     const prevFee = prevFees[index];
     const currFee = currFees[index];
-    const withdrawal = (withdrawals[index] || []).reduce((acc: number, log: withdrawalLog) => acc + log.amountSD, 0)
-
     if (prevFee == null || currFee == null) return;
-    dailyFees.add(asset, (currFee - prevFee) + withdrawal);
+    const withdrawn = (withdrawals[index] || []).reduce((acc: bigint, log: withdrawalLog) => acc + log.amountSD, 0n);
+    dailyFees.add(asset, BigInt(currFee) - BigInt(prevFee) + withdrawn);
   });
-
   return { dailyFees, dailyRevenue: dailyFees };
 }
 
@@ -151,6 +151,7 @@ const adapter: Adapter = {
     return acc;
   }, {}),
   version: 2,
+  allowNegativeValue: true, // due to bridge gas fees
   methodology: {
     Fees: "All fees paid by users while using Stargate bridge.",
     Revenue: 'Total bridge fees paid by users',
