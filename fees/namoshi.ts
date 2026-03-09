@@ -19,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
   });
 
   registrations.forEach((tx: any) => {
-    dailyFees.addGasToken(Number(tx.baseCost) + Number(tx.premium), "Name registration fees");
+    dailyFees.addGasToken(tx.baseCost + tx.premium, "Name registration fees");
   });
 
   const renewals = await options.getLogs({
