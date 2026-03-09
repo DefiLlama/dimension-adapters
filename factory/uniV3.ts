@@ -265,6 +265,9 @@ const configs: Record<string, Record<string, any>> = {
   "sparkdex-v3": {
     [CHAIN.FLARE]: { factory: '0xb3fB4f96175f6f9D716c17744e5A6d4BA9da8176', userFeesRatio: 1, revenueRatio: 0.075, protocolRevenueRatio: 0.025, holdersRevenueRatio: 0.05 },
   },
+  "wasabee": {
+    [CHAIN.BERACHAIN]: { factory: '0x7d53327D78EFD0b463bd8d7dc938C52402323b95', start: '2024-10-29', isAlgebraV3: true, },
+  },
   "reservoir-tools-clmm": {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.INK]: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
