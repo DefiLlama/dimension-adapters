@@ -111,7 +111,8 @@ const adapter: Adapter = {
       fetch: graphs,
       start: '2022-01-06',
     },
-  }
+  },
+  deadFrom : '2025-07-09'
 }
 
 export default adapter;

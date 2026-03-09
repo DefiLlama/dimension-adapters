@@ -21,6 +21,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.BASE],
   fetch,
   methodology: {

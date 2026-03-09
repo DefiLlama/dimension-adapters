@@ -19,7 +19,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
   }
 }
 
@@ -31,13 +32,15 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'Total ETH fees paid to block proposers by users.',
+    Revenue: 'Flashbots gets no fees share.',
+    SupplySideRevenue: 'All ETH fees paid to block proposers.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
     },
-    Revenue: {
-      [METRIC.MEV_REWARDS]: "ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
+    SupplySideRevenue: {
+      [METRIC.MEV_REWARDS]: "All ETH paid to block proposers as priority fees and direct payments from Flashbots MEV bundles.",
     },
   },
 }

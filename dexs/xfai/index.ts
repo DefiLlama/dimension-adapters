@@ -47,7 +47,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    totalFees:
+    Fees:
       "Total fees are calculated by checking the token balances of the Xfai INFT",
   },
 };

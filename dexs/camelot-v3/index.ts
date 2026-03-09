@@ -124,13 +124,13 @@ const adapter: SimpleAdapter = {
       }),
       start: '2024-06-20',
     },
-    [CHAIN.SANKO]: {
-      fetch: getUniV3LogAdapter({
-        factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
-        ...adapterConfig,
-      }),
-      start: '2024-04-17',
-    },
+    // [CHAIN.SANKO]: {
+    //   fetch: getUniV3LogAdapter({
+    //     factory: '0xcF8d0723e69c6215523253a190eB9Bc3f68E0FFa',
+    //     ...adapterConfig,
+    //   }),
+    //   start: '2024-04-17',
+    // },
   },
 };
 

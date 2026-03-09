@@ -35,6 +35,9 @@ const feesConfigs: Record<string, any> = {
   "loxodrome-perp": {
     [CHAIN.IOTEX]: { vault: "0x13904291B7d3e87d23070d22Bc34FA514F99Db18", start: "2024-11-02" },
   },
+  "fxdx": {
+    [CHAIN.BASE]: { vault: "0x1ce0EBd2b95221b924765456fdE017B076E79dbe", start: '2023-08-22', deadFrom: '2025-11-01' },
+  },
 };
 
 

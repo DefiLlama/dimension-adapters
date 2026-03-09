@@ -36,5 +36,6 @@ const adapters: SimpleAdapter = {
     {}
   ),
   version: 2,
+  pullHourly: true,
 };
 export default adapters;

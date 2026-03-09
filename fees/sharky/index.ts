@@ -9,7 +9,7 @@ import { getSolanaReceived } from "../../helpers/token";
  */
 const FEE_WALLET = "feegKBq3GAfqs9G6muPjdn8xEEZhALLTr2xsigDyxnV";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({
     options,
     target: FEE_WALLET,
@@ -29,12 +29,12 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2022-12-01',
   methodology,
-  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
 };
 

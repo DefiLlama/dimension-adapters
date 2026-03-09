@@ -131,7 +131,7 @@ async function getCollateralVaults(options: FetchOptions): Promise<{[key: string
   return vaults
 }
 
-const fetchFees = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   // get vaults and assets
@@ -315,13 +315,11 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  skipBreakdownValidation: true, // because cost are not clear
   pullHourly: true,
-  adapter: {
-    [CHAIN.BERACHAIN]: {
-      fetch: fetchFees,
-      start: "2025-02-14",
-    },
-  },
+  fetch,
+  chains: [CHAIN.BERACHAIN],
+  start: "2025-02-14",
   methodology,
   breakdownMethodology,
 };

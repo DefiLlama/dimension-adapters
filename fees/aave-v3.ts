@@ -181,7 +181,7 @@ const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
 }
 
 const methodology = {
-  Fees: 'Include borrow interest, flashloan fee, liquidation fee and penalty paid by borrowers.',
+  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers and swap fees from Paraswap.',
   Revenue: 'Amount of fees go to Aave treasury.',
   SupplySideRevenue: 'Amount of fees distributed to suppliers.',
   ProtocolRevenue: 'Amount of fees go to Aave treasury.',
@@ -194,12 +194,14 @@ const breakdownMethodology = {
     'Borrow Interest GHO': 'All interest paid by borrowers from GHO only.',
     [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
+    'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets (excluding GHO).',
     'Borrow Interest GHO': 'All 100% interest paid by GHO borrowers.',
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
+    'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO).',
@@ -212,32 +214,45 @@ const breakdownMethodology = {
     'Borrow Interest GHO': 'All interest paid on GHO market are collected by Aave treasury.',
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
+    'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "Aave starts buy back AAVE tokens using Aave Treasury after 9th April 2025. They bought daily basic, but there are days they didn't."
   },
 }
 
-const chainConfig = {
+const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
+const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
+const chainConfig: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     pools: AaveMarkets[CHAIN.ETHEREUM],
+    treasuryCollector: '0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c',
+    veloraAugustus: VeloraAugustusV6,
     start: '2023-01-01',
   },
   [CHAIN.OPTIMISM]: {
     pools: AaveMarkets[CHAIN.OPTIMISM],
+    treasuryCollector: '0xB2289E329D2F85F1eD31Adbb30eA345278F21bcf',
+    veloraAugustus: VeloraAugustusV6,
     start: '2022-08-05',
   },
   [CHAIN.ARBITRUM]: {
     pools: AaveMarkets[CHAIN.ARBITRUM],
     start: '2022-03-12',
+    treasuryCollector: '0x053D55f9B5AF8694c503EB288a1B7E552f590710',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.POLYGON]: {
     pools: AaveMarkets[CHAIN.POLYGON],
     start: '2022-03-12',
+    treasuryCollector: '0xe8599F3cc5D38a9aD6F3684cd5CEa72f10Dbc383',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.AVAX]: {
     pools: AaveMarkets[CHAIN.AVAX],
     start: '2022-03-12',
+    treasuryCollector: '0x5ba7fd868c40c16f7aDfAe6CF87121E13FC2F7a0',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.FANTOM]: {
     pools: AaveMarkets[CHAIN.FANTOM],
@@ -246,10 +261,14 @@ const chainConfig = {
   [CHAIN.BASE]: {
     pools: AaveMarkets[CHAIN.BASE],
     start: '2023-08-09',
+    treasuryCollector: '0xBA9424d650A4F5c80a0dA641254d1AcCE2A37057',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.BSC]: {
     pools: AaveMarkets[CHAIN.BSC],
     start: '2023-11-18',
+    treasuryCollector: '0x25Ec457d1778b0E5316e7f38f3c22baF413F1A8C',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.METIS]: {
     pools: AaveMarkets[CHAIN.METIS],
@@ -258,6 +277,8 @@ const chainConfig = {
   [CHAIN.XDAI]: {
     pools: AaveMarkets[CHAIN.XDAI],
     start: '2023-10-05',
+    treasuryCollector: '0x3e652E97ff339B73421f824F5b03d75b62F1Fb51',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.SCROLL]: {
     pools: AaveMarkets[CHAIN.SCROLL],
@@ -274,6 +295,8 @@ const chainConfig = {
   [CHAIN.SONIC]: {
     pools: AaveMarkets[CHAIN.SONIC],
     start: '2025-02-16',
+    treasuryCollector: '0x1aB55bBdD5DF0782BBCf73553Af93BC6B29A286B',
+    veloraAugustus: VeloraAugustusV6,
   },
   [CHAIN.CELO]: {
     pools: AaveMarkets[CHAIN.CELO],
@@ -298,9 +321,9 @@ const chainConfig = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  let dailyFees = options.createBalances()
-  let dailyProtocolRevenue = options.createBalances()
-  let dailySupplySideRevenue = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   // There was an upgrade between these dates (Oct 8-17, 2024) and the dataProvider contracts don't work, so we use the backup contracts
   const pools = AaveMarkets[options.chain].map(pool => {
@@ -320,11 +343,22 @@ const fetch = async (options: FetchOptions) => {
     })
   }
 
-  let dailyHoldersRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
   if (options.chain === CHAIN.ETHEREUM) {
     // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-    const aaveReceived = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa' })
+    const aaveReceived = await addTokensReceived({ options, tokens: [ADDRESSES.ethereum.AAVE], target: AaveBuyBackTreasury })
     dailyHoldersRevenue.addBalances(aaveReceived, METRIC.TOKEN_BUY_BACK)
+  }
+  
+  // swap fees share from Paraswap
+  if (chainConfig[options.chain].treasuryCollector && chainConfig[options.chain].veloraAugustus) {
+    const paraswapFees = await addTokensReceived({
+      options,
+      target: chainConfig[options.chain].treasuryCollector,
+      fromAdddesses: [chainConfig[options.chain].veloraAugustus],
+    });
+    dailyFees.add(paraswapFees, 'Paraswap Partner Fees');
+    dailyProtocolRevenue.add(paraswapFees, 'Paraswap Partner Fees');
   }
 
   return {
@@ -332,12 +366,13 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue
+    dailyHoldersRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   adapter: {}

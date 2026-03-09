@@ -99,9 +99,9 @@ const fetch = async ({ createBalances, api, chain, fromApi, toApi }: FetchOption
 }
 
 const methodology = {
-    dailyFees: "Interest paid by the borrowers",
-    dailyRevenue: "Portion of fees that goes to the protocol",
-    dailySupplySideRevenue: "Portion of fees that goes to the lenders"
+    Fees: "Interest paid by the borrowers",
+    Revenue: "Portion of fees that goes to the protocol",
+    SupplySideRevenue: "Portion of fees that goes to the lenders"
 }
 
 const breakdownMethodology = {

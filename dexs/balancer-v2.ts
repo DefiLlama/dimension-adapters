@@ -39,7 +39,7 @@ export default {
   version: 2,
   fetch: fetch,
   methodology: {
-    Fees: "All trading fees collected (includes swap and  yield fee)",
+    Fees: "All trading fees collected (includes swap and yield fee)",
     UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
     Revenue: "Balancer V2 protocol collects 50% swap fees as revenue.",
     ProtocolRevenue: "Share of revenue to Balancer DAO.",

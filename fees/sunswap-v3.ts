@@ -1,4 +1,3 @@
-import { time } from "console";
 import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
@@ -22,12 +21,16 @@ const adapter: Adapter = {
         const res: IResponse[] = (await httpGet(url)).data;
         const dayItem = res.find((item) => item.date === start);
         const dailyFees = dayItem?.fee || 0;
-        return { dailyFees, timestamp: options.startOfDay };
+        return { dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0 };
       }) as any,
       start: '2024-01-06'
     },
   },
-
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'The protocol keeps no revenue.',
+    SupplySideRevenue: 'All the swap fees are distributed to liquidity providers.',
+  },
 }
 
 export default adapter;

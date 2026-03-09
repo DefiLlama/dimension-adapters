@@ -50,7 +50,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
 };
 
 const methodology = {
-  dailyFees: "Total cumulativeFeeUsd for specified chain for the given day",
+  Fees: "Total cumulativeFeeUsd for specified chain for the given day",
 };
 
 const adapter: Adapter = {

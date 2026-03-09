@@ -1,30 +1,38 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import fetchURL from "../../utils/fetchURL";
 
-const AETHIR_ENDPOINT = "https://dashboard-api.aethir.com/protocol/demand-metrics/historical-network-revenue";
+const AETHIR_CORE = "0x226DC7D2AA1F9a565e82faf04772FDbBaF2da42d";
+const AETHIR_TOKEN = "0xc87B37a581ec3257B734886d9d3a581F5A9d056c";
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
-    const today = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
-    const result = (await fetchURL(AETHIR_ENDPOINT)).dailyRevenue;
-    const df = result.find((entry: any) => entry.date === today).usdValue;
+const DEPOSIT_SERVICE_FEE_EVENT = "event DepositServiceFee (address indexed developer, uint64 nonce, uint256 amount)";
 
-    const dr = df * 0.2;
+const WITHDRAW_SERVICE_FEE_EVENT = "event WithdrawServiceFee (address indexed developer, uint64 nonce, uint256 amount)";
 
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-    const dailySupplySideRevenue = options.createBalances();
 
-    dailyFees.addUSDValue(df, METRIC.SERVICE_FEES);
-    dailyRevenue.addUSDValue(dr, METRIC.PROTOCOL_FEES);
-    dailySupplySideRevenue.addUSDValue(df - dr, METRIC.OPERATORS_FEES);
+    const serviceFeeDepositLogs = await options.getLogs({
+        eventAbi: DEPOSIT_SERVICE_FEE_EVENT,
+        target: AETHIR_CORE
+    });
+
+    const serviceFeeWithdrawalLogs = await options.getLogs({
+        eventAbi: WITHDRAW_SERVICE_FEE_EVENT,
+        target: AETHIR_CORE
+    });
+
+    serviceFeeDepositLogs.forEach((deposit: any) => dailyFees.add(AETHIR_TOKEN, deposit.amount, METRIC.SERVICE_FEES));
+
+    serviceFeeWithdrawalLogs.forEach((withdraw: any) => dailyFees.subtractToken(AETHIR_TOKEN, withdraw.amount, METRIC.SERVICE_FEES));
+
+    const dailyRevenue = dailyFees.clone(0.2);
 
     return {
         dailyFees,
-        dailyRevenue: dailyRevenue,
+        dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
-        dailySupplySideRevenue: dailySupplySideRevenue,
+        dailySupplySideRevenue: dailyFees.clone(0.8, METRIC.OPERATORS_FEES),
     }
 }
 
@@ -48,12 +56,13 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
     fetch,
     chains: [CHAIN.ARBITRUM],
     start: '2024-07-22',
     methodology,
     breakdownMethodology,
+    allowNegativeValue: true // withdrawals could exceed deposits on a particular day
 }
 
 export default adapter;

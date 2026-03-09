@@ -108,7 +108,7 @@ const adapter: SimpleAdapter = {
     Revenue: "~10-15% net interest margin + origination fees and penalties are used to burn AJNA token",
     ProtocolRevenue: "Protocol takes no direct fees",
     HoldersRevenue: "Accumulated fees in reserves are used for token burns by utilizing auctions",
-    dailySupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
+    SupplySideRevenue: "~85-90% interest rate goes to lenders from borrowers"
   },
   breakdownMethodology,
 };

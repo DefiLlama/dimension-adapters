@@ -20,7 +20,7 @@ const fetch = async ({
     dailyFees.add(PAXG, fee);
   });
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapter: Adapter = {
@@ -34,6 +34,7 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: "Fees paid by users while transferring PAXG token.",
+    Revenue: "All the fees go to the protocol"
   }
 };
 

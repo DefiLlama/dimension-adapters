@@ -25,7 +25,8 @@ import fetchURL from "../../utils/fetchURL";
 // }
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
-  if (options.chain !== CHAIN.GATE_LAYER) {
+  const aquisitionDate = +new Date('2025-11-12') / 1000
+  if (options.chain !== CHAIN.GATE_LAYER ||  options.startOfDay > aquisitionDate) {
     return {
       dailyVolume: 0,
       dailyFees: 0,
@@ -35,7 +36,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
     };
   }
 
-  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}`;
+  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}&broken=aden`;
 
   const data = await fetchURL(endpointWithDate);
 
@@ -77,6 +78,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.GATE_LAYER, CHAIN.ORDERLY, CHAIN.OFF_CHAIN],
   doublecounted: true,
   start: '2025-07-19',
+  deadFrom: '2026-03-08',  // aquired by gate
   methodology,
   breakdownMethodology,
 };
