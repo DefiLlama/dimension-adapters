@@ -142,26 +142,27 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: "Fees paid on liquidations",
     [METRIC.TRADING_FEES]: "Fees paid on trading",
     [FUNDING_FEES]: "Fees paid on funding",
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees paid on withdrawals",
   },
   Revenue: {
     [METRIC.MINT_REDEEM_FEES]: "All the mint and burn fees are included in the revenue",
     [METRIC.SWAP_FEES]: "30% of the swap fees are included in the revenue",
     [METRIC.LIQUIDATION_FEES]: "30% of the liquidation fees are included in the revenue",
     [METRIC.TRADING_FEES]: "30% of the trading fees are included in the revenue",
-    [FUNDING_FEES]: "30% of the funding fees are included in the revenue",
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: "All the withdrawal fees are revenue",
   },
   ProtocolRevenue: {
     [METRIC.MINT_REDEEM_FEES]: "All the mint and burn fees are included in the protocol revenue",
     [METRIC.SWAP_FEES]: "30% of the swap fees are included in the protocol revenue",
     [METRIC.LIQUIDATION_FEES]: "30% of the liquidation fees are included in the protocol revenue",
     [METRIC.TRADING_FEES]: "30% of the trading fees are included in the protocol revenue",
-    [FUNDING_FEES]: "30% of the funding fees are included in the protocol revenue",
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: "All the withdrawal fees go to protocol",
   },
   SupplySideRevenue: {
     [METRIC.SWAP_FEES]: "70% of the swap fees goes to TLP holders",
     [METRIC.LIQUIDATION_FEES]: "70% of the liquidation fees goes to TLP holders",
     [METRIC.TRADING_FEES]: "70% of the trading fees goes to TLP holders",
-    [FUNDING_FEES]: "70% of the funding fees goes to TLP holders",
+    [FUNDING_FEES]: "All the funding fees goes to TLP holders",
   },
 };
 
