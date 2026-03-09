@@ -415,10 +415,6 @@ const configs: Record<string, CuratorConfig> = {
         euler: ['0x28C96C7028451454729750171BD3Bb95D7261B5a', '0x112B77A77753b092306b1c04Bd70215FeD4e00a1', '0x1B33D24C4C78a61DA80Cfa2d0dB72ca0851d5fb1', '0x2247B618251b8d913F3fD10B749e7bfa3E3a28db', '0x401c4633dCa173bf75ac85F2D270d98c063F54CF', '0x2Bf927248f86Bd78ce300d00C7c8A175e3e0B38a'],
         start: '2025-08-21',
       },
-      [CHAIN.SONIC]: {
-        eulerVaultOwners: zerolendMultisigs,
-        euler: ['0x8c7a2c0729afb927da27d4c9aa172bc5a5fb12bb', '0x9ccf74e64922d8a48b87aa4200b7c27b2b1d860a'],
-      },
     },
   },
 };
