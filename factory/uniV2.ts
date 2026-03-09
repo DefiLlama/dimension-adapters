@@ -9,6 +9,9 @@ const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed t
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
 
 const configs: Record<string, Record<string, any>> = {
+  'fusionx-v2': {
+    [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25/100, userFeesRatio: 1, revenueRatio: 1/3, protocolRevenueRatio: 1/6 },
+  },
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
   },
@@ -1186,12 +1189,12 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "pancakeFactories",
   },
-  "mojitoswap": {
-    endpoints: {
-      [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
-    },
-    start: 1634200191,
-  },
+  // "mojitoswap": { // in uniSubgraph
+  //   endpoints: {
+  //     [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
+  //   },
+  //   start: 1634200191,
+  // },
   "neby-dex": {
     endpoints: {
       [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex",
@@ -1510,14 +1513,14 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     totalVolume: "totalVolumeUSD",
     start: '2023-01-04',
   },
-  "vvs-finance": {
-    endpoints: {
-      [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange",
-    },
-    factoriesName: "vvsFactories",
-    totalVolume: "totalVolumeUSD",
-    start: '2021-09-19',
-  },
+  // "vvs-finance": {  // moved to uniSubgraph common with fee adapter
+  //   endpoints: {
+  //     [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/vvs/exchange",
+  //   },
+  //   factoriesName: "vvsFactories",
+  //   totalVolume: "totalVolumeUSD",
+  //   start: '2021-09-19',
+  // },
   "h2-finance-v3": {
     endpoints: {
       [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/h2-exchange-v3-cronos-zkevm/latest/gn",
@@ -1541,14 +1544,14 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     totalVolume: "totalVolumeUSD",
     start: '2023-11-03',
   },
-  "pangolin": {
-    endpoints: {
-      [CHAIN.AVAX]: sdk.graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq'),
-    },
-    factoriesName: "pangolinFactories",
-    totalVolume: "totalVolumeUSD",
-    start: '2022-01-21',
-  },
+  // "pangolin": {  // moved to uniSubgraph
+  //   endpoints: {
+  //     [CHAIN.AVAX]: sdk.graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq'),
+  //   },
+  //   factoriesName: "pangolinFactories",
+  //   totalVolume: "totalVolumeUSD",
+  //   start: '2022-01-21',
+  // },
   "pharaoh-exchange": {
     endpoints: {
       [CHAIN.AVAX]: sdk.graph.modifyEndpoint('NFHumrUD9wtBRnZnrvkQksZzKpic26uMM5RbZR56Gns'),

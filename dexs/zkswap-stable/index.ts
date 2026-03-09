@@ -1,22 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// const endpoints = {
-//   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49271/zf-exchange-stableswap-3/v0.1.1"
-// }
-
-// const graph = getGraphDimensions2({
-//   graphUrls: endpoints,
-//   totalVolume: {
-//     factory: "factories",
-//   },
-//   feesPercent: {
-//     type: "volume",
-//     Fees: 0.01,
-//     Revenue: 0.0033
-//   }
-// });
-
 const pools = [
   {
     address: '0x15309aaf4fedf346e5204331027b4ef7b75b1dd7',
@@ -45,13 +29,14 @@ async function fetch(options: FetchOptions) {
   }
 
   const dailyRevenue = dailyFees.clone(0.33)
-  const dailySupplySideRevenue = dailyFees.clone(67)
+  const dailySupplySideRevenue = dailyFees.clone(0.67)
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetch,
