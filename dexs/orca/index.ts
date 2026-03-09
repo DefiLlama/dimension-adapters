@@ -164,14 +164,14 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 
-    const dailyRevenue = allPools.reduce(
+    const dailyRevenue = validPools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 
     let dailyHoldersRevenue = 0;
 
     if (options.chain == CHAIN.SOLANA) {
-        dailyHoldersRevenue = allPools.reduce(
+        dailyHoldersRevenue = validPools.reduce(
             (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateHoldersRevenue(pool), 0
         );
     }
