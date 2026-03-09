@@ -33,14 +33,15 @@ Protocol Revenue (42% of total, split between Letsbonk and Graphite):
 */
 
 import { CHAIN } from '../../helpers/chains'
-import { FetchOptions, SimpleAdapter } from '../../adapters/types'
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getSolanaReceived } from '../../helpers/token'
 
 const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
 const PLATFORM_FEE_WALLET = '56XVRVAsgWv6ADaxzoNnbL38LMoWKM5WiSAhrAWUbd2p';
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay;
     const dailyFees = options.createBalances()
 
     await getSolanaReceived({ options, balances: dailyFees, target: PLATFORM_FEE_WALLET })
@@ -75,19 +76,19 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-04-27',
-        }
-    },
+    version: 2,
+    pullHourly: true,
+    dependencies: [Dependencies.ALLIUM],
+    fetch,
+    start: '2025-04-27',
+    chains: [CHAIN.SOLANA],
     methodology: {
         Fees: "Graphite Protocol's portion of joint venture fees with Letsbonk. Before 10th jun 2025: 57.68% of total fees. After 10th jun 2025: 40% of total fees.",
         Revenue: "Total Graphite Protocol Revenue and Holders Revenue",
         ProtocolRevenue: "Before 10th jun 2025: 50% of total fees (BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4%). After 10th jun 2025: 32.33% of total fees (BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2%).",
         HoldersRevenue: "GP Reserve: 7.67% of total fees across both periods. Before 10th jun 2025: 43% of total fees."
     },
+    doublecounted: true
 };
 
 export default adapter;

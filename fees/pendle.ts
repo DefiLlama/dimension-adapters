@@ -1,6 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import {
-  ChainBlocks,
   FetchOptions,
   FetchResultFees,
   SimpleAdapter,
@@ -91,8 +90,6 @@ const chainConfig: IConfig = {
 
 const fetch = (chain: Chain) => {
   return async (
-    timestamp: number,
-    _: ChainBlocks,
     options: FetchOptions
   ): Promise<FetchResultFees> => {
     await getWhitelistedAssets(options.api);
@@ -238,7 +235,6 @@ const fetch = (chain: Chain) => {
       dailyProtocolRevenue,
       dailyHoldersRevenue,
       dailySupplySideRevenue,
-      timestamp,
     };
   };
 };
@@ -252,6 +248,8 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
@@ -310,10 +308,11 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   let hasMore = true;
 
   while (hasMore) {
-    const { results: newResults } = await getConfig(
+    let { results: newResults } = await getConfig(
       `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
       `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
     );
+    newResults = newResults || []
     results = results.concat(newResults);
     skip += 100;
     hasMore = newResults.length === 100;

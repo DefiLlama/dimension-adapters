@@ -16,6 +16,7 @@ const getFees = async (options): Promise<FetchResultV2> => {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.BLAST]: {
             fetch: getFees,

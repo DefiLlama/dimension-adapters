@@ -5,7 +5,6 @@ import { addOneToken } from '../../helpers/prices';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
-import { concat } from 'ethers';
 
 const CONFIG = {
   factories: [
@@ -46,7 +45,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 13843704, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
+  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 13843704, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, cacheInCloud: true, })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
 
   const bribes_contract: string[] = logs_gauge_created
@@ -68,7 +67,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   return { dailyBribesRevenue }
 }
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getToBlock, getFromBlock, chain, getLogs } = fetchOptions
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -76,7 +75,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
   let rawPools: Array<any> = []
   for (const factory of CONFIG.factories) {
-    rawPools = rawPools.concat(await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer }))
+    rawPools = rawPools.concat(await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer, cacheInCloud: true, }))
   }
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
@@ -103,7 +102,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
     startBlock += blockStep
   }
 
-  let errorFound = false
+  let errorFound: any = false
 
 
   await PromisePool
@@ -147,7 +146,8 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,

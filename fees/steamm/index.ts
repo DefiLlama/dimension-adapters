@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const methodology = {
   Fees: "Total fees paid from swaps",
-  ProtocolReveneue:
+  ProtocolRevenue:
     "The portion of the total fees going to the STEAMM treasury",
 };
 

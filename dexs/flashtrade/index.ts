@@ -12,6 +12,7 @@ const pools = [
     "Community.2",
     "Trump.1",
     "Ore.1",
+    "Remora.1",
     
     // keep historical pools
     "Community.3",

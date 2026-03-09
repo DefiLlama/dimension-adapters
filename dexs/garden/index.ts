@@ -75,6 +75,12 @@ const chainMapper: Record<string, { name: string, start: string, primaryCGToken:
         primaryCGToken: 'solana',
         decimals: 9
     },
+    [CHAIN.MONAD]: {
+        name: "monad",
+        start: "2025-11-24",
+        primaryCGToken: 'monad',
+        decimals: 18
+    },
 };
 const baseUrl = "https://api.garden.finance/orders";
 

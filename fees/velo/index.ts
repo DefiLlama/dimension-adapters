@@ -1,9 +1,10 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
 const config: any = {
-  bsc: {
+  [CHAIN.BSC]: {
     targets: ["0x6C22422f4044dfBA79f4EA6BbB9C09162c3BF912"],
     tokens: [
       ADDRESSES.bsc.BUSD,
@@ -35,5 +36,6 @@ const adapters: SimpleAdapter = {
     {}
   ),
   version: 2,
+  pullHourly: true,
 };
 export default adapters;

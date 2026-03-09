@@ -2434,5 +2434,15 @@ export default (
         etlk: ["0x0c532e1e916219007f244e2d8Ef46f8530Ec75DE"],
       },
     },
+    {
+      id: "7139",
+      name: "Anome",
+      addresses: {
+        bsc: [
+          "0x210d75B7C94aDf9FC1a2bCd047D76890479234e3"
+        ],
+      },
+    },
+
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);

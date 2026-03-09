@@ -77,6 +77,7 @@ const fetchCronosFees = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -100,6 +101,7 @@ const fetchZkSyncFees = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -107,7 +109,8 @@ const methodology = {
   Fees: "Total staking rewards earned from delegated CRO, ATOM, TIA, and ETH.",
   Revenue: "Veno charges a 10% fee on staking rewards on Cronos (includes validator commission) and a 12% fee on zkSync Era (split 50/50 between protocol and Kiln). Additionally, a 0.2% withdrawal fee is charged when users unstake.",
   ProtocolRevenue: "On Cronos: 10% of staking rewards. On zkSync Era: 6% of staking rewards (50% of the 12% fee, with the other 50% going to Kiln).",
-  SupplySideRevenue: "On Cronos: 90% of staking rewards. On zkSync Era: 94% of staking rewards to stakers."
+  SupplySideRevenue: "On Cronos: 90% of staking rewards. On zkSync Era: 94% of staking rewards to stakers.",
+  HoldersRevenue: "No revenue share to VNO token holders.",
 }
 
 const adapter: SimpleAdapter = {

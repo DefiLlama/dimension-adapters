@@ -44,10 +44,10 @@ const graphs = () => {
     const dailyRevenue = createBalances()
     const dailyHoldersRevenue = createBalances()
     const dailyProtocolRevenue = createBalances()
-    dailyFees.addCGToken(PRICE_ID, +graphRevenue.protocolDay.reservedFuel);
-    dailyUserFees.addCGToken(PRICE_ID, +graphRevenue.protocolDay.reservedFuel);
-    dailyHoldersRevenue.addCGToken(PRICE_ID, +graphRevenue.protocolDay.holdersRevenue);
-    dailyProtocolRevenue.addCGToken(PRICE_ID, +graphRevenue.protocolDay.treasuryRevenue);
+    dailyFees.addCGToken(PRICE_ID, +graphRevenue.protocolDay.reservedFuel, 'Ticketing Fees');
+    dailyUserFees.addCGToken(PRICE_ID, +graphRevenue.protocolDay.reservedFuel, 'Ticketing Fees');
+    dailyHoldersRevenue.addCGToken(PRICE_ID, +graphRevenue.protocolDay.holdersRevenue, 'Holder Distributions');
+    dailyProtocolRevenue.addCGToken(PRICE_ID, +graphRevenue.protocolDay.treasuryRevenue, 'Treasury Revenue');
     dailyRevenue.addBalances(dailyHoldersRevenue)
     dailyRevenue.addBalances(dailyProtocolRevenue)
 
@@ -62,8 +62,8 @@ const graphs = () => {
     );
 
     // dailyFees includes the Uniswap LP collected fees, the dailyUserFees does not.
-    dailyFees.addCGToken('tether', +sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE"], stakingFees));
-    dailyUserFees.addCGToken('tether', +sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE"], stakingFees));
+    dailyFees.addCGToken('tether', +sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE"], stakingFees), 'Staking Fees');
+    dailyUserFees.addCGToken('tether', +sumKeys(["WITHDRAWAL_FEE", "REDISTRIBUTE"], stakingFees), 'Staking Fees');
 
     return {
       timestamp,
@@ -84,9 +84,31 @@ const adapter: Adapter = {
     },
   },
   methodology: {
-    Fees: "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",
-    Revenue: "Ticketeers pay an on-chain fee in GET for every ticket that they sell through GET Protocol. Fees are determined by the amount deducted from users' balances when tickets are sold (fuel reserved) and revenue is collected when these tickets are checked-in, ending their lifecycle (fuel spent).",
-    HoldersRevenue: "Revenue distributed to token holders.",
+    Fees: "Ticketeers pay an on-chain fee in GET for every ticket sold, plus staking fees from withdrawal and redistribution events.",
+    UserFees: "Ticketing fees paid by ticketeers plus staking-related fees.",
+    Revenue: "Revenue split between treasury and token holders from ticketing fees.",
+    HoldersRevenue: "Revenue distributed to GET token holders.",
+    ProtocolRevenue: "Revenue allocated to the protocol treasury.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Ticketing Fees': 'On-chain fees in GET paid by ticketeers for every ticket sold (fuel reserved)',
+      'Staking Fees': 'Withdrawal fees and redistribution fees from GET staking',
+    },
+    UserFees: {
+      'Ticketing Fees': 'On-chain fees in GET paid by ticketeers for every ticket sold (fuel reserved)',
+      'Staking Fees': 'Withdrawal fees and redistribution fees from GET staking',
+    },
+    Revenue: {
+      'Holder Distributions': 'Revenue distributed to GET token holders',
+      'Treasury Revenue': 'Revenue allocated to the protocol treasury',
+    },
+    HoldersRevenue: {
+      'Holder Distributions': 'Revenue distributed to GET token holders',
+    },
+    ProtocolRevenue: {
+      'Treasury Revenue': 'Revenue allocated to the protocol treasury',
+    },
   },
 };
 

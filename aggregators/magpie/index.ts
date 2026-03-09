@@ -117,6 +117,14 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2025-11-15',
     },
+    [CHAIN.MONAD]: {
+      fetch,
+      start: '2025-11-22',
+    },
+    [CHAIN.MEGAETH]: {
+      fetch,
+      start: '2026-01-30',
+    },
   },
 };
 

@@ -196,7 +196,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    BribeRevenue: "Incentives Distributed From Berachain Reward Vaults",
+    BribesRevenue: "Incentives Distributed From Berachain Reward Vaults",
 };
 
 const adapter: SimpleAdapter = {

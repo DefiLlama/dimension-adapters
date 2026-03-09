@@ -1,5 +1,6 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
+import { queryDuneSql } from "../helpers/dune"
 import { getEnv } from "../helpers/env"
 import { httpGet } from "../utils/fetchURL"
 
@@ -10,16 +11,34 @@ interface IFees {
   revenue_in_usd: number;
 }
 
-const fetchFees = async (timestamp: number, _t: any, options: FetchOptions) => {
+const fetchFees = async (_a: any, _t: any, options: FetchOptions) => {
   const res: IFees[] = (await httpGet(url)).query_result.data.rows;
   const dateStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0]
   const dailyItem = res.find(item => item.block_date === dateStr)
-  if (!dailyItem) {
-    throw new Error(`No daily item found for ${dateStr}`)
+  
+  let dailyFees = options.createBalances()
+
+  if (dailyItem) {
+    dailyFees.addUSDValue(dailyItem.revenue_in_usd);
+  } else {
+    // using Dune
+    const duneQuery = `
+      SELECT 
+        SUM(balance_change) AS fees_daily_sol
+      FROM solana.account_activity
+      WHERE address = '9kwU8PYhsmRfgS3nwnzT3TvnDeuvdbMAXqWsri2X8rAU'
+        AND balance_change > 0
+        AND token_mint_address IS NULL
+        AND TIME_RANGE
+    `
+    
+    const queryResults = await queryDuneSql(options, duneQuery);
+    dailyFees.add('So11111111111111111111111111111111111111112', queryResults[0].fees_daily_sol)
   }
-  const dailyFees = dailyItem.revenue_in_usd
-  const dailyProtocolRevenue = (timestamp >= 1685577600) ? dailyFees * 0.5 : dailyFees
-  const dailyHoldersRevenue = (timestamp >= 1685577600) ? dailyFees * 0.5 : 0
+  
+  const protocolRevenueRatio = options.startOfDay > 1685577600 ? 0.5 : 1
+  const dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
+  const dailyHoldersRevenue = dailyFees.clone(1 - protocolRevenueRatio)
 
   return {
     dailyFees,
@@ -38,6 +57,8 @@ const adapter: SimpleAdapter = {
       start: '2021-09-18',
     }
   },
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
     Fees: 'All fees paid by users for launching, trading assets.',
     UserFees: 'All fees paid by users for launching, trading assets.',

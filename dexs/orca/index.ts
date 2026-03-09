@@ -11,9 +11,13 @@ const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1
 const HOLDERS_REVENUE_RATE = 0.20; // 20% of protocol fees goes to xORCA holders via buybacks and burns
 // Based on governance proposal: https://forums.orca.so/t/tokenholder-proposal-for-xorca-initial-development-team-grant-buybacks-and-burn/882
 
-const CONFIG = {
+const CONFIG: any = {
     [CHAIN.SOLANA]: {
         url: statsApiEndpoint,
+        blacklistedPools: [
+          'EhNTpT8mAi2M9RcKkyEQLh9t9EbhyNKEcnsPAM6qCYEQ', // bad pool very low liquidity
+          '7NYhunVC9ASsrwvEC2hPTEzeZAFC5PDjDnS4M3qkY7Mw', // no liquidity(1.8E19 BTC per WBTC)
+        ],
     },
     [CHAIN.ECLIPSE]: {
         url: eclipseStatsApiEndpoint,
@@ -141,7 +145,11 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
         options.api.log(`page: ${page} and nextCursor: ${nextCursor}`);
     } while (nextCursor);
     const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);
-    const validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
+    let validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
+    if (CONFIG[options.chain].blacklistedPools) {
+      validPools = validPools.filter(p => !CONFIG[options.chain].blacklistedPools.includes(p.address))
+    }
+    
     options.api.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${allPools.length}`);
 
     const dailyVolume = validPools.reduce(
@@ -156,14 +164,14 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 
-    const dailyRevenue = allPools.reduce(
+    const dailyRevenue = validPools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 
     let dailyHoldersRevenue = 0;
 
     if (options.chain == CHAIN.SOLANA) {
-        dailyHoldersRevenue = allPools.reduce(
+        dailyHoldersRevenue = validPools.reduce(
             (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateHoldersRevenue(pool), 0
         );
     }
