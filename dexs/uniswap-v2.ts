@@ -24,7 +24,7 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
   },
   [CHAIN.OPTIMISM]: {
     factory: '0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf',
-    source: 'DUNE',
+    source: 'LOGS',
     start: '2024-02-13',
     duneId: 'optimism',
   },
