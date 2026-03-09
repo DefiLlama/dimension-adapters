@@ -16,6 +16,7 @@ const CONFIG: any = {
         url: statsApiEndpoint,
         blacklistedPools: [
           'EhNTpT8mAi2M9RcKkyEQLh9t9EbhyNKEcnsPAM6qCYEQ', // bad pool very low liquidity
+          '7NYhunVC9ASsrwvEC2hPTEzeZAFC5PDjDnS4M3qkY7Mw', // no liquidity(1.8E19 BTC per WBTC)
         ],
     },
     [CHAIN.ECLIPSE]: {
