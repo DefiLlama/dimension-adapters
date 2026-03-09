@@ -108,7 +108,7 @@ const adapter: SimpleAdapter = {
   start: '2025-10-24',
   methodology: {
     Volume: 'Total wager from all betting contracts.',
-    Fees: 'There is amount of 0.1% wager collected as fees.',
+    Fees: 'An amount of 0.1% wager collected as fees.',
   }
 }
 

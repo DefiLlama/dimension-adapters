@@ -347,8 +347,8 @@ async function fetchDune(options: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
+    dailySupplySideRevenue: dailyFees,
     dailyRevenue: 0,
-    dailySupplySideRevenue: 0,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue: 0,
   }

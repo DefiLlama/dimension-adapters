@@ -3,13 +3,14 @@ import { generateCBCommerceExports } from "../helpers/coinbase-commerce";
 import { getSolanaReceived } from '../helpers/token';
 import { CHAIN } from "../helpers/chains";
 
-const sol = async (_: any, _1: any, options: FetchOptions) => {
+const sol = async (options: FetchOptions) => {
   const dailyFees = await getSolanaReceived({ options, targets: ['3h5SPEzotUQDznpgCQev8jpDnBCtLkRj4PH997517C5j'] })
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
 }
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: 'All fees paid by users for token profile listing.',

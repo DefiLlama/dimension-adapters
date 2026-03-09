@@ -34,7 +34,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: Adapter = {
   version: 1,
   methodology: {
-    dailyVolume: "Sum of daily total volume for all markets on a given day.",
+    Volume: "Sum of daily total volume for all markets on a given day.",
   },
   fetch,
   adapter: {

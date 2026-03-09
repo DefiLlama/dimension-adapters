@@ -147,8 +147,8 @@ const adapter: Adapter = {
     [CHAIN.SCROLL]: { start: "2023-10-10" },
   },
   methodology: {
-    Fees: 'Total gas fees paid by users(excluding gas refunds)',
-    Revenue: 'Axelar doesnt collect any fee'
+    Fees: 'Total gas fees paid by users (excluding gas refunds)',
+    Revenue: "Axelar doesn't collect any fee"
   },
   breakdownMethodology,
 };

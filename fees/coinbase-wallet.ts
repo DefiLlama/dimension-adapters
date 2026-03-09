@@ -69,6 +69,7 @@ const adapter: SimpleAdapter = {
     Revenue: 'Fees collected by Coinbase paid by users for trading, swapping, bridging in Coinbase Wallet and referral fees from coins created in the Base App',
   },
   version: 2,
+  pullHourly: true,
   chains,
   fetch,
 };

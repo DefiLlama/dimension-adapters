@@ -57,6 +57,7 @@ const breakdownMethodology = {
 
 const adapters: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     chains: [CHAIN.RONIN],
     fetch,
     start: '2023-04-27',

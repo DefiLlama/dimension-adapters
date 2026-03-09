@@ -38,6 +38,7 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 2,
   chains: [CHAIN.BERACHAIN],
+  skipBreakdownValidation: true, // because cost are not clear
   fetch,
   start: '2025-03-17',
   pullHourly: true,

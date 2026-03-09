@@ -38,9 +38,9 @@ const adapter: SimpleAdapter = {
   start: "2025-05-31",
   methodology: {
     Volume: "Total trading volume aggregated via Hyperbloom routers.",
-    Fees: "Flat 0.025% amount of  trading fees on all trades.",
-    Revenue: "Flat 0.025% amount of  trading fees on all trades are revenue.",
-    ProtocolRevenue: "Flat 0.025% amount of  trading fees on all trades are revenue.",
+    Fees: "Flat 0.025% amount of trading fees on all trades.",
+    Revenue: "Flat 0.025% amount of trading fees on all trades are revenue.",
+    ProtocolRevenue: "Flat 0.025% amount of trading fees on all trades are revenue.",
   },
   chains: [CHAIN.HYPERLIQUID],
 };

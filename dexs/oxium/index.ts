@@ -36,8 +36,6 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: "Fees are collected by the DAO on the token bought during market orders.",
-    TVL: "TVL is the total value promised on oxium markets in addition to all non promised value that are in the ALM vaults.",
-    DataSource: "Data is sourced from the ponder oxium indexer and queried via its readonly sql endpoint.",
   },
 };
 

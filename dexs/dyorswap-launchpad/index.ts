@@ -88,8 +88,8 @@ const adapter: SimpleAdapter = {
   start: '2025-09-24',
   methodology: {
     Fees: "1% of WXPL-side swap volume on tokens launched via the DYORSwap launchpad (bonding-curve tokens emit Swap events themselves).",
-    Revenue: "bonding curve fees goes to protocol treasury.",
-    ProtocolRevenue: "bonding curve fees goes to protocol treasury.",
+    Revenue: "bonding curve fees go to protocol treasury.",
+    ProtocolRevenue: "bonding curve fees go to protocol treasury.",
   },
 };
 

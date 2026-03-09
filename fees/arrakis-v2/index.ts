@@ -44,10 +44,8 @@ const contracts: IAddress = {
   },
 };
 
-async function getVaultsFees(
-  { api, fromApi, toApi, createBalances }: FetchOptions,
-  { helper, factory }: IVault
-) {
+async function fetch({ chain, api, fromApi, toApi, createBalances }: FetchOptions) {
+  const { helper, factory } = contracts[chain];
   const dailyFees = createBalances();
 
   const limit = await api.call({ target: factory, abi: abi.numVaults });
@@ -105,14 +103,11 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: (options: FetchOptions) =>
-        getVaultsFees(options, contracts[CHAIN.ETHEREUM]),
-      start: '2023-08-26',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2023-08-26',
   methodology,
+  skipBreakdownValidation: true, // because cost are not clear
   breakdownMethodology,
 };
 

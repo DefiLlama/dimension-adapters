@@ -11,7 +11,7 @@ import { addTokensReceived } from '../../helpers/token';
 const RENZO_TOKEN = "0x3B50805453023a91a8bf641e279401a0b23FA6F9";
 const BUYBACK_BOT = "0x7d7445b6e7098efBDEAfA4A24f443847D5dAA262";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   // Query data
@@ -86,7 +86,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

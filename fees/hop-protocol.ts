@@ -127,6 +127,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  skipBreakdownValidation: true, // because cost are not clear
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: '2023-01-01' },
     [CHAIN.BASE]: { fetch, start: '2023-01-01' },

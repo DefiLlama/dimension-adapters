@@ -65,6 +65,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'curve',
   ],
   'dexs': [
+    'helpers/crypto-card',
     'helpers/balancer',
     'uniV2',
     'uniV3',

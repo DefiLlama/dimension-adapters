@@ -29,6 +29,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 1,
+  skipBreakdownValidation: true, // skipping breakdown validation as we dont have a breakdown on how much of the fee is returned as rebate
   fetch,
   start: '2023-07-17',
   chains: [CHAIN.OFF_CHAIN],

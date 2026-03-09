@@ -10,6 +10,7 @@ const methodology = {
 const adapter: Adapter = {
   methodology,
   version: 2,
+  pullHourly: true,
   adapter: {},
 }
 

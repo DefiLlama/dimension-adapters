@@ -19,8 +19,8 @@ async function run() {
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
-   for (const folderPath of ADAPTER_TYPES)
-     await addAdapterType(folderPath)
+  for (const folderPath of ADAPTER_TYPES)
+    await addAdapterType(folderPath)
 
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
@@ -128,6 +128,9 @@ async function run() {
   }
 
   function addDeadAdapters() {
+
+    const defaultCommitHash = "1e8620166b5772c02e5e68e9dcd2cbb818724d69"  // /dead folder is deleted after this step
+
     for (const [adapterType, adapters] of Object.entries(deadAdapters)) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
@@ -135,6 +138,9 @@ async function run() {
       for (const [protocolName, adapterInfo] of Object.entries(adapters as any)) {
         if (dimensionsImports[adapterType][protocolName])
           continue;
+
+        (adapterInfo as any).commit = (adapterInfo as any).commit ?? defaultCommitHash
+        
 
         dimensionsImports[adapterType][protocolName] = adapterInfo;
       }

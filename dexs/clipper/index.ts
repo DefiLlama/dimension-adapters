@@ -189,6 +189,7 @@ export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   let dailyVolume = results.dailyVolume ? Number(results.dailyVolume) : 0
   const dailyFees = results.dailyFees ? Number(results.dailyFees) : 0
   const dailyRevenue = results.dailyRevenue ? Number(results.dailyRevenue) : 0
+  const dailyProtocolRevenue = results.dailyProtocolRevenue ? Number(results.dailyProtocolRevenue) : 0
 
   const additionalVolumes = await fetchVolume(options)
   additionalVolumes.timestamp = options.fromTimestamp
@@ -199,6 +200,7 @@ export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue
   };
 }
 

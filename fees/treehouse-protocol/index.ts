@@ -39,7 +39,7 @@ const ADDRESSES: any = {
     }
 };
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const { accounting, token, redemption, fastlaneRedemption, stakedToken } = ADDRESSES[options.chain]
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
@@ -104,6 +104,8 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
     fetch,
     methodology,
     breakdownMethodology,
