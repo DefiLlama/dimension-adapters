@@ -1,8 +1,9 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const GRID_MINING = '0xEF35314a4F3a1F8CE89095202dABAeEe1CaAd760';
 const STAKING = '0x93CF815EC397C526576078A74197c3fa2d769b80';
+const NICKEL = '0xe11b4dd87675b52980b3427029a2d792a4a05aa2';
 
 // GridMining fee constants (basis points, matching contract)
 const ADMIN_FEE_BPS = 100n;   // 1% of totalDeployed
@@ -32,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
 
   stakingLogs.forEach(log => {
     // Yield is paid in NICKEL (token), not gas token
-    dailyHoldersRevenue.addToken(log.amount);
+    dailyHoldersRevenue.add(NICKEL, log.amount);
   });
 
   // RoundSettled gives totalWinnings + winnersDeployed to derive admin fees
