@@ -128,7 +128,7 @@ async function getPoolFees(
     const currFee = currFees[index];
     const withdrawal = (withdrawals[index] || []).reduce((acc: number, log: withdrawalLog) => acc + log.amountSD, 0)
 
-    if (!prevFee || !currFee) return;
+    if (prevFee == null || currFee == null) return;
     dailyFees.add(asset, (currFee - prevFee) + withdrawal);
   });
 
