@@ -32,7 +32,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.MEGAETH],
-  start: "2026-03-09",
+  start: "2026-03-08",
   fetch,
   methodology,
   dependencies: [Dependencies.ALLIUM],
