@@ -1,14 +1,12 @@
 import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
 import { fetchBuilderData } from "../helpers/extended-exchange";
-import { fetchPolymarketBuilderVolume } from "../helpers/polymarket";
 import { httpGet } from "../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
 const FLOWBOT_API = "https://flowbot.pro/api/dashboard/volume";
 const HL_BUILDER_ADDRESS = "0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36";
 const EXTENDED_BUILDER_NAMES = ["FlowBot"];
-const FLOWBOT_POLYMARKET_BUILDER_NAME = "FlowBot";
 const FLOWBOT_FEE_RATE = 0.0001;
 const NADO_FEE_RATE = 0.00002;
 
@@ -48,10 +46,6 @@ const fetchExtended = async(_a: any, _b: any, options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const fetchPolymarket = async(_a: any, _b: any, options: FetchOptions) => {
-  return fetchPolymarketBuilderVolume({ options, builder: FLOWBOT_POLYMARKET_BUILDER_NAME });
-};
-
 const fetchFlowbotPlatform = (platform: string, feeRate?: number) => {
   return async (_a: any, _b: any, options: FetchOptions) => {
     const dailyVolume = options.createBalances();
@@ -89,10 +83,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.STARKNET]: {
       fetch: fetchExtended,
       start: "2026-01-26",
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchPolymarket,
-      start: "2026-01-18",
     },
     [CHAIN.SOLANA]: {
       fetch: fetchFlowbotPlatform("pacifica", FLOWBOT_FEE_RATE),
