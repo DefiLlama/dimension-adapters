@@ -42,11 +42,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "All USDC transferred into the WA fee wallet during the day is counted as total fees.",
+    "All USDC transferred into the fee wallet during the day is counted as total fees.",
   Revenue:
-    "All USDC fees received by the WA wallet are considered revenue.",
+    "All USDC fees received by the wallet are considered revenue.",
   ProtocolRevenue:
-    "All USDC fees received by the WA wallet are considered protocol revenue.",
+    "All USDC fees received by the wallet are considered protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {
