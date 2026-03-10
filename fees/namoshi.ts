@@ -34,12 +34,14 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
 const methodology = {
   Fees: "Namoshi .citrea and .btc domain name registration and renewal costs",
   Revenue: "Namoshi .citrea and .btc domain name registration and renewal costs",
+  ProtocolRevenue: "Namoshi .citrea and .btc domain name registration and renewal costs",
 };
 
 const adapter: Adapter = {
@@ -51,6 +53,14 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
+      "Name registration fees": "cBTC paid for .citrea and .btc name registrations, including base cost and premium.",
+      "Name renewal fees": "cBTC paid for .citrea and .btc name renewals.",
+    },
+    Revenue: {
+      "Name registration fees": "cBTC paid for .citrea and .btc name registrations, including base cost and premium.",
+      "Name renewal fees": "cBTC paid for .citrea and .btc name renewals.",
+    },
+    ProtocolRevenue: {
       "Name registration fees": "cBTC paid for .citrea and .btc name registrations, including base cost and premium.",
       "Name renewal fees": "cBTC paid for .citrea and .btc name renewals.",
     },
