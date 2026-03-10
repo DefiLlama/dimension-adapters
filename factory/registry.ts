@@ -90,6 +90,9 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'normalized-volume': [
     'normalizedVolume', // Factory in factory/ folder
+  ],
+  'nft-volume': [
+    'nftVolume',
   ]
 };
 
