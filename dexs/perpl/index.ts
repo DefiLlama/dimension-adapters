@@ -21,7 +21,9 @@ const fetch = async ({ getLogs }: FetchOptions) => {
   for (const log of makerLogs) {
     const perpId = Number(log.perpId);
     const market = MARKETS[perpId];
-    if (!market) continue;
+    if (!market) {
+        throw new Error(`Market not found for perpId: ${perpId}`);
+    }
 
     // Volume: price * lots in USD
     const price = Number(log.pricePNS) / 10 ** market.priceDecimals;
@@ -37,12 +39,10 @@ const fetch = async ({ getLogs }: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.MONAD]: {
-      fetch,
-      start: "2025-02-01",
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.MONAD],
+  start: "2025-02-01",
+  fetch,
 };
 
 export default adapter;
