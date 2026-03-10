@@ -70,7 +70,6 @@ export const BungeeGatewayContracts: {
   [CHAIN.XDAI]: {
     audited: [
       '0x5e01dbBBe59F8987673FAdD1469DdD2Be71e00af',
-      '0x5e01dbBBe59F8987673FAdD1469DdD2Be71e00af',
     ],
     unaudited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
   },
@@ -189,7 +188,6 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
     }
   }
 
-  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
   if (params.swapVolume) {
     // manual swap
     if (SocketGatewayContracts[options.chain]) {
