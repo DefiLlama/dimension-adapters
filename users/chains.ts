@@ -1,21 +1,7 @@
-import { queryFlipside } from "../helpers/flipsidecrypto";
 import { queryAllium, startAlliumQuery } from "../helpers/allium";
 import { httpGet } from "../utils/fetchURL";
 import axios from "axios";
 import { getEnv } from "../helpers/env";
-
-
-function getUsersChain(chain: string) {
-    return async (start: number, end: number) => {
-        const query = await queryFlipside(`select count(DISTINCT FROM_ADDRESS), count(tx_hash) from ${chain}.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-        return {
-            all: {
-                users: query[0][0],
-                txs: query[0][1]
-            }
-        }
-    }
-}
 
 async function solanaUsers(start: number, end: number) {
     const queryId = await startAlliumQuery(`select count(DISTINCT signer) as usercount, count(txn_id) as txcount from solana.raw.transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end}) and success=true and is_voting=false`)
@@ -24,60 +10,6 @@ async function solanaUsers(start: number, end: number) {
     }
 }
 
-/*
-async function solanaUsers(start: number, _end: number) {
-    const usersQuery = await request("https://api-solalpha.solscan.io/api/graphql", gql`
-    query allAccountOverviewDailys($date_lt: String) {
-        allAccountOverviewDailys(date_lt: $date_lt, LIMIT: -1, SORT: {date: 1}) {
-            AccountOverviewDailys {
-                date
-                num_signer_account
-            }
-        },
-        allTransactionOverviewDailys(date_lt: $date_lt, LIMIT: -1) {
-            TransactionOverviewDailys {
-                date
-                non_vote_num_trans
-            }
-        }
-    }
-    `, {
-        Headers: {
-            origin: "https://analytics.solscan.io",
-            referer: "https://analytics.solscan.io/",
-            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
-        }
-    })
-    const startDate = new Date(start*1e3).toISOString().slice(0, "2023-08-31".length)
-    const findDay = (dailys:any[]) => dailys.find(d=>d.date === startDate)
-    return {
-        all: {
-            users: findDay(usersQuery.allAccountOverviewDailys).num_signer_account,
-            txs: findDay(usersQuery.allTransactionOverviewDailys).non_vote_num_trans
-        }
-    }
-}
-*/
-
-async function osmosis(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT TX_FROM), count(tx_id) from osmosis.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return {
-        all: {
-            users: query[0][0],
-            txs: query[0][1]
-        }
-    }
-}
-
-async function near(start: number, end: number) {
-    const query = await queryFlipside(`select count(DISTINCT TX_SIGNER), count(tx_hash) from near.core.fact_transactions where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${start}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${end})`)
-    return {
-        all: {
-            users: query[0][0],
-            txs: query[0][1]
-        }
-    }
-}
 
 const timeDif = (d: string, t: number) => Math.abs(new Date(d).getTime() - new Date(t * 1e3).getTime())
 function findClosestItem(results: any[], timestamp: number, getTimestamp: (x: any) => string) {
@@ -103,14 +35,6 @@ function coinmetricsData(assetID: string) {
         return parseFloat(closestDatapoint['AdrActCnt']);
     }
 }
-
-/*
-// https://tronscan.org/#/data/stats2/accounts/activeAccounts
-async function tronscan(start: number, _end: number) {
-    const results = (await httpGet(`https://apilist.tronscanapi.com/api/account/active_statistic?type=day&start_timestamp=${(start - 2*24*3600)*1e3}`)).data;
-    return findClosestItem(results, start, t=>t.day_time).active_count
-}
-*/
 
 // not used because coinmetrics does some deduplication between users
 async function bitcoinUsers(start: number, end: number) {
@@ -162,21 +86,6 @@ const alliumChains = ["arbitrum", "avalanche", "ethereum", "optimism", "polygon"
 const alliumExports = alliumChains.map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c) }))
 
 export default [
-    // disable flipside chains
-    /*
-    ...([
-        "gnosis"
-        // "terra2", "flow"
-    ].map(c => ({ name: c, getUsers: getUsersChain(c) }))),
-    {
-        name: "osmosis",
-        getUsers: osmosis
-    },
-    {
-        name: "near",
-        getUsers: near
-    },
-    */
     {
         name: "solana",
         getUsers: solanaUsers
