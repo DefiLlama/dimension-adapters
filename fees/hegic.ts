@@ -1,4 +1,4 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 import {
@@ -6,17 +6,19 @@ import {
   getEarliestAvailableTimestamp,
 } from "../options/hegic";
 
+const OPTIONS_PREMIUMS = 'Options premiums';
+
 const adapter: Adapter = {
   methodology: {
     Fees: 'All premiums fees paid by users while trading on Hegic.',
-    Revenue: 'All the fees are revenue'
+    Revenue: 'All the fees are revenue',
   },
   breakdownMethodology: {
     Fees: {
-      'Options premiums': 'Premium fees paid by users to purchase options contracts (calls, puts, and option strategies like straddles, strangles, spreads, condors, and butterflies)',
+      [OPTIONS_PREMIUMS]: 'Premium fees paid by users to purchase options contracts (calls, puts, and option strategies like straddles, strangles, spreads, condors, and butterflies)',
     },
     Revenue: {
-      'Options premiums': 'Premium fees paid by users to purchase options contracts (calls, puts, and option strategies like straddles, strangles, spreads, condors, and butterflies)',
+      [OPTIONS_PREMIUMS]: 'Premium fees paid by users to purchase options contracts (calls, puts, and option strategies like straddles, strangles, spreads, condors, and butterflies)',
     },
   },
   adapter: {
@@ -29,14 +31,19 @@ const adapter: Adapter = {
 
 async function getHegicFees(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
-): Promise<FetchResultFees> {
+  timestamp: number,
+  _: any,
+  options: FetchOptions,
+) {
   const optionsDashboardData = await fetchArbitrumAnalyticsData(timestamp);
+
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(Number(optionsDashboardData.dailyPremiumVolume), OPTIONS_PREMIUMS);
 
   return {
     timestamp,
-    dailyFees: optionsDashboardData.dailyPremiumVolume,
-    dailyRevenue: optionsDashboardData.dailyPremiumVolume
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 }
 
