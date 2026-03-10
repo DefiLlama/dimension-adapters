@@ -73,38 +73,38 @@ export const BungeeGatewayContracts: {
     ],
     unaudited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
   },
-  [CHAIN.LINEA]: {
-    audited: ['0x6b1a31Af8A9DC9E8e489035859ca98D6335a0bcB'],
-    unaudited: ['0x79C7a69499Cf1866734E8D3154200a05aE41c865'],
-  },
-  [CHAIN.MANTLE]: {
-    audited: ['0x69f9d5a9E04b9cED4dff07Cd47c393856FA3D6Be'],
-    unaudited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
-  },
-  [CHAIN.SONIC]: {
-    audited: ['0x11918f1cb6db5e008A692F47c5320216fba6054B'],
-    unaudited: ['0xD26410401cC61a24205A01CC620A73c010FBA290'],
-  },
-  [CHAIN.AVAX]: {
-    audited: ['0xfe191a43dc4F3d57d7D942717D259005967e4e0D'],
-    unaudited: ['0xD59ac324AAfE6A27c0713b54bf46B1Db9C3b72FE'],
-  },
-  [CHAIN.UNICHAIN]: {
-    audited: ['0x79b5380FF38462b72e14667742f634c6610158B8'],
-    unaudited: [],
-  },
-  [CHAIN.BERACHAIN]: {
-    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
-    unaudited: [],
-  },
-  [CHAIN.BLAST]: {
-    audited: ['0x5525e0700390A12995aC181eFF656E4aC0246b29'],
-    unaudited: [],
-  },
-  [CHAIN.MODE]: {
-    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
-    unaudited: [],
-  },
+  // [CHAIN.LINEA]: {
+  //   audited: ['0x6b1a31Af8A9DC9E8e489035859ca98D6335a0bcB'],
+  //   unaudited: ['0x79C7a69499Cf1866734E8D3154200a05aE41c865'],
+  // },
+  // [CHAIN.MANTLE]: {
+  //   audited: ['0x69f9d5a9E04b9cED4dff07Cd47c393856FA3D6Be'],
+  //   unaudited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+  // },
+  // [CHAIN.SONIC]: {
+  //   audited: ['0x11918f1cb6db5e008A692F47c5320216fba6054B'],
+  //   unaudited: ['0xD26410401cC61a24205A01CC620A73c010FBA290'],
+  // },
+  // [CHAIN.AVAX]: {
+  //   audited: ['0xfe191a43dc4F3d57d7D942717D259005967e4e0D'],
+  //   unaudited: ['0xD59ac324AAfE6A27c0713b54bf46B1Db9C3b72FE'],
+  // },
+  // [CHAIN.UNICHAIN]: {
+  //   audited: ['0x79b5380FF38462b72e14667742f634c6610158B8'],
+  //   unaudited: [],
+  // },
+  // [CHAIN.BERACHAIN]: {
+  //   audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+  //   unaudited: [],
+  // },
+  // [CHAIN.BLAST]: {
+  //   audited: ['0x5525e0700390A12995aC181eFF656E4aC0246b29'],
+  //   unaudited: [],
+  // },
+  // [CHAIN.MODE]: {
+  //   audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+  //   unaudited: [],
+  // },
   [CHAIN.PLASMA]: {
     audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
     unaudited: [],
