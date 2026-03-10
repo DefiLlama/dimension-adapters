@@ -196,10 +196,14 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         eventAbi: SocketGatewayAbis.SocketSwapTokens,
       })
 
-      // count volune only from whitelisted tokens
-      const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-      if (whitelistedTokens.length > 0) {
-        swapEvents = swapEvents.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+      // count volume only from whitelisted tokens
+      try {
+        const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
+        if (whitelistedTokens.length > 0) {
+          swapEvents = swapEvents.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+        }
+      } catch (_) {
+        // if error in fetching whitelisted tokens, count all swap events
       }
       for (const event of swapEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
