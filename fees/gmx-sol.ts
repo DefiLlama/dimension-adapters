@@ -1,13 +1,12 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import request, { gql } from "graphql-request";
 
 
-const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((options.startOfDay * 1000)))
-  const targetDate = new Date(dayTimestamp * 1000).toISOString();
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const targetDate = new Date(options.startOfDay * 1000).toISOString();
+
   const feeStructureChangeTimestamp = 1768521600 // 2026-01-16
   const query = gql`
     {
@@ -23,61 +22,75 @@ const fetchSolana = async (_tt: number, _t: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
+  // const dailyHoldersRevenue = options.createBalances()
+
   for (const record of res.feesRecordDailies) {
-    dailyFees.addUSDValue(record.tradeFees / 1e20, METRIC.MARGIN_FEES)
+    dailyFees.addUSDValue(record.tradeFees / 1e20, METRIC.TRADING_FEES)
     dailyFees.addUSDValue(record.swapFees / 1e20, METRIC.SWAP_FEES)
 
     if (options.fromTimestamp < feeStructureChangeTimestamp) {
-      dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.MARGIN_FEES)
+      dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.TRADING_FEES)
       dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
-
-      dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.1, METRIC.MARGIN_FEES)
-      dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.1, METRIC.SWAP_FEES)
-
-      dailyHoldersRevenue.addUSDValue(record.tradeFees / 1e20 * 0.27, METRIC.MARGIN_FEES)
-      dailyHoldersRevenue.addUSDValue(record.swapFees / 1e20 * 0.27, METRIC.SWAP_FEES)
+      dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.TRADING_FEES)
+      dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
+      dailySupplySideRevenue.addUSDValue(record.tradeFees / 1e20 * 0.63, METRIC.TRADING_FEES)
+      dailySupplySideRevenue.addUSDValue(record.swapFees / 1e20 * 0.63, METRIC.SWAP_FEES)
+      // dailyHoldersRevenue.addUSDValue(record.tradeFees / 1e20 * 0.27, METRIC.TRADING_FEES)
+      // dailyHoldersRevenue.addUSDValue(record.swapFees / 1e20 * 0.27, METRIC.SWAP_FEES)
     }
     else {
-      dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.25, METRIC.MARGIN_FEES)
+      dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.25, METRIC.TRADING_FEES)
       dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.25, METRIC.SWAP_FEES)
-
-      dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.25, METRIC.MARGIN_FEES)
+      dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.25, METRIC.TRADING_FEES)
       dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.25, METRIC.SWAP_FEES)
-
-      dailySupplySideRevenue.addUSDValue(record.tradeFees / 1e20 * 0.75, METRIC.MARGIN_FEES)
+      dailySupplySideRevenue.addUSDValue(record.tradeFees / 1e20 * 0.75, METRIC.TRADING_FEES)
       dailySupplySideRevenue.addUSDValue(record.swapFees / 1e20 * 0.75, METRIC.SWAP_FEES)
-
     }
   }
 
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue,
+    // dailyHoldersRevenue,
     dailySupplySideRevenue,
   }
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Fees from opening/closing perpetual positions + borrowing fees + liquidation fees",
+    [METRIC.SWAP_FEES]: "Fees from swap fees",
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "25% of the trading fees go to the protocol.",
+    [METRIC.SWAP_FEES]: "25% of the swap fees go to the protocol.",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "25% of the trading fees go to the protocol.",
+    [METRIC.SWAP_FEES]: "25% of the swap fees go to the protocol.",
+  },
+  SupplySideRevenue: {
+    [METRIC.TRADING_FEES]: "75% of the trading fees go to the supply side.",
+    [METRIC.SWAP_FEES]: "75% of the swap fees go to the supply side.",
+  },
+}
+
 const methodology = {
-  Fees: "Trade fees and swap fees paid by users",
-  Revenue: "25% of the fees go to the protocol.",
+  Fees: "Opening/closing fees for perpetual positions, swap fees, liquidation fees, and borrowing fees",
+  Revenue: "25% of all collected fees",
   ProtocolRevenue: "25% of the fees go to the protocol.",
   SupplySideRevenue: "75% of the fees go to the supply side.",
-  HoldersRevenue: "No revenue share to holders post 2026-01-16"
 }
 
 const adapter: Adapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2025-02-12',
   methodology,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2025-02-12',
-    },
-  },
+  breakdownMethodology,
 };
+
 export default adapter;
