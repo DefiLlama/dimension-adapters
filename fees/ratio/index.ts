@@ -4,7 +4,7 @@ import { addTokensReceived } from "../../helpers/token";
 
 const FEE_TOKENS: Record<string, string[]> = {
   [CHAIN.POLYGON]: [
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", // USDC
+    "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB", // Polymarket USD (pUSD)
   ],
 };
 
@@ -42,11 +42,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "All USDC transferred into the fee wallet during the day is counted as total fees.",
+    "All Polymarket pUSD transferred into the fee wallet during the day is counted as total fees.",
   Revenue:
-    "All USDC fees received by the wallet are considered revenue.",
+    "All pUSD fees received by the wallet are considered revenue.",
   ProtocolRevenue:
-    "All USDC fees received by the wallet are considered protocol revenue.",
+    "All pUSD fees received by the wallet are considered protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {
