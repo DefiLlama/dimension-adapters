@@ -60,9 +60,9 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "Total fees collected by NEAR Intents platform.",
-        SupplySideRevenue: "Part of fees recieved by near intent partners",
-        Revenue: "Revenue collected by NEAR Intents platform",
-        ProtocolRevenue: "Revenue collected by NEAR Intents platform"
+        SupplySideRevenue: "Part of fees recieved by NEAR Intents' partners.",
+        Revenue: "Revenue collected by NEAR Intents platform.",
+        ProtocolRevenue: "All the revenue goes to the protocol treasury."
     },
 };
 
