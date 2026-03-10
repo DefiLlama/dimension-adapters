@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
-  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}&broken=aden`;
+  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}&broker=aden`;
 
   const data = await fetchURL(endpointWithDate);
 
