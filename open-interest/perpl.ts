@@ -14,7 +14,8 @@ const fetch = async (options: FetchOptions) => {
     calls: PERP_IDS.map((id) => ({ params: [id] })),
   });
 
-  let openInterestAtEnd = 0;
+  let longOpenInterestAtEnd = 0;
+  let shortOpenInterestAtEnd = 0;
 
   for (const info of results) {
     const priceDecimals = Number(info.priceDecimals);
@@ -22,10 +23,12 @@ const fetch = async (options: FetchOptions) => {
     const markPrice = Number(info.markPNS) / 10 ** priceDecimals;
     const longOI = Number(info.longOpenInterestLNS) / 10 ** lotDecimals;
     const shortOI = Number(info.shortOpenInterestLNS) / 10 ** lotDecimals;
-    openInterestAtEnd += (longOI + shortOI) * markPrice;
+    longOpenInterestAtEnd += longOI * markPrice;
+    shortOpenInterestAtEnd += shortOI * markPrice;
   }
+  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
 
-  return { openInterestAtEnd };
+  return { longOpenInterestAtEnd, shortOpenInterestAtEnd, openInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
@@ -33,7 +36,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.MONAD],
   fetch,
   start: "2025-02-01",
-  runAtCurrTime: true,
 };
 
 export default adapter;
