@@ -25,9 +25,10 @@ const V3_FACTORY = "0xC4C8310080F209629EC4c349cb2A3c6720e1176D";
 /**
  * Approximate Kaia block at Capybara launch (~2024-05-15).
  * Kaia produces ~1 block/s; current block is ~211M in Mar 2026,
- * so May 2024 ≈ block 153M.
+ * so May 2024 ≈ block 153M.  Used as fromBlock for both V2 and V3
+ * factory event queries.
  */
-const V3_START_BLOCK = 153_000_000;
+const FACTORY_START_BLOCK = 153_000_000;
 
 // ─── Fee constants ─────────────────────────────────────────────────────────────
 
@@ -55,6 +56,9 @@ const V2_SWAP =
 const V3_SWAP =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 
+const V2_PAIR_CREATED =
+  "event PairCreated(address indexed token0, address indexed token1, address pair, uint256)";
+
 const V3_POOL_CREATED =
   "event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)";
 
@@ -76,20 +80,26 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // ── 2. V2 AMM pairs ─────────────────────────────────────────────────────────
-  const pairCount = Number(await api.call({ target: V2_FACTORY, abi: "uint256:allPairsLength" }));
-  if (pairCount > 0) {
-    const pairCalls = Array.from({ length: pairCount }, (_, i) => ({ target: V2_FACTORY, params: [i] as [number] }));
-    const pairs: string[]  = await api.multiCall({ abi: "function allPairs(uint256) view returns (address)", calls: pairCalls });
-    const token0s: string[] = await api.multiCall({ abi: "address:token0", calls: pairs });
-    const token1s: string[] = await api.multiCall({ abi: "address:token1", calls: pairs });
+  // The Capybara V2 factory emits PairCreated (not a standard allPairs array),
+  // so we discover pairs via getLogs – which also gives us token0/token1 for free.
+  const pairCreatedLogs = await getLogs({
+    target: V2_FACTORY,
+    eventAbi: V2_PAIR_CREATED,
+    fromBlock: FACTORY_START_BLOCK,
+    cacheInCloud: true,
+  });
 
-    const pairTokens: Record<string, [string, string]> = {};
-    pairs.forEach((pair, i) => { pairTokens[pair] = [token0s[i], token1s[i]]; });
+  if (pairCreatedLogs.length > 0) {
+    const v2Pairs = pairCreatedLogs.map((l: any) => l.pair as string);
+    const v2PairMeta: Record<string, [string, string]> = {};
+    for (const l of pairCreatedLogs) {
+      v2PairMeta[(l.pair as string).toLowerCase()] = [l.token0, l.token1];
+    }
 
-    const v2Logs = await getLogs({ targets: pairs, eventAbi: V2_SWAP, flatten: false }) as any[][];
+    const v2Logs = await getLogs({ targets: v2Pairs, eventAbi: V2_SWAP, flatten: false }) as any[][];
     v2Logs.forEach((logs, idx) => {
       if (!logs.length) return;
-      const [token0, token1] = pairTokens[pairs[idx]];
+      const [token0, token1] = v2PairMeta[v2Pairs[idx].toLowerCase()];
       for (const log of logs) {
         // Volume: one of each pair (In/Out) is non-zero per swap direction;
         // addOneToken picks the core-asset side, preventing double-counting.
@@ -108,7 +118,7 @@ const fetch = async (options: FetchOptions) => {
   const poolCreatedLogs = await getLogs({
     target: V3_FACTORY,
     eventAbi: V3_POOL_CREATED,
-    fromBlock: V3_START_BLOCK,
+    fromBlock: FACTORY_START_BLOCK,
     cacheInCloud: true,
   });
 
