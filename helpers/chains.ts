@@ -137,6 +137,7 @@ export enum CHAIN {
   LINEA = "linea",
   BASE = "base",
   NEON = "neon_evm",
+  NEONY = "neony",
   OP_BNB = "op_bnb",
   HYDRADX = "hydradx",
   OSMOSIS = "osmosis",
