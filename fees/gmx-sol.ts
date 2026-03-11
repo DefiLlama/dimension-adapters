@@ -21,7 +21,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   // const dailyHoldersRevenue = options.createBalances()
 
@@ -30,20 +29,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.addUSDValue(record.swapFees / 1e20, METRIC.SWAP_FEES)
 
     if (options.fromTimestamp < feeStructureChangeTimestamp) {
-      dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.TRADING_FEES)
-      dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
-      dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.37, METRIC.TRADING_FEES)
-      dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.37, METRIC.SWAP_FEES)
-      dailySupplySideRevenue.addUSDValue(record.tradeFees / 1e20 * 0.63, METRIC.TRADING_FEES)
-      dailySupplySideRevenue.addUSDValue(record.swapFees / 1e20 * 0.63, METRIC.SWAP_FEES)
+      dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.7, METRIC.TRADING_FEES)
+      dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.7, METRIC.SWAP_FEES)
+      dailySupplySideRevenue.addUSDValue(record.tradeFees / 1e20 * 0.3, METRIC.TRADING_FEES)
+      dailySupplySideRevenue.addUSDValue(record.swapFees / 1e20 * 0.3, METRIC.SWAP_FEES)
       // dailyHoldersRevenue.addUSDValue(record.tradeFees / 1e20 * 0.27, METRIC.TRADING_FEES)
       // dailyHoldersRevenue.addUSDValue(record.swapFees / 1e20 * 0.27, METRIC.SWAP_FEES)
     }
     else {
       dailyRevenue.addUSDValue(record.tradeFees / 1e20 * 0.25, METRIC.TRADING_FEES)
       dailyRevenue.addUSDValue(record.swapFees / 1e20 * 0.25, METRIC.SWAP_FEES)
-      dailyProtocolRevenue.addUSDValue(record.tradeFees / 1e20 * 0.25, METRIC.TRADING_FEES)
-      dailyProtocolRevenue.addUSDValue(record.swapFees / 1e20 * 0.25, METRIC.SWAP_FEES)
       dailySupplySideRevenue.addUSDValue(record.tradeFees / 1e20 * 0.75, METRIC.TRADING_FEES)
       dailySupplySideRevenue.addUSDValue(record.swapFees / 1e20 * 0.75, METRIC.SWAP_FEES)
     }
@@ -52,7 +47,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     // dailyHoldersRevenue,
     dailySupplySideRevenue,
   }
