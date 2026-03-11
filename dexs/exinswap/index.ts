@@ -12,24 +12,18 @@ interface IAPIResponse {
 
 const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const response: IAPIResponse[] = (await fetchURL(URL))?.data?.data.list.map((e: any) => {
+  const response: IAPIResponse[] = (await fetchURL(URL))?.data.list.map((e: any) => {
     return {
       time: e[0],
       volume: e[1]
     } as IAPIResponse
   });
 
-  const totalVolume = response
-    .filter(volItem => Number(volItem.time) <= dayTimestamp)
-    .reduce((acc, { volume }) => acc + Number(volume), 0)
-
   const dailyVolume = response
     .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(dayItem.time * 1000))) === dayTimestamp)?.volume
 
   return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    dailyVolume: dailyVolume,
   };
 };
 
@@ -37,7 +31,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.MIXIN]: {
       fetch,
-      start: async () => 1600704000,
+      start: '2020-09-21',
     },
   }
 };

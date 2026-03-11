@@ -1,130 +1,95 @@
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getBlock } from "../helpers/getBlock";
-import { Chain } from "@defillama/sdk/build/general";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
+import { addTokensReceived } from '../helpers/token';
 
-
-type TFee = {
-  target: string;
-  targetDecimal: number
-  topics: string[];
+// Fee wallets
+const CONFIG: Record<string, string> = {
+  [CHAIN.AVAX]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.BSC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.FANTOM]: '0x0b5025d8d409a51615cb624b8ede132bb11a2550',
+  [CHAIN.POLYGON]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.ARBITRUM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.OPTIMISM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.ERA]: '0x01b50b57a3d3c1a54433813585e60713e75f3de9',
+  [CHAIN.LINEA]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.BASE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.MANTLE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
+  [CHAIN.SONIC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d'
 }
 
-type TFeeDetail = {
-  [l: string | Chain]: TFee;
-}
-const fee_detail: TFeeDetail = {
-  [CHAIN.AVAX]: {
-    target: '0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e',
-    targetDecimal: 6,
-    topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x0000000000000000000000006cb1bc6c8aabdae822a2bf8d83b36291cb70f169',
-    ]
-  },
-  [CHAIN.BSC]: {
-    target: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
-    targetDecimal: 18,
-    topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x0000000000000000000000008c603050d7a913b6f63836e07ebf385a4a5736e7',
-    ]
-  },
-  [CHAIN.FANTOM]: {
-    target: '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75',
-    targetDecimal: 6,
-    topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x0000000000000000000000000b5025d8d409a51615cb624b8ede132bb11a2550',
-    ]
-  },
-  [CHAIN.POLYGON]: {
-    target: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-    targetDecimal: 6,
-    topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x000000000000000000000000938021351425dbfa606ed2b81fc66952283e0dd5',
-    ]
-  },
-  [CHAIN.ARBITRUM]: {
-    target: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
-    targetDecimal: 6,
-    topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x0000000000000000000000000ba6c34af9713d15141dcc91d2788c3f370ecb9e',
-    ]
-  },
-  [CHAIN.OPTIMISM]: {
-    target: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
-    targetDecimal: 6,
-    topics: [
-      '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef',
-      '0x000000000000000000000000a058798cd293f5acb4e7757b08c960a79f527699',
-    ]
-  }
-}
-interface ITx  {
-  data: string;
-  transactionHash: string;
-}
+const fetch = async (options: FetchOptions) => {
+  const { api, chain } = options;
+  const from = CONFIG[chain];
+  const token = await api.call({ abi: 'address:quoteToken', target: from })
+  const rebateManager = await api.call({ abi: 'address:rebateManager', target: from })
+  const treasury = await api.call({ abi: 'address:treasury', target: from })
+  const vaultManager = await api.call({ abi: 'address:vaultManager', target: from })
+  const valutManagerFees = await addTokensReceived({ fromAddressFilter: from, options, tokens: [token], targets: [vaultManager] })
+  const rebateManagerFees = await addTokensReceived({ fromAddressFilter: from, options, tokens: [token], targets: [rebateManager] })
+  const treasuryFees = await addTokensReceived({ fromAddressFilter: from, options, tokens: [token], targets: [treasury] })
 
-const fetch = (chain: Chain) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-    const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+  const dailyFees = valutManagerFees.clone()
+  const dailyRevenue = valutManagerFees.clone()
+  const dailyHoldersRevenue = valutManagerFees.clone()
+  dailyFees.addBalances(rebateManagerFees)
+  dailyFees.addBalances(treasuryFees)
+  dailyRevenue.addBalances(treasuryFees)
 
-    const fromBlock = (await getBlock(todaysTimestamp, chain, {}));
-    const toBlock = (await getBlock(yesterdaysTimestamp, chain, {}));
-
-    const logs: ITx[] = (await sdk.api.util.getLogs({
-      target: fee_detail[chain].target,
-      keys: [],
-      chain: chain,
-      topic: '',
-      topics: fee_detail[chain].topics,
-      toBlock: toBlock,
-      fromBlock: fromBlock,
-    })).output as ITx[];
-
-    const [first, second, third] = logs;
-    const dailyFees = (Number(first?.data || 0) + Number(second?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;
-    const dailyRevenue = (Number(first?.data || 0) + Number(third?.data || 0)) / 10 ** fee_detail[chain].targetDecimal;
-    return {
-      dailyFees: dailyFees.toString(),
-      dailyRevenue: dailyRevenue.toString(),
-      timestamp
-    }
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyHoldersRevenue,
   }
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.AVAX]: {
-        fetch: fetch(CHAIN.AVAX),
-        start: async ()  => 1673222400,
+      fetch,
+      start: '2023-01-09',
     },
     [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: async ()  => 1673222400,
+      fetch,
+      start: '2023-01-09',
     },
     [CHAIN.FANTOM]: {
-      fetch: fetch(CHAIN.FANTOM),
-      start: async ()  => 1673222400,
+      fetch,
+      start: '2023-01-09',
     },
     [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-      start: async ()  => 1673222400,
+      fetch,
+      start: '2023-01-09',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: async ()  => 1673222400,
+      fetch,
+      start: '2023-01-09',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: async ()  => 1673222400,
+      fetch,
+      start: '2023-01-09',
     },
+    [CHAIN.ERA]: {
+      fetch,
+      start: '2023-01-09',
+    },
+    [CHAIN.LINEA]: {
+      fetch,
+      start: '2023-01-09',
+    },
+    [CHAIN.BASE]: {
+      fetch,
+      start: '2023-01-09',
+    },
+    [CHAIN.MANTLE]: {
+      fetch,
+      start: '2023-01-09',
+    },
+    [CHAIN.SONIC]: {
+      fetch,
+      start: '2024-12-18',
+    }
   }
 }
 

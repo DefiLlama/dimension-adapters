@@ -1,26 +1,29 @@
-import { Adapter } from "../adapters/types";
+import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
-import axios from "axios";
 
-const endpoint = "https://statistics-api.emdx.io/fee";
+const address = '0xbfb083840b0507670b92456264164e5fecd0430b';
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
-  const response = await axios.get(`${endpoint}?date=${dayTimestamp}`);
+const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
+  const dailyFees = await createBalances();
 
-  return {
-    timestamp: dayTimestamp,
-    totalFees: `${response?.data?.cumulative_fees || 0}`,
-    dailyFees: `${response?.data?.volume || 0}`,
-  };
+  const logs = (await getLogs({
+    target: address,
+    eventAbi: 'event PositionChanged (address indexed trader, address indexed amm, uint256 margin, uint256 positionNotional, int256 exchangedPositionSize, uint256 fee, int256 positionSizeAfter, int256 realizedPnl, int256 unrealizedPnlAfter, uint256 badDebt, uint256 liquidationPenalty, uint256 spotPrice, int256 fundingPayment)'
+  }))
+  logs.forEach((tx: any) => {
+    const fee = Number(tx.fee) / 10 ** 18;
+    dailyFees.addUSDValue(fee);
+  })
+  return { dailyFees, };
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: fetch,
-      start: async () => 1653134400
+      start: '2022-05-21'
     },
   }
 }

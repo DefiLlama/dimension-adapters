@@ -1,10 +1,12 @@
+import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
 import { Fetch, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
-  [CHAIN.FANTOM]: "https://api.thegraph.com/subgraphs/name/mummyfinance/fantom-stats",
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('8LdLE9Aan39FQCcHX3x1HdnNzoZzPvxskhj1utLb2SA9'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('6dZD4zDx9bGZfRdgoUBsZjWBygYVXAe4G41LjTLNJWk1'),
 }
 
 const historicalDataSwap = gql`
@@ -31,10 +33,6 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
     id: String(dayTimestamp),
     period: 'daily',
   })
-  const totalData: IGraphResponse = await request(endpoints[chain], query, {
-    id: 'total',
-    period: 'total',
-  })
 
   return {
     timestamp: dayTimestamp,
@@ -42,27 +40,23 @@ const getFetch = (query: string)=> (chain: string): Fetch => async (timestamp: n
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
         : undefined,
-    totalVolume:
-      totalData.volumeStats.length == 1
-        ? String(Number(Object.values(totalData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
-        : undefined,
-
   }
 }
 
-const getStartTimestamp = async (chain: string) => {
-  const startTimestamps: { [chain: string]: number } = {
-    [CHAIN.FANTOM]: 1670198400,
-  }
-  return startTimestamps[chain]
+const startTimestamps: { [chain: string]: number } = {
+  [CHAIN.FANTOM]: 1670198400,
+  [CHAIN.OPTIMISM]: 1677603600,
 }
-
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.FANTOM]: {
       fetch: getFetch(historicalDataSwap)(CHAIN.FANTOM),
-      start: async () => getStartTimestamp(CHAIN.FANTOM),
+      start: startTimestamps[CHAIN.FANTOM],
+    },
+    [CHAIN.OPTIMISM]: {
+      fetch: getFetch(historicalDataSwap)(CHAIN.OPTIMISM),
+      start: startTimestamps[CHAIN.OPTIMISM],
     },
   },
 };

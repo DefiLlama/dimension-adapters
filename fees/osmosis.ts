@@ -1,48 +1,38 @@
-import { Adapter } from "../adapters/types";
-import { getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
+import { Adapter, FetchOptions } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
-import axios from "axios"
-
-const feeEndpoint = "https://api-osmosis.imperator.co/fees/v1/total/historical"
+import { CHAIN } from "../helpers/chains";
 
 interface IChartItem {
-  time: string
-  fees_spent: number
+  timestamp: string;
+  dailyFees: number;
+  dailyRevenue: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getTimestampAtStartOfPreviousDayUTC(timestamp)
-  const historicalFees: IChartItem[] = (await fetchURL(feeEndpoint))?.data
+const fetch = async (_a:any, _b:any, { dateString }: FetchOptions) => {
+  const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue`;
+  const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
-  const totalFee = historicalFees
-    .filter(feeItem => (new Date(feeItem.time).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { fees_spent }) => acc + fees_spent, 0)
-
-  const dailyFee = historicalFees
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.fees_spent
+  const dayData = historicalFees.find(feeItem => 
+    feeItem.timestamp.split(' ')[0] === dateString
+  );
+  if (!dayData) {
+    throw new Error(`No data found for ${dateString}`);
+  }
 
   return {
-    timestamp: dayTimestamp,
-    totalFees: `${totalFee}`,
-    dailyFees: dailyFee ? `${dailyFee}` : undefined,
-    totalRevenue: "0",
-    dailyRevenue: "0",
+    dailyFees: dayData.dailyFees,
+    dailyRevenue: dayData.dailyRevenue,
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await axios.get(feeEndpoint))?.data
-  return (new Date(historicalVolume[0].time).getTime()) / 1000
-}
-
 const adapter: Adapter = {
+  version: 1,
   adapter: {
-    cosmos: {
+    [CHAIN.COSMOS]: {
       fetch,
-      runAtCurrTime: true,
-      start: getStartTimestamp,
+      start: '2022-04-15',
     },
-  }
-}
+  },
+};
 
 export default adapter;

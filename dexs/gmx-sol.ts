@@ -1,0 +1,40 @@
+import request, { gql } from "graphql-request";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const targetDate = new Date(options.startOfDay * 1000).toISOString();
+
+  const query = gql`
+    {
+      volumeRecordDailies(
+        where: {timestamp_lte: "${targetDate}"},
+        orderBy: timestamp_ASC 
+      ) {
+          timestamp
+          tradeVolume
+      }
+    }
+  `
+
+  const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
+  const res = await request(url, query)
+
+  const dailyVolume = res.volumeRecordDailies
+    .filter((record: { timestamp: string }) => record.timestamp.split('T')[0] === targetDate.split('T')[0])
+    .reduce((acc: number, record: { tradeVolume: string }) => acc + Number(record.tradeVolume), 0)
+  if (dailyVolume === 0) throw new Error('Not found daily data!.')
+
+  return {
+    dailyVolume: dailyVolume / (10 ** 20),
+  }
+}
+
+const adapter: SimpleAdapter = {
+  fetch,
+  version: 1,
+  chains: [CHAIN.SOLANA],
+  start: '2025-02-12',
+}
+
+export default adapter;

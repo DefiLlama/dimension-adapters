@@ -1,9 +1,9 @@
-// import { Chain } from "@defillama/sdk/build/general";
 import { SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { AnalyticsData, Position, StrategyType } from "./interfaces";
 
-export const analyticsEndpoint = "https://api.hegic.co/analytics";
+export const analyticsEndpoint = "https://api.hegic.co/positions";
 export const HEGIC_HERGE_START = dateStringToTimestamp("2022-10-24T11:21:45Z"); // taken from the first purchased option
 
 const secondsInADay = 24 * 60 * 60;
@@ -15,7 +15,8 @@ export async function getEarliestAvailableTimestamp() {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    arbitrum: {
+    [CHAIN.ARBITRUM]: {
+      runAtCurrTime: true,
       fetch: fetchArbitrumAnalyticsData,
       start: getEarliestAvailableTimestamp,
     },
@@ -29,29 +30,23 @@ export async function fetchArbitrumAnalyticsData(
   const analyticsData = await getAnalyticsData(analyticsEndpoint);
 
   const allPositions = [
-    //
-    ...analyticsData.positions.active,
-    ...analyticsData.positions.closed,
+    ...analyticsData.positions,
   ];
 
   const dailyPositions = getPositionsForDaily(allPositions, timestamp);
 
   const dailyNotionalVolume = getNotionalVolumeUSD(dailyPositions).toFixed(2);
   const dailyPremiumVolume = getPremiumVolumeUSD(dailyPositions).toFixed(2);
-  const totalNotionalVolume = getNotionalVolumeUSD(allPositions).toFixed(2);
-  const totalPremiumVolume = getPremiumVolumeUSD(allPositions).toFixed(2);
 
   return {
     timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
 }
 
 async function getAnalyticsData(endpoint: string): Promise<AnalyticsData> {
-  return (await fetchURL(endpoint))?.data;
+  return (await fetchURL(endpoint));
 }
 
 function getPositionsForDaily(
@@ -80,9 +75,7 @@ function getNotionalVolumeUSD(positions: Position[]) {
   return positions
     .map(
       (position) =>
-        position.amount *
-        position.spotPrice *
-        StrategyVolumeCoefficients[position.type]
+        position.amountUsd //amountUsd is equal to amount * spotprice * strategy coefficient
     )
     .reduce((sumVolume, positionVolume) => sumVolume + positionVolume, 0);
 }

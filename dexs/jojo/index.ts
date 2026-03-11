@@ -1,26 +1,38 @@
-import { CHAIN } from "../../helpers/chains";
-import { univ2DimensionAdapter } from "../../helpers/getUniSubgraph";
+import { FetchOptions, SimpleAdapter, FetchV2, FetchResultV2 } from '../../adapters/types'
+import { CHAIN } from '../../helpers/chains'
 
-const DEFAULT_DAILY_VOLUME_FACTORY = "dailyVolume";
-const DEFAULT_DAILY_DATE_FIELD = "timestamp";
-const DEFAULT_DAILY_VOLUME_FIELD = "dailyVolume";
-const DEFAULT_TOTAL_VOLUME_FACTORY = "jojodealers";
-const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
+const OrderFilledEvent = "event OrderFilled(bytes32 indexed orderHash,address indexed trader,address indexed perp,int256 orderFilledPaperAmount,int256 filledCreditAmount,uint256 positionSerialNum,int256 fee)";
+const PositionFinalizeLogEvent = "event PositionFinalizeLog(address indexed trader, int256 paperAmount, int256 creditAmount, int256 fee, int256 pnl, string perp)"
 
-const adapter = univ2DimensionAdapter({
-    graphUrls: {
-        [CHAIN.BSC]: "https://api.thegraph.com/subgraphs/name/kittyfu307/jojov1",
-    },
-    dailyVolume: {
-        factory: DEFAULT_DAILY_VOLUME_FACTORY,
-        field: DEFAULT_DAILY_VOLUME_FIELD,
-        dateField: DEFAULT_DAILY_DATE_FIELD
-    },
-    totalVolume: {
-        factory: DEFAULT_TOTAL_VOLUME_FACTORY,
-        field: DEFAULT_TOTAL_VOLUME_FIELD
+const degenDealerAddress = '0xb7ffeaf4af97aece3c9ae7e5f68b9cd66d02f8ac';
+const perpAddress = '0x2f7c3cF9D9280B165981311B822BecC4E05Fe635';
+const getFetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const { createBalances, getLogs, api } = options
+    const dailyVolume = createBalances()
+    const orderLogs = await getLogs({
+        target: perpAddress,
+        eventAbi: OrderFilledEvent,
+    })
+    const positionFinalizeLog = await getLogs({
+        target: degenDealerAddress,
+        eventAbi: PositionFinalizeLogEvent,
+    })
+    orderLogs.forEach(log => dailyVolume.addUSDValue(Math.abs(Number(log.filledCreditAmount) / Number(1e6))))
+    positionFinalizeLog.forEach(log => dailyVolume.addUSDValue(Math.abs(Number(log.creditAmount) / Number(1e6))))
+    return {
+        dailyVolume
     }
-}, {});
+}
 
-adapter.adapter.bsc.start = async () => 1667260800;
-export default adapter;
+const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
+    adapter: {
+        [CHAIN.BASE]: {
+            fetch: getFetch,
+            start: '2024-04-09',
+        }
+    }
+}
+
+export default adapter

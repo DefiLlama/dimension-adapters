@@ -1,0 +1,48 @@
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
+
+
+
+const address = '0xa980d4c0C2E48d305b582AA439a3575e3de06f0E'
+const event_fees_distibute = 'event FeeDistribution(address indexed feeAddress,uint256 feeAmount,uint256 timestamp)';
+
+const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
+  const logs = await getLogs({ target: address, eventAbi: event_fees_distibute })
+  const dailyFees = createBalances()
+  logs.forEach((tx: any) => dailyFees.addUSDValue(Number(tx.feeAmount) / 10 ** 18, METRIC.BORROW_INTEREST))
+  const dailyRevenue = dailyFees;
+  const dailyHoldersRevenue = dailyFees;
+  return { dailyRevenue, dailyHoldersRevenue, dailyFees, };
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers of eUSD stablecoin, distributed to governance token holders',
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers of eUSD stablecoin, distributed to governance token holders',
+  },
+  HoldersRevenue: {
+    [METRIC.BORROW_INTEREST]: 'All borrow interest is distributed to governance token holders via FeeDistribution events',
+  },
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  adapter: {
+    [CHAIN.ETHEREUM]: {
+      fetch: fetch,
+      start: '2023-08-31',
+    },
+  },
+  methodology: {
+    Fees: "Interest paid by borrowers",
+    Revenue: "Interest paid by borrowers",
+    HoldersRevenue: "Governance token holders's share of fees paid by borrowers",
+  },
+  breakdownMethodology,
+};
+
+export default adapter;

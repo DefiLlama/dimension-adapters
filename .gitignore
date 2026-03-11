@@ -2,3 +2,14 @@ node_modules
 .vscode
 .DS_store
 .env
+.idea
+yarn.lock
+test.py
+test.js
+
+cli/dimensionModules.json
+wash/
+*.log
+
+.claude
+CLAUDE.md

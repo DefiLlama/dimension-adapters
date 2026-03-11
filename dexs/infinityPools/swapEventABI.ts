@@ -1,0 +1,1 @@
+export const swapEventABI =  "event SpotSwapEvent((bytes16 shove, bool ofToken, bytes16 limitPrice, bytes16 remainingAmount) params, address receiver, (bytes16 token0, bytes16 token1) swapped)";

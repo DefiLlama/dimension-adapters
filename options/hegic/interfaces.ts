@@ -1,15 +1,13 @@
 export interface AnalyticsData {
-  positions: {
-    active: Position[];
-    closed: Position[];
-  };
+  positions: Position[];
 }
 
 export interface Position {
+  state: number;
   type: StrategyType;
   purchaseDate: string;
   amount: number;
-  spotPrice: number;
+  amountUsd: number; // changed from Spot Price to amountUsd, which is Spot price * amount
   premiumPaid: number;
 }
 

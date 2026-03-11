@@ -1,0 +1,27 @@
+import { FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+
+const routers: any = {
+  [CHAIN.ARBITRUM]: "0xb32C79a25291265eF240Eb32E9faBbc6DcEE3cE3",
+  [CHAIN.AVAX]: "0xC4729E56b831d74bBc18797e0e17A295fA77488c",
+}
+
+const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
+  const dailyVolume = createBalances()
+  const logs = await getLogs({
+    target: routers[chain],
+    eventAbi: 'event YakSwap (address indexed _tokenIn, address indexed _tokenOut, uint256 _amountIn, uint256 _amountOut)'
+  });
+  logs.forEach((log: any) => dailyVolume.add(log._tokenOut, log._amountOut));
+  return { dailyVolume }
+};
+
+const adapter: any = {
+  version: 2,
+  adapter: {
+    [CHAIN.AVAX]: { fetch, start: '2023-05-31', },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-05-31', },
+  },
+};
+
+export default adapter;

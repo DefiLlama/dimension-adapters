@@ -14,13 +14,14 @@ interface IAPIResponse {
 };
 
 const fetch = async (timestamp: number) => {
-  const response: IAPIResponse[] = (await fetchURL(URL)).data.items;
+  const response: IAPIResponse[] = (await fetchURL(URL)).items;
   const dailyVolume = response.map(e => e.volumes.filter(p => p.interval === "1d")
     .map(x => x)).flat()
+    .filter((e: IVolume) => Number(e.quote_volume) < 1_000_000)
     .reduce((a: number, b: IVolume) => a + Number(b.quote_volume) , 0);
 
   return {
-    dailyVolume: `${dailyVolume}`,
+    dailyVolume: dailyVolume,
     timestamp: timestamp,
   };
 };
@@ -30,9 +31,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.WAVES]: {
       fetch,
       runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 0,
-    },
+          },
   }
 };
 

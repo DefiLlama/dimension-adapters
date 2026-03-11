@@ -1,38 +1,39 @@
-import axios from "axios"
-import BigNumber from "bignumber.js";
-import { Adapter } from "../../adapters/types"
+import { Adapter, ChainBlocks, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
+import request, { gql } from "graphql-request";
 
-const volUrl = 'https://aggregator.mainnet.wingriders.com/volumeInAda';
+const url = 'https://api.mainnet.wingriders.com/graphql';
 
-async function fetchVolume() {
-    const last24hVolInAda = await axios.post(volUrl, { "lastNHours": 24 });
-    const totalVolumeInAda = await axios.post(volUrl);
+const query = gql`
+query Volume($input: VolumeInput!) {
+  volume(input: $input)
+}
+`
 
-    const prices = await axios.post('https://coins.llama.fi/prices', {
-        "coins": [
-            "coingecko:cardano",
-        ],
+interface IResponse {
+    volume: number
+}
+
+async function fetchVolume(timestamp: number , _: ChainBlocks, { createBalances }: FetchOptions) {
+    const dailyVolume = createBalances()
+    const response: IResponse = await request(url, query, {
+        input: {
+            lastNHours: 24,
+            baseCurrency: "ADA"
+        }
     });
-
-    const adaPrice = prices.data.coins["coingecko:cardano"].price;
-
-    const dailyVolume = (new BigNumber(last24hVolInAda.data).multipliedBy(adaPrice)).toString();
-    const totalVolume = (new BigNumber(totalVolumeInAda.data).multipliedBy(adaPrice)).toString();
-
+    dailyVolume.addGasToken(response.volume * 1e6);
     return {
         dailyVolume,
-        totalVolume,
-        timestamp: Date.now() / 1e3
+        timestamp
     }
 }
 
 export default {
     adapter: {
-        [CHAIN.CARDADO]: {
+        [CHAIN.CARDANO]: {
             fetch: fetchVolume,
             runAtCurrTime: true,
-            start: async () => 0,
-        }
+                    }
     }
 } as Adapter

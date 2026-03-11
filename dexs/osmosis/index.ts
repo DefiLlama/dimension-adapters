@@ -1,43 +1,35 @@
-import { SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL"
 
-const historicalVolumeEndpoint = "https://api-osmosis.imperator.co/volume/v2/historical/chart"
+const historicalVolumeEndpoint = "https://public-osmosis-api.numia.xyz/volume/historical/chart"
 
 interface IChartItem {
   time: string
   value: number
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data;
+const fetch = async (timestamp: number, _at: any, { startOfDay, dateString }: FetchOptions) => {
 
-  const totalVolume = historicalVolume
-    .filter(volItem => (new Date(volItem.time).getTime() / 1000) <= dayTimestamp)
-    .reduce((acc, { value }) => acc + value, 0)
+  const hours36 = 36 * 60 * 60
+  const now = Math.floor(Date.now() / 1000)
+  if (now - startOfDay < hours36) throw new Error(`Data for ${dateString} is not available yet.`)
+  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint));
 
   const dailyVolume = historicalVolume
-    .find(dayItem => (new Date(dayItem.time).getTime() / 1000) === dayTimestamp)?.value
+    .find(dayItem => dayItem.time.split('T')[0] === dateString)?.value
 
-  return {
-    totalVolume: `${totalVolume}`,
-    dailyVolume: dailyVolume ? `${dailyVolume}` : undefined,
-    timestamp: dayTimestamp,
+    return {
+      dailyVolume: dailyVolume,
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IChartItem[] = (await fetchURL(historicalVolumeEndpoint))?.data
-  return (new Date(historicalVolume[0].time).getTime()) / 1000
-}
-
 const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
-    cosmos: {
+    [CHAIN.OSMOSIS]: {
       fetch,
-      runAtCurrTime: true,
-      start: getStartTimestamp,
+      start: "2022-04-15",
     },
   },
 };

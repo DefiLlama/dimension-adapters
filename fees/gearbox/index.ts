@@ -1,321 +1,247 @@
-import { Adapter, FetchResultFees } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../../utils/date";
-import { getBlock } from "../../helpers/getBlock";
-import BigNumber from "bignumber.js";
-import { getPrices } from "../../utils/prices";
-import postgres from 'postgres'
+import { METRIC } from "../../helpers/metrics";
+import { formatAddress } from "../../utils/utils";
+import { BaseAdapterChainConfig, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { Balances } from "@defillama/sdk";
+import { GearboxAbis, GearboxConfigs, IGearboxService } from "./configs";
 
-const creditAccountFactoryAddress = "0x444cd42baeddeb707eed823f7177b9abcc779c04";
-const registyContract: any = {
-  address: "0xA50d4E7D8946a7c90652339CDBd262c375d54D99",
-  abis: {
-    getCreditManagers: {
-      "inputs": [],
-      "name": "getCreditManagers",
-      "outputs": [
-          {
-              "internalType": "address[]",
-              "name": "",
-              "type": "address[]"
-          }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    getPools: {
-      "inputs": [],
-      "name": "getPools",
-      "outputs": [
-          {
-              "internalType": "address[]",
-              "name": "",
-              "type": "address[]"
-          }
-      ],
-      "stateMutability": "view",
-      "type": "function"
+const ONE_ETHER_IN_WEI = 1e18
+const ONE_RAY_IN_WEI = 1e27
+const PERCENTAGE_FACTOR = 1e4
+const INTEREST_FEE = 0.0025 // 0.25%
+
+interface PrcessBalances {
+  dailyFees: Balances;
+  dailyRevenue: Balances;
+  dailyProtocolRevenue: Balances;
+  dailySupplySideRevenue: Balances;
+}
+
+async function processV2Services(options: FetchOptions, balances: PrcessBalances, services: Array<IGearboxService>) {
+  if (services.length > 0) {
+    const underlyingTokens = await options.api.multiCall({
+      abi: 'address:underlyingToken',
+      calls: services.map(service => service.pool),
+      permitFailure: true,
+    })
+    const dieselTokens = await options.api.multiCall({
+      abi: 'address:dieselToken',
+      calls: services.map(service => service.pool),
+      permitFailure: true,
+    })
+    const fees = await options.api.multiCall({
+      abi: 'function fees() view returns (uint16 feeInterest, uint16 feeLiquidation, uint16 liquidationDiscount, uint16 feeLiquidationExpired, uint16 liquidationDiscountExpired)',
+      calls: services.map(service => service.creditManager as string),
+      permitFailure: true,
+    })
+
+    const dieselSupplies = await options.api.multiCall({
+      abi: 'uint256:totalSupply',
+      calls: dieselTokens,
+      permitFailure: true,
+    })
+    const dieselPrices = await options.api.multiCall({
+      abi: 'function fromDiesel(uint256) view returns (uint256)',
+      calls: services.map(service => service.pool).map((address: string) => { return { target: address, params: [String(ONE_ETHER_IN_WEI)] } }),
+      permitFailure: true,
+    })
+
+    const dieselCumulativeIndexBefore = await options.fromApi.multiCall({
+      abi: 'uint256:_cumulativeIndex_RAY',
+      calls: services.map(service => service.pool),
+      permitFailure: true,
+    })
+    const dieselCumulativeIndexAfter = await options.toApi.multiCall({
+      abi: 'uint256:_cumulativeIndex_RAY',
+      calls: services.map(service => service.pool),
+      permitFailure: true,
+    })
+
+    // count interest from growth CumulativeIndex for fees and supplySideRevenue
+    for (let i = 0; i < services.length; i++) {
+      const token = underlyingTokens[i]
+      const { feeInterest } = fees[i]
+      if (token) {
+        const totalTokenBalance = Number(dieselSupplies[i]) * Number(dieselPrices[i]) / ONE_ETHER_IN_WEI
+        const growthCumulativeIndex = Number(dieselCumulativeIndexAfter[i]) - Number(dieselCumulativeIndexBefore[i])
+        const growthInterest = growthCumulativeIndex * totalTokenBalance / ONE_RAY_IN_WEI  
+
+        const protocolInterestFee = Number(growthInterest) * Number(feeInterest) / PERCENTAGE_FACTOR
+        const supplySideInterest = Number(growthInterest) - protocolInterestFee
+
+        // we count growthInterest as fees
+        balances.dailyFees.add(token, growthInterest, METRIC.BORROW_INTEREST)
+        balances.dailySupplySideRevenue.add(token, supplySideInterest, METRIC.BORROW_INTEREST)
+        balances.dailyRevenue.add(token, protocolInterestFee, METRIC.BORROW_INTEREST)
+        balances.dailyProtocolRevenue.add(token, protocolInterestFee, METRIC.BORROW_INTEREST)
+      }
+    }
+
+    // when credit managers repay loans, there are profit or loss
+    // protocol collects profits as revenue and will pay for loss
+    const repayEvents = await options.getLogs({
+      eventAbi: GearboxAbis.PoolRepay,
+      targets: services.map(service => service.pool),
+      flatten: false,
+    });
+    for (let i = 0; i < services.length; i++) {
+      const token = underlyingTokens[i];
+      const events = repayEvents[i];
+      for (const event of events) {
+        balances.dailyFees.add(token, Number(event.profit), 'Performance Profit')
+        balances.dailyFees.add(token, Number(event.loss), 'Performance Loss')
+        balances.dailyRevenue.add(token, Number(event.profit), 'Performance Profit')
+        balances.dailyRevenue.add(token, Number(event.loss), 'Performance Loss')
+        balances.dailyProtocolRevenue.add(token, Number(event.profit), 'Performance Profit')
+        balances.dailyProtocolRevenue.add(token, Number(event.loss), 'Performance Loss')
+      }
     }
   }
-};
-
-type IMapDieselToken = {
-  [l: string]: string;
-}
-const dieselTokenList = [
-  '0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA',
-  '0xc411dB5f5Eb3f7d552F9B8454B2D74097ccdE6E3',
-  '0xF21fc650C1B34eb0FDE786D52d23dA99Db3D6278',
-  '0xe753260F1955e8678DCeA8887759e07aa57E8c54',
-  '0x2158034dB06f06dcB9A786D2F1F8c38781bA779d'
-];
-
-const mapDieselToken: IMapDieselToken = {
-  "0x6CFaF95457d7688022FC53e7AbE052ef8DFBbdBA": "0x6b175474e89094c44da98b954eedeac495271d0f",
-  "0xc411dB5f5Eb3f7d552F9B8454B2D74097ccdE6E3": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-  "0xF21fc650C1B34eb0FDE786D52d23dA99Db3D6278": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-  "0xe753260F1955e8678DCeA8887759e07aa57E8c54": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-  "0x2158034dB06f06dcB9A786D2F1F8c38781bA779d": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
-  '0xba3335588d9403515223f109edc4eb7269a9ab5d': '0xba3335588d9403515223f109edc4eb7269a9ab5d',
-  '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-  '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-  '0x6b175474e89094c44da98b954eedeac495271d0f': '0x6b175474e89094c44da98b954eedeac495271d0f',
-  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-  '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0': '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'
-};
-
-
-const tokenBlacklist = [
-  '0xe397ef3e332256f38983ffae987158da3e18c5ec',
-  '0xbfa9180729f1c549334080005ca37093593fb7aa',
-]
-interface IAmount {
-  amount: number;
-  amountUsd: number;
-  transactionHash: string;
-}
-interface ITx {
-  token?: string;
-  data: string;
-  transactionHash: string;
 }
 
-const removeLpTopic = "RemoveLiquidity(index_topic_1 address sender, index_topic_2 address to, uint256 amount)";
-const removeLpTopic0 = "0xd8ae9b9ba89e637bcb66a69ac91e8f688018e81d6f92c57e02226425c8efbdf6";
+async function processV3Services(options: FetchOptions, balances: PrcessBalances, services: Array<IGearboxService>) {
+  const assets = await options.api.multiCall({
+    abi: 'address:asset',
+    calls: services.map(service => service.pool),
+    permitFailure: true,
+  })
+  const totalAssets = await options.api.multiCall({
+    abi: 'uint256:totalAssets',
+    calls: services.map(service => service.pool),
+    permitFailure: true,
+  })
+  const decimals = await options.api.multiCall({
+    abi: 'uint8:decimals',
+    calls: services.map(service => service.pool),
+    permitFailure: true,
+  })
 
-const repayCreditAccountTopic = "RepayCreditAccount(index_topic_1 address owner, index_topic_2 address to)";
-const repayCreditAccountTopic0 = "0xe7c7987373a0cc4913d307f23ab8ef02e0333a2af445065e2ef7636cffc6daa7";
-
-const liquidateCreditAccountTopic = "LiquidateCreditAccount(index_topic_1 address owner, index_topic_2 address liquidator, uint256 remainingFunds)";
-const liquidateCreditAccountTopic0 = "0x5e5da6c348e62989f9cfe029252433fc99009b7d28fa3c20d675520a10ff5896";
-
-const closeCreditAccountTopic = "CloseCreditAccount(index_topic_1 address owner, index_topic_2 address to, uint256 remainingFunds)";
-const closeCreditAccountTopic0 = "0xca05b632388199c23de1352b2e96fd72a0ec71611683330b38060c004bbf0a76";
-
-const returnCreditAccountTopic = "ReturnCreditAccount(index_topic_1 address account)";
-const returnCreditAccountTopic0 = "0xced6ab9afc868b3a088366f6631ae20752993b5cce5d5f0534ea5a59fcc57d56";
-
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const sql = postgres(process.env.INDEXA_DB!);
-  const now = new Date(timestamp * 1e3);
-  const dayAgo = new Date(now.getTime() - 1000 * 60 * 60 * 24);
-  const logEventTranferErc20ToTreasury = await sql`
-    SELECT
-      substr(encode(topic_1, 'hex'), 25) AS origin,
-      substr(encode(topic_2, 'hex'), 25) AS destination,
-      encode(data, 'hex') AS value,
-      encode(contract_address, 'hex') AS contract_address,
-      block_time AS evt_block_time,
-      encode(transaction_hash, 'hex') AS HASH
-    FROM
-      ethereum.event_logs
-    WHERE
-      block_number > 13733671 -- gearbox multisig creation block
-      AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' -- erc20 transfer event
-      AND topic_2 = '\\x0000000000000000000000007b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1' -- erc20 transfer to gearbox multisig
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-  `
-
-  const logEventTranferErc20FromTreasury = await sql`
-  SELECT
-    substr(encode(topic_1, 'hex'), 25) AS origin,
-    substr(encode(topic_2, 'hex'), 25) AS destination,
-    encode(data, 'hex') AS value,
-    encode(contract_address, 'hex') AS contract_address,
-    block_time AS evt_block_time,
-    encode(transaction_hash, 'hex') AS HASH
-  FROM
-    ethereum.event_logs
-  WHERE
-    block_number > 13733671 -- gearbox multisig creation block
-    AND topic_0 = '\\xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' -- erc20 transfer event
-    AND topic_1 = '\\x0000000000000000000000007b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1' -- erc20 transfer from gearbox multisig
-    AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-  `
-
-  const logEventTxToTreasury = await sql`
-    SELECT
-      encode(et.from_address, 'hex') AS origin,
-      encode(et.to_address, 'hex') AS destination,
-      value,
-      'c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' AS contract_address,
-      block_time AS evt_block_time,
-      encode(et.hash, 'hex') AS HASH
-    FROM
-      ethereum.transactions et
-    WHERE
-      et.to_address = '\\x7b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-  `
-
-
-  const logEventTxFromTreasury = await sql`
-    SELECT
-      encode(et.from_address, 'hex') AS origin,
-      encode(et.to_address, 'hex') AS destination,
-      value,
-      'c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' AS contract_address,
-      block_time AS evt_block_time,
-      encode(et.hash, 'hex') AS HASH
-    FROM
-      ethereum.transactions et
-    WHERE
-      et.from_address = '\\x7b065Fcb0760dF0CEA8CFd144e08554F3CeA73D1'
-      AND block_time BETWEEN ${dayAgo.toISOString()} AND ${now.toISOString()};
-  `
-  const logEventTranfer: ITx[] = logEventTranferErc20ToTreasury
-    .concat(logEventTranferErc20FromTreasury)
-    .concat(logEventTxToTreasury)
-    .concat(logEventTxFromTreasury)
-    .map((p: any) => {
+  const cumulativeIndexBefore = await options.fromApi.multiCall({
+    abi: 'function convertToAssets(uint256) view returns (uint256)',
+    calls: services.map((service, index) => {
       return {
-        data: `0x${p.value}`,
-        transactionHash: `0x${p.hash}`.toLowerCase(),
-        token: `0x${p.contract_address}`.toLowerCase(),
-      } as ITx;
-    }) as ITx[];
-
-  const creditManagersAddress: string[] = (await sdk.api.abi.call({
-    target: registyContract.address,
-    abi: registyContract.abis.getCreditManagers,
-    chain: 'ethereum'
-  })).output;
-
-  const poolServiceAddress: string[] = (await sdk.api.abi.call({
-    target: registyContract.address,
-    abi: registyContract.abis.getPools,
-    chain: 'ethereum'
-  })).output;
-
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-  const todaysBlock = (await getBlock(todaysTimestamp, 'ethereum', {}));
-  const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'ethereum', {}));
-
-
-  const logEventRemoveLp: ITx[] = (await Promise.all(
-    poolServiceAddress.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: removeLpTopic,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: 'ethereum',
-      topics: [removeLpTopic0]
-  })))).map((e: any) => e.output.map((p: any) => {
-    return {
-      data: p.data,
-      transactionHash: p.transactionHash
-    } as ITx
-  })).flat();
-
-  const logEventRepayCreditAccount: ITx[] = (await Promise.all(
-    creditManagersAddress.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: repayCreditAccountTopic,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: 'ethereum',
-      topics: [repayCreditAccountTopic0]
-  })))).map((e: any) => e.output.map((p: any) => {
-    return {
-      data: p.data,
-      transactionHash: p.transactionHash
-    } as ITx
-  })).flat();
-
-  const logEventLiquidateCreditAccount: ITx[] = (await Promise.all(
-    creditManagersAddress.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: liquidateCreditAccountTopic,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: 'ethereum',
-      topics: [liquidateCreditAccountTopic0]
-  })))).map((e: any) => e.output.map((p: any) => {
-    return {
-      data: p.data,
-      transactionHash: p.transactionHash
-    } as ITx
-  })).flat();
-
-  const logEventCloseCreditAccount: ITx[] = (await Promise.all(
-    creditManagersAddress.map((address: string) => sdk.api.util.getLogs({
-      target: address,
-      topic: closeCreditAccountTopic,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: 'ethereum',
-      topics: [closeCreditAccountTopic0]
-  })))).map((e: any) => e.output.map((p: any) => {
-    return {
-      data: p.data,
-      transactionHash: p.transactionHash
-    } as ITx
-  })).flat();
-
-  const logEventReturnCreditAccount: ITx[] = (await sdk.api.util.getLogs({
-      target: creditAccountFactoryAddress,
-      topic: returnCreditAccountTopic,
-      toBlock: yesterdaysBlock,
-      fromBlock: todaysBlock,
-      keys: [],
-      chain: 'ethereum',
-      topics: [returnCreditAccountTopic0]
-  })).output.map((p: any) => {
-    return {
-      data: p.data,
-      transactionHash: p.transactionHash
-    } as ITx
-  });
-
-  const coins = Object.values(mapDieselToken).map((address: string) => `ethereum:${address}`);
-  const prices = await getPrices(coins, timestamp);
-
-  const logHashs: string[] = logEventRepayCreditAccount
-    .concat(logEventRemoveLp)
-    .concat(logEventLiquidateCreditAccount)
-    .concat(logEventCloseCreditAccount)
-    .concat(logEventReturnCreditAccount).map((e: ITx) => e.transactionHash);
-  const hashEvent = [...new Set([...logHashs])].map((e: string) => e.toLowerCase());
-  // const token = [...new Set(logEventTranfer.map(e => e.token))] // debug check token address
-  const txAmountUSD: IAmount[] = logEventTranfer.filter((e: ITx) => hashEvent.includes(e.transactionHash)).map((transfer_events: ITx, _: number) => {
-      if(tokenBlacklist.includes(transfer_events?.token || '')) {
-        return {
-          amount: 0,
-          amountUsd: 0,
-          transactionHash: transfer_events.transactionHash
-        } as IAmount
+        target: service.pool,
+        params: [String(10**Number(decimals[index]))],
       }
-      const indexTokenMap = Object.keys(mapDieselToken).map((e: any) => e.toLowerCase()).findIndex((e: string) => e === transfer_events?.token);
-      const token = Object.values(mapDieselToken)[indexTokenMap];
-      const { price, decimals } = prices[`ethereum:${token.toLocaleLowerCase()}`];
-        const amount = new BigNumber(transfer_events.data).toNumber();
-        return {
-          amount: amount / 10 ** decimals,
-          amountUsd: (amount / (10 ** decimals)) * price,
-          transactionHash: transfer_events.transactionHash
-        } as IAmount
+    }),
+    permitFailure: true,
+  })
+  const cumulativeIndexAfter = await options.toApi.multiCall({
+    abi: 'function convertToAssets(uint256) view returns (uint256)',
+    calls: services.map((service, index) => {
+      return {
+        target: service.pool,
+        params: [String(10**Number(decimals[index]))],
+      }
+    }),
+    permitFailure: true,
+  })
+
+  // count interest from growth CumulativeIndex for fees and supplySideRevenue
+  for (let i = 0; i < services.length; i++) {
+    const token = assets[i]
+    if (token) {
+      const totalTokenBalance = Number(totalAssets[i])
+      const growthCumulativeIndex = Number(cumulativeIndexAfter[i]) - Number(cumulativeIndexBefore[i])
+      const growthInterest = growthCumulativeIndex * totalTokenBalance / (10**Number(decimals[i]))
+      const growthInterestFee = growthInterest * INTEREST_FEE
+
+      // we count growthInterest as fees
+      balances.dailyFees.add(token, growthInterest, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, growthInterest - growthInterestFee, METRIC.BORROW_INTEREST)
+
+      // revenue source 1: from borrow interest share
+      balances.dailyRevenue.add(token, growthInterestFee, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, growthInterestFee, METRIC.BORROW_INTEREST)
+    }
+  }
+
+  
+  //
+  // revenue source 2: from profit & loss
+  // when credit managers repay loans, there are profit or loss
+  // protocol collects profits as revenue and will pay for loss
+  //
+  const repayEvents = await options.getLogs({
+    eventAbi: GearboxAbis.PoolRepay,
+    targets: services.map(service => service.pool),
+    flatten: false,
   });
-  const dailyFees = [...new Set([...txAmountUSD.map(e => e.amountUsd)])].reduce((a: number, b: number) => a + b, 0);
-  await sql.end({ timeout: 5 })
-  return {
-    timestamp,
-    dailyFees: dailyFees.toString(),
+
+  for (let i = 0; i < services.length; i++) {
+    const token = assets[i];
+    const events = repayEvents[i];
+    for (const event of events) {
+      // we add profit & loss to revenue
+      balances.dailyFees.add(token, Number(event.profit), 'Performance Profit')
+      balances.dailyFees.add(token, Number(event.loss), 'Performance Loss')
+      balances.dailyRevenue.add(token, Number(event.profit), 'Performance Profit')
+      balances.dailyRevenue.add(token, Number(event.loss), 'Performance Loss')
+      balances.dailyProtocolRevenue.add(token, Number(event.profit), 'Performance Profit')
+      balances.dailyProtocolRevenue.add(token, Number(event.loss), 'Performance Loss')
+    }
   }
 }
 
-const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-        fetch: fetch,
-        start: async ()  => 1665360000,
-    },
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  const config = GearboxConfigs[options.chain]
+  
+  await processV2Services(options, { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }, config.services.filter(service => service.version === 2))
+  await processV3Services(options, { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }, config.services.filter(service => service.version === 3))
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue: 0 }
+}
+
+const methodology = {
+  Fees: 'Include borrow interest, performance profit & loss and liquidation fee paid by borrowers.',
+  Revenue: 'Amount of fees go to Gearbox treasury.',
+  SupplySideRevenue: 'Amount of fees distributed to passive lenders.',
+  ProtocolRevenue: 'Amount of fees go to Gearbox treasury.',
+  HoldersRevenue: 'No revenue share to GEAR token holders.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all credit accounts (exclude performance profit and loss).',
+    'Performance Profit': 'All profit from performance paid by credit accounts.',
+    'Performance Loss': 'All loss from credit accounts paid by Gearbox treasury.',
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Amount of interest were paid by credit accounts to passive lenders.',
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: 'Amount of interest collected by Gearbox treasury.',
+    'Performance Profit': 'Gearbox treasury collects performance profit paid by credit accounts.',
+    'Performance Loss': 'Gearbox treasury paid for loss from credit accounts.',
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Amount of interest collected by Gearbox treasury.',
+    'Performance Profit': 'Gearbox treasury collects performance profit paid by credit accounts.',
+    'Performance Loss': 'Gearbox treasury paid for loss from credit accounts.',
+  },
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  methodology,
+  breakdownMethodology,
+  fetch,
+  chains: Object.keys(GearboxConfigs),
+  adapter: {},
+
+  // when credit accounts repay loans, if repaid amount exceeds loans, remaining amount will be taken as profit for treasury
+  // if repaid amount is not enough to cover loans, tresury transfer funds to cover the loss
+  allowNegativeValue: true,
+}
+
+for (const [chain, config] of Object.entries(GearboxConfigs)) {
+  (adapter.adapter as BaseAdapterChainConfig)[chain] = {
+    start: config.start,
   }
 }
 

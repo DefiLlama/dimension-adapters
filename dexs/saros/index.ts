@@ -1,35 +1,21 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
-import fetchURL from "../../utils/fetchURL"
+import { httpPost } from "../../utils/fetchURL"
 
-const endpoints = {
-  solana: "https://api.saros.finance/info",
-};
+async function fetch(_: any, _1: any, { startTimestamp, dateString }: FetchOptions) {
+  const { data } = await httpPost('https://api.saros.xyz/api/saros/pool/total', {
+    "from": (startTimestamp - 86400) * 1000
+  })
+  const item = data.find((dayItem: any) => dayItem.from.startsWith(dateString))
+  if (!item) throw new Error(`No data for date: ${dateString}`)
+  return { dailyVolume: item.volume }
+}
 
-const graphs = (chain: string) => async () => {
-  let res;
-  switch (chain) {
-    case "solana":
-      res = await fetchURL(endpoints.solana);
-    default:
-      res = await fetchURL(endpoints.solana);
-  }
-
-  return {
-    timestamp: 1, // fix
-    dailyVolume: res.data.volume24h,
-    totalVolume: res.data.totalvolume,
-  };
-};
-
-// @TODO check and backfill
 const adapter: SimpleAdapter = {
   adapter: {
-    solana: {
-      fetch: graphs("solana"),
-      runAtCurrTime: true,
-      customBackfill: undefined,
-      start: async () => 0,
+    [CHAIN.SOLANA]: {
+      fetch,
     },
   },
 };

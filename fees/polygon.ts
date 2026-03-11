@@ -1,63 +1,61 @@
-import { Adapter, ChainBlocks, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getBlock } from "../helpers/getBlock";
-import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
-const { request, gql } = require("graphql-request");
+import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
+import { queryDuneSql } from "../helpers/dune";
 
 
-const URL = 'https://api.thegraph.com/subgraphs/name/dmihal/polygon-fees'
-interface IValue {
-  totalFeesUSD: string;
-}
-interface IDailyResponse {
-  yesterday: IValue;
-  today: IValue;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+    const dailyFees = options.createBalances();
+
+    const query = `
+        WITH l2_fees_cte AS (
+            SELECT
+                SUM(tx_fee_raw) AS daily_fees
+            FROM gas.fees
+            WHERE blockchain = 'polygon'
+                AND block_time >= from_unixtime(${options.startTimestamp})
+                AND block_time <= from_unixtime(${options.endTimestamp})
+        ),
+        l1_batch_costs_cte AS (
+            SELECT 
+                SUM(t.gas_used*t.gas_price) AS daily_cost
+            FROM ethereum.transactions AS t
+            WHERE t.to = 0x86e4dc95c7fbdbf52e33d563bbdb00823894c287
+                AND cast(t.data as varchar) LIKE '0x4e43e495%'
+                AND block_time >= from_unixtime(${options.startTimestamp})
+                AND block_time <= from_unixtime(${options.endTimestamp})
+        )
+        SELECT 
+            l2.daily_fees,
+            l1.daily_cost
+        FROM l2_fees_cte as l2
+        CROSS JOIN l1_batch_costs_cte as l1 
+    `
+    const res = await queryDuneSql(options, query);
+    dailyFees.addGasToken(res[0].daily_fees);
+    const dailyRevenue = dailyFees.clone();
+    const dc = options.createBalances();
+    dc.addCGToken('ethereum', Number(res[0].daily_cost) / 1e18);
+    dailyRevenue.subtract(dc)
+
+    return {
+        dailyFees,
+        dailyRevenue
+    }
 }
 
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.POLYGON]: {
-        fetch:  async (timestamp: number, _: ChainBlocks) => {
-          const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-          const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
-
-          const todaysBlock = (await getBlock(todaysTimestamp, "polygon", {}));
-          const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, "polygon", {}));
-
-          const graphQueryDaily = gql
-          `query fees {
-            yesterday: fee(id: "1", block: {number: ${yesterdaysBlock}}) {
-              totalFeesUSD
-            }
-            today: fee(id: "1", block: {number: ${todaysBlock}}) {
-              totalFeesUSD
-            }
-          }`;
-
-          const graphQueryTotal = gql
-          `query fees_total {
-            fees(block: {number: ${todaysBlock}}) {
-              totalFeesUSD
-            }
-          }`;
-
-          const graphResDaily: IDailyResponse = await request(URL, graphQueryDaily);
-          const graphResTotal: IValue[] = (await request(URL, graphQueryTotal)).fees;
-
-          const dailyFee = Number(graphResDaily.yesterday.totalFeesUSD) - Number(graphResDaily.today.totalFeesUSD)
-          const totalFees = Number(graphResTotal[0].totalFeesUSD);
-          return {
-              timestamp,
-              totalFees: totalFees.toString(),
-              dailyFees: dailyFee.toString(),
-              totalRevenue: "0",
-              dailyRevenue: "0",
-          };
-        },
-        start: async () => 1575158400
-    },
-},
-  protocolType: ProtocolType.CHAIN
+    version: 1,
+    fetch,
+    chains: [CHAIN.POLYGON],
+    start: '2020-05-30',
+    dependencies: [Dependencies.DUNE],
+    protocolType: ProtocolType.CHAIN,
+    isExpensiveAdapter: true,
+    allowNegativeValue: true, // L1 Costs
+    methodology: {
+        Fees: 'Total transaction fees paid by users',
+        Revenue: 'Total revenue on Polygon, calculated by subtracting the L1 Batch Costs from the total gas fees'
+    }
 }
 
 export default adapter;

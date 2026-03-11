@@ -5,7 +5,7 @@
     }
   },
   "compilerOptions": {
-    "target": "es2019",
+    "target": "ES2020",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -28,5 +28,5 @@
   "include": [
     "fees/*",
     "dexs/*",
-    "adapters/*", "aggregators/*", "options/*", "incentives/*", "fees/*", "protocols/*"],
+    "adapters/*", "aggregators/*", "options/*", "incentives/*", "fees/*", "protocols/*", "fees/gmx-v2/gmx-v2.ts", "fees/tigris/index.ts", "fees/xoxno/xoxno.ts"],
 }
