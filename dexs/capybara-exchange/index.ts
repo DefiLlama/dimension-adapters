@@ -154,8 +154,13 @@ const fetch = async (options: FetchOptions) => {
       for (const log of logs) {
         // amount0/amount1 are int256; addOneToken normalises sign automatically
         addOneToken({ chain, balances: dailyVolume, token0, amount0: log.amount0, token1, amount1: log.amount1 });
-        // Fee is paid on the input side; using abs of both and letting addOneToken pick core asset
-        addOneToken({ chain, balances: dailyFees, token0, amount0: Math.abs(Number(log.amount0)) * feeRatio, token1, amount1: Math.abs(Number(log.amount1)) * feeRatio });
+        // Fee is paid on the input (positive) side only; record directly
+        // to avoid addOneToken picking the wrong token.
+        const amount0 = Number(log.amount0);
+        const amount1 = Number(log.amount1);
+
+        if (amount0 > 0) dailyFees.add(token0, amount0 * feeRatio);
+        if (amount1 > 0) dailyFees.add(token1, amount1 * feeRatio);
       }
     });
   }
