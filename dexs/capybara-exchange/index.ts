@@ -105,10 +105,22 @@ const fetch = async (options: FetchOptions) => {
         // addOneToken picks the core-asset side, preventing double-counting.
         addOneToken({ chain, balances: dailyVolume, token0, amount0: log.amount0In,  token1, amount1: log.amount1In  });
         addOneToken({ chain, balances: dailyVolume, token0, amount0: log.amount0Out, token1, amount1: log.amount1Out });
-        // Fees are paid on the input token only
-        addOneToken({ chain, balances: dailyFees,              token0, amount0: Number(log.amount0In) * V2_FEE_TOTAL, token1, amount1: Number(log.amount1In) * V2_FEE_TOTAL });
-        addOneToken({ chain, balances: dailySupplySideRevenue, token0, amount0: Number(log.amount0In) * V2_FEE_LP,    token1, amount1: Number(log.amount1In) * V2_FEE_LP    });
-        addOneToken({ chain, balances: dailyProtocolRevenue,   token0, amount0: Number(log.amount0In) * V2_FEE_PROTO, token1, amount1: Number(log.amount1In) * V2_FEE_PROTO });
+        // Fees are paid on the input token only; record each positive input
+        // amount directly to avoid addOneToken dropping the non-core side.
+        const amount0In = Number(log.amount0In);
+        const amount1In = Number(log.amount1In);
+
+        if (amount0In > 0) {
+          dailyFees.add(token0, amount0In * V2_FEE_TOTAL);
+          dailySupplySideRevenue.add(token0, amount0In * V2_FEE_LP);
+          dailyProtocolRevenue.add(token0, amount0In * V2_FEE_PROTO);
+        }
+
+        if (amount1In > 0) {
+          dailyFees.add(token1, amount1In * V2_FEE_TOTAL);
+          dailySupplySideRevenue.add(token1, amount1In * V2_FEE_LP);
+          dailyProtocolRevenue.add(token1, amount1In * V2_FEE_PROTO);
+        }
       }
     });
   }
