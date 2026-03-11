@@ -35,7 +35,7 @@ const prefetch = async (options: FetchOptions) => {
   extracted_orders AS (
     SELECT
       chain,
-      RTRIM(FROM_UTF8(FROM_HEX(SUBSTR(JSON_EXTRACT_SCALAR(order_data, '$.currency'), 3))), CHR(0)) AS currency,
+      COALESCE(NULLIF(RTRIM(FROM_UTF8(FROM_HEX(SUBSTR(JSON_EXTRACT_SCALAR(order_data, '$.currency'), 3))), CHR(0)), ''), 'INR') AS currency,
       TRY_CAST(JSON_EXTRACT_SCALAR(order_data, '$.orderType') AS INTEGER) AS order_type,
       TRY_CAST(JSON_EXTRACT_SCALAR(order_data, '$.amount') AS DOUBLE) / 1000000 AS amount,
       COALESCE(
