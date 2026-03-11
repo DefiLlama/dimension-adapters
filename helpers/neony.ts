@@ -28,6 +28,10 @@ export interface NeonyStats {
 }
 
 function toNumber(value: number | string, field: string): number {
+  if (typeof value === 'string' && value.trim() === '') {
+    throw new Error(`Invalid ${field} in Neony stats response: empty or whitespace-only string`)
+  }
+
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) {
     throw new Error(`Invalid ${field} in Neony stats response: ${value}`)
