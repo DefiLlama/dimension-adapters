@@ -16,7 +16,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.NEONY],
-  start: 1772722800, // 2026-03-05 15:00:00 UTC
+  start: '2026-03-05',
   methodology: {
     Volume: 'Perps daily notional trading volume in USD.'
   }
