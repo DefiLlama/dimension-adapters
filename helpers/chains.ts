@@ -354,4 +354,5 @@ export enum CHAIN {
   TEMPO = "tempo",
   HOTSTUFF = "hotstuff",
   CHIA = "chia",
+  THORWALLET = 'thorwallet'
 }
