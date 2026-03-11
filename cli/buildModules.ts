@@ -140,7 +140,7 @@ async function run() {
           continue;
 
         (adapterInfo as any).commit = (adapterInfo as any).commit ?? defaultCommitHash
-        
+
 
         dimensionsImports[adapterType][protocolName] = adapterInfo;
       }
@@ -167,6 +167,14 @@ function removeDotTs(s: string) {
 
 // Async version of getDirectories
 async function getDirectoriesAsync(source: string): Promise<string[]> {
-  const dirents = await readdir(source, { withFileTypes: true });
-  return dirents.map(dirent => dirent.name);
+  try {
+    const dirents = await readdir(source, { withFileTypes: true });
+    return dirents.map(dirent => dirent.name);
+  } catch (error) {
+    let sourceDir = source.split('/').pop() || source;
+    if (!['nft-volume', 'active-users', 'new-users'].includes(sourceDir)) {
+      console.log(`Error reading directories from ${sourceDir}:`, (error as any).message);
+    }
+    return [];
+  }
 }

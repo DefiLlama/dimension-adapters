@@ -68,7 +68,7 @@ function getAlliumVolume(chain: string) {
 
 // --- v1 adapters: only support pulling daily/current data ---
 
-async function immutablex(_: any, _1: any, { startOfDay, createBalances }: FetchOptions) {
+async function immutablex({ startOfDay, createBalances }: FetchOptions) {
   const data = await httpPost('https://qbolqfa7fnctxo3ooupoqrslem.appsync-api.us-east-2.amazonaws.com/graphql',
     { "operationName": "getMetricsAll", "variables": { "address": "global" }, "query": "query getMetricsAll($address: String!) {\n  getMetricsAll(address: $address) {\n    items {\n      type\n      trade_volume_usd\n      trade_volume_eth\n      floor_price_usd\n      floor_price_eth\n      trade_count\n      owner_count\n      __typename\n    }\n    __typename\n  }\n  latestTrades(address: $address) {\n    items {\n      transfers {\n        token {\n          token_address\n          quantity\n          token_id\n          type\n          usd_rate\n          __typename\n        }\n        __typename\n      }\n      txn_time\n      txn_id\n      __typename\n    }\n    __typename\n  }\n}" },
     {
@@ -143,13 +143,13 @@ const chains = [
   //{ chain: "bitcoin",  fetch: getAlliumVolume("bitcoin"),    },
   // v1: daily/current data only
   { chain: "ethereum", fetch: ethereum, runAtCurrTime: true },
-  { chain: "immutablex", fetch: immutablex, version: 1 },
+  { chain: "immutablex", fetch: immutablex,},
   { chain: "ronin", fetch: ronin, runAtCurrTime: true },
   { chain: "cardano", fetch: cardano, runAtCurrTime: true },
-].reduce((acc, { chain, fetch, version, runAtCurrTime }) => {
-  acc[chain] = { fetch: fetch as any, version: version ?? 2, runAtCurrTime, chains: [chain], };
+].reduce((acc, { chain, fetch, runAtCurrTime }) => {
+  acc[chain] = { fetch: (_: any, _1: any, options: FetchOptions) => fetch(options), version: 1, runAtCurrTime, chains: [chain], };
   return acc;
-}, {} as Record<string, { fetch: any, version?: number, runAtCurrTime?: boolean, chains: string[] }>);
+}, {} as Record<string, { fetch: any, version: number, runAtCurrTime?: boolean, chains: string[] }>);
 
 
 const protocols: Record<string, SimpleAdapter> = {};
