@@ -17,7 +17,7 @@ const fetchData = async ({ endTimestamp, createBalances }: FetchOptions) => {
     const { dailyFeesAdaValue } = await fetchDanogoGatewayData(endTimestamp) as any
     dailyFees.addCGToken('cardano', dailyFeesAdaValue / 1e6)
 
-    return { dailyFees, };
+    return { dailyFees, dailyRevenue: dailyFees };
 }
 
 const adapter: SimpleAdapter = {
@@ -30,6 +30,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     methodology: {
         Fees: 'Trading and listing fees paid by users.',
+        Revenue: 'All the fees are revenue'
     }
 };
 
