@@ -2443,6 +2443,22 @@ export default (
         ],
       },
     },
+    {
+      id: "parent#wombat-exchange",
+      name: "Wombat Exchange",
+      addresses: {
+        bsc: ["0x19609B03C976CCA288fbDae5c21d4290e9a4aDD7"],
+        arbitrum: ["0xc4B2F992496376C6127e73F1211450322E580668"],
+        ethereum: ["0x6BB82A9b0b9b9716B885baeEfDBE47b685a0F919"],
+        avax: ["0x4A88C44B8D9B9f3F2BA4D97236F737CF03DF76CD"],
+        optimism: ["0x35d531Fd45D5E3A5d407A4898360c757C98Bdf79"],
+        base: ["0x4A88C44B8D9B9f3F2BA4D97236F737CF03DF76CD"],
+        scroll: ["0x010931D4d82ff3F5Ae8bD94e0752570711f78959"],
+        polygon: ["0x34E2F923bBa206358EcE221af73E8d121837F873"],
+        monad: ["0xED0F502119D4264ef77d7705B75Ef7dc61B6fBe9"],
+        hyperliquid: ["0x63d67E23e5F0209D86B1FB019b9a2410EB5805ad"],
+      },
+    },
 
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
