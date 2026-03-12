@@ -23,30 +23,36 @@ const WOMBAT_FEE = 0.0004;
 
 // ─── Event ABIs ────────────────────────────────────────────────────────────────
 
-const WOMBAT_SWAP =
-  "event Swap(address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address indexed to)";
+const WOMBAT_SWAP_V2 =
+  "event SwapV2(address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, uint256 toTokenFee, address indexed to)";
 
 // ─── Fetch ─────────────────────────────────────────────────────────────────────
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain } = options;
-  const dailyVolume = createBalances();
-  const dailyFees   = createBalances();
+  const dailyVolume            = createBalances();
+  const dailyFees              = createBalances();
+  const dailyRevenue           = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
   // Wombat single-sided AMM pools
-  const wombatLogs = await getLogs({ targets: WOMBAT_POOLS, eventAbi: WOMBAT_SWAP });
+  const wombatLogs = await getLogs({ targets: WOMBAT_POOLS, eventAbi: WOMBAT_SWAP_V2 });
   for (const log of wombatLogs) {
     const { fromToken, toToken, fromAmount, toAmount } = log;
     addOneToken({ chain, balances: dailyVolume, token0: fromToken, amount0: fromAmount, token1: toToken, amount1: toAmount });
     addOneToken({ chain, balances: dailyFees,   token0: fromToken, amount0: Number(fromAmount) * WOMBAT_FEE, token1: toToken, amount1: Number(toAmount) * WOMBAT_FEE });
+    // All Wombat pool fees go to LPs (supply side) — no protocol revenue
+    addOneToken({ chain, balances: dailySupplySideRevenue, token0: fromToken, amount0: Number(fromAmount) * WOMBAT_FEE, token1: toToken, amount1: Number(toAmount) * WOMBAT_FEE });
   }
 
-  return { dailyVolume, dailyFees };
+  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Volume: "Notional volume from Wombat single-sided AMM pools (V2 and V3 AMM tracked separately via factory configs)",
-  Fees:   "Wombat pools: 4 bps haircut on each swap",
+  Volume:            "Notional volume from Wombat single-sided AMM pools (V2 and V3 AMM tracked separately via factory configs)",
+  Fees:              "Wombat pools: 4 bps haircut on each swap",
+  Revenue:           "No protocol revenue from Wombat pools",
+  SupplySideRevenue: "All Wombat pool fees (4 bps) go to liquidity providers",
 };
 
 const adapter: SimpleAdapter = {
