@@ -28,8 +28,10 @@ const fetch = (chainId: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const fees: IFee[] = (await fetchURL(endpoints[chainId]));
 
-    const dailyFees = Number(fees
-      .find(item => item.time === dayTimestamp)?.dayTradeFee)
+    const record = fees.find(item => item.time === dayTimestamp)
+    if (!record) return {}
+
+    const dailyFees = Number(record.dayTradeFee)
     const dailyRevenue = dailyFees * 0.7
     const dailySupplySideRevenue = dailyFees * 0.3
 
