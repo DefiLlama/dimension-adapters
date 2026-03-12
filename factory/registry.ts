@@ -55,7 +55,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'blockscout',
     'hyperliquid:fees',
     'hyperliquid',
-    'symmio:fees',
+    'symmio',
     'compoundV2',
     'orderly',
     'gmxV1',
@@ -88,6 +88,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'aggregators': [],
   'open-interest': [
     'hyperliquid:oi',
+    'symmio',
   ],
   'normalized-volume': [
     'normalizedVolume', // Factory in factory/ folder
