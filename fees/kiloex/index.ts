@@ -28,19 +28,31 @@ const fetch = (chainId: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const fees: IFee[] = (await fetchURL(endpoints[chainId]));
 
-    const dailyFees = fees
-      .find(item => item.time === dayTimestamp)?.dayTradeFee
+    const dailyFees = Number(fees
+      .find(item => item.time === dayTimestamp)?.dayTradeFee)
+    const dailyRevenue = dailyFees * 0.7
+    const dailySupplySideRevenue = dailyFees * 0.3
 
     return {
       dailyFees,
-      timestamp: dayTimestamp,
+      dailyRevenue,
+      dailySupplySideRevenue,
+      dailyProtocolRevenue: dailyRevenue
     };
   };
 };
 
 
+const methodology = {
+  Fees: "Trading fees collected from traders",
+  Revenue: "70% of trading fees retained by the protocol",
+  ProtocolRevenue: "70% of trading fees retained by the protocol",
+  SupplySideRevenue: "30% of trading fees distributed to vault liquidity providers",
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
+  methodology,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC), start: '2023-06-12'
