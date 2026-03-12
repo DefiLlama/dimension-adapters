@@ -1,31 +1,28 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 
 const CCXT_MARKETS_URL = "https://aftermath.finance/api/ccxt/markets";
-const MARKETS_24HR_STATS_URL = "https://aftermath.finance/api/perpetuals/markets/24hr-stats";
-const MARKETS_URL = "https://aftermath.finance/api/perpetuals/markets";
+const CCXT_OHLCV_URL = "https://aftermath.finance/api/ccxt/OHLCV";
 
-const fetch = async () => {
+const fetch = async (options: FetchOptions) => {
   const markets: any[] = await httpGet(CCXT_MARKETS_URL);
-  const marketIds = markets.map((m: any) => m.id);
 
-  const [statsRes, marketsRes] = await Promise.all([
-    httpPost(MARKETS_24HR_STATS_URL, { marketIds }),
-    httpPost(MARKETS_URL, { marketIds }),
-  ]);
-
-  const dailyVolume = statsRes.marketsStats.reduce(
-    (acc: number, s: any) => acc + (s.volumeUsd || 0),
-    0
+  const since = options.startOfDay * 1000;
+  const candles = await Promise.all(
+    markets.map((m: any) =>
+      httpPost(CCXT_OHLCV_URL, { chId: m.id, timeframe: "1d", since, limit: 1 })
+    )
   );
 
-  const openInterestAtEnd = marketsRes.marketDatas.reduce(
-    (acc: number, m: any) => acc + (m.market.marketState.openInterest * m.market.indexPrice),
-    0
-  );
+  let dailyVolume = 0;
+  for (const marketCandles of candles) {
+    if (Array.isArray(marketCandles) && marketCandles.length > 0) {
+      dailyVolume += marketCandles[0][5] || 0; // [ts, o, h, l, c, volume]
+    }
+  }
 
-  return { dailyVolume, openInterestAtEnd };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
@@ -33,7 +30,6 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch,
-      runAtCurrTime: true,
       start: "2025-02-18",
     },
   },
