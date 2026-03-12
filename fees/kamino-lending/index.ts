@@ -15,8 +15,7 @@ const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) => {
     if (!record)
         throw new Error(`No record found for date: ${options.dateString}`);
 
-    const { KlendInterestFeesUSD, KlendInterestRevenueUSD, KlendLiquidationFeesUSD, KlendLiquidationRevenueUSD,
-        KlendOriginationFeesUSD, KlendOriginationRevenueUSD } = record;
+    const { KlendInterestFeesUSD, KlendInterestRevenueUSD, KlendLiquidationFeesUSD, KlendLiquidationRevenueUSD, KlendOriginationFeesUSD } = record;
 
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
@@ -31,9 +30,7 @@ const fetch: Fetch = async (_t: any, _b: any, options: FetchOptions) => {
     dailySupplySideRevenue.addUSDValue(KlendLiquidationFeesUSD - KlendLiquidationRevenueUSD, METRIC.LIQUIDATION_FEES)
 
     dailyFees.addUSDValue(KlendOriginationFeesUSD, ORIGINATION_FEES)
-    dailyRevenue.addUSDValue(KlendOriginationRevenueUSD, ORIGINATION_FEES)
-    dailySupplySideRevenue.addUSDValue(KlendOriginationFeesUSD - KlendOriginationRevenueUSD, ORIGINATION_FEES)
-
+    dailyRevenue.addUSDValue(KlendOriginationFeesUSD, ORIGINATION_FEES)
 
     return {
         dailyFees,
