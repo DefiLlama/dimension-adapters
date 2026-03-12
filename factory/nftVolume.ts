@@ -154,7 +154,7 @@ const chains = [
 
 const protocols: Record<string, SimpleAdapter> = {};
 for (const [name, config] of Object.entries(chains)) {
-  protocols[name] = config as SimpleAdapter;
+  protocols['chain#'+name] = config as SimpleAdapter;
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);

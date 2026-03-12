@@ -55,7 +55,7 @@ async function run() {
     // Get all protocols from factory registry
     const factoryProtocols = listHelperProtocols();
 
-    for (const { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
+    for (let { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
       }
@@ -68,9 +68,11 @@ async function run() {
 
       try {
         // Import based on source path
+        if (sourcePath === 'users.ts')
+          sourcePath = 'users/list.ts' // special case for users factory which has named exports
         let helperModule = sourcePath.startsWith('factory/')
           ? await import(`../${sourcePath.replace('.ts', '')}`)
-          : await import(`../helpers/${factoryName}`);
+          : sourcePath.includes('/') ? await import(`../${sourcePath}`) : await import(`../helpers/${factoryName}`);
 
         if (exportName) helperModule = helperModule[exportName];
 
