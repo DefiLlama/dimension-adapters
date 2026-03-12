@@ -16,12 +16,7 @@ const WOMBAT_POOLS = [
   "0x872E7e7422bcAcdcb37f7FffB0cfe3f2F0D6C546", // Superwalk Pool
 ];
 
-// ─── Fee constants ─────────────────────────────────────────────────────────────
-
-/** Wombat pool haircut rate (4 bps) */
-const WOMBAT_FEE = 0.0004;
-
-// ─── Event ABIs ────────────────────────────────────────────────────────────────
+// ─── Event ABIs
 
 const WOMBAT_SWAP_V2 =
   "event SwapV2(address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, uint256 toTokenFee, address indexed to)";
@@ -38,11 +33,12 @@ const fetch = async (options: FetchOptions) => {
   // Wombat single-sided AMM pools
   const wombatLogs = await getLogs({ targets: WOMBAT_POOLS, eventAbi: WOMBAT_SWAP_V2 });
   for (const log of wombatLogs) {
-    const { fromToken, toToken, fromAmount, toAmount } = log;
+    const { fromToken, toToken, fromAmount, toAmount, toTokenFee } = log;
     addOneToken({ chain, balances: dailyVolume, token0: fromToken, amount0: fromAmount, token1: toToken, amount1: toAmount });
-    addOneToken({ chain, balances: dailyFees,   token0: fromToken, amount0: Number(fromAmount) * WOMBAT_FEE, token1: toToken, amount1: Number(toAmount) * WOMBAT_FEE });
+    // toTokenFee is the exact haircut amount denominated in toToken, emitted by the contract
+    dailyFees.add(toToken, toTokenFee);
     // All Wombat pool fees go to LPs (supply side) — no protocol revenue
-    addOneToken({ chain, balances: dailySupplySideRevenue, token0: fromToken, amount0: Number(fromAmount) * WOMBAT_FEE, token1: toToken, amount1: Number(toAmount) * WOMBAT_FEE });
+    dailySupplySideRevenue.add(toToken, toTokenFee);
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
