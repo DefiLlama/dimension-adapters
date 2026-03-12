@@ -10,7 +10,7 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 
 const configs: Record<string, Record<string, any>> = {
   'fusionx-v2': {
-    [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25/100, userFeesRatio: 1, revenueRatio: 1/3, protocolRevenueRatio: 1/6 },
+    [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
   },
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
@@ -250,6 +250,9 @@ const configs: Record<string, Record<string, any>> = {
   "vapordex-v1": {
     [CHAIN.AVAX]: { factory: '0xc009a670e2b02e21e7e75ae98e254f467f7ae257' },
     [CHAIN.APECHAIN]: { factory: '0xc009a670e2b02e21e7e75ae98e254f467f7ae257' },
+  },
+  'capybara-v2': {
+    [CHAIN.KLAYTN]: { factory: '0xE4296d6161c8a1554a18dba79C0f825cE23bAE42', start: '2025-01-01', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4 },
   },
   "archly-finance-v2": {
     [CHAIN.ARBITRUM_NOVA]: { factory: '0x12508dd9108Abab2c5fD8fC6E4984E46a3CF7824' },
