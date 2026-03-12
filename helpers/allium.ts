@@ -15,7 +15,7 @@ const HEADERS = {
   "X-API-KEY": getEnv('ALLIUM_API_KEY'),
 };
 
-export async function startAlliumQuery(sqlQuery: string) {
+async function startAlliumQuery(sqlQuery: string) {
   const query = await httpPost(`https://api.allium.so/api/v1/explorer/queries/phBjLzIZ8uUIDlp0dD3N/run-async`, {
     parameters: {
       fullQuery: sqlQuery
@@ -27,7 +27,7 @@ export async function startAlliumQuery(sqlQuery: string) {
   return query["run_id"]
 }
 
-export async function retrieveAlliumResults(queryId: string) {
+async function retrieveAlliumResults(queryId: string) {
   const results = await httpGet(`https://api.allium.so/api/v1/explorer/query-runs/${queryId}/results?f=json`, {
     headers: HEADERS
   })

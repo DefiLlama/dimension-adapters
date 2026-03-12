@@ -1,4 +1,4 @@
-import { countUsers, isAddressesUsable } from "../utils/countUsers";
+import { countNewUsers, countUsers, } from "../utils/countUsers";
 import * as sdk from "@defillama/sdk";
 import { ChainAddresses } from "../utils/types";
 import { isAcceptedChain } from "../utils/convertChain";
@@ -622,12 +622,16 @@ function findAllAddresses(comptrollers:any, extraAddresses:any): ()=>Promise<Cha
 export const addresses = comptrollers.map(addresses=>({
     name: addresses.name,
     id: addresses.id,
-    getAddresses: findAllAddresses(addresses.comptrollers, addresses.extraAddresses)
+    getAddresses: findAllAddresses(addresses.comptrollers, addresses.extraAddresses),
+    chains: new Set([...Object.keys(addresses.comptrollers), ...Object.keys(addresses.extraAddresses ?? {})]),
 }))
 
 export default addresses.map(addresses=>({
+    type: "protocol",
     name: addresses.name,
     id: addresses.id,
     getAddresses: addresses.getAddresses,
-    getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end)
+    chains: [...addresses.chains],
+    getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end),
+    getNewUsers: async (start:number, end:number) => countNewUsers(await addresses.getAddresses(), start, end)
 }))
