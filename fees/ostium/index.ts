@@ -9,12 +9,13 @@ const OSTIUM_PAIR_INFOS = '0x3890243a8fc091c626ed26c087a028b46bc9d66c';
 const VAULT_OPENING_FEE_EVENT = 'event VaultOpeningFeeCharged(uint256 indexed tradeId, address indexed trader, uint256 amount)';
 const DEV_OPENING_FEE_EVENT = 'event DevFeeCharged(uint256 indexed tradeId, address indexed trader, uint256 amount)';
 const ORACLE_FEE_EVENT = 'event OracleFeeCharged(uint256 indexed tradeId, address indexed trader, uint256 amount)';
+const ORACLE_FEE_REFUNDED_EVENT = 'event OracleFeeRefunded(uint256 indexed tradeId, address indexed trader, uint16 pairIndex, uint256 amount)';
 const VAULT_LIQ_FEE_EVENT = 'event VaultLiqFeeCharged(uint256 indexed orderId, uint256 indexed tradeId, address indexed trader, uint256 amount)';
 const FEES_CHARGED_EVENT = 'event FeesCharged(uint256 indexed orderId, uint256 indexed tradeId, address indexed trader, uint256 rolloverFees, int256 fundingFees)';
 const FEES_CHARGED_V2_EVENT = 'event FeesChargedV2(uint256 indexed orderId, uint256 indexed tradeId, address indexed trader, int256 rolloverFees, int256 fundingFees)';
 
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -79,6 +80,16 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.addCGToken("usd-coin", fee, METRIC.SERVICE_FEES);
   });
 
+  // 5.Oracle Fee Refund (100% protocol)
+  const oracleFeeRefundLogs = await options.getLogs({
+    target: OSTIUM_TRADING_CALLBACKS,
+    eventAbi: ORACLE_FEE_REFUNDED_EVENT
+  });
+  oracleFeeRefundLogs.map((log: any) => {
+    const fee = Number(log.amount) / 1e6;
+    dailyFees.addCGToken("usd-coin", -Number(fee), METRIC.SERVICE_FEES);
+    dailyProtocolRevenue.addCGToken("usd-coin", -Number(fee), METRIC.SERVICE_FEES);
+  });
 
   // 5.Trading Spreads / Price Impact (100% MMV) - from Dune
   const spreadsResults = await queryDuneSql(options, `
@@ -89,12 +100,9 @@ const fetch = async (options: FetchOptions) => {
   `);
   if (spreadsResults && spreadsResults.length > 0) {
     const totalSpreads = Number(spreadsResults[0].total_price_impact);
-    if (totalSpreads > 0) {
-      dailyFees.addCGToken("usd-coin", totalSpreads, METRIC.TRADING_FEES);
-      dailySupplySideRevenue.addCGToken("usd-coin", totalSpreads, METRIC.TRADING_FEES);
-    }
+    dailyFees.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
+    dailySupplySideRevenue.addCGToken("usd-coin", totalSpreads, 'Trading Spreads');
   }
-
 
   return {
     dailyFees,
@@ -111,24 +119,25 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Fees charged when a position is liquidated; 100% to MMV.',
     [METRIC.SERVICE_FEES]: 'Flat oracle fee charged when the protocol fetches external price for an action; 100% protocol.',
     [METRIC.MARGIN_FEES]: 'Rollover fees applied to open positions, realized on close; 100% to MMV.',
-    [METRIC.TRADING_FEES]: 'Trading spreads (price impact) charged on position open/close; 100% to MMV.',
+    'Trading Spreads': 'Trading spreads (price impact) charged on position open/close; 100% to MMV.',
   },
 };
 
 const methodology = {
-  Fees: "Gross protocol revenue: opening fees, liquidation fees, oracle fees, dev fees, rollover fees, and trading spreads (price impact from Dune).",
+  Fees: "Gross protocol revenue: opening fees, liquidation fees, oracle fees, dev fees, rollover fees, and trading spreads.",
+  Revenue: "100% of dev opening fees, 100% of oracle fees.",
   ProtocolRevenue: "100% of dev opening fees, 100% of oracle fees.",
   SupplySideRevenue: "100% of vault opening fees (to MMV), 100% of liquidation fees, 100% of rollover fees, 100% of trading spreads."
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   chains: [CHAIN.ARBITRUM],
   fetch,
   start: '2025-04-16',
   methodology,
   breakdownMethodology,
-  pullHourly: true,
+  dependencies: [Dependencies.DUNE],
 }
 
 export default adapter;
