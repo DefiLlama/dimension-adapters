@@ -4,12 +4,11 @@ Olympus DAO Comprehensive Fees Adapter
 Revenue Sources (Additive Approach):
 
 ETHEREUM:
-1. Cooler Loan Interest - Interest accrued on OHM-backed loans
-2. sUSDS Yield - Treasury holdings in Sky's savings USDS
-3. sUSDe Yield - Treasury holdings in Ethena's staked USDe
-4. CD (Clearinghouse Deposit) Facility - Yield from CD positions
-5. CD Lending Interest - Interest from loans against pending redemptions
-6. POL Fees (OHM/wETH, OHM/sUSDS) - Uniswap V3 LP fees
+1. sUSDS Yield - Treasury holdings in Sky's savings USDS
+2. sUSDe Yield - Treasury holdings in Ethena's staked USDe
+3. CD (Clearinghouse Deposit) Facility - Yield from CD positions
+4. CD Lending Interest - Interest from loans against pending redemptions
+5. POL Fees (OHM/wETH, OHM/sUSDS) - Uniswap V3 LP fees
 
 BASE:
 1. POL Fees (OHM/USDC) - Uniswap V3 LP fees
@@ -133,8 +132,6 @@ const CHAIN_CONFIG = {
 const ABIS = {
   balanceOf: "function balanceOf(address account) view returns (uint256)",
   convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256 assets)",
-  interestAccumulatorRay: "function interestAccumulatorRay() view returns (uint256)",
-  totalDebt: "function totalDebt() view returns (uint256)",
   positions: "function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
 };
 
@@ -148,7 +145,6 @@ const EVENTS = {
   erc20Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
 };
 
-const RAY = BigInt(10) ** BigInt(27);
 const ONE_SHARE = BigInt(10) ** BigInt(18);
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 // ERC-20 Transfer event topic (keccak256("Transfer(address,address,uint256)"))
@@ -173,34 +169,6 @@ function getTreasuryAddresses(chain: string): string[] {
     ],
   };
   return (config[chain] || []).map(a => a.toLowerCase());
-}
-
-/**
- * Fetch Cooler Loan interest using accumulator delta approach
- */
-async function fetchCoolerLoanInterest(options: FetchOptions) {
-  const { fromApi, toApi, createBalances } = options;
-  const fees = createBalances();
-
-  try {
-    const monoCooler = CHAIN_CONFIG[CHAIN.ETHEREUM].monoCooler;
-    const [accBefore, accAfter, debtBefore, debtAfter] = await Promise.all([
-      fromApi.call({ abi: ABIS.interestAccumulatorRay, target: monoCooler }),
-      toApi.call({ abi: ABIS.interestAccumulatorRay, target: monoCooler }),
-      fromApi.call({ abi: ABIS.totalDebt, target: monoCooler }),
-      toApi.call({ abi: ABIS.totalDebt, target: monoCooler }),
-    ]);
-
-    const accDelta = BigInt(accAfter) - BigInt(accBefore);
-    const avgDebt = (BigInt(debtBefore) + BigInt(debtAfter)) / BigInt(2);
-
-    if (avgDebt > 0) {
-      const interest = (avgDebt * accDelta) / RAY;
-      fees.add(CHAIN_CONFIG[CHAIN.ETHEREUM].usds, interest);
-    }
-  } catch (e) { }
-
-  return fees;
 }
 
 /**
@@ -599,8 +567,7 @@ async function fetchEthereum(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const treasuryAddresses = getTreasuryAddresses(CHAIN.ETHEREUM);
 
-  const [coolerInterest, susdsYield, susdeYield, cdFacilityRevenue, cdLendingRevenue, polFees] = await Promise.all([
-    fetchCoolerLoanInterest(options),
+  const [susdsYield, susdeYield, cdFacilityRevenue, cdLendingRevenue, polFees] = await Promise.all([
     fetchERC4626Yield(
       options,
       CHAIN_CONFIG[CHAIN.ETHEREUM].sUSDS,
@@ -618,7 +585,6 @@ async function fetchEthereum(options: FetchOptions) {
     fetchUniV3POLFees(options, CHAIN_CONFIG[CHAIN.ETHEREUM].uniV3PositionManager, treasuryAddresses, CHAIN_CONFIG[CHAIN.ETHEREUM].positionIds),
   ]);
 
-  dailyFees.addBalances(coolerInterest);
   dailyFees.addBalances(susdeYield);
   dailyFees.addBalances(cdLendingRevenue);
   dailyFees.addBalances(polFees);
@@ -662,9 +628,9 @@ async function fetchArbitrum(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Total revenue from all protocol sources across chains: Cooler Loan interest, sUSDS/sUSDe treasury yield, CD Facility yield, CD Lending interest, POL fees, and Berachain POL operations (iBGT DEX sales, iBERA staking yield, oBERO exercise proceeds, BERA/iBERA sales)",
+  Fees: "Total revenue from all protocol sources across chains: sUSDS/sUSDe treasury yield, CD Facility yield, CD Lending interest, POL fees, and Berachain POL operations (iBGT DEX sales, iBERA staking yield, oBERO exercise proceeds, BERA/iBERA sales). Cooler Loan interest is tracked separately in the cooler-loans adapter.",
   Revenue: "Sum of all protocol revenue streams - as a reserve currency protocol, all revenue strengthens the treasury backing OHM",
-  ProtocolRevenue: "100% of revenue flows to protocol treasury, funding YRF buybacks that increase backing per OHM. Holder value accrual via improved Cooler Loan LTV will be tracked in a separate Lending adapter.",
+  ProtocolRevenue: "100% of revenue flows to protocol treasury, funding YRF buybacks that increase backing per OHM. Cooler Loan interest tracked separately via the cooler-loans child protocol adapter, which rolls up to olympus-dao via parentProtocol.",
 };
 
 const adapter: SimpleAdapter = {

@@ -24,7 +24,7 @@ const chainConfig: Record<string, { factory: string, source: string, start: stri
   },
   [CHAIN.OPTIMISM]: {
     factory: '0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf',
-    source: 'DUNE',
+    source: 'LOGS',
     start: '2024-02-13',
     duneId: 'optimism',
   },
@@ -109,7 +109,7 @@ const prefetch = async (options: FetchOptions) => {
 }
 
 function getLogAdapterConfig(options: FetchOptions) {
-  if (options.startOfDay >= 1766966400 && options.chain === CHAIN.ETHEREUM) {
+  if ((options.startOfDay >= 1766966400 && options.chain === CHAIN.ETHEREUM) || (options.startOfDay >= 1772928000)) {
     // UNIfication has officially been executed onchain
     // https://x.com/Uniswap/status/2005018127260942798
     return {

@@ -26,6 +26,7 @@ const CHAINS: TChain = {
   [CHAIN.PLASMA]: 9745,
   [CHAIN.SONIC]: 146,
   [CHAIN.MONAD]: 143,
+  [CHAIN.HYPERLIQUID]: 999,
 };
 
 const inflatedFees = {

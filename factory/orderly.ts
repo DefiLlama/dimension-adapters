@@ -107,7 +107,16 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
-};
+  "perptools": {
+    broker_id: "dextools",
+    start: "2025-11-25",
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+}
 
 const feesProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(feesConfigs)) {

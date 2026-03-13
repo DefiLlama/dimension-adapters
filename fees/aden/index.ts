@@ -25,8 +25,7 @@ import fetchURL from "../../utils/fetchURL";
 // }
 
 async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
-  const aquisitionDate = +new Date('2025-11-12') / 1000
-  if (options.chain !== CHAIN.GATE_LAYER ||  options.startOfDay > aquisitionDate) {
+  if (options.chain !== CHAIN.GATE_LAYER) {
     return {
       dailyVolume: 0,
       dailyFees: 0,
@@ -48,7 +47,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
   const dailyVolume = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(Number(data.fees), 'Builder fees');
+  dailyFees.addUSDValue(Number(data.fees), "Builder fees");
   dailyVolume.addUSDValue(Number(data.volume));
 
   return {
@@ -68,7 +67,8 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Builder fees": "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
+    "Builder fees":
+      "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
   },
 };
 
@@ -77,8 +77,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.GATE_LAYER, CHAIN.ORDERLY, CHAIN.OFF_CHAIN],
   doublecounted: true,
-  start: '2025-07-19',
-  deadFrom: '2026-03-08',  // aquired by gate
+  start: "2025-07-19",
   methodology,
   breakdownMethodology,
 };

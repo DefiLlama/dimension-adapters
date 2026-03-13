@@ -40,9 +40,15 @@ function toTimestamp(timeArg: string) {
   }
 }
 
-// Get path of module import
-const adapterType: AdapterType | string = process.argv[2] as AdapterType
-const moduleArg = process.argv[3]
+// Get path of module import — support "dexs/kodiak-v3" as a single arg
+let adapterType: AdapterType | string = process.argv[2] as AdapterType
+let moduleArg = process.argv[3]
+
+if (!moduleArg && adapterType?.includes('/')) {
+  const parts = adapterType.split('/')
+  adapterType = parts[0] as AdapterType
+  moduleArg = parts.slice(1).join('/')
+}
 
 let adapterModule: SimpleAdapter;
 let usedHelper: string | null | undefined = null;

@@ -7,9 +7,15 @@ type IAddress = {
   [s: string | Chain]: string[];
 };
 
+interface withdrawalLog {
+  address: string;
+  amountSD: bigint;
+}
+
 const abi = {
   token: "address:token",
   fee: "uint64:treasuryFee",
+  withdrawals: "event TreasuryFeeWithdrawn(address to, uint64 amountSD)"
 };
 
 const contracts: IAddress = {
@@ -106,26 +112,27 @@ const contracts: IAddress = {
 };  
 
 async function getPoolFees(
-  { api, fromApi, toApi, createBalances }: FetchOptions,
+  { api, fromApi, toApi, createBalances, getLogs }: FetchOptions,
   contracts: string[]
 ): Promise<FetchResultV2> {
   const dailyFees = createBalances();
 
-  const [assets, prevFees, currFees] = await Promise.all([
+  const [assets, prevFees, currFees, withdrawals] = await Promise.all([
     api.multiCall({ calls: contracts, abi: abi.token, permitFailure: true }),
     fromApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
     toApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
+    api.chain === CHAIN.SEI
+      ? contracts.map(() => [])
+      : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
   ]);
-
   assets.forEach((asset, index) => {
     const prevFee = prevFees[index];
     const currFee = currFees[index];
-
-    if (!prevFee || !currFee) return;
-    dailyFees.add(asset, currFees[index] - prevFees[index]);
+    if (prevFee == null || currFee == null) return;
+    const withdrawn = (withdrawals[index] || []).reduce((acc: bigint, log: withdrawalLog) => acc + log.amountSD, 0n);
+    dailyFees.add(asset, BigInt(currFee) - BigInt(prevFee) + withdrawn);
   });
-
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 }
 
 function adapterByChain(contracts: string[], timestamp: number) {
@@ -137,7 +144,7 @@ function adapterByChain(contracts: string[], timestamp: number) {
 
 const timestamp = 1716892946;
 const adapter: Adapter = {
-  adapter: Object.keys(contracts).reduce((acc, chain: Chain) => {
+  adapter: Object.keys(contracts).reduce((acc: Record<string, any>, chain: Chain) => {
     acc[chain] = {
       ...adapterByChain(contracts[chain], timestamp),
     };
@@ -147,6 +154,7 @@ const adapter: Adapter = {
   allowNegativeValue: true, // due to bridge gas fees
   methodology: {
     Fees: "All fees paid by users while using Stargate bridge.",
+    Revenue: 'Total bridge fees paid by users',
   }
 };
 
