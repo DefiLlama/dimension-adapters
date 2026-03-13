@@ -29,6 +29,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         decimals
       FROM prices.minute
       WHERE timestamp >= from_unixtime(${options.startTimestamp})
+        AND timestamp < from_unixtime(${options.endTimestamp})
         AND blockchain = 'solana'
     ),
     volumes AS (
