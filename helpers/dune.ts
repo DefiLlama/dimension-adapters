@@ -6,22 +6,34 @@ import { elastic, log } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 
-const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0] ?? "L0URsn5vwgyrWbBpQo9yS1E3C1DBJpZh"
+let _axiosDune: any = null;
 
-const axiosDune = axios.create({
-  headers: {
-    "x-dune-api-key": API_KEY,
-  },
-  baseURL: 'https://api.dune.com/api/v1',
-})
+// this wrapper is to ensure that secret is set before we try to use it
+function getAxiosDune() {
+  if (_axiosDune) return _axiosDune;
 
+  const API_KEY = getEnv('DUNE_API_KEYS')?.split(',')[0]
+  if (!API_KEY) {
+    throw new Error("DUNE_API_KEYS environment variable is not set");
+  }
+
+  const axiosDune = axios.create({
+    headers: {
+      "x-dune-api-key": API_KEY,
+    },
+    baseURL: 'https://api.dune.com/api/v1',
+  })
+
+  _axiosDune = axiosDune;
+  return _axiosDune;
+}
 
 const NOW_TIMESTAMP = Math.trunc((Date.now()) / 1000)
 
 const getLatestData = async (queryId: string) => {
 
   try {
-    const { data: latest_result } = await axiosDune.get(`/query/${queryId}/results`)
+    const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results`)
     const submitted_at = latest_result.submitted_at
     const submitted_at_timestamp = Math.trunc(new Date(submitted_at).getTime() / 1000)
     const diff = NOW_TIMESTAMP - submitted_at_timestamp
@@ -45,7 +57,7 @@ const inquiryStatus = async (execution_id: string, queryId: string) => {
   let _status = undefined;
   do {
     try {
-      const { data } = await axiosDune.get(`/execution/${execution_id}/status`)
+      const { data } = await getAxiosDune().get(`/execution/${execution_id}/status`)
       _status = data.state
       if (['QUERY_STATE_PENDING', 'QUERY_STATE_EXECUTING'].includes(_status)) {
         console.info(`waiting for query id ${queryId} to complete...`)
@@ -60,7 +72,7 @@ const inquiryStatus = async (execution_id: string, queryId: string) => {
 
 const submitQuery = async (queryId: string, query_parameters = {}) => {
 
-  const { data: query } = await axiosDune.post(`/query/${queryId}/execute`, { query_parameters })
+  const { data: query } = await getAxiosDune().post(`/query/${queryId}/execute`, { query_parameters })
   if (query?.execution_id) {
     return query?.execution_id
   } else {
@@ -183,7 +195,7 @@ const _queryDune = async (queryId: string, query_parameters: any = {}) => {
     const execution_id = await submitQuery(queryId, query_parameters)
     const _status = await inquiryStatus(execution_id, queryId)
     if (_status === 'QUERY_STATE_COMPLETED') {
-      const { data: { result: { rows, metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } } = await axiosDune.get(`/execution/${execution_id}/results?limit=100000`)
+      const { data: { result: { rows, metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } } = await getAxiosDune().get(`/execution/${execution_id}/results?limit=100000`)
       success = true
       let endTime = +Date.now() / 1e3
 
