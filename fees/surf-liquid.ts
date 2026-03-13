@@ -9,14 +9,13 @@ const CBBTC = "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf";
 const ASSETS = [USDC, WETH, CBBTC];
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-const PERFORMANCE_FEE = 0.1; // 10% on earned yield
-
 const V3_VAULT_DEPLOYED =
   "0x30f7c1411599514d4a6ee3d132cced214b34bbe4c49d77f74391224dc6d8d635";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const api = options.api;
   const fromApi = options.fromApi;
 
@@ -62,15 +61,22 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // V3 vaults -> assetToVault(asset) for each asset
-  for (const asset of ASSETS) {
-    if (v3Vaults.length === 0) continue;
-    const morphoVaults = await api.multiCall({
-      abi: "function assetToVault(address) view returns (address)",
-      calls: v3Vaults.map((vault: string) => ({ target: vault, params: [asset] })),
-    });
-    for (let i = 0; i < v3Vaults.length; i++) {
-      if (morphoVaults[i] && morphoVaults[i] !== ZERO) {
-        allocations.push({ surfVault: v3Vaults[i], morphoVault: morphoVaults[i], asset });
+  if (v3Vaults.length > 0) {
+    const morphoVaultsByAsset = await Promise.all(
+      ASSETS.map((asset) =>
+        api.multiCall({
+          abi: "function assetToVault(address) view returns (address)",
+          calls: v3Vaults.map((vault: string) => ({ target: vault, params: [asset] })),
+        })
+      )
+    );
+    for (let assetId = 0; assetId < ASSETS.length; assetId++) {
+      const asset = ASSETS[assetId];
+      const morphoVaults = morphoVaultsByAsset[assetId];
+      for (let i = 0; i < v3Vaults.length; i++) {
+        if (morphoVaults[i] && morphoVaults[i] !== ZERO) {
+          allocations.push({ surfVault: v3Vaults[i], morphoVault: morphoVaults[i], asset });
+        }
       }
     }
   }
@@ -79,8 +85,16 @@ const fetch = async (options: FetchOptions) => {
 
   const uniqueMorphoVaults = [...new Set(allocations.map((a) => a.morphoVault))];
 
-  // End of period: totalAssets and totalSupply
-  const [endAssets, endSupply] = await Promise.all([
+  // Start and End of period: totalAssets and totalSupply
+  const [startAssets, startSupply, endAssets, endSupply] = await Promise.all([
+    fromApi.multiCall({
+      abi: "uint256:totalAssets",
+      calls: uniqueMorphoVaults.map((target: string) => ({ target })),
+    }),
+    fromApi.multiCall({
+      abi: "uint256:totalSupply",
+      calls: uniqueMorphoVaults.map((target: string) => ({ target })),
+    }),
     api.multiCall({
       abi: "uint256:totalAssets",
       calls: uniqueMorphoVaults.map((target: string) => ({ target })),
@@ -91,32 +105,7 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
-  // Start of period: totalAssets and totalSupply
-  const [startAssets, startSupply] = await Promise.all([
-    fromApi.multiCall({
-      abi: "uint256:totalAssets",
-      calls: uniqueMorphoVaults.map((target: string) => ({ target })),
-    }),
-    fromApi.multiCall({
-      abi: "uint256:totalSupply",
-      calls: uniqueMorphoVaults.map((target: string) => ({ target })),
-    }),
-  ]);
-
-  // Compute yield rate per Morpho vault
-  const yieldRate: Record<string, number> = {};
-  for (let i = 0; i < uniqueMorphoVaults.length; i++) {
-    const vault = uniqueMorphoVaults[i];
-    const endPrice =
-      Number(endSupply[i]) > 0
-        ? Number(endAssets[i]) / Number(endSupply[i])
-        : 1;
-    const startPrice =
-      Number(startSupply[i]) > 0
-        ? Number(startAssets[i]) / Number(startSupply[i])
-        : 1;
-    yieldRate[vault] = startPrice > 0 ? endPrice / startPrice - 1 : 0;
-  }
+  const morphoVaultIndex = new Map(uniqueMorphoVaults.map((v, i) => [v, i]));
 
   // --- Get Surf vault balances (shares held) at end of period ---
 
@@ -135,21 +124,16 @@ const fetch = async (options: FetchOptions) => {
     const shares = BigInt(balances[i] || "0");
     if (shares === 0n) continue;
 
-    const rate = yieldRate[morphoVault] || 0;
-    if (rate <= 0) continue;
-
-    // Convert shares to underlying asset value
-    const idx = uniqueMorphoVaults.indexOf(morphoVault);
-    const totalAssetsEnd = BigInt(endAssets[idx] || "0");
-    const totalSupplyEnd = BigInt(endSupply[idx] || "1");
-    const assetsValue =
-      totalSupplyEnd > 0n ? (shares * totalAssetsEnd) / totalSupplyEnd : 0n;
-
-    // Yield earned on this position
-    // yieldAmount = assetsValue * rate (but we need to work in BigInt-safe way)
-    // Use basis points for precision: rate * 1e18
-    const rateBps = BigInt(Math.floor(rate * 1e18));
-    const yieldAmount = (assetsValue * rateBps) / BigInt(1e18);
+    const idx = morphoVaultIndex.get(morphoVault)!;
+    const endAssetsValue =
+      BigInt(endSupply[idx] || "1") > 0n
+        ? (shares * BigInt(endAssets[idx] || "0")) / BigInt(endSupply[idx] || "1")
+        : 0n;
+    const startAssetsValue =
+      BigInt(startSupply[idx] || "1") > 0n
+        ? (shares * BigInt(startAssets[idx] || "0")) / BigInt(startSupply[idx] || "1")
+        : 0n;
+    const yieldAmount = endAssetsValue > startAssetsValue ? endAssetsValue - startAssetsValue : 0n;
 
     if (yieldAmount <= 0n) continue;
 
@@ -157,15 +141,16 @@ const fetch = async (options: FetchOptions) => {
     const feeAmount = yieldAmount / 10n;
     const supplySideAmount = yieldAmount - feeAmount;
 
-    dailyFees.add(asset, feeAmount);
+    dailyFees.add(asset, yieldAmount);
+    dailyRevenue.add(asset, feeAmount)
     dailySupplySideRevenue.add(asset, supplySideAmount);
   }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: dailyFees,
+    dailyHoldersRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -176,8 +161,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: "2025-10-01",
   methodology: {
-    Fees: "10% performance fee on yield earned across all Morpho vault positions, calculated from share price changes.",
-    Revenue: "All fees are used to buy back SURF tokens for holders.",
+    Fees: "All the yield earned across all Morpho vault positions, calculated from share price changes.",
+    Revenue: "10% performance fee on the yield.",
     ProtocolRevenue: "Protocol retains no revenue; all fees go to SURF buybacks.",
     HoldersRevenue: "All revenue is distributed to SURF holders via token buybacks.",
     SupplySideRevenue: "90% of earned yield is retained by vault depositors.",
