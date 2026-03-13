@@ -2455,10 +2455,8 @@ export default (
         base: ["0x4A88C44B8D9B9f3F2BA4D97236F737CF03DF76CD"],
         scroll: ["0x010931D4d82ff3F5Ae8bD94e0752570711f78959"],
         polygon: ["0x34E2F923bBa206358EcE221af73E8d121837F873"],
-        monad: ["0xED0F502119D4264ef77d7705B75Ef7dc61B6fBe9"],
-        hyperliquid: ["0x63d67E23e5F0209D86B1FB019b9a2410EB5805ad"],
       },
-    },
+    },  
 
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
