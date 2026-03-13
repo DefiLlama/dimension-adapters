@@ -86,7 +86,7 @@ const alliumChainMap: Record<string, string> = {
     bsc: CHAIN.BSC
 }
 
-const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: `chain#${c}`, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
+const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
 
 export default [
     {
