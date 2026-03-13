@@ -1,4 +1,4 @@
-import { compoundV2Export } from "../helpers/compoundV2";
+import { compoundV2Export, compoundV2LiquidationsExport } from "../helpers/compoundV2";
 import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
@@ -85,5 +85,89 @@ for (const [name, { comptrollers, options }] of Object.entries(feesConfigs)) {
   feesProtocols[name] = compoundV2Export(comptrollers, options);
 }
 
-
 export const { protocolList, getAdapter } = createFactoryExports(feesProtocols);
+
+type LiquidationConfig = Record<string, { comptroller: string; start: string }>;
+
+const liquidationConfigs: Record<string, LiquidationConfig> = {
+  "compound-v2": {
+    ethereum: { comptroller: '0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B', start: '2019-05-07' },
+  },
+  "benqi-lending": {
+    avax: { comptroller: '0x486Af39519B4Dc9a7fCcd318217352830E8AD9b4', start: '2021-08-10' },
+  },
+  "canto-lending": {
+    canto: { comptroller: '0x5E23dC409Fc2F832f83CEc191E245A191a4bCc5C', start: '2022-08-16' },
+  },
+  "capyfi": {
+    ethereum: { comptroller: '0x0b9af1fd73885aD52680A1aeAa7A3f17AC702afA', start: '2025-12-01' },
+    wc: { comptroller: '0x589d63300976759a0fc74ea6fA7D951f581252D7', start: '2025-12-01' },
+  },
+  "deepr-finance": {
+    shimmer_evm: { comptroller: '0xF7E452A8685D57083Edf4e4CC8064EcDcF71D7B7', start: '2024-01-01' },
+    iotaevm: { comptroller: '0xee07121d97FDEA35675e02017837a7a43aeDa48F', start: '2024-01-01' },
+  },
+  "elara": {
+    zircuit: { comptroller: '0x695aCEf58D1a10Cf13CBb4bbB2dfB7eDDd89B296', start: '2024-06-01' },
+  },
+  "fluxfinance": {
+    ethereum: { comptroller: '0x95Af143a021DF745bc78e845b54591C53a8B3A51', start: '2023-02-01' },
+  },
+  "hover": {
+    kava: { comptroller: '0x3A4Ec955a18eF6eB33025599505E7d404a4d59eC', start: '2023-01-01' },
+  },
+  "machfi": {
+    sonic: { comptroller: '0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730', start: '2025-01-01' },
+  },
+  "mendi-finance": {
+    linea: { comptroller: '0x1b4d3b0421dDc1eB216D230Bc01527422Fb93103', start: '2023-07-01' },
+  },
+  "morpho-compound": {
+    ethereum: { comptroller: '0x930f1b46e1d081ec1524efd95752be3ece51ef67', start: '2023-10-21' },
+  },
+  "strike": {
+    ethereum: { comptroller: '0xe2e17b2CBbf48211FA7eB8A875360e5e39bA2602', start: '2021-03-01' },
+  },
+  "sumer": {
+    meter: { comptroller: '0xcB4cdDA50C1B6B0E33F544c98420722093B7Aa88', start: '2023-01-01' },
+    base: { comptroller: '0x611375907733D9576907E125Fb29704712F0BAfA', start: '2024-01-01' },
+    arbitrum: { comptroller: '0xBfb69860C91A22A2287df1Ff3Cdf0476c5aab24A', start: '2024-01-01' },
+    ethereum: { comptroller: '0x60A4570bE892fb41280eDFE9DB75e1a62C70456F', start: '2024-01-01' },
+    zklink: { comptroller: '0xe6099D924efEf37845867D45E3362731EaF8A98D', start: '2024-01-01' },
+    bsquared: { comptroller: '0xdD9C863197df28f47721107f94eb031b548B5e48', start: '2024-01-01' },
+    core: { comptroller: '0x7f5a7aE2688A7ba6a9B36141335044c058a08b3E', start: '2024-01-01' },
+    bsc: { comptroller: '0x15B5220024c3242F7D61177D6ff715cfac4909eD', start: '2024-01-01' },
+    berachain: { comptroller: '0x16C7d1F9EA48F7DE5E8bc3165A04E8340Da574fA', start: '2025-02-01' },
+    hemi: { comptroller: '0xB2fF02eEF85DC4eaE95Ab32AA887E0cC69DF8d8E', start: '2025-01-01' },
+  },
+  "takara-lend": {
+    sei: { comptroller: '0x71034bf5eC0FAd7aEE81a213403c8892F3d8CAeE', start: '2025-05-01' },
+  },
+  "traderjoe-lend": {
+    avax: { comptroller: '0xdc13687554205E5b89Ac783db14bb5bba4A1eDaC', start: '2021-07-01' },
+  },
+  "venus-finance": {
+    bsc: { comptroller: '0xfD36E2c2a6789Db23113685031d7F16329158384', start: '2020-11-01' },
+    ethereum: { comptroller: '0x687a01ecF6d3907658f7A7c714749fAC32336D1B', start: '2024-01-01' },
+    op_bnb: { comptroller: '0xd6e3e2a1d8d95cae355d15b3b9f8e5c2511874dd', start: '2023-09-01' },
+    arbitrum: { comptroller: '0x317c1A5739F39046E20b08ac9BeEa3f10fD43326', start: '2024-03-01' },
+    era: { comptroller: '0xddE4D098D9995B659724ae6d5E3FB9681Ac941B1', start: '2024-03-01' },
+    base: { comptroller: '0x0C7973F9598AA62f9e03B94E92C967fD5437426C', start: '2024-09-01' },
+    optimism: { comptroller: '0x5593FF68bE84C966821eEf5F0a988C285D5B7CeC', start: '2024-09-01' },
+    unichain: { comptroller: '0xe22af1e6b78318e1Fe1053Edbd7209b8Fc62c4Fe', start: '2025-02-01' },
+  },
+  "mare-finance-v2": {
+    kava: { comptroller: '0xFcD7D41D5cfF03C7f6D573c9732B0506C72f5C72', start: '2023-06-01' },
+  },
+  "quantus": {
+    monad: { comptroller: '0xFc57bF0733e5e65d8549fc2922919Cfb97e62D5f', start: '2025-11-01' },
+    megaeth: { comptroller: '0x1F1416EbbeAb7a13fC5B6111A1E77696Be600413', start: '2025-11-01' },
+  },
+};
+
+const liquidationProtocols: Record<string, any> = {};
+for (const [name, config] of Object.entries(liquidationConfigs)) {
+  liquidationProtocols[name] = compoundV2LiquidationsExport(config);
+}
+
+export const liquidations = createFactoryExports(liquidationProtocols);
