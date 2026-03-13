@@ -125,7 +125,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.ARBITRUM],
   fetch,
-  start: '2026-03-08',
+  start: '2025-04-16',
   methodology,
   breakdownMethodology,
   pullHourly: true,
