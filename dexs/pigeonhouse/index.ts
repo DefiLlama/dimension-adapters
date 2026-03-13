@@ -17,7 +17,7 @@ const FEE_RATE = 0.02; // 2% platform fee
 const TREASURY_RATE = 0.005; // 0.5% treasury revenue
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const query = `
+    const query = `
     WITH trades AS (
       SELECT
         tx_id,
@@ -38,38 +38,42 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     INNER JOIN trades s
       ON t.tx_id = s.tx_id
       AND t.outer_instruction_index = s.outer_instruction_index
+      AND t.inner_instruction_index = s.inner_instruction_index
     WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-      AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+      AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
       AND t.amount_usd > 0
   `;
 
-  const data = await queryDuneSql(options, query);
-  const dailyVolume = data[0]?.daily_volume ?? 0;
-  const dailyFees = Number(dailyVolume) * FEE_RATE;
-  const dailyRevenue = Number(dailyVolume) * TREASURY_RATE;
+    const data = await queryDuneSql(options, query);
+    const dailyVolume = data[0].daily_volume;
+    const dailyFees = Number(dailyVolume) * FEE_RATE;
+    const dailyRevenue = Number(dailyVolume) * TREASURY_RATE;
+    const dailyHoldersRevenue = Number(dailyVolume) * (FEE_RATE - TREASURY_RATE);
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-  };
+    return {
+        dailyVolume,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailyHoldersRevenue,
+    };
+};
+
+const methodology = {
+    Volume: "Total USD value of buy and sell trades on PigeonHouse bonding curves, queried from on-chain transaction data via Dune.",
+    Fees: "2% platform fee on every trade, calculated from on-chain volume.",
+    Revenue: "0.5% treasury revenue from each trade.",
+    ProtocolRevenue: "0.5% protocol revenue from each trade goes to the protocol treasury",
+    HoldersRevenue: "1.5% of each trade goes to the PIGEON token burns",
 };
 
 const adapter: SimpleAdapter = {
-  fetch,
-  dependencies: [Dependencies.DUNE],
-  chains: [CHAIN.SOLANA],
-  start: "2026-03-09",
-  methodology: {
-    Volume:
-      "Total USD value of buy and sell trades on PigeonHouse bonding curves, queried from on-chain transaction data via Dune.",
-    Fees:
-      "2% platform fee on every trade, calculated from on-chain volume.",
-    Revenue:
-      "0.5% treasury revenue from each trade. The remaining 1.5% fee is used for PIGEON token burns (not counted as protocol revenue).",
-  },
-  isExpensiveAdapter: true,
+    fetch,
+    dependencies: [Dependencies.DUNE],
+    chains: [CHAIN.SOLANA],
+    start: "2026-03-09",
+    methodology,
+    isExpensiveAdapter: true,
 };
 
 export default adapter;
