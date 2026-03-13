@@ -125,14 +125,14 @@ const fetch = async (options: FetchOptions) => {
     if (shares === 0n) continue;
 
     const idx = morphoVaultIndex.get(morphoVault)!;
-    const endAssetsValue =
-      BigInt(endSupply[idx] || "1") > 0n
-        ? (shares * BigInt(endAssets[idx] || "0")) / BigInt(endSupply[idx] || "1")
-        : 0n;
-    const startAssetsValue =
-      BigInt(startSupply[idx] || "1") > 0n
-        ? (shares * BigInt(startAssets[idx] || "0")) / BigInt(startSupply[idx] || "1")
-        : 0n;
+    const endSupplyBig = BigInt(endSupply[idx] ?? "0");
+    const endAssetsValue = endSupplyBig > 0n
+      ? (shares * BigInt(endAssets[idx] ?? "0")) / endSupplyBig
+      : 0n;
+    const startSupplyBig = BigInt(startSupply[idx] ?? "0");
+    const startAssetsValue = startSupplyBig > 0n
+      ? (shares * BigInt(startAssets[idx] ?? "0")) / startSupplyBig
+      : 0n;
     const yieldAmount = endAssetsValue > startAssetsValue ? endAssetsValue - startAssetsValue : 0n;
 
     if (yieldAmount <= 0n) continue;
