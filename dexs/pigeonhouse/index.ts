@@ -26,8 +26,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       FROM solana.instruction_calls
       WHERE executing_account = '${PROGRAM_ID}'
         AND (
-          data LIKE '66063d12%' -- buy discriminator
-          OR data LIKE '33e685a4%' -- sell discriminator
+            TO_HEX(data) LIKE '66063d1201daebea%'  -- buy discriminator
+            OR TO_HEX(data) LIKE '33e685a4d2114a73%'  -- sell discriminator
         )
         AND TIME_RANGE
         AND tx_success = true
@@ -69,6 +69,7 @@ const adapter: SimpleAdapter = {
     Revenue:
       "0.5% treasury revenue from each trade. The remaining 1.5% fee is used for PIGEON token burns (not counted as protocol revenue).",
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
