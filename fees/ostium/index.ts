@@ -93,8 +93,38 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   // 5.Trading Spreads / Price Impact (100% MMV) - from Dune
   const spreadsResults = await queryDuneSql(options, `
-    SELECT SUM(price_impact_p / 100 * notional) as total_price_impact
-    FROM query_5255724
+    WITH open_orders AS (
+      SELECT order_id, trade_id, executed_at, price_impact_p,
+        collateral * leverage / 100 AS notional, trade_notional, 0 AS percentage_closed
+      FROM query_5256090
+      WHERE executed_at < FROM_UNIXTIME(${options.endTimestamp})
+    ),
+    close_orders AS (
+      SELECT a.order_id, a.trade_id, a.executed_at, a.price_impact_p,
+        d.notional, d.trade_notional, a.percentage_closed
+      FROM query_5256086 a
+      LEFT JOIN (SELECT trade_id, notional, trade_notional FROM open_orders) d ON a.trade_id = d.trade_id
+      WHERE a.executed_at < FROM_UNIXTIME(${options.endTimestamp})
+    ),
+    orders AS (
+      SELECT DISTINCT CAST(order_id AS uint256) AS order_id, CAST(trade_id AS uint256) AS trade_id,
+        executed_at, price_impact_p/1e18 AS price_impact_p, notional/1e6 AS notional,
+        trade_notional/1e18 AS trade_notional, percentage_closed
+      FROM (SELECT * FROM open_orders UNION ALL SELECT * FROM close_orders) u
+    ),
+    step1 AS (
+      SELECT *, (100.0 - CAST(percentage_closed AS DOUBLE)) / 100.0 AS remain_fraction FROM orders
+    ),
+    step2 AS (
+      SELECT *, EXP(SUM(LN(remain_fraction)) OVER (PARTITION BY trade_id ORDER BY order_id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) AS cumulative_remaining
+      FROM step1
+    ),
+    step3 AS (
+      SELECT *, LAG(cumulative_remaining) OVER (PARTITION BY trade_id ORDER BY order_id) - cumulative_remaining AS pct_close
+      FROM step2
+    )
+    SELECT SUM(price_impact_p / 100 * notional * COALESCE(pct_close, 1)) AS total_price_impact
+    FROM step3
     WHERE executed_at >= FROM_UNIXTIME(${options.startTimestamp})
       AND executed_at < FROM_UNIXTIME(${options.endTimestamp})
   `);
