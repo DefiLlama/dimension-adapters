@@ -80,6 +80,22 @@ const fetch = async (options: FetchOptions) => {
   });
 
 
+  // 5.Trading Spreads / Price Impact (100% MMV) - from Dune
+  const spreadsResults = await queryDuneSql(options, `
+    SELECT SUM(price_impact_p / 100 * notional) as total_price_impact
+    FROM query_5255724
+    WHERE executed_at >= FROM_UNIXTIME(${options.startTimestamp})
+      AND executed_at < FROM_UNIXTIME(${options.endTimestamp})
+  `);
+  if (spreadsResults && spreadsResults.length > 0) {
+    const totalSpreads = Number(spreadsResults[0].total_price_impact);
+    if (totalSpreads > 0) {
+      dailyFees.addCGToken("usd-coin", totalSpreads, METRIC.TRADING_FEES);
+      dailySupplySideRevenue.addCGToken("usd-coin", totalSpreads, METRIC.TRADING_FEES);
+    }
+  }
+
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -95,6 +111,7 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Fees charged when a position is liquidated; 100% to MMV.',
     [METRIC.SERVICE_FEES]: 'Flat oracle fee charged when the protocol fetches external price for an action; 100% protocol.',
     [METRIC.MARGIN_FEES]: 'Rollover fees applied to open positions, realized on close; 100% to MMV.',
+    [METRIC.TRADING_FEES]: 'Trading spreads (price impact) charged on position open/close; 100% to MMV.',
   },
 };
 
@@ -108,7 +125,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.ARBITRUM],
   fetch,
-  start: '2025-04-16',
+  start: '2026-03-08',
   methodology,
   breakdownMethodology,
   pullHourly: true,
