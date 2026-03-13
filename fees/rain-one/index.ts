@@ -37,7 +37,13 @@ const fetch = async (options: FetchOptions) => {
     cacheInCloud: true,
   });
 
-  const poolTokenMap: Record<string, { token: string; decimals: number }> = {};
+  const poolTokenMap: Record<string, { token: string; decimals: number }> = {
+    // missing poolTokenSetEvent log for this pool
+    '0xbfda181ba56da848172d0a73c9e13caa1abdea30': {
+      token: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+      decimals: 6,
+    }
+  };
 
   poolTokenSetLogs.forEach((log) => {
     poolTokenMap[log.poolAddress.toLowerCase()] = {
