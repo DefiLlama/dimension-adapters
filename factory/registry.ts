@@ -101,7 +101,10 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'new-users': [
     'users/list:newUsers',
-  ]
+  ],
+  'liquidations': [
+    'aaveLiquidations',
+  ],
 };
 
 /**
