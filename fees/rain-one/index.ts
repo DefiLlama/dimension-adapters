@@ -51,20 +51,26 @@ const fetch = async (options: FetchOptions) => {
     logs.forEach((log: any) => {
       const pool = log.address.toLowerCase();
       const tokenInfo = poolTokenMap[pool]
-      if (!tokenInfo?.token) throw new Error(`Token info not found for pool ${pool}`);
+      if (!tokenInfo?.token) {
+        console.warn(`Token info not found for pool ${pool}, skipping log with amount ${log.args.amount}`);
+        return;
+      }
       dailyFees.add(tokenInfo.token, log.args.amount);
     })
   }
 
   await processLogs({
-    options, pools, eventAbi: PlatformFeeClaimEvent, processor: async (logs: any) => {
+    options, pools, eventAbi: PlatformFeeClaimEvent, processor: (logs: any) => {
       if (!logs || logs.length === 0) return;
       logs.forEach((log: any) => {
         const pool = log.address.toLowerCase();
         const tokenInfo = poolTokenMap[pool]
-        if (!tokenInfo?.token) throw new Error(`Token info not found for pool ${pool}`);
+        if (!tokenInfo?.token) {
+          console.warn(`Token info not found for pool ${pool}, skipping log with amount ${log.args.amount}`);
+          return;
+        }
         dailyFees.add(tokenInfo.token, log.args.amount);
-        dailyRevenue.add(tokenInfo.token, log.args.amount);
+        dailyRevenue.add(tokenInfo.token, log.args.amount); 
       })
     }
   })
