@@ -64,20 +64,18 @@ function getProtocolNewUsersAdapter(item: typeof routers[0]): Adapter {
 
   async function prefetch({ startTimestamp, endTimestamp }: FetchOptions) {
     const data = await item.getNewUsers(startTimestamp, endTimestamp)
-    console.log("prefetching new users for", item.name, { startTimestamp, endTimestamp, }, data)
-    return parseUserResponse(data, item.chains);
+    return data[0]
   }
 
   async function fetch(_: any, _1: any, { chain, preFetchedResults, }: FetchOptions) {
+
     if (chain === CHAIN.CHAIN_GLOBAL)
       return {
-        dailyNewUsers: preFetchedResults?.all.users
+        dailyNewUsers: preFetchedResults?.user_count
       }
 
-    return {
+    return { // this is going to be empty as we don't have a breakdown of new users by chain
       dailyNewUsers: preFetchedResults?.[chain]?.users,
-      dailyTransactionsCount: preFetchedResults?.[chain]?.txs,
-      dailyGasUsed: preFetchedResults?.[chain]?.gas,
     }
   }
 
