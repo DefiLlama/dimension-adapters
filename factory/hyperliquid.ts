@@ -436,6 +436,15 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Portion of fees collected by XTrade",
     },
   },
+  "taco-trade": {
+    addresses: ["0xf5b79dea3d8cf3efa95e8176ebd885634d869f51"],
+    start: "2025-11-19",
+    methodology: {
+      Fees: "builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  },
 };
 
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
