@@ -117,7 +117,7 @@ async function getPoolFees(
 ): Promise<FetchResultV2> {
   const dailyFees = createBalances();
   const seiWithdrawals = startTimestamp >= 1769385599 && endTimestamp <= 1769472000
-    ? [[{amountSD: 231975432521n}], []] // hardcode the withdrawal because getLogs is disabled for sei
+    ? [[{amountSD: 231975432521n}], []] // hardcode the withdrawal on 2026-01-26 because getLogs is disabled for sei
     : contracts.map(() => [])
 
 
