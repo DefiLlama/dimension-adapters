@@ -109,7 +109,7 @@ const prefetch = async (options: FetchOptions) => {
 }
 
 function getLogAdapterConfig(options: FetchOptions) {
-  if (options.startOfDay >= 1766966400 && options.chain === CHAIN.ETHEREUM) {
+  if ((options.startOfDay >= 1766966400 && options.chain === CHAIN.ETHEREUM) || (options.startOfDay >= 1772928000)) {
     // UNIfication has officially been executed onchain
     // https://x.com/Uniswap/status/2005018127260942798
     return {

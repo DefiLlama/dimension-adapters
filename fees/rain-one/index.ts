@@ -37,7 +37,13 @@ const fetch = async (options: FetchOptions) => {
     cacheInCloud: true,
   });
 
-  const poolTokenMap: Record<string, { token: string; decimals: number }> = {};
+  const poolTokenMap: Record<string, { token: string; decimals: number }> = {
+    // missing poolTokenSetEvent log for this pool
+    '0xbfda181ba56da848172d0a73c9e13caa1abdea30': {
+      token: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+      decimals: 6,
+    }
+  };
 
   poolTokenSetLogs.forEach((log) => {
     poolTokenMap[log.poolAddress.toLowerCase()] = {
@@ -51,20 +57,26 @@ const fetch = async (options: FetchOptions) => {
     logs.forEach((log: any) => {
       const pool = log.address.toLowerCase();
       const tokenInfo = poolTokenMap[pool]
-      if (!tokenInfo?.token) throw new Error(`Token info not found for pool ${pool}`);
+      if (!tokenInfo?.token) {
+        console.warn(`Token info not found for pool ${pool}, skipping log with amount ${log.args.amount}`);
+        return;
+      }
       dailyFees.add(tokenInfo.token, log.args.amount);
     })
   }
 
   await processLogs({
-    options, pools, eventAbi: PlatformFeeClaimEvent, processor: async (logs: any) => {
+    options, pools, eventAbi: PlatformFeeClaimEvent, processor: (logs: any) => {
       if (!logs || logs.length === 0) return;
       logs.forEach((log: any) => {
         const pool = log.address.toLowerCase();
         const tokenInfo = poolTokenMap[pool]
-        if (!tokenInfo?.token) throw new Error(`Token info not found for pool ${pool}`);
+        if (!tokenInfo?.token) {
+          console.warn(`Token info not found for pool ${pool}, skipping log with amount ${log.args.amount}`);
+          return;
+        }
         dailyFees.add(tokenInfo.token, log.args.amount);
-        dailyRevenue.add(tokenInfo.token, log.args.amount);
+        dailyRevenue.add(tokenInfo.token, log.args.amount); 
       })
     }
   })

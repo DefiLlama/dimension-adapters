@@ -3,26 +3,20 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 /**
+ * Previous source : (internal server error)
  * NEAR Intents Fees Adapter for DefiLlama
  * 
  * Data Source: https://platform.data.defuse.org/api/public/fees
  * Swagger UI: https://platform.data.defuse.org/swagger-ui/#/public/get_fees
  * 
  * Returns daily fee data aggregated by the NEAR Intents platform
+ * 
+ * New source: https://revenue.near.org/
  */
 
-const feeSwitchDate = '2026-02-23'
 
-interface FeeData {
-    fee: number;
-    date_at: string; // Format: "YYYY-MM-DD"
-}
-
-interface APIResponse {
-    fees: FeeData[];
-}
-
-let data: any
+let feeData: any
+let revenueData: any
 
 const fetch = async (_: any, _1: any, options: FetchOptions) => {
     const { dateString, createBalances } = options;
@@ -31,26 +25,29 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
     const dailySupplySideRevenue = createBalances();
     const dailyRevenue = createBalances();
 
-    if (!data)
-        data = fetchURL("https://platform.data.defuse.org/api/public/fees")
+    if (!feeData)
+        feeData = fetchURL("https://revenue.near.org/api/total-fees")
+    if (!revenueData)
+        revenueData = fetchURL("https://revenue.near.org/api/revenue")
     // Fetch fee data for the specific period using query parameters
-    const response: APIResponse = await data
+    const feeResponse = await feeData
+    const revenueResponse = await revenueData
 
-    if (!response || !response.fees || !Array.isArray(response.fees))
+    if (!feeResponse || !feeResponse.rows || !Array.isArray(feeResponse.rows) || !revenueResponse || !revenueResponse.rows || !Array.isArray(revenueResponse.rows))
         throw new Error("Invalid API response format");
-    const item = response.fees.find(feeEntry => feeEntry.date_at === dateString);
-    if (!item)
+    const feeItem = feeResponse.rows.find(feeEntry => feeEntry.dt === dateString);
+    const revenueItem = revenueResponse.rows.find(revenueEntry => revenueEntry.dt === dateString);
+    if (!feeItem)
         throw new Error(`No fee data found for date: ${dateString}`);
 
-    dailyFees.addUSDValue(item.fee);
-    if (dateString >= feeSwitchDate) {
-        dailySupplySideRevenue.addUSDValue(item.fee / 2)
-        dailyRevenue.addUSDValue(item.fee / 2)
-    }
-    else {
-        dailySupplySideRevenue.addUSDValue(item.fee)
-    }
-    return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue};
+    const { fees_usd, near_price_usd } = feeItem
+    const { daily_near } = revenueItem || { daily_near: 0 } //empty revenue entries are not included in the response
+    const revenue_usd = daily_near * near_price_usd;
+    dailyFees.addUSDValue(fees_usd);
+    dailyRevenue.addUSDValue(revenue_usd);
+    dailySupplySideRevenue.addUSDValue(fees_usd - revenue_usd);
+
+    return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -63,9 +60,9 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Fees: "Total fees collected by NEAR Intents platform.",
-        SupplySideRevenue: "Distribution fees set by NEAR Intents partners, split 50/50 with the protocol since 2026-02-23",
-        Revenue: "The protocol collects half of the distribution fees since 2026-02-23",
-        ProtocolRevenue: "The protocol collects half of the distribution fees since 2026-02-23"
+        SupplySideRevenue: "Part of fees recieved by NEAR Intents' partners.",
+        Revenue: "Revenue collected by NEAR Intents platform.",
+        ProtocolRevenue: "All the revenue goes to the protocol treasury."
     },
 };
 

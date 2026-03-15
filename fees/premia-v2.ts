@@ -119,6 +119,7 @@ async function getV2Data(url: string, timestamp: number) {
 
 const adapter: SimpleAdapter = {
   methodology: {
+    Fees: "Taker fees paid by traders on each trade, up to 3% of the option premium.",
     UserFees:
       "Traders pay taker fees on each trade up to 3% of the option premium.",
     ProtocolRevenue: "The protocol collects 20% of the taker fees.",

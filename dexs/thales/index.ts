@@ -93,8 +93,7 @@ export async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   dailyFees.addBalances(dailyLPPerformanceFee);
 
   return {
-    dailyNotionalVolume,
-    dailyPremiumVolume,
+    dailyVolume: dailyPremiumVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,

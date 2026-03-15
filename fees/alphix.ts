@@ -3,45 +3,58 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const POOL_MANAGER = '0x498581ff718922c3f8e6a244956af099b2652b2b'
 const SWAP_TOPIC = '0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f'
 
-const TOKENS = {
-  WETH: '0x4200000000000000000000000000000000000006',
-  USDC: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
-  USDS: '0x820c137fa70c8691f0e44dc420a5e53c168921dc',
+type ChainConfig = {
+  poolManager: string
+  pools: { id: string; token: string }[]
+  hooks: string[]
+  wrappers: { address: string; underlying: string }[]
 }
 
-const POOLS = [
-  { id: '0x71c06960eee8003ebf3f869caa480d7032c7088850d951f04de5b46d86ada017', token: TOKENS.WETH },
-  { id: '0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71', token: TOKENS.USDS },
-]
-
-const HOOKS = [
-  '0x831cfdf7c0e194f5369f204b3dd2481b843d60c0',
-  '0x0e4b892df7c5bcf5010faf4aa106074e555660c0',
-]
-
-// Wrappers are shared across pools — yields are computed once, not per-pool
-const WRAPPERS = [
-  { address: '0xf62bca61Fe33f166791c3c6989b0929CCaaDA5B2', underlying: TOKENS.USDC },
-  { address: '0x59f5245129faBEde6FC4243518B74b1DF78A2D9E', underlying: TOKENS.WETH },
-  { address: '0xc7b9A2146E9c7F081C84D20626641fc59F3d4cab', underlying: TOKENS.USDS },
-]
+const config: Record<string, ChainConfig> = {
+  [CHAIN.BASE]: {
+    poolManager: '0x498581ff718922c3f8e6a244956af099b2652b2b',
+    pools: [
+      { id: '0x71c06960eee8003ebf3f869caa480d7032c7088850d951f04de5b46d86ada017', token: '0x4200000000000000000000000000000000000006' }, // WETH
+      { id: '0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71', token: '0x820c137fa70c8691f0e44dc420a5e53c168921dc' }, // USDS
+    ],
+    hooks: [
+      '0x831cfdf7c0e194f5369f204b3dd2481b843d60c0',
+      '0x0e4b892df7c5bcf5010faf4aa106074e555660c0',
+    ],
+    wrappers: [
+      { address: '0xf62bca61Fe33f166791c3c6989b0929CCaaDA5B2', underlying: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' }, // USDC
+      { address: '0x59f5245129faBEde6FC4243518B74b1DF78A2D9E', underlying: '0x4200000000000000000000000000000000000006' }, // WETH
+      { address: '0xc7b9A2146E9c7F081C84D20626641fc59F3d4cab', underlying: '0x820c137fa70c8691f0e44dc420a5e53c168921dc' }, // USDS
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32',
+    pools: [
+      { id: '0xe2c28a234aadc40f115dcc56b70a759d02a372db90dfeed19048392d942ee286', token: '0xaf88d065e77c8cc2239327c5edb3a432268e5831' }, // USDC
+    ],
+    hooks: [
+      '0x5e645c3d580976ca9e3fe77525d954e73a0ce0c0',
+    ],
+    wrappers: [
+      { address: '0x968eD10776AC144308ae4160E2F5017A6999126C', underlying: '0xaf88d065e77c8cc2239327c5edb3a432268e5831' }, // USDC
+      { address: '0x7d1613B33e0d0E5c5707287b148CAdb3590e702a', underlying: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9' }, // USDT
+    ],
+  },
+}
 
 function decodeInt128(hex: string): bigint {
   const val = BigInt(hex)
   return val >= (1n << 127n) ? val - (1n << 128n) : val
 }
 
-// Returns lending yield per underlying token across all hooks
-// Wrappers are shared between pools, so we sum across hooks but compute once globally
-async function calculateLendingYield(fromApi: any, toApi: any): Promise<Record<string, number>> {
+async function calculateLendingYield(fromApi: any, toApi: any, chainCfg: ChainConfig): Promise<Record<string, number>> {
   const yieldByToken: Record<string, number> = {}
   const oneShare = (10n ** 18n).toString()
 
-  for (const wrapper of WRAPPERS) {
-    for (const hook of HOOKS) {
+  for (const wrapper of chainCfg.wrappers) {
+    for (const hook of chainCfg.hooks) {
       const sharesEnd = await toApi.call({ abi: 'erc20:balanceOf', target: wrapper.address, params: [hook] })
       if (BigInt(sharesEnd) === 0n) continue
 
@@ -68,15 +81,16 @@ async function calculateLendingYield(fromApi: any, toApi: any): Promise<Record<s
 }
 
 async function fetch(options: FetchOptions) {
+  const chainCfg = config[options.chain]
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
 
   // 1. Swap fees from pools
-  for (const pool of POOLS) {
+  for (const pool of chainCfg.pools) {
     const logs = await sdk.getEventLogs({
       chain: options.chain,
-      target: POOL_MANAGER,
+      target: chainCfg.poolManager,
       fromBlock: Number(options.fromApi.block),
       toBlock: Number(options.toApi.block),
       topics: [SWAP_TOPIC, pool.id],
@@ -96,17 +110,15 @@ async function fetch(options: FetchOptions) {
   }
 
   // 2. Lending yields (computed once — wrappers are shared across pools)
-  const yieldByToken = await calculateLendingYield(options.fromApi, options.toApi)
+  const yieldByToken = await calculateLendingYield(options.fromApi, options.toApi, chainCfg)
 
   for (const [token, yieldTokens] of Object.entries(yieldByToken)) {
     if (yieldTokens <= 0) continue
-    const decimals = token.toLowerCase() === TOKENS.USDC.toLowerCase() ? 6 : 18
-    const rawAmount = Math.floor(yieldTokens * (10 ** decimals))
+    const decimals = await options.toApi.call({ abi: 'function decimals() view returns (uint8)', target: token })
+    const rawAmount = Math.floor(yieldTokens * (10 ** Number(decimals)))
 
     dailyFees.add(token, rawAmount, METRIC.ASSETS_YIELDS)
-    // 70% yields to LPs
     dailySupplySideRevenue.add(token, Math.floor(rawAmount * 0.7), METRIC.ASSETS_YIELDS)
-    // 30% yields to protocol
     dailyProtocolRevenue.add(token, Math.floor(rawAmount * 0.3), METRIC.ASSETS_YIELDS)
   }
 
@@ -121,11 +133,14 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
       start: '2026-02-10',
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2026-03-07',
     },
   },
   methodology: {

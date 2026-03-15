@@ -23,11 +23,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyUserFees: dailyFees }
 }
 
+// https://docs.emblem.wiki/migratefun/project-guide
 const methodology = {
   Fees: "Platform fees is 3.75% of total liquidity migrated.",
   UserFees: "Platform fees is 3.75% of total liquidity migrated.",
-  Revenue: "3.75% of total liquidity migrated.",
-  ProtocolRevenue: "3.75% of total liquidity migrated.",
+  Revenue: "5% of total liquidity migrated.",
+  ProtocolRevenue: "5% of total liquidity migrated.",
 }
 
 const adapter: SimpleAdapter = {

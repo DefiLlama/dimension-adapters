@@ -95,7 +95,8 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: getFetch(chain),
-        start: startTimestamps[chain]
+        start: startTimestamps[chain],
+        deadFrom: HACK_TIMESTAMP
       }
     }
   }, {}),

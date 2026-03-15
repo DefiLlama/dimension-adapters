@@ -41,7 +41,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     operationName: 'GetAssets'
   })).data.assets;
 
-  const assetInfo = {};
+  const assetInfo: any = {};
   for (const asset of assetsList) {
     const address = asset.type == 'native' ? 'native' : 'jetton:' + asset.address;
     assetInfo[address] = {
@@ -88,6 +88,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 }
 
 const methodology = {
+  Fees: "Swap fees paid by users, ranging from 0.1% to 1% depending on the pool.",
   UserFees: "User pays fee on each swap (depends on pool, 0.1% - 1%).",
   Revenue: "Protocol receives 20% of fees, it is distributed among DUST stakers.",
   SupplySideRevenue: "80% of user fees are distributed among LPs.",
