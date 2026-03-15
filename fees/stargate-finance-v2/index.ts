@@ -116,17 +116,18 @@ async function getPoolFees(
   contracts: string[]
 ): Promise<FetchResultV2> {
   const dailyFees = createBalances();
-  const seiWithdrawals = startTimestamp >= 1769299199 && endTimestamp <= 1769385600
-    ? [[{amountSD: 231975432521n}], []] // hardcode the withdrawal on 2026-01-26 because getLogs is disabled for sei
-    : contracts.map(() => [])
-
+  
+  // skip sei on 2026-01-26 because there's a withdrawal and getLogs is disabled for sei
+  if (api.chain === CHAIN.SEI && startTimestamp >= 1769299199 && endTimestamp <= 1769385600) {
+    return { dailyFees, dailyRevenue: dailyFees }
+  }
 
   const [assets, prevFees, currFees, withdrawals] = await Promise.all([
     api.multiCall({ calls: contracts, abi: abi.token, permitFailure: true }),
     fromApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
     toApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
     api.chain === CHAIN.SEI
-       ? seiWithdrawals
+       ? contracts.map(() => [])
        : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
   ]);
   assets.forEach((asset, index) => {
