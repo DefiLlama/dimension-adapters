@@ -44,8 +44,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     queryDuneSql(options, queryV2),
   ]);
 
-  const revenueV1 = resultsV1[0]?.revenue ?? 0;
-  const revenueV2 = resultsV2[0]?.revenue ?? 0;
+  const revenueV1 = Number(resultsV1[0]?.revenue ?? 0);
+  const revenueV2 = Number(resultsV2[0]?.revenue ?? 0);
   const dailyRevenue = revenueV1 + revenueV2;
 
   return {
