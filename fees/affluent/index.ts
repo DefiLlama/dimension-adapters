@@ -35,11 +35,14 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
     const histories = json?.data?.dailyHistories ?? [];
 
-    const sortedHistories = [...histories].sort((a, b) => a.timestamp - b.timestamp);
-
-    const dayData =
-        sortedHistories.find((item) => item.timestamp === options.endTimestamp) ??
-        sortedHistories.filter((item) => item.timestamp <= options.endTimestamp).at(-1);
+    const dayData = histories.reduce<typeof histories[number] | undefined>((best, item) => {
+        if (item.timestamp <= options.endTimestamp) {
+            if (!best || item.timestamp > best.timestamp) {
+                return item;
+            }
+        }
+        return best;
+    }, undefined);
 
     if (!dayData) {
         return {
