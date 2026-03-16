@@ -5,8 +5,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const API_URL = "https://api.affluent.org/v2/api/protocol/financials";
 
-const toUsd = (value: any) => Number(value ?? 0);
-
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
@@ -24,7 +22,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     }
 
     const dayData = histories.reduce((best: any, item: any) => {
-        if (item.timestamp <= options.endTimestamp) {
+        if (item.timestamp >= options.startTimestamp && item.timestamp < options.endTimestamp) {
             if (!best || item.timestamp > best.timestamp) {
                 return item;
             }
@@ -35,17 +33,17 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (!dayData)
         throw new Error(`No data found for date ${options.dateString}`);
 
-    dailyFees.addUSDValue(toUsd(dayData.grossRevenueBorrowInterest), METRIC.BORROW_INTEREST);
-    dailyFees.addUSDValue(toUsd(dayData.grossRevenueVaultYield), METRIC.ASSETS_YIELDS);
-    dailyFees.addUSDValue(toUsd(dayData.grossRevenueLiquidationFee), METRIC.LIQUIDATION_FEES);
+    dailyFees.addUSDValue(dayData.grossRevenueBorrowInterest, METRIC.BORROW_INTEREST);
+    dailyFees.addUSDValue(dayData.grossRevenueVaultYield, METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(dayData.grossRevenueLiquidationFee, METRIC.LIQUIDATION_FEES);
 
-    dailySupplySideRevenue.addUSDValue(toUsd(dayData.costOfRevenueBorrowInterestPaidToLender), METRIC.BORROW_INTEREST);
-    dailySupplySideRevenue.addUSDValue(toUsd(dayData.costOfRevenueVaultYieldPaidToDepositor), METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.addUSDValue(toUsd(dayData.costOfRevenueVaultLiquidationFeePaidToLiquidator), METRIC.LIQUIDATION_FEES);
+    dailySupplySideRevenue.addUSDValue(dayData.costOfRevenueBorrowInterestPaidToLender, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addUSDValue(dayData.costOfRevenueVaultYieldPaidToDepositor, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.addUSDValue(dayData.costOfRevenueVaultLiquidationFeePaidToLiquidator, METRIC.LIQUIDATION_FEES);
 
-    dailyRevenue.addUSDValue(toUsd(dayData.grossRevenueBorrowInterest) - toUsd(dayData.costOfRevenueBorrowInterestPaidToLender), METRIC.BORROW_INTEREST);
-    dailyRevenue.addUSDValue(toUsd(dayData.grossRevenueVaultYield) - toUsd(dayData.costOfRevenueVaultYieldPaidToDepositor), METRIC.ASSETS_YIELDS);
-    dailyRevenue.addUSDValue(toUsd(dayData.grossRevenueLiquidationFee) - toUsd(dayData.costOfRevenueVaultLiquidationFeePaidToLiquidator), METRIC.LIQUIDATION_FEES);
+    dailyRevenue.addUSDValue(dayData.grossRevenueBorrowInterest - dayData.costOfRevenueBorrowInterestPaidToLender, METRIC.BORROW_INTEREST);
+    dailyRevenue.addUSDValue(dayData.grossRevenueVaultYield - dayData.costOfRevenueVaultYieldPaidToDepositor, METRIC.ASSETS_YIELDS);
+    dailyRevenue.addUSDValue(dayData.grossRevenueLiquidationFee - dayData.costOfRevenueVaultLiquidationFeePaidToLiquidator, METRIC.LIQUIDATION_FEES);
 
     return {
         dailyFees,
