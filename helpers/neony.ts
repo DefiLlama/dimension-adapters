@@ -79,8 +79,8 @@ function parseResponse(response: any, params: NeonyStatsApiQueryParams): NeonySt
 export async function fetchNeonyStats(options: FetchOptions): Promise<NeonyStats> {
   const params: NeonyStatsApiQueryParams = {
     // DefiLlama daily runs start one second before the actual UTC day boundary.
-    olderTimestampMs: (options.startTimestamp + 1) * 1000,
-    newerTimestampMs: options.endTimestamp * 1000 - 1
+    olderTimestampMs: (options.startOfDay) * 1000,
+    newerTimestampMs: (options.startOfDay + (24 * 60 * 60) ) * 1000 - 1
   }
   const query = new URLSearchParams({
     olderTimestampMs: String(params.olderTimestampMs),
