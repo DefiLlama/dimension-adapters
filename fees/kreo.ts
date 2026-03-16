@@ -1,15 +1,15 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import ADDRESSES from "../helpers/coreAssets.json";
 import { addTokensReceived } from "../helpers/token";
 
 const FEE_WALLET = "0x96EE5C63d51e2dB627a5597BfE76da26EF6800D9";
+const USDC_E_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({
     options,
     target: FEE_WALLET,
-    token: ADDRESSES.polygon.USDC,
+    token: USDC_E_POLYGON,
   });
 
   return {
