@@ -27,6 +27,7 @@ const fetch = getUniV2LogAdapter({
 });
 
 const methodology = {
+  Fees: "0.25% swap fee paid by users on each trade.",
   UserFees: "User pays 0.25% fees on each swap.",
   ProtocolRevenue: "No protocol revenue.",
   SupplySideRevenue: "LPs have no revenue.",

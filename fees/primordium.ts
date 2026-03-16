@@ -21,7 +21,7 @@ const fetch = async (options: FetchOptions) => {
   const terminalFees = await getSolanaReceived({ options, targets: TrojanTerminalFeeWallets })
 
   dailyFees.addBalances(botFees, 'Trojan Bot Fees')
-  dailyFees.addBalances(terminalFees, 'Trojan Termial Fees')
+  dailyFees.addBalances(terminalFees, 'Trojan Terminal Fees')
   
   // const query = `
   //   WITH
