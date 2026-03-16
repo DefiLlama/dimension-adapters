@@ -22,12 +22,13 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       SELECT
         tx_id,
         outer_instruction_index,
-        inner_instruction_index
+        CASE 
+            WHEN TO_HEX(data) LIKE '66063D1201DAEBEA%' THEN 1 ELSE 2 END as inner_instruction_index
       FROM solana.instruction_calls
       WHERE executing_account = '${PROGRAM_ID}'
         AND (
-            TO_HEX(data) LIKE '66063d1201daebea%'  -- buy discriminator
-            OR TO_HEX(data) LIKE '33e685a4d2114a73%'  -- sell discriminator
+            TO_HEX(data) LIKE '66063D1201DAEBEA%' -- buy discriminator
+            OR TO_HEX(data) LIKE '33E685A4017F83AD%' -- sell discriminator
         )
         AND TIME_RANGE
         AND tx_success = true
@@ -39,8 +40,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       ON t.tx_id = s.tx_id
       AND t.outer_instruction_index = s.outer_instruction_index
       AND t.inner_instruction_index = s.inner_instruction_index
-    WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-      AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
+    WHERE TIME_RANGE
       AND t.amount_usd > 0
   `;
 
