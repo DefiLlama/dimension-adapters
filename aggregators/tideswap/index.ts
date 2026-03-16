@@ -24,11 +24,19 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.add(token, BigInt(amount) * BigInt(10000) / BigInt(FEE_BPS));
   }
 
-  return { dailyVolume };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 const methodology = {
   Volume: "Aggregated swap volume on Ink L2, back-calculated from the 0.05% integrator fee collected by the TideSwap treasury on 0x-routed swaps.",
+  Fees: "TideSwap charges a 0.05% integrator fee on swaps routed through 0x. LI.FI-routed swaps have no TideSwap fee.",
+  Revenue: "100% of fees go to the TideSwap treasury (Gnosis Safe).",
+  ProtocolRevenue: "All revenue is protocol revenue.",
 };
 
 const adapter: SimpleAdapter = {
