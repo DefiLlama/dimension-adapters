@@ -27,19 +27,18 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+const methodology = {
+  Volume: "Aggregated swap volume on Ink L2, back-calculated from the 0.05% integrator fee collected by the TideSwap treasury on 0x-routed swaps.",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.INK]: {
-      fetch,
-      start: "2025-02-22",
-      meta: {
-        methodology: {
-          Volume: "Aggregated swap volume on Ink L2, back-calculated from the 0.05% integrator fee collected by the TideSwap treasury on 0x-routed swaps.",
-        },
-      },
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.INK],
+  fetch,
+  start: "2025-02-22",
+  methodology,
+  doublecounted: true
 };
 
 export default adapter;
