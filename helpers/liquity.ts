@@ -92,8 +92,7 @@ export const getLiquityV2LogAdapter: any = ({
 
 type LiquityV2Config = {
   collateralRegistry: string,
-  stableTokenAbi?: string,
-  
+  stableTokenAbi?: string,  
   // borrow interests are share to stability pool and Protocol Incentivized Liquidity
   stabilityPoolRatio?: number;
   revenueRatio?: number;
