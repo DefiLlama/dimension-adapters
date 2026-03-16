@@ -6,6 +6,7 @@ const fetch = async () => {
   const exchangeInfo = (await httpGet(`https://api.sui-prod.bluefin.io/v1/exchange/info`))
   let volume = 0;
   for(const market of exchangeInfo.markets){
+    if(market.status !== "ACTIVE") continue;
     const {quoteVolume24hrE9} = (await httpGet(`https://api.sui-prod.bluefin.io/v1/exchange/ticker?symbol=${market.symbol}`))
     volume += Number(quoteVolume24hrE9)
   }
