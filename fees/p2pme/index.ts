@@ -44,7 +44,7 @@ const prefetch = async (options: FetchOptions) => {
       ) / 1000000 AS fiat_amount
     FROM all_orders
 
-    UNION
+    UNION ALL
 
     SELECT
       'base' AS chain,
