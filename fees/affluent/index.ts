@@ -5,6 +5,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const API_URL = "https://api.affluent.org/v2/api/protocol/financials";
 
+const toUsd = (value: any) => Number(value ?? 0);
+
 type DailyHistory = {
     timestamp: number;
     grossRevenueBorrowInterest: number;
@@ -52,15 +54,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         };
     }
 
-    dailyFees.addUSDValue(dayData.grossRevenueBorrowInterest, METRIC.BORROW_INTEREST);
-    dailyFees.addUSDValue(dayData.grossRevenueVaultYield, METRIC.ASSETS_YIELDS);
-    dailyFees.addUSDValue(dayData.grossRevenueLiquidationFee, METRIC.LIQUIDATION_FEES);
+    dailyFees.addUSDValue(toUsd(dayData.grossRevenueBorrowInterest), METRIC.BORROW_INTEREST);
+    dailyFees.addUSDValue(toUsd(dayData.grossRevenueVaultYield), METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(toUsd(dayData.grossRevenueLiquidationFee), METRIC.LIQUIDATION_FEES);
 
-    dailySupplySideRevenue.addUSDValue(dayData.costOfRevenueBorrowInterestPaidToLender, METRIC.BORROW_INTEREST);
-    dailySupplySideRevenue.addUSDValue(dayData.costOfRevenueVaultYieldPaidToDepositor, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.addUSDValue(dayData.costOfRevenueVaultLiquidationFeePaidToLiquidator, METRIC.LIQUIDATION_FEES);
+    dailySupplySideRevenue.addUSDValue(toUsd(dayData.costOfRevenueBorrowInterestPaidToLender), METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addUSDValue(toUsd(dayData.costOfRevenueVaultYieldPaidToDepositor), METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.addUSDValue(toUsd(dayData.costOfRevenueVaultLiquidationFeePaidToLiquidator), METRIC.LIQUIDATION_FEES);
 
-    dailyRevenue.addUSDValue(dayData.grossProfit);
+    dailyRevenue.addUSDValue(toUsd(dayData.grossProfit));
 
     return {
         dailyFees,
