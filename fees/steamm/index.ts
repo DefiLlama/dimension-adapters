@@ -8,13 +8,13 @@ const methodology = {
     "The portion of the total fees going to the STEAMM treasury",
 };
 
-const suilendPoolsURL = () => `https://api.suilend.fi/steamm/pools/all`;
+const suilendPoolsURL = () => `https://global.suilend.fi/steamm/pools/all`;
 const suilendPoolHistoricalURL = (
   poolId: string,
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://api.suilend.fi/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
+  `https://global.suilend.fi/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
 
 interface PoolInfo {
   id: string;

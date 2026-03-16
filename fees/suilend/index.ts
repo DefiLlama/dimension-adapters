@@ -6,7 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
-const suilendFeesURL = 'https://api.suilend.fi/stats/fees';
+const suilendFeesURL = 'https://global.suilend.fi/stats/fees';
 
 interface DailyStats {
   borrowFees: number;

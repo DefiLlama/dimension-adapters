@@ -8,7 +8,7 @@ interface FeeStats {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const suilendFeesURL = 'https://api.suilend.fi/springsui/stats/fees';
+  const suilendFeesURL = 'https://global.suilend.fi/springsui/stats/fees';
   const url = `${suilendFeesURL}?endTimestamp=${options.endTimestamp}&startTimestamp=${options.startTimestamp}`
   const stats: FeeStats = (await fetchURL(url));
   const stakerFees = Number(stats.ecosystemStakerRevenue);
