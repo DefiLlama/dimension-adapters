@@ -31,7 +31,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.POLYGON],
-  start: "2026-03-13",
+  start: "2026-03-08",
   methodology,
   fetch,
 };
