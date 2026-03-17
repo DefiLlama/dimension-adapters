@@ -139,11 +139,11 @@ const adapter: SimpleAdapter = {
       meta: {
         methodology: {
           ActiveUsers:
-            "Distinct wallet addresses that earned tokens by participating in a Photon campaign on this day.",
+            "Distinct wallet addresses that earned tokens by participating in a Photon campaign on that day.",
           TransactionsCount:
-            "Total number of campaign participation transactions on this day.",
+            "Total number of campaign participation transactions on that day.",
           NewUsers:
-            "Number of new wallet addresses registered in the Photon ecosystem on this day (UserRegisteredEvent).",
+            "Number of new wallet addresses registered in the Photon ecosystem on that day.",
         },
       },
     },
