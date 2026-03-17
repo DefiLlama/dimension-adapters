@@ -87,7 +87,7 @@ const adapter: Adapter = {
     Fees: {
       [SuiLendMetrics.SteammSwapFees]: 'Total swap fees paid by users',
     },
-    Revneue: {
+    Revenue: {
       [SuiLendMetrics.SteammSwapFeesToProtocol]: 'The portion of the total fees going to the STEAMM treasury',
     },
     SupplySideRevenue: {
