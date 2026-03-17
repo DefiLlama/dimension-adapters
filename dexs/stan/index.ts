@@ -1,7 +1,8 @@
 import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { APTOS_RPC, getResources, getVersionFromTimestamp, getAptosHeaders } from "../../helpers/aptos";
+import { APTOS_RPC, getResources, getVersionFromTimestamp } from "../../helpers/aptos";
 import { httpGet } from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
 
 const ADMIN_ADDRESS   = "0x03f1afa81351354a6bd71fce4c0546fe07d4ec5551ef75f8578b2e1d98e15206";
 const CAMPAIGN_MODULE = "0xa65b211020a1583496fa5db5bbf38150d0ca40858962a2d991c3010d4301a4d5";
@@ -10,6 +11,18 @@ const ADMIN_STORE_TYPE           = `${CAMPAIGN_MODULE}::PhotonCampaignManagerMod
 const CAMPAIGN_STORE_EVENTS_TYPE = `${CAMPAIGN_MODULE}::PhotonCampaignManagerModule::CampaignStoreEvents`;
 
 const LIMIT = 25;
+const MAX_RETRIES = 3;
+
+const httpGetWithRetry = async (url: string): Promise<any> => {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await httpGet(url);
+    } catch (e: any) {
+      if (attempt === MAX_RETRIES - 1) throw e;
+      await sleep(1000 * 2 ** attempt);
+    }
+  }
+};
 
 const fetchEventsInVersionRange = async (
   addr: string,
@@ -18,15 +31,13 @@ const fetchEventsInVersionRange = async (
   fromVersion: number,
   toVersion: number,
 ): Promise<number> => {
-  const headers = getAptosHeaders();
   let count = 0;
   let end = counter;
 
   while (end > 0) {
     const start = Math.max(end - LIMIT, 0);
-    const events: any[] = await httpGet(
+    const events: any[] = await httpGetWithRetry(
       `${APTOS_RPC}/v1/accounts/${addr}/events/${creationNum}?start=${start}&limit=${end - start}`,
-      { headers },
     );
 
     if (!events.length) break;
