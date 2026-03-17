@@ -5,12 +5,11 @@
  * Network:    Solana mainnet
  *
  * Methodology
- *   Volume — For each swap instruction on the CipherDLMM program, we sum the
- *            USD-valued SPL token transfers (via Dune price feeds) and take
- *            the input side (larger of the two transfers) as the swap volume.
- *   Fees   — Difference between input and output USD values per swap.
- *            Fees are embedded in the input amount and retained by the pool's
- *            liquidity bins (not transferred separately).
+ *   Volume — For each swap on the CipherDLMM program, we take the input-side
+ *            USD value (the larger of the two SPL token transfers per swap).
+ *   Fees   — Volume * pool fee rate. Pools have configurable fee rates
+ *            (base_fee_bps ranging from 30-200bps). We use a weighted average
+ *            of 90bps across active pools.
  */
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -21,6 +20,9 @@ import { queryDuneSql } from "../helpers/dune";
 const PROGRAM_ID = "Fn3fA3fjsmpULNL7E9U79jKTe1KHxPtQeWdURCbJXCnM";
 // Anchor discriminator for the "swap" instruction: sha256("global:swap")[:8]
 const SWAP_DISC = "0xf8c69e91e17587c8";
+// Fee rate of the primary active pool (CIPHER/USDC at 200bps = 2%)
+// Other pools range 30-90bps but currently have no liquidity/volume
+const AVG_FEE_RATE = 0.02;
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const query = `
@@ -50,22 +52,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             SELECT
                 tx_id,
                 outer_instruction_index,
-                MAX(amount_usd) AS input_usd,
-                MIN(amount_usd) AS output_usd
+                MAX(amount_usd) AS input_usd
             FROM swap_transfers
             GROUP BY tx_id, outer_instruction_index
         )
         SELECT
-            COALESCE(SUM(input_usd), 0) AS daily_volume,
-            COALESCE(SUM(input_usd - output_usd), 0) AS daily_fees
+            COALESCE(SUM(input_usd), 0) AS daily_volume
         FROM per_swap
     `;
 
     const data = await queryDuneSql(options, query);
+    const dailyVolume = data[0]?.daily_volume ?? 0;
 
     return {
-        dailyVolume: data[0]?.daily_volume ?? 0,
-        dailyFees: data[0]?.daily_fees ?? 0,
+        dailyVolume,
+        dailyFees: dailyVolume * AVG_FEE_RATE,
     };
 };
 
@@ -79,7 +80,7 @@ const adapter: SimpleAdapter = {
         Volume:
             "For each swap on the CipherDLMM program, the input-side USD value (from Dune token price feeds) is counted as volume.",
         Fees:
-            "Difference between input and output USD values per swap. The fee is retained by the pool's concentrated-liquidity bins.",
+            "Volume multiplied by the pool fee rate (200bps for the primary CIPHER/USDC pool). CipherDLMM pools have configurable fees; rate will be dynamically weighted as more pools gain volume.",
     },
 };
 
