@@ -248,6 +248,20 @@ const protocols = {
     start: '2026-01-20',
     minContracts: 75
   }),
+  'nado': dailyNormalizedVolumeAdapter({
+    protocolName: 'nado',
+    chains: [CHAIN.INK],
+    start: '2026-01-20',
+    version: 1,
+    minContracts: 30
+  }),
+  'standx': dailyNormalizedVolumeAdapter({
+    protocolName: 'standx',
+    chains: [CHAIN.STANDX],
+    start: '2026-01-20',
+    version: 1,
+    minContracts: 4
+  }),
 } as const;
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);
