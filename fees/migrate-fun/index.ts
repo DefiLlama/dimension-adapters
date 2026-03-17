@@ -12,7 +12,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     FROM solana.assets.transfers
     WHERE to_address = '${treasuryAddress}'
       AND from_address != '${treasuryAddress}'
-      AND mint IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.SOL}')
+      AND mint IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.SOL}', 'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB')
       AND outer_program_id IN ('migK824DsBMp2eZXdhSBAWFS6PbvA6UN8DV15HfmstR')
       AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
       AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
