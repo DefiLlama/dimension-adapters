@@ -2,7 +2,7 @@ import * as sdk from '@defillama/sdk';
 import axios from 'axios';
 import { ethers } from "ethers";
 import { FetchOptions } from "../adapters/types";
-import { queryAllium } from './allium';
+import { queryAllium, getAlliumChain } from './allium';
 import { getCache, setCache } from "./cache";
 import { CHAIN } from './chains';
 import ADDRESSES from './coreAssets.json';
@@ -544,17 +544,6 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   return balances;
 }
 
-function getAlliumChain(chain: string): string {
-  switch(chain) {
-    case CHAIN.AVAX: return 'avalanche'
-    case CHAIN.ERA: return 'zksync';
-    case CHAIN.XDAI: return 'gnosis';
-    case CHAIN.ROOTSTOCK: return 'rootstock';
-    case CHAIN.WC: return 'worldchain';
-    case CHAIN.MANTA: return 'manta_pacific';
-    default: return chain
-  }
-}
 
 export async function getETHReceived({ options, balances, target, targets = [], notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[], notFromSenders?: string[] }) {
   if (!balances) balances = options.createBalances()
@@ -641,4 +630,119 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   const res = await queryAllium(query)
   balances.add(nullAddress, res[0].value)
   return balances
+}
+
+type GetEVMTokenTransfersParams = {
+  options: FetchOptions;
+  balances?: sdk.Balances;
+  toAddresses?: string[];
+  fromAddresses?: string[];
+  tokens?: string[];
+  txFromAddresses?: string[];
+  txToAddresses?: string[];
+  blacklistFromAddresses?: string[];
+  blacklistToAddresses?: string[];
+  blacklistTxFromAddresses?: string[];
+  blacklistTxToAddresses?: string[];
+}
+
+export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
+  const {
+    options,
+    balances: inputBalances,
+    toAddresses = [],
+    fromAddresses = [],
+    tokens = [],
+    txFromAddresses = [],
+    txToAddresses = [],
+    blacklistFromAddresses = [],
+    blacklistToAddresses = [],
+    blacklistTxFromAddresses = [],
+    blacklistTxToAddresses = [],
+  } = params;
+
+  const balances = inputBalances || options.createBalances();
+
+  if (!toAddresses.length) {
+    throw new Error('toAddresses is required');
+  }
+
+  const normalizeAddresses = (addrs: string[]) => 
+    [...new Set(addrs.map(a => a.toLowerCase()))];
+
+  const toAddrs = normalizeAddresses(toAddresses);
+  const fromAddrs = fromAddresses.length ? normalizeAddresses(fromAddresses) : [];
+  const tokenAddrs = tokens.length ? normalizeAddresses(tokens) : [];
+  const txFromAddrs = txFromAddresses.length ? normalizeAddresses(txFromAddresses) : [];
+  const txToAddrs = txToAddresses.length ? normalizeAddresses(txToAddresses) : [];
+  const blacklistFrom = blacklistFromAddresses.length ? normalizeAddresses(blacklistFromAddresses) : [];
+  const blacklistTo = blacklistToAddresses.length ? normalizeAddresses(blacklistToAddresses) : [];
+  const blacklistTxFrom = blacklistTxFromAddresses.length ? normalizeAddresses(blacklistTxFromAddresses) : [];
+  const blacklistTxTo = blacklistTxToAddresses.length ? normalizeAddresses(blacklistTxToAddresses) : [];
+
+  const formatList = (addrs: string[]) => 
+    '( ' + addrs.map(a => `'${a}'`).join(', ') + ' )';
+
+  const chainKey = getAlliumChain(options.chain);
+
+  let query = `
+    SELECT 
+      token_address as token,
+      SUM(raw_amount) as amount,
+      SUM(usd_amount) as amount_usd
+    FROM crosschain.assets.transfers
+    WHERE 
+    chain = '${chainKey}'
+    AND to_address IN ${formatList(toAddrs)}
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `;
+
+  if (fromAddrs.length) {
+    query += `\n    AND from_address IN ${formatList(fromAddrs)}`;
+  }
+
+  if (tokenAddrs.length) {
+    query += `\n    AND token_address IN ${formatList(tokenAddrs)}`;
+  }
+
+  if (txFromAddrs.length) {
+    query += `\n    AND transaction_from_address IN ${formatList(txFromAddrs)}`;
+  }
+
+  if (txToAddrs.length) {
+    query += `\n    AND transaction_to_address IN ${formatList(txToAddrs)}`;
+  }
+
+  if (blacklistFrom.length) {
+    query += `\n    AND from_address NOT IN ${formatList(blacklistFrom)}`;
+  }
+
+  if (blacklistTo.length) {
+    query += `\n    AND to_address NOT IN ${formatList(blacklistTo)}`;
+  }
+
+  if (blacklistTxFrom.length) {
+    query += `\n    AND transaction_from_address NOT IN ${formatList(blacklistTxFrom)}`;
+  }
+
+  if (blacklistTxTo.length) {
+    query += `\n    AND transaction_to_address NOT IN ${formatList(blacklistTxTo)}`;
+  }
+
+  query += `
+    GROUP BY token_address
+    ORDER BY amount_usd DESC`;
+
+  const results = await queryAllium(query);
+
+  results.forEach((row: { token: string; amount: string | number; amount_usd: string | number }) => {
+    const tokenAddress = row.token || nullAddress;
+    if (tokenAddress.toLowerCase() === nullAddress.toLowerCase()) {
+      balances.addGasToken(row.amount);
+    } else {
+      balances.add(tokenAddress, row.amount);
+    }
+  });
+
+  return balances;
 }
