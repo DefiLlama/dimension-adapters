@@ -65,6 +65,9 @@ const fetch = async (): Promise<FetchResult> => {
   let dailyVolume = 0;
 
   for (const ticker of [...tickers, ...dlmmTickers]) {
+    const baseVolume = Number(ticker.base_volume);
+    if (!Number.isFinite(baseVolume)) continue;
+
     const tokenContract = isStacksToken(ticker.base_currency)
       ? "null"
       : ticker.base_currency;
@@ -72,7 +75,7 @@ const fetch = async (): Promise<FetchResult> => {
     dailyVolume += getTokenDailyVolume({
       map: tokensPriceMap,
       tokenContract,
-      baseVolume: Number(ticker.base_volume),
+      baseVolume,
     });
   }
 
