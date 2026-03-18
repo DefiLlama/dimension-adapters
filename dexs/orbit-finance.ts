@@ -62,7 +62,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     `;
 
     const data = await queryDuneSql(options, query);
-    const dailyVolume = data[0]?.daily_volume ?? 0;
+    const dailyVolume = data[0].daily_volume;
 
     return {
         dailyVolume,
