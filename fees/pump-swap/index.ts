@@ -33,7 +33,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             FROM
                 pumpdotfun_solana.pump_amm_evt_sellevent
             WHERE
-                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time <= from_unixtime(${options.endTimestamp})
+                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
         ),
         buys AS (
             SELECT
@@ -45,7 +45,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
             FROM
                 pumpdotfun_solana.pump_amm_evt_buyevent
             WHERE
-                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time <= from_unixtime(${options.endTimestamp})
+                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
         ),
         pumpswap_trades AS (
             SELECT
