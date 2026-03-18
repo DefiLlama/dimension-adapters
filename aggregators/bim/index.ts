@@ -70,9 +70,9 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 };
 
 const adapter: SimpleAdapter = {
-    version: 2, //Bungee
+    version: 2,
     pullHourly: true,
-    doublecounted: true,
+    doublecounted: true, //Bungee
     adapter: fetchBimChains().reduce((acc, chain) => {
         return {
             ...acc,
