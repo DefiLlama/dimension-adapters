@@ -3,7 +3,7 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as ethers from "ethers";
-import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from '../lists';
+import { getDefaultDexTokensWhitelisted } from '../lists';
 import { formatAddress } from '../../utils/utils';
 
 const SocketGatewayAbis = {
@@ -193,7 +193,6 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
     }
   }
 
-  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
   if (params.swapVolume) {
     // manual swap
     if (SocketGatewayContracts[options.chain]) {
