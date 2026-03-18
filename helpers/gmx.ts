@@ -144,6 +144,7 @@ const breakdownMethodology = {
 export const gmxV1Exports = (config: IJSON<{
     vault: string,
     start: string,
+    deadFrom?: string,
     ProtocolRevenue?: number,
     SupplySideRevenue?: number,
     HoldersRevenue?: number,
@@ -155,7 +156,8 @@ export const gmxV1Exports = (config: IJSON<{
     exportObject[chain] = {
       fetch: getGmxV1LogAdapter(chainConfig),
       start: chainConfig.start,
+      deadFrom: chainConfig.deadFrom,
     }
   })
-  return { adapter: exportObject, version: 2, methodology, breakdownMethodology } as SimpleAdapter
+  return { adapter: exportObject, version: 2, methodology, breakdownMethodology, pullHourly: true, } as SimpleAdapter
 }

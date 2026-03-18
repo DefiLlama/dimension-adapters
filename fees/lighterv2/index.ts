@@ -7,8 +7,7 @@ import PromisePool from '@supercharge/promise-pool'
 const TREASURY_ACCOUNT_INDEX = 0
 const MAX_LOGS_PER_REQUEST = 100
 const BUYBACK_MARKET_INDEX = 2049
-const BUYBACK_TAKER_ASK = 0
-const MAX_LOG_OFFSET = 20000
+const MAX_LOG_OFFSET = 60000
 const API_BASE = 'https://mainnet.zklighter.elliot.ai/api/v1'
 const RATE_LIMIT_PER_MINUTE = 200
 
@@ -20,6 +19,8 @@ interface LogEntry {
       is_taker_ask: number
       price: string
       size: string
+      maker_account_index: string
+      taker_account_index: string
     }
   }
 }
@@ -44,10 +45,10 @@ interface OrderBookDetailsResponse {
   order_book_details: OrderBookDetail[]
 }
 
-/** Fetches LIT buyback USD value from treasury account trades within a time range
+/** Fetches LIT buyback USD value from treasury account trades within a time range.
  * https://apidocs.lighter.xyz/reference/get_accounts-param-logs
- * All trades from this account are LIT/USDC buybacks (market_index 2049)
- * Treasury is taker and buying when is_taker_ask = 0
+ * Buybacks occur on market_index 2049 (LIT/USDC). The treasury may act as
+ * taker (is_taker_ask=0, pre-Feb 2026) or maker (is_taker_ask=1, post-Feb 2026).
  */
 async function fetchBuybacks(startTimestamp: number, endTimestamp: number): Promise<number> {
   const startMs = startTimestamp * 1000
@@ -83,7 +84,12 @@ async function fetchBuybacks(startTimestamp: number, endTimestamp: number): Prom
       if (!trade) continue
 
       if (Number(trade.market_index) !== BUYBACK_MARKET_INDEX) continue
-      if (Number(trade.is_taker_ask) !== BUYBACK_TAKER_ASK) continue
+
+      const treasuryId = String(TREASURY_ACCOUNT_INDEX)
+      const treasuryIsBuying =
+        (Number(trade.is_taker_ask) === 0 && trade.taker_account_index === treasuryId) ||
+        (Number(trade.is_taker_ask) === 1 && trade.maker_account_index === treasuryId)
+      if (!treasuryIsBuying) continue
 
       const price = Number(trade.price)
       const size = Number(trade.size)
@@ -188,7 +194,7 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
   const tradingFees = totalMakerFee + totalTakerFee
 
   // Fetch buybacks from explorer API
-  const dailyBuybackUsd = await fetchBuybacks(options.startOfDay, options.endTimestamp)
+  const dailyBuybackUsd = await fetchBuybacks(options.startTimestamp, options.endTimestamp)
 
   // Create balances
   const dailyFees = options.createBalances()

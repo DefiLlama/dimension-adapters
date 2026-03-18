@@ -36,7 +36,7 @@ const adapter: Adapter = {
   start: '2021-08-10',
   pullHourly: true,
   methodology: {
-    Fees: 'All priority/boost ETH fees paid transactions by users.',
+    Fees: 'All priority/boost ETH fees paid by users for transactions.',
     Revenue: 'All fees go to Arbitrum protocol treasury.',
     ProtocolRevenue: 'All fees go to Arbitrum protocol treasury.',
   },

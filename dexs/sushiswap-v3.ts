@@ -141,7 +141,7 @@ v3[CHAIN.KAVA] = { fetch: getUniV3LogAdapter({ factory: '0x1e9b24073183d5c6b7ae5
 export default {
   version: 2,
   methodology: {
-    Fees: "Each pool charge between 0.01% to 1% fee",
+    Fees: "Each pool charges between 0.01% to 1% fee",
     UserFees: "Users pay between 0.01% to 1% fee",
     Revenue: "0 to 1/4 of the fee goes to treasury",
     HoldersRevenue: "Share of swap fee goes to xSUSHI stakers.",

@@ -25,7 +25,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const adapter: SimpleAdapter = {
 	methodology: {
     Fees: 'Ton4You fees are defined as the protocol service fee plus the referral reward that is paid out when a position is settled.',
-    UsersFees: 'Users payd service fee plus the referral reward a position is settled.',
+    UserFees: 'Users pay service fee plus the referral reward when a position is settled.',
 		Revenue: 'All fees are revenue.',
 	},
 	adapter: {

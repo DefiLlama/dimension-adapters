@@ -50,7 +50,7 @@ const methodology = {
   UserFees: 'All mint, burn, margin, liquidation and swap fees are collect',
   Revenue: 'Revenue is 55% of the total fees, which goes to Treasury and LVL/LGO stakers',
   HoldersRevenue: '20% of the total fees goes to LVL/LGO stakers',
-  TreasuryRevenue: '30% of the total fees goes to Treasury'
+  ProtocolRevenue: '30% of the total fees goes to Treasury'
 }
 
 const breakdownMethodology = {

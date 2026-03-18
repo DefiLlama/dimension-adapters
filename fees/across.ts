@@ -65,7 +65,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 const methodology = {
   Fees: "Total fees paid by users for bridge txs.",
   Revenue: "Protocol revenue is 0.",
-  dailyProtocolRevenue: "Across takes 0% fees paid by users.",
+  ProtocolRevenue: "Across takes 0% fees paid by users.",
   SupplySideRevenue: "Total fees paid by users are distributed to liquidity providers and relayers.",
 }
 

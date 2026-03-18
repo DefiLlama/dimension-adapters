@@ -99,6 +99,11 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   ],
   [CHAIN.BASE]: [
     "0xAb6363dA0C80cEF3Ae105Bd6241E30872355d021",
+    "0x3e4802f35A7B388EC78C2d3F6286Ddac2576F9fC",
+    "0x60221580574d7C439Ef909ab23D0D3E9598c3cd2",
+    "0x4160efDd66521483c22Cb98b57b87d1fDAfeaB07",
+    "0x1204ac8c5e70c044943301babd042f75d316bde2",
+    "0xc8f8c5a9dff280cde517d197c82ee10fcb46bb07",
   ],
 };
 

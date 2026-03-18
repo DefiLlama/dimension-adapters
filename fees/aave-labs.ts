@@ -27,7 +27,7 @@ const adapters: SimpleAdapter = {
     Fees: "All swap fees from Aave frontend using CowSwap integration.",
     UserFees: "Users pay 0.15%-0.25% per swap while swap tokens using Aave frontend.",
     Revenue: "All swap fees are collected as revenue.",
-    ProtocolRevenue: "All revenue are collected by Aave Labs.",
+    ProtocolRevenue: "All revenue is collected by Aave Labs.",
     HoldersRevenue: "No revenue share to AAVE token holders.",
   },
   breakdownMethodology: {

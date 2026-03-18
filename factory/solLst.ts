@@ -352,7 +352,7 @@ const configs: Record<string, SolLstConfig> = {
     stakingRevenue: { enabled: true, ratio: 0.1, metric: METRIC.STAKING_REWARDS },
     methodology: {
       Fees: "Staking rewards from staked SOL on binance staked solana",
-      Revenue: "Binance takes a 10% comission on the staking rewards",
+      Revenue: "Binance takes a 10% commission on the staking rewards",
       ProtocolRevenue: "Revenue going to treasury/team",
       SupplySideRevenue: "90% of the staking rewards go to stakers",
     },
@@ -511,7 +511,7 @@ const configs: Record<string, SolLstConfig> = {
       Fees: "Staking rewards from staked SOL on doublezero staked solana",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
-      HoldersRevenue: "No revenue share to 2Z token holers.",
+      HoldersRevenue: "No revenue share to 2Z token holders.",
     },
   }),
 

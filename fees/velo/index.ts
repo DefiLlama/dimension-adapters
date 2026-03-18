@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
     options,
   });
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapters: SimpleAdapter = {
@@ -36,5 +36,10 @@ const adapters: SimpleAdapter = {
     {}
   ),
   version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: "Swap fees paid by users",
+    Revenue: "All the fees are revenue"
+  }
 };
 export default adapters;

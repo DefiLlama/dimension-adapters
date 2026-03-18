@@ -134,6 +134,7 @@ async function fetch(options: FetchOptions) {
     dailyFees,
     dailyUserFees,
     dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0, // all fees to LPs
   }
 }
 
@@ -145,9 +146,14 @@ const adapter: SimpleAdapter = {
     Fees: 'Includes user swap fees from Uniswap v4 pool swaps and block auction fees from Angstrom bundles distributed to LPs.',
     UserFees: 'Swap fees paid by users on each trade.',
     SupplySideRevenue: 'All fees (swap fees + block auction rewards) are distributed to LPs.',
+    Revenue: 'No revenue collected by Angstrom',
   },
   breakdownMethodology: {
     Fees: {
+      'Swap Fees': 'Fee paid by the users on each swap',
+      'Auction Fees': 'Fees paid by the arbitrageurs who win the right to extract MEV from Angstrom bundles. These fees are distributed to LPs.',
+    },
+    SupplySideRevenue: {
       'Swap Fees': 'Fee paid by the users on each swap',
       'Auction Fees': 'Fees paid by the arbitrageurs who win the right to extract MEV from Angstrom bundles. These fees are distributed to LPs.',
     },

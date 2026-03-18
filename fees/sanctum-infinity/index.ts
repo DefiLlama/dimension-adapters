@@ -43,7 +43,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   );
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("solana", fees[0].daily_fees);
+  dailyFees.addCGToken("solana", fees[0].daily_fees || 0);
 
   return { dailyFees, dailyRevenue: dailyFees.clone(0.1), dailySupplySideRevenue: dailyFees.clone(0.9) };
 };

@@ -46,6 +46,9 @@ const blacklistedTokens = [
   
   // TARA
   '0x2F42b7d686ca3EffC69778B6ED8493A7787b4d6E',
+
+  // MGR
+  '0x3e4802f35A7B388EC78C2d3F6286Ddac2576F9fC',
 ]
 
 const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
@@ -72,6 +75,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
 }

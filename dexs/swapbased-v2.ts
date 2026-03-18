@@ -18,7 +18,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "LPs receive 0.25% of each swap.",
     ProtocolRevenue: "Treasury receives 0.05% of each swap.",
     Revenue: "All revenue generated comes from user fees.",
-    Fees: "All fees comes from the user.",
+    Fees: "All fees come from the user.",
   },
 };
 

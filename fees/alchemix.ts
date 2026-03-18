@@ -53,7 +53,7 @@ const fetch = async (options: FetchOptions) => {
 
     dailyFees.add(token, totalYield, METRIC.ASSETS_YIELDS);
     dailyRevenue.add(token, totalYield * 0.1, 'Yields To Protocol');
-    dailySupplySideRevenue.add(token, totalYield * 0.9, 'Yields To Seld-Repay Loans');
+    dailySupplySideRevenue.add(token, totalYield * 0.9, 'Yields To Self-Repay Loans');
   }
   
   return {
@@ -61,6 +61,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0, // no revenue share to ALCX
   }
 }
 
@@ -69,6 +70,7 @@ const methodology = {
   Revenue: "Revenue share from 10% yield collected.",
   SupplySideRevenue: "There are 90% yield are distibuted to users/borrowers.",
   ProtocolRevenue: "Revenue share from 10% yield collected.",
+  HoldersRevenue: "No revenue share to ALCX token holders.",
 }
 
 const breakdownMethodology = {
@@ -79,7 +81,7 @@ const breakdownMethodology = {
     'Yields To Protocol': 'Share of 10% all yields.',
   },
   SupplySideRevenue: {
-    'Yields To Seld-Repay Loans': 'Share of 90% all yields to borrowers for self-repay loans.',
+    'Yields To Self-Repay Loans': 'Share of 90% all yields to borrowers for self-repay loans.',
   },
   ProtocolRevenue: {
     'Yields To Protocol': 'Share of 10% all yields.',

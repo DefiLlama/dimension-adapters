@@ -19,8 +19,8 @@ async function run() {
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
-   for (const folderPath of ADAPTER_TYPES)
-     await addAdapterType(folderPath)
+  for (const folderPath of ADAPTER_TYPES)
+    await addAdapterType(folderPath)
 
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
@@ -55,7 +55,7 @@ async function run() {
     // Get all protocols from factory registry
     const factoryProtocols = listHelperProtocols();
 
-    for (const { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
+    for (let { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
       }
@@ -68,9 +68,11 @@ async function run() {
 
       try {
         // Import based on source path
+        if (sourcePath === 'users.ts')
+          sourcePath = 'users/list.ts' // special case for users factory which has named exports
         let helperModule = sourcePath.startsWith('factory/')
           ? await import(`../${sourcePath.replace('.ts', '')}`)
-          : await import(`../helpers/${factoryName}`);
+          : sourcePath.includes('/') ? await import(`../${sourcePath}`) : await import(`../helpers/${factoryName}`);
 
         if (exportName) helperModule = helperModule[exportName];
 
@@ -128,6 +130,9 @@ async function run() {
   }
 
   function addDeadAdapters() {
+
+    const defaultCommitHash = "1e8620166b5772c02e5e68e9dcd2cbb818724d69"  // /dead folder is deleted after this step
+
     for (const [adapterType, adapters] of Object.entries(deadAdapters)) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
@@ -135,6 +140,9 @@ async function run() {
       for (const [protocolName, adapterInfo] of Object.entries(adapters as any)) {
         if (dimensionsImports[adapterType][protocolName])
           continue;
+
+        (adapterInfo as any).commit = (adapterInfo as any).commit ?? defaultCommitHash
+
 
         dimensionsImports[adapterType][protocolName] = adapterInfo;
       }
@@ -161,6 +169,14 @@ function removeDotTs(s: string) {
 
 // Async version of getDirectories
 async function getDirectoriesAsync(source: string): Promise<string[]> {
-  const dirents = await readdir(source, { withFileTypes: true });
-  return dirents.map(dirent => dirent.name);
+  try {
+    const dirents = await readdir(source, { withFileTypes: true });
+    return dirents.map(dirent => dirent.name);
+  } catch (error) {
+    let sourceDir = source.split('/').pop() || source;
+    if (!['nft-volume', 'active-users', 'new-users'].includes(sourceDir)) {
+      console.log(`Error reading directories from ${sourceDir}:`, (error as any).message);
+    }
+    return [];
+  }
 }

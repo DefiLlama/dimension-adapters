@@ -29,6 +29,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         decimals
       FROM prices.minute
       WHERE timestamp >= from_unixtime(${options.startTimestamp})
+        AND timestamp < from_unixtime(${options.endTimestamp})
         AND blockchain = 'solana'
     ),
     volumes AS (
@@ -63,7 +64,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
   methodology: {
-    dailyVolume:
+    Volume:
       "Volume is calculated by summing the USD value of all trades routed through DFlow aggregator.",
   },
   isExpensiveAdapter: true,

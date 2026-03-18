@@ -50,7 +50,8 @@ const getLetsbonkPercentages = (timestamp: number) => {
         return { holdersRevenuePercentage: 0.43, protocolRevenuePercentage: 0.02, totalPercentage: 0.45 };
 };
 
-const fetchFromApi = async (timestamp: any, _b: any, options: FetchOptions) => {
+const fetchFromApi = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay;
     const data = await fetchURL("https://revenue.letsbonk.fun/api/revenue");
     const targetDate = new Date(getTimestampAtStartOfDayUTC(timestamp) * 1000);
     const targetDateStr = targetDate.toISOString().split('T')[0];
@@ -90,7 +91,8 @@ const fetchFromApi = async (timestamp: any, _b: any, options: FetchOptions) => {
     };
 }
 
-const fetchAllium = async (timestamp: any, _b: any, options: FetchOptions) => {
+const fetchAllium = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay;
     const platformFees = options.createBalances()
     const creatorFees = options.createBalances()
 
@@ -122,13 +124,15 @@ const fetchAllium = async (timestamp: any, _b: any, options: FetchOptions) => {
     };
 };
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
-    return timestamp >= 1755475200 ? fetchAllium(timestamp, _b, options) : fetchFromApi(timestamp, _b, options)
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay;
+    return timestamp >= 1755475200 ? fetchAllium(options) : fetchFromApi(options)
 }
 
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     start: '2025-04-27',
     chains: [CHAIN.SOLANA],

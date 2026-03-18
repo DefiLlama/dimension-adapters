@@ -121,7 +121,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   // Holders Revenue
   await addHoldersRevenue(options, dailyHoldersRevenue);
 
-  return { dailyFees, dailyBribesRevenue, dailyHoldersRevenue };
+  return {
+    dailyFees,
+    dailyBribesRevenue,
+    dailyRevenue: dailyHoldersRevenue,
+    dailyHoldersRevenue,
+  };
 }
 
 const breakdownMethodology = {
@@ -131,6 +136,9 @@ const breakdownMethodology = {
   },
   BribesRevenue: {
     "Bribes from external protocols": "Incentives paid by external protocols to veToken holders to direct emissions and liquidity to specific pools",
+  },
+  Revenue: {
+    "BGT staking rewards": "BGT rewards distributed through the Beradrome Reward Vault to token holders who are automatically staked",
   },
   HoldersRevenue: {
     "BGT staking rewards": "BGT rewards distributed through the Beradrome Reward Vault to token holders who are automatically staked",
@@ -146,6 +154,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: "BERO bonding curve fees from buy/sell, borrow fees from borrowing.",
     BribesRevenue: "Bribes from plugins distributed to holders.",
+    Revenue: "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
     HoldersRevenue: "BGT rewards distributed through Reward Vault to holders. Holders are automatically staked in Reward Vault.",
   },
   breakdownMethodology,

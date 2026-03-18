@@ -59,7 +59,7 @@ const adapter: Adapter = {
     Revenue: 'Share of borrow interest to Compound treasury.',
     ProtocolRevenue: 'Share of borrow interest to Compound treasury.',
     SupplySideRevenue: 'Total borrow interest paid to lenders.',
-    HoldersRevenueRatio: 'No revenue share for COMP token holders.',
+    HoldersRevenue: 'No revenue share for COMP token holders.',
   },
   breakdownMethodology: {
     Fees: {

@@ -9,18 +9,19 @@ import { CHAIN } from "../../helpers/chains"
 import { getSolanaReceived } from "../../helpers/token"
 import { METRIC } from "../../helpers/metrics"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const targets = [
-    '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
-    'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
-    'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
-    'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
-    'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
-    'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
-    'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
-    '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
-  ]
-  const receivedBalances = await getSolanaReceived({ options, targets, })
+export const JitoTipPaymentAddresses = [
+  '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
+  'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
+  'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
+  'ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49',
+  'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
+  'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
+  'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
+  '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
+]
+
+const fetch = async (options: FetchOptions) => {
+  const receivedBalances = await getSolanaReceived({ options, targets: JitoTipPaymentAddresses })
   const dailyFees = options.createBalances()
   dailyFees.addBalances(receivedBalances, METRIC.MEV_REWARDS)
   const dailySupplySideRevenue = dailyFees.clone(0.96);
@@ -34,16 +35,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2022-11-01',
   dependencies: [Dependencies.ALLIUM],
-  isExpensiveAdapter: true,
   methodology: {
     Fees: 'MEV/tips paid by users/searchers.',
     Revenue: 'Jito collects 4% from fees as revenue.',
-    SupplySideRevenue: 'There are 96% MEV reward are distributed to users/searchers.',
+    SupplySideRevenue: '96% of MEV rewards are distributed to users/searchers.',
     ProtocolRevenue: 'Jito collects 4% from fees as revenue.',
   },
   breakdownMethodology: {

@@ -53,7 +53,7 @@ const adapter: Adapter = {
     pullHourly: true,
     methodology: {
         Fees: "0x0 collects a 0.9% fee on deposits",
-        Revenue: "0x0 collects a 0.9% fee on deposits and distributed to token holders",
+        Revenue: "0x0 collects a 0.9% fee on deposits and distributes it to token holders",
         HoldersRevenue: "0x0 token holders collect a 0.9% fee on deposits",
     },
     breakdownMethodology,

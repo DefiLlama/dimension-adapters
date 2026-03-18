@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
   start: "2025-12-12",
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Fee: "Count SUI tokens collected from 12% of total SUI deployed on AUR boards",
+    Fees: "Count SUI tokens collected from 12% of total SUI deployed on AUR boards",
     Revenue: "All fees are revenue",
     HoldersRevenue:
       "11% of deployed SUI are used to buyback and add liquidity for AUR on DEXs.",

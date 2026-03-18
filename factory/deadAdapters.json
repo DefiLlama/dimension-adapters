@@ -441,9 +441,9 @@
     }
   },
   "bridge-aggregators": {
-    "teleswap": {
+    "teleswap-ton": {
       "modulePath": "-",
-      "codePath": "dead/bridge-aggregators/teleswap",
+      "codePath": "dead/bridge-aggregators/teleswap-ton",
       "module": {
         "deadFrom": "2025-04-16",
         "adapter": {

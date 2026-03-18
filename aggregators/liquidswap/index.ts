@@ -86,7 +86,7 @@ const adapter: SimpleAdapter = {
     Fees: "Fees are tracked from PositiveSlippageCaptured and FeeCaptured events.",
     Revenue: "Revenue represents the protocol share of captured positive slippage and fees.",
     ProtocolRevenue: "Revenue represents the protocol share of captured positive slippage and fees.",
-    SupplySideRevenue: "The share of captured positive slippage and fees to intergators.",
+    SupplySideRevenue: "The share of captured positive slippage and fees to integrators.",
     HoldersRevenue: 'No revenue shared to LIQD token holders',
   },
   breakdownMethodology: {

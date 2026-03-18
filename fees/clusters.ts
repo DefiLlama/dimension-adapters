@@ -24,8 +24,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: '2024-02-01',
   methodology: {
-    Fees: "Buy, registation fees paid by users.",
-    Revenue: "Buy, registation fees paid by users.",
+    Fees: "Buy, registration fees paid by users.",
+    Revenue: "Buy, registration fees paid by users.",
   },
   breakdownMethodology: {
     Fees: {

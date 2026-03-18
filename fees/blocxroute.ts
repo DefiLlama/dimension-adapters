@@ -95,7 +95,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
   methodology: {
-    Fees: "mev fees to blocXroute, substracted routed jito mev fees to prevent double counting",
+    Fees: "mev fees to blocXroute, subtracted routed jito mev fees to prevent double counting",
   }
 };
 

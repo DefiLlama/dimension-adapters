@@ -35,7 +35,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
     };
   }
 
-  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}`;
+  const endpointWithDate = `https://api.gateperps.com/api/v4/dex_futures/usdt/contract_stats/defillama?date=${options.dateString}&broken=aden`;
 
   const data = await fetchURL(endpointWithDate);
 
@@ -47,7 +47,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<any> {
   const dailyVolume = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(Number(data.fees), 'Builder fees');
+  dailyFees.addUSDValue(Number(data.fees), "Builder fees");
   dailyVolume.addUSDValue(Number(data.volume));
 
   return {
@@ -67,7 +67,8 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Builder fees": "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
+    "Builder fees":
+      "Fees collected from perpetual trading on Gate Layer Network, charged at 0.4 basis points on taker volume",
   },
 };
 
@@ -76,7 +77,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.GATE_LAYER, CHAIN.ORDERLY, CHAIN.OFF_CHAIN],
   doublecounted: true,
-  start: '2025-07-19',
+  start: "2025-07-19",
   methodology,
   breakdownMethodology,
 };

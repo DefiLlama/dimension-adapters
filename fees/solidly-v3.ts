@@ -60,6 +60,7 @@ const fetch = (chain: Chain) => {
 
 const info = {
       methodology: {
+        Fees: "Fees paid by users for swaps on Solidly V3 pools.",
         UserFees: "User pays fees on each swap.",
         Revenue: '20% of the fees are distributed to voters using veSOLID.',
         SupplySideRevenue: '80% of the fees are distributed to liquidity providers, along with emissions of the SOLID token.',

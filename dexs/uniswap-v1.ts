@@ -48,8 +48,8 @@ export default {
   methodology: {
     Fees: "User pays 0.3% fees on each swap.",
     UserFees: "User pays 0.3% fees on each swap.",
-    Revenue: 'Protocol make no revenue.',
-    ProtocolRevenue: 'Protocol make no revenue.',
+    Revenue: 'Protocol makes no revenue.',
+    ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
   },

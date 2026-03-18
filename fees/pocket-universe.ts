@@ -27,6 +27,7 @@ const adapter: SimpleAdapter = {
   fetch, methodology: info.methodology,
   start,
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.BSC, CHAIN.OPTIMISM,],
   adapter: {},
 };

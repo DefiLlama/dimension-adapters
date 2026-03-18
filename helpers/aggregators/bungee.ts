@@ -3,7 +3,7 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as ethers from "ethers";
-import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from '../lists';
+import { getDefaultDexTokensWhitelisted } from '../lists';
 import { formatAddress } from '../../utils/utils';
 
 const SocketGatewayAbis = {
@@ -111,6 +111,7 @@ interface AutoEvent {
   implId: number;
   token: string;
   amount: string;
+  metadata: string;
 }
 
 // data from event.execution
@@ -120,6 +121,7 @@ function decodeAutoEventRequestExtracted(log: any): AutoEvent {
     implId: Number(log.args.implId),
     token: `0x${ethers.dataSlice(log.args.execution, 609, 640).slice(24, 64)}`,
     amount: new BigNumber(ethers.dataSlice(log.args.execution, 641, 672), 16).toString(10),
+    metadata: ethers.dataSlice(log.args.execution, 840, 864),
   }
 }
 
@@ -151,7 +153,7 @@ interface FetchSocketDataParams {
   fees?: boolean;
 }
 
-export async function fetchBungeeData(options: FetchOptions, params: FetchSocketDataParams): Promise<FetchResult> {
+export async function fetchBungeeData(options: FetchOptions, params: FetchSocketDataParams, metadataFilter?: string): Promise<FetchResult> {
   // volume of Swap
   const dailyVolume = options.createBalances()
 
@@ -169,7 +171,9 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         eventAbi: SocketGatewayAbis.SocketBridge,
       })
       for (const event of bridgeEvents) {
-        dailyBridgeVolume.add(formatToken(event.token), event.amount)
+        if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
+          dailyBridgeVolume.add(formatToken(event.token), event.amount)
+        }
       }
     }
 
@@ -182,12 +186,13 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         onlyArgs: false,
       })).map(log => decodeAutoEventRequestExtracted(log))
       for (const event of requestExtractedEvents) {
-        dailyBridgeVolume.add(formatToken(event.token), event.amount)
+        if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
+          dailyBridgeVolume.add(formatToken(event.token), event.amount)
+        }
       }
     }
   }
 
-  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
   if (params.swapVolume) {
     // manual swap
     if (SocketGatewayContracts[options.chain]) {
@@ -202,7 +207,9 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         swapEvents = swapEvents.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
       }
       for (const event of swapEvents) {
-        dailyVolume.add(formatToken(event.fromToken), event.sellAmount)
+        if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
+          dailyVolume.add(formatToken(event.fromToken), event.sellAmount)
+        }
       }
     }
 
@@ -239,7 +246,9 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
       eventAbi: SocketGatewayAbis.SocketFeesDeducted,
     })
     for (const event of feeEvents) {
-      dailyFees.add(formatToken(event.feesToken), event.fees, 'Aggregator fees')
+      if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
+        dailyFees.add(formatToken(event.feesToken), event.fees, 'Aggregator fees')
+      }
     }
   }
 

@@ -363,7 +363,7 @@ export const perpsAdapter: SimpleAdapter = {
   methodology: {
     Fees: 'Total perps trading fees + lending interest + liquidation fees.',
     Revenue: 'All fees are revenue',
-    ProtocolRevenue: 'All revenue are collected by protocol.',
+    ProtocolRevenue: 'All revenue is collected by protocol.',
   },
   breakdownMethodology: {
     Fees: {
@@ -392,7 +392,7 @@ export const spotAdapter: SimpleAdapter = {
   methodology: {
     Fees: 'Total spot trading fees.',
     Revenue: 'All fees are revenue',
-    ProtocolRevenue: 'All revenue are collected by protocol.',
+    ProtocolRevenue: 'All revenue is collected by protocol.',
   },
   breakdownMethodology: {
     Fees: {
