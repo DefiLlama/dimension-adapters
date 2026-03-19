@@ -62,8 +62,9 @@ const adapter: SimpleAdapter = {
       start: "2026-03-18",
     },
   },
-  methodology:
-    "Daily volume is the total APT wagered on lottery tickets across all 4 pools, calculated from the difference in cumulative tickets sold between the start and end of each day.",
+  methodology: {
+    Volume: "Daily volume is the total APT wagered on lottery tickets across all 4 pools, calculated from the difference in cumulative tickets sold between the start and end of each day.",
+  }
 };
 
 export default adapter;
