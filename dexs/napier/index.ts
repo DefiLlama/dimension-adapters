@@ -43,10 +43,12 @@ async function fetchMarkets(api: ChainApi) {
   const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
   const res = await axios.get<Market[]>(url);
 
+  if (!Array.isArray(res.data)) {
+    throw new Error(`Napier API returned non-array payload for chainId ${api.chainId}`);
+  }
+
   const curvePools: string[] = [];
   const poolToMarket = new Map<string, Market>();
-  // For TokiHook: pool.address is the singleton contract (same for all TOKI_HOOK markets on a chain)
-  // pool.poolId is the unique Uniswap V4 pool ID per market
   let tokiHookAddress: string | null = null;
   const poolIdToMarket = new Map<string, Market>();
 
@@ -58,7 +60,7 @@ async function fetchMarkets(api: ChainApi) {
     if (market.pool.poolType === "TOKI_HOOK" && market.pool.poolId) {
       tokiHookAddress = poolAddress;
       poolIdToMarket.set(market.pool.poolId.toLowerCase(), market);
-    } else {
+    } else if (market.pool.poolType === "CURVE_TWO_CRYPTO") {
       curvePools.push(poolAddress);
     }
   }
