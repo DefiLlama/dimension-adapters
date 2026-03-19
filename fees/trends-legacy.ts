@@ -144,7 +144,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
     
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
@@ -154,7 +153,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
     
-    dailyProtocolRevenue.add(quote_mint, Number(row.total_lp_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
