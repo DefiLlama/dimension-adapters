@@ -197,7 +197,7 @@ export type FetchResultOptions = FetchResultBase & {
 // LIQUIDATIONS
 export type FetchResultLiquidations = FetchResultBase & {
   dailyLiquidations?: FetchResponseValue
-  dailyLiquidatedDebt?: FetchResponseValue
+  dailyLiquidationRepaidDebt?: FetchResponseValue
 };
 
 export enum AdapterType {
@@ -228,7 +228,7 @@ export const whitelistedDimensionKeys = new Set([
   'totalFees', 'dailyFees', 'dailyUserFees', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'dailyBribesRevenue', 'dailyTokenTaxes',
   'tokenIncentives',
   'dailyOtherIncome', 'dailyOperatingIncome', 'dailyNetIncome',, 'dailyPremiumVolume', 'dailyNotionalVolume',
-  'dailyActiveUsers', 'dailyNewUsers', 'dailyTransactionsCount', 'dailyGasUsed', 'dailyLiquidations', 'dailyLiquidatedDebt',
+  'dailyActiveUsers', 'dailyNewUsers', 'dailyTransactionsCount', 'dailyGasUsed', 'dailyLiquidations', 'dailyLiquidationRepaidDebt',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',

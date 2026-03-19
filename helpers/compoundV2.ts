@@ -174,7 +174,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
 }
 
 export function compoundV2LiquidationsExport(
-  config: { [chain: string]: { comptroller: string; start: string } },
+  config: { [chain: string]: { comptroller: string; start?: string } },
   { pullHourly = true, ...otherRootOptions }: {
     pullHourly?: boolean
     [key: string]: any
@@ -186,7 +186,7 @@ export function compoundV2LiquidationsExport(
     exportObject[chain] = {
       fetch: async (options: FetchOptions) => {
         const dailyLiquidations = options.createBalances()
-        const dailyLiquidatedDebt = options.createBalances()
+        const dailyLiquidationRepaidDebt = options.createBalances()
 
         const cTokens: string[] = await options.api.call({
           target: comptroller,
@@ -228,7 +228,7 @@ export function compoundV2LiquidationsExport(
           if (!debtUnderlying) continue
 
           for (const event of events) {
-            dailyLiquidatedDebt.add(debtUnderlying, event.repayAmount)
+            dailyLiquidationRepaidDebt.add(debtUnderlying, event.repayAmount)
 
             const collateralCToken = event.cTokenCollateral.toLowerCase()
             const collateralUnderlying = underlyingMap[collateralCToken]
@@ -240,7 +240,7 @@ export function compoundV2LiquidationsExport(
           }
         }
 
-        return { dailyLiquidations, dailyLiquidatedDebt }
+        return { dailyLiquidations, dailyLiquidationRepaidDebt }
       },
       start,
     }
@@ -253,7 +253,7 @@ export function compoundV2LiquidationsExport(
     adapter: exportObject,
     methodology: {
       Liquidations: 'Total USD value of collateral seized in LiquidateBorrow events, converted from cToken units to underlying via exchangeRateStored.',
-      LiquidatedDebt: 'Total USD value of debt repaid by liquidators in LiquidateBorrow events.',
+      LiquidationRepaidDebt: 'Total USD value of debt repaid by liquidators in LiquidateBorrow events.',
     },
   } as SimpleAdapter
 }
