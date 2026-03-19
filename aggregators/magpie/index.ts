@@ -125,6 +125,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2026-01-30',
     },
+    [CHAIN.MORPH]: {
+      fetch,
+      start: '2026-01-13',
+    },
   },
 };
 

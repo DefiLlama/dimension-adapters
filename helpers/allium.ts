@@ -4,9 +4,39 @@ import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
 import plimit from "p-limit";
 import { elastic } from "@defillama/sdk";
+import { CHAIN } from "./chains";
 
 const _rateLimited = plimit(3)
 const rateLimited = (fn: any) => (...args: any) => _rateLimited(() => fn(...args))
+
+export const ALLIUM_CHAIN_MAP: Record<string, string> = {
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.SCROLL]: 'scroll',
+  [CHAIN.BSC]: 'bsc',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.AVAX]: 'avalanche',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.TRON]: 'tron',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.ZORA]: 'zora',
+  [CHAIN.NEAR]: 'near',
+  [CHAIN.XDAI]: 'gnosis',
+  [CHAIN.INK]: 'ink',
+  [CHAIN.BERACHAIN]: 'berachain',
+  [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
+  [CHAIN.PLASMA]: 'plasma',
+  [CHAIN.MONAD]: 'monad',
+  [CHAIN.ERA]: 'zksync',
+  [CHAIN.ROOTSTOCK]: 'rootstock',
+  [CHAIN.WC]: 'worldchain',
+  [CHAIN.MANTA]: 'manta_pacific',
+}
+
+export function getAlliumChain(chain: string): string {
+  return ALLIUM_CHAIN_MAP[chain] || chain;
+}
 
 const token = {} as IJSON<string>
 

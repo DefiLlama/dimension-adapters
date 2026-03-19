@@ -15,23 +15,28 @@ const breakdownMethodology = {
   Revenue: { [METRIC.PERFORMANCE_FEES]: "Share of the fees collected by Obol" },
 };
 
-const toDateStr = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10);
-
-const fetchCumulativeData = async (timestamp: number) => {
-  const dateStr = toDateStr(timestamp);
+const fetchCumulativeData = async (dateStr: string) => {
   const url = `${ENDPOINT_BASE}?limit=1&page=0&timestamp=${encodeURIComponent(dateStr)}`;
   const data = await httpGet(url);
   return { totalFees: Number(data.total_fees_eth_denominated ?? 0), totalRevenue: Number(data.total_revenue ?? 0) };
 };
 
+const getPreviousDay = (dateStr: string) => {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
 const fetch = async (_a: number, _b: any, options: FetchOptions) => {
   const [current, previous] = await Promise.all([
-    fetchCumulativeData(options.endTimestamp),
-    fetchCumulativeData(options.startOfDay),
+    fetchCumulativeData(options.dateString),
+    fetchCumulativeData(getPreviousDay(options.dateString)),
   ]);
 
   const dailyFeesETH = current.totalFees - previous.totalFees;
   const dailyRevenueETH = current.totalRevenue - previous.totalRevenue;
+
+  console.log(dailyFeesETH, dailyRevenueETH)
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

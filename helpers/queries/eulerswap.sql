@@ -24,7 +24,9 @@ prices as (
         decimals,
         avg(price) as price
         from prices.usd
-    where blockchain in (select distinct chain from pools)
+    where 
+        minute >= from_unixtime({{start}}) AND minute < from_unixtime({{end}})
+        and blockchain in (select distinct chain from pools)
         and contract_address in (
             select distinct asset0 from pools union all select distinct asset1 from pools
         )

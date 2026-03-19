@@ -51,18 +51,22 @@ WITH
             a.balance_change / 1e9 AS jitoSOL_amt,
             p_sol.price * a.balance_change / 1e9 AS usd_amt
         FROM solana.account_activity a
-        LEFT JOIN solana.transactions t
-            ON a.tx_id = t.id
-            AND a.block_date = t.block_date
         LEFT JOIN prices.minute AS p_sol
             ON DATE_TRUNC('minute', a.block_time) = p_sol.timestamp
             AND p_sol.blockchain = 'solana'
             AND p_sol.contract_address = FROM_BASE58('So11111111111111111111111111111111111111112')
+            AND p_sol.timestamp >= FROM_UNIXTIME({{start}})
+            AND p_sol.timestamp < FROM_UNIXTIME({{end}})
+        LEFT JOIN solana.transactions t
+            ON a.tx_id = t.id
+            AND a.block_date = t.block_date
+            AND t.block_date >= FROM_UNIXTIME({{start}})
+            AND t.block_date < FROM_UNIXTIME({{end}})
         WHERE a.block_date >= date('2025-08-01')
             AND a.block_date >= FROM_UNIXTIME({{start}})
             AND a.block_date < FROM_UNIXTIME({{end}})
             AND a.address = '5eosrve6LktMZgVNszYzebgmmC7BjLK8NoWyRQtcmGTF'
-            AND any_match(account_keys, x -> x = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt')
+            AND any_match(t.account_keys, x -> x = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt')
     )
 SELECT
     (SELECT COALESCE(SUM(usd_amt), 0) FROM jitostake_pool_fees) AS jitostake_pool_fees,
