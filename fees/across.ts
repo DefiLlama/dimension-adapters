@@ -1,22 +1,13 @@
 /**
  * Across Adapter
  * 
- * NOTE: This implementation uses Dune queries rather than event-based calculations.
- * 
- * Previous event-based methods had bugs because:
- * 1. Events don't provide enough data points to accurately estimate fees
- * 2. Simple inputAmount-outputAmount calculations are incorrect as token amounts 
- *    have different decimal precision across chains
- * 3. Cross-chain token swaps (e.g., ETH from Arbitrum to USDC on Base) 
- *    complicates fee calculations
- * 
- * This Dune-based approach provides more accurate fee calculations by directly 
- * querying processed cross-chain transfer data.
+ * This implementation reads Across deposits directly from the Across API and
+ * uses `bridgeFeeUsd` as the relayer fee source of truth.
  */
 
-import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import fetchURL from "../utils/fetchURL";
 
 interface IResponse {
   dst_chain: string;
@@ -24,19 +15,103 @@ interface IResponse {
   lp_fees: number;
 }
 
+interface IAcrossDeposit {
+  bridgeFeeUsd?: string | null;
+  fillBlockTimestamp?: string;
+  depositBlockTimestamp?: string;
+}
+
+const ACROSS_DEPOSITS_API = "https://app.across.to/api/deposits";
+const PAGE_LIMIT = 1000;
+const MAX_PAGES_PER_CHAIN = 200;
+
+const chainIdConfig: Record<string, number> = {
+  [CHAIN.ETHEREUM]: 1,
+  [CHAIN.ARBITRUM]: 42161,
+  [CHAIN.OPTIMISM]: 10,
+  [CHAIN.BOBA]: 288,
+  [CHAIN.POLYGON]: 137,
+  [CHAIN.ZKSYNC]: 324,
+  [CHAIN.BASE]: 8453,
+  [CHAIN.LINEA]: 59144,
+  [CHAIN.BLAST]: 81457,
+  [CHAIN.SCROLL]: 534352,
+  [CHAIN.ZORA]: 7777777,
+  [CHAIN.WC]: 480,
+  [CHAIN.INK]: 57073,
+  [CHAIN.UNICHAIN]: 130,
+  [CHAIN.LENS]: 232,
+  [CHAIN.SOLANA]: 34268394551451,
+  [CHAIN.BSC]: 56,
+};
+
+const parseBridgeFeeUsd = (value?: string | null): number | undefined => {
+  if (value == null) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return parsed;
+};
+
+const parseTimestamp = (deposit: IAcrossDeposit): number | undefined => {
+  const raw = deposit.fillBlockTimestamp ?? deposit.depositBlockTimestamp;
+  if (!raw) return undefined;
+  const timestamp = Math.floor(new Date(raw).getTime() / 1000);
+  if (!Number.isFinite(timestamp)) return undefined;
+  return timestamp;
+};
+
+const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestamp: number, endTimestamp: number) => {
+  let skip = 0;
+  let pagesFetched = 0;
+  let totalBridgeFeesUsd = 0;
+
+  while (pagesFetched < MAX_PAGES_PER_CHAIN) {
+    const queryParams = new URLSearchParams({
+      destinationChainId: String(destinationChainId),
+      status: "filled",
+      limit: String(PAGE_LIMIT),
+      skip: String(skip),
+    });
+    const deposits: IAcrossDeposit[] = await fetchURL(`${ACROSS_DEPOSITS_API}?${queryParams.toString()}`);
+    if (!Array.isArray(deposits) || !deposits.length) break;
+
+    let reachedOlderData = false;
+    for (const deposit of deposits) {
+      const timestamp = parseTimestamp(deposit);
+      if (timestamp === undefined) continue;
+      if (timestamp >= endTimestamp) continue;
+      if (timestamp < startTimestamp) {
+        reachedOlderData = true;
+        continue;
+      }
+
+      const bridgeFeeUsd = parseBridgeFeeUsd(deposit.bridgeFeeUsd);
+      if (bridgeFeeUsd !== undefined) totalBridgeFeesUsd += bridgeFeeUsd;
+    }
+
+    if (reachedOlderData || deposits.length < PAGE_LIMIT) break;
+
+    skip += PAGE_LIMIT;
+    pagesFetched += 1;
+  }
+
+  return totalBridgeFeesUsd;
+};
+
 // Prefetch function that will run once before any fetch calls
 const prefetch = async (options: FetchOptions) => {
-  return queryDuneSql(options, `
-    SELECT
-        dst_chain
-        , SUM(relay_fee_in_usd) as relay_fees
-        , SUM(lp_fee_in_usd) as lp_fees
-    FROM dune.risk_labs.result_across_transfers_foundation
-    WHERE relay_fee_in_usd is not null
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
-    GROUP BY dst_chain
-  `);
+  const results: IResponse[] = [];
+
+  for (const [dst_chain, destinationChainId] of Object.entries(chainIdConfig)) {
+    const relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
+    results.push({
+      dst_chain,
+      relay_fees,
+      lp_fees: 0,
+    });
+  }
+
+  return results;
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -82,7 +157,6 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 1,
-  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2021-11-03" },
     [CHAIN.ARBITRUM]: { start: "2022-05-24" },
