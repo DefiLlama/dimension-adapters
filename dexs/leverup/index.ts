@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { METRIC } from '../../helpers/metrics'
 
 const LVMON_Redeemer = "0xF24BED91ff0a8Fc1aCec39F6851a5eBd7dCf2BF2";
 const sLVMON = "0x61b29EfEf2E6f866bA4AaeFDb87d2837C6a22b9c";
@@ -32,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
   // Use createBalances for accurate fee calculation across multiple tokens
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailyLVMONFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances()
 
   const [openLogs, closeLogs, executeLogs, interestLogs, redeemLogs, withdrawalLogs] = await Promise.all([
     options.getLogs({
@@ -61,14 +62,14 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
-  const addFee = (balances: ReturnType<FetchOptions['createBalances']>, token: string, amount: bigint) => {
+  const addFee = (balances: ReturnType<FetchOptions['createBalances']>, token: string, amount: bigint, label: string) => {
     if (token.toLowerCase() === LVUSD.toLowerCase()) {
       // Convert 18 decimals to 6 decimals for USDC
       const feeUSDC = amount / BigInt(1e12);
-      balances.add(USDC_MAINNET, feeUSDC);
+      balances.add(USDC_MAINNET, feeUSDC, label);
     } else if (token.toLowerCase() === LVMON.toLowerCase()) {
       // Assuming LVMON is 18 decimals, same as WMON/WETH
-      balances.add(WMON_MAINNET, amount);
+      balances.add(WMON_MAINNET, amount, label);
     }
   };
 
@@ -90,8 +91,8 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume += (qty * entryPrice) / 1e28;
 
     // Add fees using the helper
-    addFee(dailyFees, lvToken, openFee + execFee);
-    addFee(dailyProtocolRevenue, lvToken, openFee + execFee);
+    addFee(dailyFees, lvToken, openFee + execFee, METRIC.OPEN_CLOSE_FEES);
+    addFee(dailyProtocolRevenue, lvToken, openFee + execFee, METRIC.OPEN_CLOSE_FEES);
   });
 
   // 2. Process Close Events
@@ -114,8 +115,8 @@ const fetch = async (options: FetchOptions) => {
     }
 
     if (totalFee > 0n) {
-      addFee(dailyFees, lvToken, totalFee);
-      addFee(dailyProtocolRevenue, lvToken, totalFee);
+      addFee(dailyFees, lvToken, totalFee, METRIC.OPEN_CLOSE_FEES);
+      addFee(dailyProtocolRevenue, lvToken, totalFee, METRIC.OPEN_CLOSE_FEES);
     }
   };
 
@@ -126,27 +127,27 @@ const fetch = async (options: FetchOptions) => {
   interestLogs.forEach((log: any) => {
     const interest = BigInt(log.interest);
     const interestFee = BigInt(log.interestFee);
-    if (interest > 0n) dailyLVMONFees.add(WMON_MAINNET, interest);
-    if (interestFee > 0n) dailyProtocolRevenue.add(WMON_MAINNET, interestFee);
+    const interestSupplySide = BigInt(log.interestReceiverAmount);
+    if (interest > 0n) dailyFees.add(WMON_MAINNET, interest, 'LVMON Interest');
+    if (interestFee > 0n) dailyProtocolRevenue.add(WMON_MAINNET, interestFee, 'LVMON Performance Fees');
+    if (interestSupplySide > 0n) dailySupplySideRevenue.add(WMON_MAINNET, interestSupplySide, 'LVMON Interest to stakers')
   });
 
   redeemLogs.forEach((log: any) => {
     const feeAmount = BigInt(log.feeAmount);
     if (feeAmount > 0n) {
-      addFee(dailyLVMONFees, log.reserveToken, feeAmount);
-      addFee(dailyProtocolRevenue, log.reserveToken, feeAmount);
+      addFee(dailyFees, log.reserveToken, feeAmount, METRIC.MINT_REDEEM_FEES);
+      addFee(dailyProtocolRevenue, log.reserveToken, feeAmount, METRIC.MINT_REDEEM_FEES);
     }
   });
 
   withdrawalLogs.forEach((log: any) => {
     const fee = BigInt(log.fee);
     if (fee > 0n) {
-      addFee(dailyLVMONFees, LVMON, fee);
-      addFee(dailyProtocolRevenue, LVMON, fee);
+      addFee(dailyFees, LVMON, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+      addFee(dailyProtocolRevenue, LVMON, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
     }
   });
-
-  dailyFees.addBalances(dailyLVMONFees);
 
   return {
     dailyVolume,
@@ -154,6 +155,7 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue
   };
 };
 
@@ -167,6 +169,31 @@ const adapter: SimpleAdapter = {
     Volume: 'Volume is calculated by summing the notional value (qty * entryPrice) of all OpenMarketTrade events.',
     Fees: 'Total fees include perps fees, redeem/withdrawal fees, and InterestDistributed.interest from LVMON events.',
     Revenue: 'Protocol revenue includes all fees except InterestDistributed, where only interestFee is protocol revenue.',
+    ProtocolRevenue: 'Protocol revenue includes all fees except InterestDistributed, where only interestFee is protocol revenue.',
+    SupplySideRevenue: 'The amount of interest paid to LVMON stakers'
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.OPEN_CLOSE_FEES]: 'Open/close/holding/funding fees from perpetual trades.',
+      'LVMON Interest': 'Total interest accrued by the LVMON issuer.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fees charged on LVMON redemptions.',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from the sLVMON vault.',
+    },
+    Revenue: {
+      [METRIC.OPEN_CLOSE_FEES]: 'Open/close/holding/funding fees from perpetual trades.',
+      'LVMON Performance Fees': 'Performance fee portion of LVMON interest retained by protocol.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fees charged on LVMON redemptions.',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from the sLVMON vault.',
+    },
+    ProtocolRevenue: {
+      [METRIC.OPEN_CLOSE_FEES]: 'Open/close/holding/funding fees from perpetual trades.',
+      'LVMON Performance Fees': 'Performance fee portion of LVMON interest retained by protocol.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fees charged on LVMON redemptions.',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from the sLVMON vault.',
+    },
+    SupplySideRevenue: {
+      'LVMON Interest to stakers': 'LVMON interest distributed to stakers after protocol performance fee.',
+    },
   },
 };
 
