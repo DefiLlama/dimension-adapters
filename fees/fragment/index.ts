@@ -98,6 +98,7 @@ const adapter: SimpleAdapter = {
     start: '2024-10-01',
     methodology,
     isExpensiveAdapter: true,
+    allowNegativeValue: true, // Revenue can be negative when rewards exceed payments due to more onchain redeems of offchain purchased stars
     dependencies: [Dependencies.DUNE]
 }
 
