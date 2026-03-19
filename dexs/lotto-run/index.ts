@@ -34,12 +34,17 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   let totalDailyTickets = 0;
 
   for (const pool of POOLS) {
+    let startTickets = 0;
     try {
-      const startTickets = await getTotalTickets(pool, startVersion);
+      startTickets = await getTotalTickets(pool, startVersion);
+    } catch {
+      // Pool may not exist at startVersion (before deployment) — treat as 0
+    }
+    try {
       const endTickets = await getTotalTickets(pool, endVersion);
       totalDailyTickets += Math.max(0, endTickets - startTickets);
     } catch {
-      // Pool may not exist at startVersion (before deployment)
+      // Pool may not exist at endVersion either — skip
     }
   }
 
