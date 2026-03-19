@@ -593,21 +593,17 @@ async function fetchBeraIBeraSales(options: FetchOptions) {
  * Future BERA sales: wrap to WBERA before transferring to broker so sales are
  * automatically captured as ERC-20 Transfer events by fetchBeraIBeraSales.
  */
-const BERA_CEX_SETTLEMENTS: Array<{ dateUtc: string; usdAmount: number }> = [
-  { dateUtc: "2026-02-07", usdAmount: 303935.00 }, // 589,626 BERA — settlement: 0x7382e6e8...
-  { dateUtc: "2026-02-24", usdAmount: 156729.20 }, // 257,570 BERA — settlement: 0x48ca8861...
+const BERA_CEX_SETTLEMENTS: Array<{ dateUtc: string; timestamp: number; usdAmount: number }> = [
+  { dateUtc: "2026-02-07", timestamp: 1770422400, usdAmount: 303935.00 }, // 589,626 BERA — settlement: 0x7382e6e8...
+  { dateUtc: "2026-02-24", timestamp: 1771891200, usdAmount: 156729.20 }, // 257,570 BERA — settlement: 0x48ca8861...
 ];
 
 function fetchBerachainCexSettlements(options: FetchOptions) {
   const fees = options.createBalances();
-  const dayStart = Math.floor(options.startOfDay);
-  const dayEnd   = dayStart + 86400;
 
   for (const s of BERA_CEX_SETTLEMENTS) {
-    const ts = Math.floor(new Date(s.dateUtc + "T00:00:00Z").getTime() / 1000);
-    if (ts >= dayStart && ts < dayEnd) {
+    if (options.fromTimestamp + 1 === s.timestamp)
       fees.addUSDValue(s.usdAmount);
-    }
   }
   return fees;
 }
