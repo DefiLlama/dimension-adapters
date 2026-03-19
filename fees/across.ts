@@ -24,6 +24,7 @@ interface IAcrossDeposit {
 const ACROSS_DEPOSITS_API = "https://app.across.to/api/deposits";
 const PAGE_LIMIT = 1000;
 const MAX_PAGES_PER_CHAIN = 200;
+const MIN_VALID_BRIDGE_FEE_USD = 0;
 
 const chainIdConfig: Record<string, number> = {
   [CHAIN.ETHEREUM]: 1,
@@ -56,6 +57,7 @@ const parseBridgeFeeUsd = (value?: string | null): number | undefined => {
   if (value == null) return undefined;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return undefined;
+  if (parsed < MIN_VALID_BRIDGE_FEE_USD) return undefined;
   return parsed;
 };
 
@@ -91,7 +93,6 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
         reachedOlderData = true;
         continue;
       }
-
       const bridgeFeeUsd = parseBridgeFeeUsd(deposit.bridgeFeeUsd);
       if (bridgeFeeUsd !== undefined) totalBridgeFeesUsd += bridgeFeeUsd;
     }
