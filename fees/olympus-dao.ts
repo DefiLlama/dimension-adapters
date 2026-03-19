@@ -570,7 +570,7 @@ function fetchBerachainCexSettlements(options: FetchOptions) {
   const fees = options.createBalances();
 
   for (const s of BERA_CEX_SETTLEMENTS) {
-    if (options.fromTimestamp + 1 === s.timestamp)
+    if (options.fromTimestamp === s.timestamp)
       fees.addUSDValue(s.usdAmount);
   }
   return fees;
