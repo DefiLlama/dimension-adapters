@@ -105,6 +105,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'liquidations': [
     'aaveLiquidations',
     'compoundV2:liquidations',
+    'gmxV1:liquidations',
   ],
 };
 
