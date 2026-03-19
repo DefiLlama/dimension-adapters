@@ -156,6 +156,7 @@ const chainConfig: Record<Chain, { start: string }> = {
   [CHAIN.POLYGON]: { start: "2024-03-12" },
   [CHAIN.AVAX]: { start: "2024-03-12" },
   [CHAIN.HYPERLIQUID]: { start: "2024-03-13" },
+  [CHAIN.PLUME]: { start: "2024-03-13" },
 };
 
 const adapter: SimpleAdapter = {
