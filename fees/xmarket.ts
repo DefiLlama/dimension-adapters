@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains"
 import { addTokensReceived } from "../helpers/token"
 import ADDRESSES from '../helpers/coreAssets.json'
 
-// XMarket SET2 (real USDT) — BNB Mainnet
+// XMarket — BNB Mainnet
 const XMarketExchange = '0xF05c3f1605Ce40e8030718755FA1f84eA01DF1A9';
 const FeeManagement   = '0xEdcC0B26dEC24eCb718d92eAA8c56Fb5e13d34b8';
 
