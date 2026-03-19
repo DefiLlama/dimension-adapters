@@ -38,10 +38,17 @@ const chainIdConfig: Record<string, number> = {
   [CHAIN.SCROLL]: 534352,
   [CHAIN.ZORA]: 7777777,
   [CHAIN.WC]: 480,
+  [CHAIN.REDSTONE]: 690,
+  [CHAIN.LISK]: 1135,
+  [CHAIN.SONEIUM]: 1868,
   [CHAIN.INK]: 57073,
+  [CHAIN.MODE]: 34443,
+  [CHAIN.ALEPH_ZERO_EVM]: 41455,
   [CHAIN.UNICHAIN]: 130,
   [CHAIN.LENS]: 232,
   [CHAIN.SOLANA]: 34268394551451,
+  [CHAIN.PLASMA]: 9745,
+  [CHAIN.MONAD]: 143,
   [CHAIN.BSC]: 56,
 };
 
@@ -99,7 +106,7 @@ const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestam
 };
 
 // Prefetch function that will run once before any fetch calls
-const prefetch = async (options: FetchOptions) => {
+const prefetch = async (options: FetchOptions): Promise<any> => {
   const results: IResponse[] = [];
 
   for (const [dst_chain, destinationChainId] of Object.entries(chainIdConfig)) {
@@ -111,7 +118,7 @@ const prefetch = async (options: FetchOptions) => {
     });
   }
 
-  return results;
+  return results as any;
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -170,14 +177,21 @@ const adapter: Adapter = {
     [CHAIN.SCROLL]: { start: "2024-07-31" },
     [CHAIN.ZORA]: { start: "2024-08-15" },
     [CHAIN.WC]: { start: "2024-10-10" },
+    [CHAIN.REDSTONE]: { start: "2021-11-03" },
+    [CHAIN.LISK]: { start: "2021-11-03" },
+    [CHAIN.SONEIUM]: { start: "2021-11-03" },
     [CHAIN.INK]: { start: "2025-01-02" },
+    [CHAIN.MODE]: { start: "2021-11-03" },
+    [CHAIN.ALEPH_ZERO_EVM]: { start: "2021-11-03" },
     [CHAIN.UNICHAIN]: { start: "2025-02-06" },
     [CHAIN.LENS]: { start: "2025-03-28" },
     [CHAIN.SOLANA]: { start: "2025-04-14" },
+    [CHAIN.PLASMA]: { start: "2021-11-03" },
+    [CHAIN.MONAD]: { start: "2021-11-03" },
     [CHAIN.BSC]: { start: "2025-05-03" },
   },
   fetch,
-  prefetch,
+  prefetch: prefetch as any,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true, // Gas Fee cost be higher than estimated
