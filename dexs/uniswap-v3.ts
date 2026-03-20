@@ -123,7 +123,7 @@ const methodology = {
   UserFees: "User pays fees on each swap.",
   Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'All fees are distributed to LPs.',
+  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
   HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, a portion of fees a collected to buy back and burn UNI on Optimism, Arbitrum, Base, Celo, WC, Zora, XLayer.',
 }
 
@@ -275,7 +275,7 @@ async function customUniswapGetLogsAdapter(props: { options: FetchOptions, facto
 function getRevenueShare(fee: number, options: FetchOptions): number {
   if (!FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) return 0;
   if (fee === 0.0001) return 0.000025;
-  if (fee === 0.0005) return 0.0000125;
+  if (fee === 0.0005) return 0.000125;
   if (fee === 0.003) return 0.0005;
   if (fee === 0.01) return 0.001666;
   return 0;

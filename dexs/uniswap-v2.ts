@@ -170,10 +170,10 @@ const fetch = async (_t:any, _tb: any , options: FetchOptions) => {
 const methodology = {
   Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Celo, Zora, XLayer chains shared to buy back and burn UNI.',
+  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'From 28 Dec 2025, 83% (100% before) fees on Ethereum are distributed to LPs, From 8 Mar 2026, 83% (100% before) fees on Optimism, Arbitrum, Base, Celo, Zora, XLayer chains are distributed to LPs.',
-  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Celo, Zora, XLayer chains shared to buy back and burn UNI.',
+  SupplySideRevenue: 'From 28 Dec 2025, 83% (100% before) fees on Ethereum are distributed to LPs, From 8 Mar 2026, 83% (100% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains are distributed to LPs.',
+  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI.',
 }
 
 const adapter: Adapter = {
