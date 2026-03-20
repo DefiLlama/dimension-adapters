@@ -109,10 +109,14 @@ WITH
             LEFT JOIN prices.usd p ON p.blockchain='solana'
             and toBase58 (p.contract_address)=out_mint.account_custodyTokenMint
             and p.minute=date_trunc('minute', ic.block_time)
+            AND p.minute >= FROM_UNIXTIME({{start}})
+            AND p.minute < FROM_UNIXTIME({{end}})
             LEFT JOIN dune.dune.result_dex_prices_solana dp ON dp.token_mint_address=out_mint.account_custodyTokenMint
             and date_trunc('day', ic.block_time)=dp.day
             and dp.rolling_two_months_trades>1000
             and dp.total_holders_ever>5000
+            AND dp.day >= FROM_UNIXTIME({{start}})
+            AND dp.day < FROM_UNIXTIME({{end}})
         WHERE
             executing_account='PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
             AND bytearray_substring (data, 1+8, 8)=0x286bd41adf8827dc -- PoolSwapEvent
