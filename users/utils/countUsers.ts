@@ -65,6 +65,11 @@ function gasPrice(chain: string) {
 export function countUsers(addresses: ChainAddresses) {
   return async (start: number, end: number) => {
     const chainArray = Object.entries(addresses).filter(([chain]) => isAcceptedChain(chain))
+
+    if (chainArray.length === 0)
+      throw new Error("No supported chains provided")
+
+
     return queryAllium(`
 WITH
   ${chainArray.map(([chain, chainAddresses]) =>
