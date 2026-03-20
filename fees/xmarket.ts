@@ -57,21 +57,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 }
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  methodology: {
+const methodology = {
     Fees: 'Protocol fees collected from trading on XMarket prediction markets (BNB chain)',
     Revenue: 'Fees to configured recipients (platform, company, treasury, adminWallet, presale), net of referral rewards',
     ProtocolRevenue: 'All revenue goes to protocol',
     SupplySideRevenue: 'Referral rewards distributed to referrers',
-  },
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetch,
-      start: '2025-06-01',
-    }
-  },
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  methodology,
+  chains: [CHAIN.BSC],
+  fetch,
+  start: '2026-02-09',
 }
 
 export default adapter
