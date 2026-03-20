@@ -28,7 +28,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  // Fees: USDT flowing from FeeManagement to all fee recipients
+  // Fees: USDT flowing from FeeManagement/XMarketExchange to all configured fee recipients
   const fees = await addTokensReceived({
     options,
     fromAdddesses: [FeeManagement, XMarketExchange],
@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Fees: 'Protocol fees collected from trading on XMarket prediction markets (BNB chain)',
-    Revenue: 'Fees going to platform, company and treasury after referral rewards distribution',
+    Revenue: 'Fees to configured recipients (platform, company, treasury, adminWallet, presale), net of referral rewards',
     ProtocolRevenue: 'All revenue goes to protocol',
     SupplySideRevenue: 'Referral rewards distributed to referrers',
   },
