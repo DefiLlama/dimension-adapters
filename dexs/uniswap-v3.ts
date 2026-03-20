@@ -48,6 +48,7 @@ const FEE_SWITCH_DATE: Record<string, string> = {
   [CHAIN.CELO]: "2026-03-08",
   [CHAIN.WC]: "2026-03-08",
   [CHAIN.ZORA]: "2026-03-08",
+  [CHAIN.XLAYER]: "2026-03-08",
 }
 
 const v3Graphs = getGraphDimensions2({
