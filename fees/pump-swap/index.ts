@@ -63,6 +63,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
                     'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
                     '${ADDRESSES.solana.USDC}',
                     '${ADDRESSES.solana.USDT}',
+                    '${ADDRESSES.solana.PUMP}',
                     'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
                 )
         )
