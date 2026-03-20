@@ -111,7 +111,12 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   const results: IResponse[] = [];
 
   for (const [dst_chain, destinationChainId] of Object.entries(chainIdConfig)) {
-    const relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
+    let relay_fees = 0;
+    try {
+      relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
+    } catch (error) {
+      console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
+    }
     results.push({
       dst_chain,
       relay_fees,
@@ -166,30 +171,30 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [CHAIN.ETHEREUM]: { start: "2021-11-03" },
-    [CHAIN.ARBITRUM]: { start: "2022-05-24" },
-    [CHAIN.OPTIMISM]: { start: "2022-05-10" },
+    [CHAIN.ETHEREUM]: { start: "2024-02-21" },
+    [CHAIN.ARBITRUM]: { start: "2024-02-21" },
+    [CHAIN.OPTIMISM]: { start: "2024-02-21" },
     [CHAIN.BOBA]: { start: "2022-05-05" },
-    [CHAIN.POLYGON]: { start: "2022-05-10" },
-    [CHAIN.ZKSYNC]: { start: "2023-08-10" },
-    [CHAIN.BASE]: { start: "2023-08-22" },
+    [CHAIN.POLYGON]: { start: "2024-02-21" },
+    [CHAIN.ZKSYNC]: { start: "2024-02-21" },
+    [CHAIN.BASE]: { start: "2024-02-21" },
     [CHAIN.LINEA]: { start: "2024-03-20" },
     [CHAIN.BLAST]: { start: "2024-07-10" },
     [CHAIN.SCROLL]: { start: "2024-07-31" },
     [CHAIN.ZORA]: { start: "2024-08-15" },
     [CHAIN.WC]: { start: "2024-10-10" },
-    [CHAIN.REDSTONE]: { start: "2021-11-03" },
-    [CHAIN.LISK]: { start: "2021-11-03" },
-    [CHAIN.SONEIUM]: { start: "2021-11-03" },
+    [CHAIN.REDSTONE]: { start: "2024-08-12" },
+    [CHAIN.LISK]: { start: "2024-07-04" },
+    [CHAIN.SONEIUM]: { start: "2025-01-14" },
     [CHAIN.INK]: { start: "2025-01-02" },
-    [CHAIN.MODE]: { start: "2021-11-03" },
-    [CHAIN.ALEPH_ZERO_EVM]: { start: "2021-11-03" },
+    [CHAIN.MODE]: { start: "2024-05-23" },
+    [CHAIN.ALEPH_ZERO_EVM]: { start: "2024-11-16" },
     [CHAIN.UNICHAIN]: { start: "2025-02-06" },
     [CHAIN.LENS]: { start: "2025-03-28" },
-    [CHAIN.SOLANA]: { start: "2025-04-14" },
-    [CHAIN.PLASMA]: { start: "2021-11-03" },
-    [CHAIN.MONAD]: { start: "2021-11-03" },
-    [CHAIN.BSC]: { start: "2025-05-03" },
+    [CHAIN.SOLANA]: { start: "2025-07-04" },
+    [CHAIN.PLASMA]: { start: "2025-09-23" },
+    [CHAIN.MONAD]: { start: "2025-11-20" },
+    [CHAIN.BSC]: { start: "2025-05-05" },
   },
   fetch,
   prefetch: prefetch as any,
