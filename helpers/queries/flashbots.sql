@@ -107,7 +107,7 @@ with
     )
 select
     day,
-    sum(priority_fee_reward + mev_reward) as cum_proposer_revenue
+    sum(priority_fee_reward + COALESCE(mev_reward, 0)) as cum_proposer_revenue
 from
     priority_fee
     left join eod_builder_payments using (day)
