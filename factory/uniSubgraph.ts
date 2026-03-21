@@ -1,8 +1,20 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
 import { getGraphDimensions2 } from "../helpers/getUniSubgraph";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
+
+interface feesPercentElement {
+  type: "fees" | "volume";
+  Fees?: number;
+  UserFees?: number;
+  ProtocolRevenue?: number;
+  HoldersRevenue?: number;
+  SupplySideRevenue?: number;
+  Revenue?: number;
+  from?: string;
+  to?: string;
+}
 
 interface SubgraphConfig {
   graphUrls: Record<string, string>;
@@ -14,20 +26,12 @@ interface SubgraphConfig {
     factory: string;
     field: string;
   };
-  feesPercent?: {
-    type: "fees" | "volume";
-    Fees?: number;
-    UserFees?: number;
-    ProtocolRevenue?: number;
-    HoldersRevenue?: number;
-    SupplySideRevenue?: number;
-    Revenue?: number;
-  };
+  feesPercent?: feesPercentElement | feesPercentElement[];
   start?: string;
   methodology?: Record<string, string>;
 }
 
-function computeMethodology(fp: SubgraphConfig['feesPercent']): Record<string, string> | undefined {
+function computeMethodology(fp: feesPercentElement): Record<string, string> | undefined {
   if (!fp) return undefined;
   const m: Record<string, string> = {};
   const isVol = fp.type === 'volume';
@@ -238,14 +242,26 @@ const configs: Record<string, SubgraphConfig> = {
       [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn",
     },
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
+    feesPercent: [{
       type: "fees",
       ProtocolRevenue: 35,
       HoldersRevenue: 0,
       UserFees: 100,
       SupplySideRevenue: 65,
       Revenue: 35,
+      from: "2024-07-02",
+      to: "2025-12-17",
     },
+    {
+      type: "fees",
+      ProtocolRevenue: 14,
+      HoldersRevenue: 21,
+      UserFees: 100,
+      SupplySideRevenue: 65,
+      Revenue: 35,
+      from: "2025-12-17",
+    },
+    ]
   },
   "shido-dex": {
     graphUrls: {
@@ -393,16 +409,36 @@ const configs: Record<string, SubgraphConfig> = {
 // Build protocols from configs
 const protocols: Record<string, SimpleAdapter> = {};
 for (const [name, config] of Object.entries(configs)) {
-  const fetch = getGraphDimensions2({
-    graphUrls: config.graphUrls,
-    totalVolume: config.totalVolume,
-    totalFees: config.totalFees,
-    feesPercent: config.feesPercent,
-  });
+
+  const findConfigForTimestamp = (timestamp: number): feesPercentElement | undefined => {
+    if (!Array.isArray(config.feesPercent)) {
+      return config.feesPercent;
+    }
+    const timestampMs = timestamp * 1000;
+    return config.feesPercent.find((cfg) => {
+      const from = cfg.from ? new Date(cfg.from).getTime() : 0;
+      const to = cfg.to ? new Date(cfg.to).getTime() : Infinity;
+      return timestampMs >= from && timestampMs < to;
+    });
+  };
+
+  const fetch = async (options: FetchOptions) => {
+    const feesPercent = findConfigForTimestamp(options.startTimestamp);
+    const graphFetch = getGraphDimensions2({
+      graphUrls: config.graphUrls,
+      totalVolume: config.totalVolume,
+      totalFees: config.totalFees,
+      feesPercent
+    });
+    return graphFetch(options);
+  }
 
   const chains = Object.keys(config.graphUrls);
   const { start } = config;
-  const methodology = config.methodology ?? computeMethodology(config.feesPercent);
+  const methodologyFeesPercent = Array.isArray(config.feesPercent)
+    ? config.feesPercent[config.feesPercent.length - 1]
+    : config.feesPercent;
+  const methodology = config.methodology ?? computeMethodology(methodologyFeesPercent!);
 
   const adapter: SimpleAdapter = {
     version: 2,
