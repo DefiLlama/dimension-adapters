@@ -233,20 +233,20 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2024-07-02",
   },
-  "kodiak-v3": {
-    graphUrls: {
-      [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 35,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 65,
-      Revenue: 35,
-    },
-  },
+  // "kodiak-v3": {
+  //   graphUrls: {
+  //     [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn",
+  //   },
+  //   totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+  //   feesPercent: {
+  //     type: "fees",
+  //     ProtocolRevenue: 35,
+  //     HoldersRevenue: 0,
+  //     UserFees: 100,
+  //     SupplySideRevenue: 65,
+  //     Revenue: 35,
+  //   },
+  // },
   "shido-dex": {
     graphUrls: {
       [CHAIN.SHIDO]: "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet",
