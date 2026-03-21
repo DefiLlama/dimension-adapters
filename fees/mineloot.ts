@@ -82,7 +82,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: {
       fetch,
-      start: '2026-02-25',
+      start: '2026-03-08',
     },
   },
   methodology,
