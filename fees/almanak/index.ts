@@ -19,19 +19,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const feeDetails = await options.api.multiCall({
         abi: feeRateAbi,
         calls: vaults,
-        permitFailure: true
     });
 
     const asset = await options.api.multiCall({
         abi: 'address:asset',
         calls: vaults,
-        permitFailure: true
     });
 
     const totalAssets = await options.api.multiCall({
         abi: 'uint256:totalAssets',
         calls: vaults,
-        permitFailure: true
     });
 
     for (let i = 0; i < vaults.length; i++) {
@@ -44,7 +41,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
 
     const dailyRevenue = dailyFees.clone();
-    dailyRevenue.subtract(dailySupplySideRevenue);
+    dailyRevenue.subtract(dailySupplySideRevenue, METRIC.ASSETS_YIELDS);
 
     return {
         dailyFees,

@@ -4,9 +4,11 @@ import { gql, GraphQLClient } from "graphql-request";
 import type { FetchOptions } from "../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 
-const endpoints: Record<string, string> = {
-  [CHAIN.BASE]:
-    "https://subgraph.satsuma-prod.com/04ae1114b7fd/flex-trade/base-mainnet-stats/api",
+const chainConfig: Record<string, { url: string, start: string }> = {
+  [CHAIN.BASE]: {
+    url: "https://api.goldsky.com/api/public/project_cmgz6cyvn000i2bp2fv9nefon/subgraphs/base-mainnet-stats/prod/gn",
+    start: '2025-02-20',
+  },
 };
 
 const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
@@ -26,7 +28,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
         }
       }
     `;
-  const graphQLClient = new GraphQLClient(endpoints[options.chain]);
+  const graphQLClient = new GraphQLClient(chainConfig[options.chain].url);
   graphQLClient.setHeader("origin", "https://flex.trade");
   const dailyFeeResp = await graphQLClient.request(dailyFeeQuery);
 
@@ -63,12 +65,8 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2025-02-20',
-    },
-  },
+  fetch,
+  adapter: chainConfig,
 };
 
 export default adapter;

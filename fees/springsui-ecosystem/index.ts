@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { SuiLendMetrics } from "../suilend";
 
 interface FeeStats {
   ecosystemFeesUsd: string;
@@ -8,26 +9,28 @@ interface FeeStats {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const suilendFeesURL = 'https://api.suilend.fi/springsui/stats/fees';
+  const suilendFeesURL = 'https://global.suilend.fi/springsui/stats/fees';
   const url = `${suilendFeesURL}?endTimestamp=${options.endTimestamp}&startTimestamp=${options.startTimestamp}`
   const stats: FeeStats = (await fetchURL(url));
+  
   const stakerFees = Number(stats.ecosystemStakerRevenue);
-  const dailyProtocolRevenue = Number(stats.ecosystemFeesUsd);
-  const dailyFees = stakerFees + dailyProtocolRevenue;
+  const protocolRevenue = Number(stats.ecosystemFeesUsd);
+  
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(stakerFees + protocolRevenue, SuiLendMetrics.SpringSuiEcosystemStakingRewards)  
+  dailySupplySideRevenue.addUSDValue(stakerFees, SuiLendMetrics.SpringSuiEcosystemStakingRewardsToStakers)  
+  dailyRevenue.addUSDValue(protocolRevenue, SuiLendMetrics.SpringSuiEcosystemStakingRewardsToProtocol)  
 
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
   };
 };
-
-const methodology = {
-  Fees: 'Fees paid by those minting and redeeming SpringSui Ecosystem LSTs + staking rewards',
-  Revenue: 'Fees are collected by SpringSui Ecosystem.',
-  ProtocolRevenue: 'Fees are collected by SpringSui Ecosystem.',
-}
-
 
 const adapter: Adapter = {
   version: 2,
@@ -37,7 +40,23 @@ const adapter: Adapter = {
       start: '2024-10-29',
     },
   },
-  methodology,
+  methodology: {
+    Fees: 'Fees paid by those minting and redeeming SpringSui Ecosystem LSTs + staking rewards',
+    Revenue: 'Fees are collected by SpringSui Ecosystem.',
+    ProtocolRevenue: 'Fees are collected by SpringSui Ecosystem.',
+    SupplySideRevenue: 'Staking rewards to stakers'
+  },
+  breakdownMethodology: {
+    Fees: {
+      [SuiLendMetrics.SpringSuiEcosystemStakingRewards]: 'Fees paid by those minting and redeeming SpringSui Ecosystem LSTs + staking rewards',
+    },
+    Revenue: {
+      [SuiLendMetrics.SpringSuiEcosystemStakingRewardsToProtocol]: 'Fees are collected by SpringSui Ecosystem.',
+    },
+    SupplySideRevenue: {
+      [SuiLendMetrics.SpringSuiEcosystemStakingRewardsToStakers]: 'Fees are collected by stakers.',
+    },
+  },
 };
 
 export default adapter;

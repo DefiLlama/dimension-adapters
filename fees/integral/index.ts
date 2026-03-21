@@ -9,7 +9,7 @@ import {
   DEFAULT_DAILY_VOLUME_FIELD, 
   DEFAULT_TOTAL_FEES_FACTORY, 
   DEFAULT_TOTAL_FEES_FIELD 
-} from "../../helpers/getUniSubgraphFees";
+} from "../../helpers/getUniSubgraphVolume";
 
 const DEFAULT_DAILY_FEES_FACTORY = "dayData";
 

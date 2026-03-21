@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
 import { cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { ethers } from "ethers";
@@ -21,7 +21,6 @@ const factories: {[key: string]: Ifactory} = {
   [CHAIN.BSC]: {
     start: '2023-04-01',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
-    blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC),
   },
   [CHAIN.ETHEREUM]: {
     start: '2023-04-01',
@@ -57,16 +56,17 @@ const factories: {[key: string]: Ifactory} = {
   }
 }
 
-export const PANCAKESWAP_V3_QUERY = (fromTime: number, toTime: number, blacklistTokens: Array<string>) => {
+export const PANCAKESWAP_V3_QUERY = async (fromTime: number, toTime: number) => {
+  const tokens = await getDefaultDexTokensWhitelisted({ chain: CHAIN.BSC });
   return `
     SELECT
         project_contract_address AS pool
         , SUM(
           CASE 
-              WHEN token_sold_address NOT IN (${blacklistTokens.toString()})
-              AND token_bought_address NOT IN (${blacklistTokens.toString()})
+              WHEN token_sold_address IN (${tokens.toString()})
+              AND token_bought_address IN (${tokens.toString()})
               THEN amount_usd
-              ELSE 0 
+              ELSE 0
           END
         ) AS clean_volume_usd
         , SUM(amount_usd) AS total_volume_usd 
@@ -140,7 +140,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   if (options.chain === CHAIN.BSC) {
     const poolsAndVolumes = await queryDune('3996608',{
-      fullQuery: PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp, factories[options.chain].blacklistTokens as Array<string>),
+      fullQuery: await PANCAKESWAP_V3_QUERY(options.fromTimestamp, options.toTimestamp),
     }, options);
 
     const poolFees = await options.api.multiCall({

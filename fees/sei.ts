@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { Adapter, ProtocolType, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
 import { queryAllium } from "../helpers/allium";
 import ADDRESSES from "../helpers/coreAssets.json";
 
@@ -16,11 +16,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees };
 }
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SEI],
   start: '2023-04-21',
+  dependencies: [Dependencies.ALLIUM],
   protocolType: ProtocolType.CHAIN,
   isExpensiveAdapter: true,
 }

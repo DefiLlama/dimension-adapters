@@ -35,12 +35,7 @@ const prefetch = async (options: FetchOptions) => {
   extracted_orders AS (
     SELECT
       chain,
-      CASE
-        WHEN JSON_EXTRACT_SCALAR(order_data, '$.currency') = '0x4944520000000000000000000000000000000000000000000000000000000000' THEN 'IDR'
-        WHEN JSON_EXTRACT_SCALAR(order_data, '$.currency') = '0x42524c0000000000000000000000000000000000000000000000000000000000' THEN 'BRL'
-        WHEN JSON_EXTRACT_SCALAR(order_data, '$.currency') = '0x4152530000000000000000000000000000000000000000000000000000000000' THEN 'ARS'
-        ELSE 'INR'
-      END AS currency,
+      COALESCE(NULLIF(RTRIM(FROM_UTF8(FROM_HEX(SUBSTR(JSON_EXTRACT_SCALAR(order_data, '$.currency'), 3))), CHR(0)), ''), 'INR') AS currency,
       TRY_CAST(JSON_EXTRACT_SCALAR(order_data, '$.orderType') AS INTEGER) AS order_type,
       TRY_CAST(JSON_EXTRACT_SCALAR(order_data, '$.amount') AS DOUBLE) / 1000000 AS amount,
       COALESCE(
@@ -48,6 +43,20 @@ const prefetch = async (options: FetchOptions) => {
           TRY_CAST(JSON_EXTRACT_SCALAR(order_data, '$.fiatAmount') AS DOUBLE)
       ) / 1000000 AS fiat_amount
     FROM all_orders
+
+    UNION ALL
+
+    SELECT
+      'base' AS chain,
+      COALESCE(NULLIF(RTRIM(FROM_UTF8(bytearray_substring(data, 769, 32)), CHR(0)), ''), 'INR') AS currency,
+      CAST(bytearray_to_uint256(bytearray_substring(data, 449, 32)) AS INTEGER) AS order_type,
+      CAST(bytearray_to_uint256(bytearray_substring(data, 65, 32)) AS DOUBLE) / 1000000 AS amount,
+      CAST(bytearray_to_uint256(bytearray_substring(data, 97, 32)) AS DOUBLE) / 1000000 AS fiat_amount
+    FROM base.logs
+    WHERE contract_address = 0x4cad6eC90e65baBec9335cAd728DDc610c316368
+      AND topic0 = 0x507539023a7b6a713438d0f44eab4f97bcf8905b183b1108148409a8e8c1ed8c
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
   ),
   
   revenue_by_chain_currency AS (

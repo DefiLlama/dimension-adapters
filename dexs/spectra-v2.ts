@@ -1,10 +1,9 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 import { gql, GraphQLClient } from "graphql-request";
 
-const DEFAULT_SUBGRAPH_LIMIT = 10_000;
+const DEFAULT_SUBGRAPH_LIMIT = 1_000;
 
 const GQL_QUERIES = {
   DAILY_TRANSACTIONS: (
@@ -65,63 +64,75 @@ const chains: {
     id: 1,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-mainnet/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-mainnet/prod/gn",
   },
   [CHAIN.ARBITRUM]: {
     id: 42161,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-arbitrum/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-arbitrum/prod/gn",
   },
   [CHAIN.OPTIMISM]: {
     id: 10,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-optimism/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-optimism/prod/gn",
   },
   [CHAIN.BASE]: {
     id: 8453,
     start: "2024-07-01",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-base/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-base/prod/gn",
     blacklistPools: ["0x447d24edf78b20a4cf748a7cee273510edf87df1"],
   },
   [CHAIN.SONIC]: {
     id: 146,
     start: "2024-12-27",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-sonic/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-sonic/prod/gn",
   },
   [CHAIN.HEMI]: {
     id: 43111,
     start: "2025-03-06",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-hemi/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hemi/prod/gn",
   },
   [CHAIN.AVAX]: {
     id: 43114,
     start: "2025-05-26",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-avalanche/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-avalanche/prod/gn",
   },
   [CHAIN.BSC]: {
     id: 56,
     start: "2025-05-26",
     protocolSubgraphUrl:
-      "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/spectra-bsc/api",
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-bsc/prod/gn",
   },
   [CHAIN.HYPERLIQUID]: {
     id: 999,
     start: "2025-06-01",
     protocolSubgraphUrl:
-      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/1.2.1/gn",
-    limit: 1000,
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-hyperevm/prod/gn",
+    blacklistPools: ["0x60f393a4a7e41aae2bfa0f401e1f114c3ad088f6"] // Returns inflated values, for example this 4$ transaction returns 195k in volume: https://hyperevmscan.io/tx/0x4502e2238e3def500bc11387c40ab85b08b062b9572619a9a4051b36f7b4fb84
   },
   [CHAIN.KATANA]: {
     id: 747474,
     start: "2025-07-02",
-    protocolSubgraphUrl: sdk.graph.modifyEndpoint("EM1PDEWqo1BWaLEW5FotmHtVK1HX8z7eFnLVfDRLjfQh"),
-    limit: 1000,
+    protocolSubgraphUrl:
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-katana/prod/gn",
+  },
+  [CHAIN.FLARE]: {
+    id: 14,
+    start: "2025-08-22",
+    protocolSubgraphUrl:
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-flare/prod/gn",
+  },
+  [CHAIN.MONAD]: {
+    id: 143,
+    start: "2025-11-25",
+    protocolSubgraphUrl:
+      "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-monad/prod/gn",
   },
 };
 
@@ -150,7 +161,7 @@ type VotingReward = {
 };
 
 const GOVERNANCE_SUBGRAPH_URL =
-  "https://subgraph.satsuma-prod.com/957f3120c2b2/perspective/governance/api";
+  "https://api.goldsky.com/api/public/project_cm55feuq3euos01xjb3w504ls/subgraphs/spectra-governance/prod/gn";
 
 const fetchDailyFeesAndVolume = async ({
   chain,
@@ -173,7 +184,12 @@ const fetchDailyFeesAndVolume = async ({
   ).transactions as Transaction[];
 
   dailyData.forEach((transaction) => {
-    if (chains[chain].blacklistPools && new Set(chains[chain].blacklistPools).has(transaction.poolInTransaction.id)) {
+    if (
+      chains[chain].blacklistPools &&
+      new Set(chains[chain].blacklistPools).has(
+        transaction.poolInTransaction.id
+      )
+    ) {
       return;
     }
 
@@ -210,7 +226,9 @@ const fetchDailyHoldersRevenue = async ({
   // Count both reward types (voting incentives + fees) separately
   dailyData.forEach((reward) => {
     // Only count rewards for pools on the current chain
-    if (reward.distributor.governancePool.chainId === chains[chain].id.toString()) {
+    if (
+      reward.distributor.governancePool.chainId === chains[chain].id.toString()
+    ) {
       if (reward.distributor.type === "FEE") {
         dailyVotingFeesRevenue.add(reward.address, reward.amount.toString());
       } else {
@@ -231,7 +249,8 @@ const fetch: FetchV2 = async (options) => {
 
   const dailyRevenue = dailyFees.clone(0.8);
   const dailySupplySideRevenue = dailyFees.clone(0.2);
-  const [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue] = await fetchDailyHoldersRevenue(options);
+  const [dailyVotingFeesRevenue, dailyVotingIncentivesRevenue] =
+    await fetchDailyHoldersRevenue(options);
 
   return {
     dailyVolume,

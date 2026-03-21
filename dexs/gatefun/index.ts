@@ -25,6 +25,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
 	Volume: 'Total swap volume collected from gatefun contract 0x7C8FbD15E4c8B722920C1570A4704622D5391113',
   },

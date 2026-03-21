@@ -101,9 +101,9 @@ const adapter: SimpleAdapter = {
   methodology: {
     NotionalVolume: "V1 (Before Sept 25, 2025): On-chain execution - Notional volume calculated as size * btcPrice / 100 from LimitOrderFilled events. V2 (After Sept 25, 2025): Off-chain execution - Notional volume summed from CycleSettled events in USDC.",
     PremiumVolume: "V1 (Before Sept 25, 2025): Premium volume calculated as limitPrice * size from LimitOrderFilled events. V2 (After Sept 25, 2025): Premium volume summed from CycleSettled events in USDC.",
-    OffchainTransition: "Protocol transitioned from on-chain to off-chain execution on Sept 25, 2025. V1 uses LimitOrderFilled events from BTC_MARKET and PUMP_MARKET contracts. V2 uses CycleSettled events from OPTFUN_CONTRACT for aggregated off-chain volume reporting.",
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,

@@ -51,12 +51,13 @@ const fetch = (addressList: string[]) => {
     const dailyFees = createBalances();
     const dailyRevenue = createBalances();
     const dailySupplySideRevenue = createBalances();
-    dailyRevenue.add(USDC, devFeeVol + ssFeeVol);
-    dailySupplySideRevenue.add(USDC, referralFeeVol);
-    dailyFees.add(
-      USDC,
-      devFeeVol + ssFeeVol + referralFeeVol + usdcVaultFeeVol
-    );
+    dailyFees.add(USDC, devFeeVol, 'Governance Fees');
+    dailyFees.add(USDC, ssFeeVol, 'Staking Fees');
+    dailyFees.add(USDC, referralFeeVol, 'Referral Fees');
+    dailyFees.add(USDC, usdcVaultFeeVol, 'LP Vault Fees');
+    dailyRevenue.add(USDC, devFeeVol, 'Governance Fees');
+    dailyRevenue.add(USDC, ssFeeVol, 'Staking Fees');
+    dailySupplySideRevenue.add(USDC, referralFeeVol, 'Referral Fees');
 
     return {
       timestamp,
@@ -68,7 +69,36 @@ const fetch = (addressList: string[]) => {
   };
 };
 
+const methodology = {
+  Fees: 'All trading fees collected from perpetual trades, including governance, staking, referral, and LP vault fees.',
+  Revenue: 'Fees allocated to protocol governance and stakers.',
+  HoldersRevenue: 'Fees allocated to protocol governance and stakers.',
+  SupplySideRevenue: 'Fees paid to referrers.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Governance Fees': 'Fees charged on trades allocated to protocol governance and development',
+    'Staking Fees': 'Fees charged on trades allocated to stakers',
+    'Referral Fees': 'Fees charged on trades allocated to referrers',
+    'LP Vault Fees': 'Fees charged on trades allocated to USDC vault liquidity providers',
+  },
+  Revenue: {
+    'Governance Fees': 'Fees charged on trades allocated to protocol governance and development',
+    'Staking Fees': 'Fees charged on trades allocated to stakers',
+  },
+  HoldersRevenue: {
+    'Governance Fees': 'Fees charged on trades allocated to protocol governance and development',
+    'Staking Fees': 'Fees charged on trades allocated to stakers',
+  },
+  SupplySideRevenue: {
+    'Referral Fees': 'Fees charged on trades allocated to referrers',
+  },
+};
+
 const adapter: Adapter = {
+  methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ERA]: {
       fetch: fetch(FEE_ADDRESS[CHAIN.ERA]),

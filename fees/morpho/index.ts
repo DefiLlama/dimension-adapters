@@ -106,6 +106,11 @@ const MorphoBlues: Record<string, MorphoBlueConfig> = {
     blue: "0xD5D960E8C380B724a48AC59E2DfF1b2CB4a1eAee",
     start: "2025-11-23",
   },
+  // [CHAIN.STABLE]: {
+  //   fromBlock: 4342501,
+  //   blue: "0xa40103088A899514E3fe474cD3cc5bf811b1102e",
+  //   start: "2025-12-08",
+  // },
   // [CHAIN.TAC]: {
   //   fromBlock: 853025,
   //   blue: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c",
@@ -221,6 +226,7 @@ const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<Morpho
     target: MorphoBlues[options.chain].blue,
     eventAbi: MorphoBlueAbis.CreateMarket,
     fromBlock: MorphoBlues[options.chain].fromBlock,
+    cacheInCloud: true,
   });
 
   for (const event of events) {

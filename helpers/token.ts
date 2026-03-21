@@ -2,8 +2,9 @@ import * as sdk from '@defillama/sdk';
 import axios from 'axios';
 import { ethers } from "ethers";
 import { FetchOptions } from "../adapters/types";
-import { queryAllium } from './allium';
+import { queryAllium, getAlliumChain } from './allium';
 import { getCache, setCache } from "./cache";
+import { CHAIN } from './chains';
 import ADDRESSES from './coreAssets.json';
 import { getEnv } from './env';
 import { sleep } from '../utils/utils';
@@ -12,6 +13,24 @@ import { queryDuneSql } from './dune';
 export const nullAddress = ADDRESSES.null
 
 // NOTE: this works only with multisig contracts
+/**
+ * Track native gas token (ETH, BNB, etc.) received by Safe multisig wallets.
+ * 
+ * Listens for the SafeReceived event emitted when a Safe receives native tokens.
+ * This is more accurate than tracking raw transfers since it only counts intentional
+ * deposits to the Safe, not gas refunds or other internal transfers.
+ * 
+ * Use cases:
+ * - Track protocol revenue received by treasury multisigs
+ * - Monitor payments to DAO-controlled Safes
+ * - Calculate fees collected in native tokens
+ * 
+ * @param params.multisig - Single Safe address to track
+ * @param params.multisigs - Array of Safe addresses to track
+ * @param params.fromAddresses - Optional. Only count deposits from these addresses
+ * @param params.blacklist_fromAddresses - Optional. Exclude deposits from these addresses
+ * @returns Balances object with native token amounts received
+ */
 export async function addGasTokensReceived(params: {
   multisig?: string;
   multisigs?: string[];
@@ -87,6 +106,29 @@ type AddTokensReceivedParams = {
   logFilter?: (log: any) => boolean;
 }
 
+/**
+ * Track ERC20 token transfers received by one or more addresses.
+ * 
+ * Automatically tries to use the indexer first for better performance, falls back to getLogs if indexer fails.
+ * Can fetch token list automatically using Ankr if tokens are not specified.
+ * 
+ * Use cases:
+ * - Track protocol revenue: tokens received by treasury addresses
+ * - Calculate fees collected: tokens sent to fee collector contracts
+ * - Monitor payments: tokens received from specific senders
+ * 
+ * @param params.target - Single address to track tokens received
+ * @param params.targets - Array of addresses to track tokens received (alternative to target)
+ * @param params.tokens - Optional. Array of token addresses to track. If not provided and fetchTokenList=true, fetches from Ankr
+ * @param params.token - Optional. Single token address (alternative to tokens array)
+ * @param params.fromAddressFilter - Optional. Only count transfers from this address
+ * @param params.fromAdddesses - Optional. Only count transfers from these addresses (internally creates parallel calls)
+ * @param params.tokenTransform - Optional. Transform token address before adding to balances
+ * @param params.fetchTokenList - Optional. If true and no tokens specified, fetches token list from Ankr
+ * @param params.logFilter - Optional. Custom filter function to apply to each transfer log
+ * @param params.skipIndexer - Optional. If true, skips indexer and uses getLogs directly
+ * @returns Balances object with token amounts received
+ */
 export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   if (!params.skipIndexer) {
@@ -191,22 +233,22 @@ const ankrTokenCalls: any = {}
 const ankrChainMapping: {
   [chain: string]: string
 } = {
-  ethereum: 'eth',
-  base: 'base',
-  bsc: 'bsc',
-  arbitrum: 'arbitrum',
-  optimism: 'optimism',
-  fantom: 'fantom',
-  polygon: 'polygon',
-  polygon_zkevm: 'polygon_zkevm',
-  era: 'zksync_era',
-  avax: 'avalanche',
-  flare: 'flare',
-  xdai: 'gnosis',
-  linea: 'linea',
-  rollux: 'rollux',
-  scroll: 'scroll',
-  syscoin: 'syscoin',
+  [CHAIN.ETHEREUM]: 'eth',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.BSC]: 'bsc',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.FANTOM]: 'fantom',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
+  [CHAIN.ERA]: 'zksync_era',
+  [CHAIN.AVAX]: 'avalanche',
+  [CHAIN.FLARE]: 'flare',
+  [CHAIN.XDAI]: 'gnosis',
+  [CHAIN.LINEA]: 'linea',
+  [CHAIN.ROLLUX]: 'rollux',
+  [CHAIN.SCROLL]: 'scroll',
+  [CHAIN.SYSCOIN]: 'syscoin',
 }
 
 async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
@@ -337,6 +379,23 @@ export async function getTokenDiff(params: {
 }
 
 
+/**
+ * Helper function that combines native token and ERC20 token tracking for a receiver wallet.
+ * 
+ * This is a convenient wrapper that calls both getETHReceived (for native tokens) and
+ * addTokensReceived (for ERC20 tokens) and returns them as dailyFees/dailyRevenue.
+ * 
+ * Common use case: Simple fee adapters where all tokens received by a wallet = revenue.
+ * 
+ * @param receiverWallet - Address that receives the fees/revenue
+ * @param tokens - Array of ERC20 token addresses to track
+ * @returns Async function that returns { dailyFees, dailyRevenue } for the adapter
+ * 
+ * @example
+ * const adapter = {
+ *   fetch: evmReceivedGasAndTokens('0xTreasury...', ['0xUSDC...', '0xDAI...']),
+ * }
+ */
 export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]) =>
   async (options: FetchOptions) => {
     let dailyFees = options.createBalances()
@@ -383,7 +442,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   const addresses = targets?.length ? targets : target ? [target] : [];
   if (addresses.length === 0) return balances;
 
-  // Build SQL condition to inlcude only mints tokens
+  // Build SQL condition to include only mints tokens
   let mintsCondition = '';
 
   if (mints && mints.length > 0) {
@@ -543,18 +602,25 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   return balances;
 }
 
-function getAlliumChain(chain: string): string {
-  switch(chain) {
-    case 'avax': return 'avalanche'
-    case 'era': return 'zksync';
-    case 'xdai': return 'gnosis';
-    case 'rsk': return 'rootstock';
-    case 'wc': return 'worldchain';
-    case 'manta': return 'manta_pacific';
-    default: return chain
-  }
-}
 
+/**
+ * Track native gas token (ETH, BNB, MATIC, etc.) received by one or more addresses.
+ * 
+ * Uses Allium's native token transfer tables or raw traces to query native token flows.
+ * Automatically excludes self-transfers (address sending to itself) to avoid double counting.
+ * 
+ * Use cases:
+ * - Track protocol revenue in native tokens
+ * - Monitor ETH received by treasury or fee collector addresses
+ * - Calculate gas token payments to contracts
+ * 
+ * @param options - FetchOptions with chain, timestamp range, etc.
+ * @param balances - Optional. Balances object to add results to
+ * @param target - Optional. Single address to track
+ * @param targets - Optional. Array of addresses to track
+ * @param notFromSenders - Optional. Exclude transfers from these addresses (in addition to self-transfers)
+ * @returns Balances object with native token amounts received
+ */
 export async function getETHReceived({ options, balances, target, targets = [], notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, target?: string, targets?: string[], notFromSenders?: string[] }) {
   if (!balances) balances = options.createBalances()
 
@@ -572,38 +638,42 @@ export async function getETHReceived({ options, balances, target, targets = [], 
 
   // you can find the supported chains and the documentation here: https://docs.allium.so/historical-chains/supported-blockchains/evm/ethereum
   const chainMap: any = {
-    ethereum: 'ethereum',
-    base: 'base',
-    optimism: 'optimism',
-    scroll: 'scroll',
-    bsc: 'bsc',
-    arbitrum: 'arbitrum',
-    avax: 'avalanche',
-    polygon: 'polygon',
-    // celo: 'celo',
-    tron: 'tron',
-    unichain: 'unichain',
-    zora: 'zora',
-    near: 'near',
-    xdai: 'gnosis',
-    ink: 'ink',
-    berachain: 'berachain',
-    polygon_zkevm: 'polygon_zkevm',
-    plasma: 'plasma',
+    [CHAIN.ETHEREUM]: 'ethereum',
+    [CHAIN.BASE]: 'base',
+    [CHAIN.OPTIMISM]: 'optimism',
+    [CHAIN.SCROLL]: 'scroll',
+    [CHAIN.BSC]: 'bsc',
+    [CHAIN.ARBITRUM]: 'arbitrum',
+    [CHAIN.AVAX]: 'avalanche',
+    [CHAIN.POLYGON]: 'polygon',
+    // [CHAIN.CELO]: 'celo',
+    [CHAIN.TRON]: 'tron',
+    [CHAIN.UNICHAIN]: 'unichain',
+    [CHAIN.ZORA]: 'zora',
+    [CHAIN.NEAR]: 'near',
+    [CHAIN.XDAI]: 'gnosis',
+    [CHAIN.INK]: 'ink',
+    [CHAIN.BERACHAIN]: 'berachain',
+    [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
+    [CHAIN.PLASMA]: 'plasma',
+    [CHAIN.MONAD]: 'monad',
   }
+  
+  // https://docs.allium.so/changelog/deprecated-schemas
   const tableMap: any = {
-    bsc: 'bnb_token_transfers',
-    avax: 'avax_token_transfers',
-    tron: 'trx_token_transfers',
-    near: 'near_token_transfers',
-    polygon: 'matic_token_transfers',
-    berachain: 'native_token_transfers',
-    ink: 'native_token_transfers',
-    xdai: 'native_token_transfers',
-    polygon_zkevm: 'native_token_transfers',
-    unichain: 'native_token_transfers',
-    sonic: 'native_token_transfers',
-    plasma: 'native_token_transfers',
+    [CHAIN.TRON]: 'trx_token_transfers',
+    [CHAIN.NEAR]: 'near_token_transfers',
+    // bsc: 'bnb_token_transfers',
+    // avax: 'avax_token_transfers',
+    // polygon: 'matic_token_transfers',
+    // berachain: 'native_token_transfers',
+    // ink: 'native_token_transfers',
+    // xdai: 'native_token_transfers',
+    // polygon_zkevm: 'native_token_transfers',
+    // unichain: 'native_token_transfers',
+    // sonic: 'native_token_transfers',
+    // plasma: 'native_token_transfers',
+    // monad: 'native_token_transfers'
   }
 
   let query = ``
@@ -613,7 +683,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
-      FROM ${chainKey}.assets.${tableMap[options.chain] ?? 'eth_token_transfers'}
+      FROM ${chainKey}${tableMap[options.chain] ? '.assets.${tableMap[options.chain]}' : '.assets.native_token_transfers'}
       WHERE to_address in ${targetList} 
       ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
@@ -636,4 +706,145 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   const res = await queryAllium(query)
   balances.add(nullAddress, res[0].value)
   return balances
+}
+
+type GetEVMTokenTransfersParams = {
+  options: FetchOptions;
+  balances?: sdk.Balances;
+  toAddresses?: string[];
+  fromAddresses?: string[];
+  tokens?: string[];
+  txFromAddresses?: string[];
+  txToAddresses?: string[];
+  blacklistFromAddresses?: string[];
+  blacklistToAddresses?: string[];
+  blacklistTxFromAddresses?: string[];
+  blacklistTxToAddresses?: string[];
+}
+
+/**
+ * Query token transfers on EVM chains using Allium's crosschain transfers table.
+ * 
+ * This method provides more flexible filtering than getLogs by allowing you to filter on:
+ * - Transfer sender/receiver (from_address/to_address) - the addresses in the Transfer event
+ * - Transaction sender/receiver (transaction_from_address/transaction_to_address) - the tx.from/tx.to addresses
+ * - Specific tokens
+ * - Blacklist addresses for any of the above
+ * 
+ * Use cases:
+ * - Track token burns: filter transfers to zero address
+ * - Track protocol revenue: filter transfers to treasury addresses
+ * - Track user payments: filter by transaction sender addresses
+ * - Exclude internal transfers: blacklist protocol contract addresses
+ * 
+ * @param params.toAddresses - Required. Filter transfers to these addresses (Transfer event 'to')
+ * @param params.fromAddresses - Optional. Filter transfers from these addresses (Transfer event 'from')
+ * @param params.tokens - Optional. Filter specific token addresses
+ * @param params.txFromAddresses - Optional. Filter by transaction sender (tx.from)
+ * @param params.txToAddresses - Optional. Filter by transaction receiver (tx.to)
+ * @param params.blacklistFromAddresses - Optional. Exclude transfers from these addresses
+ * @param params.blacklistToAddresses - Optional. Exclude transfers to these addresses
+ * @param params.blacklistTxFromAddresses - Optional. Exclude transactions from these addresses
+ * @param params.blacklistTxToAddresses - Optional. Exclude transactions to these addresses
+ * @returns Balances object with aggregated token amounts
+ */
+export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
+  const {
+    options,
+    balances: inputBalances,
+    toAddresses = [],
+    fromAddresses = [],
+    tokens = [],
+    txFromAddresses = [],
+    txToAddresses = [],
+    blacklistFromAddresses = [],
+    blacklistToAddresses = [],
+    blacklistTxFromAddresses = [],
+    blacklistTxToAddresses = [],
+  } = params;
+
+  const balances = inputBalances || options.createBalances();
+
+  if (!toAddresses.length) {
+    throw new Error('toAddresses is required');
+  }
+
+  const normalizeAddresses = (addrs: string[]) => 
+    [...new Set(addrs.map(a => a.toLowerCase()))];
+
+  const toAddrs = normalizeAddresses(toAddresses);
+  const fromAddrs = fromAddresses.length ? normalizeAddresses(fromAddresses) : [];
+  const tokenAddrs = tokens.length ? normalizeAddresses(tokens) : [];
+  const txFromAddrs = txFromAddresses.length ? normalizeAddresses(txFromAddresses) : [];
+  const txToAddrs = txToAddresses.length ? normalizeAddresses(txToAddresses) : [];
+  const blacklistFrom = blacklistFromAddresses.length ? normalizeAddresses(blacklistFromAddresses) : [];
+  const blacklistTo = blacklistToAddresses.length ? normalizeAddresses(blacklistToAddresses) : [];
+  const blacklistTxFrom = blacklistTxFromAddresses.length ? normalizeAddresses(blacklistTxFromAddresses) : [];
+  const blacklistTxTo = blacklistTxToAddresses.length ? normalizeAddresses(blacklistTxToAddresses) : [];
+
+  const formatList = (addrs: string[]) => 
+    '( ' + addrs.map(a => `'${a}'`).join(', ') + ' )';
+
+  const chainKey = getAlliumChain(options.chain);
+
+  let query = `
+    SELECT 
+      token_address as token,
+      SUM(raw_amount) as amount,
+      SUM(usd_amount) as amount_usd
+    FROM crosschain.assets.transfers
+    WHERE 
+    chain = '${chainKey}'
+    AND to_address IN ${formatList(toAddrs)}
+    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  `;
+
+  if (fromAddrs.length) {
+    query += `\n    AND from_address IN ${formatList(fromAddrs)}`;
+  }
+
+  if (tokenAddrs.length) {
+    query += `\n    AND token_address IN ${formatList(tokenAddrs)}`;
+  }
+
+  if (txFromAddrs.length) {
+    query += `\n    AND transaction_from_address IN ${formatList(txFromAddrs)}`;
+  }
+
+  if (txToAddrs.length) {
+    query += `\n    AND transaction_to_address IN ${formatList(txToAddrs)}`;
+  }
+
+  if (blacklistFrom.length) {
+    query += `\n    AND from_address NOT IN ${formatList(blacklistFrom)}`;
+  }
+
+  if (blacklistTo.length) {
+    query += `\n    AND to_address NOT IN ${formatList(blacklistTo)}`;
+  }
+
+  if (blacklistTxFrom.length) {
+    query += `\n    AND transaction_from_address NOT IN ${formatList(blacklistTxFrom)}`;
+  }
+
+  if (blacklistTxTo.length) {
+    query += `\n    AND transaction_to_address NOT IN ${formatList(blacklistTxTo)}`;
+  }
+
+  query += `
+    GROUP BY token_address
+    ORDER BY amount_usd DESC`;
+
+  const results = await queryAllium(query);
+
+  results.forEach((row: { token: string; amount: string | number; amount_usd: string | number }) => {
+    const tokenAddress = row.token || nullAddress;
+    if (tokenAddress.toLowerCase() === nullAddress.toLowerCase()) {
+      balances.addGasToken(row.amount);
+    } else {
+      balances.add(tokenAddress, row.amount);
+    }
+  });
+
+  return balances;
 }

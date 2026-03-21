@@ -60,6 +60,7 @@ export function getFetch(metric: 'volume' | 'fees'): FetchV2 {
       eventAbi: ABIS.PairAddedEvent,
       fromBlock: ExchangeConfigs[options.chain].fromBlock,
       onlyArgs: true,
+      cacheInCloud: true,
     })
     for (const event of pairCreatedEvents) {
       pairIdsMaps[Number(event.index)] = {
@@ -102,16 +103,16 @@ export function getFetch(metric: 'volume' | 'fees'): FetchV2 {
           dailySupplySideRevenue.add(pairIdsMaps[pairIndex].stableToken, event.lpAmount, 'LP Fees')
           dailyFees.add(pairIdsMaps[pairIndex].stableToken, event.vipTradingFee, 'VIP Trading Fees')
           dailySupplySideRevenue.add(pairIdsMaps[pairIndex].stableToken, event.vipTradingFee, 'VIP Trading Fees')
-          
+
           dailyFees.add(pairIdsMaps[pairIndex].stableToken, event.keeperAmount, 'Keeper Network Fees')
           dailyRevenue.add(pairIdsMaps[pairIndex].stableToken, event.keeperAmount, 'Keeper Network Fees')
-          
+
           dailyFees.add(pairIdsMaps[pairIndex].stableToken, Number(event.stakingAmount) + Number(event.reservedAmount) + Number(event.ecoFundAmount) + Number(event.treasuryAmount), 'Protocol Fees')
           dailyRevenue.add(pairIdsMaps[pairIndex].stableToken, Number(event.stakingAmount) + Number(event.reservedAmount) + Number(event.ecoFundAmount) + Number(event.treasuryAmount), 'Protocol Fees')
           dailyProtocolRevenue.add(pairIdsMaps[pairIndex].stableToken, Number(event.stakingAmount) + Number(event.reservedAmount) + Number(event.ecoFundAmount) + Number(event.treasuryAmount), 'Protocol Fees')
         }
       }
-  
+
       return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue }
     }
   }

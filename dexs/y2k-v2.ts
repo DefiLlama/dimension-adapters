@@ -1,8 +1,39 @@
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
-import adapter from './y2k'
-const { breakdown,  ...rest } = adapter
+const factory = "0xC3179AC01b7D68aeD4f27a19510ffe2bfb78Ab3e";
+const event_market_create =
+  "event MarketCreated (uint256 indexed marketId, address premium, address collateral, address underlyingAsset, address token, string name, uint256 strike, address controller)";
+const event_deposit = "event Deposit (address indexed user, address indexed receiver, uint256 id, uint256 assets)";
 
-export default {
-  ...rest,
-  adapter: breakdown['v2'],
-}
+const fetch: any = async (timestamp: number, _: any, { getLogs, createBalances, }: FetchOptions): Promise<FetchResultVolume> => {
+  const dailyVolume = createBalances()
+  const logs_market_create = await getLogs({
+    target: factory,
+    fromBlock: 96059531,
+    eventAbi: event_market_create,
+    cacheInCloud: true,
+  })
+  const premiums = logs_market_create.map((e) => e.premium);
+  const collaterals = logs_market_create.map((e) => e.collateral);
+  let tokens = logs_market_create.map((e) => e.underlyingAsset);
+  tokens = tokens.concat(tokens)
+  const markets = premiums.concat(collaterals);
+  const logs = await getLogs({ targets: markets, eventAbi: event_deposit, flatten: false, })
+  logs.forEach((logs: any, index: number) => {
+    logs.forEach((log: any) => dailyVolume.add(tokens[index], log.deposit))
+  })
+
+  return { dailyVolume, timestamp, };
+};
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch,
+      start: '2023-05-30',
+    },
+  },
+};
+
+export default adapter;

@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 
 const TREASURY_PDA = '6pZERJjcMpNjPZ6ovnXWC6LzwkXLAYgAR1URAEs63cWC';
 
@@ -15,6 +16,7 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
       SELECT tx_id, block_slot, block_time
       FROM solana.instruction_calls
       WHERE executing_account = 'WSTKhDg9nQ8h2ZmnmNdR6heSGU6uYJSwdUNpzSYXBSe'
+        AND tx_success = true
         AND substr(data, 1, 1) = 0x0b
         AND block_time >= from_unixtime(${options.fromTimestamp})
         AND block_time < from_unixtime(${options.toTimestamp})
@@ -37,13 +39,13 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
         const amount = row.amount;
 
         // Add to total fees
-        dailyFees.add(ADDRESSES.solana.USDC, amount);
+        dailyFees.add(ADDRESSES.solana.USDC, amount, METRIC.SERVICE_FEES);
 
         // Separate between holders revenue (treasury PDA) and supply side revenue (workers)
         if (row.to_owner === TREASURY_PDA) {
-            dailyHoldersRevenue.add(ADDRESSES.solana.USDC, amount);
+            dailyHoldersRevenue.add(ADDRESSES.solana.USDC, amount, METRIC.STAKING_REWARDS);
         } else {
-            dailySupplySideRevenue.add(ADDRESSES.solana.USDC, amount);
+            dailySupplySideRevenue.add(ADDRESSES.solana.USDC, amount, 'Worker node rewards');
         }
     }
 
@@ -58,6 +60,18 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
     };
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SERVICE_FEES]: 'USDC payments from users for decentralized compute services provided by the Beamable Network',
+    },
+    SupplySideRevenue: {
+        'Worker node rewards': 'USDC payments distributed to worker nodes that provide compute resources and execute tasks',
+    },
+    HoldersRevenue: {
+        [METRIC.STAKING_REWARDS]: 'USDC sent to the treasury PDA for distribution to BMB token stakers',
+    }
+};
+
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.SOLANA],
@@ -70,7 +84,8 @@ const adapter: SimpleAdapter = {
         SupplySideRevenue: "Portion of fees paid to worker nodes for providing compute services",
         HoldersRevenue: "Portion of fees for distribution to BMB stakers",
         ProtocolRevenue: "Portion of fees retained by the protocol",
-    }
+    },
+    breakdownMethodology,
 };
 
 export default adapter;

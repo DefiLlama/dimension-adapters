@@ -2,7 +2,7 @@ import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from
 import { httpGet } from '../utils/fetchURL';
 import { queryAllium } from '../helpers/allium';
 import { Balances } from '@defillama/sdk';
-import { FetchOptions, ProtocolType, SimpleAdapter } from '../adapters/types';
+import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from './chains';
 import { METRIC } from './metrics';
 
@@ -11,26 +11,26 @@ interface ChainMapping {
 }
 
 export const chainMap: ChainMapping = {
-  ethereum: 'ethereum',
-  base: 'base',
-  optimism: 'optimism',
-  scroll: 'scroll',
-  bsc: 'bsc',
-  arbitrum: 'arbitrum',
-  polygon: 'polygon',
-  blast: 'blast',
-  celo: 'celo',
-  berachain: 'berachain',
-  sonic: 'sonic',
-  mantle: 'mantle',
-  linea: 'linea',
-  sei: 'sei',
-  ripple: 'ripple',
-  ronin: 'ronin',
-  fraxtal: 'fraxtal',
-  metis: 'metis',
-  unichain: 'unichain',
-  mode: 'mode',
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.SCROLL]: 'scroll',
+  [CHAIN.BSC]: 'bsc',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.BLAST]: 'blast',
+  [CHAIN.CELO]: 'celo',
+  [CHAIN.BERACHAIN]: 'berachain',
+  [CHAIN.SONIC]: 'sonic',
+  [CHAIN.MANTLE]: 'mantle',
+  [CHAIN.LINEA]: 'linea',
+  [CHAIN.SEI]: 'sei',
+  [CHAIN.RIPPLE]: 'ripple',
+  [CHAIN.RONIN]: 'ronin',
+  [CHAIN.FRAXTAL]: 'fraxtal',
+  [CHAIN.METIS]: 'metis',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.MODE]: 'mode',
 };
 
 
@@ -58,7 +58,7 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
   return {
     adapter: {
       [chain]: {
-        fetch: async (_: any, _1: any, options: FetchOptions) => {
+        fetch: async (_a: any, _b: any, options: FetchOptions) => {
           const transactionFees = await fetchTransactionFees(options)
           return {
             dailyFees: transactionFees,
@@ -69,8 +69,9 @@ export function fetchChainTransactionFeesExport({ chain, start }: { chain: CHAIN
       },
     },
     version: 1,
-    isExpensiveAdapter: true,
+    dependencies: [Dependencies.ALLIUM],
     protocolType: ProtocolType.CHAIN,
+    isExpensiveAdapter: true,
   }
 }
 

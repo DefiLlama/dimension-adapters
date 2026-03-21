@@ -2,13 +2,13 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import BigNumber from "bignumber.js";
 
-const pairs = [
+const games = [
   // Coin Flip
   {
     target: "0xa7f902847a16F1CDbF043c0653865D40e6695de5",
     eventAbi: "event CoinFlip_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint8[] coinOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
   },
-  // Dice
+  // Dice / Range
   {
     target: "0x8baecE06d825d36b52cb588960aE707d6C76a54C",
     eventAbi: "event Dice_Outcome_Event( address indexed playerAddress, uint256 wager, uint256 payout, address tokenAddress, uint32 multiplier, bool isOver, uint256[] diceOutcomes, uint256[] payouts, uint32 numGames, uint64 sequenceNumber )",
@@ -60,54 +60,79 @@ const pairs = [
   },
 ];
 
-// Hard-coded rate in smart contract
-const FEE_RATE = 0.1 / 100;
-
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
   const logs: any[] = [];
-  for (const pair of pairs) {
+  for (const game of games) {
     const gameLogs = await options.getLogs({
-      target: pair.target,
-      eventAbi: pair.eventAbi,
+      target: game.target,
+      eventAbi: game.eventAbi,
     });
     logs.push(...gameLogs);
   }
 
   for (const log of logs) {
-    let wagerRaw;
-    if ('wager' in log && !('totalWager' in log)) {
+    // Compute total wager for this bet
+    let wagerRaw: BigNumber;
+    let payoutRaw: BigNumber;
+
+    if ('totalWager' in log) {
+      // Multi-wager games: Baccarat, Roulette, FishPrawnCrab
+      wagerRaw = BigNumber(log.totalWager);
+      payoutRaw = BigNumber(log.totalPayout);
+    } else if ('wager' in log) {
+      // Single-wager games: wager is per-bet, multiply by numGames
       wagerRaw = BigNumber(log.wager);
       if ('payouts' in log) {
         wagerRaw = wagerRaw.multipliedBy(log.payouts.length);
       }
-    } else if ('totalWager' in log) {
-      wagerRaw = BigNumber(log.totalWager);
+      payoutRaw = BigNumber(log.payout);
     } else {
-      console.warn("Unreachable code for log", log)
       continue;
     }
-    const wagerStandardized = wagerRaw.dividedBy(1e18).toNumber();
-    dailyVolume.addCGToken('monad', wagerStandardized)
-    dailyFees.addCGToken('monad', wagerStandardized * FEE_RATE);
+
+    const wager = wagerRaw.dividedBy(1e18).toNumber();
+    const payout = payoutRaw.dividedBy(1e18).toNumber();
+    const ggr = wager - payout; // Gross gaming revenue (can be negative)
+
+    // Volume: total wagers placed
+    dailyVolume.addCGToken('monad', wager);
+
+    // Fees/Revenue: GGR (house take, can be negative when players win)
+    // The protocol has currently deposited all bankroll liquidity, so 100% of GGR is protocol revenue
+    dailyFees.addCGToken('monad', ggr);
+    dailyUserFees.addCGToken('monad', ggr);
+    dailyRevenue.addCGToken('monad', ggr);
+    dailyProtocolRevenue.addCGToken('monad', ggr);
   }
 
   return {
     dailyVolume,
     dailyFees,
+    dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  allowNegativeValue: true,
   fetch,
   chains: [CHAIN.MONAD],
-  start: '2025-10-24',
+  start: '2025-11-24',
   methodology: {
-    Volume: 'Total wager from all betting contracts.',
-    Fees: 'There is amount of 0.1% wager collected as fees.',
+    Volume: 'Total wager amount from all 11 on-chain casino game contracts on Monad.',
+    Fees: 'Gross gaming revenue (GGR): total wagers minus total payouts. Can be negative on days when players win more than they lose.',
+    UserFees: 'Same as Fees — represents the net cost to players.',
+    Revenue: 'Same as Fees. The protocol has currently deposited all bankroll liquidity, so 100% of GGR is protocol revenue.',
+    ProtocolRevenue: 'Same as Fees. The protocol is currently the sole bankroll liquidity provider, so all house earnings go to the protocol.',
   }
 }
 

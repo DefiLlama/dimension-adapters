@@ -1,5 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
 import {FetchResultVolume, SimpleAdapter} from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
 
 const historicalVolumeEndpoint = "https://api.prod.rabbitx.io/bfx/volume"
@@ -29,7 +30,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        "blast": {
+        [CHAIN.BLAST]: {
             fetch: fetchVolume,
             start: '2023-11-17', // Replace with actual start timestamp
         },

@@ -25,7 +25,7 @@ const adapter: any = {
   fetch,
   start: '2023-04-16',
   methodology: {
-    dailyVolume:
+    Volume:
       "Volume is calculated by summing the token volume of all trades settled on the protocol that day.",
   },
   chains: [CHAIN.SOLANA],
