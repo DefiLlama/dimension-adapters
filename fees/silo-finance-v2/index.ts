@@ -137,6 +137,10 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     {
       silo: "0x7184bea7743ccfbe390f9cd830095a13ef867941", //smsusd
       timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x04f124bf435545a3c79a8ee3ffb6c51213cf5175", //bwOS-54 migrated to market id 140
+      timestamp: 1755043200 //2025-08-13
     }
   ],
 };
