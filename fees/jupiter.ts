@@ -1,13 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryDuneSql } from "../helpers/dune"
-import { getSolanaReceivedDune } from "../helpers/token"
 import { METRIC } from "../helpers/metrics"
-
-interface IData {
-  mint: string;
-  fee_amount: number
-}
 
 // const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 
@@ -18,16 +12,17 @@ export const jupBuybackRatioFromRevenue = (timestamp: number) => timestamp >= JU
 export const JUPITER_METRICS = {
   // Aggregator
   AggSwapFees: 'Aggregator Swap Fees',
-  LimitOrderFees: 'Limit Orders Fees',
+  LimitOrderV1Fees: 'Limit Orders v1 Fees',
+  LimitOrderV2Fees: 'Limit Orders v2 Fees',
   AggSwapFeesToIntergators: 'Aggregator Swap Fees To Integrators',
   AggSwapFeesToJupiter: 'Aggregator Swap Fees To Jupiter',
-  
+
   // JupLend
   BorrowInterest: 'JupLend Borrow Interests',
   InterestToLenders: 'JupLend Borrow Interests To Lenders',
   InterestToFluid: 'JupLend Borrow Interests To Fluid',
   InterestToJupiter: 'JupLend Borrow Interests To Jupiter',
-  
+
   // perps
   JupPerpsFees: 'JupPerps Trading Fees',
   JupPerpsAddLiquidityFees: 'JupPerps Add Liquidity Fees',
@@ -40,19 +35,19 @@ export const JUPITER_METRICS = {
   JupPerpsPriceImpactFees: 'JupPerps Price Impact Fees',
   JupPerpsFeesToLPs: 'JupPerps Fees To Lps',
   JupPerpsFeesToLJupiter: 'JupPerps Fees To Jupiter',
-  
+
   // jupSOL
   JupSOLStakingRewards: 'JupSOL Staking Rewards',
   JupSOLStakingRewardsToStakers: 'JupSOL Staking Rewards To Stakers',
   JupSOLDepositWithdrawFees: 'JupSOL Deposit/Withdraw Fees',
-  
+
   // Prediction
   JupPredictionFees: 'Jup Prediction Fees',
   JupPredictionFeesToKalshi: 'Jup Prediction Fees to Kalshi',
 
   // Ape
   JupApeFees: 'Jup Ape Trading And Launching Fees',
-  
+
   // DCA
   JupDCAFees: 'Jup DCA Trading Fees',
 
@@ -60,120 +55,116 @@ export const JUPITER_METRICS = {
   JupStudioFees: 'Jup Studio Trading Fees',
   JupStudioFeesToReferrals: 'Jup Studio Trading Fees To Referrals',
   JupStudioFeesToJupiter: 'Jup Studio Trading Fees To Jupiter',
-  
+
   // JUP buy back
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  // limit order fees
-  const limitOrderFees = await getSolanaReceivedDune({
-    options, targets: [
-      'jupoNjAxXgZ4rjzxzPMP4oxduvQsQtZzyknqvzYNrNu'
-      , '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
-    ]
-  })
-
-  // ultra fees
-  // https://dune.com/queries/4769928
-  const data: IData[] = await queryDuneSql(options, `
-    WITH fee_instruction_calls AS (
-      SELECT 
-          data
-        FROM solana.instruction_calls
-        WHERE executing_account = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'
-          AND varbinary_starts_with(data, 0xe445a52e51cb9a1d494f4e7fb8d50ddc)
-          AND block_slot >= 316169420
-          AND TIME_RANGE
+  const data: { amount_usd: number }[] = await queryDuneSql(options, `
+    WITH addr_list AS (
+      SELECT addr
+      FROM (VALUES
+        ('BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV'),
+        ('2MFoS3MPtvyQ4Wh4M9pdfPjz6UhVoNbFbGJAskCPCj3h'),
+        ('HU23r7UoZbqTUuh3vA7emAGztFtqwTeVips789vqxxBw'),
+        ('3CgvbiM3op4vjrrjH2zcrQUwsqh5veNVRjFCB9N6sRoD'),
+        ('6LXutJvKUw8Q5ue2gCgKHQdAN4suWW8awzFVC6XCguFx'),
+        ('CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps'),
+        ('GGztQqQ6pCPaJQnNpXBgELr5cs3WwDakRbh1iEMzjgSJ'),
+        ('9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8'),
+        ('3LoAYHuSd7Gh8d7RTFnhvYtiTiefdZ5ByamU42vkzd76'),
+        ('DSN3j1ykL3obAVNv7ZX49VsFCPe4LqzxHnmtLiPwY6xg'),
+        ('69yhtoJR4JYPPABZcSNkzuqbaFbwHsCkja1sP1Q2aVT5'),
+        ('6U91aKa8pmMxkJwBCfPTmUEfZi6dHe7DcFq2ALvB2tbB'),
+        ('7iWnBRRhBCiNXXPhqiGzvvBkKrvFSWqqmxRyu9VyYBxE'),
+        ('4xDsmeTWPNjgSVSS1VTfzFq3iHZhp77ffPkAmkZkdu71'),
+        ('GP8StUXNYSZjPikyRsvkTbvRV1GBxMErb59cpeCJnDf1'),
+        ('HFqp6ErWHY6Uzhj8rFyjYuDya2mXUpYEk8VW75K9PSiY'),
+        ('6zQecXhjYTifDGYxbW7vRTQBrBYsi1Uac6BEJ4WzefWS'),
+        ('GgY8theL9n9hQPoz2keQM8y6z8T6G6BH9FPLjBtkF9Hd'),
+        ('G4FUwFD1h4tb4R6jkZXuoyst7YNbYTcJH3MvCUguss6E'),
+        ('F2Xjd4ZJYz6SfszyUVGzLUzAHRRhfU2iJacCfW5GCJHM'),
+        ('3cHRcBKWbJeL2qyjgQ8wdSYxmRYW1ZyC2nVqTakAj57G'),
+        ('6Ugimjtgk7rk5SbZNzcYvZiM3P6ki4Uq3QGtTHWNn8co'),
+        ('4QKRxAfawktf6szGUP456AqBvaKSnmuGy91QnqdBDSke'),
+        ('9kiYqGSb1nbYMc5xxZQHhKvJR57LLAHVyDvSQ3FHjDPK')
+      ) AS v(addr)
     )
-    SELECT 
-        SUM(bytearray_to_bigint(bytearray_reverse(bytearray_substring(fic.data,1+80,8)))) AS fee_amount,
-        toBase58(bytearray_substring(fic.data,1+48,32)) AS mint
-    FROM fee_instruction_calls fic
-    GROUP BY toBase58(bytearray_substring(fic.data,1+48,32))
+    
+    SELECT COALESCE(t.amount_usd, 0) AS amount_usd
+    FROM tokens_solana.transfers t
+    WHERE t.to_owner = '9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN'
+      AND t.block_time <= TIMESTAMP '2025-02-16 23:59:59'
+      AND TIME_RANGE
+    
+    UNION ALL
+    
+    SELECT COALESCE(t.amount_usd, 0) AS amount_usd
+    FROM tokens_solana.transfers t
+    WHERE t.from_owner IN (SELECT addr FROM addr_list)
+      AND t.to_owner = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
+      AND t.block_time >= TIMESTAMP '2025-02-17 00:00:00'
+      AND (t.tx_signer IS NULL OR t.tx_signer <> 'gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw')
+      AND TIME_RANGE
   `);
-  
-  const feesUltra = options.createBalances()
-  data.forEach((item) => {
-    feesUltra.add(item.mint, item.fee_amount)
-  })
-  
+
+  const ultraRevenue = data.reduce((sum, row) => sum + (row.amount_usd || 0), 0);
+
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  
-  dailyFees.add(limitOrderFees, JUPITER_METRICS.LimitOrderFees);
-  dailyRevenue.add(limitOrderFees, JUPITER_METRICS.LimitOrderFees);
-  dailyFees.add(feesUltra, JUPITER_METRICS.AggSwapFees);
-  
-  const feesUltraIntegrators = feesUltra.clone(0.8);
-  const feesUltraJupiter = feesUltra.clone(0.2);
-  
-  dailySupplySideRevenue.add(feesUltraIntegrators, JUPITER_METRICS.AggSwapFeesToIntergators);
-  dailyRevenue.add(feesUltraJupiter, JUPITER_METRICS.AggSwapFeesToJupiter);
 
+  dailyFees.addUSDValue(ultraRevenue, JUPITER_METRICS.AggSwapFees);
+  const dailyRevenue = dailyFees.clone(1);
+
+  // Split protocol revenue between treasury and token buybacks
   const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
-  const revenueHolders = feesUltraJupiter.clone(buybackRatio);
-  const revenueProtocol = feesUltraJupiter.clone(1 - buybackRatio);
-  dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.AggSwapFeesToJupiter);
-  dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
-  
-  // const query = `
-  //   SELECT SUM(raw_amount) as total_amount
-  //   FROM solana.assets.transfers
-  //   WHERE to_address = '${JUP_LITTERBOX_ADDRESS}'
-  //   AND mint = '${ADDRESSES.solana.JUP}'
-  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-  // `
-  // const res = await queryAllium(query);
-  // const dailyHoldersRevenue = options.createBalances();
-  // dailyHoldersRevenue.add(ADDRESSES.solana.JUP, res[0].total_amount || 0);
+
+  // Ultra revenue split
+  dailyProtocolRevenue.addBalances(dailyRevenue.clone(1 - buybackRatio));
+  dailyHoldersRevenue.addBalances(dailyRevenue.clone(buybackRatio), JUPITER_METRICS.TokenBuyBack);
 
   return {
     dailyFees,
     dailyRevenue,
     dailyHoldersRevenue,
-    dailySupplySideRevenue,
     dailyProtocolRevenue,
   }
 }
 
+const methodology = {
+  Fees: 'Jupiter platform fees collected from Ultra mode swaps.',
+  Revenue: 'Jupiter platform fees from Ultra aggregation service.',
+  HoldersRevenue: 'JUP token buybacks from 50% of platform revenue, started 2025-02-17.',
+  ProtocolRevenue: 'Platform fees allocated to Jupiter treasury. 100% before 2025-02-17, 50% after.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees from swaps executed through Jupiter's /order endpoint in Ultra mode.",
+  },
+  Revenue: {
+    [JUPITER_METRICS.AggSwapFees]: "100% of Jupiter platform fees from Ultra mode swaps.",
+  },
+  ProtocolRevenue: {
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees allocated to Jupiter treasury: 100% before 2025-02-17, 50% after when token buyback program started.",
+  },
+  HoldersRevenue: {
+    [JUPITER_METRICS.TokenBuyBack]: "Starting 2025-02-17, 50% of platform revenue is used to buy back JUP tokens, benefiting token holders.",
+  }
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
   start: '2024-09-02',
+  dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  methodology: {
-    Fees: 'Trading fees paid by users.',
-    Revenue: 'Portion of fees collected by protocol.',
-    SupplySideRevenue: 'Fees share to integrators.',
-    HoldersRevenue: 'Jup Buybacks from 50% of jupiter ecosystem protocol revenue start from 2025-02-17.',
-    ProtocolRevenue: 'Jupiter collects 50% of jupiter ecosystem protocol revenue, it was 100% before 2025-02-17.',
-  },
-  breakdownMethodology: {
-    Fees: {
-      [JUPITER_METRICS.LimitOrderFees]: "Fees collected from limit orders placed using the Jupiter Trigger API",
-      [JUPITER_METRICS.AggSwapFees]: "Fees collected from swaps executed using Jupiter Ultra Swap API",
-    },
-    Revenue: {
-      [JUPITER_METRICS.LimitOrderFees]: "The protocol collects all the fees from limit orders placed using the Jupiter Trigger API",
-      [JUPITER_METRICS.AggSwapFeesToJupiter]: "The protocol collects 20% of the integrator fees",
-    },
-    SupplySideRevenue: {
-      [JUPITER_METRICS.AggSwapFeesToIntergators]: "Fees collected by protocols integrating the Jupiter Ultra Swap API.",
-    },
-    ProtocolRevenue: {
-      [JUPITER_METRICS.AggSwapFeesToJupiter]: "Jupiter collects 50% of jupiter ecosystem protocol revenue, it was 100% before 2025-02-17.",
-    },
-    HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: "Jup Buybacks from 50% of jupiter ecosystem protocol revenue start from 2025-02-17.",
-    },
-  },
+  methodology,
+  breakdownMethodology
 }
 
-export default adapter
+export default adapter;
+
