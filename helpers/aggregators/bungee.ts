@@ -204,7 +204,7 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
       // count volune only from non-blacklisted tokens
       const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
       if (blacklistedTokens.length > 0) {
-        swapEvents = swapEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.tokenIn)) && !blacklistedTokens.includes(formatAddress(log.tokenOut)))
+        swapEvents = swapEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.fromToken)) && !blacklistedTokens.includes(formatAddress(log.toToken)))
       }
       for (const event of swapEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
