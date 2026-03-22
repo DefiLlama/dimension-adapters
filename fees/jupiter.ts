@@ -30,6 +30,14 @@ export const JUPITER_METRICS = {
   
   // perps
   JupPerpsFees: 'JupPerps Trading Fees',
+  JupPerpsAddLiquidityFees: 'JupPerps Add Liquidity Fees',
+  JupPerpsRemoveLiquidityFees: 'JupPerps Remove Liquidity Fees',
+  JupPerpsSwapFees: 'JupPerps Swap Fees',
+  JupPerpsOpenPositionFees: 'JupPerps Open Position Fees',
+  JupPerpsClosePositionFees: 'JupPerps Close Position Fees',
+  JupPerpsLiquidationFees: 'JupPerps Liquidation Fees',
+  JupPerpsFundingFees: 'JupPerps Funding Fees',
+  JupPerpsPriceImpactFees: 'JupPerps Price Impact Fees',
   JupPerpsFeesToLPs: 'JupPerps Fees To Lps',
   JupPerpsFeesToLJupiter: 'JupPerps Fees To Jupiter',
   
