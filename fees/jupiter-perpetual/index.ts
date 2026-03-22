@@ -1,17 +1,9 @@
-import {
-  Dependencies,
-  FetchOptions,
-  FetchResultV2,
-} from "../../adapters/types";
+import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../jupiter";
 
-const fetch = async (
-  _a: any,
-  _b: any,
-  options: FetchOptions,
-): Promise<FetchResultV2> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
@@ -111,23 +103,23 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "50% of protocol revenue from add liquidity fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]:"50% of protocol revenue from remove liquidity fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsSwapFees]:"50% of protocol revenue from swap fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]:"50% of protocol revenue from open position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]:"50% of protocol revenue from close position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]:"50% of protocol revenue from liquidation fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsFundingFees]:"50% of protocol revenue from funding fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]:"50% of protocol revenue from price impact fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "50% of protocol revenue from remove liquidity fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "50% of protocol revenue from swap fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "50% of protocol revenue from open position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "50% of protocol revenue from close position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "50% of protocol revenue from liquidation fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "50% of protocol revenue from funding fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "50% of protocol revenue from price impact fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]:"From 2025-02-17, 50% of protocol revenue from add liquidity fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from add liquidity fees (12.5% of total fees) goes to JUP holders",
     [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from remove liquidity fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsSwapFees]:"From 2025-02-17, 50% of protocol revenue from swap fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]:"From 2025-02-17, 50% of protocol revenue from open position fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]:"From 2025-02-17, 50% of protocol revenue from close position fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]:"From 2025-02-17, 50% of protocol revenue from liquidation fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsFundingFees]:"From 2025-02-17, 50% of protocol revenue from funding fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]:"From 2025-02-17, 50% of protocol revenue from price impact fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "From 2025-02-17, 50% of protocol revenue from swap fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "From 2025-02-17, 50% of protocol revenue from open position fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "From 2025-02-17, 50% of protocol revenue from close position fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "From 2025-02-17, 50% of protocol revenue from liquidation fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "From 2025-02-17, 50% of protocol revenue from funding fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "From 2025-02-17, 50% of protocol revenue from price impact fees (12.5% of total fees) goes to JUP holders",
   },
 }
 
@@ -135,9 +127,9 @@ const adapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  dependencies: [Dependencies.DUNE],
   start: "2024-01-23",
   isExpensiveAdapter: true,
+  dependencies: [Dependencies.DUNE],
   methodology,
   breakdownMethodology
 };
