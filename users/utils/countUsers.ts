@@ -1,9 +1,9 @@
 import { queryAllium, } from "../../helpers/allium";
-import { convertChainToFlipside, isAcceptedChain } from "./convertChain";
+import { convertChainToAllium, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start: number, end: number) {
-  const chainArray = Object.keys(addresses).filter((chain) => isAcceptedChain(chain)).map(convertChainToFlipside)
+  const chainArray = Object.keys(addresses).filter((chain) => isAcceptedChain(chain)).map(convertChainToAllium)
   const chainAddresses = Object.entries(addresses).filter(([chain]) => isAcceptedChain(chain)).reduce((all, c) => all.concat(c[1]), [] as string[])
   return queryAllium(`
 WITH
@@ -79,7 +79,7 @@ WITH
             HASH,
             ${gasPrice(chain)} * receipt_gas_used as TX_FEE
         FROM
-            ${convertChainToFlipside(chain)}.raw.transactions
+            ${convertChainToAllium(chain)}.raw.transactions
         WHERE
             ${chainAddresses.length > 1 ?
         `TO_ADDRESS in (${chainAddresses.map(a => `'${a.toLowerCase()}'`).join(',')})` :
