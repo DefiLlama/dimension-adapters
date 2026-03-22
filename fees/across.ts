@@ -127,7 +127,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   return results as any;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const results: IResponse[] = options.preFetchedResults || [];
   const chainData = results.find(item => item.dst_chain === options.chain);
 
@@ -169,7 +169,7 @@ const breakdownMethodology = {
 }
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2024-02-21" },
     [CHAIN.ARBITRUM]: { start: "2024-02-21" },
@@ -201,7 +201,7 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology,
   allowNegativeValue: true, // Gas Fee cost be higher than estimated
-  isExpensiveAdapter: true,
+  runAtCurrTime: true, // API doesnt provide sufficient data for historic refill
 };
 
 export default adapter;
