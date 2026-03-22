@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { fetchBungeeData } from "../../helpers/aggregators/bungee";
-import { fetchBimChains } from "../../aggregators/bim";
+import { fetchBimChains } from "../../aggregators/bim/config";
 
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
