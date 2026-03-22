@@ -25,24 +25,60 @@ const RainBowRouter = {
 // don't do console.log(options) as there is circular dependency in ChainApi
 const prefetch = async (options: FetchOptions) => {
   return queryDuneSql(options, `
-    SELECT 
-        CASE 
-            WHEN blockchain = 'bnb' THEN 'bsc'
+    WITH eoa_router_trades AS (
+        SELECT blockchain, tx_hash, SUM(amount_usd) AS amount_usd
+        FROM dex.trades
+        WHERE (
+            (tx_to = 0x00000000009726632680fb29d3f7a9734e3010e2 AND blockchain NOT IN ('unichain', 'zora'))
+            OR (tx_to = 0x2a0332E28913A06Fa924d40A3E2160f763010417 AND blockchain = 'unichain')
+            OR (tx_to = 0xA61550E9ddD2797E16489db09343162BE98d9483 AND blockchain = 'zora')
+        )
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time <= from_unixtime(${options.endTimestamp})
+        GROUP BY 1, 2
+    ),
+
+    smart_wallet_validated AS (
+        SELECT DISTINCT blockchain, tx_hash
+        FROM tokens.transfers
+        WHERE tx_from    = tx_to
+          AND (
+              ("to" = 0x00000000009726632680fb29d3f7a9734e3010e2 AND blockchain NOT IN ('unichain', 'zora'))
+              OR ("to" = 0x2a0332E28913A06Fa924d40A3E2160f763010417 AND blockchain = 'unichain')
+              OR ("to" = 0xA61550E9ddD2797E16489db09343162BE98d9483 AND blockchain = 'zora')
+          )
+          AND block_date >= DATE '2026-02-25'
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time <= from_unixtime(${options.endTimestamp})
+    ),
+
+    smart_wallet_trades AS (
+        SELECT t.blockchain, t.tx_hash, SUM(t.amount_usd) AS amount_usd
+        FROM dex.trades t
+        INNER JOIN smart_wallet_validated s
+            ON t.blockchain = s.blockchain
+           AND t.tx_hash    = s.tx_hash
+        WHERE t.block_date >= DATE '2026-02-25'
+          AND t.block_time >= from_unixtime(${options.startTimestamp})
+          AND t.block_time <= from_unixtime(${options.endTimestamp})
+        GROUP BY 1, 2
+    ),
+
+    combined AS (
+        SELECT blockchain, tx_hash, amount_usd FROM eoa_router_trades
+        UNION ALL
+        SELECT blockchain, tx_hash, amount_usd FROM smart_wallet_trades
+    )
+
+    SELECT
+        CASE
+            WHEN blockchain = 'bnb'         THEN 'bsc'
             WHEN blockchain = 'avalanche_c' THEN 'avax'
             ELSE blockchain
-        END as chain,
-        sum(amount_usd) as volume,
-        sum(amount_usd * 0.0085) as fees
-    FROM dex.trades
-    WHERE (
-        (tx_to = 0x00000000009726632680fb29d3f7a9734e3010e2 AND blockchain NOT IN ('unichain', 'zora'))
-        OR
-        (tx_to = 0x2a0332E28913A06Fa924d40A3E2160f763010417 AND blockchain = 'unichain')
-        OR
-        (tx_to = 0xA61550E9ddD2797E16489db09343162BE98d9483 AND blockchain = 'zora')
-    )
-    AND block_time >= from_unixtime(${options.startTimestamp})
-    AND block_time <= from_unixtime(${options.endTimestamp})
+        END AS chain,
+        SUM(amount_usd)          AS volume,
+        SUM(amount_usd * 0.0085) AS fees
+    FROM combined
     GROUP BY 1
   `);
 };
