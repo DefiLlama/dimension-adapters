@@ -135,6 +135,7 @@ export const chainConfigMap: any = {
   [CHAIN.VINUCHAIN]: { CGToken: 'vinuchain', explorer: 'https://vinuexplorer.org/' },
   [CHAIN.ENI]: { CGToken: 'wrapped-egas', explorer: 'https://scan.eniac.network/' },
   [CHAIN.MEGAETH]: { CGToken: 'ethereum', explorer: 'https://megaeth.blockscout.com/' },
+  [CHAIN.KATANA]: { CGToken: 'ethereum', explorer: 'https://explorer.katanarpc.com/' },
 }
 
 function getTimeString(timestamp: number) {
