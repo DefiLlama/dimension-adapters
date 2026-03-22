@@ -3,7 +3,7 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as ethers from "ethers";
-import { getDefaultDexTokensWhitelisted } from '../lists';
+import { getDefaultDexTokensBlacklisted } from '../lists';
 import { formatAddress } from '../../utils/utils';
 
 const SocketGatewayAbis = {
@@ -201,10 +201,10 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         eventAbi: SocketGatewayAbis.SocketSwapTokens,
       })
 
-      // count volune only from whitelisted tokens
-      const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
-      if (whitelistedTokens.length > 0) {
-        swapEvents = swapEvents.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+      // count volune only from non-blacklisted tokens
+      const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
+      if (blacklistedTokens.length > 0) {
+        swapEvents = swapEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.fromToken)) && !blacklistedTokens.includes(formatAddress(log.toToken)))
       }
       for (const event of swapEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
