@@ -3,7 +3,7 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as ethers from "ethers";
-import { getDefaultDexTokensWhitelisted } from '../lists';
+import { getDefaultDexTokensBlacklisted } from '../lists';
 import { formatAddress } from '../../utils/utils';
 
 const SocketGatewayAbis = {
@@ -12,7 +12,7 @@ const SocketGatewayAbis = {
   SocketFeesDeducted: 'event SocketFeesDeducted (uint256 fees, address feesTaker, address feesToken)',
 }
 
-export const SocketGatewayContracts: { [key: string]: string } = {
+export const SocketGatewayContracts: {[key: string]: string} = {
   [CHAIN.ETHEREUM]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.AURORA]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.ARBITRUM]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
@@ -37,12 +37,10 @@ const BungeeGatewayAbis = {
   RequestFulfilled: 'event RequestFulfilled(bytes32 indexed requestHash, uint8 implId, address fulfiller, bytes execution)',
 }
 
-export const BungeeGatewayContracts: {
-  [key: string]: {
-    audited: Array<string>;
-    unaudited: Array<string>;
-  }
-} = {
+export const BungeeGatewayContracts: {[key: string]: {
+  audited: Array<string>;
+  unaudited: Array<string>;
+}} = {
   [CHAIN.ETHEREUM]: {
     audited: [],
     unaudited: ['0xe772551F88E2c14aEcC880dF6b7CBd574561bf82'],
@@ -142,7 +140,7 @@ function formatToken(token: string): string {
 }
 
 export function fetchBungeeChains(): Array<string> {
-  const chains: { [key: string]: boolean } = {}
+  const chains: {[key: string]: boolean} = {}
   for (const chain of Object.keys(SocketGatewayContracts).concat(Object.keys(BungeeGatewayContracts))) {
     chains[chain] = true
   }
@@ -203,6 +201,11 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         eventAbi: SocketGatewayAbis.SocketSwapTokens,
       })
 
+      // count volune only from non-blacklisted tokens
+      const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
+      if (blacklistedTokens.length > 0) {
+        swapEvents = swapEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.tokenIn)) && !blacklistedTokens.includes(formatAddress(log.tokenOut)))
+      }
       for (const event of swapEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
           dailyVolume.add(formatToken(event.fromToken), event.sellAmount)
