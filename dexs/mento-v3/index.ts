@@ -1,7 +1,7 @@
 import { cache } from "@defillama/sdk";
-import type { Adapter, FetchV2, IJSON, SimpleAdapter } from "../../adapters/types";
+import type { FetchV2, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addOneToken } from "../../helpers/prices";
+import { addOneToken, isCoreAsset } from "../../helpers/prices";
 import { METRIC } from "../../helpers/metrics";
 
 const FPMM_FACTORY = '0xa849b475FE5a4B5C9C3280152c7a1945b907613b';
@@ -47,11 +47,20 @@ const fetch: FetchV2 = async ({ createBalances, getLogs, chain, api }) => {
         const [token0, token1, lpFee, protocolFee] = poolsObject[pair]
         const fees = lpFee + protocolFee
         logs.forEach((log) => {
-            const amount0In = Number(log.amount0In);
-            addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
-            dailyFees.add(token0, amount0In * fees, METRIC.SWAP_FEES)
-            dailySupplySideRevenue.add(token0, amount0In * lpFee, METRIC.SWAP_FEES)
-            dailyRevenue.add(token0, amount0In * protocolFee, METRIC.SWAP_FEES)
+            const amount0 = log.amount0Out > 0n ? Number(log.amount0Out) : Number(log.amount0In);
+            const amount1 = log.amount1Out > 0n ? Number(log.amount1Out) : Number(log.amount1In);
+
+            addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+
+            if (isCoreAsset(chain, token0)) {
+                dailyFees.add(token0, amount0 * fees, METRIC.SWAP_FEES)
+                dailySupplySideRevenue.add(token0, amount0 * lpFee, METRIC.SWAP_FEES)
+                dailyRevenue.add(token0, amount0 * protocolFee, METRIC.SWAP_FEES)
+            } else {
+                dailyFees.add(token1, amount1 * fees, METRIC.SWAP_FEES)
+                dailySupplySideRevenue.add(token1, amount1 * lpFee, METRIC.SWAP_FEES)
+                dailyRevenue.add(token1, amount1 * protocolFee, METRIC.SWAP_FEES)
+            }
         })
     })
 
@@ -92,7 +101,7 @@ const breakdownMethodology = {
     },
 }
 
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     adapter: {
