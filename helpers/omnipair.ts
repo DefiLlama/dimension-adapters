@@ -14,10 +14,10 @@ const bs58 = bs58mod.default ?? bs58mod;
 const SWAP_DISC = Buffer.from([248, 198, 158, 145, 225, 117, 135, 200]);
 const SWAP_EVENT_DISC = Buffer.from([64, 198, 205, 232, 38, 8, 113, 226]);
 
-const SIGNATURE_PAGE_SIZE = 100;
-const TX_RETRY_ATTEMPTS = 5;
-const INITIAL_RETRY_DELAY_MS = 1000;
-const PER_TX_DELAY_MS = 50;
+const SIGNATURE_PAGE_SIZE = 25;
+const TX_RETRY_ATTEMPTS = 7;
+const INITIAL_RETRY_DELAY_MS = 1500;
+const PER_TX_DELAY_MS = 200;
 const DEBUG_OMNIPAIR = process.env.DEBUG_OMNIPAIR === "true";
 
 export type OmnipairSwapRow = {
@@ -146,7 +146,6 @@ function decodeSwapArgs(buf: Buffer): SwapArgs {
 }
 
 function decodeSwapEvent(buf: Buffer): SwapEvent {
-  // buf is expected to begin at the event discriminator
   return {
     reserve0: readU64LE(buf, 8).toString(),
     reserve1: readU64LE(buf, 16).toString(),
@@ -217,6 +216,38 @@ async function getTransactionWithRetry(
   return null;
 }
 
+async function getSignaturesForAddressWithRetry(
+  connection: Connection,
+  programId: PublicKey,
+  before: string | undefined,
+  stats: OmnipairDebugStats,
+  attempts = TX_RETRY_ATTEMPTS
+) {
+  let delay = INITIAL_RETRY_DELAY_MS;
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await connection.getSignaturesForAddress(programId, {
+        limit: SIGNATURE_PAGE_SIZE,
+        before,
+      });
+    } catch (error) {
+      if (isRateLimitError(error)) {
+        stats.rateLimitRetries += 1;
+      }
+
+      if (i === attempts - 1 || !isRateLimitError(error)) {
+        throw error;
+      }
+
+      await sleep(delay);
+      delay *= 2;
+    }
+  }
+
+  return [];
+}
+
 async function collectInWindowSignatures(
   connection: Connection,
   programId: PublicKey,
@@ -228,10 +259,12 @@ async function collectInWindowSignatures(
   const signaturesInWindow: SignatureInfo[] = [];
 
   while (!reachedStartBoundary) {
-    const signatures = await connection.getSignaturesForAddress(programId, {
-      limit: SIGNATURE_PAGE_SIZE,
+    const signatures = await getSignaturesForAddressWithRetry(
+      connection,
+      programId,
       before,
-    });
+      stats
+    );
 
     if (!signatures.length) break;
 
@@ -245,7 +278,6 @@ async function collectInWindowSignatures(
 
       if (bt == null || bt > options.endTimestamp) continue;
 
-      // Skip failed signatures early so failed swaps do not contribute to totals.
       if (sig.err != null) {
         stats.signaturesSkippedFailed += 1;
 
@@ -314,7 +346,6 @@ function parseTransactionIntoSwapRows(
         continue;
       }
 
-      // Anchor event CPI payloads have an 8-byte prefix before the event discriminator.
       if (buf.length >= 16 && buf.subarray(8, 16).equals(SWAP_EVENT_DISC)) {
         const eventBuf = buf.subarray(8);
         swapEvents.push(decodeSwapEvent(eventBuf));
@@ -343,7 +374,6 @@ function parseTransactionIntoSwapRows(
     const candidates = pairToEvents.get(pairAddress) ?? [];
     if (!candidates.length) continue;
 
-    // Match each swap instruction to the next event emitted for the same pair.
     const evt = candidates.shift()!;
     pairToEvents.set(pairAddress, candidates);
 
@@ -390,7 +420,6 @@ export async function fetchOmnipairSwaps(options: FetchOptions): Promise<Omnipai
       rows.push(...parseTransactionIntoSwapRows(tx, signature, blockTime, stats));
     }
 
-    // Keep tx fetching strictly serial with a small fixed pace to reduce RPC 429s.
     await sleep(PER_TX_DELAY_MS);
   }
 
