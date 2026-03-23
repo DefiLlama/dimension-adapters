@@ -13,13 +13,8 @@ const fetchVolume = async ({ startOfDay }: FetchOptions) => {
     return sum + (Number(market["24h_amount"]) || 0);
   }, 0);
 
-  const dailyOpenInterest = markets.reduce((sum: number, market: any) => {
-    return sum + (Number(market.open_interest) || 0);
-  }, 0);
-
   return {
     dailyVolume,
-    dailyOpenInterest,
     timestamp: startOfDay,
   };
 };
@@ -34,8 +29,6 @@ const adapter: SimpleAdapter = {
         methodology: {
           Volume:
             "Sum of 24h notional trading volume across all perpetual markets on Nexus Trading Labs, powered by Orderly Network on Arbitrum.",
-          OpenInterest:
-            "Total open interest across all perpetual markets on Nexus Trading Labs.",
         },
       },
     },
