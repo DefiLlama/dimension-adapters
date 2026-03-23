@@ -17,7 +17,7 @@ const SWAP_EVENT_DISC = Buffer.from([64, 198, 205, 232, 38, 8, 113, 226]);
 const SIGNATURE_PAGE_SIZE = 25;
 const TX_RETRY_ATTEMPTS = 7;
 const INITIAL_RETRY_DELAY_MS = 1500;
-const PER_TX_DELAY_MS = 200;
+const PER_TX_DELAY_MS = 400;
 const DEBUG_OMNIPAIR = process.env.DEBUG_OMNIPAIR === "true";
 
 export type OmnipairSwapRow = {
