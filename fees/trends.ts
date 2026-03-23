@@ -79,6 +79,20 @@ const dammV2SQL = `
           JOIN migration_configs m ON s.pool = m.account_pool
           WHERE s.evt_block_time >= from_unixtime({{start}})
               AND s.evt_block_time < from_unixtime({{end}})
+
+          UNION ALL
+
+          SELECT
+              s.pool,
+              m.account_config,
+              CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)) AS lp_fee,
+              CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+              CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.partner_fee') AS DECIMAL(38,0)) AS partner_fee,
+              CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0)) AS referral_fee
+          FROM meteora_solana.cp_amm_evt_evtswap2 s
+          JOIN migration_configs m ON s.pool = m.account_pool
+          WHERE s.evt_block_time >= from_unixtime({{start}})
+              AND s.evt_block_time < from_unixtime({{end}})
       )
   SELECT
       account_config,
@@ -104,6 +118,8 @@ const quote_mint = "So11111111111111111111111111111111111111112";
 const config = [
   "7UMR4yEaVYsQGbQGvxNUypFmPn15GkzVmwUEpUFJUPPX",
   "7UNpFBfTdWrcfS7aBQzEaPgZCfPJe8BDgHzwmWUZaMaF",
+  "7UQpAg2GfvwnBhuNAF5g9ujjDmkq7rPnF7Xogs4xE9AA",
+  "7UP2hcAoYvyzumQv3BtvmXDCQk2WoqMEXKym8cCdLAh6",
 ];
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -118,20 +134,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     end: options.endTimestamp,
   });
 
-  const dbdData: IData[] = await queryDuneSql(options, query);
+  const dbcData: IData[] = await queryDuneSql(options, query);
   const dammv2Data: IDammv2Data[] = await queryDuneSql(options, dammv2Query);
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
-  dbdData.forEach((row) => {
+  dbcData.forEach((row) => {
     dailyFees.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
     dailyFees.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
     
-    dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
-    
-    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
@@ -141,10 +153,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
     
-    dailySupplySideRevenue.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
-    dailySupplySideRevenue.add(quote_mint, Number(row.total_partner_fees), metrics.PartnerFees);
-    
-    dailyProtocolRevenue.add(quote_mint, Number(row.total_lp_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
@@ -153,7 +161,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue,
   };
 };
 
@@ -168,7 +175,6 @@ const adapter: SimpleAdapter = {
     UserFees: "Total trading fees paid by users.",
     Revenue: "Fees collected by Trends, including trendor rewards.",
     ProtocolRevenue: "All fees collected by Trends, including trendor rewards.",
-    SupplySideRevenue: "Amount of fees share to referrals and partners.",
   },
   breakdownMethodology: {
     Fees: {
@@ -184,10 +190,6 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: {
       [metrics.TradingFees]: 'Total trading fees paid by users.',
       [metrics.ProtocolFees]: 'Total fees paid to Trends protocol.',
-    },
-    SupplySideRevenue: {
-      [metrics.ReferralFees]: 'Share of trading fees to referrals.',
-      [metrics.PartnerFees]: 'Share of trading fees to partners.',
     },
   }
 };
