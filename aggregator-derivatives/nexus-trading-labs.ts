@@ -1,25 +1,25 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 
 const ORDERLY_API = "https://api.orderly.org/v1/public/futures";
 
 const fetchVolume = async ({ startOfDay }: FetchOptions) => {
-  const response = await fetch(ORDERLY_API);
-  const data = await response.json();
+  const data = await httpGet(ORDERLY_API);
 
   const markets = data?.data?.rows || [];
 
   const dailyVolume = markets.reduce((sum: number, market: any) => {
-    return sum + (market["24h_amount"] || 0);
+    return sum + (Number(market["24h_amount"]) || 0);
   }, 0);
 
   const dailyOpenInterest = markets.reduce((sum: number, market: any) => {
-    return sum + (market.open_interest || 0);
+    return sum + (Number(market.open_interest) || 0);
   }, 0);
 
   return {
-    dailyVolume: dailyVolume.toString(),
-    dailyOpenInterest: dailyOpenInterest.toString(),
+    dailyVolume,
+    dailyOpenInterest,
     timestamp: startOfDay,
   };
 };
