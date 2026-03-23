@@ -22,7 +22,6 @@ const MAKER_FEE = 0.0001; // 0.01%
 const TAKER_FEE = 0.0001; // 0.01%
 const AVG_FEE_RATE = (MAKER_FEE + TAKER_FEE) / 2;
 const CONCURRENCY = 5;
-const ONE_DAY = 86400;
 
 interface InstrumentData {
     instrumentId?: string;
@@ -61,9 +60,6 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
         throw new Error(`Rocket adapter: failed to fetch instruments: ${String(e)}`);
     }
 
-    const dayEnd = timestamp;
-    const dayStart = timestamp - ONE_DAY;
-
     let totalDailyVolume = 0;
 
     for (let i = 0; i < instruments.length; i += CONCURRENCY) {
@@ -71,7 +67,7 @@ const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
         const results = await Promise.all(
             batch.map(async (instrumentId) => {
                 const candleData = await fetchURL(
-                    `${ROCKET_API}/candles?instrumentId=${encodeURIComponent(instrumentId)}&interval=1h&limit=24&startTime=${dayStart}&endTime=${dayEnd}`
+                    `${ROCKET_API}/candles?instrumentId=${encodeURIComponent(instrumentId)}&interval=1h&limit=24`
                 );
                 const candles: Candle[] = candleData.candles || [];
                 let instrumentVolume = 0;
