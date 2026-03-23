@@ -81,6 +81,7 @@ export const ENV_KEYS = new Set([
   'DECIBEL_API_KEY',
   'SPACESCOPE_API_KEY',
   'DEEPTRADE_API_KEY',
+  'HYPERSWAP_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY
