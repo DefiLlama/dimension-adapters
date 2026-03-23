@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { queryDuneSql } from "../helpers/dune"
+import { queryAllium } from "../helpers/allium"
 import { METRIC } from "../helpers/metrics"
 
 // const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
@@ -61,7 +61,7 @@ export const JUPITER_METRICS = {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const data: { amount_usd: number }[] = await queryDuneSql(options, `
+  const data: { amount_usd: number }[] = await queryAllium(`
     WITH addr_list AS (
       SELECT addr
       FROM (VALUES
@@ -92,21 +92,22 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       ) AS v(addr)
     )
     
-    SELECT COALESCE(t.amount_usd, 0) AS amount_usd
-    FROM tokens_solana.transfers t
-    WHERE t.to_owner = '9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN'
-      AND t.block_time <= TIMESTAMP '2025-02-16 23:59:59'
-      AND TIME_RANGE
-    
+    SELECT COALESCE(t.usd_amount, 0) AS amount_usd
+    FROM solana.assets.transfers t
+    WHERE t.to_address = '9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN'
+      AND t.block_timestamp <= TIMESTAMP '2025-02-16 23:59:59'
+      AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+
     UNION ALL
     
-    SELECT COALESCE(t.amount_usd, 0) AS amount_usd
-    FROM tokens_solana.transfers t
-    WHERE t.from_owner IN (SELECT addr FROM addr_list)
-      AND t.to_owner = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
-      AND t.block_time >= TIMESTAMP '2025-02-17 00:00:00'
-      AND (t.tx_signer IS NULL OR t.tx_signer <> 'gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw')
-      AND TIME_RANGE
+    SELECT COALESCE(t.usd_amount, 0) AS amount_usd
+    FROM solana.assets.transfers t
+    WHERE t.from_address IN (SELECT addr FROM addr_list)
+      AND t.to_address = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
+      AND t.block_timestamp >= TIMESTAMP '2025-02-17 00:00:00'
+      AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `);
 
   const ultraRevenue = data.reduce((sum, row) => sum + (row.amount_usd || 0), 0);
@@ -159,12 +160,11 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: '2024-09-02',
-  dependencies: [Dependencies.DUNE],
+  start: '2023-01-03',
+  dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology
 }
 
 export default adapter;
-
