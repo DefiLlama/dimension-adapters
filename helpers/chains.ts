@@ -306,7 +306,7 @@ export enum CHAIN {
   FLYNET = "flynet",
   ALPHASEC = "alphasec",
   HPP = "hpp",
-  MIND_NETWORK = "mind_network",
+  MIND_NETWORK = "fhe",
   MOLTEN_NETWORK = "molten_network",
   SYNDICATE = "syndicate",
   XCHAIN = "xchain",
