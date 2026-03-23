@@ -734,6 +734,9 @@ const configs: Record<string, Record<string, any>> = {
   "tideswap-dex": {
     [CHAIN.INK]: { factory: '0x2ebE0528aDED9fA8d745B7C7082fb90d7C7B6Ec8', start: '2026-02-20' },
   },
+  "forest-v1": {
+    [CHAIN.BSC]: { factory: '0x9d5ef0f61a5e88d90fb231f84413b5fc43bf6a9e', start: '2025-12-09' },
+  }
 }
 
 const optionsMap: Record<string, any> = {
