@@ -86,7 +86,8 @@ const adapter: SimpleAdapter = {
     },
     fetch,
     chains: [CHAIN.BASE],
-    start: '2025-01-22'
+  start: '2025-01-22',
+  allowNegativeValue: true, // vaults can be negative yields
 };
 
 export default adapter;
