@@ -10,7 +10,7 @@ const CometAbis: any = {
   getBorrowRate: 'function getBorrowRate(uint256 utilization) view returns (uint256 borrowRate)',
 }
 
-const CometAddresses: {[key: string]: Array<string>} = {
+export const CometAddresses: {[key: string]: Array<string>} = {
   [CHAIN.ETHEREUM]: [
     '0xc3d688b66703497daa19211eedff47f25384cdc3',
     '0xA17581A9E3356d9A858b789D68B4d866e593aE94',

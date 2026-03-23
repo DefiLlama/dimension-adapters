@@ -5,7 +5,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
 import { METRIC } from '../helpers/metrics'
 
-const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
+export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
   [CHAIN.ETHEREUM]: [
     // core market
     {
@@ -223,7 +223,7 @@ const breakdownMethodology = {
 
 const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
 const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
-const chainConfig: Record<string, any> = {
+export const chainConfig: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     pools: AaveMarkets[CHAIN.ETHEREUM],
     treasuryCollector: '0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c',
