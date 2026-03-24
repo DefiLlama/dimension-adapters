@@ -20,7 +20,6 @@ const chainConfig: Record<string, { start: string, chainName: string }> = {
     [CHAIN.MONAD]: { start: '2025-11-24', chainName: 'monad' },
     [CHAIN.TAIKO]: { start: '2024-06-05', chainName: 'taiko' },
     [CHAIN.STORY]: { start: '2025-03-06', chainName: 'story' },
-    [CHAIN.SEI]: { start: '2024-08-15', chainName: 'sei-evm' },
 };
 
 const ENTROPY_REQUEST_ABI = 'event RequestedWithCallback (address indexed provider, address indexed requestor, uint64 indexed sequenceNumber, bytes32 userRandomNumber, tuple(address provider,uint64 sequenceNumber,uint32 numHashes,bytes32 commitment,uint64 blockNumber, address requester,bool useBlockhash, bool isRequestWithCallback) request)';
