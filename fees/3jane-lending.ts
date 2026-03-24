@@ -69,6 +69,7 @@ const info = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: info.methodology,
   breakdownMethodology: info.breakdownMethodology,
   fetch: fetch,

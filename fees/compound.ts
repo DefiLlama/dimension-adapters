@@ -59,23 +59,23 @@ const adapter: Adapter = {
     Revenue: 'Share of borrow interest to Compound treasury.',
     ProtocolRevenue: 'Share of borrow interest to Compound treasury.',
     SupplySideRevenue: 'Total borrow interest paid to lenders.',
-    HoldersRevenueRatio: 'No revenue share for COMP token holders.',
+    HoldersRevenue: 'No revenue share for COMP token holders.',
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers.',
+      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers across all lending markets.',
     },
     UserFees: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers.',
+      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid by borrowers across all lending markets.',
     },
     Revenue: {
-      [METRIC.BORROW_INTEREST]: 'Share of borrow interest to Compound treasury.',
+      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury.',
     },
     ProtocolRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Share of borrow interest to Compound treasury.',
+      [METRIC.BORROW_INTEREST]: 'Protocol reserve factor portion of borrow interest retained by Compound treasury.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Total borrow interest paid to lenders.',
+      [METRIC.BORROW_INTEREST]: 'Lender portion of borrow interest distributed to cToken holders who supply liquidity.',
     },
   }
 }

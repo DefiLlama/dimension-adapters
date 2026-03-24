@@ -1,5 +1,7 @@
 // Use
 export enum CHAIN {
+  CHAIN_GLOBAL = "chain_global", // for some adapters aggregate data across all chains is not the sum of individual chains, so we need a separate identifier for the aggregate data
+  BITCOIN_SV = "bsv",
   PACASWAP = "pacaswap",
   PEAQ = "peaq",
   CHROMIA = "chromia",
@@ -56,7 +58,8 @@ export enum CHAIN {
   KARDIA = "kardia",
   TOMBCHAIN = "tombchain",
   CONFLUX = "conflux",
-  TERRA = "terra",
+  TERRA = "terra", // terra classic
+  TERRA2 = "terra2", // terra2
   METER = "meter",
   GODWOKEN = "godwoken",
   GODWOKEN_V1 = "godwoken_v1",
@@ -136,6 +139,7 @@ export enum CHAIN {
   LINEA = "linea",
   BASE = "base",
   NEON = "neon_evm",
+  NEONY = "neony",
   OP_BNB = "op_bnb",
   HYDRADX = "hydradx",
   OSMOSIS = "osmosis",
@@ -255,8 +259,7 @@ export enum CHAIN {
   LENS = "lens",
   SSEED = "sseed",
   AO = "ao",
-  XRPL = "xrpl",
-  XRPL_EVM = "xrplevm",
+  XRPL_EVM = "xrplevm", // for XRPL chain, please using RIPPLE
   KATANA = "katana",
   SOON = "soon",
   SOON_BSC = "soon_bsc",
@@ -303,7 +306,7 @@ export enum CHAIN {
   FLYNET = "flynet",
   ALPHASEC = "alphasec",
   HPP = "hpp",
-  MIND_NETWORK = "mind_network",
+  MIND_NETWORK = "fhe",
   MOLTEN_NETWORK = "molten_network",
   SYNDICATE = "syndicate",
   XCHAIN = "xchain",
@@ -311,7 +314,7 @@ export enum CHAIN {
   FOGO = "fogo",
   PROVENANCE = "provenance",
   SPACE_AND_TIME = "space_and_time",
-  NEO_X_MAINNET = "neo_x_mainnet",
+  NEO_X_MAINNET = "neox",
   KUB = "kub",
   STANDX = "standx",
   JOC = "joc",
@@ -340,4 +343,10 @@ export enum CHAIN {
   MEGAETH = "megaeth",
   ENI = "eni",
   SPARK = "spark",
+  CHIHUAHUA = "chihuahua",
+  DYMENSION = "dymension",
+  KUJIRA = "kujira",
+  MIGALOO = "migaloo",
+  BITROCK = "bitrock",
+  QIEV3 = "qiev3",
 }

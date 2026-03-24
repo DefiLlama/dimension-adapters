@@ -49,6 +49,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2025-04-30',

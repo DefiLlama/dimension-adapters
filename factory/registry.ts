@@ -27,10 +27,11 @@ export function createFactoryExports<T extends { [key: string]: SimpleAdapter }>
 // Supports: 'helpers/name', 'name', 'name:export' (named export from factory file)
 function resolveFactoryPath(factoryPath: string) {
   const [pathPart, exportName] = factoryPath.split(':');
-  const isHelper = pathPart.startsWith('helpers/');
-  const factoryName = isHelper ? pathPart.replace('helpers/', '') : pathPart;
-  const importPath = isHelper ? `../helpers/${factoryName}` : `./${factoryName}`;
-  return { importPath, factoryName, exportName };
+  const isHelper = pathPart.includes('/');
+  let factoryName = isHelper ? pathPart.split('/').pop() : pathPart;
+  if (pathPart === 'users/list') factoryName = 'users'; // special case for users/list.ts which has named exports
+  const importPath = isHelper ? `../${pathPart}` : `./${factoryName}`;
+  return { importPath, factoryName: factoryName as string, exportName };
 }
 
 // Simple mapping: adapter type -> array of factory filenames
@@ -43,14 +44,18 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'helpers/balancer',
     'helpers/friend-tech',
     'helpers/solidly',
+    'helpers/ethereum-l2',
+    'helpers/ethereum-builder',
+    'helpers/aave',
     'uniV2:fees',
     'uniV3:fees',
     'uniV2',
     'uniV3',
+    'uniSubgraph',
     'blockscout',
     'hyperliquid:fees',
     'hyperliquid',
-    'symmio:fees',
+    'symmio',
     'compoundV2',
     'orderly',
     'gmxV1',
@@ -58,27 +63,44 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'curators',
     'saddle',
     'solLst',
+    'joeLiquidityBook',
+    'curve',
   ],
   'dexs': [
+    'helpers/crypto-card',
     'helpers/balancer',
     'uniV2',
     'uniV3',
+    'uniSubgraph',
     'uniV2:fees',
     'uniV3:fees',
     'hyperliquid',
+    'hyperliquid:fees',
     'symmio',
     'orderly',
     'gmxV1',
     'polymarket',
     'saddle',
     'alliumSolanaDex',
+    'joeLiquidityBook',
+    'curve',
   ],
   'aggregators': [],
   'open-interest': [
     'hyperliquid:oi',
+    'symmio',
   ],
   'normalized-volume': [
     'normalizedVolume', // Factory in factory/ folder
+  ],
+  'nft-volume': [
+    'nftVolume',
+  ],
+  'active-users': [
+    'users/list',
+  ],
+  'new-users': [
+    'users/list:newUsers',
   ]
 };
 
@@ -160,8 +182,8 @@ export function listHelperProtocols(adapterType?: string): Array<{
     for (const factoryPath of factories) {
       try {
         const { importPath, factoryName, exportName } = resolveFactoryPath(factoryPath);
-        const isHelper = factoryPath.startsWith('helpers/');
-        const sourcePath = isHelper ? `helpers/${factoryName}.ts` : `factory/${factoryName}.ts`;
+        const isHelper = factoryPath.includes('/');
+        const sourcePath = isHelper ? `${factoryName}.ts` : `factory/${factoryName}.ts`;
 
         // Dynamically import the factory
         const factoryModule = require(importPath);

@@ -42,7 +42,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-    DailyVolume:
+    Volume:
         "Volume is calculated by summing the USD value of all swaps executed through the NanoPort executor wallet across supported DEX aggregators.",
 };
 

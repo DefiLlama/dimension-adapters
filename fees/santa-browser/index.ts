@@ -13,6 +13,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     FROM aptos.events
     WHERE guid_account_address = ${SANTA_BROWSER_ADDRESS}
       AND CAST(JSON_EXTRACT_SCALAR(data, '$.event_type') AS DOUBLE) = 2
+      AND JSON_EXTRACT_SCALAR(data, '$.string_event_id') LIKE 'purchase_evt_%'
       AND TIME_RANGE
   `;
   const result = await queryDuneSql(options, sql);

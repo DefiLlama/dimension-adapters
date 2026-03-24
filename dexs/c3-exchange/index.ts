@@ -67,7 +67,7 @@ function adapterConstructor(
 
   return {
     methodology: {
-      dailyVolume: "Volume is calculated by summing the quote token volume of all trades settled on the protocol that day.",
+      Volume: "Volume is calculated by summing the quote token volume of all trades settled on the protocol that day.",
     },
     version: 2,
     adapter: chainVolumes,

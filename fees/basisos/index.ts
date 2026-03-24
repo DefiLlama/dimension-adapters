@@ -66,8 +66,8 @@ const fetch = async (options: FetchOptions) => {
     // Calculate fee shares for management fees
     const managementFeeShares = vaultManagementFeesLogs.reduce((sum, event) =>
       sum + Number(event.feeShares), 0);
-    
-     // Calculate fee shares for performance fees
+
+    // Calculate fee shares for performance fees
     const performanceFeeShares = vaultPerformanceFeesLogs.reduce((sum, event) =>
       sum + Number(event.feeShares), 0);
 
@@ -118,13 +118,13 @@ const fetch = async (options: FetchOptions) => {
       const managementFeeInAssets = managementFeeShares * sharePrice;
       const performanceFeeInAssets = performanceFeeShares * sharePrice;
 
-        // Add management fees with metric
-        dailyFees.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
+      // Add management fees with metric
+      dailyFees.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
+      dailyRevenue.add(assetAddress, managementFeeInAssets, METRIC.MANAGEMENT_FEES);
 
-        // Add performance fees with metric
-        dailyFees.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
-        dailyRevenue.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
+      // Add performance fees with metric
+      dailyFees.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(assetAddress, performanceFeeInAssets, METRIC.PERFORMANCE_FEES);
     }
   }
 
@@ -155,12 +155,10 @@ const breakdownMethodology = {
  */
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-04-26',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2024-04-26',
+  pullHourly: true,
   methodology,
   breakdownMethodology,
 };

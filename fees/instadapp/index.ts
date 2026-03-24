@@ -1,10 +1,11 @@
 import { Chain } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { 
-  FetchV2, 
+import {
+  FetchV2,
   SimpleAdapter,
 } from "../../adapters/types";
 import { Balances } from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 
 const instaFlashAggregators: {
   [chain: Chain]: { address: string; deployedAt: number };
@@ -53,7 +54,7 @@ const fetch: FetchV2 = async ({ createBalances, getLogs, chain }) => {
   // });
 
   logs.map((l: any) => {
-    dailyFees.add(l.tokens, l.amounts);
+    dailyFees.add(l.tokens, l.amounts, METRIC.FLASHLOAN_FEES);
   });
 
   dailyFees.resizeBy(fee / 10000);
@@ -63,7 +64,13 @@ const fetch: FetchV2 = async ({ createBalances, getLogs, chain }) => {
   };
 };
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, };
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.FLASHLOAN_FEES]: 'Fees charged on flashloan aggregation service (0.05% of flashloan volume)',
+  }
+};
+
+const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, };
 
 Object.keys(instaFlashAggregators).forEach((chain: Chain) => {
   adapter.adapter![chain] = {
@@ -72,5 +79,8 @@ Object.keys(instaFlashAggregators).forEach((chain: Chain) => {
   };
 });
 
-adapter.methodology = "Counts the 0.05% fee taken on flashswaps."
+adapter.methodology = {
+  Fees: "Counts the 0.05% fee taken on flashswaps.",
+};
+adapter.breakdownMethodology = breakdownMethodology;
 export default adapter;

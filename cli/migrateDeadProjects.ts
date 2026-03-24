@@ -1,12 +1,15 @@
-import { readdir, writeFile, stat, mkdir, rename } from "fs/promises";
-import { existsSync, readFileSync } from "fs";
+import { readdir, writeFile, rm, mkdir } from "fs/promises";
+import { existsSync, readFileSync, statSync } from "fs";
+import { execSync } from "child_process";
 import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
 
 const extensions = ['ts', 'md', 'js']
 const baseFolderPath = __dirname + "/.."
-const deadFolderPath = `${baseFolderPath}/dead`
 const outputPath = `${baseFolderPath}/factory/deadAdapters.json`
+
+// Get current git commit hash
+const currentCommit = execSync('git rev-parse HEAD', { cwd: baseFolderPath }).toString().trim()
 
 // Load existing dead adapters if file exists
 let deadAdapters: Record<string, Record<string, any>> = {}
@@ -18,8 +21,8 @@ if (existsSync(outputPath)) {
   }
 }
 
-// Track which adapters have been moved
-const movedAdapters = new Set<string>()
+// Track which adapters have been processed
+const processedAdapters = new Set<string>()
 
 // Store dead adapter info for dependency resolution
 interface DeadAdapterInfo {
@@ -27,7 +30,7 @@ interface DeadAdapterInfo {
   path: string
   fileKey: string
   fullPath: string
-  imports: string[] // list of imported adapter paths (e.g., "dexs/uniswap")
+  // imports: string[] // list of imported adapter paths (e.g., "dexs/uniswap")
 }
 const deadAdapterInfos: Map<string, DeadAdapterInfo> = new Map()
 
@@ -59,56 +62,11 @@ async function getDirectoriesAsync(source: string): Promise<string[]> {
   return dirents.map(dirent => dirent.name);
 }
 
-// Extract imports from file content
-function extractImports(filePath: string): string[] {
-  const imports: string[] = []
-  try {
-    let content: string
-    const fileStat = existsSync(filePath) ? require('fs').statSync(filePath) : null
-    if (fileStat?.isDirectory()) {
-      const indexPath = `${filePath}/index.ts`
-      if (!existsSync(indexPath)) return imports
-      content = readFileSync(indexPath, 'utf-8')
-    } else if (existsSync(filePath)) {
-      content = readFileSync(filePath, 'utf-8')
-    } else if (existsSync(filePath + '.ts')) {
-      content = readFileSync(filePath + '.ts', 'utf-8')
-    } else {
-      return imports
-    }
-
-    // Match imports like: import ... from "../dexs/adapter-name"
-    const importRegex = /from\s+["']\.\.\/([^"']+)["']/g
-    let match
-    while ((match = importRegex.exec(content)) !== null) {
-      const importPath = match[1]
-      // Only track imports from adapter type folders
-      for (const adapterType of ADAPTER_TYPES) {
-        if (importPath.startsWith(adapterType + '/')) {
-          imports.push(importPath)
-          break
-        }
-      }
-    }
-  } catch (e) {
-    // Ignore errors reading file
-  }
-  return imports
-}
-
-async function moveAdapter(info: DeadAdapterInfo): Promise<boolean> {
+async function deleteAdapter(info: DeadAdapterInfo): Promise<boolean> {
   const moduleKey = `${info.adapterType}/${info.fileKey}`
 
-  if (movedAdapters.has(moduleKey)) {
-    return false // Already moved
-  }
-
-  // First, move any dead dependencies
-  for (const importPath of info.imports) {
-    if (deadAdapterInfos.has(importPath) && !movedAdapters.has(importPath)) {
-      const depInfo = deadAdapterInfos.get(importPath)!
-      await moveAdapter(depInfo)
-    }
+  if (processedAdapters.has(moduleKey)) {
+    return false // Already processed
   }
 
   try {
@@ -126,25 +84,22 @@ async function moveAdapter(info: DeadAdapterInfo): Promise<boolean> {
 
     const mockedModule = mockFunctions({ ...module.default })
     deadAdapters[info.adapterType][info.fileKey] = {
-      modulePath: `-`,
-      codePath: `dead/${info.adapterType}/${info.path}`,
+      commit: currentCommit,
+      codePath: `${info.adapterType}/${info.path}`,
       module: mockedModule
     }
 
     console.log(`Found dead adapter: ${moduleKey} (deadFrom: ${module.default.deadFrom})`)
 
-    // Move to dead folder
-    const deadTypeFolder = `${deadFolderPath}/${info.adapterType}`
-    if (!existsSync(deadTypeFolder)) {
-      await mkdir(deadTypeFolder, { recursive: true })
-    }
-    const destPath = `${deadTypeFolder}/${info.path}`
-    await rename(info.fullPath, destPath)
-    console.log(`  Moved to: ${destPath}`)
+    // Delete the adapter file/folder
+    const isDir = existsSync(info.fullPath) && statSync(info.fullPath).isDirectory()
+    await rm(info.fullPath, { recursive: isDir })
+    console.log(`  Deleted: ${info.fullPath}`)
 
-    movedAdapters.add(moduleKey)
+    processedAdapters.add(moduleKey)
     return true
   } catch (error: any) {
+    console.log(error)
     // Skip modules that fail to import
   }
   return false
@@ -164,15 +119,23 @@ async function scanAdapter(adapterType: string, path: string): Promise<DeadAdapt
     if (!module.default) return null
 
     await setModuleDefaults(module.default)
+    const adapterChainExports = Object.values(module.default.adapter || {})
+    let allChainsAreDead = false
+    if (adapterChainExports.length > 0 && adapterChainExports.every((chainExport: any) => chainExport.deadFrom))
+      allChainsAreDead = true
 
-    if (module.default.deadFrom !== undefined) {
-      const imports = extractImports(fullPath)
+    if (allChainsAreDead)
+      console.log(`Scanned ${moduleKey}, all chains dead: ${allChainsAreDead}`)
+
+
+    if (module.default.deadFrom !== undefined || allChainsAreDead) {
+      // const imports = extractImports(fullPath)
       return {
         adapterType,
         path,
         fileKey,
         fullPath,
-        imports
+        // imports
       }
     }
   } catch (error: any) {
@@ -209,11 +172,11 @@ async function run() {
 
   console.log(`Found ${deadAdapterInfos.size} dead adapters\n`)
 
-  // Phase 2: Move adapters in dependency order
+  // Phase 2: Delete dead adapters and record their info
   let totalDead = 0
   for (const [_, info] of deadAdapterInfos) {
-    const moved = await moveAdapter(info)
-    if (moved) totalDead++
+    const deleted = await deleteAdapter(info)
+    if (deleted) totalDead++
   }
 
   // Sort dead adapters by key
@@ -230,7 +193,7 @@ async function run() {
 
   await writeFile(outputPath, JSON.stringify(deadAdapters, null, 2))
 
-  console.log(`\nWrote ${totalDead} dead adapters to ${outputPath}`)
+  console.log(`\nDeleted ${totalDead} dead adapters, wrote registry to ${outputPath}`)
   console.log(`Total dead adapters in registry: ${Object.values(deadAdapters).reduce((acc, obj) => acc + Object.keys(obj).length, 0)}`)
 
   process.exit(0)

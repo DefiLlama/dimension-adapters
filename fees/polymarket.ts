@@ -61,18 +61,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
-    Fees: 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
+    Fees: 'Users pay fees when they trade binary options on polymarket',
     SupplySideRevenue: 'Maker rebates, liquidity and holding rewards',
     Revenue: 'Fees going to protocol address post maker rebate, liquidity and holding rewards distribution',
     ProtocolRevenue: 'All the revenue goes to protocol',
   },
   breakdownMethodology: {
     Fees: {
-      'Taker Fees': 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
+      'Taker Fees': 'Users pay fees when they trade binary options on polymarket.',
     },
     Revenue: {
-      'Taker Fees': 'Users pay fees when they trade binary options on polymarket. Right now fees is charged only on 15 min up/down markets(only taker fees).',
+      'Taker Fees': 'Users pay fees when they trade binary options on polymarket.',
     },
     ProtocolRevenue: {
       'Taker Fees': 'Taker fees minus rebates, liquidity and holding rewards',

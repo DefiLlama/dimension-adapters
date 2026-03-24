@@ -1,8 +1,9 @@
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 
-const config: any = {
-  bsc: {
+export const config: any = {
+  [CHAIN.BSC]: {
     wom: "0xAD6742A35fB341A9Cc6ad674738Dd8da98b94Fb1",
     veWom: "0x3DA62816dD31c56D9CdF22C6771ddb892cB5b0Cc",
     pools: {
@@ -34,9 +35,15 @@ const config: any = {
       zBNB: "0x9a39f4AB3f52026432835dEe6D3DB721D95f3D28",
       zUSD: "0xC26b7Cbe7e695a0d11a8cB96140D1Cd502945A2C",
       USDV: "0xC897a2Ae2E45f0D7ba8cbE397208C3e9f8914A9f",
+      CUSD: "0x4dFa92842d05a790252A7f374323b9C86D7b7E12",
+      LINA: "0x84a14A10E7258C68413168c98E905483f9183D7a",
+      StandalonePool: "0x6569DDC1Cc2648c89BC8025046A7dd65EB8940F3",
+      StandalonePool2: "0xfcd11c01c14e4c12C3F9835CD5192fE774038d46",
+      StandalonePool3: "0xaded24B510a137b05a8eD958a029DACD6a59efDc",
+      volatilePool: "0x5b573F2E034e37Cc883F2a614BDdC77b07081B6f",
     },
   },
-  arbitrum: {
+  [CHAIN.ARBITRUM]: {
     wom: "0x7b5eb3940021ec0e8e463d5dbb4b7b09a89ddf96",
     veWom: "0x488B34F704a601DAeEf14135146a3dA79F2d3EFC",
     pools: {
@@ -57,9 +64,13 @@ const config: any = {
       crossChainPool: "0xe78876C360716f2225F55A6726B32324FE1B1145",
       USDV: "0xa6eF6C45EbFDBc13f6D032fbDFeC9b389C1603E5",
       sFRAX: "0xaBF19eAdb08693278FdbAD35Cb4E3c1D6484c8Bb",
+      fraxUSDV: "0x3cc8c886575968642Cab9F430261c81C5b044d4b",
+      StandalonePool: "0xD64816Fbdf50a1C4AEa456A4006ad21A928305f3",
+      ePendle: "0x3257EaA9C919fe01EF628fe9031BA2Cd8927A3b1",
+      volatilePool: "0x39a2f59875bC636b7eFEcAc30b6E97066a850B1e",
     },
   },
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     wom: "0xc0B314a8c08637685Fc3daFC477b92028c540CFB",
     veWom: "0xEF0B4d9Dba6ea82B59437Fe5E37b16A2896aAF94",
     pools: {
@@ -70,17 +81,21 @@ const config: any = {
       ETHx: "0x647CC8816C2d60A5fF4d1ffeF27a5b3637d5ac81",
       crossChainPool: "0xA45C0ABeef67C363364E0e73832df9986aBa3800",
       USDV: "0x05A33c0eaf81367Ce953d2dCd4ea1BE8758f4D32",
+      volatilePool: "0x89B88A45E23978b38A14695b63F475d4e4CcaF95",
+      mWOM: "0xcf2e56E086fcD21eaB3614A5A78c8Ae27c2F0536",
+      wmxWOM: "0xe43c1695df76CcA4D6079061924D7150Fd553c21",
     },
   },
   // does not have wom yet
-  scroll: {
+  [CHAIN.SCROLL]: {
     wom: "",
     veWom: "",
     pools: {
       crossChainPool: "0x80f088ae72DB6d1AC337340cd6Aa0EB1F67337CE",
+      volatilePool: "0x15dcC2da1a73194C9c5BB83ecdA86251F0b1a17F",
     },
   },
-  avax: {
+  [CHAIN.AVAX]: {
     wom: "0xa15E4544D141aa98C4581a1EA10Eb9048c3b3382",
     veWom: "0x34E2F923bBa206358EcE221af73E8d121837F873",
     pools: {
@@ -88,9 +103,13 @@ const config: any = {
       sAVAX: "0xE3Abc29B035874a9f6dCDB06f8F20d9975069D87",
       USDV: "0x108c990c93Fa8E3cD88DDb13594D39f09D9B3C02",
       ggAVAX: "0xBbA43749efC1bC29eA434d88ebaf8A97DC7aEB77",
+      triPool: "0xc12c0Ced34b115655234E8a4dB87EBc8F6F362d0",
+      AUSD: "0x911a98f54da5355EAba1c8D57933ae5493c4223b",
+      Axon: "0x74163B79733AEA2d9C4cED777dc49D591Db739E9",
+      volatilePool: "0x89B88A45E23978b38A14695b63F475d4e4CcaF95",
     },
   },
-  base: {
+  [CHAIN.BASE]: {
     wom: "0xD9541B08B375D58ae104EC247d7443D2D7235D64",
     veWom: "0x34E2F923bBa206358EcE221af73E8d121837F873",
     pools: {
@@ -98,7 +117,7 @@ const config: any = {
       USDS: "0x20d7B9Ed2c4E2DCC55F9B463975b21bBf2A6eCd1",
     },
   },
-  optimism: {
+  [CHAIN.OPTIMISM]: {
     wom: "0xd2612b256f6f76fea8c6fbca0bf3166d0d13a668",
     veWom: "0xE91cfd7f8e5A5a1EA4803FcF781e1C8d6FfCa279",
     pools: {
@@ -107,30 +126,161 @@ const config: any = {
       frax: "0x6BB82A9b0b9b9716B885baeEfDBE47b685a0F919",
       dola: "0x489818F2eeAef737105887710F7C5b9323Ad3d01",
       frxETH: "0xB86BA65b75D34402bf377cF83b184554a18Fcafa",
+      StandalonePool: "0x7B1f9C537efCa25501d15a77Bdc1d23287839623",
+    },
+  },
+  [CHAIN.POLYGON]: {
+    wom: "",
+    veWom: "",
+    pools: {
+      crossChainPool: "0x4705b477d35112f7B7cA2Bc5059eD9b78bb46134",
+    },
+  },
+  [CHAIN.MONAD]: {
+    wom: "",
+    veWom: "",
+    pools: {
+      mainPool: "0x25FAa3176efa09658E65853F077810bb2CCa82a4",
+    },
+  },
+  [CHAIN.HYPERLIQUID]: {
+    wom: "",
+    veWom: "",
+    pools: {
+      mainPool: "0xeF420C965d80fb24A211155a6B489C0D62b7e07a",
     },
   },
 };
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {},
+// Voter contract addresses for chains with governance (for bribes + token incentives)
+const voterConfig: Record<string, { voter: string; }> = {
+  [CHAIN.BSC]: {
+    voter: "0x04D4e1C1F3D6539071b6D3849fDaED04d48D563d",
+  },
+  [CHAIN.ARBITRUM]: {
+    voter: "0x3f90a5a47364c0467031fB00246192d40E3D2D9D",
+  },
+  [CHAIN.ETHEREUM]: {
+    voter: "0x32A936CbA2629619b46684cDf923CB556f09442c",
+  },
 };
 
-Object.keys(config).forEach((chain) => {
-  (adapter.adapter as BaseAdapter)[chain] = { fetch }
-})
+async function fetch(options: FetchOptions) {
+  const { chain, getLogs, createBalances, api } = options;
+  const pools = Object.values(config[chain].pools) as string[];
+
+  const swapAbi = "event Swap (address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address indexed to)";
+
+  // 1. Read haircutRate and lpDividendRatio from each pool
+  const [haircutRates, lpDividendRatios] = await Promise.all([
+    api.multiCall({ abi: "function haircutRate() view returns (uint256)", calls: pools }).catch(() => pools.map(() => "400000000000000")), // default 4bps
+    api.multiCall({ abi: "function lpDividendRatio() view returns (uint256)", calls: pools }).catch(() => pools.map(() => "1000000000000000000")), // default 100%
+  ]);
+
+  // 2. Compute per-pool volume, fees, and revenue split
+  const dailyVolume = createBalances();
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+
+  const perPoolLogs = await Promise.all(
+    pools.map((pool) => getLogs({ target: pool, eventAbi: swapAbi }).catch(() => []))
+  );
+
+  for (let i = 0; i < pools.length; i++) {
+    const poolLogs = perPoolLogs[i];
+    const hr = Number(haircutRates[i]) / 1e18;
+    const lpRatio = Number(lpDividendRatios[i]) / 1e18;
+
+    const poolVolume = createBalances();
+    poolLogs.forEach((log: any) => {
+      addOneToken({ chain, balances: poolVolume, token0: log.fromToken, amount0: log.fromAmount, token1: log.toToken, amount1: log.toAmount });
+    });
+
+    dailyVolume.addBalances(poolVolume);
+    const poolFees = poolVolume.clone(hr);
+    dailyFees.addBalances(poolFees);
+    dailySupplySideRevenue.addBalances(poolFees.clone(lpRatio));
+    dailyProtocolRevenue.addBalances(poolFees.clone(1 - lpRatio));
+  }
+
+  // 5. Bribes: OnReward events from BribeV2 contracts (via Voter)
+  const dailyBribesRevenue = createBalances();
+  if (voterConfig[chain]) {
+    const { voter } = voterConfig[chain];
+
+    // Get all asset (LP token) addresses from pools, then look up bribes from Voter
+    const allUnderlyingTokens = await api.multiCall({
+      abi: "address[]:getTokens",
+      calls: pools,
+    }).catch(() => []);
+
+    const assetCalls: { target: string; params: string }[] = [];
+    allUnderlyingTokens.forEach((tokens: string[], poolIdx: number) => {
+      (tokens || []).forEach((token: string) => {
+        assetCalls.push({ target: pools[poolIdx], params: token });
+      });
+    });
+
+    if (assetCalls.length > 0) {
+      const assetAddresses = await api.multiCall({
+        abi: "function addressOfAsset(address) view returns (address)",
+        calls: assetCalls,
+      }).catch(() => []);
+
+      // Look up bribe address for each asset from Voter
+      const infoCalls = assetAddresses
+        .filter((a: string) => a && a !== "0x0000000000000000000000000000000000000000");
+
+      if (infoCalls.length > 0) {
+        const infos = await api.multiCall({
+          abi: "function infos(address) view returns (uint104 supplyBaseIndex, uint104 supplyVoteIndex, uint40 nextEpochStartTime, uint128 claimable, bool whitelist, address gaugeManager, address bribe)",
+          calls: infoCalls.map((a: string) => ({ target: voter, params: a })),
+        }).catch(() => []);
+
+        const bribeAddresses = infos
+          .map((info: any) => info?.bribe)
+          .filter((b: string) => b && b !== "0x0000000000000000000000000000000000000000");
+
+        if (bribeAddresses.length > 0) {
+          // Get OnReward events from all bribe contracts
+          const bribeLogs = await getLogs({
+            targets: bribeAddresses,
+            eventAbi: "event OnReward(address indexed rewardToken, address indexed user, uint256 amount)",
+          }).catch(() => []);
+
+          bribeLogs.forEach((log: any) => {
+            dailyBribesRevenue.add(log.rewardToken, log.amount);
+          });
+        }
+      }
+    }
+  }
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyBribesRevenue,
+  };
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: Object.keys(config),
+  methodology: {
+    Fees: "Swap fees paid by users (haircutRate applied to each swap).",
+    UserFees: "Same as Fees — all swap fees are paid by the user.",
+    SupplySideRevenue: "Share of fees distributed to LPs, determined by the pool's lpDividendRatio.",
+    ProtocolRevenue: "Share of fees retained by the protocol (tip bucket + feeTo), i.e. 1 - lpDividendRatio.",
+    HoldersRevenue: "Not applicable.",
+    Revenue: "Same as ProtocolRevenue.",
+  },
+};
 
 export default adapter;
-
-
-async function fetch({ chain, getLogs, createBalances, }: FetchOptions) {
-  const pools = Object.values(config[chain].pools)
-  const dailyVolume = createBalances()
-  const eventAbi = "event Swap (address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address indexed to)"
-  const logs = await getLogs({ targets: pools as any, eventAbi })
-  logs.forEach((log: any) => {
-    const { fromToken, toToken, fromAmount, toAmount } = log
-    addOneToken({ chain, balances: dailyVolume, token0: fromToken, amount0: fromAmount, token1: toToken, amount1: toAmount })
-  })
-  return { dailyVolume, dailyFees: dailyVolume.clone(0.0004) }
-}

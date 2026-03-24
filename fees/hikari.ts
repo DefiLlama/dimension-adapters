@@ -101,6 +101,7 @@ const adapter: SimpleAdapter = {
       "Revenue collected from the staking contract. 30% of the revenue is distributed to the holders.",
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.KATANA]: {
       fetch: fetch as any,

@@ -1,33 +1,17 @@
 import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
+import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "../helpers/env";
 
 // https://www.tread.fi/
 const HL_BUILDER_ADDRESS = "0x999a4b5f268a8fbf33736feff360d462ad248dbf";
-const EXTENDED_BUILDER_NAME = "Tread.fi";
-const EXTENDED_API_URL = "https://api.starknet.extended.exchange/api/v1/info/builder/dashboard";
+const EXTENDED_BUILDER_NAMES = ["Tread.fi"];
 const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
 
 // Fee rate for TreadTools venues (2 bps)
 const TREADTOOLS_FEE_RATE = 0.0002;
-
-interface ExtendedDailyData {
-  date: string;
-  builderName: string;
-  volume: string;
-  extendedFees: string;
-  activeUsers: number;
-}
-
-interface ExtendedApiResponse {
-  status: string;
-  data: {
-    total: any[];
-    daily: ExtendedDailyData[];
-  };
-}
 
 interface TreadToolsApiResponse {
   status: string;
@@ -72,35 +56,35 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 };
 
 const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
-  const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
+  // Volume from TreadTools (MMBot orders only)
+  const dailyVolume = options.createBalances();
+  const treadToolsData = options.preFetchedResults;
+  const hlData = treadToolsData?.data?.hyperliquid;
+  if (hlData && typeof hlData.dailyVolume === "number" && hlData.dailyVolume > 0) {
+    dailyVolume.addCGToken("usd-coin", hlData.dailyVolume);
+  }
+
+  // Fees from builder API (actual builder fee revenue)
+  const { dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({
       options,
       builder_address: HL_BUILDER_ADDRESS,
     });
+
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
 const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+  // Volume from TreadTools (MMBot orders only)
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-
-  // Convert startOfDay timestamp to YYYY-MM-DD format
-  const date = new Date(options.startOfDay * 1000);
-  const dateStr = date.toISOString().split("T")[0];
-
-  const response: ExtendedApiResponse = await httpGet(EXTENDED_API_URL);
-
-  // Find Tread.fi data for the requested date
-  const dayData = response.data.daily.find(
-    (entry) => entry.builderName === EXTENDED_BUILDER_NAME && entry.date === dateStr
-  );
-
-  if (dayData) {
-    const volume = parseFloat(dayData.volume);
-    const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
+  const treadToolsData = options.preFetchedResults;
+  const extendedData = treadToolsData?.data?.extended;
+  if (extendedData && typeof extendedData.dailyVolume === "number" && extendedData.dailyVolume > 0) {
+    dailyVolume.addCGToken("usd-coin", extendedData.dailyVolume);
   }
+
+  // Fees from builder API (actual builder fee revenue)
+  const { dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: TREADTOOLS_FEE_RATE });
 
   return {
     dailyVolume,
@@ -112,23 +96,19 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
 
 const fetchParadex = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
   const treadToolsData = options.preFetchedResults;
   const paradexData = treadToolsData.data?.paradex;
 
   if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
-    const volume = paradexData.dailyVolume;
-    const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
+    dailyVolume.addCGToken("usd-coin", paradexData.dailyVolume);
   }
 
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyFees: 0,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   };
 };
 
@@ -189,7 +169,6 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 // Aggregates Aster + Binance (both CEX copy-trading on BSC)
 const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
   const treadToolsData = options.preFetchedResults;
   const asterData = treadToolsData.data?.aster;
@@ -204,16 +183,14 @@ const fetchBsc = async (_a: any, _b: any, options: FetchOptions) => {
   }
 
   if (totalVolume > 0) {
-    const fees = totalVolume * TREADTOOLS_FEE_RATE;
     dailyVolume.addCGToken("usd-coin", totalVolume);
-    dailyFees.addCGToken("usd-coin", fees);
   }
 
   return {
     dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyFees: 0, // no fees
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
   };
 };
 
@@ -229,7 +206,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch: fetchHyperliquid,
-      start: "2025-08-01",
+      start: "2025-10-05",
     },
     [CHAIN.STARKNET]: {
       fetch: fetchExtended,

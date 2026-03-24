@@ -48,13 +48,13 @@ const fetch = async (_: any, _1: any, { startOfDay, dateString, }: FetchOptions)
 };
 
 const methodology = {
-  dailyFees: "All fees including 100% of the swap fees and external rewards for AQUA holders.",
-  dailyUserFees: "100% of the swap fees",
-  dailyRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected",
-  dailyProtocolRevenue: "Share of the fees kept by Aquarius. Currently equals 0.",
-  dailyHoldersRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected.",
-  dailySupplySideRevenue: "50% of the swap fees that are shared with the Aquarius liquidity providers",
-  dailyBribesRevenue: "Amount of external incentives for AQUA holders voting for specific markets on Aquarius.",
+  Fees: "All fees including 100% of the swap fees and external rewards for AQUA holders.",
+  UserFees: "100% of the swap fees",
+  Revenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected",
+  ProtocolRevenue: "Share of the fees kept by Aquarius. Currently equals 0.",
+  HoldersRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected.",
+  SupplySideRevenue: "50% of the swap fees that are shared with the Aquarius liquidity providers",
+  BribesRevenue: "Amount of external incentives for AQUA holders voting for specific markets on Aquarius.",
 }
 
 const adapter: SimpleAdapter = {

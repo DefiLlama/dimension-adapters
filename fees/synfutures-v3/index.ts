@@ -14,7 +14,7 @@ const endpoints = {
 const methodology = {
   Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",
   SupplySideRevenue: "fees rebated received by limit order makers and fees received by AMM LPs on the protocol, these fees are paid by takers",
-  ProcotolFees: "fees received by the protocol from takers, these fees are paid by takers"
+  ProtocolRevenue: "fees received by the protocol from takers, these fees are paid by takers"
 }
 
 function convertDecimals(value: string | number, decimals: number) {

@@ -4,8 +4,7 @@ import { FetchResult } from "../../adapters/types";
 
 export default {
     methodology: {
-        DailyVolume: 'Leverage trading volume',
-        DataSource: 'Data prepared by the project team by indexing blockchain data'
+        Volume: 'Leverage trading volume'
     },
     adapter: {
         [CHAIN.TON]: {

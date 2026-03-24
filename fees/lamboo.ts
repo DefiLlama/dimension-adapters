@@ -85,7 +85,7 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     WHERE token IN (
       ${TRACKED_TOKEN_TYPES}
     )
-    GROUP BY 1, 2;
+    GROUP BY 1, 2
   `;
 
   const feeRows = await queryDuneSql(options, feeQuery, { extraUIDKey: "fees" })

@@ -135,28 +135,26 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters = {
   version: 2,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2023-11-24',
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.ETHEREUM],
+  fetch,
+  start: '2023-11-24',
   methodology: {
     Fees: "Staking rewards + yield distribution + mint fees + extra fees",
-    UserFees: "User pay fees when mint USDe using USDT, USDC or USDtb",
+    UserFees: "Users pay fees when minting USDe using USDT, USDC or USDtb",
     Revenue: "Mint Fees and staking rewards portion to Reserve Fund",
     SupplySideRevenue: "Mint Fees and staking rewards distributed to suppliers",
   },
   breakdownMethodology: {
     Fees: {
-      [EXTRA_METRICS.MINT_FEES]: 'User pay fees when mint USDe using USDT, USDC or USDtb.',
+      [EXTRA_METRICS.MINT_FEES]: 'Users pay fees when minting USDe using USDT, USDC or USDtb.',
       [EXTRA_METRICS.RESERVE_FUND]: 'Staking rewards portion to Reserve Fund.',
       [EXTRA_METRICS.SUSDE_STAKING_REWARDS]: 'Staking rewards distributed to sUSDe stakers.',
       [EXTRA_METRICS.EXTRA_REWARDS]: 'Extra rewards distributed to sUSDe stakers.',
       [EXTRA_METRICS.AAVE_LIQ_FEES]: 'Aave liquidation fees distributed to sUSDe stakers.',
     },
     Revenue: {
-      [EXTRA_METRICS.MINT_FEES]: 'User pay fees when mint USDe using USDT, USDC or USDtb.',
+      [EXTRA_METRICS.MINT_FEES]: 'Users pay fees when minting USDe using USDT, USDC or USDtb.',
       [EXTRA_METRICS.RESERVE_FUND]: 'Staking rewards portion to Reserve Fund.',
     },
     SupplySideRevenue: {

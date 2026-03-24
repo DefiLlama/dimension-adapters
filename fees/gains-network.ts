@@ -99,7 +99,7 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
   );
 
   govFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.PROTOCOL_FEES));
-  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, 'Refferal Fees'));
+  referralFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, 'Referral Fees'));
   triggerFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.OPERATORS_FEES));
   stakingFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.STAKING_REWARDS));
   gTokenFee.forEach((i: any) => dailyFees.add(APE, i.amountCollateral, METRIC.LP_FEES));

@@ -10,6 +10,11 @@ const methodology = {
   ProtocolRevenue: "There are 1/6 goes to protocol.",
 };
 
+const API_INFLATED_DAYS = [
+  1772755200, // 2026-03-06
+  1773446400 // 2026-03-14
+]
+
 const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
   const platformData: Array<any> = await httpGet(`https://server.saucerswap.finance/api/public/pools/platform-data?field=VOLUME_USD&interval=DAY&from=${startOfDay}&to=${startOfDay + 24 * 3600}`,
     {
@@ -18,7 +23,6 @@ const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
       },
     },
   );
-  
   const _dailyVolume = platformData.find(
     (dayItem: any) => Number(dayItem.timestampSeconds) === startOfDay,
   );
@@ -26,8 +30,8 @@ const fetch = async (_a: any, _b: any, { startOfDay }: FetchOptions) => {
   if (!_dailyVolume) {
     throw Error(`can not found value data for date ${startOfDay}`)
   }
-  
-  const dailyVolume = Number(_dailyVolume ? _dailyVolume.value : 0)
+
+  const dailyVolume = API_INFLATED_DAYS.includes(startOfDay) ? 0 : Number(_dailyVolume ? _dailyVolume.value : 0)
   
   // https://docs.saucerswap.finance/protocol/saucerswap-v1
   // v1 charges fee 0.3% per swap, 5/6 goes to LP, 1/6 goes to protocol

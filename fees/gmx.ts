@@ -49,7 +49,7 @@ const breakdownMethodology = {
 
 const graphs: FetchV2 = async ({ chain, endTimestamp, createBalances }) => {
   const todaysTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
-  const searchTimestamp = chain == "arbitrum" ? todaysTimestamp : todaysTimestamp + ":daily"
+  const searchTimestamp = chain == CHAIN.ARBITRUM ? todaysTimestamp : todaysTimestamp + ":daily"
 
   const graphQuery = gql
     `{
@@ -111,7 +111,8 @@ const adapter: Adapter = {
       fetch: graphs,
       start: '2022-01-06',
     },
-  }
+  },
+  deadFrom : '2025-07-09'
 }
 
 export default adapter;

@@ -47,7 +47,7 @@ const ChainConfig: Record<string, { treasury: string, assets: AssetCfg[] }> = {
     treasury: "TA9Xywe3xb6GPeBFYDdTkdT43DktDPnyDT",
     assets: [{ symbol: "TRX", address: "native" }],
   },
-  [CHAIN.XRPL]: {
+  [CHAIN.RIPPLE]: {
     treasury: "rD6YURvhPwmUwRCrFJX6pFU81obJNk7WyA",
     assets: [
       { symbol: "XRP", address: "native" },
@@ -80,9 +80,9 @@ async function fetchSolanaInflows(options: FetchOptions) {
   return dailyFees;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances();
-  if ([CHAIN.XRPL, CHAIN.TRON].includes(options.chain as CHAIN)) {
+  if ([CHAIN.RIPPLE, CHAIN.TRON].includes(options.chain as CHAIN)) {
     throw new Error("Fetching fees for XRPL and TRON is not supported yet");
   }
   if (options.chain == CHAIN.SOLANA) {
@@ -101,14 +101,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.BASE]: { start: "2025-01-01" },
     [CHAIN.POLYGON]: { start: "2025-01-01" },
     [CHAIN.SOLANA]: { start: "2025-01-01" },
     // [CHAIN.TRON]: { start: "2025-01-01" },
-    // [CHAIN.XRPL]: { start: "2025-01-01" },
+    // [CHAIN.RIPPLE]: { start: "2025-01-01" },
   },
   dependencies: [Dependencies.ALLIUM],
   methodology: {

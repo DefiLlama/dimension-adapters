@@ -44,7 +44,7 @@ const adapter: any = {
   fetch,
   start: "2025-03-14",
   methodology: {
-    dailyVolume:
+    Volume:
       "Volume is calculated by summing the USD volume of all trades routed through the DeDust aggregator that day.",
   },
   chains: [CHAIN.TON],

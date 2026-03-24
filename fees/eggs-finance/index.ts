@@ -45,6 +45,7 @@ const adapter: Adapter = {
     }
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "All fees (redeeming / selling using contract for 2.5% fees, flash loan 1%, loan interest, instant default 1%, etc) are captured by monitoring SendSonic events to FEE_ADDRESS",
     Revenue: "Protocol revenue is 30% of total fees sent directly to FEE_ADDRESS",

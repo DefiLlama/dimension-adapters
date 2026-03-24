@@ -1,7 +1,7 @@
 require('dotenv').config()
 import { execSync } from 'child_process';
 import * as path from 'path';
-import { AdapterType, BreakdownAdapter, SimpleAdapter, } from '../adapters/types';
+import { AdapterType, SimpleAdapter, } from '../adapters/types';
 import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
@@ -40,9 +40,15 @@ function toTimestamp(timeArg: string) {
   }
 }
 
-// Get path of module import
-const adapterType: AdapterType | string = process.argv[2] as AdapterType
-const moduleArg = process.argv[3]
+// Get path of module import — support "dexs/kodiak-v3" as a single arg
+let adapterType: AdapterType | string = process.argv[2] as AdapterType
+let moduleArg = process.argv[3]
+
+if (!moduleArg && adapterType?.includes('/')) {
+  const parts = adapterType.split('/')
+  adapterType = parts[0] as AdapterType
+  moduleArg = parts.slice(1).join('/')
+}
 
 let adapterModule: SimpleAdapter;
 let usedHelper: string | null | undefined = null;
@@ -142,7 +148,6 @@ let usedHelper: string | null | undefined = null;
   console.info(`End Date:\t${new Date(endTimestamp * 1e3).toUTCString()}`)
   console.info(`---------------------------------------------------\n`)
 
-  if ((adapterModule as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
   // Get adapter
   const debugBreakdownFees = Boolean(process.env.DEBUG_BREAKDOWN_FEES)
   const volumes: any = await runAdapter({
@@ -164,8 +169,6 @@ let usedHelper: string | null | undefined = null;
   process.exit(0)
 
   async function runHourlyMultiSlot(dayStart: number, lastHour: number) {
-
-    if ((module as BreakdownAdapter).breakdown) throw new Error('Breakdown adapters are deprecated, migrate it to use simple adapter')
 
     const dailyByChain: Record<string, Record<string, number>> = {}
     const aggregatedDaily: any = {}

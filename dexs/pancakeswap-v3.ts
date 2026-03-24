@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
 import { cache } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import { ethers } from "ethers";
@@ -7,7 +7,6 @@ import { filterPools } from '../helpers/uniswap';
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import axios from "axios";
-import { getBscTokenLists } from "./pancakeswap/bscv2";
 
 const poolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
@@ -22,7 +21,6 @@ const factories: {[key: string]: Ifactory} = {
   [CHAIN.BSC]: {
     start: '2023-04-01',
     address: '0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865',
-    blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC),
   },
   [CHAIN.ETHEREUM]: {
     start: '2023-04-01',
@@ -59,7 +57,7 @@ const factories: {[key: string]: Ifactory} = {
 }
 
 export const PANCAKESWAP_V3_QUERY = async (fromTime: number, toTime: number) => {
-  const tokens = await getBscTokenLists();
+  const tokens = await getDefaultDexTokensWhitelisted({ chain: CHAIN.BSC });
   return `
     SELECT
         project_contract_address AS pool
