@@ -6,7 +6,6 @@ const chainConfig: Record<string, { start: string, chainName: string }> = {
     [CHAIN.ZETA]: { start: '2024-03-08', chainName: 'zetachain' },
     [CHAIN.UNICHAIN]: { start: '2024-11-21', chainName: 'unichain' },
     [CHAIN.BASE]: { start: '2024-03-19', chainName: 'base' },
-    [CHAIN.SANKO]: { start: '2024-10-04', chainName: 'sanko' },
     [CHAIN.OPTIMISM]: { start: '2024-02-09', chainName: 'optimism' },
     [CHAIN.HYPERLIQUID]: { start: '2025-03-04', chainName: 'hyperevm' },
     [CHAIN.BLAST]: { start: '2024-02-27', chainName: 'blast' },
