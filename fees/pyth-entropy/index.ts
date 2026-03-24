@@ -49,12 +49,15 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true,
     });
     
-    if (!totalFeePerRequest) {
+    // Track if we used the fallback (nullish check to preserve 0n)
+    const usedFallbackTotalFee = totalFeePerRequest === null || totalFeePerRequest === undefined;
+    if (usedFallbackTotalFee) {
         // Fall back to Fortuna API default_fee
         totalFeePerRequest = chainInfo.default_fee;
     }
     
-    if (!totalFeePerRequest) {
+    // Nullish check (not falsy) to preserve 0n as valid
+    if (totalFeePerRequest === null || totalFeePerRequest === undefined) {
       return {
         dailyFees: 0,
         dailyRevenue: 0,
@@ -63,7 +66,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     }
 
     // Get Pyth protocol fee per request (goes to Pyth DAO)
-    let pythFeePerRequest = await options.api.call({
+    const pythFeePerRequest = await options.api.call({
         target: pythEntropyContract,
         abi: 'function getPythFee() view returns (uint128)',
         permitFailure: true,
@@ -91,13 +94,19 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     let protocolFee: bigint;
     let providerFee: bigint;
 
-    if (pythFeePerRequest !== null && pythFeePerRequest !== undefined) {
-        // We have the exact protocol fee from contract (can be 0)
-        protocolFee = BigInt(pythFeePerRequest);
-        providerFee = totalFee > protocolFee ? totalFee - protocolFee : 0n;
+    // Parse protocol fee (nullish check to preserve 0n as valid)
+    const onChainProtocolFee = pythFeePerRequest === null || pythFeePerRequest === undefined
+        ? null
+        : BigInt(pythFeePerRequest);
+
+    // Only split fees when both values came from the contract (not fallback)
+    // This prevents mismatched sources from causing dailyRevenue > dailyFees
+    if (!usedFallbackTotalFee && onChainProtocolFee !== null && onChainProtocolFee <= totalFee) {
+        protocolFee = onChainProtocolFee;
+        providerFee = totalFee - protocolFee;
     } else {
-        // Contract call failed - report all as fees, revenue as 0
-        // This is safer than guessing
+        // Contract call failed or used fallback - report all as fees, revenue as 0
+        // This is safer than guessing or mixing sources
         protocolFee = 0n;
         providerFee = totalFee;
     }
