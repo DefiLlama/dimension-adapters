@@ -289,7 +289,7 @@ export enum CHAIN {
   SKALE = "skale",
   SUPRA = "supra",
   MAYA = "mayachain",
-  ALEPH_ZERO_EVM = "aleph_zero_evm",
+  ALEPH_ZERO_EVM = "aleph_zero",
   APPCHAIN = "appchain",
   SEDA = "seda",
   STABLE = "stable",
