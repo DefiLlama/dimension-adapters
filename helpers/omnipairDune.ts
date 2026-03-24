@@ -17,6 +17,8 @@ function normalizeValue(value: string | number | null | undefined): string {
 }
 
 export async function fetchOmnipairDuneDaily(options: FetchOptions): Promise<OmnipairDuneRow[]> {
+  if (!process.env.DUNE_API_KEYS) return [];
+
   const sql = `
     select
       cast(block_date as varchar) as block_date,
