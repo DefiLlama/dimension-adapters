@@ -9,16 +9,18 @@ type Config = {
 };
 
 const feesConfigs: Record<string, Config> = {
- "nexus-trading-labs": {
-    broker_id: "nexus_trading",
-    start: "2025-01-01",
-    methodology: {
-      Fees: "Builder Fees collected from Orderly Network",
-      Revenue: "All the fees collected",
-      ProtocolRevenue: "All the revenue goes to the protocol",
-    },
-  },,
-    },
+"nexus-trading-labs": {
+  broker_id: "nexus_trading",
+  start: "2025-01-01",
+  methodology: {
+    Fees: "Builder Fees collected from Orderly Network",
+    Revenue: "All the fees collected",
+    ProtocolRevenue: "All the revenue goes to the protocol",
+  },
+},
+"kodiak-perps": {
+  broker_id: "kodiak",
+  start: "2025-10-01",
   },
   "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
   "what-exchange": { broker_id: "what_exchange", start: "2024-06-13" },
