@@ -13,9 +13,9 @@
  * API Docs: https://rocketfoundation.gitbook.io/rocket-docs/rocket/api
  */
 
-import { SimpleAdapter, FetchResultVolume, FetchResult, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchResult, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 import { METRIC } from "../../helpers/metrics";
 
@@ -38,7 +38,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     await PromisePool.withConcurrency(1)
         .for(instruments)
         .process(async (instrumentId) => {
-            const candleData = await fetchURL(
+            const candleData = await fetchURLAutoHandleRateLimit(
                 `${ROCKET_API}/candles?instrumentId=${encodeURIComponent(instrumentId)}&interval=1d&startTime=${startTime}&endTime=${startTime + 86399999}`
             );
             const candles: any[] = candleData.candles || [];
