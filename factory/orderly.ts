@@ -22,7 +22,6 @@ const feesConfigs: Record<string, Config> = {
   broker_id: "kodiak",
   start: "2025-10-01",
   },
-  "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
   "what-exchange": { broker_id: "what_exchange", start: "2024-06-13" },
   "woofi-pro-perp": { broker_id: "woofi_pro", start: "2023-10-26" },
   "oklong": {
