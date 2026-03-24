@@ -23,10 +23,10 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     const dailySupplySideRevenue = options.createBalances()
 
     data.forEach(row => {
-        dailyVolume.add(row.token_in_mint, Number(row.daily_volume))
-        dailyFees.add(row.token_in_mint, Number(row.daily_fees), METRIC.SWAP_FEES)
-        dailyRevenue.add(row.token_in_mint, Number(row.daily_revenue), METRIC.SWAP_FEES)
-        dailySupplySideRevenue.add(row.token_in_mint, Number(row.daily_supply_side_revenue), METRIC.SWAP_FEES)
+        dailyVolume.add(row.token_in_mint, row.daily_volume)
+        dailyFees.add(row.token_in_mint, row.daily_fees, METRIC.SWAP_FEES)
+        dailyRevenue.add(row.token_in_mint, row.daily_revenue, METRIC.SWAP_FEES)
+        dailySupplySideRevenue.add(row.token_in_mint, row.daily_supply_side_revenue, METRIC.SWAP_FEES)
     })
 
     return {
