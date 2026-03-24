@@ -1,33 +1,30 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchOmnipairSwaps } from "../../helpers/omnipair";
+import { fetchOmnipairDuneDaily } from "../../helpers/omnipairDune";
+
+const methodology = {
+  Volume: "Trading volume on Omnipair, measured as raw input token amount (amount_in) per swap and aggregated by token_in_mint from Dune.",
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const swaps = await fetchOmnipairSwaps(options);
+  const rows = await fetchOmnipairDuneDaily(options);
 
-  for (const swap of swaps) {
-    // Omnipair swap volume is counted using the input token amount.
-    const tokenKey = swap.tokenInMint;
-    dailyVolume.add(tokenKey, swap.amountIn);
+  for (const row of rows) {
+    dailyVolume.add(row.token_in_mint, row.daily_volume);
   }
 
-  return {
-    dailyVolume,
-  };
-};
-
-const methodology = {
-  Volume: "Swap input volume on Omnipair, calculated from amountIn on on-chain SwapEvent logs.",
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.SOLANA],
   start: "2026-02-01",
-  fetch,
   methodology,
+  dependencies: [Dependencies.DUNE],
+  fetch,
 };
 
 export default adapter;

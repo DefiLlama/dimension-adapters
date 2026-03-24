@@ -1,6 +1,13 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchOmnipairSwaps } from "../../helpers/omnipair";
+import { fetchOmnipairDuneDaily } from "../../helpers/omnipairDune";
+
+const methodology = {
+  Fees: "All swap fees paid by users on Omnipair. Computed from Dune as lp_fee + protocol_fee, grouped by input token mint.",
+  Revenue: "Protocol revenue equals the protocol_fee portion of swap fees.",
+  ProtocolRevenue: "Protocol revenue equals the protocol_fee portion of swap fees.",
+  SupplySideRevenue: "Supply-side revenue equals the lp_fee portion distributed to liquidity providers.",
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -9,22 +16,16 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  const swaps = await fetchOmnipairSwaps(options);
+  const rows = await fetchOmnipairDuneDaily(options);
 
-  for (const swap of swaps) {
-    // Omnipair fees in SwapEvent are denominated in the input token.
-    const tokenKey = swap.tokenInMint;
+  for (const row of rows) {
+    const token = row.token_in_mint;
 
-    const amountIn = BigInt(swap.amountIn);
-    const lpFee = BigInt(swap.lpFee);
-    const protocolFee = BigInt(swap.protocolFee);
-    const totalFees = lpFee + protocolFee;
-
-    dailyVolume.add(tokenKey, amountIn.toString());
-    dailyFees.add(tokenKey, totalFees.toString());
-    dailyRevenue.add(tokenKey, protocolFee.toString());
-    dailyProtocolRevenue.add(tokenKey, protocolFee.toString());
-    dailySupplySideRevenue.add(tokenKey, lpFee.toString());
+    dailyVolume.add(token, row.daily_volume);
+    dailyFees.add(token, row.daily_fees);
+    dailyRevenue.add(token, row.daily_revenue);
+    dailyProtocolRevenue.add(token, row.daily_protocol_revenue);
+    dailySupplySideRevenue.add(token, row.daily_supply_side_revenue);
   }
 
   return {
@@ -36,20 +37,13 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const methodology = {
-  Fees: "Swap fees paid by users on Omnipair swaps, calculated as lpFee + protocolFee from on-chain SwapEvent logs.",
-  Revenue: "Protocol revenue from swaps, calculated as protocolFee from on-chain SwapEvent logs.",
-  ProtocolRevenue: "Protocol-owned share of swap fees, calculated as protocolFee.",
-  SupplySideRevenue: "LP share of swap fees, calculated as lpFee.",
-  Volume: "Swap input volume, calculated from amountIn on on-chain SwapEvent logs.",
-};
-
 const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.SOLANA],
   start: "2026-02-01",
-  fetch,
   methodology,
+  dependencies: [Dependencies.DUNE],
+  fetch,
 };
 
 export default adapter;
