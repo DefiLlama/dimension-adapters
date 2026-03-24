@@ -174,6 +174,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
   "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
   "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" },
+  "silhouette-naked": { addresses: ["0x5d2c2bd98f10616771d7b5124ad2090ba72aa43c"], start: "2026-01-16"}
 };
 
 // Builder fees configs: protocol name -> config
