@@ -9,22 +9,24 @@ import { queryDuneSql } from "../../helpers/dune";
 
 // Douro Labs is the official Pyth Pro data distributor
 // They pay 60% of subscription revenue to the Pyth DAO
-const DOURO_LABS_ADDRESS = "C6G3jRs1SD7GSNxvKNHJZy7aSar7eZiLioPpDRFFtKTf";
-const PYTH_DAO_ADDRESS = "5Unq3fgfSNdyeGjiq2Pu5XAQUJWo2rauKGErbUyxqUGe";
+// Note: These are wallet OWNER addresses, not token account addresses
+// Dune's tokens_solana.transfers uses owner addresses in from_owner/to_owner fields
+const DOURO_LABS_WALLET = "2ru31e9g8RF2mSSNgTQ11QMb166NE6LJccmBqGJM8xxy";
+const PYTH_DAO_WALLET = "Gx4MBPb1vqZLJajZmsKLg8fGw9ErhoKsR8LeKcCKFyak";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 const fetch = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  // Query USDC transfers from Douro Labs to Pyth DAO
+  // Query USDC transfers from Douro Labs wallet to Pyth DAO wallet
   const query = `
     SELECT
       SUM(amount) as total_amount
     FROM tokens_solana.transfers
     WHERE block_time BETWEEN FROM_UNIXTIME(${options.startTimestamp}) AND FROM_UNIXTIME(${options.endTimestamp})
       AND token_mint_address = '${USDC_MINT}'
-      AND from_owner = '${DOURO_LABS_ADDRESS}'
-      AND to_owner = '${PYTH_DAO_ADDRESS}'
+      AND from_owner = '${DOURO_LABS_WALLET}'
+      AND to_owner = '${PYTH_DAO_WALLET}'
   `;
 
   const res = await queryDuneSql(options, query);
