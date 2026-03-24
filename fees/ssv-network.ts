@@ -61,7 +61,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
   });
 
   for (const log of burnLogs) {
-    dailyRevenue.add(SSV_TOKEN, log.value, 'Token Burns');
+    // dailyRevenue.add(SSV_TOKEN, log.value, 'Token Burns');
     dailyHoldersRevenue.add(SSV_TOKEN, log.value, 'Token Burns');
   }
 
@@ -78,7 +78,7 @@ const fetch = async (_: any, _1: any, options: FetchOptions) => {
 const methodology = {
   UserFees: "Fees paid by stakers running validators through SSV network, consisting of operator fees (set by operators in a free market) and network fees (fixed by DAO). Paid in SSV tokens per block.",
   Fees: "Total fees collected from all validators operating on SSV network.",
-  Revenue: "Network fees going to SSV DAO treasury for protocol development, governance, and ecosystem growth, plus token burns that accrue value to token holders.",
+  Revenue: "Network fees going to SSV DAO treasury for protocol development, governance, and ecosystem growth.",
   ProtocolRevenue: "Same as Revenue. Includes DAO treasury allocation and token burns.",
   SupplySideRevenue: "Operator fees earned by node operators running distributed validator infrastructure. Each operator sets their own fee in a free-market model.",
   HoldersRevenue: "Token burns that reduce supply and accrue value to SSV token holders.",
@@ -86,12 +86,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    'Validator Operation Fees': 'Total fees paid by validators (operator fees + network fees)',
-
+    'Validator Operation Fees': 'Total fees paid by validators (operator fees + network fees)'
   },
   Revenue: {
     'DAO Treasury Allocation': 'Network fees allocated to SSV DAO (fixed cost per validator set by governance)',
-    'Token Burns': 'SSV tokens burned to zero address',
   },
   SupplySideRevenue: {
     [METRIC.OPERATORS_FEES]: 'Fees earned by node operators (market-determined per validator)',
