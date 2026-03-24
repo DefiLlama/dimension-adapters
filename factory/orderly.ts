@@ -9,13 +9,15 @@ type Config = {
 };
 
 const feesConfigs: Record<string, Config> = {
-  "honeypot-finance": {
-    broker_id: "honeypot",
-    start: "2025-11-01",
+ "nexus-trading-labs": {
+    broker_id: "nexus_trading",
+    start: "2025-01-01",
     methodology: {
       Fees: "Builder Fees collected from Orderly Network",
       Revenue: "All the fees collected",
       ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },,
     },
   },
   "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
