@@ -4,7 +4,7 @@ import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../ad
 import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
 
-const fetchSolana = async (options: FetchOptions) => {
+const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
     const query = `
         with swaps as (
             select
@@ -17,25 +17,25 @@ const fetchSolana = async (options: FetchOptions) => {
             and tx_success = true
         )
         select
-            SUM(amount_usd) as daily_volume
+            COALESCE(SUM(amount_usd), 0) as daily_volume
         from tokens_solana.transfers t
             inner join swaps s on t.tx_id = s.tx_id
             and t.outer_instruction_index = s.outer_instruction_index
             and t.inner_instruction_index = s.inner_instruction_index + 1
         where t.block_time >= from_unixtime(${options.startTimestamp})
-        and t.block_time <= from_unixtime(${options.endTimestamp})
+        and t.block_time < from_unixtime(${options.endTimestamp})
     `
     const data = await queryDuneSql(options, query)
 
     return {
-        dailyVolume: data[0]?.daily_volume ?? 0
+        dailyVolume: data[0].daily_volume
     }
 }
 
 const TESSERA_SWAP_ADDRESS = "0x55555522005BcAE1c2424D474BfD5ed477749E3e"
 const SwapEvent = "event TesseraTrade(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, address recipient)"
 
-const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
+const fetchEvm = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances()
 
     const logs = await options.getLogs({
@@ -55,7 +55,6 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2,
     adapter: {
         [CHAIN.SOLANA]: {
             fetch: fetchSolana,
@@ -72,6 +71,7 @@ const adapter: SimpleAdapter = {
     },
     dependencies: [Dependencies.DUNE],
     methodology,
+    isExpensiveAdapter: true,
 }
 
 export default adapter
