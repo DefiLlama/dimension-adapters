@@ -9,19 +9,16 @@ type Config = {
 };
 
 const feesConfigs: Record<string, Config> = {
-"nexus-trading-labs": {
-  broker_id: "nexus_trading",
-  start: "2025-01-01",
-  methodology: {
-    Fees: "Builder Fees collected from Orderly Network",
-    Revenue: "All the fees collected",
-    ProtocolRevenue: "All the revenue goes to the protocol",
+  "honeypot-finance": {
+    broker_id: "honeypot",
+    start: "2025-11-01",
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
   },
-},
-"kodiak-perps": {
-  broker_id: "kodiak",
-  start: "2025-10-01",
-  },
+  "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
   "what-exchange": { broker_id: "what_exchange", start: "2024-06-13" },
   "woofi-pro-perp": { broker_id: "woofi_pro", start: "2023-10-26" },
   "oklong": {
@@ -113,6 +110,15 @@ const feesConfigs: Record<string, Config> = {
   "perptools": {
     broker_id: "dextools",
     start: "2025-11-25",
+    methodology: {
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "nexus-trading-labs": {
+    broker_id: "nexus_trading",
+    start: "2026-03-23",
     methodology: {
       Fees: "Builder Fees collected from Orderly Network",
       Revenue: "All the fees collected",
