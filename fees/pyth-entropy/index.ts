@@ -53,6 +53,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const usedFallbackTotalFee = totalFeePerRequest === null || totalFeePerRequest === undefined;
     if (usedFallbackTotalFee) {
         // Fall back to Fortuna API default_fee
+        console.warn(`[pyth-entropy] getFeeV2() failed for ${options.chain}, using Fortuna API fallback`);
         totalFeePerRequest = chainInfo.default_fee;
     }
     
@@ -107,6 +108,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     } else {
         // Contract call failed or used fallback - report all as fees, revenue as 0
         // This is safer than guessing or mixing sources
+        if (onChainProtocolFee === null) {
+            console.warn(`[pyth-entropy] getPythFee() failed for ${options.chain}, reporting all fees as supply-side`);
+        }
         protocolFee = 0n;
         providerFee = totalFee;
     }
