@@ -93,7 +93,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  start: '2026-01-01',
+  start: '2025-08-11',
   chains: [CHAIN.BASE],
   dependencies: [Dependencies.ALLIUM],
   methodology: {
