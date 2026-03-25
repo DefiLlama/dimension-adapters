@@ -138,12 +138,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dammv2Data: IDammv2Data[] = await queryDuneSql(options, dammv2Query);
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   dbcData.forEach((row) => {
     dailyFees.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
     dailyFees.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
-    
+
+    dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
+    dailyProtocolRevenue.add(row.quote_mint, Number(row.total_trading_fees), metrics.TradingFees);
+
     dailyProtocolRevenue.add(row.quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
@@ -152,7 +156,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees.add(quote_mint, Number(row.total_partner_fees), metrics.PartnerFees);
     dailyFees.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
-    
+
+    dailySupplySideRevenue.add(quote_mint, Number(row.total_referral_fees), metrics.ReferralFees);
+    dailySupplySideRevenue.add(quote_mint, Number(row.total_partner_fees), metrics.PartnerFees);
+
+    dailyProtocolRevenue.add(quote_mint, Number(row.total_lp_fees), metrics.TradingFees);
     dailyProtocolRevenue.add(quote_mint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
@@ -161,6 +169,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -175,6 +184,7 @@ const adapter: SimpleAdapter = {
     UserFees: "Total trading fees paid by users.",
     Revenue: "Fees collected by Trends, including trendor rewards.",
     ProtocolRevenue: "All fees collected by Trends, including trendor rewards.",
+    SupplySideRevenue: "Amount of fees shared to referrals and partners.",
   },
   breakdownMethodology: {
     Fees: {
@@ -190,6 +200,10 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: {
       [metrics.TradingFees]: 'Total trading fees paid by users.',
       [metrics.ProtocolFees]: 'Total fees paid to Trends protocol.',
+    },
+    SupplySideRevenue: {
+      [metrics.ReferralFees]: 'Share of trading fees to referrals.',
+      [metrics.PartnerFees]: 'Share of trading fees to partners.',
     },
   }
 };
