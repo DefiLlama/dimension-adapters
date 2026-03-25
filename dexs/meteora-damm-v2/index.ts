@@ -8,7 +8,7 @@ import { sleep } from '../../utils/utils';
 
 async function fetch() {
   const baseUrl = 'https://damm-v2.datapi.meteora.ag/pools/groups';
-  const allPoolsUrl = 'https://dammv2-api.meteora.ag/pools';
+  const allPoolsUrl = 'https://damm-v2.datapi.meteora.ag/pools';
 
   const nonBlacklistedPools = new Set();
 
@@ -48,31 +48,32 @@ async function fetch() {
     let dailySupplySideRevenue = 0; // LP fees
     let dailyRevenue = 0;
 
-    let offset = 0;
+    let page = 1;
+    let page_size = 1000;
     const lpFeeRatio = 0.8;
 
     while (true) {
-      const response = await httpGet(`${allPoolsUrl}?order_by=fee24h&order=desc&offset=${offset}`);
-
+      const response = await httpGet(`${allPoolsUrl}?is_blacklisted=false&tvl>=10000&page=${page}&page_size=${page_size}`);
+      
       const pools = response.data || [];
       if (pools.length === 0) break;
 
       for (const pool of pools) {
         const tvl = pool.tvl || 0;
-        const volume = pool.volume24h || 0;
+        const volume = pool.volume['24h'] || 0;
 
-        if (!nonBlacklistedPools.has(pool.pool_name) || (tvl < 1_000_000 && volume > tvl * 10))
+        if (!nonBlacklistedPools.has(pool.name) || (tvl < 1_000_000 && volume > tvl * 10))
           continue;
-        dailySupplySideRevenue += (lpFeeRatio * pool.fee24h);
-        dailyRevenue += ((1 - lpFeeRatio) * pool.fee24h)
+        dailySupplySideRevenue += (lpFeeRatio * pool.fees['24h']);
+        dailyRevenue += ((1 - lpFeeRatio) * pool.fees['24h'])
       }
 
       const lastPool = pools[pools.length - 1];
-      if (lastPool.fee24h < 10) break;
+      if (lastPool.fees['24h'] < 10) break;
 
       await sleep(100)
 
-      offset += 50;
+      page += 1;
     }
 
     // Total fees paid by users
@@ -87,6 +88,7 @@ async function fetch() {
       dailyFees,
       dailyUserFees: dailyFees,
       dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue,
       dailySupplySideRevenue,
     };
     
