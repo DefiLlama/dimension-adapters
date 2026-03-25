@@ -8,9 +8,6 @@ import {
 import { getSolanaReceivedDune } from "../../helpers/token";
 import { queryAllium } from "../../helpers/allium";
 
-// ============ ABI for fee query ============
-const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uint256)";
-
 // ============ EVM Chain Config ============
 const evmChainConfig: Record<string, { start: string; contract: string }> = {
   [CHAIN.OG]: {
@@ -280,149 +277,9 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
   // [CHAIN.INJECTIVE]: { start: "2024-06-01", contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320" },
 };
 
-// ============ Fee History ============
-// Historical fee values by chain with effective timestamps
-// Used for backfills when contract call would return current (not historical) fee
-// Source: OP-PIP-93 (https://forum.pyth.network/t/passed-op-pip-93-q1-2026-pyth-core-fee-implementation-evm-chains/2346)
-// Effective date: Feb 25, 2026 (after governance vote passed Feb 21, 2026)
-const OP_PIP_93_EFFECTIVE_TIMESTAMP = 1740441600; // Feb 25, 2026 00:00:00 UTC
-
-// Fee values from OP-PIP-93 (in wei)
-// Source: https://docs.pyth.network/price-feeds/core/current-fees
-const currentFees: Record<string, bigint> = {
-  // ETH-based chains (0.000003 ETH = 3e12 wei)
-  [CHAIN.ABSTRACT]: 3_000_000_000_000n,
-  [CHAIN.ARBITRUM]: 3_000_000_000_000n,
-  [CHAIN.AURORA]: 3_000_000_000_000n,
-  [CHAIN.BLAST]: 3_000_000_000_000n,
-  [CHAIN.BOBA]: 3_000_000_000_000n,
-  [CHAIN.ETHEREUM]: 3_000_000_000_000n,
-  [CHAIN.EVENTUM]: 3_000_000_000_000n,
-  [CHAIN.HEMI]: 3_000_000_000_000n,
-  [CHAIN.INK]: 3_000_000_000_000n,
-  [CHAIN.LINEA]: 3_000_000_000_000n,
-  [CHAIN.MANTA]: 3_000_000_000_000n,
-  [CHAIN.MODE]: 3_000_000_000_000n,
-  [CHAIN.MORPH]: 3_000_000_000_000n,
-  [CHAIN.OPTIMISM]: 3_000_000_000_000n,
-  [CHAIN.POLYGON_ZKEVM]: 3_000_000_000_000n,
-  [CHAIN.SCROLL]: 3_000_000_000_000n,
-  [CHAIN.SONEIUM]: 3_000_000_000_000n,
-  [CHAIN.SSEED]: 3_000_000_000_000n,
-  [CHAIN.SWELLCHAIN]: 3_000_000_000_000n,
-  [CHAIN.TAIKO]: 3_000_000_000_000n,
-  [CHAIN.UNICHAIN]: 3_000_000_000_000n,
-  [CHAIN.WC]: 3_000_000_000_000n,
-  [CHAIN.ERA]: 3_000_000_000_000n,
-
-  // Base (0.000015 ETH)
-  [CHAIN.BASE]: 15_000_000_000_000n,
-
-  // BNB chains (0.0000125 BNB)
-  [CHAIN.BSC]: 12_500_000_000_000n,
-  [CHAIN.OP_BNB]: 12_500_000_000_000n,
-
-  // Avalanche (0.0005 AVAX)
-  [CHAIN.AVAX]: 500_000_000_000_000n,
-
-  // HyperEVM (0.0001 HYPE)
-  [CHAIN.HYPERLIQUID]: 100_000_000_000_000n,
-
-  // Chains with 0.1 native token fee
-  [CHAIN.CELO]: 100_000_000_000_000_000n,
-  [CHAIN.CONFLUX]: 100_000_000_000_000_000n,
-  [CHAIN.FLOW]: 100_000_000_000_000_000n,
-  [CHAIN.POLYGON]: 100_000_000_000_000_000n,
-  [CHAIN.RONIN]: 100_000_000_000_000_000n,
-  [CHAIN.ZETA]: 100_000_000_000_000_000n,
-
-  // Chains with 0.01 native token fee
-  [CHAIN.ETHERLINK]: 10_000_000_000_000_000n,
-  [CHAIN.FILECOIN]: 10_000_000_000_000_000n,
-  [CHAIN.HEDERA]: 10_000_000_000_000_000n,
-  [CHAIN.MANTLE]: 10_000_000_000_000_000n,
-  [CHAIN.XDAI]: 10_000_000_000_000_000n,
-
-  // Chains with 0.2 native token fee
-  [CHAIN.APECHAIN]: 200_000_000_000_000_000n,
-  [CHAIN.KLAYTN]: 200_000_000_000_000_000n,
-  [CHAIN.OG]: 200_000_000_000_000_000n,
-
-  // Other specific fees
-  [CHAIN.BERACHAIN]: 3_000_000_000_000_000n, // 0.003 BERA
-  [CHAIN.BITTORRENT]: 25_000_000_000_000_000_000_000n, // 25000 BTT
-  [CHAIN.CAMP]: 2_000_000_000_000_000_000n, // 2 CAMP
-  [CHAIN.CHILIZ]: 330_000_000_000_000_000n, // 0.33 CHZ
-  [CHAIN.CORE]: 20_000_000_000_000_000n, // 0.02 CORE
-  [CHAIN.CRONOS]: 60_000_000_000_000_000n, // 0.06 CRO
-  [CHAIN.CRONOS_ZKEVM]: 60_000_000_000_000_000n, // 0.06 CRO
-  [CHAIN.GRAVITY]: 1_000_000_000_000_000_000n, // 1 G
-  [CHAIN.LIGHTLINK_PHOENIX]: 1_000_000_000_000_000_000n, // 1 LL
-  [CHAIN.MERLIN]: 100_000_000_000n, // 0.0000001 BTC
-  [CHAIN.METER]: 40_000_000_000_000_000n, // 0.04 MTR
-  [CHAIN.MEZO]: 100_000_000_000n, // 0.0000001 BTC
-  [CHAIN.MONAD]: 5_000_000_000_000_000n, // 0.005 MON
-  [CHAIN.NEON]: 150_000_000_000_000_000n, // 0.15 NEON
-  [CHAIN.PLASMA]: 50_000_000_000_000_000n, // 0.05 XPL
-  [CHAIN.SHIMMER_EVM]: 100_000_000_000_000_000_000n, // 100 SMR
-  [CHAIN.STORY]: 6_000_000_000_000_000n, // 0.006 IP
-  [CHAIN.WEMIX]: 30_000_000_000_000_000n, // 0.03 WEMIX
-};
-
-// Default fee for chains not in the governance fee list
-// Per Pyth docs: chains not listed use 1 unit of smallest denomination (1 wei)
 const DEFAULT_FEE = 1n;
-
-// How recent is "recent" for using live contract data vs historical
-const RECENT_DATA_THRESHOLD_SECONDS = 7 * 24 * 60 * 60; // 7 days
-
 const PRICE_FEED_UPDATE_ABI =
   "event PriceFeedUpdate(bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf)";
-
-// ============ Fee Lookup Function ============
-// For recent data: fetch from contract (singleUpdateFeeInWei)
-// For historical data: use fee history table with timestamps
-async function getFeeForChain(
-  chain: string,
-  timestamp: number,
-  options: FetchOptions,
-  contract: string
-): Promise<bigint> {
-  const now = Math.floor(Date.now() / 1000);
-
-  // For recent data, try to fetch live from contract
-  if (timestamp > now - RECENT_DATA_THRESHOLD_SECONDS) {
-    try {
-      const fee = await options.api.call({
-        target: contract,
-        abi: SINGLE_UPDATE_FEE_ABI,
-        permitFailure: true,
-      });
-      if (fee && BigInt(fee) > 0n) {
-        return BigInt(fee);
-      }
-    } catch {
-      // Fall through to historical lookup
-    }
-  }
-
-  // For historical data or if contract call fails, use fee history
-  if (timestamp >= OP_PIP_93_EFFECTIVE_TIMESTAMP && currentFees[chain]) {
-    return currentFees[chain];
-  }
-
-  // Before OP-PIP-93, most chains used 1 wei (default)
-  // Some chains had earlier fee implementations, but data is incomplete
-  // Using DEFAULT_FEE for pre-OP-PIP-93 historical accuracy
-  if (!currentFees[chain]) {
-    console.warn(
-      `[pyth-network] No fee configured for chain ${chain}, using default (1 wei). ` +
-      `This chain may not have governance-approved fees yet.`
-    );
-  }
-
-  return currentFees[chain] || DEFAULT_FEE;
-}
 
 // ============ Non-EVM Chain Config ============
 const SOLANA_FEE_ADDRESS = "8hQfT7SVhkCrzUSgBq6u2wYEt1sH3xmofZ5ss3YaydZW";
@@ -432,9 +289,12 @@ const APTOS_PYTH_CONTRACT =
   "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387";
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
 
+// ============ ABI for fee query ============
+const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uint256)";
+
 // ============ EVM Fetch Function ============
 async function fetchEvm(
-  timestamp: number,
+  _t: number,
   _cb: any,
   options: FetchOptions,
 ): Promise<FetchResult> {
@@ -447,14 +307,14 @@ async function fetchEvm(
       eventAbi: PRICE_FEED_UPDATE_ABI,
     });
 
+    const updateFee = await options.api.call({
+      abi: SINGLE_UPDATE_FEE_ABI,
+      target: config.contract,
+    })
+
     const updateCount = updateLogs.length;
-    const feePerUpdate = await getFeeForChain(
-      options.chain,
-      timestamp,
-      options,
-      config.contract
-    );
-    dailyFees.addGasToken(feePerUpdate * BigInt(updateCount));
+    const feePerUpdate = updateFee || DEFAULT_FEE;
+    dailyFees.addGasToken(BigInt(feePerUpdate) * BigInt(updateCount));
   }
 
   return {
