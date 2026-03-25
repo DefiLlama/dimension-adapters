@@ -11,7 +11,7 @@ import { formatAddress } from "../../utils/utils";
 interface IResponse {
   chain: string;
   token: string;
-  amount: number;
+  amount: string;
 }
 
 // Prefetch function that will run once before any fetch calls
@@ -50,7 +50,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 				AND log.block_date >= from_unixtime(${options.startTimestamp})
 				AND log.block_date < from_unixtime(${options.endTimestamp})
 			GROUP BY tokenstf.contract_address
-			HAVING SUM(tokenstf.amount) IS NOT NULL
+			HAVING SUM(tokenstf.amount_raw) IS NOT NULL
 		`;
 			})
 			.join(" UNION ALL ");
