@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getEVMTokenTransfers } from "../helpers/token";
+import { addTokensReceived, getETHReceived } from "../helpers/token";
 
 const feeWallets = [
   '0x2fE8D03556FDb94A0ce1e46bbb5945794a50a046',
@@ -34,10 +34,10 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   
   // Subscription fees: 100% to Bankr
-  const subscriptionsFees = await getEVMTokenTransfers({
+  const subscriptionsFees = await addTokensReceived({
     options,
-    toAddresses: feeWallets,
-    tokens: [feeToken],
+    targets: feeWallets,
+    token: feeToken,
   });
   dailyFees.addBalances(subscriptionsFees, 'Club Subscriptions');
   dailyRevenue.addBalances(subscriptionsFees, 'Club Subscriptions');
@@ -45,11 +45,11 @@ const fetch = async (options: FetchOptions) => {
   // Clanker integration fees: This wallet receives only Bankr's 43% portion from ClankerFeeLocker
   // ClankerFeeLocker holds 100% of LP fees and distributes according to rewardBps configuration
   // Creators' 57% goes to their individual wallets (not tracked here)
-  const clankerFeesProtocolPortion = await getEVMTokenTransfers({
+  const clankerFeesProtocolPortion = await addTokensReceived({
     options,
-    toAddresses: clankerFeesRecipients,
-    tokens: [clankerFeeToken],
-    fromAddresses: ['0xf3622742b1e446d92e45e22923ef11c2fcd55d68'], // Clanker Fees Claim
+    targets: clankerFeesRecipients,
+    token: clankerFeeToken,
+    fromAdddesses: ['0xf3622742b1e446d92e45e22923ef11c2fcd55d68'], // Clanker Fees Claim
   });
   
   // Scale up to estimate total Clanker fees (we receive 43%)
@@ -61,9 +61,14 @@ const fetch = async (options: FetchOptions) => {
   
   // Token swap fees: This wallet receives protocol's 43% portion (Bankr 36.1% + Ecosystem 1.9% + Doppler 5%)
   // Creators' 57% goes directly to individual creator wallets (not tracked here)
-  const swapFeesProtocolPortion = await getEVMTokenTransfers({
+  const swapFeesProtocolPortion = await getETHReceived({
     options,
-    toAddresses: swapFeesRecipients,
+    targets: swapFeesRecipients,
+  });
+  await addTokensReceived({
+    balances: swapFeesProtocolPortion,
+    options,
+    targets: swapFeesRecipients,
   });
   
   // Calculate proportions from what we receive (43% of total)
@@ -91,7 +96,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // pullHourly: true,
   fetch,
   start: '2025-08-11',
   chains: [CHAIN.BASE],
