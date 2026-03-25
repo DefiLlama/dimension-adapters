@@ -277,21 +277,6 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
   // [CHAIN.INJECTIVE]: { start: "2024-06-01", contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320" },
 };
 
-// Fee per price feed update by chain (from https://docs.pyth.network/price-feeds/core/current-fees)
-const feePerUpdateByChain: Record<string, bigint> = {
-  [CHAIN.AURORA]: 3000000000000n,
-  [CHAIN.AVAX]: 250000000000000n,
-  [CHAIN.CONFLUX]: 100000000000000000n,
-  [CHAIN.CRONOS]: 60000000000000000n,
-  [CHAIN.METER]: 20000000000000000n,
-  [CHAIN.OP_BNB]: 186000000000000n,
-  [CHAIN.RONIN]: 1000000000000000n,
-  [CHAIN.SEI]: 10000000000000000n,
-  [CHAIN.SHIMMER_EVM]: 1000000000000000000n,
-  [CHAIN.SWELLCHAIN]: 50000000000000n,
-  [CHAIN.WC]: 10000000000000n,
-};
-
 const DEFAULT_FEE = 1n;
 const PRICE_FEED_UPDATE_ABI =
   "event PriceFeedUpdate(bytes32 indexed id, uint64 publishTime, int64 price, uint64 conf)";
@@ -303,6 +288,9 @@ const SUI_FEE_RECIPIENT =
 const APTOS_PYTH_CONTRACT =
   "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387";
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
+
+// ============ ABI for fee query ============
+const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uint256)";
 
 // ============ EVM Fetch Function ============
 async function fetchEvm(
@@ -319,9 +307,13 @@ async function fetchEvm(
       eventAbi: PRICE_FEED_UPDATE_ABI,
     });
 
+    const updateFee = await options.api.call({
+      abi: SINGLE_UPDATE_FEE_ABI,
+      target: config.contract,
+    })
+
     const updateCount = updateLogs.length;
-    const feePerUpdate = feePerUpdateByChain[options.chain] || DEFAULT_FEE;
-    dailyFees.addGasToken(feePerUpdate * BigInt(updateCount));
+    dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
   }
 
   return {
@@ -450,9 +442,9 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Fees paid by users to update Pyth price feeds on-chain",
-    Revenue: "All update fees accrue to the Pyth protocol",
-    ProtocolRevenue: "All update fees accrue to the Pyth protocol",
+    Fees: "Fees paid by users to update Pyth price feeds on-chain. Fee amounts per chain are set by Pyth DAO governance via singleUpdateFeeInWei() on each contract.",
+    Revenue: "All update fees accrue to the Pyth protocol treasury.",
+    ProtocolRevenue: "All update fees accrue to the Pyth protocol treasury.",
   },
 };
 
