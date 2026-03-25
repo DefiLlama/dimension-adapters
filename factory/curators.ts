@@ -41,6 +41,14 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "api3": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        morphoVaultOwners: ['0x9f0566F2E8Ff51901DD0C0E7aad937A94931f75C', '0x5a9AA3219dD1cBEF6A18Fd221464E071DF2677c2'],
+        morphoVaultV2Owners: ['0x9f0566F2E8Ff51901DD0C0E7aad937A94931f75C', '0x5a9AA3219dD1cBEF6A18Fd221464E071DF2677c2'],
+      },
+    },
+  },
   "apostro": {
     vaults: {
       [CHAIN.ETHEREUM]: {
