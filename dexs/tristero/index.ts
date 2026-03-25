@@ -46,7 +46,7 @@ const WRAPPED_NATIVE_TOKENS: Record<string, string | undefined> = {
   [CHAIN.XDAI]: ADDRESSES[CHAIN.XDAI]?.WXDAI,
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const chain = options.chain;
 
@@ -78,7 +78,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: Object.fromEntries(
     Object.entries(chainConfig).map(([chain, config]) => [
       chain,
