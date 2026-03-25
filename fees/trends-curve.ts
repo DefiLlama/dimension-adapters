@@ -47,12 +47,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dataWatcherData: ICurveFeeData[] = await queryDuneSql(options, curveFeeQuery);
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   dataWatcherData.forEach((row) => {
     dailyFees.add(quoteMint, Number(row.total_creator_fees), metrics.CreatorFees);
     dailyFees.add(quoteMint, Number(row.total_protocol_fees), metrics.ProtocolFees);
     dailyFees.add(quoteMint, Number(row.total_referral_fees), metrics.ReferralFees);
 
+    dailySupplySideRevenue.add(quoteMint, Number(row.total_creator_fees), metrics.CreatorFees);
+    dailySupplySideRevenue.add(quoteMint, Number(row.total_referral_fees), metrics.ReferralFees);
     dailyProtocolRevenue.add(quoteMint, Number(row.total_protocol_fees), metrics.ProtocolFees);
   });
 
@@ -61,6 +64,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -76,6 +80,7 @@ const adapter: SimpleAdapter = {
     UserFees: "Total fees paid by users on Trends",
     Revenue: "All fees collected by Trends.",
     ProtocolRevenue: "All fees collected by Trends.",
+    SupplySideRevenue: "Fee share distributed to creators and referrers.",
   },
   breakdownMethodology: {
     Fees: {
@@ -93,6 +98,10 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       [metrics.ProtocolFees]: 'Amount of fees paid to Trends protocol.',
+    },
+    SupplySideRevenue: {
+      [metrics.CreatorFees]: 'Creator fee share distributed by Trends.',
+      [metrics.ReferralFees]: 'Referral fee share distributed by Trends.',
     },
   }
 };
