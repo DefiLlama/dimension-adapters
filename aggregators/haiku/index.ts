@@ -45,7 +45,7 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 				AND (
 					tx."from" = tokenstf."from" OR tx."from" = tokenstf."to"
 				)
-			WHERE log.contract_address = 0x24ac999ff132b32c5b3956973b6213b0d07eb2c7
+			WHERE log.contract_address = ${HaikuChainConfig[chain].id.toLowerCase()}
 				AND log.topic0 = 0x8b3a3eb535e3217f5718db4d1c134d3447f392bcb89955537208f4677860e213
 				AND log.block_date >= from_unixtime(${options.startTimestamp})
 				AND log.block_date < from_unixtime(${options.endTimestamp})
