@@ -6,6 +6,7 @@ const chainConfig: Record<string, { start: string, chainName: string }> = {
     [CHAIN.ZETA]: { start: '2024-03-08', chainName: 'zetachain' },
     [CHAIN.UNICHAIN]: { start: '2024-11-21', chainName: 'unichain' },
     [CHAIN.BASE]: { start: '2024-03-19', chainName: 'base' },
+    //[CHAIN.SANKO]: { start: '2024-10-04', chainName: 'sanko' },
     [CHAIN.OPTIMISM]: { start: '2024-02-09', chainName: 'optimism' },
     [CHAIN.HYPERLIQUID]: { start: '2025-03-04', chainName: 'hyperevm' },
     [CHAIN.BLAST]: { start: '2024-02-27', chainName: 'blast' },
@@ -18,6 +19,7 @@ const chainConfig: Record<string, { start: string, chainName: string }> = {
     [CHAIN.KLAYTN]: { start: '2024-06-22', chainName: 'kaia' },
     [CHAIN.APECHAIN]: { start: '2024-10-03', chainName: 'apechain' },
     [CHAIN.MONAD]: { start: '2025-11-24', chainName: 'monad' },
+    // [CHAIN.SEI]: { start: '2024-08-15', chainName: 'sei-evm' },
     [CHAIN.TAIKO]: { start: '2024-06-05', chainName: 'taiko' },
     [CHAIN.STORY]: { start: '2025-03-06', chainName: 'story' },
 };
@@ -33,92 +35,43 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const chainInfo = configs.find((chainDetails: any) => chainDetails.name === chainConfig[options.chain].chainName);
     
     if (!chainInfo) {
-      return {
-        dailyFees: 0,
-        dailyRevenue: 0,
-        dailySupplySideRevenue: 0,
-      }
-    }
-    
-    const pythEntropyContract = chainInfo.contract_addr;
-
-    // Get total fee per request (current rate - note: historical fees may differ)
-    let totalFeePerRequest = await options.api.call({
-        target: pythEntropyContract,
-        abi: 'function getFeeV2() view returns (uint128)',
-        permitFailure: true,
-    });
-    
-    // Track if we used the fallback (nullish check to preserve 0n)
-    const usedFallbackTotalFee = totalFeePerRequest === null || totalFeePerRequest === undefined;
-    if (usedFallbackTotalFee) {
-        // Fall back to Fortuna API default_fee
-        console.warn(`[pyth-entropy] getFeeV2() failed for ${options.chain}, using Fortuna API fallback`);
-        totalFeePerRequest = chainInfo.default_fee;
-    }
-    
-    // Nullish check (not falsy) to preserve 0n as valid
-    if (totalFeePerRequest === null || totalFeePerRequest === undefined) {
-      return {
-        dailyFees: 0,
-        dailyRevenue: 0,
-        dailySupplySideRevenue: 0,
-      }
-    }
-
-    // Get Pyth protocol fee per request (goes to Pyth DAO)
-    const pythFeePerRequest = await options.api.call({
-        target: pythEntropyContract,
-        abi: 'function getPythFee() view returns (uint128)',
-        permitFailure: true,
-    });
-
-    // Get request logs
-    const requestLogs = await options.getLogs({
-        target: pythEntropyContract,
-        eventAbi: ENTROPY_REQUEST_ABI
-    });
-
-    const numRequests = BigInt(requestLogs.length);
-    
-    if (numRequests === 0n) {
         return {
             dailyFees: 0,
             dailyRevenue: 0,
             dailySupplySideRevenue: 0,
         }
     }
-
-    const totalFee = BigInt(totalFeePerRequest);
     
-    // Calculate fee split
-    let protocolFee: bigint;
-    let providerFee: bigint;
+    const pythEntropyContract = chainInfo.contract_addr;
 
-    // Parse protocol fee (nullish check to preserve 0n as valid)
-    const onChainProtocolFee = pythFeePerRequest === null || pythFeePerRequest === undefined
-        ? null
-        : BigInt(pythFeePerRequest);
+    // Get total fee per request (current rate - note: historical fees may differ)
+    let feePerRequest = await options.api.call({
+        target: pythEntropyContract,
+        abi: 'function getFeeV2() view returns (uint128)',
+        permitFailure: true,
+    });
+    // Get Pyth protocol fee per request (goes to Pyth DAO)
+    let pythFeePerRequest = await options.api.call({
+        target: pythEntropyContract,
+        abi: 'function getPythFee() view returns (uint128)',
+        permitFailure: true,
+    });
 
-    // Only split fees when both values came from the contract (not fallback)
-    // This prevents mismatched sources from causing dailyRevenue > dailyFees
-    if (!usedFallbackTotalFee && onChainProtocolFee !== null && onChainProtocolFee <= totalFee) {
-        protocolFee = onChainProtocolFee;
-        providerFee = totalFee - protocolFee;
-    } else {
-        // Contract call failed or used fallback - report all as fees, revenue as 0
-        // This is safer than guessing or mixing sources
-        if (onChainProtocolFee === null) {
-            console.warn(`[pyth-entropy] getPythFee() failed for ${options.chain}, reporting all fees as supply-side`);
-        }
-        protocolFee = 0n;
-        providerFee = totalFee;
+    const requestLogs = await options.getLogs({
+        target: pythEntropyContract,
+        eventAbi: ENTROPY_REQUEST_ABI
+    });
+
+    const numRequests = BigInt(requestLogs.length);
+
+    if(!feePerRequest || !pythFeePerRequest) {
+        feePerRequest = chainInfo.default_fee;
+        pythFeePerRequest = 0;
     }
 
-    // Add fees (in native gas token)
-    dailyFees.addGasToken(totalFee * numRequests);
-    dailyRevenue.addGasToken(protocolFee * numRequests);
-    dailySupplySideRevenue.addGasToken(providerFee * numRequests);
+    dailyFees.addGasToken(BigInt(feePerRequest) * numRequests);
+    dailyRevenue.addGasToken(BigInt(pythFeePerRequest) * numRequests);
+    dailySupplySideRevenue.addGasToken(BigInt(feePerRequest - pythFeePerRequest) * numRequests);
 
     return {
         dailyFees,
