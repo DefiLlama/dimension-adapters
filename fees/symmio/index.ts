@@ -96,7 +96,8 @@ const fetch: Fetch = async (timestamp, _cb, { chain }) => {
 
 const adapters: Adapter = {
   version: 1,
-  adapter: Object.fromEntries(Object.keys(config).map((chain) => [chain, { fetch }, methodology, start]))
+  adapter: Object.fromEntries(Object.keys(config).map((chain) => [chain, { fetch, methodology, start }])),
+  start
 }
 
 export default adapters
