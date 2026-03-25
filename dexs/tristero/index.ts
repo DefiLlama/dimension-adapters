@@ -13,15 +13,38 @@ const ALL_ROUTERS = [
 ];
 
 const chainConfig = {
+  [CHAIN.ABSTRACT]: { start: "2025-08-18" },
+  [CHAIN.APECHAIN]: { start: "2025-08-18" },
+  [CHAIN.BERACHAIN]: { start: "2025-08-18" },
+  [CHAIN.BOB]: { start: "2025-08-18" },
   [CHAIN.ETHEREUM]: { start: "2025-08-30" },
   [CHAIN.ARBITRUM]: { start: "2025-08-18" },
+  [CHAIN.XDAI]: { start: "2025-08-18" },
+  [CHAIN.INK]: { start: "2025-11-27" },
+  [CHAIN.MANTLE]: { start: "2025-08-18" },
+  [CHAIN.MODE]: { start: "2025-08-18" },
+  [CHAIN.MONAD]: { start: "2025-11-24" },
   [CHAIN.OPTIMISM]: { start: "2025-08-18" },
   [CHAIN.BASE]: { start: "2025-08-18" },
   [CHAIN.POLYGON]: { start: "2025-08-30" },
+  [CHAIN.RONIN]: { start: "2025-08-18" },
+  [CHAIN.SCROLL]: { start: "2025-08-18" },
+  [CHAIN.SONIC]: { start: "2025-08-18" },
   [CHAIN.AVAX]: { start: "2025-08-18" },
   [CHAIN.LINEA]: { start: "2025-09-20" },
   [CHAIN.UNICHAIN]: { start: "2025-11-27" },
 }
+
+const WRAPPED_NATIVE_TOKENS: Record<string, string | undefined> = {
+  [CHAIN.APECHAIN]: ADDRESSES[CHAIN.APECHAIN]?.WAPE,
+  [CHAIN.AVAX]: ADDRESSES[CHAIN.AVAX]?.WAVAX,
+  [CHAIN.BERACHAIN]: ADDRESSES[CHAIN.BERACHAIN]?.WBERA,
+  [CHAIN.MANTLE]: ADDRESSES[CHAIN.MANTLE]?.WMNT,
+  [CHAIN.MONAD]: ADDRESSES[CHAIN.MONAD]?.WMON,
+  [CHAIN.RONIN]: ADDRESSES[CHAIN.RONIN]?.WRON,
+  [CHAIN.SONIC]: ADDRESSES[CHAIN.SONIC]?.wS,
+  [CHAIN.XDAI]: ADDRESSES[CHAIN.XDAI]?.WXDAI,
+};
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -43,7 +66,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     if (log.srcAsset && log.srcQuantity) {
       let tokenAddress = log.srcAsset.toLowerCase();
       if (tokenAddress === '0x0000000000000000000000000000000000000000' || tokenAddress === 'native') {
-        const wrappedToken = chain == CHAIN.AVAX ? ADDRESSES[chain]?.WAVAX : ADDRESSES[chain]?.WETH;
+        const wrappedToken = WRAPPED_NATIVE_TOKENS[chain] ?? ADDRESSES[chain]?.WETH;
         if (!wrappedToken) return;
         tokenAddress = wrappedToken.toLowerCase();
       }
