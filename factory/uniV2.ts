@@ -478,7 +478,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.OPTIMISM]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-16', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.BASE]: { factory: '0x71524b4f93c58fcbf659783284e38825f0622859', start: '2023-08-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.SONIC]: { factory: '0xb45e53277a7e0f1d35f2a77160e91e25507f1763', start: '2024-12-13', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
-    [CHAIN.CELO]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
+    // [CHAIN.CELO]: { factory: '0xc35dadb65012ec5796536bd9864ed8773abc74c4', start: '2021-06-17', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.LINEA]: { factory: '0xfbc12984689e5f15626bad03ad60160fe98b303c', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
     [CHAIN.METIS]: { factory: '0x580ED43F3BBa06555785C81c2957efCCa71f7483', start: '2023-10-15', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 6, allowReadPairs: true },
   },
