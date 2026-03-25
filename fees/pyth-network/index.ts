@@ -313,8 +313,7 @@ async function fetchEvm(
     })
 
     const updateCount = updateLogs.length;
-    const feePerUpdate = updateFee || DEFAULT_FEE;
-    dailyFees.addGasToken(BigInt(feePerUpdate) * BigInt(updateCount));
+    dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
   }
 
   return {
