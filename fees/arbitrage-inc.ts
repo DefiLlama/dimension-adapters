@@ -29,8 +29,8 @@ const adapter: Adapter = {
   fetch,
   start: '2024-09-01',
   methodology: {
-    Fees: "We track fees sent to the fee receiver address which represents the developer commission for every arbitrage executed via our frontend integration.",
-    Revenue: "Developer fees are collected from each trade and sent to the designated fee receiver address.",
+    Fees: "We track fees sent to the fee receiver address which represents the developer commission for every swap executed via our frontend integration.",
+    Revenue: "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.",
   },
 };
 
