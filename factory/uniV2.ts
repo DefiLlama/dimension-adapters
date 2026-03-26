@@ -736,7 +736,10 @@ const configs: Record<string, Record<string, any>> = {
   },
   "forest-v1": {
     [CHAIN.BSC]: { factory: '0x9d5ef0f61a5e88d90fb231f84413b5fc43bf6a9e', start: '2025-12-09' },
-  }
+  },
+  "virtus-protocol": {
+    [CHAIN.BASE]: { factory: '0x7F03ae4452192b0E280fB0d4f9c225DDa88C7623', swapEvent: velodromeSwapEvent, start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1 },
+  },
 }
 
 const optionsMap: Record<string, any> = {
