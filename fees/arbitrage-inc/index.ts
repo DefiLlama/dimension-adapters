@@ -17,6 +17,7 @@ const fetch = async (options: FetchOptions) => {
     options,
     tokens: TOKENS,
     targets: [FEE_RECEIVER],
+    skipIndexer: true,
   });
 
   return {
