@@ -10,10 +10,10 @@ import { queryAllium } from "../../helpers/allium";
 
 // ============ EVM Chain Config ============
 const evmChainConfig: Record<string, { start: string; contract: string }> = {
-  [CHAIN.OG]: {
-    start: "2024-06-01",
-    contract: "0x2880ab155794e7179c9ee2e38200202908c17b43",
-  },
+  // [CHAIN.OG]: {
+  //   start: "2024-06-01",
+  //   contract: "0x2880ab155794e7179c9ee2e38200202908c17b43",
+  // },
   [CHAIN.ETHEREUM]: {
     start: "2023-07-01",
     contract: "0x4305FB66699C3B2702D4d05CF36551390A4c69C6",
@@ -70,10 +70,10 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2023-07-01",
     contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
   },
-  [CHAIN.BITTORRENT]: {
-    start: "2023-07-01",
-    contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
-  },
+  // [CHAIN.BITTORRENT]: {
+  //   start: "2023-07-01",
+  //   contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  // },
   [CHAIN.CORE]: {
     start: "2023-07-01",
     contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
@@ -154,10 +154,10 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2024-01-01",
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   },
-  [CHAIN.LIGHTLINK_PHOENIX]: {
-    start: "2024-01-01",
-    contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
-  },
+  // [CHAIN.LIGHTLINK_PHOENIX]: {
+  //   start: "2024-01-01",
+  //   contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  // },
   [CHAIN.ETHERLINK]: {
     start: "2024-06-01",
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
@@ -254,10 +254,10 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2024-06-01",
     contract: "0x056f829183Ec806A78c26C98961678c24faB71af",
   },
-  [CHAIN.ZKFAIR]: {
-    start: "2024-01-01",
-    contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
-  },
+  // [CHAIN.ZKFAIR]: {
+  //   start: "2024-01-01",
+  //   contract: "0xA2aa501b19aff244D90cc15a4Cf739D2725B5729",
+  // },
   [CHAIN.CAMP]: {
     start: "2024-06-01",
     contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
