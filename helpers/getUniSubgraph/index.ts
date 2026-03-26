@@ -2,6 +2,7 @@ import { request, gql } from "graphql-request";
 import { FetchOptions, FetchResultGeneric, IJSON, } from "../../adapters/types";
 import { DEFAULT_TOTAL_FEES_FACTORY, DEFAULT_TOTAL_FEES_FIELD } from "../getUniSubgraphVolume";
 import BigNumber from "bignumber.js";
+import * as sdk from '@defillama/sdk'
 
 const DEFAULT_TOTAL_VOLUME_FACTORY = "uniswapFactories";
 const DEFAULT_TOTAL_VOLUME_FIELD = "totalVolumeUSD";
@@ -100,26 +101,29 @@ function getGraphDimensions2({
 
     const endBlock = await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock());
     const startBlock = await (getCustomBlock ? getCustomBlock(startTimestamp) :getStartBlock());
+    let endpoint = graphUrls[chain]
+    endpoint = sdk.graph.modifyEndpoint(endpoint)
+
 
     let dailyVolume: any;
-    const graphResTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block: endBlock }, graphRequestHeaders?.[chain]);
+    const graphResTotalVolume = await request(endpoint, totalVolumeQuery, { block: endBlock }, graphRequestHeaders?.[chain]);
     const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
 
     // PREV TOTAL VOLUME
-    const graphResPrevTotalVolume = await request(graphUrls[chain], totalVolumeQuery, { block: startBlock }, graphRequestHeaders?.[chain]);
+    const graphResPrevTotalVolume = await request(endpoint, totalVolumeQuery, { block: startBlock }, graphRequestHeaders?.[chain]);
     const prevTotalVolume = graphResPrevTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
     dailyVolume = totalVolume - prevTotalVolume
 
     // TOTAL FEES
 
-    const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(_e => {
+    const graphResTotalFees = await request(endpoint, totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(_e => {
       if (totalVolume === undefined || feesPercent?.Fees === undefined)
         console.error(`Unable to get total fees on ${chain} from graph.`)
     });
     const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
     // PREV TOTAL FEES
-    const graphResPrevTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(_e => {
+    const graphResPrevTotalFees = await request(endpoint, totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(_e => {
       if (totalVolume === undefined || feesPercent?.Fees === undefined)
         console.error(`Unable to get total fees on ${chain} from graph.`)
     });
@@ -127,11 +131,11 @@ function getGraphDimensions2({
 
     const dailyFees = (totalFees == undefined && prevTotalFees == undefined) ? undefined : totalFees - prevTotalFees
 
-    // const graphResTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]);
+    // const graphResTotalFees = await request(endpoint, totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]);
     // const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
     // // PREV TOTAL FEES
-    // const graphResPrevTotalFees = await request(graphUrls[chain], totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]);
+    // const graphResPrevTotalFees = await request(endpoint, totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]);
     // const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
     // const dailyFees = (totalFees == undefined && prevTotalFees == undefined) ? undefined : totalFees - prevTotalFees

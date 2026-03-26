@@ -387,7 +387,35 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 0,
     },
     start: '2024-03-11',
-  }
+  },
+  'treble-spot': {
+    graphUrls: {
+      [CHAIN.BASE]: "8rV9EcKW8J8u6rt7t9vdCf2gCieiaEM1TiKWYxVTxa4i",
+    },
+    totalVolume: { factory: "factories", field: 'totalVolumeUSD', },
+    feesPercent: {
+      type: "fees",
+      ProtocolRevenue: 0,
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+    },
+    start: '2025-01-20',
+  },
+  'treble-v4': {
+    graphUrls: {
+      [CHAIN.BASE]: "3sThy2UsWd9X3D2M6MUQWzNUYrs8snMMhQKHSg9kUEAd",
+    },
+    totalVolume: { factory: "factories", field: 'totalVolumeUSD', },
+    feesPercent: {
+      type: "fees",
+      ProtocolRevenue: 0,
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+    },
+    start: '2026-01-20',
+  },
 };
 
 // Build protocols from configs
