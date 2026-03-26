@@ -307,10 +307,16 @@ async function fetchEvm(
       eventAbi: PRICE_FEED_UPDATE_ABI,
     });
 
-    const updateFee = await options.api.call({
+    let updateFee = await options.api.call({
       abi: SINGLE_UPDATE_FEE_ABI,
       target: config.contract,
+      permitFailure: true,
     })
+
+    //Not throwing error because there are many chains and accidentally some can fail
+    if (!updateFee) {
+      updateFee = 0
+    }
 
     const updateCount = updateLogs.length;
     dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
