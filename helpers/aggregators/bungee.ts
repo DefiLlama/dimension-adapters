@@ -104,6 +104,26 @@ export const BungeeGatewayContracts: {[key: string]: {
     audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
     unaudited: [],
   },
+  [CHAIN.HYPERLIQUID]: {
+    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+    unaudited: [],
+  },
+  [CHAIN.INK]: {
+    audited: ['0x6379442Fb03F78060e8746AeA425eF6420e19F41'],
+    unaudited: [],
+  },
+  [CHAIN.KATANA]: {
+    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+    unaudited: [],
+  },
+  [CHAIN.MEGAETH]: {
+    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+    unaudited: [],
+  },
+  [CHAIN.MONAD]: {
+    audited: ['0x1A2F1085A94De6fBcc334AAE1DDf527C567b75E7'],
+    unaudited: [],
+  },
 }
 
 interface AutoEvent {
