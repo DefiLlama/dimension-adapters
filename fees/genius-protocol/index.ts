@@ -19,6 +19,14 @@ const START_DATE = "2026-01-01";
 const isMissingAlliumKey = (e: unknown) =>
   e instanceof Error && /Allium API Key is required/i.test(e.message);
 
+function warnOrRethrow(e: unknown, context: string): void {
+  if (isMissingAlliumKey(e)) {
+    console.warn(`[genius-protocol] inflows skipped (${context}): ${(e as Error).message}`);
+  } else {
+    throw e;
+  }
+}
+
 const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
@@ -29,11 +37,7 @@ const fetchEVM = async (options: FetchOptions) => {
   try {
     await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
   } catch (e) {
-    if (isMissingAlliumKey(e)) {
-      console.warn(`[genius-protocol] native inflows skipped on ${options.chain}: ${(e as Error).message}`);
-    } else {
-      throw e;
-    }
+    warnOrRethrow(e, `native on ${options.chain}`);
   }
 
   return {
@@ -49,11 +53,7 @@ const fetchSolana = async (options: FetchOptions) => {
   try {
     await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
   } catch (e) {
-    if (isMissingAlliumKey(e)) {
-      console.warn(`[genius-protocol] solana inflows skipped: ${(e as Error).message}`);
-    } else {
-      throw e;
-    }
+    warnOrRethrow(e, "solana");
   }
 
   return {
