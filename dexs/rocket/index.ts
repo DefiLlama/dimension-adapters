@@ -1,12 +1,12 @@
 /*
  * DeFiLlama Dimension Adapter for Rocket
  *
- * Tracks daily volume and fees for Rocket - a high-performance L1
+ * Tracks daily volume, fees, and open interest for Rocket - a high-performance L1
  * blockchain for trading perpetual futures.
  *
  * Data sources:
- *   GET /instruments     - list all trading pairs
- *   GET /candles         - OHLCV data with volume per instrument
+ *   GET /instruments   - list all trading pairs, stats (including open interest), and prices
+ *   GET /candles       - OHLCV data with volume per instrument
  *
  * Fee structure: 0.01% maker / 0.01% taker (from Rocket UI)
  * Website: https://rocketfi.io
@@ -25,8 +25,9 @@ const TAKER_FEE = 0.0001; // 0.01%
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
     let instruments: string[] = [];
+    let instrumentsData: any;
     try {
-        const instrumentsData = await fetchURL(`${ROCKET_API}/instruments`);
+        instrumentsData = await fetchURL(`${ROCKET_API}/instruments`);
         instruments = Object.keys(instrumentsData.instruments);
     } catch (e) {
         throw new Error(`Rocket adapter: failed to fetch instruments: ${String(e)}`);
@@ -51,11 +52,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const dailyFees = dailyVolume.clone(MAKER_FEE + TAKER_FEE, METRIC.TRADING_FEES);
 
+    // Calculate open interest in USD from instrument stats (already fetched, no extra API call)
+    let openInterestAtEnd = 0;
+    const instrumentStats = instrumentsData.instrumentStats || {};
+    for (const id of instruments) {
+        const oi = parseFloat(instrumentStats[id]?.openInterest ?? "0");
+        const price = parseFloat(instrumentsData.instruments[id]?.lastMatchPrice ?? "0");
+        openInterestAtEnd += oi * price;
+    }
+
     return {
         dailyVolume,
         dailyFees,
         dailyRevenue: dailyFees,
         dailyProtocolRevenue: dailyFees,
+        openInterestAtEnd,
     };
 };
 
@@ -64,6 +75,7 @@ const methodology = {
     Fees: "0.01% maker and 0.01% taker fees charged on each trade",
     Revenue: "All the fees are revenue",
     ProtocolRevenue: "All the fees are protocol revenue",
+    OpenInterest: "Total open interest across all perpetual instruments, calculated from real-time instrument stats (quantity * last match price).",
 }
 
 const breakdownMethodology = {
