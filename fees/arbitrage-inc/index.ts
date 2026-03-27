@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import type { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
