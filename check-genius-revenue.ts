@@ -1,31 +1,41 @@
 /**
- * Genius Protocol — Cumulative Revenue Check (EVM, ERC-20 only)
+ * Genius Protocol — Cumulative Revenue Check (EVM)
  *
  * Usage:
  *   npx ts-node --transpile-only check-genius-revenue.ts
  *
- * NOTE: Native coin inflows (ETH/BNB/etc.) require an Allium key and are
- * skipped here. ERC-20 inflows are the overwhelming majority of revenue.
- * For exact figures including native coins, set ALLIUM_API_KEY and re-run.
+ * Tracks ERC-20 inflows on all EVM chains. When ALLIUM_API_KEY is set,
+ * also includes native coin inflows (ETH/BNB/MATIC/etc.).
  *
- * Loops every day from START_DATE to today, tracks all ERC-20 transfers to
- * the multisig on every EVM chain, and prints a per-day + grand total.
+ * Loops every day from START_DATE to today and prints a per-day + grand total.
  */
 
 import runAdapter from './adapters/utils/runAdapter';
 import { Adapter } from './adapters/types';
 import { CHAIN } from './helpers/chains';
-import { addTokensReceived } from './helpers/token';
+import { addTokensReceived, getETHReceived } from './helpers/token';
 import type { FetchOptions } from './adapters/types';
 
 const EVM_MULTISIG = '0x03D7D9CAf7498f524d17F5e863c12b88F546BaAD';
-const START_DATE   = '2026-01-12';
+const START_DATE   = '2026-01-01';
 const ONE_DAY      = 86400;
+const HAS_ALLIUM   = Boolean(process.env.ALLIUM_API_KEY);
 
-// ERC-20 only fetch — no Allium key required
 const fetchEVMLocal = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+
+  // ERC-20 inflows — always available
   await addTokensReceived({ options, target: EVM_MULTISIG, balances: dailyFees });
+
+  // Native coin inflows — only when Allium key is present
+  if (HAS_ALLIUM) {
+    try {
+      await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
+    } catch (e: any) {
+      console.warn(`  [native] ${options.chain}: ${e.message?.slice(0, 60)}`);
+    }
+  }
+
   return { dailyFees, dailyRevenue: dailyFees };
 };
 
@@ -64,9 +74,9 @@ function fmt(n: number): string {
 
 async function main() {
   const days = dayEndTimestamps(START_DATE);
+  const nativeNote = HAS_ALLIUM ? 'ERC-20 + native coin inflows' : 'ERC-20 inflows only (set ALLIUM_API_KEY for native coins)';
   console.log(`\nGenius Protocol cumulative revenue check`);
-  console.log(`${days.length} days · ${START_DATE} → today · EVM ERC-20 inflows only`);
-  console.log('(Native coin inflows excluded — add ALLIUM_API_KEY for full figures)\n');
+  console.log(`${days.length} days · ${START_DATE} → today · ${nativeNote}\n`);
   console.log('Date'.padEnd(14) + 'Daily Fees (USD)');
   console.log('─'.repeat(38));
 
@@ -77,12 +87,11 @@ async function main() {
     const dateStr = new Date((endTs - ONE_DAY) * 1000).toISOString().slice(0, 10);
     try {
       const result = await runAdapter({
-        module: { ...localAdapter },   // runAdapter mutates module, pass fresh ref
+        module: { ...localAdapter },
         endTimestamp: endTs,
         isTest: false,
       });
 
-      // Sum dailyFees across all chains
       let dayTotal = 0;
       for (const chainResult of Object.values(result)) {
         const fees = (chainResult as any)?.dailyFees;

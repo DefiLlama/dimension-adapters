@@ -37,7 +37,10 @@ const CHAIN_NAME_TO_ID = Object.fromEntries(
 const cache: Record<string, Promise<any>> = {};
 
 const fetchDailyData = (date: string) => {
-  if (!cache[date]) cache[date] = httpGet(`${DAILY_VOLUME_URL}?date=${date}`);
+  if (!cache[date]) {
+    const p = httpGet(`${DAILY_VOLUME_URL}?date=${date}`);
+    cache[date] = p.catch((err: any) => { delete cache[date]; throw err; });
+  }
   return cache[date];
 };
 

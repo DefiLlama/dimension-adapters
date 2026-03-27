@@ -22,8 +22,12 @@ const fetchEVM = async (options: FetchOptions) => {
   // Track all ERC-20 transfers received by the multisig
   await addTokensReceived({ options, target: EVM_MULTISIG, balances: dailyFees });
 
-  // Track native coin inflows (ETH / BNB / MATIC / AVAX / etc.)
-  await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
+  // Track native coin inflows (ETH / BNB / MATIC / AVAX / etc.) — requires Allium
+  try {
+    await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
+  } catch (_) {
+    // No Allium key — native inflows skipped, ERC-20 inflows still captured
+  }
 
   return {
     dailyFees,
@@ -34,7 +38,10 @@ const fetchEVM = async (options: FetchOptions) => {
 const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
+  // Requires Allium — returns empty locally without ALLIUM_API_KEY
+  try {
+    await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
+  } catch (_) {}
 
   return {
     dailyFees,
