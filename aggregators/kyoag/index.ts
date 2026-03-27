@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const LEGACY_ROUTERS: Record<string, string[]> = {
   [CHAIN.HYPERLIQUID]: [
@@ -55,7 +56,27 @@ const NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const SWAP_EXECUTED_EVENT =
   "event SwapExecuted(address indexed sender, address indexed srcToken, address indexed dstToken, address logic, uint256 amountIn, uint256 amountOut)";
 
-const addVolume = (dailyVolume: ReturnType<FetchOptions["createBalances"]>, token: string, amount: string) => {
+const WRAPPED_NATIVE_TOKENS: Record<string, string[]> = {
+  [CHAIN.HYPERLIQUID]: [ADDRESSES.hyperliquid.WHYPE],
+  [CHAIN.SONEIUM]: [ADDRESSES.soneium.WETH],
+  [CHAIN.MONAD]: [ADDRESSES.monad.WMON, ADDRESSES.monad.WETH],
+};
+
+const isPositiveAmount = (amount?: string) => {
+  if (!amount || amount === "0x") return false;
+  try {
+    return BigInt(amount) > 0n;
+  } catch {
+    return false;
+  }
+};
+
+const addVolume = (
+  dailyVolume: ReturnType<FetchOptions["createBalances"]>,
+  token?: string,
+  amount?: string,
+) => {
+  if (!token || !isPositiveAmount(amount)) return;
   if (token.toLowerCase() === NATIVE_TOKEN.toLowerCase()) dailyVolume.addGasToken(amount);
   else dailyVolume.add(token, amount);
 };
@@ -65,6 +86,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   const eventRouters = EVENT_ROUTERS[chain] ?? [];
   const trackedTargets = [...eventRouters, ...(LEGACY_ROUTERS[chain] ?? []), ...(LOGICS[chain] ?? [])];
   const trackedSet = new Set(trackedTargets.map((r) => r.toLowerCase()));
+  const wrappedNativeSet = new Set((WRAPPED_NATIVE_TOKENS[chain] ?? []).map((a) => a.toLowerCase()));
   const allLogs: any[] = [];
   const eventTxs = new Set<string>();
 
@@ -72,11 +94,17 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     const eventLogs = await getLogs({
       targets: eventRouters,
       eventAbi: SWAP_EXECUTED_EVENT,
+      onlyArgs: false,
     });
 
     for (const log of eventLogs) {
-      eventTxs.add(log.transactionHash.toLowerCase());
-      addVolume(dailyVolume, log.srcToken, log.amountIn);
+      const txHash = (log.transactionHash as string | undefined)?.toLowerCase();
+      if (txHash) eventTxs.add(txHash);
+      addVolume(
+        dailyVolume,
+        log.srcToken ?? log.args?.srcToken,
+        log.amountIn ?? log.args?.amountIn,
+      );
     }
   }
 
@@ -100,17 +128,24 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     ]);
 
     for (const log of transferLogs) {
-      if (log.data === "0x") continue;
-      if (eventTxs.has(log.transactionHash.toLowerCase())) continue;
+      if (!isPositiveAmount(log.data)) continue;
+      const txHash = (log.transactionHash as string | undefined)?.toLowerCase();
+      if (!txHash) continue;
+      if (eventTxs.has(txHash)) continue;
       // Exclude transfers from other tracked contracts (router/logic internal routing)
+      if (!log.topics?.[1]) continue;
       const from = "0x" + log.topics[1].slice(26).toLowerCase();
       if (trackedSet.has(from)) continue;
       allLogs.push(log);
     }
 
     for (const log of depositLogs) {
-      if (log.data === "0x") continue;
-      if (eventTxs.has(log.transactionHash.toLowerCase())) continue;
+      if (!isPositiveAmount(log.data)) continue;
+      const txHash = (log.transactionHash as string | undefined)?.toLowerCase();
+      if (!txHash) continue;
+      if (eventTxs.has(txHash)) continue;
+      const emitter = (log.address as string | undefined)?.toLowerCase();
+      if (!emitter || !wrappedNativeSet.has(emitter)) continue;
       allLogs.push(log);
     }
   }
@@ -119,7 +154,8 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   // This is the sell-token inflow before DEX routing, internal hops, or fee payouts.
   const firstByTx: Record<string, any> = {};
   for (const log of allLogs) {
-    const txHash = log.transactionHash.toLowerCase();
+    const txHash = (log.transactionHash as string | undefined)?.toLowerCase();
+    if (!txHash) continue;
     const idx = log.logIndex ?? log.index ?? 0;
     const prev = firstByTx[txHash];
     if (!prev || idx < (prev.logIndex ?? prev.index ?? 0)) {
