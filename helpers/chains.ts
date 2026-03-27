@@ -349,5 +349,6 @@ export enum CHAIN {
   MIGALOO = "migaloo",
   BITROCK = "bitrock",
   QIEV3 = "qiev3",
-  BITTENSOR = 'bittensor'
+  BITTENSOR = "bittensor",
+  TEMPO = "tempo",
 }
