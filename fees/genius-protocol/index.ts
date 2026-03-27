@@ -16,6 +16,9 @@ const SOL_MULTISIG = "37LTs1U4ycmtUQLCgoiiNb5WG4ph8rb54WSZvRsYwyUx";
 
 const START_DATE = "2026-01-01";
 
+const isMissingAlliumKey = (e: unknown) =>
+  e instanceof Error && /Allium API Key is required/i.test(e.message);
+
 const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
@@ -25,8 +28,12 @@ const fetchEVM = async (options: FetchOptions) => {
   // Track native coin inflows (ETH / BNB / MATIC / AVAX / etc.) — requires Allium
   try {
     await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
-  } catch (_) {
-    // No Allium key — native inflows skipped, ERC-20 inflows still captured
+  } catch (e) {
+    if (isMissingAlliumKey(e)) {
+      console.warn(`[genius-protocol] native inflows skipped on ${options.chain}: ${(e as Error).message}`);
+    } else {
+      throw e;
+    }
   }
 
   return {
@@ -41,7 +48,13 @@ const fetchSolana = async (options: FetchOptions) => {
   // Requires Allium — returns empty locally without ALLIUM_API_KEY
   try {
     await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
-  } catch (_) {}
+  } catch (e) {
+    if (isMissingAlliumKey(e)) {
+      console.warn(`[genius-protocol] solana inflows skipped: ${(e as Error).message}`);
+    } else {
+      throw e;
+    }
+  }
 
   return {
     dailyFees,
