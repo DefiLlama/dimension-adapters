@@ -14,31 +14,12 @@ import { addTokensReceived, getETHReceived, getSolanaReceived } from "../../help
 const EVM_MULTISIG = "0x03D7D9CAf7498f524d17F5e863c12b88F546BaAD";
 const SOL_MULTISIG = "37LTs1U4ycmtUQLCgoiiNb5WG4ph8rb54WSZvRsYwyUx";
 
-const START_DATE = "2026-01-01";
-
-const isMissingAlliumKey = (e: unknown) =>
-  e instanceof Error && /Allium API Key is required/i.test(e.message);
-
-function warnOrRethrow(e: unknown, context: string): void {
-  if (isMissingAlliumKey(e)) {
-    console.warn(`[genius-protocol] inflows skipped (${context}): ${(e as Error).message}`);
-  } else {
-    throw e;
-  }
-}
-
 const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-
-  // Track all ERC-20 transfers received by the multisig
   await addTokensReceived({ options, target: EVM_MULTISIG, balances: dailyFees });
 
-  // Track native coin inflows (ETH / BNB / MATIC / AVAX / etc.) — requires Allium
-  try {
+  if (options.chain !== CHAIN.HYPERLIQUID)
     await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
-  } catch (e) {
-    warnOrRethrow(e, `native on ${options.chain}`);
-  }
 
   return {
     dailyFees,
@@ -49,12 +30,7 @@ const fetchEVM = async (options: FetchOptions) => {
 const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  // Requires Allium — returns empty locally without ALLIUM_API_KEY
-  try {
-    await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
-  } catch (e) {
-    warnOrRethrow(e, "solana");
-  }
+  await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
 
   return {
     dailyFees,
@@ -77,24 +53,25 @@ const EVM_CHAINS = [
 const evmAdapter = Object.fromEntries(
   EVM_CHAINS.map((chain) => [
     chain,
-    { fetch: fetchEVM, start: START_DATE },
+    { fetch: fetchEVM },
   ])
 );
 
+
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     Fees: "All ERC-20 token and native coin inflows to the Genius Protocol multisig wallet on each chain.",
     Revenue: "All inflows are protocol revenue (100% of fees accrue to the protocol).",
   },
+  start: '2026-01-01',
   adapter: {
     ...evmAdapter,
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: START_DATE,
-    },
+    [CHAIN.SOLANA]: { fetch: fetchSolana },
   },
+  isExpensiveAdapter: true,
 };
 
 export default adapter;
