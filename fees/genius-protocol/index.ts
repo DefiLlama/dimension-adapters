@@ -14,7 +14,7 @@ import { addTokensReceived, getETHReceived, getSolanaReceived } from "../../help
 const EVM_MULTISIG = "0x03D7D9CAf7498f524d17F5e863c12b88F546BaAD";
 const SOL_MULTISIG = "37LTs1U4ycmtUQLCgoiiNb5WG4ph8rb54WSZvRsYwyUx";
 
-const START_DATE = "2026-01-12";
+const START_DATE = "2026-01-01";
 
 const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();

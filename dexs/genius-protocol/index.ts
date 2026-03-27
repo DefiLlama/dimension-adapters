@@ -1,40 +1,53 @@
 /**
  * Genius Protocol — Volume Adapter
  *
- * Fetches weekly trading volume from the Genius Protocol stats API and returns
- * daily volume for the requested period.
- *
- * API: https://gp-timeseries-api-production.up.railway.app/stats/formatted-weekly-data
+ * Fetches daily trading volume per chain from the Genius Protocol stats API.
+ * API: https://gp-timeseries-api-tempo.up.railway.app/stats/daily-volume?date=YYYY-MM-DD
  */
 
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const WEEKLY_URL =
-  "https://gp-timeseries-api-production.up.railway.app/stats/formatted-weekly-data";
+const DAILY_VOLUME_URL =
+  "https://gp-timeseries-api-tempo.up.railway.app/stats/daily-volume";
 
-const START_DATE = "2026-01-12";
+const START_DATE = "2026-01-01";
 
-/** Returns the Monday (week start) for the given Unix timestamp as "YYYY-MM-DD". */
-function getWeekStart(timestamp: number): string {
-  const d = new Date(timestamp * 1000);
-  const day = d.getUTCDay(); // 0=Sun … 6=Sat
-  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
-  d.setUTCDate(d.getUTCDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
+// Maps EVM chain IDs (and Solana's custom ID) to dimension-adapters chain names
+const CHAIN_ID_MAP: Record<string, string> = {
+  "1":          CHAIN.ETHEREUM,
+  "10":         CHAIN.OPTIMISM,
+  "56":         CHAIN.BSC,
+  "137":        CHAIN.POLYGON,
+  "146":        CHAIN.SONIC,
+  "999":        CHAIN.HYPERLIQUID,
+  "8453":       CHAIN.BASE,
+  "42161":      CHAIN.ARBITRUM,
+  "43114":      CHAIN.AVAX,
+  "1399811149": CHAIN.SOLANA,  // 0x536F6C61 = "SoLa" in ASCII
+};
+
+// Reverse map: chain name → chain ID for lookup inside fetch
+const CHAIN_NAME_TO_ID = Object.fromEntries(
+  Object.entries(CHAIN_ID_MAP).map(([id, name]) => [name, id])
+);
+
+// Cache by date so all chains share a single API call
+const cache: Record<string, Promise<any>> = {};
+
+const fetchDailyData = (date: string) => {
+  if (!cache[date]) cache[date] = httpGet(`${DAILY_VOLUME_URL}?date=${date}`);
+  return cache[date];
+};
 
 const fetch = async (options: FetchOptions) => {
-  const { weekly }: { weekly: { week: string; sol_volume_usd: number; evm_volume_usd: number; total_volume_usd: number }[] } =
-    await httpGet(WEEKLY_URL);
+  const date = new Date(options.startTimestamp * 1000).toISOString().slice(0, 10);
+  const data = await fetchDailyData(date);
 
-  const weekKey = getWeekStart(options.startTimestamp);
-  const weekData = weekly?.find((w) => w.week === weekKey);
-
-  // Weekly total divided by 7 gives an average daily volume for the week
-  const totalWeeklyVolume = weekData?.total_volume_usd ?? 0;
-  const dailyVolume = totalWeeklyVolume / 7;
+  const chainId = CHAIN_NAME_TO_ID[options.chain];
+  const chainData = chainId ? data?.chains?.[chainId] : null;
+  const dailyVolume = chainData?.total_usd_value ?? 0;
 
   return { dailyVolume };
 };
@@ -42,10 +55,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.ETHEREUM], // multi-chain protocol; volume is reported in aggregate
+  chains: Object.values(CHAIN_ID_MAP),
   start: START_DATE,
   methodology: {
-    Volume: "Total weekly trading volume (SOL + EVM chains) from the Genius Protocol stats API, divided by 7 to approximate daily volume.",
+    Volume: "Daily trading volume per chain from the Genius Protocol stats API.",
   },
 };
 
