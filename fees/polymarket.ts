@@ -40,16 +40,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     })
   ])
 
-  const revenueFromTakerFees = await addTokensReceived({
+  const [netOutflow, outFlowToProtocol] = await Promise.all([addTokensReceived({
+    options,
+    fromAddressFilter: FeeDistributor,
+    token: ADDRESSES.polygon.USDC,
+  }), addTokensReceived({
     options,
     fromAddressFilter: FeeDistributor,
     target: ProtocolFeeWallet,
-    token: ADDRESSES.polygon.USDC
-  })
+    token: ADDRESSES.polygon.USDC,
+  })])
 
-  const makerRebatesFees = fees.clone();
-  makerRebatesFees.subtract(revenueFromTakerFees);
+  const makerRebatesFees = netOutflow.clone();
+  makerRebatesFees.subtract(outFlowToProtocol);
 
+  const revenueFromTakerFees = fees.clone();
+
+  revenueFromTakerFees.subtract(makerRebatesFees)
   revenueFromTakerFees.subtract(liquidityRewards)
   revenueFromTakerFees.subtract(holdingRewards)
   
