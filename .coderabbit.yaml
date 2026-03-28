@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: true
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  estimate_code_review_effort: true
+  
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - master
+
+  # Path-specific review instructions
+  path_instructions:
+    - path: "fees/**"
+      instructions: |
+        Review fees adapters for:
+        - Correct income statement mapping (dailyFees = Gross Protocol Revenue, dailyRevenue = Gross Profit, dailySupplySideRevenue = Cost of Funds)
+        - All breakdown labels must have corresponding breakdownMethodology entries
+        - Labels should be descriptive (not vague like "Protocol Fees" or "Other")
+        - dailySupplySideRevenue required when protocol pays suppliers (LPs, lenders, stakers, integrators, referrers)
+        - Block rewards are incentives NOT fees
+        - Check if web search is needed to verify protocol's fee structure
+    
+    - path: "dexs/**"
+      instructions: |
+        Review DEX adapters for:
+        - Volume calculation accuracy
+        - For perpetuals: ONLY track taker volume (do NOT double count maker+taker)
+        - Wash trading concerns on low-fee chains
+        - If fees are tracked, verify income statement compliance (see fees/ guidelines)
+        - Use helper functions when available (uniV2Exports, uniV3Exports)
+    
+    - path: "aggregators/**"
+      instructions: |
+        Review aggregator adapters for:
+        - Volume should be routed volume, NOT double-counted with underlying DEX volume
+        - Check for integration/partner fees as supply side costs
+        - If fees tracked, verify income statement compliance
+    
+    - path: "aggregator-derivatives/**"
+      instructions: |
+        Review derivatives aggregator adapters for:
+        - ONLY track taker volume (no maker+taker double counting)
+        - Check open interest tracking if applicable
+        - If fees tracked, verify income statement compliance
+    
+    - path: "options/**"
+      instructions: |
+        Review options adapters for:
+        - Both dailyNotionalVolume and dailyPremiumVolume required
+        - Don't confuse notional vs premium volume
+        - If fees tracked, verify income statement compliance
+    
+    - path: "helpers/**"
+      instructions: |
+        Review helper code for:
+        - Reusability across multiple adapters
+        - Proper TypeScript types
+        - No npm dependencies allowed
+        - Use api.multiCall for batching, not Promise.all
+
+  # Labeling suggestions
+  labeling_instructions:
+    - label: "fees"
+      instructions: "Apply when PR changes files in fees/ directory"
+    - label: "dexs"
+      instructions: "Apply when PR changes files in dexs/ directory"
+    - label: "aggregators"
+      instructions: "Apply when PR changes files in aggregators/ directory"
+    - label: "new-adapter"
+      instructions: "Apply when PR adds a new adapter file"
+    - label: "methodology"
+      instructions: "Apply when PR changes fee/revenue calculation methodology"
+
+  # Tools for TypeScript linting
+  tools:
+    biome:
+      enabled: true
+    eslint:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  web_search:
+    enabled: true
+  opt_out: false
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/GUIDELINES.md"
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  pull_requests:
+    scope: auto
