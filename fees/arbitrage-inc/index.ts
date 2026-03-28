@@ -1,17 +1,14 @@
-import { Adapter, FetchOptions } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { addTokensReceived } from "../helpers/token";
+import type { Adapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { addTokensReceived } from "../../helpers/token";
 
 const FEE_RECEIVER = '0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7';
 
 const fetch = async (options: FetchOptions) => {
-    const fees = await addTokensReceived({
+    const dailyFees = await addTokensReceived({
         options,
-        target: FEE_RECEIVER,
+        targets: [FEE_RECEIVER],
     });
-
-    const dailyFees = options.createBalances();
-    dailyFees.add(fees, 'Developer Fees');
 
     return {
         dailyFees,
@@ -20,21 +17,23 @@ const fetch = async (options: FetchOptions) => {
     };
 };
 
+const DEV_FEE_DESC = "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.";
+
 const methodology = {
     Fees: "We track fees sent to the fee receiver address which represents the developer commission for every swap executed via our frontend integration.",
-    Revenue: "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.",
-    ProtocolRevenue: "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.",
+    Revenue: DEV_FEE_DESC,
+    ProtocolRevenue: DEV_FEE_DESC,
 };
 
 const breakdownMethodology = {
     Fees: {
-        'Developer Fees': "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.",
+        'Developer Fees': DEV_FEE_DESC,
     },
     Revenue: {
-        'Developer Fees': "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.",
+        'Developer Fees': DEV_FEE_DESC,
     },
     ProtocolRevenue: {
-        'Developer Fees': "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.",
+        'Developer Fees': DEV_FEE_DESC,
     },
 };
 
