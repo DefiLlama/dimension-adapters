@@ -46,7 +46,13 @@ const fetchDailyData = (date: string) => {
 
 const fetch = async (options: FetchOptions) => {
   const date = new Date(options.startTimestamp * 1000).toISOString().slice(0, 10);
-  const data = await fetchDailyData(date);
+  let data: any = null;
+  try {
+    data = await fetchDailyData(date);
+  } catch (e) {
+    console.warn(`[genius-protocol] volume API unavailable for ${date}: ${(e as Error).message}`);
+    return { dailyVolume: 0 };
+  }
 
   const chainId = CHAIN_NAME_TO_ID[options.chain];
   const chainData = chainId ? data?.chains?.[chainId] : null;

@@ -16,15 +16,8 @@ const SOL_MULTISIG = "37LTs1U4ycmtUQLCgoiiNb5WG4ph8rb54WSZvRsYwyUx";
 
 const START_DATE = "2026-01-01";
 
-const isMissingAlliumKey = (e: unknown) =>
-  e instanceof Error && /Allium API Key is required/i.test(e.message);
-
 function warnOrRethrow(e: unknown, context: string): void {
-  if (isMissingAlliumKey(e)) {
-    console.warn(`[genius-protocol] inflows skipped (${context}): ${(e as Error).message}`);
-  } else {
-    throw e;
-  }
+  console.warn(`[genius-protocol] native inflows skipped (${context}): ${(e as Error).message}`);
 }
 
 const fetchEVM = async (options: FetchOptions) => {
