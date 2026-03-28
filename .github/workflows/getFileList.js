@@ -4,8 +4,8 @@ const ADDED = parse(process.env.ADDED)
 const fileSet = new Set();
 
 [...MODIFIED, ...ADDED].forEach(file => {
-  // Skip documentation files (e.g., GUIDELINES.md)
-  if (file.endsWith('.md') || file.toLowerCase().includes('guidelines')) return;
+  // Skip markdown documentation files (e.g., GUIDELINES.md)
+  if (file.endsWith('.md')) return;
   
   const [root, adapter] = file.split('/')
   if (ALLOWED_ROOTS.includes(root) && adapter !== undefined)

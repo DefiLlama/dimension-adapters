@@ -59,7 +59,8 @@ let usedHelper: string | null | undefined = null;
 
   // Skip documentation files (e.g., GUIDELINES.md, guidelines)
   const docFiles = ['guidelines', 'readme', 'changelog'];
-  if (moduleArg.endsWith('.md') || docFiles.includes(moduleArg.toLowerCase().replace('.md', ''))) {
+  const baseName = path.basename(moduleArg).toLowerCase().replace('.md', '');
+  if (moduleArg.endsWith('.md') || docFiles.includes(baseName)) {
     console.info(`Skipping documentation file: ${moduleArg}`);
     process.exit(0);
   }

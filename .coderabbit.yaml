@@ -13,12 +13,48 @@ reviews:
   sequence_diagrams: true
   changed_files_summary: true
   estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: true
+  suggested_reviewers: true
   
   auto_review:
     enabled: true
     drafts: false
     base_branches:
       - master
+
+  # Pre-merge checks (Pro feature)
+  pre_merge_checks:
+    docstrings:
+      mode: "warning"
+      threshold: 50
+    title:
+      mode: "warning"
+      requirements: "Title should be descriptive and follow format: [type] protocol-name - description"
+    description:
+      mode: "warning"
+    custom_checks:
+      - name: "Breakdown Methodology Check"
+        mode: "warning"
+        instructions: "For fees adapters: verify that all breakdown labels used in .add() calls have corresponding entries in breakdownMethodology object. Check that breakdownMethodology is exported in the adapter."
+      - name: "Income Statement Compliance"
+        mode: "warning"
+        instructions: "For fees adapters: verify dailyFees represents Gross Protocol Revenue (all potential fees), dailyRevenue represents Gross Profit (protocol's portion), and dailySupplySideRevenue represents Cost of Funds (supplier payments). Ensure dailyRevenue = dailyFees - dailySupplySideRevenue conceptually."
+      - name: "Version 2 Required"
+        mode: "warning"
+        instructions: "New adapters must use version: 2 format. Check that the adapter exports version: 2 unless it's updating an existing v1 adapter."
+
+  # Finishing touches (Pro feature)
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: true
 
   # Path-specific review instructions
   path_instructions:
@@ -30,7 +66,7 @@ reviews:
         - Labels should be descriptive (not vague like "Protocol Fees" or "Other")
         - dailySupplySideRevenue required when protocol pays suppliers (LPs, lenders, stakers, integrators, referrers)
         - Block rewards are incentives NOT fees
-        - Check if web search is needed to verify protocol's fee structure
+        - Use web search to verify protocol's fee structure if unclear
     
     - path: "dexs/**"
       instructions: |
@@ -101,16 +137,23 @@ reviews:
     - label: "aggregators"
       instructions: "Apply when PR changes files in aggregators/ directory"
     - label: "new-adapter"
-      instructions: "Apply when PR adds a new adapter file"
+      instructions: "Apply when PR adds a new adapter file that didn't exist before"
     - label: "methodology"
-      instructions: "Apply when PR changes fee/revenue calculation methodology"
+      instructions: "Apply when PR changes fee/revenue calculation methodology or breakdownMethodology"
+    - label: "helper"
+      instructions: "Apply when PR changes files in helpers/ directory"
+    - label: "bug-fix"
+      instructions: "Apply when PR fixes a bug in existing adapter"
 
-  # Tools for TypeScript linting
+  # Tools for linting
   tools:
     biome:
       enabled: true
     eslint:
       enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 300000
 
 chat:
   auto_reply: true
@@ -124,8 +167,8 @@ knowledge_base:
     filePatterns:
       - "**/GUIDELINES.md"
   learnings:
-    scope: auto
+    scope: global
   issues:
-    scope: auto
+    scope: global
   pull_requests:
-    scope: auto
+    scope: global
