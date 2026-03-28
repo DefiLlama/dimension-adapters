@@ -18,8 +18,13 @@ const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   await addTokensReceived({ options, target: EVM_MULTISIG, balances: dailyFees });
 
-  if (options.chain !== CHAIN.HYPERLIQUID)
-    await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
+  if (options.chain !== CHAIN.HYPERLIQUID) {
+    try {
+      await getETHReceived({ options, balances: dailyFees, target: EVM_MULTISIG });
+    } catch (e) {
+      console.warn(`[genius-protocol] native inflows skipped (${options.chain}): ${(e as Error).message}`);
+    }
+  }
 
   return {
     dailyFees,
@@ -30,7 +35,11 @@ const fetchEVM = async (options: FetchOptions) => {
 const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
+  try {
+    await getSolanaReceived({ options, balances: dailyFees, target: SOL_MULTISIG });
+  } catch (e) {
+    console.warn(`[genius-protocol] native inflows skipped (solana): ${(e as Error).message}`);
+  }
 
   return {
     dailyFees,
