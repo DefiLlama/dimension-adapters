@@ -57,6 +57,13 @@ let usedHelper: string | null | undefined = null;
   const file = `${adapterType}/${moduleArg}`
   const passedFile = path.resolve(process.cwd(), `./${file}`);
 
+  // Skip documentation files (e.g., GUIDELINES.md, guidelines)
+  const docFiles = ['guidelines', 'readme', 'changelog'];
+  if (moduleArg.endsWith('.md') || docFiles.includes(moduleArg.toLowerCase().replace('.md', ''))) {
+    console.info(`Skipping documentation file: ${moduleArg}`);
+    process.exit(0);
+  }
+
   // throw error if module doesnt start with lowercase letters
   if (!/^[a-z0-9]/.test(moduleArg)) {
     throw new Error("Module name should start with a lowercase letter: " + moduleArg);

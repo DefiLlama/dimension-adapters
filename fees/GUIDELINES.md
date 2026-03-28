@@ -98,11 +98,13 @@ Example: When writing Fluid DEX adapter, add `'Swap Fees'` label even if it's th
 - `'Borrow Interest To Treasury'` - clear destination
 - `'Borrow Interest To Lenders'` - clear who receives
 
-**Bad labels - vague, not informative:**
-- `'Protocol Fees'` - too vague
+**Bad labels - vague, not informative (avoid for new adapters):**
+- `'Protocol Fees'` - too vague, prefer specific source labels
 - `'Fees'` - not descriptive
 - `'Revenue'` - doesn't explain source
 - `'Other'` / `'Misc'` - meaningless
+
+> Note: Some existing adapters may use generic labels like 'Protocol Fees'. New adapters should use more specific labels. Updates to existing adapters are encouraged but not required.
 
 ### How Labels Change Per Dimension
 

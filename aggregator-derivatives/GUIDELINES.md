@@ -15,7 +15,7 @@ Derivatives aggregators route perpetual and derivatives trades through multiple 
 ## Volume Calculation
 
 - Track derivatives volume ROUTED through the aggregator
-- **Track TAKER volume ONLY** - do NOT double count by adding both taker and maker volumes
+- **Track TAKER volume ONLY** - do NOT double-count by adding both taker and maker volumes
 - Include perpetual swaps, futures, and other derivative products
 - Do NOT double-count volume already tracked in underlying derivatives protocol adapters
 

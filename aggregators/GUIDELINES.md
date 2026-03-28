@@ -52,5 +52,5 @@ If the aggregator charges fees and this adapter returns fee/revenue dimensions, 
 
 1. Double-counting volume with underlying DEX adapters
 2. Not tracking all chains the aggregator operates on
-3. Missing integration/partner fees as supply side revenue
+3. Missing integration/partner fees as supply-side revenue
 4. Counting failed/reverted transactions

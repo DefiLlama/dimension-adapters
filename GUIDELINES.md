@@ -6,7 +6,7 @@ These guidelines apply to ALL adapters in this repository.
 
 - Use on-chain data/event logs where possible. We are stricter about on-chain for chains where we maintain our own indexer, or where there is significant volume/fees, or where you suspect wash trading
 - Use `pullHourly: true` to avoid recomputing data for the same time period and provide more granular data
-- Never swallow errors - better to fail than return incorrect data. If a small chain fails, return 0 for that chain rather than breaking the entire adapter
+- Never swallow errors silently. For recoverable chain-specific failures, return 0 and log the error so the adapter continues for other chains. For system-level or critical errors, throw/propagate to fail fast
 - Use/add helper code when multiple adapters use similar logic - check `helpers/` folder first
 - Do NOT add npm dependencies - this leads to bloat
 - Use `api.multiCall` where possible, avoid `Promise.all`. Use PromisePool for non-EVM calls
@@ -25,24 +25,28 @@ These guidelines apply to ALL adapters in this repository.
 ## Core Dimensions by Dashboard
 
 ### DEXs and DEX Aggregators
+
 | Dimension | Required | Description |
 |-----------|----------|-------------|
 | `dailyVolume` | YES | Trading volume for the period |
 
 ### Derivatives and Aggregator-Derivatives
+
 | Dimension | Required | Description |
 |-----------|----------|-------------|
-| `dailyVolume` | YES | Perpetual trading volume (TAKER volume only, do NOT double count maker+taker) |
+| `dailyVolume` | YES | Perpetual trading volume (TAKER volume only, do NOT double-count maker+taker) |
 | `openInterestAtEnd` | Optional | Open interest at period end |
 | `longOpenInterestAtEnd` | Optional | Long positions open interest |
 | `shortOpenInterestAtEnd` | Optional | Short positions open interest |
 
 ### Bridge Aggregators
+
 | Dimension | Required | Description |
 |-----------|----------|-------------|
 | `dailyBridgeVolume` | YES | Bridge volume for the period |
 
 ### Options
+
 | Dimension | Required | Description |
 |-----------|----------|-------------|
 | `dailyNotionalVolume` | YES | Notional volume of options contracts |
@@ -50,6 +54,7 @@ These guidelines apply to ALL adapters in this repository.
 | `openInterestAtEnd` | Optional | Open interest at period end |
 
 ### Fees (Income Statement Model)
+
 | Dimension | Required | Description |
 |-----------|----------|-------------|
 | `dailyFees` | YES | All fees from ALL sources (Gross Protocol Revenue) - everything protocol could theoretically keep if it took 100% |
@@ -61,7 +66,8 @@ These guidelines apply to ALL adapters in this repository.
 
 ## Minimum Requirements for Listing
 
-- **Must provide** accurate `dailyFees` and `dailyRevenue`
+- **Must provide** all required dimensions for the adapter category (see tables above)
+- **For fees adapters**: must provide accurate `dailyFees` and `dailyRevenue`
 - **Strongly encouraged**: `dailySupplySideRevenue` when protocol has supply-side costs
 - **Include when applicable**: `dailyHoldersRevenue` for protocols distributing to holders
 - **Always include**: breakdown labels and `breakdownMethodology`
@@ -101,7 +107,7 @@ These guidelines apply to ALL adapters in this repository.
 
 ## Deprecated Fields
 
-- `dailyBribeRevenue` and `dailyTokenTax` are deprecated, put these as sub-sections within `dailyHoldersRevenue` instead
+- `dailyBribesRevenue` and `dailyTokenTaxes` are deprecated; put these as sub-sections within `dailyHoldersRevenue` instead
 
 ## Data Classification Rules
 
@@ -122,4 +128,4 @@ Example: For Aave, if depositors get 70% and protocol gets 30% of borrow fees, d
 - Incorrect fee/revenue classification
 - Missing breakdown labels
 - Hardcoded values that should be dynamic
-- Double counting (e.g., both taker and maker volume in perps)
+- Double-counting (e.g., both taker and maker volume in perps)

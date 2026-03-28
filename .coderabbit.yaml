@@ -36,7 +36,7 @@ reviews:
       instructions: |
         Review DEX adapters for:
         - Volume calculation accuracy
-        - For perpetuals: ONLY track taker volume (do NOT double count maker+taker)
+        - For perpetuals: ONLY track taker volume (do NOT double-count maker+taker)
         - Wash trading concerns on low-fee chains
         - If fees are tracked, verify income statement compliance (see fees/ guidelines)
         - Use helper functions when available (uniV2Exports, uniV3Exports)
@@ -45,14 +45,29 @@ reviews:
       instructions: |
         Review aggregator adapters for:
         - Volume should be routed volume, NOT double-counted with underlying DEX volume
-        - Check for integration/partner fees as supply side costs
+        - Check for integration/partner fees as supply-side costs
         - If fees tracked, verify income statement compliance
     
     - path: "aggregator-derivatives/**"
       instructions: |
         Review derivatives aggregator adapters for:
-        - ONLY track taker volume (no maker+taker double counting)
+        - ONLY track taker volume (no maker+taker double-counting)
         - Check open interest tracking if applicable
+        - If fees tracked, verify income statement compliance
+    
+    - path: "aggregator-options/**"
+      instructions: |
+        Review options aggregator adapters for:
+        - Both dailyNotionalVolume and dailyPremiumVolume required
+        - Ensure routed options volume is not double-counted with underlying protocols
+        - If fees tracked, verify income statement compliance
+    
+    - path: "bridge-aggregators/**"
+      instructions: |
+        Review bridge aggregator adapters for:
+        - Track routed bridge volume only (dailyBridgeVolume)
+        - Avoid double-counting with underlying bridge protocols
+        - Verify multi-chain transfer accounting consistency
         - If fees tracked, verify income statement compliance
     
     - path: "options/**"
@@ -61,6 +76,13 @@ reviews:
         - Both dailyNotionalVolume and dailyPremiumVolume required
         - Don't confuse notional vs premium volume
         - If fees tracked, verify income statement compliance
+    
+    - path: "incentives/**"
+      instructions: |
+        Review incentives adapters for:
+        - Block rewards and emissions classified as incentives, not fees
+        - dailyTokenIncentives required; dailyIncentives when applicable
+        - No double-counting with fees adapters
     
     - path: "helpers/**"
       instructions: |
