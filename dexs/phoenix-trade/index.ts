@@ -1,5 +1,5 @@
 import { FetchOptions } from "../../adapters/types";
-import fetchURL from "../../utils/fetchURL";
+import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { PromisePool } from "@supercharge/promise-pool";
@@ -16,7 +16,7 @@ async function fetch(_: any, __: any, options: FetchOptions) {
     await PromisePool.withConcurrency(1)
         .for(markets)
         .process(async (market) => {
-            const ohlcvData = await fetchURL(`${PERP_API_URL}/candles/${market}?timeframe=1d&limit=300&startTime=${options.startOfDay * 1000}&endTime=${(options.endTimestamp) * 1000}`);
+            const ohlcvData = await fetchURLAutoHandleRateLimit(`${PERP_API_URL}/candles/${market}?timeframe=1d&limit=300&startTime=${options.startOfDay * 1000}&endTime=${(options.endTimestamp) * 1000}`);
             const todaysData = ohlcvData.filter((data: any) => data.time >= options.startOfDay * 1000 && data.time < (options.endTimestamp) * 1000);
             dailyVolume.addUSDValue(todaysData[0]?.volume ?? 0);
             await sleep(1000);
