@@ -2,50 +2,49 @@ import type { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
-const FEE_RECEIVER = '0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7'.toLowerCase();
+const FEE_RECEIVER = '0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7';
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await addTokensReceived({
-    options,
-    targets: [FEE_RECEIVER],
-    skipIndexer: true,
-  });
+    const dailyFees = await addTokensReceived({
+        options,
+        targets: [FEE_RECEIVER],
+    });
 
-  return {
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
+    return {
+        dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    };
 };
 
 const DEV_FEE_DESC = "Developer fees (0.1% per swap) are collected from each trade and sent to the designated fee receiver address.";
 
 const methodology = {
-  Fees: "We track fees sent to the fee receiver address which represents the developer commission for every swap executed via our frontend integration.",
-  Revenue: DEV_FEE_DESC,
-  ProtocolRevenue: DEV_FEE_DESC,
+    Fees: "We track fees sent to the fee receiver address which represents the developer commission for every swap executed via our frontend integration.",
+    Revenue: DEV_FEE_DESC,
+    ProtocolRevenue: DEV_FEE_DESC,
 };
 
 const breakdownMethodology = {
-  Fees: {
-    'Developer Fees': DEV_FEE_DESC,
-  },
-  Revenue: {
-    'Developer Fees': DEV_FEE_DESC,
-  },
-  ProtocolRevenue: {
-    'Developer Fees': DEV_FEE_DESC,
-  },
+    Fees: {
+        'Developer Fees': DEV_FEE_DESC,
+    },
+    Revenue: {
+        'Developer Fees': DEV_FEE_DESC,
+    },
+    ProtocolRevenue: {
+        'Developer Fees': DEV_FEE_DESC,
+    },
 };
 
 const adapter: Adapter = {
-  version: 2,
-  pullHourly: true,
-  chains: [CHAIN.BSC],
-  fetch,
-  start: '2026-03-23',
-  methodology,
-  breakdownMethodology,
+    version: 2,
+    pullHourly: true,
+    chains: [CHAIN.BSC],
+    fetch,
+    start: '2026-03-23',
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
