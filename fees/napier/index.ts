@@ -34,7 +34,7 @@ interface Market {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? 'https://api-v2.napier.finance';
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const { createBalances, chain, api } = options;
     const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
 
@@ -158,8 +158,8 @@ const chainConfig: Record<Chain, Config> = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
+  runAtCurrTime: true,
   fetch,
   adapter: chainConfig,
   methodology,
