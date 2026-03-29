@@ -181,6 +181,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.HYPERLIQUID]: { fetch, start: "2026-02-03" },
     [CHAIN.MONAD]: { fetch, start: "2026-03-23" },
