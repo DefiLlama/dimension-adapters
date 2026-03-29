@@ -1,4 +1,3 @@
-import { ChainApi } from "@defillama/sdk";
 import { Chain } from "../../adapters/types";
 import axios from "axios";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
@@ -39,9 +38,10 @@ interface Market {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? "https://api-v2.napier.finance";
 
-async function fetchMarkets(api: ChainApi) {
+async function fetchMarkets(api: any) {
   const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
   const res = await axios.get<Market[]>(url);
+
 
   if (!Array.isArray(res.data)) {
     throw new Error(`Napier API returned non-array payload for chainId ${api.chainId}`);
@@ -68,8 +68,7 @@ async function fetchMarkets(api: ChainApi) {
   return { curvePools, tokiHookAddress, poolIdToMarket, poolToMarket };
 }
 
-const fetch = (_chain: Chain) => {
-  return async (options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions) => {
     const { getLogs, createBalances } = options;
     const { curvePools, tokiHookAddress, poolIdToMarket, poolToMarket } = await fetchMarkets(options.api);
     const dailyVolume = createBalances();
@@ -138,9 +137,8 @@ const fetch = (_chain: Chain) => {
       }
     }
 
-    return { dailyVolume, timestamp: options.startOfDay };
+    return { dailyVolume };
   };
-};
 
 const methodology = {
   Volume: "Aggregates trading volume from Napier AMM pools by tracking on-chain swap events. Supports Curve AMM (TwoCrypto) pools via TokenExchange events and Napier AMM (TokiHook/Uniswap V4) pools via HookSwap events.",
@@ -163,14 +161,9 @@ const chainConfig: Record<Chain, { start: string }> = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    ...Object.fromEntries(
-      Object.entries(chainConfig).map(([chain, config]) => [
-        chain,
-        { fetch: fetch(chain as Chain), start: config.start },
-      ])
-    ),
-  },
+  pullHourly: true,
+  fetch,
+  adapter: chainConfig,
   methodology,
 };
 
