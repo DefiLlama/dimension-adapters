@@ -330,6 +330,9 @@ const configs: Record<string, Record<string, any>> = {
       start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1
     },
   },
+  "sailfish": {
+    [CHAIN.EDU_CHAIN]: {factory: '0x963A7f4eB46967A9fd3dFbabD354fC294FA2BF5C', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5}
+  },
 }
 
 const optionsMap: Record<string, any> = {
