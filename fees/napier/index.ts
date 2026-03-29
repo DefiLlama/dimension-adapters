@@ -1,6 +1,6 @@
 import { Chain } from "../../adapters/types";
 import axios from "axios";
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
@@ -34,20 +34,19 @@ interface Market {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? 'https://api-v2.napier.finance';
 
-const fetch = (chain: Chain) => {
-  return async (options: FetchOptions): Promise<FetchResultFees> => {
-    const { createBalances } = options;
-    const url = `${API_BASE_URL}/v1/market?chainIds=${options.api.chainId!}`;
+const fetch = async (options: FetchOptions) => {
+    const { createBalances, chain, api } = options;
+    const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
 
     let markets: Market[];
     try {
       const res = await axios.get<Market[]>(url);
       if (!Array.isArray(res.data)) {
-        throw new Error(`Napier API returned non-array payload for chain ${chain} (chainId ${options.api.chainId})`);
+        throw new Error(`Napier API returned non-array payload for chain ${chain} (chainId ${api.chainId})`);
       }
       markets = res.data;
     } catch (e: any) {
-      throw new Error(`Napier API fetch failed for chain ${chain} (chainId ${options.api.chainId}): ${e?.message ?? e}`);
+      throw new Error(`Napier API fetch failed for chain ${chain} (chainId ${api.chainId}): ${e?.message ?? e}`);
     }
 
     const dailyFees = createBalances();
@@ -89,10 +88,10 @@ const fetch = (chain: Chain) => {
       dailyFees,
       dailyRevenue,
       dailySupplySideRevenue,
-      timestamp: options.startOfDay,
+      dailyProtocolRevenue: dailyRevenue,
     };
   };
-};
+
 
 const methodology = {
   UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
@@ -100,6 +99,11 @@ const methodology = {
   Revenue: "Revenue governed by two fee distribution ratios: LP-Curator ratio (applies to AMM trading fees, defined per market by curators) and Curator-Protocol/DAO ratio (defined by Napier governance). Plus reward tokens sent to treasury.",
   ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio, plus protocol reward tokens.",
   SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
+};
+
+type Config = {
+  treasury: string;
+  start: string;
 };
 
 const chainConfig: Record<Chain, Config> = {
@@ -153,24 +157,11 @@ const chainConfig: Record<Chain, Config> = {
   },
 };
 
-type Config = {
-  treasury: string;
-  start: string;
-};
-
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    ...Object.fromEntries(
-      Object.entries(chainConfig).map(([chain, config]) => [
-        chain,
-        {
-          fetch: fetch(chain as Chain),
-          start: config.start,
-        },
-      ])
-    ),
-  },
+  pullHourly: true,
+  fetch,
+  adapter: chainConfig,
   methodology,
 };
 
