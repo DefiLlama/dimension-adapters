@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneSql, queryDuneResult } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../jupiter";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
@@ -8,7 +8,21 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     start: options.startTimestamp,
     end: options.endTimestamp,
   });
-  const data: any[] = await queryDuneSql(options, sql);
+
+  let data: any[] = [];
+  if (options.startOfDay > 1774656000) {
+    data = await queryDuneSql(options, sql);
+  } else {
+    const alldata = await queryDuneResult(options, '6919084')
+    const targetDate = options.dateString
+    const matched = alldata.find(
+      (row: any) => typeof row.day === 'string' && row.day.slice(0, 10) === targetDate,
+    )
+    data = matched ? [matched] : []
+    if(!data || !data.length) {
+      throw new Error(`No data found for date ${options.dateString}, fix cache result query`)
+    }
+  }
 
   const totals = data.reduce(
     (acc, row) => {

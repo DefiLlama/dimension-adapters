@@ -252,6 +252,11 @@ export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { ext
   }, options, { extraUIDKey })
 }
 
+export const queryDuneResult = async (_: any, queryId: string) => {
+  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results`)
+  return latest_result.result.rows
+}
+
 export const getSqlFromFile = (sqlFilePath: string, variables: Record<string, any> = {}): string => {
   try {
     const absolutePath = path.resolve(__dirname, '..', sqlFilePath);
