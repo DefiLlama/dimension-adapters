@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import axios from "axios";
 
 interface MarketResponse {
@@ -10,6 +11,7 @@ interface MarketResponse {
     list: Array<{
       marketId: string;
       isSmartLending: boolean;
+      chain: string;
     }>;
   };
 }
@@ -43,30 +45,29 @@ interface SwapEventArgs {
   token1: string;
 }
 
-const getSwapPools = async (): Promise<PoolInfo[]> => {
+const getSwapPools = async (chain: string): Promise<PoolInfo[]> => {
   const { data: marketList } = await axios.get<MarketResponse>(
-    "https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000&chain=bsc"
+    `https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000&chain=${chain}`
   );
 
   const smartLendingMarkets = marketList.data.list.filter(
-    (market) => market.isSmartLending
+    (market) => market.isSmartLending && market.chain === chain
+  );
+
+  const marketDetails = await Promise.all(
+    smartLendingMarkets.map((market) =>
+      axios.get<MarketDetailResponse>(
+        `https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`
+      )
+    )
   );
 
   const pools: PoolInfo[] = [];
-
-  for (const market of smartLendingMarkets) {
-    const { data: marketDetail } = await axios.get<MarketDetailResponse>(
-      `https://api.lista.org/api/moolah/market/${market.marketId}?chain=bsc`
-    );
-
+  for (const { data: marketDetail } of marketDetails) {
     if (marketDetail.data.smartCollateralConfig) {
       const { swapPool, token0, token1 } = marketDetail.data.smartCollateralConfig;
       if (swapPool && !pools.some((p) => p.pool.toLowerCase() === swapPool.toLowerCase())) {
-        pools.push({
-          pool: swapPool,
-          token0,
-          token1,
-        });
+        pools.push({ pool: swapPool, token0, token1 });
       }
     }
   }
@@ -82,21 +83,30 @@ const abi = {
 const fetch = async ({
   getLogs,
   createBalances,
+  chain,
 }: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
 
-  const pools = await getSwapPools();
+  const pools = await getSwapPools(chain);
+  if (pools.length === 0) {
+    return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue };
+  }
 
-  const logsByPool: SwapEventArgs[][] = await Promise.all(
-    pools.map(async (pool) => {
-      const logs = await getLogs({
-        target: pool.pool,
-        eventAbi: abi.tokenExchange,
-      });
+  const targets = pools.map((p) => p.pool);
 
-      return logs.map((log: any) => ({
+  const logsByTarget = await getLogs({
+    targets,
+    eventAbi: abi.tokenExchange,
+    flatten: false,
+  });
+
+  const allSwapEvents: SwapEventArgs[] = [];
+  pools.forEach((pool, idx) => {
+    const logs = logsByTarget[idx] || [];
+    logs.forEach((log: any) => {
+      allSwapEvents.push({
         swap0to1: BigInt(log.swap0to1) === 1n,
         amountIn: BigInt(log.amountIn),
         amountOut: BigInt(log.amountOut),
@@ -105,33 +115,20 @@ const fetch = async ({
         pool: pool.pool,
         token0: pool.token0,
         token1: pool.token1,
-      }));
-    })
-  );
-
-  const allSwapEvents = logsByPool.flat();
-  const swapEvents0to1 = allSwapEvents.filter((event) => event.swap0to1);
-  const swapEvents1to0 = allSwapEvents.filter((event) => !event.swap0to1);
-
-  const processSwapEvents = (events: SwapEventArgs[], isSwap0to1: boolean) => {
-    events.forEach(({ amountIn, token0, token1, fee, revenueCut }) => {
-      if (isSwap0to1) {
-        dailyVolume.add(token0, amountIn);
-        dailyFees.add(token0, fee);
-        dailyRevenue.add(token0, revenueCut);
-      } else {
-        dailyVolume.add(token1, amountIn);
-        dailyFees.add(token1, fee);
-        dailyRevenue.add(token1, revenueCut);
-      }
+      });
     });
-  };
+  });
 
-  processSwapEvents(swapEvents0to1, true);
-  processSwapEvents(swapEvents1to0, false);
+  allSwapEvents.forEach(({ swap0to1, amountIn, token0, token1, fee, revenueCut }) => {
+    const token = swap0to1 ? token0 : token1;
+    if (!token) return;
+    dailyVolume.add(token, amountIn);
+    dailyFees.add(token, fee, METRIC.SWAP_FEES);
+    dailyRevenue.add(token, revenueCut, METRIC.SWAP_FEES);
+  });
 
-  const dailySupplySideRevenue = dailyFees.clone();
-  dailySupplySideRevenue.subtract(dailyRevenue);
+  const dailySupplySideRevenue = dailyFees.clone(1, METRIC.SWAP_FEES);
+  dailySupplySideRevenue.subtract(dailyRevenue, METRIC.SWAP_FEES);
 
   return {
     dailyVolume,
@@ -152,11 +149,34 @@ const methodology = {
   SupplySideRevenue: "Amount of swap fees distributed to LPs.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Total swap fees paid by users.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Users pay fees per swap.",
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: "Lista DAO takes a portion of swap fees.",
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: "Lista DAO takes a portion of swap fees.",
+  },
+  SupplySideRevenue: {
+    [METRIC.SWAP_FEES]: "Amount of swap fees distributed to LPs.",
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.BSC]: {
+      fetch,
+      start: "2025-03-01",
+    },
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: "2025-03-01",
     },
