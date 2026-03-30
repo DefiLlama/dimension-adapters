@@ -48,6 +48,7 @@ const fetchEVM = async (options: FetchOptions) => {
         options,
         target: addr,
         balances: dailyFees,
+        skipIndexer: true,
         logFilter: (log: any) => !EVM_COLLECTORS_SET.has(log.from?.toLowerCase()),
       });
     } catch (e) {
