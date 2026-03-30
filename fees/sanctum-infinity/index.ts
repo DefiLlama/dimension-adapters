@@ -62,7 +62,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
             8
           )
         )
-  )) / 1e9 * 20), 0) as infv2_fees -- total INF minted
+  )), 0) / 1e9 * 20 as infv2_fees -- total INF minted
     from 
       solana.instruction_calls 
     where 
