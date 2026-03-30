@@ -45,34 +45,43 @@ interface SwapEventArgs {
   token1: string;
 }
 
+const HTTP_TIMEOUT_MS = 10_000;
+
 const getSwapPools = async (chain: string): Promise<PoolInfo[]> => {
-  const { data: marketList } = await axios.get<MarketResponse>(
-    `https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000&chain=${chain}`
-  );
+  try {
+    const { data: marketList } = await axios.get<MarketResponse>(
+      `https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000&chain=${chain}`,
+      { timeout: HTTP_TIMEOUT_MS }
+    );
 
-  const smartLendingMarkets = marketList.data.list.filter(
-    (market) => market.isSmartLending && market.chain === chain
-  );
+    const smartLendingMarkets = marketList.data.list.filter(
+      (market) => market.isSmartLending && market.chain === chain
+    );
 
-  const marketDetails = await Promise.all(
-    smartLendingMarkets.map((market) =>
-      axios.get<MarketDetailResponse>(
-        `https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`
+    const marketDetails = await Promise.all(
+      smartLendingMarkets.map((market) =>
+        axios.get<MarketDetailResponse>(
+          `https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`,
+          { timeout: HTTP_TIMEOUT_MS }
+        )
       )
-    )
-  );
+    );
 
-  const pools: PoolInfo[] = [];
-  for (const { data: marketDetail } of marketDetails) {
-    if (marketDetail.data.smartCollateralConfig) {
-      const { swapPool, token0, token1 } = marketDetail.data.smartCollateralConfig;
-      if (swapPool && !pools.some((p) => p.pool.toLowerCase() === swapPool.toLowerCase())) {
-        pools.push({ pool: swapPool, token0, token1 });
+    const pools: PoolInfo[] = [];
+    for (const { data: marketDetail } of marketDetails) {
+      if (marketDetail.data.smartCollateralConfig) {
+        const { swapPool, token0, token1 } = marketDetail.data.smartCollateralConfig;
+        if (swapPool && !pools.some((p) => p.pool.toLowerCase() === swapPool.toLowerCase())) {
+          pools.push({ pool: swapPool, token0, token1 });
+        }
       }
     }
-  }
 
-  return pools;
+    return pools;
+  } catch (e) {
+    console.error(`lista-dex: getSwapPools failed for ${chain}`, e);
+    return [];
+  }
 };
 
 const abi = {
