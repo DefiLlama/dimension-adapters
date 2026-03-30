@@ -67,20 +67,20 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2025-07-26",
   },
-  "sailfish": {
-    graphUrls: {
-      occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 50,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 50,
-      Revenue: 50,
-    },
-  },
+  // "sailfish": {
+  //   graphUrls: {
+  //     occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
+  //   },
+  //   totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+  //   feesPercent: {
+  //     type: "fees",
+  //     ProtocolRevenue: 50,
+  //     HoldersRevenue: 0,
+  //     UserFees: 100,
+  //     SupplySideRevenue: 50,
+  //     Revenue: 50,
+  //   },
+  // },
   "upheaval-v3": {
     graphUrls: {
       [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v3-fixed",
