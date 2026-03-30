@@ -35,9 +35,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     `
         WITH infv1_fees AS (
     SELECT 
-      cast(
+      COALESCE(cast(
         sum(token_balance_change) as BIGINT
-      ) * 10 as daily_fees
+      ) * 10, 0) as infv1_fees
     FROM 
       solana.account_activity 
     WHERE 
@@ -54,7 +54,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   ), 
   infv2_fees as (
     SELECT 
-      bytearray_to_bigint(
+      COALESCE(SUM(bytearray_to_bigint(
         bytearray_reverse(
           bytearray_substring(
             frombase58(inner_instructions[1].data), 
@@ -62,7 +62,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
             8
           )
         )
-      ) / 1e9 * 20 as daily_fees -- amount of INF minted
+  )) / 1e9 * 20), 0) as infv2_fees -- total INF minted
     from 
       solana.instruction_calls 
     where 
@@ -74,7 +74,8 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   )
 
   SELECT 
-    *
+    infv1_fees.infv1_fees,
+    infv2_fees.infv2_fees
   FROM 
     infv1_fees, infv2_fees
     `,
@@ -84,9 +85,11 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addCGToken("solana", fees[0].infv1_fees || 0 + fees[0].infv2_fees || 0);
-  dailyRevenue.addCGToken("solana", fees[0].infv1_fees * 0.1 || 0 + fees[0].infv2_fees * 0.05 || 0);
-
+  const infv1Fees = fees[0].infv1_fees || 0;
+  const infv2Fees = fees[0].infv2_fees || 0;
+  dailyFees.addCGToken("solana", infv1Fees + infv2Fees);
+  dailyRevenue.addCGToken("solana", infv1Fees * 0.1 + infv2Fees * 0.05);
+ 
   dailySupplySideRevenue.addBalances(dailyFees);
   dailySupplySideRevenue.subtract(dailyRevenue);
 
