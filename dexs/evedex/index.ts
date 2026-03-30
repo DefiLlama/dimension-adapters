@@ -29,10 +29,15 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     }
 }
 
+const methodology = {
+    Volume: "Daily trading volume is taken from Evedex's OHLCV API (volume is already reported in USD notional).",
+}
+
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.EVENTUM],
     start: "2025-06-30",
+    methodology,
 };
 
 export default adapter;
