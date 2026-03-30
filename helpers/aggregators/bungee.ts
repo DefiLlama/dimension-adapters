@@ -3,7 +3,7 @@ import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as ethers from "ethers";
-import { getDefaultDexTokensWhitelisted } from '../lists';
+import { getDefaultDexTokensBlacklisted } from '../lists';
 import { formatAddress } from '../../utils/utils';
 
 const SocketGatewayAbis = {
@@ -104,6 +104,26 @@ export const BungeeGatewayContracts: {[key: string]: {
     audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
     unaudited: [],
   },
+  [CHAIN.HYPERLIQUID]: {
+    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+    unaudited: [],
+  },
+  [CHAIN.INK]: {
+    audited: ['0x6379442Fb03F78060e8746AeA425eF6420e19F41'],
+    unaudited: [],
+  },
+  [CHAIN.KATANA]: {
+    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+    unaudited: [],
+  },
+  [CHAIN.MEGAETH]: {
+    audited: ['0x8f503B6d9fFdae8d375d1E226b71B4B3144D3849'],
+    unaudited: [],
+  },
+  [CHAIN.MONAD]: {
+    audited: ['0x1A2F1085A94De6fBcc334AAE1DDf527C567b75E7'],
+    unaudited: [],
+  },
 }
 
 interface AutoEvent {
@@ -201,10 +221,10 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
         eventAbi: SocketGatewayAbis.SocketSwapTokens,
       })
 
-      // count volune only from whitelisted tokens
-      const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
-      if (whitelistedTokens.length > 0) {
-        swapEvents = swapEvents.filter(log => whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut)))
+      // count volune only from non-blacklisted tokens
+      const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
+      if (blacklistedTokens.length > 0) {
+        swapEvents = swapEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.fromToken)) && !blacklistedTokens.includes(formatAddress(log.toToken)))
       }
       for (const event of swapEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {

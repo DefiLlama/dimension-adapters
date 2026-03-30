@@ -4,7 +4,8 @@ import { METRIC } from "../../helpers/metrics";
 import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../../helpers/hyperliquid";
 
 const methodology = {
-  Fees: "Include perps trading fees and builders fees, excluding spot fees.",
+  Volume: "Track trading volume on all perps markets (including HIP-3 markets), excluding all spot markets volume.",
+  Fees: "Include perps trading fees on crypto and HIP-3 deployed markets + builders fees, excluding all spot fees.",
   Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees.",
   ProtocolRevenue: "Protocol doesn't keep any fees.",
   HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees.",

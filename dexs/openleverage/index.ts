@@ -35,18 +35,12 @@ const graphs = (chain: Chain) => {
   }
 };
 
-const getStartTimestamp = async (chain: Chain) => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
-  return (new Date(historicalVolume[0].date).getTime()) / 1000;
-}
-
 const adapter: SimpleAdapter = {
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
     return {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => getStartTimestamp(chain),
       }
     }
   }, {})

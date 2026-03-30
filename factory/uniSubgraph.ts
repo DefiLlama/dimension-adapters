@@ -67,20 +67,20 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2025-07-26",
   },
-  "sailfish": {
-    graphUrls: {
-      occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 50,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 50,
-      Revenue: 50,
-    },
-  },
+  // "sailfish": {
+  //   graphUrls: {
+  //     occ: "https://api.goldsky.com/api/public/project_cm1s79wa2tlb701tbchmeaflf/subgraphs/sailfish-v3-occ-mainnet/1.0.3/gn",
+  //   },
+  //   totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+  //   feesPercent: {
+  //     type: "fees",
+  //     ProtocolRevenue: 50,
+  //     HoldersRevenue: 0,
+  //     UserFees: 100,
+  //     SupplySideRevenue: 50,
+  //     Revenue: 50,
+  //   },
+  // },
   "upheaval-v3": {
     graphUrls: {
       [CHAIN.HYPERLIQUID]: "https://api.upheaval.fi/subgraphs/name/upheaval/exchange-v3-fixed",
@@ -233,20 +233,20 @@ const configs: Record<string, SubgraphConfig> = {
     },
     start: "2024-07-02",
   },
-  "kodiak-v3": {
-    graphUrls: {
-      [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn",
-    },
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 35,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 65,
-      Revenue: 35,
-    },
-  },
+  // "kodiak-v3": {
+  //   graphUrls: {
+  //     [CHAIN.BERACHAIN]: "https://api.goldsky.com/api/public/project_clpx84oel0al201r78jsl0r3i/subgraphs/kodiak-v3-berachain-mainnet/latest/gn",
+  //   },
+  //   totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+  //   feesPercent: {
+  //     type: "fees",
+  //     ProtocolRevenue: 35,
+  //     HoldersRevenue: 0,
+  //     UserFees: 100,
+  //     SupplySideRevenue: 65,
+  //     Revenue: 35,
+  //   },
+  // },
   "shido-dex": {
     graphUrls: {
       [CHAIN.SHIDO]: "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet",
@@ -387,7 +387,35 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 0,
     },
     start: '2024-03-11',
-  }
+  },
+  'treble-spot': {
+    graphUrls: {
+      [CHAIN.BASE]: "8rV9EcKW8J8u6rt7t9vdCf2gCieiaEM1TiKWYxVTxa4i",
+    },
+    totalVolume: { factory: "factories", field: 'totalVolumeUSD', },
+    feesPercent: {
+      type: "fees",
+      ProtocolRevenue: 0,
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+    },
+    start: '2025-01-20',
+  },
+  'treble-v4': {
+    graphUrls: {
+      [CHAIN.BASE]: "3sThy2UsWd9X3D2M6MUQWzNUYrs8snMMhQKHSg9kUEAd",
+    },
+    totalVolume: { factory: "factories", field: 'totalVolumeUSD', },
+    feesPercent: {
+      type: "fees",
+      ProtocolRevenue: 0,
+      UserFees: 100,
+      SupplySideRevenue: 100,
+      Revenue: 0,
+    },
+    start: '2026-01-20',
+  },
 };
 
 // Build protocols from configs

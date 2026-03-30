@@ -4,6 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const tickersURL = "https://api.bitflowapis.finance/ticker";
+const dlmmTickersURL = "https://bff.bitflowapis.finance/api/app/v1/tickers";
 const tokensURL = "https://api.bitflowapis.finance/getAllTokensAndPools";
 
 interface Ticker {
@@ -17,6 +18,14 @@ interface Token {
     last_price: number;
   };
 }
+
+const isStacksToken = (tokenContract: string) => {
+  return (
+    tokenContract === "Stacks" ||
+    tokenContract ===
+      "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2"
+  );
+};
 
 const getTokenPricesMap = async () => {
   const {
@@ -47,20 +56,26 @@ const getTokenDailyVolume = ({
 };
 
 const fetch = async (): Promise<FetchResult> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp();
-  const tickers: Ticker[] = await fetchURL(tickersURL);
-  const tokensPriceMap = await getTokenPricesMap();
+  const [tickers, dlmmTickers, tokensPriceMap] = await Promise.all([
+    fetchURL(tickersURL),
+    fetchURL(dlmmTickersURL),
+    getTokenPricesMap(),
+  ]);
 
   let dailyVolume = 0;
 
-  for (const ticker of tickers) {
-    const tokenContract =
-      ticker.base_currency === "Stacks" ? "null" : ticker.base_currency;
+  for (const ticker of [...tickers, ...dlmmTickers]) {
+    const baseVolume = Number(ticker.base_volume);
+    if (!Number.isFinite(baseVolume)) continue;
+
+    const tokenContract = isStacksToken(ticker.base_currency)
+      ? "null"
+      : ticker.base_currency;
 
     dailyVolume += getTokenDailyVolume({
       map: tokensPriceMap,
       tokenContract,
-      baseVolume: ticker.base_volume,
+      baseVolume,
     });
   }
 

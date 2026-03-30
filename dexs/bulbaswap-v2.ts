@@ -23,7 +23,7 @@ const fetchV2Data = async (_: any, _tt: any, options: FetchOptions) => {
     query: factoryQuery,
   });
 
-  const dailyVolume = response.data.uniswapDayData.dailyVolumeUSD || "0";
+  const dailyVolume = response.data.uniswapDayData.dailyVolumeUSD
 
   const result = {
     dailyVolume,

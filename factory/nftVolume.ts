@@ -1,60 +1,21 @@
 import { SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
-import ADDRESSES from '../helpers/coreAssets.json'
 import { queryAllium } from "../helpers/allium";
-import { queryFlipside } from "../helpers/flipsidecrypto";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { FetchOptions } from "../adapters/types";
 
 // --- v2 adapters: support time-range queries via FetchOptions ---
 
-async function optimism({ startTimestamp, endTimestamp, createBalances }: FetchOptions) {
-  const data = await queryFlipside(`select currency_address, sum(price) from optimism.nft.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${startTimestamp}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${endTimestamp}) group by CURRENCY_ADDRESS`)
-  const dailyVolume = createBalances();
-  const tokenMap: Record<string, string> = {
-    "ETH": "ethereum",
-    [ADDRESSES.optimism.OP]: "optimism",
-    [ADDRESSES.optimism.WETH_1]: "ethereum"
-  };
-  data.forEach(([address, amount]: any) => {
-    const cgId = tokenMap[address];
-    if (cgId) dailyVolume.addCGToken(cgId, Number(amount))
-  });
-  return { dailyVolume };
+async function optimism({ }: FetchOptions) {
+  throw new Error("Not implemented yet, find solution")
 }
 
-async function avalanche({ startTimestamp, endTimestamp, createBalances }: FetchOptions) {
-  const data = await queryFlipside(`select currency_address, sum(price) from avalanche.nft.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${startTimestamp}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${endTimestamp}) group by CURRENCY_ADDRESS`)
-  const dailyVolume = createBalances();
-  const tokenMap: Record<string, string> = {
-    "ETH": "avalanche-2",
-    "AVAX": "avalanche-2",
-    [ADDRESSES.avax.WAVAX]: "avalanche-2"
-  };
-  data.map(([token, value]: any) => [token, token.startsWith("0x") ? value : value / 1e18])
-    .forEach(([address, amount]: any) => {
-      const cgId = tokenMap[address];
-      if (cgId) dailyVolume.addCGToken(cgId, Number(amount));
-    });
-  return { dailyVolume };
+async function avalanche({ }: FetchOptions) {
+  throw new Error("Not implemented yet, find solution")
 }
 
-async function flow({ startTimestamp, endTimestamp, createBalances }: FetchOptions) {
-  const tokenMap: Record<string, string> = {
-    "A.ead892083b3e2c6c.DapperUtilityCoin": "usd-coin",
-    "A.3c5959b568896393.FUSD": "usd-coin",
-    "A.1654653399040a61.FlowToken": "flow",
-    "A.ead892083b3e2c6c.FlowUtilityToken": "flow",
-    "A.d01e482eb680ec9f.REVV": "revv",
-    "A.b19436aae4d94622.FiatToken": "usd-coin"
-  };
-  const data = await queryFlipside(`select currency, sum(price) from flow.nft.ez_nft_sales where BLOCK_TIMESTAMP > TO_TIMESTAMP_NTZ(${startTimestamp}) AND BLOCK_TIMESTAMP < TO_TIMESTAMP_NTZ(${endTimestamp}) group by currency`)
-  const dailyVolume = createBalances();
-  data.forEach(([address, amount]: any) => {
-    const cgId = tokenMap[address];
-    if (cgId) dailyVolume.addCGToken(cgId, Number(amount));
-  });
-  return { dailyVolume };
+async function flow({ }: FetchOptions) {
+  throw new Error("Not implemented yet, find solution")
 }
 
 function getAlliumVolume(chain: string) {

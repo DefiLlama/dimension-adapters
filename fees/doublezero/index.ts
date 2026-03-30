@@ -10,14 +10,11 @@ const doubleZero = 'J6pQQ3FAcJQeWPPGppWRb4nM8jU3wLyYbRrLh7feMfvd'
 
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances();
-
   const query = `
     WITH txs AS (
     SELECT 
         tx_id,
         instruction_name,
-        data,
-        account_arguments,
         CAST(args_0[1] AS BIGINT) as amount
     FROM solana.instruction_calls_decoded
     WHERE outer_executing_account = 'dzrevZC94tBLwuHw1dyynZxaXTWyp7yocsinyEVPtt4'

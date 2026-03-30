@@ -41,7 +41,6 @@ export const ENV_KEYS = new Set([
   ...Object.keys(DEFAULTS),
   'PANCAKESWAP_OPBNB_SUBGRAPH',
   'INDEXA_DB',
-  'FLIPSIDE_API_KEY',
   'DUNE_API_KEYS',
   'DUNE_RESTRICTED_MODE',
   'ALLIUM_API_KEY',
@@ -57,7 +56,6 @@ export const ENV_KEYS = new Set([
   'OKX_API_KEY',
   'ALCHEMIX_KEY',
   'ALCHEMIX_SECRET',
-  'FLIPSIDE_RESTRICTED_MODE',
   'STARBASE_API_KEY',
   'ENSO_API_KEY',
   'NUMIA_API_KEY',
@@ -83,6 +81,8 @@ export const ENV_KEYS = new Set([
   'DECIBEL_API_KEY',
   'SPACESCOPE_API_KEY',
   'DEEPTRADE_API_KEY',
+  'HYPERSWAP_API_KEY',
+  'MIRACLETRADE_API_KEY',
 ])
 
 // This is done to support both ZEROx_API_KEY and ZEROX_API_KEY

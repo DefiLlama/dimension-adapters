@@ -8,6 +8,8 @@ const dexsConfigs: Record<string, { builder: string; start: string }> = {
   "polycule": { builder: "Polycule", start: "2025-11-03" },
   "polytraderpro": { builder: "polytraderpro", start: "2025-10-22" },
   "stand-trade": { builder: "standtrade", start: "2025-10-10" },
+  "rainbow-predictions": { builder: "Rainbow", start: "2025-11-12" },
+  "kreo": { builder: "Kreo", start: "2026-01-09" },
 };
 
 const dexsProtocols: Record<string, any> = {};

@@ -14,15 +14,10 @@ const fetch = async (timestamp: number) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  return 1686009600
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: getStartTimestamp
     },
   },
 };

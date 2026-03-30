@@ -2456,7 +2456,16 @@ export default (
         scroll: ["0x010931D4d82ff3F5Ae8bD94e0752570711f78959"],
         polygon: ["0x34E2F923bBa206358EcE221af73E8d121837F873"],
       },
-    },  
-
+    },
+    {
+      id: "711",
+      name: "Polymarket",
+      addresses: {
+        polygon: [
+          '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045', // Ctf
+          '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296', // NegRiskCtf
+        ]
+      }
+    }  
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
