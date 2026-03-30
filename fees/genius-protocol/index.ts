@@ -123,6 +123,14 @@ const adapter: Adapter = {
     Fees: "All ERC-20 token and native coin inflows to the Genius Protocol fee collector wallets on each chain. Intra-collector transfers are excluded.",
     Revenue: "All inflows are protocol revenue (100% of fees accrue to the protocol).",
   },
+  breakdownMethodology: {
+    Fees: {
+      "Terminal Trading Fees": "Swap fees collected by the Genius Protocol terminal across all supported chains, received as ERC-20 tokens and native coins into the protocol fee collector wallets.",
+    },
+    Revenue: {
+      "Terminal Trading Fees": "All terminal trading fees accrue to the protocol as revenue.",
+    },
+  },
   start: '2026-01-01',
   adapter: {
     ...evmAdapter,
