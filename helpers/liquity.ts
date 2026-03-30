@@ -307,8 +307,8 @@ const v2ExportsConfig = {
     [CHAIN.ETHEREUM]: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', stabilityPoolRatio: 1, start: '2025-07-04' }
   },
   "ebisu-ebusd":{
-    [CHAIN.ETHEREUM]: { collateralRegistry: '0x5e159fAC2D137F7B83A12B9F30ac6aB2ba6d45E7', stabilityPoolRatio: 1, start: '2025-06-05' },
-    [CHAIN.PLASMA]: { collateralRegistry: '0x602096a2f43b43d11dcb3713702dda963c45adc6', stabilityPoolRatio: 1, start: '2025-10-15' },
+    [CHAIN.ETHEREUM]: { collateralRegistry: '0x5e159fAC2D137F7B83A12B9F30ac6aB2ba6d45E7', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2025-06-05' },
+    [CHAIN.PLASMA]: { collateralRegistry: '0x602096a2f43b43d11dcb3713702dda963c45adc6', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2025-10-15' },
   },
   "enosys-loans":{
     [CHAIN.FLARE]: { collateralRegistry: '0x9474206bc035D03d142264fd9913d1D51246d3AC', stabilityPoolRatio: 1, start: '2025-12-09' }
