@@ -43,12 +43,16 @@ const fetchEVM = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   for (const addr of EVM_FEE_COLLECTORS) {
-    await addTokensReceived({
-      options,
-      target: addr,
-      balances: dailyFees,
-      logFilter: (log: any) => !EVM_COLLECTORS_SET.has(log.from?.toLowerCase()),
-    });
+    try {
+      await addTokensReceived({
+        options,
+        target: addr,
+        balances: dailyFees,
+        logFilter: (log: any) => !EVM_COLLECTORS_SET.has(log.from?.toLowerCase()),
+      });
+    } catch (e) {
+      console.warn(`[genius-protocol] token inflows skipped (${options.chain}, ${addr}): ${(e as Error).message}`);
+    }
 
     if (options.chain !== CHAIN.HYPERLIQUID) {
       try {
