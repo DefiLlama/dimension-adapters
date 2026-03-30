@@ -26,7 +26,7 @@ const CONTRACTS = {
     },
 }
 
-const YIELD_SEGMENTS = 5
+const YIELD_SEGMENTS = 10
 
 const PROTOCOL_START_TS: Record<string, number> = {
     [CHAIN.ETHEREUM]: Math.floor(new Date("2024-11-11T00:00:00Z").getTime() / 1000),
