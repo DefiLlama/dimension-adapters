@@ -262,6 +262,13 @@ const protocols = {
     version: 1,
     minContracts: 4
   }),
+  'evedex': dailyNormalizedVolumeAdapter({
+    protocolName: 'evedex',
+    chains: [CHAIN.EVENTUM],
+    start: '2026-03-30',
+    version: 2,
+    minContracts: 20
+  }),
 } as const;
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);
