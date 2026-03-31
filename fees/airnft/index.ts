@@ -27,10 +27,10 @@ const fetch = async (options: FetchOptions) => {
     target: contract,
   })
   logs.forEach((log) => {
-    const protocolsCut = Number(log.price) / 40
+    const protocolsCut = log.price / 40n
     dailyFees.add(asset, log.price, "NFT Trading Fees")
     dailyRevenue.add(asset, protocolsCut, METRIC.SERVICE_FEES)
-    dailySupplySideRevenue.add(asset, Number(log.price) - protocolsCut, METRIC.CREATOR_FEES)
+    dailySupplySideRevenue.add(asset, log.price - protocolsCut, "Seller Proceeds")
   });
 
   return {
@@ -64,7 +64,7 @@ const adapters: SimpleAdapter = {
       [METRIC.SERVICE_FEES]: '2.5% protocol cut from the seller on all transactions.',
     },
     SupplySideRevenue: {
-      [METRIC.CREATOR_FEES]: 'The remaining sale proceeds paid to NFT creators.',
+      "Seller Proceeds": 'The remaining sale proceeds paid to NFT creators.',
     },
   },
 };
