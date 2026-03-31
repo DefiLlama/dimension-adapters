@@ -72,7 +72,6 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
   fetch, start: UNIFORM_START,
   chains: Object.keys(CHAINS),
 };

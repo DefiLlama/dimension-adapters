@@ -31,7 +31,7 @@ const getBribes = async (fetchOptions: FetchOptions): Promise<{ dailyBribesReven
   const iface = new ethers.Interface([eventAbis.event_notify_reward]);
 
   const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 20524597, eventAbi: eventAbis.event_gaugeCreated, skipIndexer: true, })
+  const logs_gauge_created = await getLogs({ target: CONFIG.voter, fromBlock: 20524597, eventAbi: eventAbis.event_gaugeCreated, cacheInCloud: true, })
   if (!logs_gauge_created?.length) return { dailyBribesRevenue };
 
   const bribes_contract: string[] = logs_gauge_created
@@ -59,7 +59,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   const dailyFees = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
 
-  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 20524597, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: true, })
+  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 20524597, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, })
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
   const fees = await api.multiCall({ abi: abis.fee, calls: _pools })
   const aeroPoolSet = new Set()
@@ -84,7 +84,7 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
     startBlock += blockStep
   }
 
-  let errorFound = false
+  let errorFound: any
 
 
   await PromisePool

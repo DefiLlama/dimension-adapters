@@ -78,6 +78,7 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
@@ -88,7 +89,7 @@ const adapter: Adapter = {
     Fees: "Yield collected from deposited assets.",
     Revenue: "Yield collected from deposited assets.",
     HoldersRevenue: 'Fees distributed to token holders',
-    BridesRevenue: "Rewards are distributed to quest participants",
+    BribesRevenue: "Rewards are distributed to quest participants",
   }
 };
 

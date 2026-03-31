@@ -127,6 +127,7 @@ const adapter: SimpleAdapter = {
   methodology,
   chains: [CHAIN.ETHEREUM],
   start: '2025-08-12',
+  doublecounted: true,
 }
 
 export default adapter;

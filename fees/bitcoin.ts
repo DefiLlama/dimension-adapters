@@ -11,14 +11,14 @@ async function fetchFunction(_a: any, _b: any, options: FetchOptions) {
     "body": null,
     "method": "GET"
   });
-  
+
   const { values } = await response.json();
 
   const item = values.find((i: any) => Number(i.x) === options.startOfDay);
   if (!item) {
     throw Error(`can not get Bitcoin fees for date ${options.startOfDay}`);
   }
-  
+
   const dailyFees = options.createBalances()
   dailyFees.addCGToken('bitcoin', item.y)
 
