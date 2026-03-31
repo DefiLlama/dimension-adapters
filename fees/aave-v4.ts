@@ -97,28 +97,63 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const spokes = await discoverSpokes(options.fromApi, hubs, assetCounts)
-  for (const spoke of spokes) {
-    const logs = await options.getLogs({ target: spoke, eventAbi: abis.LiquidationCall })
-    if (logs.length === 0) continue
 
-    const oracle = await options.fromApi.call({ target: spoke, abi: abis.ORACLE })
-    const reserveCount = await options.fromApi.call({ target: spoke, abi: abis.getReserveCount })
-    const reserveCalls = Array.from({ length: reserveCount }, (_, i) => i)
-    const reserves = await options.fromApi.multiCall({ target: spoke, abi: abis.getReserve, calls: reserveCalls })
+  const [allLogs, allOracles, allReserveCounts] = await Promise.all([
+    Promise.all(spokes.map(spoke => options.getLogs({ target: spoke, eventAbi: abis.LiquidationCall }))),
+    options.fromApi.multiCall({ abi: abis.ORACLE, calls: spokes }),
+    options.fromApi.multiCall({ abi: abis.getReserveCount, calls: spokes }),
+  ])
 
-    for (const log of logs) {
+  const spokesWithLogs = spokes
+    .map((spoke, idx) => ({ spoke, logs: allLogs[idx], oracle: allOracles[idx], reserveCount: Number(allReserveCounts[idx]) }))
+    .filter(s => s.logs.length > 0)
+
+  const allReserveCalls = spokesWithLogs.flatMap(s =>
+    Array.from({ length: s.reserveCount }, (_, i) => ({ target: s.spoke, params: [i] }))
+  )
+  const allReserves = allReserveCalls.length > 0
+    ? await options.fromApi.multiCall({ abi: abis.getReserve, calls: allReserveCalls })
+    : []
+
+  const reservesBySpoke: Record<string, any[]> = {}
+  let offset = 0
+  for (const s of spokesWithLogs) {
+    reservesBySpoke[s.spoke] = allReserves.slice(offset, offset + s.reserveCount)
+    offset += s.reserveCount
+  }
+
+  const priceCallsMap = new Map<string, { oracle: string; reserveId: number }>()
+  for (const s of spokesWithLogs) {
+    for (const log of s.logs) {
+      const colId = Number(log.collateralReserveId)
+      const debtId = Number(log.debtReserveId)
+      priceCallsMap.set(`${s.oracle}-${colId}`, { oracle: s.oracle, reserveId: colId })
+      priceCallsMap.set(`${s.oracle}-${debtId}`, { oracle: s.oracle, reserveId: debtId })
+    }
+  }
+
+  const priceCallEntries = [...priceCallsMap.entries()]
+  const prices = priceCallEntries.length > 0
+    ? await options.fromApi.multiCall({
+        abi: abis.getReservePrice,
+        calls: priceCallEntries.map(([, v]) => ({ target: v.oracle, params: [v.reserveId] })),
+      })
+    : []
+
+  const priceMap: Record<string, bigint> = {}
+  priceCallEntries.forEach(([key], i) => { priceMap[key] = BigInt(prices[i]) })
+
+  for (const s of spokesWithLogs) {
+    const reserves = reservesBySpoke[s.spoke]
+
+    for (const log of s.logs) {
       const collateralReserveId = Number(log.collateralReserveId)
       const debtReserveId = Number(log.debtReserveId)
       const collateralToken = reserves[collateralReserveId]?.underlying
       if (!collateralToken) continue
 
-      const collateralDecimals = Number(reserves[collateralReserveId].decimals)
-      const debtDecimals = Number(reserves[debtReserveId].decimals)
-
-      const [collateralPrice, debtPrice] = await Promise.all([
-        options.fromApi.call({ target: oracle, abi: abis.getReservePrice, params: [collateralReserveId] }),
-        options.fromApi.call({ target: oracle, abi: abis.getReservePrice, params: [debtReserveId] }),
-      ])
+      const collateralPrice = priceMap[`${s.oracle}-${collateralReserveId}`]
+      const debtPrice = priceMap[`${s.oracle}-${debtReserveId}`]
 
       const collateralRemoved = BigInt(log.collateralAmountRemoved)
       const debtRestored = BigInt(log.debtAmountRestored)
@@ -126,10 +161,9 @@ const fetch = async (options: FetchOptions) => {
       const sharesToLiquidator = BigInt(log.collateralSharesToLiquidator)
       if (sharesLiquidated === 0n) continue
 
-      const collateralUnit = 10n ** BigInt(collateralDecimals)
-      const debtUnit = 10n ** BigInt(debtDecimals)
-      const fairCollateral = debtRestored * BigInt(debtPrice) * collateralUnit / (debtUnit * BigInt(collateralPrice))
-
+      const collateralUnit = 10n ** BigInt(reserves[collateralReserveId].decimals)
+      const debtUnit = 10n ** BigInt(reserves[debtReserveId].decimals)
+      const fairCollateral = debtRestored * debtPrice * collateralUnit / (debtUnit * collateralPrice)
       //bonus = collateral seized - fair value of debt repaid
       const totalBonus = collateralRemoved > fairCollateral ? collateralRemoved - fairCollateral : 0n
       const protocolFeeAmount = collateralRemoved * (sharesLiquidated - sharesToLiquidator) / sharesLiquidated
