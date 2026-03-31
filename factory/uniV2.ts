@@ -9,9 +9,6 @@ const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed t
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
 
 const configs: Record<string, Record<string, any>> = {
-  'test-please-ignore': {
-    [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
-  },
   'fusionx-v2': {
     [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
   },

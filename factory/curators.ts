@@ -413,17 +413,17 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         eulerVaultOwners: zerolendMultisigs,
         euler: ['0xc42d337861878baa4dc820d9e6b6c667c2b57e8a', '0x1ab9e92cfde84f38868753d30ffc43f812b803c5', '0xc364fd9637fe562a2d5a1cbc7d1ab7f32be900ef'],
-        start: '2025-08-21',
+        start: '2025-07-27',
       },
       [CHAIN.LINEA]: {
         eulerVaultOwners: zerolendMultisigs,
         euler: ['0x14efcc1ae56e2ff75204ef2fb0de43378d0beada', '0x085f80df643307e04f23281f6fdbfaa13865e852', '0x9ac2f0a564b7396a8692e1558d23a12d5a2abb1f'],
-        start: '2025-08-21',
+        start: '2025-07-27',
       },
       [CHAIN.BERACHAIN]: {
         eulerVaultOwners: zerolendMultisigs,
         euler: ['0x28C96C7028451454729750171BD3Bb95D7261B5a', '0x112B77A77753b092306b1c04Bd70215FeD4e00a1', '0x1B33D24C4C78a61DA80Cfa2d0dB72ca0851d5fb1', '0x2247B618251b8d913F3fD10B749e7bfa3E3a28db', '0x401c4633dCa173bf75ac85F2D270d98c063F54CF', '0x2Bf927248f86Bd78ce300d00C7c8A175e3e0B38a'],
-        start: '2025-08-21',
+        start: '2025-07-27',
       },
       // [CHAIN.SONIC]: {
       //   eulerVaultOwners: zerolendMultisigs,
