@@ -106,16 +106,10 @@ async function getPyramidFees(options: FetchOptions) {
   const config = PYRAMID_CONFIG[options.chain as keyof typeof PYRAMID_CONFIG];
   if (!config) return balances;
 
- let logs: any[] = [];
-  try {
-    logs = await options.getLogs({
+    const logs = await options.getLogs({
       target: config.target,
       eventAbi: PYRAMID_CLAIM_EVENT,
     });
-  } catch (error) {
-    console.error(`Error fetching pyramid claim logs for ${options.chain}:`, error);
-    return balances;
-  }
 
   for (const log of logs) {
     const price = BigInt(log.price || 0);
@@ -132,16 +126,10 @@ async function getVerificationFees(options: FetchOptions) {
   const config = VERIFICATION_CONFIG[options.chain as keyof typeof VERIFICATION_CONFIG];
   if (!config) return balances;
 
-  let logs: any[] = [];
-  try {
-    logs = await options.getLogs({
+    const logs = await options.getLogs({
       target: config.target,
       eventAbi: STATUS_UPDATED_EVENT,
     });
-  } catch (error) {
-    console.error(`Error fetching verification status update logs for ${options.chain}:`, error);
-    return balances;
-  }
 
   for (const log of logs) {
     const newStatus = Number(log.newStatus ?? -1);
