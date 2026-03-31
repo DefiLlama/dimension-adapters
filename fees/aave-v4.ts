@@ -1,0 +1,173 @@
+import { CHAIN } from '../helpers/chains'
+import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
+import { METRIC } from '../helpers/metrics'
+
+const HUBS: Record<string, string[]> = {
+  [CHAIN.ETHEREUM]: [
+    '0xCca852Bc40e560adC3b1Cc58CA5b55638ce826c9', // Core
+    '0x06002e9c4412CB7814a791eA3666D905871E536A', // Plus
+    '0x943827DCA022D0F354a8a8c332dA1e5Eb9f9F931', // Prime
+  ],
+}
+
+const abis = {
+  getAssetCount: 'uint256:getAssetCount',
+  getAssetUnderlyingAndDecimals: 'function getAssetUnderlyingAndDecimals(uint256) view returns (address, uint8)',
+  getAssetAccruedFees: 'function getAssetAccruedFees(uint256) view returns (uint256)',
+  getAsset: 'function getAsset(uint256) view returns (tuple(uint120 liquidity, uint120 realizedFees, uint8 decimals, uint120 addedShares, uint120 swept, int200 premiumOffsetRay, uint120 drawnShares, uint120 premiumShares, uint16 liquidityFee, uint120 drawnIndex, uint96 drawnRate, uint40 lastUpdateTimestamp, address underlying, address irStrategy, address reinvestmentController, address feeReceiver, uint200 deficitRay))',
+  getSpokeCount: 'function getSpokeCount(uint256) view returns (uint256)',
+  getSpokeAddress: 'function getSpokeAddress(uint256, uint256) view returns (address)',
+  MintFeeShares: 'event MintFeeShares(uint256 indexed assetId, address indexed feeReceiver, uint256 shares, uint256 assets)',
+  LiquidationCall: 'event LiquidationCall(uint256 indexed collateralReserveId, uint256 indexed debtReserveId, address indexed user, address liquidator, bool receiveShares, uint256 debtAmountRestored, uint256 drawnSharesLiquidated, tuple(int256 sharesDelta, int256 offsetRayDelta, uint256 restoredPremiumRay) premiumDelta, uint256 collateralAmountRemoved, uint256 collateralSharesLiquidated, uint256 collateralSharesToLiquidator)',
+  getReserve: 'function getReserve(uint256) view returns (tuple(address underlying, address hub, uint16 assetId, uint8 decimals, uint24 collateralRisk, uint8 flags, uint32 dynamicConfigKey))',
+  getReserveCount: 'uint256:getReserveCount',
+}
+
+async function discoverSpokes(api: any, hubs: string[], assetCounts: number[]): Promise<string[]> {
+  const countCalls = hubs.flatMap((hub, i) =>
+    Array.from({ length: assetCounts[i] }, (_, assetId) => ({ target: hub, params: [assetId] }))
+  )
+  const spokeCounts = await api.multiCall({ abi: abis.getSpokeCount, calls: countCalls, permitFailure: true })
+
+  const addrCalls: any[] = []
+  spokeCounts.forEach((count: any, idx: number) => {
+    if (count === null) return
+    const { target, params } = countCalls[idx]
+    for (let j = 0; j < count; j++) {
+      addrCalls.push({ target, params: [params[0], j] })
+    }
+  })
+
+  if (addrCalls.length === 0) return []
+  const addrs = await api.multiCall({ abi: abis.getSpokeAddress, calls: addrCalls })
+
+  const candidates = [...new Set<string>(addrs)]
+  const reserveCounts = await api.multiCall({ abi: abis.getReserveCount, calls: candidates, permitFailure: true })
+  return candidates.filter((_: string, i: number) => reserveCounts[i] !== null)
+}
+
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+
+  const hubs = HUBS[options.chain]
+  const assetCounts: number[] = await options.fromApi.multiCall({ abi: abis.getAssetCount, calls: hubs })
+
+  const allCalls = hubs.flatMap((hub, i) =>
+    Array.from({ length: assetCounts[i] }, (_, assetId) => ({ target: hub, params: [assetId] }))
+  )
+
+  const [underlyings, assetConfigs, feesBefore, feesAfter] = await Promise.all([
+    options.fromApi.multiCall({ abi: abis.getAssetUnderlyingAndDecimals, calls: allCalls }),
+    options.fromApi.multiCall({ abi: abis.getAsset, calls: allCalls }),
+    options.fromApi.multiCall({ abi: abis.getAssetAccruedFees, calls: allCalls }),
+    options.toApi.multiCall({ abi: abis.getAssetAccruedFees, calls: allCalls }),
+  ])
+
+  const mintLogsByHub = await Promise.all(
+    hubs.map(hub => options.getLogs({ target: hub, eventAbi: abis.MintFeeShares }))
+  )
+
+  const mintedByKey: Record<string, bigint> = {}
+  mintLogsByHub.forEach((logs, hubIdx) => {
+    for (const log of logs) {
+      const key = `${hubs[hubIdx]}-${Number(log.assetId)}`
+      mintedByKey[key] = (mintedByKey[key] || 0n) + BigInt(log.assets)
+    }
+  })
+
+  for (let i = 0; i < allCalls.length; i++) {
+    const token = underlyings[i][0]
+    const liquidityFee = Number(assetConfigs[i].liquidityFee)
+    if (liquidityFee === 0) continue
+
+    const key = `${allCalls[i].target}-${allCalls[i].params[0]}`
+    const protocolRevenue = BigInt(feesAfter[i]) - BigInt(feesBefore[i]) + (mintedByKey[key] || 0n)
+    if (protocolRevenue <= 0n) continue
+
+    const interestAccrued = protocolRevenue * 10000n / BigInt(liquidityFee)
+    const supplySideRevenue = interestAccrued - protocolRevenue
+
+    dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
+    dailyProtocolRevenue.add(token, protocolRevenue, METRIC.BORROW_INTEREST)
+    dailySupplySideRevenue.add(token, supplySideRevenue, METRIC.BORROW_INTEREST)
+  }
+
+  const spokes = await discoverSpokes(options.fromApi, hubs, assetCounts)
+  for (const spoke of spokes) {
+    const logs = await options.getLogs({ target: spoke, eventAbi: abis.LiquidationCall })
+    if (logs.length === 0) continue
+
+    const reserveCount = await options.fromApi.call({ target: spoke, abi: abis.getReserveCount })
+    const reserveCalls = Array.from({ length: reserveCount }, (_, i) => i)
+    const reserves = await options.fromApi.multiCall({ target: spoke, abi: abis.getReserve, calls: reserveCalls })
+
+    for (const log of logs) {
+      const collateralToken = reserves[Number(log.collateralReserveId)]?.underlying
+      if (!collateralToken) continue
+
+      const sharesLiquidated = BigInt(log.collateralSharesLiquidated)
+      const sharesToLiquidator = BigInt(log.collateralSharesToLiquidator)
+      const collateralRemoved = BigInt(log.collateralAmountRemoved)
+
+      if (sharesLiquidated === 0n) continue
+      const protocolFeeAmount = collateralRemoved * (sharesLiquidated - sharesToLiquidator) / sharesLiquidated
+
+      dailyFees.add(collateralToken, protocolFeeAmount, METRIC.LIQUIDATION_FEES)
+      dailyProtocolRevenue.add(collateralToken, protocolFeeAmount, METRIC.LIQUIDATION_FEES)
+    }
+  }
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  }
+}
+
+const methodology = {
+  Fees: 'Borrow interest paid by borrowers plus protocol share of liquidation bonuses.',
+  Revenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses.',
+  SupplySideRevenue: 'Interest distributed to depositors after protocol fee.',
+  ProtocolRevenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers across all Hub assets.',
+    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses from Spoke liquidations.',
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: 'Protocol share  of borrow interest.',
+    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses.',
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Interest distributed to depositors after protocol fee.',
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
+    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses.',
+  },
+}
+
+const chainConfig: Record<string, { start: string }> = {
+  [CHAIN.ETHEREUM]: { start: '2026-03-30' },
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {},
+  methodology,
+  breakdownMethodology,
+}
+
+for (const [chain, config] of Object.entries(chainConfig)) {
+  (adapter.adapter as BaseAdapter)[chain] = {
+    fetch,
+    start: config.start,
+  }
+}
+
+export default adapter
