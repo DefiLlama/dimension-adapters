@@ -50,7 +50,6 @@ interface VaultERC4626Info {
   asset: string;
   assetDecimals: number;
   balance: bigint;
-  share: bigint;
   rateBefore: bigint;
   rateAfter: bigint;
 }
@@ -165,11 +164,6 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
     calls: vaults,
     permitFailure: true,
   });
-  const shares = await options.fromApi.multiCall({
-    abi: ABI.ERC4626.totalSupply,
-    calls: vaults,
-    permitFailure: true,
-  });
   const ratesBefore = await options.fromApi.multiCall({
     abi: ABI.ERC4626.converttoAssets,
     calls: vaults.map(vault => {
@@ -201,7 +195,6 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
         asset,
         assetDecimals: Number(decimals[i]),
         balance: BigInt(balances[i] ? balances[i] : 0),
-        share: BigInt(shares[i] ? shares[i] : 0),
         rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0) * BigInt(denominator),
         rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0) * BigInt(denominator),
       })
@@ -228,7 +221,7 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
     // it mean that vault fees were added from vault token shares
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].share * growthRate / BigInt(10**18)
+    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
     
     // interest earned by vault curator
     const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
@@ -262,7 +255,7 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
     // it mean that vault fees were remove from vault token shares
 
     // interest earned and distributed to vault deposited after fees
-    const interestEarned = vaultInfo[i].share * growthRate / BigInt(1e18)
+    const interestEarned = vaultInfo[i].balance * growthRate / BigInt(1e18)
     
     // interest earned and distributed to vault deposited and vault curator before fees
     let interestEarnedBeforeFee = interestEarned
@@ -308,7 +301,7 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // it mean that vault fees were added from vault token shares
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].share * growthRate / BigInt(10**18)
+    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
     
     // interest earned by vault curator - performance fee
     const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
