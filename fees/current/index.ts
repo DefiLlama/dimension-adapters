@@ -12,14 +12,16 @@ interface DailyFeesApiResponse {
   code: number;
   message: string;
   data: {
-    totalRevenue: number;
+    totalRevenue: string;
+    supplySideRevenue: string;
     fee: string;
   };
 }
 
 const methodology = {
-  Fees: 'Flash loan and liquidation fees paid by borrowers and liquidated positions',
-  Revenue: 'Borrow interest paid by borrowers plus flash loan and liquidation fees',
+  Fees: 'Total fees equal protocol revenue plus supply-side revenue (dailyRevenue + dailySupplySideRevenue).',
+  Revenue: 'Protocol revenue (API totalRevenue).',
+  SupplySideRevenue: 'Portion to liquidity providers (API supplySideRevenue).',
 };
 
 const fetchCurrentFinanceFees: FetchV2 = async ({
@@ -32,13 +34,15 @@ const fetchCurrentFinanceFees: FetchV2 = async ({
     throw new Error(`Current Finance API error: ${res.message}`);
   }
 
-  const dailyFees = Number(res.data.fee);
-  const totalRevenue = Number(res.data.totalRevenue);
+  const dailyRevenue = Number(res.data.totalRevenue);
+  const dailySupplySideRevenue = Number(res.data.supplySideRevenue);
+  const dailyFees = dailyRevenue + dailySupplySideRevenue;
 
   return {
     dailyFees,
-    dailyRevenue: totalRevenue,
-    dailyProtocolRevenue: totalRevenue,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
