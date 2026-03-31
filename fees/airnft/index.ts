@@ -35,7 +35,7 @@ const adapters: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.BSC],
-  start: '2021-11-15',
+  start: '2021-04-12',
   methodology: {
     Fees: "NFT trading fees on all marketplace transactions",
     Revenue: "The protocol takes a 2.5% cut from the seller on all transactions",
