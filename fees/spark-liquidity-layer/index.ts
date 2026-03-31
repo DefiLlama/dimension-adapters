@@ -96,7 +96,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ETHEREUM],
-  start: '2025-07-01',
+  start: '2025-04-06',
   dependencies: [Dependencies.DUNE],
   methodology,
   breakdownMethodology,
