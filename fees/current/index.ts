@@ -19,9 +19,9 @@ interface DailyFeesApiResponse {
 }
 
 const methodology = {
-  Fees: 'Total fees equal protocol revenue plus supply-side revenue (dailyRevenue + dailySupplySideRevenue).',
-  Revenue: 'Protocol revenue (API totalRevenue).',
-  SupplySideRevenue: 'Portion to liquidity providers (API supplySideRevenue).',
+  Fees: 'Total borrow fees, flash loan fees, and liquidation fees paid by borrowers and the liquidated',
+  ProtocolRevenue: 'Borrow interest plus flash loan fees and liquidation fees',
+  SupplySideRevenue: '80% of borrow interest earned by liquidity providers',
 };
 
 const fetchCurrentFinanceFees: FetchV2 = async ({
