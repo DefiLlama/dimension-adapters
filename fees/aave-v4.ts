@@ -1,5 +1,5 @@
 import { CHAIN } from '../helpers/chains'
-import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
+import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { METRIC } from '../helpers/metrics'
 
 const HUBS: Record<string, string[]> = {
@@ -67,9 +67,11 @@ const fetch = async (options: FetchOptions) => {
     options.toApi.multiCall({ abi: abis.getAssetAccruedFees, calls: allCalls }),
   ])
 
-  const mintLogsByHub = await Promise.all(
-    hubs.map(hub => options.getLogs({ target: hub, eventAbi: abis.MintFeeShares }))
-  )
+  const mintLogsByHub = await options.getLogs({
+    targets: hubs,
+    eventAbi: abis.MintFeeShares,
+    flatten: false,
+  })
 
   const mintedByKey: Record<string, bigint> = {}
   mintLogsByHub.forEach((logs, hubIdx) => {
@@ -99,7 +101,11 @@ const fetch = async (options: FetchOptions) => {
   const spokes = await discoverSpokes(options.fromApi, hubs, assetCounts)
 
   const [allLogs, allOracles, allReserveCounts] = await Promise.all([
-    Promise.all(spokes.map(spoke => options.getLogs({ target: spoke, eventAbi: abis.LiquidationCall }))),
+    options.getLogs({
+        targets: spokes,
+        eventAbi: abis.LiquidationCall,
+        flatten: false,
+    }),
     options.fromApi.multiCall({ abi: abis.ORACLE, calls: spokes }),
     options.fromApi.multiCall({ abi: abis.getReserveCount, calls: spokes }),
   ])
@@ -215,17 +221,11 @@ const chainConfig: Record<string, { start: string }> = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   pullHourly: true,
-  adapter: {},
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
-}
-
-for (const [chain, config] of Object.entries(chainConfig)) {
-  (adapter.adapter as BaseAdapter)[chain] = {
-    fetch,
-    start: config.start,
-  }
 }
 
 export default adapter
