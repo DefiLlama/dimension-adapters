@@ -21,6 +21,8 @@ const abis = {
   LiquidationCall: 'event LiquidationCall(uint256 indexed collateralReserveId, uint256 indexed debtReserveId, address indexed user, address liquidator, bool receiveShares, uint256 debtAmountRestored, uint256 drawnSharesLiquidated, tuple(int256 sharesDelta, int256 offsetRayDelta, uint256 restoredPremiumRay) premiumDelta, uint256 collateralAmountRemoved, uint256 collateralSharesLiquidated, uint256 collateralSharesToLiquidator)',
   getReserve: 'function getReserve(uint256) view returns (tuple(address underlying, address hub, uint16 assetId, uint8 decimals, uint24 collateralRisk, uint8 flags, uint32 dynamicConfigKey))',
   getReserveCount: 'uint256:getReserveCount',
+  ORACLE: 'address:ORACLE',
+  getReservePrice: 'function getReservePrice(uint256) view returns (uint256)',
 }
 
 async function discoverSpokes(api: any, hubs: string[], assetCounts: number[]): Promise<string[]> {
@@ -99,22 +101,42 @@ const fetch = async (options: FetchOptions) => {
     const logs = await options.getLogs({ target: spoke, eventAbi: abis.LiquidationCall })
     if (logs.length === 0) continue
 
+    const oracle = await options.fromApi.call({ target: spoke, abi: abis.ORACLE })
     const reserveCount = await options.fromApi.call({ target: spoke, abi: abis.getReserveCount })
     const reserveCalls = Array.from({ length: reserveCount }, (_, i) => i)
     const reserves = await options.fromApi.multiCall({ target: spoke, abi: abis.getReserve, calls: reserveCalls })
 
     for (const log of logs) {
-      const collateralToken = reserves[Number(log.collateralReserveId)]?.underlying
+      const collateralReserveId = Number(log.collateralReserveId)
+      const debtReserveId = Number(log.debtReserveId)
+      const collateralToken = reserves[collateralReserveId]?.underlying
       if (!collateralToken) continue
 
+      const collateralDecimals = Number(reserves[collateralReserveId].decimals)
+      const debtDecimals = Number(reserves[debtReserveId].decimals)
+
+      const [collateralPrice, debtPrice] = await Promise.all([
+        options.fromApi.call({ target: oracle, abi: abis.getReservePrice, params: [collateralReserveId] }),
+        options.fromApi.call({ target: oracle, abi: abis.getReservePrice, params: [debtReserveId] }),
+      ])
+
+      const collateralRemoved = BigInt(log.collateralAmountRemoved)
+      const debtRestored = BigInt(log.debtAmountRestored)
       const sharesLiquidated = BigInt(log.collateralSharesLiquidated)
       const sharesToLiquidator = BigInt(log.collateralSharesToLiquidator)
-      const collateralRemoved = BigInt(log.collateralAmountRemoved)
-
       if (sharesLiquidated === 0n) continue
-      const protocolFeeAmount = collateralRemoved * (sharesLiquidated - sharesToLiquidator) / sharesLiquidated
 
-      dailyFees.add(collateralToken, protocolFeeAmount, METRIC.LIQUIDATION_FEES)
+      const collateralUnit = 10n ** BigInt(collateralDecimals)
+      const debtUnit = 10n ** BigInt(debtDecimals)
+      const fairCollateral = debtRestored * BigInt(debtPrice) * collateralUnit / (debtUnit * BigInt(collateralPrice))
+
+      //bonus = collateral seized - fair value of debt repaid
+      const totalBonus = collateralRemoved > fairCollateral ? collateralRemoved - fairCollateral : 0n
+      const protocolFeeAmount = collateralRemoved * (sharesLiquidated - sharesToLiquidator) / sharesLiquidated
+      const liquidatorBonus = totalBonus > protocolFeeAmount ? totalBonus - protocolFeeAmount : 0n
+
+      dailyFees.add(collateralToken, totalBonus, METRIC.LIQUIDATION_FEES)
+      dailySupplySideRevenue.add(collateralToken, liquidatorBonus, METRIC.LIQUIDATION_FEES)
       dailyProtocolRevenue.add(collateralToken, protocolFeeAmount, METRIC.LIQUIDATION_FEES)
     }
   }
@@ -137,14 +159,15 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers across all Hub assets.',
-    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses from Spoke liquidations.',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses paid by borrowers.',
   },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: 'Protocol share  of borrow interest.',
+    [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
     [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Interest distributed to depositors after protocol fee.',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses received by liquidators.',
   },
   ProtocolRevenue: {
     [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
@@ -158,6 +181,7 @@ const chainConfig: Record<string, { start: string }> = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {},
   methodology,
   breakdownMethodology,
