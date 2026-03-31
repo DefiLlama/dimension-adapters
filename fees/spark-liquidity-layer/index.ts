@@ -34,6 +34,11 @@ async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResul
   const sql = getSqlFromFile('fees/spark-liquidity-layer/spark-liquidity-layer-revenue.sql', { dt: date })
 
   const records = await queryDuneSql(options, sql)
+
+  if (!records || records.length === 0) {
+    throw new Error(`No record found for date: ${date}`)
+  }
+
   for (const record of records) {
     const fees = Number(record.fees || 0)
     const revenue = Number(record.revenue || 0)
