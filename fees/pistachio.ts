@@ -41,7 +41,6 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   adapter: chainConfig,
-  doublecounted: true,
   methodology: {
     Fees: "0.45% on cross-chain/same-chain swaps via LiFi",
     Revenue: "0.45% on cross-chain/same-chain swaps via LiFi",
