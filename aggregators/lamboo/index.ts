@@ -40,17 +40,29 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     filtered_events AS (
       SELECT
         e.tx_version,
-        JSON_EXTRACT_SCALAR(e.data, '$.fee_receiver') AS fee_receiver,
-        JSON_EXTRACT_SCALAR(e.data, '$.integrator_address') AS integrator_address
+        e.block_date,
+        e.event_type,
+        e.data
       FROM aptos.events e
       CROSS JOIN date_filter d
       WHERE e.block_date >= d.start_ts
         AND e.block_date < d.end_ts
-        AND e.event_type IN (${FEE_EVENT_TYPES})
+        AND e.event_type IN (
+          ${FEE_EVENT_TYPES},
+          '${DEPOSIT_EVENT}',
+          '${WITHDRAW_EVENT}'
+        )
     ),
     fee_events AS (
       SELECT DISTINCT tx_version
-      FROM filtered_events
+      FROM (
+        SELECT
+          tx_version,
+          JSON_EXTRACT_SCALAR(data, '$.fee_receiver') AS fee_receiver,
+          JSON_EXTRACT_SCALAR(data, '$.integrator_address') AS integrator_address
+        FROM filtered_events
+        WHERE event_type IN (${FEE_EVENT_TYPES})
+      )
       WHERE fee_receiver = '${INTEGRATOR_ADDRESS}'
         OR integrator_address = '${INTEGRATOR_ADDRESS}'
     ),
@@ -63,38 +75,54 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
       WHERE ut.block_date >= d.start_ts
         AND ut.block_date < d.end_ts
     ),
+    event_flows AS (
+      SELECT
+        e.tx_version,
+        e.block_date,
+
+        -- decode safely (only if needed)
+        JSON_EXTRACT_SCALAR(e.data, '$.owner_address') AS owner_address,
+        JSON_EXTRACT_SCALAR(e.data, '$.asset_type') AS asset_type,
+
+        CAST(JSON_EXTRACT_SCALAR(e.data, '$.amount') AS DOUBLE) AS amount,
+
+        e.event_type
+      FROM filtered_events e
+      WHERE e.event_type IN ('${DEPOSIT_EVENT}', '${WITHDRAW_EVENT}')
+    ),
     final_volume AS (
       SELECT
-        date_trunc('day', faa.block_date) AS day,
+        date_trunc('day', ef.block_date) AS day,
+
         CASE
-          WHEN faa.asset_type IN (${APT_TOKEN_TYPES})
+          WHEN ef.asset_type IN (${APT_TOKEN_TYPES})
             THEN '${APT_CANONICAL}'
-          WHEN faa.asset_type IN (${USD1_TOKEN_TYPES})
+          WHEN ef.asset_type IN (${USD1_TOKEN_TYPES})
             THEN '${USD1_TOKEN}'
-          ELSE faa.asset_type
+          ELSE ef.asset_type
         END AS token,
+
         ABS(SUM(
           CASE
-            WHEN faa.event_type = '${DEPOSIT_EVENT}' THEN faa.amount
-            WHEN faa.event_type = '${WITHDRAW_EVENT}' THEN -faa.amount
+            WHEN ef.event_type = '${DEPOSIT_EVENT}' THEN ef.amount
+            WHEN ef.event_type = '${WITHDRAW_EVENT}' THEN -ef.amount
             ELSE 0
           END
         )) AS amount
-      FROM aptos_fungible_asset.activities faa
+
+      FROM event_flows ef
       INNER JOIN fee_transactions ft
-        ON faa.tx_version = ft.tx_version
-       AND faa.owner_address = ft.sender
-      CROSS JOIN date_filter d
-      WHERE faa.block_date >= d.start_ts
-        AND faa.block_date < d.end_ts
-        AND faa.asset_type IN (
-          ${TRACKED_TOKEN_TYPES}
-        )
-      GROUP BY 1, 2, faa.tx_version
+        ON ef.tx_version = ft.tx_version
+      AND ef.owner_address = ft.sender
+
+      WHERE ef.asset_type IN (${TRACKED_TOKEN_TYPES})
+
+      GROUP BY 1, 2, ef.tx_version
+
       HAVING ABS(SUM(
         CASE
-          WHEN faa.event_type = '${DEPOSIT_EVENT}' THEN faa.amount
-          WHEN faa.event_type = '${WITHDRAW_EVENT}' THEN -faa.amount
+          WHEN ef.event_type = '${DEPOSIT_EVENT}' THEN ef.amount
+          WHEN ef.event_type = '${WITHDRAW_EVENT}' THEN -ef.amount
           ELSE 0
         END
       )) > 0.0001
