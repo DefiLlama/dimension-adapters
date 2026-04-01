@@ -266,7 +266,7 @@ const protocols = {
     protocolName: 'evedex',
     chains: [CHAIN.EVENTUM],
     start: '2026-03-30',
-    version: 2,
+    version: 1,
     minContracts: 15
   }),
 } as const;

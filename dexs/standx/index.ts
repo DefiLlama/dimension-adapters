@@ -28,10 +28,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
   await PromisePool.withConcurrency(1).for(symbols).process(async (symbol) => {
     const marketInfo: MarketInfo = await fetchURLAutoHandleRateLimit(
-      `${apiEndpoint}/kline/history?symbol=${symbol}&from=${options.startOfDay}&to=${options.endTimestamp}&resolution=1D`,
+      `${apiEndpoint}/kline/history?symbol=${symbol}&from=${options.startOfDay}&to=${options.endTimestamp}&resolution=60&countback=50`,
     );
-    const todaysDataPosition = marketInfo.t.findIndex(t => t >= options.startOfDay && t < options.endTimestamp);
-    const volUsd = marketInfo?.v[todaysDataPosition] ? marketInfo?.v[todaysDataPosition] * marketInfo?.c[todaysDataPosition] : 0;
+    const todaysDataPositions = marketInfo.t
+      .map((t: number, i: number) => (t >= options.startOfDay && t < options.endTimestamp ? i : -1))
+      .filter((i: number) => i >= 0);
+    const volUsd = todaysDataPositions.reduce((acc: number, i: number) => acc + marketInfo?.v[i] * marketInfo?.c[i], 0);
     dailyVolume.addUSDValue(volUsd);
     await sleep(1000);
   });
