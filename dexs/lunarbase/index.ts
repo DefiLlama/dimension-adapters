@@ -10,10 +10,14 @@ const swapEvent =
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
 
-  const [tokenX, tokenY] = await Promise.all([
+  const [tokenX, tokenY, treasuryShareBps, BPS] = await Promise.all([
     options.api.call({ target: CURVE_PMM, abi: "address:X" }),
     options.api.call({ target: CURVE_PMM, abi: "address:Y" }),
+    options.api.call({ target: CURVE_PMM, abi: "uint24:treasuryShareBps" }),
+    options.api.call({ target: CURVE_PMM, abi: "uint256:BPS" }),
   ]);
 
   const logs = await options.getLogs({
@@ -21,14 +25,33 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: swapEvent,
   });
 
+  const tBps = Number(treasuryShareBps);
+  const totalBps = Number(BPS);
+
   for (const log of logs) {
     const { xToY, dx, dy, fee } = log;
     addOneToken({ chain: options.chain, balances: dailyVolume, token0: tokenX, token1: tokenY, amount0: dx, amount1: dy });
+
     // Fee is taken from the output side: xToY → fee in Y, yToX → fee in X
-    dailyFees.add(xToY ? tokenY : tokenX, fee);
+    const feeToken = xToY ? tokenY : tokenX;
+    const feeBig = BigInt(fee);
+    dailyFees.add(feeToken, feeBig);
+
+    // Split: treasury gets treasuryShareBps/BPS, LPs get the rest
+    const protocolFee = totalBps > 0 ? (feeBig * BigInt(tBps)) / BigInt(totalBps) : 0n;
+    const supplySideFee = feeBig - protocolFee;
+    dailyProtocolRevenue.add(feeToken, protocolFee);
+    dailySupplySideRevenue.add(feeToken, supplySideFee);
   }
 
-  return { dailyVolume, dailyFees };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyRevenue: dailyProtocolRevenue,
+  };
 };
 
 const adapter: SimpleAdapter = {
