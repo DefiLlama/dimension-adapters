@@ -32,12 +32,7 @@ const CHAIN_NAME_TO_ID = Object.fromEntries(
 );
 
 const prefetch = async (options: FetchOptions) => {
-  try {
-    return await fetchURL(`${DAILY_VOLUME_URL}?date=${options.dateString}`);
-  } catch (e) {
-    console.warn(`[genius-protocol] volume API unavailable for ${options.dateString}: ${(e as Error).message}`);
-    return null;
-  }
+  return await fetchURL(`${DAILY_VOLUME_URL}?date=${options.dateString}`);
 };
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
