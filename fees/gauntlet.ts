@@ -1,11 +1,11 @@
 import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CuratorConfig, getCuratorExport } from "../helpers/curators";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { queryDuneSql } from "../helpers/dune";
 
 // Curator config for EVM chains
 const curatorConfig: CuratorConfig = {
+  breakdownFees: true,
   vaults: {
     [CHAIN.ETHEREUM]: {
       morphoVaultOwners: [
@@ -14,6 +14,7 @@ const curatorConfig: CuratorConfig = {
       morphoVaultV2Owners: [
         '0xd79766D2FeC43886e995EA415a2Bf406280B2e2C',
       ],
+      start: '2024-03-14',
     },
     [CHAIN.BASE]: {
       morphoVaultOwners: [
@@ -23,11 +24,31 @@ const curatorConfig: CuratorConfig = {
       morphoVaultV2Owners: [
         '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
       ],
+      start: '2024-06-18',
     },
     [CHAIN.POLYGON]: {
       morphoVaultOwners: [
         '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
       ],
+      start: '2025-03-13',
+    },
+    [CHAIN.HYPERLIQUID]: {
+      morphoVaultOwners: [
+        '0x09346F40e324458A8E211C5317981C78FAcDEc57',
+      ],
+      start: '2025-09-25',
+    },
+    [CHAIN.OPTIMISM]: {
+      morphoVaultOwners: [
+        '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
+      ],
+      start: '2025-10-09',
+    },
+    [CHAIN.UNICHAIN]: {
+      morphoVaultOwners: [
+        '0x9E33faAE38ff641094fa68c65c2cE600b3410585',
+      ],
+      start: '2025-05-20',
     },
     // [CHAIN.KATANA]: {
     //   morphoVaultOwners: [
@@ -57,87 +78,6 @@ const VAULT_ADDRESSES = [
   "12HURxP9axx1FRKKHEWMiPcS6ixuekZ6pzfTbp3YQ1EH"  // dfdvSOL Plus
 ];
 
-// async function calculateGrossReturns(options: FetchOptions): Promise<number> {
-//   let totalGrossReturns = 0;
-
-//   // Extract snapshot timestamp (supports 'ts' in seconds, or 'timestamp'/'createdAt')
-//   const getSnapshotMs = (snapshot: any): number => {
-//     const rawTs = snapshot?.ts ?? snapshot?.timestamp ?? snapshot?.createdAt ?? 0;
-//     const numericTs = Number(rawTs);
-//     if (!Number.isFinite(numericTs) || numericTs <= 0) return 0;
-//     // If looks like seconds, convert to ms
-//     return numericTs < 1e12 ? numericTs * 1000 : numericTs;
-//   };
-
-//   for (const vaultAddress of VAULT_ADDRESSES) {
-//     const data = await fetchURL(`https://app.drift.trade/api/vaults/vault-snapshots?vault=${vaultAddress}`);
-
-//     if (data && Array.isArray(data) && data.length > 0) {
-//       const startTime = options.startTimestamp * 1000;
-//       const endTime = options.endTimestamp * 1000;
-
-//       const sortedData = data.sort((a, b) => getSnapshotMs(a) - getSnapshotMs(b));
-
-//       const periodSnapshots = sortedData.filter(snapshot => {
-//         const snapshotTime = getSnapshotMs(snapshot);
-//         return snapshotTime >= startTime && snapshotTime <= endTime;
-//       });
-
-//       const TOLERANCE_MS = 36 * 60 * 60 * 1000; // 36h
-//       let startSnapshot: any;
-//       let endSnapshot: any;
-
-//       if (periodSnapshots.length >= 2) {
-//         const periodSorted = periodSnapshots.sort((a, b) => getSnapshotMs(a) - getSnapshotMs(b));
-//         startSnapshot = periodSorted[0];
-//         endSnapshot = periodSorted[periodSorted.length - 1];
-//       } else {
-//         // latest <= startTime
-//         for (let i = sortedData.length - 1; i >= 0; i--) {
-//           const t = getSnapshotMs(sortedData[i]);
-//           if (t <= startTime) { startSnapshot = sortedData[i]; break; }
-//         }
-//         // latest <= endTime
-//         for (let i = sortedData.length - 1; i >= 0; i--) {
-//           const t = getSnapshotMs(sortedData[i]);
-//           if (t <= endTime) { endSnapshot = sortedData[i]; break; }
-//         }
-//         // try after end within tolerance
-//         if (endSnapshot && startSnapshot && getSnapshotMs(startSnapshot) === getSnapshotMs(endSnapshot)) {
-//           const afterEnd = sortedData.find(s => getSnapshotMs(s) > endTime && (getSnapshotMs(s) - endTime) <= TOLERANCE_MS);
-//           if (afterEnd) endSnapshot = afterEnd;
-//         }
-//         // try before start within tolerance
-//         if (!startSnapshot || (endSnapshot && getSnapshotMs(startSnapshot) === getSnapshotMs(endSnapshot))) {
-//           const beforeStart = [...sortedData].reverse().find(s => getSnapshotMs(s) < startTime && (startTime - getSnapshotMs(s)) <= TOLERANCE_MS);
-//           if (beforeStart) startSnapshot = beforeStart;
-//         }
-//       }
-
-//       if (startSnapshot && endSnapshot && getSnapshotMs(endSnapshot) !== getSnapshotMs(startSnapshot)) {
-//         const startValue = (startSnapshot.totalAccountQuoteValue || 0) / 1e6;
-//         const endValue = (endSnapshot.totalAccountQuoteValue || 0) / 1e6;
-//         const startNetDeposits = ((startSnapshot.totalDeposits || 0) - (startSnapshot.totalWithdraws || 0)) / 1e6;
-//         const endNetDeposits = ((endSnapshot.totalDeposits || 0) - (endSnapshot.totalWithdraws || 0)) / 1e6;
-//         const startManagerFees = (startSnapshot.managerTotalFee || 0) / 1e6;
-//         const endManagerFees = (endSnapshot.managerTotalFee || 0) / 1e6;
-//         const startNetValue = startValue - startNetDeposits;
-//         const endNetValue = endValue - endNetDeposits;
-//         const periodReturns = endNetValue - startNetValue;
-//         const periodManagerFees = endManagerFees - startManagerFees;
-        
-//         // Only add period returns to avoid double-counting manager fees
-//         // Manager fees are tracked separately in dailyRevenue
-//         const periodValueGenerated = periodReturns;
-
-//         totalGrossReturns += periodValueGenerated;
-//       }
-//     }
-//   }
-
-//   return totalGrossReturns;
-// }
-
 // Solana fetch function
 const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
@@ -165,14 +105,16 @@ const fetchSolana = async (_t: any, _a: any, options: FetchOptions) => {
   if (managerFeesData && managerFeesData.length > 0) {
     managerFeesData.forEach((fee: any) => {
       if (fee.total_amount && fee.token_mint_address && fee.total_amount !== 0) {
-        dailyRevenue.add(fee.token_mint_address, fee.total_amount, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(fee.token_mint_address, fee.total_amount, 'Solana Vaults Management Fees');
       }
     });
   }
 
   // For Drift vaults, fees should equal revenue (only manager fees)
   // Remove gross returns calculation as it was causing double-counting
-  const dailyFees = dailyRevenue.clone(1, METRIC.MANAGEMENT_FEES);
+  const dailyFees = dailyRevenue.clone(1, 'Solana Vaults Management Fees');
+  
+  // TODO: track yields to suppliers
   const dailySupplySideRevenue = options.createBalances();
 
   return {
@@ -195,42 +137,23 @@ for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
   }
 }
 
-const methodology = {
-  Fees: "Daily management fees claimed by the Gauntlet manager during the specified time period (fees now equal revenue for Drift vaults)",
-  Revenue: "Daily management fees claimed by the Gauntlet manager during the specified time period",
-  ProtocolRevenue: "Daily management fees claimed by the Gauntlet manager during the specified time period",
-  SupplySideRevenue: "Amount of yields distributed to supply-side depositors (currently zero as fees equal revenue).",
-}
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
-  },
-  Revenue: {
-    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
-  },
-  ProtocolRevenue: {
-    [METRIC.MANAGEMENT_FEES]: "Management fees charged by Gauntlet",
-  },
-  SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: "Amount of yields distributed to supply-side depositors (currently zero).",
-  },
-}
-
 const adapter: SimpleAdapter = {
   version: 1,
-  breakdownMethodology,
-  methodology,
+  breakdownMethodology: curatorExport.breakdownMethodology,
+  methodology: curatorExport.methodology,
   adapter: {
     ...curatorExport.adapter,
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
-      start: '2024-01-01'
+      start: '2025-01-01'
     },
   },
-  // allowNegativeValue: true,
+  allowNegativeValue: true, // vaults can be negative yields
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true
 };
+
+(adapter.breakdownMethodology as any)['Fees']['Solana Vaults Management Fees'] = 'Management fees charged from all vaults on Solana';
+(adapter.breakdownMethodology as any)['Revenue']['Solana Vaults Management Fees'] = 'Management fees charged from all vaults on Solana';
 
 export default adapter;
