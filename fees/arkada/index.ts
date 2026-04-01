@@ -166,7 +166,56 @@ const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     chains,
-    start: "2025-03-19",
+    adapter: {
+      [CHAIN.ARBITRUM]: {
+        start: "2025-09-25",
+      },
+      [CHAIN.BASE]: {
+        start: "2025-04-04",
+      },
+      [CHAIN.BSC]: {
+        start: "2026-02-24",
+      },
+      [CHAIN.SONEIUM]: {
+        start: "2025-03-19",
+      },
+      [CHAIN.SONIC]: {
+        start: "2025-03-27",
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: "2025-06-07",
+      },
+      [CHAIN.PLUME]: {
+        start: "2025-06-11",
+      },
+      [CHAIN.ABSTRACT]: {
+        start: "2025-06-25",
+      },
+      [CHAIN.SOMNIA]: {
+        start: "2026-03-25",
+      },
+      [CHAIN.MONAD]: {
+        start: "2025-11-24",
+      },
+      [CHAIN.UNICHAIN]: {
+        start: "2025-11-25",
+      },
+      [CHAIN.POLYGON]: {
+        start: "2026-03-19",
+      },
+      [CHAIN.ETHEREUM]: {
+        start: "2026-03-19",
+      },
+      [CHAIN.MEGAETH]: {
+        start: "2026-03-20",
+      },
+      [CHAIN.INK]: {
+        start: "2026-03-20",
+      },
+      [CHAIN.KATANA]: {
+        start: "2026-03-27",
+      },
+    },
     fetch,
     methodology,
     breakdownMethodology,
