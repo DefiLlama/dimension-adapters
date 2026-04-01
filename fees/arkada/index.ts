@@ -1,90 +1,81 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const PYRAMID_CONFIG: Record<string, { target: string }> = {
+const chainConfig: Record<string, { pyramidTarget?: string, verificationTarget?: string, start: string }> = {
     [CHAIN.ARBITRUM]: {
-        target: "0xa4e6101e26BD7d2C418aDb3bbF3189375678eb99",
+        pyramidTarget: "0xa4e6101e26BD7d2C418aDb3bbF3189375678eb99",
+        verificationTarget: "0x582062d3D36D21b51d49F6c331fDc2e6A2929BCA",
+        start: "2025-09-25",
     },
     [CHAIN.BASE]: {
-        target: "0xC909A19E3cE11841d46E9206f5FD9fe2Bc9B36b5",
+        pyramidTarget: "0xC909A19E3cE11841d46E9206f5FD9fe2Bc9B36b5",
+        verificationTarget: "0xf2bFe2F797B60A3937f4d1bC78A75b9987Ea9493",
+        start: "2025-04-04",
     },
     [CHAIN.BSC]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        pyramidTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0xa4e6101e26BD7d2C418aDb3bbF3189375678eb99",
+        start: "2026-02-24",
     },
     [CHAIN.SONEIUM]: {
-        target: "0x30410050CB1eBCF21741c9D3F817C386401f82fd",
+        pyramidTarget: "0x30410050CB1eBCF21741c9D3F817C386401f82fd",
+        verificationTarget: "0xd61bEFb87833bAf43EE28a15022C19CDb674c204",
+        start: "2025-03-19",
     },
     [CHAIN.SONIC]: {
-        target: "0xE99F2AEfff9CCff34832747479Bd84658495F50A",
+        pyramidTarget: "0xE99F2AEfff9CCff34832747479Bd84658495F50A",
+        verificationTarget: "0x30410050CB1eBCF21741c9D3F817C386401f82fd",
+        start: "2025-03-27",
     },
     [CHAIN.HYPERLIQUID]: {
-        target: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        pyramidTarget: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        verificationTarget: "0x6922A47e04c6c253790fa94EDc4B2fd9e90B64E3",
+        start: "2025-06-07",
     },
     [CHAIN.PLUME]: {
-        target: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        pyramidTarget: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        verificationTarget: "0x6922A47e04c6c253790fa94EDc4B2fd9e90B64E3",
+        start: "2025-06-11",
     },
     [CHAIN.ABSTRACT]: {
-        target: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        pyramidTarget: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        verificationTarget: "0x173F63ae500A471d86db16045cb05c13d88afc07",
+        start: "2025-06-25",
     },
     [CHAIN.SOMNIA]: {
-        target: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        pyramidTarget: "0xF668DDa15336129BC9977e36d60c14220cdc63Ec",
+        verificationTarget: "0x4DF24Ab367C801187929FEb2841853DBa40208B0",
+        start: "2026-03-25",
     },
     [CHAIN.MONAD]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        pyramidTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0x3a6E887C0608f67FA015Bc115f1d76115b29d234",
+        start: "2025-11-24",
     },
     [CHAIN.UNICHAIN]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
-    }
-};
-
-const VERIFICATION_CONFIG: Record<string, { target: string }> = {
-    [CHAIN.SONEIUM]: {
-        target: "0xd61bEFb87833bAf43EE28a15022C19CDb674c204",
-    },
-    [CHAIN.SONIC]: {
-        target: "0x30410050CB1eBCF21741c9D3F817C386401f82fd",
-    },
-    [CHAIN.BASE]: {
-        target: "0xf2bFe2F797B60A3937f4d1bC78A75b9987Ea9493",
-    },
-    [CHAIN.MONAD]: {
-        target: "0x3a6E887C0608f67FA015Bc115f1d76115b29d234",
-    },
-    [CHAIN.ARBITRUM]: {
-        target: "0x582062d3D36D21b51d49F6c331fDc2e6A2929BCA",
-    },
-    [CHAIN.HYPERLIQUID]: {
-        target: "0x6922A47e04c6c253790fa94EDc4B2fd9e90B64E3",
-    },
-    [CHAIN.PLUME]: {
-        target: "0x6922A47e04c6c253790fa94EDc4B2fd9e90B64E3",
-    },
-    [CHAIN.ABSTRACT]: {
-        target: "0x173F63ae500A471d86db16045cb05c13d88afc07",
-    },
-    [CHAIN.UNICHAIN]: {
-        target: "0x1AE93e93A8B421725F114a27c82237BEF4ada624",
-    },
-    [CHAIN.BSC]: {
-        target: "0xa4e6101e26BD7d2C418aDb3bbF3189375678eb99",
+        pyramidTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0x1AE93e93A8B421725F114a27c82237BEF4ada624",
+        start: "2025-11-25",
     },
     [CHAIN.POLYGON]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        start: "2026-03-19",
     },
     [CHAIN.ETHEREUM]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        start: "2026-03-19",
     },
     [CHAIN.MEGAETH]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        start: "2026-03-20",
     },
     [CHAIN.INK]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
-    },
-    [CHAIN.SOMNIA]: {
-        target: "0x4DF24Ab367C801187929FEb2841853DBa40208B0",
+        verificationTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        start: "2026-03-20",
     },
     [CHAIN.KATANA]: {
-        target: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        verificationTarget: "0x3db744585f892dc77750b2f4376B4Fc1Dd66d510",
+        start: "2026-03-27",
     },
 };
 
@@ -105,12 +96,12 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
 
-    const pyramidConfig = PYRAMID_CONFIG[options.chain];
-    const verificationConfig = VERIFICATION_CONFIG[options.chain];
+    const pyramidTarget = chainConfig[options.chain].pyramidTarget;
+    const verificationTarget = chainConfig[options.chain].verificationTarget;
 
-    if (pyramidConfig) {
+    if (pyramidTarget) {
         const pyramidFeeLogs = await options.getLogs({
-            target: pyramidConfig.target,
+            target: pyramidTarget,
             eventAbi: PYRAMID_CLAIM_EVENT,
         });
 
@@ -120,9 +111,9 @@ const fetch = async (options: FetchOptions) => {
         }
     }
 
-    if (verificationConfig) {
+    if (verificationTarget) {
         const verificationFeeLogs = await options.getLogs({
-            target: verificationConfig.target,
+            target: verificationTarget,
             eventAbi: STATUS_UPDATED_EVENT,
         });
 
@@ -160,62 +151,10 @@ const breakdownMethodology = {
     },
 };
 
-const chains = [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC, CHAIN.SONEIUM, CHAIN.SONIC, CHAIN.HYPERLIQUID, CHAIN.PLUME, CHAIN.ABSTRACT, CHAIN.SOMNIA, CHAIN.MONAD, CHAIN.UNICHAIN, CHAIN.POLYGON, CHAIN.ETHEREUM, CHAIN.MEGAETH, CHAIN.INK, CHAIN.KATANA];
-
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
-    chains,
-    adapter: {
-      [CHAIN.ARBITRUM]: {
-        start: "2025-09-25",
-      },
-      [CHAIN.BASE]: {
-        start: "2025-04-04",
-      },
-      [CHAIN.BSC]: {
-        start: "2026-02-24",
-      },
-      [CHAIN.SONEIUM]: {
-        start: "2025-03-19",
-      },
-      [CHAIN.SONIC]: {
-        start: "2025-03-27",
-      },
-      [CHAIN.HYPERLIQUID]: {
-        start: "2025-06-07",
-      },
-      [CHAIN.PLUME]: {
-        start: "2025-06-11",
-      },
-      [CHAIN.ABSTRACT]: {
-        start: "2025-06-25",
-      },
-      [CHAIN.SOMNIA]: {
-        start: "2026-03-25",
-      },
-      [CHAIN.MONAD]: {
-        start: "2025-11-24",
-      },
-      [CHAIN.UNICHAIN]: {
-        start: "2025-11-25",
-      },
-      [CHAIN.POLYGON]: {
-        start: "2026-03-19",
-      },
-      [CHAIN.ETHEREUM]: {
-        start: "2026-03-19",
-      },
-      [CHAIN.MEGAETH]: {
-        start: "2026-03-20",
-      },
-      [CHAIN.INK]: {
-        start: "2026-03-20",
-      },
-      [CHAIN.KATANA]: {
-        start: "2026-03-27",
-      },
-    },
+    adapter: chainConfig,
     fetch,
     methodology,
     breakdownMethodology,
