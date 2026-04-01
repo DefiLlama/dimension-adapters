@@ -40,29 +40,17 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
     filtered_events AS (
       SELECT
         e.tx_version,
-        e.block_date,
-        e.event_type,
-        e.data
+        JSON_EXTRACT_SCALAR(e.data, '$.fee_receiver') AS fee_receiver,
+        JSON_EXTRACT_SCALAR(e.data, '$.integrator_address') AS integrator_address
       FROM aptos.events e
       CROSS JOIN date_filter d
       WHERE e.block_date >= d.start_ts
         AND e.block_date < d.end_ts
-        AND e.event_type IN (
-          ${FEE_EVENT_TYPES},
-          '${DEPOSIT_EVENT}',
-          '${WITHDRAW_EVENT}'
-        )
+        AND e.event_type IN (${FEE_EVENT_TYPES})
     ),
     fee_events AS (
       SELECT DISTINCT tx_version
-      FROM (
-        SELECT
-          tx_version,
-          JSON_EXTRACT_SCALAR(data, '$.fee_receiver') AS fee_receiver,
-          JSON_EXTRACT_SCALAR(data, '$.integrator_address') AS integrator_address
-        FROM filtered_events
-        WHERE event_type IN (${FEE_EVENT_TYPES})
-      )
+      FROM filtered_events
       WHERE fee_receiver = '${INTEGRATOR_ADDRESS}'
         OR integrator_address = '${INTEGRATOR_ADDRESS}'
     ),
@@ -79,29 +67,61 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
       SELECT
         e.tx_version,
         e.block_date,
-
-        -- decode safely (only if needed)
-        JSON_EXTRACT_SCALAR(e.data, '$.owner_address') AS owner_address,
-        JSON_EXTRACT_SCALAR(e.data, '$.asset_type') AS asset_type,
-
+        JSON_EXTRACT_SCALAR(e.data, '$.store') AS store_address,
         CAST(JSON_EXTRACT_SCALAR(e.data, '$.amount') AS DOUBLE) AS amount,
-
         e.event_type
-      FROM filtered_events e
-      WHERE e.event_type IN ('${DEPOSIT_EVENT}', '${WITHDRAW_EVENT}')
+      FROM aptos.events e
+      INNER JOIN fee_events fe
+        ON e.tx_version = fe.tx_version
+      CROSS JOIN date_filter d
+      WHERE e.block_date >= d.start_ts
+        AND e.block_date < d.end_ts
+        AND e.event_type IN ('${DEPOSIT_EVENT}', '${WITHDRAW_EVENT}')
+    ),
+    distinct_stores AS (
+      SELECT DISTINCT store_address
+      FROM event_flows
+    ),
+    store_metadata AS (
+      SELECT
+        mr.move_address AS store_address,
+        MAX(
+          CASE
+            WHEN move_resource_module = 'fungible_asset' AND move_resource_name = 'FungibleStore'
+            THEN json_extract_scalar(move_data, '$.metadata.inner')
+          END
+        ) AS token,
+        MAX(
+          CASE
+            WHEN move_resource_module = 'object' AND move_resource_name = 'ObjectCore'
+            THEN json_extract_scalar(move_data, '$.owner')
+          END
+        ) AS owner
+
+      FROM aptos.move_resources mr
+      INNER JOIN distinct_stores ds
+        ON CAST(mr.move_address AS VARCHAR) = ds.store_address
+
+      CROSS JOIN date_filter d
+      WHERE mr.block_date >= d.start_ts
+        AND mr.block_date < d.end_ts
+        AND (
+          (move_resource_module = 'object' AND move_resource_name = 'ObjectCore')
+          OR
+          (move_resource_module = 'fungible_asset' AND move_resource_name = 'FungibleStore')
+        )
+      GROUP BY mr.move_address
     ),
     final_volume AS (
       SELECT
         date_trunc('day', ef.block_date) AS day,
-
         CASE
-          WHEN ef.asset_type IN (${APT_TOKEN_TYPES})
+          WHEN sm.token IN (${APT_TOKEN_TYPES})
             THEN '${APT_CANONICAL}'
-          WHEN ef.asset_type IN (${USD1_TOKEN_TYPES})
+          WHEN sm.token IN (${USD1_TOKEN_TYPES})
             THEN '${USD1_TOKEN}'
-          ELSE ef.asset_type
+          ELSE sm.token
         END AS token,
-
         ABS(SUM(
           CASE
             WHEN ef.event_type = '${DEPOSIT_EVENT}' THEN ef.amount
@@ -109,16 +129,14 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
             ELSE 0
           END
         )) AS amount
-
       FROM event_flows ef
+      INNER JOIN store_metadata sm
+        ON ef.store_address = CAST(sm.store_address AS VARCHAR)
       INNER JOIN fee_transactions ft
         ON ef.tx_version = ft.tx_version
-      AND ef.owner_address = ft.sender
-
-      WHERE ef.asset_type IN (${TRACKED_TOKEN_TYPES})
-
+      AND sm.owner = CAST(ft.sender AS VARCHAR)
+      WHERE sm.token IN (${TRACKED_TOKEN_TYPES})
       GROUP BY 1, 2, ef.tx_version
-
       HAVING ABS(SUM(
         CASE
           WHEN ef.event_type = '${DEPOSIT_EVENT}' THEN ef.amount
