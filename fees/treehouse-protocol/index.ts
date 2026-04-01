@@ -1,12 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { addTokensReceived } from "../../helpers/token";
 
 const EVENT_ABI = {
     MARKED: "event Marked (uint8 type, uint256 amount, uint256 fees)",
     STANDARD_REDEMPTION: "event RedeemFinalized (address indexed user, uint256 assets, uint256 fee)",
     FASTLANE_REDEMPTION: "event Redeemed (address indexed user, uint256 shares, uint256 assets, uint256 fee)"
 };
+
+const BUY_BACK_ADDRESS = '0xcbcc15e2f566fdb46e93d925efcbf0ccc5378d3b';
+const BUY_BACK_TOKEN = '0x77146784315ba81904d654466968e3a7c196d1f3';
 
 const ADDRESSES: any = {
     [CHAIN.ETHEREUM]: {
@@ -17,7 +21,8 @@ const ADDRESSES: any = {
         stakedToken: "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0", // Lido wstEth
         excludeWallets: [
           '0xf37856a029d87dbc53cf751c4864edab919b4702',
-          '0x2aB1a0477504d243fD9801c94dB5181104BDa38A',
+          '0x2ab1a0477504d243fd9801c94db5181104bda38a',
+          '0x7ca0192f401712a663e824a3a5220f5fb9e26855',
         ],
     },
     [CHAIN.AVAX]: {
@@ -28,19 +33,20 @@ const ADDRESSES: any = {
         stakedToken: "0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be", //benqi sAvax
         excludeWallets: [
           '0xf37856a029d87dbc53cf751c4864edab919b4702',
-          '0x2aB1a0477504d243fD9801c94dB5181104BDa38A',
+          '0x2ab1a0477504d243fd9801c94db5181104bda38a',
+          '0x8c2240ac1923bf96d991229c406c2edfc7b72aad',
         ],
     }
 };
 
-async function fetch(_a: any, _b: any, { chain, createBalances, getLogs, }: FetchOptions) {
-    const { accounting, token, redemption, fastlaneRedemption, stakedToken } = ADDRESSES[chain]
-    const dailySupplySideRevenue = createBalances();
-    const dailyProtocolRevenue = createBalances();
+async function fetch(options: FetchOptions) {
+    const { accounting, token, redemption, fastlaneRedemption, stakedToken } = ADDRESSES[options.chain]
+    const dailySupplySideRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
 
-    const markedLogs = await getLogs({ target: accounting, eventAbi: EVENT_ABI.MARKED, });
-    const standardRedemptionLogs = await getLogs({ target: redemption, eventAbi: EVENT_ABI.STANDARD_REDEMPTION });
-    const fastlaneRedemptionLogs = await getLogs({ target: fastlaneRedemption, eventAbi: EVENT_ABI.FASTLANE_REDEMPTION });
+    const markedLogs = await options.getLogs({ target: accounting, eventAbi: EVENT_ABI.MARKED, });
+    const standardRedemptionLogs = await options.getLogs({ target: redemption, eventAbi: EVENT_ABI.STANDARD_REDEMPTION });
+    const fastlaneRedemptionLogs = await options.getLogs({ target: fastlaneRedemption, eventAbi: EVENT_ABI.FASTLANE_REDEMPTION });
     
 
     markedLogs.forEach(log => {
@@ -52,16 +58,24 @@ async function fetch(_a: any, _b: any, { chain, createBalances, getLogs, }: Fetc
     standardRedemptionLogs.forEach(log => dailySupplySideRevenue.add(token, log.fee, METRIC.MINT_REDEEM_FEES));
 
     fastlaneRedemptionLogs
-      .filter(log => !ADDRESSES[chain].excludeWallets.includes(String(log.user).toLowerCase()))
+      .filter(log => !ADDRESSES[options.chain].excludeWallets.includes(String(log.user).toLowerCase()))
       .forEach(log => dailyProtocolRevenue.add(stakedToken, log.fee, METRIC.MINT_REDEEM_FEES));
 
     const dailyFees = dailySupplySideRevenue.clone();
     dailyFees.add(dailyProtocolRevenue);
 
+    let buybackTree = options.createBalances();
+    if (options.chain === CHAIN.ETHEREUM) {
+      buybackTree = await addTokensReceived({ options, target: BUY_BACK_ADDRESS, token: BUY_BACK_TOKEN })
+    }
+  
+    const dailyHoldersRevenue = options.createBalances();
+    dailyHoldersRevenue.add(buybackTree, METRIC.TOKEN_BUY_BACK);
+  
     return {
         dailyFees,
         dailyRevenue: dailyProtocolRevenue,
-        dailyHoldersRevenue: 0,
+        dailyHoldersRevenue,
         dailyProtocolRevenue,
         dailySupplySideRevenue
     };
@@ -69,9 +83,9 @@ async function fetch(_a: any, _b: any, { chain, createBalances, getLogs, }: Fetc
 
 const methodology = {
     Fees: "Includes Market Effective Yield(MEY) earned by treehouse assets and redemption fee",
-    Revenue: "Standard Redemption(7 days waiting(tEth), 17 days waiting(tAvax)) fee of 0.05%,Fastlane redemption fee of 2%(tEth), 4%(tAvax) and 20% performance fee on MEY",
+    Revenue: "Standard Redemption(7 days waiting(tEth), 17 days waiting(tAvax)) fee of 0.05%, Fastlane redemption fee of 2%(tEth, tAvax), and 20% performance fee on MEY",
     ProtocolRevenue: "All the revenue goes to protocol treasury",
-    HoldersRevenue: "No fee sharing to holders yet",
+    HoldersRevenue: "Buy back TREE from protocol treasury",
     SupplySideRevenue: "MEY earned by treehouse asset holders post performance fee",
 };
 
@@ -84,9 +98,14 @@ const breakdownMethodology = {
         [METRIC.MINT_REDEEM_FEES]: 'Standard redemption fees',
         [METRIC.ASSETS_YIELDS]: 'Market effective yields post performance fees',
     },
+    HoldersRevenue: {
+        [METRIC.TOKEN_BUY_BACK]: 'Buy back TREE from protocol treasury',
+    },
 };
 
 const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
     fetch,
     methodology,
     breakdownMethodology,

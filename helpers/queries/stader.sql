@@ -21,6 +21,8 @@ WITH
                     AND contract_address IS NULL
                     AND blockchain IS NULL
                     AND minute>=DATE('2023-06-01')
+                    AND minute >= from_unixtime({{start}})
+                    AND minute < from_unixtime({{end}})
             ) A
         WHERE
             ra=1
@@ -40,8 +42,10 @@ WITH
             blocks.base_fee_per_gas*blocks.gas_used/1e18 AS total_burn
         FROM
             ethereum.blocks
-        WHERE
-            miner in (
+        WHERE 
+            blocks.time >= from_unixtime({{start}})
+            AND blocks.time < from_unixtime({{end}})
+            AND miner in (
                 select
                     ELvaults
                 from
@@ -57,7 +61,8 @@ WITH
         FROM
             ethereum.transactions
         WHERE
-            block_number IN (
+            TIME_RANGE
+            AND block_number IN (
                 SELECT DISTINCT
                     number
                 FROM
@@ -105,6 +110,7 @@ WITH
                 NOT LOWER(call_type) IN ('delegatecall', 'callcode', 'staticcall')
                 OR call_type IS NULL
             )
+            AND TIME_RANGE
             AND tx_success
             AND success
             and CAST(value AS DOUBLE)/1e18>0
@@ -214,8 +220,8 @@ WITH
                     cast(value as double)/1e18 as withdrawn
                 from
                     ethereum.transactions A
-                where
-                    "to" in (
+                where TIME_RANGE
+                AND    "to" in (
                         select
                             withdrawVault
                         from

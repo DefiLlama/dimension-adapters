@@ -134,6 +134,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Inflows to the main treasury.",
     Revenue: "Same as Fees.",

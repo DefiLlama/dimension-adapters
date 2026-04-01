@@ -6,16 +6,16 @@ import { Chain } from  "../../adapters/types";
 const { request, } = require("graphql-request");
 
 const info: {[key: string]: any} = {
-  polygon: {
+  [CHAIN.POLYGON]: {
     subgraph: sdk.graph.modifyEndpoint('AoQ1npLLN7fTJc96XjnL8MgwHAvzxFDuE27kWfdrVATD'),
   },
-  ethereum: {
+  [CHAIN.ETHEREUM]: {
     subgraph: sdk.graph.modifyEndpoint('HLqiPUB5pYH8VztXAcvMW6VTq6avHkW77mYnKe8ov44r'),
   },
-  bsc: {
+  [CHAIN.BSC]: {
     subgraph: sdk.graph.modifyEndpoint('9AuL6Mga3pzjYDoLEJHncC3rQMCHibaW8syCwJv1QMNW'),
   },
-  arbitrum: {
+  [CHAIN.ARBITRUM]: {
     subgraph: sdk.graph.modifyEndpoint('HktZa8SikfXFpjjGZML578RTrsieQdVENJviucpokLwH'),
   },
 }

@@ -95,7 +95,7 @@ function unwrapSyTokensInBalances(balances: Balances, syMappings: Map<string, Sy
     }
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -159,6 +159,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 };
 
 const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: true,
     fetch,
     start: "2025-02-03",
     chains: [CHAIN.SOLANA],

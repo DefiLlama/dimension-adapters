@@ -6,8 +6,8 @@ import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import request, { gql } from "graphql-request";
 
 const endpoints: ChainEndpoints = {
-  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('4XKeW12D2RAhqefPYT3MLoT64p1JnT5TBLnYaNeSLA8k'),
-  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('F5jeL2nMXZt5LU6kSway7Vi2PTUcqDbw1gMQEbrmiVdJ'),
+  [CHAIN.FANTOM]: sdk.graph.modifyEndpoint('CcWtE5UMUaoKTRu8LWjzambKJtgUVjcN31pD5BdffVzK'),
+  [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('FsmdxmvBJLGjUQPxKMRtcWKzuCNpomKuMTbSbtRtggZ7'),
   [CHAIN.SONIC]: sdk.graph.modifyEndpoint("wwazpiPPt5oJMiTNnQ2VjVxKnKakGDuE2FfEZPD4TKj"),
 };
 

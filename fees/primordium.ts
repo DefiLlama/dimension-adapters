@@ -14,14 +14,14 @@ const TrojanTerminalFeeWallets = [
   '8jgg7moFJkHyTtAv9M6RBSPMp2oXeXhuiUMKW8YbYCWn',
 ];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   
   const botFees = await getSolanaReceived({ options, targets: TrojanBotFeeWallets })
   const terminalFees = await getSolanaReceived({ options, targets: TrojanTerminalFeeWallets })
 
   dailyFees.addBalances(botFees, 'Trojan Bot Fees')
-  dailyFees.addBalances(terminalFees, 'Trojan Termial Fees')
+  dailyFees.addBalances(terminalFees, 'Trojan Terminal Fees')
   
   // const query = `
   //   WITH
@@ -63,12 +63,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2024-01-04',
   dependencies: [Dependencies.ALLIUM],
-  isExpensiveAdapter: true,
   methodology: {
     Fees: 'All trading fees paid by users while using Trojan bot and Trojan Terminal.',
     Revenue: 'Fees collected by Trojan protocol.',

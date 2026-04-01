@@ -9,10 +9,13 @@ import { addGasTokensReceived } from "../helpers/token";
 const ASPECTA_FEE_COLLECTOR = "0x38799Ce388a9b65EC6bA7A47c1efb9cF1A7068e4";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await addGasTokensReceived({
+  const dailyFees = options.createBalances();
+  const df = await addGasTokensReceived({
     options,
     multisig: ASPECTA_FEE_COLLECTOR,
   })
+
+  dailyFees.addBalances(df, 'BuildKey trading fees')
 
   return {
     dailyFees,
@@ -20,6 +23,15 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
   };
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "BuildKey trading fees": "2.5% fee charged on every BuildKey trade, paid in BNB by users",
+  },
+  Revenue: {
+    "BuildKey trading fees": "All BuildKey trading fees are retained by the protocol",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -32,6 +44,7 @@ const adapter: SimpleAdapter = {
     Revenue: "All BuildKey trading fees collected by the protocol.",
     ProtocolRevenue: "Protocol-controlled revenue from BuildKey trades.",
   },
+  breakdownMethodology,
 };
 
 export default adapter;

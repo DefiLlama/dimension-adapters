@@ -32,6 +32,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { start: "2024-03-18", },
   },
   version: 2,
+  pullHourly: true,
 };
 
 export default adapter;

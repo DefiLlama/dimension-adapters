@@ -11,7 +11,7 @@ import { addTokensReceived } from '../../helpers/token';
 const RENZO_TOKEN = "0x3B50805453023a91a8bf641e279401a0b23FA6F9";
 const BUYBACK_BOT = "0x7d7445b6e7098efBDEAfA4A24f443847D5dAA262";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, startTimestamp, endTimestamp } = options;
 
   // Query data
@@ -71,18 +71,23 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(retainedBalances.getBalances());
 
+  const dailySupplySideRevenue = options.createBalances()
+  dailySupplySideRevenue.addBalances(distributedBalances.getBalances())
+
   const dailyHoldersRevenue = await addTokensReceived({ token: RENZO_TOKEN, options, target: BUYBACK_BOT })
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue
   };
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
@@ -93,6 +98,7 @@ const adapter: SimpleAdapter = {
     Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
     ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+    SupplySideRevenue: "Value distributed to stakers and depositors",
     HoldersRevenue: "75-100% of revenue directed to buyback bot of which 90% goes to burn and 10% to stakers"
   },
 }

@@ -10,12 +10,15 @@ const FEE_RATE_THRESHOLD = 0; //
 const PROTOCOL_FEE_RATE = .12; // 87% of fee goes to LPs, 12% to the protocol, 1% to the orca climate fund 
 const HOLDERS_REVENUE_RATE = 0.20; // 20% of protocol fees goes to xORCA holders via buybacks and burns
 // Based on governance proposal: https://forums.orca.so/t/tokenholder-proposal-for-xorca-initial-development-team-grant-buybacks-and-burn/882
+const MAX_FEE_TIER = 2/100; //2%
+const FEE_TIER_EPSILON = 1e-4; // tolerance for rounding (e.g. 2.00002% vs 2%)
 
 const CONFIG: any = {
     [CHAIN.SOLANA]: {
         url: statsApiEndpoint,
         blacklistedPools: [
           'EhNTpT8mAi2M9RcKkyEQLh9t9EbhyNKEcnsPAM6qCYEQ', // bad pool very low liquidity
+          '7NYhunVC9ASsrwvEC2hPTEzeZAFC5PDjDnS4M3qkY7Mw', // no liquidity(1.8E19 BTC per WBTC)
         ],
     },
     [CHAIN.ECLIPSE]: {
@@ -145,8 +148,11 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
     } while (nextCursor);
     const allPools = allWhirlpools.map(convertWhirlpoolMetricsToNumbers);
     let validPools = allPools.filter((pool) => ((pool.tvlUsdc > 10_000) || (pool.feeRate > 1000)));
+    let validFeePools = validPools.filter((pool) => ((pool.volumeUsdc24h && pool.feesUsdc24h) && (pool.feesUsdc24h/pool.volumeUsdc24h <= MAX_FEE_TIER + FEE_TIER_EPSILON)));
+
     if (CONFIG[options.chain].blacklistedPools) {
       validPools = validPools.filter(p => !CONFIG[options.chain].blacklistedPools.includes(p.address))
+      validFeePools = validFeePools.filter(p => !CONFIG[options.chain].blacklistedPools.includes(p.address))
     }
     
     options.api.log(`total pages: ${page} and valid pools: ${validPools.length} and all pools: ${allPools.length}`);
@@ -155,22 +161,22 @@ async function fetch(timestamp: number, _b: any, options: FetchOptions) {
         (sum: number, pool: any) => sum + (pool?.volumeUsdc24h || 0), 0
     );
 
-    const dailyLpFees = validPools.reduce(
+    const dailyLpFees = validFeePools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateLPFees(pool), 0
     );
 
-    const dailyFees = validPools.reduce(
+    const dailyFees = validFeePools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h, 0
     )
 
-    const dailyRevenue = allPools.reduce(
+    const dailyRevenue = validFeePools.reduce(
         (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateProtocolFees(pool), 0
     );
 
     let dailyHoldersRevenue = 0;
 
     if (options.chain == CHAIN.SOLANA) {
-        dailyHoldersRevenue = allPools.reduce(
+        dailyHoldersRevenue = validFeePools.reduce(
             (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateHoldersRevenue(pool), 0
         );
     }
@@ -206,10 +212,10 @@ export default {
             fetch,
             start: '2022-03-10',
         },
-        [CHAIN.ECLIPSE]: {
-            fetch,
-            start: '2022-09-14',
-        }
+        // [CHAIN.ECLIPSE]: {
+        //     fetch,
+        //     start: '2022-09-14',
+        // }
     },
     isExpensiveAdapter: true,
 }

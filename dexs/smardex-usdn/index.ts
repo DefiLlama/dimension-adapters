@@ -31,7 +31,7 @@ const eventConfigs = [
   {
     abi: usdnAbi.longOpenPositionEvent,
     token: CONFIG.TOKENS.WSTETH,
-    valueIndex: 4,
+    valueIndex: 3,
     contract: CONFIG.CONTRACTS.USDN,
   },
   {
@@ -67,6 +67,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

@@ -1,4 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { DanogoDimensions } from "./types";
 
@@ -16,12 +17,12 @@ const fetchData = async ({ endTimestamp, createBalances }: FetchOptions) => {
     const { dailyFeesAdaValue } = await fetchDanogoGatewayData(endTimestamp) as any
     dailyFees.addCGToken('cardano', dailyFeesAdaValue / 1e6)
 
-    return { dailyFees, };
+    return { dailyFees, dailyRevenue: dailyFees };
 }
 
 const adapter: SimpleAdapter = {
     adapter: {
-        cardano: {
+        [CHAIN.CARDANO]: {
             fetch: fetchData,
             start: DANOGO_START_TIMESTAMP,
         }
@@ -29,6 +30,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     methodology: {
         Fees: 'Trading and listing fees paid by users.',
+        Revenue: 'All the fees are revenue'
     }
 };
 

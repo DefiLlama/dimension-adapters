@@ -6,7 +6,8 @@ const getLatestBlock = sdk.blocks.getLatestBlock;
 export const ERROR_STRING = "------ ERROR ------";
 
 export function checkArguments(argv: string[]) {
-  if (argv.length < 4) {
+  const adapterArg = argv[2]
+  if (argv.length < 4 && (!adapterArg || !adapterArg.includes('/'))) {
     console.error(`Missing arguments, you need to provide the folder name of the adapter to test.
     Eg: yarn test volume uniswap`);
     process.exit(1);
@@ -197,7 +198,7 @@ export function printBreakdownFeesByLabel(breakdownByLabel: any) {
     console.log('')
     
     const entries: any = {}
-    for (const dataKey of Object.values(['dailyFees', 'dailySupplySideRevenue', 'dailyRevenue'])) {
+    for (const dataKey of Object.values(['dailyFees', 'dailySupplySideRevenue', 'dailyRevenue', 'dailyHoldersRevenue'])) {
       if (breakdownByLabel[dataKey]) {
         for (const [label, value] of Object.entries(breakdownByLabel[dataKey])) {
           entries[label] = entries[label] || { label: label };

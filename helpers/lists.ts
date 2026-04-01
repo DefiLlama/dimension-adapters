@@ -1,5 +1,5 @@
-import { httpGet } from "../utils/fetchURL";
 import { formatAddress } from "../utils/utils";
+import { getConfig } from "./cache";
 import { CHAIN } from "./chains";
 
 export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
@@ -9,6 +9,12 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xb4357054c3da8d46ed642383f03139ac7f090343", // PORT3 - hacked
   ],
   [CHAIN.BSC]: [
+    "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
+    "0xda0638ea374c4c5bf2914e6f4d5b2335deb8d80d",
+    "0xf4B385849f2e817E92bffBfB9AEb48F950Ff4444",
+    "0xf9a2e332b1ecd3d6ab51618432d68c8d5995c992",
+    "0x23d3f4eaaa515403c6765bb623f287a8cca28f2b",
+    "0x6d5ad1592ed9d6d1df9b93c793ab759573ed6714",
     "0x3b248CEfA87F836a4e6f6d6c9b42991b88Dc1d58",
     "0xd89B7dD376E671c124352267516BEF1C2cc231a3",
     "0xAC23B90A79504865D52B49B327328411a23d4dB2",
@@ -49,6 +55,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xa3cfb853339b77f385b994799b015cb04b208fe6",
     "0x76e9b54b49739837be8ad10c3687fc6b543de852",
     "0xb4357054c3da8d46ed642383f03139ac7f090343",
+    "0xACB8f52DC63BB752a51186D1c55868ADbFfEe9C1",
   ],
   [CHAIN.ARBITRUM]: [
     "0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501",
@@ -92,6 +99,11 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   ],
   [CHAIN.BASE]: [
     "0xAb6363dA0C80cEF3Ae105Bd6241E30872355d021",
+    "0x3e4802f35A7B388EC78C2d3F6286Ddac2576F9fC",
+    "0x60221580574d7C439Ef909ab23D0D3E9598c3cd2",
+    "0x4160efDd66521483c22Cb98b57b87d1fDAfeaB07",
+    "0x1204ac8c5e70c044943301babd042f75d316bde2",
+    "0xc8f8c5a9dff280cde517d197c82ee10fcb46bb07",
   ],
 };
 
@@ -113,51 +125,49 @@ export function getAllDexTokensBlacklisted(): Array<string> {
 
 interface ChainTokenConfig {
   chainId: number;
-  tokenListUrl: string;
+  tokenListUrls: Array<string>;
 }
 
 const ChainConfigs: { [key: string]: ChainTokenConfig } = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
-    tokenListUrl: "https://tokens.coingecko.com/ethereum/all.json",
+    tokenListUrls: [
+      'https://tokens.coingecko.com/ethereum/all.json',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     chainId: 42161,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/arbitrum.json",
+    tokenListUrls: [
+      'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/arbitrum.json',
+    ],
   },
   [CHAIN.BSC]: {
     chainId: 56,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/pancakeswap/token-list/main/lists/coingecko.json",
+    tokenListUrls: [
+      'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+      'https://tokens.pancakeswap.finance/ondo-rwa-tokens.json',
+      'https://tokens.coingecko.com/binance-smart-chain/all.json',
+    ],
   },
   [CHAIN.BASE]: {
     chainId: 8453,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/base.json",
+    tokenListUrls: [
+      'https://tokens.pancakeswap.finance/pancakeswap-extended.json',
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/base.json'
+    ],
   },
   [CHAIN.AVAX]: {
     chainId: 43114,
-    tokenListUrl:
-      "https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json",
+    tokenListUrls: [
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json',
+    ],
   },
 };
 
-export async function getDefaultDexTokensWhitelisted({
-  chain,
-}: {
-  chain: string;
-}): Promise<Array<string>> {
+export async function getDefaultDexTokensWhitelisted({ chain }: { chain: string }): Promise<Array<string>> {
   if (ChainConfigs[chain]) {
-    const blacklisted = getDefaultDexTokensBlacklisted(chain);
-    const data = await httpGet(ChainConfigs[chain].tokenListUrl);
-    const tokens = data.tokens ? data.tokens : data;
-    return tokens
-      .filter(
-        (token: any) => Number(token.chainId) === ChainConfigs[chain].chainId,
-      )
-      .map((token: any) => formatAddress(token.address))
-      .filter((token: string) => !blacklisted.includes(token));
+    return await getTokenLists({ chain: chain, chainId: ChainConfigs[chain].chainId, lists: ChainConfigs[chain].tokenListUrls })
   }
 
   return [];
@@ -339,3 +349,26 @@ export const DefaultVaultsBlacklisted: Record<string, Array<string>> = {
     '0xaf2e837150e941b87296ed7dca4a0c0b83c4242a',
   ],
 };
+
+interface GetTokenListsOptions {
+  chain: string;
+  chainId: number;
+  lists: Array<string>;
+  includeBlacklisted?: boolean;
+}
+
+async function getTokenLists(options: GetTokenListsOptions): Promise<Array<string>> {
+  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+  const tokens = new Set();
+  for (const url of options.lists) {
+    const data = await getConfig(`token-list-${url}`, url);
+    const items = data.tokens ? data.tokens : data;
+    for (const item of items) {
+      if (item.chainId === options.chainId) {
+        tokens.add(formatAddress(item.address));
+      }
+    }
+  }
+  const tokenAddresses: Array<string> = Array.from(tokens) as Array<string>;
+  return tokenAddresses.filter((token: string) => options.includeBlacklisted || !blacklisted.includes(token))
+}

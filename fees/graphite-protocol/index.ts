@@ -40,7 +40,8 @@ const PERCENTAGE_CHANGE_TIMESTAMP = 1749513600;
 
 const PLATFORM_FEE_WALLET = '56XVRVAsgWv6ADaxzoNnbL38LMoWKM5WiSAhrAWUbd2p';
 
-const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+    const timestamp = options.startOfDay;
     const dailyFees = options.createBalances()
 
     await getSolanaReceived({ options, balances: dailyFees, target: PLATFORM_FEE_WALLET })
@@ -75,7 +76,8 @@ const fetch = async (timestamp: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     dependencies: [Dependencies.ALLIUM],
     fetch,
     start: '2025-04-27',
@@ -86,6 +88,7 @@ const adapter: SimpleAdapter = {
         ProtocolRevenue: "Before 10th jun 2025: 50% of total fees (BONKsol Staking 30% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 4%). After 10th jun 2025: 32.33% of total fees (BONKsol Staking 15% + Hiring/Growth 7.67% + Development/Integration 7.67% + Marketing 2%).",
         HoldersRevenue: "GP Reserve: 7.67% of total fees across both periods. Before 10th jun 2025: 43% of total fees."
     },
+    doublecounted: true
 };
 
 export default adapter;

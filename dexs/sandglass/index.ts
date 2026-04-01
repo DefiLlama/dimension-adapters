@@ -42,22 +42,13 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
   };
 };
 
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = convertVolume(
-    await fetchURL(historicalVolumeEndpoint)
-  );
-  return new Date(historicalVolume[0].date).getTime() / 1000;
-};
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: getStartTimestamp,
     },
     [CHAIN.ECLIPSE]: {
       fetch,
-      start: getStartTimestamp,
     },
   },
 };

@@ -4,8 +4,7 @@ import { SimpleAdapter } from "../../adapters/types";
 
 const adapter: SimpleAdapter = {
     methodology: {
-        Fees: 'Traders pay opening and closing fees',
-        DataSource: 'Data prepared by the project team by indexing blockchain data'
+        Fees: 'Traders pay opening and closing fees'
     },
     version: 1,
     adapter: {

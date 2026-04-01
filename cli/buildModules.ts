@@ -1,9 +1,9 @@
 // console.log("Building import files for tvl/dimensions/emissions/liquidations adapters")
 
 import { readdir, writeFile } from "fs/promises";
-import { ADAPTER_TYPES, AdapterType } from "../adapters/types";
+import { ADAPTER_TYPES, AdapterType, whitelistedBaseAdapterKeys } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
-import { listHelperProtocols } from "../factory/registry";
+import { listHelperProtocols, deadAdapters } from "../factory/registry";
 
 const extensions = ['ts', 'md', 'js']
 
@@ -15,7 +15,7 @@ async function run() {
 
 
 
-  const excludeKeys = new Set(["index", "README", '.gitkeep'])
+  const excludeKeys = new Set(["index", "README", '.gitkeep', 'GUIDELINES.md'])
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
@@ -24,6 +24,7 @@ async function run() {
 
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
+  addDeadAdapters()
 
   await writeFile(outputFile, JSON.stringify(dimensionsImports))
 
@@ -53,31 +54,47 @@ async function run() {
   async function addFactoryAdapters() {
     // Get all protocols from factory registry
     const factoryProtocols = listHelperProtocols();
-    
-    for (const { protocolName, factoryName, adapterType, sourcePath } of factoryProtocols) {
+
+    for (let { protocolName, factoryName, adapterType, sourcePath, exportName } of factoryProtocols) {
       if (!dimensionsImports[adapterType]) {
         dimensionsImports[adapterType] = {};
       }
-      
+
       // Guard: Skip if file-based adapter already exists (file-based takes precedence)
       if (dimensionsImports[adapterType][protocolName]) {
         // console.log(`Skipping factory adapter ${protocolName} in ${adapterType} - file-based adapter already exists`);
         continue;
       }
-      
+
       try {
         // Import based on source path
-        const helperModule = sourcePath.startsWith('factory/') 
+        if (sourcePath === 'users.ts')
+          sourcePath = 'users/list.ts' // special case for users factory which has named exports
+        let helperModule = sourcePath.startsWith('factory/')
           ? await import(`../${sourcePath.replace('.ts', '')}`)
-          : await import(`../helpers/${factoryName}`);
-        
+          : sourcePath.includes('/') ? await import(`../${sourcePath}`) : await import(`../helpers/${factoryName}`);
+
+        if (exportName) helperModule = helperModule[exportName];
+
         const adapter = helperModule.getAdapter(protocolName);
-        
+
+        if (adapter.adapter) {
+          Object.keys(adapter.adapter).forEach(chain => {
+            const obj = adapter.adapter[chain]
+            const keys = Object.keys(obj)
+            for (const key of keys) {
+              if (!whitelistedBaseAdapterKeys.has(key)) {
+                delete obj[key] // remove non base adapter keys to avoid confusion, we only want the fetch/start/runAtCurrTime keys for the dimension modules
+              }
+            }
+          })
+        }
+
         if (!adapter) continue;
-        
+
         await setModuleDefaults(adapter);
         const mockedAdapter = mockFunctions({ default: adapter });
-        
+
         dimensionsImports[adapterType][protocolName] = {
           moduleFilePath: `${adapterType}/${protocolName}`,
           codePath: sourcePath,
@@ -111,13 +128,35 @@ async function run() {
       return ''
     }
   }
+
+  function addDeadAdapters() {
+
+    const defaultCommitHash = "1e8620166b5772c02e5e68e9dcd2cbb818724d69"  // /dead folder is deleted after this step
+
+    for (const [adapterType, adapters] of Object.entries(deadAdapters)) {
+      if (!dimensionsImports[adapterType]) {
+        dimensionsImports[adapterType] = {};
+      }
+      for (const [protocolName, adapterInfo] of Object.entries(adapters as any)) {
+        if (dimensionsImports[adapterType][protocolName])
+          continue;
+
+        (adapterInfo as any).commit = (adapterInfo as any).commit ?? defaultCommitHash
+
+
+        dimensionsImports[adapterType][protocolName] = adapterInfo;
+      }
+    }
+  }
 }
 
 //Replace all fuctions with mock functions in an object all the way down
 function mockFunctions(obj: any) {
   if (typeof obj === "function") {
     return '_f'  // llamaMockedTVLFunction
-  } else if (typeof obj === "object") {
+  } else if (typeof obj === "bigint") {
+    return Number(obj)
+  } else if (typeof obj === "object" && obj !== null) {
     Object.keys(obj).forEach((key) => obj[key] = mockFunctions(obj[key]))
   }
   return obj
@@ -132,6 +171,14 @@ function removeDotTs(s: string) {
 
 // Async version of getDirectories
 async function getDirectoriesAsync(source: string): Promise<string[]> {
-  const dirents = await readdir(source, { withFileTypes: true });
-  return dirents.map(dirent => dirent.name);
+  try {
+    const dirents = await readdir(source, { withFileTypes: true });
+    return dirents.map(dirent => dirent.name);
+  } catch (error) {
+    let sourceDir = source.split('/').pop() || source;
+    if (!['nft-volume', 'active-users', 'new-users'].includes(sourceDir)) {
+      console.log(`Error reading directories from ${sourceDir}:`, (error as any).message);
+    }
+    return [];
+  }
 }

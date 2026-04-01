@@ -87,12 +87,13 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetch as any,
       start: "2025-01-13",
     }
   },
-  methodology: {dailyVolume: "This adapter calculates the daily volume of spot trading by processing the Spot Swap related events emitted by InfinityPools smart contracts"}
+  methodology: {Volume: "This adapter calculates the daily volume of spot trading by processing the Spot Swap related events emitted by InfinityPools smart contracts"}
 };
 export default adapters;

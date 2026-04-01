@@ -267,4 +267,9 @@ export const EulerConfigs: any = {
       '0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3',
     ],
   },
+  [CHAIN.MONAD]: {
+    vaultFactories: [
+      '0xba4Dd672062dE8FeeDb665DD4410658864483f1E',
+    ],
+  },
 }

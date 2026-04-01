@@ -14,7 +14,7 @@ interface IGraph {
 const ARBITRUM_URL = 'https://api.studio.thegraph.com/query/75208/pingu-arb-2/0.0.1/';
 const ARBITRUM_ASSETS = [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.null];
 
-const MONAD_URL = 'https://api.studio.thegraph.com/query/75208/pingu-mon/0.0.2/';
+const MONAD_ID = 'G3dQNfEnDw4q3bn6QRSJUmcLzi7JKTDGYGWwPeYWYa6X';
 const MONAD_USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
 const MONAD_ASSETS = [MONAD_USDC, ADDRESSES.null];
 
@@ -24,7 +24,7 @@ const CONFIGS: Record<string, any> = {
     assets: ARBITRUM_ASSETS,
   },
   [CHAIN.MONAD]: {
-    graph: MONAD_URL,
+    graph: sdk.graph.modifyEndpoint(MONAD_ID),
     assets: MONAD_ASSETS,
   },
 }

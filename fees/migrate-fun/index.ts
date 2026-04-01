@@ -12,7 +12,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     FROM solana.assets.transfers
     WHERE to_address = '${treasuryAddress}'
       AND from_address != '${treasuryAddress}'
-      AND mint IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.SOL}')
+      AND mint IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.SOL}', 'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB')
       AND outer_program_id IN ('migK824DsBMp2eZXdhSBAWFS6PbvA6UN8DV15HfmstR')
       AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
       AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
@@ -23,11 +23,12 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyUserFees: dailyFees }
 }
 
+// https://docs.emblem.wiki/migratefun/project-guide
 const methodology = {
-  Fees: "Platform fees is 3.75% of total liquidity migrated.",
-  UserFees: "Platform fees is 3.75% of total liquidity migrated.",
-  Revenue: "3.75% of total liquidity migrated.",
-  ProtocolRevenue: "3.75% of total liquidity migrated.",
+  Fees: "Platform fees is 5% of total liquidity migrated.",
+  UserFees: "Platform fees is 5% of total liquidity migrated.",
+  Revenue: "5% of total liquidity migrated.",
+  ProtocolRevenue: "5% of total liquidity migrated.",
 }
 
 const adapter: SimpleAdapter = {

@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { METRIC } from "../../helpers/metrics"
 
 const dolomiteMarginAddresses = {
     [CHAIN.ARBITRUM]: "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
@@ -37,11 +38,14 @@ const fetchArbitrum = async ({ createBalances, api, chain, fromApi, toApi }: Fet
     marketsTokenAddress.map((token, i) => {
         const indexChange = (BigInt(marketsEndIndex[i].borrow) - BigInt(marketsCurrentIndex[i].borrow)) * BigInt(marketsTotalPar[i].borrow) / BigInt(1e18)
 
-        dailyFees.add(token, indexChange)
-        dailyRevenue.add(token, Number(indexChange) * earningsRate)
+        dailyFees.add(token, indexChange, METRIC.BORROW_INTEREST)
+        dailyRevenue.add(token, Number(indexChange) * earningsRate, METRIC.PROTOCOL_FEES)
     })
 
-    const dailySupplySideRevenue = dailyFees.clone(); dailySupplySideRevenue.subtract(dailyRevenue)
+    const dailySupplySideRevenue = createBalances()
+    const tempBalance = dailyFees.clone()
+    tempBalance.subtract(dailyRevenue)
+    dailySupplySideRevenue.addBalances(tempBalance, METRIC.BORROW_INTEREST)
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
@@ -80,24 +84,38 @@ const fetch = async ({ createBalances, api, chain, fromApi, toApi }: FetchOption
 
     marketsWithInfo.map((market, i) => {
         if (!market || !marketsWithInfoEnd[i]) return
-        const interestEarned = (BigInt(marketsWithInfoEnd[i].borrowIndex) - BigInt(market.borrowIndex)) * BigInt(market.borrowPar) / BigInt(1e18)        
+        const interestEarned = (BigInt(marketsWithInfoEnd[i].borrowIndex) - BigInt(market.borrowIndex)) * BigInt(market.borrowPar) / BigInt(1e18)
         const earningRate = 1 - (market.earningsRate / 1e18)
-        dailyFees.add(market.token, interestEarned)
-        dailyRevenue.add(market.token, Number(interestEarned) * earningRate)
+        dailyFees.add(market.token, interestEarned, METRIC.BORROW_INTEREST)
+        dailyRevenue.add(market.token, Number(interestEarned) * earningRate, METRIC.PROTOCOL_FEES)
     })
 
-    const dailySupplySideRevenue = dailyFees.clone(); dailySupplySideRevenue.subtract(dailyRevenue)
+    const dailySupplySideRevenue = createBalances()
+    const tempBalance = dailyFees.clone()
+    tempBalance.subtract(dailyRevenue)
+    dailySupplySideRevenue.addBalances(tempBalance, METRIC.BORROW_INTEREST)
+
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
 const methodology = {
-    dailyFees: "Interest paid by the borrowers",
-    dailyRevenue: "Portion of fees that goes to the protocol",
-    dailySupplySideRevenue: "Portion of fees that goes to the lenders"
+    Fees: "Interest paid by the borrowers",
+    Revenue: "Portion of fees that goes to the protocol",
+    SupplySideRevenue: "Portion of fees that goes to the lenders"
+}
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.BORROW_INTEREST]: 'Interest accrued on borrowed assets, calculated from the change in borrow index multiplied by total borrowed principal'
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: 'Portion of borrow interest retained by the protocol treasury, determined by the earnings rate (typically 5-15% of total interest)'
+    },
 }
 
 const adapters: Adapter = {
     methodology,
+    breakdownMethodology,
     adapter: {
         [CHAIN.ARBITRUM]: { fetch: fetchArbitrum, start: '2022-10-03', },
         [CHAIN.BERACHAIN]: { fetch: fetch, start: '2024-01-24', },

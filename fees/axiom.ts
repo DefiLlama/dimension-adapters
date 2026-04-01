@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { queryDuneSql } from '../helpers/dune';
 import ADDRESSES from '../helpers/coreAssets.json';
+import { METRIC } from '../helpers/metrics';
 
 // https://dune.com/adam_tehc/axiom
 const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
@@ -79,7 +80,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
   `;
   const fees = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
-  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee);
+  dailyFees.add(ADDRESSES.solana.SOL, fees[0].fee, METRIC.TRADING_FEES);
 
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 }
 };
@@ -97,6 +98,11 @@ const adapter: SimpleAdapter = {
     UserFees: 'User pays 0.75%-1% fee on each trade',
     HoldersRevenue: 'No token holder revenue',
     ProtocolRevenue: 'Users receive some chunk of the fees, so revenue is lower than fees',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: 'Fee paid by users on each trade routed through Axiom (0.75%-1%)',
+    },
   },
   isExpensiveAdapter: true,
 };
