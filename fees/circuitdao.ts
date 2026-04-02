@@ -60,6 +60,7 @@ const fetch = async (options: FetchOptions) => {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   start: "2026-01-06",
   allowNegativeValue: true,
