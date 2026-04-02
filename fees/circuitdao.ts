@@ -22,7 +22,8 @@ const MCAT = 1000; // 1 BYC = 1000 mBYC; BYC is pegged 1:1 to USD
 
 const LABELS = {
   ProtocolFees: "Stability Fees & Liquidation Penalties",
-  SavingsInterest: "Savings Interest",
+  ProtocolFeesToTreasury: "Stability Fees & Liquidation Penalties To Treasury",
+  SavingsInterestToDepositors: "Savings Interest To Depositors",
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -36,7 +37,16 @@ const fetch = async (options: FetchOptions) => {
   );
 
   const stats: any[] = data?.stats ?? [];
-  if (stats.length < 2) return {};
+  if (stats.length < 2) {
+    const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    dailyFees.addUSDValue(0, LABELS.ProtocolFees);
+    dailySupplySideRevenue.addUSDValue(0, LABELS.SavingsInterestToDepositors);
+    dailyRevenue.addUSDValue(0, LABELS.ProtocolFeesToTreasury);
+    console.error(`[circuitdao] insufficient protocol/stats points: ${stats.length}`);
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  }
 
   // stats entries contain cumulative running totals; diff last two to get the day's delta
   const latest = stats[stats.length - 1];
@@ -51,9 +61,9 @@ const fetch = async (options: FetchOptions) => {
   const supplySideUsd = (latest.interest_paid - prev.interest_paid) / MCAT;
 
   dailyFees.addUSDValue(feesUsd, LABELS.ProtocolFees);
-  dailySupplySideRevenue.addUSDValue(supplySideUsd, LABELS.SavingsInterest);
+  dailySupplySideRevenue.addUSDValue(supplySideUsd, LABELS.SavingsInterestToDepositors);
   // revenue is derived from the accounting identity: dailyFees - dailySupplySideRevenue
-  dailyRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFees);
+  dailyRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFeesToTreasury);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
@@ -74,10 +84,10 @@ export default {
       [LABELS.ProtocolFees]: "Stability fees charged on BYC loans and liquidation penalties collected",
     },
     Revenue: {
-      [LABELS.ProtocolFees]: "Stability fees and liquidation penalties net of savings interest paid to depositors",
+      [LABELS.ProtocolFeesToTreasury]: "Stability fees and liquidation penalties retained by treasury after savings interest payouts",
     },
     SupplySideRevenue: {
-      [LABELS.SavingsInterest]: "Interest paid to BYC savings vault depositors",
+      [LABELS.SavingsInterestToDepositors]: "Interest paid to BYC savings vault depositors",
     },
   },
 };
