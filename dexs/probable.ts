@@ -5,7 +5,7 @@ import { getPolymarketVolume } from "../helpers/polymarket";
 const EXCHANGE_CONTRACT_ADDRESS = "0xf99f5367ce708c66f0860b77b4331301a5597c86";
 const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955"; 
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { dailyVolume, dailyNotionalVolume } = await getPolymarketVolume({ options, exchanges: [EXCHANGE_CONTRACT_ADDRESS], currency: USDT_ADDRESS });
 
   return {
@@ -16,7 +16,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1, //too slow for version 2
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,

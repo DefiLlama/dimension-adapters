@@ -40,7 +40,7 @@ const abi = {
   ORDERS_MATCHED: 'event OrdersMatched (bytes32 indexed takerOrderHash, address indexed takerOrderMaker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled)',
 };
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
