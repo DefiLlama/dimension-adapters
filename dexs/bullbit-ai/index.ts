@@ -1,44 +1,49 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getETHReceived } from "../../helpers/token";
 
-const FIXED_PLATFORM_FEE = 1 // 1%
+const fetchData = async (options: FetchOptions) => {
+  const from = options.startTimestamp;
+  const to = options.endTimestamp;
 
-const feeReceiverMultisig = [
-  "0x87D30c1a5a79b060d7F6FBEa7791c381a2aFc7Ad",
-]
+  const res = await globalThis.fetch(
+    `https://beta.bullbit.ai/services/one/v1/info/trading-data?from=${from}&to=${to}`
+  );
 
-const fetch: any = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const data = await res.json();
 
-  await getETHReceived({
-    targets: feeReceiverMultisig,
-    balances: dailyFees,
-    options
-  });
+  if (!data || data.length === 0) {
+    return {
+      dailyVolume: 0,
+      dailyFees: 0,
+      dailyRevenue: 0,
+    };
+  }
 
-  const dailyVolume = dailyFees.clone(100 / FIXED_PLATFORM_FEE)
+  let dailyVolume = 0;
+  let dailyFees = 0;
+
+  for (const day of data) {
+    dailyVolume += day.totalVolume || 0;
+    dailyFees += day.totalFee || 0;
+  }
 
   return {
-    dailyVolume: dailyVolume,
-    dailyFees: dailyFees,
+    dailyVolume,
+    dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  }
-}
+  };
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch,
-  chains: [CHAIN.BSC],
-  pullHourly: true,
-  start: '2025-08-16',
-  dependencies: [Dependencies.ALLIUM],
+  chains: [CHAIN.BASE],
+  fetch: fetchData,
+  start: "2026-01-01",
   methodology: {
-    Fees: 'All fees paid by users for launching, trading tokens.',
-    Revenue: 'All fees collected by bullbit.ai protocol.',
-    ProtocolRevenue: 'All fees collected by bullbit.ai protocol.',
-  }
-}
+    Volume:
+      "Volume and Fees are sourced via Bullbit's official API, representing executed trades on the Execute engine and settled on-chain.",
+    Revenue: "All fees collected by the protocol.",
+  },
+};
 
-export default adapter
+export default adapter;
