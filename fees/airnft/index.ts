@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
 import coreAssets from "../../helpers/coreAssets.json";
 
 interface chainData {
@@ -18,8 +17,6 @@ const PURCHASE = 'event Purchase(address indexed previousOwner, address indexed 
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const { contract, asset } = chainConfig[options.chain]
 
   const logs = await options.getLogs({
@@ -28,16 +25,13 @@ const fetch = async (options: FetchOptions) => {
   })
   logs.forEach((log) => {
     const protocolsCut = log.price / 40n
-    dailyFees.add(asset, log.price, "NFT Trading Fees")
-    dailyRevenue.add(asset, protocolsCut, METRIC.SERVICE_FEES)
-    dailySupplySideRevenue.add(asset, log.price - protocolsCut, "Seller Proceeds")
+    dailyFees.add(asset, protocolsCut, "NFT Trading Fees")
   });
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
@@ -51,20 +45,16 @@ const adapters: SimpleAdapter = {
     [CHAIN.FANTOM]: { start: '2022-02-17'}
   },
   methodology: {
-    Fees: "NFT trading fees on all marketplace transactions",
+    Fees: "2.5% fee on all NFT marketplace transactions",
     Revenue: "The protocol takes a 2.5% cut from the seller on all transactions",
     ProtocolRevenue: "The protocol takes a 2.5% cut from the seller on all transactions",
-    SupplySideRevenue: "The remaining sale proceeds paid to NFT creators",
   },
   breakdownMethodology: {
     Fees: {
-      'NFT Trading Fees': 'Full sale price of NFT marketplace transactions.',
+      'NFT Trading Fees': '2.5% fee on all NFT marketplace transactions.',
     },
     Revenue: {
-      [METRIC.SERVICE_FEES]: '2.5% protocol cut from the seller on all transactions.',
-    },
-    SupplySideRevenue: {
-      "Seller Proceeds": 'The remaining sale proceeds paid to NFT creators.',
+      'NFT Trading Fees': '2.5% protocol cut from the seller on all transactions.',
     },
   },
 };
