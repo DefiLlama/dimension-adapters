@@ -464,7 +464,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
   // "kinetiq-markets": { dexId: "km", start: "2025-12-16", methodologyName: "Kinetiq Markets" },
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
-  "paragon": { dexId: "para", start: "2026-04-01", methodologyName: "Paragon" },
+  "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
 };
 
 // HIP3 deployer OI configs: protocol name -> dexId
