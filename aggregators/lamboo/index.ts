@@ -100,7 +100,7 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
 
       FROM aptos.move_resources mr
       INNER JOIN distinct_stores ds
-        ON CAST(mr.move_address AS VARCHAR) = ds.store_address
+        ON ltrim(regexp_replace(CAST(mr.move_address AS VARCHAR), '^0x', ''), '0') = ltrim(regexp_replace(ds.store_address, '^0x', ''), '0')
 
       CROSS JOIN date_filter d
       WHERE mr.block_date >= d.start_ts
@@ -131,10 +131,10 @@ const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResul
         )) AS amount
       FROM event_flows ef
       INNER JOIN store_metadata sm
-        ON ef.store_address = CAST(sm.store_address AS VARCHAR)
+        ON ltrim(regexp_replace(ef.store_address, '^0x', ''), '0') = ltrim(regexp_replace(CAST(sm.store_address AS VARCHAR), '^0x', ''), '0')
       INNER JOIN fee_transactions ft
         ON ef.tx_version = ft.tx_version
-      AND sm.owner = CAST(ft.sender AS VARCHAR)
+      AND ltrim(regexp_replace(sm.owner, '^0x', ''), '0') = ltrim(regexp_replace(CAST(ft.sender AS VARCHAR), '^0x', ''), '0')
       WHERE sm.token IN (${TRACKED_TOKEN_TYPES})
       GROUP BY 1, 2, ef.tx_version
       HAVING ABS(SUM(
