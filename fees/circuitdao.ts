@@ -14,16 +14,22 @@
  * https://github.com/circuitdao/circuit-analytics
  */
 
+import { FetchOptions } from "../adapters/types";
 import { fetchURL } from "../utils/fetchURL";
 
 const STATS_API = "https://api.circuitdao.com/protocol/stats";
 const MCAT = 1000; // 1 BYC = 1000 mBYC; BYC is pegged 1:1 to USD
 
-const fetch = async (timestamp: number) => {
+const LABELS = {
+  ProtocolFees: "Stability Fees & Liquidation Penalties",
+  SavingsInterest: "Savings Interest",
+};
+
+const fetch = async (options: FetchOptions) => {
   // Fetch 3 days of daily-bucketed data ending at the target timestamp.
   // This ensures we always have at least two consecutive daily entries to diff.
-  const start = new Date((timestamp - 3 * 86400) * 1000).toISOString();
-  const end = new Date(timestamp * 1000).toISOString();
+  const start = new Date((options.endTimestamp - 3 * 86400) * 1000).toISOString();
+  const end = new Date(options.endTimestamp * 1000).toISOString();
 
   const data = await fetchURL(
     `${STATS_API}?sample_interval=1d&start_date=${start}&end_date=${end}`
@@ -36,25 +42,41 @@ const fetch = async (timestamp: number) => {
   const latest = stats[stats.length - 1];
   const prev = stats[stats.length - 2];
 
-  // fees_received, profit, and interest_paid are cumulative totals in mBYC
-  const dailyFeesUsd = (latest.fees_received - prev.fees_received) / MCAT;
-  const dailyRevenueUsd = (latest.profit - prev.profit) / MCAT;
-  const dailySupplySideUsd = (latest.interest_paid - prev.interest_paid) / MCAT;
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-  return {
-    dailyFees: Math.max(0, dailyFeesUsd).toString(),
-    dailyRevenue: dailyRevenueUsd.toString(),
-    dailySupplySideRevenue: Math.max(0, dailySupplySideUsd).toString(),
-  };
+  // fees_received and interest_paid are cumulative totals in mBYC
+  const feesUsd = (latest.fees_received - prev.fees_received) / MCAT;
+  const supplySideUsd = (latest.interest_paid - prev.interest_paid) / MCAT;
+
+  dailyFees.addUSDValue(feesUsd, LABELS.ProtocolFees);
+  dailySupplySideRevenue.addUSDValue(supplySideUsd, LABELS.SavingsInterest);
+  // revenue is derived from the accounting identity: dailyFees - dailySupplySideRevenue
+  dailyRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFees);
+
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
 export default {
-  timetravel: true,
+  version: 2,
   fetch,
   start: "2026-01-06",
+  allowNegativeValue: true,
   methodology: {
     Fees: "Stability fees (interest) and liquidation penalties paid into treasury",
     Revenue: "Fees net of SupplySideRevenue and bad debt recovered",
     SupplySideRevenue: "Interest paid to savings vault depositors",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [LABELS.ProtocolFees]: "Stability fees charged on BYC loans and liquidation penalties collected",
+    },
+    Revenue: {
+      [LABELS.ProtocolFees]: "Stability fees and liquidation penalties net of savings interest paid to depositors",
+    },
+    SupplySideRevenue: {
+      [LABELS.SavingsInterest]: "Interest paid to BYC savings vault depositors",
+    },
   },
 };
