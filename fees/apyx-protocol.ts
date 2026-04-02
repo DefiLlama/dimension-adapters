@@ -1,29 +1,20 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { METRIC } from "../helpers/metrics"
-
-/**
- *
- * Apyx Protocol issues apyUSD, an ERC-4626 yield-bearing stablecoin backed by RWA assets.
- *
- * The price of apyUSD increases from accrued yields on backing assets,
- * measured by vault share price appreciation (totalAssets / totalSupply).
- *
- * All yield is passed through to depositors; there is currently no protocol take rate.
- *
- */
 
 const APYUSD_VAULT = "0x38EEb52F0771140d10c4E9A9a72349A329Fe8a6A"
+const APXUSD = "0x98A878b1Cd98131B271883B390f68D2c90674665"
+const FEE_WALLET = "0x6F93635F2A1C19b4F7f1BD9BA655F6A073C629Dc"
 
 const methodology = {
-  Fees: "Total yield earned on RWA backing assets, measured by apyUSD vault share price appreciation.",
-  Revenue: "No protocol revenue currently; all yield is distributed to apyUSD holders.",
+  Fees: "Total yield earned on RWA backing assets (share price appreciation) plus withdrawal fees (0.1% unlocking fee on apyUSD redemptions).",
   SupplySideRevenue: "Yield distributed to apyUSD vault depositors via share price appreciation.",
+  ProtocolRevenue: "Unlocking fees (0.1%) on apyUSD withdrawals, sent to the protocol fee wallet.",
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
 
   const [oldAssets, newAssets, oldShares, newShares] = await Promise.all([
     options.fromApi.call({ abi: "uint256:totalAssets", target: APYUSD_VAULT }),
@@ -38,15 +29,31 @@ const fetch = async (options: FetchOptions) => {
   const yieldUsd = (newPrice - oldPrice) * avgShares / 1e18
 
   if (yieldUsd > 0) {
-    dailyFees.addUSDValue(yieldUsd, METRIC.ASSETS_YIELDS)
-    dailySupplySideRevenue.addUSDValue(yieldUsd, METRIC.ASSETS_YIELDS)
+    dailyFees.addUSDValue(yieldUsd)
+    dailySupplySideRevenue.addUSDValue(yieldUsd)
+  }
+
+  const feeTransfers = await options.getLogs({
+    target: APXUSD,
+    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      null,
+      "0x000000000000000000000000" + FEE_WALLET.slice(2).toLowerCase(),
+    ],
+  })
+
+  for (const log of feeTransfers) {
+    if (log.from.toLowerCase() === APYUSD_VAULT.toLowerCase()) {
+      dailyFees.add(APXUSD, log.value)
+      dailyProtocolRevenue.add(APXUSD, log.value)
+    }
   }
 
   return {
     dailyFees,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
     dailySupplySideRevenue,
+    dailyProtocolRevenue,
   }
 }
 
@@ -56,15 +63,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: "2026-02-17",
-    },
-  },
-  methodology,
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.ASSETS_YIELDS]: "Yield earned on RWA backing assets, measured by apyUSD vault share price appreciation (totalAssets / totalSupply).",
-    },
-    SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: "All yield is distributed to apyUSD vault depositors via share price appreciation.",
+      meta: { methodology },
     },
   },
 }
