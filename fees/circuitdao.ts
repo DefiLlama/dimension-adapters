@@ -15,7 +15,7 @@
  */
 
 import { FetchOptions } from "../adapters/types";
-import { fetchURL } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
 const STATS_API = "https://api.circuitdao.com/protocol/stats";
 const MCAT = 1000; // 1 BYC = 1000 mBYC; BYC is pegged 1:1 to USD
