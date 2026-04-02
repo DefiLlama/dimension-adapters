@@ -10,7 +10,7 @@ const FEE_RATE = 0.001; // 0.1%
 // Fee transfers to FEE_RECEIVER originate from these sources only.
 const ROUTERS = [
     '0x10ED43C718714eb63d5aA57B78B54704E256024E', // PancakeSwap V2 Router
-    '0x1b81D678ffb9C0263b24A97847620C99d213eB14', // KyberSwap Elastic Router (BSC)
+    '0xC1e7dFE73E1598E3910EF4C7845B68A9Ab6F4c83', // KyberSwap Elastic Router (BSC)
     '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5', // KyberSwap Meta Aggregation Router v2
 ];
 
@@ -21,7 +21,7 @@ const fetch = async (options: FetchOptions) => {
         const dailyFees = await addTokensReceived({
             options,
             targets: [FEE_RECEIVER],
-            fromAddresses: ROUTERS,
+            fromAdddesses: ROUTERS, // Note: triple 'd' matches helper's param name in helpers/token.ts
         });
 
         // Volume estimated from fees: volume = fee_amount / fee_rate
