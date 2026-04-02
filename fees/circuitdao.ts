@@ -41,11 +41,13 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();
+    const dailyProtocolRevenue = options.createBalances();
     dailyFees.addUSDValue(0, LABELS.ProtocolFees);
     dailySupplySideRevenue.addUSDValue(0, LABELS.SavingsInterestToDepositors);
     dailyRevenue.addUSDValue(0, LABELS.ProtocolFeesToTreasury);
+    dailyProtocolRevenue.addUSDValue(0, LABELS.ProtocolFeesToTreasury);
     console.error(`[circuitdao] insufficient protocol/stats points: ${stats.length}`);
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
   }
 
   // stats entries contain cumulative running totals; diff last two to get the day's delta
@@ -60,12 +62,16 @@ const fetch = async (options: FetchOptions) => {
   const feesUsd = (latest.fees_received - prev.fees_received) / MCAT;
   const supplySideUsd = (latest.interest_paid - prev.interest_paid) / MCAT;
 
+  const dailyProtocolRevenue = options.createBalances();
+
   dailyFees.addUSDValue(feesUsd, LABELS.ProtocolFees);
   dailySupplySideRevenue.addUSDValue(supplySideUsd, LABELS.SavingsInterestToDepositors);
   // revenue is derived from the accounting identity: dailyFees - dailySupplySideRevenue
   dailyRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFeesToTreasury);
+  // all revenue goes to treasury (no token holder split)
+  dailyProtocolRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFeesToTreasury);
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
 };
 
 export default {
@@ -77,6 +83,7 @@ export default {
   methodology: {
     Fees: "Stability fees (interest) and liquidation penalties paid into treasury",
     Revenue: "Fees net of SupplySideRevenue",
+    ProtocolRevenue: "All revenue accrues to the protocol treasury (no token holder split)",
     SupplySideRevenue: "Interest paid to savings vault depositors",
   },
   breakdownMethodology: {
@@ -85,6 +92,9 @@ export default {
     },
     Revenue: {
       [LABELS.ProtocolFeesToTreasury]: "Stability fees and liquidation penalties retained by treasury after savings interest payouts",
+    },
+    ProtocolRevenue: {
+      [LABELS.ProtocolFeesToTreasury]: "All protocol revenue accrues to the treasury",
     },
     SupplySideRevenue: {
       [LABELS.SavingsInterestToDepositors]: "Interest paid to BYC savings vault depositors",
