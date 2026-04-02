@@ -65,7 +65,7 @@ export default {
   allowNegativeValue: true,
   methodology: {
     Fees: "Stability fees (interest) and liquidation penalties paid into treasury",
-    Revenue: "Fees net of SupplySideRevenue and bad debt recovered",
+    Revenue: "Fees net of SupplySideRevenue",
     SupplySideRevenue: "Interest paid to savings vault depositors",
   },
   breakdownMethodology: {
