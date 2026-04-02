@@ -86,8 +86,8 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Fees charged when users add liquidity to the pool",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Fees charged when users remove liquidity from the pool",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Fees charged when users mint JLP to the pool",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Fees charged when users burn JLP from the pool",
     [JUPITER_METRICS.JupPerpsSwapFees]: "Fees from swaps within the perpetual pool",
     [JUPITER_METRICS.JupPerpsOpenPositionFees]: "Position fees charged when opening or increasing a perpetual position",
     [JUPITER_METRICS.JupPerpsClosePositionFees]: "Position fees charged when closing or decreasing a perpetual position",
@@ -96,8 +96,8 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "Price impact fees charged on trades based on market conditions and imbalance, up to 0.44% of trade size",
   },
   Revenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "25% of add liquidity fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "25% of remove liquidity fees goes to protocol",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "25% of mint JLP fees goes to protocol",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "25% of burn JLP fees goes to protocol",
     [JUPITER_METRICS.JupPerpsSwapFees]: "25% of swap fees goes to protocol",
     [JUPITER_METRICS.JupPerpsOpenPositionFees]: "25% of open position fees goes to protocol",
     [JUPITER_METRICS.JupPerpsClosePositionFees]: "25% of close position fees goes to protocol",
@@ -106,8 +106,8 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "25% of price impact fees goes to protocol",
   },
   SupplySideRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "75% of add liquidity fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "75% of remove liquidity fees distributed to liquidity providers",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "75% of mint JLP fees distributed to liquidity providers",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "75% of burn JLP fees distributed to liquidity providers",
     [JUPITER_METRICS.JupPerpsSwapFees]: "75% of swap fees distributed to liquidity providers",
     [JUPITER_METRICS.JupPerpsOpenPositionFees]: "75% of open position fees distributed to liquidity providers",
     [JUPITER_METRICS.JupPerpsClosePositionFees]: "75% of close position fees distributed to liquidity providers",
@@ -116,8 +116,8 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "75% of price impact fees distributed to liquidity providers",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "50% of protocol revenue from add liquidity fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "50% of protocol revenue from remove liquidity fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "50% of protocol revenue from mint JLP fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "50% of protocol revenue from burn JLP fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
     [JUPITER_METRICS.JupPerpsSwapFees]: "50% of protocol revenue from swap fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
     [JUPITER_METRICS.JupPerpsOpenPositionFees]: "50% of protocol revenue from open position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
     [JUPITER_METRICS.JupPerpsClosePositionFees]: "50% of protocol revenue from close position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
@@ -126,8 +126,8 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "50% of protocol revenue from price impact fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from add liquidity fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from remove liquidity fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from mint JLP fees (12.5% of total fees) goes to JUP holders",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from burn JLP fees (12.5% of total fees) goes to JUP holders",
     [JUPITER_METRICS.JupPerpsSwapFees]: "From 2025-02-17, 50% of protocol revenue from swap fees (12.5% of total fees) goes to JUP holders",
     [JUPITER_METRICS.JupPerpsOpenPositionFees]: "From 2025-02-17, 50% of protocol revenue from open position fees (12.5% of total fees) goes to JUP holders",
     [JUPITER_METRICS.JupPerpsClosePositionFees]: "From 2025-02-17, 50% of protocol revenue from close position fees (12.5% of total fees) goes to JUP holders",
