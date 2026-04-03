@@ -352,4 +352,5 @@ export enum CHAIN {
   BITTENSOR = "bittensor",
   TEMPO = "tempo",
   HOTSTUFF = "hotstuff",
+  CHIA = "chia",
 }
