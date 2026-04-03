@@ -213,7 +213,10 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
+    // rateAfter < rateBefore indicates the vault share price has rebased, since the delta from base
+    // is impossible to compute, setting to zero is more desirable than reporting a false negative
+    const growthRate = vaultInfo[i].rateAfter > vaultInfo[i].rateBefore ?
+      vaultInfo[i].rateAfter - vaultInfo[i].rateBefore : 0n;
 
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
@@ -247,7 +250,10 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
+    // rateAfter < rateBefore indicates the vault share price has rebased, since the delta from base
+    // is impossible to compute, setting to zero is more desirable than reporting a false negative
+    const growthRate = vaultInfo[i].rateAfter > vaultInfo[i].rateBefore ?
+      vaultInfo[i].rateAfter - vaultInfo[i].rateBefore : 0n;
 
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
@@ -292,7 +298,10 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
   })
   
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
+    // rateAfter < rateBefore indicates the vault share price has rebased, since the delta from base
+    // is impossible to compute, setting to zero is more desirable than reporting a false negative
+    const growthRate = vaultInfo[i].rateAfter > vaultInfo[i].rateBefore ?
+      vaultInfo[i].rateAfter - vaultInfo[i].rateBefore : 0n;
 
     const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
     const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
