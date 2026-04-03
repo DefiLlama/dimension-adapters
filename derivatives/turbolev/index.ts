@@ -26,10 +26,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     { timeout: 10000 }
   );
 
-  if (!Array.isArray(response?.metrics)) return { dailyVolume };
+  if (!Array.isArray(response?.metrics)){
+    throw new Error('Invalid response from API');
+  }
 
   response.metrics.forEach((m) => {
-    if (!m.tokenAddress || !m.dailyVolumeRaw) return;
     dailyVolume.add(m.tokenAddress, m.dailyVolumeRaw);
   });
 
@@ -43,7 +44,6 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   adapter: {
     [CHAIN.SEI]: {
       fetch,
