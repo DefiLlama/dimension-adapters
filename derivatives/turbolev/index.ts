@@ -22,10 +22,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
 
   const response: DerivativeResponse = await httpGet(
-    `${API_URL}?fromTimestamp=${options.startTimestamp}&toTimestamp=${options.endTimestamp}`
+    `${API_URL}?fromTimestamp=${options.startTimestamp}&toTimestamp=${options.endTimestamp}`,
+    { timeout: 10000 }
   );
 
+  if (!Array.isArray(response?.metrics)) return { dailyVolume };
+
   response.metrics.forEach((m) => {
+    if (!m.tokenAddress || !m.dailyVolumeRaw) return;
     dailyVolume.add(m.tokenAddress, m.dailyVolumeRaw);
   });
 
@@ -34,15 +38,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   dailyVolume:
-    "Sum of opened perpetual position sizes (positionSizeRaw) from POSITION_OPENED events within the requested period, grouped by token.",
+    "Sum of daily perpetual trading volume from POSITION_OPENED events within the requested period, grouped by token.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SEI]: {
       fetch,
-      start: "2026-04-03",
+      start: "2026-04-01",
     },
   },
   methodology,
