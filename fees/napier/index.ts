@@ -11,10 +11,10 @@ import { addTokensReceived } from "../../helpers/token";
  * and yield tokens (YT). Fees are collected from various activities and split between
  * curators and protocol.
  *
- * Data source: napier-api (pre-computed from subgraph data)
+ * Data source: napier-api (pre-computed from subgraph data with DeFiLlama historical pricing)
  * Methodology:
- * - Reads dailyFeeInUsd from napier-api market list (1 API call per chain)
- * - Fees include: issuance, performance, redemption, post-settlement, and swap fees
+ * - Reads daily fee data from napier-api /v1/market/daily-fees endpoint (1 API call per chain)
+ * - Fees include: issuance, performance, redemption, post-settlement, and AMM swap fees
  * - Splits between curator (supply side) and protocol based on splitFeePercentage
  * - Tracks protocol reward tokens sent to treasury
  */
@@ -34,26 +34,30 @@ const fetch = async (options: FetchOptions) => {
     const timestamp = options.toTimestamp;
     const url = `${API_BASE_URL}/v1/market/daily-fees?chainIds=${api.chainId!}&timestamp=${timestamp}`;
 
-    let entries: DailyFeeEntry[];
-    try {
-      const res = await axios.get<DailyFeeEntry[]>(url);
-      if (!Array.isArray(res.data)) {
-        throw new Error(`Napier API returned non-array payload for chain ${chain} (chainId ${api.chainId})`);
-      }
-      entries = res.data;
-    } catch (e: any) {
-      throw new Error(`Napier API fetch failed for chain ${chain} (chainId ${api.chainId}): ${e?.message ?? e}`);
-    }
-
     const dailyFees = createBalances();
     const dailySupplySideRevenue = createBalances();
     const dailyRevenue = createBalances();
 
+    let entries: DailyFeeEntry[];
+    try {
+      const res = await axios.get<DailyFeeEntry[]>(url, { timeout: 30_000 });
+      if (!Array.isArray(res.data)) {
+        throw new Error(`Napier API returned non-array payload for chain ${chain}`);
+      }
+      entries = res.data;
+    } catch (e: any) {
+      // Non-array response = schema corruption → re-throw
+      if (e?.message?.includes('non-array')) throw e;
+      // HTTP/timeout errors → log and return zero so other chains continue
+      console.error(`Napier API fetch failed for ${chain} (chainId ${api.chainId}): ${e?.message ?? e}`);
+      return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue };
+    }
+
     for (const entry of entries) {
       if (entry.dailyFeeInUsd > 0) {
-        dailyFees.addUSDValue(entry.dailyFeeInUsd);
-        dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd);
-        dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd);
+        dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
+        dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Curator fees");
+        dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol fees");
       }
     }
 
@@ -62,8 +66,8 @@ const fetch = async (options: FetchOptions) => {
       options,
       target: chainConfig[chain].treasury,
     });
-    dailyFees.addBalances(dailyTreasuryRevenue);
-    dailyRevenue.addBalances(dailyTreasuryRevenue);
+    dailyFees.addBalances(dailyTreasuryRevenue, "Treasury reward tokens");
+    dailyRevenue.addBalances(dailyTreasuryRevenue, "Treasury reward tokens");
 
     return {
       dailyFees,
@@ -73,13 +77,26 @@ const fetch = async (options: FetchOptions) => {
     };
   };
 
-
 const methodology = {
   UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
   Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance).",
   Revenue: "Revenue governed by two fee distribution ratios: LP-Curator ratio (applies to AMM trading fees, defined per market by curators) and Curator-Protocol/DAO ratio (defined by Napier governance). Plus reward tokens sent to treasury.",
   ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio, plus protocol reward tokens.",
   SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Yield & swap fees": "Daily fees from PT/YT operations (issuance, redemption, performance) and AMM swap fees, priced using DeFiLlama historical prices.",
+    "Treasury reward tokens": "Reward tokens received by the protocol treasury.",
+  },
+  Revenue: {
+    "Protocol fees": "Protocol/DAO share of yield and swap fees.",
+    "Treasury reward tokens": "Reward tokens received by the protocol treasury.",
+  },
+  SupplySideRevenue: {
+    "Curator fees": "Curator's share of yield and swap fees.",
+  },
 };
 
 type Config = {
@@ -140,10 +157,10 @@ const chainConfig: Record<Chain, Config> = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
-  fetch,
   adapter: chainConfig,
+  fetch,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
