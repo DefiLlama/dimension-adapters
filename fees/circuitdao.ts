@@ -7,7 +7,7 @@
  * (projected_revenue / 365), so the annualised figure on DefiLlama equals projected_revenue —
  * the expected annual stability fee income at the current borrow rate and outstanding debt.
  *
- * Fees:             projected_revenue / 365 — daily stability fee + liquidation penalty accrual
+ * Fees:             projected_revenue / 365 — daily stability fee accrual
  * SupplySideRevenue: projected_cost / 365   — daily savings interest accrual
  * Revenue:          dailyFees - dailySupplySideRevenue (accounting identity)
  * ProtocolRevenue:  equal to Revenue (all revenue accrues to treasury; no token holder split)
@@ -27,8 +27,8 @@ const MCAT = 1000; // 1 BYC = 1000 mBYC; BYC is pegged 1:1 to USD
 const DAYS_IN_YEAR = 365;
 
 const LABELS = {
-  ProtocolFees: "Stability Fees & Liquidation Penalties",
-  ProtocolFeesToTreasury: "Stability Fees & Liquidation Penalties To Treasury",
+  ProtocolFees: "Stability Fees",
+  ProtocolFeesToTreasury: "Stability Fees To Treasury",
   SavingsInterestToDepositors: "Savings Interest To Depositors",
 };
 
@@ -80,17 +80,17 @@ export default {
   start: "2026-01-06",
   allowNegativeValue: true,
   methodology: {
-    Fees: "Annualised stability fees and liquidation penalties divided by 365 (accrual basis)",
+    Fees: "Annualised stability fees divided by 365 (accrual basis)",
     Revenue: "Fees net of SupplySideRevenue",
     ProtocolRevenue: "All revenue accrues to the protocol treasury (no token holder split)",
     SupplySideRevenue: "Annualised savings interest cost divided by 365 (accrual basis)",
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.ProtocolFees]: "Stability fees charged on BYC loans and liquidation penalties, annualised at current rate",
+      [LABELS.ProtocolFees]: "Stability fee accrual on outstanding debt, annualised at current rate",
     },
     Revenue: {
-      [LABELS.ProtocolFeesToTreasury]: "Stability fees and liquidation penalties retained by treasury after savings interest payouts",
+      [LABELS.ProtocolFeesToTreasury]: "Stability fee accrual minus savings interest accrual, annualized at their respective current rates",
     },
     ProtocolRevenue: {
       [LABELS.ProtocolFeesToTreasury]: "All protocol revenue accrues to the treasury",
