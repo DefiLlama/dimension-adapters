@@ -737,6 +737,9 @@ const configs: Record<string, Record<string, any>> = {
   "virtus-protocol": {
     [CHAIN.BASE]: { factory: '0x7F03ae4452192b0E280fB0d4f9c225DDa88C7623', swapEvent: velodromeSwapEvent, start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1 },
   },
+  "stableswap-xyz": {
+    [CHAIN.STABLE]: { factory: "0x25D2d657F539F2bB16eC82773cBE5ee49ddD3c69", fees: 0.003, revenueRatio: 0, }
+  },
 }
 
 const optionsMap: Record<string, any> = {
