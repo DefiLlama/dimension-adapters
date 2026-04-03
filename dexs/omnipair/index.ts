@@ -3,8 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
 
-const BORROW_INTEREST = "Borrow Interest";
-
 async function fetch(_a: any, _b: any, options: FetchOptions) {
     const query = `
     select
@@ -24,7 +22,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
     from query_6940593
     where block_date = cast(from_unixtime(${options.startOfDay}) as date)
     `
-
     const data = await queryDuneSql(options, query)
 
     const dailyVolume = options.createBalances()
@@ -52,17 +49,17 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         }
 
         if (row.borrow_interest_total !== '0') {
-            dailyFees.add(row.token_mint, row.borrow_interest_total, BORROW_INTEREST)
-            dailyUserFees.add(row.token_mint, row.borrow_interest_total, BORROW_INTEREST)
+            dailyFees.add(row.token_mint, row.borrow_interest_total, METRIC.BORROW_INTEREST)
+            dailyUserFees.add(row.token_mint, row.borrow_interest_total, METRIC.BORROW_INTEREST)
         }
 
         if (row.borrow_interest_protocol !== '0') {
-            dailyRevenue.add(row.token_mint, row.borrow_interest_protocol, BORROW_INTEREST)
-            dailyProtocolRevenue.add(row.token_mint, row.borrow_interest_protocol, BORROW_INTEREST)
+            dailyRevenue.add(row.token_mint, row.borrow_interest_protocol, METRIC.BORROW_INTEREST)
+            dailyProtocolRevenue.add(row.token_mint, row.borrow_interest_protocol, METRIC.BORROW_INTEREST)
         }
 
         if (row.borrow_interest_lp !== '0') {
-            dailySupplySideRevenue.add(row.token_mint, row.borrow_interest_lp, BORROW_INTEREST)
+            dailySupplySideRevenue.add(row.token_mint, row.borrow_interest_lp, METRIC.BORROW_INTEREST)
         }
     })
 
@@ -87,23 +84,23 @@ const methodology = {
 const breakdownMethodology = {
     Fees: {
         [METRIC.SWAP_FEES]: "All swap fees paid by users on Omnipair.",
-        [BORROW_INTEREST]: "All interest paid by borrowers on Omnipair.",
+        [METRIC.BORROW_INTEREST]: "All interest paid by borrowers on Omnipair.",
     },
     UserFees: {
         [METRIC.SWAP_FEES]: "All swap fees paid by users on Omnipair.",
-        [BORROW_INTEREST]: "All interest paid by borrowers on Omnipair.",
+        [METRIC.BORROW_INTEREST]: "All interest paid by borrowers on Omnipair.",
     },
     Revenue: {
         [METRIC.SWAP_FEES]: "The protocol_fee portion of swap fees.",
-        [BORROW_INTEREST]: "The protocol share of borrow interest.",
+        [METRIC.BORROW_INTEREST]: "The protocol share of borrow interest.",
     },
     ProtocolRevenue: {
         [METRIC.SWAP_FEES]: "The protocol_fee portion of swap fees.",
-        [BORROW_INTEREST]: "The protocol share of borrow interest.",
+        [METRIC.BORROW_INTEREST]: "The protocol share of borrow interest.",
     },
     SupplySideRevenue: {
         [METRIC.SWAP_FEES]: "The lp_fee portion of swap fees distributed to liquidity providers.",
-        [BORROW_INTEREST]: "The LP share of borrow interest distributed to liquidity providers.",
+        [METRIC.BORROW_INTEREST]: "The LP share of borrow interest distributed to liquidity providers.",
     },
 }
 
