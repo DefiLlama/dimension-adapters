@@ -48,12 +48,7 @@ const fetch = async (options: FetchOptions) => {
 
   const stats: any[] = data?.stats ?? [];
   if (stats.length === 0) {
-    dailyFees.addUSDValue(0, LABELS.ProtocolFees);
-    dailySupplySideRevenue.addUSDValue(0, LABELS.SavingsInterestToDepositors);
-    dailyRevenue.addUSDValue(0, LABELS.ProtocolFeesToTreasury);
-    dailyProtocolRevenue.addUSDValue(0, LABELS.ProtocolFeesToTreasury);
-    console.error(`[circuitdao] empty stats response for ${end}`);
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
+    throw new Error(`[circuitdao] empty stats response for ${end}`);
   }
 
   const latest = stats[stats.length - 1];
@@ -75,7 +70,6 @@ const fetch = async (options: FetchOptions) => {
 
 export default {
   version: 2,
-  pullHourly: true,
   fetch,
   start: "2026-01-06",
   allowNegativeValue: true,
