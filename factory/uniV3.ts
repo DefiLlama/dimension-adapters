@@ -333,6 +333,9 @@ const configs: Record<string, Record<string, any>> = {
   "sailfish": {
     [CHAIN.EDU_CHAIN]: {factory: '0x963A7f4eB46967A9fd3dFbabD354fC294FA2BF5C', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5}
   },
+  "stableswap-xyz-v3": {
+    [CHAIN.STABLE]: { factory: "0x88F0a512eF09175D456bc9547f914f48C013E4aA", revenueRatio: 0, }
+  },
 }
 
 const optionsMap: Record<string, any> = {
