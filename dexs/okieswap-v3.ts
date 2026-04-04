@@ -50,9 +50,8 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = today.protocolFeesUSD - yesterday.protocolFeesUSD
   const dailyRevenue = dailyProtocolRevenue
   const dailySupplySideRevenue = dailyFees - dailyProtocolRevenue
-  const dailyHoldersRevenue = 0
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue }
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {
