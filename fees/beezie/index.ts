@@ -101,10 +101,6 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
       eventAbi: clawMachineV2Abi.played,
       entireLog: true,
     });
-    if (logs.length > 0) {
-      const first = logs[0] as any;
-      const last = logs[logs.length - 1] as any;
-    }
 
     for (const log of logs) {
       const machine = (log as any).address?.toLowerCase() ?? "";
@@ -112,9 +108,9 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
       if (!token) continue;
 
       const amount = (log as any).args?.amount ?? log.amount;
-      dailyVolume.add(token, amount);
-      dailyFees.add(token, amount);
-      dailyRevenue.add(token, amount);
+      dailyVolume.add(token, amount, "Claw Machine Plays");
+      dailyFees.add(token, amount, "Claw Machine Fees");
+      dailyRevenue.add(token, amount, "Claw Machine Revenue");
     }
   } else {
     // V1: Played(user, amount, commission) — commission goes to protocol
@@ -123,10 +119,6 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
       eventAbi: clawMachineV1Abi.played,
       entireLog: true,
     });
-    if (logs.length > 0) {
-      const first = logs[0] as any;
-      const last = logs[logs.length - 1] as any;
-    }
 
     for (const log of logs) {
       const machine = (log as any).address?.toLowerCase() ?? "";
@@ -135,9 +127,9 @@ const fetchClawVolumeAndFees = async (options: FetchOptions, clawMachines: strin
 
       const amount = (log as any).args?.amount ?? log.amount;
       const commission = (log as any).args?.commission ?? log.commission;
-      dailyVolume.add(token, amount);
-      dailyFees.add(token, commission);
-      dailyRevenue.add(token, commission);
+      dailyVolume.add(token, amount, "Claw Machine Plays");
+      dailyFees.add(token, commission, "Claw Machine Fees");
+      dailyRevenue.add(token, commission, "Claw Machine Revenue");
     }
   }
 
@@ -211,20 +203,15 @@ const fetch = async (options: FetchOptions) => {
   dailyVolume.addBalances(bids.swapVolume);
   dailyVolume.addBalances(bids.marketplaceVolume);
 
+  // Daily revenue = claw pulls + marketplace
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(claw.dailyRevenue);
-  dailyRevenue.addBalances(bids.marketplaceVolume);
+  dailyRevenue.addBalances(claw.dailyRevenue, "Claw Machine Revenue");
+  dailyRevenue.addBalances(bids.marketplaceVolume, "Marketplace Revenue");
 
   // Daily fees = 6% of claw swaps + 5% of marketplace
   const dailyFees = options.createBalances();
-  const swapFees = options.createBalances();
-  swapFees.addBalances(bids.swapVolume);
-  swapFees.resizeBy(0.06);
-  const marketplaceFees = options.createBalances();
-  marketplaceFees.addBalances(bids.marketplaceVolume);
-  marketplaceFees.resizeBy(0.05);
-  dailyFees.addBalances(swapFees);
-  dailyFees.addBalances(marketplaceFees);
+  dailyFees.addBalances(bids.swapVolume.clone(0.06), "Swap Fees");
+  dailyFees.addBalances(bids.marketplaceVolume.clone(0.05), "Marketplace Fees");
 
   // Daily volume = claw pulls + swaps + marketplace
   // Daily fees = 6% of claw swaps + 5% of marketplace
@@ -242,10 +229,21 @@ const fetch = async (options: FetchOptions) => {
 // --- Methodology ---
 
 const methodology = {
-  Fees: "6% fee on secondary market trades and claw swaps via BidRouter.",
-  Revenue: "All fees are protocol revenue — no LP or token holder split.",
-  ProtocolRevenue: "100% of collected fees go to the Beezie protocol treasury.",
+  Fees: "Fees collected from claw machine swap and marketplace trades (6% on swaps, 5% on marketplace).",
+  Revenue: "All revenue is claw pulls + marketplace volume — no LP or token holder split.",
+  ProtocolRevenue: "Revenue from claw machine plays plus secondary marketplace trades via BidRouter.",
   Volume: "Total value of claw machine plays and secondary market trades via BidRouter.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Swap Fees": "6% fee on BidRouter swaps from claw managers",
+    "Marketplace Fees": "5% fee on BidRouter marketplace purchases",
+  },
+  Revenue: {
+    "Claw Machine Revenue": "Revenue from claw machine plays (V1: commission, V2: full amount)",
+    "Marketplace Revenue": "Revenue from secondary marketplace purchases",
+  },
 };
 
 // --- Adapter Export ---
@@ -253,6 +251,7 @@ const methodology = {
 const adapter: Adapter = {
   version: 2,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
