@@ -69,8 +69,8 @@ const adapter: Adapter = {
   methodology: {
     Fees:
       "5% of total pool at market finalization (3% treasury + 2% creator). Tracked via MarketFinalized event.",
-    Revenue: "3% of the fees go to treasury.",
-    SupplySideRevenue: "2% of the fees go to market creators",
+    Revenue: "3% of total pool at settlement goes to treasury.",
+    SupplySideRevenue: "2% of total pool at settlement goes to market creators.",
     Volume: "Sum of all bets placed on prediction markets (BetPlaced).",
   },
   breakdownMethodology: {
