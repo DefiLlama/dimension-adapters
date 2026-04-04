@@ -66,7 +66,6 @@ async function fetch({ createBalances, chain, api, getLogs }: FetchOptions) {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailyHoldersRevenue: 0,
     dailySupplySideRevenue
   };
 }
