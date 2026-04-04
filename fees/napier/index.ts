@@ -2,7 +2,6 @@ import { Chain } from "../../adapters/types";
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
 
 /**
  * Napier Finance Fees Adapter
@@ -14,9 +13,9 @@ import { addTokensReceived } from "../../helpers/token";
  * Data source: napier-api (pre-computed from subgraph data with DeFiLlama historical pricing)
  * Methodology:
  * - Reads daily fee data from napier-api /v1/market/daily-fees endpoint (1 API call per chain)
+ * - The API accepts a timestamp and returns fees for the UTC day containing that timestamp
  * - Fees include: issuance, performance, redemption, post-settlement, and AMM swap fees
  * - Splits between curator (supply side) and protocol based on splitFeePercentage
- * - Tracks protocol reward tokens sent to treasury
  */
 
 interface DailyFeeEntry {
@@ -57,17 +56,9 @@ const fetch = async (options: FetchOptions) => {
       if (entry.dailyFeeInUsd > 0) {
         dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
         dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Curator fees");
-        dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol fees");
+        dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol/DAO share of yield & swap fees");
       }
     }
-
-    // Protocol revenue from reward tokens sent to treasury
-    const dailyTreasuryRevenue = await addTokensReceived({
-      options,
-      target: chainConfig[chain].treasury,
-    });
-    dailyFees.addBalances(dailyTreasuryRevenue, "Treasury reward tokens");
-    dailyRevenue.addBalances(dailyTreasuryRevenue, "Treasury reward tokens");
 
     return {
       dailyFees,
@@ -80,19 +71,17 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
   Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance).",
-  Revenue: "Revenue governed by two fee distribution ratios: LP-Curator ratio (applies to AMM trading fees, defined per market by curators) and Curator-Protocol/DAO ratio (defined by Napier governance). Plus reward tokens sent to treasury.",
-  ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio, plus protocol reward tokens.",
+  Revenue: "Protocol/DAO share of fees based on the Curator-Protocol fee distribution ratio, defined by Napier governance.",
+  ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio.",
   SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "Yield & swap fees": "Daily fees from PT/YT operations (issuance, redemption, performance) and AMM swap fees, priced using DeFiLlama historical prices.",
-    "Treasury reward tokens": "Reward tokens received by the protocol treasury.",
   },
   Revenue: {
-    "Protocol fees": "Protocol/DAO share of yield and swap fees.",
-    "Treasury reward tokens": "Reward tokens received by the protocol treasury.",
+    "Protocol/DAO share of yield & swap fees": "Protocol/DAO share of yield and swap fees based on the fee distribution ratio.",
   },
   SupplySideRevenue: {
     "Curator fees": "Curator's share of yield and swap fees.",
@@ -104,7 +93,7 @@ type Config = {
   start: string;
 };
 
-const chainConfig: Record<Chain, Config> = {
+const chainConfig: Record<string, Config> = {
   [CHAIN.ETHEREUM]: {
     treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
     start: "2024-02-28",
@@ -157,8 +146,12 @@ const chainConfig: Record<Chain, Config> = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: chainConfig,
-  fetch,
+  adapter: Object.fromEntries(
+    Object.entries(chainConfig).map(([chain, config]) => [
+      chain,
+      { fetch, start: config.start },
+    ])
+  ),
   methodology,
   breakdownMethodology,
 };
