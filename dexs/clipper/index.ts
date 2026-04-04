@@ -179,7 +179,7 @@ const fetchVolume = async (options: FetchOptions): Promise<sdk.Balances> => {
   return dailyVolume;
 };
 
-export const fetchClipperDexs = async (options: FetchOptions): Promise<FetchResultV2> => {
+export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   let results: FetchResultV2 = {}
 
   if (configs[options.chain].subgraph) {
@@ -188,6 +188,8 @@ export const fetchClipperDexs = async (options: FetchOptions): Promise<FetchResu
 
   let dailyVolume = results.dailyVolume ? Number(results.dailyVolume) : 0
   const dailyFees = results.dailyFees ? Number(results.dailyFees) : 0
+  const dailyRevenue = results.dailyRevenue ? Number(results.dailyRevenue) : 0
+  const dailyProtocolRevenue = results.dailyProtocolRevenue ? Number(results.dailyProtocolRevenue) : 0
 
   const additionalVolumes = await fetchVolume(options)
   additionalVolumes.timestamp = options.fromTimestamp
@@ -197,44 +199,23 @@ export const fetchClipperDexs = async (options: FetchOptions): Promise<FetchResu
     ...results,
     dailyVolume,
     dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue
   };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetchClipperDexs,
-      start: '2022-08-05',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetchClipperDexs,
-      start: '2022-06-29',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchClipperDexs,
-      start: '2023-08-02',
-    },
-     [CHAIN.POLYGON]: {
-      fetch: fetchClipperDexs,
-      start: '2022-04-20',
-    },
-    [CHAIN.MOONBEAM]: {
-      fetch: fetchClipperDexs,
-      start: '2022-08-05',
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchClipperDexs,
-      start: '2024-03-16',
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetchClipperDexs,
-      start: '2023-09-07',
-    },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch: fetchClipperDexs,
-      start: '2024-08-22',
-    },
+    [CHAIN.ETHEREUM]: { start: '2022-08-05' },
+    [CHAIN.OPTIMISM]: { start: '2022-06-29' },
+    [CHAIN.ARBITRUM]: { start: '2023-08-02' },
+     [CHAIN.POLYGON]: { start: '2022-04-20' },
+    [CHAIN.MOONBEAM]: { start: '2022-08-05' },
+    [CHAIN.BASE]: { start: '2024-03-16' },
+    [CHAIN.MANTLE]: { start: '2023-09-07' },
+    [CHAIN.POLYGON_ZKEVM]: { start: '2024-08-22' },
   }
 }
 

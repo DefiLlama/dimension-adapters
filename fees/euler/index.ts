@@ -44,7 +44,12 @@ const fetch = async (options: FetchOptions) => {
     calls: vaults.map((vaultAddress: string) => ({ target: vaultAddress, params: [String(1e18)] }))
   })
 
+  const blacklistedVaults = EulerChainConfigs[options.chain].blacklistedVaults || []
+
   for (let i = 0; i < vaults.length; i++) {
+    if (blacklistedVaults.includes(vaults[i].toLowerCase())) {
+      continue
+    }
     const balance = vaultBalances[i] ? vaultBalances[i] : 0
     const interestFeeRate = vaultInterestFees[i] ? vaultInterestFees[i] : 0
     const protocolFeeRate = vaultProtocolFeeShares[i] ? vaultProtocolFeeShares[i] : 0
@@ -104,6 +109,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapters: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Includes interest that is paid by the borrowers, protocol and curators fees.",
     Revenue: "Fees collected by Euler protocol.",

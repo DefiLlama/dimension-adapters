@@ -49,7 +49,12 @@ const subgraphMapping: SubgraphMapping = {
 // Some silos started to represent bad debt because of a token price drop,
 // so we will filter out these silos from the data
 const badDebtSiloMapping: BadDebtSiloMapping = {
-  [CHAIN.ETHEREUM]: [],
+  [CHAIN.ETHEREUM]: [
+    {
+      silo: '0x1dE3bA67Da79A81Bc0c3922689c98550e4bd9bc2',
+      timestamp: 1762128000, // 2025-11-03
+    }
+  ],
   [CHAIN.ARBITRUM]: [
     {
       silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
@@ -94,6 +99,54 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
       silo: "0x172a687c397e315dbe56ed78ab347d7743d0d4fa", //xUsd
       timestamp: 1762128000 // 2025-11-03
     },
+    {
+      silo: "0xb1412442aa998950f2f652667d5Eba35fE66E43f", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x27968d36b937DcB26F33902fA489E5b228b104BE", //dUSD
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x76DF755A9f40463F14d0a2b7Cba3Ccf05404eEdf", //dUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0xAF1BDaE843d90c546DE5001f7b107B46e1a26Aa9", //dUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x5954ce6671d97D24B782920ddCdBB4b1E63aB2De", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x4935FaDB17df859667Cc4F7bfE6a8cB24f86F8d0", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x219656F33c58488D09d518BaDF50AA8CdCAcA2Aa", //xUsd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x61ffbead1d4dc9ffba35eb16fd6cadee9b37b2aa", //smsUSD
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x6030ad53d90ec2fb67f3805794dbb3fa5fd6eb64", //pt-wstkusd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x2f5dc399b1e31f9808d1ef1256917abd2447c74f", //bscUsd
+      timestamp: 1766275200 // 2025-12-21
+    },
+    {
+      silo: "0x7184bea7743ccfbe390f9cd830095a13ef867941", //smsusd
+      timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x04f124bf435545a3c79a8ee3ffb6c51213cf5175", //bwOS-54 migrated to market id 140
+      timestamp: 1755043200 //2025-08-13
+    }
   ],
 };
 

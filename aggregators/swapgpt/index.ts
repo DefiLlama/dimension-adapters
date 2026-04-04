@@ -11,7 +11,7 @@ interface IVolumeall {
 
 const url = "https://stats-api.panora.exchange/getDefiLlamaStats";
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const timestamp = options.startOfDay
   const dateStr = new Date(timestamp * 1000).toISOString().split('T')[0];
   const response: IVolumeall = await fetchURL(url);
@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.APTOS]: {
       fetch,

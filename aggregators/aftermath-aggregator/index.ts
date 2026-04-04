@@ -4,14 +4,11 @@ import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://aftermath.finance/api/router/volume-24hrs";
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const dailyVolume = (
-    await fetchURL(URL)
-  );
+const fetch = async (): Promise<FetchResult> => {
+  const dailyVolume =     await fetchURL(URL)
 
   return {
     dailyVolume,
-    timestamp,
   };
 };
 
@@ -19,6 +16,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SUI]: {
       fetch,
+      runAtCurrTime: true,
       start: '2023-07-20'
     },
   },

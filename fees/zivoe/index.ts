@@ -62,6 +62,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "The portion of fees distributed to zVLT token holders.",
   },
   version: 2,
+  pullHourly: true,
   fetch,
   start: "2024-10-10",
   chains: [CHAIN.ETHEREUM],

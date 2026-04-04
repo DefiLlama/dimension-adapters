@@ -1,40 +1,57 @@
-import fetchURL from "../utils/fetchURL";
+import { SimpleAdapter, FetchOptions, ChainBlocks } from "../adapters/types";
+import { httpGet } from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
-const URL = "https://api.alphasec.trade/api/v1";
+const API_URL = "https://api.alphasec.trade/api/v1/defillama/stats";
 
-const fetch = async () => {
-  const markets = (await fetchURL(URL + '/market')).result.filter((i: any) => i.type === 'spot')
-  const marketData = (await fetchURL(URL + '/market/ticker')).result
+const metrics = {
+  TradingRebatesAndCommissions: "Trading Rebates and Commissions",
+};
 
-  const marketDataMap: any = {}
-  const tokenPriceMap: any = {
-    '2': 1, // USDT
-  }
+const fetch = async (_ts: number, _: ChainBlocks, options: FetchOptions) => {
+  const url = `${API_URL}?startOfDay=${options.startOfDay}`;
+  const data = await httpGet(url);
+  const stats = data.result;
 
-  marketData.forEach((market: any) => {
-    marketDataMap[market.marketId] = market
-    tokenPriceMap[market.baseTokenId] = market.price
-  })
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  let dailyVolume = 0
-  let dailyFees = 0
+  dailyFees.addUSDValue(stats.dailyFees, METRIC.TRADING_FEES);
+  dailyRevenue.addUSDValue(stats.dailyRevenue, METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addUSDValue(stats.dailySupplySideRevenue, metrics.TradingRebatesAndCommissions);
 
-  markets.forEach((market: any) => {
-    const data = marketDataMap[market.marketId]
-    if (!data) return;
-    const price = tokenPriceMap[market.quoteTokenId] || 0
-    const usdValue = data.quoteVolume24h * price
-    const totalFees = +market.takerFee + +market.makerFee
-    dailyVolume += usdValue
-    dailyFees += usdValue * totalFees
-  })
+  return {
+    dailyVolume: stats.dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+  };
+};
 
-  return { dailyVolume, dailyFees, }
-}
-
-export default {
+const adapter: SimpleAdapter = {
+  version: 1,
   fetch,
-  runAtCurrTime: true,
   chains: [CHAIN.ALPHASEC],
-}
+  start: '2025-12-02',
+  methodology: {
+    Volume: 'Total notional value of all trades executed on the AlphaSec DEX.',
+    Fees: 'Total trading fees paid by users before any rebates or commissions are deducted.',
+    SupplySideRevenue: 'Rebates and commissions paid to ecosystem participants.',
+    Revenue: 'Total fees minus supply side revenue (rebates and commissions).',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: 'Trading fees charged on all trades executed on the AlphaSec DEX, calculated as a percentage of trade notional value and paid by users before any rebates or incentives are applied.',
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: 'Protocol revenue retained by AlphaSec after paying out trading rebates and commissions to market makers, referrers, and other ecosystem participants.',
+    },
+    SupplySideRevenue: {
+      [metrics.TradingRebatesAndCommissions]: 'Trading rebates and commissions paid to ecosystem participants including market makers, referrers, and other liquidity providers to incentivize trading activity and liquidity provision.',
+    },
+  },
+};
+
+export default adapter;

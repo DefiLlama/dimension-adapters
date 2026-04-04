@@ -96,7 +96,7 @@ interface ApiResponse {
 
 const BadDataDays = [1758931200, 1759190400]
 
-const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch: any = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   const response: ApiResponse = (
     await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chains[options.chain]}`, 3)
   );
@@ -122,7 +122,7 @@ const adapter: SimpleAdapter = {
       }
     ])
   ),
-  version: 2
+  version: 1
 };
 
 export default adapter;

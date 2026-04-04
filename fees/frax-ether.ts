@@ -29,6 +29,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
@@ -39,7 +40,7 @@ const adapter: Adapter = {
     Fees: 'All staking rewards from ETH validators.',
     Revenue: 'Share of 10% staking rewards.',
     ProtocolRevenue: 'Share of 10% staking rewards to Frax protocol.',
-    SupplySideRevenue: '90%% staking rewards are distributed to stakers.',
+    SupplySideRevenue: '90% of staking rewards are distributed to stakers.',
     HoldersRevenue: 'No revenue share to token holders.',
   }
 }

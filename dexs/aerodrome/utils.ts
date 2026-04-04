@@ -5,6 +5,26 @@ export const PRE_LAUNCH_TOKEN_PRICING = {
     decimals: 18,
     conversionRate: 1.5887,
     cutoffTimestamp: 1758240000
+  },
+  '0xf732a566121fa6362e9e0fbdd6d66e5c8c925e49': {
+    decimals: 18,
+    conversionRate: 0.15,
+    cutoffTimestamp: 1761782400
+  },
+  '0x9126236476efba9ad8ab77855c60eb5bf37586eb': {
+    decimals: 18,
+    conversionRate: 0.025,
+    cutoffTimestamp: 1766188800
+  },
+  '0x194f360d130f2393a5e9f3117a6a1b78abea1624': {
+    decimals: 18,
+    conversionRate: 0.01208,
+    cutoffTimestamp: 1769126400
+  },
+  '0x8e4cbbcc33db6c0a18561fde1f6ba35906d4848b': {
+    decimals: 18,
+    conversionRate: 0.07245,
+    cutoffTimestamp: 1775088000
   }
 }
 

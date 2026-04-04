@@ -1,5 +1,10 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { METRIC } from '../../helpers/metrics'
+
+const LVMON_Redeemer = "0xF24BED91ff0a8Fc1aCec39F6851a5eBd7dCf2BF2";
+const sLVMON = "0x61b29EfEf2E6f866bA4AaeFDb87d2837C6a22b9c";
+const LVMON_ISSUER = "0xbF52cED429C3901AfA4BBF25849269eF7A4ad105";
 
 const LEVERUP_DIAMOND = '0xea1b8E4aB7f14F7dCA68c5B214303B13078FC5ec';
 
@@ -10,24 +15,27 @@ const USDC_MAINNET = '0x754704Bc059F8C67012fEd69BC8A327a5aafb603'; // Monad USDC
 const WMON_MAINNET = '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A'; // Monad MON
 
 const openMarketTradeAbi =
-  'event OpenMarketTrade(address indexed user, bytes32 indexed tradeHash, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
+  'event OpenMarketTrade(address indexed user,bytes32 indexed tradeHash, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
 const closeTradeSuccessfulV2Abi =
-  'event CloseTradeSuccessfulV2(address indexed user, bytes32 indexed tradeHash, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
+  'event CloseTradeSuccessfulV2(address indexed user,bytes32 indexed tradeHash, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
 const executeCloseSuccessfulV2Abi =
-  'event ExecuteCloseSuccessfulV2(address indexed user, bytes32 indexed tradeHash, uint8 executionType, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
-
-const pairsV4Abi =
-  'function pairsV4() view returns ((string name, address base, uint16 basePosition, uint8 pairType, uint8 status, uint256 maxLongOiUsd, uint256 maxShortOiUsd, uint256 fundingFeePerSecondP, uint256 minFundingFeeR, uint256 maxFundingFeeR, (uint256 notionalUsd, uint16 maxLeverage, uint16 initialLostP, uint16 liqLostP)[] leverageMargins, uint16 slippageConfigIndex, uint16 slippagePosition, (string name, uint256 onePercentDepthAboveUsd, uint256 onePercentDepthBelowUsd, uint16 openSlippageP, uint16 closeSlippageP, uint16 longPutSlippageP, uint16 shortPutSlippageP) slippageConfig, uint16 feeConfigIndex, uint16 feePosition, (uint16 openFeeP, uint16 closeFeeP, uint24 shareP, uint24 minCloseFeeP, uint24 lvTokenDiscountP) feeConfig, uint40 longHoldingFeeRate, uint40 shortHoldingFeeRate)[])';
-const getMarketInfosAbi =
-  'function getMarketInfos(address[] pairBases) view returns ((address pairBase, uint256 longQty, uint256 shortQty, uint128 lpLongAvgPrice, uint128 lpShortAvgPrice, int256 fundingFeeRate)[])';
+  'event ExecuteCloseSuccessfulV2(address indexed user,bytes32 indexed tradeHash, uint8 executionType, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
+const interestDistributedAbi = 
+  'event InterestDistributed(uint256 interest,uint256 interestFee,uint256 interestReceiverAmount)';
+const redeemFeeCollectedAbi = 
+  'event RedeemFeeCollected(address indexed payer,address indexed recipient,address indexed reserveToken,uint256 grossAmount,uint256 feeAmount,bool isFastRedeem)';
+const sLVMONWithdrawalFeeCollectedAbi = 
+  'event WithdrawalFeeCollected(address indexed owner,address indexed receiver,address indexed recipient,uint256 fee,uint256 netAssets,uint256 shares)';
 
 const fetch = async (options: FetchOptions) => {
   // We calculate volume in USD directly
   let dailyVolume = 0;
   // Use createBalances for accurate fee calculation across multiple tokens
   const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances()
 
-  const [openLogs, closeLogs, executeLogs] = await Promise.all([
+  const [openLogs, closeLogs, executeLogs, interestLogs, redeemLogs, withdrawalLogs] = await Promise.all([
     options.getLogs({
       target: LEVERUP_DIAMOND,
       eventAbi: openMarketTradeAbi,
@@ -40,16 +48,28 @@ const fetch = async (options: FetchOptions) => {
       target: LEVERUP_DIAMOND,
       eventAbi: executeCloseSuccessfulV2Abi,
     }),
+    options.getLogs({
+      target: LVMON_ISSUER,
+      eventAbi: interestDistributedAbi,
+    }),
+    options.getLogs({
+      target: LVMON_Redeemer,
+      eventAbi: redeemFeeCollectedAbi,
+    }),
+    options.getLogs({
+      target: sLVMON,
+      eventAbi: sLVMONWithdrawalFeeCollectedAbi,
+    }),
   ]);
 
-  const addFee = (token: string, amount: bigint) => {
+  const addFee = (balances: ReturnType<FetchOptions['createBalances']>, token: string, amount: bigint, label: string) => {
     if (token.toLowerCase() === LVUSD.toLowerCase()) {
       // Convert 18 decimals to 6 decimals for USDC
       const feeUSDC = amount / BigInt(1e12);
-      dailyFees.add(USDC_MAINNET, feeUSDC);
+      balances.add(USDC_MAINNET, feeUSDC, label);
     } else if (token.toLowerCase() === LVMON.toLowerCase()) {
       // Assuming LVMON is 18 decimals, same as WMON/WETH
-      dailyFees.add(WMON_MAINNET, amount);
+      balances.add(WMON_MAINNET, amount, label);
     }
   };
 
@@ -71,7 +91,8 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume += (qty * entryPrice) / 1e28;
 
     // Add fees using the helper
-    addFee(lvToken, openFee + execFee);
+    addFee(dailyFees, lvToken, openFee + execFee, METRIC.OPEN_CLOSE_FEES);
+    addFee(dailyProtocolRevenue, lvToken, openFee + execFee, METRIC.OPEN_CLOSE_FEES);
   });
 
   // 2. Process Close Events
@@ -94,66 +115,85 @@ const fetch = async (options: FetchOptions) => {
     }
 
     if (totalFee > 0n) {
-      addFee(lvToken, totalFee);
+      addFee(dailyFees, lvToken, totalFee, METRIC.OPEN_CLOSE_FEES);
+      addFee(dailyProtocolRevenue, lvToken, totalFee, METRIC.OPEN_CLOSE_FEES);
     }
   };
 
   closeLogs.forEach(processCloseLog);
   executeLogs.forEach(processCloseLog);
 
-  // Fetch Open Interest
-  const pairs = await options.api.call({
-    target: LEVERUP_DIAMOND,
-    abi: pairsV4Abi,
+  // 3. Process LVMON ecosystem fee events from new event addresses
+  interestLogs.forEach((log: any) => {
+    const interest = BigInt(log.interest);
+    const interestFee = BigInt(log.interestFee);
+    const interestSupplySide = BigInt(log.interestReceiverAmount);
+    if (interest > 0n) dailyFees.add(WMON_MAINNET, interest, 'LVMON Interest');
+    if (interestFee > 0n) dailyProtocolRevenue.add(WMON_MAINNET, interestFee, 'LVMON Performance Fees');
+    if (interestSupplySide > 0n) dailySupplySideRevenue.add(WMON_MAINNET, interestSupplySide, 'LVMON Interest to stakers')
   });
 
-  const pairBases = pairs.map((p: any) => p.base);
-
-  const marketInfos = await options.api.call({
-    target: LEVERUP_DIAMOND,
-    abi: getMarketInfosAbi,
-    params: [pairBases],
+  redeemLogs.forEach((log: any) => {
+    const feeAmount = BigInt(log.feeAmount);
+    if (feeAmount > 0n) {
+      addFee(dailyFees, log.reserveToken, feeAmount, METRIC.MINT_REDEEM_FEES);
+      addFee(dailyProtocolRevenue, log.reserveToken, feeAmount, METRIC.MINT_REDEEM_FEES);
+    }
   });
 
-  let longOpenInterest = 0;
-  let shortOpenInterest = 0;
-
-  marketInfos.forEach((info: any) => {
-    // Qty is 1e10
-    // Price is 1e18 (lpLongAvgPrice / lpShortAvgPrice)
-
-    const lQty = parseFloat(info.longQty);
-    const sQty = parseFloat(info.shortQty);
-    const lPrice = parseFloat(info.lpLongAvgPrice);
-    const sPrice = parseFloat(info.lpShortAvgPrice);
-
-    const lOi = (lQty * lPrice) / 1e28;
-    const sOi = (sQty * sPrice) / 1e28;
-
-    longOpenInterest += lOi;
-    shortOpenInterest += sOi;
+  withdrawalLogs.forEach((log: any) => {
+    const fee = BigInt(log.fee);
+    if (fee > 0n) {
+      addFee(dailyFees, LVMON, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+      addFee(dailyProtocolRevenue, LVMON, fee, METRIC.DEPOSIT_WITHDRAW_FEES);
+    }
   });
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees, // Assuming all fees are paid by users
-    openInterestAtEnd: longOpenInterest + shortOpenInterest,
-    longOpenInterestAtEnd: longOpenInterest,
-    shortOpenInterestAtEnd: shortOpenInterest,
-    timestamp: options.startOfDay,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.MONAD],
   start: '2025-11-23',
   methodology: {
     Volume: 'Volume is calculated by summing the notional value (qty * entryPrice) of all OpenMarketTrade events.',
-    OpenInterest: 'Open Interest is calculated by summing the long and short open interest of all pairs.',
-    Fees: 'Fees are calculated by summing the open fees, execution fees, close fees, holding fees, and user-paid funding fees.',
+    Fees: 'Total fees include perps fees, redeem/withdrawal fees, and InterestDistributed.interest from LVMON events.',
+    Revenue: 'Protocol revenue includes all fees except InterestDistributed, where only interestFee is protocol revenue.',
+    ProtocolRevenue: 'Protocol revenue includes all fees except InterestDistributed, where only interestFee is protocol revenue.',
+    SupplySideRevenue: 'The amount of interest paid to LVMON stakers'
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.OPEN_CLOSE_FEES]: 'Open/close/holding/funding fees from perpetual trades.',
+      'LVMON Interest': 'Total interest accrued by the LVMON issuer.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fees charged on LVMON redemptions.',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from the sLVMON vault.',
+    },
+    Revenue: {
+      [METRIC.OPEN_CLOSE_FEES]: 'Open/close/holding/funding fees from perpetual trades.',
+      'LVMON Performance Fees': 'Performance fee portion of LVMON interest retained by protocol.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fees charged on LVMON redemptions.',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from the sLVMON vault.',
+    },
+    ProtocolRevenue: {
+      [METRIC.OPEN_CLOSE_FEES]: 'Open/close/holding/funding fees from perpetual trades.',
+      'LVMON Performance Fees': 'Performance fee portion of LVMON interest retained by protocol.',
+      [METRIC.MINT_REDEEM_FEES]: 'Fees charged on LVMON redemptions.',
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdrawal fees from the sLVMON vault.',
+    },
+    SupplySideRevenue: {
+      'LVMON Interest to stakers': 'LVMON interest distributed to stakers after protocol performance fee.',
+    },
   },
 };
 

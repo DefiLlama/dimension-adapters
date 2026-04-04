@@ -81,6 +81,7 @@ const fetch = async ({ chain, createBalances, getLogs }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   adapter: chainConfig as any,
   methodology: {
     Fees: "Interface and contract fees paid by users for Lockup, Flow, and Airdrop products.",

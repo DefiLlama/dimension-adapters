@@ -27,6 +27,7 @@ const adapter: Adapter = {
         ProtocolRevenue: 'All fees collected by Dexscreener.',
     },
     version: 2,
+    pullHourly: true,
     dependencies: [Dependencies.ALLIUM],
     adapter: {
         [CHAIN.SOLANA]: {
