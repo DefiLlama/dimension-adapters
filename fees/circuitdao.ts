@@ -20,11 +20,13 @@
  */
 
 import { FetchOptions } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 const STATS_API = "https://api.circuitdao.com/protocol/stats";
 const MCAT = 1000; // 1 BYC = 1000 mBYC; BYC is pegged 1:1 to USD
 const DAYS_IN_YEAR = 365;
+const startTimestamp = 1767657600 // 2026-01-06
 
 const LABELS = {
   ProtocolFees: "Stability Fees",
@@ -34,11 +36,10 @@ const LABELS = {
 
 const fetch = async (options: FetchOptions) => {
   // Fetch a single daily bucket at the target timestamp to get a snapshot of projected rates.
-  const start = new Date((options.endTimestamp - 2 * 86400) * 1000).toISOString();
   const end = new Date(options.endTimestamp * 1000).toISOString();
 
   const data = await fetchURL(
-    `${STATS_API}?sample_interval=1d&start_date=${start}&end_date=${end}`
+    `${STATS_API}?&start_date=${startTimestamp}&end_date=${end}`
   );
 
   const dailyFees = options.createBalances();
@@ -73,6 +74,7 @@ export default {
   fetch,
   start: "2026-01-06",
   allowNegativeValue: true,
+  chains: [CHAIN.CHIA],
   methodology: {
     Fees: "Annualised stability fees divided by 365 (accrual basis)",
     Revenue: "Fees net of SupplySideRevenue",
