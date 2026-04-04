@@ -26,7 +26,6 @@ import fetchURL from "../utils/fetchURL";
 const STATS_API = "https://api.circuitdao.com/protocol/stats";
 const MCAT = 1000; // 1 BYC = 1000 mBYC; BYC is pegged 1:1 to USD
 const DAYS_IN_YEAR = 365;
-const startTimestamp = 1767657600 // 2026-01-06
 
 const LABELS = {
   ProtocolFees: "Stability Fees",
@@ -39,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
   const end = new Date(options.endTimestamp * 1000).toISOString();
 
   const data = await fetchURL(
-    `${STATS_API}?&start_date=${startTimestamp}&end_date=${end}`
+    `${STATS_API}?end_date=${end}`
   );
 
   const dailyFees = options.createBalances();
