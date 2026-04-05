@@ -1,6 +1,7 @@
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { tickerToCgId } from "../../helpers/coingeckoIds";
 
 const URL = "https://api.citrex.markets/v1/ticker/24hr";
 
@@ -20,22 +21,24 @@ interface ResponseItem {
   volume: string;
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (_: any, _b: any, options: FetchOptions) => {
   const response: ResponseItem[] = await httpGet(URL);
 
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+  const dailyVolume = options.createBalances();
 
-  // Divide by 10^18 to convert from min units to USDC human-readable as per the contract
-  let dailyVolume = response.reduce((acc, item) => {
-    return acc + Number(item.volume);
-  }, 0);
+  for (const item of response) {
+    const ticker = item.productSymbol.replace("perp", "").toUpperCase();
+    const cgId = tickerToCgId[ticker];
+    const vol = Number(item.volume) / 1e18;
+    const markPrice = Number(item.markPrice) / 1e18;
 
-  dailyVolume = dailyVolume / 10 ** 18;
-
-  return {
-    dailyVolume: dailyVolume?.toString(),
-    timestamp: dayTimestamp,
-  };
+    if (cgId && markPrice > 0) {
+      dailyVolume.addCGToken(cgId, vol / markPrice);
+    } else {
+      dailyVolume.addUSDValue(vol);
+    }
+  }
+  return { dailyVolume };
 };
 
 const adapter = {
