@@ -104,6 +104,7 @@ export const tickerToCgId: Record<string, string> = {
 
     // Commodities (using tokenized commodities as pricing proxy)
     XAU: "tether-gold",
+    GOLD: "tether-gold",
     XAG: "kinesis-silver",
 
     // Forex
