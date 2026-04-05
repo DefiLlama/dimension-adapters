@@ -10,31 +10,24 @@ const MARKET_CONTRACTS = [
   "0xcD74363F87CD88E175e3015a9809ec944Bb0AD75",
 ];
 
-// pathUSD — native stablecoin on Tempo, $1 peg, 6 decimals
 const PATH_USD = "0x20c0000000000000000000000000000000000000";
+const FEE_PERCENT = 0.01; // 1%
 
-const abi = {
-  NFTSold: "event NFTSold(address indexed nft, uint256 indexed tokenId, address buyer, uint256 price)",
-  feePercent: "function feePercent() view returns (uint256)",
-};
+const NFT_SOLD_EVENT = "event NFTSold(address indexed nft, uint256 indexed tokenId, address buyer, uint256 price)";
 
-async function fetch({ getLogs, api, createBalances }: FetchOptions) {
+async function fetch({ getLogs, createBalances }: FetchOptions) {
   const dailyVolume = createBalances();
 
-  // Read fee percent from first contract (same across all)
-  const feePercent = await api.call({ target: MARKET_CONTRACTS[0], abi: abi.feePercent });
-  const feeRatio = Number(feePercent) / 100;
-
   for (const market of MARKET_CONTRACTS) {
-    const logs = await getLogs({ target: market, eventAbi: abi.NFTSold });
+    const logs = await getLogs({ target: market, eventAbi: NFT_SOLD_EVENT });
     dailyVolume.add(PATH_USD, logs.map(i => i.price));
   }
 
   return {
     dailyVolume,
-    dailyFees: dailyVolume.clone(feeRatio),
-    dailyRevenue: dailyVolume.clone(feeRatio),
-    dailyProtocolRevenue: dailyVolume.clone(feeRatio),
+    dailyFees: dailyVolume.clone(FEE_PERCENT),
+    dailyRevenue: dailyVolume.clone(FEE_PERCENT),
+    dailyProtocolRevenue: dailyVolume.clone(FEE_PERCENT),
   };
 }
 
@@ -46,7 +39,7 @@ export default {
   chains: [CHAIN.TEMPO],
   methodology: {
     Volume: "Total value of all NFTs traded on FarmCats Market in pathUSD.",
-    Fees: "Marketplace commission charged on each sale (feePercent from contract).",
+    Fees: "5% marketplace commission charged on each sale.",
     Revenue: "All marketplace commissions go to the protocol feeReceiver.",
   },
 };
