@@ -2,7 +2,6 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
-import { getPrices } from "../../utils/prices";
 
 const list_of_mints: string[] = [
   ADDRESSES.solana.SOL,
@@ -28,23 +27,9 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions): Promise
   }
   const url = (token: string) => `https://perp-api.jup.ag/trpc/tradeVolume?batch=1&input={"0":{"json":{"mint":"${token}"}}}`
   const fetches = (await Promise.all(list_of_mints.map(token => httpGet(url(token), { headers: header_user })))).flat();
+  const dailyVolume = fetches.reduce((acc, { result }) => acc + result.data.json.volume, 0);
 
-  const priceKeys = list_of_mints.map(m => `solana:${m}`);
-  const prices = await getPrices(priceKeys, options.endTimestamp);
-
-  const dailyVolume = options.createBalances();
-  for (let i = 0; i < list_of_mints.length; i++) {
-    const vol = fetches[i].result.data.json.volume;
-    const key = `solana:${list_of_mints[i]}`;
-    const price = prices[key]?.price;
-    if (price) {
-      const decimals = prices[key]?.decimals ?? 0;
-      dailyVolume.add(list_of_mints[i], (vol / price) * (10 ** decimals));
-    } else {
-      dailyVolume.addUSDValue(vol);
-    }
-  }
-    // // Fetch JLP pool info for open interest calculation
+  // // Fetch JLP pool info for open interest calculation
   // const jlpInfoUrl = 'https://perps-api.jup.ag/v1/jlp-info';
   // const jlpInfo = await httpGet(jlpInfoUrl, { headers: header_user });
   
@@ -62,7 +47,7 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions): Promise
 };
 
 const adapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.SOLANA],
   runAtCurrTime: true,
