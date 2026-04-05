@@ -88,7 +88,7 @@ export const tickerToCgId: Record<string, string> = {
     SKY: "sky",
     WLFI: "world-liberty-financial",
 
-    // Tokenized stocks (using xstock as pricing proxy)
+    // Tokenized stocks (using xstock and ondo as pricing proxy)
     TSLA: "tesla-xstock",
     NVDA: "nvidia-xstock",
     AAPL: "apple-xstock",
@@ -101,6 +101,10 @@ export const tickerToCgId: Record<string, string> = {
     COIN: "coinbase-xstock",
     HOOD: "robinhood-xstock",
     PLTR: "palantir-xstock",
+    SPY: "sp500-xstock",
+    NDX: "nasdaq-xstock",
+    NFLX: "netflix-xstock",
+    SNDK: "sandisk-ondo-tokenized",
 
     // Commodities (using tokenized commodities as pricing proxy)
     XAU: "tether-gold",
