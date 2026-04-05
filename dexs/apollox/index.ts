@@ -1,4 +1,7 @@
+import { Balances } from "@defillama/sdk";
+import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { tickerToCgId } from "../../helpers/coingeckoIds";
 import { httpGet } from "../../utils/fetchURL";
 
 type ResponseItem = {
@@ -37,7 +40,16 @@ async function sleep(time: number) {
 }
 let sleepCount = 0;
 
-const fetchV2Volume = async (retry = 0) => {
+function addVolume(balance: Balances, baseAsset: string, baseVol: number, quoteVol: number) {
+  const cgId = tickerToCgId[baseAsset]
+  if (cgId) {
+    balance.addCGToken(cgId, baseVol)
+  } else {
+    balance.addUSDValue(quoteVol)
+  }
+}
+
+const fetchV2Volume = async (balance: Balances, retry = 0) => {
   if (retry >= 3) {
     throw new Error("Failed to fetch v2 volume after 3 retries");
   }
@@ -48,32 +60,29 @@ const fetchV2Volume = async (retry = 0) => {
     params: { excludeCake: true },
   })) as { data: ResponseItem[]; success: boolean };
   if (res.data === null && res.success === false) {
-    return fetchV2Volume(retry + 1);
+    return fetchV2Volume(balance, retry + 1);
   }
-  const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
-
-  return { dailyVolume, };
+  for (const item of (res.data || [])) {
+    addVolume(balance, item.baseAsset, item.baseVol, item.qutoVol)
+  }
 };
 
-const fetchV1Volume = async () => {
+const fetchV1Volume = async (balance: Balances) => {
   const data = (await httpGet(v1VolumeAPI)) as { data: V1TickerItem[] };
-  const dailyVolume = data.data.reduce((p, c) => p + +c.quoteVolume, 0);
-
-  return { dailyVolume };
+  for (const item of data.data) {
+    addVolume(balance, item.baseAsset, item.baseVolume, item.quoteVolume)
+  }
 };
 
-const fetch = async () => {
-  const v1DailyVolume = await fetchV1Volume();
-
-  const v2DailyVolume = await fetchV2Volume();
-
-  let dailyVolume = v2DailyVolume.dailyVolume + v1DailyVolume.dailyVolume;
-  if (dailyVolume >= 35_000_000_000) {
+const fetch = async (_: any, _b: any, options: FetchOptions) => {
+  const dailyVolume = options.createBalances()
+  await fetchV1Volume(dailyVolume);
+  await fetchV2Volume(dailyVolume);
+  if (await dailyVolume.getUSDValue() >= 35_000_000_000) {
     console.log("Daily volume is greater than 35 billion", dailyVolume);
     throw new Error("Daily volume is too high, something went wrong");
   }
-
-  return { dailyVolume, };
+  return { dailyVolume };
 };
 
 export default {
