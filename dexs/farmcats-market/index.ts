@@ -15,7 +15,7 @@ const PATH_USD = "0x20c0000000000000000000000000000000000000";
 
 const abi = {
   NFTSold: "event NFTSold(address indexed nft, uint256 indexed tokenId, address buyer, uint256 price)",
-  feePercent: "uint256:feePercent",
+  feePercent: "function feePercent() view returns (uint256)",
 };
 
 async function fetch({ getLogs, api, createBalances }: FetchOptions) {
