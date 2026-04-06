@@ -1,6 +1,6 @@
-import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
 
 /**
  * Napier Finance Fees Adapter
@@ -28,45 +28,35 @@ interface DailyFeeEntry {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? 'https://api-v2.napier.finance';
 
-const fetch = async (options: FetchOptions) => {
-    const { createBalances, chain, api } = options;
-    const timestamp = options.toTimestamp;
-    const url = `${API_BASE_URL}/v1/market/daily-fees?chainIds=${api.chainId!}&timestamp=${timestamp}`;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+  const { createBalances, chain, api } = options;
+  const timestamp = options.toTimestamp;
+  const url = `${API_BASE_URL}/v1/market/daily-fees?chainIds=${api.chainId!}&timestamp=${timestamp}`;
 
-    const dailyFees = createBalances();
-    const dailySupplySideRevenue = createBalances();
-    const dailyRevenue = createBalances();
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyRevenue = createBalances();
 
-    let entries: DailyFeeEntry[];
-    try {
-      const res = await axios.get<DailyFeeEntry[]>(url, { timeout: 60_000 });
-      if (!Array.isArray(res.data)) {
-        throw new Error(`Napier API returned non-array payload for chain ${chain}`);
-      }
-      entries = res.data;
-    } catch (e: any) {
-      // Non-array response = schema corruption → re-throw
-      if (e?.message?.includes('non-array')) throw e;
-      // HTTP/timeout errors → log and return zero so other chains continue
-      console.error(`Napier API fetch failed for ${chain} (chainId ${api.chainId}): ${e?.message ?? e}`);
-      return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue };
+  const entries = await fetchURL(url);
+  if (!entries || !Array.isArray(entries)) {
+    throw new Error(`Napier API returned invalid response for ${chain}`);
+  }
+
+  for (const entry of entries) {
+    if (entry.dailyFeeInUsd > 0) {
+      dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
+      dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Yield & swap fees to curators");
+      dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol/DAO share of yield & swap fees");
     }
+  }
 
-    for (const entry of entries) {
-      if (entry.dailyFeeInUsd > 0) {
-        dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
-        dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Yield & swap fees to curators");
-        dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol/DAO share of yield & swap fees");
-      }
-    }
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailySupplySideRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-    };
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
+};
 
 const methodology = {
   UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
@@ -104,13 +94,9 @@ const chainConfig: Record<string, { start: string }> = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: Object.fromEntries(
-    Object.entries(chainConfig).map(([chain, config]) => [
-      chain,
-      { fetch, start: config.start },
-    ])
-  ),
+  version: 1,
+  adapter: chainConfig,
+  fetch,
   methodology,
   breakdownMethodology,
 };
