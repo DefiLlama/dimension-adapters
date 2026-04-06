@@ -39,7 +39,7 @@ export default {
   chains: [CHAIN.TEMPO],
   methodology: {
     Volume: "Total value of all NFTs traded on FarmCats Market in pathUSD.",
-    Fees: "5% marketplace commission charged on each sale.",
+    Fees: "1% marketplace commission charged on each sale.",
     Revenue: "All marketplace commissions go to the protocol feeReceiver.",
   },
 };
