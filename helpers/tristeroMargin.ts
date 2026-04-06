@@ -1,12 +1,54 @@
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 
-export const TRISTERO_MARGIN_CONFIG = {
-  chain: CHAIN.ARBITRUM,
-  start: '2026-03-19',
-  escrow: '0x270f529f16A578AAD524B94e34f579a51E00611C',
-  router: '0x40BB0e664f376DDD0E34F35Baef9eF744eB5cA57',
+type TristeroMarginEscrowConfig = {
+  address: string;
+  start: string;
+  end?: string;
+};
+
+type TristeroMarginChainConfig = {
+  start: string;
+  escrows: TristeroMarginEscrowConfig[];
+};
+
+export const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
+  [CHAIN.ARBITRUM]: {
+    start: '2026-03-19',
+    escrows: [
+      // Keep the legacy Arbitrum escrow live in the adapter so older positions continue
+      // to contribute TVL, open interest, and borrow-fee accrual until they are closed.
+      { address: '0x270f529f16A578AAD524B94e34f579a51E00611C', start: '2026-03-19' },
+      { address: '0xe400000df2f227133ff74c662c9e935439471d2e', start: '2026-04-02' },
+    ],
+  },
+  [CHAIN.BASE]: {
+    start: '2026-04-02',
+    escrows: [
+      { address: '0xe400000df2f227133ff74c662c9e935439471d2e', start: '2026-04-02' },
+    ],
+  },
+  [CHAIN.ETHEREUM]: {
+    start: '2026-04-02',
+    escrows: [
+      { address: '0xe400000df2f227133ff74c662c9e935439471d2e', start: '2026-04-02' },
+    ],
+  },
 } as const;
+
+export function getTristeroMarginChains(): string[] {
+  return Object.keys(TRISTERO_MARGIN_CONFIGS);
+}
+
+export function getTristeroMarginChainStart(chain: string): string | undefined {
+  return TRISTERO_MARGIN_CONFIGS[chain]?.start;
+}
+
+export function getActiveTristeroMarginEscrows(chain: string, date: string): string[] {
+  return (TRISTERO_MARGIN_CONFIGS[chain]?.escrows ?? [])
+    .filter(({ start, end }) => date >= start && (!end || date <= end))
+    .map(({ address }) => address);
+}
 
 export const TRISTERO_MARGIN_ABI = {
   totalPositions: 'function totalPositions() view returns (uint128)',
@@ -69,15 +111,15 @@ export function normalizePosition(position: any): TristeroMarginPosition | null 
 
 export async function safeCall(options: FetchOptions, params: Record<string, any>) {
   try {
-    return await options.api.call({ ...params, permitFailure: true });
+    return await (options.api.call as any)({ ...params, permitFailure: true });
   } catch {
     return null;
   }
 }
 
-export async function getPositionAtBlock(options: FetchOptions, positionId: number, block: number): Promise<TristeroMarginPosition | null> {
+export async function getPositionAtBlock(options: FetchOptions, escrow: string, positionId: number, block: number): Promise<TristeroMarginPosition | null> {
   const position = await safeCall(options, {
-    target: TRISTERO_MARGIN_CONFIG.escrow,
+    target: escrow,
     abi: TRISTERO_MARGIN_ABI.positions,
     params: [positionId],
     block,
@@ -86,9 +128,9 @@ export async function getPositionAtBlock(options: FetchOptions, positionId: numb
   return normalizePosition(position);
 }
 
-export async function getAccumulatedInterestAtBlock(options: FetchOptions, positionId: number, block: number): Promise<bigint> {
+export async function getAccumulatedInterestAtBlock(options: FetchOptions, escrow: string, positionId: number, block: number): Promise<bigint> {
   const interest = await safeCall(options, {
-    target: TRISTERO_MARGIN_CONFIG.escrow,
+    target: escrow,
     abi: TRISTERO_MARGIN_ABI.accumulatedInterest,
     params: [positionId],
     block,
