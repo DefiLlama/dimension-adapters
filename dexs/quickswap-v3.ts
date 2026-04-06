@@ -10,16 +10,51 @@ const QuickswapV3Factories: Record<string, string> = {
   [CHAIN.SONEIUM]: '0x8Ff309F68F6Caf77a78E9C20d2Af7Ed4bE2D7093',
 }
 
+// Function to get correct fee percentages based on timestamp and chain
+const getV3FeePercentages = (timestamp: number, chain: string) => {
+  const march1st2025 = 1740787200; // March 1, 2025 UTC timestamp
+
+  // For uni forks like IMX, use 10% total revenue structure
+  if ([CHAIN.IMX, CHAIN.MANTA].includes(chain as CHAIN)) {
+    return {
+      ProtocolRevenue: 3,
+      HoldersRevenue: 7,
+      SupplySideRevenue: 90,
+      UserFees: 100,
+      Revenue: 10,
+    };
+  }
+
+  // For main chains like Polygon
+  if (timestamp < march1st2025) {
+    // Before March 1, 2025: 10% total revenue
+    return {
+      ProtocolRevenue: 1.7,
+      HoldersRevenue: 6.8, // Community fee (buybacks)
+      SupplySideRevenue: 85,
+      UserFees: 100,
+      Revenue: 8.5, // 1.7 + 6.8 (ignoring Algebra Labs 1.5%)
+    };
+  } else {
+    // After March 1, 2025: 15% total revenue
+    return {
+      ProtocolRevenue: 3.23,
+      HoldersRevenue: 10, // Community fee (buybacks)
+      SupplySideRevenue: 85,
+      UserFees: 100,
+      Revenue: 13.23, // 3.23 + 10 (ignoring Algebra Labs 1.77%)
+    };
+  }
+};
+
 async function getFetchUniV3LogAdapter(options: FetchOptions) {
+  const feesConfig = getV3FeePercentages(options.startOfDay, options.chain);
   const adapter = getUniV3LogAdapter({
     factory: QuickswapV3Factories[options.chain],
     poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)',
     swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)',
     isAlgebraV2: true,
-    userFeesRatio: 1,
-    revenueRatio: 0,
-    protocolRevenueRatio: 0,
-    holdersRevenueRatio: 0,
+    ...feesConfig,
   });
 
   return await adapter(options);

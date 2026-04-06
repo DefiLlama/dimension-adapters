@@ -11,6 +11,17 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "sushi-perps": {
+    addresses: ["0x12ee177db3ceafedc639d023a29cc8588db3a4b9"],
+    start: "2025-03-30",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      HoldersRevenue: "No fees distributed to SUSHI token holders",
+    },
+    extraReturnFields: { dailyHoldersRevenue: "0" },
+  },
   "dreamcash": {
     addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
     start: "2025-06-12",
@@ -173,7 +184,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "supurr-perps": { addresses: ["0x36be02a397e969e010ccbd7333f4169f66b8989f"], start: "2025-09-19" },
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
   "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
-  "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" },
+  "wunder-perps": { addresses: ["0x75982eb8b734b24b653b39e308489a428041f162"], start: "2025-10-19" }
 };
 
 // Builder fees configs: protocol name -> config
@@ -445,6 +456,15 @@ const builderFeesConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
+  "silhouette-naked": {
+    addresses: ["0x5d2c2bd98f10616771d7b5124ad2090ba72aa43c"], 
+    start: "2026-01-16",
+    methodology: {
+      Fees: "builder code revenue from Open, transparent trading through Silhouette's interface.",
+      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
+    },
+  }
 };
 
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
@@ -455,6 +475,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
   // "kinetiq-markets": { dexId: "km", start: "2025-12-16", methodologyName: "Kinetiq Markets" },
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
+  "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
 };
 
 // HIP3 deployer OI configs: protocol name -> dexId
@@ -465,6 +486,7 @@ const hip3OiConfigs: Record<string, string> = {
   // "kinetiq-markets-oi": "km",
   "tradexyz-oi": "xyz",
   "ventuals-oi": "vntl",
+  "paragon-oi": "para",
 };
 
 function hip3Methodology(name: string) {

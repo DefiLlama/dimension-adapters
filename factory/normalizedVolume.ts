@@ -215,7 +215,7 @@ const protocols = {
     chains: [CHAIN.PARADEX],
     start: '2026-01-20',
     version: 2,
-    minContracts: 90
+    minContracts: 30
   }),
   'sunx': dailyNormalizedVolumeAdapter({
     protocolName: 'sunx',
@@ -247,6 +247,27 @@ const protocols = {
     chains: [CHAIN.STARKNET],
     start: '2026-01-20',
     minContracts: 75
+  }),
+  'nado': dailyNormalizedVolumeAdapter({
+    protocolName: 'nado',
+    chains: [CHAIN.INK],
+    start: '2026-01-20',
+    version: 1,
+    minContracts: 30
+  }),
+  'standx': dailyNormalizedVolumeAdapter({
+    protocolName: 'standx',
+    chains: [CHAIN.STANDX],
+    start: '2026-01-20',
+    version: 1,
+    minContracts: 4
+  }),
+  'evedex': dailyNormalizedVolumeAdapter({
+    protocolName: 'evedex',
+    chains: [CHAIN.EVENTUM],
+    start: '2026-03-30',
+    version: 1,
+    minContracts: 14
   }),
 } as const;
 

@@ -129,9 +129,9 @@ export default (
           "0x97a32B4f8486735075f2cBEcff64208fBF2e610A",
         ],
         "xdai": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0xCaAbdD9Cf4b61813D4a52f980d6BC1B713FE66F5"],
-        "arbitrum-nova": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"],
-        "boba-avax": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
-        "boba-bnb": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
+        "arbitrum_nova": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"],
+        // "boba_avax": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
+        // "boba_bnb": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
         "boba": ["0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506", "0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
         "celo": ["0x1421bDe4B10e8dd459b3BCb598810B1337D56842", "0x0711B6026068f736bae6B213031fCE978D48E026"],
         "fuse": ["0xF4d73326C13a4Fc5FD7A064217e12780e9Bd62c3", "0x0BE808376Ecb75a5CF9bB6D237d16cd37893d904"],
@@ -192,9 +192,9 @@ export default (
           "0x3D2f8ae0344d38525d2AE96Ab750B83480c0844F",
           "0x9e4791ad13f14783C7B2A6A7bD8D6DDD1DC95847",
         ],
-        "arbitrum-nova": ["0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"],
-        "boba-avax": ["0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
-        "boba-bnb": ["0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
+        "arbitrum_nova": ["0xbE811A0D44E2553d25d11CB8DC0d3F0D0E6430E6"],
+        // "boba_avax": ["0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
+        // "boba_bnb": ["0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
         "boba": ["0x0769fd68dFb93167989C6f7254cd0D766Fb2841F"],
         "bittorrent": ["0x8dacffa7F69Ce572992132697252E16254225D38"],
         "celo": ["0x0711B6026068f736bae6B213031fCE978D48E026"],
@@ -2456,7 +2456,16 @@ export default (
         scroll: ["0x010931D4d82ff3F5Ae8bD94e0752570711f78959"],
         polygon: ["0x34E2F923bBa206358EcE221af73E8d121837F873"],
       },
-    },  
-
+    },
+    {
+      id: "711",
+      name: "Polymarket",
+      addresses: {
+        polygon: [
+          '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045', // Ctf
+          '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296', // NegRiskCtf
+        ]
+      }
+    }  
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);

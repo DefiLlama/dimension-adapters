@@ -6,16 +6,18 @@ const EXCHANGE_CONTRACT_ADDRESS = "0xf99f5367ce708c66f0860b77b4331301a5597c86";
 const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955"; 
 
 const fetch = async (options: FetchOptions) => {
-  const { dailyVolume } = await getPolymarketVolume({ options, exchanges: [EXCHANGE_CONTRACT_ADDRESS], currency: USDT_ADDRESS });
+  const { dailyVolume, dailyNotionalVolume } = await getPolymarketVolume({ options, exchanges: [EXCHANGE_CONTRACT_ADDRESS], currency: USDT_ADDRESS });
 
   return {
     dailyVolume,
     dailyFees: 0, // no fees
+    dailyNotionalVolume
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,

@@ -156,6 +156,7 @@ const adapter: Adapter = {
     return acc;
   }, {}),
   version: 2,
+  pullHourly: true,
   allowNegativeValue: true, // due to bridge gas fees
   methodology: {
     Fees: "All fees paid by users while using Stargate bridge.",

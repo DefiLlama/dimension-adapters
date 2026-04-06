@@ -15,12 +15,16 @@ const config: Record<string, ChainConfig> = {
     poolManager: "0x498581ff718922c3f8e6a244956af099b2652b2b",
     pools: [
       {
-        id: "0x71c06960eee8003ebf3f869caa480d7032c7088850d951f04de5b46d86ada017",
-        token: "0x4200000000000000000000000000000000000006", // WETH
+        id: "0xebb666a5c6449b83536950b975d74deb32aca1537a501b58161a896816b04da6",
+        token: "0x4200000000000000000000000000000000000006", // ETH/USDC (AlphixLVRFee)
+      },
+      {
+        id: "0x3860784278e9e481ffd0888430ab2af8f2bb1180069f31cde9e1066728bbe73b",
+        token: "0x4200000000000000000000000000000000000006", // ETH/cbBTC (AlphixLVRFee)
       },
       {
         id: "0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71",
-        token: "0x820c137fa70c8691f0e44dc420a5e53c168921dc", // USDS
+        token: "0x820c137fa70c8691f0e44dc420a5e53c168921dc", // USDS/USDC
       },
     ],
   },
