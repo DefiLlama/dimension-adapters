@@ -186,6 +186,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   }
 }
 
@@ -194,6 +195,7 @@ const methodology = {
   Revenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses.',
   SupplySideRevenue: 'Interest distributed to depositors after protocol fee.',
   ProtocolRevenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses.',
+  HoldersRevenue: 'No revenue shared to AAVE holders.',
 }
 
 const breakdownMethodology = {
