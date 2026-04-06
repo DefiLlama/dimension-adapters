@@ -89,8 +89,6 @@ const fetch = async (options: FetchOptions) => {
       if (conversion) {
         const assetsSeized = (BigInt(event.yieldBalance) * conversion) / BigInt(1e18)
         dailyLiquidations.add(collateralAsset, assetsSeized)
-      } else {
-        dailyLiquidations.add(collateralAsset, event.yieldBalance)
       }
     }
   }
