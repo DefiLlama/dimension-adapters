@@ -39,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
 
     let entries: DailyFeeEntry[];
     try {
-      const res = await axios.get<DailyFeeEntry[]>(url, { timeout: 30_000 });
+      const res = await axios.get<DailyFeeEntry[]>(url, { timeout: 60_000 });
       if (!Array.isArray(res.data)) {
         throw new Error(`Napier API returned non-array payload for chain ${chain}`);
       }
