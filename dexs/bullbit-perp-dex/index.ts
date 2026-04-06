@@ -1,50 +1,60 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import fetchURL from "../../utils/fetchURL";
+import { METRIC } from "../../helpers/metrics";
 
-const fetchData = async (options: FetchOptions) => {
-  const from = options.startTimestamp;
-  const to = options.endTimestamp;
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
-  const res = await globalThis.fetch(
-    `https://beta.bullbit.ai/services/one/v1/info/trading-data?from=${from}&to=${to}`
+  const response = await fetchURL(
+    `https://beta.bullbit.ai/services/one/v1/info/trading-data?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
 
-  const data = await res.json();
-
-  if (!data || data.length === 0) {
-    return {
-      dailyVolume: 0,
-      dailyFees: 0,
-      dailyRevenue: 0,
-    };
+  const todaysData = response.find((day: any) => day.date === options.startOfDay);
+  if (!todaysData) {
+    throw new Error(`No data found for date ${options.startOfDay}`);
   }
 
-  let dailyVolume = 0;
-  let dailyFees = 0;
+  const dailyFees = options.createBalances();
+  const dailyVolume = options.createBalances();
 
-  for (const day of data) {
-    dailyVolume += day.totalVolume || 0;
-    dailyFees += day.totalFee || 0;
-  }
+  dailyVolume.addUSDValue(todaysData.totalVolume);
+  dailyFees.addUSDValue(todaysData.totalFee, METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  chains: [CHAIN.BASE],
-  pullHourly: true,
-  fetch: fetchData,
-  start: "2026-01-01",
-  methodology: {
-    Volume:
-      "Volume and Fees are sourced via Bullbit's official API, representing executed trades on the Execute engine and settled on-chain.",
-    Revenue: "All fees collected by the protocol.",
+const methodology = {
+  Volume:
+    "Volume is sourced via Bullbit's official API, representing executed trades on the Execute engine.",
+  Fees: "Fees are sourced via Bullbit's official API, representing trading fees collected by the protocol.",
+  Revenue: "All fees are revenue",
+  ProtocolRevenue: "All fees go to the protocol",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]: "Trading fees charged on perp trades",
   },
+  Revenue: {
+    [METRIC.TRADING_FEES]: "Trading fees charged on perp trades",
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "Trading fees charged on perp trades",
+  },
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  chains: [CHAIN.OFF_CHAIN],
+  fetch,
+  start: "2026-03-27",
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
