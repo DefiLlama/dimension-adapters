@@ -21,6 +21,11 @@ export const PRE_LAUNCH_TOKEN_PRICING = {
     conversionRate: 0.01208,
     cutoffTimestamp: 1769126400
   },
+  '0x8e4cbbcc33db6c0a18561fde1f6ba35906d4848b': {
+    decimals: 18,
+    conversionRate: 0.07245,
+    cutoffTimestamp: 1775088000
+  }
 }
 
 export const handleBribeToken = (

@@ -6,7 +6,7 @@ const chainConfig: Record<string, { start: string, chainName: string }> = {
     [CHAIN.ZETA]: { start: '2024-03-08', chainName: 'zetachain' },
     [CHAIN.UNICHAIN]: { start: '2024-11-21', chainName: 'unichain' },
     [CHAIN.BASE]: { start: '2024-03-19', chainName: 'base' },
-    [CHAIN.SANKO]: { start: '2024-10-04', chainName: 'sanko' },
+    //[CHAIN.SANKO]: { start: '2024-10-04', chainName: 'sanko' },
     [CHAIN.OPTIMISM]: { start: '2024-02-09', chainName: 'optimism' },
     [CHAIN.HYPERLIQUID]: { start: '2025-03-04', chainName: 'hyperevm' },
     [CHAIN.BLAST]: { start: '2024-02-27', chainName: 'blast' },
@@ -28,72 +28,62 @@ const ENTROPY_REQUEST_ABI = 'event RequestedWithCallback (address indexed provid
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const configs = await getConfig("pyth-entropy-configs", "https://fortuna.dourolabs.app/v1/chains/configs");
     const chainInfo = configs.find((chainDetails: any) => chainDetails.name === chainConfig[options.chain].chainName);
     
     if (!chainInfo) {
-      return {
-        dailyFees: 0,
-        dailyRevenue: 0,
-        dailySupplySideRevenue: 0,
-      }
+        return {
+            dailyFees: 0,
+            dailyRevenue: 0,
+            dailySupplySideRevenue: 0,
+        }
     }
     
     const pythEntropyContract = chainInfo.contract_addr;
-    const defaultProvider = '0x52DeaA1c84233F7bb8C8A45baeDE41091c616506';
 
-    // Try getFeeV2 first (newer contracts), then getFee (older contracts), then use default_fee from API
+    // Get total fee per request (current rate - note: historical fees may differ)
     let feePerRequest = await options.api.call({
         target: pythEntropyContract,
-        abi: 'uint128:getFeeV2',
+        abi: 'function getFeeV2() view returns (uint128)',
         permitFailure: true,
     });
-    
-    if (!feePerRequest) {
-        // Try older getFee method with default provider
-        feePerRequest = await options.api.call({
-            target: pythEntropyContract,
-            abi: 'function getFee(address provider) view returns (uint128)',
-            params: [defaultProvider],
-            permitFailure: true,
-        });
-    }
-    
-    if (!feePerRequest) {
-        // Fall back to default_fee from Fortuna API config
-        feePerRequest = chainInfo.default_fee;
-    }
-    
-    if (!feePerRequest) {
-      return {
-        dailyFees: 0,
-        dailyRevenue: 0,
-        dailySupplySideRevenue: 0,
-      }
-    }
+    // Get Pyth protocol fee per request (goes to Pyth DAO)
+    let pythFeePerRequest = await options.api.call({
+        target: pythEntropyContract,
+        abi: 'function getPythFee() view returns (uint128)',
+        permitFailure: true,
+    });
 
     const requestLogs = await options.getLogs({
         target: pythEntropyContract,
         eventAbi: ENTROPY_REQUEST_ABI
     });
 
-    dailyFees.addGasToken(feePerRequest * requestLogs.length);
+    const numRequests = BigInt(requestLogs.length);
 
-    // Note: Total fee = Provider fee + Protocol fee
-    // Currently protocol fee is minimal (1 wei), so nearly all fees go to providers
-    // Once DAO implements protocol fees, this should be split accordingly
+    if(!feePerRequest || !pythFeePerRequest) {
+        feePerRequest = chainInfo.default_fee;
+        pythFeePerRequest = 0;
+    }
+
+    dailyFees.addGasToken(BigInt(feePerRequest) * numRequests);
+    dailyRevenue.addGasToken(BigInt(pythFeePerRequest) * numRequests);
+    dailySupplySideRevenue.addGasToken(BigInt(feePerRequest - pythFeePerRequest) * numRequests);
+
     return {
         dailyFees,
-        dailyRevenue: 0,
-        dailySupplySideRevenue: dailyFees,
+        dailyRevenue,
+        dailySupplySideRevenue,
     }
 }
 
 const methodology = {
-    Fees: 'Total fees paid per Entropy randomness request. Fee = Provider fee (dynamic, covers gas) + Protocol fee (set by Pyth DAO).',
-    SupplySideRevenue: 'Provider fees - portion of fees that goes to randomness providers for fulfilling requests.',
-    Revenue: 'Protocol fees - portion that goes to Pyth DAO treasury. Currently minimal (1 wei per request), pending DAO governance decisions.',
+    Fees: 'Total fees paid per Entropy randomness request. Fee = Provider fee (dynamic, covers gas) + Protocol fee (set by Pyth DAO governance).',
+    Revenue: 'Protocol fees collected by Pyth DAO treasury per randomness request.',
+    SupplySideRevenue: 'Provider fees paid to randomness providers for fulfilling requests (includes gas cost reimbursement).',
 };
 
 const adapter: SimpleAdapter = {

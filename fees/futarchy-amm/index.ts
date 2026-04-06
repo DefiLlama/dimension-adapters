@@ -3,7 +3,7 @@
   
   Aggregates fees from two sources:
   1. Futarchy AMM - 0.5% fee on SpotSwap transactions
-  2. Meteora DAMM Pools - 0.4% LP fees from pools where Futarchy DAOs own 100% liquidity
+  2. Meteora DAMM Pools - ownership-weighted LP fees based on actual liquidity positions
   
   All fees are protocol revenue (100% to Futarchy).
 */
@@ -36,15 +36,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: 'Total fees collected from Futarchy AMM swaps (0.5%) and Meteora DAMM pool LP fees (0.4%).',
+  Fees: 'Total fees collected from Futarchy AMM swaps (0.5%) and ownership-weighted Meteora DAMM pool LP fees.',
   UserFees: 'Trading fees paid by users when swapping on Futarchy AMM or Meteora pools.',
-  Revenue: 'All fees are protocol revenue - 100% of AMM fees and 100% of Meteora LP fees (Futarchy DAOs own all liquidity).',
-  ProtocolRevenue: 'All fees are protocol revenue - 100% of AMM fees and 100% of Meteora LP fees.',
+  Revenue: 'All fees are protocol revenue - 100% of AMM fees and Meteora LP fees weighted by DAO liquidity ownership.',
+  ProtocolRevenue: 'All fees are protocol revenue - 100% of AMM fees and Meteora LP fees weighted by DAO liquidity ownership.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'meteora_damm': '0.4% LP fees from Meteora DAMM pools where Futarchy DAOs own 100% liquidity',
+    'meteora_damm': 'Ownership-weighted LP fees from Meteora DAMM pools based on actual DAO liquidity positions',
     'futarchy_amm': '0.5% fees from Futarchy AMM swaps',
   },
 }

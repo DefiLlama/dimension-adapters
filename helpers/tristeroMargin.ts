@@ -109,6 +109,12 @@ export function normalizePosition(position: any): TristeroMarginPosition | null 
   };
 }
 
+/**
+ * Safely calls a margin contract read and returns `null` if it still fails.
+ *
+ * `permitFailure: true` should prevent normal RPC reverts from throwing, but the
+ * surrounding `try/catch` keeps the helper resilient to SDK behavior changes.
+ */
 export async function safeCall(options: FetchOptions, params: Record<string, any>) {
   try {
     return await (options.api.call as any)({ ...params, permitFailure: true });

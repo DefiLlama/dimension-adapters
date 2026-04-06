@@ -1,4 +1,4 @@
-import { Fetch, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { Fetch, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { postURL } from "../../utils/fetchURL";
@@ -17,7 +17,6 @@ import dailyVolumePayload from "./dailyVolumePayload";
   // [OKEXCHAIN]: "https://graph.kkt.one/subgraphs/name/dodoex/dodoex-v2-okchain",
 } as ChainEndpoints */
 const dailyEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardDailyData&apikey=graphqldefiLlamadodoYzj5giof"
-const totalEndpoint = "https://api.dodoex.io/graphql?opname=FetchDashboardInfoData&apikey=graphqldefiLlamadodoYzj5giof"
 const chains = [
   CHAIN.ARBITRUM,
    CHAIN.BSC,
@@ -53,12 +52,6 @@ const getFetch = (chain: string): Fetch => async (_ts: number, _t: any, options:
   }
 }
 
-const getStartTimestamp = (chain: string): IStartTimestamp => async () => {
-  const response = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
-  const firstDay = response.data.dashboard_chain_day_data.list.find((item: any) => item.volume[chain] !== '0')
-  return firstDay?.timestamp ?? 0
-}
-
 const chainConversion = (chain: string): string => {
   switch (chain) {
     case CHAIN.SCROLL:
@@ -77,7 +70,6 @@ const volume = chains.reduce(
     ...acc,
     [chain]: {
       fetch: getFetch(chainConversion(chain)),
-      start: getStartTimestamp(chainConversion(chain))
     },
   }),
   {}

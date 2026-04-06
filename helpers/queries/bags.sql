@@ -43,7 +43,8 @@ WITH
                     '$.SwapResult.trading_fee'
                 ) AS DECIMAL(38,0)
             ) AS trading_fee,
-            COALESCE(c.creator_fee_pct, 0) AS creator_fee_pct
+            -- Default to 50% for v1 configs not in evtcreateconfigv2 (pre-August Meteora update)
+            COALESCE(c.creator_fee_pct, 50) AS creator_fee_pct
         FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
         JOIN dbc_pools p
             ON s.config = p.account_config

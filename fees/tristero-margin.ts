@@ -46,11 +46,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const escrows = getActiveTristeroMarginEscrows(options.chain, options.dateString);
 
   if (!escrows.length) {
+    const dailyFees = borrowInterestFees.clone();
+    const dailyProtocolRevenue = borrowInterestProtocolRevenue.clone();
+
     return {
-      dailyFees: borrowInterestFees,
-      dailyUserFees: borrowInterestFees.clone(),
-      dailyRevenue: borrowInterestProtocolRevenue.clone(),
-      dailyProtocolRevenue: borrowInterestProtocolRevenue,
+      dailyFees,
+      dailyUserFees: dailyFees.clone(),
+      dailyRevenue: dailyProtocolRevenue.clone(),
+      dailyProtocolRevenue,
       dailySupplySideRevenue: borrowInterestFees.clone(),
     };
   }

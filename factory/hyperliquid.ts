@@ -11,6 +11,17 @@ interface BuilderConfig {
 
 // Builder adapter configs for dexs: protocol name -> config
 const builderConfigs: Record<string, BuilderConfig> = {
+  "sushi-perps": {
+    addresses: ["0x12ee177db3ceafedc639d023a29cc8588db3a4b9"],
+    start: "2025-03-30",
+    methodology: {
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      HoldersRevenue: "No fees distributed to SUSHI token holders",
+    },
+    extraReturnFields: { dailyHoldersRevenue: "0" },
+  },
   "dreamcash": {
     addresses: ["0x4950994884602d1b6c6d96e4fe30f58205c39395"],
     start: "2025-06-12",
@@ -464,6 +475,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
   // "kinetiq-markets": { dexId: "km", start: "2025-12-16", methodologyName: "Kinetiq Markets" },
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
+  "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
 };
 
 // HIP3 deployer OI configs: protocol name -> dexId
@@ -474,6 +486,7 @@ const hip3OiConfigs: Record<string, string> = {
   // "kinetiq-markets-oi": "km",
   "tradexyz-oi": "xyz",
   "ventuals-oi": "vntl",
+  "paragon-oi": "para",
 };
 
 function hip3Methodology(name: string) {

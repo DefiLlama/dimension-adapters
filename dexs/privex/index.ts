@@ -20,7 +20,7 @@ const chainConfig = {
     chainId: 8453,
     start: '2024-09-08', // October 8, 2024
     accountSource: '0x921dd892d67aed3d492f9ad77b30b60160b53fe1',
-    endpoint: 'https://api.goldsky.com/api/public/project_cmae5a5bs72to01xmbkb04v80/subgraphs/privex-analytics/1.0.1/gn',
+    endpoint: 'https://api.goldsky.com/api/public/project_cmae5a5bs72to01xmbkb04v80/subgraphs/base_analytics/v2.6/gn',
   },
   [CHAIN.COTI]: {
     chainId: 2632500,
