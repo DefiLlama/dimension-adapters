@@ -4,6 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const BACKEND_API_URL = 'https://api-defi.kaspa.com/dex';
 const START_TIMESTAMP = 1758844800;
+const IGRA_START_TIMESTAMP = 1774537584;
 const DAY_IN_SECONDS = 86400;
 
 const methodology = {
@@ -15,59 +16,65 @@ const methodology = {
   HoldersRevenue: "No direct revenue share to token holders.",
 };
 
-const fetch: Fetch = async (_timestamp, _chainBlocks, { startOfDay, createBalances }) => {
-  const minDate = startOfDay;
-  const maxDate = startOfDay + DAY_IN_SECONDS;
+function makeFetch(network?: string): Fetch {
+  return async (_timestamp, _chainBlocks, { startOfDay, createBalances }) => {
+    const minDate = startOfDay;
+    const maxDate = startOfDay + DAY_IN_SECONDS;
 
-  const url = `${BACKEND_API_URL}/most-traded/pairs?minDate=${minDate}&maxDate=${maxDate}`;
-  
-  const response = await fetchURL(url).catch(() => ({ pairs: [] }));
-  
-  const pairs = Array.isArray(response?.pairs) ? response.pairs : [];
-  
-  let totalVolumeKas = 0;
-  pairs.forEach((entry) => {
-    const volumeKas = Number(entry.amountKAS);
-    if (Number.isFinite(volumeKas) && volumeKas > 0) {
-      totalVolumeKas += volumeKas;
-    }
-  });
+    const networkParam = network ? `&network=${network}` : '';
+    const url = `${BACKEND_API_URL}/most-traded/pairs?minDate=${minDate}&maxDate=${maxDate}${networkParam}`;
+    
+    const response = await fetchURL(url).catch(() => ({ pairs: [] }));
+    
+    const pairs = Array.isArray(response?.pairs) ? response.pairs : [];
+    
+    let totalVolumeKas = 0;
+    pairs.forEach((entry: any) => {
+      const volumeKas = Number(entry.amountKAS);
+      if (Number.isFinite(volumeKas) && volumeKas > 0) {
+        totalVolumeKas += volumeKas;
+      }
+    });
 
-  const dailyVolume = createBalances();
-  dailyVolume.addCGToken("kaspa", totalVolumeKas);
+    const dailyVolume = createBalances();
+    dailyVolume.addCGToken("kaspa", totalVolumeKas);
 
-  const dailyFees = createBalances();
-  const protocolRevenue = createBalances();
-  const supplyRevenue = createBalances();
+    const dailyFees = createBalances();
+    const protocolRevenue = createBalances();
+    const supplyRevenue = createBalances();
 
-  const totalFeesKas = totalVolumeKas * 0.01;
-  const protocolShareKas = totalFeesKas / 6;
-  const supplyShareKas = totalFeesKas - protocolShareKas;
+    const totalFeesKas = totalVolumeKas * 0.01;
+    const protocolShareKas = totalFeesKas / 6;
+    const supplyShareKas = totalFeesKas - protocolShareKas;
 
-  dailyFees.addCGToken("kaspa", totalFeesKas);
-  protocolRevenue.addCGToken("kaspa", protocolShareKas);
-  supplyRevenue.addCGToken("kaspa", supplyShareKas);
+    dailyFees.addCGToken("kaspa", totalFeesKas);
+    protocolRevenue.addCGToken("kaspa", protocolShareKas);
+    supplyRevenue.addCGToken("kaspa", supplyShareKas);
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue: protocolRevenue,
-    dailyProtocolRevenue: protocolRevenue,
-    dailySupplySideRevenue: supplyRevenue,
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailyRevenue: protocolRevenue,
+      dailyProtocolRevenue: protocolRevenue,
+      dailySupplySideRevenue: supplyRevenue,
+    };
   };
-};
+}
 
 const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   adapter: {
     [CHAIN.KASPLEX]: {
-      fetch,
+      fetch: makeFetch(),
       start: START_TIMESTAMP,
+    },
+    [CHAIN.IGRA]: {
+      fetch: makeFetch('igra'),
+      start: IGRA_START_TIMESTAMP,
     },
   },
 };
 
 export default adapter;
-
