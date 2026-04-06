@@ -1,4 +1,3 @@
-import { Chain } from "../../adapters/types";
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -16,6 +15,7 @@ import { CHAIN } from "../../helpers/chains";
  * - The API accepts a timestamp and returns fees for the UTC day containing that timestamp
  * - Fees include: issuance, performance, redemption, post-settlement, and AMM swap fees
  * - Splits between curator (supply side) and protocol based on splitFeePercentage
+ * - Fee events are sporadic (fire on yield collection, not daily) — $0 on quiet days is expected
  */
 
 interface DailyFeeEntry {
@@ -55,7 +55,7 @@ const fetch = async (options: FetchOptions) => {
     for (const entry of entries) {
       if (entry.dailyFeeInUsd > 0) {
         dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
-        dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Curator fees");
+        dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Yield & swap fees to curators");
         dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol/DAO share of yield & swap fees");
       }
     }
@@ -70,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
-  Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance).",
+  Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance). Fee events fire on yield collection, not daily.",
   Revenue: "Protocol/DAO share of fees based on the Curator-Protocol fee distribution ratio, defined by Napier governance.",
   ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio.",
   SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
@@ -84,64 +84,23 @@ const breakdownMethodology = {
     "Protocol/DAO share of yield & swap fees": "Protocol/DAO share of yield and swap fees based on the fee distribution ratio.",
   },
   SupplySideRevenue: {
-    "Curator fees": "Curator's share of yield and swap fees.",
+    "Yield & swap fees to curators": "Curator's share of yield and swap fees.",
   },
 };
 
-type Config = {
-  treasury: string;
-  start: string;
-};
-
-const chainConfig: Record<string, Config> = {
-  [CHAIN.ETHEREUM]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-02-28",
-  },
-  [CHAIN.BASE]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-02-27",
-  },
-  [CHAIN.SONIC]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-07",
-  },
-  [CHAIN.ARBITRUM]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.OPTIMISM]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.FRAXTAL]: {
-    treasury: "0x8C244F488A742365ECB5047E78c29Ac2221ac0bf",
-    start: "2024-03-11",
-  },
-  [CHAIN.MANTLE]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.BSC]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-11",
-  },
-  [CHAIN.POLYGON]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-12",
-  },
-  [CHAIN.AVAX]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-12",
-  },
-  [CHAIN.HYPERLIQUID]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-13",
-  },
-  [CHAIN.PLUME]: {
-    treasury: "0x655231493557bb07df178Bdc29a65435934937e3",
-    start: "2024-03-13",
-  },
+const chainConfig: Record<string, { start: string }> = {
+  [CHAIN.ETHEREUM]: { start: "2025-02-28" },
+  [CHAIN.BASE]: { start: "2025-02-28" },
+  [CHAIN.SONIC]: { start: "2025-03-10" },
+  [CHAIN.ARBITRUM]: { start: "2025-03-28" },
+  [CHAIN.OPTIMISM]: { start: "2025-03-11" },
+  [CHAIN.FRAXTAL]: { start: "2025-03-29" },
+  [CHAIN.MANTLE]: { start: "2025-03-11" },
+  [CHAIN.BSC]: { start: "2025-03-12" },
+  [CHAIN.POLYGON]: { start: "2025-03-27" },
+  [CHAIN.AVAX]: { start: "2025-03-12" },
+  [CHAIN.HYPERLIQUID]: { start: "2025-05-23" },
+  [CHAIN.PLUME]: { start: "2025-05-28" },
 };
 
 const adapter: SimpleAdapter = {
