@@ -10,34 +10,40 @@ interface MorphoBlueConfig {
   fromBlock?: number;
 }
 
-const MorphoBlues: Record<string, MorphoBlueConfig> = {
+export const MorphoBlues: Record<string, MorphoBlueConfig> = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
+    fromBlock: 18883124,
     blue: "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",
     start: "2024-01-02",
   },
   [CHAIN.BASE]: {
     chainId: 8453,
+    fromBlock: 13977148,
     blue: "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb",
     start: "2024-05-03",
   },
   [CHAIN.POLYGON]: {
     chainId: 137,
+    fromBlock: 66931042,
     blue: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
     start: "2025-01-20",
   },
   [CHAIN.UNICHAIN]: {
     chainId: 130,
+    fromBlock: 9139027,
     blue: "0x8f5ae9cddb9f68de460c77730b018ae7e04a140a",
     start: "2025-02-18",
   },
   [CHAIN.KATANA]: {
     chainId: 747474,
+    fromBlock: 2741069,
     blue: "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc",
     start: "2025-07-01",
   },
   [CHAIN.ARBITRUM]: {
     chainId: 42161,
+    fromBlock: 296446593,
     blue: "0x6c247b1F6182318877311737BaC0844bAa518F5e",
     start: "2025-01-18",
   },

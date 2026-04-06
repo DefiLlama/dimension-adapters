@@ -42,11 +42,11 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: true,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2022-02-11' },
-    [CHAIN.ARBITRUM]: { fetch, start: '2023-06-01' },
-    [CHAIN.FRAXTAL]: { fetch, start: '2024-02-01' },
+    [CHAIN.ETHEREUM]: { fetch, start: '2022-11-18' },
+    [CHAIN.ARBITRUM]: { fetch, start: '2023-05-20' },
+    [CHAIN.FRAXTAL]: { fetch, start: '2024-02-22' },
   },
   methodology: {
     Liquidations: 'Total USD value of collateral seized in Fraxlend Liquidate events.',
