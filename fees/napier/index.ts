@@ -59,7 +59,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const methodology = {
-  UserFees: "Users pay fees on AMM swaps, PT/YT issuance, redemption, and performance (before/after maturity). Fee rates are defined per market by curators.",
   Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance). Fee events fire on yield collection, not daily.",
   Revenue: "Protocol/DAO share of fees based on the Curator-Protocol fee distribution ratio, defined by Napier governance.",
   ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio.",
