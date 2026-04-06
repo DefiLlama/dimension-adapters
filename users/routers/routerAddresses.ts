@@ -2472,9 +2472,7 @@ export default (
       "name": "GameClub",
       "addresses": {
         "bsc": [
-          "0xC590Ab41e94F801c41c96Fa595f67D59B8C6A176", // FACTORY - proxy wallet deployed on first deposit (= active user)
-          "0x5a8A13F9e92b7847D6F9e56e92FF7560e258844a", // EXCHANGE
-          "0xA0Bb3eC8f540957E6F5d82f5Ebd2Beac39D65e36", // DEPOSIT_ROUTER
+          "0xA0Bb3eC8f540957E6F5d82f5Ebd2Beac39D65e36", // DEPOSIT_ROUTER - users call this directly to deposit USDT
         ]
       }
     },
