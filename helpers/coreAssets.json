@@ -2740,6 +2740,9 @@
   "kasplex": {
     "KAS": "0x2c2Ae87Ba178F48637acAe54B87c3924F544a83e"
   },
+  "igra": {
+    "KAS": "0x17Ec7E1768c813E2a3a9b0f94A35605CA520C242"
+  },
   "ethereal": {
     "WUSDe": "0xb6fc4b1bff391e5f6b4a3d2c7bda1fee3524692d"
   },
@@ -2788,7 +2791,7 @@
     "USDm": "0xFAfDdbb3FC7688494971a79cc65DCa3EF82079E7",
     "USDT": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
   },
-"tempo": {
+  "tempo": {
     "pathUSD": "0x20c0000000000000000000000000000000000000"
   }
 }
