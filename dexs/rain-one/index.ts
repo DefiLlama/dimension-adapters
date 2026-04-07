@@ -12,6 +12,7 @@ const poolTokenSetEvent =
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyNotionalVolume = options.createBalances();
 
   const poolCreationLogs = await options.getLogs({
     target: rainFactory,
@@ -58,7 +59,17 @@ const fetch = async (options: FetchOptions) => {
     }
   })
 
-  return { dailyVolume, }
+  enterOptionLogs.forEach((log) => {
+    const pool = log.address.toLowerCase();
+    const tokenInfo = poolTokenMap[pool] ?? {
+      token: usdt,
+      decimals: 6,
+    };
+    if(!tokenInfo?.token) return;
+    dailyVolume.addToken(tokenInfo.token, log.args.baseAmount);
+    dailyNotionalVolume.addToken(tokenInfo.token, log.args.optionAmount);
+  });
+  return { dailyVolume, dailyNotionalVolume };
 };
 
 const methodology = {

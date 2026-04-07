@@ -265,6 +265,9 @@ const configs: Record<string, Record<string, any>> = {
   "sparkdex-v3": {
     [CHAIN.FLARE]: { factory: '0xb3fB4f96175f6f9D716c17744e5A6d4BA9da8176', userFeesRatio: 1, revenueRatio: 0.075, protocolRevenueRatio: 0.025, holdersRevenueRatio: 0.05 },
   },
+  "capybara-v3": {
+    [CHAIN.KLAYTN]: { factory: '0xC4C8310080F209629EC4c349cb2A3c6720e1176D', start: '2025-01-01', userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4, },
+  },
   "wasabee": {
     [CHAIN.BERACHAIN]: { factory: '0x7d53327D78EFD0b463bd8d7dc938C52402323b95', start: '2024-10-29', isAlgebraV3: true, },
   },
@@ -319,6 +322,19 @@ const configs: Record<string, Record<string, any>> = {
   },
   'doma-dex-v3': {
     [CHAIN.DOMA]: { factory: '0x2e50b586d5bcD04cb6125E028A6a669f7f3cF1C2', start: '2025-10-19', userFeesRatio: 1, revenueRatio: 0, },
+  },
+  "virtus-protocol-cl": {
+    [CHAIN.BASE]: {
+      factory: '0x0e5Ab24beBdA7e5Bb3961f7E9b3532a83aE86B48',
+      poolCreatedEvent: "event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)",
+      start: '2026-03-05', userFeesRatio: 1, revenueRatio: 1, holdersRevenueRatio: 1
+    },
+  },
+  "sailfish": {
+    [CHAIN.EDU_CHAIN]: {factory: '0x963A7f4eB46967A9fd3dFbabD354fC294FA2BF5C', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5}
+  },
+  "stableswap-xyz-v3": {
+    [CHAIN.STABLE]: { factory: "0x88F0a512eF09175D456bc9547f914f48C013E4aA", revenueRatio: 0, }
   },
 }
 

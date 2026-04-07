@@ -5,7 +5,7 @@ import { gql, request } from "graphql-request";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ERA]: sdk.graph.modifyEndpoint('3PCPSyJXMuC26Vi37w7Q6amJdEJgMDYppfW9sma91uhj'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('FtD3LWqSkwqkbASAwin4xFnN5bu2qJF6iPGVCs33uZja'),
+  [CHAIN.LINEA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-linea',
   [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('9ZCxNv8qiz97b5AEMnafsixYG7c2mnGp5Yk325p3gz9e'),
   [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };

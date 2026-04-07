@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter, FetchResultV2 } from "../../adapters/types";
 import { getConfig } from "../../helpers/cache";
 import { CHAIN } from "../../helpers/chains";
-import { getERC4626VaultsYield } from "../../helpers/erc4626";
+import { METRIC } from "../../helpers/metrics"
 
 const IPOR_GITHUB_ADDRESSES_URL = "https://raw.githubusercontent.com/IPOR-Labs/ipor-abi/refs/heads/main/mainnet/addresses.json";
 const methodology = {
@@ -11,47 +11,78 @@ const methodology = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+    const dailyFees = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
     const dailyRevenue = options.createBalances()
     const config = await getConfig('ipor/assets', IPOR_GITHUB_ADDRESSES_URL);
 
     const chainConfig = config[options.chain];
     if (!chainConfig || !chainConfig.vaults) {
-        return { dailyFees: dailyRevenue, dailyRevenue, dailySupplySideRevenue: dailyRevenue };
+        return { dailyFees, dailyRevenue, dailySupplySideRevenue };
     }
 
     const vaults = chainConfig.vaults.map((vault: any) => vault.PlasmaVault);
 
-    const dailyFees = await getERC4626VaultsYield({ options, vaults });
+    const [assets, totalSupplies, decimals, performanceFeeData] = await Promise.all([
+        options.api.multiCall({ abi: 'address:asset', calls: vaults, permitFailure: true }),
+        options.api.multiCall({ abi: 'uint256:totalSupply', calls: vaults, permitFailure: true }),
+        options.api.multiCall({ abi: 'uint8:decimals', calls: vaults, permitFailure: true }),
+        options.api.multiCall({
+            abi: 'function getPerformanceFeeData() view returns (address feeManager, uint16 feeInPercentage)',
+            calls: vaults,
+            permitFailure: true,
+        }),
+    ]);
 
-    const logs = await options.getLogs({
-        targets: vaults,
-        onlyArgs: false,
-        eventAbi: "event ManagementFeeRealized(uint256 unrealizedFeeInUnderlying, uint256 unrealizedFeeInShares)",
-    })
+    const convertAbi = 'function convertToAssets(uint256) view returns (uint256)';
+    const convertCalls = vaults.map((vault: string, i: number) => ({
+        target: vault,
+        params: [String(10 ** Number(decimals[i]))],
+    }));
+    const [cumulativeIndexBefore, cumulativeIndexAfter, managementFeeLogs] = await Promise.all([
+        options.fromApi.multiCall({ abi: convertAbi, calls: convertCalls, permitFailure: true }),
+        options.toApi.multiCall({ abi: convertAbi, calls: convertCalls, permitFailure: true }),
+        options.getLogs({
+            targets: vaults,
+            onlyArgs: false,
+            eventAbi: "event ManagementFeeRealized(uint256 unrealizedFeeInUnderlying, uint256 unrealizedFeeInShares)",
+        }),
+    ]);
 
-    const assetCalls = await options.api.multiCall({
-        abi: 'function asset() view returns (address)',
-        calls: vaults,
-        permitFailure: true,
-    })
+    for (let i = 0; i < vaults.length; i++) {
+        const token = assets[i];
+        const value = totalSupplies[i];
+        const decimal = decimals[i];
+        const before = cumulativeIndexBefore[i];
+        const after = cumulativeIndexAfter[i];
+        if (!token || !value || !decimal || !before || !after) continue;
 
-    const vaultToToken: Record<string, string> = {}
+        const growthCumulativeIndex = Number(after) - Number(before);
+        const netYield = growthCumulativeIndex * Number(value) / (10 ** Number(decimal));
+        const feeInPercentage = performanceFeeData[i] ? Number(performanceFeeData[i].feeInPercentage) : 0;
+        // performance fee only applies on profitable days (high-watermark model)
+        const performanceFee = feeInPercentage > 0 && netYield > 0
+            ? netYield * feeInPercentage / (10000 - feeInPercentage)
+            : 0;
+
+        dailyFees.add(token, netYield + performanceFee, METRIC.ASSETS_YIELDS);
+        dailySupplySideRevenue.add(token, netYield, METRIC.ASSETS_YIELDS);
+        dailyRevenue.add(token, performanceFee, METRIC.PERFORMANCE_FEES);
+    }
+
+    const vaultToToken: Record<string, string> = {};
     vaults.forEach((v: string, i: number) => {
-        if (assetCalls[i]) {
-            vaultToToken[v.toLowerCase()] = assetCalls[i]
-        }
-    })
+        if (assets[i]) vaultToToken[v.toLowerCase()] = assets[i];
+    });
 
-    logs.forEach((log: any) => {
-        const token = vaultToToken[log.address.toLowerCase()]
+    managementFeeLogs.forEach((log: any) => {
+        const token = vaultToToken[log.address.toLowerCase()];
         if (token) {
-            dailyRevenue.add(token, log.args[0])
-        }
-    })
+            dailyRevenue.add(token, log.args[0], METRIC.MANAGEMENT_FEES);
+            dailyFees.add(token, log.args[0], METRIC.MANAGEMENT_FEES)}
+    });
 
-    const dailySupplySideRevenue = dailyFees.clone();
-    dailySupplySideRevenue.subtract(dailyRevenue);
-    dailySupplySideRevenue.removeNegativeBalances();
+
 
     return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
@@ -59,6 +90,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
+    allowNegativeValue: true, // NAV can go down
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,
@@ -81,7 +113,20 @@ const adapter: SimpleAdapter = {
             start: "2025-07-11",
         },
     },
-    methodology
+    methodology,
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.ASSETS_YIELDS]: 'Gross yield generated by PlasmaVault strategies (net yield to depositors + performance fees).',
+            [METRIC.MANAGEMENT_FEES]: 'Ongoing management fees accrued continuously and realized as underlying asset amounts.',
+        },
+        Revenue: {
+            [METRIC.PERFORMANCE_FEES]: 'Performance fees charged on vault yield, collected by minting new shares (high-watermark model, only on profitable days).',
+            [METRIC.MANAGEMENT_FEES]: 'Ongoing management fees accrued continuously and realized as underlying asset amounts.',
+        },
+        SupplySideRevenue: {
+            [METRIC.ASSETS_YIELDS]: 'Net yield retained by PlasmaVault depositors after protocol fees.',
+        },
+    },
 }
 
 export default adapter;

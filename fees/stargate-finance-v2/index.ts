@@ -112,18 +112,23 @@ const contracts: IAddress = {
 };  
 
 async function getPoolFees(
-  { api, fromApi, toApi, createBalances, getLogs }: FetchOptions,
+  { api, fromApi, toApi, createBalances, getLogs, startTimestamp, endTimestamp }: FetchOptions,
   contracts: string[]
 ): Promise<FetchResultV2> {
   const dailyFees = createBalances();
+  
+  // skip sei on 2026-01-26 because there's a withdrawal and getLogs is disabled for sei
+  if (api.chain === CHAIN.SEI && startTimestamp >= 1769299199 && endTimestamp <= 1769385600) {
+    return { dailyFees, dailyRevenue: dailyFees }
+  }
 
   const [assets, prevFees, currFees, withdrawals] = await Promise.all([
     api.multiCall({ calls: contracts, abi: abi.token, permitFailure: true }),
     fromApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
     toApi.multiCall({ calls: contracts, abi: abi.fee, permitFailure: true }),
     api.chain === CHAIN.SEI
-      ? contracts.map(() => [])
-      : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
+       ? contracts.map(() => [])
+       : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
   ]);
   assets.forEach((asset, index) => {
     const prevFee = prevFees[index];
@@ -151,6 +156,7 @@ const adapter: Adapter = {
     return acc;
   }, {}),
   version: 2,
+  pullHourly: true,
   allowNegativeValue: true, // due to bridge gas fees
   methodology: {
     Fees: "All fees paid by users while using Stargate bridge.",

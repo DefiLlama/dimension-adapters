@@ -55,7 +55,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyFees.add(token_l2[hop_contract], log.relayerFee, 'L1 relayer fees')
       })
     })
-    return { dailyFees };
+    return { dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0 };
 }
 
   
@@ -122,12 +122,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     })
   })
   
-  return { dailyFees };
+  return { dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0 };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
-  skipBreakdownValidation: true, // because cost are not clear
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: '2023-01-01' },
     [CHAIN.BASE]: { fetch, start: '2023-01-01' },
@@ -137,9 +136,17 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: 'Fees paid by users for bridging tokens via Hop.',
+    SupplySideRevenue: 'All the fees go to bonders and relayers',
+    Revenue: 'No revenue'
   },
   breakdownMethodology: {
     Fees: {
+      'CCTP bonder fees': 'Bonder fees collected from CCTP (Cross-Chain Transfer Protocol) bridge transfers, paid to bonders who front capital for fast transfers.',
+      'L1 relayer fees': 'Relayer fees collected from L1 transfer events sent to L2, paid to relayers who facilitate cross-chain messaging.',
+      'L2 relayer fees': 'Relayer fees collected from transfers completed from L1 on L2 chains, paid to relayers who complete the bridging process.',
+      'Transfer bonder fees': 'Bonder fees collected from standard Hop bridge transfers on L2 chains, paid to bonders who provide instant liquidity.',
+    },
+    SupplySideRevenue: {
       'CCTP bonder fees': 'Bonder fees collected from CCTP (Cross-Chain Transfer Protocol) bridge transfers, paid to bonders who front capital for fast transfers.',
       'L1 relayer fees': 'Relayer fees collected from L1 transfer events sent to L2, paid to relayers who facilitate cross-chain messaging.',
       'L2 relayer fees': 'Relayer fees collected from transfers completed from L1 on L2 chains, paid to relayers who complete the bridging process.',

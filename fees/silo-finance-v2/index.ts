@@ -49,7 +49,12 @@ const subgraphMapping: SubgraphMapping = {
 // Some silos started to represent bad debt because of a token price drop,
 // so we will filter out these silos from the data
 const badDebtSiloMapping: BadDebtSiloMapping = {
-  [CHAIN.ETHEREUM]: [],
+  [CHAIN.ETHEREUM]: [
+    {
+      silo: '0x1dE3bA67Da79A81Bc0c3922689c98550e4bd9bc2',
+      timestamp: 1762128000, // 2025-11-03
+    }
+  ],
   [CHAIN.ARBITRUM]: [
     {
       silo: '0xacb7432a4bb15402ce2afe0a7c9d5b738604f6f9',
@@ -137,6 +142,10 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
     {
       silo: "0x7184bea7743ccfbe390f9cd830095a13ef867941", //smsusd
       timestamp: 1762128000 // 2025-11-03
+    },
+    {
+      silo: "0x04f124bf435545a3c79a8ee3ffb6c51213cf5175", //bwOS-54 migrated to market id 140
+      timestamp: 1755043200 //2025-08-13
     }
   ],
 };

@@ -24,7 +24,6 @@ const fetch = async (_a:any, _b:any, options:FetchOptions) => {
     dailyRevenue: dailyProtocolRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue: 0,
   };
 };
 

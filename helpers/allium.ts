@@ -4,9 +4,40 @@ import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
 import plimit from "p-limit";
 import { elastic } from "@defillama/sdk";
+import { CHAIN } from "./chains";
 
 const _rateLimited = plimit(3)
 const rateLimited = (fn: any) => (...args: any) => _rateLimited(() => fn(...args))
+
+export const ALLIUM_CHAIN_MAP: Record<string, string> = {
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.OPTIMISM]: 'optimism',
+  [CHAIN.SCROLL]: 'scroll',
+  [CHAIN.BSC]: 'bsc',
+  [CHAIN.ARBITRUM]: 'arbitrum',
+  [CHAIN.AVAX]: 'avalanche',
+  [CHAIN.POLYGON]: 'polygon',
+  [CHAIN.TRON]: 'tron',
+  [CHAIN.UNICHAIN]: 'unichain',
+  [CHAIN.ZORA]: 'zora',
+  [CHAIN.NEAR]: 'near',
+  [CHAIN.XDAI]: 'gnosis',
+  [CHAIN.INK]: 'ink',
+  [CHAIN.BERACHAIN]: 'berachain',
+  [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
+  [CHAIN.PLASMA]: 'plasma',
+  [CHAIN.MONAD]: 'monad',
+  [CHAIN.ERA]: 'zksync',
+  [CHAIN.ROOTSTOCK]: 'rootstock',
+  [CHAIN.WC]: 'worldchain',
+  [CHAIN.MANTA]: 'manta_pacific',
+  [CHAIN.HYPERLIQUID]: 'hyperevm',
+}
+
+export function getAlliumChain(chain: string): string {
+  return ALLIUM_CHAIN_MAP[chain] || chain;
+}
 
 const token = {} as IJSON<string>
 
@@ -15,7 +46,7 @@ const HEADERS = {
   "X-API-KEY": getEnv('ALLIUM_API_KEY'),
 };
 
-export async function startAlliumQuery(sqlQuery: string) {
+async function startAlliumQuery(sqlQuery: string) {
   const query = await httpPost(`https://api.allium.so/api/v1/explorer/queries/phBjLzIZ8uUIDlp0dD3N/run-async`, {
     parameters: {
       fullQuery: sqlQuery
@@ -27,7 +58,7 @@ export async function startAlliumQuery(sqlQuery: string) {
   return query["run_id"]
 }
 
-export async function retrieveAlliumResults(queryId: string) {
+async function retrieveAlliumResults(queryId: string) {
   const results = await httpGet(`https://api.allium.so/api/v1/explorer/query-runs/${queryId}/results?f=json`, {
     headers: HEADERS
   })

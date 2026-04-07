@@ -115,6 +115,8 @@ const protocolChainMap: Record<string, string> = {
   "exsat": CHAIN.EXSAT,
   "kroma": CHAIN.KROMA,
   "eni": CHAIN.ENI,
+  "megaeth": CHAIN.MEGAETH,
+  "katana-chain": CHAIN.KATANA,
 }
 
 const deadFromMap: Record<string, string> = {

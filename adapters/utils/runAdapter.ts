@@ -5,6 +5,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -213,6 +214,16 @@ async function _runAdapter({
   if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
+  // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
+  if (chains.includes(CHAIN.CHAIN_GLOBAL)) {
+    Object.keys(aggregated).forEach(metricType => {
+      const metricObject = aggregated[metricType]
+      if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
+        metricObject.value = metricObject.chains[CHAIN.CHAIN_GLOBAL]
+        delete metricObject.chains[CHAIN.CHAIN_GLOBAL]
+      }
+    })
+  }
 
   const adaptorRecordV2JSON: any = {
     aggregated,
