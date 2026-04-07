@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const EXCHANGE = "0x34B6552d57a35a1D042CcAe1951BD1C370112a6F";
-const PERP_IDS = [1, 10]; // BTC, MON
+const PERP_IDS = [1, 10, 20, 30]; // BTC, MON, ETH, SOL
 
 const getPerpetualInfoAbi =
   "function getPerpetualInfo(uint256 perpId) view returns ((string name, string symbol, uint256 priceDecimals, uint256 lotDecimals, bytes32 linkFeedId, uint256 priceTolPer100K, uint256 marginTol, uint256 marginTolDecimals, uint256 refPriceMaxAgeSec, uint256 positionBalanceCNS, uint256 insuranceBalanceCNS, uint256 markPNS, uint256 markTimestamp, uint256 lastPNS, uint256 lastTimestamp, uint256 oraclePNS, uint256 oracleTimestampSec, uint256 longOpenInterestLNS, uint256 shortOpenInterestLNS))";
