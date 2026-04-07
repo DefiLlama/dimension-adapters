@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   chains: [CHAIN.MONAD],
   fetch,
-  start: "2025-02-01",
+  start: "2026-02-12",
 };
 
 export default adapter;
