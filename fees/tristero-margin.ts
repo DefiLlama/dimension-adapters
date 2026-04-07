@@ -2,8 +2,6 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 import {
     getActiveTristeroMarginEscrows,
-    getAccumulatedInterestAtBlock,
-    getPositionAtBlock,
     getPositionIds,
     mulDivCeil,
     normalizePosition,
@@ -24,8 +22,22 @@ type PositionRef = {
     positionId: number;
 };
 
+type HistoricalPositionRef = PositionRef & {
+    block: number;
+};
+
+type PositionEvent = {
+    log: any;
+    positionRef: PositionRef;
+    block: number;
+};
+
 function getPositionKey({ escrow, positionId }: PositionRef): string {
     return `${escrow.toLowerCase()}-${positionId}`;
+}
+
+function getHistoricalPositionKey({ escrow, positionId, block }: HistoricalPositionRef): string {
+    return `${getPositionKey({ escrow, positionId })}-${block}`;
 }
 
 function eventKey(log: any): string {
@@ -36,6 +48,89 @@ function eventKey(log: any): string {
 function addToPositionMap(map: Map<string, bigint>, positionRef: PositionRef, amount: bigint) {
     const key = getPositionKey(positionRef);
     map.set(key, (map.get(key) ?? 0n) + amount);
+}
+
+function flattenGroupedLogs(logGroups: any[][], escrows: string[]): any[] {
+    return logGroups.flatMap((logs, index) =>
+        logs.map((log: any) => ({ ...log, address: log.address ?? escrows[index] }))
+    );
+}
+
+function getUniqueHistoricalRefs(positionEvents: PositionEvent[]): HistoricalPositionRef[] {
+    const uniqueRefs = new Map<string, HistoricalPositionRef>();
+
+    positionEvents.forEach(({ positionRef, block }) => {
+        const ref = { ...positionRef, block };
+        uniqueRefs.set(getHistoricalPositionKey(ref), ref);
+    });
+
+    return Array.from(uniqueRefs.values());
+}
+
+async function getHistoricalPositions(
+    options: FetchOptions,
+    positionEvents: PositionEvent[],
+): Promise<Map<string, TristeroMarginPosition | null>> {
+    const positionRefsByBlock = new Map<number, HistoricalPositionRef[]>();
+
+    getUniqueHistoricalRefs(positionEvents).forEach((positionRef) => {
+        const refsAtBlock = positionRefsByBlock.get(positionRef.block) ?? [];
+        refsAtBlock.push(positionRef);
+        positionRefsByBlock.set(positionRef.block, refsAtBlock);
+    });
+
+    const positionsByRef = new Map<string, TristeroMarginPosition | null>();
+
+    for (const [block, positionRefs] of positionRefsByBlock.entries()) {
+        const positions = await options.api.multiCall({
+            abi: TRISTERO_MARGIN_ABI.positions,
+            calls: positionRefs.map(({ escrow, positionId }) => ({
+                target: escrow,
+                params: [positionId],
+            })),
+            block,
+            permitFailure: true,
+        });
+
+        positionRefs.forEach((positionRef, index) => {
+            positionsByRef.set(getHistoricalPositionKey(positionRef), normalizePosition(positions[index]));
+        });
+    }
+
+    return positionsByRef;
+}
+
+async function getHistoricalAccumulatedInterest(
+    options: FetchOptions,
+    positionEvents: PositionEvent[],
+): Promise<Map<string, bigint>> {
+    const positionRefsByBlock = new Map<number, HistoricalPositionRef[]>();
+
+    getUniqueHistoricalRefs(positionEvents).forEach((positionRef) => {
+        const refsAtBlock = positionRefsByBlock.get(positionRef.block) ?? [];
+        refsAtBlock.push(positionRef);
+        positionRefsByBlock.set(positionRef.block, refsAtBlock);
+    });
+
+    const interestByRef = new Map<string, bigint>();
+
+    for (const [block, positionRefs] of positionRefsByBlock.entries()) {
+        const accumulatedInterest = await options.api.multiCall({
+            abi: TRISTERO_MARGIN_ABI.accumulatedInterest,
+            calls: positionRefs.map(({ escrow, positionId }) => ({
+                target: escrow,
+                params: [positionId],
+            })),
+            block,
+            permitFailure: true,
+        });
+
+        positionRefs.forEach((positionRef, index) => {
+            interestByRef.set(getHistoricalPositionKey(positionRef), toBigIntSafe(accumulatedInterest[index]));
+        });
+    }
+
+    return interestByRef;
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -85,9 +180,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         }),
     ]);
 
-    const closeLogs = closeLogsWithGroups.map((log: any, index: number) => ({ ...log, address: log.address ?? escrows[index] })).flat();
-    const liquidationLogs = liquidationLogsWithGroups.map((log: any, index: number) => ({ ...log, address: log.address ?? escrows[index] })).flat();
-    const protocolFeeLogs = protocolFeeLogsWithGroups.map((log: any, index: number) => ({ ...log, address: log.address ?? escrows[index] })).flat();
+    const closeLogs = flattenGroupedLogs(closeLogsWithGroups as any[][], escrows);
+    const liquidationLogs = flattenGroupedLogs(liquidationLogsWithGroups as any[][], escrows);
+    const protocolFeeLogs = flattenGroupedLogs(protocolFeeLogsWithGroups as any[][], escrows);
 
     const protocolFeesByEvent = new Map<string, ProtocolFeeLog[]>();
     protocolFeeLogs.forEach((log: any) => {
@@ -100,16 +195,31 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         protocolFeesByEvent.set(key, logs);
     });
 
-    await Promise.all(closeLogs.map(async (log: any) => {
+    const closeEvents: PositionEvent[] = closeLogs.flatMap((log: any) => {
         const escrow = String(log.address).toLowerCase();
         const positionId = toPositionId(log.args.positionId);
         const positionRef = { escrow, positionId };
         relevantPositions.set(getPositionKey(positionRef), positionRef);
 
         const block = Number(log.blockNumber) - 1;
-        if (block < 0) return;
+        return block >= 0 ? [{ log, positionRef, block }] : [];
+    });
 
-        const prePosition = await getPositionAtBlock(options, escrow, positionId, block);
+    const liquidationEvents: PositionEvent[] = liquidationLogs.flatMap((log: any) => {
+        const escrow = String(log.address).toLowerCase();
+        const positionId = toPositionId(log.args.positionId);
+        const positionRef = { escrow, positionId };
+        relevantPositions.set(getPositionKey(positionRef), positionRef);
+
+        const block = Number(log.blockNumber) - 1;
+        return block >= 0 ? [{ log, positionRef, block }] : [];
+    });
+
+    const historicalPositions = await getHistoricalPositions(options, [...closeEvents, ...liquidationEvents]);
+    const historicalAccruedInterest = await getHistoricalAccumulatedInterest(options, liquidationEvents);
+
+    closeEvents.forEach(({ log, positionRef, block }) => {
+        const prePosition = historicalPositions.get(getHistoricalPositionKey({ ...positionRef, block }));
         if (!prePosition || prePosition.size === 0n) return;
 
         knownPositions.set(getPositionKey(positionRef), prePosition);
@@ -132,25 +242,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         if (protocolFees > 0n) {
             borrowInterestProtocolRevenue.add(prePosition.loanToken, protocolFees.toString(), METRIC.BORROW_INTEREST);
         }
-    }));
+    });
 
-    await Promise.all(liquidationLogs.map(async (log: any) => {
-        const escrow = String(log.address).toLowerCase();
-        const positionId = toPositionId(log.args.positionId);
-        const positionRef = { escrow, positionId };
-        relevantPositions.set(getPositionKey(positionRef), positionRef);
-
-        const block = Number(log.blockNumber) - 1;
-        if (block < 0) return;
-
-        const [prePosition, preAccruedInterest] = await Promise.all([
-            getPositionAtBlock(options, escrow, positionId, block),
-            getAccumulatedInterestAtBlock(options, escrow, positionId, block),
-        ]);
+    liquidationEvents.forEach(({ log, positionRef, block }) => {
+        const prePosition = historicalPositions.get(getHistoricalPositionKey({ ...positionRef, block }));
         if (!prePosition) return;
 
         knownPositions.set(getPositionKey(positionRef), prePosition);
 
+        const preAccruedInterest = historicalAccruedInterest.get(getHistoricalPositionKey({ ...positionRef, block })) ?? 0n;
         if (preAccruedInterest > 0n) {
             addToPositionMap(realizedBorrowInterestByPosition, positionRef, preAccruedInterest);
         }
@@ -162,7 +262,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         if (liquidationFees > 0n) {
             liquidationProtocolFees.add(prePosition.token, liquidationFees.toString(), METRIC.LIQUIDATION_FEES);
         }
-    }));
+    });
 
     const totalPositionsPerEscrow = await options.toApi.multiCall({
         abi: TRISTERO_MARGIN_ABI.totalPositions,
@@ -170,30 +270,32 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         permitFailure: true,
     });
 
-    await Promise.all(
-        escrows.map(async (escrow, index) => {
-            const positionIds = getPositionIds(totalPositionsPerEscrow[index]);
-            if (!positionIds.length) return;
-
-            const endPositionsRaw = await options.toApi.multiCall({
-                abi: TRISTERO_MARGIN_ABI.positions,
-                calls: positionIds.map((positionId) => ({
-                    target: escrow,
-                    params: [positionId],
-                })),
-                permitFailure: true,
-            });
-
-            endPositionsRaw.forEach((position: any, positionIndex: number) => {
-                const normalized = normalizePosition(position);
-                if (!normalized || normalized.size === 0n) return;
-
-                const positionRef = { escrow: escrow.toLowerCase(), positionId: positionIds[positionIndex] };
-                relevantPositions.set(getPositionKey(positionRef), positionRef);
-                knownPositions.set(getPositionKey(positionRef), normalized);
-            });
-        })
+    const endPositionRefs = totalPositionsPerEscrow.flatMap((totalPositions, index) =>
+        getPositionIds(totalPositions).map((positionId) => ({
+            escrow: escrows[index],
+            positionId,
+        }))
     );
+
+    const endPositionsRaw = endPositionRefs.length
+        ? await options.toApi.multiCall({
+            abi: TRISTERO_MARGIN_ABI.positions,
+            calls: endPositionRefs.map(({ escrow, positionId }) => ({
+                target: escrow,
+                params: [positionId],
+            })),
+            permitFailure: true,
+        })
+        : [];
+
+    endPositionsRaw.forEach((position: any, index: number) => {
+        const normalized = normalizePosition(position);
+        if (!normalized || normalized.size === 0n) return;
+
+        const positionRef = { escrow: endPositionRefs[index].escrow.toLowerCase(), positionId: endPositionRefs[index].positionId };
+        relevantPositions.set(getPositionKey(positionRef), positionRef);
+        knownPositions.set(getPositionKey(positionRef), normalized);
+    });
 
     const trackedPositions = Array.from(relevantPositions.values());
     const [startAccruedRaw, endAccruedRaw] = trackedPositions.length

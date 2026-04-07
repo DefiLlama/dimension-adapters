@@ -5,7 +5,7 @@ import {
     normalizePosition,
     TRISTERO_MARGIN_ABI,
     TRISTERO_MARGIN_CONFIGS,
-} from "../helpers/tristeroMargin.ts";
+} from "../helpers/tristeroMargin";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const openInterestAtEnd = options.createBalances();

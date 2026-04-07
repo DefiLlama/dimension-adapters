@@ -82,6 +82,7 @@ export function toPositionId(value: any): number {
 }
 
 export function getPositionIds(totalPositions: any): number[] {
+  if (totalPositions === null || totalPositions === undefined) return [];
   const total = Number(toBigIntSafe(totalPositions));
   return Array.from({ length: total }, (_, index) => index + 1);
 }
