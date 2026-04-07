@@ -1,65 +1,55 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import {
-  getActiveTristeroMarginEscrows,
-  getTristeroMarginChainStart,
-  getTristeroMarginChains,
-  getPositionIds,
-  normalizePosition,
-  TRISTERO_MARGIN_ABI,
-} from "../helpers/tristeroMargin";
+    getActiveTristeroMarginEscrows,
+    getPositionIds,
+    normalizePosition,
+    TRISTERO_MARGIN_ABI,
+    TRISTERO_MARGIN_CONFIGS,
+} from "../helpers/tristeroMargin.ts";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const openInterestAtEnd = options.createBalances();
-  const escrows = getActiveTristeroMarginEscrows(options.chain, options.dateString);
+    const openInterestAtEnd = options.createBalances();
+    const escrows = getActiveTristeroMarginEscrows(options.chain, options.dateString);
 
-  if (!escrows.length) {
-    return { openInterestAtEnd };
-  }
+    if (!escrows.length) {
+        return { openInterestAtEnd };
+    }
 
-  const totalPositionsPerEscrow = await options.toApi.multiCall({
-    abi: TRISTERO_MARGIN_ABI.totalPositions,
-    calls: escrows.map((escrow) => ({ target: escrow })),
-    permitFailure: true,
-  });
-
-  await Promise.all(
-    escrows.map(async (escrow, index) => {
-      const positionIds = getPositionIds(totalPositionsPerEscrow[index]);
-      if (!positionIds.length) return;
-
-      const positions = await options.toApi.multiCall({
-        abi: TRISTERO_MARGIN_ABI.positions,
-        calls: positionIds.map((positionId) => ({
-          target: escrow,
-          params: [positionId],
-        })),
+    const totalPositionsPerEscrow = await options.toApi.multiCall({
+        abi: TRISTERO_MARGIN_ABI.totalPositions,
+        calls: escrows.map((escrow) => ({ target: escrow })),
         permitFailure: true,
-      });
+    });
 
-      positions.forEach((position: any) => {
+    const escrowToPositionIds = totalPositionsPerEscrow.map((totalPositions, index) => ({
+        escrow: escrows[index],
+        positionIds: getPositionIds(totalPositions),
+    }));
+
+    const positions = await options.toApi.multiCall({
+        abi: TRISTERO_MARGIN_ABI.positions,
+        calls: escrowToPositionIds.flatMap(({ escrow, positionIds }) => positionIds.map((positionId) => ({
+            target: escrow,
+            params: [positionId],
+        }))),
+        permitFailure: true,
+    });
+
+    positions.forEach((position: any) => {
         const normalized = normalizePosition(position);
         if (!normalized || normalized.size === 0n) return;
-        openInterestAtEnd.add(normalized.token, normalized.size.toString());
-      });
-    })
-  );
+        openInterestAtEnd.add(normalized.token, normalized.size);
+    });
 
-  return {
-    openInterestAtEnd,
-  };
+    return {
+        openInterestAtEnd,
+    };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: Object.fromEntries(
-    getTristeroMarginChains().map((chain) => [
-      chain,
-      {
-        fetch,
-        start: getTristeroMarginChainStart(chain)!,
-      },
-    ])
-  ),
+    version: 2,
+    adapter: TRISTERO_MARGIN_CONFIGS,
+    fetch,
 };
 
 export default adapter;
