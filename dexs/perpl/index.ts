@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.MONAD],
-  start: "2025-02-01",
+  start: "2026-02-12",
   fetch,
 };
 
