@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 import { METRIC } from "../../helpers/metrics";
-import { ethers } from "ethers";
 
 const CURVE_PMMS = [
     "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
@@ -10,65 +9,20 @@ const CURVE_PMMS = [
 ] as const;
 
 const poolAbis = {
-    tokenX: "function X() view returns (address)",
-    tokenY: "function Y() view returns (address)",
-    treasuryShareBps: "function treasuryShareBps() view returns (uint24)",
-    bps: "function BPS() view returns (uint256)",
-};
-const poolMethods = {
-    tokenX: "X",
-    tokenY: "Y",
-    treasuryShareBps: "treasuryShareBps",
-    bps: "BPS",
+    tokenX: "address:X",
+    tokenY: "address:Y",
+    treasuryShareBps: "uint24:treasuryShareBps",
+    bps: "uint256:BPS",
 } as const;
 
 const swapEvent =
     "event SwapExecuted(address recipient, bool xToY, uint256 dx, uint256 dy, uint256 fee)";
 
-const rpcUrls = [
-    process.env.BASE_RPC,
-    "https://mainnet.base.org",
-    "https://base.publicnode.com",
-    "https://base.llamarpc.com",
-].filter(Boolean) as string[];
-const poolInterface = new ethers.Interface(Object.values(poolAbis));
-
-const rawCall = async (target: string, fragment: keyof typeof poolAbis) => {
-    const method = poolMethods[fragment];
-    const data = poolInterface.encodeFunctionData(method);
-    let lastError: Error | null = null;
-
-    for (const rpcUrl of rpcUrls) {
-        try {
-            const response = await globalThis.fetch(rpcUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: `${target}-${fragment}`,
-                    method: "eth_call",
-                    params: [{ to: target, data }, "latest"],
-                }),
-            });
-            const result = await response.json();
-            if (result.error || !result.result || result.result === "0x") {
-                throw new Error(result.error?.message ?? `eth_call failed for ${fragment}`);
-            }
-            return poolInterface.decodeFunctionResult(method, result.result)[0];
-        } catch (error: any) {
-            lastError = error instanceof Error ? error : new Error(String(error));
-        }
-    }
-
-    throw lastError ?? new Error(`eth_call failed for ${fragment}`);
-};
-
-const safeCall = async (target: string, fragment: keyof typeof poolAbis, fallback: any = null) => {
-    try {
-        return await rawCall(target, fragment);
-    } catch {
-        return fallback;
-    }
+const toBigIntOrZero = (value: any): bigint => {
+    if (value === null || value === undefined) return 0n;
+    if (typeof value === "bigint") return value;
+    if (typeof value === "number") return BigInt(Math.trunc(value));
+    return BigInt(value.toString());
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -76,30 +30,58 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
+    const toBlock = await options.getToBlock();
 
-    const pools = await Promise.all(CURVE_PMMS.map(async (pool) => {
-        const [tokenX, tokenY, treasuryShareBps, BPS, logs] = await Promise.all([
-            rawCall(pool, "tokenX"),
-            rawCall(pool, "tokenY"),
-            safeCall(pool, "treasuryShareBps", 0n),
-            rawCall(pool, "bps"),
-            options.getLogs({
-                target: pool,
-                eventAbi: swapEvent,
-            }),
-        ]);
+    const activePools = (await Promise.all(CURVE_PMMS.map(async (pool) => {
+        const logs = await options.getLogs({
+            target: pool,
+            eventAbi: swapEvent,
+            toBlock,
+        });
+        return logs.length ? { pool, logs } : null;
+    }))).filter((pool): pool is { pool: string; logs: any[] } => Boolean(pool));
+
+    if (!activePools.length) {
+        return {
+            dailyVolume,
+            dailyFees,
+            dailyUserFees: dailyFees,
+            dailySupplySideRevenue,
+            dailyProtocolRevenue,
+            dailyRevenue: dailyProtocolRevenue,
+        };
+    }
+
+    const poolAddresses = activePools.map(({ pool }) => pool);
+    // `options.api` is already pinned to this slice's `toBlock`, so these reads stay historical.
+    const [tokenXs, tokenYs, treasuryShareBpsValues, totalBpsValues] = await Promise.all([
+        options.api.multiCall({ abi: poolAbis.tokenX, calls: poolAddresses }),
+        options.api.multiCall({ abi: poolAbis.tokenY, calls: poolAddresses }),
+        options.api.multiCall({ abi: poolAbis.treasuryShareBps, calls: poolAddresses, permitFailure: true }),
+        options.api.multiCall({ abi: poolAbis.bps, calls: poolAddresses }),
+    ]);
+
+    const pools = activePools.map(({ pool, logs }, index) => {
+        const tokenX = tokenXs[index];
+        const tokenY = tokenYs[index];
+        if (typeof tokenX !== "string" || typeof tokenY !== "string") {
+            throw new Error(`Failed to resolve token pair for ${pool} at block ${toBlock}`);
+        }
 
         return {
             pool,
             tokenX,
             tokenY,
             logs,
-            treasuryShareBps: Number(treasuryShareBps ?? 0),
-            totalBps: Number(BPS),
+            treasuryShareBps: toBigIntOrZero(treasuryShareBpsValues[index]),
+            totalBps: toBigIntOrZero(totalBpsValues[index]),
         };
-    }));
+    });
 
-    for (const { tokenX, tokenY, logs, treasuryShareBps, totalBps } of pools) {
+    for (const pool of pools) {
+        if (!pool) continue;
+
+        const { tokenX, tokenY, logs, treasuryShareBps, totalBps } = pool;
         for (const log of logs) {
             const { xToY, dx, dy, fee } = log;
             addOneToken({ chain: options.chain, balances: dailyVolume, token0: tokenX, token1: tokenY, amount0: dx, amount1: dy });
@@ -110,7 +92,7 @@ const fetch = async (options: FetchOptions) => {
             dailyFees.add(feeToken, feeBig, METRIC.SWAP_FEES);
 
             // Split: treasury gets treasuryShareBps/BPS, LPs get the rest
-            const protocolFee = totalBps > 0 ? (feeBig * BigInt(treasuryShareBps)) / BigInt(totalBps) : 0n;
+            const protocolFee = totalBps > 0n ? (feeBig * treasuryShareBps) / totalBps : 0n;
             const supplySideFee = feeBig - protocolFee;
             dailyProtocolRevenue.add(feeToken, protocolFee, METRIC.SWAP_FEES);
             dailySupplySideRevenue.add(feeToken, supplySideFee, METRIC.SWAP_FEES);
