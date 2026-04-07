@@ -408,33 +408,38 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     };
 };
 
+const methodology = {
+    Fees: 'Daily borrow interest accrued on open margin positions, plus any protocol-collected liquidation fees.',
+    Revenue: 'Protocol share of margin borrow interest and liquidation fees. The current live staging escrow has protocol borrow fees disabled, so this is usually zero until that parameter changes.',
+    ProtocolRevenue: 'Protocol share of margin borrow interest and liquidation fees. The current live staging escrow has protocol borrow fees disabled, so this is usually zero until that parameter changes.',
+    SupplySideRevenue: 'Borrow interest attributable to the filler lenders that funded margin positions.',
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated margin positions.',
+        [METRIC.LIQUIDATION_FEES]: 'Protocol-collected liquidation fees.',
+    },
+    Revenue: {
+        [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
+        [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
+    },
+
+    ProtocolRevenue: {
+        [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
+        [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
+    },
+    SupplySideRevenue: {
+        [MARGIN_METRICS.BORROW_INTEREST_TO_LENDERS]: 'Borrow interest attributable to the filler lenders that funded margin positions.',
+    },
+};
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: TRISTERO_MARGIN_CONFIGS,
     fetch,
-    methodology: {
-        Fees: 'Daily borrow interest accrued on open margin positions, plus any protocol-collected liquidation fees.',
-        Revenue: 'Protocol share of margin borrow interest and liquidation fees. The current live staging escrow has protocol borrow fees disabled, so this is usually zero until that parameter changes.',
-        ProtocolRevenue: 'Protocol share of margin borrow interest and liquidation fees. The current live staging escrow has protocol borrow fees disabled, so this is usually zero until that parameter changes.',
-        SupplySideRevenue: 'Borrow interest attributable to the filler lenders that funded margin positions.',
-    },
-    breakdownMethodology: {
-        Fees: {
-            [METRIC.BORROW_INTEREST]: 'Borrow interest accrued during the day across active, closed, and liquidated margin positions.',
-            [METRIC.LIQUIDATION_FEES]: 'Protocol-collected liquidation fees.',
-        },
-        Revenue: {
-            [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
-            [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
-        },
-        ProtocolRevenue: {
-            [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
-            [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
-        },
-        SupplySideRevenue: {
-            [MARGIN_METRICS.BORROW_INTEREST_TO_LENDERS]: 'Borrow interest attributable to the filler lenders that funded margin positions.',
-        },
-    },
+    pullHourly: true,
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
