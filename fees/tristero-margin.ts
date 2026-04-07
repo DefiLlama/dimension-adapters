@@ -5,12 +5,19 @@ import {
     getPositionIds,
     mulDivCeil,
     normalizePosition,
+    toBigIntOrNull,
     toBigIntSafe,
     toPositionId,
     TRISTERO_MARGIN_ABI,
     type TristeroMarginPosition,
     TRISTERO_MARGIN_CONFIGS,
 } from "../helpers/tristeroMargin";
+
+const MARGIN_METRICS = {
+    BORROW_INTEREST_TO_PROTOCOL: 'Borrow Interest To Protocol',
+    BORROW_INTEREST_TO_LENDERS: 'Borrow Interest To Lenders',
+    LIQUIDATION_FEES_TO_PROTOCOL: 'Liquidation Fees To Protocol',
+} as const;
 
 type ProtocolFeeLog = {
     token: string;
@@ -40,9 +47,13 @@ function getHistoricalPositionKey({ escrow, positionId, block }: HistoricalPosit
     return `${getPositionKey({ escrow, positionId })}-${block}`;
 }
 
-function eventKey(log: any): string {
-    const escrow = String(log.address ?? "").toLowerCase();
-    return `${escrow}-${String(log.transactionHash).toLowerCase()}-${toPositionId(log.args.positionId)}`;
+function eventKey(log: any): string | null {
+    const escrow = String(log?.address ?? "").toLowerCase();
+    const txHash = log?.transactionHash ? String(log.transactionHash).toLowerCase() : "";
+    const positionId = log?.args?.positionId;
+    if (!escrow || !txHash || positionId === null || positionId === undefined) return null;
+
+    return `${escrow}-${txHash}-${toPositionId(positionId)}`;
 }
 
 function addToPositionMap(map: Map<string, bigint>, positionRef: PositionRef, amount: bigint) {
@@ -50,10 +61,31 @@ function addToPositionMap(map: Map<string, bigint>, positionRef: PositionRef, am
     map.set(key, (map.get(key) ?? 0n) + amount);
 }
 
+function addToTokenMap(map: Map<string, bigint>, token: string, amount: bigint) {
+    const key = token.toLowerCase();
+    map.set(key, (map.get(key) ?? 0n) + amount);
+}
+
 function flattenGroupedLogs(logGroups: any[][], escrows: string[]): any[] {
     return logGroups.flatMap((logs, index) =>
         logs.map((log: any) => ({ ...log, address: log.address ?? escrows[index] }))
     );
+}
+
+function toPositionEvent(log: any): PositionEvent | null {
+    const escrow = String(log?.address ?? "").toLowerCase();
+    const positionId = log?.args?.positionId;
+    const blockNumber = log?.blockNumber;
+    if (!escrow || positionId === null || positionId === undefined || blockNumber === null || blockNumber === undefined) return null;
+
+    const block = Number(blockNumber) - 1;
+    if (block < 0) return null;
+
+    return {
+        log,
+        positionRef: { escrow, positionId: toPositionId(positionId) },
+        block,
+    };
 }
 
 function getUniqueHistoricalRefs(positionEvents: PositionEvent[]): HistoricalPositionRef[] {
@@ -103,7 +135,7 @@ async function getHistoricalPositions(
 async function getHistoricalAccumulatedInterest(
     options: FetchOptions,
     positionEvents: PositionEvent[],
-): Promise<Map<string, bigint>> {
+): Promise<Map<string, bigint | null>> {
     const positionRefsByBlock = new Map<number, HistoricalPositionRef[]>();
 
     getUniqueHistoricalRefs(positionEvents).forEach((positionRef) => {
@@ -112,7 +144,7 @@ async function getHistoricalAccumulatedInterest(
         positionRefsByBlock.set(positionRef.block, refsAtBlock);
     });
 
-    const interestByRef = new Map<string, bigint>();
+    const interestByRef = new Map<string, bigint | null>();
 
     for (const [block, positionRefs] of positionRefsByBlock.entries()) {
         const accumulatedInterest = await options.api.multiCall({
@@ -126,7 +158,7 @@ async function getHistoricalAccumulatedInterest(
         });
 
         positionRefs.forEach((positionRef, index) => {
-            interestByRef.set(getHistoricalPositionKey(positionRef), toBigIntSafe(accumulatedInterest[index]));
+            interestByRef.set(getHistoricalPositionKey(positionRef), toBigIntOrNull(accumulatedInterest[index]));
         });
     }
 
@@ -136,7 +168,9 @@ async function getHistoricalAccumulatedInterest(
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const borrowInterestFees = options.createBalances();
     const borrowInterestProtocolRevenue = options.createBalances();
-    const liquidationProtocolFees = options.createBalances();
+    const borrowInterestSupplySideRevenue = options.createBalances();
+    const liquidationFees = options.createBalances();
+    const liquidationProtocolRevenue = options.createBalances();
     const escrows = getActiveTristeroMarginEscrows(options.chain, options.dateString);
 
     if (!escrows.length) {
@@ -155,6 +189,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const realizedBorrowInterestByPosition = new Map<string, bigint>();
     const knownPositions = new Map<string, TristeroMarginPosition>();
     const relevantPositions = new Map<string, PositionRef>();
+    const grossBorrowInterestByToken = new Map<string, bigint>();
+    const protocolBorrowInterestByToken = new Map<string, bigint>();
+    const liquidationProtocolFeesByToken = new Map<string, bigint>();
 
     const [closeLogsWithGroups, liquidationLogsWithGroups, protocolFeeLogsWithGroups] = await Promise.all([
         options.getLogs({
@@ -187,6 +224,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const protocolFeesByEvent = new Map<string, ProtocolFeeLog[]>();
     protocolFeeLogs.forEach((log: any) => {
         const key = eventKey(log);
+        if (!key || log?.args?.token === undefined || log?.args?.amount === undefined) return;
         const logs = protocolFeesByEvent.get(key) ?? [];
         logs.push({
             token: String(log.args.token).toLowerCase(),
@@ -196,23 +234,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     });
 
     const closeEvents: PositionEvent[] = closeLogs.flatMap((log: any) => {
-        const escrow = String(log.address).toLowerCase();
-        const positionId = toPositionId(log.args.positionId);
-        const positionRef = { escrow, positionId };
-        relevantPositions.set(getPositionKey(positionRef), positionRef);
+        const event = toPositionEvent(log);
+        if (!event) return [];
 
-        const block = Number(log.blockNumber) - 1;
-        return block >= 0 ? [{ log, positionRef, block }] : [];
+        relevantPositions.set(getPositionKey(event.positionRef), event.positionRef);
+        return [event];
     });
 
     const liquidationEvents: PositionEvent[] = liquidationLogs.flatMap((log: any) => {
-        const escrow = String(log.address).toLowerCase();
-        const positionId = toPositionId(log.args.positionId);
-        const positionRef = { escrow, positionId };
-        relevantPositions.set(getPositionKey(positionRef), positionRef);
+        const event = toPositionEvent(log);
+        if (!event) return [];
 
-        const block = Number(log.blockNumber) - 1;
-        return block >= 0 ? [{ log, positionRef, block }] : [];
+        relevantPositions.set(getPositionKey(event.positionRef), event.positionRef);
+        return [event];
     });
 
     const historicalPositions = await getHistoricalPositions(options, [...closeEvents, ...liquidationEvents]);
@@ -224,7 +258,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
         knownPositions.set(getPositionKey(positionRef), prePosition);
 
-        const protocolFees = (protocolFeesByEvent.get(eventKey(log)) ?? [])
+        const closeEventKey = eventKey(log);
+        const protocolFees = ((closeEventKey ? protocolFeesByEvent.get(closeEventKey) : []) ?? [])
             .filter((fee) => fee.token === prePosition.loanToken.toLowerCase())
             .reduce((sum, fee) => sum + fee.amount, 0n);
 
@@ -240,7 +275,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         }
 
         if (protocolFees > 0n) {
-            borrowInterestProtocolRevenue.add(prePosition.loanToken, protocolFees.toString(), METRIC.BORROW_INTEREST);
+            addToTokenMap(protocolBorrowInterestByToken, prePosition.loanToken, protocolFees);
         }
     });
 
@@ -250,17 +285,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
         knownPositions.set(getPositionKey(positionRef), prePosition);
 
-        const preAccruedInterest = historicalAccruedInterest.get(getHistoricalPositionKey({ ...positionRef, block })) ?? 0n;
+        const preAccruedInterest = historicalAccruedInterest.get(getHistoricalPositionKey({ ...positionRef, block }));
+        if (preAccruedInterest === null || preAccruedInterest === undefined) return;
+
         if (preAccruedInterest > 0n) {
             addToPositionMap(realizedBorrowInterestByPosition, positionRef, preAccruedInterest);
         }
 
-        const liquidationFees = (protocolFeesByEvent.get(eventKey(log)) ?? [])
+        const liquidationEventKey = eventKey(log);
+        const liquidationFeeAmount = ((liquidationEventKey ? protocolFeesByEvent.get(liquidationEventKey) : []) ?? [])
             .filter((fee) => fee.token === prePosition.token.toLowerCase())
             .reduce((sum, fee) => sum + fee.amount, 0n);
 
-        if (liquidationFees > 0n) {
-            liquidationProtocolFees.add(prePosition.token, liquidationFees.toString(), METRIC.LIQUIDATION_FEES);
+        if (liquidationFeeAmount > 0n) {
+            addToTokenMap(liquidationProtocolFeesByToken, prePosition.token, liquidationFeeAmount);
         }
     });
 
@@ -324,24 +362,42 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const position = knownPositions.get(positionKey);
         if (!position) return;
 
-        const startAccrued = toBigIntSafe(startAccruedRaw[index]);
-        const endAccrued = toBigIntSafe(endAccruedRaw[index]);
+        const startAccrued = toBigIntOrNull(startAccruedRaw[index]);
+        const endAccrued = toBigIntOrNull(endAccruedRaw[index]);
+        if (startAccrued === null || endAccrued === null) return;
+
         const realizedInterest = realizedBorrowInterestByPosition.get(positionKey) ?? 0n;
 
         const accruedDuringPeriod = realizedInterest + endAccrued - startAccrued;
         if (accruedDuringPeriod <= 0n) return;
 
+        addToTokenMap(grossBorrowInterestByToken, position.loanToken, accruedDuringPeriod);
         borrowInterestFees.add(position.loanToken, accruedDuringPeriod.toString(), METRIC.BORROW_INTEREST);
     });
 
+    protocolBorrowInterestByToken.forEach((amount, token) => {
+        borrowInterestProtocolRevenue.add(token, amount.toString(), MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL);
+    });
+
+    liquidationProtocolFeesByToken.forEach((amount, token) => {
+        liquidationFees.add(token, amount.toString(), METRIC.LIQUIDATION_FEES);
+        liquidationProtocolRevenue.add(token, amount.toString(), MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL);
+    });
+
+    grossBorrowInterestByToken.forEach((grossAmount, token) => {
+        const supplySideAmount = grossAmount - (protocolBorrowInterestByToken.get(token) ?? 0n);
+        if (supplySideAmount <= 0n) return;
+
+        borrowInterestSupplySideRevenue.add(token, supplySideAmount.toString(), MARGIN_METRICS.BORROW_INTEREST_TO_LENDERS);
+    });
+
     const dailyFees = borrowInterestFees.clone();
-    dailyFees.add(liquidationProtocolFees);
+    dailyFees.add(liquidationFees);
 
     const dailyProtocolRevenue = borrowInterestProtocolRevenue.clone();
-    dailyProtocolRevenue.add(liquidationProtocolFees);
+    dailyProtocolRevenue.add(liquidationProtocolRevenue);
 
-    const dailySupplySideRevenue = borrowInterestFees.clone();
-    dailySupplySideRevenue.subtract(borrowInterestProtocolRevenue);
+    const dailySupplySideRevenue = borrowInterestSupplySideRevenue.clone();
 
     return {
         dailyFees,
@@ -368,15 +424,15 @@ const adapter: SimpleAdapter = {
             [METRIC.LIQUIDATION_FEES]: 'Protocol-collected liquidation fees.',
         },
         Revenue: {
-            [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
-            [METRIC.LIQUIDATION_FEES]: 'Protocol-collected liquidation fees.',
+            [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
+            [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
         },
         ProtocolRevenue: {
-            [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
-            [METRIC.LIQUIDATION_FEES]: 'Protocol-collected liquidation fees.',
+            [MARGIN_METRICS.BORROW_INTEREST_TO_PROTOCOL]: 'Protocol share of borrow interest.',
+            [MARGIN_METRICS.LIQUIDATION_FEES_TO_PROTOCOL]: 'Protocol-collected liquidation fees.',
         },
         SupplySideRevenue: {
-            [METRIC.BORROW_INTEREST]: 'Borrow interest attributable to the filler lenders that funded margin positions.',
+            [MARGIN_METRICS.BORROW_INTEREST_TO_LENDERS]: 'Borrow interest attributable to the filler lenders that funded margin positions.',
         },
     },
 };

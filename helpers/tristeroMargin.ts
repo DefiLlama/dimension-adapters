@@ -71,14 +71,23 @@ export interface TristeroMarginPosition {
 }
 
 export function toBigIntSafe(value: any): bigint {
-  if (value === null || value === undefined) return 0n;
+  if (value === null || value === undefined) {
+    throw new Error("Expected bigint-compatible value but received nullish input");
+  }
   if (typeof value === 'bigint') return value;
   if (typeof value === 'number') return BigInt(Math.trunc(value));
   return BigInt(value.toString());
 }
 
+export function toBigIntOrNull(value: any): bigint | null {
+  if (value === null || value === undefined) return null;
+  return toBigIntSafe(value);
+}
+
 export function toPositionId(value: any): number {
-  return Number(toBigIntSafe(value));
+  const positionId = toBigIntOrNull(value);
+  if (positionId === null) throw new Error("Missing position id");
+  return Number(positionId);
 }
 
 export function getPositionIds(totalPositions: any): number[] {
@@ -99,14 +108,19 @@ export function normalizePosition(position: any): TristeroMarginPosition | null 
   const loanToken = position.loanToken ?? position[3];
   if (!token || !loanToken) return null;
 
+  const size = toBigIntOrNull(position.size ?? position[4]);
+  const loanAmount = toBigIntOrNull(position.loanAmount ?? position[5]);
+  const liqPrice = toBigIntOrNull(position.liqPrice ?? position[6]);
+  if (size === null || loanAmount === null || liqPrice === null) return null;
+
   return {
     taker: position.taker ?? position[0],
     filler: position.filler ?? position[1],
     token,
     loanToken,
-    size: toBigIntSafe(position.size ?? position[4]),
-    loanAmount: toBigIntSafe(position.loanAmount ?? position[5]),
-    liqPrice: toBigIntSafe(position.liqPrice ?? position[6]),
+    size,
+    loanAmount,
+    liqPrice,
   };
 }
 
@@ -147,5 +161,5 @@ export async function getAccumulatedInterestAtBlock(options: FetchOptions, escro
     block,
   });
 
-  return toBigIntSafe(interest);
+  return toBigIntOrNull(interest) ?? 0n;
 }
