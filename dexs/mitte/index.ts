@@ -17,7 +17,8 @@ const adapter: SimpleAdapter = {
           throw new Error(`Invalid daily volume: ${dailyVolume}`)
 
         return { dailyVolume, }
-      }
+      },
+      deadFrom: "2025-04-03",
     }
   }
 };
