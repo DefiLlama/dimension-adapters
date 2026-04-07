@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import {httpGet} from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
-    const data = await httpGet('https://api-v2-prod.thorwallet.org');
+    const data = await httpGet('https://api-v2-prod.thorwallet.org/defillama/fees');
 
     const dailyFees = options.createBalances();
 
