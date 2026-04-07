@@ -10,10 +10,32 @@
 
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
-import { getSqlFromFile, queryDuneSql } from '../../helpers/dune'
+import { getSqlFromFile, queryDuneResult, queryDuneSql } from '../../helpers/dune'
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const dailyFees = options.createBalances()
+  if (options.startOfDay <= 1775520000) {
+    const targetDate = options.dateString
+    const metadao_fees = await queryDuneResult(options, '6556188');
+    const matched = metadao_fees.filter((row: any) => {
+      return typeof row.trading_date === 'string' && row.trading_date.slice(0, 10) === targetDate
+    })
+    matched.forEach((row: any) => {
+      const fees = row.token_fees_usdc ?? 0
+      dailyFees.addUSDValue(fees, 'futarchy_amm')
+    })
+
+    const meteora_fees = await queryDuneResult(options, '6556354');
+    const matched_fees = meteora_fees.filter((row: any) => {
+      return typeof row.day === 'string' && row.day.slice(0, 10) === targetDate
+    })
+
+    matched_fees.forEach((row: any) => {
+      const fees = row.earned_fee_usdc ?? 0
+      dailyFees.addUSDValue(fees, 'meteora_damm')
+    })
+    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  }
 
   const query = await getSqlFromFile('helpers/queries/futarchy.sql', {
     start: options.startTimestamp,
