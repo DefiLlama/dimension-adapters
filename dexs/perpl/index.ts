@@ -47,26 +47,28 @@ const fetch = async (options: FetchOptions) => {
         }
     }
 
-    let dailyVolume = 0;
-    let dailyFees = 0;
+    const dailyVolume = options.createBalances();
+    const dailyFees = options.createBalances();
 
     // Volume from maker fills only (one per trade, avoids double-counting)
     for (const log of makerLogs) {
         const perpId = Number(log.perpId);
         const market = MARKETS[perpId];
-        if (!market) continue;
+        if (!market) {
+            throw new Error(`Perpl: unknown perpId ${perpId}`);
+        }
 
         const price = Number(log.pricePNS) / 10 ** market.priceDecimals;
         const lots = Number(log.lotLNS) / 10 ** market.lotDecimals;
-        dailyVolume += price * lots;
+        dailyVolume.addUSDValue(price * lots);
 
         // Maker fees in AUSD (6 decimals, 1:1 USD)
-        dailyFees += Number(log.feeCNS) / 1e6;
+        dailyFees.addUSDValue(Number(log.feeCNS) / 1e6, "Maker Fees");
     }
 
     // Taker fees (separate fee charged to taker side)
     for (const log of takerLogs) {
-        dailyFees += Number(log.feeCNS) / 1e6;
+        dailyFees.addUSDValue(Number(log.feeCNS) / 1e6, "Taker Fees");
     }
 
     // All fees go to protocol (insurance fund + protocol balance)
@@ -82,19 +84,37 @@ const fetch = async (options: FetchOptions) => {
     };
 };
 
+const methodology = {
+    Fees: "Trading fees paid by makers and takers on each fill.",
+    Revenue: "All fees are retained by the protocol (insurance fund + protocol balance).",
+    ProtocolRevenue: "100% of trading fees go to the protocol.",
+    SupplySideRevenue: "Perpl is an order-book DEX with no LP fee sharing.",
+    HoldersRevenue: "No token holder fee distribution.",
+};
+
+const breakdownMethodology = {
+    Fees: {
+        "Maker Fees": "Fees paid by makers on each fill.",
+        "Taker Fees": "Fees paid by takers on each fill.",
+    },
+    Revenue: {
+        "Maker Fees": "Fees paid by makers on each fill.",
+        "Taker Fees": "Fees paid by takers on each fill.",
+    },
+    ProtocolRevenue: {
+        "Maker Fees": "Fees paid by makers on each fill.",
+        "Taker Fees": "Fees paid by takers on each fill.",
+    },
+};
+
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     chains: [CHAIN.MONAD],
     start: "2026-02-12",
     fetch,
-    methodology: {
-        Fees: "Trading fees paid by makers and takers on each fill.",
-        Revenue: "All fees are retained by the protocol (insurance fund + protocol balance).",
-        ProtocolRevenue: "100% of trading fees go to the protocol.",
-        SupplySideRevenue: "Perpl is an order-book DEX with no LP fee sharing.",
-        HoldersRevenue: "No token holder fee distribution.",
-    },
+    methodology,
+    breakdownMethodology,
 };
 
 export default adapter;
