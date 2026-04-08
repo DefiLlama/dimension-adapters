@@ -83,6 +83,7 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
+        dailyHoldersRevenue: 0,
     };
 };
 
@@ -98,6 +99,7 @@ const adapter: SimpleAdapter = {
         Revenue: "Protocol's share of fees from EtherFi Cash operations including transaction fees",
         ProtocolRevenue: "Same as Revenue - all protocol earnings from EtherFi Cash on Scroll.",
         SupplySideRevenue: "Cashback rewards paid to users by external providers.",
+        HoldersRevenue: "No revenue share to ETHFI holders",
     },
     breakdownMethodology: {
         Fees: {

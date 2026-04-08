@@ -25,6 +25,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -39,6 +40,7 @@ const adapter: Adapter = {
     Fees: "Total borrow interest generated from EtherFi Cash services on Scroll.",
     Revenue: "Protocol's share of fees from borrow interest.",
     ProtocolRevenue: "Same as Revenue - all protocol earnings from EtherFi Cash on Scroll.",
+    HoldersRevenue: "No revenue share to ETHFI holders",
   },
   breakdownMethodology: {
     Fees: {
