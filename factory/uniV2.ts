@@ -1155,6 +1155,9 @@ const feesConfigs: Record<string, Record<string, any>> = {
   "biswap": {
     [CHAIN.BSC]: { factory: '0x858e3312ed3a876947ea49d572a7c42de08af7ee', fees: 0.002, start: '2021-05-24' },
   },
+  'bcswap': {
+    [CHAIN.BCYPHER]: { factory: '0x927bf500361987b365f6d0ff38c1d45155f4975c', start: '2026-01-01' }
+  },
   "velox": {
     [CHAIN.BASE]: { factory: "0xa28dBAE4D926067F4c343aA8071e833b04C8b99E", fees: 0.0001, start: "2026-03-08" }
   },
