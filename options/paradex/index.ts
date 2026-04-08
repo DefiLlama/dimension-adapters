@@ -1,38 +1,45 @@
 import fetchURL from "../../utils/fetchURL"
-import { FetchResultOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const volumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/7734/card/6988'
+// Options Daily Volume - rolling window of recent daily options volume
+const dailyVolumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/27263/card/32012?parameters=%5B%5D'
 
-interface IVolumeData {
-  data: {
-    rows: [string, string, number][];
-  }
+interface DailyVolumeCache {
+  [date: string]: number
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultOptions> => {
-  const volumesData = await fetchURL(volumeEndpoint) as IVolumeData
-  const timestampStr = new Date(timestamp * 1000).toISOString().split('T')[0] + "T00:00:00Z"
-  
-  // Find the Perp_Option data for the requested date
-  const dailyVolume = volumesData.data.rows.find(row => ((row[0] === timestampStr) && (row[1] === 'Perp_Option')))?.[2]
-  
-  if (!dailyVolume) throw new Error('Perp_Option record missing for date: ' + timestampStr)
-  
-  return { 
-    timestamp,
-    dailyNotionalVolume: dailyVolume,
-    dailyPremiumVolume: 0,
-  };
-};
+let dailyVolumeCache: DailyVolumeCache | null = null
+
+const fetchDailyVolumeCache = async (): Promise<DailyVolumeCache> => {
+  if (dailyVolumeCache) return dailyVolumeCache
+  const { data: { rows } } = await fetchURL(dailyVolumeEndpoint)
+  dailyVolumeCache = {}
+  for (const row of rows) {
+    // Row format: [DAY, VOLUME]
+    const date = row[0].slice(0, 10) // "2026-04-08T00:00:00Z" -> "2026-04-08"
+    dailyVolumeCache[date] = Number(row[1] ?? 0)
+  }
+  return dailyVolumeCache
+}
+
+const fetch = async (options: FetchOptions) => {
+  const { startOfDay } = options
+  const cache = await fetchDailyVolumeCache()
+  const dateKey = new Date(startOfDay * 1000).toISOString().slice(0, 10)
+  const dailyNotionalVolume = cache[dateKey]
+  if (dailyNotionalVolume === undefined) throw new Error(`No Paradex options volume data for ${dateKey}`)
+  return { dailyNotionalVolume }
+}
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: {
     [CHAIN.PARADEX]: {
       fetch,
-      start: '2025-03-29',
+      start: '2026-03-25',
     },
   },
-};
+}
 
-export default adapter;
+export default adapter
