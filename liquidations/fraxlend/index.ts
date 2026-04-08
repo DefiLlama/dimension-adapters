@@ -10,8 +10,8 @@ const registries: Record<string, string> = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidations = options.createBalances()
-  const dailyLiquidationRepaidDebt = options.createBalances()
+  const dailyLiquidationCollateral = options.createBalances()
+  const dailyLiquidationDebtRepaid = options.createBalances()
 
   const pairs: string[] = await options.api.call({
     target: registries[options.chain],
@@ -31,13 +31,13 @@ const fetch = async (options: FetchOptions) => {
 
       const events = await options.getLogs({ target: pair, eventAbi: Liquidate })
       for (const event of events) {
-        dailyLiquidations.add(collateralAsset, event.collateralForLiquidator)
-        dailyLiquidationRepaidDebt.add(borrowAsset, event.amountLiquidatorToRepay)
+        dailyLiquidationCollateral.add(collateralAsset, event.collateralForLiquidator)
+        dailyLiquidationDebtRepaid.add(borrowAsset, event.amountLiquidatorToRepay)
       }
     })
   )
 
-  return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 }
 
 const adapter: SimpleAdapter = {
@@ -49,8 +49,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.FRAXTAL]: { fetch, start: '2024-02-22' },
   },
   methodology: {
-    Liquidations: 'Total USD value of collateral seized in Fraxlend Liquidate events.',
-    LiquidationRepaidDebt: 'Total USD value of debt repaid in Fraxlend Liquidate events.',
+    LiquidationCollateral: 'Total USD value of collateral seized in Fraxlend Liquidate events.',
+    LiquidationDebtRepaid: 'Total USD value of debt repaid in Fraxlend Liquidate events.',
   },
 }
 

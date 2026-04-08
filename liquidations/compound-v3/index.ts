@@ -19,11 +19,11 @@ const startDates: Record<string, string> = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidations = options.createBalances()
-  const dailyLiquidationRepaidDebt = options.createBalances()
+  const dailyLiquidationCollateral = options.createBalances()
+  const dailyLiquidationDebtRepaid = options.createBalances()
 
   const comets = CometAddresses[options.chain]
-  if (!comets) return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  if (!comets) return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 
   // Resolve base token for each comet (needed for AbsorbDebt which uses basePaidOut)
   const baseTokens = await options.api.multiCall({
@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
       eventAbi: AbsorbCollateralEvent,
     })
     for (const e of absorbCollateralEvents) {
-      dailyLiquidations.add(e.asset, e.collateralAbsorbed)
+      dailyLiquidationCollateral.add(e.asset, e.collateralAbsorbed)
     }
 
     if (baseToken) {
@@ -50,12 +50,12 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: AbsorbDebtEvent,
       })
       for (const e of absorbDebtEvents) {
-        dailyLiquidationRepaidDebt.add(baseToken, e.basePaidOut)
+        dailyLiquidationDebtRepaid.add(baseToken, e.basePaidOut)
       }
     }
   }
 
-  return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 }
 
 const adapter: SimpleAdapter = {
@@ -67,8 +67,8 @@ const adapter: SimpleAdapter = {
       .map((chain) => [chain, { fetch, start: startDates[chain] }])
   ) as BaseAdapter,
   methodology: {
-    Liquidations: 'Total USD value of collateral absorbed in Compound V3 (Comet) AbsorbCollateral events.',
-    LiquidationRepaidDebt: 'Total USD value of debt absorbed by the protocol in Compound V3 (Comet) AbsorbDebt events.',
+    LiquidationCollateral: 'Total USD value of collateral absorbed in Compound V3 (Comet) AbsorbCollateral events.',
+    LiquidationDebtRepaid: 'Total USD value of debt absorbed by the protocol in Compound V3 (Comet) AbsorbDebt events.',
   },
 }
 

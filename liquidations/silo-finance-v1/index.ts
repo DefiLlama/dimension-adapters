@@ -39,8 +39,8 @@ const config: Record<string, { factories: Factory[]; start: string }> = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidations = options.createBalances()
-  const dailyLiquidationRepaidDebt = options.createBalances()
+  const dailyLiquidationCollateral = options.createBalances()
+  const dailyLiquidationDebtRepaid = options.createBalances()
 
   const { factories } = config[options.chain]
 
@@ -105,19 +105,19 @@ const fetch = async (options: FetchOptions) => {
 
     for (const { silo, event } of liquidationData) {
       if (event.seizedCollateral > 0) {
-        dailyLiquidations.add(event.asset, event.seizedCollateral)
+        dailyLiquidationCollateral.add(event.asset, event.seizedCollateral)
       }
       if (event.shareAmountRepaid > 0) {
         const conv = debtConversionMap[`${silo}:${event.asset}`]
         if (conv && conv.totalSupply > 0n) {
           const underlyingRepaid = BigInt(event.shareAmountRepaid) * conv.totalBorrow / conv.totalSupply
-          dailyLiquidationRepaidDebt.add(conv.asset, underlyingRepaid)
+          dailyLiquidationDebtRepaid.add(conv.asset, underlyingRepaid)
         }
       }
     }
   }
 
-  return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 }
 
 const adapter: SimpleAdapter = {
@@ -127,8 +127,8 @@ const adapter: SimpleAdapter = {
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
   ),
   methodology: {
-    Liquidations: 'Total USD value of collateral seized in Silo V1 Liquidate events.',
-    LiquidationRepaidDebt: 'Total USD value of debt repaid in Silo V1 Liquidate events.',
+    LiquidationCollateral: 'Total USD value of collateral seized in Silo V1 Liquidate events.',
+    LiquidationDebtRepaid: 'Total USD value of debt repaid in Silo V1 Liquidate events.',
   },
 }
 

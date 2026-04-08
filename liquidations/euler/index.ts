@@ -10,11 +10,11 @@ const UINT256_MAX = '0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 const Liquidate = 'event Liquidate(address indexed liquidator, address indexed violator, address collateral, uint256 repayAssets, uint256 yieldBalance)'
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidations = options.createBalances()
-  const dailyLiquidationRepaidDebt = options.createBalances()
+  const dailyLiquidationCollateral = options.createBalances()
+  const dailyLiquidationDebtRepaid = options.createBalances()
 
   const config = EulerChainConfigs[options.chain]
-  if (!config) return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  if (!config) return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 
   // Get all vaults from the eVault factory
   const vaults: string[] = await options.api.call({
@@ -35,18 +35,19 @@ const fetch = async (options: FetchOptions) => {
     if (assets[i]) vaultAssetMap[vaults[i].toLowerCase()] = assets[i]
   }
 
-  // Fetch Liquidate events from all vaults in parallel
-  const liquidationData: { vault: string; event: any }[] = []
-  await Promise.all(
-    vaults.map(async (vault) => {
-      const events = await options.getLogs({ target: vault, eventAbi: Liquidate })
-      for (const event of events) {
-        liquidationData.push({ vault, event })
-      }
-    })
+  // Fetch Liquidate events from all vaults
+  const allEvents = await Promise.all(
+    vaults.map(vault => options.getLogs({ target: vault, eventAbi: Liquidate }))
   )
 
-  if (liquidationData.length === 0) return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  const liquidationData: { vault: string; event: any }[] = []
+  for (let i = 0; i < vaults.length; i++) {
+    for (const event of allEvents[i]) {
+      liquidationData.push({ vault: vaults[i], event })
+    }
+  }
+
+  if (liquidationData.length === 0) return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 
   // Resolve underlying assets for collateral vaults not in the factory list
   const uniqueCollateralVaults = Array.from(new Set(liquidationData.map(d => d.event.collateral.toLowerCase())))
@@ -79,7 +80,7 @@ const fetch = async (options: FetchOptions) => {
   for (const { vault, event } of liquidationData) {
     const debtAsset = vaultAssetMap[vault.toLowerCase()]
     if (debtAsset) {
-      dailyLiquidationRepaidDebt.add(debtAsset, event.repayAssets)
+      dailyLiquidationDebtRepaid.add(debtAsset, event.repayAssets)
     }
 
     const collateralVault = event.collateral.toLowerCase()
@@ -88,12 +89,12 @@ const fetch = async (options: FetchOptions) => {
       const conversion = conversionMap[collateralVault]
       if (conversion) {
         const assetsSeized = (BigInt(event.yieldBalance) * conversion) / BigInt(1e18)
-        dailyLiquidations.add(collateralAsset, assetsSeized)
+        dailyLiquidationCollateral.add(collateralAsset, assetsSeized)
       }
     }
   }
 
-  return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 }
 
 const adapter: SimpleAdapter = {
@@ -105,8 +106,8 @@ const adapter: SimpleAdapter = {
       .map(([chain, { start }]) => [chain, { fetch, start }])
   ),
   methodology: {
-    Liquidations: 'Total USD value of collateral seized in Euler v2 eVault Liquidate events.',
-    LiquidationRepaidDebt: 'Total USD value of debt repaid in Euler v2 eVault Liquidate events.',
+    LiquidationCollateral: 'Total USD value of collateral seized in Euler v2 eVault Liquidate events.',
+    LiquidationDebtRepaid: 'Total USD value of debt repaid in Euler v2 eVault Liquidate events.',
   },
 }
 

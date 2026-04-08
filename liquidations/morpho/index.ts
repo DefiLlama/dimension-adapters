@@ -11,8 +11,8 @@ const MorphoBlueAbis = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidations = options.createBalances()
-  const dailyLiquidationRepaidDebt = options.createBalances()
+  const dailyLiquidationCollateral = options.createBalances()
+  const dailyLiquidationDebtRepaid = options.createBalances()
 
   const { blue, fromBlock } = MorphoBlues[options.chain]
 
@@ -41,14 +41,14 @@ const fetch = async (options: FetchOptions) => {
     if (!market) continue
 
     if (market.collateralToken) {
-      dailyLiquidations.add(market.collateralToken, event.seizedAssets)
+      dailyLiquidationCollateral.add(market.collateralToken, event.seizedAssets)
     }
     if (market.loanToken) {
-      dailyLiquidationRepaidDebt.add(market.loanToken, event.repaidAssets)
+      dailyLiquidationDebtRepaid.add(market.loanToken, event.repaidAssets)
     }
   }
 
-  return { dailyLiquidations, dailyLiquidationRepaidDebt }
+  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
 }
 
 const adapter: SimpleAdapter = {
@@ -60,8 +60,8 @@ const adapter: SimpleAdapter = {
       .map(([chain, { start }]) => [chain, { fetch, start }])
   ),
   methodology: {
-    Liquidations: 'Total USD value of collateral seized in Morpho Blue Liquidate events.',
-    LiquidationRepaidDebt: 'Total USD value of debt repaid in Morpho Blue Liquidate events.',
+    LiquidationCollateral: 'Total USD value of collateral seized in Morpho Blue Liquidate events.',
+    LiquidationDebtRepaid: 'Total USD value of debt repaid in Morpho Blue Liquidate events.',
   },
 }
 

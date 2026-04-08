@@ -185,8 +185,8 @@ export function compoundV2LiquidationsExport(
   Object.entries(config).forEach(([chain, { comptroller, start }]) => {
     exportObject[chain] = {
       fetch: async (options: FetchOptions) => {
-        const dailyLiquidations = options.createBalances()
-        const dailyLiquidationRepaidDebt = options.createBalances()
+        const dailyLiquidationCollateral = options.createBalances()
+        const dailyLiquidationDebtRepaid = options.createBalances()
 
         const cTokens: string[] = await options.api.call({
           target: comptroller,
@@ -228,19 +228,19 @@ export function compoundV2LiquidationsExport(
           if (!debtUnderlying) continue
 
           for (const event of events) {
-            dailyLiquidationRepaidDebt.add(debtUnderlying, event.repayAmount)
+            dailyLiquidationDebtRepaid.add(debtUnderlying, event.repayAmount)
 
             const collateralCToken = event.cTokenCollateral.toLowerCase()
             const collateralUnderlying = underlyingMap[collateralCToken]
             const exchangeRate = exchangeRateMap[collateralCToken]
             if (collateralUnderlying && exchangeRate) {
               const underlyingAmount = (BigInt(event.seizeTokens) * exchangeRate) / BigInt(1e18)
-              dailyLiquidations.add(collateralUnderlying, underlyingAmount)
+              dailyLiquidationCollateral.add(collateralUnderlying, underlyingAmount)
             }
           }
         }
 
-        return { dailyLiquidations, dailyLiquidationRepaidDebt }
+        return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
       },
       start,
     }
@@ -252,8 +252,8 @@ export function compoundV2LiquidationsExport(
     pullHourly,
     adapter: exportObject,
     methodology: {
-      Liquidations: 'Total USD value of collateral seized in LiquidateBorrow events, converted from cToken units to underlying via exchangeRateStored.',
-      LiquidationRepaidDebt: 'Total USD value of debt repaid by liquidators in LiquidateBorrow events.',
+      LiquidationCollateral: 'Total USD value of collateral seized in LiquidateBorrow events, converted from cToken units to underlying via exchangeRateStored.',
+      LiquidationDebtRepaid: 'Total USD value of debt repaid by liquidators in LiquidateBorrow events.',
     },
   } as SimpleAdapter
 }
