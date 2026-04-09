@@ -82,7 +82,7 @@ const methodology = {
   Fees: "Harvest fees comes to treasury contracts on each chain",
   Revenue: "All collected fees are protocol revenue (no separate liquidity provider supply-side)",
   HoldersRevenue:
-    "Share of revenue distributed to gDex token stakers, determined at runtime via receiversPercent()",
+    "Share of revenue distributed to gDEX token stakers, determined at runtime via receiversPercent()",
   ProtocolRevenue: "Share of revenue retained by the protocol treasury",
 };
 
@@ -94,7 +94,7 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Wrapped native token swap fees sent to the treasury",
   },
   HoldersRevenue: {
-    [METRIC.STAKING_REWARDS]: "Treasury share distributed to gDex token stakers",
+    [METRIC.STAKING_REWARDS]: "Treasury share distributed to gDegDEXx token stakers",
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_FEES]:
