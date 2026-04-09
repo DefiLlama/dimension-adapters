@@ -3,10 +3,27 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 import { METRIC } from "../../helpers/metrics";
 
-const CURVE_PMM = "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab";
+const CURVE_PMMS = [
+    "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
+    "0x0716f359B3Bf8d03A3d9d39c60ba9820a1671B99",
+];
+
+const poolAbis = {
+    tokenX: "address:X",
+    tokenY: "address:Y",
+    treasuryShareBps: "uint24:treasuryShareBps",
+    bps: "uint256:BPS",
+};
 
 const swapEvent =
     "event SwapExecuted(address recipient, bool xToY, uint256 dx, uint256 dy, uint256 fee)";
+
+const toBigIntOrZero = (value: any): bigint => {
+    if (value === null || value === undefined) return 0n;
+    if (typeof value === "bigint") return value;
+    if (typeof value === "number") return BigInt(Math.trunc(value));
+    return BigInt(value.toString());
+};
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
@@ -14,35 +31,47 @@ const fetch = async (options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
-    const [tokenX, tokenY, treasuryShareBps, BPS] = await Promise.all([
-        options.api.call({ target: CURVE_PMM, abi: "address:X" }),
-        options.api.call({ target: CURVE_PMM, abi: "address:Y" }),
-        options.api.call({ target: CURVE_PMM, abi: "uint24:treasuryShareBps" }),
-        options.api.call({ target: CURVE_PMM, abi: "uint256:BPS" }),
-    ]);
-
-    const logs = await options.getLogs({
-        target: CURVE_PMM,
+    const swapLogs = await options.getLogs({
+        targets: CURVE_PMMS,
         eventAbi: swapEvent,
+        flatten: false,
     });
 
-    const tBps = Number(treasuryShareBps);
-    const totalBps = Number(BPS);
+    // `options.api` is already pinned to this slice's `toBlock`, so these reads stay historical.
+    const [tokenXs, tokenYs, treasuryShareBpsValues, totalBpsValues] = await Promise.all([
+        options.api.multiCall({ abi: poolAbis.tokenX, calls: CURVE_PMMS }),
+        options.api.multiCall({ abi: poolAbis.tokenY, calls: CURVE_PMMS }),
+        options.api.multiCall({ abi: poolAbis.treasuryShareBps, calls: CURVE_PMMS, permitFailure: true }),
+        options.api.multiCall({ abi: poolAbis.bps, calls: CURVE_PMMS }),
+    ]);
 
-    for (const log of logs) {
-        const { xToY, dx, dy, fee } = log;
-        addOneToken({ chain: options.chain, balances: dailyVolume, token0: tokenX, token1: tokenY, amount0: dx, amount1: dy });
+    for (let i = 0; i < CURVE_PMMS.length; i++) {
 
-        // Fee is taken from the output side: xToY → fee in Y, yToX → fee in X
-        const feeToken = xToY ? tokenY : tokenX;
-        const feeBig = BigInt(fee);
-        dailyFees.add(feeToken, feeBig, METRIC.SWAP_FEES);
+        const tokenX = tokenXs[i];
+        const tokenY = tokenYs[i];
 
-        // Split: treasury gets treasuryShareBps/BPS, LPs get the rest
-        const protocolFee = totalBps > 0 ? (feeBig * BigInt(tBps)) / BigInt(totalBps) : 0n;
-        const supplySideFee = feeBig - protocolFee;
-        dailyProtocolRevenue.add(feeToken, protocolFee, METRIC.SWAP_FEES);
-        dailySupplySideRevenue.add(feeToken, supplySideFee, METRIC.SWAP_FEES);
+        const logs = swapLogs[i];
+
+        const treasuryShareBps = treasuryShareBpsValues[i];
+        const totalBps = totalBpsValues[i];
+
+        for (const log of logs) {
+            const { xToY, dx, dy, fee } = log;
+            addOneToken({ chain: options.chain, balances: dailyVolume, token0: tokenX, token1: tokenY, amount0: dx, amount1: dy });
+
+            // Fee is taken from the output side: xToY -> fee in Y, yToX -> fee in X
+            const feeToken = xToY ? tokenY : tokenX;
+            dailyFees.add(feeToken, fee, METRIC.SWAP_FEES);
+
+            const feeBig = toBigIntOrZero(fee), treasuryShareBpsBig = toBigIntOrZero(treasuryShareBps), totalBpsBig = toBigIntOrZero(totalBps);
+
+            // Split: treasury gets treasuryShareBps/BPS, LPs get the rest
+            const protocolFee = totalBpsBig > 0n ? (feeBig * treasuryShareBpsBig) / totalBpsBig : 0n;
+            const supplySideFee = feeBig - protocolFee;
+            dailyProtocolRevenue.add(feeToken, protocolFee, METRIC.SWAP_FEES);
+            dailySupplySideRevenue.add(feeToken, supplySideFee, METRIC.SWAP_FEES);
+        }
+
     }
 
     return {
