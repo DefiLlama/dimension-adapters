@@ -332,7 +332,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       if (seizedValueInLoanToken <= repaidAssets) continue;
 
       const liquidationFee = seizedValueInLoanToken - repaidAssets;
-      dailyRevenue.add(marketData.loanToken, liquidationFee, METRIC.LIQUIDATION_FEES);
+      dailyFees.add(marketData.loanToken, liquidationFee, METRIC.LIQUIDATION_FEES);
       dailySupplySideRevenue.add(marketData.loanToken, liquidationFee, METRIC.LIQUIDATION_FEES);
     }
   }
@@ -351,10 +351,10 @@ const adapter: SimpleAdapter = {
   fetch: fetch,
   adapter: configs,
   methodology: {
-    Fees: 'Sum of AMM trading fees (Swap.netFwFee), variable-rate borrower interest (AccrueInterest.interest), and fixed-rate CT interest claims plus post-expiry treasury FW accrual (Coupon Token events).',
+    Fees: 'Sum of AMM trading fees (Swap.netFwFee), variable-rate borrower interest (AccrueInterest.interest), fixed-rate CT interest claims plus post-expiry treasury FW accrual (Coupon Token events), and liquidation penalties paid to external liquidators.',
     Revenue: 'Protocol share from AMM reserve fees (Swap.netFwToReserve), variable-rate borrow interest via market fee rate, and fixed-rate interest fees (CollectInterestFee) plus post-expiry treasury accrual (TreasuryFwInterestAccrued).',
     ProtocolRevenue: 'Protocol share from AMM reserve fees (Swap.netFwToReserve), variable-rate borrow interest via market fee rate, and fixed-rate interest fees (CollectInterestFee) plus post-expiry treasury accrual (TreasuryFwInterestAccrued).',
-    SupplySideRevenue: 'AMM swap fees after reserve share, variable-rate interest to lenders, and fixed-rate CT interest paid to users (RedeemInterest.interestOut).',
+    SupplySideRevenue: 'AMM swap fees after reserve share, variable-rate interest to lenders, fixed-rate CT interest paid to users (RedeemInterest.interestOut), and liquidation penalties paid out to external liquidators.',
   },
   breakdownMethodology: {
     Fees: {
@@ -364,7 +364,6 @@ const adapter: SimpleAdapter = {
     Revenue: {
       [METRIC.SWAP_FEES]: 'Protocol reserve share of AMM trading fees from Swap.netFwToReserve.',
       [METRIC.BORROW_INTEREST]: 'Variable-rate: protocol share via market fee. Fixed-rate: CollectInterestFee and TreasuryFwInterestAccrued.',
-      [METRIC.LIQUIDATION_FEES]: 'Liquidation penalty estimated as collateral value seized minus debt repaid, converted via market oracle price.',
     },
     SupplySideRevenue: {
       [METRIC.SWAP_FEES]: 'AMM swap fees distributed outside protocol reserve.',
