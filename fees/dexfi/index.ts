@@ -58,11 +58,14 @@ const fetch = async (options: FetchOptions) => {
 
   const holdersShare = Number(holdersPercent) / Number(TREASURY_SHARE_DIVIDER);
 
+  if (holdersShare > 1) {
+    throw new Error("Holders share is greater than 1");
+  }
+
   const rawFees = await addTokensReceived({
     options,
     target: treasury,
     tokens: [nativeToken],
-    skipIndexer: true, // TODO: remove before PR, indexer requires internal API key
   });
 
   const dailyFees = rawFees.clone(1, METRIC.SWAP_FEES);
@@ -94,7 +97,7 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Wrapped native token swap fees sent to the treasury",
   },
   HoldersRevenue: {
-    [METRIC.STAKING_REWARDS]: "Treasury share distributed to gDegDEXx token stakers",
+    [METRIC.STAKING_REWARDS]: "Treasury share distributed to gDEX token stakers",
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_FEES]:
