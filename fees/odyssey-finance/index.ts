@@ -71,8 +71,20 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "All protocol revenue equals fees.",
   },
   fetch,
-  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.OPTIMISM, CHAIN.PLASMA],
-  start: "2025-02-01",
+  adapter:{
+    [CHAIN.ETHEREUM]: {
+      start: "2025-02-01",
+    },
+    [CHAIN.BASE]: {
+      start: "2025-02-01",
+    },
+    [CHAIN.OPTIMISM]: {
+      start: "2025-02-01",
+    },
+    [CHAIN.PLASMA]: {
+      start: "2025-10-15",
+    },
+  }
 };
 
 export default adapter;
