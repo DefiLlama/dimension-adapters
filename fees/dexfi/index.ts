@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
 
-const HOLDERS_REVENUE_ADDRESS = "0x53c9e51afecda7a502a4432a10a319a6d41e8b6e";
+const HOLDERS_ADDRESS = "0x53c9e51afecda7a502a4432a10a319a6d41e8b6e";
 
 const CONFIG: Record<
   string,
@@ -53,17 +53,19 @@ const fetch = async (options: FetchOptions) => {
   const holdersPercent = await api.call({
     target: treasury,
     abi: "function receiversPercent(address receiver) view returns (uint256)",
-    params: [HOLDERS_REVENUE_ADDRESS],
+    params: [HOLDERS_ADDRESS],
   });
 
   const holdersShare = Number(holdersPercent) / Number(TREASURY_SHARE_DIVIDER);
 
-  const dailyFees = await addTokensReceived({
+  const rawFees = await addTokensReceived({
     options,
     target: treasury,
     tokens: [nativeToken],
+    skipIndexer: true, // TODO: remove before PR, indexer requires internal API key
   });
 
+  const dailyFees = rawFees.clone(1, METRIC.SWAP_FEES);
   const dailyRevenue = dailyFees;
   const dailyHoldersRevenue = dailyFees.clone(holdersShare, METRIC.STAKING_REWARDS);
   const dailyProtocolRevenue = dailyFees.clone(1 - holdersShare, METRIC.PROTOCOL_FEES);
@@ -78,17 +80,25 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Harvest fees comes to treasury contracts on each chain",
-  Revenue: "All collected fees are protocol revenue",
-  HoldersRevenue: "Share 30% of revenue distributed to DEXFI token stakers",
-  ProtocolRevenue: "Share 70% of revenue retained by the protocol treasury",
+  Revenue: "All collected fees are protocol revenue (no separate liquidity provider supply-side)",
+  HoldersRevenue:
+    "Share of revenue distributed to gDex token stakers, determined at runtime via receiversPercent()",
+  ProtocolRevenue: "Share of revenue retained by the protocol treasury",
 };
 
 const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Wrapped native token swap fees sent to the treasury",
+  },
+  Revenue: {
+    [METRIC.SWAP_FEES]: "Wrapped native token swap fees sent to the treasury",
+  },
   HoldersRevenue: {
-    [METRIC.STAKING_REWARDS]: "Treasury share 30% distributed to DEXFI token stakers",
+    [METRIC.STAKING_REWARDS]: "Treasury share distributed to gDex token stakers",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Treasury share 70% retained by the protocol team",
+    [METRIC.PROTOCOL_FEES]:
+      "Treasury share retained by the protocol team, remainder after staker distribution",
   },
 };
 
