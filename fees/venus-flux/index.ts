@@ -1,30 +1,16 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { BigNumber } from "bignumber.js";
-import ADDRESSES from "../../helpers/coreAssets.json";
+import { ABI, EVENT_ABI, zeroAddress } from "../fluid/config";
 import { getDailyRevenue } from "./revenue";
 
 const LIQUIDITY = "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497";
 const VAULT_RESOLVER = "0xA5C3E16523eeeDDcC34706b0E6bE88b4c6EA95cC";
 const DEX_RESOLVER = "0xAf572EfC84d905926F7b05C1B7bE04e4E89542B0";
-
-const zeroAddress = ADDRESSES.null;
 const reserveContract = "0x264786EF916af64a1DB19F513F24a3681734ce92";
 
-const abi = {
-  vaultResolver: {
-    getVaultEntireData: "function getVaultEntireData(address vault_) view returns ((address vault, bool isSmartCol, bool isSmartDebt, (address liquidity, address factory, address operateImplementation, address adminImplementation, address secondaryImplementation, address deployer, address supply, address borrow, (address token0, address token1) supplyToken, (address token0, address token1) borrowToken, uint256 vaultId, uint256 vaultType, bytes32 supplyExchangePriceSlot, bytes32 borrowExchangePriceSlot, bytes32 userSupplySlot, bytes32 userBorrowSlot) constantVariables, (uint16 supplyRateMagnifier, uint16 borrowRateMagnifier, uint16 collateralFactor, uint16 liquidationThreshold, uint16 liquidationMaxLimit, uint16 withdrawalGap, uint16 liquidationPenalty, uint16 borrowFee, address oracle, uint256 oraclePriceOperate, uint256 oraclePriceLiquidate, address rebalancer, uint256 lastUpdateTimestamp) configs, (uint256 lastStoredLiquiditySupplyExchangePrice, uint256 lastStoredLiquidityBorrowExchangePrice, uint256 lastStoredVaultSupplyExchangePrice, uint256 lastStoredVaultBorrowExchangePrice, uint256 liquiditySupplyExchangePrice, uint256 liquidityBorrowExchangePrice, uint256 vaultSupplyExchangePrice, uint256 vaultBorrowExchangePrice, uint256 supplyRateLiquidity, uint256 borrowRateLiquidity, int256 supplyRateVault, int256 borrowRateVault, int256 rewardsOrFeeRateSupply, int256 rewardsOrFeeRateBorrow) exchangePricesAndRates, (uint256 totalSupplyVault, uint256 totalBorrowVault, uint256 totalSupplyLiquidityOrDex, uint256 totalBorrowLiquidityOrDex, uint256 absorbedSupply, uint256 absorbedBorrow) totalSupplyAndBorrow, (uint256 withdrawLimit, uint256 withdrawableUntilLimit, uint256 withdrawable, uint256 borrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 borrowLimitUtilization, uint256 minimumBorrowing) limitsAndAvailability, (uint256 totalPositions, int256 topTick, uint256 currentBranch, uint256 totalBranch, uint256 totalBorrow, uint256 totalSupply, (uint256 status, int256 minimaTick, uint256 debtFactor, uint256 partials, uint256 debtLiquidity, uint256 baseBranchId, int256 baseBranchMinima) currentBranchState) vaultState, (bool modeWithInterest, uint256 supply, uint256 withdrawalLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseWithdrawalLimit, uint256 withdrawableUntilLimit, uint256 withdrawable) liquidityUserSupplyData, (bool modeWithInterest, uint256 borrow, uint256 borrowLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseBorrowLimit, uint256 maxBorrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 borrowLimitUtilization) liquidityUserBorrowData) vaultData_)",
-  },
-  dexResolver: {
-    getDexTokens: "function getDexTokens(address dex_) external view returns (address token0_, address token1_)",
-    getDexState: "function getDexState(address dex_) returns ((uint256 lastToLastStoredPrice, uint256 lastStoredPrice, uint256 centerPrice, uint256 lastUpdateTimestamp, uint256 lastPricesTimeDiff, uint256 oracleCheckPoint, uint256 oracleMapping, uint256 totalSupplyShares, uint256 totalBorrowShares, bool isSwapAndArbitragePaused, (bool isRangeChangeActive, bool isThresholdChangeActive, bool isCenterPriceShiftActive, (uint256 oldUpper, uint256 oldLower, uint256 duration, uint256 startTimestamp, uint256 oldTime) rangeShift, (uint256 oldUpper, uint256 oldLower, uint256 duration, uint256 startTimestamp, uint256 oldTime) thresholdShift, (uint256 shiftPercentage, uint256 duration, uint256 startTimestamp) centerPriceShift) shifts, uint256 token0PerSupplyShare, uint256 token1PerSupplyShare, uint256 token0PerBorrowShare, uint256 token1PerBorrowShare) state_)",
-  },
-};
-
-const logOperateEvent = "event LogOperate(address indexed user, address indexed token, int256 supplyAmount, int256 borrowAmount, address withdrawTo, address borrowTo, uint256 totalAmounts, uint256 exchangePricesAndConfig)";
-
 const getAllVaults = async (api: any): Promise<string[]> => {
-  return api.call({ target: VAULT_RESOLVER, abi: "function getAllVaultsAddresses() external view returns (address[] vaults_)" });
+  return api.call({ target: VAULT_RESOLVER, abi: ABI.vaultResolverSmart.getAllVaultsAddresses });
 };
 
 const getVaultsDailyBorrowFees = async ({ fromApi, api, createBalances }: FetchOptions, logOperates: any[], vaults: string[], vaultDatasFrom: any[], vaultDatasTo: any[]) => {
@@ -74,9 +60,9 @@ const getDexesDailyBorrowFees = async ({ fromApi, api, createBalances }: FetchOp
   if (!dexes.length) return dailyFees;
 
   const [dexStatesFrom, dexStatesTo, dexTokens] = await Promise.all([
-    fromApi.multiCall({ calls: dexes.map(d => ({ target: DEX_RESOLVER, params: [d] })), abi: abi.dexResolver.getDexState, permitFailure: true }),
-    api.multiCall({ calls: dexes.map(d => ({ target: DEX_RESOLVER, params: [d] })), abi: abi.dexResolver.getDexState, permitFailure: true }),
-    fromApi.multiCall({ calls: dexes.map(d => ({ target: DEX_RESOLVER, params: [d] })), abi: abi.dexResolver.getDexTokens, permitFailure: true }),
+    fromApi.multiCall({ calls: dexes.map(d => ({ target: DEX_RESOLVER, params: [d] })), abi: ABI.dexResolver.getDexState, permitFailure: true }),
+    api.multiCall({ calls: dexes.map(d => ({ target: DEX_RESOLVER, params: [d] })), abi: ABI.dexResolver.getDexState, permitFailure: true }),
+    fromApi.multiCall({ calls: dexes.map(d => ({ target: DEX_RESOLVER, params: [d] })), abi: ABI.dexResolver.getDexTokens, permitFailure: true }),
   ]);
 
   for (const [index, dex] of dexes.entries()) {
@@ -124,8 +110,8 @@ const fetch = async (options: FetchOptions) => {
 
   // Get vault data at start and end of period
   const [vaultDatasFrom, vaultDatasTo] = await Promise.all([
-    options.fromApi.multiCall({ calls: vaults.map(v => ({ target: VAULT_RESOLVER, params: [v] })), abi: abi.vaultResolver.getVaultEntireData, permitFailure: true }),
-    options.api.multiCall({ calls: vaults.map(v => ({ target: VAULT_RESOLVER, params: [v] })), abi: abi.vaultResolver.getVaultEntireData, permitFailure: true }),
+    options.fromApi.multiCall({ calls: vaults.map(v => ({ target: VAULT_RESOLVER, params: [v] })), abi: ABI.vaultResolverSmart.getVaultEntireData, permitFailure: true }),
+    options.api.multiCall({ calls: vaults.map(v => ({ target: VAULT_RESOLVER, params: [v] })), abi: ABI.vaultResolverSmart.getVaultEntireData, permitFailure: true }),
   ]);
 
   // Collect dex addresses from smart debt vaults
@@ -145,7 +131,7 @@ const fetch = async (options: FetchOptions) => {
   const logOperates = await options.getLogs({
     target: LIQUIDITY,
     onlyArgs: true,
-    eventAbi: logOperateEvent,
+    eventAbi: EVENT_ABI.logOperate,
     skipCacheRead: true,
     skipIndexer: true,
   });

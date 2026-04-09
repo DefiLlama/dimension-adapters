@@ -1,38 +1,22 @@
 import { Balances, ChainApi } from "@defillama/sdk";
 import { BigNumber } from "bignumber.js";
 import { FetchOptions } from "../../adapters/types";
-import ADDRESSES from "../../helpers/coreAssets.json";
+import { ABI, EVENT_ABI, TOPIC0, parseInTopic, zeroAddress } from "../fluid/config";
 
 const LIQUIDITY = "0x52Aa899454998Be5b000Ad077a46Bbe360F4e497";
 const LIQUIDITY_RESOLVER = "0xca13A15de31235A37134B4717021C35A3CF25C60";
 const REVENUE_RESOLVER = "0x0A84741D50B4190B424f57425b09FAe60C330F32";
-const zeroAddress = ADDRESSES.null;
-
-const revenueAbi = {
-  getRevenue: "function getRevenue(address token_) public view returns (uint256 revenueAmount_)",
-  listedTokens: "function listedTokens() public view returns (address[] listedTokens_)",
-  getVaultEntireData: "function getVaultEntireData(address vault_) view returns ((address vault, bool isSmartCol, bool isSmartDebt, (address liquidity, address factory, address operateImplementation, address adminImplementation, address secondaryImplementation, address deployer, address supply, address borrow, (address token0, address token1) supplyToken, (address token0, address token1) borrowToken, uint256 vaultId, uint256 vaultType, bytes32 supplyExchangePriceSlot, bytes32 borrowExchangePriceSlot, bytes32 userSupplySlot, bytes32 userBorrowSlot) constantVariables, (uint16 supplyRateMagnifier, uint16 borrowRateMagnifier, uint16 collateralFactor, uint16 liquidationThreshold, uint16 liquidationMaxLimit, uint16 withdrawalGap, uint16 liquidationPenalty, uint16 borrowFee, address oracle, uint256 oraclePriceOperate, uint256 oraclePriceLiquidate, address rebalancer, uint256 lastUpdateTimestamp) configs, (uint256 lastStoredLiquiditySupplyExchangePrice, uint256 lastStoredLiquidityBorrowExchangePrice, uint256 lastStoredVaultSupplyExchangePrice, uint256 lastStoredVaultBorrowExchangePrice, uint256 liquiditySupplyExchangePrice, uint256 liquidityBorrowExchangePrice, uint256 vaultSupplyExchangePrice, uint256 vaultBorrowExchangePrice, uint256 supplyRateLiquidity, uint256 borrowRateLiquidity, int256 supplyRateVault, int256 borrowRateVault, int256 rewardsOrFeeRateSupply, int256 rewardsOrFeeRateBorrow) exchangePricesAndRates, (uint256 totalSupplyVault, uint256 totalBorrowVault, uint256 totalSupplyLiquidityOrDex, uint256 totalBorrowLiquidityOrDex, uint256 absorbedSupply, uint256 absorbedBorrow) totalSupplyAndBorrow, (uint256 withdrawLimit, uint256 withdrawableUntilLimit, uint256 withdrawable, uint256 borrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 borrowLimitUtilization, uint256 minimumBorrowing) limitsAndAvailability, (uint256 totalPositions, int256 topTick, uint256 currentBranch, uint256 totalBranch, uint256 totalBorrow, uint256 totalSupply, (uint256 status, int256 minimaTick, uint256 debtFactor, uint256 partials, uint256 debtLiquidity, uint256 baseBranchId, int256 baseBranchMinima) currentBranchState) vaultState, (bool modeWithInterest, uint256 supply, uint256 withdrawalLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseWithdrawalLimit, uint256 withdrawableUntilLimit, uint256 withdrawable) liquidityUserSupplyData, (bool modeWithInterest, uint256 borrow, uint256 borrowLimit, uint256 lastUpdateTimestamp, uint256 expandPercent, uint256 expandDuration, uint256 baseBorrowLimit, uint256 maxBorrowLimit, uint256 borrowableUntilLimit, uint256 borrowable, uint256 borrowLimitUtilization) liquidityUserBorrowData) vaultData_)",
-  logCollectRevenue: "event LogCollectRevenue(address indexed token, uint256 indexed amount)",
-  logRebalance: "event LogRebalance(int colAmt_, int debtAmt_)",
-  constantsView: "function constantsView() public view returns((address liquidity,address factory,address adminImplementation,address secondaryImplementation,address supplyToken,address borrowToken,uint8 supplyDecimals,uint8 borrowDecimals,uint vaultId,bytes32 liquiditySupplyExchangePriceSlot,bytes32 liquidityBorrowExchangePriceSlot,bytes32 liquidityUserSupplySlot,bytes32 liquidityUserBorrowSlot))",
-};
-
-const TOPIC0_COLLECT_REVENUE = '0x7ded56fbc1e1a41c85fd5fb3d0ce91eafc72414b7f06ed356c1d921823d4c37c';
-
-const parseInTopic = (address: string): string => {
-  return `0x000000000000000000000000${address.slice(2).toLowerCase()}`;
-};
 
 // Liquidity-layer revenue: protocol's cut from the spread between supply/borrow rates
 const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: FetchOptions): Promise<Balances> => {
   const dailyRevenue = createBalances();
-  const tokens: string[] = (await api.call({ target: LIQUIDITY_RESOLVER, abi: revenueAbi.listedTokens })).map((t: string) => t.toLowerCase());
+  const tokens: string[] = (await api.call({ target: LIQUIDITY_RESOLVER, abi: ABI.liquidityResolver.listedTokens })).map((t: string) => t.toLowerCase());
   if (!tokens.length) return dailyRevenue;
 
   const calls = tokens.map(t => ({ target: REVENUE_RESOLVER, params: [t] }));
   const [revenuesFrom, revenuesTo] = await Promise.all([
-    fromApi.multiCall({ calls, abi: revenueAbi.getRevenue, permitFailure: true }),
-    api.multiCall({ calls, abi: revenueAbi.getRevenue, permitFailure: true }),
+    fromApi.multiCall({ calls, abi: ABI.revenueResolver.getRevenue, permitFailure: true }),
+    api.multiCall({ calls, abi: ABI.revenueResolver.getRevenue, permitFailure: true }),
   ]);
 
   for (const [index, token] of tokens.entries()) {
@@ -43,8 +27,8 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
     const collectedLogs = await getLogs({
       target: LIQUIDITY,
       onlyArgs: true,
-      topics: [TOPIC0_COLLECT_REVENUE, parseInTopic(token)],
-      eventAbi: revenueAbi.logCollectRevenue,
+      topics: [TOPIC0.logCollectRevenue, parseInTopic(token)],
+      eventAbi: EVENT_ABI.logCollectRevenue,
       skipCacheRead: true,
       skipIndexer: true,
     });
@@ -97,8 +81,8 @@ const getVaultUncollectedRevenues = (createBalances: () => Balances, vaultDatas:
 
 const getVaultCollectedRevenues = async (createBalances: () => Balances, getLogs: Function, api: ChainApi, vaults: string[]): Promise<Balances> => {
   const revenue = createBalances();
-  const rebalanceLogs: any[] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: revenueAbi.logRebalance, skipCacheRead: true });
-  const contractViews = await api.multiCall({ abi: revenueAbi.constantsView, calls: vaults, permitFailure: true });
+  const rebalanceLogs: any[] = await getLogs({ targets: vaults, onlyArgs: true, flatten: false, eventAbi: EVENT_ABI.logRebalance, skipCacheRead: true });
+  const contractViews = await api.multiCall({ abi: ABI.vault.constantsView, calls: vaults, permitFailure: true });
   if (!rebalanceLogs.length || !contractViews.length) return revenue;
 
   rebalanceLogs.forEach((logs: any[], index: number) => {
