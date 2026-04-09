@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getETHReceived } from "../../helpers/token";
 
@@ -30,7 +30,9 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.BASE],
     start: '2026-04-01',
-    methodology
+    methodology,
+    isExpensiveAdapter: true,
+    dependencies: [Dependencies.ALLIUM],
 }
 
 export default adapter;
