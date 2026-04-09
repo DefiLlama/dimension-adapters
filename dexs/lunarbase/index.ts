@@ -30,7 +30,6 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
-    const toBlock = await options.getToBlock();
 
     const swapLogs = await options.getLogs({
         targets: CURVE_PMMS,
