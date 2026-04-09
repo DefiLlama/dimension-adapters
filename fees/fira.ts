@@ -68,6 +68,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     eventAbi: ABIS.CreateMarketEvent,
     flatten: false,
     fromBlock: config.fromBlock,
+    cacheInCloud: true,
   })
 
   const discoveredMarkets: Array<{ address: string, id: string }> = [];
@@ -114,6 +115,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     target: config.marketFactory,
     eventAbi: ABIS.CreateNewMarketEvent,
     fromBlock: config.fromBlock,
+    cacheInCloud: true,
   })
 
   const bondTokenCandidates = new Set<string>();
@@ -330,7 +332,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
       if (seizedValueInLoanToken <= repaidAssets) continue;
 
       const liquidationFee = seizedValueInLoanToken - repaidAssets;
-      dailyFees.add(marketData.loanToken, liquidationFee, METRIC.LIQUIDATION_FEES);
+      dailyRevenue.add(marketData.loanToken, liquidationFee, METRIC.LIQUIDATION_FEES);
+      dailySupplySideRevenue.add(marketData.loanToken, liquidationFee, METRIC.LIQUIDATION_FEES);
     }
   }
 
@@ -348,7 +351,7 @@ const adapter: SimpleAdapter = {
   fetch: fetch,
   adapter: configs,
   methodology: {
-    Fees: 'Sum of AMM trading fees (Swap.netFwFee), variable-rate borrower interest (AccrueInterest.interest), fixed-rate CT interest claims and post-expiry treasury FW accrual (Coupon Token events), and liquidation penalties where seized collateral value exceeds repaid debt.',
+    Fees: 'Sum of AMM trading fees (Swap.netFwFee), variable-rate borrower interest (AccrueInterest.interest), and fixed-rate CT interest claims plus post-expiry treasury FW accrual (Coupon Token events).',
     Revenue: 'Protocol share from AMM reserve fees (Swap.netFwToReserve), variable-rate borrow interest via market fee rate, and fixed-rate interest fees (CollectInterestFee) plus post-expiry treasury accrual (TreasuryFwInterestAccrued).',
     ProtocolRevenue: 'Protocol share from AMM reserve fees (Swap.netFwToReserve), variable-rate borrow interest via market fee rate, and fixed-rate interest fees (CollectInterestFee) plus post-expiry treasury accrual (TreasuryFwInterestAccrued).',
     SupplySideRevenue: 'AMM swap fees after reserve share, variable-rate interest to lenders, and fixed-rate CT interest paid to users (RedeemInterest.interestOut).',
@@ -357,15 +360,16 @@ const adapter: SimpleAdapter = {
     Fees: {
       [METRIC.SWAP_FEES]: 'Total AMM trading fees from Swap events (netFwFee).',
       [METRIC.BORROW_INTEREST]: 'Variable-rate: total interest from AccrueInterest. Fixed-rate: CT addresses from BondToken.CT() for BTs from AMM CreateNewMarket and fixed lending loan tokens; then RedeemInterest, CollectInterestFee, and TreasuryFwInterestAccrued in FW per CT.',
-      [METRIC.LIQUIDATION_FEES]: 'Liquidation penalty estimated as collateral value seized minus debt repaid, converted via market oracle price.',
     },
     Revenue: {
       [METRIC.SWAP_FEES]: 'Protocol reserve share of AMM trading fees from Swap.netFwToReserve.',
       [METRIC.BORROW_INTEREST]: 'Variable-rate: protocol share via market fee. Fixed-rate: CollectInterestFee and TreasuryFwInterestAccrued.',
+      [METRIC.LIQUIDATION_FEES]: 'Liquidation penalty estimated as collateral value seized minus debt repaid, converted via market oracle price.',
     },
     SupplySideRevenue: {
       [METRIC.SWAP_FEES]: 'AMM swap fees distributed outside protocol reserve.',
       [METRIC.BORROW_INTEREST]: 'Variable-rate: borrow interest to lenders. Fixed-rate: RedeemInterest to CT holders.',
+      [METRIC.LIQUIDATION_FEES]: 'Liquidation penalty estimated as collateral value seized minus debt repaid, converted via market oracle price.',
     },
   },
 };
