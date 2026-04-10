@@ -1,6 +1,7 @@
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import {httpGet} from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions) => {
     const data = await httpGet('https://api-v2-prod.thorwallet.org/defillama/fees');
@@ -10,27 +11,28 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(parseFloat(breakdown.swapAffiliateFees), 'Swap Affiliate Fees');
     dailyFees.addUSDValue(parseFloat(breakdown.perpCloseFees), 'Perp Close Fees');
 
-    const dailyProtocolRevenue = options.createBalances();
-    dailyProtocolRevenue.addUSDValue(parseFloat(data.dailyProtocolRevenue), 'Protocol Treasury');
-
-    const dailyHoldersRevenue = options.createBalances();
-    dailyHoldersRevenue.addUSDValue(parseFloat(data.dailyHoldersRevenue), 'Token Holder Distributions');
+    const dailyRevenue = dailyFees.clone(0.95);
+    const dailyProtocolRevenue = dailyFees.clone(0.45);
+    const dailyHoldersRevenue = dailyFees.clone(0.5);
+    const dailySupplySideRevenue = dailyFees.clone(0.05);
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyFees,
+        dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
+        dailySupplySideRevenue,
     };
 };
 
 const methodology = {
     Fees: 'All fees from THORChain, Maya, Chainflip swaps and perps trading.',
     UserFees: 'Same as Fees - all fees are paid by users.',
-    Revenue: 'Total protocol revenue from all sources.',
+    Revenue: 'Total protocol and holders revenue from all sources.',
     ProtocolRevenue: '45% of fees allocated to protocol treasury.',
     HoldersRevenue: '50% of fees distributed to token holders.',
+    SupplySideRevenue: '5% of fees distributed to in game raffle pot players',
 };
 
 const breakdownMethodology = {
@@ -38,19 +40,29 @@ const breakdownMethodology = {
         'Swap Affiliate Fees': 'Affiliate fees from swaps across THORChain, Maya, and Chainflip.',
         'Perp Close Fees': 'Fees from closing perpetual trading positions.',
     },
+    Revenue: {
+        'Swap Affiliate Fees': '95% of Affiliate fees from swaps across THORChain, Maya, and Chainflip.',
+        'Perp Close Fees': '95% of Fees from closing perpetual trading positions.',
+    },
     ProtocolRevenue: {
-        'Protocol Treasury': '45% of fees allocated to protocol treasury.',
+        'Swap Affiliate Fees': '45% of Affiliate fees from swaps across THORChain, Maya, and Chainflip.',
+        'Perp Close Fees': '45% of Fees from closing perpetual trading positions.',
     },
     HoldersRevenue: {
-        'Token Holder Distributions': '50% of fees distributed to token holders.',
+        'Swap Affiliate Fees': '50% of Affiliate fees from swaps across THORChain, Maya, and Chainflip.',
+        'Perp Close Fees': '50% of Fees from closing perpetual trading positions.',
+    },
+    SupplySideRevenue: {
+        'Swap Affiliate Fees': '5% of Affiliate fees from swaps across THORChain, Maya, and Chainflip.',
+        'Perp Close Fees': '5% of Fees from closing perpetual trading positions.',
     },
 };
 
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
-    chains: [CHAIN.THORWALLET],
-    start: '2024-01-01',
+    chains: [CHAIN.THORCHAIN],
+    runAtCurrTime: true,
     methodology,
     breakdownMethodology,
 };
