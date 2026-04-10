@@ -31,7 +31,7 @@ const fetch = async (options: FetchOptions) => {
       eventAbi: AbsorbCollateralEvent,
     })
     for (const e of absorbCollateralEvents) {
-      dailyCollateralLiquidated.add(e.asset, e.collateralAbsorbed)
+      dailyCollateralLiquidated.addUSDValue(Number(e.usdValue) / 1e8)
     }
   }
 

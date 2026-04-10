@@ -18,9 +18,11 @@ These guidelines apply to all adapters in the `liquidations/` directory.
 ## Common Patterns
 
 ### Aave Forks and Compound V2 Forks
+
 Add entries directly to `factory/aaveLiquidations.ts` or `factory/compoundV2.ts` instead of creating standalone adapter files. Both factories auto-derive liquidation configs from their fee configs, so adding a protocol to fee tracking automatically picks it up for liquidations too. An entry is only necessary if the fork modifies the liquidation event signatures.
 
 ### Singleton Contracts (Morpho Blue, Compound V3)
+
 ```typescript
 const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
@@ -39,10 +41,13 @@ const fetch = async (options: FetchOptions) => {
 ```
 
 ### Factory-deployed Contracts (Euler, Silo, Fraxlend)
+
 Fetch contract addresses from factory `Create` events with `cacheInCloud: true`, then fetch `Liquidate` events from each instance.
 
 ### Perp / Derivatives Protocols
+
 Perp liquidation events typically include both `collateral` (margin lost) and `size` (leveraged position notional). Export both:
+
 ```typescript
 dailyCollateralLiquidated.addUSDValue(Number(log.collateral) / 1e30)
 dailyLiquidationVolume.addUSDValue(Number(log.size) / 1e30)
