@@ -38,14 +38,12 @@ export const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   if (!dayData) throw new Error(`Canton: no data for date ${options.dateString}`);
 
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
   const burnUsd = dayData.burnAmount * dayData.avgAmuletPrice;
 
   dailyFees.addUSDValue(burnUsd, LABELS.TokenBurn);
-  dailyRevenue.addUSDValue(burnUsd, LABELS.TokenBurn);
 
-  return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
 };
 
 // Canton uses a burn-mint equilibrium model where 100% of network fees are permanently burned.
