@@ -1099,6 +1099,7 @@ const methodologyMap: Record<string, any> = {
 const deadFromMap: Record<string, string> = {
   "auragi": '2025-06-01',
   "fcon-dex": '2023-12-12',
+  "metavault-amm-v2": '2025-06-04',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
