@@ -76,6 +76,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  deadFrom: '2026-01-08', // https://x.com/narwhal_finance/status/2008805430764753190
   adapter: {
     [CHAIN.MONAD]: {
       fetch,
