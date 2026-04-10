@@ -2,12 +2,12 @@
 
 These guidelines apply to all adapters in the `liquidations/` directory.
 
-## Required Dimensions
+## Dimensions
 
 | Dimension | Required | Description |
 |-----------|----------|-------------|
-| `dailyLiquidationCollateral` | **YES** | Total USD value of collateral seized from borrowers during liquidation events |
-| `dailyLiquidationDebtRepaid` | Optional | Total USD value of borrower debt repaid by liquidators |
+| `dailyCollateralLiquidated` | **YES** | Total USD value of collateral seized from borrowers during liquidation events |
+| `dailyLiquidationVolume` | Optional | Total USD notional size of liquidated positions (perps/derivatives only) |
 
 ## Data Sources (Preferred Order)
 
@@ -23,8 +23,7 @@ Add entries directly to `factory/aaveLiquidations.ts` or `factory/compoundV2.ts`
 ### Singleton Contracts (Morpho Blue, Compound V3)
 ```typescript
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidationCollateral = options.createBalances()
-  const dailyLiquidationDebtRepaid = options.createBalances()
+  const dailyCollateralLiquidated = options.createBalances()
 
   const events = await options.getLogs({
     target: CONTRACT,
@@ -32,16 +31,22 @@ const fetch = async (options: FetchOptions) => {
   })
 
   for (const event of events) {
-    dailyLiquidationCollateral.add(collateralToken, event.seizedAssets)
-    dailyLiquidationDebtRepaid.add(loanToken, event.repaidAssets)
+    dailyCollateralLiquidated.add(collateralToken, event.seizedAssets)
   }
 
-  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
+  return { dailyCollateralLiquidated }
 }
 ```
 
 ### Factory-deployed Contracts (Euler, Silo, Fraxlend)
-Enumerate instances from factory `Create` events with `cacheInCloud: true`, then fetch `Liquidate` events from each instance.
+Fetch contract addresses from factory `Create` events with `cacheInCloud: true`, then fetch `Liquidate` events from each instance.
+
+### Perp / Derivatives Protocols
+Perp liquidation events typically include both `collateral` (margin lost) and `size` (leveraged position notional). Export both:
+```typescript
+dailyCollateralLiquidated.addUSDValue(Number(log.collateral) / 1e30)
+dailyLiquidationVolume.addUSDValue(Number(log.size) / 1e30)
+```
 
 ## USD Values
 

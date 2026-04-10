@@ -171,18 +171,19 @@ export const gmxV1LiquidationsExports = (config: IJSON<{
   Object.entries(config).forEach(([chain, chainConfig]) => {
     exportObject[chain] = {
       fetch: async (options: FetchOptions) => {
-        const dailyLiquidationCollateral = options.createBalances()
+        const dailyCollateralLiquidated = options.createBalances()
+        const dailyLiquidationVolume = options.createBalances()
         const logs = await options.getLogs({
           target: chainConfig.vault,
           eventAbi: 'event LiquidatePosition(bytes32 key,address account,address collateralToken,address indexToken,bool isLong,uint256 size,uint256 collateral,uint256 reserveAmount,int256 realisedPnl,uint256 markPrice)',
         })
 
         logs.forEach((log: any) => {
-          // Using collateral (not size) to reflect value lost by position owner
-          dailyLiquidationCollateral.addUSDValue(Number(log.collateral) / 1e30)
+          dailyCollateralLiquidated.addUSDValue(Number(log.collateral) / 1e30)
+          dailyLiquidationVolume.addUSDValue(Number(log.size) / 1e30)
         })
 
-        return { dailyLiquidationCollateral }
+        return { dailyCollateralLiquidated, dailyLiquidationVolume }
       },
       start: chainConfig.start,
       deadFrom: chainConfig.deadFrom,
@@ -194,7 +195,8 @@ export const gmxV1LiquidationsExports = (config: IJSON<{
     version: 2,
     pullHourly: true,
     methodology: {
-      LiquidationCollateral: 'Total USD value of collateral lost by liquidated position owners from LiquidatePosition events.',
+      CollateralLiquidated: 'Total USD value of collateral lost by liquidated position owners from LiquidatePosition events.',
+      LiquidationVolume: 'Total USD notional size of liquidated positions.',
     },
   } as SimpleAdapter
 }

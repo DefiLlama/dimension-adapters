@@ -13,8 +13,7 @@ export function aaveLiquidationsExport(
   Object.entries(config).forEach(([chain, { pools, start }]) => {
     exportObject[chain] = {
       fetch: async (options: FetchOptions) => {
-        const dailyLiquidationCollateral = options.createBalances()
-        const dailyLiquidationDebtRepaid = options.createBalances()
+        const dailyCollateralLiquidated = options.createBalances()
 
         for (const pool of pools) {
           const events: any[] = await options.getLogs({
@@ -22,12 +21,11 @@ export function aaveLiquidationsExport(
             eventAbi: AaveAbis.LiquidationEvent,
           })
           for (const e of events) {
-            dailyLiquidationCollateral.add(e.collateralAsset, e.liquidatedCollateralAmount)
-            dailyLiquidationDebtRepaid.add(e.debtAsset, e.debtToCover)
+            dailyCollateralLiquidated.add(e.collateralAsset, e.liquidatedCollateralAmount)
           }
         }
 
-        return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
+        return { dailyCollateralLiquidated }
       },
       start,
     }
@@ -39,8 +37,7 @@ export function aaveLiquidationsExport(
     pullHourly,
     adapter: exportObject,
     methodology: {
-      LiquidationCollateral: 'Total USD value of collateral seized in LiquidationCall events.',
-      LiquidationDebtRepaid: 'Total USD value of debt repaid by liquidators.',
+      CollateralLiquidated: 'Total USD value of collateral seized in LiquidationCall events.',
     },
   } as SimpleAdapter
 }

@@ -39,8 +39,7 @@ const config: Record<string, { factories: Factory[]; start: string }> = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidationCollateral = options.createBalances()
-  const dailyLiquidationDebtRepaid = options.createBalances()
+  const dailyCollateralLiquidated = options.createBalances()
 
   const { factories } = config[options.chain]
 
@@ -60,64 +59,15 @@ const fetch = async (options: FetchOptions) => {
   const allEvents = await Promise.all(
     siloAddresses.map(silo => options.getLogs({ target: silo, eventAbi: Liquidate }))
   )
-
-  const liquidationData: { silo: string; event: any }[] = []
-  for (let i = 0; i < siloAddresses.length; i++) {
-    for (const event of allEvents[i]) {
-      liquidationData.push({ silo: siloAddresses[i], event })
-    }
-  }
-
-  if (liquidationData.length > 0) {
-    // Resolve debt share tokens for (silo, asset) pairs with repaid shares
-    const debtPairs = liquidationData
-      .filter(d => d.event.shareAmountRepaid > 0)
-      .map(d => ({ silo: d.silo, asset: d.event.asset }))
-    const uniqueKeys = Array.from(new Set(debtPairs.map(p => `${p.silo}:${p.asset}`)))
-    const uniquePairs = uniqueKeys.map(k => { const [silo, asset] = k.split(':'); return { silo, asset } })
-
-    const assetStorages = await options.api.multiCall({
-      calls: uniquePairs.map(p => ({ target: p.silo, params: [p.asset] })),
-      abi: 'function assetStorage(address _asset) view returns (address collateralToken, address collateralOnlyToken, address debtToken, uint256 totalDeposits, uint256 collateralOnlyDeposits, uint256 totalBorrowAmount)',
-      permitFailure: true,
-    })
-
-    // Get debt token total supplies for conversion to underlying
-    const debtTokens = uniquePairs.map((_, i) => assetStorages[i]?.debtToken).filter(Boolean)
-    const debtTokenSupplies = await options.api.multiCall({
-      calls: debtTokens,
-      abi: 'uint256:totalSupply',
-      permitFailure: true,
-    })
-
-    const debtConversionMap: Record<string, { asset: string; totalBorrow: bigint; totalSupply: bigint }> = {}
-    for (let i = 0; i < uniquePairs.length; i++) {
-      const storage = assetStorages[i]
-      if (!storage?.debtToken) continue
-      const supplyIdx = debtTokens.indexOf(storage.debtToken)
-      if (supplyIdx === -1 || !debtTokenSupplies[supplyIdx]) continue
-      debtConversionMap[uniqueKeys[i]] = {
-        asset: uniquePairs[i].asset,
-        totalBorrow: BigInt(storage.totalBorrowAmount),
-        totalSupply: BigInt(debtTokenSupplies[supplyIdx]),
-      }
-    }
-
-    for (const { silo, event } of liquidationData) {
+  for (const events of allEvents) {
+    for (const event of events) {
       if (event.seizedCollateral > 0) {
-        dailyLiquidationCollateral.add(event.asset, event.seizedCollateral)
-      }
-      if (event.shareAmountRepaid > 0) {
-        const conv = debtConversionMap[`${silo}:${event.asset}`]
-        if (conv && conv.totalSupply > 0n) {
-          const underlyingRepaid = BigInt(event.shareAmountRepaid) * conv.totalBorrow / conv.totalSupply
-          dailyLiquidationDebtRepaid.add(conv.asset, underlyingRepaid)
-        }
+        dailyCollateralLiquidated.add(event.asset, event.seizedCollateral)
       }
     }
   }
 
-  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
+  return { dailyCollateralLiquidated }
 }
 
 const adapter: SimpleAdapter = {
@@ -127,8 +77,7 @@ const adapter: SimpleAdapter = {
     Object.entries(config).map(([chain, { start }]) => [chain, { fetch, start }])
   ),
   methodology: {
-    LiquidationCollateral: 'Total USD value of collateral seized in Silo V1 Liquidate events.',
-    LiquidationDebtRepaid: 'Total USD value of debt repaid in Silo V1 Liquidate events.',
+    CollateralLiquidated: 'Total USD value of collateral seized in Silo V1 Liquidate events.',
   },
 }
 

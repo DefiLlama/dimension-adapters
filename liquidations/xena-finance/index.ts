@@ -4,7 +4,8 @@ import { CHAIN } from '../../helpers/chains'
 const VAULT = '0x22787c26bb0ab0d331eb840ff010855a70a0dca6'
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidationCollateral = options.createBalances()
+  const dailyCollateralLiquidated = options.createBalances()
+  const dailyLiquidationVolume = options.createBalances()
 
   const logs = await options.getLogs({
     target: VAULT,
@@ -13,10 +14,11 @@ const fetch = async (options: FetchOptions) => {
 
   logs.forEach((log: any) => {
     // collateralValue is USD with 1e30 precision, same as GMX v1
-    dailyLiquidationCollateral.addUSDValue(Number(log.collateralValue) / 1e30)
+    dailyCollateralLiquidated.addUSDValue(Number(log.collateralValue) / 1e30)
+    dailyLiquidationVolume.addUSDValue(Number(log.size) / 1e30)
   })
 
-  return { dailyLiquidationCollateral }
+  return { dailyCollateralLiquidated, dailyLiquidationVolume }
 }
 
 const adapter: SimpleAdapter = {
@@ -29,7 +31,8 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    LiquidationCollateral: 'Total USD value of collateral lost by liquidated position owners from LiquidatePosition events.',
+    CollateralLiquidated: 'Total USD value of collateral lost by liquidated position owners from LiquidatePosition events.',
+    LiquidationVolume: 'Total USD notional size of liquidated positions.',
   },
 }
 

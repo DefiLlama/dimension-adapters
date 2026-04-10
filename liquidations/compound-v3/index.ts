@@ -3,7 +3,6 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CometAddresses } from '../../fees/compound-v3'
 
 const AbsorbCollateralEvent = 'event AbsorbCollateral(address indexed absorber, address indexed borrower, address indexed asset, uint256 collateralAbsorbed, uint256 usdValue)'
-const AbsorbDebtEvent = 'event AbsorbDebt(address indexed absorber, address indexed borrower, uint256 basePaidOut, uint256 usdValue)'
 
 // Start dates for backfill (rest of config pulled from fees/compound-v3.ts)
 const startDates: Record<string, string> = {
@@ -19,43 +18,24 @@ const startDates: Record<string, string> = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyLiquidationCollateral = options.createBalances()
-  const dailyLiquidationDebtRepaid = options.createBalances()
+  const dailyCollateralLiquidated = options.createBalances()
 
   const comets = CometAddresses[options.chain]
-  if (!comets) return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
-
-  // Resolve base token for each comet (needed for AbsorbDebt which uses basePaidOut)
-  const baseTokens = await options.api.multiCall({
-    abi: 'address:baseToken',
-    calls: comets,
-    permitFailure: true,
-  })
+  if (!comets) return { dailyCollateralLiquidated }
 
   for (let i = 0; i < comets.length; i++) {
     const comet = comets[i]
-    const baseToken = baseTokens[i]
 
     const absorbCollateralEvents: any[] = await options.getLogs({
       target: comet,
       eventAbi: AbsorbCollateralEvent,
     })
     for (const e of absorbCollateralEvents) {
-      dailyLiquidationCollateral.add(e.asset, e.collateralAbsorbed)
-    }
-
-    if (baseToken) {
-      const absorbDebtEvents: any[] = await options.getLogs({
-        target: comet,
-        eventAbi: AbsorbDebtEvent,
-      })
-      for (const e of absorbDebtEvents) {
-        dailyLiquidationDebtRepaid.add(baseToken, e.basePaidOut)
-      }
+      dailyCollateralLiquidated.add(e.asset, e.collateralAbsorbed)
     }
   }
 
-  return { dailyLiquidationCollateral, dailyLiquidationDebtRepaid }
+  return { dailyCollateralLiquidated }
 }
 
 const adapter: SimpleAdapter = {
@@ -67,8 +47,7 @@ const adapter: SimpleAdapter = {
       .map((chain) => [chain, { fetch, start: startDates[chain] }])
   ) as BaseAdapter,
   methodology: {
-    LiquidationCollateral: 'Total USD value of collateral absorbed in Compound V3 (Comet) AbsorbCollateral events.',
-    LiquidationDebtRepaid: 'Total USD value of debt absorbed by the protocol in Compound V3 (Comet) AbsorbDebt events.',
+    CollateralLiquidated: 'Total USD value of collateral absorbed in Compound V3 (Comet) AbsorbCollateral events.',
   },
 }
 
