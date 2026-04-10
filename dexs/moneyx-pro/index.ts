@@ -27,8 +27,7 @@ const fetch = async (_: any, __: any, options: FetchOptions) => {
   const dayTimestamp = Math.floor(options.startOfDay / 86400) * 86400;
   const variables = { id: `${dayTimestamp}:daily` };
 
-  const stats = await request(endpoint, statsQuery, variables)
-  console.log(stats)
+  const stats = await request(endpoint, statsQuery, variables).catch(() => ({}));
 
   const volume = stats.volumeStat;
   const fees = stats.feeStat;
