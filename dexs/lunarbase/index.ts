@@ -5,7 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const CURVE_PMMS = [
     "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
-    "0x0716f359B3Bf8d03A3d9d39c60ba9820a1671B99",
+    "0x000027B106df9f417980Bc4EdaDD1087c6f01B99",
 ];
 
 const poolAbis = {
@@ -25,35 +25,49 @@ const toBigIntOrZero = (value: any): bigint => {
     return BigInt(value.toString());
 };
 
+const isInvalidCallResult = (value: any): boolean => {
+    if (value === null || value === undefined) return true;
+    return value instanceof Error || (typeof value === "object" && "error" in value);
+};
+
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
+    const toBlock = await options.getToBlock();
 
     const swapLogs = await options.getLogs({
         targets: CURVE_PMMS,
         eventAbi: swapEvent,
         flatten: false,
+        toBlock,
     });
 
     // `options.api` is already pinned to this slice's `toBlock`, so these reads stay historical.
     const [tokenXs, tokenYs, treasuryShareBpsValues, totalBpsValues] = await Promise.all([
-        options.api.multiCall({ abi: poolAbis.tokenX, calls: CURVE_PMMS }),
-        options.api.multiCall({ abi: poolAbis.tokenY, calls: CURVE_PMMS }),
+        options.api.multiCall({ abi: poolAbis.tokenX, calls: CURVE_PMMS, permitFailure: true }),
+        options.api.multiCall({ abi: poolAbis.tokenY, calls: CURVE_PMMS, permitFailure: true }),
         options.api.multiCall({ abi: poolAbis.treasuryShareBps, calls: CURVE_PMMS, permitFailure: true }),
-        options.api.multiCall({ abi: poolAbis.bps, calls: CURVE_PMMS }),
+        options.api.multiCall({ abi: poolAbis.bps, calls: CURVE_PMMS, permitFailure: true }),
     ]);
 
     for (let i = 0; i < CURVE_PMMS.length; i++) {
-
+        const pool = CURVE_PMMS[i];
         const tokenX = tokenXs[i];
         const tokenY = tokenYs[i];
-
         const logs = swapLogs[i];
+        if (!logs?.length) continue;
+        if (typeof tokenX !== "string" || typeof tokenY !== "string") {
+            throw new Error(`Failed to resolve token pair for ${pool}`);
+        }
 
         const treasuryShareBps = treasuryShareBpsValues[i];
         const totalBps = totalBpsValues[i];
+        if (isInvalidCallResult(treasuryShareBps) || isInvalidCallResult(totalBps)) {
+            console.warn(`Skipping LunarBase pool ${pool} at block ${toBlock}: failed to resolve fee split params`);
+            continue;
+        }
 
         for (const log of logs) {
             const { xToY, dx, dy, fee } = log;
