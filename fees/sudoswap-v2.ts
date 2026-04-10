@@ -48,9 +48,10 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
           SUM(min_value) AS royalties_fees
         FROM MinValues;
         `, options);
-  dailyFees.addGasToken(eth_transfer_logs[0].eth_value, PROTOCOL_FEE_LABEL)
-  dailyFees.addGasToken(royalties[0].royalties_fees, ROYALTY_FEE_LABEL)
-  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value, PROTOCOL_FEE_LABEL)
+
+  dailyFees.addGasToken(eth_transfer_logs[0]?.eth_value ?? 0, PROTOCOL_FEE_LABEL)
+  dailyFees.addGasToken(royalties[0].royalties_fees ?? 0, ROYALTY_FEE_LABEL)
+  dailyRevenue.addGasToken(eth_transfer_logs[0].eth_value ?? 0, PROTOCOL_FEE_LABEL)
   return { dailyFees, dailyRevenue, timestamp }
 }
 
