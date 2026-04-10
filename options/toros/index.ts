@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import {FetchOptions, SimpleAdapter} from "../../adapters/types";
 import { httpPost } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
@@ -11,8 +11,6 @@ interface IOptionsVolumeResponse {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    pullHourly: false,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: fetchTorosVolumeData,
