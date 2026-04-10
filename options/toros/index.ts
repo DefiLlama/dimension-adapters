@@ -12,7 +12,7 @@ interface IOptionsVolumeResponse {
 
 const adapter: SimpleAdapter = {
     adapter: {
-        [CHAIN.ETHEREUM]: {
+        [CHAIN.ARBITRUM]: {
             fetch: fetchTorosVolumeData,
             start: '2025-06-15'
         },
