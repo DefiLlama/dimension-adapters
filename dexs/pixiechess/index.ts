@@ -6,14 +6,14 @@ const VRGDA_DEPLOYER = '0xd2eE2d200d57007E6C62F29958bF43dc98075A47';
 
 const PURCHASE_EVENT_ABI = 'event Purchased(address indexed buyer, uint256 firstCollectionTokenId, uint8 cardsPerPack, uint256 price)'
 const MINT_EVENT_ABI = 'event Mint(uint256 pieceId, uint256 price)'
-const VRGDA_DEPLOYED_EVENT_ABI = 'event VRDGADeployed (address contractAddress, uint256 pieceId, uint256 startTime, uint256 endTime)'
+const VRDGA_DEPLOYED_EVENT_ABI = 'event VRDGADeployed (address contractAddress, uint256 pieceId, uint256 startTime, uint256 endTime)'
 
 async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances();
 
     const vrgdaDeployedLogs = await options.getLogs({
         target: VRGDA_DEPLOYER,
-        eventAbi: VRGDA_DEPLOYED_EVENT_ABI,
+        eventAbi: VRDGA_DEPLOYED_EVENT_ABI,
         fromBlock: 44174032,
         cacheInCloud: true,
     });
