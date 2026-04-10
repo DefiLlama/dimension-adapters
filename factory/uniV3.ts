@@ -27,7 +27,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.MONAD]: { factory: '0x7716F310d62Aee3d009fd94067c627fe7E2f2aA9' },
   },
   "kura-v3": {
-    [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e' },
+    [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e', deadFrom: "2026-01-15" },
   },
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },

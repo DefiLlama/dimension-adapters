@@ -29,6 +29,7 @@ export const moby_adapter: SimpleAdapter = {
       start: '2025-02-08'
     }
   },
+  deadFrom: "2025-10-31",
 };
 
 const _fetchMobyVolumeData = async (timestamp, endPoint) => {

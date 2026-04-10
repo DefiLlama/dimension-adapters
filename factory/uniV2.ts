@@ -1501,6 +1501,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "legacyFactories",
     totalFeesField: "totalFeeUSD",
+    deadFrom: "2026-01-15",
   },
   "ramses-exchange-v2": {
     endpoints: {
