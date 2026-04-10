@@ -31,8 +31,8 @@ const toUtcDay = (timestamp: number) =>
     new Date(timestamp * 1000).toISOString().slice(0, 10);
 
 const prefetch = async (options: FetchOptions) => {
-    const { endTimestamp } = options;
-    const day = toUtcDay(endTimestamp);
+    const { startOfDay } = options;
+    const day = toUtcDay(startOfDay);
     const url = `https://api.enso.finance/api/v1/reporting/volume/defillama?from=${day}&to=${day}`;
     return httpGet(url, { headers: { origin: "https://defillama.com", }, });
 };
