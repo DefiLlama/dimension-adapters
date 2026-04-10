@@ -1,4 +1,3 @@
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -44,13 +43,13 @@ const breakdownMethodology = {
     },
     Revenue: {
         [METRIC.PROTOCOL_FEES]: '45% of fees allocated to protocol treasury.',
-        [METRIC.STAKING_REWARDS]: '50% of fees distributed to token holders.',
+        [METRIC.STAKING_REWARDS]: '50% of fees distributed to $TITN stakers.',
     },
     ProtocolRevenue: {
         [METRIC.PROTOCOL_FEES]: '45% of fees allocated to protocol treasury.',
     },
     HoldersRevenue: {
-        [METRIC.STAKING_REWARDS]: '50% of fees distributed to token holders.',
+        [METRIC.STAKING_REWARDS]: '50% of fees distributed to $TITN stakers.',
     },
     SupplySideRevenue: {
         'Raffle Pot Rewards': '5% of fees distributed to in game raffle pot players',
