@@ -7,7 +7,7 @@ interface ApiResponse {
   GROSS_AMOUNT_USD: number;
 }
 
-const api = "https://app.near-intents.org/api/stats/trading_volume";
+const api = "https://near-intents.org/api/stats/trading_volume";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   const res = await fetchURL(api);

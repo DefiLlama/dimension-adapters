@@ -18,9 +18,8 @@ async function fetch() {
     if (pool.pairs.map((item: any) => item.pair).includes('7hc6hXjDPcFnhGBPBGTKUtViFsQuyWw8ph4ePHF1aTYG')) {
       continue;
     }
-
-    dailyVolume += Number(pool.volume24h)
-    dailyFees += Number(pool.fees24h)
+    dailyVolume += Number(pool.stats24h.volume)
+    dailyFees += Number(pool.stats24h.fees)
   }
 
   return { dailyVolume, dailyFees, }

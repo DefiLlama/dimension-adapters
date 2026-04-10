@@ -43,7 +43,8 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   adapter: {
     [CHAIN.VINUCHAIN]: { fetch, start: '2023-10-01' }
-  }
+  },
+  deadFrom: "2026-01-15",
 };
 
 export default adapter;

@@ -10,8 +10,7 @@ const HOLDERS_SHARE_CORE = 0.125; // 12.5% for core pools
 const weightedHoldersShare = ESTIMATED_NON_CORE_SHARE * HOLDERS_SHARE_NON_CORE + ESTIMATED_CORE_SHARE * HOLDERS_SHARE_CORE;
 
 const revenueRatio = 0.5;
-const holderRevenueRatio = revenueRatio * weightedHoldersShare;
-const protocolRevenueRatio = revenueRatio - holderRevenueRatio;
+const TOKENOMICS_REVAMP_DATE = "2026-04-23";
 
 async function fetch(options: FetchOptions) {
   // https://x.com/Balancer/status/1988685056982835470
@@ -30,6 +29,8 @@ async function fetch(options: FetchOptions) {
       dailyHoldersRevenue: 0,
     }
   } else {
+    const holderRevenueRatio = options.dateString >= TOKENOMICS_REVAMP_DATE ? 0 : revenueRatio * weightedHoldersShare;
+    const protocolRevenueRatio = revenueRatio - holderRevenueRatio;
     const fetchFunction = getFeesExport('0xBA12222222228d8Ba445958a75a0704d566BF2C8', { revenueRatio, protocolRevenueRatio, holderRevenueRatio, });
     return await fetchFunction(options);
   }

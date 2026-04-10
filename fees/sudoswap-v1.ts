@@ -16,7 +16,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<
         AND to_address = '\\xb16c1342E617A5B6E4b631EB114483FDB289c0A4'
         AND block_time BETWEEN llama_replace_date_range;
         `, options);
-  dailyFees.addGasToken(eth_transfer_logs[0].eth_value, PROTOCOL_FEE_LABEL);
+  dailyFees.addGasToken(eth_transfer_logs[0]?.eth_value ?? 0, PROTOCOL_FEE_LABEL);
   return { dailyFees, timestamp, dailyRevenue: dailyFees, }
 }
 
