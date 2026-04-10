@@ -11,6 +11,8 @@ interface IOptionsVolumeResponse {
 }
 
 const adapter: SimpleAdapter = {
+    version: 2,
+    pullHourly: false,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch: fetchTorosVolumeData,
