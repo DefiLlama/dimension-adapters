@@ -213,27 +213,42 @@ async function fetch(
       )
   );
 
+  const uniqueContracts = [...new Set(dataWithoutBadDebtSilos.map((item) => item.market.id))];
+
+  const liquidityData = await options.api.multiCall({
+    abi: 'function getLiquidity() view returns (uint256)',
+    calls: uniqueContracts,
+    permitFailure: true,
+  });
+
+  const liquidityDataMap = new Map<string, bigint>();
+  uniqueContracts.forEach((contract, index) => {
+    liquidityDataMap.set(contract, BigInt(liquidityData[index]));
+  });
+
+  const dataWithLiquidity = dataWithoutBadDebtSilos.filter((item) => liquidityDataMap.get(item.market.id) ?? 0n > 0n);
+
   const uniqueAssets = [
-    ...new Set(dataWithoutBadDebtSilos.map((item) => item.tokenAddress)),
+    ...new Set(dataWithLiquidity.map((item) => item.tokenAddress)),
   ];
 
   uniqueAssets.forEach((asset) => {
-    const dailyFee = getFeeSumWithFilter(dataWithoutBadDebtSilos, asset);
+    const dailyFee = getFeeSumWithFilter(dataWithLiquidity, asset);
 
     const dailyRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["protocol", "deployer", "flashloan", "liquidation"]
     );
 
     const deployerRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["deployer"]
     );
 
     const protocolRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["protocol"]
     );
@@ -247,13 +262,13 @@ async function fetch(
         : 0.5;
 
     const liquidationRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["liquidation"]
     );
 
     const flashloanRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["flashloan"]
     );
@@ -264,12 +279,12 @@ async function fetch(
       flashloanRevenueAsset * protocolRevenueRatio;
 
     const dailyProtocolRevenueAsset =
-      getFeeSumWithFilter(dataWithoutBadDebtSilos, asset, ["protocol"]) +
+      getFeeSumWithFilter(dataWithLiquidity, asset, ["protocol"]) +
       dailyProtocolRevenueFromLiquidationAsset +
       dailyProtocolRevenueFromFlashloanAsset;
 
     const dailySupplySideRevenueAsset = getFeeSumWithFilter(
-      dataWithoutBadDebtSilos,
+      dataWithLiquidity,
       asset,
       ["collateral"]
     );
