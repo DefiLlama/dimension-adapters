@@ -34,8 +34,14 @@ type LilSwapMetricsResponse = {
 };
 
 function parseMetric(value?: string | number | null): number {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric : 0;
+  if (value === null || value === undefined) return 0;
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(`LilSwap metric is not numeric: ${String(value)}`);
+  }
+
+  return numeric;
 }
 
 /**

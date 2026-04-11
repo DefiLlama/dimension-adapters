@@ -15,9 +15,9 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Includes explicit LilSwap fees from confirmed swaps sourced from LilSwap's public daily metrics endpoint. Zero-fee swaps remain in volume but do not contribute to fees.",
     UserFees: "Users pay LilSwap's explicit swap fees on confirmed swaps, sourced from LilSwap's public daily metrics endpoint.",
-    Revenue: "LilSwap retains 85% of explicit fees, sourced from LilSwap's public daily metrics endpoint.",
-    ProtocolRevenue: "Same as LilSwap daily revenue because the endpoint reports LilSwap's retained fee share directly.",
-    SupplySideRevenue: "Represents the 15% non-LilSwap side of the explicit fee split, sourced from LilSwap's public daily metrics endpoint.",
+    Revenue: "LilSwap retained explicit swap fees, sourced from LilSwap's public daily metrics and computed as total explicit fees minus the external partner fee share.",
+    ProtocolRevenue: "Same as daily revenue, computed from the explicit fee split as dailyFees minus dailySupplySideRevenue.",
+    SupplySideRevenue: "External partner fee share sourced from LilSwap's public daily metrics endpoint.",
   },
   breakdownMethodology: {
     Fees: {
