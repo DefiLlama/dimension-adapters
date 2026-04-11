@@ -1,7 +1,7 @@
 import { FetchOptions } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
-const BASE_URL = process.env.LILSWAP_METRICS_BASE_URL || "https://api.lilswap.xyz/v1/metrics/daily";
+const BASE_URL = "https://api.lilswap.xyz/v1/metrics/daily";
 export type ChainAliasMap = Readonly<Record<string, string>>;
 
 type LilSwapMetricsRow = {
@@ -41,6 +41,9 @@ type LilSwapMetricsResponse = {
  */
 function parseMetric(fieldName: string, value?: string | number | null): number {
   if (value === null || value === undefined) return 0;
+  if (typeof value === "string" && value.trim() === "") {
+    throw new Error(`LilSwap metric field=${fieldName} is not numeric: ${String(value)}`);
+  }
 
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -79,7 +82,7 @@ export async function fetchLilSwapDailyMetrics(
     (entry) => typeof entry?.chain === "string" && entry.chain.toLowerCase() === chain
   ) ?? null;
 
-  return row ?? null;
+  return row;
 }
 
 /**
