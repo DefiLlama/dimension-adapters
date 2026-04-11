@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { lilswapChainAliases } from "../../helpers/lilswapConfig";
 import { fetchLilSwapDailyMetrics, getLilSwapVolume } from "../../helpers/lilswap";
 
 const supportedChains = [
@@ -26,7 +27,7 @@ supportedChains.forEach((chain) => {
   adapter.adapter![chain] = {
     start: "2025-01-01",
     fetch: async (options: FetchOptions) => {
-      const row = await fetchLilSwapDailyMetrics(options);
+      const row = await fetchLilSwapDailyMetrics(options, lilswapChainAliases);
 
       return {
         dailyVolume: getLilSwapVolume(row),

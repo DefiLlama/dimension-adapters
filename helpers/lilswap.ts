@@ -2,6 +2,7 @@ import { FetchOptions } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
 const BASE_URL = process.env.LILSWAP_METRICS_BASE_URL || "https://api.lilswap.xyz/v1/metrics/daily";
+export type ChainAliasMap = Readonly<Record<string, string>>;
 
 type LilSwapMetricsRow = {
   date: string;
@@ -32,18 +33,6 @@ type LilSwapMetricsResponse = {
   data: LilSwapMetricsRow[];
 };
 
-export const lilswapChains: Record<string, string> = {
-  ethereum: "ethereum",
-  bsc: "bnb",
-  polygon: "polygon",
-  base: "base",
-  arbitrum: "arbitrum",
-  avax: "avalanche",
-  optimism: "optimism",
-  xdai: "gnosis",
-  sonic: "sonic",
-};
-
 function parseMetric(value?: string | number | null): number {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -53,17 +42,23 @@ function parseMetric(value?: string | number | null): number {
  * Fetches one LilSwap daily metrics row for the requested chain and time window.
  *
  * Uses `options.startTimestamp` and `options.endTimestamp` as the UTC window and
- * `options.chain` to map DefiLlama's chain identifier to LilSwap's public API.
+ * `options.chain` plus the provided `chainAliasMap` to map DefiLlama's chain
+ * identifier to LilSwap's public API.
  * Returns `null` when the chain is unsupported or when the API response does not
  * contain a matching row for that chain.
  */
-export async function fetchLilSwapDailyMetrics(options: FetchOptions): Promise<LilSwapMetricsRow | null> {
-  const chain = lilswapChains[options.chain];
+export async function fetchLilSwapDailyMetrics(
+  options: FetchOptions,
+  chainAliasMap: ChainAliasMap,
+): Promise<LilSwapMetricsRow | null> {
+  const chain = chainAliasMap[options.chain];
   if (!chain) return null;
 
   const url = `${BASE_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}&chain=${chain}`;
   const response = await fetchURL(url) as Partial<LilSwapMetricsResponse>;
-  if (!Array.isArray(response.data)) return null;
+  if (!Array.isArray(response.data)) {
+    throw new Error(`LilSwap metrics payload is invalid for url=${url}: ${JSON.stringify(response.data)}`);
+  }
 
   const row = response.data.find(
     (entry) => typeof entry?.chain === "string" && entry.chain.toLowerCase() === chain

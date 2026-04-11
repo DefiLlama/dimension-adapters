@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { lilswapChainAliases } from "../../helpers/lilswapConfig";
 import { fetchLilSwapDailyMetrics, getLilSwapFees } from "../../helpers/lilswap";
 
 const chains = [
@@ -49,7 +50,7 @@ const adapter: Adapter = {
     },
   },
   fetch: async (options: FetchOptions) => {
-    const row = await fetchLilSwapDailyMetrics(options);
+    const row = await fetchLilSwapDailyMetrics(options, lilswapChainAliases);
     const metrics = getLilSwapFees(row);
 
     const dailyFees = options.createBalances();
