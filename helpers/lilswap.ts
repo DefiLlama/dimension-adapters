@@ -43,9 +43,10 @@ function parseMetric(value?: string | number | null): number {
  *
  * Uses `options.startTimestamp` and `options.endTimestamp` as the UTC window and
  * `options.chain` plus the provided `chainAliasMap` to map DefiLlama's chain
- * identifier to LilSwap's public API.
- * Returns `null` when the chain is unsupported or when the API response does not
- * contain a matching row for that chain.
+ * identifier to LilSwap's public API. Throws when the chain alias map is
+ * missing the requested chain or when the API payload is malformed. Returns
+ * `null` only when the response is valid but does not contain a matching row
+ * for that chain.
  */
 export async function fetchLilSwapDailyMetrics(
   options: FetchOptions,
