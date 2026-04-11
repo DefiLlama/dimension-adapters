@@ -16,8 +16,8 @@ const chains = [
 
 const LABELS = {
   FEES: "Explicit Swap Fees",
-  REVENUE: "LilSwap Retained Fees",
-  SUPPLY_SIDE: "External Fee Share",
+  REVENUE: "Explicit Swap Fees To Protocol",
+  SUPPLY_SIDE: "Explicit Swap Fees To External Partners",
 } as const;
 
 const adapter: Adapter = {
@@ -39,13 +39,13 @@ const adapter: Adapter = {
       [LABELS.FEES]: "Explicit LilSwap swap fees paid by users on confirmed swaps.",
     },
     Revenue: {
-      [LABELS.REVENUE]: "LilSwap's retained 85% share of explicit swap fees.",
+      [LABELS.REVENUE]: "The explicit swap fee share retained by LilSwap.",
     },
     ProtocolRevenue: {
-      [LABELS.REVENUE]: "LilSwap's retained 85% share of explicit swap fees.",
+      [LABELS.REVENUE]: "The explicit swap fee share retained by LilSwap.",
     },
     SupplySideRevenue: {
-      [LABELS.SUPPLY_SIDE]: "The 15% non-LilSwap side of the explicit fee split.",
+      [LABELS.SUPPLY_SIDE]: "The explicit swap fee share distributed to external partners.",
     },
   },
   fetch: async (options: FetchOptions) => {

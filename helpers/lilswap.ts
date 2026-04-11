@@ -85,12 +85,20 @@ export function getLilSwapVolume(row: LilSwapMetricsRow | null): number {
  * when the row is missing or individual fields cannot be parsed.
  */
 export function getLilSwapFees(row: LilSwapMetricsRow | null) {
+  const dailyFees = parseMetric(row?.feesUsd);
+  const dailySupplySideRevenue = parseMetric(row?.supplySideRevenueUsd);
+  const dailyRevenue = dailyFees - dailySupplySideRevenue;
+
+  if (dailyRevenue < 0) {
+    throw new Error("LilSwap fees metrics are inconsistent: revenue cannot be negative");
+  }
+
   return {
-    dailyFees: parseMetric(row?.feesUsd),
-    dailyUserFees: parseMetric(row?.feesUsd),
-    dailyRevenue: parseMetric(row?.revenueUsd),
-    dailyProtocolRevenue: parseMetric(row?.protocolRevenueUsd),
-    dailySupplySideRevenue: parseMetric(row?.supplySideRevenueUsd),
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 }
 
