@@ -1,19 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { lilswapChainAliases } from "../../helpers/lilswapConfig";
+import { lilswapChainAliases, lilswapSupportedChains } from "../../helpers/lilswapConfig";
 import { fetchLilSwapDailyMetrics, getLilSwapVolume } from "../../helpers/lilswap";
-
-const supportedChains = [
-  CHAIN.ETHEREUM,
-  CHAIN.BSC,
-  CHAIN.POLYGON,
-  CHAIN.BASE,
-  CHAIN.ARBITRUM,
-  CHAIN.AVAX,
-  CHAIN.OPTIMISM,
-  CHAIN.XDAI,
-  CHAIN.SONIC,
-];
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -23,7 +10,7 @@ const adapter: SimpleAdapter = {
   },
 };
 
-supportedChains.forEach((chain) => {
+lilswapSupportedChains.forEach((chain) => {
   adapter.adapter![chain] = {
     start: "2025-01-01",
     fetch: async (options: FetchOptions) => {

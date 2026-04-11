@@ -52,7 +52,9 @@ export async function fetchLilSwapDailyMetrics(
   chainAliasMap: ChainAliasMap,
 ): Promise<LilSwapMetricsRow | null> {
   const chain = chainAliasMap[options.chain];
-  if (!chain) return null;
+  if (!chain) {
+    throw new Error(`LilSwap chain alias missing for options.chain=${options.chain}`);
+  }
 
   const url = `${BASE_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}&chain=${chain}`;
   const response = await fetchURL(url) as Partial<LilSwapMetricsResponse>;

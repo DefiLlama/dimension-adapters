@@ -1,6 +1,18 @@
 import { CHAIN } from "./chains";
 import { ChainAliasMap } from "./lilswap";
 
+export const lilswapSupportedChains = [
+  CHAIN.ETHEREUM,
+  CHAIN.BSC,
+  CHAIN.POLYGON,
+  CHAIN.BASE,
+  CHAIN.ARBITRUM,
+  CHAIN.AVAX,
+  CHAIN.OPTIMISM,
+  CHAIN.XDAI,
+  CHAIN.SONIC,
+] as const;
+
 export const lilswapChainAliases: ChainAliasMap = {
   [CHAIN.ETHEREUM]: "ethereum",
   [CHAIN.BSC]: "bnb",

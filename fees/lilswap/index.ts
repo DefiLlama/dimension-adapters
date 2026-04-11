@@ -1,19 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { lilswapChainAliases } from "../../helpers/lilswapConfig";
+import { lilswapChainAliases, lilswapSupportedChains } from "../../helpers/lilswapConfig";
 import { fetchLilSwapDailyMetrics, getLilSwapFees } from "../../helpers/lilswap";
-
-const chains = [
-  CHAIN.ETHEREUM,
-  CHAIN.BSC,
-  CHAIN.POLYGON,
-  CHAIN.BASE,
-  CHAIN.ARBITRUM,
-  CHAIN.AVAX,
-  CHAIN.OPTIMISM,
-  CHAIN.XDAI,
-  CHAIN.SONIC,
-];
 
 const LABELS = {
   FEES: "Explicit Swap Fees",
@@ -23,7 +10,7 @@ const LABELS = {
 
 const adapter: Adapter = {
   version: 2,
-  chains,
+  chains: [...lilswapSupportedChains],
   start: "2025-01-01",
   methodology: {
     Fees: "Includes explicit LilSwap fees from confirmed swaps sourced from LilSwap's public daily metrics endpoint. Zero-fee swaps remain in volume but do not contribute to fees.",
