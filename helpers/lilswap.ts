@@ -62,8 +62,12 @@ export async function fetchLilSwapDailyMetrics(options: FetchOptions): Promise<L
   if (!chain) return null;
 
   const url = `${BASE_URL}?start=${options.startTimestamp}&end=${options.endTimestamp}&chain=${chain}`;
-  const response = await fetchURL(url) as LilSwapMetricsResponse;
-  const row = response.data?.find((entry) => entry.chain.toLowerCase() === chain) ?? null;
+  const response = await fetchURL(url) as Partial<LilSwapMetricsResponse>;
+  if (!Array.isArray(response.data)) return null;
+
+  const row = response.data.find(
+    (entry) => typeof entry?.chain === "string" && entry.chain.toLowerCase() === chain
+  ) ?? null;
 
   return row ?? null;
 }
