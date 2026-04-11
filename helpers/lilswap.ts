@@ -33,12 +33,18 @@ type LilSwapMetricsResponse = {
   data: LilSwapMetricsRow[];
 };
 
-function parseMetric(value?: string | number | null): number {
+/**
+ * Parses one numeric field from the LilSwap metrics payload.
+ *
+ * Returns `0` when the field is missing and throws when a present value is not
+ * a finite number.
+ */
+function parseMetric(fieldName: string, value?: string | number | null): number {
   if (value === null || value === undefined) return 0;
 
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
-    throw new Error(`LilSwap metric is not numeric: ${String(value)}`);
+    throw new Error(`LilSwap metric field=${fieldName} is not numeric: ${String(value)}`);
   }
 
   return numeric;
@@ -79,22 +85,23 @@ export async function fetchLilSwapDailyMetrics(
 /**
  * Parses LilSwap daily volume as a numeric USD value.
  *
- * Accepts a LilSwap metrics row or `null` and safely returns `0` when the row
- * is missing or the metric cannot be parsed.
+ * Accepts a LilSwap metrics row or `null` and returns `0` when the row or
+ * field is missing. Throws if `volumeUsd` is present but non-numeric.
  */
 export function getLilSwapVolume(row: LilSwapMetricsRow | null): number {
-  return parseMetric(row?.volumeUsd);
+  return parseMetric("volumeUsd", row?.volumeUsd);
 }
 
 /**
  * Parses LilSwap daily fee and revenue metrics as numeric USD values.
  *
- * Accepts a LilSwap metrics row or `null` and safely defaults all values to `0`
- * when the row is missing or individual fields cannot be parsed.
+ * Accepts a LilSwap metrics row or `null` and defaults values to `0` only when
+ * the row or field is missing. Throws if present fields are non-numeric or if
+ * the derived revenue would be negative.
  */
 export function getLilSwapFees(row: LilSwapMetricsRow | null) {
-  const dailyFees = parseMetric(row?.feesUsd);
-  const dailySupplySideRevenue = parseMetric(row?.supplySideRevenueUsd);
+  const dailyFees = parseMetric("feesUsd", row?.feesUsd);
+  const dailySupplySideRevenue = parseMetric("supplySideRevenueUsd", row?.supplySideRevenueUsd);
   const dailyRevenue = dailyFees - dailySupplySideRevenue;
 
   if (dailyRevenue < 0) {
