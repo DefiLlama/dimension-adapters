@@ -31,13 +31,13 @@ function parseTradeCSV(csv: string): Trade[] {
 async function fetch(_a: any, _b: any, options: FetchOptions) {
 
     const manifestData = await fetchURL(`${BASE_URL}/manifest.json`);
-    const isTodaysDataAvailable = manifestData.files.find((item: any) => item.filename === `${options.dateString.replaceAll('-', '')}-time-and-sales.csv`);
+    const todaysData = manifestData.files.find((item: any) => item.filename === `${options.dateString.replaceAll('-', '')}-time-and-sales.csv`);
 
-    if (!isTodaysDataAvailable) {
+    if (!todaysData) {
         throw new Error(`No data found for ${options.dateString}`);
     }
 
-    const csvResponse = await fetchURL(`${BASE_URL}/${isTodaysDataAvailable.filename}`);
+    const csvResponse = await fetchURL(`${BASE_URL}/${todaysData.filename}`);
     const tradesData = parseTradeCSV(csvResponse);
 
     const dailyVolume = options.createBalances();
