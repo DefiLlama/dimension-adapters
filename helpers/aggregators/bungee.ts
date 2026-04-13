@@ -182,14 +182,20 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
 
   // fees
   const dailyFees = options.createBalances()
+  const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
 
   if (params.bridgeVolume) {
     // manual bridge
     if (SocketGatewayContracts[options.chain]) {
-      const bridgeEvents: Array<any> = await options.getLogs({
+      let bridgeEvents: Array<any> = await options.getLogs({
         target: SocketGatewayContracts[options.chain],
         eventAbi: SocketGatewayAbis.SocketBridge,
       })
+
+      if (blacklistedTokens.length > 0) {
+        bridgeEvents = bridgeEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.token)))
+      }
+
       for (const event of bridgeEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
           dailyBridgeVolume.add(formatToken(event.token), event.amount)
@@ -200,11 +206,16 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
     // auto bridge
     if (BungeeGatewayContracts[options.chain]) {
       // count bridge volumes on both audited and unaudited contracts
-      const requestExtractedEvents: Array<any> = (await options.getLogs({
+      let requestExtractedEvents: Array<any> = (await options.getLogs({
         targets: BungeeGatewayContracts[options.chain].audited.concat(BungeeGatewayContracts[options.chain].unaudited),
         eventAbi: BungeeGatewayAbis.RequestExtracted,
         onlyArgs: false,
       })).map(log => decodeAutoEventRequestExtracted(log))
+
+      if (blacklistedTokens.length > 0) {
+        requestExtractedEvents = requestExtractedEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.token)))
+      }
+
       for (const event of requestExtractedEvents) {
         if (!metadataFilter || (event[6] && event[6].toLowerCase().endsWith(metadataFilter.toLowerCase()))) {
           dailyBridgeVolume.add(formatToken(event.token), event.amount)
@@ -222,7 +233,6 @@ export async function fetchBungeeData(options: FetchOptions, params: FetchSocket
       })
 
       // count volune only from non-blacklisted tokens
-      const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
       if (blacklistedTokens.length > 0) {
         swapEvents = swapEvents.filter(log => !blacklistedTokens.includes(formatAddress(log.fromToken)) && !blacklistedTokens.includes(formatAddress(log.toToken)))
       }
