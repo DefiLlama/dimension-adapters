@@ -742,8 +742,8 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.STABLE]: { factory: "0x25D2d657F539F2bB16eC82773cBE5ee49ddD3c69", fees: 0.003, revenueRatio: 0, }
   },
   "zealousswap": {
-    [CHAIN.KASPLEX]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2026-03-13', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
-    [CHAIN.IGRA]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2026-03-13', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
+    [CHAIN.KASPLEX]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2025-09-26', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
+    [CHAIN.IGRA]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2026-04-03', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
   }
 }
 
