@@ -40,11 +40,13 @@ const fetch = async (options: FetchOptions) => {
           flatten: true,
         })
       : Promise.resolve([]),
-    options.getLogs({
-      target: referrals,
-      eventAbi: 'event DonateRebate(address indexed sender, address indexed to, uint256 feeAmount, uint256 referrerRebate, uint256 refereeRebate)',
-      flatten: true,
-    }),
+    referrals !== '0x0000000000000000000000000000000000000000'
+      ? options.getLogs({
+          target: referrals,
+          eventAbi: 'event DonateRebate(address indexed sender, address indexed to, uint256 feeAmount, uint256 referrerRebate, uint256 refereeRebate)',
+          flatten: true,
+        })
+      : Promise.resolve([]),
   ]);
 
   const dailyFees = options.createBalances();
@@ -97,6 +99,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
