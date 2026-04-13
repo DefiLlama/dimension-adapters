@@ -54,13 +54,13 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   treasuryLogs.forEach((log: any) => {
-    dailyFees.add(baseAsset, log.amount, 'Fees To Treasury');
-    dailyRevenue.add(baseAsset, log.amount, 'Fees To Treasury');
+    dailyFees.add(baseAsset, log.amount, 'Streaming and Redemption Fees');
+    dailyRevenue.add(baseAsset, log.amount, 'Streaming and Redemption Fees To Treasury');
   });
 
   feeHandlerLogs.forEach((log: any) => {
-    dailyFees.add(baseAsset, log.amount, 'Fees To Fee Handler');
-    dailyRevenue.add(baseAsset, log.amount, 'Fees To Fee Handler');
+    dailyFees.add(baseAsset, log.amount, 'Streaming and Redemption Fees');
+    dailyRevenue.add(baseAsset, log.amount, 'Streaming and Redemption Fees To Fee Handler');
   });
 
   rebateLogs.forEach((log: any) => {
@@ -77,23 +77,22 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'All fees charged to users',
+  Fees: 'All fees charged to users.',
   SupplySideRevenue: 'Referral rebates returned to referrers and referees.',
   Revenue: 'Fees retained by the protocol after referral rebates.',
 };
 
 const breakdownMethodology = {
   Fees: {
-    'Fees To Treasury': 'Streaming and redemption fees allocated to the Bounce treasury.',
-    'Fees To Fee Handler': 'Streaming and redemption fees allocated to the Bounce fee handler.',
+    'Streaming and Redemption Fees': 'Time-based streaming fees and per-redemption fees charged across all leveraged tokens.',
     'Referral Rebates': 'Portion of redemption fees rebated to referrers and referees.',
   },
   SupplySideRevenue: {
     'Referral Rebates': 'Portion of redemption fees rebated to referrers and referees.',
   },
   Revenue: {
-    'Fees To Treasury': 'Streaming and redemption fees allocated to the Bounce treasury.',
-    'Fees To Fee Handler': 'Streaming and redemption fees allocated to the Bounce fee handler.',
+    'Streaming and Redemption Fees To Treasury': 'Streaming and redemption fees allocated to the Bounce treasury.',
+    'Streaming and Redemption Fees To Fee Handler': 'Streaming and redemption fees allocated to the Bounce fee handler.',
   },
 };
 
