@@ -43,15 +43,27 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyVolume = options.createBalances();
 
-  mintLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount));
-  redeemLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount));
-  executeRedeemLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount));
+  mintLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount, 'Mint'));
+  redeemLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount, 'Redeem'));
+  executeRedeemLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount, 'Redeem'));
 
   return { dailyVolume };
 };
 
+const methodology = {
+  Volume: 'Nominal USDC value of mints and redemptions across all Bounce leveraged tokens.',
+};
+
+const breakdownMethodology = {
+  Volume: {
+    'Mint': 'USDC deposited by users minting leveraged tokens.',
+    'Redeem': 'USDC withdrawn by users redeeming leveraged tokens.',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
@@ -59,9 +71,8 @@ const adapter: SimpleAdapter = {
       start: '2026-01-28',
     },
   },
-  methodology: {
-    Volume: 'Nominal USDC value of mints and redemptions across all Bounce leveraged tokens.',
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
