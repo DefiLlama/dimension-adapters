@@ -5,7 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const CURVE_PMMS = [
     "0x6Ccc8223532fff07f47EF4311BEB3647326894Ab",
-    "0x000027B106df9f417980Bc4EdaDD1087c6f01B99",
+    "0x00003bf45Ce34Bf1BeA78669f9A40ee630e11b99",
 ];
 
 const poolAbis = {
