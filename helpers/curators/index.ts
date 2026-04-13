@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
+import { CHAIN } from "../chains";
 
 const METRICS = {
   // use this label for all yield sources if breakdownFees was not set
@@ -52,6 +53,13 @@ interface VaultERC4626Info {
   balance: bigint;
   rateBefore: bigint;
   rateAfter: bigint;
+}
+
+const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> = {
+  [CHAIN.ETHEREUM]: [{
+    token: '0x7751E2F4b8ae93EF6B79d86419d42FE3295A4559', //wUSDL - winded down
+    from: "2025-12-08",
+  }],
 }
 
 function isOwner(owner: string, owners: Array<string>) {
@@ -373,6 +381,16 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         }
         if (eulerVaults.length > 0) {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, eulerVaults, curatorConfig.breakdownFees)
+        }
+
+        const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token)
+
+        if (blacklistedTokensForChain && blacklistedTokensForChain.length > 0) {
+          for (const token of blacklistedTokensForChain) {
+            dailyFees.removeTokenBalance(token)
+            dailyRevenue.removeTokenBalance(token)
+            dailySupplySideRevenue.removeTokenBalance(token)
+          }
         }
 
         return {
