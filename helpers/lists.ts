@@ -7,6 +7,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x044fe33895Cb7c6e4566DA8E24420C1110933a63",
     "0x888888aE2c4A298EFd66D162fFC53b3F2a869888",
     "0xb4357054c3da8d46ed642383f03139ac7f090343", // PORT3 - hacked
+    "0x8d010bf9C26881788b4e6bf5Fd1bdC358c8F90b8", // DOT
   ],
   [CHAIN.BSC]: [
     "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
@@ -56,6 +57,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x76e9b54b49739837be8ad10c3687fc6b543de852",
     "0xb4357054c3da8d46ed642383f03139ac7f090343",
     "0xACB8f52DC63BB752a51186D1c55868ADbFfEe9C1",
+    "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
   ],
   [CHAIN.ARBITRUM]: [
     "0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501",
@@ -96,6 +98,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xD2D039811384a1A3e13DB498e711DAe3f2BfA542",
     "0xa39052Dbd640e7ad9e8537860C13134D0f432880",
     "0xb8499dbF176de8eCed16c478CFf51997A529F1bE",
+    "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
   ],
   [CHAIN.BASE]: [
     "0xAb6363dA0C80cEF3Ae105Bd6241E30872355d021",
@@ -104,6 +107,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x4160efDd66521483c22Cb98b57b87d1fDAfeaB07",
     "0x1204ac8c5e70c044943301babd042f75d316bde2",
     "0xc8f8c5a9dff280cde517d197c82ee10fcb46bb07",
+    "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
   ],
 };
 
