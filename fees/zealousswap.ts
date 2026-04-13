@@ -45,10 +45,10 @@ const config = {
     return {
       dailyVolume,
       dailyFees: correctedFees,
-      dailyUserFees: correctedFees,
-      dailyRevenue: correctedFees.clone(1 / 6),
-      dailyProtocolRevenue: correctedFees.clone(1 / 6),
-      dailySupplySideRevenue: correctedFees.clone(5 / 6),
+      dailyUserFees: correctedFees.clone(1, 'Swap Fees'),
+      dailyRevenue: correctedFees.clone(1 / 6, 'Swap Fees To Protocol'),
+      dailyProtocolRevenue: correctedFees.clone(1 / 6, 'Swap Fees To Treasury'),
+      dailySupplySideRevenue: correctedFees.clone(5 / 6, 'Swap Fees To LPs'),
     }
   },
 }
