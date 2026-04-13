@@ -12,7 +12,6 @@ async function fetch(options: FetchOptions) {
     const dailyFees = aukiBurnt.clone(1, 'Credits Bought');
     const dailyRevenue = aukiBurnt.clone(1, 'AUKI Token Burns');
 
-
     return {
         dailyFees,
         dailyRevenue,
@@ -21,14 +20,14 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-    Fees: "Auki tokens spent to buy credits across the network.",
+    Fees: "Auki tokens spent to buy credits to use across the network.",
     Revenue: "All the Auki tokens spent on credits are burnt",
     HoldersRevenue: "All the Auki tokens spent on credits are burnt",
 }
 
 const breakdownMethodology = {
     Fees: {
-        'Credits Bought': "Auki tokens spent to buy credits across the network.",
+        'Credits Bought': "Auki tokens spent to buy credits to use across the network.",
     },
     Revenue: {
         'AUKI Token Burns': "All the Auki tokens spent on credits are burnt",
