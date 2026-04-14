@@ -31,20 +31,17 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       targets: lts,
       eventAbi: 'event SendFeesToTreasury(uint256 amount)',
-      flatten: true,
     }),
     feeHandler !== '0x0000000000000000000000000000000000000000'
       ? options.getLogs({
           target: feeHandler,
           eventAbi: 'event HandleFees(address indexed sender, uint256 amount)',
-          flatten: true,
         })
       : Promise.resolve([]),
     referrals !== '0x0000000000000000000000000000000000000000'
       ? options.getLogs({
           target: referrals,
           eventAbi: 'event DonateRebate(address indexed sender, address indexed to, uint256 feeAmount, uint256 referrerRebate, uint256 refereeRebate)',
-          flatten: true,
         })
       : Promise.resolve([]),
   ]);
@@ -72,6 +69,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -80,6 +78,7 @@ const methodology = {
   Fees: 'All fees charged to users.',
   SupplySideRevenue: 'Referral rebates returned to referrers and referees.',
   Revenue: 'Fees retained by the protocol after referral rebates.',
+  ProtocolRevenue: 'Fees retained by the protocol after referral rebates.',
 };
 
 const breakdownMethodology = {
@@ -90,6 +89,10 @@ const breakdownMethodology = {
     'Streaming and Redemption Fees To Referrers and Referees': 'Portion of streaming and redemption fees rebated to referrers and referees.',
   },
   Revenue: {
+    'Streaming and Redemption Fees To Treasury': 'Streaming and redemption fees allocated to the Bounce treasury.',
+    'Streaming and Redemption Fees To Fee Handler': 'Streaming and redemption fees allocated to the Bounce fee handler.',
+  },
+  ProtocolRevenue: {
     'Streaming and Redemption Fees To Treasury': 'Streaming and redemption fees allocated to the Bounce treasury.',
     'Streaming and Redemption Fees To Fee Handler': 'Streaming and redemption fees allocated to the Bounce fee handler.',
   },
