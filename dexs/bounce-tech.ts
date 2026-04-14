@@ -15,50 +15,51 @@
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { ethers } from "ethers";
 
 const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
+
+const MINT_ABI           = 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)';
+const REDEEM_ABI         = 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)';
+const EXECUTE_REDEEM_ABI = 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)';
+
+const mintInterface          = new ethers.Interface([MINT_ABI]);
+const redeemInterface        = new ethers.Interface([REDEEM_ABI]);
+const executeRedeemInterface = new ethers.Interface([EXECUTE_REDEEM_ABI]);
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  try {
-    const factory: string = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
+  const factory: string = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
 
-    // baseAsset is independent of lts; fetch both in parallel now that factory is known
-    const [baseAsset, lts]: [string, string[]] = await Promise.all([
-      options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE }),
-      options.api.call({ abi: 'address[]:lts', target: factory }),
-    ]);
+  const [baseAsset, lts]: [string, string[]] = await Promise.all([
+    options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE }),
+    options.api.call({ abi: 'address[]:lts', target: factory }),
+  ]);
 
-    const [leverages, logsPerLt] = await Promise.all([
-      options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
-      // Query per-LT so we know which token each log came from
-      Promise.all(lts.map(lt => Promise.all([
-        options.getLogs({ target: lt, eventAbi: 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)' }),
-        options.getLogs({ target: lt, eventAbi: 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)' }),
-        options.getLogs({ target: lt, eventAbi: 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)' }),
-      ]))),
-    ]);
+  const [leverages, mintLogs, redeemLogs, executeRedeemLogs] = await Promise.all([
+    options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
+    options.getLogs({ targets: lts, eventAbi: MINT_ABI, entireLog: true }),
+    options.getLogs({ targets: lts, eventAbi: REDEEM_ABI, entireLog: true }),
+    options.getLogs({ targets: lts, eventAbi: EXECUTE_REDEEM_ABI, entireLog: true }),
+  ]);
 
-    lts.forEach((lt, i) => {
-      const leverage = BigInt(leverages[i]);
-      const [mintLogs, redeemLogs, executeRedeemLogs] = logsPerLt[i];
+  // Mapping LT address to leverage for subsequent log lookup
+  const leverageByLt: Record<string, bigint> = {};
+  lts.forEach((lt, i) => { leverageByLt[lt.toLowerCase()] = BigInt(leverages[i]); });
 
-      const addNotional = (log: any, label: string) => {
-        const notional = BigInt(log.baseAmount) * leverage / 10n ** 18n;
-        dailyVolume.add(baseAsset, notional, label);
-      };
+  const addNotional = (log: any, iface: ethers.Interface, label: string) => {
+    const leverage = leverageByLt[log.address.toLowerCase()];
+    const parsed = iface.parseLog(log)!;
+    const notional = BigInt(parsed.args.baseAmount) * leverage / 10n ** 18n;
+    dailyVolume.add(baseAsset, notional, label);
+  };
 
-      mintLogs.forEach((log: any) => addNotional(log, 'Mint'));
-      redeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
-      executeRedeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
-    });
+  mintLogs.forEach((log: any) => addNotional(log, mintInterface, 'Mint'));
+  redeemLogs.forEach((log: any) => addNotional(log, redeemInterface, 'Redeem'));
+  executeRedeemLogs.forEach((log: any) => addNotional(log, executeRedeemInterface, 'Redeem'));
 
-    return { dailyVolume };
-  } catch (e) {
-    console.error('bounce-tech fetch error:', e);
-    return { dailyVolume };
-  }
+  return { dailyVolume };
 };
 
 const methodology = {
