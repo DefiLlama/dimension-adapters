@@ -550,3 +550,57 @@ export const exportBuilderAdapter = (
 
   return adapter;
 };
+
+interface ExportValidatorStakingAdapterOptions {
+  addressesOrNames: string[];
+  methodology?: any;
+}
+
+export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStakingAdapterOptions) => {
+  const adapter: SimpleAdapter = {
+    version: 1,
+    runAtCurrTime: true,
+    skipBreakdownValidation: true,
+    adapter: {
+      [CHAIN.HYPERLIQUID]: {
+        fetch: async function (_1: number, _: any, options: FetchOptions) {
+          const dailyFees = options.createBalances();
+          const dailyRevenue = options.createBalances();
+          const dailySupplySideRevenue = options.createBalances();
+
+          await sleep(1); // avoid rate limit
+          const data = await httpPost("https://api.hyperliquid.xyz/info", { type: "validatorSummaries" });
+          const validators = data.filter((v: any) => exportOptions.addressesOrNames.includes(v.validator) || exportOptions.addressesOrNames.includes(v.name));
+          for (const validator of validators) {
+            const stakedHype = Number(validator.stake) / 1e8;
+            
+            const ONE_YEAR = 365 * 24 * 3600;
+            const APY = Number(validator.stats[0][1].predictedApr); // use day estimation
+            const excludeCommission = stakedHype * APY * (options.toTimestamp - options.fromTimestamp) / (ONE_YEAR);
+            const includeCommission = excludeCommission / (1 - Number(validator.commission))
+            
+            dailyFees.addCGToken('hyperliquid', includeCommission, 'Validator Staking Rewards');
+            dailyRevenue.addCGToken('hyperliquid', includeCommission - excludeCommission, 'Staking Rewards Commission');
+            dailySupplySideRevenue.addCGToken('hyperliquid', excludeCommission, 'Staking Rewards To Stakers');
+          }
+
+          return {
+            dailyFees,
+            dailyRevenue,
+            dailyProtocolRevenue: dailyRevenue,
+            dailySupplySideRevenue,
+           }
+        },
+      },
+    },
+    methodology: exportOptions.methodology
+      ? exportOptions.methodology
+      : {
+          Fees: "Total staking rewards by running validators on Hyperliquid.",
+          Revenue: "Staking rewards commission collected by protocol.",
+          SupplySideRevenue: "Staking rewards are distributed to stakers after commission cut.",
+        },
+  };
+
+  return adapter;
+};
