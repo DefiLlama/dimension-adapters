@@ -19,40 +19,46 @@ import { CHAIN } from "../helpers/chains";
 const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
 
 const fetch = async (options: FetchOptions) => {
-  const [factory, baseAsset] = await Promise.all([
-    options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE }),
-    options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE }),
-  ]);
-
-  const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
-
-  const [leverages, logsPerLt] = await Promise.all([
-    options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
-    // Query per-LT so we know which token each log came from
-    Promise.all(lts.map(lt => Promise.all([
-      options.getLogs({ target: lt, eventAbi: 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)' }),
-      options.getLogs({ target: lt, eventAbi: 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)' }),
-      options.getLogs({ target: lt, eventAbi: 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)' }),
-    ]))),
-  ]);
-
   const dailyVolume = options.createBalances();
 
-  lts.forEach((lt, i) => {
-    const leverage = BigInt(leverages[i]);
-    const [mintLogs, redeemLogs, executeRedeemLogs] = logsPerLt[i];
+  try {
+    const factory: string = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
 
-    const addNotional = (log: any, label: string) => {
-      const notional = BigInt(log.baseAmount) * leverage / BigInt(1e18);
-      dailyVolume.add(baseAsset, notional, label);
-    };
+    // baseAsset is independent of lts; fetch both in parallel now that factory is known
+    const [baseAsset, lts]: [string, string[]] = await Promise.all([
+      options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE }),
+      options.api.call({ abi: 'address[]:lts', target: factory }),
+    ]);
 
-    mintLogs.forEach((log: any) => addNotional(log, 'Mint'));
-    redeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
-    executeRedeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
-  });
+    const [leverages, logsPerLt] = await Promise.all([
+      options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
+      // Query per-LT so we know which token each log came from
+      Promise.all(lts.map(lt => Promise.all([
+        options.getLogs({ target: lt, eventAbi: 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)' }),
+        options.getLogs({ target: lt, eventAbi: 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)' }),
+        options.getLogs({ target: lt, eventAbi: 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)' }),
+      ]))),
+    ]);
 
-  return { dailyVolume };
+    lts.forEach((lt, i) => {
+      const leverage = BigInt(leverages[i]);
+      const [mintLogs, redeemLogs, executeRedeemLogs] = logsPerLt[i];
+
+      const addNotional = (log: any, label: string) => {
+        const notional = BigInt(log.baseAmount) * leverage / 10n ** 18n;
+        dailyVolume.add(baseAsset, notional, label);
+      };
+
+      mintLogs.forEach((log: any) => addNotional(log, 'Mint'));
+      redeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
+      executeRedeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
+    });
+
+    return { dailyVolume };
+  } catch (e) {
+    console.error('bounce-tech fetch error:', e);
+    return { dailyVolume };
+  }
 };
 
 const methodology = {
@@ -69,7 +75,6 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
