@@ -65,8 +65,8 @@ const fetch = async (options: FetchOptions) => {
 
   rebateLogs.forEach((log: any) => {
     const total = BigInt(log.referrerRebate) + BigInt(log.refereeRebate);
-    dailyFees.add(baseAsset, total, 'Referral Rebates');
-    dailySupplySideRevenue.add(baseAsset, total, 'Referral Rebates');
+    dailyFees.add(baseAsset, total, 'Streaming and Redemption Fees');
+    dailySupplySideRevenue.add(baseAsset, total, 'Streaming and Redemption Fees To Referrers and Referees');
   });
 
   return {
@@ -85,10 +85,9 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     'Streaming and Redemption Fees': 'Time-based streaming fees and per-redemption fees charged across all leveraged tokens.',
-    'Referral Rebates': 'Portion of redemption fees rebated to referrers and referees.',
   },
   SupplySideRevenue: {
-    'Referral Rebates': 'Portion of redemption fees rebated to referrers and referees.',
+    'Streaming and Redemption Fees To Referrers and Referees': 'Portion of streaming and redemption fees rebated to referrers and referees.',
   },
   Revenue: {
     'Streaming and Redemption Fees To Treasury': 'Streaming and redemption fees allocated to the Bounce treasury.',
