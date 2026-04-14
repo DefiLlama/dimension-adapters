@@ -78,6 +78,13 @@ const feesConfigs: Record<string, Config> = {
       [CHAIN.MEGAETH]: '0x1F1416EbbeAb7a13fC5B6111A1E77696Be600413',
     },
   },
+  'xpert': {
+    comptrollers: {
+      [CHAIN.INK]: '0x4f3b08B7FE4E14f728d084850A7B9CFF2E759Eb7',
+    }, options: { start: {
+      [CHAIN.INK]: '2026-03-17',
+    } },
+  },
 };
 
 const feesProtocols: Record<string, any> = {};
