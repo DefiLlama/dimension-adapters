@@ -69,7 +69,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.SUI]: { start: '2025-06-22', },
         [CHAIN.MONAD]: { start: '2025-11-25', },
         [CHAIN.MEGAETH]: { start: '2026-02-18', },
-        [CHAIN.TEMPO]: { start: '2026-04-14', }
+        [CHAIN.TEMPO]: { start: '2026-04-13', }
     },
 }
 
