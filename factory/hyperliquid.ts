@@ -620,8 +620,9 @@ for (const [name, config] of Object.entries(builderFeesConfigs)) {
 }
 
 // Build fees protocols (validators staking fees)
+const feesValidators: Record<string, any> = {};
 for (const [name, config] of Object.entries(validatorConfigs)) {
-  feesProtocols[name] = exportValidatorStakingAdapter(config);
+  feesValidators[name] = exportValidatorStakingAdapter(config);
 }
 
 // Build OI protocols (HIP3 OI)
@@ -634,5 +635,7 @@ for (const [name, dexId] of Object.entries(hip3OiConfigs)) {
 export const { protocolList, getAdapter } = createFactoryExports(dexsProtocols);
 // Named export: fees (builder fees)
 export const fees = createFactoryExports(feesProtocols);
+// Named export: validatorsFees ( fees)
+export const validatorFees = createFactoryExports(feesValidators);
 // Named export: oi (HIP3 open interest)
 export const oi = createFactoryExports(oiProtocols);

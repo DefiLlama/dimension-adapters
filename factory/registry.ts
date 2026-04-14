@@ -54,6 +54,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniSubgraph',
     'blockscout',
     'hyperliquid:fees',
+    'hyperliquid:validatorFees',
     'hyperliquid',
     'symmio',
     'compoundV2',
