@@ -5,13 +5,16 @@ import { addOneToken } from "../../helpers/prices";
 
 const API_BASE = "https://api.metric.xyz";
 
-const API_CHAIN_NAMES: Record<string, string> = {
-    [CHAIN.ETHEREUM]: "ethereum",
-    [CHAIN.BASE]: "base",
-    [CHAIN.ARBITRUM]: "arbitrum",
-    [CHAIN.BSC]: "bsc",
-    [CHAIN.AVAX]: "avax",
-    [CHAIN.POLYGON]: "polygon",
+const chainConfig: Record<string, { name: string, start: string }> = {
+    [CHAIN.ETHEREUM]: { name: "ethereum", start: "2026-02-23" },
+    [CHAIN.BASE]: { name: "base", start: "2026-04-05" },
+    [CHAIN.ARBITRUM]: { name: "arbitrum", start: "2026-02-17" },
+    [CHAIN.BSC]: { name: "bsc", start: "2026-02-23" },
+    [CHAIN.AVAX]: { name: "avax", start: "2026-02-23" },
+    [CHAIN.POLYGON]: { name: "polygon", start: "2026-02-23" },
+    [CHAIN.MEGAETH]: { name: "megaeth", start: "2026-02-23" },
+    [CHAIN.HYPERLIQUID]: { name: "hyperevm", start: "2026-03-26" },
+    [CHAIN.MONAD]: { name: "monad", start: "2026-03-30" },
 };
 
 const SwapEvent =
@@ -30,7 +33,7 @@ interface PoolMeta {
 
 const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
-    const chainName = API_CHAIN_NAMES[options.chain];
+    const chainName = chainConfig[options.chain].name;
 
     const pools: PoolMeta[] = await httpGet(`${API_BASE}/${chainName}/metadata`);
 
@@ -62,14 +65,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     pullHourly: true,
-    adapter: {
-        [CHAIN.ETHEREUM]: { start: "2026-02-23" },
-        [CHAIN.BASE]: { start: "2026-04-05" },
-        [CHAIN.ARBITRUM]: { start: "2026-02-17" },
-        [CHAIN.BSC]: { start: "2026-02-23" },
-        [CHAIN.AVAX]: { start: "2026-02-23" },
-        [CHAIN.POLYGON]: { start: "2026-02-23" },
-    },
+    adapter: chainConfig,
     methodology,
 };
 
