@@ -1,14 +1,17 @@
 // Bounce - Leveraged Tokens on HyperEVM
 //
-// Volume = USDC flow through mint and redeem operations across all LeveragedToken contracts.
-//   Mint event:          baseAmount = USDC deposited by user
-//   Redeem event:        baseAmount = USDC withdrawn by user (after fees, instant)
-//   ExecuteRedeem event: baseAmount = USDC withdrawn by user (after fees, async)
+// Volume = notional base asset exposure based on mints and redemptions.
+//   notional = baseAmount × targetLeverage
+//
+//   Mint event:          baseAmount = Base asset amount deposited by user
+//   Redeem event:        baseAmount = Base asset amount withdrawn by user (after fees, instant)
+//   ExecuteRedeem event: baseAmount = Base asset amount withdrawn by user (after fees, async)
 //
 // Contract resolution chain:
-//   GlobalStorage.factory()   → Factory address
-//   GlobalStorage.baseAsset() → Base asset address
-//   Factory.lts()             → All deployed LeveragedToken addresses
+//   GlobalStorage.factory()         → Factory address
+//   GlobalStorage.baseAsset()       → Base asset address
+//   Factory.lts()                   → All deployed LeveragedToken addresses
+//   LeveragedToken.targetLeverage() → Leverage per token (1e18 scale)
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -23,41 +26,43 @@ const fetch = async (options: FetchOptions) => {
 
   const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
 
-  const [mintLogs, redeemLogs, executeRedeemLogs] = await Promise.all([
-    options.getLogs({
-      targets: lts,
-      eventAbi: 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)',
-      flatten: true,
-    }),
-    options.getLogs({
-      targets: lts,
-      eventAbi: 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)',
-      flatten: true,
-    }),
-    options.getLogs({
-      targets: lts,
-      eventAbi: 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)',
-      flatten: true,
-    }),
+  const [leverages, logsPerLt] = await Promise.all([
+    options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
+    // Query per-LT so we know which token each log came from
+    Promise.all(lts.map(lt => Promise.all([
+      options.getLogs({ target: lt, eventAbi: 'event Mint(address indexed minter, address indexed to, uint256 baseAmount, uint256 ltAmount)' }),
+      options.getLogs({ target: lt, eventAbi: 'event Redeem(address indexed sender, address indexed to, uint256 ltAmount, uint256 baseAmount)' }),
+      options.getLogs({ target: lt, eventAbi: 'event ExecuteRedeem(address indexed user, uint256 ltAmount, uint256 baseAmount)' }),
+    ]))),
   ]);
 
   const dailyVolume = options.createBalances();
 
-  mintLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount, 'Mint'));
-  redeemLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount, 'Redeem'));
-  executeRedeemLogs.forEach((log: any) => dailyVolume.add(baseAsset, log.baseAmount, 'Redeem'));
+  lts.forEach((lt, i) => {
+    const leverage = BigInt(leverages[i]);
+    const [mintLogs, redeemLogs, executeRedeemLogs] = logsPerLt[i];
+
+    const addNotional = (log: any, label: string) => {
+      const notional = BigInt(log.baseAmount) * leverage / BigInt(1e18);
+      dailyVolume.add(baseAsset, notional, label);
+    };
+
+    mintLogs.forEach((log: any) => addNotional(log, 'Mint'));
+    redeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
+    executeRedeemLogs.forEach((log: any) => addNotional(log, 'Redeem'));
+  });
 
   return { dailyVolume };
 };
 
 const methodology = {
-  Volume: 'Nominal USDC value of mints and redemptions across all Bounce leveraged tokens.',
+  Volume: 'Notional leveraged exposure created and destroyed via mints and redemptions. Calculated as base asset amount × target leverage per token.',
 };
 
 const breakdownMethodology = {
   Volume: {
-    'Mint': 'USDC deposited by users minting leveraged tokens.',
-    'Redeem': 'USDC withdrawn by users redeeming leveraged tokens.',
+    'Mint': 'Notional exposure created when users mint leveraged tokens.',
+    'Redeem': 'Notional exposure destroyed when users redeem leveraged tokens (instant and async).',
   },
 };
 
