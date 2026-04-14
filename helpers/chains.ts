@@ -355,4 +355,5 @@ export enum CHAIN {
   TEMPO = "tempo",
   HOTSTUFF = "hotstuff",
   CHIA = "chia",
+  CANTON = "canton",
 }

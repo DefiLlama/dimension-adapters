@@ -28,11 +28,11 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     const fetchInChunks = async (category: string) => {
         const symbols = symbolsByCategory[category];
         const MAX_SYMBOLS_PER_REQUEST = 100;
-        const chunks = []
+        const chunks:any[] = []
         for (let i = 0; i < symbols.length; i += MAX_SYMBOLS_PER_REQUEST)
             chunks.push(symbols.slice(i, i + MAX_SYMBOLS_PER_REQUEST));
 
-        const results = [];
+        const results:any[] = [];
 
         for (const chunk of chunks) {
             const url = `${VEST_MARKETS_API}/ticker/24hr?symbols=${chunk.join(",")}`;
@@ -45,7 +45,6 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     }
 
     const [stockTradeDate, cryptoTradeData, forexTradeData] = await Promise.all(Object.keys(symbolsByCategory).map((category: string) => fetchInChunks(category)));
-    console.log(" ");
 
     const getQuoteTotalVolume = (tradeData: any) => tradeData.reduce((acc: number, curr: any) => acc + +curr.quoteVolume, 0);
 
@@ -60,9 +59,14 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         const overnightTradingStart = isEST ? options.startOfDay + 3600 : options.startOfDay;
         const overnightTradingEnd = overnightTradingStart + 8 * 3600;
 
-        const overNightTradeData = await Promise.all(symbolsByCategory.stock.map((stock: string) => limit(() => fetchURL(`${VEST_MARKETS_API}/klines?symbol=${stock}&interval=30m&startTime=${overnightTradingStart * 1000}&endTime=${overnightTradingEnd * 1000}&limit=16`))));
-
-        stockPerpFees = overNightTradeData.flat().reduce((acc: number, curr: any) => acc + +curr[7], 0) * OVERNIGHT_STOCK_FEE_RATE;
+        const overNightTradeData = await Promise.all(symbolsByCategory.stock.map((stock: string) => limit(() => fetchURL(`${VEST_MARKETS_API}/klines?symbol=${stock}&interval=1d&startTime=${overnightTradingStart * 1000}&endTime=${overnightTradingEnd * 1000}&limit=16`))));
+        for(const candleSticks of overNightTradeData) {
+            const todaysData = candleSticks.data.find((data: any) => data[0] === options.startOfDay * 1000);
+            if(!todaysData){
+                throw new Error(`No data found for ${options.dateString}`);
+            }
+            stockPerpFees += +todaysData[7] * OVERNIGHT_STOCK_FEE_RATE;
+        }
     }
 
     const dailyFees = cryptoPerpFees + forexPerpFees + stockPerpFees

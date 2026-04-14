@@ -35,7 +35,7 @@ query GetAssets {
 // LPs get 80% of fees
 const FEES_PERCENT_TO_LP = 0.8;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const assetsList = (await postURL(GRAPHQL_ENDPOINT, {
     query: ASSETS_QUERY,
     operationName: 'GetAssets'
@@ -110,7 +110,8 @@ export default {
   version: 2,
   chains: [CHAIN.TON],
   fetch,
-  start: '2023-11-14',
+  //start: '2023-11-14',
   methodology,
   breakdownMethodology,
+  runAtCurrTime: true,
 }

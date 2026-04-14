@@ -7,6 +7,7 @@ import { createFactoryExports } from "./registry";
 
 const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
 const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, uint256 amountTokenFee, uint256 amountTokenReward)'
+const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
   'fusionx-v2': {
@@ -740,6 +741,10 @@ const configs: Record<string, Record<string, any>> = {
   "stableswap-xyz": {
     [CHAIN.STABLE]: { factory: "0x25D2d657F539F2bB16eC82773cBE5ee49ddD3c69", fees: 0.003, revenueRatio: 0, }
   },
+  "zealousswap": {
+    [CHAIN.KASPLEX]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2025-09-26', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
+    [CHAIN.IGRA]: { factory: '0x98Bb580A77eE329796a79aBd05c6D2F2b3D5E1bD', start: '2026-04-03', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, swapEvent: zealousSwapEvent },
+  }
 }
 
 const optionsMap: Record<string, any> = {
@@ -1099,6 +1104,8 @@ const methodologyMap: Record<string, any> = {
 const deadFromMap: Record<string, string> = {
   "auragi": '2025-06-01',
   "fcon-dex": '2023-12-12',
+  "metavault-amm-v2": '2025-06-04',
+  "beamswap": "2025-08-12",
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1501,6 +1508,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "legacyFactories",
     totalFeesField: "totalFeeUSD",
+    deadFrom: "2026-01-15",
   },
   "ramses-exchange-v2": {
     endpoints: {

@@ -10,6 +10,13 @@ interface MorphoBlueConfig {
   fromBlock?: number;
 }
 
+const blacklistedMarketIds = {
+  [CHAIN.WC]: [{
+    from: "2025-11-07",
+    id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
+  }]
+}
+
 const MorphoBlues: Record<string, MorphoBlueConfig> = {
   [CHAIN.ETHEREUM]: {
     chainId: 1,
@@ -270,15 +277,19 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
+  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id) ?? [];
+
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
       eventAbi: MorphoBlueAbis.AccrueInterest,
       target: MorphoBlues[options.chain].blue,
     })
   ).map((log: any) => {
+    let interest = log.interest;
+    if(blacklistedIds.includes(log.id)) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
-      interest: BigInt(log.interest),
+      interest: BigInt(interest),
     };
   });
   const liquidations: Array<MorphoBlueLiquidateEvent> = (

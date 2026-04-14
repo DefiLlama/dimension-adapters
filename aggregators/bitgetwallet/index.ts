@@ -14,6 +14,10 @@ const inflatedApiVolumes: Record<string, { date: string, realVolume: number }[]>
   [CHAIN.SOLANA]: [{
     date: "2026-03-22",
     realVolume: 2681396
+  }],
+  [CHAIN.ETHEREUM]: [{
+    date: "2026-04-11",
+    realVolume: 10274944
   }]
 }
 
