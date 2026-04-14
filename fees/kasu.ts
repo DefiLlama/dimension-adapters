@@ -3,31 +3,49 @@ import { CHAIN } from "../helpers/chains";
 import CoreAssets from "../helpers/coreAssets.json";
 import { METRIC } from "../helpers/metrics";
 
-// FeeManager contract addresses per chain
-const FEE_MANAGER: Record<string, string> = {
-  [CHAIN.BASE]: '0xef956C2193e032609da84bEc5E5251B28939b6B9',
-  [CHAIN.PLUME]: '0xE1Be322323a412579b4A09fB08ff4bfcA12096B5',
-  [CHAIN.XDC]: '0x1e548f62cb33Fb04Ff63CCb11BBe208a7280DC7E',
+type Deployment = {
+  feeManager: string;
+  systemVariables: string;
+  paymentToken: string;
 };
 
-// SystemVariables contract addresses per chain (holds the configurable performanceFee)
-const SYSTEM_VARIABLES: Record<string, string> = {
-  [CHAIN.BASE]: '0x193Bb02A24F5562b58fEB86550e6f09Bb6c41f69',
-  [CHAIN.PLUME]: '0xb82992c13AdeE67F43758bce6FF16E32c0Ca4DC6',
-  [CHAIN.XDC]: '0x34d17c9DD1f31Fb34757DE923EC083601d0eDFFe',
-};
-
-// Stablecoin used per chain (USDC/pUSD - all 6 decimals)
-const PAYMENT_TOKEN: Record<string, string> = {
-  [CHAIN.BASE]: CoreAssets.base.USDC,
-  [CHAIN.PLUME]: CoreAssets.plume_mainnet.pUSD,
-  [CHAIN.XDC]: CoreAssets.xdc["USDC.e"],
+// One chain may have multiple independent deployments (different stablecoins).
+const DEPLOYMENTS: Record<string, Deployment[]> = {
+  [CHAIN.BASE]: [
+    {
+      feeManager: '0xef956C2193e032609da84bEc5E5251B28939b6B9',
+      systemVariables: '0x193Bb02A24F5562b58fEB86550e6f09Bb6c41f69',
+      paymentToken: CoreAssets.base.USDC,
+    },
+  ],
+  [CHAIN.PLUME]: [
+    {
+      feeManager: '0xE1Be322323a412579b4A09fB08ff4bfcA12096B5',
+      systemVariables: '0xb82992c13AdeE67F43758bce6FF16E32c0Ca4DC6',
+      paymentToken: CoreAssets.plume_mainnet.pUSD,
+    },
+  ],
+  [CHAIN.XDC]: [
+    {
+      // AUDD deployment
+      feeManager: '0x1e548f62cb33Fb04Ff63CCb11BBe208a7280DC7E',
+      systemVariables: '0x34d17c9DD1f31Fb34757DE923EC083601d0eDFFe',
+      paymentToken: '0x9fe4e6321eeb7c4bc537570f015e4734b15002b8', // AUDD
+    },
+    {
+      // USDC deployment
+      feeManager: '0x10Ed8d3668826293935Ab5C7d4Df86cdc2D124B3',
+      systemVariables: '0xb73Ebe67c8597d55A5F4FCc2C1638eDd5512BfBb',
+      paymentToken: '0xfa2958cb79b0491cc627c1557f441ef849ca8eb1', // USDC
+    },
+  ],
 };
 
 // FULL_PERCENT denominator used in SystemVariables (100% = 10_000)
 const FULL_PERCENT = 10_000n;
 
-// Emitted by FeeManager when performance fees are distributed
+// Emitted by FeeManager when performance fees are distributed.
+// `amount` passed to emitFees() is already the performance-fee portion of gross interest.
 const FeesEmittedEvent = 'event FeesEmitted(address indexed lendingPoolAddress, uint256 ecosystemFeeAmount, uint256 protocolFeeAmount)';
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
@@ -37,38 +55,41 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const token = PAYMENT_TOKEN[options.chain];
+  const deployments = DEPLOYMENTS[options.chain];
 
-  // Read the current performance fee rate (e.g. 1000 = 10% of gross interest)
-  const performanceFee = BigInt(await options.api.call({
-    target: SYSTEM_VARIABLES[options.chain],
-    abi: 'uint256:performanceFee',
+  await Promise.all(deployments.map(async (deployment) => {
+    const { feeManager, systemVariables, paymentToken } = deployment;
+
+    const performanceFee = BigInt(await options.api.call({
+      target: systemVariables,
+      abi: 'uint256:performanceFee',
+    }));
+
+    const logs = await options.getLogs({
+      target: feeManager,
+      eventAbi: FeesEmittedEvent,
+    });
+
+    for (const log of logs) {
+      const ecosystemFee = BigInt(log.ecosystemFeeAmount);
+      const protocolFee = BigInt(log.protocolFeeAmount);
+      const totalFee = ecosystemFee + protocolFee;
+
+      // Back-calculate supply-side share from the performance fee:
+      //   totalFee = grossInterest * performanceFee / FULL_PERCENT
+      //   supplySide = grossInterest - totalFee = totalFee * (FULL_PERCENT - performanceFee) / performanceFee
+      const supplySide = performanceFee > 0n
+        ? totalFee * (FULL_PERCENT - performanceFee) / performanceFee
+        : 0n;
+
+      dailyFees.add(paymentToken, totalFee, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(paymentToken, protocolFee, METRIC.PERFORMANCE_FEES);
+      dailyRevenue.add(paymentToken, ecosystemFee, "Ecosystem fees");
+      dailyProtocolRevenue.add(paymentToken, protocolFee, METRIC.PERFORMANCE_FEES);
+      dailyHoldersRevenue.add(paymentToken, ecosystemFee, "Ecosystem fees");
+      dailySupplySideRevenue.add(paymentToken, supplySide, METRIC.BORROW_INTEREST);
+    }
   }));
-
-  const logs = await options.getLogs({
-    target: FEE_MANAGER[options.chain],
-    eventAbi: FeesEmittedEvent,
-  });
-
-  for (const log of logs) {
-    const ecosystemFee = log.ecosystemFeeAmount;
-    const protocolFee = log.protocolFeeAmount;
-    const totalFee = BigInt(ecosystemFee) + BigInt(protocolFee);
-
-    // Back-calculate gross interest earned by lenders:
-    //   totalFee = grossInterest * performanceFee / FULL_PERCENT
-    //   supplySide = grossInterest - totalFee = totalFee * (FULL_PERCENT - performanceFee) / performanceFee
-    const supplySide = performanceFee > 0n
-      ? totalFee * (FULL_PERCENT - performanceFee) / performanceFee
-      : 0n;
-
-    dailyFees.add(token, supplySide + protocolFee + ecosystemFee, METRIC.BORROW_INTEREST)
-    dailyRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES);
-    dailyRevenue.add(token, ecosystemFee, "Ecosystem fees");
-    dailyProtocolRevenue.add(token, protocolFee, METRIC.PERFORMANCE_FEES);
-    dailyHoldersRevenue.add(token, ecosystemFee, "Ecosystem fees");
-    dailySupplySideRevenue.add(token, supplySide, METRIC.BORROW_INTEREST);
-  }
 
   return {
     dailyFees,
@@ -81,8 +102,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Performance fees taken from lending pool interest accruals. A percentage of gross interest earned by lenders is collected as fees.",
-  UserFees: "Same as Fees - borrowers pay interest, of which a performance fee is deducted.",
+  Fees: "Performance fees collected from lending pool interest accruals (the protocol's cut of gross interest paid by borrowers).",
+  UserFees: "Same as Fees.",
   Revenue: "Protocol's share of performance fees, sent to the protocol fee receiver.",
   ProtocolRevenue: "Same as Revenue.",
   HoldersRevenue: "Ecosystem share of performance fees, distributed to KSU token lockers (rKSU holders).",
@@ -107,23 +128,23 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology: {
-  Fees: {
-    [METRIC.BORROW_INTEREST]: "The total amount of interest paid by borrowers",
+    Fees: {
+      [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol from borrower interest",
+    },
+    Revenue: {
+      [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
+      "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders",
+    },
+    ProtocolRevenue: {
+      [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
+    },
+    HoldersRevenue: {
+      "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders",
+    },
+    SupplySideRevenue: {
+      [METRIC.BORROW_INTEREST]: "Interest earned by lenders after performance fees are deducted",
+    },
   },
-  Revenue: {
-    [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
-    "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders"
-  },
-  ProtocolRevenue: {
-    [METRIC.PERFORMANCE_FEES]: "The protocol collects a portion of the interest as a performance fee",
-  },
-  HoldersRevenue: {
-    "Ecosystem fees": "The protocol shares a portion of the interest with rKSU holders"
-  },
-  SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "Interest earned by lenders after performance fees are deducted"
-  }
-}
 };
 
 export default adapter;
