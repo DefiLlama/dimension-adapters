@@ -35,6 +35,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ARBITRUM_NOVA],
   start: '2023-08-14',

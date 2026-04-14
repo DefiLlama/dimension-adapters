@@ -59,6 +59,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     methodology,
     start: '2026-02-06',

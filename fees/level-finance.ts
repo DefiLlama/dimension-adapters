@@ -4,6 +4,7 @@ import { gql, GraphQLClient } from 'graphql-request'
 import { Adapter, FetchOptions } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { getBlock } from '../helpers/getBlock'
+import { METRIC } from '../helpers/metrics'
 
 const endpoints: Record<string, string> = {
   [CHAIN.BSC]: sdk.graph.modifyEndpoint('AFaRssJTqNReTtU2XdTGPhN38YVPNBc7faMNKA1mU54h'),
@@ -49,11 +50,36 @@ const methodology = {
   UserFees: 'All mint, burn, margin, liquidation and swap fees are collect',
   Revenue: 'Revenue is 55% of the total fees, which goes to Treasury and LVL/LGO stakers',
   HoldersRevenue: '20% of the total fees goes to LVL/LGO stakers',
-  TreasuryRevenue: '30% of the total fees goes to Treasury'
+  ProtocolRevenue: '30% of the total fees goes to Treasury'
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Fees paid on token swaps within the protocol',
+    [METRIC.MINT_REDEEM_FEES]: 'Fees paid when minting or redeeming liquidity tokens',
+    [METRIC.MARGIN_FEES]: 'Fees paid to open, maintain, and close leveraged positions',
+    [METRIC.LIQUIDATION_FEES]: 'Fees collected from liquidating under-collateralized positions',
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: 'Fees paid on token swaps within the protocol',
+    [METRIC.MINT_REDEEM_FEES]: 'Fees paid when minting or redeeming liquidity tokens',
+    [METRIC.MARGIN_FEES]: 'Fees paid to open, maintain, and close leveraged positions',
+    [METRIC.LIQUIDATION_FEES]: 'Fees collected from liquidating under-collateralized positions',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: '55% of all fees, split between treasury (30%) and token holders (20%)',
+  },
+  HoldersRevenue: {
+    'LVL/LGO Staking Rewards': '20% of all fees distributed to LVL and LGO token stakers',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: '45% of all fees distributed to liquidity providers',
+  }
 }
 
 const adapter: Adapter = {
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
@@ -64,6 +90,7 @@ const adapter: Adapter = {
       start: '2023-06-09',
     },
   },
+  deadFrom: "2025-06-25",
 }
 
 export default adapter

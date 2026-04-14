@@ -4,7 +4,7 @@ import { Interface, id, EventLog } from "ethers"
 import { BaseAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types"
 
 type Orderbook = { address: string, start: string }
-type Orderbooks = { v3: Orderbook[], v4: Orderbook[], v5: Orderbook[] }
+type Orderbooks = { v3: Orderbook[], v4: Orderbook[], v5: Orderbook[], v6: Orderbook[] }
 
 const floats: Record<string, string> = {
   [CHAIN.ARBITRUM]: "0x2265980d35d97F5f65C73e954D2022380bcA4A77",
@@ -26,7 +26,8 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v5: [
       { address: "0x8df8075e4077dabf1e95f49059e4c1eea33094ab", start: '2025-09-07' },
-    ]
+    ],
+    v6: []
   },
   [CHAIN.BASE]: {
     v3: [
@@ -42,6 +43,9 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v5: [
       { address: "0x52ceb8ebef648744ffdde89f7bc9c3ac35944775", start: '2025-10-10' },
+    ],
+    v6: [
+      { address: "0xe522cB4a5fCb2eb31a52Ff41a4653d85A4fd7C9D", start: '2026-02-05' },
     ]
   },
   [CHAIN.BSC]: {
@@ -51,7 +55,8 @@ const orderbooks: Record<string, Orderbooks> = {
     v4: [
       { address: "0xd2938e7c9fe3597f78832ce780feb61945c377d7", start: '2024-09-23' },
     ],
-    v5: []
+    v5: [],
+    v6: []
   },
   [CHAIN.ETHEREUM]: {
     v3: [
@@ -60,7 +65,8 @@ const orderbooks: Record<string, Orderbooks> = {
     v4: [
       { address: "0x0eA6d458488d1cf51695e1D6e4744e6FB715d37C", start: '2024-10-25' },
     ],
-    v5: []
+    v5: [],
+    v6: []
   },
   [CHAIN.FLARE]: {
     v3: [
@@ -72,7 +78,8 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0xA2Ac77b982A9c0999472c1De378A81d7363d926F", start: '2024-08-19' },
       { address: "0x582d9e838FE6cD9F8147C66A8f56A3FBE513a6A2", start: '2024-07-11' },
     ],
-    v5: []
+    v5: [],
+    v6: []
   },
   [CHAIN.LINEA]: {
     v3: [],
@@ -80,7 +87,8 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0x22410e2a46261a1b1e3899a072f303022801c764", start: '2024-09-30' },
       { address: "0xF97DE1c2d864d90851aDBcbEe0A38260440B8D90", start: '2024-07-29' },
     ],
-    v5: []
+    v5: [],
+    v6: []
   },
   // not supported?
   // matchain: {
@@ -108,7 +116,8 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v5: [
       { address: "0x8a3c8e610d827093f7437e0c45efa648563c0dda", start: '2025-09-22' },
-    ]
+    ],
+    v6: []
   },
 } as const
 
@@ -127,8 +136,8 @@ const ABI_V4 = {
   ClearV2: `event ClearV2(address sender, (address owner, (address interpreter, address store, bytes bytecode) evaluable, ${IO}[] validInputs, ${IO}[] validOutputs, bytes32 nonce) alice, (address owner, (address interpreter, address store, bytes bytecode) evaluable, ${IO}[] validInputs, ${IO}[] validOutputs, bytes32 nonce) bob, ${ClearConfig} clearConfig)`,
 } as const
 
-// v5 orderbook abi
-export namespace ABI_V5 {
+// v5 and v6 orderbook abi
+export namespace ABI_V5_V6 {
   // structs
   export const Float = "bytes32" as const;
   export const IOV2 = `(address token, bytes32 vaultId)` as const;
@@ -159,7 +168,7 @@ export namespace ABI_V5 {
 
 const abi_v3 = new Interface([ABI_V3.Clear, ABI_V3.AfterClear, ABI_V3.TakeOrder])
 const abi_v4 = new Interface([ABI_V4.ClearV2, ABI_V4.AfterClear, ABI_V4.TakeOrderV2])
-const abi_v5 = new Interface([ABI_V5.events.ClearV3, ABI_V5.events.AfterClearV2, ABI_V5.events.TakeOrderV3])
+const abi_v5_v6 = new Interface([ABI_V5_V6.events.ClearV3, ABI_V5_V6.events.AfterClearV2, ABI_V5_V6.events.TakeOrderV3])
 
 async function fetchV3Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances) {
   const targets = orderbooks[api.chain].v3.map(v => v.address)
@@ -271,8 +280,8 @@ async function fetchV4Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
   })
 }
 
-async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances) {
-  const targets = orderbooks[api.chain].v5.map(v => v.address)
+async function fetchV5_V6Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances) {
+  const targets = orderbooks[api.chain].v5.concat(orderbooks[api.chain].v6).map(v => v.address)
   if (!targets.length) return
 
   const [afterClearLogs, clearLogs, takeOrderLogs] = await Promise.all([
@@ -280,19 +289,19 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
       targets,
       flatten: false,
       entireLog: true,
-      topic: id(abi_v5.getEvent("AfterClearV2")!.format()),
+      topic: id(abi_v5_v6.getEvent("AfterClearV2")!.format()),
     }),
     getLogs({
       targets,
       flatten: false,
       entireLog: true,
-      topic: id(abi_v5.getEvent("ClearV3")!.format()),
+      topic: id(abi_v5_v6.getEvent("ClearV3")!.format()),
     }),
     getLogs({
       targets,
       flatten: false,
       entireLog: true,
-      topic: id(abi_v5.getEvent("TakeOrderV3")!.format()),
+      topic: id(abi_v5_v6.getEvent("TakeOrderV3")!.format()),
     })
   ]) as EventLog[][][]
 
@@ -308,11 +317,11 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
       if (clearLog) {
         const {
           clearStateChange: { aliceOutput, bobInput }
-        } = abi_v5.decodeEventLog("AfterClearV2", log.data)
+        } = abi_v5_v6.decodeEventLog("AfterClearV2", log.data)
         const {
           alice: { validOutputs },
           clearConfig: { aliceOutputIOIndex }
-        } = abi_v5.decodeEventLog("ClearV3", clearLog.data)
+        } = abi_v5_v6.decodeEventLog("ClearV3", clearLog.data)
 
         const token = validOutputs[Number(aliceOutputIOIndex)].token.toLowerCase()
         tokenSet.add(token)
@@ -326,7 +335,7 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
     const {
       input,
       config: { outputIOIndex, order },
-    } = abi_v5.decodeEventLog("TakeOrderV3", log.data)
+    } = abi_v5_v6.decodeEventLog("TakeOrderV3", log.data)
 
     const token = order.validOutputs[Number(outputIOIndex)].token.toLowerCase()
     tokenSet.add(token)
@@ -347,7 +356,7 @@ async function fetchV5Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
   const vols = await api.multiCall({
     permitFailure: true,
     target: floats[api.chain],
-    abi: ABI_V5.float.toFixedDecimalLossy,
+    abi: ABI_V5_V6.float.toFixedDecimalLossy,
     calls: rawVols
       .filter((rawVol) => {
         const index = tokenList.indexOf(rawVol.token);
@@ -370,7 +379,7 @@ const fetchVolume: FetchV2 = async function (options: FetchOptions) {
   await Promise.allSettled([
     fetchV3Vol(options, dailyVolume),
     fetchV4Vol(options, dailyVolume),
-    fetchV5Vol(options, dailyVolume),
+    fetchV5_V6Vol(options, dailyVolume),
   ])
 
   return { dailyVolume }
@@ -389,6 +398,7 @@ Object.keys(orderbooks).forEach(chain => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: volAdapter,
   methodology: {
     Volume: "Volume of trades"

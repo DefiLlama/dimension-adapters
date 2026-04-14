@@ -35,14 +35,18 @@ export const fetchHumanFiData: FetchV2 = async (options: FetchOptions): Promise<
 };
 
 const fetch: FetchV2 = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { dailyVolume } = await fetchHumanFiData(options)
+  const { dailyVolume, dailyFees } = await fetchHumanFiData(options);
   return {
     dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.WC]: {
       fetch: fetch,
@@ -50,7 +54,10 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    dailyVolume: "Volume is calculated as the sum of all amountIn in SwapExecuted events",
+    Volume: "Volume is calculated as the sum of all amountIn in SwapExecuted events",
+    Fees: "Fees are computed based on the 1% (FEE_BPS) cut taken from the input amount.",
+    Revenue: "Revenue is equal to the fees collected by the protocol.",
+    ProtocolRevenue: "Revenue is equal to the fees collected by the protocol.",
   },
 };
 

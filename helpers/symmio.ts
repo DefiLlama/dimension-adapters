@@ -89,9 +89,14 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]): Fetch => {
       openInterestAtEnd += oi;
     })
 
+    // volume is double counted in the subgraphs:
+    //  https://github.com/SYMM-IO/subgraphs/blob/bc015992de840bf0426638da62765ca5298235c2/analytics/handlers/symmio/OpenPositionHandler.ts#L55
+    //  https://github.com/SYMM-IO/subgraphs/blob/bc015992de840bf0426638da62765ca5298235c2/analytics/handlers/commonHandlers/close.ts#L51
+
+
     return {
       timestamp: startOfDay,
-      dailyVolume: dailyVolume.toString(),
+      dailyVolume: Number(dailyVolume) / 2,
       dailyFees: dailyFees.toString(),
       dailyRevenue: dailyRevenue.toString(),
       openInterestAtEnd: openInterestAtEnd.toString(),

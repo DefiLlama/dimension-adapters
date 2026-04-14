@@ -74,6 +74,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
 
   methodology: {
     Fees: "All swap fees paid by users.",
@@ -81,7 +82,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "No fees distributed to LPs.",
     Revenue: "All swap fees are revenue.",
     ProtocolRevenue: "Protocol makes no revenue.",
-    HoldersRevenue: "All revenue are distributed to veBlack holders.",
+    HoldersRevenue: "All revenue is distributed to veBlack holders.",
   },
   chains: [CHAIN.AVAX],
   fetch,

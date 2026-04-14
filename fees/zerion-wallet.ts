@@ -32,6 +32,7 @@ const adapter: Adapter = {
   fetch, start: '2023-01-01',
   methodology,
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.BSC,],
 }
 

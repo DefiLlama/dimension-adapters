@@ -66,12 +66,14 @@ const fetchVolume = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch: fetchVolume,
       start: '2024-05-14',
     },
   },
+  deadFrom: "2025-08-02",
 };
 
 export default adapter;

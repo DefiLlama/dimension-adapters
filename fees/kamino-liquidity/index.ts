@@ -1,32 +1,61 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // Define the URL of the endpoint
 const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-lifetime-kamino.modal.run';
 
 // Function to make the GET request
-const fetch = async (_: any, _tt: any, options: FetchOptions) =>  {
+const fetch = async (_: any, _tt: any, options: FetchOptions) => {
     const dayTimestamp = options.startOfDay
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
     const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
 
-    // Calculate total and daily revenue
-    const dailyRevenue = historicalFeesRes['data']
-        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityRevenueUsd;
+    const record = historicalFeesRes['data'].find((row: any) => row.day === options.dateString)
 
-    const dailyFees = historicalFeesRes['data']
-        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityFeesUsd;
+    if (!record)
+        throw new Error(`No record found for date: ${dateStr}`);
+
+    // Calculate total and daily revenue
+    const { KaminoLiquidityRevenueUsd, KaminoLiquidityFeesUsd } = record;
+
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
+
+    dailyFees.addUSDValue(KaminoLiquidityFeesUsd, METRIC.SWAP_FEES);
+    dailyRevenue.addUSDValue(KaminoLiquidityRevenueUsd, METRIC.SWAP_FEES);
+    dailySupplySideRevenue.addUSDValue(KaminoLiquidityFeesUsd - KaminoLiquidityRevenueUsd, METRIC.SWAP_FEES);
 
     return {
-        timestamp: dayTimestamp,
+        dailyFees,
         dailyRevenue,
-        dailyFees
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
     };
 };
+
 const methodology = {
-    Revenue: "Revenues are aggregated by Allez Labs using Flipside Crypto data.",
-    Fees: "Fees are aggregated by Allez Labs using the Kamino API."
+    Fees: "Swap fees earned by providing liquidity to pools.Fees data is aggregated by Allez Labs using the Kamino API.",
+    Revenue: "Part of swap fees going to the protocol",
+    ProtocolRevenue: "Part of swap fees going to the protocol",
+    SupplySideRevenue: "Part of swap fees going to the liquidity providers",
+}
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SWAP_FEES]: "Swap fees earned by providing liquidity to pools",
+    },
+    Revenue: {
+        [METRIC.SWAP_FEES]: "Part of swap fees going to the protocol",
+    },
+    ProtocolRevenue: {
+        [METRIC.SWAP_FEES]: "Part of swap fees going to the protocol",
+    },
+    SupplySideRevenue: {
+        [METRIC.SWAP_FEES]: "Part of swap fees going to the liquidity providers",
+    },
 }
 
 const adapter: Adapter = {
@@ -37,6 +66,7 @@ const adapter: Adapter = {
             start: '2023-10-12',
         }
     },
-    methodology
+    methodology,
+    breakdownMethodology,
 }
 export default adapter;

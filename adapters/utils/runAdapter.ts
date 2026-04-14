@@ -2,9 +2,10 @@ import * as sdk from '@defillama/sdk';
 import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
 import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -24,7 +25,7 @@ function genUID(length: number = 10): string {
   return result
 }
 
-const adapterRunResponseCache = {} as any
+// const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
   const { chains = [], fetch, start, runAtCurrTime } = module
@@ -100,6 +101,10 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   setModuleDefaults(module)
 
+  return _runAdapter(options)
+
+/*  Disable caching run results
+
   if (!cacheResults) return _runAdapter(options)
 
   const runKey = getRunKey(options)
@@ -111,12 +116,15 @@ export default async function runAdapter(options: AdapterRunOptions) {
   function clone(obj: any) {
     return JSON.parse(JSON.stringify(obj))
   }
-}
 
+
+   */
+}
+/* 
 function getRunKey(options: AdapterRunOptions) {
   const randomUID = options.module._randomUID ?? genUID(10)
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
-}
+} */
 
 const startOfDayIdCache: { [key: string]: string } = {}
 
@@ -206,6 +214,16 @@ async function _runAdapter({
   if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
+  // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
+  if (chains.includes(CHAIN.CHAIN_GLOBAL)) {
+    Object.keys(aggregated).forEach(metricType => {
+      const metricObject = aggregated[metricType]
+      if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
+        metricObject.value = metricObject.chains[CHAIN.CHAIN_GLOBAL]
+        delete metricObject.chains[CHAIN.CHAIN_GLOBAL]
+      }
+    })
+  }
 
   const adaptorRecordV2JSON: any = {
     aggregated,
@@ -248,7 +266,7 @@ async function _runAdapter({
       const improbableValue = 2e11 // 200 billion
 
       // validate and inject missing record if any
-      validateAdapterResult(result)
+      validateAdapterResult(result, module)
 
       // add missing metrics if need
       addMissingMetrics(chain, result)
@@ -335,7 +353,7 @@ async function _runAdapter({
     const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
-    const problematicChains = new Set(['sei', 'xlayer'])
+    const problematicChains = new Set(['sei',])
 
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
 
@@ -515,12 +533,12 @@ function subtractBalance(options: { balance: Balances, amount: FetchResponseValu
   }
 }
 
-function validateAdapterResult(result: any) {
+function validateAdapterResult(result: any, module: any) {
   // validate metrics
   //  this is to ensure that we do this validation only for the new adapters
   if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
     // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
-    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue) {
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue && !module?.skipBreakdownValidation) {
       throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
     }
   }

@@ -64,6 +64,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapters: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: configs,
   methodology: {

@@ -45,7 +45,7 @@ export type FetchOptions = {
   getEndBlock: () => Promise<number>,
   dateString: string,
   preFetchedResults?: any,
-  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching
+  moduleUID: string,  // randomly generated unique identifier for the module, useful for caching (used only for batch processing dune queries for now)
   startOfDayId?: string, // id used in some subgraphs to identify daily data, usually it's the startOfDay timestamp divided by 86400
 }
 
@@ -87,6 +87,10 @@ export type BaseAdapterChainConfig = {
   runAtCurrTime?: boolean;
 }
 
+export const whitelistedBaseAdapterKeys = new Set([
+  'start', 'deadFrom', 'fetch', 'runAtCurrTime'
+])
+
 export type BaseAdapter = {
   [chain: string]: BaseAdapterChainConfig
 };
@@ -119,21 +123,16 @@ export type AdapterBase = {
   prefetch?: FetchV2;
   runAtCurrTime?: boolean;
   start?: IStartTimestamp | number | string; // date can be in "YYYY-MM-DD" format
-  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results
+  _randomUID?: string; // sometimes fee & volume adapters share the same code, we can optimize the run by caching the results - We stopped caching these results but left as is as it is used in batching dune queries, we can re-use it later if needed
   pullHourly?: boolean;
+  skipBreakdownValidation?: boolean; // this is to skip the validation that requires at least one of dailyRevenue, dailySupplySideRevenue or dailyProtocolRevenue to be present when dailyFees is present, this is useful for some adapters that have a breakdown in their dailyFees but dont have a clear way to attribute the fees to either supply side or protocol revenue
 }
 
 export type SimpleAdapter = AdapterBase & {
   adapter?: BaseAdapter
 }
 
-export type BreakdownAdapter = AdapterBase & {  // do not use this, this is deprecated
-  breakdown: {
-    [version: string]: BaseAdapter
-  };
-};
-
-export type Adapter = SimpleAdapter | BreakdownAdapter;
+export type Adapter = SimpleAdapter;
 export type FetchResponseValue = string | number | Balances;
 
 /**
@@ -143,38 +142,27 @@ export type FetchResponseValue = string | number | Balances;
 // VOLUME
 export type FetchResultVolume = FetchResultBase & {
   dailyVolume?: FetchResponseValue
-  totalVolume?: FetchResponseValue
   shortOpenInterestAtEnd?: FetchResponseValue
   longOpenInterestAtEnd?: FetchResponseValue
   openInterestAtEnd?: FetchResponseValue
   dailyBridgeVolume?: FetchResponseValue
-  totalBridgeVolume?: FetchResponseValue
   dailyNormalizedVolume?: FetchResponseValue
   dailyActiveLiquidity?: FetchResponseValue
 };
 
 // FEES
 export type FetchResultFees = FetchResultBase & {
-  totalFees?: FetchResponseValue;
   dailyFees?: FetchResponseValue;
   dailyUserFees?: FetchResponseValue;
-  totalRevenue?: FetchResponseValue;
   dailyRevenue?: FetchResponseValue;
   dailyProtocolRevenue?: FetchResponseValue;
   dailyHoldersRevenue?: FetchResponseValue;
   dailySupplySideRevenue?: FetchResponseValue;
-  totalProtocolRevenue?: FetchResponseValue;
-  totalSupplySideRevenue?: FetchResponseValue;
-  totalUserFees?: FetchResponseValue;
   dailyBribesRevenue?: FetchResponseValue;
   dailyTokenTaxes?: FetchResponseValue;
-  totalHoldersRevenue?: FetchResponseValue;
   dailyOtherIncome?: FetchResponseValue;
-  totalOtherIncome?: FetchResponseValue;
   dailyOperatingIncome?: FetchResponseValue;
-  totalOperatingIncome?: FetchResponseValue;
   dailyNetIncome?: FetchResponseValue;
-  totalNetIncome?: FetchResponseValue;
 };
 
 // INCENTIVES
@@ -185,13 +173,20 @@ export type FetchResultIncentives = FetchResultBase & {
 // AGGREGATORS
 export type FetchResultAggregators = FetchResultBase & {
   dailyVolume?: FetchResponseValue
-  totalVolume?: FetchResponseValue
+};
+
+export type FetchResultActiveUsers = FetchResultBase & {
+  dailyActiveUsers?: FetchResponseValue;
+  dailyTransactionsCount?: FetchResponseValue;
+  dailyGasUsed?: FetchResponseValue;
+};
+
+export type FetchResultNewUsers = FetchResultBase & {
+  dailyNewUsers?: FetchResponseValue;
 };
 
 // OPTIONS
 export type FetchResultOptions = FetchResultBase & {
-  totalPremiumVolume?: FetchResponseValue
-  totalNotionalVolume?: FetchResponseValue
   dailyPremiumVolume?: FetchResponseValue
   dailyNotionalVolume?: FetchResponseValue
   shortOpenInterestAtEnd?: FetchResponseValue
@@ -213,18 +208,21 @@ export enum AdapterType {
   AGGREGATOR_DERIVATIVES = 'aggregator-derivatives',
   BRIDGE_AGGREGATORS = 'bridge-aggregators',
   NORMALIZED_VOLUME = 'normalized-volume',
+  NFT_VOLUME = 'nft-volume',
+  ACTIVE_USERS = 'active-users',
+  NEW_USERS = 'new-users',
 }
 
-export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives
+export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives & FetchResultActiveUsers & FetchResultNewUsers
 
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
 
-  'dailyVolume', 'totalVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'totalBridgeVolume', 'dailyNormalizedVolume', 'dailyActiveLiquidity',
-  'totalFees', 'dailyFees', 'dailyUserFees', 'totalRevenue', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'totalProtocolRevenue', 'totalSupplySideRevenue', 'totalUserFees', 'dailyBribesRevenue', 'dailyTokenTaxes', 'totalHoldersRevenue',
+  'dailyVolume', 'shortOpenInterestAtEnd', 'longOpenInterestAtEnd', 'openInterestAtEnd', 'dailyBridgeVolume', 'dailyNormalizedVolume', 'dailyActiveLiquidity',
+  'totalFees', 'dailyFees', 'dailyUserFees', 'dailyRevenue', 'dailyProtocolRevenue', 'dailyHoldersRevenue', 'dailySupplySideRevenue', 'dailyBribesRevenue', 'dailyTokenTaxes',
   'tokenIncentives',
-  'dailyOtherIncome', 'totalOtherIncome', 'dailyOperatingIncome', 'totalOperatingIncome', 'dailyNetIncome', 'totalNetIncome',
-  'totalPremiumVolume', 'totalNotionalVolume', 'dailyPremiumVolume', 'dailyNotionalVolume',
+  'dailyOtherIncome', 'dailyOperatingIncome', 'dailyNetIncome',, 'dailyPremiumVolume', 'dailyNotionalVolume',
+  'dailyActiveUsers', 'dailyNewUsers', 'dailyTransactionsCount', 'dailyGasUsed',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',

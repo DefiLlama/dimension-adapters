@@ -18,15 +18,19 @@ interface DailyStats {
 }
 
 const methodology = {
-  dailyFees:
+  Fees:
     "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest",
-  dailyRevenue:
+  Revenue:
     "All the services fees paid by users, including borrow, PSM, liquidation, redeem, flashLoan and interest earned by Bucket",
 }
 
-const fetchBucketStats = async (_: any, _1: any, { startTimestamp, }: FetchOptions) => {
+const fetchBucketStats = async (_: any, _1: any, { startTimestamp, dateString }: FetchOptions) => {
   const url = `${bucketApiURL}fees?timestamp_ms=${startTimestamp * 1000}`
   const stats: DailyStats = (await fetchURL(url)).data
+  
+  if (!stats) {
+    throw new Error(`No data found for ${dateString}`);
+  }
 
   const dailyFees = stats.total_fee_value
   const dailyRevenue = stats.total_fee_value

@@ -181,6 +181,7 @@ const customLogic = async ({ pairObject, dailyVolume, allLogs, fetchOptions }: a
 
 const adapter: SimpleAdapter = {
 	version: 2,
+	pullHourly: true,
 	methodology: {
 		Volume: `Total swap volume collected from factory ${FACTORY}`,
 		Fees: 'All swap fees paid by users.',

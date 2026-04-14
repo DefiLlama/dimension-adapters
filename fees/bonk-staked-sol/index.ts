@@ -21,34 +21,61 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances()
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+        const amount = Number(row.amount) || 0
+        dailyFees.addCGToken("solana", amount, "BonkSOL Staking Rewards");
+        dailySupplySideRevenue.addCGToken("solana", amount * 0.95, "BonkSOL Staking Rewards to Stakers")
+        dailySupplySideRevenue.addCGToken("solana", amount * 0.025, "BonkSOL Staking Rewards to Sanctum")
+        dailyRevenue.addCGToken("solana", amount * 0.025, "BonkSOL Staking Rewards to Bonk")
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+        const amount = Number(row.amount) || 0
+        dailyFees.addCGToken("bonk-staked-sol", amount, "BonkSOL Withdrawal Fees")
+        dailyRevenue.addCGToken("bonk-staked-sol", amount, "BonkSOL Withdrawal Fees");
     }
   });
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue
   };
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on Bonk staked solana',
+  Fees: 'Staking rewards from staked SOL on Bonk staked solana and withdrawal fees',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
+  SupplySideRevenue: 'Includes 95% of the staking rewards that go to bonkSOL and 2.5% to Sanctum',
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
 export default {
-  version: 1,
-  fetch,
-  chains: [CHAIN.SOLANA],
-  start: "2024-07-17",
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
-  methodology,
+    version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: "2024-07-17",
+    dependencies: [Dependencies.DUNE],
+    isExpensiveAdapter: true,
+    methodology,
+    breakdownMethodology: {
+      Fees: {
+        "BonkSOL Staking Rewards": "Staking rewards from staked SOL on Bonk.",
+        "BonkSOL Withdrawal Fees": "Includes 0.1% withdrawal fee.",
+      },
+      Revenue: {
+        "BonkSOL Staking Rewards to Bonk": "2.5% of the staking rewards go to Bonk.",
+        "BonkSOL Withdrawal Fees": "All the withdrawal fees are revenue"
+      },
+      ProtocolRevenue: {
+        "BonkSOL Staking Rewards to Bonk": "2.5% of the staking rewards go to Bonk.",
+        "BonkSOL Withdrawal Fees": "All the withdrawal fees are revenue"
+      },
+      SupplySideRevenue: {
+        "BonkSOL Staking Rewards to Stakers": "95% of the staking rewards are distributed to bonkSOL.",
+        "BonkSOL Staking Rewards to Sanctum": "2.5% of the staking rewards go to Sanctum"
+      },
+    },
 };

@@ -1,18 +1,16 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from "../../helpers/coreAssets.json";
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { Balances } from "@defillama/sdk";
 
-const coins = {
+const coins: Record<string, string> = {
   DEEP: ADDRESSES.sui.DEEP,
   SUI: "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
   USDC: ADDRESSES.sui.USDC_CIRCLE,
   ETH: ADDRESSES.sui.ETH,
-  WUSDT:
-    ADDRESSES.sui.USDT,
-  WUSDC:
-    ADDRESSES.sui.USDC,
+  WUSDT: ADDRESSES.sui.USDT,
+  WUSDC: ADDRESSES.sui.USDC,
   NS: "0x5145494a5f5100e645e4b0aa950fa6b68f614e8c59e17bc5ded3495123a79178::ns::NS",
   TYPUS:
     "0xf82dc05634970553615eef6112a1ac4fb7bf10272bf6cbe0f80ef44a6c489385::typus::TYPUS",
@@ -25,7 +23,7 @@ const coins = {
 
 const fetchVolumeInUsd = (
   volumeData: Record<string, number>,
-  balances: Balances
+  balances: Balances,
 ) => {
   for (const [poolName, poolVolume] of Object.entries(volumeData)) {
     const quoteTokenSymbol = poolName.split("_")[1];
@@ -58,7 +56,7 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  dailyVolume: "Sum of volume in USD for all pools in the past 24 hours",
+  Volume: "Sum of volume in USD for all pools in the past 24 hours",
 };
 
 export default {

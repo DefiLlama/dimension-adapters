@@ -37,7 +37,6 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: '0',
   }
 }
 

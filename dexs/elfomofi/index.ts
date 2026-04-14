@@ -29,11 +29,16 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     methodology,
     adapter: {
       [CHAIN.BASE]: {
         fetch,
         start: "2026-01-06",
+      },
+      [CHAIN.BSC]: {
+        fetch,
+        start: "2026-03-15",
       },
     },
   };

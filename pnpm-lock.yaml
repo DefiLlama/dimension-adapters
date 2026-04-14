@@ -12,8 +12,8 @@ importers:
         specifier: ^1.15.0
         version: 1.15.0
       '@defillama/sdk':
-        specifier: ^5.0.206
-        version: 5.0.206(typescript@5.9.3)
+        specifier: ^5.0.211
+        version: 5.0.211(typescript@5.9.3)
       '@supercharge/promise-pool':
         specifier: ^3.1.0
         version: 3.2.0
@@ -125,24 +125,28 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@antoniomuso/lz4-napi-linux-arm64-musl@2.9.0':
     resolution: {integrity: sha512-eJtHp38zuLaYI0/cOV/BKcNQiXUBo4GPx53FTf0Y307yUjLsn48LNeN0vD28Ct9YrbUae3bQvMD5AD86She0ww==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@antoniomuso/lz4-napi-linux-x64-gnu@2.9.0':
     resolution: {integrity: sha512-mDjS4dyjRKaZQcAP71SphkYH5r3kufB30ih/VETVu/br2toCfBk6Zr1xhL1r+L7FaVAFzF62B7h30CiqrN0Awg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@antoniomuso/lz4-napi-linux-x64-musl@2.9.0':
     resolution: {integrity: sha512-pvU7Z7qjkjn17NkddBtBQ7C2iRqjtZ7WJ3Jqrjtj4XxolY3Q0HaYMvWjkWhzb9AKGZbj5y+EHYtbVoZJ2TSQhQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@antoniomuso/lz4-napi-win32-arm64-msvc@2.9.0':
     resolution: {integrity: sha512-aioLlbpJl0QPEXLXhh2bzyitc3T7Jot3f1ap6WdKiRa+CIjMHXw1nxJXy07MLXif10r+qVZr86ic8dvwErgqEQ==}
@@ -328,8 +332,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@defillama/sdk@5.0.206':
-    resolution: {integrity: sha512-IJmWEBRguzRQPgg0LqRFBRWsSjGp2aRBicLP1Xx6djBYp2dEJ/Wt3KlLsEVt3CyYwFlJExJwuwgpIZn4f3PICw==}
+  '@defillama/sdk@5.0.211':
+    resolution: {integrity: sha512-o4C8hPaRrNLEX31idd9O0GtXPvQYAyUR+n+g5gHd6F73705zInatbrLOJ0ZTaJ5AwwqMx9CXbdi6qKnrc5hVbA==}
 
   '@elastic/elasticsearch@8.19.1':
     resolution: {integrity: sha512-+1j9NnQVOX+lbWB8LhCM7IkUmjU05Y4+BmSLfusq0msCsQb1Va+OUKFCoOXjCJqQrcgdRdQCjYYyolQ/npQALQ==}
@@ -2111,7 +2115,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@defillama/sdk@5.0.206(typescript@5.9.3)':
+  '@defillama/sdk@5.0.211(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-s3': 3.913.0
       '@elastic/elasticsearch': 8.19.1

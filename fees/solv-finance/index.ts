@@ -297,7 +297,7 @@ const breakdownMethodology = {
   },
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, methodology, breakdownMethodology };
+const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, methodology, breakdownMethodology };
 
 Object.keys(chains).forEach((chain: Chain) => {
   adapter.adapter![chain] = {

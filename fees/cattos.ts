@@ -6,7 +6,7 @@ import { METRIC } from "../helpers/metrics";
 const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResult> => {
   const query = `
     SELECT
-     SUM(CAST(json_extract_scalar(data, '$.total_apt_cost') AS DOUBLE) / 100000000) AS total_rev
+     COALESCE(SUM(CAST(json_extract_scalar(data, '$.total_apt_cost') AS DOUBLE) / 100000000), 0) AS total_rev
       FROM aptos.events AS e
       WHERE 
         e.event_type LIKE '0x664f1da7f6256b26a7808e0e5b02e747c4c6450e92b602740a2a5514bba91e52::%::%'

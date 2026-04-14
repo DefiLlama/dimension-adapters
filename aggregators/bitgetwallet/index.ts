@@ -9,9 +9,24 @@ interface IVolumeall {
   date: string;
 }
 
+//https://dune.com/queries/5561137/9053445
+const inflatedApiVolumes: Record<string, { date: string, realVolume: number }[]> = {
+  [CHAIN.SOLANA]: [{
+    date: "2026-03-22",
+    realVolume: 2681396
+  }],
+  [CHAIN.ETHEREUM]: [{
+    date: "2026-04-11",
+    realVolume: 10274944
+  }]
+}
+
 // to compute volume on chain: https://github.com/DefiLlama/dimension-adapters/pull/2059#issuecomment-2469986758
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-
+  if (inflatedApiVolumes[options.chain]) {
+    const realVolume = inflatedApiVolumes[options.chain].find(item => item.date === options.dateString)?.realVolume;
+    if (realVolume) return { dailyVolume: realVolume }
+  }
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint + `?chain=${options.chain}`))?.data?.list;
   const dailyVolume = historicalVolume?.find(dayItem => (new Date(dayItem.date).getTime() / 1000) === options.startOfDay)?.volume
 
@@ -60,6 +75,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: CHAINS,
   start: '2025-04-01',
+  runAtCurrTime: true, //API has results only for the latest day
 };
 
 export default adapter;

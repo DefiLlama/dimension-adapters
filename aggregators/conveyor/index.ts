@@ -1,13 +1,14 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter, } from "../../adapters/types";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { CHAIN } from "../../helpers/chains";
 
 const chainsMap: Record<string, string> = {
-  ETHEREUM: "ethereum",
-  ARBITRUM: "arbitrum",
-  POLYGON: "polygon",
-  BNB: "bsc",
-  OPTIMISM: "optimism",
-  BASE: "base",
+  ETHEREUM: CHAIN.ETHEREUM,
+  ARBITRUM: CHAIN.ARBITRUM,
+  POLYGON: CHAIN.POLYGON,
+  BNB: CHAIN.BSC,
+  OPTIMISM: CHAIN.OPTIMISM,
+  BASE: CHAIN.BASE,
 };
 
 const prefetch = async (options: FetchOptions) => {
@@ -17,7 +18,7 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch = async (_a:any, _b:any, options: FetchOptions): Promise<FetchResult> => {
   const results = options.preFetchedResults || [];
-  const chainData = results.find(item => chainsMap[item.blockchain] === options.chain.toLowerCase());
+  const chainData = results.find((item: any) => chainsMap[item.blockchain] === options.chain.toLowerCase());
 
   return {
     dailyVolume: chainData?.volume_24h || 0,

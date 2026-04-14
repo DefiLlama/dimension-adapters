@@ -29,6 +29,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Swap fees paid by users.',
     UserFees: 'Users pay fees per swap.',

@@ -1,6 +1,6 @@
-import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { FetchResultFees, FetchOptions } from "../../adapters/types";
+import { FetchResultFees, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { addTokensReceived } from "../../helpers/token";
 import { httpGet } from "../../utils/fetchURL";
 
 const API_ENDPOINT = "https://pro.edgex.exchange/api/v1/public/quote/fee";
@@ -33,21 +33,32 @@ const fetch = async (_: any, _1: any, options: FetchOptions): Promise<FetchResul
 
   const dailyFees = dayData.fee;
   const dailyRevenue = dayData.revenue;
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = Number(dailyFees) - Number(dailyRevenue)
 
   return {
     dailyFees,
     dailyRevenue,
-    timestamp: options.startOfDay,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
+};
+
+const fetchBB = async (_a:any, _b:any, options: FetchOptions) => {
+  const dailyHoldersRevenue = await addTokensReceived({
+    options,
+    target: '0x221e7fca09589ab2d7dc552ee72acf1a2ff10048',
+    token: '0xb0076de78dc50581770bba1d211ddc0ad4f2a241',
+  });
+  const dailyFees = options.createBalances();
+  return { dailyFees, dailyRevenue: dailyFees, dailySupplySideRevenue: dailyFees, dailyHoldersRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.EDGEX]: {
-      fetch,
-      start: '2025-02-25',
-    },
+    [CHAIN.EDGEX]: { fetch, start: '2025-02-25'},
+    [CHAIN.ETHEREUM]: { fetch: fetchBB, start: '2026-04-01'},
   },
 };
 

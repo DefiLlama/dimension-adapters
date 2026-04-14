@@ -29,6 +29,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.MOONBEAM],
   fetch,
   methodology: {
@@ -39,6 +40,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "0.02% of the swap fee is distributed to LPs",
     HoldersRevenue: "Stakers received $GLINT in staking rewards.",
   },
+  deadFrom: "2025-08-12",
 }
 
 export default adapter;

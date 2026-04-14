@@ -1,7 +1,16 @@
 import { FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getEnv } from "../helpers/env";
 import { httpGet } from "../utils/fetchURL";
 
+export async function getDeriveBuilderData(builderName: string, fromTime: number, toTime: number) {
+  const response = await httpGet(`https://api.lyra.finance/public/get_referral_performance?start_ms=${fromTime * 1000}&end_ms=${toTime * 1000}&referral_code=${builderName}`)
+  
+  const volume = response.result.total_notional_volume || 0;
+  const fees = response.result.total_referred_fees || 0 + response.result.total_fee_rewards || 0;
+  
+  return { volume, fees }
+}
 
 type DailyFeesRow = {
   day: string;
@@ -27,7 +36,7 @@ const fetch = (instrument: string) => async (_: any, _1: any, options: FetchOpti
     `&duration=${durationSeconds}` +
     `&endTime=${encodeURIComponent(endTimeIso)}`;
 
-  const rows = (await httpGet(url)) as DailyFeesRow[];
+  const rows = (await httpGet(url, { headers: { 'Authorization': `Bearer ${getEnv('DERIVE_API_KEY')}` }})) as DailyFeesRow[];
 
   if (!rows || rows.length === 0)
     throw new Error(`No data returned from Derive fees endpoint for url: ${url}`);

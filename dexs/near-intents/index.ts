@@ -1,31 +1,23 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
-
-interface ApiResponse {
-  DATE: string;
-  GROSS_AMOUNT_USD: number;
-}
-
-const api = "https://app.near-intents.org/api/stats/trading_volume";
+import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
-  const res = await fetchURL(api);
-  const data: ApiResponse[] = Array.isArray(res) ? res : res?.data || [];
+  const duneQuery = `
+    SELECT
+      sum(CAST(volume_amount_usd AS DOUBLE)) AS daily_volume
+    FROM
+      dune.near.dataset_near_intents_metrics
+    WHERE
+      date_at = '${options.dateString}'
+  `;
+  const queryResult = await queryDuneSql(options, duneQuery);
 
-  const normalizedDate = options.dateString; // YYYY-MM-DD
-
-  const record = data.find((t: ApiResponse) => {
-    const recordDate = new Date(t.DATE).toISOString().split("T")[0];
-    return recordDate === normalizedDate;
-  });
-
-  if (!record) {
-    throw new Error(`Near Intents: No volume data found for ${normalizedDate}`);
-  }
+  const dailyVolume = options.createBalances();
+  dailyVolume.addUSDValue(queryResult[0].daily_volume);
 
   return {
-    dailyVolume: record.GROSS_AMOUNT_USD,
+    dailyVolume,
   };
 };
 
@@ -34,6 +26,8 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.NEAR],
   start: "2024-11-05",
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
 };
 
 export default adapter;

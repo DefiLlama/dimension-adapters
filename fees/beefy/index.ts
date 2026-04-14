@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { addTokensReceived } from '../../helpers/token';
+import { METRIC } from '../../helpers/metrics';
 
 const totalFee = 9.5;
 const strategistFee = 0.5;
@@ -296,9 +297,10 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // scale revenue up to include strategist and call fees
-  const dailyFees = dailyRevenue.clone(totalFee / revenueFee);
-  const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100);
-  const dailyHoldersRevenue = dailyRevenue.clone(holderShare / 100);
+  const dailyFees = dailyRevenue.clone(totalFee / revenueFee, METRIC.PERFORMANCE_FEES);
+  const dailyProtocolRevenue = dailyRevenue.clone(protocolShare / 100, METRIC.PROTOCOL_FEES);
+  const dailyHoldersRevenue = dailyRevenue.clone(holderShare / 100, METRIC.STAKING_REWARDS);
+
   return {
     dailyFees,
     dailyRevenue,
@@ -314,11 +316,25 @@ const methodology = {
   ProtocolRevenue: `${protocolShare}% of revenue is distributed to the treasury`,
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.PERFORMANCE_FEES]: `${totalFee}% performance fee charged on vault harvest yields, paid by vault depositors when yields are compounded`,
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: `${protocolShare}% of revenue allocated to protocol treasury after deducting strategist and harvester fees`,
+  },
+  HoldersRevenue: {
+    [METRIC.STAKING_REWARDS]: `${holderShare}% of revenue distributed to BIFI token stakers`,
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
