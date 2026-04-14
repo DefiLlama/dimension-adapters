@@ -31,14 +31,12 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,
-            meta: {
-                methodology: {
-                    Fees: 'All trading fees paid by users.',
-                    Revenue: 'All trading fees paid by users.',
-                    ProtocolRevenue: 'All trading fees paid by users.',
-                }
-            }
         },
+    },
+    methodology: {
+        Fees: 'All trading fees paid by users.',
+        Revenue: 'All trading fees paid by users.',
+        ProtocolRevenue: 'All trading fees paid by users.',
     }
 };
 

@@ -6,13 +6,28 @@ jobs:
   ts-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Get Node.js
-      uses: actions/setup-node@v1
-      with:
-        node-version: '16'
-    - run: npm ci
-    - name: Checking adapters
-      run: npm run ts-check
-    - name: Checking cli
-      run: npm run ts-check-cli
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 10
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Checking adapters
+        run: pnpm run ts-check
+        
+      - name: Checking cli
+        run: pnpm run ts-check-cli

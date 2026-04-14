@@ -1,4 +1,5 @@
 import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { DanogoDimensions, } from "./types";
 
@@ -12,22 +13,19 @@ const fetchDanogoGatewayData = async (timestamp: number): Promise<DanogoDimensio
 }
 
 const fetchData = async (timestamp: number, _:ChainBlocks, { createBalances, }: FetchOptions) => {
-    const { dailyVolumeAdaValue, totalFeesAdaValue }= await fetchDanogoGatewayData(timestamp);
+    const { dailyVolumeAdaValue, }= await fetchDanogoGatewayData(timestamp);
     const dailyVolume = createBalances();
-    const totalVolume = createBalances();
     dailyVolume.addGasToken(dailyVolumeAdaValue)
-    totalVolume.addGasToken(totalFeesAdaValue)
 
     return {
         timestamp,
         dailyVolume,
-        // totalVolume,
     };
 }
 
 const adapter: SimpleAdapter = {
     adapter: {
-        cardano: {
+        [CHAIN.CARDANO]: {
             fetch: fetchData,
             start: DANOGO_START_TIMESTAMP,
         }

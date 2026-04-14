@@ -11,11 +11,10 @@ interface IAPIResponse {
   totalVolume: string;
 }
 const fetch = async (timestamp: number): Promise<FetchResult> => {
-  const { last24HourVolume, totalVolume }: IAPIResponse = (
+  const { last24HourVolume, }: IAPIResponse = (
     await fetchURL(`${URLEndpoint}${timestamp}`)
   );
   return {
-    totalVolume: totalVolume,
     dailyVolume: last24HourVolume,
     timestamp: timestamp
   };

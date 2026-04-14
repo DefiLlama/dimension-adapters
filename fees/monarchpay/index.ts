@@ -18,16 +18,15 @@ const fetch = async ({ getLogs }: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.KAVA]: {
       fetch: fetch,
       start: '2023-09-07',
-      meta: {
-        methodology: {
-          Fees: 'Payment fees paid by users.',
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: 'Payment fees paid by users.',
   }
 }
 

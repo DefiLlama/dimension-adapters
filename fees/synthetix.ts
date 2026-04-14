@@ -36,20 +36,16 @@ const graphs = (chain: Chain) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graphs(CHAIN.ETHEREUM),
       start: '2022-05-26',
-      meta: {
-        methodology
-      }
     },
     [CHAIN.OPTIMISM]: {
       fetch: graphs(CHAIN.OPTIMISM),
       start: '2021-11-11',
-      meta: {
-        methodology
-      }
     },
   }
 }

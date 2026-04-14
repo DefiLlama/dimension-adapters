@@ -25,24 +25,15 @@ const graphs = (chain: Chain) => {
     if (chain === CHAIN.KCC && timestamp > 1714867200) return {} // last tx date is 2024-05-05
     const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
 
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.date).getTime() / 1000) <= dayTimestamp)
-      .reduce((acc, { volume }) => acc + Number(volume), 0)
     const dailyVolume = historicalVolume
       .find(dayItem => (new Date(dayItem.date).getTime() / 1000) === dayTimestamp)?.volume
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
   }
 };
-
-const getStartTimestamp = async (chain: Chain) => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(endpoints[chain])).tradingChart;
-  return (new Date(historicalVolume[0].date).getTime()) / 1000;
-}
 
 const adapter: SimpleAdapter = {
   adapter: Object.keys(endpoints).reduce((acc, chain: any) => {
@@ -50,7 +41,6 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch: graphs(chain as Chain),
-        start: async () => getStartTimestamp(chain),
       }
     }
   }, {})

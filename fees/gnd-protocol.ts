@@ -44,15 +44,14 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2023-04-14',
-      meta: {
-        methodology
-      }
+    },
   },
-  }
+  methodology,
 }
 
 export default adapter;

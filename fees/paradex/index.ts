@@ -28,11 +28,15 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.ETHEREUM]: {
+    [CHAIN.PARADEX]: {
       fetch,
       start: '2023-09-01',
     },
   },
+  methodology: {
+		Fees: "Tracks total fees paid by traders on Paradex.",
+	},
+  skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
 };
 
 export default adapter; 

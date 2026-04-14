@@ -21,13 +21,11 @@ const adapter: Adapter = {
       fetch: async (__t: number, _: any, { startOfDay }: FetchOptions) => {
         const t = getUniqStartOfTodayTimestamp(new Date(startOfDay * 1000));
         const data: DailyStats[] = await fetchURL(apiEVM);
-        const totalFee = data.reduce((acc, { netFee }) => acc + netFee, 0);
         return {
           timestamp: t,
           dailyFees: data.find(
             ({ createdAt }) => new Date(createdAt).valueOf() / 1_000 === t
           )?.netFee,
-          totalFees: totalFee,
         };
       },
     },

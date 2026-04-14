@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       runAtCurrTime: true,
-      start: "2024-12-22",
+      start: "2022-03-22",
     },
     [CHAIN.ECLIPSE]: {
       fetch: fetchEclipse,

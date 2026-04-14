@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { addGasTokensReceived, evmReceivedGasAndTokens, getETHReceived } from "../helpers/token"
 
 // https://github.com/ethereum-optimism/op-analytics/blob/main/op_collective_economics/opcollective_feesplit/inputs/op_collective_feesplit_config.csv
 // https://github.com/ethereum-optimism/op-analytics/blob/main/src/op_analytics/configs/revshare_to_addresses.yaml
@@ -107,26 +106,23 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  methodology,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
       start: '2023-06-01',
-      meta: { methodology },
     },
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2022-04-01',
-      meta: { methodology },
     },
     [CHAIN.UNICHAIN]: {
       fetch,
       start: '2025-02-01',
-      meta: { methodology },
     },
     [CHAIN.SONEIUM]: {
       fetch,
       start: '2024-12-01',
-      meta: { methodology },
     },
   }
 }

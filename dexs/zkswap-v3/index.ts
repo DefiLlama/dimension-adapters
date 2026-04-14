@@ -25,9 +25,10 @@ import { addOneToken } from "../../helpers/prices";
 //   }
 // });
 
-const factories: {[key: string]: string} = {
+const factories: { [key: string]: string } = {
   [CHAIN.ERA]: '0x88add6a7e3c221e02f978b388a092c9fd8cd7850',
   [CHAIN.SONIC]: '0x6d977fcc945261b80d128a5a91cbf9a9148032a4',
+  [CHAIN.MONAD]: '0xf5Cf2b71B8B368c84C4C4903AF453E790d392285',
 }
 
 function getRevenueRatio(fee: number): number {
@@ -45,9 +46,9 @@ const poolCreatedEvent = 'event PoolCreated(address indexed token0, address inde
 const fetch = async (options: FetchOptions) => {
   const factory = String(factories[options.chain]).toLowerCase()
   const { createBalances, getLogs, chain, api } = options
-  
+
   if (!chain) throw new Error('Wrong version?')
-  
+
   const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
   const iface = new ethers.Interface([poolCreatedEvent])
   let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
@@ -60,7 +61,7 @@ const fetch = async (options: FetchOptions) => {
     pairObject[log.pool] = [log.token0, log.token1]
     fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
   })
-  
+
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -83,33 +84,24 @@ const fetch = async (options: FetchOptions) => {
       addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
     })
   })
-  
+
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
-const meta = {
+const adapters: SimpleAdapter = {
   methodology: {
     Fees: "A trading fee, depending on the fee tier of the CL pool, is collected.",
     UserFees: "Users pay a percentage of the volume, which equal to the pool fee tier, for each swap.",
     Revenue: "Approximately 33% of the fees go to the protocol.",
     ProtocolRevenue: "Approximately 33% of the fees go to the protocol.",
     SupplySideRevenue: "Approximately 67% of the fees are distributed to liquidity providers (ZFLP token holders).",
-  }
-};
-
-const adapters: SimpleAdapter = {
+  },
   version: 2,
+  fetch,
   adapter: {
-    [CHAIN.ERA]: {
-      fetch: fetch,
-      start: '2024-11-18',
-      meta,
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch,
-      start: '2025-04-09',
-      meta,
-    }
+    [CHAIN.ERA]: { start: '2024-11-18', },
+    [CHAIN.SONIC]: { start: '2025-04-09', },
+    [CHAIN.MONAD]: { start: '2025-11-24', }
   }
 }
 export default adapters;

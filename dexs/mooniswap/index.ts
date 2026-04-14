@@ -1,11 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { ETHEREUM } from "../../helpers/chains";
+import { CHAIN } from "../../helpers/chains";
 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
-    [ETHEREUM]: {
+    [CHAIN.ETHEREUM]: {
       fetch,
     },
   },

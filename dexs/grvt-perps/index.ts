@@ -10,12 +10,10 @@ const endpoint = (startTime: number, endTime: number) => {
 export async function fetchGRVTDex(options: FetchOptions) {
   const url = endpoint(options.startTimestamp, options.endTimestamp);
   const resp = await fetchURL(url);
-  const dailyVolume = Number(resp.dailyVolume).toFixed(5);
-  const openInterestAtEnd = Number(resp.dailyOpenInterest).toFixed(5);
 
   return {
-    dailyVolume,
-    openInterestAtEnd
+    dailyVolume: resp.dailyVolume,
+    openInterestAtEnd: resp.dailyOpenInterest
   };
 }
 
@@ -23,7 +21,7 @@ export async function fetchGRVTDex(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ZKSYNC]: {
+    [CHAIN.GRVT]: {
       fetch: fetchGRVTDex,
       start: '2024-12-01',
     },

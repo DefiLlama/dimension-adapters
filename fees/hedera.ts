@@ -5,7 +5,7 @@ import { CHAIN } from "../helpers/chains";
 
 const graphqlEndpoint = "https://mainnet.hedera.api.hgraph.dev/v1/graphql";
 
-const fetch = async (_:any, _1: any, options: FetchOptions) => {
+const fetch = async (_: any, _1: any, options: FetchOptions) => {
   const { fromTimestamp, toTimestamp } = options;
   const startDate = new Date(fromTimestamp * 1000).toISOString();
   const endDate = new Date(toTimestamp * 1000).toISOString();
@@ -44,12 +44,9 @@ const fetch = async (_:any, _1: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.HEDERA]: {
-      fetch,
-      start: '2019-09-14'
-    },
-  },
+  fetch,
+  chains: [CHAIN.HEDERA],
+  start: '2019-09-14',
   protocolType: ProtocolType.CHAIN,
 };
 

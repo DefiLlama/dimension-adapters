@@ -28,14 +28,10 @@ const fetch = (chainId: string) => {
     const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
     const historicalVolume: IVolume[] = (await fetchURL(historicalVolumeEndpoints[chainId]));
 
-    const totalVolume = historicalVolume
-      .find(item => item.time === dayTimestamp)?.totalTradeAmount
-
     const dailyVolume = historicalVolume
       .find(item => item.time === dayTimestamp)?.dayTradeAmount
 
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
       timestamp: dayTimestamp,
     };
@@ -55,10 +51,10 @@ const adapter: SimpleAdapter = {
       fetch: fetch(CHAIN.MANTA), start: '2023-11-01'
     },
     [CHAIN.TAIKO]: {
-      fetch: fetch(CHAIN.TAIKO), start: '2024-05-30'
+      fetch: fetch(CHAIN.TAIKO), start: '2024-05-30', deadFrom: '2026-02-10'
     },
     [CHAIN.BSQUARED]: {
-      fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30'
+      fetch: fetch(CHAIN.BSQUARED), start: '2024-07-30', deadFrom: '2026-02-24'
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE), start: '2024-10-09'

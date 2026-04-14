@@ -22,7 +22,7 @@ const graphs = (graphUrls: ChainEndpoints) => {
     return (chain: Chain) => {
         return async (timestamp: number) => {
             const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-            const searchTimestamp = chain == "base" ? todaysTimestamp : todaysTimestamp + ":daily"
+            const searchTimestamp = chain == CHAIN.BASE ? todaysTimestamp : todaysTimestamp + ":daily"
 
             const graphQuery = gql
                 `{
@@ -60,11 +60,9 @@ const adapter: Adapter = {
         [CHAIN.BASE]: {
             fetch: graphs(endpoints)(CHAIN.BASE),
             start: '2023-08-12',
-            meta: {
-                methodology
-            }
         },
-    }
+    },
+    methodology
 }
 
 export default adapter;

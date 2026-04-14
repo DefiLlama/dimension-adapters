@@ -15,15 +15,10 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const historicalVolume: IVolumeall[] = (await httpPost(historical, {start_time: START_TIME, skip: 0}))?.data.uniswapDayDatas;
 
-  const totalVolume = historicalVolume
-    .filter(volItem => Number(volItem.date) <= dayTimestamp)
-    .reduce((acc, { dailyVolumeUSD }) => acc + Number(dailyVolumeUSD), 0);
-
   const dailyVolume = historicalVolume
     .find(dayItem => Number(dayItem.date) === dayTimestamp)?.dailyVolumeUSD
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };

@@ -98,14 +98,9 @@ const graphs = (graphUrls: ChainEndpoints) => {
 
         return {
           dailyFees: dailyFee.toString(),
-          totalFees: totalFee.toString(),
         };
       }
 
-      return {
-        dailyFees: "0",
-        totalFees: "0",
-      };
     };
 };
 
@@ -120,6 +115,7 @@ const adapter: Adapter = {
       fetch: graphs(endpoints)(CHAIN.ZETA) as any,
     }, 
   },
+  deadFrom: "2025-10-11",
 };
 
 export default adapter;

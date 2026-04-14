@@ -29,21 +29,20 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: chains.reduce((acc, chain) => {
     return {
       ...acc,
       [chain]: {
         fetch: fetchFees,
-        meta: {
-          methodology: {
-            Fees: "Fees paid by users while using boost services.",
-            Revenue: "Fees paid by users while using boost services.",
-            ProtocolRevenue: "Fees paid by users while using boost services.",
-          }
-        }
       },
     };
   }, {}),
+  methodology: {
+    Fees: "Fees paid by users while using boost services.",
+    Revenue: "Fees paid by users while using boost services.",
+    ProtocolRevenue: "Fees paid by users while using boost services.",
+  }
 };
 
 export default adapter;

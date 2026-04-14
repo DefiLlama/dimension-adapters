@@ -17,11 +17,9 @@ const fetch = async (timestamp: number) => {
   const data: Response = response.data;
 
   const dailyFees = Number(data.dailyTakerFee) + Number(data.dailyMakerFee);
-  const totalFees = Number(data.totalTakerFee) + Number(data.totalMakerFee);
 
   return {
     dailyFees,
-    totalFees,
     timestamp,
   };
 };

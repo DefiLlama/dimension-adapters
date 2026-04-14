@@ -20,22 +20,22 @@ const fetch = async ({
     dailyFees.add(PAXG, fee);
   });
 
-  return { dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees };
 };
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2024-01-01',
-      meta: {
-        methodology: {
-          Fees: "Fees paid by users while transferring PAXG token.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Fees paid by users while transferring PAXG token.",
+    Revenue: "All the fees go to the protocol"
+  }
 };
 
 export default adapter;

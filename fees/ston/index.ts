@@ -63,23 +63,22 @@ const fetchFees = async (options: FetchOptions) => {
   return {
     dailyUserFees: total_lp_fees + total_protocol_fees + referral_fees,
     dailyFees: total_lp_fees + total_protocol_fees + referral_fees,
-    dailySupplySideRevenue: total_lp_fees,
+    dailySupplySideRevenue: total_lp_fees + referral_fees,
     dailyRevenue: total_protocol_fees,
   };
 };
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",
+    UserFees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",
+    Revenue: "Protocol receives 1/3 of fees paid by users (not including referral fees).",
+    SupplySideRevenue: "2/3 of user fees are distributed among LPs and referral fees.",
+  },
   version: 2,
   adapter: {
     [CHAIN.TON]: {
       start: '2023-11-14',
-      meta: {
-        methodology: {
-          UserFees: "User pays fee on each swap. Fees go to the protocol, LPs and optinally to the referral address.",
-          Revenue: "Protocol receives 1/3 of fees paid by users (not including referral fees).",
-          SupplySideRevenue: "2/3 of user fees are distributed among LPs (not including referral fees).",
-        },
-      },
       fetch: fetchFees,
     },
   },

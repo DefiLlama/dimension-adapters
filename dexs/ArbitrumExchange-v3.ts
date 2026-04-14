@@ -1,8 +1,15 @@
+import { SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getUniV3LogAdapter } from "../helpers/uniswap";
 
-import adapter from './ArbitrumExchange'
-const { breakdown,  ...rest } = adapter
-
-export default {
-  ...rest,
-  adapter: breakdown['v3'],
+const adapter: SimpleAdapter = {
+  version: 2,
+  adapter: {
+    [CHAIN.ARBITRUM]: {
+      fetch: getUniV3LogAdapter({ factory: '0x855f2c70cf5cb1d56c15ed309a4dfefb88ed909e' }),
+      start: '2023-05-09',
+    },
+  },
 }
+
+export default adapter;

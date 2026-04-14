@@ -21,11 +21,11 @@ const adapter: SimpleAdapter = {
 
         return {
           dailyFees: data.daily_fee,
-          totalFees: data.total_fee,
         }
       }
     }
-  }
+  },
+  deadFrom: "2025-09-18",
 };
 
 export default adapter;

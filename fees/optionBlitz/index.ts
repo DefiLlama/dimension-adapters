@@ -75,12 +75,10 @@ const methodology = {
 
 const adapters: SimpleAdapter = {
   version: 1,
+  methodology,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch as any,
-      meta: {
-        methodology: methodology,
-      },
     },
   },
 };

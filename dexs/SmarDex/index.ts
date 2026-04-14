@@ -36,11 +36,10 @@ Object.keys(CHAIN_CONFIG.GRAPH_URLS).forEach((chain: string) => {
 
         return {
           ...smardexDimensions,
-          totalVolume: undefined,
         };
       } catch (error) {
         console.error(`Error fetching data for ${chain}:`, error);
-        return subgraphFetching(options).catch(() => ({}));
+        return subgraphFetching(options)
       }
     },
 

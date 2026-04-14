@@ -16,19 +16,19 @@ const fetchFees = async (): Promise<FetchResultV2> => {
 }
 
 export default {
+  methodology: {
+    Fees: 'Fees paid by users on each swap, ranging from 0.1% to 1% depending on the pool.',
+    UserFees: 'User pays fee on each swap (depends on pool, 0.1% - 1%).',
+    Revenue: 'Protocol receives 50% of fees.',
+    SupplySideRevenue:
+      '50% of user fees are paid to liquidity providers, increasing the pool size.',
+  },
   version: 2,
   adapter: {
     [CHAIN.TON]: {
       start: '2023-11-14',
-      meta: {
-        methodology: {
-          UserFees: 'User pays fee on each swap (depends on pool, 0.1% - 1%).',
-          Revenue: 'Protocol receives 50% of fees.',
-          SupplySideRevenue:
-            '50% of user fees are paid to liquidity providers, increasing the pool size.',
-        },
-      },
       fetch: fetchFees,
+      runAtCurrTime: true,
     },
   },
 }

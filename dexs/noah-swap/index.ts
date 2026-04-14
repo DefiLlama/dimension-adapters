@@ -19,11 +19,7 @@ const fetchVolume = async (timestamp: number) => {
   const res: IData[] = (await httpPost(url, body, { headers: { "Chainid": 17777 }})).data as IData[];
   const dayItem = res.find(item => item.create_time.split('T')[0] === dateString);
   if (!dayItem) {
-    return {
-      timestamp: dayTimestamp,
-      totalVolume: undefined,
-      dailyVolume: undefined,
-    }
+    throw new Error('Missing data')
   }
   const dailyVolume = dayItem.volume_usd_24h;
   const dailyFees = dayItem.swap_fee_24h;

@@ -24,18 +24,17 @@ const fetchFees = async (options: FetchOptions) => {
 }
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetchFees,
-      meta: {
-        methodology: {
-          Fees: 'All fees paid by users for exchange tokens.',
-          Revenue: 'All fees paid by users.',
-          ProtocolRevenue: '75% fees are distributed to SideShift.',
-          HoldersRevenue: '25% fees are distributed to XAI token holders.',
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: 'All fees paid by users for exchange tokens.',
+    Revenue: 'All fees paid by users.',
+    ProtocolRevenue: '75% fees are distributed to SideShift.',
+    HoldersRevenue: '25% fees are distributed to XAI token holders.',
   }
 }
 export default adapters

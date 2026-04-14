@@ -15,13 +15,14 @@ const psm = {
 };
 
 const methodology = {
-  Revenue: "10% of tokens used to mint STTX gets sent to the treasury",
+  Fees: "10% fee on tokens used to mint STTX.",
+  Revenue: "10% of tokens used to mint STTX gets sent to the treasury.",
 };
 
 async function fetch({ createBalances, getLogs }: FetchOptions) {
   const fees = createBalances();
 
-  const logFees = (tokenAddress, logs) => {
+  const logFees = (tokenAddress: string, logs: Array<any>) => {
     logs.forEach((log: any) => {
       // logs only show 90% which goes to the contract
       const emittedAmount = Number(log.stableIn);
@@ -57,16 +58,15 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
       // Saturday, 1 March 2025 00:00:00
       start: '2025-03-01',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

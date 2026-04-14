@@ -9,7 +9,6 @@ const url = {
 const fetch = async (_1: number, _: any, { startOfDay, chain, }: FetchOptions) => {
   const volume = await fetchURL(`${url[chain]}?timestamp=${startOfDay}`)
   return {
-    totalVolume: volume?.totalVolume,
     dailyVolume: volume?.dailyVolume,
     timestamp: startOfDay,
   }

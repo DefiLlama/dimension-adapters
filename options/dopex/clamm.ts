@@ -50,23 +50,6 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
     { dayStart, nextDayStart }
   );
 
-  const cumulative = queryResponse.optionMarkets.reduce(
-    (acc, market) => {
-      return {
-        totalNotionalVolume:
-          acc.totalNotionalVolume + Number(market.totalVolume),
-        totalPremiumVolume:
-          acc.totalPremiumVolume + Number(market.totalPremium),
-        totalRevenue: acc.totalRevenue + Number(market.totalFees),
-      };
-    },
-    {
-      totalNotionalVolume: 0,
-      totalPremiumVolume: 0,
-      totalRevenue: 0,
-    }
-  );
-
   const daily = queryResponse.optionMarketDailyStats.reduce(
     (acc, market) => {
       return {
@@ -83,9 +66,6 @@ async function getChainStats({ graphUrl, timestamp }: IGetChainStatsParams) {
   );
 
   return {
-    timestamp: dayStart.toString(),
-    ...cumulative,
-    totalFees: cumulative.totalRevenue,
     ...daily,
     dailyFees: daily.dailyRevenue,
   };

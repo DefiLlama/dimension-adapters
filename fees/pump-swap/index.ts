@@ -1,5 +1,5 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -15,76 +15,68 @@ interface IData {
 }
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-    const data: IData[] = await queryDuneSql(options, `WITH
-        decoded_pool AS (
+    const data: IData[] = await queryDuneSql(options, `
+        WITH pools AS (
             SELECT
-                to_base58 (bytearray_substring (data, 182, 32)) AS pool,
-                to_base58 (bytearray_substring (data, 91, 32)) AS quoteMint
+                pool,
+                quote_mint AS quoteMint
             FROM
-                solana.instruction_calls
-            WHERE
-                varbinary_starts_with (data, 0xe445a52e51cb9a1db1310cd2a076a774)
-                AND executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
+                pumpdotfun_solana.pump_amm_evt_createpoolevent
         ),
-        decoded_swap AS (
+        sells AS (
             SELECT
-                tx_id,
-                block_time,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 73, 8))
-                ) AS quoteAmountOutorIn,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 89, 8))
-                ) AS lpFee,
-                BYTEARRAY_TO_UINT256 (
-                    BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 105, 8))
-                ) AS protocolFee,
-                COALESCE(CASE WHEN BYTEARRAY_LENGTH(data) >= 368 THEN BYTEARRAY_TO_UINT256(BYTEARRAY_REVERSE(BYTEARRAY_SUBSTRING(data, 361, 8))) ELSE 0 END, 0) AS coinCreatorFee,
-                to_base58 (bytearray_substring (data, 129, 32)) AS pool
+                quote_amount_out AS amount,
+                lp_fee,
+                protocol_fee,
+                coin_creator_fee,
+                pool
             FROM
-                solana.instruction_calls
+                pumpdotfun_solana.pump_amm_evt_sellevent
             WHERE
-                tx_success = TRUE
-                AND inner_executing_account = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
-                AND (
-                    VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d3e2f370aa503dc2a)
-                    OR VARBINARY_STARTS_WITH (data, 0xe445a52e51cb9a1d67f4521f2cf57777)
-                )
-                AND TIME_RANGE
+                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+        ),
+        buys AS (
+            SELECT
+                quote_amount_in AS amount,
+                lp_fee,
+                protocol_fee,
+                coin_creator_fee,
+                pool
+            FROM
+                pumpdotfun_solana.pump_amm_evt_buyevent
+            WHERE
+                evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
         ),
         pumpswap_trades AS (
             SELECT
-                s.block_time,
-                DATE_TRUNC('day', s.block_time) AS dt,
-                s.quoteAmountOutorIn,
                 p.quoteMint,
-                s.protocolFee,
-                s.lpFee,
-                s.coinCreatorFee
+                s.amount,
+                s.protocol_fee AS protocolFee,
+                s.lp_fee AS lpFee,
+                s.coin_creator_fee AS coinCreatorFee
             FROM
-                decoded_swap s
-                JOIN decoded_pool p ON s.pool = p.pool
+                (SELECT * FROM buys UNION ALL SELECT * FROM sells) s
+                JOIN pools p ON s.pool = p.pool
             WHERE
-                s.block_time >= TIMESTAMP '2025-03-15'
-                AND p.quoteMint IN (
+                p.quoteMint IN (
                     '${ADDRESSES.solana.SOL}',
                     'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
                     '${ADDRESSES.solana.USDC}',
                     '${ADDRESSES.solana.USDT}',
+                    '${ADDRESSES.solana.PUMP}',
                     'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
                 )
-                AND TIME_RANGE
         )
         SELECT
             quoteMint,
-            SUM(quoteAmountOutorIn) AS quoteAmountOutorIn,
-            SUM(protocolFee) as protocolFee,
-            SUM(lpFee) as lpFee,
-            SUM(coinCreatorFee) as coinCreatorFee
+            SUM(amount) AS quoteAmountOutorIn,
+            SUM(protocolFee) AS protocolFee,
+            SUM(lpFee) AS lpFee,
+            SUM(coinCreatorFee) AS coinCreatorFee
         FROM
             pumpswap_trades
         WHERE
-            quoteAmountOutorIn IS NOT NULL
+            amount IS NOT NULL
         GROUP BY
             quoteMint
     `)
@@ -94,39 +86,53 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyCoinCreatorRevenue = options.createBalances();
 
     for (const item of data) {
-        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee)
-        dailySupplySideRevenue.add(item.quoteMint, item.lpFee)
-        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0)
+        dailyProtocolRevenue.add(item.quoteMint, item.protocolFee, 'ProtocolFees')
+        dailySupplySideRevenue.add(item.quoteMint, item.lpFee, 'DexLPFees')
+        dailyCoinCreatorRevenue.add(item.quoteMint, item.coinCreatorFee || 0, 'DexCreatorFees');
     }
-    dailyFees.addBalances(dailyProtocolRevenue);
-    dailyFees.addBalances(dailySupplySideRevenue);
-    dailyFees.addBalances(dailyCoinCreatorRevenue);
+    dailyFees.addBalances(dailyProtocolRevenue, 'ProtocolFees');
+    dailyFees.addBalances(dailySupplySideRevenue, 'DexLPFees');
+    dailyFees.addBalances(dailyCoinCreatorRevenue, 'DexCreatorFees');
+    dailySupplySideRevenue.addBalances(dailyCoinCreatorRevenue, 'DexCreatorFees');
 
     return {
         dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyUserFees: dailyFees,
         dailyProtocolRevenue,
-        dailySupplySideRevenue
+        dailySupplySideRevenue,
+        dailyHoldersRevenue: 0, // buybacks are tracked in pump fun launchpad
     }
 };
 
-const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2025-03-15',
-            meta: {
-                methodology: {
-                    Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
-                    Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
-                    SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
-                    Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
-                }
-            }
-        }
+const breakdownMethodology = {
+    Fees: {
+        'ProtocolFees': 'Trade fees from PumpFun AMM that goes to the protocol',
+        'DexLPFees': 'Trade fees from PumpFun AMM that goes to liquidity providers',
+        'DexCreatorFees': 'Trade fees from PumpFun AMM that goes to coin creators',
     },
+    Revenue: {
+        'ProtocolFees': 'Trade fees from PumpFun AMM that goes to the protocol',
+    },
+    SupplySideRevenue: {
+        'DexLPFees': 'Trade fees from PumpFun AMM that goes to liquidity providers',
+        'DexCreatorFees': 'Trade fees from PumpFun AMM that goes to coin creators',
+    },
+}
+
+const adapter: SimpleAdapter = {
     version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2025-02-20',
+    breakdownMethodology,
+    methodology: {
+        Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
+        Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
+        SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
+        Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
+    },
     isExpensiveAdapter: true
 }
 

@@ -8,7 +8,6 @@ async function fetch(timestamp: number) {
   const response = await httpGet(volumeEndpoint);
 
   return {
-    totalVolume: response.totalVolume['solana:' + ADDRESSES.solana.USDC],
     dailyVolume: response.dailyVolume['solana:' + ADDRESSES.solana.USDC],
     timestamp: timestamp
   }

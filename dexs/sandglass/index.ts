@@ -31,43 +31,27 @@ const fetch = async (timestamp: number, _t: any, options: FetchOptions) => {
   const formattedDate = `${year}/${String(month).padStart(2, "0")}/${String(
     day
   ).padStart(2, "0")}`;
-  const totalVolume = historicalVolume
-    .filter(
-      (volItem) =>
-        Number(new Date(volItem.date.split("/").join("-")).getTime() / 1000) <=
-        dayTimestamp
-    )
-    .reduce((acc, { volume }) => acc + Number(volume), 0);
 
   const dailyVolume = historicalVolume.find(
     (dayItem) => dayItem.date === formattedDate
   )?.volume;
 
   return {
-    totalVolume: totalVolume,
     dailyVolume: dailyVolume,
     timestamp: dayTimestamp,
   };
-};
-
-const getStartTimestamp = async () => {
-  const historicalVolume: IVolumeall[] = convertVolume(
-    await fetchURL(historicalVolumeEndpoint)
-  );
-  return new Date(historicalVolume[0].date).getTime() / 1000;
 };
 
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch,
-      start: getStartTimestamp,
     },
     [CHAIN.ECLIPSE]: {
       fetch,
-      start: getStartTimestamp,
     },
   },
+  deadFrom: '2025-12-01', //sunset
 };
 
 export default adapter;

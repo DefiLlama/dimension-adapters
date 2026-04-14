@@ -12,6 +12,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BITLAYER]: {
       fetch: (async (options: FetchOptions) => {
@@ -26,11 +27,9 @@ const adapter: Adapter = {
         return { dailyFees, dailyRevenue: dailyFees, }
       }) as any,
       start: '2023-02-23',
-      meta: {
-        methodology
-      }
     },
   },
+  methodology
 
 }
 

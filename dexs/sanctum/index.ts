@@ -1,4 +1,5 @@
-import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, Dependencies, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
@@ -31,12 +32,11 @@ const fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions): 
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    solana: {
-      fetch,
-      start: '2022-07-14',
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: '2022-07-14',
   isExpensiveAdapter: true,
 };
 

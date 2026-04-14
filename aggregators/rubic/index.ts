@@ -36,10 +36,10 @@ const chains: Record<string, string> = {
   [CHAIN.MODE]: 'mode',
   [CHAIN.MERLIN]: 'merlin',
   [CHAIN.CORE]: 'core',
-  [CHAIN.TAIKO]: 'taiko',
+  // [CHAIN.TAIKO]: 'taiko',
   [CHAIN.ZKLINK]: 'zklink',
   [CHAIN.BITLAYER]: 'bitlayer',
-  [CHAIN.BERACHAIN]: 'berachain',
+  // [CHAIN.BERACHAIN]: 'berachain',
   [CHAIN.TON]: 'ton',
   [CHAIN.SUI]: 'sui',
   [CHAIN.UNICHAIN]: 'unichain',
@@ -49,16 +49,16 @@ const chains: Record<string, string> = {
   [CHAIN.SONEIUM]: 'soneium',
   [CHAIN.GRAVITY]: 'gravity',
   [CHAIN.ROOTSTOCK]: 'rootstock',
-  [CHAIN.KROMA]: 'kroma',
+  // [CHAIN.KROMA]: 'kroma',
   [CHAIN.XLAYER]: 'xlayer',
   [CHAIN.SEI]: 'sei',
-  [CHAIN.EON]: 'horizen-eon',
+  // [CHAIN.EON]: 'horizen-eon',   // chain is dead
   [CHAIN.BAHAMUT]: 'bahamut',
   [CHAIN.KLAYTN]: 'klaytn',
   // [CHAIN.ASTAR_ZKEVM]: 'astar-evm',
   [CHAIN.VELAS]: 'velas',
   [CHAIN.SYSCOIN]: 'syscoin',
-  [CHAIN.BOBA_BNB]: 'boba-bsc',
+  // [CHAIN.BOBA_BNB]: 'boba-bsc',
   [CHAIN.FLARE]: 'flare',
   [CHAIN.HEMI]: 'hemi'
 };
@@ -74,7 +74,7 @@ async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time * 1000))
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
   await sleep(Math.floor(Math.random() * 5) + 1)
 
   const data: ApiResponse = await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chains[options.chain]}`);
@@ -85,7 +85,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     ...Object.entries(chains).reduce((acc, [key]) => {
       return {

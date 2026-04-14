@@ -34,27 +34,23 @@ const graphs = (graphUrls: ChainEndpoints) => {
     const feeStats: IFeeStat[] = graphRes.feeStats;
 
     let dailyFeeUSD = BigInt(0);
-    let totalFeeUSD = BigInt(0);
 
     feeStats.forEach((fee) => {
       dailyFeeUSD += BigInt(fee.feeUsd);
-      totalFeeUSD += BigInt(fee.cumulativeFeeUsd);
     });
 
     const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e18;
-    const finalTotalFee = parseInt(totalFeeUSD.toString()) / 1e18;
 
     return {
       timestamp: todaysTimestamp,
       dailyFees: finalDailyFee.toString(),
-      totalFees: finalTotalFee.toString(),
     };
   };
   return fetch;
 };
 
 const methodology = {
-  dailyFees: "Total cumulativeFeeUsd for specified chain for the given day",
+  Fees: "Total cumulativeFeeUsd for specified chain for the given day",
 };
 
 const adapter: Adapter = {
@@ -63,11 +59,9 @@ const adapter: Adapter = {
     [CHAIN.LINEA]: {
       fetch: graphs(endpoints),
       start: '2024-07-02',
-      meta: {
-        methodology,
-      },
     },
   },
+  methodology,
 };
 
 export default adapter;

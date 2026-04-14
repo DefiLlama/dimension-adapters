@@ -22,15 +22,14 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  methodology: {
+    Volume: "Apstation volume",
+  },
+  fetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch,
       start: "2025-07-05",
-      meta: {
-        methodology: {
-          Volume: "Apstation volume",
-        },
-      },
     },
   },
 };

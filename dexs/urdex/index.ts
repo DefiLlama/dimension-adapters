@@ -9,21 +9,15 @@ const fetch = async (timestamp: number) => {
   const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
   const volumeData = (await fetchURL(`${volumeEndpoint}?date=${dayTimestamp}`)).data;
   return {
-    totalVolume: `${volumeData.total.TotalTradingVolume}`,
     dailyVolume: volumeData.daily.TotalTradingVolume ? `${volumeData.daily.TotalTradingVolume}` : '0',
     timestamp: dayTimestamp,
   };
 };
 
-const getStartTimestamp = async () => {
-  return 1686009600
-}
-
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: getStartTimestamp
     },
   },
 };

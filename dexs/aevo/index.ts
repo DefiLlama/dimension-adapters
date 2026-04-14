@@ -33,12 +33,10 @@ export async function fetchAevoVolumeData(
   const url = aevoVolumeEndpoint(dayTimestamp * 1e9);
   const aevoVolumeData = await getAevoVolumeData(url);
   const dailyVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
-  const totalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
 
   return {
     timestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 

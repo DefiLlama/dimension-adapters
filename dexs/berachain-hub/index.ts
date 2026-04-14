@@ -26,11 +26,8 @@ const fetch = async ({ getFromBlock, getToBlock }: FetchOptions): Promise<FetchR
 
   return {
     dailyVolume,
-    totalVolume,
     dailyFees,
-    totalFees,
     dailyRevenue,
-    totalRevenue: totalProtocolFees,
   };
 };
 

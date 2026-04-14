@@ -1,45 +1,46 @@
 import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const URL = "https://api.llama.fi/";
 
 const chains = [
-  "ethereum",
-  "bsc",
-  "polygon",
-  "optimism",
-  "arbitrum",
-  "avax",
+  CHAIN.ETHEREUM,
+  CHAIN.BSC,
+  CHAIN.POLYGON,
+  CHAIN.OPTIMISM,
+  CHAIN.ARBITRUM,
+  CHAIN.AVAX,
   "gnosis",
-  "fantom",
-  "klaytn",
-  "aurora",
-  "celo",
-  "cronos",
-  "dogechain",
-  "moonriver",
+  CHAIN.FANTOM,
+  CHAIN.KLAYTN,
+  CHAIN.AURORA,
+  CHAIN.CELO,
+  CHAIN.CRONOS,
+  CHAIN.DOGECHAIN,
+  CHAIN.MOONRIVER,
   "bttc",
-  "oasis",
-  "velas",
-  "heco",
-  "harmony",
-  "boba",
-  "okexchain",
-  "fuse",
-  "moonbeam",
-  "canto",
-  "zksync",
+  CHAIN.OASIS,
+  CHAIN.VELAS,
+  CHAIN.HECO,
+  CHAIN.HARMONY,
+  CHAIN.BOBA,
+  CHAIN.OKEXCHAIN,
+  CHAIN.FUSE,
+  CHAIN.MOONBEAM,
+  CHAIN.CANTO,
+  CHAIN.ZKSYNC,
   "polygonzkevm",
   "ontology",
-  "kava",
-  "pulse",
-  "metis",
-  "base",
+  CHAIN.KAVA,
+  CHAIN.PULSECHAIN,
+  CHAIN.METIS,
+  CHAIN.BASE,
 ];
 
 const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
   const chain = options.chain
-  if (chain === 'heco') { return {} } // skip HECO for now
+  if (chain === CHAIN.HECO) { return {} } // skip HECO for now
 
   const dailyVolume = await fetchURL(
     `${URL}getSwapDailyVolume/?timestamp=${timestamp}&chain=${chain}`

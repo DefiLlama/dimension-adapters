@@ -15,6 +15,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.HEMI]: {
       fetch: (async (options: FetchOptions) => {
@@ -40,11 +41,9 @@ const adapter: Adapter = {
         return { dailyFees, dailyRevenue: dailyFees, }
       }) as any,
       start: '2025-03-17',
-      meta: {
-        methodology
-      }
     },
   },
+  methodology,
 
 }
 

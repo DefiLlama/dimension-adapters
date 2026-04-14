@@ -35,9 +35,9 @@ function getRevenueRatio(fee: number): number {
 
 const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   const { createBalances, getLogs, chain, api } = options
-  
+
   if (!chain) throw new Error('Wrong version?')
-  
+
   const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${factory}.json`
   const iface = new ethers.Interface([poolCreatedEvent])
   let { logs } = await cache.readCache(cacheKey, { readFromR2Cache: true })
@@ -50,7 +50,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     pairObject[log.pool] = [log.token0, log.token1]
     fees[log.pool] = (log.fee?.toString() || 0) / 1e6 // seem some protocol v3 forks does not have fee in the log when not use defaultPoolCreatedEvent
   })
-  
+
   const filteredPairs = await filterPools({ api, pairs: pairObject, createBalances })
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -73,7 +73,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       addOneToken({ chain, balances: dailySupplySideRevenue, token0, token1, amount0: log.amount0.toString() * (fee - revenueRatio), amount1: log.amount1.toString() * (fee - revenueRatio) })
     })
   })
-  
+
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
@@ -83,17 +83,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.RONIN]: {
       fetch,
       start: "2024-11-26",
-      meta: {
-        methodology: {
-          Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
-          Revenue: "Protocol fees collected by Katana - 0.05% of each trade for most pools",
-          ProtocolRevenue: "Protocol fees collected by Katana - 0.05% of each trade for most pools",
-          SupplySideRevenue: "Fees distributed to LPs - 0.25% of each trade for most pools",
-          UserFees: "Same as Fees - total trading fees paid by users"
-        }
-      }
     }
   },
+  methodology: {
+    Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
+    Revenue: "Protocol fees collected by Katana - 0.05% of each trade for most pools",
+    ProtocolRevenue: "Protocol fees collected by Katana - 0.05% of each trade for most pools",
+    SupplySideRevenue: "Fees distributed to LPs - 0.25% of each trade for most pools",
+    UserFees: "Same as Fees - total trading fees paid by users"
+  }
 };
 
 export default adapter;

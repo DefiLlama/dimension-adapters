@@ -26,8 +26,9 @@ export default {
         
         return { dailyFees, dailyRevenue, }
       }) as FetchV2,
-      start: 562092, // Using the same fromBlock as in the TVL indexer
+      start: '2025-02-02', // Using the same fromBlock as in the TVL indexer
     },
   },
   version: 2,
+  pullHourly: true,
 } as Adapter

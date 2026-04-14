@@ -1,5 +1,5 @@
 import { Chain } from "../../adapters/types";
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 type Contract = {
@@ -98,10 +98,10 @@ const contract: Contract = {
     yBridge: "0x73Ce60416035B8D7019f6399778c14ccf5C9c7A1",
     xyRouter: "0x43A86823EBBe2ECF9A384aDfD989E26A30626458"
   },
-  [CHAIN.XLAYER]: {
-    yBridge: "0x6be1fe9dd10a4fbfce5552ca9add122341ec6c04",
-    xyRouter: "0x6A816cEE105a9409D8df0A83d8eeaeD9EB4309fE"
-  },
+  // [CHAIN.XLAYER]: {
+  //   yBridge: "0x6be1fe9dd10a4fbfce5552ca9add122341ec6c04",
+  //   xyRouter: "0x6A816cEE105a9409D8df0A83d8eeaeD9EB4309fE"
+  // },
   [CHAIN.TAIKO]: {
     yBridge: "0x6be1fe9dd10a4fbfce5552ca9add122341ec6c04",
     xyRouter: "0xedC061306A79257f15108200C5B82ACc874C239d"
@@ -139,7 +139,7 @@ const xyRouterContractEventAbi = `event XYRouterRequested(
         ) dstChainAction,
         address indexed affiliate)`
 
-const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances, getFromBlock, getToBlock }: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
   const dailyVolume  = createBalances();
   try {
     const yBridgeContract = contract[chain].yBridge;
@@ -171,11 +171,12 @@ const fetch: any = async (timestamp: number, _, { chain, getLogs, createBalances
   } catch (error) {
     console.error(`XY Finance fetch chain ${chain} error: ${JSON.stringify(error)}`);
   } finally {
-    return { dailyBridgeVolume: dailyVolume , timestamp, } as any;
+    return { dailyBridgeVolume: dailyVolume };
   }
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,

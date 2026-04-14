@@ -1,103 +1,87 @@
-import * as sdk from "@defillama/sdk";
-import request from "graphql-request";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from "../../helpers/dune";
 
-type IEndpoint = {
-  [chain: string]: string;
+const chainMap: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "mainnet",
+  [CHAIN.XDAI]: "gnosis",
+  [CHAIN.AVAX]: "avalanche",
+  [CHAIN.BSC]: "bsc",
 };
 
-const alchemyGraphUrl = (chain) => `https://subgraph.satsuma-prod.com/773bd6dfe1c6/egills-team/v2-${chain}/api`;
-
-const endpoint: IEndpoint = {
-  [CHAIN.ARBITRUM]: alchemyGraphUrl("arbitrum"),
-  [CHAIN.OPTIMISM]: alchemyGraphUrl("optimism"),
-  [CHAIN.ETHEREUM]: alchemyGraphUrl("mainnet"),
-  [CHAIN.POLYGON]: alchemyGraphUrl("polygon"),
-  [CHAIN.BASE]: alchemyGraphUrl("base"),
-  [CHAIN.XDAI]: alchemyGraphUrl("gnosis"),
-  [CHAIN.AVAX]: alchemyGraphUrl("avalanche"),
-  [CHAIN.LINEA]: alchemyGraphUrl("linea"),
-  [CHAIN.BSC]: alchemyGraphUrl("bsc"),
-  [CHAIN.SCROLL]: alchemyGraphUrl("scroll"),
-};
-
-interface IAssetTotals {
-  id: string;
-  symbol: string;
-  totalVolume: string;
-  openInterest: string;
-  totalFees: string;
-}
-
-interface IResponse {
-  today: IAssetTotals[];
-  yesterday: IAssetTotals[];
-}
-
-interface IAsset {
-  id: string;
-  volume: number;
-  openInterest: number;
-}
-
-const fetch = async (timestamp: number, _: any, options: FetchOptions) => {
-  const { getFromBlock, getToBlock, createBalances, api } = options;
+const fetch = async (_a: number, _: any, options: FetchOptions) => {
+  const { chain, fromTimestamp, toTimestamp } = options;
+  const mappedChain = chainMap[chain] ?? chain
   const query = `
-    {
-      today:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getToBlock()}}) {
-        id
-        symbol
-        totalVolume
-        openInterest
-      },
-      yesterday:assetTotals(where: {totalVolume_not: "0"}, block: {number: ${await getFromBlock()}}) {
-        id
-        symbol
-        totalVolume
-        openInterest
-      }
-    }
-    `;
-  const response: IResponse = await request(endpoint[options.chain], query);
+    WITH volume AS (
+      SELECT SUM(ABS(QUANTITY_USD)) AS VOL_USD 
+      FROM DUNE.CONTANGO_XYZ.RESULT_V2_ALL_TRADES
+      WHERE TIMESTAMP >= from_unixtime(${fromTimestamp}) AND TIMESTAMP <= from_unixtime(${toTimestamp}) AND chain = '${mappedChain}'
+    ), 
+    oi as (
+      with LONG_OI_DELTA as (
+        SELECT DATE_TRUNC('day', T.TIMESTAMP) AS TIMESTAMP, T.BASE AS ASSET, SUM(T.QUANTITY) AS DELTA
+        FROM DUNE.CONTANGO_XYZ.V2_TRANSACTIONS AS T
+        WHERE T.chain = '${mappedChain}' AND T.DIRECTION = 'Long'
+        GROUP BY 1, 2
+      ),
+      SHORT_OI_DELTA as (
+        SELECT DATE_TRUNC('day', T.TIMESTAMP) AS TIMESTAMP, T.BASE AS ASSET, SUM(T.QUANTITY) * -1 AS DELTA
+        FROM DUNE.CONTANGO_XYZ.V2_TRANSACTIONS AS T
+        WHERE T.chain = '${mappedChain}' AND T.DIRECTION = 'Short'
+        GROUP BY 1, 2
+    ), 
+    OI_DELTA as (
+      SELECT COALESCE(L.TIMESTAMP, S.TIMESTAMP) AS TIMESTAMP, COALESCE(L.ASSET, S.ASSET) AS ASSET, COALESCE(L.DELTA, 0) + COALESCE(S.DELTA, 0) AS DELTA
+      FROM LONG_OI_DELTA L
+      LEFT JOIN SHORT_OI_DELTA S ON (S.TIMESTAMP = L.TIMESTAMP AND S.ASSET = L.ASSET)
+    ),
+    ASSETS as (
+      SELECT distinct ASSET
+      FROM OI_DELTA
+    ),
+    OI_DIRTY as (
+      SELECT TS.TIMESTAMP AS TIMESTAMP, A.ASSET AS ASSET, SUM(OI_DELTA.DELTA) OVER (PARTITION BY A.ASSET ORDER BY TS.TIMESTAMP) AS OI
+      FROM DUNE.CONTANGO_XYZ.RESULT_DAILY_TIMESTAMPS TS
+      CROSS JOIN ASSETS A
+      LEFT JOIN OI_DELTA ON OI_DELTA.TIMESTAMP = TS.TIMESTAMP AND OI_DELTA.ASSET = A.ASSET
+      WHERE TS.TIMESTAMP <= DATE_TRUNC('day', from_unixtime(${toTimestamp}))
+    ),
+    OI as (
+      SELECT TIMESTAMP, ASSET, 
+      CASE
+        WHEN OI < 0 THEN 0
+        ELSE OI
+      END AS OI
+      FROM OI_DIRTY
+    ), 
+    OI_USD as (
+      SELECT OI.TIMESTAMP, OI.OI * PRICE.PRICE AS OI_USD
+      FROM OI
+      INNER JOIN DUNE.CONTANGO_XYZ.RESULT_V2_DAILY_PRICES_USD AS PRICE 
+      ON (PRICE.ASSET = OI.ASSET AND PRICE.TIMESTAMP = OI.TIMESTAMP)
+    )
+      SELECT '${mappedChain}' AS chain, TIMESERIES.TIMESTAMP AS TIMESTAMP, COALESCE(SUM(OI.OI_USD), 0) AS OI_USD
+      FROM DUNE.CONTANGO_XYZ.RESULT_DAILY_TIMESTAMPS AS TIMESERIES
+      LEFT JOIN OI_USD as OI ON OI.TIMESTAMP = TIMESERIES.TIMESTAMP
+      WHERE TIMESERIES.TIMESTAMP > DATE_TRUNC('day', from_unixtime(${fromTimestamp})) AND TIMESERIES.TIMESTAMP <= DATE_TRUNC('day', from_unixtime(${toTimestamp}))
+      GROUP BY 1, 2
+    )
+    SELECT volume.VOL_USD, oi.OI_USD, oi.TIMESTAMP
+    FROM volume CROSS JOIN oi
+  `;
 
-  const openInterestAtEnd = createBalances();
-  const dailyVolume = createBalances();
-
-  const tokens = response.today.map((asset) => asset.id);
-  const decimals = await api.multiCall({
-    abi: "erc20:decimals",
-    calls: tokens,
-  });
-
-  const data: IAsset[] = response.today.map((asset, index: number) => {
-    const yesterday = response.yesterday.find(
-      (e: IAssetTotals) => e.id === asset.id
-    );
-    const totalVolume =
-      Number(asset.totalVolume) - Number(yesterday?.totalVolume || 0);
-    const openInterest = Math.abs(Number(asset.openInterest));
-    const multipliedBy = 10 ** Number(decimals[index]);
-
-    return {
-      id: asset.id,
-      openInterest: openInterest * multipliedBy,
-      volume: totalVolume * multipliedBy,
-    } as IAsset;
-  });
-
-  data.map(({ volume, id, openInterest }) => {
-    dailyVolume.add(id, +volume);
-    openInterestAtEnd.add(id, +openInterest);
-  });
+  const response = await queryDuneSql(options, query);
 
   return {
-    dailyVolume,
-    openInterestAtEnd: openInterestAtEnd,
+    dailyVolume: Number(response[0].VOL_USD ? response[0].VOL_USD : 0),
+    openInterestAtEnd: Number(response[0].OI_USD ? response[0].OI_USD : 0),
   };
 };
 
 const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,

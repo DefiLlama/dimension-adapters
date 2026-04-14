@@ -1,5 +1,4 @@
 import { Adapter } from "../adapters/types";
-import { BSC, FANTOM, OPTIMISM } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
 
@@ -35,11 +34,11 @@ const graphs = () => {
 
 const adapter: Adapter = {
   adapter: {
-    [FANTOM]: {
+    [CHAIN.FANTOM]: {
         fetch: graphs()(CHAIN.FANTOM),
         runAtCurrTime: true,
             },
-    [OPTIMISM]: {
+    [CHAIN.OPTIMISM]: {
       fetch: graphs()(CHAIN.OPTIMISM),
       runAtCurrTime: true,
         },

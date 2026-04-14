@@ -73,20 +73,11 @@ const fetch: any = async (options: FetchOptions) => {
 
 export default {
   version: 2,
+  pullHourly: true,
+  methodology,
+  fetch,
   adapter: {
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2025-01-21',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2025-01-10',
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.POLYGON]: { start: '2025-01-21', },
+    [CHAIN.ETHEREUM]: { start: '2025-01-10', },
   },
 };

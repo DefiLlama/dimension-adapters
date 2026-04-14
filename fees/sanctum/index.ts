@@ -7,7 +7,11 @@ For the Reserve and the Router, fees = revenue because there is no stakeholder o
 
 */
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import {
+  Dependencies,
+  FetchOptions,
+  SimpleAdapter,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -60,6 +64,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
                         from
                             dune.sanctumso.result_stakedex_fee_accounts
                     )
+                    and token_balance_change > 0
                     AND block_time >= from_unixtime(${options.startTimestamp})
                     AND block_time <= from_unixtime(${options.endTimestamp})
                 )
@@ -84,15 +89,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch: fetch,
-      start: "2022-07-22", // First unstake transaction
-      meta: {
-        methodology,
-      },
-    },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  dependencies: [Dependencies.DUNE],
+  start: "2022-07-22", // First unstake transaction
+  methodology,
   isExpensiveAdapter: true,
 };
 

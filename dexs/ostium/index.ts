@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -54,12 +54,10 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2025-04-16'
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  dependencies: [Dependencies.DUNE],
+  start: '2025-04-16',
   isExpensiveAdapter: true
 }
 

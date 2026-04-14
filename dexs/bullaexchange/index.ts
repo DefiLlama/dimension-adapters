@@ -59,19 +59,17 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: {
       fetch,
       runAtCurrTime: true,
-      meta: {
-        methodology: {
-          Fees: "Trading fees collected by Bulla exchange",
-          UserFees: "Trading fees paid by users",
-          Revenue:
-            "Protocol revenue from trading fees (25% of total fees, per fee switch)",
-          ProtocolRevenue:
-            "Revenue retained by the protocol (25% of fees, per fee switch)",
-          SupplySideRevenue:
-            "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "Trading fees collected by Bulla exchange",
+    UserFees: "Trading fees paid by users",
+    Revenue:
+      "Protocol revenue from trading fees (25% of total fees, per fee switch)",
+    ProtocolRevenue:
+      "Revenue retained by the protocol (25% of fees, per fee switch)",
+    SupplySideRevenue:
+      "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
   },
 };
 

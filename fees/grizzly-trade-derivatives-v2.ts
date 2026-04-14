@@ -40,13 +40,12 @@ const adapter: Adapter = {
     [CHAIN.BSC]: {
       fetch,
       start: '2024-02-02',
-      meta: {
-        methodology: {
-          Fees: "All treasury, pool and keeper fees are collected",
-        },
-      },
     },
   },
+  methodology: {
+    Fees: "All treasury, pool and keeper fees are collected",
+  },
+  deadFrom: "2024-10-27"
 };
 
 export default adapter;

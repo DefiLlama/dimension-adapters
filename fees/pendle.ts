@@ -1,10 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
-import {
-  ChainBlocks,
-  FetchOptions,
-  FetchResultFees,
-  SimpleAdapter,
-} from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
@@ -16,19 +11,20 @@ const ABI = {
   assetInfo: "function assetInfo() view returns (uint8,address,uint8)",
   getRewardTokens: "function getRewardTokens() view returns (address[])",
   exchangeRate: "function exchangeRate() view returns (uint256)",
-  marketSwapEvent:
-    "event Swap(address indexed caller, address indexed receiver, int256 netPtOut, int256 netSyOut, uint256 netSyFee, uint256 netSyToReserve)",
+  marketSwapEvent: "event Swap(address indexed caller, address indexed receiver, int256 netPtOut, int256 netSyOut, uint256 netSyFee, uint256 netSyToReserve)",
 };
 
 type IConfig = {
   [s: string | Chain]: {
     treasury: string;
+    blacklists?: Array<string>;
   };
 };
 
 const STETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.STETH;
 const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
 const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
+const USDT_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.USDT;
 
 const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
 
@@ -54,6 +50,9 @@ const BRIDGED_ASSETS = [
 const chainConfig: IConfig = {
   [CHAIN.ETHEREUM]: {
     treasury: "0x8270400d528c34e1596ef367eedec99080a1b592",
+    blacklists: [
+      '0xe2796707590384430d887f15bdf97c660d95894a',
+    ],
   },
   [CHAIN.ARBITRUM]: {
     treasury: "0xcbcb48e22622a3778b6f14c2f5d258ba026b05e6",
@@ -75,207 +74,214 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BERACHAIN]: {
     treasury: "0xC328dFcD2C8450e2487a91daa9B75629075b7A43"
+  }, 
+  [CHAIN.PLASMA]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6"
+  },
+  [CHAIN.HYPERLIQUID]: {
+    treasury: "0x17A191644E750AA24a5ec13A253b9446f4eF178b"
   }
 };
 
-const fetch = (chain: Chain) => {
-  return async (
-    timestamp: number,
-    _: ChainBlocks,
-    options: FetchOptions
-  ): Promise<FetchResultFees> => {
-    await getWhitelistedAssets(options.api);
-    const { api, getLogs, createBalances } = options;
+const fetch = async (options: FetchOptions) => {
+  const { chain } = options;
+  await getWhitelistedAssets(options.api);
+  const { api, getLogs } = options;
 
-    const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
+  const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
-    const rewardTokens: string[] = (
-      await api.multiCall({
-        permitFailure: true,
-        abi: ABI.getRewardTokens,
-        calls: sys,
-      })
-    ).flat();
+  const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
 
-    const exchangeRates: String | null[] = [];
-    const assetInfos: (string[] | null)[] = [];
-    for (const sy of sys) {
-      try {
-        const exchangeRate = await api.call({
-          target: sy,
-          abi: ABI.exchangeRate,
-        });
-        const assetInfo = await api.call({ target: sy, abi: ABI.assetInfo });
-        exchangeRates.push(exchangeRate);
-        assetInfos.push(assetInfo);
-      } catch (e) {
-        exchangeRates.push(null);
-        assetInfos.push(null);
+  const rewardTokens: string[] = (
+    await api.multiCall({
+      permitFailure: true,
+      abi: ABI.getRewardTokens,
+      calls: sys,
+    })
+  ).flat();
+
+  const exchangeRates: String | null[] = [];
+  const assetInfos: (string[] | null)[] = [];
+  for (const sy of sys) {
+    try {
+      const exchangeRate = await api.call({
+        target: sy,
+        abi: ABI.exchangeRate,
+      });
+      const assetInfo = await api.call({ target: sy, abi: ABI.assetInfo });
+      exchangeRates.push(exchangeRate);
+      assetInfos.push(assetInfo);
+    } catch (e) {
+      exchangeRates.push(null);
+      assetInfos.push(null);
+    }
+  }
+
+  const allSwapEvents = await getLogs({
+    targets: markets,
+    eventAbi: ABI.marketSwapEvent,
+    flatten: false,
+  });
+
+  markets.forEach((market, i) => {
+    const token = marketToSy.get(market);
+    const logs = allSwapEvents[i]
+    logs.forEach((log: any) => {
+      const netSyFee = log.netSyFee;
+      const netSyToReserve = log.netSyToReserve;
+      dailySupplySideRevenue.add(token!, netSyFee - netSyToReserve, 'AMM Swap Fees To LPs'); // excluding revenue fee
+    })
+  })
+
+
+  const dailyRevenue = await addTokensReceived({
+    options,
+    target: chainConfig[chain].treasury,
+    tokens: rewardTokens.concat(sys),
+  });
+
+  const allRevenueTokenList = dailyRevenue.getBalances();
+  const allSupplySideTokenList = dailySupplySideRevenue.getBalances();
+
+  for (const token in allRevenueTokenList) {
+    const tokenAddr = token.split(":")[1];
+    const index = sys.indexOf(tokenAddr);
+
+    if (chainConfig[options.chain].blacklists && chainConfig[options.chain].blacklists?.includes(tokenAddr)) continue;
+
+    if (index == -1 || !assetInfos[index]) continue;
+
+    const assetInfo = assetInfos[index]!;
+
+    const rawAmountRevenue = allRevenueTokenList[token];
+    const rawAmountSupplySide = allSupplySideTokenList[token];
+
+    dailyRevenue.removeTokenBalance(token);
+    dailySupplySideRevenue.removeTokenBalance(token);
+
+    let underlyingAsset = assetInfo[1]!;
+
+    let isBridged = false;
+    for (const bridge of BRIDGED_ASSETS) {
+      if (bridge.sy === tokenAddr) {
+        underlyingAsset = bridge.asset;
+        isBridged = true;
+        break;
       }
     }
 
-    const dailySupplySideFees = createBalances();
-    const allSwapEvents = await getLogs({
-      targets: markets,
-      eventAbi: ABI.marketSwapEvent,
-      flatten: false,
-    });
+    let assetAmountRevenue = new BigNumber(rawAmountRevenue);
+    let assetAmountSupplySide = new BigNumber(rawAmountSupplySide);
+    if (assetInfo[0] === "0") {
+      const rate = exchangeRates[index] ?? 0;
+      assetAmountRevenue = assetAmountRevenue
+        .times(rate)
+        .dividedToIntegerBy(1e18);
+      assetAmountSupplySide = assetAmountSupplySide
+        .times(rate)
+        .dividedToIntegerBy(1e18);
+    }
 
-    markets.forEach((market, i) => {
-      const token = marketToSy.get(market);
-      const logs = allSwapEvents[i]
-      logs.forEach((log: any) => {
-        const netSyFee = log.netSyFee;
-        const netSyToReserve = log.netSyToReserve;
-        dailySupplySideFees.add(token!, netSyFee - netSyToReserve); // excluding revenue fee
-      })
-    })
-
-
-    const dailyRevenue = await addTokensReceived({
-      options,
-      target: chainConfig[chain].treasury,
-      tokens: rewardTokens.concat(sys),
-    });
-
-    const allRevenueTokenList = dailyRevenue.getBalances();
-    const allSupplySideTokenList = dailySupplySideFees.getBalances();
-
-    for (const token in allRevenueTokenList) {
-      const tokenAddr = token.split(":")[1];
-      const index = sys.indexOf(tokenAddr);
-
-      if (index == -1 || !assetInfos[index]) continue;
-
-      const assetInfo = assetInfos[index]!;
-
-      const rawAmountRevenue = allRevenueTokenList[token];
-      const rawAmountSupplySide = allSupplySideTokenList[token];
-
-      dailyRevenue.removeTokenBalance(token);
-      dailySupplySideFees.removeTokenBalance(token);
-
-      let underlyingAsset = assetInfo[1]!;
-
-      let isBridged = false;
-      for (const bridge of BRIDGED_ASSETS) {
-        if (bridge.sy === tokenAddr) {
-          underlyingAsset = bridge.asset;
-          isBridged = true;
-          break;
+    dailyRevenue.addToken(
+      underlyingAsset,
+      assetAmountRevenue,
+      isBridged
+        ? {
+          skipChain: true,
         }
-      }
+        : undefined
+    );
 
-      let assetAmountRevenue = new BigNumber(rawAmountRevenue);
-      let assetAmountSupplySide = new BigNumber(rawAmountSupplySide);
-      if (assetInfo[0] === "0") {
-        const rate = exchangeRates[index] ?? 0;
-        assetAmountRevenue = assetAmountRevenue
-          .times(rate)
-          .dividedToIntegerBy(1e18);
-        assetAmountSupplySide = assetAmountSupplySide
-          .times(rate)
-          .dividedToIntegerBy(1e18);
-      }
-
-      dailyRevenue.addToken(
+    if (rawAmountSupplySide !== undefined) {
+      dailySupplySideRevenue.addToken(
         underlyingAsset,
-        assetAmountRevenue,
+        assetAmountSupplySide,
         isBridged
           ? {
             skipChain: true,
           }
           : undefined
       );
-
-      if (rawAmountSupplySide !== undefined) {
-        dailySupplySideFees.addToken(
-          underlyingAsset,
-          assetAmountSupplySide,
-          isBridged
-            ? {
-              skipChain: true,
-            }
-            : undefined
-        );
-      }
     }
+  }
 
-    // these revenue should be counted in fees too
-    dailyRevenue.addBalances(
-      await addTokensReceived({
-        options,
-        target: AIRDROP_DISTRIBUTOR,
-      })
-    )
+  // these revenue should be counted in fees too
+  // Only track tokens sent from treasury (or team wallet) to the airdrop distributor, matching Pendle's Dune query
+  const tokenToDistributor = chain === CHAIN.ETHEREUM ? await addTokensReceived({
+    options,
+    target: AIRDROP_DISTRIBUTOR,
+    fromAddressFilter: chainConfig[chain].treasury,
+  }) : options.createBalances()
 
-    const dailyFees = dailyRevenue.clone();
-    dailyFees.addBalances(dailySupplySideFees);
+  tokenToDistributor.removeTokenBalance(USDT_ETHEREUM) // ignore USDT airdrop
 
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: 0,
-      dailyHoldersRevenue: dailyRevenue,
-      dailySupplySideRevenue: dailySupplySideFees,
-      timestamp,
-    };
+  dailyRevenue.addBalances(tokenToDistributor, 'Other Fees')
+  dailyFees.addBalances(dailyRevenue, 'YT And Swap Fees');
+  dailyFees.addBalances(dailySupplySideRevenue, 'AMM Swap Fees To LPs');
+
+  // https://docs.pendle.finance/ProtocolMechanics/Mechanisms/Fees
+  // Protocol revenue (20% cut) only started in September 2025; before that, 100% went to vePENDLE holders
+  const protocolRevenueStartDate = new Date('2025-09-01').getTime() / 1000
+  const hasProtocolRevenue = options.startOfDay >= protocolRevenueStartDate
+  const dailyHoldersRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.8, 'vePENDLE Distributions') : dailyRevenue.clone(1, 'vePENDLE Distributions')
+  const dailyProtocolRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.2, 'Treasury And Operations') : dailyRevenue.clone(0)
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
 
-const meta = {
-  methodology: {
+const methodology = {
     Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
-    Revenue: 'Share of yields and trading fees collected by protocol',
-    ProtocolRevenue: 'Share of yields and trading fees collected by protocol',
-    HoldersRevenue: 'Share of yields and trading fees distributed to vePENDLE',
-    SupplySideRevenue: 'Yields and trading fees diestibuted to depositors and liqudiity providers',
-  }
+    Revenue: 'Sum of 5% fee from all yield + points accrued and 80% trading fees.',
+    ProtocolRevenue: '20% revenue to protocol treasury and operations (since September 2025, 0% before).',
+    HoldersRevenue: '80% revenue distributed to vePENDLE holders (100% before September 2025).',
+    SupplySideRevenue: '20% of AMM swap fees distributed to liquidity providers.',
+}
+
+const breakdownMethodology = {
+    Fees: {
+      'YT And Swap Fees': 'YT fees (5% of all yield accrued by YT) + 80% of AMM swap fees + limit order swap fees sent to treasury.',
+      'AMM Swap Fees To LPs': '20% of AMM swap fees retained by liquidity providers.',
+    },
+    Revenue: {
+      'YT And Swap Fees': 'YT fees, AMM swap fees, and limit order fees collected by the treasury.',
+      'Other Fees': 'Non-USDT fees from negotiated points, distributed via airdrop distributor.',
+    },
+    SupplySideRevenue: {
+      'AMM Swap Fees To LPs': '20% of AMM swap fees distributed to liquidity providers.',
+    },
+    HoldersRevenue: {
+      'vePENDLE Distributions': 'Revenue distributed to vePENDLE/sPENDLE holders as yield and reward tokens.',
+    },
+    ProtocolRevenue: {
+      'Treasury And Operations': '20% of revenue split between protocol treasury (10%) and operations (10%), effective since September 2025.',
+    },
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  // pullHourly: true,
+  fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-      start: '2023-06-09',
-      meta,
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-      start: '2023-06-09',
-      meta,
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-      start: '2023-06-09',
-      meta,
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-      start: '2023-08-11',
-      meta,
-    },
-    [CHAIN.MANTLE]: {
-      fetch: fetch(CHAIN.MANTLE),
-      start: '2024-03-27',
-      meta,
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-      start: '2024-11-12',
-      meta,
-    },
-    [CHAIN.SONIC]: {
-      fetch: fetch(CHAIN.SONIC),
-      start: '2025-02-14',
-      meta,
-    },
-    [CHAIN.BERACHAIN]: {
-      fetch: fetch(CHAIN.BERACHAIN),
-      start: '2025-02-07',
-      meta,
-    }
+    [CHAIN.ETHEREUM]: { start: '2022-11-23' },
+    [CHAIN.ARBITRUM]: { start: '2023-03-07' },
+    [CHAIN.BSC]: { start: '2023-06-28' },
+    [CHAIN.OPTIMISM]: { start: '2023-08-11' },
+    [CHAIN.MANTLE]: { start: '2024-04-01' },
+    [CHAIN.BASE]: { start: '2024-11-12' },
+    [CHAIN.SONIC]: { start: '2025-02-14' },
+    [CHAIN.BERACHAIN]: { start: '2025-02-07' }, 
+    [CHAIN.PLASMA]: { start: '2025-09-24' },
+    [CHAIN.HYPERLIQUID]: { start: '2025-07-09' }
   },
+  methodology,
+  breakdownMethodology,
 };
 
 async function getWhitelistedAssets(api: ChainApi): Promise<{
@@ -291,10 +297,11 @@ async function getWhitelistedAssets(api: ChainApi): Promise<{
   let hasMore = true;
 
   while (hasMore) {
-    const { results: newResults } = await getConfig(
+    let { results: newResults } = await getConfig(
       `pendle/v2/revenue-${api.chainId!}-${skip}-${weekId}`,
       `https://api-v2.pendle.finance/core/v1/${api.chainId!}/markets?order_by=name%3A1&skip=${skip}&limit=100&select=all`
     );
+    newResults = newResults || []
     results = results.concat(newResults);
     skip += 100;
     hasMore = newResults.length === 100;

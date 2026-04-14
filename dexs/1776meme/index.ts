@@ -38,15 +38,12 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: 22764597,
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.ETHEREUM]: {},
   },
+  fetch,
+  methodology,
 };
 
 export default adapter;

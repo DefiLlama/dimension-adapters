@@ -51,6 +51,7 @@ const collector: IContract = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(collector).reduce((acc, chain) => {
     return {
       ...acc,
@@ -62,16 +63,14 @@ const adapter: SimpleAdapter = {
           }),
         }),
         start: "2023-08-10",
-        meta: {
-          methodology: {
-            Fees: 'All fees paid by users for swap and bridge tokens via Jumper Exchange.',
-            Revenue: 'All fees are distributed to Jumper Exchange.',
-            ProtocolRevenue: 'All fees are distributed to Jumper Exchange.',
-          }
-        }
       },
     };
   }, {}),
+  methodology: {
+    Fees: 'All fees paid by users for swap and bridge tokens via Jumper Exchange.',
+    Revenue: 'All fees are distributed to Jumper Exchange.',
+    ProtocolRevenue: 'All fees are distributed to Jumper Exchange.',
+  }
 };
 
 export default adapter;

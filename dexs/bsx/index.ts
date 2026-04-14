@@ -17,7 +17,6 @@ const fetchBsxVolumeData: FetchV2 = async ({ endTimestamp }) => {
   return {
     timestamp: endTimestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 
@@ -29,6 +28,7 @@ const adapter: SimpleAdapter = {
       start: '2024-04-01',
     },
   },
+  deadFrom: "2025-11-20",
 };
 
 export default adapter;

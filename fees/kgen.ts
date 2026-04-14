@@ -1,156 +1,110 @@
-import ADDRESSES from '../helpers/coreAssets.json'
-import {
-  FetchOptions,
-  FetchV2,
-  SimpleAdapter,
-} from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { APTOS_PRC, getResources } from "../helpers/aptops";
-import fetchURL from "../utils/fetchURL";
+import { queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
-interface DepositFungible {
-  amount: string;
-  token: string | null;
-  sender: string;
-  type: string;
-}
+const KGEN_FEE_RATE = 0.005;
 
-const config: Record<string, string> = {
-  [CHAIN.APTOS]: "0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4",
-  [CHAIN.POLYGON]: "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51",
-}
-
-const POLYGON_USDT_ADDRESS = ADDRESSES.polygon.USDT
-const ItemSoldEvent = "event ItemSoldV1(uint256 tokenId, uint256 quantity, uint256 totalPrice)";
-const PAGE_SIZE = 100;                        
-const APT_DECIMALS = 1e8;                     
-const toUnixTime = (timestamp: string): number =>
-  Math.floor(Number(timestamp) / 1e6);
-
-const version2tsCache: Record<string, number> = {};
-async function versionToTimestamp(version: string): Promise<number> {
-  if (version2tsCache[version] !== undefined) return version2tsCache[version];
-  const block = await fetchURL(`${APTOS_PRC}/v1/blocks/by_version/${version}`);
-  const ts = block?.block_timestamp ? toUnixTime(block.block_timestamp) : 0;
-  version2tsCache[version] = ts;
-  return ts;
-}
-async function getEventData(
-  resource: any,
-  fromTimestamp: number,
-  toTimestamp: number,
-  chain: string,
-  eventKeys: string[] = ["deposit_fungible", "deposit_native"],
-): Promise<DepositFungible[]> {
-
-  const collected: DepositFungible[] = [];
-
-  for (const key of eventKeys) {
-    const handle = resource?.data?.[key];
-    if (!handle) continue;
-
-    const creationNum = handle.guid?.id?.creation_num;
-    const totalEvents = Number(handle.counter ?? 0);
-    if (!creationNum || totalEvents === 0) continue;
-
-    for (let seq = totalEvents - 1; seq >= 0; seq -= PAGE_SIZE) {
-      const batchStart = Math.max(seq - PAGE_SIZE + 1, 0);
-      const url = `${APTOS_PRC}/v1/accounts/${config[chain]}/events/${creationNum}?start=${batchStart}&limit=${PAGE_SIZE}`;
-      const events: any[] = await fetchURL(url);
-      if (!events?.length) break;
-
-      for (const e of events.reverse()) {
-        const ts = await versionToTimestamp(e.version);
-        if (ts > toTimestamp) continue;         
-        if (ts < fromTimestamp) break;         
-
-        collected.push({
-          amount: e.data.amount,
-          token: e.data?.token ?? null,
-          sender: e.data?.sender,
-          type: e.type,
-        });
-      }
-
-      const firstTs = await versionToTimestamp(events[0].version);
-      if (firstTs < fromTimestamp) break;
-    }
-  }
-
-  return collected;
-}
-
-const fetchAptosRevenue: FetchV2 = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const resources = await getResources(config[options.chain]);
-
-  const revHolders = resources.filter((resource) =>
-    resource.type.includes("RevenueContractV2::RevenueEventHolder")
-    || resource.type.includes("RevenueContractV2::RevenueEventHolderV1"));
-
-  const eventArrays = await Promise.all(
-    revHolders.map((r) =>
-      getEventData(r, options.fromTimestamp, options.toTimestamp, options.chain))
-  );
-
-  for (const event of eventArrays.flat()) {
-    if (event.token) {
-      dailyFees.add(event.token, event.amount);
-    } else {
-      dailyFees.addCGToken("aptos", Number(event.amount) / APT_DECIMALS);
-    }
-  }
-
-  return {
-    dailyFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
+const polygonContracts = {
+  b2bContract: "0x1Fcfa7866Eb4361E322aFbcBcB426B27a29d90Bd",
+  marketplaceContract: "0x9Df4C994d8d8c440d87da8BA94D355BB85706f51",
 };
 
-const fetchPolygonRevenue: FetchV2 = async (options: FetchOptions) => {
-  const logs: any[] = await options.getLogs({
-    target: config[options.chain],
-    eventAbi: ItemSoldEvent,
+const fetchPolygon = async (_a: any, _b: any, options: FetchOptions) => {
+  const orderVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+
+  const orderPlacedLogs = await options.getLogs({
+    target: polygonContracts.b2bContract,
+    eventAbi: "event OrderPlaced(string orderId, string dpId, string productId, string purchaseUtr, string purchaseDate, uint256 quantity, uint256 amount, address customer)",
   });
 
-  const dailyFees = options.createBalances()
-
-  for (const log of logs) {
-    const amount = Number(log.totalPrice);
-    if (!isNaN(amount)) {
-      dailyFees.add(POLYGON_USDT_ADDRESS, amount);
-    }
+  for (const log of orderPlacedLogs) {
+    orderVolume.addUSDValue(Number(log.amount) / 1e6);
   }
+
+  const itemSoldLogs = await options.getLogs({
+    target: polygonContracts.marketplaceContract,
+    eventAbi: "event ItemSoldV1(uint256 tokenId, uint256 quantity, uint256 totalPrice)",
+  });
+
+  for (const log of itemSoldLogs) {
+    orderVolume.addUSDValue(Number(log.totalPrice) / 1e6);
+  }
+
+  const transferLogs = await options.getLogs({
+    target: polygonContracts.marketplaceContract,
+    eventAbi: "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)",
+  });
+
+  for (const log of transferLogs) {
+    orderVolume.addUSDValue(Number(log.value) / 1e6);
+  }
+
+  dailyFees.addBalances(orderVolume.clone(KGEN_FEE_RATE), METRIC.SERVICE_FEES);
 
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+  };
+};
+
+const fetchAptos = async (_a: any, _b: any, options: FetchOptions) => {
+  const query = `
+  WITH aptos_rev AS (
+    SELECT
+      CAST(json_extract(data, '$.amount') AS double) / 1e6 AS volume
+    FROM aptos.events
+    WHERE event_type IN (
+      '0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4::RevenueContractV2::DepositNativeAsset',
+      '0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4::RevenueContractV2::deposit_fungible',
+      '0x5a96fab415f43721a44c5a761ecfcccc3dae9c21f34313f0e594b49d8d4564f4::RevenueContractV2::DepositFungibleAsset',
+      '0x61b28909165252d7d21dbcb16572eaf13a660ad3d6d9884358894e0ea88d1e1f::order_management_v1::OrderPlacedEvent'
+    )
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+  )
+  SELECT COALESCE(SUM(volume), 0) AS volume FROM aptos_rev
+  `;
+  const data = await queryDuneSql(options, query);
+  const volume = data[0]?.volume || 0;
+
+  const dailyFees = options.createBalances();
+
+  dailyFees.addUSDValue(volume * KGEN_FEE_RATE, METRIC.SERVICE_FEES);
+
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
   };
 };
 
 const methodology = {
-  Fees: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
-  Revenue: "Fees accrued to the KGeN protocol from transaction fees on KStore, service charges, swaps, staking, and payments for Loyalty services.",
-  ProtocolRevenue: "All fees collected by KGeN.",
+  Fees: "KGeN charges a 0.5% fee on all transactions including marketplace sales, B2B orders, and service payments.",
+  Revenue: "All fees collected by the protocol go to the KGeN treasury.",
 };
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: fetchAptosRevenue,
-      start: "2025-06-02",
-      meta: { methodology },
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetchPolygonRevenue,
-      start: "2025-06-23",
-      meta: { methodology },
-    },
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SERVICE_FEES]: "0.5% fee on all platform transactions including marketplace sales, B2B orders, loyalty program payments, and staking operations",
   },
 };
 
-export default adapter;
+const adapter: SimpleAdapter = {
+  version: 1,
+  adapter: {
+    [CHAIN.POLYGON]: {
+      fetch: fetchPolygon,
+      start: "2025-06-23",
+    },
+    [CHAIN.APTOS]: {
+      fetch: fetchAptos,
+      start: "2025-06-02",
+    },
+  },
+  dependencies: [Dependencies.DUNE],
+  methodology,
+  breakdownMethodology,
+};
 
+export default adapter;

@@ -12,18 +12,17 @@ const graph = (_chain: Chain): any => {
 
 
 const adapter: Adapter = {
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: graph(CHAIN.ETHEREUM),
       start: '2023-01-16',
-      meta: {
-        methodology: {
-          Fees: 'Swap fees paid by users.',
-          Revenue: 'Swap fees paid by users.',
-          HoldersRevenue: 'All swap fees fistributed to token holders.',
-        }
-      }
     },
+  },
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'Swap fees paid by users.',
+    HoldersRevenue: 'All swap fees distributed to token holders.',
   }
 }
 

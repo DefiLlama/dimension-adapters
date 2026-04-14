@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSolanaReceived } from "../helpers/token";
 
@@ -13,15 +13,14 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetch,
-      meta: {
-        methodology: {
-          Fees: "All trading fees paid by users.",
-          Revenue: "Trading fees are collected by Photon protocol."
-        }
-      }
     },
   },
-  isExpensiveAdapter: true
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  methodology: {
+    Fees: "All trading fees paid by users.",
+    Revenue: "Trading fees are collected by Photon protocol."
+  }
 };
 
 export default adapter;

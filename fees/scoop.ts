@@ -21,14 +21,12 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2022-07-01',
-      meta: {
-        methodology: {
-          Fees: "Fees paid by users while trading on social network.",
-          Revenue: "Fees paid by users while trading on social network.",
-        }
-      }
     }
-  }
+  },
+  methodology: {
+    Fees: "Fees paid by users while trading on social network.",
+    Revenue: "Fees paid by users while trading on social network.",
+  },
 }
 
 export default adapter;

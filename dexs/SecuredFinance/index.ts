@@ -1,7 +1,7 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { gql, request } from 'graphql-request';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 const RECORDS = {
     [CHAIN.ETHEREUM]: {
@@ -14,6 +14,8 @@ const RECORDS = {
                 ADDRESSES.ethereum.WETH, // WETH
             '0x61786c46494c0000000000000000000000000000000000000000000000000000':
                 '0x6A7b717aE5Ed65F85BA25403D5063D368239828e', // axlFIL
+            '0x4a50594300000000000000000000000000000000000000000000000000000000':
+                '0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29', // JPYC Stablecoin
         },
         subgraphEndpoint:
             'https://api.studio.thegraph.com/query/64582/sf-prd-mainnet/version/latest',

@@ -46,7 +46,6 @@ const fetch = async (options: FetchOptions) => {
       } else {
         data.forEach((log: any) => dailyPremiumVolume.add(token, log.totalCollateral - log.makerCollateral));
       }
-      //console.log("dailyPremiumVolume:", dailyPremiumVolume);
     }
   }
   return { dailyPremiumVolume };
@@ -54,6 +53,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter:{
     [CHAIN.ETHEREUM]: {
       fetch,
@@ -71,10 +71,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: startTimestamp[CHAIN.POLYGON],
     },
-    [CHAIN.SEI]: {
-      fetch,
-      start: startTimestamp[CHAIN.SEI],
-    },
+    // [CHAIN.SEI]: {
+    //   fetch,
+    //   start: startTimestamp[CHAIN.SEI],
+    // },
   }
 }
 

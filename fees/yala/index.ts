@@ -59,13 +59,12 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: "2025-05-16",
-      meta: {
-        methodology,
-      },
     },
   },
 };

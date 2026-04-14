@@ -26,6 +26,7 @@ const fetch: FetchV2 = async (fetchOptions) => {
       eventAbi: POOL_CREATED_EVENT,
       onlyArgs: false, // we want full log object to parse ourselves
       fromBlock: 1,
+      cacheInCloud: true,
     });
 
     const iface = new ethers.Interface([POOL_CREATED_EVENT]);
@@ -104,18 +105,17 @@ const fetch: FetchV2 = async (fetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.DCHAIN]: {
       fetch,
       start: "2024-01-01",
-      meta: {
-        methodology: {
-          Fees: "Fees paid by users while trading on Multiswap.",
-          Revenue: "Fees paid by users while trading on Multiswap.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Fees paid by users while trading on Multiswap.",
+    Revenue: "Fees paid by users while trading on Multiswap.",
+  }
 };
 
 export default adapter; 

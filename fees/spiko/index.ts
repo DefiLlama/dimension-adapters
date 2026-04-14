@@ -67,25 +67,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyFees, dailyRevenue: dailyRevenues };
 };
 
-const meta = {
-  methodology: {
-    Fees: 'Total yields are generated from investment assets.',
-    Revenue: '15% yields are collected by Spiko protocol.',
-  }
+const methodology = {
+  Fees: 'Total yields are generated from investment assets.',
+  Revenue: '15% yields are collected by Spiko protocol.',
 }
 
 const adapter: Adapter = {
+  methodology,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2024-05-01',
-      meta,
     },
     [CHAIN.POLYGON]: {
       fetch,
       start: '2024-04-20',
-      meta,
     },
   },
 };

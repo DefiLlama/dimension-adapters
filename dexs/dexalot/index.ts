@@ -9,7 +9,7 @@ interface IVolumeall {
   date: string;
 }
 
-const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE]
+const supportedChains = [CHAIN.DEXALOT, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC]
 
 const chainToEnv = (chain: CHAIN) => {
   switch (chain) {
@@ -19,6 +19,8 @@ const chainToEnv = (chain: CHAIN) => {
       return "production-multi-arb"
     case CHAIN.BASE:
       return "production-multi-base"
+    case CHAIN.BSC:
+      return "production-multi-bsc"
     default:
       return "production-multi-subnet"
   }
@@ -38,14 +40,6 @@ const fetch = async (_a: any, _t: any, options: FetchOptions): Promise<FetchResu
   };
 }
 
-const getStartTimestamp = (chain: CHAIN) => {
-  const endpoint = `${historicalVolumeEndpoint}?env=${chainToEnv(chain)}`
-  return async () => {
-    const historicalVolume: IVolumeall[] = await httpGet(endpoint)
-    return (new Date(historicalVolume[0].date).getTime()) / 1000
-  }
-}
-
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: supportedChains.reduce((acc, chain) => {
@@ -53,7 +47,6 @@ const adapter: SimpleAdapter = {
       ...acc,
       [chain]: {
         fetch,
-        start: getStartTimestamp(chain),
       }
     }
   }, {} as BaseAdapter),

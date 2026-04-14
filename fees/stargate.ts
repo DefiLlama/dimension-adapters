@@ -139,7 +139,7 @@ const fetch = (chain: Chain) => {
   };
 };
 
-const meta = {
+const info = {
   methodology: {
     Fees: 'Total bridge fees paid by users',
     Revenue: 'Total bridge fees paid by users',
@@ -147,66 +147,55 @@ const meta = {
 }
 
 const adapter: Adapter = {
+  methodology: info.methodology,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(CHAIN.ETHEREUM),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.ARBITRUM]: {
       fetch: fetch(CHAIN.ARBITRUM),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.AVAX]: {
       fetch: fetch(CHAIN.AVAX),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.BSC]: {
       fetch: fetch(CHAIN.BSC),
       start: '2022-09-01',
-      meta,
     },
     // [CHAIN.FANTOM]: {
     //   fetch: fetch(CHAIN.FANTOM),
     //   start: '2022-09-01',
-    //   meta,
     // },
     [CHAIN.OPTIMISM]: {
       fetch: fetch(CHAIN.OPTIMISM),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.POLYGON]: {
       fetch: fetch(CHAIN.POLYGON),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.METIS]: {
       fetch: fetch(CHAIN.METIS),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.BASE]: {
       fetch: fetch(CHAIN.BASE),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.LINEA]: {
       fetch: fetch(CHAIN.LINEA),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.MANTLE]: {
       fetch: fetch(CHAIN.MANTLE),
       start: '2022-09-01',
-      meta,
     },
     [CHAIN.KAVA]: {
       fetch: fetch(CHAIN.KAVA),
       start: '2022-09-01',
-      meta,
     },
   },
 };

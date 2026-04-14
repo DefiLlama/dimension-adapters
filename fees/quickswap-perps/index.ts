@@ -35,20 +35,16 @@ const fetch = (endpoint) => {
     const feeStats: IFeeStat[] = response.feeStats;
 
     let dailyFeeUSD = BigInt(0);
-    let totalFeeUSD = BigInt(0);
 
     feeStats.forEach((fee) => {
       dailyFeeUSD += BigInt(fee.feeUsd);
-      totalFeeUSD += BigInt(fee.cumulativeFeeUsd);
     });
 
     const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e30;
-    const finalTotalFee = parseInt(totalFeeUSD.toString()) / 1e30;
 
     return {
       timestamp: todaysTimestamp,
       dailyFees: finalDailyFee.toString(),
-      totalFees: finalTotalFee.toString(),
     };
   };
 };
@@ -59,11 +55,9 @@ const adapter: Adapter = {
     [CHAIN.POLYGON_ZKEVM]: {
       fetch: fetch(endpoints[CHAIN.POLYGON_ZKEVM]),
       start: '2024-03-01',
-      meta: {
-        methodology: "All treasuryFee, poolFee and keeperFee are collected",
-      },
     },
   },
+  methodology: "All treasuryFee, poolFee and keeperFee are collected",
 };
 
 export default adapter;

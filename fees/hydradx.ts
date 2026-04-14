@@ -84,7 +84,7 @@ const fetch = async (options: FetchOptions) => {
     for (let i = 0; i < reservesList.length; i++) {
       const current = reserveDataAfter[i];
       
-      if (current && current.totalAToken > 0) {
+      if (current && (current.totalAToken > 0 || (current.totalVariableDebt > 0 || current.totalStableDebt > 0))) {
         const reserveConfig = await options.fromApi.call({
           target: pool.dataProvider,
           abi: AaveAbis.getReserveConfiguration,

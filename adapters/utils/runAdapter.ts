@@ -1,10 +1,11 @@
-import { Balances, ChainApi, getEventLogs, getProvider, elastic, log } from '@defillama/sdk'
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchV2, SimpleAdapter, } from '../types'
+import * as sdk from '@defillama/sdk';
+import { Balances, ChainApi, elastic, getEventLogs, getProvider } from '@defillama/sdk';
+import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
-import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
-import * as _env from '../../helpers/env'
+import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
-import * as sdk from '@defillama/sdk'
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -24,7 +25,7 @@ function genUID(length: number = 10): string {
   return result
 }
 
-const adapterRunResponseCache = {} as any
+// const adapterRunResponseCache = {} as any
 
 export async function setModuleDefaults(module: SimpleAdapter) {
   const { chains = [], fetch, start, runAtCurrTime } = module
@@ -42,7 +43,7 @@ export async function setModuleDefaults(module: SimpleAdapter) {
   if (!module.version) module.version = 1 // default to version 1
   module.runAtCurrTime = runAtCurrTime ?? Object.values(adapterObject).some((c: BaseAdapterChainConfig) => c.runAtCurrTime)
 
-  if (!Array.isArray(chains)) 
+  if (!Array.isArray(chains))
     throw new Error(`Chains should be an array, got ${typeof chains} instead`)
 
   Object.keys(adapterObject).filter(chain => !chains.includes(chain)).forEach(chain => chains.push(chain))
@@ -74,13 +75,24 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 }
 
+export function isHourlyAdapter(module: SimpleAdapter) {
+  const adapterVersion = module.version
+  return adapterVersion === 2 && (module as any).pullHourly === true
+}
+
+export function isPlainDateArg(rawTimeArg?: string) {
+  return !!rawTimeArg && /^\d{4}-\d{2}-\d{2}$/.test(rawTimeArg)
+}
+
 type AdapterRunOptions = {
+  deadChains?: Set<string>, // chains that are dead and should be skipped
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
   isTest?: boolean, // we print run response to console in test mode
   withMetadata?: boolean, // if true, returns metadata with the response
   cacheResults?: boolean, // if true, caches the results in adapterRunResponseCache
+  runWindowInSeconds?: number, // time window for which the adapter should run, default is 1 day
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
@@ -89,18 +101,38 @@ export default async function runAdapter(options: AdapterRunOptions) {
 
   setModuleDefaults(module)
 
+  return _runAdapter(options)
+
+/*  Disable caching run results
+
   if (!cacheResults) return _runAdapter(options)
 
   const runKey = getRunKey(options)
 
   if (!adapterRunResponseCache[runKey]) adapterRunResponseCache[runKey] = _runAdapter(options)
   else sdk.log(`[Dimensions run] Using cached results for ${runKey}`)
-  return adapterRunResponseCache[runKey]
-}
+  return adapterRunResponseCache[runKey].then((res: any) => clone(res))  // clone the object to avoid accidental mutation of the cached object
 
+  function clone(obj: any) {
+    return JSON.parse(JSON.stringify(obj))
+  }
+
+
+   */
+}
+/* 
 function getRunKey(options: AdapterRunOptions) {
-  let randomUID = options.module._randomUID ?? genUID(10)
+  const randomUID = options.module._randomUID ?? genUID(10)
   return `${randomUID}-${options.endTimestamp}-${options.withMetadata}`
+} */
+
+const startOfDayIdCache: { [key: string]: string } = {}
+
+function getStartOfDayId(timestamp: number): string {
+  if (!startOfDayIdCache[timestamp]) {
+    startOfDayIdCache[timestamp] = '' + Math.floor(timestamp / 86400)
+  }
+  return startOfDayIdCache[timestamp]
 }
 
 
@@ -108,9 +140,15 @@ async function _runAdapter({
   module, endTimestamp, name,
   isTest = false,
   withMetadata = false,
+  deadChains = new Set(),
+  runWindowInSeconds = ONE_DAY_IN_SECONDS,
 }: AdapterRunOptions) {
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
+  const moduleUID = module._randomUID
+  // const isHourly = isHourlyAdapter(module)
+  // const WINDOW_SECONDS = isHourly ? 60 * 60 : ONE_DAY_IN_SECONDS
+  const WINDOW_SECONDS = runWindowInSeconds
 
   const chainBlocks: ChainBlocks = {} // we need it as it is used in the v1 adapters
   const { prefetch, allowNegativeValue = false, } = module
@@ -124,10 +162,20 @@ async function _runAdapter({
   if (chains.some(c => !c) || chains.includes('undefined')) {
     throw new Error(`Invalid chain labels: ${chains.filter(c => !c || c === 'undefined').join(', ')}`)
   }
+
+  const badChainNames = chains.filter(chain => !/^[a-z0-9_]+$/.test(chain));
+  if (badChainNames.length) {
+    throw new Error(`
+    Invalid chain names: ${badChainNames.join(', ')}
+    Chain names should only contain lowercase letters, numbers and underscores
+    `)
+  }
+
   const validStart = {} as {
     [chain: string]: {
       canRun: boolean,
       startTimestamp: number
+      endTimestamp?: number
     }
   }
   await Promise.all(chains.map(setChainValidStart))
@@ -137,26 +185,55 @@ async function _runAdapter({
   if (typeof prefetch === 'function') {
     const firstChain = chains.find(chain => validStart[chain]?.canRun);
     if (firstChain) {
-      const options = await getOptionsObject(cleanCurrentDayTimestamp, firstChain, chainBlocks);
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
     }
   }
 
-  let breakdownData: any = {}
+  const aggregated = {} as any
+  let breakdownByToken: any = {}
+  let breakdownByLabelByChain: any = {}
+  let breakdownByLabel: any = {}
+
   const response = await Promise.all(chains.filter(chain => {
-    const res = validStart[chain]?.canRun
-    if (isTest && !res) console.log(`Skipping ${chain} because the configured start time is ${new Date(validStart[chain]?.startTimestamp * 1e3).toUTCString()} \n\n`)
-    return validStart[chain]?.canRun
+    const res = validStart[chain]
+    if (isTest && !res.canRun) {
+      if (res.endTimestamp)
+        console.log(`Skipping ${chain} because the adapter ended at ${new Date(res.endTimestamp! * 1e3).toUTCString()} \n\n`)
+      else
+        console.log(`Skipping ${chain} because the configured start time is ${new Date(res.startTimestamp * 1e3).toUTCString()} \n\n`)
+    }
+    return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
-
-  Object.entries(breakdownData).forEach(([chain, data]: any) => {
-    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownData[chain]
+  Object.entries(breakdownByToken).forEach(([chain, data]: any) => {
+    if (typeof data !== 'object' || data === null || !Object.keys(data).length) delete breakdownByToken[chain]
   })
 
-  if (Object.keys(breakdownData).length === 0) breakdownData = undefined
+  if (Object.keys(breakdownByToken).length === 0) breakdownByToken = undefined
+  if (Object.keys(breakdownByLabel).length === 0) breakdownByLabel = undefined
+  if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
-  if (withMetadata) return { response, breakdownData, }
+  // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
+  if (chains.includes(CHAIN.CHAIN_GLOBAL)) {
+    Object.keys(aggregated).forEach(metricType => {
+      const metricObject = aggregated[metricType]
+      if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
+        metricObject.value = metricObject.chains[CHAIN.CHAIN_GLOBAL]
+        delete metricObject.chains[CHAIN.CHAIN_GLOBAL]
+      }
+    })
+  }
+
+  const adaptorRecordV2JSON: any = {
+    aggregated,
+    breakdownByLabel,
+    breakdownByLabelByChain,
+    timestamp: response.find(i => i?.timestamp)?.timestamp
+  }
+
+
+  if (withMetadata) return { response, adaptorRecordV2JSON, breakdownByToken }
   return response
 
   async function getChainResult(chain: string) {
@@ -171,7 +248,7 @@ async function _runAdapter({
 
     const fetchFunction = adapterObject![chain].fetch
     try {
-      const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
+      const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, })
       if (preFetchedResults !== null) {
         options.preFetchedResults = preFetchedResults;
       }
@@ -188,25 +265,53 @@ async function _runAdapter({
       const ignoreKeys = ['timestamp', 'block']
       const improbableValue = 2e11 // 200 billion
 
-      for (const [key, value] of Object.entries(result)) {
-        if (ignoreKeys.includes(key)) continue;
+      // validate and inject missing record if any
+      validateAdapterResult(result, module)
+
+      // add missing metrics if need
+      addMissingMetrics(chain, result)
+
+      for (const [recordType, value] of Object.entries(result)) {
+        if (ignoreKeys.includes(recordType)) continue;
         if (value === undefined || value === null) { // dont store undefined or null values
-          delete result[key]
+          delete result[recordType]
           continue;
         }
-        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${key} is undefined or null`)
+        // if (value === undefined || value === null) throw new Error(`Value: ${value} ${recordType} is undefined or null`)
         if (value instanceof Balances) {
-          result[key] = await value.getUSDString()
-          breakdownData[chain] = breakdownData[chain] || {}
-          breakdownData[chain][key] = await value.getUSDJSONs()
-        }
-        result[key] = +Number(result[key]).toFixed(0)
-        let errorPartialString = `| ${chain}-${key}: ${value}`
+          const { labelBreakdown, usdTvl, usdTokenBalances, rawTokenBalances } = await value.getUSDJSONs()
+          // if (usdTvl > 1e6) value.debug()
+          result[recordType] = usdTvl
+          breakdownByToken[chain] = breakdownByToken[chain] || {}
+          breakdownByToken[chain][recordType] = { usdTvl, usdTokenBalances, rawTokenBalances }
 
-        if (isNaN(result[key] as number)) throw new Error(`value is NaN ${errorPartialString}`)
-        if (result[key] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
-        if (result[key] > improbableValue) {
-          let showError = accumulativeKeySet.has(key) ? result[key] > improbableValue * 10 : true
+          if (labelBreakdown) {
+            if (!breakdownByLabel[recordType]) breakdownByLabel[recordType] = {}
+            if (!breakdownByLabelByChain[recordType]) breakdownByLabelByChain[recordType] = {}
+
+            const aggData = breakdownByLabel[recordType]
+            const breakData = breakdownByLabelByChain[recordType]
+
+            for (let [label, labelValue] of Object.entries(labelBreakdown)) {
+              labelValue = +Number(labelValue).toFixed(0)  // ensure labelValue is rounded to integer
+              aggData[label] = (aggData[label] || 0) + labelValue
+              if (!breakData[label]) breakData[label] = {}
+              breakData[label][chain] = labelValue
+            }
+          }
+        }
+
+        result[recordType] = +Number(result[recordType]).toFixed(0)
+        if (!aggregated[recordType]) aggregated[recordType] = { value: 0, chains: {} }
+        aggregated[recordType].value += result[recordType]
+        aggregated[recordType].chains[chain] = result[recordType]
+
+        let errorPartialString = `| ${chain}-${recordType}: ${value}`
+
+        if (isNaN(result[recordType] as number)) throw new Error(`value is NaN ${errorPartialString}`)
+        if (result[recordType] < 0 && !allowNegativeValue) throw new Error(`value is negative ${errorPartialString}`)
+        if (result[recordType] > improbableValue) {
+          let showError = accumulativeKeySet.has(recordType) ? result[recordType] > improbableValue * 10 : true
           if (showError)
             throw new Error(`value is too damn high ${errorPartialString}`)
         }
@@ -234,7 +339,7 @@ async function _runAdapter({
     }
   }
 
-  async function getOptionsObject(timestamp: number, chain: string, chainBlocks: ChainBlocks): Promise<FetchOptions> {
+  async function getOptionsObject({ timestamp, chain, chainBlocks, windowSize = ONE_DAY_IN_SECONDS, moduleUID = genUID(10) }: { timestamp: number, chain: string, chainBlocks: ChainBlocks, windowSize?: number, moduleUID?: string }): Promise<FetchOptions> {
     const withinTwoHours = Math.trunc(Date.now() / 1000) - timestamp < 24 * 60 * 60 // 24 hours
     const createBalances: () => Balances = () => {
       let _chain = chain
@@ -245,16 +350,63 @@ async function _runAdapter({
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
-    const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
+    const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
+    const problematicChains = new Set(['sei',])
+
     const getLogs = async ({ target, targets, onlyArgs = true, fromBlock, toBlock, flatten = true, eventAbi, topics, topic, cacheInCloud = false, skipCacheRead = false, entireLog = false, skipIndexer, noTarget, ...rest }: FetchGetLogsOptions) => {
+
+
+      if (problematicChains.has(chain)) throw new Error(`getLogs is disabled for ${chain} chain due to frequent timeouts`)
+
       fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
+      const requestCount = targets ? targets.length : 1
+      if (api) api.addStat('logsRequests', requestCount)
 
       return getEventLogs({ ...rest, fromBlock, toBlock, chain, target, targets, onlyArgs, flatten, eventAbi, topics, topic, cacheInCloud, skipCacheRead, entireLog, skipIndexer, noTarget })
     }
 
+
+    const streamLogs = async (params: Parameters<typeof sdk.indexer.getLogs>[0] & {
+      targetsFilter?: string[] | Set<string>
+    }) => {
+
+
+      if (!sdk.indexer.supportedChainSet2.has(chain)) {
+        throw new Error(`streamLogs is not supported for ${chain} chain`)
+      }
+
+      const origProcessor = params.processor
+      let targetsFilter = params.targetsFilter
+
+      if (Array.isArray(targetsFilter))
+        targetsFilter = new Set(targetsFilter.map((t) => t.toLowerCase()))
+
+      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
+      if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
+      if (!params.hasOwnProperty('all')) params.all = true
+      if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
+      if (!params.hasOwnProperty('collect')) params.collect = false
+      if (!params.hasOwnProperty('onlyArgs') && !params.entireLog) params.onlyArgs = true
+
+      if (params.hasOwnProperty('processor')) params.processor = (chunk: any | any[]) => {
+        let swapLogs = Array.isArray(chunk) ? chunk : [chunk]
+
+        if (targetsFilter)
+          swapLogs = swapLogs.filter((log) => targetsFilter!.has(log.address.toLowerCase()))
+
+
+        origProcessor!(swapLogs)
+      }
+
+
+      const requestCount = params.targets ? params.targets.length : 1
+      if (api) api.addStat('streamLogs', requestCount)
+
+      return sdk.indexer.getLogs({ ...params, chain })
+    }
     // we intentionally add a delay to avoid fetching the same block before it is cached
     // await randomDelay()
 
@@ -272,6 +424,9 @@ async function _runAdapter({
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api
+
+    api.getLogs = () => { throw new Error('api.getLogs is disabled, use getLogs from options object instead') }
+    fromApi.getLogs = () => { throw new Error('fromApi.getLogs is disabled, use getLogs from options object instead') }
 
     return {
       createBalances,
@@ -291,6 +446,9 @@ async function _runAdapter({
       getStartBlock,
       getEndBlock,
       dateString: getDateString(startOfDay),
+      moduleUID,
+      startOfDayId: getStartOfDayId(startOfDay),
+      streamLogs,
     }
   }
 
@@ -303,8 +461,21 @@ async function _runAdapter({
   async function setChainValidStart(chain: string) {
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
+    // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
+    if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
+
+    // Only check deadFrom if it's explicitly set (not undefined)
+    if (_end !== undefined && typeof _end === 'number' && _end > 0 && _end < cleanPreviousDayTimestamp) {
+      validStart[chain] = {
+        canRun: false,
+        startTimestamp: _start as number,
+        endTimestamp: _end as number,
+      }
+      return;
+    }
 
     if (typeof _start === 'number') {
       validStart[chain] = {
@@ -332,5 +503,57 @@ async function _runAdapter({
       canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
       startTimestamp: start
     }
+  }
+
+}
+
+function createBalanceFrom(options: { chain: string, timestamp: number | undefined, amount: FetchResponseValue }): Balances {
+  const { chain, timestamp, amount } = options
+
+  const balance = new Balances({ chain, timestamp })
+  if (amount) {
+    if (typeof amount === 'number' || typeof amount === 'string') {
+      balance.addUSDValue(amount)
+    } else {
+      balance.addBalances(amount)
+    }
+  }
+  return balance;
+}
+
+function subtractBalance(options: { balance: Balances, amount: FetchResponseValue }) {
+  const { balance, amount } = options
+  if (amount) {
+    if (typeof amount === 'number' || typeof amount === 'string') {
+      const otherBalance = createBalanceFrom({ chain: balance.chain, timestamp: balance.timestamp, amount })
+      balance.subtract(otherBalance)
+    } else {
+      balance.subtract(amount)
+    }
+  }
+}
+
+function validateAdapterResult(result: any, module: any) {
+  // validate metrics
+  //  this is to ensure that we do this validation only for the new adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+    // should include atleast SupplySideRevenue or ProtocolRevenue or Revenue
+    if (!result.dailySupplySideRevenue && !result.dailyProtocolRevenue && !result.dailyRevenue && !module?.skipBreakdownValidation) {
+      throw Error('found dailyFees record but missing all dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue records')
+    }
+  }
+}
+
+function addMissingMetrics(chain: string, result: any) {
+  // add missing metrics for Balances which has breakdown labels only
+  //  this is to ensure that we dont change behavior of existing adapters
+  if (result.dailyFees && result.dailyFees instanceof Balances && result.dailyFees.hasBreakdownBalances()) {
+
+    // if we have supplySideRevenue but missing revenue, add revenue = fees - supplySideRevenue
+    if (result.dailySupplySideRevenue && result.dailyRevenue === undefined) {
+      result.dailyRevenue = createBalanceFrom({ chain, timestamp: result.timestamp, amount: result.dailyFees })
+      subtractBalance({ balance: result.dailyRevenue, amount: result.dailySupplySideRevenue })
+    }
+
   }
 }

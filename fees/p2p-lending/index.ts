@@ -1,11 +1,12 @@
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 import type { FetchOptions, FetchResult } from "../../adapters/types";
+import { getEnv } from "../../helpers/env";
 
 const headers: HeadersInit = {
   origin: "https://subgraph.smardex.io",
   referer: "https://subgraph.smardex.io",
-  "x-api-key": process.env.SMARDEX_SUBGRAPH_API_KEY || "",
+  "x-api-key": getEnv('SMARDEX_SUBGRAPH_API_KEY') || "",
 };
 
 type DailyTokenMetric = {
@@ -88,16 +89,14 @@ const fetch = async (_: number, _t: any, { startOfDay, createBalances }: FetchOp
 };
 
 const adapter = {
+  methodology: {
+    Fees: "Protocol fees are given by interests paid in credit Tokens by Borrowers to Lenders, cumulated with the amount of SDEX burned at Proposal creation.",
+    Revenue: "Protocol revenue is the total amount of SDEX burned at each new Proposal creation.",
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: "2025-05-22",
-      meta: {
-        methodology: {
-          Fees: "Protocol fees are given by interests paid in credit Tokens by Borrowers to Lenders, cumulated with the amount of SDEX burned at Proposal creation.",
-          Revenue: "Protocol revenue is the total amount of SDEX burned at each new Proposal creation.",
-        },
-      },
     },
   },
   version: 1,

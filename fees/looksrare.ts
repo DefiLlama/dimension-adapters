@@ -1,5 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
-import { ETHEREUM } from "../helpers/chains";
+import { CHAIN } from "../helpers/chains";
+
+const MARKETPLACE_FEES_LABEL = "Marketplace trading fees";
 
 const address = "0x0000000000e655fae4d56241588680f86e3b2377";
 const topic0_taker_bid = "0x3ee3de4684413690dee6fff1a0a4f92916a1b97d1c5a83cdf24671844306b2e3";
@@ -25,7 +27,7 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   const logs = logs_bid.concat(logs_ask)
   const dailyFees = createBalances()
   logs.map((tx: any) => {
-    dailyFees.add(tx.currency, tx.feeAmounts[2])
+    dailyFees.add(tx.currency, tx.feeAmounts[2], MARKETPLACE_FEES_LABEL)
   });
 
   return {
@@ -35,21 +37,33 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [MARKETPLACE_FEES_LABEL]: "Protocol fees charged on NFT trades (both bids and asks) through LooksRare marketplace"
+  },
+  Revenue: {
+    [MARKETPLACE_FEES_LABEL]: "100% of marketplace trading fees allocated to LOOKS token holders"
+  },
+  HoldersRevenue: {
+    [MARKETPLACE_FEES_LABEL]: "Marketplace trading fees distributed to LOOKS token stakers"
+  }
+}
+
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
-    [ETHEREUM]: {
+    [CHAIN.ETHEREUM]: {
       fetch,
       start: '2021-12-29',
-      meta: {
-        methodology: {
-          Fees: "NFT trading fees paid by users.",
-          Revenue: "100% fees are revenue to LOOKS token holders.",
-          HoldersRevenue: "100% revenue distributed to LOOKS token holders.",
-        }
-      }
     },
-  }
+  },
+  methodology: {
+    Fees: "NFT trading fees paid by users.",
+    Revenue: "100% fees are revenue to LOOKS token holders.",
+    HoldersRevenue: "100% revenue distributed to LOOKS token holders.",
+  },
+  breakdownMethodology
 }
 
 export default adapter;

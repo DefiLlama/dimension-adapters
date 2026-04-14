@@ -18,24 +18,18 @@ const mapChainId: ChainMapId = {
   [CHAIN.BITLAYER]: 200901
 };
 const fetch = (chain: Chain) => {
-  return async (timestamp: any) => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp.toTimestamp * 1000));
+  return async (_t: any, _b: any, { startOfDay }: any) => {
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}/${mapChainId[chain]}/volume`)).data;
-    const totalVolume = historicalVolume
-      .filter(volItem => getUniqStartOfTodayTimestamp(new Date(volItem.statistics_date)) <= dayTimestamp)
-      .reduce((acc, { volume }) => acc + Number(volume), 0)
     const dailyVolume = historicalVolume
-      .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.statistics_date)) === dayTimestamp)?.volume
+      .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.statistics_date)) === startOfDay)?.volume
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
     };
   };
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: Object.keys(mapChainId).reduce((acc, chain: any) => {
     return {
       ...acc,

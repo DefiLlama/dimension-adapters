@@ -27,18 +27,17 @@ const fetchHemiFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.HEMI]: {
       fetch: fetchHemiFees,
       start: '2025-01-01',
-      meta: {
-        methodology: {
-          Fees: "2% fee charged on all NFT marketplace sales",
-          Volume: "Total volume of NFT sales on the marketplace"
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "2% fee charged on all NFT marketplace sales",
+    Volume: "Total volume of NFT sales on the marketplace"
+  }
 };
 
 export default adapter;

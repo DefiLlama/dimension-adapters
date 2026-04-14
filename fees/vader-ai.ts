@@ -19,7 +19,7 @@ const fetchFees = async (options: FetchOptions) => {
     balances: dailyFees,
   })
 
-   // fees when swap varder-ai
+  // fees when swap varder-ai
   await addTokensReceived({
     options,
     target: varder,
@@ -35,19 +35,18 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: fetchFees,
       start: '2024-09-09',
-      meta: {
-        methodology: {
-          Fees: "All fees paid by users.",
-          Revenue: "All fees paid by users.",
-          ProtocolRevenue: "All fees paid by users.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "All fees paid by users.",
+    Revenue: "All fees paid by users.",
+    ProtocolRevenue: "All fees paid by users.",
+  }
 }
 
 export default adapter;

@@ -1,6 +1,8 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
+import { formatAddress } from "../../utils/utils";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 
 const URL = "https://open-api.openocean.finance/v3";
 const EVM_CHAIN_ADDRESSES: Record<string, string> = {
@@ -25,7 +27,7 @@ const EVM_CHAIN_ADDRESSES: Record<string, string> = {
   [CHAIN.BLAST]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.MODE]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   // [CHAIN.ROOTSTOCK]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
-  [CHAIN.SEI]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
+  // [CHAIN.SEI]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.GRAVITY]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.KAVA]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.METIS]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
@@ -39,24 +41,26 @@ const EVM_CHAIN_ADDRESSES: Record<string, string> = {
   [CHAIN.UNICHAIN]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.FLARE]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
   [CHAIN.SWELLCHAIN]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
-  [CHAIN.HYPERLIQUID]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64"
+  [CHAIN.HYPERLIQUID]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64",
+  [CHAIN.MONAD]: "0x6352a56caadC4F1E25CD6c75970Fa768A3304e64"
 };
 
 const NON_EVM_CHAINS: Record<string, string> = {
-  // [CHAIN.SOLANA]: "2025-05-17",
+  [CHAIN.SOLANA]: "2025-05-17",
   [CHAIN.APTOS]: "2025-05-17",
   [CHAIN.SUI]: "2025-05-17",
   [CHAIN.NEAR]: "2025-05-17",
   [CHAIN.STARKNET]: "2025-05-17",
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetch = async (_a: any, _b: any, options: FetchOptions) => {
   if (NON_EVM_CHAINS[options.chain]) {
     const { data } = await fetchURL(`${URL}/${options.chain}/getDailyVolume?timestamp=${options.startOfDay}`);
     const { dailyVolume } = data || { dailyVolume: 0 };
     return { dailyVolume };
   }
   const dailyVolume = options.createBalances();
+  const blacklistTokens: Array<string> = getDefaultDexTokensBlacklisted(options.chain)
   const logs = await options.getLogs({
     target: EVM_CHAIN_ADDRESSES[options.chain],
     eventAbi:
@@ -64,7 +68,9 @@ const fetch = async (options: FetchOptions) => {
   });
 
   logs.forEach((log) => {
-    dailyVolume.add(log.dstToken, log.returnAmount);
+    if (!blacklistTokens.includes(formatAddress(log.dstToken))) {
+      dailyVolume.add(log.dstToken, log.returnAmount);
+    }
   });
 
   return {
@@ -73,7 +79,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   adapter: {
     ...Object.entries(EVM_CHAIN_ADDRESSES).reduce((acc, [chain, _]) => {
       return {

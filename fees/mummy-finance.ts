@@ -60,6 +60,7 @@ const adapter: SimpleAdapter = {
       start: startTimestamps[CHAIN.OPTIMISM],
     },
   },
+  deadFrom: "2025-06-20",
 };
 
 export default adapter;

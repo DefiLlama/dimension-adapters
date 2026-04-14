@@ -43,15 +43,6 @@ const classic = Object.keys(endpointsClassic).reduce(
     [chain]: {
       fetch,
       start: '2024-03-19',
-      meta: {
-        methodology: {
-          Fees: "GlyphExchange charges a flat 0.3% fee",
-          UserFees: "Users pay a 0.3% fee on each trade",
-          Revenue: "A 0.12% of each trade goes to treasury",
-          ProtocolRevenue: "Treasury receives a share of the fees",
-          SupplySideRevenue: "Liquidity providers get 6/10 of all trades in their pools"
-        }
-      }
     },
   }),
   {}
@@ -59,5 +50,12 @@ const classic = Object.keys(endpointsClassic).reduce(
 
 export default {
   version: 2,
-  adapter: classic
+  adapter: classic,
+  methodology: {
+    Fees: "GlyphExchange charges a flat 0.3% fee",
+    UserFees: "Users pay a 0.3% fee on each trade",
+    Revenue: "A 0.12% of each trade goes to treasury",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue: "Liquidity providers get 6/10 of all trades in their pools"
+  }
 }

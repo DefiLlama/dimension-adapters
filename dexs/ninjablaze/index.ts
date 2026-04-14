@@ -18,7 +18,7 @@ const adapter: Adapter = {
   version: 2,
   adapter: {
     [CHAIN.INJECTIVE]: {
-      start: 60577920,
+      start: '2024-03-12',
       fetch,
     }
   },

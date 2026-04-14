@@ -53,20 +53,19 @@ const fetchChainData = async (chain: string, options: any) => {
 // Create adapter for each chain
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(BURNER_CONTRACTS).reduce((acc, chain) => {
     // For other chains, use the standard approach
     acc[chain] = {
       fetch: async (options: any) => fetchChainData(chain, options),
       start: '2025-02-23', // Current date as specified
-      meta: {
-        methodology: {
-          Fees: "User pays 2.5% of the total amount of tokens they are burning. Fees are calculated by tracking the fee amount from BurnSuccess events.",
-          Revenue: "All fees collected by the protocol are considered revenue",
-        },
-      },
     };
     return acc;
   }, {}),
+  methodology: {
+    Fees: "User pays 2.5% of the total amount of tokens they are burning. Fees are calculated by tracking the fee amount from BurnSuccess events.",
+    Revenue: "All fees collected by the protocol are considered revenue",
+  },
 };
 
 export default adapter;

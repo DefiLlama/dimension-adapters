@@ -38,7 +38,6 @@ async function fetch({ getFromBlock, getToBlock, chain, }: FetchOptions) {
   totalVolume = totalVolume / 1e6
   totalVolumePast = totalVolumePast / 1e6
   return {
-    totalVolume,
     dailyVolume: totalVolume - totalVolumePast,
   };
 }
@@ -51,6 +50,7 @@ const adapter: Adapter = {
       fetch,
     },
   },
+  deadFrom: "2025-06-30",
 };
 
 export default adapter;

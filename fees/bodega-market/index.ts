@@ -4,7 +4,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const data = await fetchURL(
-    `https://tidelabs.io:2121/defillama/bodega-market/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
+    `https://tidelabs.io/api/defillama/bodega-market/fees?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
   const { dailyFees, dailyRevenue } = data;
 
@@ -43,15 +43,13 @@ const adapter: Adapter = {
     [CHAIN.CARDANO]: {
       fetch,
       start: "2024-06-04",
-      meta: {
-        methodology: {
-          Fees: "All betting fees (4% of total protocol volume) paid by users.",
-          Revenue: "All betting fees (4% of total protocol volume) paid by users.",
-          HoldersRevenue: "All revenue distributed to BODEGA holders (75%) before Jun 12, 2025 and 100% after Jun 12, 2025.",
-          ProtocolRevenue: "No revenue for Bodega protocol after Jun 12, 2025 and 25% before Jun 12, 2025.",
-        },
-      },
     },
+  },
+  methodology: {
+    Fees: "All betting fees (4% of total protocol volume) paid by users.",
+    Revenue: "All betting fees (4% of total protocol volume) paid by users.",
+    HoldersRevenue: "All revenue distributed to BODEGA holders (75%) before Jun 12, 2025 and 100% after Jun 12, 2025.",
+    ProtocolRevenue: "No revenue for Bodega protocol after Jun 12, 2025 and 25% before Jun 12, 2025.",
   },
 };
 

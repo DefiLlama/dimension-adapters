@@ -49,8 +49,8 @@ const fetch = async (
   const dailyFees = createBalances();
   let supply: number = 0;
 
-  if (api.chain === "polygon") supply = await polygonAUM(token, api);
-  if (api.chain === "stellar") supply = await stellarAUM(token);
+  if (api.chain === CHAIN.POLYGON) supply = await polygonAUM(token, api);
+  if (api.chain === CHAIN.STELLAR) supply = await stellarAUM(token);
 
   const expenseRatio =
     endTimestamp < EXPENSE_LIMITATION_TIMESTAMP
@@ -63,27 +63,22 @@ const fetch = async (
   return { timestamp, dailyFees };
 };
 
-const meta = {
+const adapter: Adapter = {
   methodology: {
     Fees: 'Total yields are generated from investment assets, mostly US Treasuries.',
-  }
-}
-
-const adapter: Adapter = {
+  },
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.POLYGON]),
       runAtCurrTime: true,
       start: '2023-10-04',
-      meta,
     },
     [CHAIN.STELLAR]: {
       fetch: (...args: Parameters<Fetch>) =>
         fetch(...args, CONFIG[CHAIN.STELLAR]),
       runAtCurrTime: true,
       start: '2023-10-04',
-      meta,
     },
   },
 };

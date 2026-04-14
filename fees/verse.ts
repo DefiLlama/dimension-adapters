@@ -1,6 +1,8 @@
 import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
-import volumeAdapter from "../dexs/verse";
+import { getAdapterFromHelpers} from "../factory/registry";
+
+const volumeAdapter = getAdapterFromHelpers('dexs', 'verse')?.adapter as any;
 
 const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
@@ -27,21 +29,17 @@ const methodology = {
 const baseAdapter: BaseAdapter = {
   [CHAIN.ETHEREUM]: {
     fetch: fetch(CHAIN.ETHEREUM, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
   [CHAIN.SMARTBCH]: {
     fetch: fetch(CHAIN.SMARTBCH, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter,
-  version: 2
+  version: 2,
+  pullHourly: true,
 };
 
 export default adapter;

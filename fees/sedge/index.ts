@@ -14,7 +14,7 @@ const headers = {
 // Calculate fees from the DFXDayData entity
 async function getDailyFees(timestamp: number) {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400;
-  
+
   const query = gql`
     query getFees($dayTimestamp: Int!) {
       dfxdayDatas(where: { date: $dayTimestamp }) {
@@ -36,10 +36,10 @@ async function getDailyFees(timestamp: number) {
 
   // Calculate total daily fees
   const dailyFees = response.dfxdayDatas[0].dailyFeeUSD;
-  
+
   // Based on the subgraph data, all pairs have protocolFee of 0
   // This means 100% of fees go to liquidity providers and 0% to the protocol
-  
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -52,7 +52,7 @@ async function getDailyFees(timestamp: number) {
 // Fallback method: Calculate fees by summing individual pair data
 async function getPairsDailyFees(timestamp: number) {
   const dayTimestamp = Math.floor(timestamp / 86400) * 86400; // Start of the day (UTC)
-  
+
   const query = gql`
     query getPairFees($dayTimestamp: Int!) {
       pairDayDatas(
@@ -84,7 +84,7 @@ async function getPairsDailyFees(timestamp: number) {
   // 100% of fees go to liquidity providers and 0% to the protocol
   return {
     dailyFees: dailyFees.toString(),
-    dailyRevenue: dailyFees.toString(), 
+    dailyRevenue: dailyFees.toString(),
     dailyProtocolRevenue: '0', // Protocol takes 0% of fees
     dailyHoldersRevenue: dailyFees.toString(), // LPs get 100% of fees
     dailyVolume: dailyVolume.toString()
@@ -108,15 +108,13 @@ const adapter: Adapter = {
     [CHAIN.BASE]: {
       fetch,
       start: '2025-02-13', // February 13, 2025
-      meta: {
-        methodology: {
-          Fees: "Fees are collected from users on each trade.",
-          HoldersRevenue: "100% of fees go to liquidity providers.",
-          Revenue: "0% of fees go to the protocol.",
-        }
-      }
     },
   },
+  methodology: {
+    Fees: "Fees are collected from users on each trade.",
+    HoldersRevenue: "100% of fees go to liquidity providers.",
+    Revenue: "0% of fees go to the protocol.",
+  }
 };
 
 export default adapter;

@@ -1,18 +1,17 @@
 import * as sdk from "@defillama/sdk";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";  
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { gql, request } from "graphql-request";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ERA]: sdk.graph.modifyEndpoint('3PCPSyJXMuC26Vi37w7Q6amJdEJgMDYppfW9sma91uhj'),
-  [CHAIN.LINEA]: sdk.graph.modifyEndpoint('FtD3LWqSkwqkbASAwin4xFnN5bu2qJF6iPGVCs33uZja'),
+  [CHAIN.LINEA]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-linea',
   [CHAIN.SCROLL]: sdk.graph.modifyEndpoint('9ZCxNv8qiz97b5AEMnafsixYG7c2mnGp5Yk325p3gz9e'),
   [CHAIN.SOPHON]: 'https://graph1.syncswap.xyz/subgraphs/name/syncswap/syncswap-sophon',
 };
 
-async function getGraphData(options: FetchOptions): Promise<FetchResultV2> {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400);
+async function getGraphData(_t: any, _b: any, options: FetchOptions) {
+  const dateId = Math.floor(options.startOfDay / 86400);
   const query = gql`
     {
       dayData(id: "${dateId}") {
@@ -35,37 +34,32 @@ async function getGraphData(options: FetchOptions): Promise<FetchResultV2> {
   }
 }
 
-const meta = {
-  methodology: {
+const methodology = {
     Volume: "Count token swap volume from SyncSwap subgraphs.",
     Fees: "All fees comes from users by swap token on SyncSwap.",
     UserFees: "Users pay fees for every swap on SyncSwap.",
     SupplySideRevenue: "All swap fees paid to LPs.",
-  }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  methodology,
+  version: 1,
   adapter: {
     [CHAIN.ERA]: {
-      fetch: getGraphData,  
+      fetch: getGraphData,
       start: '2024-03-06',
-      meta: meta
     },
     [CHAIN.LINEA]: {
       fetch: getGraphData,
       start: '2024-03-06',
-      meta: meta
     },
     // [CHAIN.SOPHON]: {
     //   fetch: getGraphDataV2,
     //   start: '2024-03-06',
-    //   meta: meta
     // },
     [CHAIN.SCROLL]: {
       fetch: getGraphData,
       start: '2024-03-06',
-      meta: meta
     },
   }
 }

@@ -7,7 +7,7 @@ const SocketGatewayAbis = {
   SocketFeesDeducted: 'event SocketFeesDeducted (uint256 fees, address feesTaker, address feesToken)',
 }
 
-export const SocketGatewayContracts: {[key: string]: string} = {
+export const SocketGatewayContracts: { [key: string]: string } = {
   [CHAIN.AURORA]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.ARBITRUM]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.OPTIMISM]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
@@ -43,25 +43,25 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
     dailyFees.add(token, event.fees)
   }
 
-  return {dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: 0}
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: 0 }
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.keys(SocketGatewayContracts).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: '2023-08-10', 
-        meta: {
-          methodology: {
-            Fees: 'Total fees paid by users for bridging tokens.',
-            Revenue: 'Total fees paid are distributed to SOCKET inetrgations.',
-            ProtocolRevenue: 'SOCKET takes 0 fees.',
-          }
-        }
+      [chain]: {
+        fetch, start: '2023-08-10',
       }
     }
-  }, {})
+  }, {}),
+  methodology: {
+    Fees: 'Total fees paid by users for bridging tokens.',
+    Revenue: 'Total fees paid are distributed to SOCKET inetrgations.',
+    ProtocolRevenue: 'SOCKET takes 0 fees.',
+  }
 };
 
 export default adapter;

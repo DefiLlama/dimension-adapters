@@ -7,9 +7,9 @@ const limits = plimit(1);
 
 const historicalVolumeEndpoint = (symbol: string, endTime: number) => `https://omni.apex.exchange/api/v3/klines?end=${endTime}&interval=D&start=1718380800&symbol=${symbol}&limit=10`
 const allTiker = (symbol: string) => `https://omni.apex.exchange/api/v3/ticker?symbol=${symbol}`
-const getSumbols = async ()=>{
+const getSumbols = async () => {
     const res = await fetchURL('https://omni.apex.exchange/api/v3/all-open-tickers')
-    const symbol = res?.data?.map((i: any)=>i?.ticker_id)
+    const symbol = res?.data?.map((i: any) => i?.ticker_id)
     return symbol || []
 }
 interface IVolumeall {
@@ -44,9 +44,7 @@ const fetch = async (timestamp: number) => {
     });
     const dailyVolume = historicalUSD.filter((e: IVolumeall) => e.timestamp === dayTimestamp)
         .reduce((a: number, { volumeUSD }) => a + volumeUSD, 0);
-    if (dailyVolume > 1500000000) {
-        throw new Error("Unusual spike in volume, it's avg volume is 1.5B");
-    }
+
     return {
         dailyVolume: dailyVolume,
         openInterestAtEnd,

@@ -5,8 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const endpoints = {
-  [CHAIN.KAVA]:
-    "https://kava-graph-node.metavault.trade/subgraphs/name/kinetixfi/v3-subgraph",
+  // [CHAIN.KAVA]: "https://the-graph.kava.io/subgraphs/name/kinetixfi/v3-subgraph", // subgraph stale since April 2024, protocol winding down
   [CHAIN.BASE]:
     "https://api.studio.thegraph.com/query/55804/kinetixfi-base-v3/version/latest",
 };
@@ -37,40 +36,38 @@ const fetch = (endpoint) => {
     const feeStats: IFeeStat[] = response.feeStats;
 
     let dailyFeeUSD = BigInt(0);
-    let totalFeeUSD = BigInt(0);
 
     feeStats.forEach((fee) => {
       dailyFeeUSD += BigInt(fee.feeUsd);
-      totalFeeUSD += BigInt(fee.cumulativeFeeUsd);
     });
 
     const finalDailyFee = parseInt(dailyFeeUSD.toString()) / 1e18;
-    const finalTotalFee = parseInt(totalFeeUSD.toString()) / 1e18;
 
     return {
       timestamp: todaysTimestamp,
       dailyFees: finalDailyFee.toString(),
-      totalFees: finalTotalFee.toString(),
     };
   };
 };
 
 const adapter: Adapter = {
   version: 1,
+  methodology: {
+    Fees: "Each pool charges between 0.01% to 1% fee",
+    UserFees: "Users pay between 0.01% to 1% fee",
+    Revenue: "0 to 1/4 of the fee goes to treasury",
+    ProtocolRevenue: "Treasury receives a share of the fees",
+    SupplySideRevenue:
+      "Liquidity providers get most of the fees of all trades in their pools",
+  },
   adapter: {
-    [CHAIN.KAVA]: {
-      fetch: fetch(endpoints[CHAIN.KAVA]),
-      start: '2023-08-15', // Tuesday, August 15, 2023 12:00:00 AM
-      meta: {
-        methodology: "Fees collected from user trading fees",
-      },
-    },
+    // [CHAIN.KAVA]: {
+    //   fetch: fetch(endpoints[CHAIN.KAVA]),
+    //   start: '2023-08-15', // Tuesday, August 15, 2023 12:00:00 AM
+    // },
     [CHAIN.BASE]: {
       fetch: fetch(endpoints[CHAIN.BASE]),
-      start: '2024-05-08', //  Wednesday, May 8, 2024 12:00:00 AM
-      meta: {
-        methodology: "Fees collected from user trading fees",
-      },
+      start: "2024-05-08", //  Wednesday, May 8, 2024 12:00:00 AM
     },
   },
 };

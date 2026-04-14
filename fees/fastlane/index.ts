@@ -63,16 +63,15 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.POLYGON]: {
             fetch,
             start: '2022-12-08',
-            meta: {
-                methodology: {
-                    Fees: "MEV fees paid by searchers to validators for priority transaction inclusion (bundles) on the Polygon network.",
-                }
-            }
         },
+    },
+    methodology: {
+        Fees: "MEV fees paid by searchers to validators for priority transaction inclusion (bundles) on the Polygon network.",
     }
 };
 

@@ -28,6 +28,7 @@ const fetch = async (options: FetchOptions) => {
     target: factory,
     fromBlock: factoryFromBlock,
     eventAbi: mavV2PoolCreated,
+    cacheInCloud: true,
   });
 
   const pools = [...new Set(logs.map((log: any) => log.poolAddress))];
@@ -75,6 +76,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.PLUME]: {
       fetch,
@@ -83,6 +85,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.PLUME_LEGACY]: {
       fetch: async () => ({}),
       start: factories[CHAIN.PLUME_LEGACY].start,
+      deadFrom: "2025-06-25",
     },
   },
 };

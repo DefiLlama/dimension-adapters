@@ -29,15 +29,14 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,
-            meta: {
-                methodology: methodology
-            },
             start: '2024-11-01',
         },
     },
+    methodology,
 };
 
 export default adapter;

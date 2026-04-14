@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { GraphQLClient } from "graphql-request";
 
 
-const fetch = async (_: number, _1: any, { startOfDay }: FetchOptions) => {
+const fetch = async (_: number, _1: any, { startOfDay, dateString }: FetchOptions) => {
   const graphQLClient = new GraphQLClient("https://api.studio.thegraph.com/query/109849/rabbit-dex/version/latest")
   const res = await graphQLClient.request(`
         query RabbitSwapDailyVol($dateTimestamp: Int) {
@@ -12,6 +12,9 @@ const fetch = async (_: number, _1: any, { startOfDay }: FetchOptions) => {
             feesUSD
           }
         }`, { dateTimestamp: startOfDay })
+
+  if (!res || !res.daily) throw new Error('No data found');
+  if (res.daily.length === 0) throw new Error(`No data found for the date ${dateString}`);
 
   const dailyVolume = res.daily[0].volumeUSD;
   const dailyFees = res.daily[0].feesUSD;
@@ -28,14 +31,12 @@ const adapter: SimpleAdapter = {
     [CHAIN.TOMOCHAIN]: {
       fetch,
       start: "2024-11-12",
-      meta: {
-        methodology: {
-          Volume:
-            "USD Volume of RabbitSwap V3 using datasource from The Graph.",
-          Fees: "USD Fees of RabbitSwap V3 using datasource from The Graph.",
-        },
-      },
     },
+  },
+  methodology: {
+    Volume:
+      "USD Volume of RabbitSwap V3 using datasource from The Graph.",
+    Fees: "USD Fees of RabbitSwap V3 using datasource from The Graph.",
   },
 };
 

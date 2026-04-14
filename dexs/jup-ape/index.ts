@@ -9,7 +9,7 @@
  *    inputAmount without quote amounts, which would require additional token price lookups
  */
 
-import { SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
@@ -59,13 +59,11 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2024-09-13'
-        }
-    },
     version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    dependencies: [Dependencies.DUNE],
+    start: '2024-09-13',
     isExpensiveAdapter: true
 }
 
