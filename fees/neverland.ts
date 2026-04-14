@@ -6,25 +6,56 @@
  *
  * This adapter adds Neverland-specific revenue streams on top:
  *   1. veDUST NFT sale royalties (MON / WMON received by ROYALTY_RECEIVER)
- *   2. Holders revenue — veDUST RevenueReward top-ups, Merkl DUST-LP incentives,
+ *   2. Holders revenue — veDUST RevenueReward top-ups, Merkl DUST-LP revenue,
  *      and DUST buybacks routed through the Revenue wallet
  *
  * Revenue and ProtocolRevenue are intentionally identical: all protocol-collected
  * fees flow to the same Neverland treasury with no separate DAO split.
  */
-import axios from "axios";
 import { ethers } from "ethers";
-import { Dependencies, type FetchOptions, type SimpleAdapter } from "../adapters/types";
+import { type FetchOptions, type SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getPoolFees, type AaveLendingPoolConfig } from "../helpers/aave";
-import { getETHReceived, addTokensReceived, getEVMTokenTransfers } from "../helpers/token";
-import { getAlliumChain, queryAllium } from "../helpers/allium";
+import { getTransactions } from "../helpers/getTxReceipts";
+import { nullAddress } from "../helpers/token";
 import { METRIC } from "../helpers/metrics";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type Balances = ReturnType<FetchOptions["createBalances"]>;
 
+type DecodedMerklCampaign = {
+  rewardToken: string;
+  startTimestamp: number;
+  duration: number;
+};
+
+type SignedTransaction = NonNullable<Awaited<ReturnType<typeof getTransactions>>[number]> & {
+  hash: string;
+};
+
+type DecodableTransaction = {
+  to?: string | null;
+  data?: string;
+  input?: string;
+  value?: bigint;
+};
+
+type FundingTransfer = {
+  amount: bigint;
+  blockNumber: number;
+  transactionHash: string;
+};
+
+type RevenueRewardNotification = {
+  token: string;
+  amount: bigint;
+};
+
 // ---------------------------------------------------------------------------
-// Contract addresses (Monad)
+// Addresses & constants
 // ---------------------------------------------------------------------------
 
 const LENDING_POOL: AaveLendingPoolConfig = {
@@ -33,145 +64,160 @@ const LENDING_POOL: AaveLendingPoolConfig = {
   dataProvider: "0xfd0b6b6F736376F7B99ee989c749007c7757fDba",
 };
 
-const DUST = "0xAD96C3dffCD6374294e2573A7fBBA96097CC8d7c";                    // DUST governance token
-const USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";                    // bridged USDC on Monad
-const NUSDC = "0x38648958836eA88b368b4ac23b86Ad44B0fe7508";                   // Neverland interest-bearing USDC (aToken)
-const WMON = "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A";                    // wrapped MON
-const DUST_LOCK = "0xBB4738D05AD1b3Da57a4881baE62Ce9bb1eEeD6C";               // veDUST locking contract
-const DUST_REWARDS_CONTROLLER = "0x57ea245cCbFAb074baBb9d01d1F0c60525E52cec"; // lending incentives controller
-const REVENUE_REWARD = "0xff20ac10eb808B1e31F5CfCa58D80eDE2Ba71c43";          // weekly reward distributor for veDUST holders
-const USER_VAULT_FACTORY = "0xe82f2fa836BC5DB42a36C66027c0113BcAA28143";      // vault factory (excluded from royalty senders)
-const TEAM = "0x8D3e4D6188D207641E3d8f9c08e43956D4Daa66A";                    // team multisig
-const REVENUE_WALLET = "0x909b176220b7e782C0f3cEccaB4b19D2c433c6BB";          // protocol revenue / buyback wallet
-const ROYALTY_RECEIVER = "0x000012a6ec4bb0F2fcfF0440B7d80aD605700069";        // veDUST NFT sale royalties receiver
+const ADDR = {
+  dust: "0xAD96C3dffCD6374294e2573A7fBBA96097CC8d7c",
+  usdc: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+  nUsdc: "0x38648958836eA88b368b4ac23b86Ad44B0fe7508",
+  wmon: "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
+  revenueReward: "0xff20ac10eb808B1e31F5CfCa58D80eDE2Ba71c43",
+  revenueWallet: "0x909b176220b7e782C0f3cEccaB4b19D2c433c6BB",
+  royaltyReceiver: "0x000012a6ec4bb0F2fcfF0440B7d80aD605700069",
+  opensea: "0x0000000000000068F116a894984e2DB1123eB395",
+  merklCreator: "0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd",
+  merklCore: "0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae",
+} as const;
 
-// Pre-lowercased addresses to avoid repeated .toLowerCase() across the file
-const DUST_LC = DUST.toLowerCase();
-const USDC_LC = USDC.toLowerCase();
-const NUSDC_LC = NUSDC.toLowerCase();
-const WMON_LC = WMON.toLowerCase();
-const DUST_LOCK_LC = DUST_LOCK.toLowerCase();
-const DUST_REWARDS_CONTROLLER_LC = DUST_REWARDS_CONTROLLER.toLowerCase();
-const REVENUE_REWARD_LC = REVENUE_REWARD.toLowerCase();
-const USER_VAULT_FACTORY_LC = USER_VAULT_FACTORY.toLowerCase();
-const TEAM_LC = TEAM.toLowerCase();
-const REVENUE_WALLET_LC = REVENUE_WALLET.toLowerCase();
-const ROYALTY_RECEIVER_LC = ROYALTY_RECEIVER.toLowerCase();
+// Pre-lowercased mirror of ADDR for topic/log comparisons.
+const LC = Object.fromEntries(
+  Object.entries(ADDR).map(([k, v]) => [k, v.toLowerCase()])
+) as { [K in keyof typeof ADDR]: string };
 
-// ---------------------------------------------------------------------------
-// Numeric / timing constants
-// ---------------------------------------------------------------------------
-
-const MONAD_CHAIN_ID = 143;
 const WEEK_SECONDS = 7 * 24 * 60 * 60;
-
-// ---------------------------------------------------------------------------
-// Balance labels (shown in breakdown methodology)
-// ---------------------------------------------------------------------------
+// +1 day buffer covers the Wednesday weight-decision window; campaigns are always 7 days.
+const MERKL_LOOKBACK_SECONDS = WEEK_SECONDS + 24 * 60 * 60;
 
 const VEDUST_REWARDS_LABEL = "veDUST Revenue";
 const DUST_LP_INCENTIVES_LABEL = "DUST LP Revenue";
 const DUST_BUYBACKS_LABEL = "DUST Buybacks & Burns";
 const ROYALTIES_LABEL = "veDUST Royalties";
-
-const MERKL_HEADERS = {
-  "User-Agent": "Mozilla/5.0",
-  "Accept": "application/json",
-  "Origin": "https://app.merkl.xyz",
-  "Referer": "https://app.merkl.xyz/",
+const REVENUE_REWARD_CACHE_KEY = "neverland-revenue-reward";
+const MERKL_CACHE_KEY = "neverland-merkl-funding";
+// Map Neverland Interest Bearing USDC (nUSDC) to its underlying for price resolution.
+const REWARD_TOKEN_PRICE_ALIAS: Record<string, string> = {
+  [LC.nUsdc]: ADDR.usdc,
 };
-
-// Wallets that legitimately create Merkl campaigns on behalf of the protocol
-const controlledCampaignCreatorSet = new Set([TEAM_LC, REVENUE_WALLET_LC, ROYALTY_RECEIVER_LC]);
-
-// Internal contracts whose transfers to the royalty receiver are NOT external royalty payments
-const royaltyExcludedSenderSet = new Set([
-  ethers.ZeroAddress,
-  DUST_LC,
-  DUST_LOCK_LC,
-  DUST_REWARDS_CONTROLLER_LC,
-  REVENUE_REWARD_LC,
-  USER_VAULT_FACTORY_LC,
-  TEAM_LC,
-  REVENUE_WALLET_LC,
-  ROYALTY_RECEIVER_LC,
-]);
+const OPENSEA_ORDER_FULFILLED_TOPIC = ethers.id("OrderFulfilled(bytes32,address,address,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256,address)[])");
 
 // ---------------------------------------------------------------------------
-// Merkl API types
+// ABI interfaces & event topics
 // ---------------------------------------------------------------------------
 
-type MerklToken = {
-  address?: string;
-  type?: string;
+const ERC20_TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+const ZERO_ADDRESS_LC = ethers.ZeroAddress.toLowerCase();
+
+const IFACE = {
+  safe: new ethers.Interface([
+    "function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,bytes signatures)",
+  ]),
+  multiSend: new ethers.Interface([
+    "function multiSend(bytes transactions)",
+  ]),
+  revenueReward: new ethers.Interface([
+    "function notifyRewardAmount(address token,uint256 amount)",
+  ]),
+  opensea: new ethers.Interface([
+    "event OrderFulfilled(bytes32 orderHash,address indexed offerer,address indexed zone,address recipient,(uint8 itemType,address token,uint256 identifier,uint256 amount)[] offer,(uint8 itemType,address token,uint256 identifier,uint256 amount,address recipient)[] consideration)",
+  ]),
+  merklCreator: new ethers.Interface([
+    "function createCampaign((bytes32 campaignId,address creator,address rewardToken,uint256 amount,uint32 campaignType,uint32 startTimestamp,uint32 duration,bytes campaignData))",
+  ]),
+  erc20: new ethers.Interface([
+    "event Transfer(address indexed from, address indexed to, uint256 value)",
+  ]),
 };
 
-type MerklOpportunity = {
-  id: string | number;
-  action?: string;
-  tokens?: MerklToken[];
-};
-
-type MerklCampaignStatus = {
-  status?: string;
-};
-
-type MerklCampaign = {
-  amount?: string;
-  opportunityId?: string | number;
-  creatorAddress?: string;
-  distributionChainId?: number;
-  startTimestamp?: number;
-  endTimestamp?: number;
-  rewardToken?: MerklToken;
-  campaignStatus?: MerklCampaignStatus;
-  createdAt?: string;
-};
-
-type TimestampedTransfer = {
-  token?: string;
-  amount?: string;
-  timestamp?: string | number;
-};
+const MULTISEND_SELECTOR = IFACE.multiSend.getFunction("multiSend")!.selector;
+const NOTIFY_REWARD_SELECTOR = IFACE.revenueReward.getFunction("notifyRewardAmount")!.selector;
+const CREATE_CAMPAIGN_SELECTOR = IFACE.merklCreator.getFunction("createCampaign")!.selector;
 
 // ---------------------------------------------------------------------------
-// Module-level singletons
+// Generic helpers
 // ---------------------------------------------------------------------------
 
-let merklCampaignsPromise: Promise<MerklCampaign[]> | undefined;
+const lc = (address?: string | null) => (address || "").toLowerCase();
 
-// nUSDC is the Neverland nToken for USDC; Merkl rewards denominated in nUSDC
-// should be priced as USDC since they share the same underlying value.
-const rewardTokenPriceAlias: Record<string, string> = {
-  [NUSDC_LC]: USDC_LC,
-};
-
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
-
-function getLowerCaseAddress(address?: string) {
-  return (address || "").toLowerCase();
-}
-
-/** Clamp-and-intersect: returns seconds of overlap between two time windows, or 0. */
 function getWindowOverlap(startTimestamp: number, endTimestamp: number, distributionStart: number, distributionEnd: number) {
   return Math.max(0, Math.min(endTimestamp, distributionEnd) - Math.max(startTimestamp, distributionStart));
 }
 
-function parseUnixTimestamp(timestamp?: string | number) {
-  if (timestamp === undefined || timestamp === null) return undefined;
-  const parsed = typeof timestamp === "number" ? timestamp : Number(timestamp);
-  return Number.isFinite(parsed) ? parsed : undefined;
+// Decode the packed encoding used by Safe's MultiSend contract.
+function parseMultiSendTransactions(data: string) {
+  const transactionsHex = data.startsWith("0x") ? data.slice(2) : data;
+  const transactions: { to: string; data: string }[] = [];
+  let offset = 0;
+
+  while (offset < transactionsHex.length) {
+    offset += 2;
+    const to = `0x${transactionsHex.slice(offset, offset + 40)}`;
+    offset += 40;
+    offset += 64;
+
+    const dataLength = Number(BigInt(`0x${transactionsHex.slice(offset, offset + 64)}`));
+    offset += 64;
+
+    const callData = `0x${transactionsHex.slice(offset, offset + dataLength * 2)}`;
+    offset += dataLength * 2;
+    transactions.push({ to, data: callData });
+  }
+
+  return transactions;
 }
 
-/**
- * Attribute a fraction of `amount` to the current reporting window.
- *
- * Given a distribution that runs from `distributionStart` to `distributionEnd`,
- * we compute what share of that window overlaps with `options.startTimestamp ..
- * options.endTimestamp` and credit only the pro-rated portion to `balances`.
- */
+function decodeMerklCampaignCall(data?: string) {
+  if (!data?.startsWith(CREATE_CAMPAIGN_SELECTOR)) return;
+  const decoded = IFACE.merklCreator.decodeFunctionData("createCampaign", data)[0];
+  return {
+    rewardToken: decoded.rewardToken,
+    startTimestamp: Number(decoded.startTimestamp),
+    duration: Number(decoded.duration),
+  } satisfies DecodedMerklCampaign;
+}
+
+function decodeRevenueRewardCall(data?: string) {
+  if (!data?.startsWith(NOTIFY_REWARD_SELECTOR)) return;
+  const [token, amount] = IFACE.revenueReward.decodeFunctionData("notifyRewardAmount", data);
+  return {
+    token,
+    amount,
+  } satisfies RevenueRewardNotification;
+}
+
+// Unwrap Safe execTransaction > MultiSend layers to extract calldatas targeting a specific address.
+function getTargetCallDatasFromTransaction(tx: DecodableTransaction, targetLc: string) {
+  const txTo = lc(tx.to);
+  const input = tx.data || tx.input;
+  if (!input) return [] as string[];
+  if (txTo === targetLc) return [input];
+
+  try {
+    const parsedSafeTx = IFACE.safe.parseTransaction({ data: input, value: tx.value || 0n });
+    if (!parsedSafeTx) return [] as string[];
+
+    const innerTo = lc(parsedSafeTx.args.to);
+    const innerData = parsedSafeTx.args.data;
+    if (innerTo === targetLc) return [innerData];
+    if (!innerData.startsWith(MULTISEND_SELECTOR)) return [] as string[];
+
+    const [multiSendPayload] = IFACE.multiSend.decodeFunctionData("multiSend", innerData);
+    return parseMultiSendTransactions(multiSendPayload)
+      .filter((innerTx) => lc(innerTx.to) === targetLc)
+      .map((innerTx) => innerTx.data);
+  } catch {
+    return [] as string[];
+  }
+}
+
+function decodeAllTargetCallsFromTransaction<T>(
+  tx: DecodableTransaction,
+  targetLc: string,
+  decodeCall: (data?: string) => T | undefined,
+): T[] {
+  return getTargetCallDatasFromTransaction(tx, targetLc)
+    .map(decodeCall)
+    .filter((decoded): decoded is T => decoded !== undefined);
+}
+
+// Recognize the portion of a distribution that overlaps with the query window.
 function addProratedAmount(
   balances: Balances,
   token: string | undefined,
@@ -190,116 +236,166 @@ function addProratedAmount(
 
   const proratedAmount = BigInt(amount.toString()) * BigInt(overlap) / BigInt(duration);
   if (!proratedAmount) return;
-
   balances.add(token, proratedAmount.toString(), label);
 }
 
-// ---------------------------------------------------------------------------
-// Allium query helpers
-// ---------------------------------------------------------------------------
-
-/** Fetch token transfers to `target` with a lookback window (default 7 days before the reporting window start). */
-async function getTimestampedTokenTransfersToTarget(options: FetchOptions, target: string, lookbackSeconds = WEEK_SECONDS) {
-  const lookbackStart = Math.max(0, options.startTimestamp - lookbackSeconds);
-  const chain = getAlliumChain(options.chain);
-  return queryAllium(`
-    SELECT
-      LOWER(token_address) AS token,
-      TO_VARCHAR(raw_amount) AS amount,
-      DATE_PART(EPOCH_SECOND, block_timestamp) AS timestamp
-    FROM crosschain.assets.transfers
-    WHERE chain = '${chain}'
-      AND to_address = '${target.toLowerCase()}'
-      AND raw_amount > 0
-      AND block_timestamp >= TO_TIMESTAMP_NTZ(${lookbackStart})
-      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-  `) as Promise<TimestampedTransfer[]>;
-}
-
-// ---------------------------------------------------------------------------
-// Merkl campaign helpers
-// ---------------------------------------------------------------------------
-
-async function getMerklPage<T>(path: string) {
-  const { data } = await axios.get<T[]>(`https://api.merkl.xyz${path}`, {
-    headers: MERKL_HEADERS,
+// Fetch ERC-20 Transfer logs between a source and sink within a lookback window.
+async function getFundingTransfers(options: FetchOptions, config: {
+  fundingToken: string;
+  source: string;
+  sink: string;
+  lookbackSeconds: number;
+}) {
+  const fromBlock = await options.getBlock(Math.max(0, options.startTimestamp - config.lookbackSeconds), options.chain, {});
+  const toBlock = await options.getEndBlock();
+  const logs = await options.getLogs({
+    target: config.fundingToken,
+    topics: [
+      ERC20_TRANSFER_TOPIC,
+      ethers.zeroPadValue(config.source, 32),
+      ethers.zeroPadValue(config.sink, 32),
+    ],
+    fromBlock,
+    toBlock,
+    entireLog: true,
   });
-  return data;
+
+  return logs.map((log: { data: string; blockNumber: number | string; transactionHash: string }) => ({
+    amount: BigInt(log.data),
+    blockNumber: Number(log.blockNumber),
+    transactionHash: log.transactionHash.toLowerCase(),
+  })) satisfies FundingTransfer[];
 }
 
-async function getMerklPages<T>(pathPrefix: string) {
-  const items: T[] = [];
+async function getTransactionsByHash(options: FetchOptions, txHashes: string[], cacheKey: string) {
+  const uniqueTxHashes = [...new Set(txHashes)];
+  if (!uniqueTxHashes.length) return new Map<string, SignedTransaction>();
 
-  for (let page = 0; page < 20; page++) {
-    const pageItems = await getMerklPage<T>(`${pathPrefix}&items=100&page=${page}`);
-    if (!pageItems.length) break;
-    items.push(...pageItems);
-    if (pageItems.length < 100) break;
-  }
-
-  return items;
+  const txs = await getTransactions(options.chain, uniqueTxHashes, { cacheKey });
+  return new Map(
+    txs
+      .filter((tx): tx is SignedTransaction => !!tx?.hash)
+      .map((tx) => [tx.hash.toLowerCase(), tx])
+  );
 }
 
-/**
- * Fetch and cache Merkl campaigns relevant to Neverland.
- *
- * The result is memoized in `merklCampaignsPromise` because the same campaign
- * set is needed by multiple revenue streams within a single adapter run.
- *
- * Filter criteria:
- *   - Opportunity must be a POOL action involving DUST
- *   - Campaign creator must be a known Neverland wallet
- *   - Distribution chain must be Monad
- *   - Reward token must not be a POINT and must have an address
- *   - Campaign must not be FAILED or INVALID
- */
-async function getRelevantMerklCampaigns() {
-  if (!merklCampaignsPromise) {
-    merklCampaignsPromise = (async () => {
-      const opportunities = await getMerklPages<MerklOpportunity>(`/v4/opportunities?chainId=${MONAD_CHAIN_ID}`);
-      const relevantOpportunityIds = new Set(
-        opportunities
-          .filter((opportunity) =>
-            opportunity.action === "POOL" &&
-            (opportunity.tokens || []).some((token) => getLowerCaseAddress(token.address) === DUST_LC)
-          )
-          .map((opportunity) => String(opportunity.id))
-      );
+async function getBlockTimestamps(options: FetchOptions, blockNumbers: number[]) {
+  const uniqueBlockNumbers = [...new Set(blockNumbers)];
+  const blocks = await Promise.all(uniqueBlockNumbers.map((blockNumber) => options.api.provider.getBlock(blockNumber)));
+  return new Map<number, number>(
+    blocks
+      .filter((block): block is NonNullable<typeof block> => !!block?.timestamp)
+      .map((block) => [Number(block.number), Number(block.timestamp)])
+  );
+}
 
-      const campaigns = await getMerklPages<MerklCampaign>(`/v4/campaigns?chainId=${MONAD_CHAIN_ID}`);
-      return campaigns.filter((campaign) => {
-        const creator = getLowerCaseAddress(campaign.creatorAddress);
-        const rewardTokenType = campaign.rewardToken?.type;
-        const rewardTokenAddress = campaign.rewardToken?.address;
-        const status = campaign.campaignStatus?.status;
+// End-to-end pipeline: find funding transfers, fetch their txs, and decode the target call in each.
+async function getDecodedFundingTransfers<TDecoded>(
+  options: FetchOptions,
+  config: {
+    fundingToken: string;
+    source: string;
+    sink: string;
+    lookbackSeconds: number;
+    cacheKey: string;
+    targetLc: string;
+  },
+  decodeCall: (data?: string) => TDecoded | undefined,
+  filterDecodedForTx: (decodedCalls: TDecoded[], txHash: string) => TDecoded[] = (decodedCalls) => decodedCalls,
+  matchesDecoded: (decoded: TDecoded, transfer: FundingTransfer) => boolean = () => true,
+) {
+  const fundingTransfers = await getFundingTransfers(options, config);
+  if (!fundingTransfers.length) return [] as { transfer: FundingTransfer; decoded: TDecoded }[];
 
-        if (!relevantOpportunityIds.has(String(campaign.opportunityId))) return false;
-        if (!controlledCampaignCreatorSet.has(creator)) return false;
-        if (campaign.distributionChainId !== MONAD_CHAIN_ID) return false;
-        if (!rewardTokenAddress || rewardTokenType === "POINT") return false;
-        if (status === "FAILED" || status === "INVALID") return false;
+  const txMap = await getTransactionsByHash(
+    options,
+    fundingTransfers.map((transfer) => transfer.transactionHash),
+    config.cacheKey,
+  );
 
-        return true;
-      });
-    })();
+  /**
+   * Decode all target calls per tx so batched operations (e.g. multiple
+   * createCampaign calls in one Safe multiSend) each match their own transfer.
+   */
+  const decodedByTx = new Map<string, TDecoded[]>();
+  for (const transfer of fundingTransfers) {
+    if (decodedByTx.has(transfer.transactionHash)) continue;
+    const tx = txMap.get(transfer.transactionHash);
+    const decodedCalls = tx ? decodeAllTargetCallsFromTransaction(tx, config.targetLc, decodeCall) : [];
+    decodedByTx.set(
+      transfer.transactionHash,
+      filterDecodedForTx(decodedCalls, transfer.transactionHash),
+    );
   }
 
-  return merklCampaignsPromise;
+  /**
+   * Match each funding transfer to a decoded call, consuming it via splice
+   * so that batched txs (e.g. multiple createCampaign in one multiSend)
+   * pair each transfer with a unique decoded call.
+   */
+  return fundingTransfers.flatMap((transfer) => {
+    const remaining = decodedByTx.get(transfer.transactionHash);
+    if (!remaining?.length) return [];
+    const idx = remaining.findIndex((d) => matchesDecoded(d, transfer));
+    if (idx === -1) return [];
+    const [decoded] = remaining.splice(idx, 1);
+    return [{ transfer, decoded }];
+  });
+}
+
+// Attribute an OpenSea OrderFulfilled consideration item to royalties if sent to our receiver.
+function addOpenSeaRoyaltyConsideration(
+  consideration: { token: string; amount: bigint; recipient: string },
+  ...balances: Balances[]
+) {
+  if (lc(consideration.recipient) !== LC.royaltyReceiver) return;
+
+  // Royalties are settled in native MON or (rarely) WMON only.
+  const tokenLc = lc(consideration.token);
+  const resolvedToken =
+    tokenLc === ZERO_ADDRESS_LC ? nullAddress :
+      tokenLc === LC.wmon ? ADDR.wmon : undefined;
+  if (!resolvedToken) return;
+
+  for (const b of balances) b.add(resolvedToken, consideration.amount.toString(), ROYALTIES_LABEL);
 }
 
 // ---------------------------------------------------------------------------
-// Revenue stream: veDUST holder distributions
+// Revenue surfaces
 // ---------------------------------------------------------------------------
 
-/** RevenueReward funding transfers, pro-rated across the 7-day distribution window following each top-up. */
+// USDC top-ups to the veDUST RevenueReward contract, prorated over each 7-day epoch.
 async function addVeDustRevenue(options: FetchOptions, dailyHoldersRevenue: Balances) {
-  const rewardTopUps = await getTimestampedTokenTransfersToTarget(options, REVENUE_REWARD);
-  rewardTopUps.forEach((transfer) => {
-    const timestamp = parseUnixTimestamp(transfer.timestamp);
-    if (timestamp === undefined) return;
+  const rewardTopUps = await getDecodedFundingTransfers(
+    options,
+    {
+      fundingToken: ADDR.usdc,
+      source: ADDR.revenueWallet,
+      sink: ADDR.revenueReward,
+      lookbackSeconds: WEEK_SECONDS,
+      cacheKey: REVENUE_REWARD_CACHE_KEY,
+      targetLc: LC.revenueReward,
+    },
+    decodeRevenueRewardCall,
+    undefined,
+    (notification, transfer) =>
+      lc(notification.token) === LC.usdc
+      && notification.amount === transfer.amount,
+  );
+  if (!rewardTopUps.length) return;
+
+  const timestampByBlock = await getBlockTimestamps(
+    options,
+    rewardTopUps.map(({ transfer }) => transfer.blockNumber),
+  );
+
+  rewardTopUps.forEach(({ transfer }) => {
+    const timestamp = timestampByBlock.get(transfer.blockNumber);
+    if (!timestamp) return;
+
     addProratedAmount(
       dailyHoldersRevenue,
-      transfer.token,
+      ADDR.usdc,
       transfer.amount,
       timestamp,
       timestamp + WEEK_SECONDS,
@@ -309,75 +405,77 @@ async function addVeDustRevenue(options: FetchOptions, dailyHoldersRevenue: Bala
   });
 }
 
-/** Merkl campaign rewards for DUST liquidity pools, pro-rated across each campaign's active duration. */
+// Merkl DUST-LP incentive campaigns funded by the Revenue wallet, prorated over campaign duration.
 async function addDustLpRevenue(options: FetchOptions, dailyHoldersRevenue: Balances) {
-  const campaigns = await getRelevantMerklCampaigns();
+  const fundingCampaigns = await getDecodedFundingTransfers(
+    options,
+    {
+      fundingToken: ADDR.nUsdc,
+      source: ADDR.revenueWallet,
+      sink: ADDR.merklCore,
+      lookbackSeconds: MERKL_LOOKBACK_SECONDS,
+      cacheKey: MERKL_CACHE_KEY,
+      targetLc: LC.merklCreator,
+    },
+    decodeMerklCampaignCall,
+    (decodedCalls, txHash) => {
+      const nUsdcCampaigns = decodedCalls.filter((campaign) => lc(campaign.rewardToken) === LC.nUsdc);
+      if (nUsdcCampaigns.length > 1)
+        console.warn(`neverland: skipping Merkl tx ${txHash} with ${nUsdcCampaigns.length} nUSDC campaigns`);
+      return nUsdcCampaigns.length === 1 ? nUsdcCampaigns : [];
+    },
+  );
 
-  campaigns.forEach((campaign) => {
-    if (!campaign.rewardToken?.address || !campaign.amount) return;
-    const distributionStart = parseUnixTimestamp(campaign.startTimestamp);
-    const distributionEnd = parseUnixTimestamp(campaign.endTimestamp);
-    if (distributionStart === undefined || distributionEnd === undefined) return;
-    const rewardToken = rewardTokenPriceAlias[campaign.rewardToken.address.toLowerCase()] || campaign.rewardToken.address;
-
+  fundingCampaigns.forEach(({ transfer, decoded: campaign }) => {
+    const rewardToken = REWARD_TOKEN_PRICE_ALIAS[lc(campaign.rewardToken)] || campaign.rewardToken;
     addProratedAmount(
       dailyHoldersRevenue,
       rewardToken,
-      campaign.amount,
-      distributionStart,
-      distributionEnd,
+      transfer.amount,
+      campaign.startTimestamp,
+      campaign.startTimestamp + campaign.duration,
       options,
       DUST_LP_INCENTIVES_LABEL,
     );
   });
 }
 
-/** DUST tokens arriving at the Revenue wallet (buyback inventory), recognized on the day of receipt. */
+/**
+ * DUST accrued by the Revenue wallet for burn, recognized on the day of receipt.
+ * Includes royalty-funded buybacks once the DUST reaches the Revenue wallet.
+ * Defensive: topic[2] filtering on `to` returned false negatives for known txs
+ * across multiple test days, so we fetch all DUST Transfers and filter in code.
+ */
 async function addDustBuybackRevenue(options: FetchOptions, dailyHoldersRevenue: Balances) {
-  const dustReceipts = await getEVMTokenTransfers({
-    options,
-    toAddresses: [REVENUE_WALLET],
-    tokens: [DUST],
+  const dustTransfers = await options.getLogs({
+    target: ADDR.dust,
+    eventAbi: IFACE.erc20.getEvent("Transfer")!.format("full"),
   });
 
-  dailyHoldersRevenue.addBalances(dustReceipts, DUST_BUYBACKS_LABEL);
+  dustTransfers
+    .filter((log: any) => lc(log.to) === LC.revenueWallet)
+    .forEach((log: any) => dailyHoldersRevenue.add(ADDR.dust, log.value, DUST_BUYBACKS_LABEL));
 }
 
-// ---------------------------------------------------------------------------
-// Revenue stream: veDUST sale royalties
-// ---------------------------------------------------------------------------
-
-/** Track MON and WMON royalties received by the dedicated royalty wallet from external senders. */
+// veDUST NFT sale royalties collected in MON/WMON via OpenSea OrderFulfilled events.
 async function addRoyaltyReceipts(
   options: FetchOptions,
   dailyFees: Balances,
   dailyProtocolRevenue: Balances,
 ) {
-  try {
-    const royaltySenderAllowFilter = (log: { from?: string; from_address?: string }) => {
-      const from = getLowerCaseAddress(log.from || log.from_address);
-      return !!from && !royaltyExcludedSenderSet.has(from);
-    };
+  const logs = await options.getLogs({
+    target: ADDR.opensea,
+    topics: [OPENSEA_ORDER_FULFILLED_TOPIC],
+    fromBlock: await options.getStartBlock(),
+    toBlock: await options.getEndBlock(),
+    entireLog: true,
+  });
 
-    const royaltyReceipts = await getETHReceived({
-      options,
-      target: ROYALTY_RECEIVER,
-      notFromSenders: Array.from(royaltyExcludedSenderSet),
-    });
-    const wrappedRoyaltyReceipts = await addTokensReceived({
-      options,
-      target: ROYALTY_RECEIVER,
-      tokens: [WMON_LC],
-      logFilter: royaltySenderAllowFilter,
-    });
-
-    for (const receipts of [royaltyReceipts, wrappedRoyaltyReceipts]) {
-      dailyFees.addBalances(receipts, ROYALTIES_LABEL);
-      dailyProtocolRevenue.addBalances(receipts, ROYALTIES_LABEL);
-    }
-  } catch (error: any) {
-    console.error("neverland: failed to fetch royalty receipts", error?.message || error);
-  }
+  logs.forEach((log: any) => {
+    const parsed = IFACE.opensea.parseLog(log);
+    if (!parsed) return;
+    parsed.args.consideration.forEach((consideration: any) => addOpenSeaRoyaltyConsideration(consideration, dailyFees, dailyProtocolRevenue));
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -390,15 +488,12 @@ async function fetch(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  // Lending pool fees (borrow interest, flashloans, liquidations) via the
-  // shared DefiLlama Aave-V3 helper
   await getPoolFees(LENDING_POOL, options, {
     dailyFees,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
   });
 
-  // Neverland-specific revenue streams
   await Promise.all([
     addRoyaltyReceipts(options, dailyFees, dailyProtocolRevenue),
     addVeDustRevenue(options, dailyHoldersRevenue),
@@ -406,6 +501,7 @@ async function fetch(options: FetchOptions) {
     addDustBuybackRevenue(options, dailyHoldersRevenue),
   ]);
 
+  // Revenue = protocol revenue only; holders revenue is reported separately (matches Aave V3 convention).
   const dailyRevenue = dailyProtocolRevenue.clone();
 
   return {
@@ -418,52 +514,49 @@ async function fetch(options: FetchOptions) {
 }
 
 // ---------------------------------------------------------------------------
-// Methodology — Revenue and ProtocolRevenue share the same descriptions
-// because all protocol-collected fees flow to a single Neverland treasury.
+// Methodology
 // ---------------------------------------------------------------------------
 
-const protocolRevenueMethodology = "Protocol revenue collected by Neverland when lending fees or veDUST sale royalties in MON or WMON are earned.";
+const protocolRevenueMethodology = "Revenue retained by the Neverland protocol from lending operations and veDUST NFT sale royalties.";
 
 const protocolRevenueBreakdown = {
-  [METRIC.BORROW_INTEREST]: "The protocol share of borrower interest collected by Neverland.",
-  [METRIC.LIQUIDATION_FEES]: "The protocol share of liquidation value collected by Neverland.",
-  [METRIC.FLASHLOAN_FEES]: "The protocol share of flashloan fees collected by Neverland.",
-  [ROYALTIES_LABEL]: "veDUST sale royalty receipts in MON or WMON collected by Neverland.",
+  [METRIC.BORROW_INTEREST]: "Neverland's share of borrower interest, determined by each market's reserve factor.",
+  [METRIC.LIQUIDATION_FEES]: "Neverland's share of liquidation bonuses collected during position liquidations.",
+  [METRIC.FLASHLOAN_FEES]: "Neverland's share of premiums charged on flashloan executions.",
+  [ROYALTIES_LABEL]: "Royalties on veDUST NFT sales.",
 };
 
 const methodology = {
-  Fees: "Borrow interest, flashloan fees, liquidation fees, and veDUST sale royalties collected by the dedicated royalty wallet in MON or WMON.",
+  Fees: "All fees generated by the protocol: borrower interest across lending markets, flashloan premiums, liquidation penalties, and veDUST NFT sale royalties.",
   Revenue: protocolRevenueMethodology,
-  SupplySideRevenue: "Borrow interest and liquidation value distributed to lenders.",
+  SupplySideRevenue: "Borrower interest and liquidation proceeds distributed to liquidity providers. The lender share of flashloan premiums is included here as it accrues through the lending pool's liquidity index.",
   ProtocolRevenue: protocolRevenueMethodology,
-  HoldersRevenue: "Community-directed distributions only. Revenue contract funding transfers are recognized across the following 7 days, Merkl DUST liquidity incentives are recognized across each campaign's active period, and DUST buyback inventory is recognized when DUST reaches Neverland's Revenue wallet for final burn/value-accrual handling. DUST LP incentives are intentionally classified as holders revenue because they support DUST token value accrual and liquidity depth.",
+  HoldersRevenue: "Governance-directed revenue sharing. veDUST revenue contract funding is spread evenly across each 7-day epoch, Merkl DUST liquidity revenue is spread across their active period, and DUST buybacks on the day they reach Neverland's Revenue wallet.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.BORROW_INTEREST]: "All interest paid by borrowers across Neverland lending markets.",
-    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties and bonuses paid during liquidations.",
-    [METRIC.FLASHLOAN_FEES]: "Flashloan fees paid by flashloan borrowers and executors.",
-    [ROYALTIES_LABEL]: "veDUST sale royalty receipts collected by Neverland's dedicated royalty wallet in MON or WMON.",
+    [METRIC.BORROW_INTEREST]: "Total interest paid by borrowers across all Neverland lending markets.",
+    [METRIC.LIQUIDATION_FEES]: "Penalties and bonuses paid during position liquidations.",
+    [METRIC.FLASHLOAN_FEES]: "Neverland's treasury share of premiums charged on flashloan executions.",
+    [ROYALTIES_LABEL]: protocolRevenueBreakdown[ROYALTIES_LABEL],
   },
   Revenue: protocolRevenueBreakdown,
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "Borrow interest distributed to lenders.",
-    [METRIC.LIQUIDATION_FEES]: "Liquidation value distributed to lenders and liquidators.",
-    [METRIC.FLASHLOAN_FEES]: "Flashloan fees distributed to lenders through pool accounting.",
+    [METRIC.BORROW_INTEREST]: "Borrower interest distributed to lenders. Also captures the lender share of flashloan premiums, which accrues through the lending pool's liquidity index.",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation proceeds distributed to lenders and liquidators.",
   },
   ProtocolRevenue: protocolRevenueBreakdown,
   HoldersRevenue: {
-    [VEDUST_REWARDS_LABEL]: "Revenue contract funding transfers for veDUST holders, recognized ratably across the 7 days epoch of each funding transfer.",
-    [DUST_LP_INCENTIVES_LABEL]: "Neverland-controlled Merkl campaigns for DUST liquidity opportunities on Monad, recognized ratably across each campaign's active epoch.",
-    [DUST_BUYBACKS_LABEL]: "All DUST collected by Neverland's Revenue wallet recognized on the day the DUST reaches the Revenue wallet for final burn/value-accrual handling.",
+    [VEDUST_REWARDS_LABEL]: "Revenue sharing to veDUST holders in USDC, spread evenly across the 7-day epoch.",
+    [DUST_LP_INCENTIVES_LABEL]: "Revenue sharing via Merkl campaigns supporting DUST liquidity, spread evenly across each campaign's active period.",
+    [DUST_BUYBACKS_LABEL]: "DUST accrued by the Revenue wallet for burn, recognized on the day of receipt.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
-  dependencies: [Dependencies.ALLIUM],
+  pullHourly: false,
   chains: [CHAIN.MONAD],
   fetch,
   start: "2025-11-23",
