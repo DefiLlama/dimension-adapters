@@ -24,6 +24,6 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
 export default {
   version: 2,
   adapter: {
-    [CHAIN.AVAX]: { fetch, start: "2026-04-14" },
+    [CHAIN.AVAX]: { fetch, start: "2026-04-01" },
   },
 };
