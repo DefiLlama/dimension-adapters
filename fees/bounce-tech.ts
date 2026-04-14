@@ -102,12 +102,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2026-01-28',
-    },
-  },
+  start: '2026-01-28',
+  chains: [CHAIN.HYPERLIQUID],
   methodology,
   breakdownMethodology,
 };
