@@ -1,10 +1,10 @@
 // Bounce - Leveraged Tokens on HyperEVM (Open Interest)
 //
-// Open Interest = sum of (totalSupply × exchangeRate × targetLeverage / 1e18 ^ 3) across all tokens
+// Open Interest = sum of (totalSupply × exchangeRate × targetLeverage / (1e18^3 / 10^decimals)) across all tokens
 //   totalSupply    = outstanding LT token supply
 //   exchangeRate   = current NAV per LT token
 //   targetLeverage = leverage multiplier per token
-//   Open Interest  = totalSupply × exchangeRate × targetLeverage / 1e18 ^ 3
+//   Open Interest  = totalSupply × exchangeRate × targetLeverage / (1e18^3 / 10^decimals) → base asset units
 //
 // Contract resolution chain:
 //   GlobalStorage.factory()         → Factory address
@@ -17,10 +17,12 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
-const SCALE = (10n ** 18n) ** 3n; // 1e18 ^ 3
 
 const fetch = async (options: FetchOptions) => {
   const factory = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
+  const baseAsset = await options.api.call({ abi: 'address:baseAsset', target: GLOBAL_STORAGE });
+  const decimals: number = await options.api.call({ abi: 'uint8:decimals', target: baseAsset });
+  const SCALE = (10n ** 18n) ** 3n / 10n ** BigInt(decimals); // supply[1e18] * rate[1e18] * leverage[1e18], scaled down to base asset decimals
 
   const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
 
@@ -34,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
     if (rate === 0n) return;
     const supply = BigInt(totalSupplies[i]);
     const leverage = BigInt(leverages[i]);
-    openInterestAtEnd.addUSDValue(Number(supply * rate * leverage / SCALE));
+    openInterestAtEnd.add(baseAsset, supply * rate * leverage / SCALE);
   });
 
   return { openInterestAtEnd };
