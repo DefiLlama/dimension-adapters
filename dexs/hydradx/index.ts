@@ -108,6 +108,9 @@ const adapter: SimpleAdapter = {
       'StableSwap Fees To LPs': 'All fees collected from Stableswap pools go to LPs.',
       'Omnipool Asset Fees To LPs': '50% of Omnipool asset fees stay in the pool for LPs.',
     },
+    HoldersRevenue: {
+      'Omnipool Asset Fees To Stakers & Referrals': '50% of Omnipool asset fees distributed via the Referral pallet to HDX stakers, referrers, and traders.',
+    },
   }
 };
 

@@ -9,9 +9,9 @@ const FEES_API = "https://hydration-metrics-aggregator.indexer.hydration.cloud/a
 // - pepl_liquidation_profit: 100% protocol revenue from PEPL liquidations
 // - hsm_revenue: HSM arb profits + yield from yield-bearing stablecoins
 const EXTRA_PROTOCOL_STREAMS = [
-  { productType: "money-market", streamType: "liquidation_penalty",     label: "Liquidation Penalty"    },
-  { productType: "money-market", streamType: "pepl_liquidation_profit", label: "PEPL Liquidation Profit"},
-  { productType: "hollar",       streamType: "hsm_revenue",             label: "HSM Revenue"            },
+  { productType: "money-market", streamType: "liquidation_penalty",     label: "Liquidation Penalty",     revenueLabel: "Liquidation Penalty To Treasury"     },
+  { productType: "money-market", streamType: "pepl_liquidation_profit", label: "PEPL Liquidation Profit", revenueLabel: "PEPL Liquidation Profit To Treasury" },
+  { productType: "hollar",       streamType: "hsm_revenue",             label: "HSM Revenue",             revenueLabel: "HSM Revenue To Treasury"             },
 ] as const
 
 async function fetchProtocolStream(productType: string, streamType: string, startTime: string, endTime: string): Promise<number> {
@@ -90,8 +90,8 @@ const fetch = async (options: FetchOptions) => {
     if (totalDebt > 0 && borrowRate > 0) {
       const dailyInterest = totalDebt * borrowRate / BigInt(365) / LiquidityIndexDecimals
       const dailyInterestUSD = Number(dailyInterest) / 1e18
-      dailyFees.addUSDValue(dailyInterestUSD)
-      dailyProtocolRevenue.addUSDValue(dailyInterestUSD)
+      dailyFees.addUSDValue(dailyInterestUSD, 'Borrow Interest')
+      dailyProtocolRevenue.addUSDValue(dailyInterestUSD, 'Borrow Interest To Treasury')
     }
   }
 
@@ -160,9 +160,9 @@ const fetch = async (options: FetchOptions) => {
     )
   )
   for (let i = 0; i < EXTRA_PROTOCOL_STREAMS.length; i++) {
-    const { label } = EXTRA_PROTOCOL_STREAMS[i]
+    const { label, revenueLabel } = EXTRA_PROTOCOL_STREAMS[i]
     dailyFees.addUSDValue(extraAmounts[i], label)
-    dailyProtocolRevenue.addUSDValue(extraAmounts[i], label)
+    dailyProtocolRevenue.addUSDValue(extraAmounts[i], revenueLabel)
   }
 
   return {
@@ -180,7 +180,21 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2024-11-26',
     }
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Borrow Interest':        'Interest paid by borrowers across all money market reserves.',
+      'Liquidation Penalty':    "Treasury's 10% cut from money market liquidations.",
+      'PEPL Liquidation Profit':'Protocol revenue from PEPL (Peg Enforcement Protection Liquidation) liquidations.',
+      'HSM Revenue':            'Hollar Stability Module arb profits and yield from yield-bearing stablecoins.',
+    },
+    ProtocolRevenue: {
+      'Borrow Interest To Treasury':        'HOLLAR borrow interest — CDP stablecoin where 100% goes to Treasury.',
+      'Liquidation Penalty To Treasury':    "Treasury's 10% cut from money market liquidations.",
+      'PEPL Liquidation Profit To Treasury':'100% of PEPL liquidation proceeds to Treasury.',
+      'HSM Revenue To Treasury':            'Hollar Stability Module revenue to Treasury.',
+    },
+  },
 }
 
 export default adapter
