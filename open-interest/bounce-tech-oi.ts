@@ -1,8 +1,8 @@
 // Bounce - Leveraged Tokens on HyperEVM (Open Interest)
 //
-// Open Interest = sum of (totalSupply × exchangeRate × targetLeverage / 1e18^3) across all tokens
+// Open Interest = sum of (totalSupply × exchangeRate × targetLeverage / 1e18 ^ 3) across all tokens
 //   totalSupply    = outstanding LT token supply
-//   exchangeRate   = current NAV per LT token in USD (1e18 scale, includes unrealized PnL)
+//   exchangeRate   = current NAV per LT token
 //   targetLeverage = leverage multiplier per token
 //   Open Interest  = totalSupply × exchangeRate × targetLeverage / 1e18 ^ 3
 //
@@ -24,19 +24,17 @@ const fetch = async (options: FetchOptions) => {
 
   const lts: string[] = await options.api.call({ abi: 'address[]:lts', target: factory });
 
-  const [totalSupplies, exchangeRates, leverages] = await Promise.all([
-    options.api.multiCall({ abi: 'uint256:totalSupply', calls: lts }),
-    options.api.multiCall({ abi: 'uint256:exchangeRate', calls: lts, permitFailure: true }),
-    options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts }),
-  ]);
+  const totalSupplies = await options.api.multiCall({ abi: 'uint256:totalSupply', calls: lts });
+  const exchangeRates = await options.api.multiCall({ abi: 'uint256:exchangeRate', calls: lts, permitFailure: true });
+  const leverages = await options.api.multiCall({ abi: 'uint256:targetLeverage', calls: lts });
 
-  let openInterestAtEnd = 0;
+  const openInterestAtEnd = options.createBalances();
   lts.forEach((_lt, i) => {
     const rate = BigInt(exchangeRates[i] ?? 0);
     if (rate === 0n) return;
     const supply = BigInt(totalSupplies[i]);
     const leverage = BigInt(leverages[i]);
-    openInterestAtEnd += Number(supply * rate * leverage / SCALE);
+    openInterestAtEnd.addUSDValue(Number(supply * rate * leverage / SCALE));
   });
 
   return { openInterestAtEnd };
@@ -44,6 +42,9 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  methodology: {
+    OpenInterest: "Sum of totalSupply × exchangeRate × targetLeverage across all leveraged token contracts, representing total notional exposure",
+  },
   fetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
