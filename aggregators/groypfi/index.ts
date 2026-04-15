@@ -19,7 +19,7 @@ import { sleep } from "../../utils/utils";
  * Daily volume is reverse-calculated: volume = fee_inflow / 0.01
  *
  * Fee wallet (user-friendly): UQDu4AiT__JKuqT0Znje0RoXIQMPcj4uIGYZme3UK4hFlE_Q
- * Fee wallet (raw):           0:eee0084ffffc92aea4f46679ded118172103f723e2e206619a9eddf42b8845d4
+ * Fee wallet (raw):           0:eee00893fff24abaa4f46678ded11a1721030f723e2e20661999edd42b884594
  *
  * Website: https://groypfi.io
  */
@@ -113,7 +113,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.TON],
   start: "2025-01-04",
   methodology,
-  pullHourly: true
+  //pullHourly: true
 };
 
 export default adapter;
