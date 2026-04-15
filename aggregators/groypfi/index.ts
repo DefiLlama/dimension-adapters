@@ -113,7 +113,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.TON],
   start: "2025-01-04",
   methodology,
-  //pullHourly: true
+  pullHourly: true
 };
 
 export default adapter;
