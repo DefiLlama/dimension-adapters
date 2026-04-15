@@ -26,7 +26,7 @@ const SYNTHS = {
   ],
 };
 
-const EXTRA_INFLOWS: Record<string, Array<{ target: string; tokens: string[] }>> = {
+const EXTRA_INFLOWS: Record<string, Array<{ target: string; tokens: string[]; fromAddressFilter?: string }>> = {
   [CHAIN.OPTIMISM]: [
     {
       target: "0x91ecADB8EF5DACc6156fFC036aCF6295eAb7A545",
@@ -35,6 +35,13 @@ const EXTRA_INFLOWS: Record<string, Array<{ target: string; tokens: string[] }>>
         "0xf467C7d5a4A9C4687fFc7986aC6aD5A4c81E1404", // KITE
       ],
     },
+    {
+      target: "0xb3983cDdBa4B127960A4cDD531AB989264509e23",
+      tokens: [
+        "0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db", // VELO
+      ],
+      fromAddressFilter: "0x7DD72EF1f023ac5c2F4Cedcb278f4bfb2Bb60CbE",
+    },
   ],
   [CHAIN.BASE]: [
     {
@@ -42,6 +49,14 @@ const EXTRA_INFLOWS: Record<string, Array<{ target: string; tokens: string[] }>>
       tokens: [
         "0x940181a94A35A4569E4529A3CDfB74e38FD98631", // AERO
       ],
+    },
+    {
+      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+      tokens: [
+        "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d", // msUSD
+        "0x7Ba6F01772924a82D9626c126347A28299E98c98", // msETH
+      ],
+      fromAddressFilter: "0x8845126640B36df1D24bf3dF9B2903fD4c730FE6",
     },
   ],
   [CHAIN.ETHEREUM]: [
@@ -52,6 +67,16 @@ const EXTRA_INFLOWS: Record<string, Array<{ target: string; tokens: string[] }>>
         "0x856c4Efb76C1D1AE02e20CEB03A2A6a08b0b8dC3", // OETH
         "0x365accfca291e7d3914637abf1f7635db165bb09", // FXN
       ],
+    },
+  ],
+  [CHAIN.PLASMA]: [
+    {
+      target: "0xCE3187216B39ED222319D877956aC6b2eF1961E9",
+      tokens: [
+        "0x29AD7fE4516909b9e498B5a65339e54791293234", // msUSD
+        "0x7230a9D42D622E18FDf7207041EcA18465F9F1bE", // msETH
+      ],
+      fromAddressFilter: "0xf94EA39c02DfF32494FBaFcF72E546c640143D7D",
     },
   ],
 };
@@ -82,18 +107,27 @@ const MET_TOKEN = "0x2Ebd53d035150f328bd754D6DC66B99B0eDB89aa";
 const DISTRIBUTOR = "0x33f081a0f0240d0ed7e45c36848c01d7ad8038e9";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await addTokensReceived({
-    options,
-    tokens: SYNTHS[options.chain],
-    targets: [TREASURY[options.chain]],
-  });
+  const dailyFees = options.createBalances();
+
+  if (TREASURY[options.chain]) {
+    const synthFees = await addTokensReceived({
+      options,
+      tokens: SYNTHS[options.chain],
+      targets: [TREASURY[options.chain]],
+    });
+    dailyFees.addBalances(synthFees);
+  }
 
   for (const group of (EXTRA_INFLOWS[options.chain] ?? [])) {
-    const res = await addTokensReceived({
+    const params: any = {
       options,
       tokens: group.tokens,
       targets: [group.target],
-    });
+    };
+    if (group.fromAddressFilter) {
+      params.fromAddressFilter = group.fromAddressFilter;
+    }
+    const res = await addTokensReceived(params);
     dailyFees.addBalances(res);
   }
 
@@ -149,6 +183,9 @@ const adapter: SimpleAdapter = {
       start: '2023-05-11',
     },
     [CHAIN.OPTIMISM]: {
+      start: '2023-05-11',
+    },
+    [CHAIN.PLASMA]: {
       start: '2023-05-11',
     },
   },
