@@ -28,6 +28,9 @@ const adapter: Adapter = {
     Revenue: "All trading fees collected by the platform.",
     HoldersRevenue: "100% of all trading fees collected by the platform goes to $STRIKE holders.",
   },
+  breakdownMethodology: {
+    "Trading Fees": "Fees collected from trades executed on the Strike Finance.",
+  },
 };
 
 export default adapter;
