@@ -6,18 +6,6 @@ const swapEvent = 'event Swap(address indexed sender, address indexed recipient,
 
 const FACTORY = '0x32b9dA73215255d50D84FeB51540B75acC1324c2';
 
-// MEV swapper contracts execute swaps with fee=0 (ZERO_FEE_INDICATOR=420).
-// Their swaps should count toward volume but NOT toward fee revenue.
-const MEV_SWAPPER_RECIPIENTS = new Set([
-	'0x110E1C60ccdcCbeF58ad125022F0310176A41525', // MevSwapper
-	'0x19fC36E9A420527359e5822bf40076cbAd79b4B6', // MevHlSwapper
-].map(a => a.toLowerCase()));
-
-function isMevSwap(log: any): boolean {
-	const recipient = (log.args?.recipient ?? log.recipient)?.toString()?.toLowerCase();
-	return !!recipient && MEV_SWAPPER_RECIPIENTS.has(recipient);
-}
-
 function getSwapArgs(log: any) {
 	const args = log.args ?? log;
 	return { amount0: args.amount0, amount1: args.amount1 };
@@ -87,17 +75,14 @@ async function fetch(options: FetchOptions) {
 				amount1: a.amount1.toString()
 			});
 
-			// Skip fee calculation for MEV swapper swaps (they execute at zero fee)
-			if (!isMevSwap(log)) {
-				addOneToken({
-					chain: options.chain,
-					balances: dailyFees,
-					token0,
-					token1,
-					amount0: a.amount0.toString() * fee,
-					amount1: a.amount1.toString() * fee
-				});
-			}
+			addOneToken({
+				chain: options.chain,
+				balances: dailyFees,
+				token0,
+				token1,
+				amount0: a.amount0.toString() * fee,
+				amount1: a.amount1.toString() * fee
+			});
 		}
 	})
 
