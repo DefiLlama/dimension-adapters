@@ -26,5 +26,5 @@ export default {
   pullHourly: true,
   fetch,
   chains: [CHAIN.AVAX],
-  start: "2026-04-14",
+  start: "2026-04-13",
 };
