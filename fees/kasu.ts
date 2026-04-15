@@ -87,9 +87,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         ? totalFee * (FULL_PERCENT - performanceFee) / performanceFee
         : 0n;
 
-      const grossInterest = totalFee + supplySide;
-
-      dailyFees.add(paymentToken, grossInterest, METRIC.BORROW_INTEREST);
+      dailyFees.add(paymentToken, totalFee, METRIC.PERFORMANCE_FEES);
       dailyRevenue.add(paymentToken, protocolFee, PROTOCOL_SPLIT);
       dailyRevenue.add(paymentToken, ecosystemFee, HOLDERS_SPLIT);
       dailyProtocolRevenue.add(paymentToken, protocolFee, PROTOCOL_SPLIT);
@@ -109,9 +107,9 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Gross interest paid by borrowers across Kasu lending pools.",
-  UserFees: "Same as Fees - borrowers pay interest on borrowed assets.",
-  Revenue: "Performance fees retained by the protocol: the sum of the protocol-receiver share and the rKSU-holder share.",
+  Fees: "Performance fees collected by the protocol from lending pool interest accruals (a percentage of gross borrower interest).",
+  UserFees: "Same as Fees.",
+  Revenue: "Performance fees retained by the protocol: the sum of the protocol-receiver share and the rKSU-holder share (equal to Fees).",
   ProtocolRevenue: "Performance fees sent to the protocol fee receiver.",
   HoldersRevenue: "Performance fees distributed to KSU token lockers (rKSU holders).",
   SupplySideRevenue: "Interest earned by lenders (gross borrower interest minus performance fees).",
@@ -137,7 +135,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: "Gross interest paid by borrowers",
+      [METRIC.PERFORMANCE_FEES]: "Performance fees collected by the protocol from borrower interest",
     },
     Revenue: {
       [PROTOCOL_SPLIT]: "Share of performance fees routed to the protocol fee receiver",
